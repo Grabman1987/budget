@@ -66,8 +66,8 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   expect(
     await page.locator('.plan-tba').evaluate((e) => e.parentElement!.hasAttribute('open')),
   ).toBe(false);
-  await expect(page.getByText('Monatsdetails', { exact: true })).toBeVisible();
-  expect(await page.locator('.plan-details').getAttribute('open')).toBeNull();
+  await expect(page.getByText('Monatsdetails', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.inspector-section[open]')).toHaveCount(1);
   const desktop = info.project.name === 'desktop';
   if (desktop) {
     const dimensions = await page.locator('.plan').evaluate((plan) => {
@@ -129,7 +129,17 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     await page.getByRole('button', { name: '2 Monate', exact: true }).click();
     await expect(page.locator('.ptable-multi .prow')).toHaveCount(18);
     await expect(page.getByTestId('tba-2026-11')).toBeVisible();
-    await page.getByRole('button', { name: '1 Monat', exact: true }).click();
+    await page
+      .locator('.inspector-section > summary')
+      .filter({ hasText: 'Wasserfall-Stufen' })
+      .click();
+    await page.locator('.rail-btn').filter({ hasText: 'Laufender Monat' }).click();
+    await expect(page.getByRole('button', { name: '1 Monat', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(page.locator('.ptable-multi')).toHaveCount(0);
+    await page.getByLabel('Ansicht', { exact: true }).selectOption('group');
   }
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });

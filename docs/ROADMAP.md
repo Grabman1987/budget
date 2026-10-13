@@ -8,6 +8,14 @@
 - [x] Focused web typecheck, changed-file lint/format, 15 affected unit tests, desktop 9 passing browser/setup cases and mobile 7 passing/1 desktop-only skip. Synthetic desktop 1440/collapsed/mobile 390, light/dark Axe and screenshots: [delivery notes](evidence/sidebar-accounts-zerosum/PR.md).
 - [ ] Required CI, Linux visual baseline review and owner acceptance.
 
+### Plan #446 — month and category inspector — owner 2026-10-12
+
+- [x] Sticky 320px right inspector from 1180px; collapsible below the grid at smaller widths. Move temporary Monatsdetails into five keyboard disclosures, only Monatsüberblick open by default.
+- [x] Category-name selection, Escape/outside dismissal, target progress, existing assign/move/cover forms, expected-payment context, history URL and category lifecycle menu.
+- [x] Single/multiple selection quick values reuse the existing ordered server action and grouped undo; other Plan registers retain their existing styling.
+- [x] Focused web typecheck/lint/format/CSS scale, 48 unit tests and 23 desktop/mobile E2E cases; synthetic 1440px/390px light/dark evidence. See [delivery notes](evidence/plan-inspector/PR.md).
+- [ ] Required CI, pinned Linux visual review and owner acceptance; phone action layout remains package 3.
+
 ### Plan #441 — compact grouped grid — owner 2026-10-12
 
 - [x] Groups are the default; selectable waterfall, time, classes and overspent-only views. Compact category/group rows, aligned cent sums and keyboard-accessible collapse controls.
@@ -15,7 +23,7 @@
 - [x] Visible + Gruppe at the grid head/end and + Kategorie in each open group; C/G reuse the existing forms outside editable fields.
 - [x] Desktop 1440 × 900 fold (14 category rows, 120 px before the grid), mobile 390 touch/overflow and light/dark Axe evidence, focused typecheck/lint/format/unit/E2E verification. See [delivery evidence](evidence/plan-compact-grid/README.md).
 - [ ] Required CI and owner acceptance.
-- [ ] Package 2 inspector and package 3 phone action-only expansion remain separate.
+- [x] Package 2 inspector implemented in #446; package 3 phone action-only expansion remains separate.
 
 ### Booking dialog layout and input stability — #438 (2026-10-12)
 

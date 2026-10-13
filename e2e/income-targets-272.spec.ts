@@ -72,7 +72,7 @@ test('expected income stays a planning difference when actual cash is over-assig
   });
 
   await page.goto('/plan/monat?monat=2026-10');
-  await page.locator('.plan-details > summary').click();
+  await page.locator('#inspector-income > summary').click();
   const card = page.getByTestId('income-targets');
   await expect(
     card.getByText('Erwartetes Einkommen', { selector: 'dt', exact: true }),
