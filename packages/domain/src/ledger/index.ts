@@ -86,6 +86,7 @@ export {
   type VersionedTarget,
 } from './summary';
 export * from './unclassified';
+export { projectUpcomingRegister } from './register-upcoming';
 export {
   cashValuation,
   convertCashCents,

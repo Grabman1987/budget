@@ -149,6 +149,15 @@ export const expectedQuery = () =>
     queryFn: () => request<{ payments: ExpectedPayment[] }>('GET', url()).then((r) => r.payments),
   });
 
+export const registerOccurrencesQuery = (today: string) =>
+  queryOptions({
+    queryKey: [...EXPECTED_KEY, 'register-next', today],
+    queryFn: () =>
+      request<{ occurrences: Occurrence[] }>('GET', url('/register-next')).then(
+        (r) => r.occurrences,
+      ),
+  });
+
 /** `includeSkipped` also lists the struck (gestrichen) occurrences, so they can be brought back. */
 export const occurrencesQuery = (from: string, to: string, includeSkipped = false) =>
   queryOptions({
@@ -195,6 +204,10 @@ export const addVersion = (id: string, version: VersionFields & { validFrom: str
 
 export const linkOccurrence = (id: string, bookingId: string) =>
   request<WriteResult>('POST', url(`/occurrences/${enc(id)}/link`), { bookingId });
+export const bookOccurrence = (id: string, date: string) =>
+  request<{ bookingId: string } & WriteResult>('POST', url(`/occurrences/${enc(id)}/book`), {
+    date,
+  });
 export const unlinkOccurrence = (id: string) =>
   request<WriteResult>('POST', url(`/occurrences/${enc(id)}/unlink`), {});
 export const markMissed = (id: string) =>

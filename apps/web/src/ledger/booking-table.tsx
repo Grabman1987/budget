@@ -3,10 +3,12 @@ import { InlineBookingCell } from './inline-booking-cell';
 import type { BookingPatch } from './api';
 import { keepSplit } from './booking-model';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowDown, ArrowUp, Pencil } from 'lucide-react';
+import { ArrowDown, ArrowUp, CalendarDays, Pencil } from 'lucide-react';
 import { Fragment, useState, type ReactNode } from 'react';
 import { CategoryCell, FlagCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
-import { dayHeading, nativeCurrency, valuedCurrency, shortDay, eur } from './format';
+import { dayHeading, nativeCurrency, valuedCurrency, shortDay, upcomingDate, eur } from './format';
+import type { Occurrence } from '../expected/api';
+import { ScheduledRegisterRow } from './scheduled-register-row';
 import { flashRows, useFlashing } from './flash';
 import { useLedgerWrites } from './mutations';
 import { lookupsQuery } from './queries';
@@ -26,6 +28,11 @@ export interface BookingTableProps {
   onOpen: (booking: ListedBooking) => void;
   selection?: Selection;
   sort?: { key: BookingSort; direction: 'asc' | 'desc'; onSort: (key: BookingSort) => void };
+  upcoming?: {
+    today: string;
+    schedules: readonly Occurrence[];
+    balances: ReadonlyMap<string, number | null>;
+  };
 }
 
 const canEditCategory = (b: ListedBooking) =>
@@ -43,6 +50,7 @@ export function BookingTable({
   onOpen,
   selection,
   sort,
+  upcoming,
 }: BookingTableProps) {
   useAmountPrivacy();
   const classes = useCategoryClasses();
@@ -89,7 +97,7 @@ export function BookingTable({
     </th>
   );
 
-  const groups = all ? groupByDay(items) : [{ day: '', items: [...items], sum: 0 }];
+  const groups = all && !upcoming ? groupByDay(items) : [{ day: '', items: [...items], sum: 0 }];
   return (
     <>
       {selection && (
@@ -130,7 +138,7 @@ export function BookingTable({
             )}
             {head('Kategorie')}
             {head('Betrag', 'amount', true)}
-            {!all && head('Saldo', undefined, true)}
+            {(!all || upcoming) && head('Saldo', undefined, true)}
             <th scope="col" className="kc-status">
               <span className="sr-only">Status</span>
             </th>
@@ -139,7 +147,7 @@ export function BookingTable({
         <tbody>
           {groups.map((group) => (
             <Fragment key={group.day || 'all'}>
-              {all && (
+              {all && !upcoming && (
                 <tr className="kday">
                   <td colSpan={selection ? 8 : 7}>
                     <span className="tech">{dayHeading(group.day)}</span>
@@ -159,22 +167,49 @@ export function BookingTable({
                   </td>
                 </tr>
               )}
-              {group.items.map((b) => (
-                <Row
-                  key={b.id}
-                  booking={b}
-                  variant={variant}
-                  classes={classes}
-                  {...(selection ? { selection } : {})}
-                  onOpen={onOpen}
-                  categories={lookups.data?.categories ?? []}
-                  groups={lookups.data?.groups ?? []}
-                  onCategory={setCategory}
-                  onFlag={setFlag}
-                  onPatch={(patch) => writes.patch.mutateAsync({ id: b.id, patch })}
-                  busy={writes.patch.isPending}
-                />
-              ))}
+              {[
+                ...group.items.map((b) => ({ date: b.date, id: b.id, booking: b })),
+                ...(upcoming?.schedules ?? []).map((s) => ({
+                  date: s.dueDate,
+                  id: s.occurrenceId,
+                  schedule: s,
+                })),
+              ]
+                .sort((a, b) =>
+                  upcoming ? a.date.localeCompare(b.date) || a.id.localeCompare(b.id) : 0,
+                )
+                .map((entry) =>
+                  'schedule' in entry ? (
+                    <ScheduledRegisterRow
+                      key={entry.id}
+                      occurrence={entry.schedule}
+                      today={upcoming!.today}
+                      all={all}
+                      balance={upcoming!.balances.get(entry.id) ?? null}
+                    />
+                  ) : (
+                    <Row
+                      key={entry.id}
+                      booking={entry.booking}
+                      variant={variant}
+                      classes={classes}
+                      {...(upcoming
+                        ? {
+                            upcomingToday: upcoming.today,
+                            projectedBalance: upcoming.balances.get(entry.id) ?? null,
+                          }
+                        : {})}
+                      {...(selection ? { selection } : {})}
+                      onOpen={onOpen}
+                      categories={lookups.data?.categories ?? []}
+                      groups={lookups.data?.groups ?? []}
+                      onCategory={setCategory}
+                      onFlag={setFlag}
+                      onPatch={(patch) => writes.patch.mutateAsync({ id: entry.id, patch })}
+                      busy={writes.patch.isPending}
+                    />
+                  ),
+                )}
             </Fragment>
           ))}
         </tbody>
@@ -209,6 +244,8 @@ function Row({
   onFlag,
   onPatch,
   busy,
+  upcomingToday,
+  projectedBalance,
 }: {
   booking: ListedBooking;
   variant: 'account' | 'all';
@@ -221,6 +258,8 @@ function Row({
   onFlag: (b: ListedBooking, flag: BookingFlag | null) => void;
   onPatch: (patch: BookingPatch) => Promise<unknown>;
   busy: boolean;
+  upcomingToday?: string;
+  projectedBalance?: number | null;
 }) {
   useAmountPrivacy();
   const flashing = useFlashing(b.id);
@@ -238,6 +277,7 @@ function Row({
         b.status === 'pending' && 'is-pending',
         flashing && 'tx-flash',
         checked && 'is-selected',
+        upcomingToday && 'is-upcoming',
       )}
       data-booking={b.id}
     >
@@ -260,7 +300,7 @@ function Row({
       </td>
       <td className="kc-date kx-date">
         <InlineBookingCell booking={b} field="date" onSave={onPatch} onOpen={() => onOpen(b)}>
-          {shortDay(b.date)}
+          {upcomingToday ? upcomingDate(b.date, upcomingToday) : shortDay(b.date)}
         </InlineBookingCell>
       </td>
       <td className="kx-payee">
@@ -339,7 +379,12 @@ function Row({
           onSave={onPatch}
           onOpen={() => onOpen(b)}
         >
-          <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
+          <span
+            className={cx(
+              b.currency !== 'EUR' && 'kfx-money',
+              upcomingToday && (b.amountCents < 0 ? 'kupcoming-negative' : 'kupcoming-positive'),
+            )}
+          >
             {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
           </span>
         </InlineBookingCell>
@@ -347,30 +392,45 @@ function Row({
           <small className="kmeta">Kategorie netto {eur(b.categorySpendingCents)}</small>
         )}
       </td>
-      {variant === 'account' && (
+      {(variant === 'account' || upcomingToday) && (
         <td className="kc-num kc-run kx-run">
           <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
-            {b.balanceAfterCents === null
-              ? ''
-              : valuedCurrency(b.balanceAfterCents, b.currency, b.balanceValuation)}
+            {upcomingToday
+              ? projectedBalance == null
+                ? 'Saldo offen'
+                : nativeCurrency(projectedBalance, b.currency)
+              : b.balanceAfterCents === null
+                ? ''
+                : valuedCurrency(b.balanceAfterCents, b.currency, b.balanceValuation)}
           </span>
         </td>
       )}
       <td className="kc-status kx-status">
-        <StatusCell
-          status={b.status}
-          iconOnly
-          disabled={busy}
-          onToggle={
-            b.status === 'reconciled'
-              ? undefined
-              : () => {
-                  void onPatch({ status: b.status === 'pending' ? 'confirmed' : 'pending' }).catch(
-                    () => undefined,
-                  );
-                }
-          }
-        />
+        {upcomingToday ? (
+          <span
+            className="kstatus-btn"
+            role="img"
+            aria-label="Kommende Buchung"
+            title="Kommende Buchung"
+          >
+            <CalendarDays size={16} aria-hidden="true" />
+          </span>
+        ) : (
+          <StatusCell
+            status={b.status}
+            iconOnly
+            disabled={busy}
+            onToggle={
+              b.status === 'reconciled'
+                ? undefined
+                : () => {
+                    void onPatch({
+                      status: b.status === 'pending' ? 'confirmed' : 'pending',
+                    }).catch(() => undefined);
+                  }
+            }
+          />
+        )}
       </td>
     </tr>
   );

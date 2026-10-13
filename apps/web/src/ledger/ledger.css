@@ -522,6 +522,57 @@
   color: var(--ink-2);
 }
 
+.kupcoming summary,
+.kregister-today {
+  padding: 12px 8px;
+  border-block: 1px solid var(--rule);
+  background: var(--surface-2);
+}
+.kupcoming summary {
+  cursor: pointer;
+  min-height: var(--touch);
+}
+.kupcoming .kc-date {
+  width: 160px;
+  letter-spacing: 0;
+}
+.ktx .is-upcoming td,
+.ktx .is-upcoming .kname-s,
+.ktx .is-upcoming .kcat,
+.ktx .is-upcoming .kname-btn,
+.ktx .is-upcoming .kcell-edit,
+.ktx .is-upcoming .kstatus-btn {
+  color: var(--ink-3);
+  font-weight: 400;
+}
+.ktx .is-upcoming .kupcoming-positive {
+  color: color-mix(in srgb, var(--good-ink) 70%, var(--ink-3));
+}
+.ktx .is-upcoming .kupcoming-negative {
+  color: color-mix(in srgb, var(--bad-ink) 70%, var(--ink-3));
+}
+.kschedule-actions {
+  display: flex;
+  flex-wrap: wrap;
+}
+.kschedule-actions .btn {
+  min-height: var(--touch);
+  font-weight: 400;
+}
+@media (max-width: 767px) {
+  .kupcoming .kc-date {
+    width: auto;
+    overflow-wrap: anywhere;
+  }
+  .kupcoming .ktx.ktx-all tr {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'flag payee amount' '. cat acct' '. date run' '. . status';
+  }
+  .kschedule-actions {
+    grid-area: actions;
+  }
+}
+
 /* Kontostand prüfen */
 .kv-list {
   display: grid;

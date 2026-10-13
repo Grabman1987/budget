@@ -21,6 +21,7 @@ import { KONTEN_BUCHUNGEN_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { BookingTable, type Selection } from './booking-table';
+import { UpcomingRegister, useRegisterToday } from './upcoming-register';
 import { CategoryCombobox } from './category-picker';
 import {
   activeFilterKeys,
@@ -63,7 +64,10 @@ export function BookingsPage() {
     });
 
   const filter = useMemo(() => filterFromSearch(search), [search]);
-  const list = useInfiniteQuery(bookingsInfiniteQuery(filter));
+  const today = useRegisterToday();
+  const list = useInfiniteQuery(
+    bookingsInfiniteQuery({ ...filter, to: filter.to && filter.to < today ? filter.to : today }),
+  );
   const accounts = useQuery(accountsQuery());
   const lookups = useQuery(lookupsQuery());
   const writes = useLedgerWrites();
@@ -282,6 +286,12 @@ export function BookingsPage() {
         {list.isError && (
           <ErrorNote what="Buchungen" error={list.error} onRetry={() => void list.refetch()} />
         )}
+        <UpcomingRegister
+          filter={filter}
+          today={today}
+          variant="all"
+          onOpen={(booking) => setPanel({ mode: 'edit', booking })}
+        />
         {list.data && items.length === 0 && (
           <EmptyNote
             action={
@@ -309,8 +319,8 @@ export function BookingsPage() {
             }
           >
             {hasFilter(search)
-              ? 'Keine Buchungen für diese Filter.'
-              : 'Noch keine Buchungen. Erfasse die erste mit „Buchung erfassen“.'}
+              ? 'Keine bisherigen Buchungen für diese Filter.'
+              : 'Noch keine Buchungen bis heute. Erfasse eine mit „Buchung erfassen“.'}
           </EmptyNote>
         )}
         {items.length > 0 && (

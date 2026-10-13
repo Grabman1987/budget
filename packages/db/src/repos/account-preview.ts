@@ -22,27 +22,21 @@ import type { Executor } from './types';
 import { forecastInputs, loadFacts, scheduled } from './rule-inputs';
 import { CategoryRuleError } from './errors';
 
-/** Read-only account projection: native cash, no household variable plan or automatic booking. */
-export function accountPreview(
+/** Read-only matching shared by the account chart and the upcoming register. */
+export function unbookedAccountOccurrences(
   db: Executor,
   accountId: string,
-  currency: string,
   asOf: string,
-  days: number,
-  options?: { horizon: LiquidityHorizon; levers: ReadonlyArray<LiquidityLeverId> },
+  from: string,
+  to: string,
 ) {
-  if (options) days = horizonDays(options.horizon, asOf);
-  if (!options && !validFuturePreviewDays(days))
-    throw new RangeError('Preview covers 0–365 whole days');
-  if (days === 0) return { points: [], unavailableCurrencies: [] };
-  const to = addDays(asOf, days);
   const rows = listBookings(db, { accountId, to });
-  const due = upcoming(db, addDays(asOf, 1), to).filter(
+  const due = upcoming(db, from, to).filter(
     (o) => o.accountId === accountId && o.status === 'expected' && !o.bookingId,
   );
   // Match unlinked pending captures as well. The real matching worker is never run by a chart read.
   const candidates = rows
-    .filter((b) => b.status === 'pending' || b.date > asOf)
+    .filter((b) => b.status === 'pending' || b.date >= asOf)
     .map((b) => ({ b, splits: b.splits }));
   const matches = assignMatches(
     due.map((o) => ({
@@ -71,7 +65,25 @@ export function accountPreview(
       upcoming(db, addDays(asOf, -31), to).flatMap((o) => (o.bookingId ? [o.bookingId] : [])),
     ),
   );
-  const unbooked = due.filter((o) => !matches.has(o.occurrenceId));
+  return due.filter((o) => !matches.has(o.occurrenceId));
+}
+
+/** Read-only account projection: native cash, no household variable plan or automatic booking. */
+export function accountPreview(
+  db: Executor,
+  accountId: string,
+  currency: string,
+  asOf: string,
+  days: number,
+  options?: { horizon: LiquidityHorizon; levers: ReadonlyArray<LiquidityLeverId> },
+) {
+  if (options) days = horizonDays(options.horizon, asOf);
+  if (!options && !validFuturePreviewDays(days))
+    throw new RangeError('Preview covers 0–365 whole days');
+  if (days === 0) return { points: [], unavailableCurrencies: [] };
+  const to = addDays(asOf, days);
+  const rows = listBookings(db, { accountId, to });
+  const unbooked = unbookedAccountOccurrences(db, accountId, asOf, addDays(asOf, 1), to);
   const facts = options ? loadFacts(db, asOf) : undefined;
   if (
     facts &&

@@ -8,7 +8,6 @@ import {
   isCalendarRange,
   lastDayOfMonth,
   monthOf,
-  todayInVienna,
   type Period,
   type LiquidityHorizon,
   type LiquidityLeverId,
@@ -22,6 +21,7 @@ import { PageFrame } from '../pages/placeholder-page';
 import { BalanceChart } from './balance-chart';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { BookingTable } from './booking-table';
+import { UpcomingRegister, useRegisterToday } from './upcoming-register';
 import {
   eur,
   longDay,
@@ -138,7 +138,7 @@ function AccountBody({ account }: { account: AccountRow }) {
   const canUseLiquidity =
     account.currency === 'EUR' && account.onBudget && account.role === 'budget';
   const liquidity = canUseLiquidity && search.vorschau === 'liquiditaet';
-  const today = todayInVienna();
+  const today = useRegisterToday();
   const month = monthOf(today);
   const [period, setPeriod] = useState<Period | '6M'>('3M');
   const settings = useQuery(displaySettingsQuery());
@@ -181,7 +181,9 @@ function AccountBody({ account }: { account: AccountRow }) {
   });
   const limit = account.overdraftLimitCents ?? account.creditLimitCents;
   const limitLabel = account.overdraftLimitCents !== null ? 'Dispolimit' : 'Kreditrahmen';
-  const list = useInfiniteQuery(bookingsInfiniteQuery({ accountId: account.id }, PAGE_SIZE));
+  const list = useInfiniteQuery(
+    bookingsInfiniteQuery({ accountId: account.id, to: today }, PAGE_SIZE),
+  );
   // The month figure remains independent of the history's loaded pages.
   const movement = useQuery(
     bookingsQuery(
@@ -450,7 +452,15 @@ function AccountBody({ account }: { account: AccountRow }) {
       {list.isError && (
         <ErrorNote what="Buchungen" error={list.error} onRetry={() => void list.refetch()} />
       )}
-      {page && items.length === 0 && <EmptyNote>Noch keine Buchungen auf diesem Konto.</EmptyNote>}
+      <UpcomingRegister
+        filter={{ accountId: account.id }}
+        today={today}
+        variant="account"
+        onOpen={(booking) => setPanel({ mode: 'edit', booking })}
+      />
+      {page && items.length === 0 && (
+        <EmptyNote>Noch keine Buchungen bis heute auf diesem Konto.</EmptyNote>
+      )}
       {items.length > 0 && (
         <BookingTable
           items={items}
