@@ -5,7 +5,7 @@ import { sampleTest as test, expect } from './sample';
 test.describe.configure({ timeout: 90_000 });
 test('Plan income estimate, targets and unfunded category navigation', async ({ page }, info) => {
   await page.goto('/plan/monat?monat=2026-09');
-  await page.locator('.plan-details > summary').click();
+  await page.locator('#inspector-income > summary').click();
   const card = page.getByTestId('income-targets');
   await expect(card).toBeVisible();
   const response = await page.request.get('/api/budget/2026-09');
@@ -20,6 +20,9 @@ test('Plan income estimate, targets and unfunded category navigation', async ({ 
   await expect(buttons).toHaveCount(data.unfundedCategoryIds.length);
   await buttons.first().focus();
   await page.keyboard.press('Enter');
+  // Selecting the category opens it in the inspector; its history link leads to the detail page.
+  const inspector = page.getByRole('complementary', { name: 'Plan-Inspektor' });
+  await inspector.getByRole('link', { name: 'Verlauf und Buchungen' }).click();
   await expect(page).toHaveURL(/\/plan\/monat\/envelope\//);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.goBack();

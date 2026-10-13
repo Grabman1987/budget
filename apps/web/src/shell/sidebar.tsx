@@ -42,7 +42,7 @@ export function BrandMark() {
 }
 
 /**
- * "Planliste": the five areas as numbered sheets, the account hierarchy below them, settings and
+ * "Planliste": the five areas with icons, the account hierarchy below them, settings and
  * profile at the bottom.
  */
 export function Sidebar({ area }: { area: AreaId | undefined }) {
@@ -75,7 +75,6 @@ export function Sidebar({ area }: { area: AreaId | undefined }) {
                   )}
                   <span className="label">{a.label}</span>
                   {(a.id === 'heute' || a.id === 'konten') && <QueueBadge />}
-                  <span className="sheet-no">{a.no}</span>
                 </AppLink>
               </li>
             );

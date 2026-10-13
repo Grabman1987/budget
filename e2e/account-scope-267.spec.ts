@@ -92,11 +92,8 @@ test('Heute explains sidebar, forecast and net-worth account scopes', async ({
       'Kreditkarten',
       'Investments',
     ]);
-    await expect(sidebar.locator('.acct-group-sub')).toHaveText([
-      'Giro, Bargeld, Tagesgeld',
-      'Kartensalden',
-      'Depot, Krypto, P2P, Sonstiges',
-    ]);
+    // Z4: the group head carries an icon and its total only; the former subtitle is gone.
+    await expect(sidebar.locator('.acct-group-sub')).toHaveCount(0);
     await expect(sidebar.locator('#acct-tree-budget')).toContainText('Synthetic checking');
     await expect(sidebar.locator('#acct-tree-cards')).toContainText('Synthetic card');
     await expect(sidebar.locator('#acct-tree-budget')).toContainText('Synthetic reserve');

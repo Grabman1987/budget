@@ -103,15 +103,6 @@
   background: var(--raised);
   border-color: var(--rule-strong);
 }
-.sheetlist a[aria-current='page'] .sheet-no {
-  color: var(--line);
-}
-.sheet-no {
-  font-family: var(--font-tech);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  color: var(--ink-3);
-}
 .sidebar-foot {
   margin-top: auto;
   display: grid;
@@ -188,7 +179,6 @@ a.profile:hover .profile-text strong {
 .app.is-collapsed .brand-name,
 .app.is-collapsed .sheetlist-label,
 .app.is-collapsed .sheetlist a .label,
-.app.is-collapsed .sheetlist a .sheet-no,
 .app.is-collapsed .side-btn .label,
 .app.is-collapsed .profile-text {
   display: none;

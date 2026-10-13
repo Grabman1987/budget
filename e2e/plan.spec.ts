@@ -59,7 +59,7 @@ isolatedTest(
     expect(hidden.ok(), await hidden.text()).toBe(true);
 
     await page.goto(`/plan/monat?monat=${month}`);
-    await page.locator('.plan-details > summary').click();
+    await page.locator('#inspector-income > summary').click();
     const card = page.getByTestId('income-targets');
     await expect(card).toContainText('Noch nicht eingerichtet.');
     const checkCardPresentation = async (state: 'empty' | 'zero') => {
@@ -108,7 +108,7 @@ isolatedTest(
     });
     expect(zeroTarget.ok(), await zeroTarget.text()).toBe(true);
     await page.reload();
-    await page.locator('.plan-details > summary').click();
+    await page.locator('#inspector-income > summary').click();
     await expect(card).toContainText('Alle Monatsziele sind finanziert.');
     await checkCardPresentation('zero');
     budget = await readBudget();
@@ -140,7 +140,7 @@ isolatedTest(
     });
     expect(assigned.ok(), await assigned.text()).toBe(true);
     await page.reload();
-    await page.locator('.plan-details > summary').click();
+    await page.locator('#inspector-income > summary').click();
     await expect(card).toContainText('Alle Monatsziele sind finanziert.');
     budget = await readBudget();
     expect(budget.summary.envelopes.find((row) => row.categoryId === reached.id)).toMatchObject({
@@ -249,7 +249,7 @@ isolatedTest(
       ?.coverCapCents;
     expect(cap, `cover cap before covering: ${cap}`).toBeGreaterThanOrEqual(10_000);
     await page.getByRole('button', { name: `${food} decken`, exact: true }).click();
-    const coverPanel = page.getByRole('dialog', { name: food });
+    const coverPanel = page.getByRole('complementary', { name: 'Plan-Inspektor' });
     await coverPanel
       .getByLabel('Aus', { exact: true })
       .selectOption({ label: `${cafe} · 100,00 € · fest verplant 0,00 € · frei 100,00 €` });
@@ -262,10 +262,8 @@ isolatedTest(
     await expect(available(page, cafe)).toHaveText('50,00 €');
 
     // Read details on their own page; input opens a form dialog.
-    await row(page, cafe)
-      .getByRole('link', { name: new RegExp(cafe) })
-      .first()
-      .click();
+    await row(page, cafe).getByRole('button', { name: cafe, exact: true }).first().click();
+    await page.getByRole('link', { name: 'Verlauf und Buchungen' }).click();
     await expect(page).toHaveURL(/\/plan\/monat\/envelope\//);
     await page.getByRole('button', { name: 'Zuweisen oder verschieben' }).click();
     const panel = page.getByRole('dialog', { name: cafe });
@@ -390,7 +388,7 @@ test('plan: a negative assignment stays editable, Escape keeps it, Decken asks w
   });
   await page.reload();
   await page.getByRole('button', { name: `${trip} decken`, exact: true }).click();
-  const coverPanel = page.getByRole('dialog', { name: trip });
+  const coverPanel = page.getByRole('complementary', { name: 'Plan-Inspektor' });
   if (tba > 0) {
     await coverPanel.getByLabel('Aus', { exact: true }).selectOption('');
     await coverPanel.getByRole('button', { name: /^Decken ·/ }).click();
@@ -452,7 +450,7 @@ test('plan: the guard refuses assigning more than Zu verteilen holds, in the fie
   // The month status never says "Nichts ist überzogen." while the hero says too much assigned.
   const hero = page.getByTestId('to-be-assigned');
   const negative = (await hero.innerText()).trim().startsWith('−');
-  await page.locator('.plan-details > summary').click();
+  await page.locator('.inspector-section > summary').filter({ hasText: '50/30/20' }).click();
   const status = page.getByRole('list', { name: 'Zustand des Monats' });
   if (negative) await expect(status).not.toContainText('Nichts ist überzogen');
   await expect(status).toBeVisible();

@@ -30,8 +30,17 @@ test('secondary report sections follow their main content at full width', async 
     const main = page.locator(item.main);
     const secondary = page.locator(item.secondary);
     await expect(secondary).toBeVisible({ timeout: 40_000 });
-    const a = (await main.boundingBox())!;
-    const b = (await secondary.boundingBox())!;
+    // Late-loading report sections can still grow the main block between the two reads: poll until
+    // the layout has settled, then assert on a consistent pair of boxes.
+    const boxes = async () =>
+      [(await main.boundingBox())!, (await secondary.boundingBox())!] as const;
+    await expect
+      .poll(async () => {
+        const [a, b] = await boxes();
+        return b.y - (a.y + a.height) >= 0;
+      })
+      .toBe(true);
+    const [a, b] = await boxes();
     expect(b.y).toBeGreaterThanOrEqual(a.y + a.height);
     expect(Math.abs(b.x - a.x)).toBeLessThan(2);
     expect(Math.abs(b.width - a.width)).toBeLessThan(2);
