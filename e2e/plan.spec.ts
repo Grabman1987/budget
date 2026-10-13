@@ -59,6 +59,7 @@ isolatedTest(
     expect(hidden.ok(), await hidden.text()).toBe(true);
 
     await page.goto(`/plan/monat?monat=${month}`);
+    await page.locator('.plan-details > summary').click();
     const card = page.getByTestId('income-targets');
     await expect(card).toContainText('Noch nicht eingerichtet.');
     const checkCardPresentation = async (state: 'empty' | 'zero') => {
@@ -107,6 +108,7 @@ isolatedTest(
     });
     expect(zeroTarget.ok(), await zeroTarget.text()).toBe(true);
     await page.reload();
+    await page.locator('.plan-details > summary').click();
     await expect(card).toContainText('Alle Monatsziele sind finanziert.');
     await checkCardPresentation('zero');
     budget = await readBudget();
@@ -138,6 +140,7 @@ isolatedTest(
     });
     expect(assigned.ok(), await assigned.text()).toBe(true);
     await page.reload();
+    await page.locator('.plan-details > summary').click();
     await expect(card).toContainText('Alle Monatsziele sind finanziert.');
     budget = await readBudget();
     expect(budget.summary.envelopes.find((row) => row.categoryId === reached.id)).toMatchObject({
@@ -224,9 +227,14 @@ isolatedTest(
     await expect(row(page, food)).toHaveClass(/is-over/);
     await expect(available(page, food)).toHaveText('−50,00 €');
     await expect(row(page, cinema)).toHaveClass(/is-over/);
-    await expect(row(page, cinema)).toContainText('neue Kartenschuld 30,00 €');
+    await expect(row(page, cinema).locator('.pname')).toHaveAttribute(
+      'title',
+      /neue Kartenschuld 30,00 €/,
+    );
+    await page.locator('.plan-topbar summary').filter({ hasText: '2 überzogen' }).click();
     await expect(page.locator('.triage')).toContainText('Envelopes überzogen');
     await expect(page.locator('.triage')).not.toContainText(food);
+    await page.locator('.plan-topbar summary').filter({ hasText: '2 überzogen' }).click();
 
     // Assign inline with the arithmetic field.
     await page.getByRole('button', { name: `Zugewiesen 0,00 € für ${cafe} ändern` }).click();
@@ -444,6 +452,7 @@ test('plan: the guard refuses assigning more than Zu verteilen holds, in the fie
   // The month status never says "Nichts ist überzogen." while the hero says too much assigned.
   const hero = page.getByTestId('to-be-assigned');
   const negative = (await hero.innerText()).trim().startsWith('−');
+  await page.locator('.plan-details > summary').click();
   const status = page.getByRole('list', { name: 'Zustand des Monats' });
   if (negative) await expect(status).not.toContainText('Nichts ist überzogen');
   await expect(status).toBeVisible();

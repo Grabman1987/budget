@@ -369,16 +369,6 @@ function timeGroups(rows: PlanRow[], ctx: PlanContext): PlanGroup[] {
 
 function triageGroups(rows: PlanRow[]): PlanGroup[] {
   const over = overspentEnvelopes({ envelopes: rows });
-  const dueShort = rows.filter(
-    (r) =>
-      !isCashOver(r) &&
-      r.creditOverspentCents === 0 &&
-      r.kind === 'fixed' &&
-      r.activityCents === 0 &&
-      r.needCents > 0,
-  );
-  const taken = new Set([...over, ...dueShort]);
-  const missing = rows.filter((r) => !taken.has(r) && r.needCents > 0);
   const gs = [
     {
       key: 'xover',
@@ -387,22 +377,6 @@ function triageGroups(rows: PlanRow[]): PlanGroup[] {
       rows: over,
       emptyText: 'nichts überzogen',
       emptyNote: 'Nichts ist überzogen.',
-    },
-    {
-      key: 'xdue',
-      title: 'Fällig, nicht gedeckt',
-      sub: 'Rechnung kommt, Geld fehlt',
-      rows: dueShort,
-      emptyText: 'alles gedeckt',
-      emptyNote: 'Alles, was fällig wird, ist gedeckt.',
-    },
-    {
-      key: 'xmiss',
-      title: 'Fehlt zum Ziel',
-      sub: 'in Wasserfall-Reihenfolge',
-      rows: missing,
-      emptyText: 'alle Ziele erreicht',
-      emptyNote: 'Alle Ziele sind erreicht.',
     },
   ];
   return gs.map((g, i) => ({ ...g, no: String(i + 1) }));

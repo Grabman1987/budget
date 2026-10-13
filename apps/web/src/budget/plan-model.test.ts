@@ -125,15 +125,19 @@ describe('Plan › Monat view model', () => {
       'cafe',
     ]);
     const triage = planGroups('triage', rows, data, ctx);
-    expect(triage.map((g) => g.rows.map((r) => r.id))).toEqual([
-      ['treibstoff', 'cafe'],
-      ['miete'],
-      ['essen'],
-    ]);
+    expect(triage.map((g) => g.rows.map((r) => r.id))).toEqual([['treibstoff', 'cafe']]);
     expect(groupStatus(groups.find((g) => g.key === 's2')!.rows)).toMatchObject({
       cashOver: 2,
       state: 'over',
     });
+  });
+
+  it('preserves signed cents in grouped sums and the unfunded total', () => {
+    const status = groupStatus([
+      { ...rows[0]!, assignedCents: 101, activityCents: -57, availableCents: 44, needCents: 9 },
+      { ...rows[1]!, assignedCents: -3, activityCents: 12, availableCents: 9, needCents: 27 },
+    ]);
+    expect(status).toMatchObject({ assigned: 98, activity: -45, available: 53, need: 36 });
   });
 
   it('suggests top-down, takes back bottom-up, and covers from the largest sufficient envelope', () => {

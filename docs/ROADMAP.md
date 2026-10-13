@@ -1,5 +1,14 @@
 # Roadmap
 
+### Plan #441 — compact grouped grid — owner 2026-10-12
+
+- [x] Groups are the default; selectable waterfall, time, classes and overspent-only views. Compact category/group rows, aligned cent sums and keyboard-accessible collapse controls.
+- [x] Sticky top bar with existing Zu verteilen derivation, overspent count, unfunded total, uncategorized count, distribution and month-close entry. Cover controls live in the chip disclosure; summaries start closed under Monatsdetails.
+- [x] Visible + Gruppe at the grid head/end and + Kategorie in each open group; C/G reuse the existing forms outside editable fields.
+- [x] Desktop 1440 × 900 fold (14 category rows, 120 px before the grid), mobile 390 touch/overflow and light/dark Axe evidence, focused typecheck/lint/format/unit/E2E verification. See [delivery evidence](evidence/plan-compact-grid/README.md).
+- [ ] Required CI and owner acceptance.
+- [ ] Package 2 inspector and package 3 phone action-only expansion remain separate.
+
 ### Booking dialog layout and input stability — #438 (2026-10-12)
 
 - [x] Status next to account, repeat next to date, contact before the direct Split action next to category; retain Heute/Gestern and existing contact-split persistence.

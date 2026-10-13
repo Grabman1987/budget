@@ -118,7 +118,10 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
   await page.goto('/plan?monat=2026-09');
   const marks = page.locator('.pbar-tick');
   await expect(marks.first()).toBeVisible();
-  await expect(marks.first()).toHaveText('heute');
+  await expect(marks.first().locator('..').locator('..').locator('.pname')).toHaveAttribute(
+    'title',
+    /Markierung: heute/,
+  );
   expect(
     parseFloat(await marks.first().evaluate((el) => (el as HTMLElement).style.left)),
   ).toBeCloseTo((17 / 30) * 100);

@@ -4,9 +4,7 @@ import {
   useAmountPrivacy,
   Button,
   ClassSwatch,
-  Count,
   DimensionChain,
-  RevisionTriangle,
   Select,
   cx,
   type DimensionChainTerm,
@@ -16,20 +14,17 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import {
   AlertTriangle,
-  ArrowDownToLine,
   ArrowRightLeft,
   Check,
   CheckCircle2,
   ChevronDown,
-  Clock,
   Info,
-  Plus,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { expectedQuery } from '../expected/api';
 import { PLAN_MONAT } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
-import { eur, eurParts } from '../ledger/format';
+import { eur } from '../ledger/format';
 import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { monthLabel, shiftMonth } from '../nav/month';
@@ -85,10 +80,11 @@ import { CategoryPanel, type PanelState } from './category-panel';
 const dayMonth = (day: string) => `${day.slice(8, 10)}.${day.slice(5, 7)}.`;
 
 const VIEWS = [
-  { value: 'stage', label: 'Nach Stufen' },
-  { value: 'time', label: 'Zeit' },
   { value: 'group', label: 'Gruppen' },
+  { value: 'stage', label: 'Wasserfall' },
+  { value: 'time', label: 'Zeit' },
   { value: 'class', label: 'Klassen' },
+  { value: 'triage', label: 'Nur Überzogene' },
 ] as const;
 const RAIL_LABEL = {
   stage: 'Wasserfall-Stufen',
@@ -136,9 +132,6 @@ export function PlanMonthPage() {
   return (
     <PageFrame meta={PLAN_MONAT} income={income}>
       <div className="plan">
-        <AppLink to={`/monatsabschluss/${month}`} search={{}}>
-          Monatsabschluss starten oder fortsetzen
-        </AppLink>
         {budget.isPending && <LoadingNote what="Envelopes" />}
         {budget.isError && (
           <ErrorNote what="Envelopes" error={budget.error} onRetry={() => void budget.refetch()} />
@@ -180,7 +173,7 @@ function PlanBody({
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
   const expected = useQuery(expectedQuery()).data;
   const search = useSearch({ strict: false }) as { ansicht?: 'triage'; kategorie?: string };
-  const [view, setView] = useState<PlanView>(search.ansicht ?? 'stage');
+  const [view, setView] = useState<PlanView>(search.ansicht ?? 'group');
   const phone = useIsPhone();
   const storedSpan = useStoredMonthSpan();
   const [distribute, setDistribute] = useState(false);
@@ -198,7 +191,29 @@ function PlanBody({
     });
   const [bulkSource, setBulkSource] = useState('suggested');
   const [covering, setCovering] = useState(false);
-  const [coverResult, setCoverResult] = useState<string | null>(null);
+
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || event.altKey || event.repeat || categoryForm || open)
+        return;
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest('input, textarea, select, [contenteditable], [role="textbox"], dialog[open]')
+      )
+        return;
+      const key = event.key.toLowerCase();
+      if (key === 'g') {
+        event.preventDefault();
+        setCategoryForm({ mode: 'group' });
+      } else if (key === 'c' && data.groups[0]) {
+        event.preventDefault();
+        setCategoryForm({ mode: 'edit', groupId: data.groups[0].id });
+      }
+    };
+    window.addEventListener('keydown', keydown);
+    return () => window.removeEventListener('keydown', keydown);
+  }, [categoryForm, open, data.groups]);
 
   const s = data.summary;
   const today = todayInVienna();
@@ -285,15 +300,11 @@ function PlanBody({
         : byId.get(source)!.name;
   const coverMonth = async () => {
     setCovering(true);
-    const result = await write(
+    await write(
       () => coverAll(month, source === 'suggested' ? undefined : source === '' ? null : source),
       (res) =>
         `${res.coveredCount} gedeckt, ${res.openCount} offen · ${eur(res.missingCents)} fehlen${res.openCount > 0 ? ' · auf freies Geld begrenzt' : ''}`,
     );
-    if (result)
-      setCoverResult(
-        `${result.coveredCount} gedeckt, ${result.openCount} offen · ${eur(result.missingCents)} fehlen`,
-      );
     setCovering(false);
   };
   const unassign = () => {
@@ -330,145 +341,83 @@ function PlanBody({
   return (
     <div className={cx('plan-grid', multi && 'is-wide')}>
       <div className="plan-main">
-        {data.budgetMoney && (
-          <details className="plan-budget-money">
-            <summary
-              title={data.budgetMoney.accounts
-                .map(
-                  (a) =>
-                    `${a.name}: ${eur(a.balanceCents)}${a.usedCreditCents > 0 ? ` · Kredit genutzt ${eur(-a.usedCreditCents)}${a.creditLineCents !== null ? ` · Rahmen ${eur(a.creditLineCents)}` : ' · Rahmen nicht hinterlegt'}` : ''}`,
-                )
-                .join(' · ')}
-            >
-              Geld auf Budget-Konten · {eur(data.budgetMoney.totalCents)}
-              {data.budgetMoney.usedCreditCents > 0 && (
-                <> · davon Dispo/Kreditrahmen genutzt {eur(-data.budgetMoney.usedCreditCents)}</>
-              )}
-            </summary>
-            <ul>
-              {data.budgetMoney.accounts.map((a) => (
-                <li key={a.id}>
-                  {a.name} · {eur(a.balanceCents)}
-                  {a.usedCreditCents > 0 && (
-                    <>
-                      {' '}
-                      · Kredit genutzt {eur(-a.usedCreditCents)} ·{' '}
-                      {a.creditLineCents !== null
-                        ? `Rahmen ${eur(a.creditLineCents)}`
-                        : 'Rahmen nicht hinterlegt'}
-                    </>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
-        <Hero
+        <PlanTopBar
           data={data}
-          month={months.length > 1 ? month : undefined}
+          month={month}
           urgent={urgent.length}
+          unfunded={groupStatus(rows).need}
           distribute={distribute}
           onIncome={onIncome}
           onDistribute={() => {
             setDistribute(true);
             setView('stage');
           }}
+          coverControls={
+            (urgent.length > 0 || tba < 0) && (
+              <section className="triage" aria-labelledby="triage-title">
+                <div className="head">
+                  <h2 id="triage-title">
+                    {urgent.length} Envelopes überzogen ·{' '}
+                    {eur(rows.reduce((sum, r) => sum + r.overspentCents, 0))} zu decken
+                  </h2>
+                </div>
+                <p className="panel-sub">
+                  Decken verschiebt freies Geld zwischen Envelopes; die Summe auf deinen Konten
+                  bleibt gleich.
+                </p>
+                {missing > 0 && (
+                  <div className="cover-missing" role="note">
+                    <p>
+                      Es fehlen {eur(missing)} – Geld kommt nur durch Einnahmen oder Umbuchungen auf
+                      ein Budget-Konto (z. B. aus Tagesgeld oder Depot).
+                    </p>
+                    <p>
+                      Überziehungen werden im laufenden Monat gedeckt: Einnahme buchen oder Geld aus
+                      Tagesgeld/Depot auf ein Budget-Konto umbuchen. Ungedeckte Barüberziehungen
+                      mindern sonst im Folgemonat „Zu verteilen“; ungedeckte Kartenausgaben bleiben
+                      Kartenschuld.
+                    </p>
+                  </div>
+                )}
+                {urgent.length > 0 && (
+                  <div className="cover-all-controls">
+                    <label className="sr-only" htmlFor="cover-all-source">
+                      Quelle für alle Überziehungen
+                    </label>
+                    <Select
+                      id="cover-all-source"
+                      value={source}
+                      onChange={(e) => setBulkSource(e.target.value)}
+                    >
+                      <option value="suggested">Vorschläge · größtes Guthaben zuerst</option>
+                      {tba > 0 && <option value="">Zu verteilen · {eur(tba)}</option>}
+                      {coverPool.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {coverSourceLabel(r)}
+                        </option>
+                      ))}
+                    </Select>
+                    <Button
+                      variant="ghost"
+                      disabled={covering || (!coverPool.length && tba <= 0)}
+                      onClick={() => void coverMonth()}
+                    >
+                      Alle aus {coverLabel} decken
+                    </Button>
+                  </div>
+                )}
+                {tba < 0 && (
+                  <div className="cover-all-controls">
+                    <strong>Zu viel zugewiesen · {eur(-tba)} fehlen</strong>
+                    <Button variant="ghost" onClick={unassign}>
+                      Zurücknehmen
+                    </Button>
+                  </div>
+                )}
+              </section>
+            )
+          }
         />
-        {s.unclassified && s.unclassified.count > 0 && (
-          <section className="plan-unclassified" aria-label="Noch ohne Kategorie">
-            <strong>Noch ohne Kategorie</strong>
-            <span>
-              {s.unclassified.count} Buchungen · Eingang{' '}
-              {eur(s.unclassified.inflowCents, { sign: true })} · Ausgang{' '}
-              {eur(-s.unclassified.outflowCents)} · Saldo{' '}
-              {eur(s.unclassified.netCents, { sign: true })}
-            </span>
-            <p>
-              Ohne Kategorie oder noch unbestätigt. Bereits in den Kontosalden und „Zu verteilen“
-              berücksichtigt.
-            </p>
-            <AppLink
-              to="/konten/buchungen"
-              search={{ kategorie: 'none', von: `${month}-01`, bis: lastDayOfMonth(month) }}
-            >
-              Ohne Kategorie öffnen
-            </AppLink>
-            <AppLink
-              to="/konten/buchungen"
-              search={{ status: 'pending', von: `${month}-01`, bis: lastDayOfMonth(month) }}
-            >
-              Unbestätigte öffnen
-            </AppLink>
-          </section>
-        )}
-        {(urgent.length > 0 || tba < 0) && (
-          <section className="triage triage-compact" aria-labelledby="triage-title">
-            <div className="head">
-              <h2 id="triage-title">
-                {urgent.length} Envelopes überzogen ·{' '}
-                {eur(rows.reduce((sum, r) => sum + r.overspentCents, 0))} zu decken
-              </h2>
-            </div>
-            <p className="panel-sub">
-              Decken verschiebt freies Geld zwischen Envelopes; die Summe auf deinen Konten bleibt
-              gleich.
-            </p>
-            {missing > 0 && (
-              <div className="cover-missing" role="note">
-                <p>
-                  Es fehlen {eur(missing)} – Geld kommt nur durch Einnahmen oder Umbuchungen auf ein
-                  Budget-Konto (z. B. aus Tagesgeld oder Depot).
-                </p>
-                <p>
-                  Überziehungen werden im laufenden Monat gedeckt: Einnahme buchen oder Geld aus
-                  Tagesgeld/Depot auf ein Budget-Konto umbuchen. Ungedeckte Barüberziehungen mindern
-                  sonst im Folgemonat „Zu verteilen“; ungedeckte Kartenausgaben bleiben
-                  Kartenschuld.
-                </p>
-              </div>
-            )}
-            {urgent.length > 0 && (
-              <div className="cover-all-controls">
-                <label className="sr-only" htmlFor="cover-all-source">
-                  Quelle für alle Überziehungen
-                </label>
-                <Select
-                  id="cover-all-source"
-                  value={source}
-                  onChange={(e) => setBulkSource(e.target.value)}
-                >
-                  <option value="suggested">Vorschläge · größtes Guthaben zuerst</option>
-                  {tba > 0 && <option value="">Zu verteilen · {eur(tba)}</option>}
-                  {coverPool.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {coverSourceLabel(r)}
-                    </option>
-                  ))}
-                </Select>
-                <Button
-                  variant="alert"
-                  disabled={covering || (!coverPool.length && tba <= 0)}
-                  onClick={() => void coverMonth()}
-                >
-                  Alle aus {coverLabel} decken
-                </Button>
-              </div>
-            )}
-            {tba < 0 && (
-              <div className="cover-all-controls">
-                <strong>Zu viel zugewiesen · {eur(-tba)} fehlen</strong>
-                <Button variant="ghost" onClick={unassign}>
-                  Zurücknehmen
-                </Button>
-              </div>
-            )}
-          </section>
-        )}
-        {coverResult && (
-          <p role="status" className="heute-note">
-            Letzte Deckung: {coverResult}
-          </p>
-        )}
         <section className="ptable-wrap card" aria-labelledby="table-title">
           <h2 className="sr-only" id="table-title">
             Envelopes im Monat
@@ -483,32 +432,21 @@ function PlanBody({
                 selectedIds={orderedRows.filter((r) => selected.has(r.id)).map((r) => r.id)}
               />
             )}
-            {multi ? (
-              <p
-                className="pm-layout"
-                title="Wasserfall, Zeit, Klassen und Triage zeigen einen Monat."
+            <label className="plan-view">
+              <span>Ansicht</span>
+              <Select
+                aria-label="Ansicht"
+                value={shownView}
+                disabled={multi}
+                onChange={(event) => setView(event.target.value as PlanView)}
               >
-                Gliederung: Gruppen
-              </p>
-            ) : (
-              <div className="seg" role="group" aria-label="Gliederung">
-                {[...VIEWS, { value: 'triage' as const, label: 'Überziehungen prüfen' }].map(
-                  (v) => (
-                    <button
-                      key={v.value}
-                      type="button"
-                      aria-pressed={view === v.value}
-                      onClick={() => setView(v.value)}
-                    >
-                      {v.label}
-                      {v.value === 'triage' && urgent.length > 0 && (
-                        <Count tone="alert">{urgent.length}</Count>
-                      )}
-                    </button>
-                  ),
-                )}
-              </div>
-            )}
+                {VIEWS.map((v) => (
+                  <option key={v.value} value={v.value}>
+                    {v.label}
+                  </option>
+                ))}
+              </Select>
+            </label>
             <span className="spacer" />
             <div className="dist-actions">
               {distribute && (
@@ -546,6 +484,24 @@ function PlanBody({
               </div>
             )}
           </div>
+          <div className="plan-grid-head">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                setCollapsed(collapsed.size ? new Set() : new Set(groups.map((g) => g.key)))
+              }
+            >
+              {collapsed.size ? 'Alle ausklappen' : 'Alle einklappen'}
+            </Button>
+            <Button
+              variant="ghost"
+              className="plan-add"
+              onClick={() => setCategoryForm({ mode: 'group' })}
+            >
+              + Gruppe
+            </Button>
+          </div>
           {multi ? (
             views ? (
               <MultiTable
@@ -568,9 +524,6 @@ function PlanBody({
                 </caption>
                 <thead>
                   <tr>
-                    <th className="tech col-pos" scope="col">
-                      Pos.
-                    </th>
                     <th className="tech col-name" scope="col">
                       Kategorie
                     </th>
@@ -586,34 +539,37 @@ function PlanBody({
                   </tr>
                 </thead>
                 <tbody>
-                  {groups.map((g) => {
+                  {groups.map((g, index) => {
                     const st = groupStatus(g.rows);
                     const isCollapsed = collapsed.has(g.key);
                     const sugSum = g.rows.reduce((a, r) => a + (sug[r.id] ?? 0), 0);
                     const toggle = () => toggleGroup(g.key);
                     return [
+                      ...(index
+                        ? [
+                            <tr key={`${g.key}-gap`} className="pgroup-gap" aria-hidden="true">
+                              <td colSpan={4} />
+                            </tr>,
+                          ]
+                        : []),
                       <tr
                         key={g.key}
                         className={cx('pgroup', isCollapsed && 'is-collapsed')}
                         id={`grp-${g.key}`}
                       >
-                        <td className="col-pos">
-                          <span className="grp-no">{g.no}</span>
-                        </td>
                         <td className="col-name">
                           <button
                             type="button"
                             className="grp-toggle"
                             aria-expanded={!isCollapsed}
+                            title={`${g.sub ?? g.title} · ${statusText(g, st)}`}
                             onClick={toggle}
                           >
                             <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
                             <span className="grp-text">
                               <span className="grp-title">{g.title}</span>
-                              {g.sub && <span className="grp-sub">{g.sub}</span>}
                             </span>
                           </button>
-                          {g.rows.length > 0 && <GroupState group={g} status={st} />}
                           {distribute && sugSum > 0 && (
                             <Button
                               size="xs"
@@ -624,27 +580,19 @@ function PlanBody({
                             </Button>
                           )}
                         </td>
-                        {g.rows.length === 0 ? (
-                          // Nothing in the group: no sums to show, the empty state says it.
-                          <td className="col-num group-none" colSpan={3} />
-                        ) : (
-                          <>
-                            <td className="col-num col-assign" data-label="Zugewiesen">
-                              {eur(st.assigned)}
-                            </td>
-                            <td className="col-num col-act" data-label="Aktivität">
-                              {eur(st.activity)}
-                            </td>
-                            <td className="col-num col-avail" data-label="Verfügbar">
-                              {eur(st.available)}
-                            </td>
-                          </>
-                        )}
+                        <td className="col-num col-assign" data-label="Zugewiesen">
+                          {eur(st.assigned)}
+                        </td>
+                        <td className="col-num col-act" data-label="Aktivität">
+                          {eur(st.activity)}
+                        </td>
+                        <td className="col-num col-avail" data-label="Verfügbar">
+                          {eur(st.available)}
+                        </td>
                       </tr>,
                       ...(g.rows.length === 0 && !isCollapsed && (g.emptyNote ?? g.emptyText)
                         ? [
                             <tr key={`${g.key}-empty`} className="prow is-empty">
-                              <td className="col-pos" />
                               <td className="col-name" colSpan={4}>
                                 <span className="pempty">
                                   <CheckCircle2 size={14} strokeWidth={1.75} aria-hidden="true" />
@@ -656,11 +604,10 @@ function PlanBody({
                         : []),
                       ...(isCollapsed
                         ? []
-                        : g.rows.map((r, i) => (
+                        : g.rows.map((r) => (
                             <EnvelopeRow
                               key={r.id}
                               row={r}
-                              pos={`${g.no}.${i + 1}`}
                               ctx={ctx}
                               suggestion={distribute ? sug[r.id] : undefined}
                               tba={tba}
@@ -676,17 +623,17 @@ function PlanBody({
                               onCover={() => setOpen({ id: r.id, month })}
                             />
                           ))),
-                      ...(shownView === 'group'
+                      ...(shownView === 'group' && !isCollapsed
                         ? [
                             <tr key={`${g.key}-add`} className="plan-add-row">
-                              <td colSpan={5}>
+                              <td colSpan={4}>
                                 <Button
                                   variant="ghost"
                                   className="plan-add"
+                                  aria-label={`Kategorie in ${g.title} anlegen`}
                                   onClick={() => setCategoryForm({ mode: 'edit', groupId: g.key })}
                                 >
-                                  <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
-                                  <span className="sr-only">Kategorie in {g.title} anlegen</span>
+                                  + Kategorie
                                 </Button>
                               </td>
                             </tr>,
@@ -696,26 +643,6 @@ function PlanBody({
                   })}
                 </tbody>
               </table>
-              <div className="plegend" aria-hidden="true">
-                <span>
-                  <i className="lg-bar">
-                    <i className="lg-fill" />
-                  </i>
-                  ausgegeben
-                </span>
-                <span>
-                  <i className="lg-bar">
-                    <i className="lg-tick" />
-                  </i>
-                  Pace: Soll bis heute
-                </span>
-                <span>
-                  <i className="lg-ghost">+0,00</i>Vorschlag beim Verteilen
-                </span>
-                <span>
-                  <i className="lg-debt">0,00</i>neue Kartenschuld
-                </span>
-              </div>
             </>
           )}
           <div className="plan-create">
@@ -725,7 +652,7 @@ function PlanBody({
                 className="plan-add"
                 onClick={() => setCategoryForm({ mode: 'edit', groupId: data.groups[0]!.id })}
               >
-                <Plus size={16} strokeWidth={1.75} aria-hidden="true" /> Kategorie anlegen
+                + Kategorie
               </Button>
             )}
             <Button
@@ -736,24 +663,61 @@ function PlanBody({
                 setCategoryForm({ mode: 'group' });
               }}
             >
-              <Plus size={16} strokeWidth={1.75} aria-hidden="true" /> Gruppe anlegen
+              + Gruppe
             </Button>
           </div>
         </section>
       </div>
-      <section className="plan-summary" aria-label="Weitere Monatszahlen">
-        <MonthOverview data={data} rows={rows} month={months.length > 1 ? month : undefined} />
-        {data.incomeTargets && (
-          <IncomeTargetsCard data={data.incomeTargets} rows={allRows} onOpen={openDetail} />
-        )}
-        <SplitBand data={data} rows={rows} />
-        <section className="insp-card card insp-rail" aria-labelledby="rail-title">
-          <h2 className="insp-title" id="rail-title">
-            {shownView === 'stage' ? 'Wasserfall' : RAIL_LABEL[shownView]}
-          </h2>
-          <Rail view={shownView} groups={groups} data={data} onJump={jump} />
+      <details className="plan-details">
+        <summary>Monatsdetails</summary>
+        <section className="plan-summary" aria-label="Weitere Monatszahlen">
+          {data.budgetMoney && (
+            <details className="plan-budget-money">
+              <summary
+                title={data.budgetMoney.accounts
+                  .map(
+                    (a) =>
+                      `${a.name}: ${eur(a.balanceCents)}${a.usedCreditCents > 0 ? ` · Kredit genutzt ${eur(-a.usedCreditCents)}${a.creditLineCents !== null ? ` · Rahmen ${eur(a.creditLineCents)}` : ' · Rahmen nicht hinterlegt'}` : ''}`,
+                  )
+                  .join(' · ')}
+              >
+                Geld auf Budget-Konten · {eur(data.budgetMoney.totalCents)}
+                {data.budgetMoney.usedCreditCents > 0 && (
+                  <> · davon Dispo/Kreditrahmen genutzt {eur(-data.budgetMoney.usedCreditCents)}</>
+                )}
+              </summary>
+              <ul>
+                {data.budgetMoney.accounts.map((a) => (
+                  <li key={a.id}>
+                    {a.name} · {eur(a.balanceCents)}
+                    {a.usedCreditCents > 0 && (
+                      <>
+                        {' '}
+                        · Kredit genutzt {eur(-a.usedCreditCents)} ·{' '}
+                        {a.creditLineCents !== null
+                          ? `Rahmen ${eur(a.creditLineCents)}`
+                          : 'Rahmen nicht hinterlegt'}
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+
+          <MonthOverview data={data} rows={rows} month={months.length > 1 ? month : undefined} />
+          {data.incomeTargets && (
+            <IncomeTargetsCard data={data.incomeTargets} rows={allRows} onOpen={openDetail} />
+          )}
+          <SplitBand data={data} rows={rows} />
+          <section className="insp-card card insp-rail" aria-labelledby="rail-title">
+            <h2 className="insp-title" id="rail-title">
+              {shownView === 'stage' ? 'Wasserfall' : RAIL_LABEL[shownView]}
+            </h2>
+            <Rail view={shownView} groups={groups} data={data} onJump={jump} />
+          </section>
         </section>
-      </section>
+      </details>
       {categoryForm && categoryTree.isPending && <LoadingNote what="Kategorien" />}
       {categoryForm && categoryTree.isError && (
         <ErrorNote
@@ -781,57 +745,51 @@ function PlanBody({
   );
 }
 
-function GroupState({
-  group,
-  status,
-}: {
-  group: PlanGroup;
-  status: ReturnType<typeof groupStatus>;
-}) {
-  useAmountPrivacy();
-  const text = statusText(group, status);
-  if (group.key === 'cards') return null;
-  return (
-    <span className="grp-status">
-      {status.cashOver > 0 ? (
-        <span className="neg-alert">{text}</span>
-      ) : (
-        <>
-          {status.need === 0 && group.rows.length > 0 && (
-            <Check size={13} strokeWidth={2} aria-hidden="true" />
-          )}
-          {text}
-        </>
-      )}
-    </span>
-  );
-}
-
-/**
- * The month's one number: "Zu verteilen" on forest green while money waits for a job, a compact
- * soft-red card with the figure right-aligned when too much was assigned, a calm card at zero. The Maßkette below the figure explains it; the
- * button starts the distribution.
- */
-function Hero({
+/** Sticky month controls; native disclosures keep the derivation and cover actions nearby. */
+function PlanTopBar({
   data,
   month,
   urgent,
+  unfunded,
   distribute,
   onIncome,
   onDistribute,
+  coverControls,
 }: {
   data: BudgetMonthView;
-  /** Several months are shown: the hero names the leftmost one. */
-  month: string | undefined;
+  month: string;
   urgent: number;
+  unfunded: number;
   distribute: boolean;
   onIncome: () => void;
   onDistribute: () => void;
+  coverControls: React.ReactNode;
 }) {
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !(event.target instanceof Element)) return;
+      const disclosure = event.target.closest<HTMLDetailsElement>('.plan-popover[open]');
+      if (disclosure) {
+        disclosure.open = false;
+        disclosure.querySelector('summary')?.focus();
+      }
+    };
+    const outside = (event: MouseEvent) => {
+      if (!(event.target instanceof Node)) return;
+      document.querySelectorAll<HTMLDetailsElement>('.plan-popover[open]').forEach((disclosure) => {
+        if (!disclosure.contains(event.target as Node)) disclosure.open = false;
+      });
+    };
+    window.addEventListener('keydown', escape);
+    window.addEventListener('click', outside);
+    return () => {
+      window.removeEventListener('keydown', escape);
+      window.removeEventListener('click', outside);
+    };
+  }, []);
   useAmountPrivacy();
   const s = data.summary;
   const tba = s.toBeAssignedCents;
-  const { whole, fraction } = eurParts(tba);
   const terms: DimensionChainTerm[] = [
     { label: 'Übertrag', value: cents(s.carryInCents) },
     { label: 'Einnahmen', value: cents(s.incomeCents), op: '+', onSelect: onIncome },
@@ -844,46 +802,70 @@ function Hero({
       : []),
     { label: 'Zu verteilen', value: cents(tba), op: '=' },
   ];
-  const tone = tba > 0 ? 'is-positive' : tba < 0 ? 'is-negative' : 'is-zero';
   return (
-    <section className={cx('hero-kpi tbd', tone)} aria-labelledby="tbd-title">
-      <div className="hero-top">
-        <div className="hero-figure">
-          <h2 id="tbd-title" className="hero-label">
-            Zu verteilen
-            {month && <span className="hero-month"> · {monthLabel(month)}</span>}
-          </h2>
-          <div className="tbd-fig hero-fig" aria-live="polite" data-testid="to-be-assigned">
-            {whole}
-            <span className="cents">,{fraction} €</span>
-          </div>
-          {tba < 0 ? (
-            // The red card says it; one label for screen readers, no second warning.
-            <span className="sr-only">zu viel zugewiesen</span>
-          ) : (
-            <span className="hero-state">
-              {tba > 0 ? (
-                <>
-                  <ArrowDownToLine size={16} strokeWidth={1.75} aria-hidden="true" />
-                  {urgent > 0 ? 'erst decken, dann verteilen' : 'bereit zum Verteilen'}
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 size={16} strokeWidth={1.75} aria-hidden="true" />
-                  jeder Euro hat einen Job
-                </>
-              )}
-            </span>
-          )}
+    <section className="plan-topbar" aria-label="Monat planen">
+      <details className="plan-popover">
+        <summary className={cx('plan-tba', tba > 0 && 'is-positive')}>
+          Zu verteilen{' '}
+          <strong data-testid="to-be-assigned" aria-live="polite">
+            {eur(tba)}
+          </strong>
+        </summary>
+        <div className="plan-popover-content" aria-label="Herleitung Zu verteilen">
+          <DimensionChain terms={terms} precision="cent" label="Maßkette Zu verteilen" />
+          {tba < 0 && urgent === 0 && coverControls}
         </div>
-        {tba > 0 && !distribute && (
-          <button type="button" className="btn-on-hero" onClick={onDistribute}>
-            <ArrowDownToLine size={16} strokeWidth={1.75} aria-hidden="true" />
-            Geld verteilen
-          </button>
-        )}
-      </div>
-      <DimensionChain terms={terms} precision="cent" label="Maßkette Zu verteilen" />
+      </details>
+      <details className="plan-popover">
+        <summary className={cx('plan-chip', urgent > 0 && 'is-over')}>{urgent} überzogen</summary>
+        <div className="plan-popover-content">
+          {urgent ? coverControls : 'Nichts ist überzogen.'}
+        </div>
+      </details>
+      <button
+        type="button"
+        className="plan-chip"
+        title="Summe der fehlenden Zielbeträge"
+        onClick={() =>
+          document.querySelector<HTMLDetailsElement>('.plan-details')?.setAttribute('open', '')
+        }
+      >
+        Unterfinanziert {eur(unfunded)}
+      </button>
+      <details className="plan-popover">
+        <summary className="plan-chip">{s.unclassified?.count ?? 0} ohne Kategorie</summary>
+        <div className="plan-popover-content">
+          <p>
+            Eingang {eur(s.unclassified?.inflowCents ?? 0)} · Ausgang{' '}
+            {eur(-(s.unclassified?.outflowCents ?? 0))} · Saldo {eur(s.unclassified?.netCents ?? 0)}
+          </p>
+          <AppLink
+            to="/konten/buchungen"
+            search={{ kategorie: 'none', von: `${month}-01`, bis: lastDayOfMonth(month) }}
+          >
+            Ohne Kategorie öffnen
+          </AppLink>
+          <AppLink
+            to="/konten/buchungen"
+            search={{ status: 'pending', von: `${month}-01`, bis: lastDayOfMonth(month) }}
+          >
+            Unbestätigte öffnen
+          </AppLink>
+        </div>
+      </details>
+      <Button size="sm" disabled={tba <= 0 || distribute} onClick={onDistribute}>
+        Geld verteilen
+      </Button>
+      <details className="plan-popover plan-more">
+        <summary className="plan-chip" aria-label="Weitere Monatsaktionen">
+          ⋯
+        </summary>
+        <div className="plan-popover-content">
+          <AppLink to={`/monatsabschluss/${month}`} search={{}}>
+            Monatsabschluss starten oder fortsetzen
+          </AppLink>
+        </div>
+      </details>
     </section>
   );
 }
@@ -1124,7 +1106,6 @@ function Rail({
 
 function EnvelopeRow({
   row: r,
-  pos,
   ctx,
   suggestion,
   tba,
@@ -1137,7 +1118,6 @@ function EnvelopeRow({
   onCover,
 }: {
   row: PlanRow;
-  pos: string;
   ctx: PlanContext;
   suggestion: number | undefined;
   /** "Zu verteilen": the guard refuses raising the assignment beyond it. */
@@ -1157,7 +1137,7 @@ function EnvelopeRow({
   const bar = barFor(r, ctx);
   return (
     <tr className={cx('prow', over && 'is-over', credit && 'is-credit')}>
-      <td className="col-pos">
+      <td className="col-name">
         {r.quickAssign && (
           <label className="plan-select">
             <input
@@ -1168,12 +1148,17 @@ function EnvelopeRow({
             />
           </label>
         )}
-        <span className="pos">{pos}</span>
-        {cash && <RevisionTriangle letter="!" urgent />}
-      </td>
-      <td className="col-name">
         <AppLink
           className="pname"
+          title={[
+            r.cls && CLASS_TEXT[r.cls],
+            bar.meta,
+            bar.pace !== null && 'Markierung: heute',
+            r.due?.source === 'expected' &&
+              `erwartet ${dayMonth(r.due.date)} · ${r.due.name ?? ''} ${r.due.amountCents ? eur(r.due.amountCents) : ''}`,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
           to={`/plan/monat/envelope/${encodeURIComponent(r.id)}`}
           search={{ monat: ctx.month }}
           state={{ planDetailOpenedInApp: true }}
@@ -1181,35 +1166,17 @@ function EnvelopeRow({
           {r.cls ? <ClassSwatch kind={r.cls} /> : <ClassSwatch kind="bound" />}
           <CategoryIcon icon={r.icon} />
           {r.name}
-          {r.cls && <span className="env-class">{CLASS_TEXT[r.cls]}</span>}
         </AppLink>
         {bar.fill !== null && (
-          <span className={cx('pbar', bar.over && 'is-over')} aria-hidden="true">
+          <span className="pbar" aria-hidden="true">
             <i
               className={cx('pbar-fill', r.cls && `hatch-${r.cls}`)}
               style={{ width: `${(bar.over ? 1 : bar.fill) * 100}%` }}
             />
             {bar.pace !== null && (
-              <i className="pbar-tick" style={{ left: `${bar.pace * 100}%` }}>
-                <span>heute</span>
-              </i>
+              <i className="pbar-tick" style={{ left: `${bar.pace * 100}%` }}></i>
             )}
             {bar.goalMark && <i className="pbar-goal" style={{ left: '100%' }} />}
-          </span>
-        )}
-        {r.due?.source === 'expected' && (
-          <span className="pmeta pdue">
-            <Clock size={13} strokeWidth={1.75} aria-hidden="true" />
-            {`erwartet ${dayMonth(r.due.date)}${r.due.name && r.due.name !== r.name ? ` · ${r.due.name}` : ''}${
-              r.due.amountCents ? ` · ${eur(r.due.amountCents)}` : ''
-            }`}
-          </span>
-        )}
-        {bar.meta && (
-          <span className="pmeta">
-            {bar.icon === 'check' && <Check size={13} strokeWidth={2} aria-hidden="true" />}
-            {bar.icon === 'clock' && <Clock size={13} strokeWidth={1.75} aria-hidden="true" />}
-            {bar.meta}
           </span>
         )}
       </td>

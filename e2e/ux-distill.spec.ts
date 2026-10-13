@@ -146,6 +146,13 @@ isolatedTest(
         amountCents,
       });
     await page.goto(`/plan/monat?monat=${month}`);
+    // The cover controls live in the "überzogen" chip's popover of the top bar; a click outside
+    // (the toast's undo) closes it again.
+    const openCover = async () => {
+      const chip = page.locator('.plan-topbar summary').filter({ hasText: /^\d+ überzogen$/ });
+      if (!(await page.locator('#cover-all-source').isVisible())) await chip.click();
+    };
+    await openCover();
     await page.getByLabel('Quelle für alle Überziehungen').selectOption(source.id);
     await page.getByRole('button', { name: 'Alle aus Freizeit decken' }).click();
     await expect(page.locator('.toast.is-open')).toContainText(
@@ -163,8 +170,10 @@ isolatedTest(
     await expect(value('Später')).toHaveText('−20,00 €');
     await expect(value('Zuletzt')).toHaveText('−3,00 €');
     await expect(value('Freizeit')).toHaveText('20,00 €');
+    await openCover();
     await page.getByRole('button', { name: 'Alle aus Freizeit decken' }).click();
     await expect(value('Freizeit')).toHaveText('0,00 €');
+    await openCover();
     await page.getByRole('button', { name: 'Alle aus verfügbaren Envelopes decken' }).click();
     await expect(page.locator('.toast.is-open')).toContainText(
       '2 gedeckt, 0 offen · 0,00 € fehlen',

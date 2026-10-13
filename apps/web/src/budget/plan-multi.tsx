@@ -1,5 +1,5 @@
 import { useAmountPrivacy, Button, ClassSwatch, cx } from '@budget/ui';
-import { ChevronDown, Plus } from 'lucide-react';
+import { ArrowRightLeft, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { currentMonth } from '../shell/use-month';
 import { eur } from '../ledger/format';
@@ -7,14 +7,7 @@ import { AssignCell } from './assign-cell';
 import { assign, type BudgetMonthView } from './budget-api';
 import { CategoryIcon } from './category-icon';
 import { AppLink } from '../shell/app-link';
-import {
-  CLASS_TEXT,
-  groupStatus,
-  isCashOver,
-  monthCells,
-  type MultiGroup,
-  type PlanRow,
-} from './plan-model';
+import { groupStatus, isCashOver, monthCells, type MultiGroup, type PlanRow } from './plan-model';
 import { useBudgetWrite } from './use-category-writes';
 
 const monthName = new Intl.DateTimeFormat('de-AT', { month: 'long', year: 'numeric' });
@@ -65,9 +58,6 @@ export function MultiTable({
         </caption>
         <thead>
           <tr>
-            <th className="tech col-pos" scope="col" rowSpan={2}>
-              Pos.
-            </th>
             <th className="tech col-name" scope="col" rowSpan={2}>
               Kategorie
             </th>
@@ -103,17 +93,21 @@ export function MultiTable({
           </tr>
         </thead>
         <tbody>
-          {groups.map((g) => {
+          {groups.map((g, index) => {
             const isCollapsed = collapsed.has(g.key);
             return [
+              ...(index
+                ? [
+                    <tr key={`${g.key}-gap`} className="pgroup-gap" aria-hidden="true">
+                      <td colSpan={1 + months.length * 3} />
+                    </tr>,
+                  ]
+                : []),
               <tr
                 key={g.key}
                 className={cx('pgroup', isCollapsed && 'is-collapsed')}
                 id={`grp-${g.key}`}
               >
-                <td className="col-pos">
-                  <span className="grp-no">{g.no}</span>
-                </td>
                 <td className="col-name">
                   <button
                     type="button"
@@ -144,11 +138,8 @@ export function MultiTable({
               </tr>,
               ...(isCollapsed
                 ? []
-                : g.rows.map((r, n) => (
+                : g.rows.map((r) => (
                     <tr key={r.id} className="prow">
-                      <td className="col-pos">
-                        <span className="pos">{`${g.no}.${n + 1}`}</span>
-                      </td>
                       <td className="col-name">
                         <AppLink
                           className="pname"
@@ -159,7 +150,6 @@ export function MultiTable({
                           {r.cls ? <ClassSwatch kind={r.cls} /> : <ClassSwatch kind="bound" />}
                           <CategoryIcon icon={r.icon} />
                           {r.name}
-                          {r.cls && <span className="env-class">{CLASS_TEXT[r.cls]}</span>}
                         </AppLink>
                       </td>
                       {months.map((m, i) => {
@@ -214,11 +204,11 @@ export function MultiTable({
                             {cell.overspentCents > 0 && (
                               <button
                                 type="button"
-                                className="btn btn-sm btn-ghost"
+                                className="cover-row"
                                 aria-label={`${r.name}: Decken im ${monthName.format(dateOf(m))}`}
                                 onClick={() => onOpen(r.id, m)}
                               >
-                                Decken
+                                <ArrowRightLeft size={16} aria-hidden="true" />
                               </button>
                             )}
                           </td>,
@@ -226,14 +216,22 @@ export function MultiTable({
                       })}
                     </tr>
                   ))),
-              <tr key={`${g.key}-add`} className="plan-add-row">
-                <td colSpan={2 + months.length * 3}>
-                  <Button variant="ghost" className="plan-add" onClick={() => onAdd(g.key)}>
-                    <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
-                    <span className="sr-only">Kategorie in {g.title} anlegen</span>
-                  </Button>
-                </td>
-              </tr>,
+              ...(!isCollapsed
+                ? [
+                    <tr key={`${g.key}-add`} className="plan-add-row">
+                      <td colSpan={1 + months.length * 3}>
+                        <Button
+                          variant="ghost"
+                          className="plan-add"
+                          aria-label={`Kategorie in ${g.title} anlegen`}
+                          onClick={() => onAdd(g.key)}
+                        >
+                          + Kategorie
+                        </Button>
+                      </td>
+                    </tr>,
+                  ]
+                : []),
             ];
           })}
         </tbody>

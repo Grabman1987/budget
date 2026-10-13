@@ -30,9 +30,11 @@ test.describe('phone layout', () => {
         window.scrollTo(0, document.documentElement.scrollHeight);
         const focusable = [
           ...document.querySelectorAll<HTMLElement>(
-            'main a[href], main button:not([disabled]), main input:not([disabled]):not([type=hidden]), main select:not([disabled]), main textarea:not([disabled]), main [tabindex]:not([tabindex="-1"])',
+            'main a[href], main button:not([disabled]), main input:not([disabled]):not([type=hidden]), main select:not([disabled]), main textarea:not([disabled]), main summary, main [tabindex]:not([tabindex="-1"])',
           ),
-        ].filter((el) => el.getClientRects().length > 0);
+          // A closed disclosure (Plan › Monatsdetails) keeps its content laid out but skipped:
+          // only what can actually be reached counts as the last control.
+        ].filter((el) => el.getClientRects().length > 0 && el.checkVisibility());
         const last = focusable.at(-1);
         if (!last) return { none: true } as const;
         // On a long page the last control in the DOM can sit above the content (the register tabs

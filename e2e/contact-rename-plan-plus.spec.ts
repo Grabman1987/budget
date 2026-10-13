@@ -80,17 +80,17 @@ test('Plan month creates an empty group and categories through the existing form
   const group = `Mustergruppe ${info.project.name}-${Date.now()}`;
   const category = `Musterkategorie ${info.project.name}`;
   await page.goto('/plan/monat?monat=2026-10');
-  const groupPlus = page.getByRole('button', { name: 'Gruppe anlegen', exact: true });
-  await groupPlus.click();
+  const groupPlus = page.getByRole('button', { name: '+ Gruppe', exact: true });
+  await groupPlus.first().click();
   const groupDialog = page.getByRole('dialog', { name: 'Gruppe anlegen' });
   await groupDialog.getByLabel('Name', { exact: true }).fill(group);
   await groupDialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(toast(page)).toContainText(`Gruppe „${group}“ angelegt`);
-  await page.getByRole('button', { name: 'Gruppen', exact: true }).click();
+  await page.getByLabel('Ansicht', { exact: true }).selectOption('group');
   const plus = page.getByRole('button', { name: `Kategorie in ${group} anlegen`, exact: true });
   await expect(plus).toBeVisible();
   const box = await plus.boundingBox();
-  expect(box!.height).toBeGreaterThanOrEqual(44);
+  expect(box!.height).toBeGreaterThanOrEqual(info.project.name === 'mobile' ? 44 : 28);
   await plus.click();
   const dialog = page.getByRole('dialog', { name: 'Kategorie anlegen' });
   await expect(dialog.getByLabel('Gruppe', { exact: true })).toHaveValue(

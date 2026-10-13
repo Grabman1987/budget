@@ -126,6 +126,7 @@ test('Plan › Monat: the Einnahmen term opens received against expected', async
   await page.goto('/plan/erwartet');
   await expect(page.locator('tr.prow', { hasText: 'Gehalt' }).first()).toBeVisible();
   await page.goto('/plan/monat');
+  await page.locator('.plan-tba').click();
   await page
     .getByRole('group', { name: 'Maßkette Zu verteilen' })
     .getByRole('button', {
