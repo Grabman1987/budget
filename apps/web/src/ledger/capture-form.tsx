@@ -933,6 +933,11 @@ export function CaptureForm({
             Speichern und neu
           </Button>
         )}
+        {editing && (
+          <Button variant="ghost" onClick={requestClose}>
+            Abbrechen
+          </Button>
+        )}
         <Button type="submit" disabled={busy || blocked}>
           Speichern
         </Button>

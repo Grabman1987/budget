@@ -126,12 +126,15 @@ test('booking cells, cash capture, repetition and account preview on desktop and
     'false',
   );
   await panel.evaluate((d) => d.getAnimations().forEach((a) => a.finish()));
-  const dateBox = await panel.getByLabel('Datum', { exact: true }).boundingBox();
+  const accountBox = await panel.getByLabel('Bezahlt von', { exact: true }).boundingBox();
   const statusBox = await panel
     .getByRole('button', { name: 'Vorgemerkt', exact: true })
     .boundingBox();
-  expect(statusBox!.x).toBeGreaterThan(dateBox!.x);
-  expect(Math.abs(statusBox!.y + statusBox!.height - dateBox!.y - dateBox!.height)).toBeLessThan(1);
+  // The checkmark sits right of the account select, on the same row.
+  expect(statusBox!.x).toBeGreaterThan(accountBox!.x + accountBox!.width);
+  expect(
+    Math.abs(statusBox!.y + statusBox!.height - accountBox!.y - accountBox!.height),
+  ).toBeLessThan(2);
   await panel.getByLabel('Betrag', { exact: true }).fill('2,03');
   await panel.getByLabel('Empfänger', { exact: true }).fill('Kiosk Muster');
   await pickCategory(panel, category.name);

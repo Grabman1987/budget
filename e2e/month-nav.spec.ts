@@ -99,9 +99,12 @@ test.describe('Heute month switch', () => {
     // The search field keeps the arrow keys for its caret.
     await page.goto('/?monat=2026-09');
     await page.locator('#global-search').click();
+    // The click opens the result page, which mounts its own field: type only once that is up.
+    await expect(page).toHaveURL(/\/suche/);
     const field = page.getByRole('combobox', { name: 'Suchen', exact: true });
     await expect(field).toBeFocused();
     await page.keyboard.type('ab');
+    await expect(field).toHaveValue('ab');
     await page.keyboard.press('ArrowLeft');
     await page.keyboard.type('X');
     await expect(field).toHaveValue('aXb');

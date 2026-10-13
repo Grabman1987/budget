@@ -344,8 +344,8 @@ test('an income with a contact share (repayment) books through Auslagen', async 
   await panel.getByLabel('Betrag', { exact: true }).fill('40');
   await panel.getByLabel('Von (Zahler)').fill(`Anna ${tag}`);
   await panel.getByLabel('Rückzahlung von Kontakt').selectOption({ label: 'Anna Muster' });
-  // The contact share has its own category (Auslagen): the category field is gone.
-  await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveCount(0);
+  // The contact share has its own category (Auslagen): the category field stays, but is locked.
+  await expect(panel.getByLabel('Kategorie', { exact: true })).toBeDisabled();
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   const row = page.getByRole('row', { name: new RegExp(`Anna ${tag}`) });
   await expect(row).toContainText('Auslagen');

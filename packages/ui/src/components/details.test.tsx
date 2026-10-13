@@ -191,7 +191,19 @@ describe('WideDialog', () => {
     const dialog = document.querySelector('dialog') as HTMLDialogElement;
     await userEvent.click(screen.getByText('inhalt'));
     expect(onClose).not.toHaveBeenCalled();
-    await userEvent.click(dialog);
+    // jsdom has no layout: give the dialog a box so "outside" has coordinates.
+    vi.spyOn(dialog, 'getBoundingClientRect').mockReturnValue({
+      left: 100,
+      right: 500,
+      top: 100,
+      bottom: 600,
+    } as DOMRect);
+    // A press and click on the dialog's own padding (inside its box) is not a backdrop click.
+    fireEvent.pointerDown(dialog, { clientX: 200, clientY: 200 });
+    fireEvent.click(dialog, { clientX: 200, clientY: 200 });
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.pointerDown(dialog, { clientX: 10, clientY: 10 });
+    fireEvent.click(dialog, { clientX: 10, clientY: 10 });
     expect(onClose).toHaveBeenCalledTimes(1);
     fireEvent.keyDown(dialog, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(2);
