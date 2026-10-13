@@ -29,3 +29,24 @@ it.each([false, true])('shows the actual session method (recovery=%s)', (viaReco
   expect(screen.getByText(viaRecovery ? 'Wiederherstellungscode' : 'Passkey')).toBeTruthy();
   expect(screen.queryByText('Passkey · dieses Gerät')).toBeNull();
 });
+
+it('keeps the five navigation icons and active link without sheet numbers', () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(AUTH_STATUS_KEY, { authenticated: true, viaRecovery: false });
+  const { container } = render(
+    <QueryClientProvider client={client}>
+      <Sidebar area="konten" />
+    </QueryClientProvider>,
+  );
+  const links = container.querySelectorAll('.sheetlist a');
+  expect([...links].map((link) => link.getAttribute('aria-label'))).toEqual([
+    'Heute',
+    'Plan',
+    'Konten',
+    'Vermögen',
+    'Reports',
+  ]);
+  expect(container.querySelectorAll('.sheetlist a svg')).toHaveLength(5);
+  expect(container.querySelector('.sheet-no')).toBeNull();
+  expect(container.querySelector('.sheetlist a[aria-current="page"]')?.textContent).toBe('Konten');
+});

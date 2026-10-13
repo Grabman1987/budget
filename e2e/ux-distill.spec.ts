@@ -91,12 +91,12 @@ test('Heute has eight warning items once, two first, neutral debts and accessibl
   await expect(page.locator('.heute-envelope .heute-alert')).toHaveCount(1);
   await expect(page.locator('.heute-envelope')).not.toContainText('überzogen');
   if (info.project.name === 'desktop') {
+    // Z4: every negative account balance, debts included, is red ink and keeps its minus.
     await expect(
       page.locator('.acct-group').filter({ hasText: 'Kreditkarten' }).locator('.is-neg'),
-    ).toHaveCount(0);
-    await expect(
-      page.locator('.acct-group').filter({ hasText: 'Kredite' }).locator('.is-neg'),
-    ).toHaveCount(0);
+    ).not.toHaveCount(0);
+    for (const text of await page.locator('.acct-group .acct-amount.is-neg').allTextContents())
+      expect(text).toMatch(/^[−-]/);
   }
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => (document.documentElement.dataset['theme'] = t), theme);
