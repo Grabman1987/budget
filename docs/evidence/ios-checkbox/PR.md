@@ -9,6 +9,9 @@ On iPhone Safari every checkbox rendered as a giant (about 44 px) black rounded 
 - Removed the page-level `width`/`height`/`accent-color` overrides on checkboxes (assignment, auth, plan-year, ledger, inflation basket/explorer, reports-future, rules) that would fight the shared size. Plan files are untouched.
 - New `e2e/checkbox-appearance.spec.ts` on desktop, mobile and real-WebKit `webkit-iphone`: drawn box about 20 px, hit area at least 44 px on touch, tap toggles and fills, light/dark Axe clean.
 
+- Selects (second part, same root area): in WebKit native `<select>` painted a dark grey system background in the dark theme. Every single-line select now uses `appearance: none`, `--surface` background, `--rule-strong` border, `--ink` text, `--radius-md` and a chevron drawn from two token-coloured gradients (no image); page-specific heights/widths are kept, the touch floor still gives 44 px. Covered in the new spec (computed background equals the `--surface` token in light and dark, drawn chevron, 44 px on touch).
+- Checkboxes drop their default vertical margin so denser rows (Plan groups) keep their height with the 20 px box.
+
 Evidence (synthetic data): `docs/evidence/ios-checkbox/`.
 
 ## Verification

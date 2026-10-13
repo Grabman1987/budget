@@ -1284,6 +1284,7 @@ dialog.is-bare .toast {
    (--line). */
 :where(input[type='checkbox'], input[type='radio']) {
   position: relative;
+  margin-block: 0;
 }
 input[type='checkbox'],
 input[type='radio'] {
