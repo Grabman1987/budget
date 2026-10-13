@@ -21,7 +21,7 @@ import { KONTEN_BUCHUNGEN_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { BookingTable, type Selection } from './booking-table';
-import { UpcomingRegister, useRegisterToday } from './upcoming-register';
+import { useRegisterToday, useUpcomingRegister } from './upcoming-register';
 import { CategoryCombobox } from './category-picker';
 import {
   activeFilterKeys,
@@ -68,6 +68,8 @@ export function BookingsPage() {
   const list = useInfiniteQuery(
     bookingsInfiniteQuery({ ...filter, to: filter.to && filter.to < today ? filter.to : today }),
   );
+  const upcoming = useUpcomingRegister(filter, today, 'all');
+  const hasUpcoming = (upcoming.model?.count ?? 0) > 0;
   const accounts = useQuery(accountsQuery());
   const lookups = useQuery(lookupsQuery());
   const writes = useLedgerWrites();
@@ -286,12 +288,7 @@ export function BookingsPage() {
         {list.isError && (
           <ErrorNote what="Buchungen" error={list.error} onRetry={() => void list.refetch()} />
         )}
-        <UpcomingRegister
-          filter={filter}
-          today={today}
-          variant="all"
-          onOpen={(booking) => setPanel({ mode: 'edit', booking })}
-        />
+        {upcoming.notes}
         {list.data && items.length === 0 && (
           <EmptyNote
             action={
@@ -319,16 +316,19 @@ export function BookingsPage() {
             }
           >
             {hasFilter(search)
-              ? 'Keine bisherigen Buchungen für diese Filter.'
-              : 'Noch keine Buchungen bis heute. Erfasse eine mit „Buchung erfassen“.'}
+              ? `Keine ${hasUpcoming ? 'bisherigen ' : ''}Buchungen für diese Filter.`
+              : hasUpcoming
+                ? 'Noch keine Buchungen bis heute. Erfasse eine mit „Buchung erfassen“.'
+                : 'Noch keine Buchungen. Erfasse die erste mit „Buchung erfassen“.'}
           </EmptyNote>
         )}
-        {items.length > 0 && (
+        {(items.length > 0 || hasUpcoming) && (
           <>
             <BookingTable
               items={items}
               caption="Alle Buchungen nach Tag"
               variant="all"
+              upcoming={upcoming.model}
               selection={selection}
               sort={{ key: sortKey, direction, onSort }}
               onOpen={(booking) => setPanel({ mode: 'edit', booking })}

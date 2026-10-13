@@ -11,11 +11,14 @@ export function ScheduledRegisterRow({
   occurrence: s,
   today,
   all,
+  blankCheck,
   balance,
 }: {
   occurrence: Occurrence;
   today: string;
   all: boolean;
+  /** The table has a selection column; scheduled rows leave it empty. */
+  blankCheck?: boolean;
   balance: number | null;
 }) {
   useAmountPrivacy();
@@ -44,19 +47,25 @@ export function ScheduledRegisterRow({
           void navigate({ to: '/plan/erwartet/$id', params: { id: s.paymentId } });
       }}
     >
+      {blankCheck && <td className="kc-check kx-check" />}
       <td className="kc-flag kx-flag" />
       <td className="kc-date kx-date">{upcomingDate(s.dueDate, today)}</td>
       <td className="kx-payee">
-        <AppLink className="kname-btn" to={`/plan/erwartet/${encodeURIComponent(s.paymentId)}`}>
-          {s.name}
-        </AppLink>
-        <div className="kschedule-actions">
-          <Button size="sm" variant="ghost" disabled={busy} onClick={() => void action(true)}>
-            Jetzt buchen
-          </Button>
-          <Button size="sm" variant="ghost" disabled={busy} onClick={() => void action(false)}>
-            Überspringen
-          </Button>
+        <div className="kschedule-line">
+          <AppLink
+            className="kname-btn kschedule-name"
+            to={`/plan/erwartet/${encodeURIComponent(s.paymentId)}`}
+          >
+            {s.name}
+          </AppLink>
+          <div className="kschedule-actions">
+            <Button size="xs" variant="ghost" disabled={busy} onClick={() => void action(true)}>
+              Jetzt buchen
+            </Button>
+            <Button size="xs" variant="ghost" disabled={busy} onClick={() => void action(false)}>
+              Überspringen
+            </Button>
+          </div>
         </div>
       </td>
       {all ? <td className="kc-acct kx-acct">{s.accountName}</td> : <td className="kx-note" />}

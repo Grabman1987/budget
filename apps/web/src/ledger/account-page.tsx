@@ -21,7 +21,7 @@ import { PageFrame } from '../pages/placeholder-page';
 import { BalanceChart } from './balance-chart';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { BookingTable } from './booking-table';
-import { UpcomingRegister, useRegisterToday } from './upcoming-register';
+import { useRegisterToday, useUpcomingRegister } from './upcoming-register';
 import {
   eur,
   longDay,
@@ -184,6 +184,7 @@ function AccountBody({ account }: { account: AccountRow }) {
   const list = useInfiniteQuery(
     bookingsInfiniteQuery({ accountId: account.id, to: today }, PAGE_SIZE),
   );
+  const upcoming = useUpcomingRegister({ accountId: account.id }, today, 'account');
   // The month figure remains independent of the history's loaded pages.
   const movement = useQuery(
     bookingsQuery(
@@ -452,20 +453,20 @@ function AccountBody({ account }: { account: AccountRow }) {
       {list.isError && (
         <ErrorNote what="Buchungen" error={list.error} onRetry={() => void list.refetch()} />
       )}
-      <UpcomingRegister
-        filter={{ accountId: account.id }}
-        today={today}
-        variant="account"
-        onOpen={(booking) => setPanel({ mode: 'edit', booking })}
-      />
+      {upcoming.notes}
       {page && items.length === 0 && (
-        <EmptyNote>Noch keine Buchungen bis heute auf diesem Konto.</EmptyNote>
+        <EmptyNote>
+          {(upcoming.model?.count ?? 0) > 0
+            ? 'Noch keine Buchungen bis heute auf diesem Konto.'
+            : 'Noch keine Buchungen auf diesem Konto.'}
+        </EmptyNote>
       )}
-      {items.length > 0 && (
+      {(items.length > 0 || (upcoming.model?.count ?? 0) > 0) && (
         <BookingTable
           items={items}
           caption="Buchungen mit laufendem Saldo"
           variant="account"
+          upcoming={upcoming.model}
           onOpen={(booking) => setPanel({ mode: 'edit', booking })}
         />
       )}

@@ -1,9 +1,8 @@
 import { projectUpcomingRegister, todayInVienna } from '@budget/domain';
 import { useAmountPrivacy, useIsPhone } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
-import { registerOccurrencesQuery } from '../expected/api';
-import { BookingTable } from './booking-table';
+import { useEffect, useState, type ReactNode } from 'react';
+import { registerOccurrencesQuery, type Occurrence } from '../expected/api';
 import { nativeCurrency } from './format';
 import { accountsQuery, futureBookingsQuery } from './queries';
 import { ErrorNote, LoadingNote } from './states';
@@ -31,17 +30,27 @@ export function useRegisterToday() {
   return today;
 }
 
-export function UpcomingRegister({
-  filter,
-  today,
-  variant,
-  onOpen,
-}: {
-  filter: BookingFilter;
+/** What the booking table needs to show the "Kommend" section inside its own columns. */
+export interface UpcomingModel {
   today: string;
-  variant: 'account' | 'all';
-  onOpen: (b: ListedBooking) => void;
-}) {
+  open: boolean;
+  toggle: () => void;
+  /** Future captures that match the filter. */
+  bookings: readonly ListedBooking[];
+  /** The next open occurrence of each recurring payment that matches the filter. */
+  schedules: readonly Occurrence[];
+  /** Projected native balance after each row, `null` when it cannot be known. */
+  balances: ReadonlyMap<string, number | null>;
+  count: number;
+  /** Today's balance of the shown account(s). */
+  balanceLabel: string;
+}
+
+export function useUpcomingRegister(
+  filter: BookingFilter,
+  today: string,
+  variant: 'account' | 'all',
+): { model: UpcomingModel | null; notes: ReactNode } {
   useAmountPrivacy();
   const phone = useIsPhone();
   const storageKey = `budget.register.upcoming.${variant}.${filter.accountId ?? 'all'}.${phone ? 'phone' : 'desktop'}`;
@@ -113,7 +122,7 @@ export function UpcomingRegister({
   const error = future.error ?? filtered.error ?? schedules.error ?? accounts.error;
   const pending =
     future.isPending || filtered.isPending || schedules.isPending || accounts.isPending;
-  return (
+  const notes = (
     <>
       {pending && <LoadingNote what="Kommende Buchungen" />}
       {error && (
@@ -128,39 +137,27 @@ export function UpcomingRegister({
           }}
         />
       )}
-      {!pending && !error && (
-        <details className="kupcoming" open={open}>
-          <summary
-            onClick={(event) => {
-              event.preventDefault();
-              setRemembered({ key: storageKey, open: !open });
-              try {
-                localStorage.setItem(storageKey, !open ? 'open' : 'closed');
-              } catch {
-                /* Optional preference. */
-              }
-            }}
-          >
-            Kommend · {visible.length}
-          </summary>
-          <BookingTable
-            items={filtered.data ?? []}
-            caption="Kommende Buchungen und nächste Wiederholungen"
-            variant={variant}
-            onOpen={onOpen}
-            upcoming={{
-              today,
-              schedules: scheduled.filter((s) => visibleScheduleIds.has(s.occurrenceId)),
-              balances,
-            }}
-          />
-        </details>
-      )}
-      {accounts.data && (
-        <div className="kregister-today" data-testid="register-today">
-          Heute · Saldo {balanceLabel || '–'}
-        </div>
-      )}
     </>
   );
+  if (pending || error) return { model: null, notes };
+  return {
+    notes,
+    model: {
+      today,
+      open,
+      toggle: () => {
+        setRemembered({ key: storageKey, open: !open });
+        try {
+          localStorage.setItem(storageKey, !open ? 'open' : 'closed');
+        } catch {
+          /* Optional preference. */
+        }
+      },
+      bookings: filtered.data ?? [],
+      schedules: scheduled.filter((s) => visibleScheduleIds.has(s.occurrenceId)),
+      balances,
+      count: visible.length,
+      balanceLabel: balanceLabel || '–',
+    },
+  };
 }

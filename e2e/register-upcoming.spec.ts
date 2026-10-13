@@ -56,12 +56,16 @@ test('separates future captures and next weekly occurrence, projects cents and u
   for (const url of [`/konten/${account.id}`, '/konten/buchungen']) {
     await page.goto(url);
     const section = page.locator('.kupcoming');
-    const summary = section.locator('summary');
+    const summary = section.locator('.kupcoming-toggle');
     await expect(summary).toHaveText('Kommend · 2');
+    // One table: the section shares header and columns with the history below.
+    await expect(page.locator('.ktable')).toHaveCount(1);
+    await expect(page.locator('.ktable thead')).toHaveCount(1);
     if (info.project.name === 'mobile') {
-      await expect(section).not.toHaveAttribute('open');
+      await expect(summary).toHaveAttribute('aria-expanded', 'false');
       await summary.click();
-    } else await expect(section).toHaveAttribute('open');
+    } else await expect(summary).toHaveAttribute('aria-expanded', 'true');
+    await expect(summary).toHaveAttribute('aria-expanded', 'true');
     const scheduled = section.locator('[data-occurrence]');
     const booked = section.locator(`[data-booking="${future.id}"]`);
     await expect(scheduled).toHaveCount(1);
@@ -80,6 +84,31 @@ test('separates future captures and next weekly occurrence, projects cents and u
     expect(await booked.locator('.kname-s').evaluate((el) => getComputedStyle(el).fontWeight)).toBe(
       '400',
     );
+    if (info.project.name === 'desktop') {
+      // Same columns as the history rows, compact actions on one line.
+      const history = page.locator(`[data-booking="${past.id}"]`);
+      for (const cell of [
+        '.kx-date',
+        '.kx-payee',
+        '.kx-cat',
+        '.kx-amount',
+        '.kx-run',
+        '.kx-status',
+      ]) {
+        const a = (await booked.locator(cell).boundingBox())!;
+        const b = (await history.locator(cell).boundingBox())!;
+        const c = (await scheduled.locator(cell).boundingBox())!;
+        expect(Math.abs(a.x - b.x), cell).toBeLessThan(1);
+        expect(Math.abs(a.width - b.width), cell).toBeLessThan(1);
+        expect(Math.abs(c.x - b.x), cell).toBeLessThan(1);
+      }
+      const rowHeight = (await booked.boundingBox())!.height;
+      expect((await scheduled.boundingBox())!.height).toBeLessThan(rowHeight * 1.4);
+      const actions = await scheduled.getByRole('button', { name: 'Jetzt buchen' }).boundingBox();
+      const skip = await scheduled.getByRole('button', { name: 'Überspringen' }).boundingBox();
+      expect(actions!.height).toBeLessThanOrEqual(34);
+      expect(Math.abs(actions!.y - skip!.y)).toBeLessThan(2);
+    }
     if (info.project.name === 'mobile') {
       expect((await booked.locator('.kx-payee').boundingBox())!.width).toBeGreaterThan(100);
       for (const name of ['Jetzt buchen', 'Überspringen']) {
@@ -102,9 +131,11 @@ test('separates future captures and next weekly occurrence, projects cents and u
       });
     }
     await summary.click();
+    await expect(summary).toHaveAttribute('aria-expanded', 'false');
     await page.reload();
-    await expect(section).not.toHaveAttribute('open');
+    await expect(summary).toHaveAttribute('aria-expanded', 'false');
     await summary.click();
+    await expect(summary).toHaveAttribute('aria-expanded', 'true');
   }
   // Future captures retain inline editing; changing to today moves the row into history.
   const futureRow = page.locator(`.kupcoming [data-booking="${future.id}"]`);
@@ -181,8 +212,9 @@ test('loads every future capture beyond the preview and first cursor page', asyn
   }
   await page.goto(`/konten/${account.id}`);
   const section = page.locator('.kupcoming');
-  await expect(section.locator('summary')).toHaveText('Kommend · 201');
-  if (info.project.name === 'mobile') await section.locator('summary').click();
+  const toggle = section.locator('.kupcoming-toggle');
+  await expect(toggle).toHaveText('Kommend · 201');
+  if (info.project.name === 'mobile') await toggle.click();
   await expect(section.locator('[data-booking]')).toHaveCount(201);
   await expect(section.locator('[data-booking]').last().locator('.kx-run')).toContainText('997,99');
   await expect(page.getByTestId('account-balance')).toContainText('1.000,00');

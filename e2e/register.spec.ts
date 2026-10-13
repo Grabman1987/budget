@@ -49,9 +49,15 @@ test('scrolls account and all bookings through six months, with complete search 
   }
   for (const url of [`/konten/${account.id}`, '/konten/buchungen']) {
     await page.goto(url);
+    // Today is 2026-10-02: history-152 … history-179 lie ahead and sit in "Kommend", the rest is history.
+    const past = page.locator('[data-booking]:not(.is-upcoming)');
+    await expect(past.first()).toHaveAttribute('data-booking', 'history-151');
+    const upcoming = page.locator('.kupcoming-toggle');
+    await expect(upcoming).toHaveText('Kommend · 28');
+    if ((await upcoming.getAttribute('aria-expanded')) === 'false') await upcoming.click();
     await expect(page.locator('[data-booking]').first()).toHaveAttribute(
       'data-booking',
-      'history-179',
+      'history-152',
     );
     const loadBox = await page
       .getByRole('button', { name: 'Weitere Buchungen laden' })
@@ -60,12 +66,13 @@ test('scrolls account and all bookings through six months, with complete search 
       expect(loadBox!.height).toBeGreaterThanOrEqual(44);
       expect(loadBox!.width).toBeGreaterThanOrEqual(44);
     }
-    for (let i = 0; i < 4 && (await page.locator('[data-booking]').count()) < 180; i++) {
+    for (let i = 0; i < 4 && (await past.count()) < 152; i++) {
       await page.getByRole('button', { name: 'Weitere Buchungen laden' }).scrollIntoViewIfNeeded();
       await expect
-        .poll(() => page.locator('[data-booking]').count())
+        .poll(() => past.count())
         .toBeGreaterThan(i === 0 ? (url.endsWith('/buchungen') ? 50 : 100) : 50 * (i + 1));
     }
+    await expect(past).toHaveCount(152);
     await expect(page.locator('[data-booking]')).toHaveCount(180);
     await expect(page.locator('[data-booking]').last()).toHaveAttribute(
       'data-booking',
