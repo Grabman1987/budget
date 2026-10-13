@@ -1,5 +1,11 @@
 import {
   addExpectedVersion,
+  account,
+  createBooking,
+  ensureAdvanceCategory,
+  expectedOccurrence,
+  expectedPayment,
+  runInTransaction,
   createExpectedPayment,
   deleteExpectedPayment,
   linkOccurrence,
@@ -14,6 +20,8 @@ import {
   skipOccurrence,
   unlinkOccurrence,
   unskipOccurrence,
+  unbookedAccountOccurrences,
+  occurrenceHorizon,
   updateExpectedPayment,
   upcoming,
   type Db,
@@ -21,12 +29,14 @@ import {
   type ExpectedPaymentPatch,
   type VersionInput,
 } from '@budget/db';
+import { and, eq, isNull } from 'drizzle-orm';
 import { monthOf } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 import {
   expectedCreate,
+  expectedBookBody,
   expectedIncomeQuery,
   expectedLinkBody,
   expectedListQuery,
@@ -72,6 +82,21 @@ export function expectedRoutes(db: Db, today: () => string): Hono {
   });
 
   // Fixed paths before `/:id`.
+  app.get('/register-next', (c) => {
+    const now = today();
+    const to = occurrenceHorizon(now).to;
+    const payments = listExpectedPayments(db, now);
+    const accountIds = [...new Set(payments.flatMap((p) => (p.accountId ? [p.accountId] : [])))];
+    const seen = new Set<string>();
+    const occurrences = accountIds
+      .flatMap((id) => unbookedAccountOccurrences(db, id, now, now, to))
+      .filter((o) => {
+        if (seen.has(o.paymentId)) return false;
+        seen.add(o.paymentId);
+        return true;
+      });
+    return c.json({ occurrences });
+  });
   app.get('/year-preview', (c) => c.json(readPaymentsPreview(db, today())));
   app.get('/occurrences', (c) => {
     const { from, to, kind, includeSkipped } = readQuery(c, expectedOccurrencesQuery);
@@ -89,6 +114,104 @@ export function expectedRoutes(db: Db, today: () => string): Hono {
   app.post('/occurrences/:id/link', async (c) => {
     const { bookingId } = await readBody(c, expectedLinkBody);
     return c.json(linkOccurrence(db, c.req.param('id'), bookingId, audit()));
+  });
+
+  // Explicit owner capture: booking and occurrence link share one transaction and undo group.
+  app.post('/occurrences/:id/book', async (c) => {
+    const body = await readBody(c, expectedBookBody);
+    const now = today();
+    const ctx = audit();
+    const result = runInTransaction(db, (tx) => {
+      const row = tx
+        .select({ dueDate: expectedOccurrence.dueDate })
+        .from(expectedOccurrence)
+        .where(
+          and(eq(expectedOccurrence.id, c.req.param('id')), isNull(expectedOccurrence.deletedAt)),
+        )
+        .get();
+      if (!row) throw new ApiError(404, 'not_found', 'Dieser Termin ist nicht vorhanden.');
+      const occurrence = upcoming(tx, row.dueDate, row.dueDate, { includeSkipped: true }).find(
+        (o) => o.occurrenceId === c.req.param('id'),
+      );
+      if (!occurrence) throw new ApiError(404, 'not_found', 'Diese Zahlung ist nicht vorhanden.');
+      if (occurrence.bookingId || occurrence.status !== 'expected')
+        throw new ApiError(
+          409,
+          'occurrence_unavailable',
+          'Dieser Termin wurde bereits bearbeitet.',
+        );
+      const date = body.date ?? now;
+      if (date !== now && date !== row.dueDate)
+        throw new ApiError(422, 'invalid', 'Wähle heute oder das Fälligkeitsdatum.');
+      const acct = occurrence.accountId
+        ? tx
+            .select()
+            .from(account)
+            .where(and(eq(account.id, occurrence.accountId), isNull(account.deletedAt)))
+            .get()
+        : null;
+      if (!acct || acct.closedAt)
+        throw new ApiError(409, 'account_closed', 'Wähle ein offenes Konto.');
+      if (
+        !unbookedAccountOccurrences(tx, acct.id, now, row.dueDate, row.dueDate).some(
+          (o) => o.occurrenceId === occurrence.occurrenceId,
+        )
+      )
+        throw new ApiError(
+          409,
+          'occurrence_unavailable',
+          'Für diesen Termin gibt es bereits eine passende Buchung.',
+        );
+      if (acct.currency !== occurrence.currency)
+        throw new ApiError(
+          422,
+          'invalid',
+          'Erfasse die Zahlung mit dem tatsächlichen Wechselkurs im Buchungsdialog.',
+        );
+      const payment = tx
+        .select()
+        .from(expectedPayment)
+        .where(eq(expectedPayment.id, occurrence.paymentId))
+        .get()!;
+      const contactShare = occurrence.contactId ? occurrence.contactShareCents : 0;
+      const splits = [
+        ...(contactShare
+          ? [
+              {
+                amountCents: contactShare,
+                categoryId: ensureAdvanceCategory(tx, ctx),
+                contactId: occurrence.contactId,
+              },
+            ]
+          : []),
+        ...(occurrence.amountCents !== contactShare
+          ? [
+              {
+                amountCents: occurrence.amountCents - contactShare,
+                categoryId: occurrence.categoryId,
+                incomeTypeId: occurrence.incomeTypeId,
+              },
+            ]
+          : []),
+      ];
+      const bookingId = createBooking(
+        tx,
+        {
+          accountId: acct.id,
+          date,
+          amountCents: occurrence.amountCents,
+          currency: occurrence.currency,
+          payeeId: occurrence.payeeId,
+          memo: payment.note ?? occurrence.name,
+          status: 'confirmed',
+          splits,
+        },
+        ctx,
+      );
+      linkOccurrence(tx, occurrence.occurrenceId, bookingId, ctx);
+      return { bookingId, groupId: ctx.groupId };
+    });
+    return c.json(result, 201);
   });
   app.post('/occurrences/:id/unlink', (c) =>
     c.json(unlinkOccurrence(db, c.req.param('id'), audit())),

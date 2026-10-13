@@ -1,5 +1,11 @@
 import { formatPrivateEuro as formatEuro, amountsHidden, privateAmount } from '@budget/ui';
-import { cents, MINUS, type FormatEuroOptions, type CashValuation } from '@budget/domain';
+import {
+  cents,
+  daysBetween,
+  MINUS,
+  type FormatEuroOptions,
+  type CashValuation,
+} from '@budget/domain';
 
 export { MINUS };
 
@@ -87,6 +93,10 @@ const at = (day: string) => new Date(`${day}T00:00:00Z`);
 
 /** `17.09.` */
 export const shortDay = (day: string) => `${day.slice(8, 10)}.${day.slice(5, 7)}.`;
+export const upcomingDate = (day: string, today: string) => {
+  const days = daysBetween(today, day);
+  return `${shortDay(day)} · ${days === 0 ? 'heute' : days === 1 ? 'morgen' : `in ${days} Tagen`}`;
+};
 /** `17.09.2026` */
 export const longDay = (day: string) => `${shortDay(day)}${day.slice(0, 4)}`;
 /** `Do 17.09.` — heading of a day group. */

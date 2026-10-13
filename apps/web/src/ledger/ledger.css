@@ -522,6 +522,134 @@
   color: var(--ink-2);
 }
 
+/* "Kommend": future captures and next occurrences sit in the register's own table, so the
+   columns, header and alignment are shared with the history below. */
+.ktable .kupcoming-head th {
+  padding: 0;
+  border-block: 1px solid var(--rule);
+  background: var(--surface-2);
+  text-align: left;
+  font-weight: inherit;
+}
+.kupcoming-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 8px;
+  text-align: left;
+  color: var(--ink);
+  font-weight: 560;
+  cursor: pointer;
+}
+.kupcoming-toggle svg {
+  flex: none;
+  color: var(--ink-3);
+  transition: rotate var(--t-fast) var(--ease-out);
+}
+.kupcoming-toggle[aria-expanded='false'] svg {
+  rotate: -90deg;
+}
+.kupcoming-toggle:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: -2px;
+}
+.ktable .kregister-today td {
+  padding: 12px 8px;
+  border-block: 1px solid var(--rule);
+  background: var(--surface-2);
+  font-weight: 560;
+}
+.ktx .is-upcoming .kx-date {
+  white-space: nowrap;
+  letter-spacing: 0;
+}
+.ktx .is-upcoming td,
+.ktx .is-upcoming .kname-s,
+.ktx .is-upcoming .kcat,
+.ktx .is-upcoming .kname-btn,
+.ktx .is-upcoming .kcell-edit,
+.ktx .is-upcoming .kstatus-btn {
+  color: var(--ink-3);
+  font-weight: 400;
+}
+.ktx .is-upcoming .kupcoming-positive {
+  color: color-mix(in srgb, var(--good-ink) 70%, var(--ink-3));
+}
+.ktx .is-upcoming .kupcoming-negative {
+  color: color-mix(in srgb, var(--bad-ink) 70%, var(--ink-3));
+}
+/* Next occurrence: the name on the left, the two actions as small ghost buttons on its right. */
+.kschedule-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.kschedule-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kschedule-actions {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+.kschedule-actions .btn {
+  white-space: nowrap;
+  font-weight: 400;
+}
+.ktx .is-upcoming .kx-check:empty {
+  padding: 0;
+}
+@media (max-width: 767px) {
+  .ktable .kupcoming-head,
+  .ktable .kregister-today tr {
+    display: block;
+    padding: 0;
+  }
+  .ktable .kupcoming-head th,
+  .ktable .kregister-today td {
+    display: block;
+    margin: 0 -16px;
+    padding-inline: 16px;
+  }
+  .kupcoming-toggle {
+    min-height: var(--touch);
+    padding: 0;
+  }
+  .ktable .kregister-today td {
+    padding-block: 12px;
+  }
+  .ktx tr.is-upcoming .kx-check {
+    display: none;
+  }
+  /* Scheduled rows have no flag button: keep the column as wide as the flag buttons above. */
+  .ktx tr.is-upcoming .kx-flag:empty {
+    min-width: var(--touch);
+  }
+  .ktx-all tr.is-upcoming {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'flag payee amount' '. cat acct' '. date run' '. . status';
+  }
+  .ktx-all .kx-run:empty {
+    display: none;
+  }
+  .kschedule-line {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .kschedule-name {
+    flex: 1 1 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
 /* Kontostand prüfen */
 .kv-list {
   display: grid;

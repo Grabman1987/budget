@@ -42,6 +42,28 @@ export const bookingsQuery = (filter: BookingFilter, cursor?: string, limit?: nu
     queryFn: () => fetchBookings(filter, cursor, limit),
   });
 
+/** Future bookings are independent of loaded history pages, including dates beyond previews. */
+export const futureBookingsQuery = (filter: BookingFilter, today: string) => {
+  const from = filter.from && filter.from > today ? filter.from : addDays(today, 1);
+  return queryOptions({
+    queryKey: [...LEDGER_KEY, 'register-upcoming', filter, today],
+    queryFn: async () => {
+      const items = [] as Awaited<ReturnType<typeof fetchBookings>>['items'];
+      let cursor: string | undefined;
+      do {
+        const page = await fetchBookings(
+          { ...filter, from, sort: 'date', direction: 'asc' },
+          cursor,
+          200,
+        );
+        items.push(...page.items);
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      return items;
+    },
+  });
+};
+
 /** Pick lists change rarely; they refresh on focus like everything else but are kept a minute. */
 export const lookupsQuery = (bookingId?: string) =>
   queryOptions({

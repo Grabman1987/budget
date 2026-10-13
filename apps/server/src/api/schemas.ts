@@ -340,6 +340,7 @@ export const coverBody = z.object({
 });
 
 // ---------- expected payments ----------
+export const expectedBookBody = z.object({ date: day.optional() }).strict();
 const expectedFields = {
   name: z.string().trim().min(1).max(120),
   kind: z.enum(EXPECTED_KINDS),

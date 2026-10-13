@@ -1,5 +1,13 @@
 # Roadmap
 
+### Account register: upcoming captures and next recurrence — #453 (2026-10-13)
+
+- [x] Remembered `Kommend · N` section in account and All Bookings registers, collapsed on phones; all future captures and only the next unbooked schedule occurrence, ascending date hints and distinct calendar/repeat icons.
+- [x] Today balance divider, native cent projections and historical balances excluding future captures; editable future captures and date rollover without automatic booking.
+- [x] Payment-detail links and explicit atomic book/link and existing skip actions with undo/redo; read-only deduplication shared with account preview, rollback/duplicate guards and synthetic financial tests.
+- [x] Focused type/lint/format/CSS/unit checks and desktop/390px browser evidence for weekly dialog repetition, 201 far-future captures, exact balances, actions/undo, expansion persistence, light/dark Axe and touch/overflow/text width. [Evidence](evidence/register-upcoming/README.md).
+- [ ] Required CI and physical desktop/phone owner acceptance; existing schedule materialization horizon and explicit FX capture remain unchanged.
+
 ### Z4 — sidebar accounts in Zerosum arrangement — #451 (2026-10-13)
 
 - [x] Navigation icons without 01–05; KONTEN create/account-settings actions using the existing form and route, including an empty ledger.
