@@ -139,7 +139,7 @@ export function SplitEditor({
             )}
             {s.type === 'contact' && (
               <ContactSelect
-                label={`Kontakt ${n}`}
+                label={`${draft.kind === 'income' ? 'Rückzahlung von Kontakt' : 'Auslage für Kontakt'} ${n}`}
                 value={s.contactId ?? ''}
                 onChange={(contactId) => change(s.key, { contactId: contactId || null })}
                 contacts={contacts}
@@ -188,6 +188,7 @@ export function SplitEditor({
             <AmountInput
               label={`Betrag ${n}`}
               value={s.amount}
+              showOperators={false}
               onChange={(v) => change(s.key, { amount: v })}
             />
             <div className="ksplit-actions">

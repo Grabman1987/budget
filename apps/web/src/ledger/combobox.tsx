@@ -158,6 +158,8 @@ export function Combobox({
               setDismissed(false);
             }}
             onKeyDown={(e) => {
+              // Modifier shortcuts belong to the form; never consume Ctrl/Cmd+Enter as a pick.
+              if (e.ctrlKey || e.metaKey || e.altKey) return;
               if (!open) {
                 if (e.key === 'ArrowDown') setDismissed(false);
                 return;

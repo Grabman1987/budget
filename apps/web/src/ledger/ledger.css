@@ -1334,12 +1334,6 @@
 .bk-body .field-row {
   margin-bottom: 0;
 }
-/* A suggestion list may reach past the card on the desktop instead of scrolling inside it. */
-@media (min-width: 768px) {
-  .bk-body:has(.combo-list) {
-    overflow: visible;
-  }
-}
 .bk-foot {
   display: flex;
   flex-wrap: wrap;
@@ -1639,13 +1633,100 @@
   height: 44px;
 }
 .bk-status[aria-pressed='true'] {
-  color: var(--good);
+  background: var(--good);
+  color: var(--on-good);
 }
 .bk-status[aria-pressed='false'] {
   color: var(--ink-3);
+  background: transparent;
+  border: 1px solid var(--rule-strong);
 }
 .ksplit-start {
   min-height: 44px;
+}
+.bk-account-row,
+.bk-date-row,
+.bk-category-row {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.bk-account-row {
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: end;
+}
+.bk-date-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.bk-category-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: start;
+}
+.bk-category-row:has(> .kcatfield:only-child) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.bk-category-row > .kcatfield {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.bk-category-row > .kcontact,
+.bk-date-row > .field-row {
+  min-width: 0;
+}
+.bk-category-row .select,
+.bk-date-row .select,
+.bk-date-row .input {
+  width: 100%;
+  min-width: 0;
+}
+.bk-category-row .ksplit-start {
+  margin-top: calc(var(--fs-body) * 1.45 + 6px);
+  padding-inline: 8px;
+}
+.bk-date-input {
+  display: flex;
+  min-width: 0;
+  gap: 4px;
+}
+.bk-calendar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  height: 44px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+}
+.bk-calendar input {
+  position: absolute;
+  inset: -1px;
+  opacity: 0;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  cursor: pointer;
+  pointer-events: none;
+}
+.bk-calendar:focus-within {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+.bkform .btn,
+.bkform .seg button,
+.bkform .chip,
+.bkform .combo-option,
+.bkform .kflagbtn {
+  min-height: 44px;
+  min-width: 44px;
+}
+.bkform .kflagbtn {
+  min-width: 44px;
+}
+@media (max-width: 767px) {
+  .bk-category-row .ksplit-start {
+    margin-top: calc(var(--fs-body) * 1.45 + 4px);
+  }
 }
 .kx-note span {
   display: block;

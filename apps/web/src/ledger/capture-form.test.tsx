@@ -46,6 +46,116 @@ beforeEach(() => {
   create.mockReset();
   create.mockResolvedValue({ bookings: [], groupId: 'synthetic-group' });
 });
+it.each(['1.10.2026', '1.10.26', '01.10.', '1.10.'])(
+  'saves the short German date %s as ISO through Ctrl+Enter',
+  async (text) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-12T12:00:00+02:00'));
+    try {
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      render(
+        <QueryClientProvider client={client}>
+          <ToastProvider>
+            <CaptureForm
+              state={{ mode: 'create', accountId: 'wallet' }}
+              onDone={vi.fn()}
+              dirtyRef={{ current: false }}
+              discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+              requestClose={vi.fn()}
+            />
+          </ToastProvider>
+        </QueryClientProvider>,
+      );
+      await waitFor(() =>
+        expect(screen.getByRole('option', { name: 'Bargeld Muster' })).toBeTruthy(),
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Einnahme' }));
+      fireEvent.change(screen.getByLabelText('Betrag', { exact: true }), {
+        target: { value: '12,34' },
+      });
+      const date = screen.getByLabelText('Datum', { exact: true });
+      fireEvent.change(date, { target: { value: text } });
+      fireEvent.keyDown(date, { key: 'Enter', ctrlKey: true });
+      await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+      expect(create.mock.calls[0]![0].input).toMatchObject({
+        date: '2026-10-01',
+        amountCents: 1234,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  },
+);
+
+it('places status by account, repeat by date and contact before Split, and opens the native calendar', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const { container } = render(
+    <QueryClientProvider client={client}>
+      <ToastProvider>
+        <CaptureForm
+          state={{ mode: 'create' }}
+          onDone={vi.fn()}
+          dirtyRef={{ current: false }}
+          discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+          requestClose={vi.fn()}
+        />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  const status = screen.getByRole('button', { name: 'Vorgemerkt' });
+  expect(status.closest('.bk-account-row')?.contains(screen.getByLabelText('Bezahlt von'))).toBe(
+    true,
+  );
+  expect(
+    screen
+      .getByLabelText('Wiederholen')
+      .closest('.bk-date-row')
+      ?.contains(screen.getByLabelText('Datum', { exact: true })),
+  ).toBe(true);
+  const categoryRow = screen
+    .getByLabelText('Kategorie', { exact: true })
+    .closest('.bk-category-row')!;
+  expect(categoryRow.contains(screen.getByLabelText('Auslage für Kontakt'))).toBe(true);
+  expect(categoryRow.contains(screen.getByRole('button', { name: 'Split' }))).toBe(true);
+  const picker = container.querySelector<HTMLInputElement>('input[type="date"]')!;
+  expect(picker.tabIndex).toBe(-1);
+  expect(screen.getByRole('button', { name: 'Kalender öffnen' })).toBeTruthy();
+  const show = vi.fn();
+  picker.showPicker = show;
+  fireEvent.click(screen.getByLabelText('Datum', { exact: true }));
+  expect(show).toHaveBeenCalledTimes(1);
+  fireEvent.change(picker, { target: { value: '2026-10-02' } });
+  expect((screen.getByLabelText('Datum', { exact: true }) as HTMLInputElement).value).toBe(
+    '02.10.2026',
+  );
+});
+
+it('Ctrl+Enter saves from an open category dropdown without taking its highlighted option', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <ToastProvider>
+        <CaptureForm
+          state={{ mode: 'create', accountId: 'wallet' }}
+          onDone={vi.fn()}
+          dirtyRef={{ current: false }}
+          discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+          requestClose={vi.fn()}
+        />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  await waitFor(() => expect(screen.getByRole('option', { name: 'Bargeld Muster' })).toBeTruthy());
+  fireEvent.click(screen.getByRole('button', { name: 'Einnahme' }));
+  fireEvent.change(screen.getByLabelText('Betrag', { exact: true }), {
+    target: { value: '12,34' },
+  });
+  const category = screen.getByLabelText('Kategorie', { exact: true });
+  fireEvent.focus(category);
+  fireEvent.change(category, { target: { value: 'Zu' } });
+  fireEvent.keyDown(category, { key: 'Enter', ctrlKey: true });
+  await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+});
 it('cash starts pending, has no Budgetmonat, and saves repetition', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(['accounts'], {
@@ -124,12 +234,10 @@ it('shows note and split outside Mehr and keeps relative dates without calculato
     const user = userEvent.setup();
     const more = screen.getByText('Mehr', { exact: true }).closest('details')!;
     expect(more.open).toBe(false);
-    expect(more.contains(screen.getByLabelText('Wiederholen'))).toBe(true);
+    expect(more.contains(screen.getByLabelText('Wiederholen'))).toBe(false);
     expect(more.contains(screen.getByLabelText('Notiz'))).toBe(false);
     expect(screen.getByLabelText('Notiz').tagName).toBe('TEXTAREA');
-    expect(more.contains(screen.getByRole('button', { name: 'Aufteilen', hidden: true }))).toBe(
-      false,
-    );
+    expect(more.contains(screen.getByRole('button', { name: 'Split', hidden: true }))).toBe(false);
     expect(container.querySelector('.amount-ops')).toBeNull();
     expect(screen.getByText(/Rechnen im Feld möglich: 12,50\+3/)).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Gestern' }));
@@ -141,10 +249,9 @@ it('shows note and split outside Mehr and keeps relative dates without calculato
     await user.click(screen.getByText('Mehr', { exact: true }));
     await user.selectOptions(screen.getByLabelText('Wiederholen'), 'monthly');
     await user.type(screen.getByLabelText('Notiz'), 'Muster');
-    expect(more.querySelector('summary')?.textContent).toContain('Wiederholt monatlich');
     expect(more.querySelector('summary')?.textContent).not.toContain('Notiz');
     await user.click(screen.getByText('Mehr', { exact: true }));
-    await user.click(screen.getByRole('button', { name: 'Aufteilen' }));
+    await user.click(screen.getByRole('button', { name: 'Split' }));
     expect(more.contains(screen.getByRole('group', { name: 'Zeile 1' }))).toBe(false);
   } finally {
     vi.useRealTimers();

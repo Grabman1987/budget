@@ -195,6 +195,8 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
   await expect(dialog.getByLabel('Empfänger', { exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Bezahlt von', { exact: true })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('button', { name: 'Vorgemerkt', exact: true })).toBeFocused();
   for (const name of ['Heute', 'Gestern', 'Datum…']) {
     await page.keyboard.press('Tab');
     await expect(dialog.getByRole('button', { name, exact: true })).toBeFocused();
@@ -202,20 +204,17 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Datum', { exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Vorgemerkt', exact: true })).toBeFocused();
+  await expect(dialog.getByRole('button', { name: 'Kalender öffnen' })).toBeFocused();
+  for (const name of ['Wiederholen', 'Kategorie', 'Auslage für Kontakt']) {
+    await page.keyboard.press('Tab');
+    await expect(dialog.getByLabel(name, { exact: true })).toBeFocused();
+  }
   await page.keyboard.press('Tab');
-  await expect(dialog.getByLabel('Kategorie', { exact: true })).toBeFocused();
+  await expect(dialog.getByRole('button', { name: 'Split' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Notiz')).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Aufteilen' })).toBeFocused();
-  await page.keyboard.press('Tab');
   await expect(dialog.locator('summary')).toBeFocused();
-  await page.keyboard.press('Enter');
-  await page.keyboard.press('Tab');
-  await expect(dialog.getByLabel('Wiederholen')).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(dialog.getByLabel('Auslage für Kontakt')).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByRole('button', { name: 'Speichern und neu' })).toBeFocused();
   const save = dialog.getByRole('button', { name: 'Speichern', exact: true });

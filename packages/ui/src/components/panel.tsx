@@ -91,6 +91,7 @@ function Overlay({
   wide = false,
 }: PanelProps & { variant: 'side' | 'bottom' | 'modal'; bare?: boolean; wide?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const backdropDown = useRef(false);
   const titleId = useId();
   // Toasts render inside the open dialog: everything outside a modal dialog is inert.
   const [toastHost, setToastHost] = useState<HTMLElement | null>(null);
@@ -154,9 +155,22 @@ function Overlay({
         e.preventDefault();
         requestClose();
       }}
+      onPointerDown={(e) => {
+        // Native selects/popovers can retarget their final click after removing an option.
+        backdropDown.current = e.target === e.currentTarget;
+      }}
       onClick={(e) => {
-        // A click on the dialog element itself (not its content) is a click on the backdrop.
-        if (e.target === e.currentTarget) requestClose();
+        const startedOutside = backdropDown.current;
+        backdropDown.current = false;
+        if (!startedOutside || e.target !== e.currentTarget) return;
+        const box = e.currentTarget.getBoundingClientRect();
+        if (
+          e.clientX < box.left ||
+          e.clientX > box.right ||
+          e.clientY < box.top ||
+          e.clientY > box.bottom
+        )
+          requestClose();
       }}
     >
       {/* Bare: the content draws its own head and footer; the title stays as the dialog's name. */}
