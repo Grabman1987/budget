@@ -188,6 +188,8 @@ components:
 
 # Design System: Finanz-App
 
+**Owner decision 2026-10-12 — Plan inspector (#446).** Plan › Monat uses grid | 320px sticky inspector from 1180px, with native keyboard disclosures and only Monatsüberblick initially open. Selected categories expose the existing money forms and category actions. Under 1180px the inspector stays collapsible below the grid for package 2. Precision tokens, compact grid density and the other Plan registers stay unchanged. This Plan-month exception supersedes the earlier ban on inspector columns below.
+
 **Owner-Entscheidung 05.10.2026 — Unterseiten statt Seitenpanels.** Keine
 Seitenpanels, Drawer, rechten Side Sheets oder dauerhaften seitlichen Karten-Spalten
 für Inhalte. Details und sekundäre Informationen öffnen als Unterseiten mit eigener
