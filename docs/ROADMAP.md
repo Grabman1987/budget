@@ -8,6 +8,13 @@
 - [x] Focused typechecks, lint/format, 55 affected unit tests and desktop/390px keyboard, native-picker/dropdown, exact-cent split, 44px touch/overflow and light/dark Axe evidence. Delivery notes: [#438](evidence/capture-dialog-layout/PR.md).
 - [ ] Required CI and owner physical-phone/desktop acceptance; no local baseline regeneration.
 
+### Register: continuous history, save latency and dialog recurrence — #439 (2026-10-12)
+
+- [x] Account history without the current-month boundary; account and All Bookings load existing cursor pages on scroll, retaining complete server-side filters/search, running balances and the separate month movement.
+- [x] Replace quadratic balance readback with one chronological account pass; POST/PATCH duration-only Server-Timing and a <500 ms assertion on 10,000 synthetic bookings. Save settles before background reads; cursor refresh starts at page one and active financial figures remain fresh.
+- [x] Reproduce weekly/monthly credit-card capture through the real dialog, verify expected schedule and Plan/Heute visibility, and retain shared audit/undo/idempotency semantics. Existing recurrence works; no speculative behavior change.
+- [ ] Required CI, final PR integration and physical-device owner acceptance. Scoped checks, measurements and limitations: [evidence](evidence/register-439/README.md).
+
 ### Today: unchecked account reminders and planned one-off events — #428
 
 - [x] Shared pure reminder rule: inclusive 35-day default, latest reconciliation/value date for P2P/other assets, opening-date fallback for never checked accounts; ignore closed, empty and not-yet-open accounts.

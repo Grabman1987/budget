@@ -1,5 +1,10 @@
 import { useToast } from '@budget/ui';
-import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQueryClient,
+  type InfiniteData,
+  type QueryClient,
+} from '@tanstack/react-query';
 import {
   bulkDeleteBookings,
   bulkUpdateBookings,
@@ -15,7 +20,7 @@ import { BUDGET_KEY } from '../budget/use-category-writes';
 import { flashRows } from './flash';
 import { bulkSummary, errorText, redoFailedText } from './labels';
 import { LEDGER_KEY, lookupsQuery, payeesQuery } from './queries';
-import type { ListedBooking, WriteResult } from './types';
+import type { BookingPage, ListedBooking, WriteResult } from './types';
 import type { BookingDraft } from './booking-model';
 import { submitCapture, requestQueueSync } from '../pwa/queue';
 
@@ -59,12 +64,18 @@ export function useLedgerWrites() {
   const qc = useQueryClient();
   const toast = useToast();
   // A booking moves account balances (ledger) and the Available of its category (budget).
-  const settled = () =>
-    Promise.all([
-      qc.invalidateQueries({ queryKey: LEDGER_KEY }),
-      qc.invalidateQueries({ queryKey: BUDGET_KEY }),
-      qc.invalidateQueries({ queryKey: ['expected'] }),
-    ]);
+  const settled = () => {
+    // Restart cursor lists after a write, rather than refetching every older page.
+    qc.setQueriesData<InfiniteData<BookingPage>>(
+      { queryKey: [...BOOKINGS_KEY, 'infinite'] },
+      (data) => data && { pages: data.pages.slice(0, 1), pageParams: data.pageParams.slice(0, 1) },
+    );
+    // Active figures refresh in the background; inactive wealth stays stale for its next visit.
+    // Returning immediately keeps every refetch (including a visible wealth page) off save's path.
+    void qc.invalidateQueries({ queryKey: LEDGER_KEY });
+    void qc.invalidateQueries({ queryKey: BUDGET_KEY });
+    void qc.invalidateQueries({ queryKey: ['expected'] });
+  };
 
   const offerUndo = (message: string, groupId: string) =>
     toast.show({
