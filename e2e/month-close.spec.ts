@@ -64,6 +64,7 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
     splits: [{ amountCents: -50 }],
   });
   await page.goto('/plan/monat?monat=2026-09');
+  await page.getByLabel('Weitere Monatsaktionen').click();
   await page
     .getByRole('link', { name: 'Monatsabschluss starten oder fortsetzen', exact: true })
     .click();
@@ -179,6 +180,7 @@ test('guided month close walks all five steps, undoes the whole plan and keeps a
   expect(manual.id).toBeTruthy();
   expect(category.id).toBeTruthy();
   await page.goto('/plan/monat?monat=2026-09');
+  await page.getByLabel('Weitere Monatsaktionen').click();
   await expect(
     page.getByRole('link', { name: 'Monatsabschluss starten oder fortsetzen', exact: true }),
   ).toBeVisible();

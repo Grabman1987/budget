@@ -268,7 +268,9 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
   await expect(page.getByRole('listbox')).toHaveCount(0);
   if (mobile) await expect(page.getByRole('button', { name: 'Suchen', exact: true })).toBeFocused();
   else await expect(page.locator('#global-search')).toBeFocused();
-  await page.locator('main').click({ position: { x: 8, y: 8 } });
+  // Click below the sticky top bar: on a page taller than the window Playwright's retry scrolls
+  // the top of main under the bar, where (8, 8) would be covered.
+  await page.locator('main').click({ position: { x: 8, y: 96 } });
   await page.keyboard.press('?');
   await expect(help).toBeVisible();
   await page.keyboard.press('Escape');

@@ -37,6 +37,7 @@ test('envelope details have a URL; browser back restores the scrolled list', asy
   await expect(edit).toBeFocused();
   await page.getByRole('link', { name: 'Zurück zum Monat' }).click();
   await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-09$/);
+  await page.locator('.plan-details > summary').click();
   const main = await page.locator('.plan-main').boundingBox();
   const summary = await page.getByRole('region', { name: 'Monatsüberblick' }).boundingBox();
   expect(main && summary && summary.y >= main.y + main.height).toBe(true);
