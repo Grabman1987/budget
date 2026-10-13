@@ -1,5 +1,7 @@
 # Budget — Specification
 
+Owner Z1 directive (2026-10-13, #448): Plan › Monat uses spaced, rounded category-group bands, group/overall selection and inline creation shortcuts in the grid headers. Category rows show net spending status and a green two-tone bar (hatched spent, solid remaining; overspent red); class metadata stays in the inspector. Existing light/dark tokens, cent guards, audited assignment/move/cover/quick assignment, undo and alternative/multiple-month views remain. Phone chips form one horizontally scrolling sticky line; category rows use name/available, status/assigned and bar, with assignment through the existing inspector. The global native checkbox sizing correction is a separate package. This supersedes the earlier Plan category-bar description only.
+
 Owner Plan directive (2026-10-12, #446): Plan › Monat restores a 320px sticky right inspector from 1180px. With no category selected, native disclosures show Monatsüberblick open and 50/30/20, expected income versus targets, budget-account money and waterfall stages closed. Category selection shows existing assignment/move/cover forms, target progress, quick assignment and category actions; history remains on the envelope URL. Below 1180px this package uses a collapsible inspector below the grid; the phone action layout is a separate package. This narrowly supersedes the 2026-10-05 navigation directive for Plan › Monat only.
 
 Owner navigation directive (2026-10-05): content details use deep-linkable sub-pages
