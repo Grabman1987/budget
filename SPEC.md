@@ -1,5 +1,7 @@
 # Budget — Specification
 
+Owner Plan directive (2026-10-12, #446): Plan › Monat restores a 320px sticky right inspector from 1180px. With no category selected, native disclosures show Monatsüberblick open and 50/30/20, expected income versus targets, budget-account money and waterfall stages closed. Category selection shows existing assignment/move/cover forms, target progress, quick assignment and category actions; history remains on the envelope URL. Below 1180px this package uses a collapsible inspector below the grid; the phone action layout is a separate package. This narrowly supersedes the 2026-10-05 navigation directive for Plan › Monat only.
+
 Owner navigation directive (2026-10-05): content details use deep-linkable sub-pages
 with breadcrumbs and back navigation, never side panels/drawers/right sheets or
 permanent side columns of content cards. Summaries are full-width inline sections

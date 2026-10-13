@@ -29,6 +29,7 @@ import {
   type PlanRow,
 } from './plan-model';
 import { useBudgetWrite } from './use-category-writes';
+import { QuickAssignActions } from './quick-assign-actions';
 
 /** Input form for assigning, moving and covering money; details live on the envelope page. */
 export function EnvelopePanel({
@@ -77,12 +78,14 @@ export function EnvelopeBody({
   rows,
   tba,
   onDone,
+  quickValues = false,
 }: {
   month: string;
   row: PlanRow;
   rows: PlanRow[];
   tba: number;
   onDone: () => void;
+  quickValues?: boolean;
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
@@ -191,6 +194,9 @@ export function EnvelopeBody({
         )}
       </div>
 
+      {quickValues && (
+        <QuickAssignActions month={month} emptyIds={[]} selectedIds={[r.id]} inline />
+      )}
       <h3 className="panel-h">
         {r.overspentCents > 0 ? 'Decken oder verschieben' : 'Geld verschieben'}
       </h3>

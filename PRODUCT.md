@@ -1,5 +1,7 @@
 # Product
 
+Owner decision 2026-10-12 (#446): Plan › Monat selects category names into a right inspector on desktop and a collapsible section below the grid under 1180px. Escape or an outside click returns to the monthly overview. Existing audited assignment, move, cover, category forms and quick values remain the write paths; Verlauf und Buchungen links to the envelope detail page.
+
 Owner decision 2026-10-06: Einstellungen › Warenkorb explains everyday spending and automatic inclusion, shows one Automatic/Always/Never choice with its current effect, and autosaves optional official price groups (switching to CPI on selection) and payee exceptions with undo; the existing basket API and domain rules stay unchanged.
 
 Owner-Entscheidung 05.10.2026: Plan › Monat adopts the YNAB auto-assign principle: explicit empty-fill and selected-category quick assignment use shared target/history figures, available money and one undoable audit group; faded suggestions never book money on their own.

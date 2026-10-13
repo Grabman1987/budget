@@ -76,22 +76,19 @@ test('ghosts, selected quick assignment and capped empty-fill share grouped undo
     });
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByText('Schnell zuweisen', { exact: false }).click();
   await page.getByRole('button', { name: 'Wie letzter Monat', exact: true }).click();
   await expect(assigned('Testhistorie')).toHaveText('333,33 €');
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
-  await page.locator('.quick-assign-actions summary').click();
   await expect(assigned('Testhistorie')).toHaveText('≈ 190,02 €');
   await page.getByRole('button', { name: 'Ø 3 Monate', exact: true }).click();
   await expect(assigned('Testhistorie')).toHaveText('196,69 €');
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
-  await page.locator('.quick-assign-actions summary').click();
   await expect(assigned('Testhistorie')).toHaveText('≈ 190,02 €');
   await page.getByRole('button', { name: 'Ziel', exact: true }).click();
   await expect(assigned('Testziel')).toHaveText('400,01 €');
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
-  await page.locator('.quick-assign-actions summary').click();
   await expect(assigned('Testziel')).toHaveText('≈ 400,01 €');
+  await page.locator('.quick-assign-actions summary').click();
   await page.getByRole('button', { name: 'Leere füllen', exact: true }).click();
   await expect(toast).toContainText('2 Kategorien befüllt · 180,10 € fehlen für 1 Kategorie');
   await expect(assigned('Testziel')).toHaveText('400,01 €');

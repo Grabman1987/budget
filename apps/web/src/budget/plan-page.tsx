@@ -11,7 +11,7 @@ import {
 } from '@budget/ui';
 import { cents, coverShortfall, overspentEnvelopes, todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 import {
   AlertTriangle,
   ArrowRightLeft,
@@ -50,7 +50,8 @@ import {
 } from './budget-api';
 import { CategoryIcon } from './category-icon';
 import { IncomeButton } from '../expected/income-panel';
-import { EnvelopePanel } from './envelope-panel';
+import { PlanInspector } from './plan-inspector';
+import { patchCategory } from './api';
 import {
   barFor,
   CLASS_TEXT,
@@ -169,7 +170,6 @@ function PlanBody({
   useAmountPrivacy();
   const write = useBudgetWrite();
   const [categoryForm, setCategoryForm] = useState<PanelState>(null);
-  const categoryTree = useQuery({ ...categoriesQuery(), enabled: categoryForm !== null });
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
   const expected = useQuery(expectedQuery()).data;
   const search = useSearch({ strict: false }) as { ansicht?: 'triage'; kategorie?: string };
@@ -179,16 +179,61 @@ function PlanBody({
   const [distribute, setDistribute] = useState(false);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [editing, setEditing] = useState<string | null>(null);
-  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const [open, setOpen] = useState<{ id: string; month: string } | null>(null);
-  const navigate = useNavigate();
-  const openDetail = (id: string) =>
-    void navigate({
-      to: '/plan/monat/envelope/$id',
-      params: { id },
-      search: { monat: month },
-      state: { planDetailOpenedInApp: true },
-    });
+  const savedInspector = useLocation({ select: (location) => location.state.planInspector });
+  const restored = savedInspector && months.includes(savedInspector.month) ? savedInspector : null;
+  const [selected, setSelected] = useState<ReadonlySet<string>>(
+    new Set(restored ? [restored.id] : []),
+  );
+  const [open, setOpen] = useState<{ id: string; month: string } | null>(restored);
+  const inspect = (id: string, selectedMonth = month) => {
+    setSelected(new Set([id]));
+    setOpen({ id, month: selectedMonth });
+  };
+  const clearSelection = (focus = false) => {
+    if (window.history.state?.planInspector) {
+      const state = { ...window.history.state };
+      delete state.planInspector;
+      window.history.replaceState(state, '');
+    }
+    if (focus) {
+      const id = open?.id ?? [...selected][0];
+      document.querySelector<HTMLButtonElement>(`.pname[data-category-id="${id}"]`)?.focus();
+    }
+    setSelected(new Set());
+    setOpen(null);
+  };
+  const categoryTree = useQuery({
+    ...categoriesQuery(),
+    enabled: categoryForm !== null || selected.size > 0 || open !== null,
+  });
+  useEffect(() => {
+    if (!selected.size && !open) return;
+    const escape = (event: KeyboardEvent) => {
+      if (
+        event.key === 'Escape' &&
+        !event.defaultPrevented &&
+        !categoryForm &&
+        !editing &&
+        !document.querySelector('dialog[open], .plan-popover[open]')
+      ) {
+        event.preventDefault();
+        clearSelection(true);
+      }
+    };
+    const outside = (event: MouseEvent) => {
+      if (
+        event.target instanceof Element &&
+        !event.target.closest('.plan-inspector, .prow, dialog, .toast, .quick-assign-actions')
+      )
+        clearSelection();
+    };
+    window.addEventListener('keydown', escape);
+    window.addEventListener('click', outside);
+    return () => {
+      window.removeEventListener('keydown', escape);
+      window.removeEventListener('click', outside);
+    };
+  });
   const [bulkSource, setBulkSource] = useState('suggested');
   const [covering, setCovering] = useState(false);
 
@@ -244,13 +289,15 @@ function PlanBody({
   const shownRows = groups.flatMap((g) => g.rows);
   const shownIds = new Set(shownRows.map((r) => r.id));
   const orderedRows = [...shownRows, ...rows.filter((r) => !shownIds.has(r.id))];
-  const toggleSelected = (id: string) =>
+  const toggleSelected = (id: string) => {
+    setOpen(null);
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+  };
   const tba = s.toBeAssignedCents;
   const sug = distribute ? suggestions(rows, tba) : {};
   const urgent = overspentEnvelopes({ envelopes: rows });
@@ -429,7 +476,7 @@ function PlanBody({
                 emptyIds={orderedRows
                   .filter((r) => r.assignedCents === 0 && (r.quickAssign?.ghostCents ?? 0) > 0)
                   .map((r) => r.id)}
-                selectedIds={orderedRows.filter((r) => selected.has(r.id)).map((r) => r.id)}
+                selectedIds={[]}
               />
             )}
             <label className="plan-view">
@@ -511,7 +558,7 @@ function PlanBody({
                 collapsed={collapsed}
                 onToggle={toggleGroup}
                 onAdd={(groupId) => setCategoryForm({ mode: 'edit', groupId })}
-                onOpen={(id, selectedMonth) => setOpen({ id, month: selectedMonth })}
+                onOpen={inspect}
               />
             ) : (
               <LoadingNote what="Folgemonate" />
@@ -620,7 +667,8 @@ function PlanBody({
                               onTake={() => take([r.id])}
                               selected={selected.has(r.id)}
                               onSelect={() => toggleSelected(r.id)}
-                              onCover={() => setOpen({ id: r.id, month })}
+                              onCover={() => inspect(r.id)}
+                              onInspect={() => inspect(r.id)}
                             />
                           ))),
                       ...(shownView === 'group' && !isCollapsed
@@ -668,11 +716,39 @@ function PlanBody({
           </div>
         </section>
       </div>
-      <details className="plan-details">
-        <summary>Monatsdetails</summary>
-        <section className="plan-summary" aria-label="Weitere Monatszahlen">
-          {data.budgetMoney && (
-            <details className="plan-budget-money">
+      <PlanInspector
+        month={open?.month ?? month}
+        rows={panelRows}
+        selected={(open
+          ? panelRows.filter((r) => r.id === open.id)
+          : orderedRows.filter((r) => selected.has(r.id))
+        ).map((r) => planGroups('time', [r], panelView, ctx).flatMap((g) => g.rows)[0] ?? r)}
+        tba={panelView.summary.toBeAssignedCents}
+        category={categoryTree.data?.categories.find(
+          (c) => c.id === (open?.id ?? [...selected][0]),
+        )}
+        onClear={() => clearSelection(true)}
+        onCategory={setCategoryForm}
+        onHide={(category) =>
+          void write(
+            () => patchCategory(category.id, { hidden: !category.hiddenAt }),
+            () => `„${category.name}“ ${category.hiddenAt ? 'eingeblendet' : 'ausgeblendet'}.`,
+          )
+        }
+        overview={
+          <MonthOverview data={data} rows={rows} month={months.length > 1 ? month : undefined} />
+        }
+        split={<SplitBand data={data} rows={rows} />}
+        income={
+          data.incomeTargets ? (
+            <IncomeTargetsCard data={data.incomeTargets} rows={allRows} onOpen={inspect} />
+          ) : (
+            <p>Keine Planungswerte verfügbar.</p>
+          )
+        }
+        money={
+          data.budgetMoney && (
+            <details className="plan-budget-money inspector-section">
               <summary
                 title={data.budgetMoney.accounts
                   .map(
@@ -681,6 +757,12 @@ function PlanBody({
                   )
                   .join(' · ')}
               >
+                <ChevronDown
+                  className="insp-chev"
+                  size={16}
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                />
                 Geld auf Budget-Konten · {eur(data.budgetMoney.totalCents)}
                 {data.budgetMoney.usedCreditCents > 0 && (
                   <> · davon Dispo/Kreditrahmen genutzt {eur(-data.budgetMoney.usedCreditCents)}</>
@@ -703,21 +785,22 @@ function PlanBody({
                 ))}
               </ul>
             </details>
-          )}
-
-          <MonthOverview data={data} rows={rows} month={months.length > 1 ? month : undefined} />
-          {data.incomeTargets && (
-            <IncomeTargetsCard data={data.incomeTargets} rows={allRows} onOpen={openDetail} />
-          )}
-          <SplitBand data={data} rows={rows} />
-          <section className="insp-card card insp-rail" aria-labelledby="rail-title">
-            <h2 className="insp-title" id="rail-title">
-              {shownView === 'stage' ? 'Wasserfall' : RAIL_LABEL[shownView]}
-            </h2>
-            <Rail view={shownView} groups={groups} data={data} onJump={jump} />
-          </section>
-        </section>
-      </details>
+          )
+        }
+        rail={
+          <Rail
+            view="stage"
+            groups={planGroups('stage', rows, data, ctx)}
+            data={data}
+            onJump={(key) => {
+              if (multi) setMonthSpan(1);
+              setView('stage');
+              setCollapsed((c) => new Set([...c].filter((k) => k !== key)));
+              window.requestAnimationFrame(() => jump(key));
+            }}
+          />
+        }
+      />
       {categoryForm && categoryTree.isPending && <LoadingNote what="Kategorien" />}
       {categoryForm && categoryTree.isError && (
         <ErrorNote
@@ -734,13 +817,6 @@ function PlanBody({
           onSwitch={setCategoryForm}
         />
       )}
-      <EnvelopePanel
-        month={open?.month ?? month}
-        row={open ? panelRows.find((r) => r.id === open.id) : undefined}
-        rows={panelRows}
-        toBeAssignedCents={panelView.summary.toBeAssignedCents}
-        onClose={() => setOpen(null)}
-      />
     </div>
   );
 }
@@ -826,9 +902,15 @@ function PlanTopBar({
         type="button"
         className="plan-chip"
         title="Summe der fehlenden Zielbeträge"
-        onClick={() =>
-          document.querySelector<HTMLDetailsElement>('.plan-details')?.setAttribute('open', '')
-        }
+        onClick={() => {
+          // Outside dismissal first restores the month sections when a category is selected.
+          window.requestAnimationFrame(() => {
+            document.querySelector<HTMLDetailsElement>('.inspector-fold')?.setAttribute('open', '');
+            const section = document.querySelector<HTMLDetailsElement>('#inspector-income');
+            section?.setAttribute('open', '');
+            section?.querySelector('summary')?.focus();
+          });
+        }}
       >
         Unterfinanziert {eur(unfunded)}
       </button>
@@ -1116,6 +1198,7 @@ function EnvelopeRow({
   selected,
   onSelect,
   onCover,
+  onInspect,
 }: {
   row: PlanRow;
   ctx: PlanContext;
@@ -1129,6 +1212,7 @@ function EnvelopeRow({
   selected: boolean;
   onSelect: () => void;
   onCover: () => void;
+  onInspect: () => void;
 }) {
   useAmountPrivacy();
   const cash = isCashOver(r);
@@ -1136,8 +1220,14 @@ function EnvelopeRow({
   const over = r.overspentCents > 0;
   const bar = barFor(r, ctx);
   return (
-    <tr className={cx('prow', over && 'is-over', credit && 'is-credit')}>
-      <td className="col-name">
+    <tr className={cx('prow', over && 'is-over', credit && 'is-credit', selected && 'is-selected')}>
+      <td
+        className="col-name"
+        onClick={(event) => {
+          if (!(event.target instanceof Element && event.target.closest('button, input, label')))
+            onInspect();
+        }}
+      >
         {r.quickAssign && (
           <label className="plan-select">
             <input
@@ -1148,7 +1238,8 @@ function EnvelopeRow({
             />
           </label>
         )}
-        <AppLink
+        <button
+          type="button"
           className="pname"
           title={[
             r.cls && CLASS_TEXT[r.cls],
@@ -1159,14 +1250,14 @@ function EnvelopeRow({
           ]
             .filter(Boolean)
             .join(' · ')}
-          to={`/plan/monat/envelope/${encodeURIComponent(r.id)}`}
-          search={{ monat: ctx.month }}
-          state={{ planDetailOpenedInApp: true }}
+          data-category-id={r.id}
+          aria-pressed={selected}
+          onClick={onInspect}
         >
           {r.cls ? <ClassSwatch kind={r.cls} /> : <ClassSwatch kind="bound" />}
           <CategoryIcon icon={r.icon} />
           {r.name}
-        </AppLink>
+        </button>
         {bar.fill !== null && (
           <span className="pbar" aria-hidden="true">
             <i

@@ -1660,22 +1660,6 @@
 .plan .plan-create {
   padding: 4px 12px;
 }
-.plan .plan-details > summary {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  cursor: pointer;
-  font-weight: 600;
-}
-.plan .plan-summary .card {
-  border: 0;
-  box-shadow: none;
-}
-.plan .plan-summary .is-bad,
-.plan .plan-summary .neg-alert {
-  color: var(--ink);
-  background: none;
-}
 .plan .assign-btn,
 .plan .ghost,
 .plan .dist-left {
@@ -1836,4 +1820,222 @@
     margin: 4px 0 0 auto;
     max-width: 100%;
   }
+}
+
+/* Plan month inspector, owner 12.10.2026 (#446). */
+.plan .plan-inspector {
+  min-width: 0;
+  padding: 0;
+  overflow-wrap: anywhere;
+}
+.plan .inspector-fold-title,
+.plan .inspector-section > summary {
+  min-height: 44px;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-weight: 620;
+}
+.plan .inspector-section {
+  border-top: 1px solid var(--card-border);
+}
+.plan .inspector-section .card {
+  border: 0;
+  box-shadow: none;
+  padding-top: 0;
+}
+.plan .inspector-section .insp-title {
+  display: none;
+}
+.plan .inspector-section .insp-head {
+  flex-wrap: wrap;
+}
+.plan .inspector-selection {
+  padding: 16px;
+}
+.plan .inspector-head,
+.plan .inspector-menu,
+.plan .quick-assign-inline,
+.plan .quick-assign-inline [role='group'] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.plan .inspector-head h2 {
+  margin: 0;
+  font-size: var(--fs-title);
+}
+.plan .inspector-head .btn,
+.plan .inspector-menu .btn,
+.plan .quick-assign-inline .btn {
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+}
+.plan .inspector-selection progress {
+  width: 100%;
+  accent-color: var(--line);
+}
+.plan .inspector-selection > a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.plan .plan-inspector .kform {
+  min-width: 0;
+}
+.plan .plan-inspector .panel-actions {
+  flex-wrap: wrap;
+}
+.plan .plan-inspector .panel-actions .btn {
+  max-width: 100%;
+  height: auto;
+  min-height: 44px;
+  white-space: normal;
+}
+.plan .plan-inspector .plan-budget-money {
+  margin-bottom: 0;
+}
+.plan .plan-inspector .insp-list dd {
+  flex-shrink: 0;
+}
+.plan .pname[data-category-id] {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.plan .prow.is-selected td {
+  background: var(--tint);
+}
+.plan .plan-inspector summary:focus-visible,
+.plan .pname[data-category-id]:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+@media (min-width: 1180px) {
+  .plan .plan-grid {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    column-gap: 16px;
+  }
+  .plan .plan-inspector {
+    position: sticky;
+    top: 72px;
+    max-height: calc(100dvh - 88px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .plan .inspector-fold[open] > .inspector-fold-title {
+    display: none;
+  }
+  .plan .plan-topbar {
+    flex-wrap: wrap;
+  }
+  .plan .plan-main .ptoolbar {
+    flex-wrap: wrap;
+  }
+}
+
+/* Inspector polish: grid chevrons, inset section bodies, compact head and target (#446). */
+.plan .plan-inspector summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+}
+.plan .plan-inspector summary::-webkit-details-marker {
+  display: none;
+}
+.plan .plan-inspector .insp-chev {
+  flex-shrink: 0;
+  color: var(--ink-2);
+  transition: transform var(--t-fast) var(--ease-out);
+}
+.plan .plan-inspector details:not([open]) > summary > .insp-chev {
+  transform: rotate(-90deg);
+}
+.plan .plan-inspector summary:hover {
+  background: var(--surface-2);
+}
+.plan .plan-inspector .rail {
+  position: static;
+  padding: 0 16px 16px;
+}
+.plan .plan-inspector .plan-budget-money > ul {
+  margin: 0;
+  padding: 0 16px 16px 40px;
+  color: var(--ink-2);
+}
+.plan .inspector-selection .inspector-section {
+  margin: 16px -16px 0;
+}
+.plan .inspector-selection .inspector-menu {
+  padding: 0 16px 8px;
+}
+.plan .inspector-head {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.plan .inspector-head h2 {
+  min-width: 0;
+  padding-top: 8px;
+  line-height: 1.25;
+}
+.plan .inspector-head .inspector-close {
+  flex-shrink: 0;
+  width: 44px;
+  padding: 0;
+}
+.plan .inspector-target {
+  margin-top: 4px;
+}
+.plan .inspector-target .panel-h {
+  margin-bottom: 2px;
+}
+.plan .inspector-target .panel-sub {
+  margin: 0;
+}
+.plan .inspector-selection progress {
+  appearance: none;
+  display: block;
+  height: 6px;
+  margin: 8px 0 6px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.plan .inspector-selection progress::-webkit-progress-bar {
+  background: var(--surface-2);
+}
+.plan .inspector-selection progress::-webkit-progress-value {
+  background: var(--line);
+}
+.plan .inspector-selection progress::-moz-progress-bar {
+  background: var(--line);
+}
+.plan .inspector-selection progress.is-done::-webkit-progress-value {
+  background: var(--good);
+}
+.plan .inspector-selection progress.is-done::-moz-progress-bar {
+  background: var(--good);
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan .plan-inspector .insp-chev {
+    transition: none;
+  }
+}
+.plan .plan-inspector .quick-assign-inline [role='group'] {
+  width: 100%;
+}
+.plan .plan-inspector .quick-assign-inline .btn {
+  flex: 1 1 auto;
+  justify-content: center;
+  padding-inline: 8px;
+  white-space: nowrap;
+}
+.plan .inspector-selection .insp-list + .quick-assign-inline {
+  margin-top: 12px;
 }
