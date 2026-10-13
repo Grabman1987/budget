@@ -177,6 +177,11 @@ test('sidebar: pencil on hover, edit mode with keyboard and drag', async ({
     .poll(() => sidebarOrder(page, tag))
     .toEqual(['Charlie', 'Bravo', 'Alpha', 'Delta', 'Karte']);
 
+  await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
+  await expect
+    .poll(() => sidebarOrder(page, tag))
+    .toEqual(['Alpha', 'Charlie', 'Bravo', 'Delta', 'Karte']);
+
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
     const axe = await new AxeBuilder({ page })
@@ -191,6 +196,10 @@ test('sidebar: pencil on hover, edit mode with keyboard and drag', async ({
   await expect(
     page.locator('.acct-tree').getByRole('link', { name: new RegExp(`^Alpha ${tag}`) }),
   ).toBeVisible();
+  await page.reload();
+  await expect
+    .poll(() => sidebarOrder(page, tag))
+    .toEqual(['Alpha', 'Charlie', 'Bravo', 'Delta', 'Karte']);
 });
 
 test('phone: a touch drag on the grip reorders and does not scroll', async ({

@@ -240,7 +240,8 @@ test.describe('desktop shell', () => {
     await expect(page.locator('.m-head')).toBeHidden();
     const items = page.locator('.sheetlist li');
     await expect(items).toHaveCount(5);
-    await expect(items.locator('.sheet-no')).toHaveText(['01', '02', '03', '04', '05']);
+    await expect(items.locator('.sheet-no')).toHaveCount(0);
+    await expect(items.locator('svg.icon')).toHaveCount(5);
     await expect(items.locator('.label')).toHaveText([
       'Heute',
       'Plan',

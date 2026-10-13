@@ -1,5 +1,13 @@
 # Roadmap
 
+### Z4 — sidebar accounts in Zerosum arrangement — #451 (2026-10-13)
+
+- [x] Navigation icons without 01–05; KONTEN create/account-settings actions using the existing form and route, including an empty ledger.
+- [x] Uppercase account groups with chevron, icon and total, without subtitles; typed rows, right-aligned balances, red negatives and shared active navigation treatment. Existing light/dark tokens and footer retained.
+- [x] Existing grouping, closed-account filtering, drag/keyboard ordering, audit/undo and remembered group/sidebar collapse retained.
+- [x] Focused web typecheck, changed-file lint/format, 15 affected unit tests, desktop 9 passing browser/setup cases and mobile 7 passing/1 desktop-only skip. Synthetic desktop 1440/collapsed/mobile 390, light/dark Axe and screenshots: [delivery notes](evidence/sidebar-accounts-zerosum/PR.md).
+- [ ] Required CI, Linux visual baseline review and owner acceptance.
+
 ### Plan #441 — compact grouped grid — owner 2026-10-12
 
 - [x] Groups are the default; selectable waterfall, time, classes and overspent-only views. Compact category/group rows, aligned cent sums and keyboard-accessible collapse controls.

@@ -30,9 +30,9 @@ sampleTest(
 
     if (isPhone(testInfo)) return;
     await expect(page.locator('.acct-group-title')).toHaveText(GROUPS);
-    // Card and loan balances stay ink with their minus (debt is not an alarm); an overdrawn budget or
-    // investment balance is a red pill. Everything else is plain, unsigned text.
-    await expect(page.locator('#acct-tree-cards .is-neg, #acct-tree-loans .is-neg')).toHaveCount(0);
+    // Z4: every negative account balance uses red ink and retains its minus.
+    await expect(page.locator('#acct-tree-cards .is-neg')).not.toHaveCount(0);
+    await expect(page.locator('#acct-tree-loans .is-neg')).not.toHaveCount(0);
     for (const text of await page.locator('.acct-tree .acct-amount.is-neg').allTextContents())
       expect(text).toMatch(/^[−-]/);
     const plain = page.locator(
