@@ -1276,3 +1276,123 @@ dialog.is-bare .toast {
   margin-left: 4px;
   color: var(--line);
 }
+
+/* Checkbox and radio: one drawn control app-wide. The input element is the transparent hit area
+   (20 px on a fine pointer, the 44 px touch floor from base.css on touch); the visible 20 px box
+   is drawn centred inside it. Without this, the touch floor enlarges the native control and
+   WebKit paints a 44 px black square. The checked colour follows the former accent-color intent
+   (--line). */
+:where(input[type='checkbox'], input[type='radio']) {
+  position: relative;
+}
+input[type='checkbox'],
+input[type='radio'] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: none;
+  width: var(--check-size, 20px);
+  height: var(--check-size, 20px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--line);
+  cursor: pointer;
+  vertical-align: middle;
+}
+input[type='checkbox']::before,
+input[type='radio']::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  box-sizing: border-box;
+  width: var(--check-size, 20px);
+  height: var(--check-size, 20px);
+  translate: -50% -50%;
+  border: 1.5px solid var(--ink-3);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+}
+input[type='radio']::before {
+  border-radius: var(--radius-round);
+}
+input[type='checkbox']::after,
+input[type='radio']::after {
+  content: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  box-sizing: border-box;
+}
+input[type='checkbox']:checked::before,
+input[type='checkbox']:indeterminate::before {
+  border-color: var(--line);
+  background: var(--line);
+}
+input[type='checkbox']:checked::after {
+  content: '';
+  width: 6px;
+  height: 11px;
+  border: solid var(--surface);
+  border-width: 0 2px 2px 0;
+  translate: -50% -62%;
+  rotate: 45deg;
+}
+input[type='checkbox']:indeterminate:not(:checked)::after {
+  content: '';
+  width: 10px;
+  height: 2px;
+  background: var(--surface);
+  translate: -50% -50%;
+}
+input[type='radio']:checked::before {
+  border-color: var(--line);
+}
+input[type='radio']:checked::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-round);
+  background: var(--line);
+  translate: -50% -50%;
+}
+input[type='checkbox']:hover:not(:disabled)::before,
+input[type='radio']:hover:not(:disabled)::before {
+  border-color: var(--line);
+}
+/* The ring belongs to the drawn box, not to the 44 px hit area. */
+input[type='checkbox']:focus-visible,
+input[type='radio']:focus-visible {
+  outline: 0;
+}
+input[type='checkbox']:focus-visible::before,
+input[type='radio']:focus-visible::before {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+input[type='checkbox']:disabled,
+input[type='radio']:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+@media (forced-colors: active) {
+  input[type='checkbox']::before,
+  input[type='radio']::before {
+    border-color: CanvasText;
+    background: Canvas;
+  }
+  input[type='checkbox']:checked::before,
+  input[type='checkbox']:indeterminate::before {
+    background: Highlight;
+    border-color: Highlight;
+  }
+  input[type='checkbox']:checked::after {
+    border-color: HighlightText;
+  }
+  input[type='checkbox']:indeterminate:not(:checked)::after {
+    background: HighlightText;
+  }
+  input[type='radio']:checked::after {
+    background: Highlight;
+  }
+}
