@@ -188,6 +188,13 @@ components:
 
 # Design System: Finanz-App
 
+**Owner Z4 decision (2026-10-13, #451):** the left account list follows the
+Zerosum arrangement: navigation icons without 01–05 numbers, a KONTEN heading
+with create/settings actions, uppercase groups with chevron/icon/total and no
+subtitle, typed account rows with right-aligned balances. Every negative sidebar
+balance uses `--red`; selected accounts share the active navigation treatment.
+The precision-layer light and Prussian-blue dark tokens and sidebar footer stay.
+
 **Owner-Entscheidung 05.10.2026 — Unterseiten statt Seitenpanels.** Keine
 Seitenpanels, Drawer, rechten Side Sheets oder dauerhaften seitlichen Karten-Spalten
 für Inhalte. Details und sekundäre Informationen öffnen als Unterseiten mit eigener
