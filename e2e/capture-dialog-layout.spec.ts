@@ -11,7 +11,8 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  const tag = info.project.name;
+  // Retries get their own names: the fixtures below are unique per attempt.
+  const tag = `${info.project.name}${info.retry ? `-${info.retry}` : ''}`;
   const { account } = await post('/accounts', {
     name: `Dialog Muster ${tag}`,
     type: 'checking',
@@ -32,10 +33,14 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   await amount.fill('19,99');
   await dialog.getByLabel('Bezahlt von').selectOption(account.id);
   const status = dialog.locator('.bk-status');
-  const accountBox = (await dialog.getByLabel('Bezahlt von').boundingBox())!;
-  const statusBox = (await status.boundingBox())!;
-  expect(statusBox.x).toBeGreaterThan(accountBox.x + accountBox.width);
-  expect(Math.abs(statusBox.y - accountBox.y)).toBeLessThan(2);
+  // The sheet may still be settling after it opened: wait for the row to be laid out, then assert.
+  const accountSelect = dialog.getByLabel('Bezahlt von');
+  await expect
+    .poll(async () => {
+      const [a, b] = [(await accountSelect.boundingBox())!, (await status.boundingBox())!];
+      return b.x > a.x + a.width && Math.abs(b.y - a.y) < 2;
+    })
+    .toBe(true);
   const pending = await status.evaluate((el) => getComputedStyle(el).backgroundColor);
   await status.click();
   await expect(status).toHaveAttribute('aria-pressed', 'true');
@@ -64,7 +69,8 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   expect(repeatBox.x).toBeGreaterThan(dateBox.x + dateBox.width);
   expect(Math.abs(dateBox.y - repeatBox.y)).toBeLessThan(2);
   await dialog.getByLabel('Wiederholen').selectOption('');
-  const receiver = dialog.getByLabel('Empfänger');
+  // Exact: an open suggestion list is labelled "Empfänger, Vorschläge".
+  const receiver = dialog.getByLabel('Empfänger', { exact: true });
   await receiver.fill(payee.name.slice(0, -3));
   await dialog.getByRole('option', { name: new RegExp(payee.name) }).click();
   const category = dialog.getByLabel('Kategorie', { exact: true });
@@ -151,11 +157,19 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     ),
   ).toBe(true);
+  // The stray receiver text ("ns?s") becomes a payee on the first project run; the second run then
+  // finds it and, as designed, takes over that payee's last account. Choose this run's account again.
+  await dialog.getByLabel('Bezahlt von').selectOption(account.id);
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).toBeHidden({ timeout: 30000 });
-  const response = await request.get(`/api/bookings?accountId=${account.id}`);
-  expect(response.ok()).toBe(true);
-  const { items } = await response.json();
+  // Wait until the booking is stored before reading it back.
+  const stored = async () => {
+    const response = await request.get(`/api/bookings?accountId=${account.id}`);
+    expect(response.ok()).toBe(true);
+    return (await response.json()).items as unknown[];
+  };
+  await expect.poll(async () => (await stored()).length).toBeGreaterThan(0);
+  const items = await stored();
   expect(items[0]).toMatchObject({
     amountCents: -1999,
     status: 'confirmed',
