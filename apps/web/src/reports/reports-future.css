@@ -370,10 +370,7 @@
   cursor: pointer;
 }
 .rf-lever input {
-  width: 20px;
-  height: 20px;
   margin: 1px 0 0;
-  accent-color: var(--line);
 }
 .rf-lever strong {
   display: block;
