@@ -32,9 +32,9 @@ afterEach(cleanup);
 it('hides funded goals and labels current-only funding work in other months', () => {
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
   const key = budgetQuery('2026-09').queryKey;
-  client.setQueryData(key, { summary: { envelopes: [] } });
+  client.setQueryData(key, { summary: { envelopes: [] } } as never);
   for (const month of ['2026-08', '2026-09'])
-    client.setQueryData(goalsQuery(month).queryKey, { goals: [] });
+    client.setQueryData(goalsQuery(month).queryKey, { goals: [] } as never);
   const data = { stand: { today: '2026-09-17', month: '2026-08' } } as Heute;
   const { container, unmount } = render(
     <QueryClientProvider client={client}>
@@ -45,7 +45,7 @@ it('hides funded goals and labels current-only funding work in other months', ()
   unmount();
   client.setQueryData(key, {
     summary: { envelopes: [{ categoryId: 'synthetic', target: {}, needCents: 100 }] },
-  });
+  } as never);
   render(
     <QueryClientProvider client={client}>
       <FundingNotes data={data} />
