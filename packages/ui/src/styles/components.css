@@ -752,6 +752,18 @@ button.ct-term .ct-val {
 .prow.is-clickable:hover td {
   background: var(--tint);
 }
+/* Metadata needs stronger ink on tinted hover/selection surfaces (UX Q1). */
+:where(
+  .prow:hover,
+  .krow:hover,
+  .ktable tr[data-booking]:hover,
+  .kgroup.is-flash,
+  .is-selected,
+  [aria-selected='true'],
+  [aria-pressed='true']
+) {
+  --ink-3: var(--ink-2);
+}
 /* Real button around the name; its ::after stretches over the whole row (tr is the positioned
    ancestor), so the row is one hit area for mouse, touch and keyboard. */
 .prow-btn {

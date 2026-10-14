@@ -6,7 +6,7 @@ colors:
   primary-hover: "#0f3a8f"
   on-primary: "#ffffff"
   line: "#1747a6"
-  line-2: "#8fa9d6"
+  line-2: "#6786ac"
   ground: "#f2f5f9"
   ground-2: "#eef3fa"
   raised: "#ffffff"
@@ -14,9 +14,9 @@ colors:
   surface-2: "#f6f8fb"
   ink: "#0b1b33"
   ink-2: "#3a4e6e"
-  ink-3: "#586e90"
+  ink-3: "#4d6a89"
   rule: "#d6dfed"
-  rule-strong: "#b6c6df"
+  rule-strong: "#6786ac"
   graticule: "#e9eef6"
   red: "#c42a1f"
   good: "#1d5a35"
@@ -35,18 +35,18 @@ colors:
   dark-surface-2: "#0d3657"
   dark-ink: "#eef6fc"
   dark-ink-2: "#b9d0e3"
-  dark-ink-3: "#8fb0cb"
+  dark-ink-3: "#8fb4d1"
   dark-line: "#d2ecff"
   dark-line-2: "#6f9dc2"
   dark-rule: "#25557a"
-  dark-rule-strong: "#386a91"
+  dark-rule-strong: "#4987bc"
   dark-graticule: "#15406a"
-  dark-primary: "#eef6fc"
+  dark-primary: "#d0f4ff"
   dark-on-primary: "#0b3152"
   dark-red: "#ff8b7b"
-  dark-good: "#1f6a40"
-  dark-good-hover: "#247a4a"
-  dark-on-good: "#ffffff"
+  dark-good: "#8fd6a8"
+  dark-good-hover: "#a8e6c0"
+  dark-on-good: "#0b3152"
   dark-good-soft: "#18493d"
   dark-on-good-soft: "#a8e6c0"
   dark-quiet-soft: "#164368"
@@ -256,6 +256,8 @@ Eine einzige Tuschfamilie in Blau auf glattem Grund, mit genau einer Fremdtinte:
 - **Haarlinie** (`rule`) und **Haarlinie kräftig** (`rule-strong`): Zeilentrenner, Kopflinien, Feld- und Tastenkonturen.
 - **Gradnetz** (`graticule`): die schwachen Rasterlinien hinter Diagrammen und im Kopfdetail des Seitenpanels, sonst nirgends.
 - Transparente Tönungen `--tint` (6 %/7 %) und `--tint-2` (11 %/13 %) der Tusche für Hover, Auswahl und Balkenträger; `--overlay` für den Scrim.
+
+Owner UX Q1 (2026-10-14, #464): control boundaries and meaningful secondary lines reach at least 3:1 against their normal surfaces; text reaches 4.5:1. Selected/hovered rows and selected controls use `ink-2` for metadata otherwise painted in `ink-3`. Dark positive fills use a lighter green with dark `on-good` text, so both the fill and its text remain distinguishable. These are contrast corrections; the full teal/orange palette follows separately in DS1.
 
 ### Named Rules
 **The Signal Rule.** Grün sagt „das Geld ist da“ (Hero, Mint-Pillen, erfüllt), Rot sagt „handeln“; beide erscheinen nie ohne Zahl, Vorzeichen oder Symbol.

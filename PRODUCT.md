@@ -223,6 +223,8 @@ Heute beginnt mit frei verfügbar bis Gehalt und der gemeinsamen 35-Tage-Prognos
 
 ## Accessibility & Inclusion
 
+Owner UX Q1 (2026-10-14, #464): normal text has at least 4.5:1 contrast and control boundaries/meaningful data marks at least 3:1 in both themes. Hover and selection metadata use the stronger secondary text role. Positive dark fills retain a contrasting foreground; DS1 owns the later teal/orange palette.
+
 - Rot und Grün nur zusammen mit Vorzeichen oder Symbol (Farbfehlsichtigkeit). Kontrast und Farbfehlsichtigkeit werden mit einem Werkzeug geprüft, bevor Farben festgeschrieben werden.
 - Berührflächen mindestens 44 × 44 px; Erfassung und Suchfelder sind mit Tastatur und Touch bedienbar (eigene Combobox statt `<datalist>`, die auf iOS Safari versagt).
 - Reduzierte Bewegung wird respektiert.

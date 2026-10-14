@@ -129,11 +129,11 @@
 .hero-kpi.is-positive {
   --ink: var(--on-good);
   --ink-2: color-mix(in srgb, var(--on-good) 84%, transparent);
-  --ink-3: color-mix(in srgb, var(--on-good) 72%, transparent);
+  --ink-3: color-mix(in srgb, var(--on-good) 84%, transparent);
   --line: var(--on-good);
-  --line-2: color-mix(in srgb, var(--on-good) 55%, transparent);
+  --line-2: color-mix(in srgb, var(--on-good) 70%, transparent);
   --rule: color-mix(in srgb, var(--on-good) 22%, transparent);
-  --rule-strong: color-mix(in srgb, var(--on-good) 34%, transparent);
+  --rule-strong: color-mix(in srgb, var(--on-good) 70%, transparent);
   --tint: color-mix(in srgb, var(--on-good) 10%, transparent);
   --tint-2: color-mix(in srgb, var(--on-good) 18%, transparent);
   color: var(--ink);

@@ -1,5 +1,12 @@
 # Roadmap
 
+## UX Q1 — control and metadata contrast (#464)
+
+- [x] Generated boundaries, secondary lines and positive dark fills meet 3:1; text and positive-button foregrounds meet 4.5:1, including print.
+- [x] Tinted hover/selection metadata uses stronger ink; the full DS1 palette remains separate.
+- [x] Focused desktop/mobile/WebKit, light/dark Axe and synthetic evidence verified.
+- [ ] Required PR CI and deployed revision verified before closing.
+
 ### Account register: upcoming captures and next recurrence — #453 (2026-10-13)
 
 - [x] Remembered `Kommend · N` section in account and All Bookings registers, collapsed on phones; all future captures and only the next unbooked schedule occurrence, ascending date hints and distinct calendar/repeat icons.
