@@ -56,10 +56,6 @@
   display: block;
   color: var(--ink-2);
 }
-.basket-category input {
-  flex: 0 0 auto;
-  accent-color: var(--line);
-}
 @media (max-width: 980px) {
   .basket-category-top {
     grid-template-columns: minmax(0, 1fr);
