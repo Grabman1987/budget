@@ -80,7 +80,8 @@ test('Plan month creates an empty group and categories through the existing form
   const group = `Mustergruppe ${info.project.name}-${Date.now()}`;
   const category = `Musterkategorie ${info.project.name}`;
   await page.goto('/plan/monat?monat=2026-10');
-  const groupPlus = page.getByRole('button', { name: '+ Gruppe', exact: true });
+  // The table head carries the plus of the group list next to "Kategoriegruppe".
+  const groupPlus = page.getByRole('button', { name: 'Gruppe anlegen', exact: true });
   await groupPlus.first().click();
   const groupDialog = page.getByRole('dialog', { name: 'Gruppe anlegen' });
   await groupDialog.getByLabel('Name', { exact: true }).fill(group);

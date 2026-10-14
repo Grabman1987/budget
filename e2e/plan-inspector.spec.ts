@@ -86,7 +86,7 @@ test('inspector discloses month figures and reuses category writes, quick values
     body: { items: [{ categoryId: ids[0], assignedCents: 1001 }] },
   });
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
-  await expect(assigned).toHaveText(phone ? 'Zugewiesen 0,00 €' : '≈ 100,01 €');
+  await expect(assigned).toHaveText(phone ? 'Zugewiesen ≈ 100,01 €' : '≈ 100,01 €');
   await inspector.getByRole('button', { name: 'Ziel', exact: true }).click();
   await expect(assigned).toHaveText(phone ? 'Zugewiesen 100,01 €' : '100,01 €');
   expect(writes[1]).toEqual({

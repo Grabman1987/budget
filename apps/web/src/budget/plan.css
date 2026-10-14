@@ -2128,7 +2128,11 @@
   height: 4px;
   margin: 0;
   background: var(--good);
-  overflow: hidden;
+  overflow: visible;
+}
+.plan .ptable-zero .spending-bar .pbar-tick {
+  top: -2px;
+  bottom: -2px;
 }
 .plan .ptable-zero .spending-bar .pbar-fill {
   background: repeating-linear-gradient(135deg, var(--good) 0 2px, var(--good-soft) 2px 5px);

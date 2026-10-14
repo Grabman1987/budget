@@ -39,7 +39,7 @@ import {
   useStoredMonthSpan,
 } from './month-span';
 import { MultiTable } from './plan-multi';
-import { AssignCell } from './assign-cell';
+import { AssignCell, assignGhost, ghostSource } from './assign-cell';
 import { QuickAssignActions } from './quick-assign-actions';
 import {
   assign,
@@ -1343,6 +1343,7 @@ function EnvelopeRow({
   const over = r.overspentCents > 0;
   const bar = barFor(r, ctx);
   const spending = spendingBar(r);
+  const assignment = assignGhost(r);
   const phone = useIsPhone();
   const ghost = suggestion !== undefined && (
     <button
@@ -1398,11 +1399,16 @@ function EnvelopeRow({
         </span>
         <span className={cx('pbar spending-bar', spending.over && 'is-over')} aria-hidden="true">
           <i className="pbar-fill" style={{ width: `${spending.spentShare * 100}%` }} />
+          {bar.fill !== null && bar.pace !== null && (
+            <i className="pbar-tick" style={{ left: `${bar.pace * 100}%` }}></i>
+          )}
         </span>
       </td>
       <td className="col-num col-assign" data-label="Zugewiesen">
         {phone ? (
-          <span className="phone-assigned">Zugewiesen {eur(r.assignedCents)}</span>
+          <span className="phone-assigned" title={assignment ? ghostSource(assignment) : undefined}>
+            Zugewiesen {assignment ? `≈ ${eur(assignment.ghostCents)}` : eur(r.assignedCents)}
+          </span>
         ) : (
           <>
             <AssignCell
