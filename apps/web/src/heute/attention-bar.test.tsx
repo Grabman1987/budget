@@ -138,6 +138,37 @@ it('hides an empty task block without promising all rules were evaluated', () =>
   expect(container.childElementCount).toBe(0);
 });
 
+it('keeps savings proposals and their load failures in the review source even without other tasks', () => {
+  const data = {
+    stand: { today: '2026-09-17' },
+    nextSteps: { items: [] },
+    attention: { inboxCount: 0, pendingCount: 0 },
+    financeCheck: { actionRules: [] },
+  } as unknown as Heute;
+  const onClick = vi.fn();
+  const { container, rerender } = render(
+    <AttentionBar
+      data={data}
+      savingsRows={[
+        {
+          id: 'synthetic-proposal',
+          letter: 'A',
+          title: 'Sparplan: Musterinstrument',
+          detail: '100,00 €',
+          action: { label: 'Ausführung prüfen', onClick },
+        },
+      ]}
+    />,
+  );
+  expect(container.querySelectorAll('.attention-row')).toHaveLength(1);
+  expect(screen.getByText('1 Sparplanausführung prüfen')).toBeTruthy();
+  screen.getByRole('button', { name: 'Ausführung prüfen', hidden: true }).click();
+  expect(onClick).toHaveBeenCalledOnce();
+  rerender(<AttentionBar data={data} savingsError={<p>Vorschläge nicht verfügbar</p>} />);
+  expect(screen.getByText('Vorschläge nicht verfügbar')).toBeTruthy();
+  expect(container.querySelectorAll('.attention-row')).toHaveLength(1);
+});
+
 it('keeps month close in the Plan source rather than adding a separate next-steps block', () => {
   const data = {
     stand: { today: '2026-10-01' },

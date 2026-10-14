@@ -801,11 +801,22 @@
 }
 .attention-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding-block: 4px;
   border-top: 1px solid var(--rule);
+}
+.attention-proposals {
+  flex-basis: 100%;
+  min-width: 0;
+}
+.attention-proposals summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
 }
 .attention-row > span {
   min-width: 0;

@@ -235,7 +235,12 @@ for (const [rhythm, date] of [
     await page.screenshot({ path: info.outputPath(`plan-${rhythm}.png`) });
     await page.goto('/');
     const upcoming = page.getByRole('region', { name: 'Fällig 14 Tage' });
-    await expect(upcoming.getByText('Kleine Kartenzahlung Muster', { exact: true })).toBeVisible();
+    const occurrences = upcoming
+      .locator('.heute-upcoming')
+      .filter({ hasText: 'Kleine Kartenzahlung Muster' });
+    await expect(occurrences).toHaveCount(rhythm === 'weekly' ? 2 : 1);
+    await expect(occurrences.first()).toContainText('05.10.');
+    if (rhythm === 'weekly') await expect(occurrences.nth(1)).toContainText('12.10.');
     await expect(upcoming.getByText('Karte Muster', { exact: false }).first()).toBeVisible();
     await upcoming.scrollIntoViewIfNeeded();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

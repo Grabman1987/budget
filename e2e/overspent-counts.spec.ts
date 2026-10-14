@@ -43,7 +43,8 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   });
   await expect(chip).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('.heute-attention')).not.toContainText('überzogen');
+  await expect(page.locator('.heute-attention')).toContainText(`${count} Kategorien überzogen`);
+  await expect(page.locator('.heute-attention [data-overspent]')).toHaveCount(0);
   await expect(chip).toHaveAttribute('href', /\/plan\/monat/);
   await page.screenshot({ path: info.outputPath('heute.png'), fullPage: true });
   await chip.click();

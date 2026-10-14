@@ -1,6 +1,7 @@
 import { closeEntryMonth, unfundedSavingsGoals } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
-import { useAmountPrivacy } from '@budget/ui';
+import { RevisionTable, useAmountPrivacy, type RevisionRow } from '@budget/ui';
+import type { ReactNode } from 'react';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote } from '../ledger/states';
 import { budgetQuery } from '../budget/budget-api';
@@ -12,8 +13,12 @@ import type { Heute } from './api';
 /** One row per source; the existing destinations own all writes and undo. */
 export function AttentionBar({
   data,
+  savingsRows = [],
+  savingsError,
 }: {
   data: Pick<Heute, 'stand' | 'nextSteps' | 'financeCheck' | 'attention' | 'accountReminders'>;
+  savingsRows?: RevisionRow[];
+  savingsError?: ReactNode;
 }) {
   useAmountPrivacy();
   const rules = 'unavailable' in data.financeCheck ? [] : data.financeCheck.actionRules;
@@ -28,6 +33,8 @@ export function AttentionBar({
     !rules.length &&
     !data.attention.inboxCount &&
     !data.attention.pendingCount &&
+    !savingsRows.length &&
+    !savingsError &&
     !reminders
   )
     return null;
@@ -68,7 +75,10 @@ export function AttentionBar({
           </AppLink>
         </div>
       )}
-      {(data.attention.inboxCount > 0 || data.attention.pendingCount > 0) && (
+      {(data.attention.inboxCount > 0 ||
+        data.attention.pendingCount > 0 ||
+        savingsRows.length > 0 ||
+        savingsError) && (
         <div className="attention-row">
           <span>
             {data.attention.inboxCount > 0 && (
@@ -96,6 +106,16 @@ export function AttentionBar({
               </AppLink>
             )}
           </div>
+          {savingsRows.length > 0 && (
+            <details className="attention-proposals">
+              <summary>
+                {savingsRows.length}{' '}
+                {savingsRows.length === 1 ? 'Sparplanausführung' : 'Sparplanausführungen'} prüfen
+              </summary>
+              <RevisionTable rows={savingsRows} caption="Sparplanausführungen" />
+            </details>
+          )}
+          {savingsError}
         </div>
       )}
       {reminders > 0 && (

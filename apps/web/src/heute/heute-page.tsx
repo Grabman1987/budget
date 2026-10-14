@@ -7,6 +7,7 @@ import {
   DimensionChainDrawing,
   SectionHead,
   type DimensionChainTerm,
+  type RevisionRow,
 } from '@budget/ui';
 import { addDays, cents } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
@@ -29,6 +30,8 @@ import './heute.css';
 import { useIsPhone } from '../budget/month-span';
 import { useStoredFlag } from '../shell/use-stored-flag';
 import { AttentionBar, FundingNotes } from './attention-bar';
+import { savingsProposalsQuery } from '../wealth/savings-api';
+import { sourceMoney } from '../wealth/trade-api';
 import { AnswerCards } from './answer-cards';
 import { DailyBudgetLine } from './charts';
 import { VerdictLine } from '../reports/verdict-line';
@@ -85,6 +88,18 @@ function HeuteBody({ data }: { data: Heute }) {
   const net = 'unavailable' in data.netWorth ? null : data.netWorth;
   const check = 'unavailable' in data.financeCheck ? null : data.financeCheck;
   const phone = useIsPhone();
+  const savings = useQuery(savingsProposalsQuery());
+  const savingsRows: RevisionRow[] = (savings.data?.proposals ?? []).map((proposal, index) => ({
+    id: proposal.id,
+    letter: String.fromCharCode(65 + (index % 26)),
+    urgent: false,
+    title: `Sparplan: ${proposal.securityName}`,
+    detail: `${longDay(proposal.date)} · ${sourceMoney(proposal.amountCents, proposal.currency)} · ${proposal.accountName}`,
+    action: {
+      label: 'Ausführung prüfen',
+      onClick: () => void navigate({ to: '/konten/posteingang' }),
+    },
+  }));
   const leadTerms: DimensionChainTerm[] = data.lead.chain.map((term, index) => ({
     ...term,
     value: cents(term.value),
@@ -117,7 +132,19 @@ function HeuteBody({ data }: { data: Heute }) {
         onBudgetClick={() => setChainOpen((open) => !open)}
       />
       <VerdictLine facts={heuteFacts} />
-      <AttentionBar data={data} />
+      <AttentionBar
+        data={data}
+        savingsRows={savingsRows}
+        savingsError={
+          savings.isError && (
+            <ErrorNote
+              what="Sparplanvorschläge"
+              error={savings.error}
+              onRetry={() => void savings.refetch()}
+            />
+          )
+        }
+      />
       <section className="heute-lead" aria-labelledby="heute-lead-title">
         <div className="heute-lead-head">
           <div>
