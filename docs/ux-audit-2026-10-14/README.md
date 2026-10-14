@@ -76,37 +76,38 @@ Figma: [Zeile 8](https://www.figma.com/design/Nv9oaV96Npql6onEofCFEi/?node-id=58
 Figma: [Zeile 9](https://www.figma.com/design/Nv9oaV96Npql6onEofCFEi/?node-id=58-136)
 
 ## Pakete
+Übersicht und Reihenfolge: #491.
 Jedes Paket ist ein GitHub-Issue (Label `ux-audit`) mit den vollständigen Findings, Bildern, Umsetzungshinweisen und Akzeptanzkriterien. Reihenfolge: Quick Wins → Mittelfristig → Strategisch; Abhängigkeiten in der Spalte „Nach“.
 
 | Paket | Phase | Titel | Findings | Aufwand | Nach | Issue |
 |---|---|---|---|---|---|---|
-| Q1 | Quick Win | Design-Tokens: Kontraste auf WCAG AA (Feldrahmen, Text 3, Dunkel-Grün) | D-08, D-20, A-24, D-35, B-34, C-33 | S | Kann sofort starten. Die volle Palette (Teal/Orange) folgt in DS-1. | ISSUE_Q1 |
-| Q2 | Quick Win | Rot nur für „jetzt handeln“: vergangene Verluste in Tusche, ein Alarmort | D-04, C-12 | S | Unabhängig. | ISSUE_Q2 |
-| Q3 | Quick Win | Heute: „Braucht Aufmerksamkeit“ verdichten, leere Blöcke ausblenden, Monatsschalter konsistent | A-04, A-05, A-22, A-35 | M | Vor H1 (Heute neu). | ISSUE_Q3 |
-| Q4 | Quick Win | Konten: Kontoseite und Übersicht klarer (Saldo, Prüfstatus, Kommend eingeklappt, Dichte) | C-03, C-04, C-05, C-10, C-11, C-17, C-32, C-34, C-35, A-08 | M | Unabhängig; vor K1. | ISSUE_Q4 |
-| Q5 | Quick Win | Navigation und iPhone-Rahmen: Register-Labels, Header, FAB, Fokusrahmen, ein Rückweg | B-12, C-26, B-23, C-16, A-21, B-37, A-15, A-17, B-32, A-25, C-31, B-38, A-09, A-20, C-29 | M | Unabhängig. Prognose-Tab entfällt mit H2. | ISSUE_Q5 |
-| Q6 | Quick Win | Sprache: Begriffe vereinheitlichen (Kategorie, Ausgabentempo, Sparziel/Monatsziel, Regel-Codes) | B-18, A-23, C-28, D-18, B-24, A-19, A-30 | S | Unabhängig; kleine Text-Konflikte mit Z2/Z3 möglich (dann rebasen). | ISSUE_Q6 |
-| Q7 | Quick Win | Tabellen und Diagramme: Abschneiden, iPhone-Überlauf, Achsen „Tsd. €“, Zahlenformat | D-07, D-06, D-12, C-25, C-22, D-19, D-30 | M | Unabhängig. | ISSUE_Q7 |
-| Q8 | Quick Win | Icons vereinheitlichen (Austauschliste, Größen, Strichstärke, keine Unicode-Glyphen) | D-24, D-39, B-36 | S | Unabhängig. | ISSUE_Q8 |
-| DS1 | Mittelfristig | Design-System v2 · Palette Teal/Orange und Farbrollen (Entscheidung 1A) | D-03, D-22, D-13, B-16 | M | Nach Q1. | ISSUE_DS1 |
-| DS2 | Mittelfristig | Design-System v2 · Typo-Skala verbindlich, Archivo für Zahlen (Entscheidung 2B) | D-11, D-23, B-33 | M | Nach DS1 oder parallel (andere Dateien). | ISSUE_DS2 |
-| DS3 | Mittelfristig | Design-System v2 · Linien, Balken, Radien, Schatten („dicke Linien“) | D-21, D-38, B-04, D-36 | M | Nach Z1 (#462) für die Plan-Balken. | ISSUE_DS3 |
-| H1 | Mittelfristig | Heute neu nach Figma: 3 Kennzahlen, Monatsverlauf, Vermögensverlauf, Zu tun, Fällig | A-01, A-02, A-03, A-07, A-36 | L | Nach Q3; H2 kann parallel (andere Karte). | ISSUE_H1 |
-| H2 | Mittelfristig | Kontoprognose als Heute-Karte + Detailseite mit Tiefststand (Entscheidung 5B) | A-10, B-11, D-10, B-28 | L | Unabhängig von H1 (eigene Karte). | ISSUE_H2 |
-| K1 | Mittelfristig | Konten › Prüfen: Umsätze mit Vorschlag, Fortschritt und Abgleich (Entscheidung 4A) | C-01, C-13, C-14, C-15 | L | Nach Q4. | ISSUE_K1 |
-| K2 | Mittelfristig | Depot-Konto mit eigener Vorlage: Depotwert, Verrechnungskonto, Trades (Entscheidung 9A) | C-02 | M | Nach Q4. | ISSUE_K2 |
-| K3 | Mittelfristig | Register und Buchungen: iPhone-Zeilen, Status-Legende, Flaggen, Filter, Kontakte | C-06, C-07, C-18, C-19, C-20, C-30 | M | Nach DS1 (Flaggenfarben) und #461. | ISSUE_K3 |
-| V1 | Mittelfristig | Vermögen: Portfolio, Schulden, Freiheit, Sparplan, Handelsverlauf | C-08, C-09, C-21, C-23, C-24, C-27 | L | Unabhängig. | ISSUE_V1 |
-| P1 | Mittelfristig | Plan: Einzelkategorie-Gruppen als eine Zeile (Entscheidung 7A) | B-15 | M | Nach Z1 #462 (gleiche Dateien), vor/zusammen mit Z2 #449. | ISSUE_P1 |
-| P2 | Mittelfristig | Plan-Unterseiten: Einnahmen, Jahr, Zahlungen, Sparziel-Detail | B-13, B-25, B-26, B-27 | L | Nach Z3 #450 (Plan-Dateien). | ISSUE_P2 |
-| M1 | Mittelfristig | Monatsabschluss: leere Schritte überspringen, Sammelbestätigung, Ergebnisseite | B-14, B-30, B-31 | M | Einstieg (sichtbarer Button) kommt mit Z2 #449. | ISSUE_M1 |
-| S1 | Mittelfristig | Suche als Overlay-Palette (Strg K) mit Aktionen | A-16 | M | Unabhängig. | ISSUE_S1 |
-| E1 | Strategisch | Stammdaten an den Nutzungsort: Kategorien in Plan, Anlageklassen in Portfolio (Entscheidung 8A) | A-06, A-28, A-29 | L | Nach Z2/Z3 (Plan-Optionen-Menü). | ISSUE_E1 |
-| E2 | Strategisch | Einstellungen nach Aufgaben ordnen und Seiten aufräumen (Entscheidung 8A) | A-11, A-12, A-13, A-14, A-18, A-31, A-32, A-33 | M | Nach E1. | ISSUE_E2 |
-| R1 | Strategisch | Reports-Hub: 34 → ~15 Auswertungen in 4 Gruppen (Entscheidung 6A) | D-01, D-02, D-09, D-15, D-34, D-40, D-27 | L | Nach H2 (Liquidität zieht um). | ISSUE_R1 |
-| R2 | Strategisch | Report-Vorlage „Antwort zuerst“ für alle Reports | D-05, D-16, D-17, D-26, D-14, D-28, D-29, D-31, D-32, D-33 | L | Nach R1. | ISSUE_R2 |
-| ZS1 | Strategisch | Zeichnungssprache als System auf Übersichtsseiten (Blatt/Rev, Raster, Positionsnummern) | D-25, D-37, A-34 | M | Nach DS1–DS3. | ISSUE_ZS1 |
-| PUB1 | Strategisch · später | Später (Veröffentlichung): Login, Onboarding, Glossar | A-26, A-27 | L | Zuletzt. | ISSUE_PUB1 |
+| Q1 | Quick Win | Design-Tokens: Kontraste auf WCAG AA (Feldrahmen, Text 3, Dunkel-Grün) | D-08, D-20, A-24, D-35, B-34, C-33 | S | Kann sofort starten. Die volle Palette (Teal/Orange) folgt in DS-1. | #464 |
+| Q2 | Quick Win | Rot nur für „jetzt handeln“: vergangene Verluste in Tusche, ein Alarmort | D-04, C-12 | S | Unabhängig. | #465 |
+| Q3 | Quick Win | Heute: „Braucht Aufmerksamkeit“ verdichten, leere Blöcke ausblenden, Monatsschalter konsistent | A-04, A-05, A-22, A-35 | M | Vor H1 (Heute neu). | #466 |
+| Q4 | Quick Win | Konten: Kontoseite und Übersicht klarer (Saldo, Prüfstatus, Kommend eingeklappt, Dichte) | C-03, C-04, C-05, C-10, C-11, C-17, C-32, C-34, C-35, A-08 | M | Unabhängig; vor K1. | #467 |
+| Q5 | Quick Win | Navigation und iPhone-Rahmen: Register-Labels, Header, FAB, Fokusrahmen, ein Rückweg | B-12, C-26, B-23, C-16, A-21, B-37, A-15, A-17, B-32, A-25, C-31, B-38, A-09, A-20, C-29 | M | Unabhängig. Prognose-Tab entfällt mit H2. | #468 |
+| Q6 | Quick Win | Sprache: Begriffe vereinheitlichen (Kategorie, Ausgabentempo, Sparziel/Monatsziel, Regel-Codes) | B-18, A-23, C-28, D-18, B-24, A-19, A-30 | S | Unabhängig; kleine Text-Konflikte mit Z2/Z3 möglich (dann rebasen). | #469 |
+| Q7 | Quick Win | Tabellen und Diagramme: Abschneiden, iPhone-Überlauf, Achsen „Tsd. €“, Zahlenformat | D-07, D-06, D-12, C-25, C-22, D-19, D-30 | M | Unabhängig. | #470 |
+| Q8 | Quick Win | Icons vereinheitlichen (Austauschliste, Größen, Strichstärke, keine Unicode-Glyphen) | D-24, D-39, B-36 | S | Unabhängig. | #471 |
+| DS1 | Mittelfristig | Design-System v2 · Palette Teal/Orange und Farbrollen (Entscheidung 1A) | D-03, D-22, D-13, B-16 | M | Nach Q1. | #472 |
+| DS2 | Mittelfristig | Design-System v2 · Typo-Skala verbindlich, Archivo für Zahlen (Entscheidung 2B) | D-11, D-23, B-33 | M | Nach DS1 oder parallel (andere Dateien). | #473 |
+| DS3 | Mittelfristig | Design-System v2 · Linien, Balken, Radien, Schatten („dicke Linien“) | D-21, D-38, B-04, D-36 | M | Nach Z1 (#462) für die Plan-Balken. | #474 |
+| H1 | Mittelfristig | Heute neu nach Figma: 3 Kennzahlen, Monatsverlauf, Vermögensverlauf, Zu tun, Fällig | A-01, A-02, A-03, A-07, A-36 | L | Nach Q3; H2 kann parallel (andere Karte). | #475 |
+| H2 | Mittelfristig | Kontoprognose als Heute-Karte + Detailseite mit Tiefststand (Entscheidung 5B) | A-10, B-11, D-10, B-28 | L | Unabhängig von H1 (eigene Karte). | #476 |
+| K1 | Mittelfristig | Konten › Prüfen: Umsätze mit Vorschlag, Fortschritt und Abgleich (Entscheidung 4A) | C-01, C-13, C-14, C-15 | L | Nach Q4. | #477 |
+| K2 | Mittelfristig | Depot-Konto mit eigener Vorlage: Depotwert, Verrechnungskonto, Trades (Entscheidung 9A) | C-02 | M | Nach Q4. | #478 |
+| K3 | Mittelfristig | Register und Buchungen: iPhone-Zeilen, Status-Legende, Flaggen, Filter, Kontakte | C-06, C-07, C-18, C-19, C-20, C-30 | M | Nach DS1 (Flaggenfarben) und #461. | #479 |
+| V1 | Mittelfristig | Vermögen: Portfolio, Schulden, Freiheit, Sparplan, Handelsverlauf | C-08, C-09, C-21, C-23, C-24, C-27 | L | Unabhängig. | #480 |
+| P1 | Mittelfristig | Plan: Einzelkategorie-Gruppen als eine Zeile (Entscheidung 7A) | B-15 | M | Nach Z1 #462 (gleiche Dateien), vor/zusammen mit Z2 #449. | #481 |
+| P2 | Mittelfristig | Plan-Unterseiten: Einnahmen, Jahr, Zahlungen, Sparziel-Detail | B-13, B-25, B-26, B-27 | L | Nach Z3 #450 (Plan-Dateien). | #482 |
+| M1 | Mittelfristig | Monatsabschluss: leere Schritte überspringen, Sammelbestätigung, Ergebnisseite | B-14, B-30, B-31 | M | Einstieg (sichtbarer Button) kommt mit Z2 #449. | #483 |
+| S1 | Mittelfristig | Suche als Overlay-Palette (Strg K) mit Aktionen | A-16 | M | Unabhängig. | #484 |
+| E1 | Strategisch | Stammdaten an den Nutzungsort: Kategorien in Plan, Anlageklassen in Portfolio (Entscheidung 8A) | A-06, A-28, A-29 | L | Nach Z2/Z3 (Plan-Optionen-Menü). | #485 |
+| E2 | Strategisch | Einstellungen nach Aufgaben ordnen und Seiten aufräumen (Entscheidung 8A) | A-11, A-12, A-13, A-14, A-18, A-31, A-32, A-33 | M | Nach E1. | #486 |
+| R1 | Strategisch | Reports-Hub: 34 → ~15 Auswertungen in 4 Gruppen (Entscheidung 6A) | D-01, D-02, D-09, D-15, D-34, D-40, D-27 | L | Nach H2 (Liquidität zieht um). | #487 |
+| R2 | Strategisch | Report-Vorlage „Antwort zuerst“ für alle Reports | D-05, D-16, D-17, D-26, D-14, D-28, D-29, D-31, D-32, D-33 | L | Nach R1. | #488 |
+| ZS1 | Strategisch | Zeichnungssprache als System auf Übersichtsseiten (Blatt/Rev, Raster, Positionsnummern) | D-25, D-37, A-34 | M | Nach DS1–DS3. | #489 |
+| PUB1 | Strategisch · später | Später (Veröffentlichung): Login, Onboarding, Glossar | A-26, A-27 | L | Zuletzt. | #490 |
 
 Bereits laufende Arbeit, die Findings mit abdeckt:
 
