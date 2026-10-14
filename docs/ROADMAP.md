@@ -1,5 +1,15 @@
 # Roadmap
 
+### UX Q3 — Today attention — #466 (2026-10-14)
+
+- [x] One nonempty Zu tun block with at most four source summaries, urgent sources first, existing account review and month-close destinations, and no duplicate savings proposal list.
+- [x] One nonempty Fällig 14 Tage list for recurring payments and planned one-off events; compact Finanz-Check tile and hidden empty funding notes.
+- [x] Decision 3B retained; short other-month return line and explicit Stand heute labels for current-only information.
+- [x] Synthetic red/green component regressions (4 files / 16 tests), changed-file lint/format/CSS scale and E2E build under the owner's scoped-check exception. [Evidence](evidence/heute-attention-q3/README.md).
+- [x] Six focused desktop/Chromium-mobile/WebKit-iPhone scenarios, current/other-month light/dark Axe, 44px changed-section targets, no horizontal page overflow and synthetic evidence images.
+- [ ] Commit/push/normal PR: Git worktree `index.lock` creation is denied locally; prepared PR body and evidence remain in the worktree.
+- [ ] Web typecheck (local heap exhaustion), required CI, pinned Linux visual baseline review and physical desktop/phone owner acceptance.
+
 ### Account register: upcoming captures and next recurrence — #453 (2026-10-13)
 
 - [x] Remembered `Kommend · N` section in account and All Bookings registers, collapsed on phones; all future captures and only the next unbooked schedule occurrence, ascending date hints and distinct calendar/repeat icons.

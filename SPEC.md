@@ -1,5 +1,7 @@
 # Budget — Specification
 
+Owner Q3 decision (2026-10-14, #466): Heute retains the month switch and Monat / Bis Gehalt (3B). One nonempty Zu tun block groups work into at most four source rows (Plan, rules, inbox/bookings, account checks), with existing review/write/undo destinations. Month close stays in the Plan row; savings executions already belong to the inbox count. One nonempty Fällig 14 Tage list combines recurring payments and one-off events through day 14; the underlying event read horizon stays 35 days. Finanz-Check is a compact summary tile. Other-month views use a short Ansicht / return line and label current-only sections Stand heute; Pace and pinned envelopes retain their selected-month scope. This supersedes older next-steps and split upcoming-list descriptions.
+
 Owner Plan directive (2026-10-12, #446): Plan › Monat restores a 320px sticky right inspector from 1180px. With no category selected, native disclosures show Monatsüberblick open and 50/30/20, expected income versus targets, budget-account money and waterfall stages closed. Category selection shows existing assignment/move/cover forms, target progress, quick assignment and category actions; history remains on the envelope URL. Below 1180px this package uses a collapsible inspector below the grid; the phone action layout is a separate package. This narrowly supersedes the 2026-10-05 navigation directive for Plan › Monat only.
 
 Owner navigation directive (2026-10-05): content details use deep-linkable sub-pages

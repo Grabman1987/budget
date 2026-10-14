@@ -188,6 +188,8 @@ components:
 
 # Design System: Finanz-App
 
+**Owner Q3 decision (2026-10-14, #466, 3B):** Heute keeps the month switch and Monat / Bis Gehalt. One nonempty Zu tun section contains at most four compact source rows, ordered Plan, rules, inbox/bookings, account checks; secondary routine actions share their source row. A single nonempty Fällig 14 Tage list replaces Was steht an / Danach. Finanz-Check is a compact tile with counts and source links, without a duplicate findings list. In other months the former explanatory box becomes Ansicht: <month> – Zum aktuellen Monat; current-only sections carry Stand heute. Existing precision-layer tokens and 44px touch targets apply. This supersedes the separate Nächste Schritte revision table on Heute.
+
 **Owner Z4 decision (2026-10-13, #451):** the left account list follows the
 Zerosum arrangement: navigation icons without 01–05 numbers, a KONTEN heading
 with create/settings actions, uppercase groups with chevron/icon/total and no

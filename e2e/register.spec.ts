@@ -234,7 +234,7 @@ for (const [rhythm, date] of [
     ).toBeVisible();
     await page.screenshot({ path: info.outputPath(`plan-${rhythm}.png`) });
     await page.goto('/');
-    const upcoming = page.getByRole('region', { name: 'Was steht an?' });
+    const upcoming = page.getByRole('region', { name: 'Fällig 14 Tage' });
     await expect(upcoming.getByText('Kleine Kartenzahlung Muster', { exact: true })).toBeVisible();
     await expect(upcoming.getByText('Karte Muster', { exact: false }).first()).toBeVisible();
     await upcoming.scrollIntoViewIfNeeded();

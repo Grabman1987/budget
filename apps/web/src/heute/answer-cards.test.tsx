@@ -9,6 +9,15 @@ vi.mock('../shell/app-link', () => ({
   AppLink: ({ children }: { children: ReactNode }) => <a href="#source">{children}</a>,
 }));
 afterEach(cleanup);
+it('labels current answers explicitly when viewing another month', () => {
+  render(
+    <AnswerCards
+      data={{ ...data, stand: { ...data.stand, month: '2026-08' } }}
+      onBudgetClick={() => {}}
+    />,
+  );
+  expect(screen.getByText('Stand heute · 26.09.2026')).toBeTruthy();
+});
 const data = {
   stand: { today: '2026-09-26', payday: { day: '2026-09-30', daysToPayday: 4 } },
   balance: { salary: { day: '2026-09-30', cents: 300_000 } },

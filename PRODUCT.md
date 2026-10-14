@@ -1,5 +1,7 @@
 # Product
 
+Owner Q3 decision (2026-10-14, #466, 3B): Heute keeps the month switch and Monat / Bis Gehalt. Zu tun is one nonempty block with at most four source summaries, ordered Plan, rule findings, inbox/bookings, account checks. Existing source routes own all confirmation and undo. Month close shares the Plan row; savings execution proposals use their existing inbox count. Recurring payments and planned one-off events share a nonempty Fällig 14 Tage list; later events remain in Plan › Jahr. Finanz-Check is a summary tile. Other-month views say Ansicht: <month> and offer Zum aktuellen Monat; current-only blocks say Stand heute, while Pace and pinned envelopes follow the selected month. These rules replace the older separate Nächste Schritte and seven-day/afterward blocks below.
+
 Owner Z4 decision (2026-10-13, #451): the left account list uses the Zerosum
 arrangement with create/account-settings shortcuts, group/type icons and no
 navigation numbers or group subtitles. Every negative sidebar balance is red
