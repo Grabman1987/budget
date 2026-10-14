@@ -769,12 +769,6 @@
 .kc-check {
   width: 40px;
 }
-.ktable input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--line);
-  vertical-align: middle;
-}
 .kday td {
   padding: 16px 8px 6px;
   background: transparent;
@@ -806,11 +800,6 @@
   font-size: var(--fs-body);
   color: var(--ink-2);
 }
-.kselect-all input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--line);
-}
 .kf.kf-sort {
   display: none;
 }
@@ -837,11 +826,6 @@
   gap: 6px;
   font-size: var(--fs-chart-label);
   color: var(--ink-3);
-}
-.kf-closed input {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--line);
 }
 /* Desktop row: the checkbox hangs below the account field so every field sits on one line. */
 .kfilter .kf:has(> .kf-closed) {

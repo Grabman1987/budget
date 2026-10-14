@@ -23,13 +23,6 @@
   min-height: 44px;
   overflow-wrap: anywhere;
 }
-.event-check input,
-.event-months input {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  accent-color: var(--line);
-}
 .event-plan {
   display: inline-block;
   border: 1px dashed var(--line-2);
