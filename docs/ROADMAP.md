@@ -1,5 +1,14 @@
 # Roadmap
 
+### Booking line model — #463 (2026-10-14), first part
+
+- [x] Pure gross-line percentage/fixed contact-share allocation using existing largest-remainder cents; optional draft lines map to existing split create/patch payloads.
+- [x] Synthetic mapping for category-only, outlay-only, half/partial sharing and multiple categories/contacts, nonzero rest refusal and retained split metadata. [Scope and delivery notes](evidence/booking-lines/PR.md).
+- [x] Focused Web/Domain typechecks, changed-file ESLint/Prettier/diff checks and 5 affected Vitest files / 66 tests passed. No UI files or visual baselines changed in this first part.
+- [ ] Dialog layout, searchable category/contact picker and creation, sharing controls and visible save/rest behavior.
+- [ ] Desktop/mobile/WebKit iPhone E2E, exact dialog edit round trips, Axe light/dark, 390px touch/overflow and synthetic screenshots.
+- [ ] Git delivery, required CI and owner/device acceptance. This first part does not complete #463.
+
 ### Account register: upcoming captures and next recurrence — #453 (2026-10-13)
 
 - [x] Remembered `Kommend · N` section in account and All Bookings registers, collapsed on phones; all future captures and only the next unbooked schedule occurrence, ascending date hints and distinct calendar/repeat icons.
