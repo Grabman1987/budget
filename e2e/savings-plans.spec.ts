@@ -110,6 +110,7 @@ test('native savings CRUD, future/current history, end, reload and audited undo'
     .getByRole('row')
     .filter({ has: page.getByRole('button', { name: data.security.name, exact: true }) });
   await row.getByRole('button', { name: data.security.name, exact: true }).click();
+  await page.locator('.savings-versions > summary').click();
   await expect(page.getByRole('region', { name: 'Versionsverlauf' })).toBeVisible();
   await page.getByRole('button', { name: 'Sparplan bearbeiten', exact: true }).click();
   const edit = page.getByRole('dialog', { name: 'Sparplan bearbeiten', exact: true });
@@ -130,6 +131,7 @@ test('native savings CRUD, future/current history, end, reload and audited undo'
   await expect(row.locator('td').nth(2)).toContainText('200,00');
   await page.reload();
   await row.getByRole('button', { name: data.security.name, exact: true }).click();
+  await page.locator('.savings-versions > summary').click();
   await expect(
     page
       .getByRole('region', { name: 'Versionsverlauf' })
@@ -367,6 +369,7 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
     .getByRole('button', { name: data.security.name, exact: true });
   await opener.focus();
   await opener.press('Enter');
+  await page.locator('.savings-versions > summary').click();
   await expect(page.getByRole('region', { name: 'Versionsverlauf' })).toBeVisible();
   const editTrigger = page.getByRole('button', { name: 'Sparplan bearbeiten', exact: true });
   await editTrigger.click();
@@ -392,6 +395,7 @@ test('integrated portfolio pages keep input dialogs exclusive and restore form o
     `/vermoegen/portfolio?sparplan=${plan.id}&produkt=${data.security.id}&handel=neu&allokation=ziele`,
   );
   await expect(page).toHaveURL(new RegExp(`/sparplan/${plan.id}$`));
+  await page.locator('.savings-versions > summary').click();
   await expect(page.getByRole('region', { name: 'Versionsverlauf' })).toBeVisible();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();
@@ -421,6 +425,7 @@ test('schedule details have a URL, version history and separate guarded input di
   await expect(page).toHaveURL(new RegExp(`/sparplan/${plan.id}\\?zeitraum=3J$`));
   const url = page.url();
   await expect(page.getByRole('navigation', { name: 'Brotkrumen' })).toContainText('Sparplan');
+  await page.locator('.savings-versions > summary').click();
   await expect(page.getByRole('region', { name: 'Versionsverlauf' })).toContainText('123,45');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await capture(page, 'savings-detail', info);

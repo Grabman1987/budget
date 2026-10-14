@@ -25,6 +25,7 @@ test('stored terms show results first, live extra repayment and principal progre
   await page.goto('/vermoegen/schulden');
   await expect(page.getByRole('heading', { name: 'Schuldenfrei am 30.11.2026' })).toBeVisible();
   const overview = page.getByRole('region', { name: 'Schuldenfrei am 30.11.2026' });
+  await page.locator('.debt-result .wealth-details > summary').click();
   await expect(overview).toContainText('Noch zu zahlende Zinsen 1,41 €');
   await expect(page.getByRole('progressbar', { name: 'Tilgungsfortschritt' })).toHaveAttribute(
     'value',
@@ -37,12 +38,13 @@ test('stored terms show results first, live extra repayment and principal progre
   await page.getByText('Konditionen anpassen', { exact: true }).click();
   await expect(page.getByLabel('Monatsrate (EUR) – Kredit Beispiel')).toHaveValue('60,00');
   await expect(page.getByLabel('Nominaler Jahreszins (%) – Kredit Beispiel')).toHaveValue('12,00');
+  await page.getByText('Sondertilgung berechnen', { exact: true }).click();
   await page.getByLabel('+ Sondertilgung/Monat (EUR)').fill('50');
   await expect(page.getByRole('heading', { name: 'Schuldenfrei am 31.10.2026' })).toBeVisible();
   await expect(page.locator('.debt-overview')).toContainText('0,41 € Zinsen gespart');
   await page.getByLabel('+ Sondertilgung/Monat (EUR)').fill('-1');
   await expect(page.getByRole('alert')).toContainText('Betrag ab 0');
-  await expect(page.getByRole('heading', { name: 'Schuldenfrei am …' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tilgungsplan' })).toBeVisible();
   await page.getByLabel('+ Sondertilgung/Monat (EUR)').fill('50');
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => {
@@ -80,7 +82,7 @@ test('stored terms show results first, live extra repayment and principal progre
     ).ok(),
   ).toBe(true);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Schuldenfrei am …' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tilgungsplan' })).toBeVisible();
   await expect(page.locator('.debt-overview')).toContainText('Konditionen fehlen');
   await page.getByText('Konditionen anpassen', { exact: true }).click();
   await page.getByLabel('Monatsrate (EUR) – Karte Beispiel').fill('10');

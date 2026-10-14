@@ -1,5 +1,7 @@
 # Product
 
+Owner UX V1 directive (2026-10-14, #480): Vermögen shows a compact performance summary before decisions: value, unrealised gain in EUR/percent, annualised time-weighted return and a chart using the Reports calculation. Detailed benchmark and performance analysis stays in Reports. Period controls sit beside the chart and are absent from non-chart details. Schulden starts with total debt and actual history; payoff dates require complete calculable terms, and repayment scenarios/terms explanations are disclosures. Freiheit starts with an editable average of up to six closed Zukunft months; expense sources are collapsed. Savings details show the next version-aware planned date, recorded gross buys since the first version in the selected instrument/account (including manual buys), and collapsed rate versions. No write, booking, bank-order or undo semantics change.
+
 Owner Z4 decision (2026-10-13, #451): the left account list uses the Zerosum
 arrangement with create/account-settings shortcuts, group/type icons and no
 navigation numbers or group subtitles. Every negative sidebar balance is red

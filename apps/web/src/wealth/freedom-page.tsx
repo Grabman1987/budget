@@ -1,7 +1,14 @@
 import { useAmountPrivacy, privateAmount, Button, Field, Select } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { lastDayOfMonth, parseAmount, formatDecimal, freedomMonths, MINUS } from '@budget/domain';
+import {
+  cents,
+  lastDayOfMonth,
+  parseAmount,
+  formatDecimal,
+  freedomMonths,
+  MINUS,
+} from '@budget/domain';
 import { VERMOEGEN_FREIHEIT_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { eur, longDay } from '../ledger/format';
@@ -34,7 +41,9 @@ export function FreedomPage() {
 
 function FreedomContent({ view }: { view: FreedomView }) {
   const hidden = useAmountPrivacy();
-  const [saving, setSaving] = useState('');
+  const defaultSaving =
+    view.defaultSavingCents === null ? '' : formatDecimal(cents(view.defaultSavingCents));
+  const [saving, setSaving] = useState(defaultSaving);
   const [returnBp, setReturnBp] = useState(view.defaultRealReturnBp);
   const monthsFreedom =
     view.investedCents !== null && view.annualSpendCents !== null
@@ -63,7 +72,7 @@ function FreedomContent({ view }: { view: FreedomView }) {
       <section className="vnw" aria-labelledby="freedom-title">
         <div className="tbd-head">
           <h2 id="freedom-title">Freiheitszahl</h2>
-          <span className="tbd-state ink">R16 · Ziel 100 %</span>
+          <span className="tbd-state ink">Ziel 100 %</span>
         </div>
         <div className="tbd-fig" data-testid="freedom-figure">
           {view.progressBp === null ? '—' : percent(view.progressBp)}
@@ -135,7 +144,7 @@ function FreedomContent({ view }: { view: FreedomView }) {
           · Bedarf und Wunsch, ohne Zukunft.{' '}
           {view.multiple === 25
             ? 'Bei 100 % entsprechen 4 % Entnahme im Jahr dieser Ausgabenbasis.'
-            : `Ziel laut R16: ${view.multiple} Jahresausgaben.`}
+            : `Ziel: ${view.multiple} Jahresausgaben.`}
         </p>
         <p className="vnote">
           Bewertung am {longDay(view.asOf)}. Ausgaben bis {monthText(view.refMonth)}.
@@ -150,7 +159,7 @@ function FreedomContent({ view }: { view: FreedomView }) {
         </div>
         <Field
           label="Sparrate pro Monat"
-          hint="Ungespeicherte Annahme in Euro. Rechnen erlaubt, z. B. 400+300. Enter übernimmt."
+          hint={`Vorbelegt: Ø ${view.savingMonths} abgeschlossene Monate für Zukunft, Erstattungen gegengerechnet. Ungespeicherte Annahme; Rechnen erlaubt.`}
           error={error || undefined}
         >
           {({ id, describedBy, invalid }) => (
@@ -267,15 +276,8 @@ function FreedomContent({ view }: { view: FreedomView }) {
           </p>
         )}
       </section>
-      <section
-        className="freedom-wide"
-        id="freedom-expenses"
-        aria-labelledby="freedom-expense-title"
-      >
-        <div className="head">
-          <h2 id="freedom-expense-title">Woher die Jahresausgaben kommen</h2>
-          <span className="aside">Erstattungen sind gegengerechnet</span>
-        </div>
+      <details className="freedom-wide freedom-data" id="freedom-expenses">
+        <summary>Woher die Jahresausgaben kommen</summary>
         {view.months.length ? (
           <table className="kv-table">
             <caption>Bedarf und Wunsch · abgeschlossene Budgetmonate</caption>
@@ -313,7 +315,7 @@ function FreedomContent({ view }: { view: FreedomView }) {
         ) : (
           <p className="vnote">Noch keine abgeschlossenen Budgetmonate.</p>
         )}
-      </section>
+      </details>
       <section
         className="freedom-wide"
         id="freedom-accounts"
@@ -361,7 +363,7 @@ function FreedomContent({ view }: { view: FreedomView }) {
         <Button
           variant="ghost"
           onClick={() => {
-            setSaving('');
+            setSaving(defaultSaving);
             setReturnBp(view.defaultRealReturnBp);
           }}
         >
