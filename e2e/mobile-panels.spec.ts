@@ -139,7 +139,16 @@ const geometry = (page: Page): Promise<Geometry> =>
       .filter((el) => !el.closest('.toast-host') && el.getClientRects().length > 0)
       .filter((el) => {
         const b = el.getBoundingClientRect();
-        return b.width > 2 && (b.left < -0.5 || b.right > w + 0.5);
+        // Booking suggestions intentionally scroll within a bounded, clipped rail (#463).
+        // Measure their painted horizontal interval; still report an overflowing rail itself.
+        const rail = el.closest<HTMLElement>('.bk-suggestions');
+        const clip =
+          rail && rail !== el && getComputedStyle(rail).overflowX === 'auto'
+            ? rail.getBoundingClientRect()
+            : null;
+        const left = clip ? Math.max(b.left, clip.left) : b.left;
+        const right = clip ? Math.min(b.right, clip.right) : b.right;
+        return right - left > 2 && (left < -0.5 || right > w + 0.5);
       })
       .slice(0, 5)
       .map((el) => `${el.tagName}.${el.className}`);

@@ -121,14 +121,15 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   });
   await page.goto(`/konten/${account.id}?panel=buchung`);
   panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
-  await expect(panel.getByRole('button', { name: 'Vorgemerkt', exact: true })).toHaveAttribute(
+  await expect(panel.getByRole('button', { name: 'Bestätigt', exact: true })).toHaveAttribute(
     'aria-pressed',
-    'false',
+    'true',
   );
+  await expect(panel.getByRole('button', { name: 'Bestätigt', exact: true })).toBeDisabled();
   await panel.evaluate((d) => d.getAnimations().forEach((a) => a.finish()));
   const accountBox = await panel.getByLabel('Bezahlt von', { exact: true }).boundingBox();
   const statusBox = await panel
-    .getByRole('button', { name: 'Vorgemerkt', exact: true })
+    .getByRole('button', { name: 'Bestätigt', exact: true })
     .boundingBox();
   // The checkmark sits right of the account select, on the same row.
   expect(statusBox!.x).toBeGreaterThan(accountBox!.x + accountBox!.width);
@@ -138,12 +139,16 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   await panel.getByLabel('Betrag', { exact: true }).fill('2,03');
   await panel.getByLabel('Empfänger', { exact: true }).fill('Kiosk Muster');
   await pickCategory(panel, category.name);
-  await panel.locator('summary').click();
+  await panel.locator('.kmore > summary').click();
   await panel.getByLabel('Wiederholen').selectOption('monthly');
   expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
   await page.screenshot({ path: info.outputPath('capture.png') });
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(panel).toBeHidden();
+  const captured = (await (await request.get('/api/bookings')).json()).items.find(
+    (booking: { payeeName: string }) => booking.payeeName === 'Kiosk Muster',
+  );
+  expect(captured).toMatchObject({ accountId: account.id, amountCents: -203, status: 'confirmed' });
   expect((await (await request.get('/api/expected')).json()).payments).toHaveLength(2);
   await page.goto('/einstellungen/profil');
   const setting = page.getByRole('region', { name: 'Darstellung · Kontovorschau' });
@@ -207,8 +212,8 @@ test('single payee suggestion selects its recent account and leaves account cont
   await panel.getByLabel('Empfänger', { exact: true }).press('Enter');
   await expect(panel.getByLabel('Empfänger', { exact: true })).toHaveValue('Laden Beispiel');
   await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(recent.id);
-  await panel.locator('summary').scrollIntoViewIfNeeded();
-  await expect(panel.locator('summary')).toBeInViewport({ ratio: 1 });
+  await panel.locator('.kmore > summary').scrollIntoViewIfNeeded();
+  await expect(panel.locator('.kmore > summary')).toBeInViewport({ ratio: 1 });
   await expect(panel.getByTitle('Markieren')).toBeVisible();
   await expect(panel.getByTitle('Schließen')).toBeVisible();
   for (const theme of ['light', 'dark']) {
@@ -228,24 +233,21 @@ test('single payee suggestion selects its recent account and leaves account cont
   await panel.getByLabel('Bezahlt von', { exact: true }).selectOption(first.id);
   await expect(panel.getByLabel('Bezahlt von', { exact: true })).toHaveValue(first.id);
   await expect(panel.getByLabel('Notiz')).toBeVisible();
-  await expect(panel.getByRole('button', { name: 'Split' })).toBeVisible();
+  await expect(panel.getByRole('button', { name: '+ Weitere Kategorie' })).toBeVisible();
   await expect(panel.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport();
   await panel.getByLabel('Betrag', { exact: true }).fill('12,50+3');
   await panel.getByLabel('Betrag', { exact: true }).press('Enter');
   await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('15,50');
-  await panel.getByRole('button', { name: 'Gestern', exact: true }).click();
+  await panel.getByLabel('Datum', { exact: true }).fill('04.10.2026');
+  await panel.getByLabel('Datum', { exact: true }).press('Tab');
   await expect(panel.getByLabel('Datum', { exact: true })).toHaveValue('04.10.2026');
-  await panel.getByRole('button', { name: 'Heute', exact: true }).click();
-  await expect(panel.getByLabel('Datum', { exact: true })).toHaveValue('05.10.2026');
-  await panel.getByRole('button', { name: 'Datum…', exact: true }).click();
-  await expect(panel.getByLabel('Datum', { exact: true })).toBeFocused();
-  await panel.locator('summary').click();
+  await panel.locator('.kmore > summary').click();
   await panel.getByLabel('Wiederholen').selectOption('monthly');
   await panel.getByLabel('Notiz').fill('Synthetische Notiz');
   await expect(panel.getByLabel('Wiederholen')).toHaveValue('monthly');
-  await panel.locator('summary').click();
+  await panel.locator('.kmore > summary').click();
   await expect(panel.getByLabel('Notiz')).toBeVisible();
-  await panel.locator('summary').click();
+  await panel.locator('.kmore > summary').click();
   await expect(panel.getByLabel('Notiz')).toHaveValue('Synthetische Notiz');
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => {

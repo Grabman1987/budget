@@ -13,6 +13,10 @@ async function openSearch(page: Page, mobile: boolean) {
     return input;
   }
   await expect(page.getByRole('main')).toBeVisible();
+  if (new URL(page.url()).pathname !== '/suche') {
+    // Router URLs can change before the previous search view has unmounted.
+    await expect(page.locator('#search-query')).toHaveCount(0);
+  }
   if (!mobile) await expect(page.locator('#global-search')).toBeVisible();
   if (mobile) await page.getByRole('button', { name: 'Suchen', exact: true }).click();
   else await page.keyboard.press('Control+k');
@@ -264,7 +268,9 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
   await page.getByRole('button', { name: 'Tastenkürzel anzeigen (?)', exact: true }).click();
   const help = page.getByRole('dialog', { name: 'Tastenkürzel', exact: true });
   await expect(help).toBeVisible();
-  await expect(help).toContainText('Enter weiter');
+  await expect(help).toContainText(
+    'Enter speichert gültige Eingaben · Strg Enter speichert · Strg Umschalt Enter speichert und beginnt neu · Esc schließt',
+  );
   await expect(help).toContainText('6 Violett');
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
