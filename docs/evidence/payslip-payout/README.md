@@ -72,3 +72,7 @@ open. No private PDF, financial data, production mutation or new secret was need
 
 Required final-head PR checks, main CI, automatic deployment and the actual health
 revision must still be verified before calling this package live. #499 stays open.
+
+## Combined account integration
+
+The integrated payout/account tree passed a complete Node 22 check with required age available: 433 files, 3930 passed, no skips. All nine chooser/drop/payout browser scenarios passed again on desktop Chromium, mobile Chromium and WebKit iPhone. The account-suite timing correction and repeated verification are recorded in [account evidence](../account-properties/README.md). Earlier two-skip runs did not exercise every required age-backed case; this complete run supersedes that limitation.
