@@ -1,5 +1,16 @@
 # Roadmap
 
+## Product foundation and first-use planning — 2026-10-15
+
+- [x] Locate original requirements and document source precedence without replacing existing decisions.
+- [x] Inventory current routes/features and distinguish implementation from acceptance.
+- [x] Draft routine contracts and financial first-use onboarding with resume/error/empty-data cases.
+- [ ] Owner agrees minimum readiness, manual-start date/path, progress persistence and category-template policy.
+- [ ] Design and implement the agreed onboarding; collect empty/populated/interrupted-installation evidence.
+
+Reading entry point: [Product foundation](product/README.md). This is a documentation
+proposal; no new financial onboarding UI or product gate is marked delivered.
+
 ### Direct payroll review, date and sender — #499 (2026-10-15)
 
 - [x] Implement direct wide upload review, payout date/sender/eligible expectation, and inline unknown wage-code mapping with existing formulas.

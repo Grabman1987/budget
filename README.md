@@ -10,6 +10,11 @@ Owner scope update: there is no app import UI. CSV export of accounts and portfo
 
 ## Wo steht was
 
+Product planning starts at [Product foundation](docs/product/README.md): existing
+requirements and their precedence, current sitemap, routine contracts, evidence
+gaps and a proposed financial first-use onboarding. The proposal changes no
+accepted product scope or application behavior.
+
 | Pfad | Inhalt |
 | --- | --- |
 | `SPEC.md` | Spezifikation: Umfang, Architektur, Pakete, Gates, Vorrang der Quellen |
