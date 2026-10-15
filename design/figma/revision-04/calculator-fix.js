@@ -1,0 +1,2 @@
+const s={id:'F23',area:'Buchungen',title:'Betragsrechner',sections:[{title:'Rechnung',fields:[['Ausdruck','24,80 + 12,00'],['Ergebnis','36,80 €']]},{title:'Rechenoperatoren',keys:['+','−','×','÷']}],actions:[['36,80 € übernehmen','F01'],['Abbrechen','F01']]};
+for(const mobile of [false,true]){const f=await extraFrame(s,mobile);extraBody(bpShell(f,s.title,s.area),s);const v=f.findOne(n=>n.name==='Feld / Ergebnis');if(v){v.name='Ausgabewert / Ergebnis';v.strokes=[];}}return {updated:'F23'};

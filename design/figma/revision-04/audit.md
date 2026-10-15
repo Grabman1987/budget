@@ -1,4 +1,4 @@
-# Blueprint revision 04 — ongoing, not a completed design
+# Blueprint revision 04 — reviewable design, implementation remains tracked
 
 Owner asks to restore graph paper, parts lists and engineering identity across the complete app, while retaining functions and implementing chat comments. Original reference pages remain untouched. Only synthetic data.
 
@@ -9,7 +9,7 @@ Owner asks to restore graph paper, parts lists and engineering identity across t
 - Diagram Design: common zero, literal signed values, measured labels, explicit time gaps and distinguishable actual/forecast/previous line patterns. Engineering dimension chains show provenance; decoration must not imply invented metrics.
 - Ponytail: used for code review/delivery; exact-head CI and serial live gate on PR504. No extra agents.
 
-## Function gap register — pending until designed and linked
+## Source-derived function inventory
 | Area | Source | Required retained functions | Target |
 |---|---|---|---|
 | Plan | budget/plan-page.tsx, plan-inspector.tsx | Five layouts; 1/2/3 months; filters; selection; group/category add; collapse/pin/hidden; calculator; proposals; undo/history; nine waterfall stages; target and source-aware triage | P01–P14 + new detail states |
@@ -22,4 +22,8 @@ Owner asks to restore graph paper, parts lists and engineering identity across t
 | Salary | payslip flow | Wide direct review, five stable calculation sections; only unknown codes ask; payout date/account/Von/expectation; no duplicate; four desktop actions inline; mobile targets; validation/error states | G01–G11 |
 
 ## Evidence limits
-Figma native screenshots and graph checks are design evidence only. No real PDF or account data. Original Chrome pre-file-selection hang is unreproduced and not claimed fixed. Figma comment access is unavailable in current tool set; chat comments are included. Prototype is being resynchronized after source screens change.
+Figma native screenshots and graph checks are design evidence only. No real PDF or account data. Original Chrome pre-file-selection hang is unreproduced and not claimed fixed. Figma comment access is unavailable in current tool set; chat comments are included. Prototype synchronization is complete: 166 paired scenarios, 5,658 click links and two timed transitions; no invalid destinations. See report-coverage.md for all 34 retained report capabilities.
+
+## Final design review
+
+Added 55 detail pairs after identifying omissions in the initial 111-pair design. Final source geometry is clean. Semantic review corrected wrong edit destinations, restored Plan income navigation and portfolio subpages, removed duplicate context actions, and added missing report details. The arithmetic field has operators and no number keypad. Native geometry and link validity are scoped checks, not a complete accessibility or functional acceptance certificate. Original source pins remain those in docs/skills.md.
