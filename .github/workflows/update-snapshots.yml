@@ -10,6 +10,11 @@ on:
       branch:
         description: Branch whose baselines to update (never main)
         required: true
+      specs:
+        description: Optional space-separated spec paths (empty runs the full suite)
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write
@@ -36,7 +41,12 @@ jobs:
         run: npx playwright install --with-deps chromium webkit
       # Non-screenshot failures are reported by the normal CI run on the PR, not here.
       - name: Regenerate changed screenshots
-        run: npm run build:e2e && (npx playwright test --update-snapshots=changed || true)
+        env:
+          SNAPSHOT_SPECS: ${{ inputs.specs }}
+        run: |
+          npm run build:e2e
+          read -r -a specs <<< "$SNAPSHOT_SPECS"
+          npx playwright test "${specs[@]}" --update-snapshots=changed || true
       - name: Commit the new baselines
         env:
           BRANCH: ${{ inputs.branch }}
