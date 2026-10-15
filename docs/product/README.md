@@ -5,6 +5,8 @@ Source review: 2026-10-15, commit `4841e7ebd6cd315279d4e0063fbe4b416c2a7283`.
 This is the reading entry point for Budget's product definition. It does not
 replace the precedence in [SPEC](../../SPEC.md). Existing decisions remain binding;
 new onboarding requirements below are proposals, not accepted scope or delivered UI.
+The detailed planning package was completed against that application source on
+2026-10-15; execution and owner acceptance remain separately tracked.
 
 ## Read in this order
 
@@ -13,6 +15,27 @@ new onboarding requirements below are proposals, not accepted scope or delivered
 3. [Current sitemap](sitemap.md): navigation grounded in the current router.
 4. [First-use onboarding proposal](onboarding.md): from secure access to a usable first budget.
 5. [Routine contracts](processes.md): triggers, steps, outcomes and failure paths.
+
+## Detailed specification and handoff
+
+| Need | Document |
+| --- | --- |
+| Individual functional rules and failures | [Functional contracts](functional-contracts.md) |
+| Actor permissions, object states and recovery | [Lifecycle](lifecycle.md) |
+| Data vocabulary, units, ownership and invariants | [Data contracts](data-contracts.md) |
+| Ordered journeys and system/user handoffs | [Journeys](journeys.md) |
+| Every report's question, source and acceptance | [34 report contracts](report-contracts.md) |
+| Original KPIs and current rule registry | [27 metrics and 22 rules](metric-catalog.md) |
+| Real Figma references and proposed first-use screens | [Screen contracts](screen-contracts.md) |
+| Literal acceptance cases, matrix and gate evidence | [Acceptance plan](acceptance-plan.md) |
+| Accessibility, security, source operation and restore | [Quality and operations](quality-operations.md) |
+| Feature/source/test mapping and automated drift check | [Traceability](traceability.md) |
+| Decisions, dependencies and executable work packages | [Delivery plan](delivery-plan.md) |
+
+Start with the brief, sitemap and onboarding for product review. Use the detailed
+contracts for implementation; use traceability and the acceptance plan for review.
+The original concept remains historical context under SPEC precedence, rather than
+an alternative set of current rules.
 
 ## Where the existing body of knowledge lives
 

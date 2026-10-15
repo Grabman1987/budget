@@ -1,5 +1,12 @@
 # Requirements gaps and superseded concept statements
 
+2026-10-15 consolidation: [Product foundation](product/README.md) now supplies the
+current-source sitemap, detailed requirements, routines, onboarding proposal and
+acceptance/traceability package. This completes documentation coverage, not the
+private acceptance below. Export is implemented, the current catalog has 34
+reports, and source/offline work must be reviewed against current code rather than
+older absence claims. Historical delivery statements remain dated.
+
 Current source/live evidence and acceptance baseline (2026-10-08): [STATUS](STATUS.md) and [ACCEPTANCE](ACCEPTANCE.md). The dated delivery/requirements notes below include historical states; verify each against the current source before treating an old placeholder, missing-PR or missing-feature statement as present work. Open owner/financial/device criteria are not automatically accepted.
 
 Reviewed 2026-10-01. This checklist distinguishes incomplete **requirements** from
@@ -15,7 +22,7 @@ already specified behavior or authorize a new feature.
 | Name O10 open | Budget, PRODUCT decision 2026-09-29 |
 | Actual migration and app CSV/XLSX imports | YNAB source; no app import UI; separate authorized private transfer; SPEC §§3,10 |
 | Eight-stage waterfall | Nine stages, adding Laufender Monat; SPEC §4 |
-| Old B-series report catalog | Thirty reports in five groups; SPEC §7 |
+| Old B-series and thirty-report catalog | Current 34 registered reports in five groups; SPEC §7 and `product/report-contracts.md` |
 | 50/30/20 based only on expenses | Assigned-money prototype calculation, including periodic/special costs as twelfths; SPEC §§4,6 |
 | We are at P0 / prototype retirement as cut-over | Current implementation is partial; retiring YNAB/PP still requires Gate 4 |
 | Investment cost method unspecified | Moving-average default, optional persisted FIFO; preserve documented gains and broker source values; SPEC §10 |
@@ -44,7 +51,8 @@ choice; only genuinely unspecified financial/product rules need a decision.
 
 ## Deliberate scope boundaries
 
-No app file-import wizard; CSV export remains a placeholder at this stage. No
+No app file-import wizard; authenticated CSV ZIP export is implemented in the
+current source, with owner completeness acceptance separate. No
 multi-user linking, native app, AI advice/categorization, tax filing, automatic
 withholding calculation or vehicle/real-estate valuation in V1. Complete coverage
 of the agreed replacement workflows does not promise every unrelated upstream

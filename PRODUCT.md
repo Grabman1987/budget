@@ -1,5 +1,12 @@
 # Product
 
+Current reading guide, 2026-10-15: [Product foundation](docs/product/README.md)
+connects the existing decisions to current requirements, routes, Figma references,
+processes and acceptance. Newer SPEC directives govern detail-page navigation,
+the Plan/search exceptions, compact wealth performance summary, current report
+catalog and valuation fallback. Historical design decisions below retain their
+date/context; proposed financial first-use onboarding is not yet delivered.
+
 Owner direct payroll review directive (2026-10-15, #499): a manually uploaded PDF opens its result immediately in the wide upload/review dialog; the retained inbox task remains a recovery entry. Known wage codes are parsed automatically. Unknown numeric wage codes can be assigned at the review to the existing earning, deduction, reimbursement, tax-adjustment or social-insurance-adjustment sections and reparsed; this neither adds database columns nor changes payroll formulas. Saving the mapping, parsed result and inbox urgency is one audited group, guarded against concurrent changes. New payout confirmation exposes account, explicit payout date, sender and an eligible unbooked salary expectation. A printed date or the selected expectation can propose the date; no missing date silently becomes month end. Confirmation links the expectation and creates or links the payout atomically with the payslip and receipt. Existing matched booking dates, senders and manually corrected records remain unchanged. Desktop PDF/download/confirm/reject/reanalyse actions share one row; phone layout preserves readable fields and touch targets. Upload alone never books money.
 
 Owner delivery and cash directive (2026-10-15, #499): coherent changes may share a reviewable PR, CI run and live delivery. Required checks and serial merge/deployment/live-revision gates remain. New cash capture is immediately confirmed and its status cannot be toggled to pending; bank capture retains its pending default and manual confirmation. Existing stored bookings, reconciliation locks and audited undo remain intact. Further account-purpose, import and transfer semantics are tracked in #499.

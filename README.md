@@ -10,10 +10,11 @@ Owner scope update: there is no app import UI. CSV export of accounts and portfo
 
 ## Wo steht was
 
-Product planning starts at [Product foundation](docs/product/README.md): existing
-requirements and their precedence, current sitemap, routine contracts, evidence
-gaps and a proposed financial first-use onboarding. The proposal changes no
-accepted product scope or application behavior.
+Product planning starts at [Product foundation](docs/product/README.md): detailed
+requirements, current sitemap, data/states/permissions, routines, report/KPI/rule
+contracts, Figma/source/test traceability, literal acceptance cases and the proposed
+financial first-use onboarding. New first-use decisions remain review candidates;
+this documentation changes no application behavior or financial acceptance gate.
 
 | Pfad | Inhalt |
 | --- | --- |

@@ -18,7 +18,7 @@ Creating a competing specification from scratch would lose agreed behavior.
 | Live `/health` | `status: ok`, revision `4841e7ebd6cd315279d4e0063fbe4b416c2a7283`, 2026-10-15 | Health does not prove a complete user journey |
 | Live `/api/auth/status` | `setupRequired: false`, `authenticated: false` | This instance already has authentication configured; no authenticated session available |
 | Live `/plan/monat` | HTTP 200 returns the application shell | No browser capture or authenticated interaction; no visual UX/a11y audit claimed |
-| Supplied Figma node `172:2` | Metadata identifies the page “21 · HEUTE · Überblick und Prognose”, with H01–H05 desktop/phone frames | It is a Heute reference, not a complete inspected app blueprint |
+| Figma structure | Supplied node `172:2` is Heute; expanded review discovered 17 pages and inspected target area/global/prototype metadata, linked in screen contracts | Structural references only; screen R-codes are not report/rule IDs; no visual acceptance claimed |
 | Figma screenshot | Screenshot service returned a render URL for `172:3`; download blocked by network policy | Render was not inspected and is not visual evidence; no screenshot included |
 
 No live financial data was read or changed. No passkey was registered, no setup
@@ -39,33 +39,27 @@ metadata evidence, not a completed visual audit.
 | PF07 | P1 | D06/D07 cover source/offline failure contracts, while STATUS records later implementation | Reconcile contracts against current implementation before calling features absent or complete |
 | PF08 | P1 | Device, private ledger equality and parallel close evidence remain separate gates in STATUS | Collect outstanding evidence with its exact revision; do not infer sign-off from code |
 
-Examples of drift: REQUIREMENTS-GAPS still calls CSV export a placeholder while
-SPEC and STATUS describe the implemented authenticated ZIP export. PRODUCT and
-older concept navigation describe panels while the 2026-10-05 SPEC directive
-requires detail pages, with later explicit Plan/search exceptions. Older headings
-refer to 30 reports while the current catalog contains 34. These are documentation
-conflicts, not proof that the associated current features are missing.
+Drift corrected in this package: REQUIREMENTS-GAPS called CSV export a placeholder
+despite the implemented ZIP; current summaries now distinguish delivery from
+acceptance. SPEC's lower navigation/performance/valuation paragraphs conflicted
+with its newer directives; they now refer to the current detail-page exceptions,
+compact wealth summary and holding-price fallback. Current report summaries point
+to 34 registered slugs; original catalog/decision history is retained as historical.
+These inconsistencies were not proof that the corresponding features were absent.
 
-## Product decisions still needed
+## Decisions and review boundaries
 
-1. Confirm that this work remains private single-user V1. Public registration,
-   organizations, invitations, billing and multi-user permissions change scope.
-2. Agree the minimum first-use finish condition in [onboarding](onboarding.md).
-   Recommendation: an explicit manual initial account balance/date, a usable
-   category and a reviewed first plan; integrations and portfolios stay optional.
-3. Decide whether manual financial setup is useful for a fresh owner installation,
-   or whether the primary path is operator-assisted private migration. Both can
-   reuse existing account/category interfaces; neither authorizes an import wizard.
-4. Decide which onboarding progress must survive across devices. Recommendation:
-   server-persisted explicit choices, financial readiness derived from ledger state.
-5. Confirm manual-start date policy. Existing private migration uses 2023-10-01;
-   do not silently apply that historical migration date to every new account.
-
-These are proposed decisions. No financial rule or scope decision has been changed.
+Private single-user scope, manual financial editors, explicit account dates and
+separate operator migration are existing boundaries; no reconfirmation is needed
+to document them. [Delivery plan](delivery-plan.md) consolidates four concrete
+onboarding recommendations (DEC01–04): minimum readiness, safe existing-data path,
+versioned cross-device acknowledgements and optional-module handling. Initial
+categories remain manual; a template is not silently added. Proposed readiness
+requires product review before implementation; no financial gate has been accepted.
 
 ## Delivery order
 
-1. Review these contracts and resolve decisions 1–5 in SPEC/PRODUCT.
+1. Review these contracts and record DEC01–04 dispositions in SPEC/PRODUCT.
 2. Produce onboarding screens in the existing design language, including empty,
    error, paused, already-populated and completed states, with mobile equivalents.
 3. Implement readiness/resume behavior and reuse existing audited forms. Add only

@@ -5,7 +5,9 @@
 - [x] Locate original requirements and document source precedence without replacing existing decisions.
 - [x] Inventory current routes/features and distinguish implementation from acceptance.
 - [x] Draft routine contracts and financial first-use onboarding with resume/error/empty-data cases.
-- [ ] Owner agrees minimum readiness, manual-start date/path, progress persistence and category-template policy.
+- [x] Consolidate functional subrequirements, actor/state/data contracts, all reports/KPIs/rules and source/Figma/test traceability.
+- [x] Define literal acceptance cases, source/offline/recovery requirements and ordered implementation work packages.
+- [ ] Owner reviews DEC01–04 in the product delivery plan; existing manual categories and explicit account dates remain the baseline.
 - [ ] Design and implement the agreed onboarding; collect empty/populated/interrupted-installation evidence.
 
 Reading entry point: [Product foundation](product/README.md). This is a documentation

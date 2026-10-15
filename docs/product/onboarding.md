@@ -91,7 +91,78 @@ completion never substitutes for Gates 1–4 or private migration reconciliation
 
 ## Decisions before implementation
 
-Agree minimum readiness, manual start-date policy, priority of manual versus
-operator-assisted start, cross-device progress persistence, and whether initial
-categories are entirely manual or an explicitly reviewed generic template.
-These decisions need owner agreement under the repository's product rules.
+Review DEC01–04 in [delivery plan](delivery-plan.md) before implementation. Explicit
+account dates and existing manual category creation are retained; templates and
+public registration are not introduced. The new readiness finish condition needs
+owner agreement under the repository's product rules.
+
+## Implementation candidate: readiness and acknowledgements
+
+Concrete recommendation DEC01–04 in [delivery-plan](delivery-plan.md). This is a
+reviewable design contract, not an existing endpoint or an accepted new rule.
+
+Derive `basisValid` from (a) at least one active eligible EUR budget asset account,
+(b) an explicitly reviewed account/opening basis, and (c) at least one active
+usable spending category. A credit-card limit or tracking investment alone cannot
+satisfy the cash basis. Explicit zero is valid. Keep unsupported currencies visible
+and explain the current limit rather than silently adding them to EUR.
+
+Derive `ready` only when basisValid and selected first-plan month/summary acknowledgements
+refer to the current reviewed basis. Show unassigned money, negative funding,
+skipped modules and unavailable forecasts in that review; do not invent a new
+financial correction or silently force allocations. “Ready” means base setup is
+reviewed, not that every euro is assigned, every source connected or any gate passed.
+If a required basis changes, show Needs review with the specific changed object.
+Advancing the calendar alone never restarts onboarding. Ordinary capture, planned
+monthly assignments and market movement after completion also do not invalidate
+initial setup. A structural loss/change of the reviewed account/category basis
+does: deletion/undo, incompatible currency or membership, or changed opening basis.
+During an unfinished review, however, changed financial inputs invalidate a stale
+plan acknowledgement so the owner sees the updated state before completing it.
+
+Suggested persistence uses the existing audited settings mechanism, with a
+versioned document such as `onboarding.v1`: selected start path/month, current
+step, per-optional-module later/configured choices, reviewed object references
+and server-derived fingerprints, last acknowledgement and concurrency revision.
+Do not persist balances, secrets, raw documents or duplicate domain objects there.
+The implementation must select supported transaction/undo semantics and test
+size/concurrency bounds before fixing the physical representation.
+
+Proposed API: `GET /api/onboarding` returns derived steps/readiness plus permitted
+next actions. `PATCH /api/onboarding` accepts a bounded typed choice or review
+acknowledgement with expected revision/fingerprint. Reject stale acknowledgements
+with 409; derive readiness on the server, never accept `ready: true` from the
+client. Both require the existing session and write-origin policy. These endpoints
+are candidates, not part of the present route/API inventory.
+
+Financial creation remains with existing account/category/assignment APIs. Progress
+save cannot create money. After a lost financial response, resolve that operation's
+actual result before allowing creation again; offline booking idempotency must
+not be assumed to cover account creation. Use an operation identifier/read-back
+contract if the existing endpoint cannot resolve uncertainty; do not treat names
+alone as unique account identities.
+
+## Screen and field contract
+
+| Screen | Required input/content | Primary / secondary action and recovery |
+| --- | --- | --- |
+| O01 Start | Detected empty/populated/migration-pending basis; no personal sample data | “Einrichtung starten” / “Später”; existing data leads to review |
+| O02 Account basis | Existing form fields: name/type, applicable currency/membership, explicit opening date and amount | “Konto anlegen” or “Vorhandenes Konto prüfen”; zero must be intentional, draft retained on error |
+| O03 Categories | Existing groups/categories/class/target controls, usable selection | “Kategorien prüfen” / return to account; no automatic template installation |
+| O04 Expectations | Optional actual salary source/account and recurring schedules | “Zahlungen einrichten” / “Später”; no assumed salary/payday |
+| O05 First plan | Month, shared cash/envelope figures, unassigned/underfunded warnings and existing assignment controls | “Plan prüfen”; apply remains explicit; preserve current domain guards |
+| O06 Optional work | Contacts/debts/depot/source cards as concise tasks with completeness reasons | “Einrichten” / “Später”; opening a module does not complete it |
+| O07 Summary | Reviewed basis/date/month, optional gaps and first weekly/month-close links | “Zu Heute”; acknowledge only current server fingerprint |
+| O08 Resume/repair | Last saved step and exact stale/missing basis | “Fortsetzen” or targeted “Prüfen”; never “Alles zurücksetzen” for financial repair |
+
+Validation copy distinguishes “Bitte Anfangssaldo und Datum prüfen”, “Deine Daten
+haben sich geändert. Bitte prüfe den Stand erneut.” and “Keine Verbindung. Deine
+bereits gespeicherten Daten bleiben erhalten.” A local draft must not be described
+as server-saved. Announce errors/status without exposing masked amounts.
+
+Back navigation retains valid choices, a dirty form uses the existing guard,
+focus returns to the initiating task after a dialog, and the stepper exposes
+current/completed/pending states in text. Phone uses the same tasks/content with
+44 px controls and no mandatory horizontal form scrolling. O01–O08 need new
+reviewed frames; related existing F/E/S frames are references, not proof of an
+existing onboarding design.
