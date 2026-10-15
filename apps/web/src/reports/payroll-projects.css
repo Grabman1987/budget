@@ -100,7 +100,7 @@
   stroke: var(--line);
 }
 .pp-negative {
-  fill: var(--red);
+  fill: var(--ink-2);
   stroke: var(--line);
   stroke-dasharray: 4 3;
 }

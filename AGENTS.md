@@ -14,3 +14,5 @@ The complete working rules are in [`CLAUDE.md`](CLAUDE.md); they apply to every 
 ## Project skill profiles
 
 See [`docs/skills.md`](docs/skills.md) for locally adapted skills and their provenance. Read only the matching `.agents/skills/<name>/SKILL.md`: `budget-caveman` for communication, `budget-impeccable` for UI, `budget-verified-delivery` for implementation/audits, and `budget-security-review` for auth/API/migration/backup/integrations. These profiles supplement the working rules and preserve `SPEC.md` and user instructions; they do not install upstream commands.
+
+The owner also requested original Ponytail, Impeccable, UI UX Pro Max, Hallmark and Diagram Design sources on 2026-10-15. Read the matching adapters: `budget-ponytail` for minimal-code review, `budget-ui-ux-pro-max` for focused UI research, `budget-hallmark` for design-system audits, and `budget-diagram-design` for quantitative chart review; the existing `budget-impeccable` profile covers the original Impeccable workflow. Pinned sources and actual use are recorded in `docs/skills.md`.

@@ -163,13 +163,13 @@ function Drawing({ report, width: W }: { report: CashflowReport; width: number }
           [
             {
               name: 'Nettocashflow',
-              negativeColor: 'var(--red)',
+              negativeColor: 'var(--ink-2)',
               values: months.map((m) => m.netCents),
               color: 'var(--line)',
             },
             {
               name: 'Kapitalerträge',
-              negativeColor: 'var(--red)',
+              negativeColor: 'var(--ink-2)',
               values: months.map((m) => m.capitalCents),
               color: 'var(--line-2)',
             },
@@ -178,8 +178,8 @@ function Drawing({ report, width: W }: { report: CashflowReport; width: number }
       >
         <Graticule x1={L} x2={W - R} lines={grid2} />
         <AxisLine x1={L} x2={W - R} y={y2(0)} />
-        <BarsAroundZero bars={netBars} y={y2} barWidth={bw} tone="ink" />
-        <BarsAroundZero bars={capBars} y={y2} barWidth={bw} tone="pale" />
+        <BarsAroundZero bars={netBars} y={y2} barWidth={bw} tone="ink" negativeTone="ink" />
+        <BarsAroundZero bars={capBars} y={y2} barWidth={bw} tone="pale" negativeTone="ink" />
         {ticks(H2)}
       </ChartSvg>
     </>

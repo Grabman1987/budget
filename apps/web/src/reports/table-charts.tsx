@@ -106,7 +106,7 @@ export function CategoryChart({
                   name: 'Ist',
                   values: points.map((p) => p.spentCents),
                   color: `var(--${cls})`,
-                  negativeColor: 'var(--red)',
+                  negativeColor: 'var(--ink-2)',
                 },
                 {
                   name: 'Plan',
@@ -126,7 +126,7 @@ export function CategoryChart({
                 y={Math.min(y(0), y(p.spentCents / 100))}
                 width={bw * 0.56}
                 height={Math.abs(y(0) - y(p.spentCents / 100))}
-                fill={p.spentCents < 0 ? 'var(--red)' : fill}
+                fill={p.spentCents < 0 ? 'var(--ink-2)' : fill}
                 stroke={cls === 'need' ? undefined : `var(--${cls})`}
                 strokeWidth={cls === 'need' ? undefined : 1}
               >
@@ -227,7 +227,7 @@ export function SavingsChart({
               [
                 {
                   name: 'Sparquote',
-                  negativeColor: 'var(--red)',
+                  negativeColor: 'var(--ink-2)',
                   values: points.map((p) => p.rateBp),
                   color: 'var(--line-2)',
                   format: chartPercent,
@@ -265,7 +265,7 @@ export function SavingsChart({
               }))}
             />
             <AxisLine x1={L} x2={W - R} y={y(0)} />
-            <BarsAroundZero bars={bars} y={y} barWidth={bw * 0.5} tone="pale" />
+            <BarsAroundZero bars={bars} y={y} barWidth={bw * 0.5} tone="pale" negativeTone="ink" />
             <Line
               kind="plan"
               points={[

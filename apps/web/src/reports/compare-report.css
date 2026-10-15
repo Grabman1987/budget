@@ -54,7 +54,7 @@
 }
 .dv-track i.is-more {
   left: 50%;
-  background: var(--red);
+  background: var(--ink-2);
 }
 .dv-track i.is-less {
   right: 50%;

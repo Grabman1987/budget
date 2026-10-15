@@ -125,8 +125,8 @@ test('project P&L through the real API, retaining archived attribution and mobil
     accountId: account.account.id,
     projectId,
     date: '2026-09-03',
-    amountCents: -12000,
-    splits: [{ amountCents: -12000 }],
+    amountCents: -62000,
+    splits: [{ amountCents: -62000 }],
   });
   await page.getByRole('button', { name: 'Archivieren', exact: true }).click();
   await expect(page.locator('.pp-settings tbody')).toContainText('archiviert');
@@ -134,8 +134,9 @@ test('project P&L through the real API, retaining archived attribution and mobil
   await expect(page.getByTestId('projects-report')).toContainText(
     'Synthetisches Nebenprojekt · archiviert',
   );
-  await expect(page.locator('.tbd-fig').first()).toContainText('380');
+  await expect(page.locator('.tbd-fig').first()).toContainText('−120');
   await expect(page.getByTestId('projects-report')).toContainText('500,00');
+  await expect(page.locator('.pp-chart .pp-negative').first()).toBeVisible();
   await page.getByText('Buchungen (2)', { exact: true }).click();
   await expect(page.getByRole('link', { name: 'Buchung 1 öffnen' })).toHaveAttribute(
     'href',

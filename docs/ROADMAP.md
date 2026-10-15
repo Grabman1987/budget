@@ -1,5 +1,13 @@
 # Roadmap
 
+### Q2: Quiet historical reports and one inbox alert — #465 (2026-10-15)
+
+- [x] Historical negative charts/text use existing ink; debt bars use dashed outlines; shared live-warning defaults, values and geometry remain.
+- [x] Read-only inbox overview aggregate includes full filtered count/deficit before pagination; individual tasks, counts, privacy and Plan triage remain.
+- [x] Focused regressions and synthetic desktop/mobile/WebKit light/dark evidence: [Q2 evidence](evidence/q2/README.md).
+- [x] Apply and pin the five owner-requested skill sources through scoped project profiles: [adoption evidence](evidence/skill-adoption-2026-10-15.md).
+- [ ] Integrated final full check, exact-head required CI, serial merge and main CI/deployment/live proof.
+
 ### Account properties — #499 (2026-10-15)
 
 - [x] Expose existing separate settlement cash on depot/crypto create/edit; integrated cash leaves the link empty, salary selection stays in Datenquellen and cash uses its existing account type.

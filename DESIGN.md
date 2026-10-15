@@ -186,6 +186,8 @@ components:
     height: "60px"
 ---
 
+Owner Q2 directive (2026-10-15, #465): historical report negatives use quiet ink while retaining their signs and zero geometry; historical debt bars use a dashed outline. Current action-needed warnings, negative sidebar balances and specified signed heatmaps retain their existing semantics. The inbox overview shows one urgent overspent summary with category count, exact total deficit and a secondary link to Plan triage. Individual entries, raw counts and detail views remain; the filtered full summary is computed before pagination. This read-only presentation never covers categories or changes bookings by itself.
+
 # Design System: Finanz-App
 
 Owner payslip directive (2026-10-15, #499): review preselects the configured salary account and permits another active EUR payout account. Confirmation links an existing matching booking or creates a pending payout (cash: confirmed), with salary/special income and reimbursements kept separate. Payslip, payout, receipt and inbox decision are atomic and undoable. Upload alone never books money. The PDF drop alternative preserves the native chooser; Linux browser evidence does not establish a fix for the reported Windows Chrome chooser hang.

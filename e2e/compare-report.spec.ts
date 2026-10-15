@@ -41,6 +41,17 @@ test('Zeitraumvergleich shows the figures of the endpoint and switches the mode'
     whole(comparison.currentTotals.capitalCents),
   );
   await expect(page.locator('.dv li')).toHaveCount(comparison.rows.length);
+  const moreBar = page.locator('.dv-track i.is-more').first();
+  await expect(moreBar).toBeVisible();
+  const [barColor, redColor] = await moreBar.evaluate((el) => {
+    const probe = document.createElement('i');
+    probe.style.backgroundColor = 'var(--red)';
+    document.body.append(probe);
+    const red = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return [getComputedStyle(el).backgroundColor, red];
+  });
+  expect(barColor).not.toBe(redColor);
   const chain = page.getByRole('group', { name: 'Maßkette Zeitraumvergleich' });
   await expect(chain).toContainText(whole(comparison.chain.moreCents));
   await expect(chain).toContainText(whole(comparison.chain.lessCents));

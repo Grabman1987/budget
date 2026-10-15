@@ -60,6 +60,9 @@ test('header, chart and month table agree with the API, which agrees with Nettov
   );
   await expect(page.getByTestId('ad-change-rate')).toContainText('%');
   await expect(page.getByTestId('assets-debts-chart')).toBeVisible();
+  await expect(page.getByTestId('assets-debts-chart').locator('.bar-neg-outline')).toHaveCount(
+    data.months.filter((month) => month.debtsCents < 0).length,
+  );
 
   const rows = page.getByTestId('ad-months').locator('tbody tr');
   await expect(rows).toHaveCount(data.months.length);

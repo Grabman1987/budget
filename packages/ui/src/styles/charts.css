@@ -142,6 +142,17 @@ svg.chart {
   stroke: var(--red);
   stroke-width: 0.8;
 }
+.bar-neg-ink {
+  fill: var(--ink-2);
+  stroke: var(--ink-2);
+  stroke-width: 0.8;
+}
+.bar-neg-outline {
+  fill: transparent;
+  stroke: var(--ink-2);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 3;
+}
 
 /* Chart legend */
 .chart-legend {
