@@ -135,6 +135,30 @@ describe('atomic contact settlement', () => {
     outlay(500, '2026-09-04');
     expect(listContactStatements(opened.db, '2026-09-17')[0]?.balanceCents).toBe(500);
   });
+  it('marks only a recorded full settlement as the replay history boundary', () => {
+    outlay(10000);
+    const saved = receipt(10000);
+    const recorded = statement();
+    expect(recorded.balanceCents).toBe(0);
+    expect(recorded.receipts).toMatchObject([{ recorded: true }]);
+    expect(recorded.closedThroughSplitId).toBe(recorded.movements.at(-1)?.splitId);
+
+    undo(opened.db, { groupId: saved.groupId }, testCtx);
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-09-03',
+        amountCents: 10000,
+        splits: [{ categoryId: 'auslagen', contactId: 'k1', amountCents: 10000 }],
+      },
+      testCtx,
+    );
+    const legacy = statement();
+    expect(legacy.balanceCents).toBe(0);
+    expect(legacy.receipts).toMatchObject([{ recorded: false }]);
+    expect(legacy.closedThroughSplitId).toBeNull();
+  });
   it('rejects dependent editing/deletion, partial and forced outlay undo without changing cash', () => {
     const b = outlay(10000);
     const r = receipt(12000);

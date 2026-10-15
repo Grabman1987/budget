@@ -72,6 +72,19 @@
   text-align: right;
   white-space: nowrap;
 }
+.contact-balance-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.contacts-closed-history summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding-block: 10px;
+}
 .contacts-table small {
   display: block;
   color: var(--ink-2);
