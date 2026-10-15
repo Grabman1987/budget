@@ -1,5 +1,13 @@
 # Roadmap
 
+### Account properties — #499 (2026-10-15)
+
+- [x] Expose existing separate settlement cash on depot/crypto create/edit; integrated cash leaves the link empty, salary selection stays in Datenquellen and cash uses its existing account type.
+- [x] Validate new references and incompatible linked-account type/currency changes; preserve historical metadata, credit-card fields and audited undo.
+- [x] Focused API/UI and desktop/mobile/WebKit form flows, light/dark Axe and synthetic screenshots. [Evidence](evidence/account-properties/README.md).
+- [ ] Full integrated check, final-head CI and serial deployment/live proof in PR #500.
+- [ ] Broader K2/K3 and cash import/transfer acceptance remain separate.
+
 ### Payslip upload and payout review — #499 (2026-10-15)
 
 - [x] Preserve native chooser and accept one bounded PDF drop through existing analysis.
