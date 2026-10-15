@@ -91,7 +91,7 @@ test.describe('Heute month switch', () => {
 
   test('the arrow keys stay with a focused field', async ({ page }, info) => {
     test.skip(info.project.name === 'mobile', 'the phone has neither search field nor wide plan');
-    // The header search field moved to its own result page (no month switch there). The month
+    // The header search field opens in a dialog. The month
     // keys' guard for fields is shared with Plan › Monat, whose cover select is a real field.
     await page.goto('/plan/monat?monat=2026-09');
     await page
@@ -104,8 +104,8 @@ test.describe('Heute month switch', () => {
     // The search field keeps the arrow keys for its caret.
     await page.goto('/?monat=2026-09');
     await page.locator('#global-search').click();
-    // The click opens the result page, which mounts its own field: type only once that is up.
-    await expect(page).toHaveURL(/\/suche/);
+    // Wait for the dialog's field before typing.
+    await expect(page.getByRole('dialog', { name: 'Suchen', exact: true })).toBeVisible();
     const field = page.getByRole('combobox', { name: 'Suchen', exact: true });
     await expect(field).toBeFocused();
     await page.keyboard.type('ab');

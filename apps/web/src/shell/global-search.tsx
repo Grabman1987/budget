@@ -1,10 +1,16 @@
-import { useAmountPrivacy, maskMoneyText, TitleBlock, setAmountsHidden } from '@budget/ui';
+import {
+  useAmountPrivacy,
+  maskMoneyText,
+  TitleBlock,
+  setAmountsHidden,
+  WideDialog,
+} from '@budget/ui';
 import { closeEntryMonth, matchesSearch, todayInVienna } from '@budget/domain';
 import type { GlobalSearchResult, SearchKind } from '@budget/db';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate, useRouter, useSearch } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
 import { AREAS } from '../nav/areas';
@@ -86,37 +92,15 @@ function destination(result: PaletteItem) {
   return { to: '/konten/buchungen', search: { [key]: result.id } };
 }
 
-/** Header entry point; both viewports use the same deep-linkable result page. */
+/** Header entry point; opening and typing never change the underlying page. */
 export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
-  const navigate = useNavigate();
   const router = useRouter();
-  const location = useLocation();
-  const trigger = useRef<HTMLButtonElement>(null);
-  const previousPath = useRef(location.pathname);
+  const [source, setSource] = useState('');
+  const [palette, setPalette] = useState(false);
   const [help, setHelp] = useState(false);
-  useEffect(() => {
-    if (
-      previousPath.current === '/suche' &&
-      location.pathname !== '/suche' &&
-      window.matchMedia('(max-width: 767px)').matches === mobile
-    )
-      trigger.current?.focus();
-    previousPath.current = location.pathname;
-  }, [location.pathname, mobile]);
   const open = () => {
-    const focus = () => {
-      const input = document.getElementById('search-query') as HTMLInputElement | null;
-      input?.focus();
-      input?.select();
-    };
-    const current = router.state.location;
-    if (current.pathname === '/suche') focus();
-    else
-      void navigate({
-        to: '/suche',
-        search: { von: current.href },
-        state: { searchOpenedInApp: true } as never,
-      }).then(() => requestAnimationFrame(focus));
+    setSource(router.state.location.href);
+    setPalette(true);
   };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -147,7 +131,6 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
   return (
     <>
       <button
-        ref={trigger}
         id={mobile ? 'global-search-mobile' : 'global-search'}
         type="button"
         className={mobile ? 'icon-btn global-search-trigger' : 'search global-search-launch'}
@@ -165,6 +148,11 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
           </>
         )}
       </button>
+      <div className="search-overlay-host">
+        <WideDialog open={palette} onClose={() => setPalette(false)} title="Suchen">
+          {palette && <SearchResults sourceHref={source} onClose={() => setPalette(false)} />}
+        </WideDialog>
+      </div>
       <KeyboardShortcuts open={help} onClose={() => setHelp(false)} />
     </>
   );
@@ -199,9 +187,13 @@ function SearchBack({ source }: { source?: string | undefined }) {
 }
 
 /** Reuses the existing provider, ranking, privacy and arrow/Enter selection. */
-export function SearchResults() {
-  const routeSearch = useSearch({ strict: false }) as { q?: string; von?: string };
-  const source = new URL(routeSearch.von ?? '/', 'https://budget.invalid');
+export function SearchResults({
+  sourceHref,
+  onClose,
+}: { sourceHref?: string; onClose?: () => void } = {}) {
+  const palette = onClose !== undefined;
+  const routeSearch = useSearch({ strict: false }) as { q?: string; von?: string; typ?: string };
+  const source = new URL(sourceHref ?? routeSearch.von ?? '/', 'https://budget.invalid');
   const hidden = useAmountPrivacy();
   const input = useRef<HTMLInputElement>(null);
   const container = useRef<HTMLDivElement>(null);
@@ -213,14 +205,26 @@ export function SearchResults() {
   const leaving = useRef(false);
   const [open, setOpen] = useState(true);
   const [help, setHelp] = useState(false);
-  const [value, setValue] = useState(routeSearch.q ?? '');
+  const [value, setValue] = useState(palette ? '' : (routeSearch.q ?? ''));
+  const [kind, setKind] = useState(routeSearch.typ ?? '');
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
+  const [previousSearch, setPreviousSearch] = useState({ q: routeSearch.q, typ: routeSearch.typ });
+  if (!palette && (previousSearch.q !== routeSearch.q || previousSearch.typ !== routeSearch.typ)) {
+    setPreviousSearch({ q: routeSearch.q, typ: routeSearch.typ });
+    setValue(routeSearch.q ?? '');
+    setKind(routeSearch.typ ?? '');
+    setActive(0);
+  }
   const text = value.trim();
-  const listId = 'global-search-results';
+  const listId = useId();
   // A search opened from inside the app is a history entry of its own: leaving it steps back
   // (like the panels) instead of stacking the source page a second time.
   const close = () => {
+    if (onClose) {
+      onClose();
+      return;
+    }
     if (!openedInApp) {
       void navigate({
         to: source.pathname,
@@ -237,8 +241,13 @@ export function SearchResults() {
     return () => window.clearTimeout(timer);
   }, [text]);
   useEffect(() => {
-    input.current?.focus();
-  }, []);
+    if (!palette) {
+      input.current?.focus();
+      return;
+    }
+    const frame = requestAnimationFrame(() => input.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [palette]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (
@@ -270,7 +279,7 @@ export function SearchResults() {
         return;
       }
       if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return;
-      if (document.querySelector('dialog[open]') && (!open || help)) return;
+      if (document.querySelector('dialog[open]') && (!palette || !open || help)) return;
       event.preventDefault();
       setOpen(true);
       input.current?.focus();
@@ -299,18 +308,46 @@ export function SearchResults() {
     (query !== text || search.isPending || search.isFetching);
   const remote = !loading && query === text && !search.isError ? (search.data?.results ?? []) : [];
   const candidates = [
-    ...remote,
+    ...remote.filter(
+      (item) => !palette || text || recent.some((r) => itemKey(r) === itemKey(item)),
+    ),
     ...STATIC_ITEMS.filter(
       (item) =>
-        matchesSearch(`${item.label} ${item.id}`, text) ||
-        SEARCH_TERMS[itemKey(item)]?.includes(text.toLocaleLowerCase('de-AT')),
+        (!palette ||
+          text ||
+          item.kind === 'action' ||
+          recent.some((r) => itemKey(r) === itemKey(item))) &&
+        (matchesSearch(`${item.label} ${item.id}`, text) ||
+          SEARCH_TERMS[itemKey(item)]?.includes(text.toLocaleLowerCase('de-AT'))),
     ),
   ];
-  const results = [...new Map(candidates.map((item) => [itemKey(item), item])).values()];
+  const results = [...new Map(candidates.map((item) => [itemKey(item), item])).values()].filter(
+    (item) => palette || !kind || item.kind === kind,
+  );
   const preferActions = COMMANDS.some(
     (command) => command.label.toLocaleLowerCase('de-AT') === text.toLocaleLowerCase('de-AT'),
   );
+  const groupName = (item: PaletteItem) =>
+    !text && item.kind !== 'action'
+      ? 'Zuletzt verwendet'
+      : item.kind === 'action'
+        ? 'Aktionen'
+        : item.kind === 'page' || item.kind === 'report'
+          ? 'Seiten'
+          : item.kind === 'booking'
+            ? 'Buchungen'
+            : 'Konten/Kategorien';
+  const groups = palette
+    ? ['Aktionen', 'Zuletzt verwendet', 'Seiten', 'Konten/Kategorien', 'Buchungen']
+    : [
+        preferActions ? 'Globale Aktionen' : 'Passende Treffer',
+        preferActions ? 'Passende Treffer' : 'Globale Aktionen',
+      ];
+  const group = (item: PaletteItem) =>
+    palette ? groupName(item) : item.kind === 'action' ? 'Globale Aktionen' : 'Passende Treffer';
   results.sort((a, b) => {
+    if (palette && group(a) !== group(b))
+      return groups.indexOf(group(a)) - groups.indexOf(group(b));
     if ((a.kind === 'action') !== (b.kind === 'action'))
       return (a.kind === 'action') === preferActions ? -1 : 1;
     const rank = (item: PaletteItem) => {
@@ -337,12 +374,16 @@ export function SearchResults() {
       return;
     }
     setOpen(false);
+    onClose?.();
     setActive(0);
     input.current?.blur();
     if (result.kind === 'action') {
       if (result.id === 'privacy') setAmountsHidden(!hidden);
       else if (result.id === 'posteingang')
-        void navigate({ to: '/konten/posteingang', search: { von: routeSearch.von } });
+        void navigate({
+          to: '/konten/posteingang',
+          search: { von: sourceHref ?? routeSearch.von },
+        });
       else if (result.id === 'monatsabschluss')
         void navigate({
           to: `/monatsabschluss/${closeEntryMonth(todayInVienna()) ?? todayInVienna().slice(0, 7)}`,
@@ -364,7 +405,7 @@ export function SearchResults() {
         <Search className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
         <input
           ref={input}
-          id="search-query"
+          id={palette ? 'palette-search-query' : 'search-query'}
           type="search"
           role="combobox"
           aria-expanded={open}
@@ -380,12 +421,13 @@ export function SearchResults() {
           onFocus={() => setOpen(true)}
           onChange={(event) => {
             setValue(event.target.value);
-            void navigate({
-              to: '/suche',
-              search: { ...routeSearch, q: event.target.value || undefined },
-              replace: true,
-              state: true as never,
-            });
+            if (!palette)
+              void navigate({
+                to: '/suche',
+                search: { ...routeSearch, q: event.target.value || undefined },
+                replace: true,
+                state: true as never,
+              });
             setActive(0);
             setOpen(true);
           }}
@@ -410,6 +452,31 @@ export function SearchResults() {
           }}
         />
       </label>
+      {!palette && (
+        <label className="search-type-filter">
+          Ergebnistyp
+          <select
+            value={kind}
+            onChange={(event) => {
+              setKind(event.target.value);
+              setActive(0);
+              void navigate({
+                to: '/suche',
+                search: { ...routeSearch, typ: event.target.value || undefined },
+                replace: true,
+                state: true as never,
+              });
+            }}
+          >
+            <option value="">Alle Ergebnisse</option>
+            {Object.entries(LABELS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {open && (
         <div className="global-search-popup">
           <div className="global-search-status" id={`${listId}-status`} role="status">
@@ -427,41 +494,49 @@ export function SearchResults() {
             </button>
           )}
           <div id={listId} role="listbox" aria-label="Suchergebnisse" aria-busy={loading}>
-            {[preferActions, !preferActions].map((isAction) => (
-              <div
-                key={String(isAction)}
-                role="group"
-                aria-label={isAction ? 'Globale Aktionen' : 'Passende Treffer'}
-              >
-                {results.some((r) => (r.kind === 'action') === isAction) && (
+            {groups
+              .filter((name) => results.some((r) => group(r) === name))
+              .map((name) => (
+                <div key={name} role="group" aria-label={name}>
                   <div className="global-search-group" aria-hidden="true">
-                    {isAction ? 'Globale Aktionen' : 'Passende Treffer'}
+                    {name}
                   </div>
-                )}
-                {results.map((result, i) =>
-                  (result.kind === 'action') === isAction ? (
-                    <button
-                      key={`${result.kind}-${result.id}`}
-                      id={`${listId}-${i}`}
-                      type="button"
-                      role="option"
-                      aria-selected={i === index}
-                      tabIndex={-1}
-                      className="global-search-result"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => select(result)}
-                    >
-                      <span className="global-search-kind">{LABELS[result.kind]}</span>
-                      <span className="global-search-label">
-                        {maskMoneyText(result.label)}
-                        {result.detail && <small>{maskMoneyText(result.detail)}</small>}
-                      </span>
-                    </button>
-                  ) : null,
-                )}
-              </div>
-            ))}
+                  {results.map((result, i) =>
+                    group(result) === name ? (
+                      <button
+                        key={`${result.kind}-${result.id}`}
+                        id={`${listId}-${i}`}
+                        type="button"
+                        role="option"
+                        aria-selected={i === index}
+                        tabIndex={-1}
+                        className="global-search-result"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => select(result)}
+                      >
+                        <span className="global-search-kind">{LABELS[result.kind]}</span>
+                        <span className="global-search-label">
+                          {maskMoneyText(result.label)}
+                          {result.detail && <small>{maskMoneyText(result.detail)}</small>}
+                        </span>
+                      </button>
+                    ) : null,
+                  )}
+                </div>
+              ))}
           </div>
+          {palette && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                onClose();
+                void navigate({ to: '/suche', search: { q: value || undefined, von: sourceHref } });
+              }}
+            >
+              Alle Ergebnisse
+            </button>
+          )}
           <button type="button" className="btn btn-ghost" onClick={() => setHelp(true)}>
             Tastenkürzel anzeigen (?)
           </button>

@@ -28,7 +28,7 @@ test('everyday terms keep function routes, data kinds and global actions distinc
     const input = await open();
     await input.fill(term!);
     const option = page
-      .getByRole('group', { name: 'Passende Treffer' })
+      .getByRole('group', { name: 'Seiten', exact: true })
       .getByRole('option', { name: new RegExp(label!) });
     await expect(option).toBeVisible();
     expect((await option.boundingBox())!.height).toBeGreaterThanOrEqual(44);
@@ -47,11 +47,11 @@ test('everyday terms keep function routes, data kinds and global actions distinc
       .first(),
   ).toBeVisible();
   await input.fill('');
-  const actions = page.getByRole('group', { name: 'Globale Aktionen' });
+  const actions = page.getByRole('group', { name: 'Aktionen' });
   await expect(actions.getByRole('option', { name: /Monatsabschluss starten/ })).toHaveCount(1);
   await expect(
     page
-      .getByRole('group', { name: 'Passende Treffer' })
+      .getByRole('group', { name: 'Zuletzt verwendet' })
       .getByRole('option', { name: /Monatsabschluss/ }),
   ).toHaveCount(0);
   await input.fill('Posteingang');
