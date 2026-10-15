@@ -6,7 +6,7 @@
 - [x] Read-only inbox overview aggregate includes full filtered count/deficit before pagination; individual tasks, counts, privacy and Plan triage remain.
 - [x] Focused regressions and synthetic desktop/mobile/WebKit light/dark evidence: [Q2 evidence](evidence/q2/README.md).
 - [x] Apply and pin the five owner-requested skill sources through scoped project profiles: [adoption evidence](evidence/skill-adoption-2026-10-15.md).
-- [x] Integrated Node 22 full check: 434 files / 3,951 tests, zero skips; current WebKit checks recorded in the evidence.
+- [x] Final integration with payroll main: Node 22 full check, 434 files / 3,962 tests, zero skips; rebuilt current WebKit integration 7/7.
 - [ ] Exact-head required CI, serial merge and main CI/deployment/live proof.
 
 ### Wealth composition and portfolio detail — #499 (2026-10-15)
@@ -15,7 +15,7 @@
 - [x] Add the Portfolio overview's daily base-100 index using shared flow-adjusted daily returns; keep unavailable returns as gaps, preserve date spacing and explain stored valuations/carried quotes.
 - [x] Keep SVG axis labels legible at responsive widths and place portfolio actions below the chart. Existing monthly report index, benchmarks, class series and financial formulas remain unchanged.
 - [x] Synthetic financial/model/API tests, desktop/mobile/WebKit chart and composition coverage, responsive rendered-text assertions, Axe checks and fresh evidence: [wealth #499 evidence](evidence/wealth-performance-499/README.md).
-- [x] Combined Node 22 full check: 434 files / 3,951 tests, zero skips; current WebKit wealth coverage passed.
+- [x] Final combined Node 22 full check: 434 files / 3,962 tests, zero skips; rebuilt current WebKit integration 7/7 including wealth coverage.
 - [ ] Required CI, serial deployment/live proof and private owner financial reconciliation. This slice does not close Gate 3 or the broader K3 acceptance.
 
 ### Direct payroll review, date and sender — #499 (2026-10-15)
