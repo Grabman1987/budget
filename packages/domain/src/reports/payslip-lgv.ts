@@ -1,5 +1,5 @@
 import type { PayslipInput } from './payroll-projects';
-import type { PayslipAdapter } from './payslip-intake';
+import type { ParsedPayrollDocument, PayslipAdapter } from './payslip-intake';
 import {
   amountsOf,
   classifyWageLabel,
@@ -63,6 +63,7 @@ export const lgvPayrollAdapter: PayslipAdapter = {
     const rows = text.split(/\r?\n/);
     const flat = rows.map(squash);
     const warnings: string[] = [];
+    const unmappedWageTypes: NonNullable<ParsedPayrollDocument['unmappedWageTypes']> = [];
     const { month, periodSource } = detectPeriod(text, filename);
     if (!month) warnings.push('Abrechnungsmonat fehlt.');
     if (periodSource === 'filename')
@@ -129,7 +130,10 @@ export const lgvPayrollAdapter: PayslipAdapter = {
         });
       } else if (owner) {
         lines.push({ section: owner, label: label || `Lohnart ${code}`, amountCents: amount });
-      } else if (!kind) warnings.push('Unbekannte Lohnart oder Aufrollung: Zuordnung prüfen.');
+      } else if (!kind) {
+        warnings.push('Unbekannte Lohnart oder Aufrollung: Zuordnung prüfen.');
+        unmappedWageTypes.push({ code, label: label || `Lohnart ${code}`, amountCents: amount });
+      }
     }
 
     // Statutory deductions by column.
@@ -205,6 +209,7 @@ export const lgvPayrollAdapter: PayslipAdapter = {
       tax,
       lines,
       warnings,
+      unmappedWageTypes,
     });
   },
 };

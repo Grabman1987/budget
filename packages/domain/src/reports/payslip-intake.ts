@@ -12,7 +12,7 @@ import {
 
 export { printedCents };
 /** Raise when the parser learns something new; pending scanned intakes are then read once more. */
-export const PAYSLIP_PARSER_VERSION = 2;
+export const PAYSLIP_PARSER_VERSION = 3;
 
 export const wageTypes = [
   'earning',
@@ -35,9 +35,23 @@ export type ParsedPayrollDocument = {
   draft: PayslipInput | null;
   differenceCents: number | null;
   warnings: string[];
+  /** Numeric wage codes whose section could not be inferred; older stored parses may omit this. */
+  unmappedWageTypes?: { code: string; label: string; amountCents: number }[];
   /** Parser version that produced this result; absent on results from before versioning. */
   parserVersion?: number;
 };
+
+const isCalendarDay = (value: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(parsed) && new Date(parsed).toISOString().startsWith(value);
+};
+
+/** Only a payout day printed by the source is a date proposal; otherwise require an owner choice. */
+export function proposedPayslipPayoutDate(parsed: ParsedPayrollDocument): string | null {
+  if (parsed.payoutDate && isCalendarDay(parsed.payoutDate)) return parsed.payoutDate;
+  return null;
+}
 export interface PayslipAdapter {
   id: string;
   accepts(text: string): boolean;
@@ -95,6 +109,7 @@ export const austrianPayrollAdapter: PayslipAdapter = {
       tax = 0;
     let sawSv = false,
       sawTax = false;
+    const unmappedWageTypes: NonNullable<ParsedPayrollDocument['unmappedWageTypes']> = [];
     const lines: PayslipInput['lines'] = [];
     for (const row of text.split(/\r?\n/)) {
       const amounts = [...row.matchAll(AMOUNT)];
@@ -139,8 +154,15 @@ export const austrianPayrollAdapter: PayslipAdapter = {
       }
       if (section === 'earning') continue; // Already included in the printed Brutto total.
       if (section) lines.push({ section, label: description.slice(0, 160), amountCents: amount });
-      else if (code || /aufrollung/.test(plain))
+      else if (code || /aufrollung/.test(plain)) {
         warnings.push('Unbekannte Lohnart oder Aufrollung: Zuordnung prüfen.');
+        if (code)
+          unmappedWageTypes.push({
+            code,
+            label: description.slice(0, 160),
+            amountCents: amount,
+          });
+      }
     }
     if (gross === null || net === null || !sawSv || !sawTax)
       warnings.push('Brutto, SV, Lohnsteuer oder Auszahlung fehlt.');
@@ -155,6 +177,7 @@ export const austrianPayrollAdapter: PayslipAdapter = {
       tax,
       lines,
       warnings,
+      unmappedWageTypes,
     });
   },
 };
