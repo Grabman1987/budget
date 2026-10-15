@@ -121,14 +121,15 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   });
   await page.goto(`/konten/${account.id}?panel=buchung`);
   panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
-  await expect(panel.getByRole('button', { name: 'Vorgemerkt', exact: true })).toHaveAttribute(
+  await expect(panel.getByRole('button', { name: 'Bestätigt', exact: true })).toHaveAttribute(
     'aria-pressed',
-    'false',
+    'true',
   );
+  await expect(panel.getByRole('button', { name: 'Bestätigt', exact: true })).toBeDisabled();
   await panel.evaluate((d) => d.getAnimations().forEach((a) => a.finish()));
   const accountBox = await panel.getByLabel('Bezahlt von', { exact: true }).boundingBox();
   const statusBox = await panel
-    .getByRole('button', { name: 'Vorgemerkt', exact: true })
+    .getByRole('button', { name: 'Bestätigt', exact: true })
     .boundingBox();
   // The checkmark sits right of the account select, on the same row.
   expect(statusBox!.x).toBeGreaterThan(accountBox!.x + accountBox!.width);
@@ -144,6 +145,10 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   await page.screenshot({ path: info.outputPath('capture.png') });
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(panel).toBeHidden();
+  const captured = (await (await request.get('/api/bookings')).json()).items.find(
+    (booking: { payeeName: string }) => booking.payeeName === 'Kiosk Muster',
+  );
+  expect(captured).toMatchObject({ accountId: account.id, amountCents: -203, status: 'confirmed' });
   expect((await (await request.get('/api/expected')).json()).payments).toHaveLength(2);
   await page.goto('/einstellungen/profil');
   const setting = page.getByRole('region', { name: 'Darstellung · Kontovorschau' });

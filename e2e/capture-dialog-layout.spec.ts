@@ -412,6 +412,50 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
   });
 }
 
+test('cash capture confirms immediately while bank capture stays pending', async ({
+  page,
+  request,
+  baseURL,
+}, info) => {
+  const create = async (type: string, name: string) => {
+    const response = await request.post('/api/accounts', {
+      headers: { origin: baseURL! },
+      data: {
+        name: `${name} ${info.project.name}`,
+        type,
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2026-01-01',
+        openingBalanceCents: 0,
+      },
+    });
+    expect(response.ok()).toBe(true);
+    return (await response.json()).account;
+  };
+  const cash = await create('cash', 'Bargeld Muster');
+  const bank = await create('checking', 'Giro Status Muster');
+  await page.goto(`/konten/${cash.id}?panel=buchung`);
+  const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });
+  await expect(dialog.getByRole('button', { name: 'Bestätigt', exact: true })).toBeDisabled();
+  await dialog.getByLabel('Bezahlt von', { exact: true }).selectOption(bank.id);
+  await expect(dialog.getByRole('button', { name: 'Vorgemerkt', exact: true })).toBeEnabled();
+  await dialog.getByLabel('Bezahlt von', { exact: true }).selectOption(cash.id);
+  const status = dialog.getByRole('button', { name: 'Bestätigt', exact: true });
+  await expect(status).toBeDisabled();
+  await expect(status).toHaveAttribute('aria-pressed', 'true');
+  await dialog.getByRole('button', { name: 'Einnahme', exact: true }).click();
+  await dialog.getByLabel('Betrag', { exact: true }).fill('12,34');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  const result = await (await request.get(`/api/bookings?accountId=${cash.id}`)).json();
+  expect(result.items).toHaveLength(1);
+  expect(result.items[0]).toMatchObject({
+    accountId: cash.id,
+    amountCents: 1234,
+    status: 'confirmed',
+  });
+});
+
 test('sharing before entering an amount keeps the discard guard', async ({ page }) => {
   await page.goto('/?panel=buchung');
   const dialog = page.getByRole('dialog', { name: 'Buchung erfassen' });

@@ -87,10 +87,11 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
   await receiver.press('Enter');
   await expect(dialog.getByLabel('Bezahlt von', { exact: true })).toHaveValue(account.id);
   await expect(dialog.getByLabel('Kategorie', { exact: true })).toHaveValue(category.name);
-  await expect(dialog.getByRole('button', { name: 'Vorgemerkt', exact: true })).toHaveAttribute(
+  await expect(dialog.getByRole('button', { name: 'Bestätigt', exact: true })).toHaveAttribute(
     'aria-pressed',
-    'false',
+    'true',
   );
+  await expect(dialog.getByRole('button', { name: 'Bestätigt', exact: true })).toBeDisabled();
   await date.fill('07.10.2026');
   await date.press('Tab');
   await expect(dialog.getByLabel('Budgetmonat')).toHaveCount(0);
@@ -152,7 +153,7 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     amountCents: -123457,
     accountId: account.id,
     payeeId: payee.id,
-    status: 'pending',
+    status: 'confirmed',
   });
   expect(saved[0].splits).toEqual([
     expect.objectContaining({ categoryId: category.id, amountCents: -123457 }),
@@ -170,7 +171,12 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
   );
   const response = await request.post('/api/accounts', {
     headers: { origin: baseURL! },
-    data: { name: 'Kasse Muster', type: 'cash', openingDate: '2026-01-01', openingBalanceCents: 0 },
+    data: {
+      name: 'Giro Muster',
+      type: 'checking',
+      openingDate: '2026-01-01',
+      openingBalanceCents: 0,
+    },
   });
   expect(response.ok(), await response.text()).toBe(true);
   const groupResponse = await request.post('/api/categories/groups', {

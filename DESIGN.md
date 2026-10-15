@@ -188,6 +188,8 @@ components:
 
 # Design System: Finanz-App
 
+Owner cash directive (2026-10-15, #499): new cash capture shows a fixed Bestätigt status. Bank capture retains its pending default and manual confirmation. Preserve the status label and touch target, existing stored bookings and reconciliation locks.
+
 Owner booking-line directive (2026-10-14, #463): the capture head shows amount, payee, account/status and date/repetition before category/contact lines on desktop and phone. Date/repetition use 2:1 columns; direct date entry and the calendar remain. One category row can represent a category, a whole contact outlay, or a category with percentage/fixed contact shares; additional gross lines show a cent-exact rest and block saving until it is zero. Slim suggestions share one row. Date chips, the separate outlay field and Split mode button are removed. Tab follows head → lines → actions; Enter saves valid input and Escape retains its guard. Map to the existing ledger splits with largest-remainder cents, preserving stored metadata, audited writes, locks and undo.
 
 **Owner Q3 decision (2026-10-14, #466, 3B):** Heute keeps the month switch and Monat / Bis Gehalt. One nonempty Zu tun section contains at most four compact source rows, ordered Plan, rules, inbox/bookings, account checks; secondary routine actions share their source row. A single nonempty Fällig 14 Tage list replaces Was steht an / Danach. Finanz-Check is a compact tile with counts and source links, without a duplicate findings list. In other months the former explanatory box becomes Ansicht: <month> – Zum aktuellen Monat; current-only sections carry Stand heute. Existing precision-layer tokens and 44px touch targets apply. This supersedes the separate Nächste Schritte revision table on Heute.

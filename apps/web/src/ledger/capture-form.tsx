@@ -527,8 +527,10 @@ export function CaptureForm({
     [draft.kind],
   );
   const showCategory = !isTransfer || needsCategory;
-  const effectiveStatus =
-    !editing && !queued && !statusChosen && !(state.mode === 'create' && state.prefill?.status)
+  const automaticCashStatus = !editing && from?.type === 'cash';
+  const effectiveStatus = automaticCashStatus
+    ? 'confirmed'
+    : !editing && !queued && !statusChosen && !(state.mode === 'create' && state.prefill?.status)
       ? 'pending'
       : draft.status;
   const moreSummary = draft.projectId ? 'Projekt' : '';
@@ -540,7 +542,14 @@ export function CaptureForm({
         type="button"
         className="icon-btn bk-status"
         aria-label={effectiveStatus === 'confirmed' ? 'Bestätigt' : 'Vorgemerkt'}
-        title={effectiveStatus === 'confirmed' ? 'Bestätigt' : 'Vorgemerkt'}
+        title={
+          automaticCashStatus
+            ? 'Bargeldbuchungen sind sofort bestätigt'
+            : effectiveStatus === 'confirmed'
+              ? 'Bestätigt'
+              : 'Vorgemerkt'
+        }
+        disabled={automaticCashStatus}
         aria-pressed={effectiveStatus === 'confirmed'}
         onClick={() => {
           setStatusChosen(true);

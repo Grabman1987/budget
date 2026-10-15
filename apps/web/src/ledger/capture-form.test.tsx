@@ -162,11 +162,13 @@ it('Ctrl+Enter saves from an open category dropdown without taking its highlight
   fireEvent.keyDown(category, { key: 'Enter', ctrlKey: true });
   await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
 });
-it('cash starts pending, has no Budgetmonat, and saves repetition', async () => {
+it('bank capture starts pending, has no Budgetmonat, and saves repetition', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // Retain this explicit bank fixture; the generic query mock returns a cash account.
+  client.setQueryDefaults(['accounts'], { staleTime: Infinity });
   client.setQueryData(['accounts'], {
     accounts: [
-      { id: 'wallet', name: 'Bargeld Muster', type: 'cash', onBudget: true, closedAt: null },
+      { id: 'wallet', name: 'Giro Muster', type: 'checking', onBudget: true, closedAt: null },
     ],
   });
   const done = vi.fn();
@@ -217,6 +219,42 @@ it('cash starts pending, has no Budgetmonat, and saves repetition', async () => 
     repeat: 'weekly',
   });
   expect(done).toHaveBeenCalledTimes(1);
+});
+
+it('cash capture is immediately confirmed without a pending toggle', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(['accounts'], {
+    accounts: [
+      { id: 'wallet', name: 'Bargeld Muster', type: 'cash', onBudget: true, closedAt: null },
+    ],
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <ToastProvider>
+        <CaptureForm
+          state={{ mode: 'create', accountId: 'wallet' }}
+          onDone={vi.fn()}
+          dirtyRef={{ current: false }}
+          discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+          requestClose={vi.fn()}
+        />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  const status = await screen.findByRole('button', { name: 'Bestätigt' });
+  expect((status as HTMLButtonElement).disabled).toBe(true);
+  expect(status.getAttribute('aria-pressed')).toBe('true');
+  fireEvent.click(screen.getByRole('button', { name: 'Einnahme' }));
+  fireEvent.change(screen.getByLabelText('Betrag', { exact: true }), {
+    target: { value: '12,34' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+  await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+  expect(create.mock.calls[0]![0].input).toMatchObject({
+    accountId: 'wallet',
+    amountCents: 1234,
+    status: 'confirmed',
+  });
 });
 
 it('shows note and category lines outside Mehr and accepts direct dates without calculator keys', async () => {

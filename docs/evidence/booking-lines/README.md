@@ -17,12 +17,12 @@ hiding account/date controls or the arithmetic hint. Accessible names remain int
 
 ## Verification
 
-- Fresh focused unit run: **72 tests in six files passed** with one thread worker.
+- Fresh focused unit run: **73 tests in six files passed** with one thread worker.
   Covers largest-remainder allocation, refunds, exact payloads, retained metadata,
   stale payee caches and undo of inline contact creation.
 - Fresh web typecheck and the E2E-mode application build passed. Changed-file ESLint,
   Prettier, CSS scale and diff checks passed. Full required CI remains the integration gate.
-- **27 browser/setup cases passed** in `capture-dialog-layout.spec.ts`: desktop
+- **30 browser/setup cases passed** in `capture-dialog-layout.spec.ts`: desktop
   1440px, Chromium mobile 390px and WebKit iPhone 390px. All five scenarios preserve
   exact split values and memo-only edit round trips. The tests retain rest/save
   guards, Enter, dirty Escape/outside-click protection, initial focus, light/dark
@@ -48,7 +48,7 @@ npx vitest run apps/web/src/ledger/capture-form.test.tsx apps/web/src/ledger/spl
 npx playwright test e2e/capture-dialog-layout.spec.ts --workers=1
 ```
 
-The final labelled-head run passed all 27 dialog/setup cases again, including four
+After integrating Q1 and the cash directive, the final run passed all 30 dialog/setup cases, including four
 suggestions in a bounded horizontal rail and access to its last button. Fourteen
 additional targeted cases passed (three existing desktop-only phone skips):
 category capture, shortcut help on desktop/mobile, light/dark mobile-panel geometry
@@ -77,3 +77,11 @@ confirmation, lock, undo/redo and no-write-before-save assertions remain.
 Final-head CI, serial deployment and
 the live revision must pass before closing #463. Physical-iPhone owner acceptance
 remains separate from automated WebKit coverage.
+
+## Cash capture and current-main regression (2026-10-15, #499)
+
+New cash capture is immediately confirmed, with its visible status control disabled. Bank capture retains pending/manual confirmation; existing edited/reconciled records keep their stored state. The new browser case switches cash → bank → cash and verifies the saved 1,234-cent confirmed inflow on all three engines/viewports. The original bank toggle/repetition checks remain.
+
+Fresh web typecheck, changed-source ESLint, CSS scale and E2E build passed. The 73 focused financial unit tests passed. After the 30 dialog/setup cases, 21 affected browser/setup cases passed (three existing desktop phone-only skips): cash acceptance, keyboard focus, register/repetition/preview, payee suggestions, bank confirmation, shortcut help, light/dark clipped-rail geometry and the original visible-label/touch checks. All 30 evidence images were refreshed with the current Q1 colors; mobile light and WebKit dark were reviewed.
+
+This slice changes capture defaults. The remaining account-purpose, transfer/import and contact/chart requests stay open in #499.

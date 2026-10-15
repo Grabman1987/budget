@@ -2,10 +2,12 @@
 
 ### Booking line model — #463 (2026-10-14)
 
+Owner follow-up #499: new cash capture is confirmed automatically; bank capture remains pending with manual confirmation. The coherent cash change shares this delivery under the owner-approved 15.10. batching rule.
+
 - [x] Pure percentage/fixed contact-share allocation using existing largest-remainder integer cents; draft lines map to the existing split create/patch payloads with saved metadata/order retained.
 - [x] Visible head before lines on all viewports, direct date/calendar and 2:1 repetition, one suggestion rail, inline contacts/shares and exact rest/save guard.
-- [x] Fresh web typecheck, E2E build and 72 affected unit tests in six files. No financial write, undo or lock boundaries changed.
-- [x] 27 dialog browser/setup cases across desktop, Chromium mobile and WebKit iPhone, including five exact split/edit scenarios, keyboard/dirty guards, light/dark Axe, 44px targets and actual viewport bounds; 30 refreshed synthetic screenshots. [Evidence](evidence/booking-lines/README.md).
+- [x] Fresh web typecheck, E2E build and 73 affected unit tests in six files. No financial write, undo or lock boundaries changed.
+- [x] 30 dialog browser/setup cases across desktop, Chromium mobile and WebKit iPhone, including five exact split/edit scenarios, keyboard/dirty guards, light/dark Axe, 44px targets and actual viewport bounds; 30 refreshed synthetic screenshots. [Evidence](evidence/booking-lines/README.md).
 - [x] Broader capture/register regression run: 53 passed; two adapted save-guard/footer cases passed in a separate five-case desktop/mobile/setup run. Changed-file lint/format and CSS scale passed.
 - [ ] Final-head CI, Linux baseline review, serial deployment/live revision and physical-iPhone owner acceptance.
 
@@ -14,7 +16,7 @@
 - [x] Generated boundaries, secondary lines and positive dark fills meet 3:1; text and positive-button foregrounds meet 4.5:1, including print.
 - [x] Tinted hover/selection metadata uses stronger ink; the full DS1 palette remains separate.
 - [x] Focused desktop/mobile/WebKit, light/dark Axe and synthetic evidence verified.
-- [ ] Required PR CI and deployed revision verified before closing.
+- [x] Required PR CI and live revision verified: PR #496, main CI 38702486658, Deploy 38704422686, exact health/ancestor `684495d3`.
 
 ### UX Q3 — Today attention — #466 (2026-10-14)
 
