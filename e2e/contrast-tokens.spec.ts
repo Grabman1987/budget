@@ -7,6 +7,7 @@ for (const theme of ['light', 'dark'] as const) {
     page,
   }, info) => {
     test.setTimeout(90_000);
+    const viewportWidth = page.viewportSize()!.width;
     await page.emulateMedia({ colorScheme: theme });
     await page.goto('/?monat=2026-09');
     await expect(page.getByTestId('heute-lead-value')).toBeVisible();
@@ -50,8 +51,8 @@ for (const theme of ['light', 'dark'] as const) {
     expect(ratios.text).toBeGreaterThanOrEqual(4.5);
     expect(ratios.positiveText).toBeGreaterThanOrEqual(4.5);
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-      true,
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      viewportWidth,
     );
 
     const dir = 'docs/evidence/contrast-tokens-q1';
@@ -79,8 +80,8 @@ for (const theme of ['light', 'dark'] as const) {
     expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
       [],
     );
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-      true,
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      viewportWidth,
     );
     const fields = await form.locator('input, select, button').evaluateAll((elements) =>
       elements
