@@ -78,6 +78,13 @@ Owner follow-up #499: new cash capture is confirmed automatically; bank capture 
 - [x] Fresh web typecheck, changed-file lint/format/CSS scale, 19 unit tests and 28 affected E2E/setup cases. Final compact-grid rerun: 6 desktop/Chromium-phone/WebKit cases with light/dark Axe, actual viewport-width guard and both touch dimensions at least 44px. Global checkbox/select correction integrated and six synthetic images refreshed. [Evidence and PR body](evidence/plan-zerosum-grid/PR.md).
 - [ ] Required final-head CI, Linux snapshot review, deployed revision and owner device acceptance. No local Linux baseline generation; Z2/Z3 and phone action layout remain separate packages.
 
+### UX S1 — search overlay palette — #484 (2026-10-14)
+
+- [x] Context-preserving native search dialog, phone full-screen sheet, actions first, grouped results and validated session recents without the empty catalog dump.
+- [x] Reuse existing navigation/actions and keyboard selection; Escape/focus return, all-results query/source links and reload-safe type filtering on `/suche`.
+- [ ] Reverify inherited component regressions and browser evidence on current main before delivery; [WIP notes](evidence/search-overlay/PR.md).
+- [ ] Required CI, Linux visual review and physical desktop/iPhone owner acceptance.
+
 ### Account register: upcoming captures and next recurrence — #453 (2026-10-13)
 
 - [x] Remembered `Kommend · N` section in account and All Bookings registers, collapsed on phones; all future captures and only the next unbooked schedule occurrence, ascending date hints and distinct calendar/repeat icons.

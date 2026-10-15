@@ -11,6 +11,18 @@ test('installs a static shell, excludes private responses and reloads offline', 
   page,
   context,
 }) => {
+  await page.addInitScript(() => {
+    Reflect.set(window, '__pwaInitialOnline', navigator.onLine);
+  });
+  const pageErrors: string[] = [];
+  const failedRequests: { path: string; error: string | undefined }[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  page.on('requestfailed', (request) => {
+    failedRequests.push({
+      path: new URL(request.url()).pathname,
+      error: request.failure()?.errorText,
+    });
+  });
   await page.goto('/');
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
@@ -46,8 +58,34 @@ test('installs a static shell, excludes private responses and reloads offline', 
   expect(keys).toContain('/offline.html');
   expect(keys.some((path) => path.startsWith('/api') || path.startsWith('/health'))).toBe(false);
   await context.setOffline(true);
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'Budget ist offline' })).toBeVisible();
+  let reload: { status: number; fromServiceWorker: boolean } | null = null;
+  try {
+    await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
+    const response = await page.reload();
+    reload = response
+      ? { status: response.status(), fromServiceWorker: response.fromServiceWorker() }
+      : null;
+    await expect(page.getByRole('heading', { name: 'Budget ist offline' })).toBeVisible();
+  } catch (error) {
+    // Synthetic test context only: keep actionable browser state in CI logs even when the
+    // downloadable trace artifact cannot be retrieved. Never log cookies or API responses.
+    console.log('Offline reload diagnostic', {
+      reload,
+      pageErrors: pageErrors.slice(-6),
+      failedRequests: failedRequests.slice(-12),
+      document: await page
+        .evaluate(() => ({
+          initialOnline: Reflect.get(window, '__pwaInitialOnline'),
+          online: navigator.onLine,
+          controlled: navigator.serviceWorker.controller !== null,
+          title: document.title,
+          headings: Array.from(document.querySelectorAll('h1'), (node) => node.textContent),
+          connectionBanner: document.querySelector('.pwa-connection')?.textContent ?? null,
+        }))
+        .catch(() => null),
+    });
+    throw error;
+  }
   expect(
     await page.evaluate(async () => {
       try {

@@ -1,7 +1,27 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Button } from '@budget/ui';
+import { ApiError } from '../api/http';
+import { AUTH_STATUS_KEY, queryClient } from '../auth/status-query';
 import './pwa.css';
 import { QueueCapture, QueueList } from './queue-ui';
+
+function subscribeAuthStatus(setHasConnected: (connected: boolean) => void) {
+  return queryClient.getQueryCache().subscribe(({ query }) => {
+    if (
+      query.queryKey[0] === AUTH_STATUS_KEY[0] &&
+      query.queryKey[1] === AUTH_STATUS_KEY[1] &&
+      query.state.data === undefined &&
+      query.state.error instanceof ApiError &&
+      query.state.error.status === 0
+    )
+      setHasConnected(false);
+  });
+}
+
+function authStatusUnavailable() {
+  const state = queryClient.getQueryState(AUTH_STATUS_KEY);
+  return state?.data === undefined && state?.error instanceof ApiError && state.error.status === 0;
+}
 
 function subscribeOnline(changed: () => void) {
   window.addEventListener('online', changed);
@@ -20,12 +40,17 @@ export function PwaShell({ children }: { children: ReactNode }) {
     () => true,
   );
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
-  const [hasConnected, setHasConnected] = useState(() => navigator.onLine);
+  const [hasConnected, setHasConnected] = useState(
+    () => navigator.onLine && !authStatusUnavailable(),
+  );
   const [capture, setCapture] = useState(false);
   useEffect(() => {
     const connected = () => setHasConnected(true);
     window.addEventListener('online', connected);
     return () => window.removeEventListener('online', connected);
+  }, []);
+  useEffect(() => {
+    return subscribeAuthStatus(setHasConnected);
   }, []);
   useEffect(() => {
     if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;

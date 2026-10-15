@@ -113,6 +113,23 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
       await page.evaluate((t) => {
         document.documentElement.dataset['theme'] = t;
       }, theme);
+      if (name === 'portfolio' || name === 'debts') {
+        await expect
+          .poll(() =>
+            page
+              .getByTestId(name === 'portfolio' ? 'portfolio-overview-chart' : 'debt-history-chart')
+              .locator('text')
+              .evaluateAll((nodes) => {
+                const probe = document.createElement('span');
+                probe.style.color = 'var(--ink-3)';
+                document.body.append(probe);
+                const expected = getComputedStyle(probe).color;
+                probe.remove();
+                return nodes.map((node) => getComputedStyle(node).fill === expected);
+              }),
+          )
+          .toEqual([true, true]);
+      }
       await page.evaluate(() => document.fonts.ready);
       if (name === 'portfolio' || name === 'debts') {
         const labels = page.getByTestId(

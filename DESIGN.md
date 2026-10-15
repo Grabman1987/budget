@@ -207,6 +207,7 @@ Owner UX V1 directive (2026-10-14, #480): Vermögen shows a compact performance 
 Owner wealth-detail directive (2026-10-15, #499): signed account bars meet at one proportional zero line; positive values extend right and debts left. The daily Portfolio line uses real valuation-date spacing and a 100 index basis, with visible gaps where a daily return cannot be calculated. Responsive SVGs keep chart labels at their token font size, and portfolio actions sit after the chart. Explain stored valuation dates and carried quotes in nearby text; do not imply fresh daily market quotes.
 
 
+**Owner search decision (2026-10-14, #484):** search is a native modal palette on desktop and a full-screen sheet on phones, with the search field above its scrolling results. Actions lead; results group into pages, accounts/categories and bookings. Empty search shows actions and validated session recents. Escape restores the opener and source context. `/suche` stays the all-results page with type filtering. This search-only exception supersedes the forms-only dialog rule below; use existing precision tokens.
 
 **Owner Z4 decision (2026-10-13, #451):** the left account list follows the
 Zerosum arrangement: navigation icons without 01–05 numbers, a KONTEN heading

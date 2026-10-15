@@ -9,18 +9,20 @@ import { amountsHidden, setAmountsHidden } from '@budget/ui';
 const navigate = vi.fn();
 const back = vi.fn();
 let openedInApp = false;
+let searchParams: { von: string; q?: string; typ?: string } = { von: '/plan/monat?monat=2026-09' };
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useNavigate: () => navigate,
   useRouter: () => ({ history: { back } }),
   useLocation: ({ select }: { select: (location: unknown) => unknown }) =>
     select({ state: { searchOpenedInApp: openedInApp } }),
-  useSearch: () => ({ von: '/plan/monat?monat=2026-09' }),
+  useSearch: () => searchParams,
 }));
 beforeEach(() => {
   navigate.mockClear();
   back.mockClear();
   openedInApp = false;
+  searchParams = { von: '/plan/monat?monat=2026-09' };
   setAmountsHidden(false);
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
@@ -50,6 +52,25 @@ function mount() {
   return input;
 }
 describe('command palette', () => {
+  it('updates the full result query and filter when navigation reuses the search page', () => {
+    searchParams = { von: '/', q: 'Baby', typ: 'report' };
+    const client = new QueryClient();
+    const view = render(
+      <QueryClientProvider client={client}>
+        <SearchResults />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByRole('combobox', { name: 'Suchen' }).getAttribute('value')).toBe('Baby');
+    searchParams = { von: '/', q: 'Dispo', typ: 'page' };
+    view.rerender(
+      <QueryClientProvider client={client}>
+        <SearchResults />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByRole('combobox', { name: 'Suchen' }).getAttribute('value')).toBe('Dispo');
+    expect((screen.getByLabelText('Ergebnistyp') as HTMLSelectElement).value).toBe('page');
+    expect(screen.getByRole('option', { name: /Vermögen · Schulden/ })).toBeTruthy();
+  });
   it.each([
     ['Baby', '3.1 Liquiditätsprognose', '/reports/liquiditaet'],
     ['Einkommenspause', '3.1 Liquiditätsprognose', '/reports/liquiditaet'],
@@ -81,7 +102,7 @@ describe('command palette', () => {
   it('does not turn unmatched everyday words into function matches', () => {
     const input = mount();
     fireEvent.change(input, { target: { value: 'Babypuder' } });
-    expect(screen.queryByRole('option')).toBeNull();
+    expect(screen.queryByRole('listbox')?.querySelector('[role=option]') ?? null).toBeNull();
   });
   it.each(REPORTS)('finds report $pos by position, name and slug', (report) => {
     const input = mount();
@@ -193,7 +214,7 @@ describe('command palette', () => {
     const label = selected.textContent;
     fireEvent.keyDown(input, { key: 'Enter' });
     fireEvent.focus(input);
-    const first = screen.getAllByRole('option')[0]!;
+    const first = within(screen.getByRole('listbox')).getAllByRole('option')[0]!;
     expect(first.textContent).toBe(label);
     expect(first.getAttribute('aria-selected')).toBe('true');
   });
