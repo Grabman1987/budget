@@ -1162,3 +1162,10 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [x] Bind sidebar and settings profile labels to the current server session method; preserve recovery/step-up restrictions.
 - [x] Separate account-specific source/observation state, stored owner check and technical retrieval dates; missing metadata stays explicit. No connection or sync action.
 - [ ] Required CI/PR integration after #405, Linux visual baseline review and physical-device/cloud owner acceptance. Targeted verification and task-scoped auth review: [evidence](evidence/auth-account-1009/README.md).
+
+### UX V1 — Vermögen, #480 (2026-10-14)
+
+- [x] Compact portfolio performance, chart-local period controls, total debt/history, collapsed scenarios, historical freedom default and savings execution/purchase details.
+- [x] Fresh web typecheck, changed-file ESLint/Prettier/CSS scale, 21 targeted unit tests and E2E build after integration. Existing calculation tests and write/undo assertions remain.
+- [x] Final 14-case desktop/Chromium-phone/WebKit run: all five pages, light/dark Axe and chart-label roles, 44px controls, actual viewport-width guards, debt models and audited actions. Synthetic desktop/phone images and the wider 53-pass regression run are recorded in [delivery evidence](evidence/ux-v1-vermoegen/README.md).
+- [ ] Required final-head CI, Linux baseline review, deployed revision and owner physical-device acceptance.

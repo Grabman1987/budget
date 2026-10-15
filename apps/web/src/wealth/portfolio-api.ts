@@ -1,4 +1,10 @@
-import type { AssetClassRow, PortfolioPositionsView, SecurityRecord } from '@budget/db';
+import type {
+  AssetClassRow,
+  PortfolioPositionsView,
+  SecurityRecord,
+  PortfolioSummary,
+} from '@budget/db';
+import type { Period } from '@budget/domain';
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -9,6 +15,16 @@ export type {
   PositionClass,
   SecurityRecord,
 } from '@budget/db';
+export const portfolioPerformanceQuery = (period: Period) =>
+  queryOptions({
+    queryKey: [...LEDGER_KEY, 'portfolio-performance-report', period, 'securities'],
+    retry: false,
+    queryFn: () =>
+      request<{ portfolio: PortfolioSummary } & WithValuationNotes>(
+        'GET',
+        `/api/portfolio?period=${period}&view=securities&history=performance`,
+      ),
+  });
 export const portfolioPositionsQuery = () =>
   queryOptions({
     queryKey: [...LEDGER_KEY, 'portfolio-positions'],

@@ -11,6 +11,7 @@ import { netWorthQuery, type CompositionRow, type NetWorthView } from './api';
 import { NetWorthChart } from './networth-chart';
 import { chainTerms, periodText } from './networth-model';
 import { useZeitraum } from './zeitraum';
+import { ZeitraumSwitch } from './frame';
 
 /** Vermögen › Nettovermögen: the figure with its Maßkette, the daily course and what it consists of. */
 export function NetWorthPage() {
@@ -71,6 +72,7 @@ function Course({ view }: { view: NetWorthView }) {
         {whole}
         <span className="cents">,{fraction} €</span>
       </div>
+      <ZeitraumSwitch />
       <NetWorthChart view={view} periodLabel={text} />
       <div className="legend" aria-hidden="true">
         <span>

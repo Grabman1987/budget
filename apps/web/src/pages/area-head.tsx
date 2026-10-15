@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { monthLabel, monthRangeLabel } from '../nav/month';
 import { useMonthSpan } from '../budget/month-span';
 import { MonthSwitch } from '../shell/month-switch';
-import { VermoegenStand, ZeitraumSwitch } from '../wealth/frame';
+import { VermoegenStand } from '../wealth/frame';
 import type { PageMeta } from '../nav/pages';
 import { useMonth } from '../shell/use-month';
 import type { HeutePeriod } from '../heute/api';
@@ -133,13 +133,7 @@ export function AreaHead({
       break;
     case 'vermoegen':
       heading = 'Vermögen';
-      fields = [
-        // Six range buttons need the whole strip on the phone, as in the prototype.
-        { label: 'Stand', value: <VermoegenStand />, hideOnMobile: true },
-        { label: 'Zeitraum', value: <ZeitraumSwitch /> },
-      ];
-      if (meta.register === 'freiheit' || meta.register === 'schulden')
-        fields = fields.filter((field) => field.label !== 'Zeitraum');
+      fields = [{ label: 'Stand', value: <VermoegenStand />, hideOnMobile: true }];
       break;
     case 'einstellungen':
       heading = 'Einstellungen';
