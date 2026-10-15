@@ -2,6 +2,8 @@
 
 Eight native editable source frames and eight prototype frames extend revision 04. Existing source and prototype screens are retained. The new flow is reachable through V13 → Vermögensstufen. Figures, accounts and securities are synthetic. The workbook itself and private product/provider identifiers are not published.
 
+The two existing START indexes now show 170 scenarios and include a V18–V21 entry (Desktop node `262:1991`, phone `262:1994`). The added eight prototype frames have zero invalid navigation destinations in the final readback.
+
 | Scenario | Desktop source | Phone source | Desktop prototype | Phone prototype |
 | --- | --- | --- | --- | --- |
 | V18 Account universe | 253:154 | 253:357 | 260:1865 | 260:2002 |
