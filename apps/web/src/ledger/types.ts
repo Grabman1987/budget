@@ -35,6 +35,8 @@ export interface AccountRow {
   onBudget: boolean;
   currency: string;
   institutionId: string | null;
+  /** Separate cash account used for depot settlements; null means cash is integrated. */
+  referenceAccountId?: string | null;
   openingBalanceCents: number;
   openingDate: string;
   creditLimitCents: number | null;

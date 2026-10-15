@@ -11,6 +11,11 @@
 .payslip-upload .btn {
   min-height: 44px;
 }
+.payslip-upload .payslip-drop-hint {
+  margin: 0;
+  padding: 12px;
+  border: 1px dashed var(--line-2);
+}
 .payslip-intake-detail {
   max-width: 100%;
   text-align: left;

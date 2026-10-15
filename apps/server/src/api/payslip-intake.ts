@@ -101,12 +101,25 @@ export function payslipIntakeRoutes(
   });
   api.get('/:id', (c) => {
     const row = getPayslipIntake(db, z.string().uuid().parse(c.req.param('id')));
+    const requested = z.string().min(1).max(64).optional().parse(c.req.query('accountId'));
+    const accounts = listEntities(db, account).filter((a) => a.currency === 'EUR' && !a.closedAt);
+    const suggested = requested ?? getPayslipSourceConfig(db).salaryAccountId;
+    const payoutAccountId = accounts.some((a) => a.id === suggested) ? suggested : null;
     return c.json({
       id: row.id,
       status: row.status,
       receiptId: row.receiptId,
       parsed: row.parsed,
-      matches: payslipMatches(db, row.parsed),
+      matches: payslipMatches(db, row.parsed, payoutAccountId),
+      payoutAccountId,
+      accounts: accounts.map(({ id, name, type, onBudget, sortOrder, closedAt }) => ({
+        id,
+        name,
+        type,
+        onBudget,
+        sortOrder,
+        closedAt,
+      })),
     });
   });
   api.post('/:id/retry', async (c) => {
@@ -147,6 +160,7 @@ export function payslipIntakeRoutes(
           z.strictObject({
             action: z.enum(['confirm', 'reject']),
             bookingId: z.string().min(1).max(64).nullable(),
+            accountId: z.string().min(1).max(64).optional(),
           }),
         ),
         { actor: ACTOR },

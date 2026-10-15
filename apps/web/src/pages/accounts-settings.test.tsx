@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ToastProvider } from '@budget/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccountRow } from '../ledger/types';
@@ -46,7 +46,14 @@ const account = (over: Partial<AccountRow>): AccountRow => ({
 const ACCOUNTS: AccountRow[] = [
   account({ id: 'giro', name: 'Giro Muster', sortOrder: 1 }),
   account({ id: 'spar', name: 'Tagesgeld Muster', type: 'savings', sortOrder: 2 }),
-  account({ id: 'karte', name: 'Karte Muster', type: 'credit_card', interestRateBp: 1200 }),
+  account({
+    id: 'karte',
+    name: 'Karte Muster',
+    type: 'credit_card',
+    interestRateBp: 1200,
+    creditLimitCents: 500_000,
+    monthlyFeeCents: 2990,
+  }),
   account({
     id: 'kredit',
     name: 'Kredit Muster',
@@ -62,6 +69,15 @@ const ACCOUNTS: AccountRow[] = [
     originalAmountCents: 2_000_000,
   }),
   account({ id: 'alt', name: 'Altes Konto', sortOrder: 4, closedAt: '2026-05-01T00:00:00.000Z' }),
+  account({
+    id: 'depot',
+    name: 'Depot Muster',
+    type: 'brokerage',
+    role: 'investment',
+    onBudget: false,
+    referenceAccountId: 'giro',
+    sortOrder: 5,
+  }),
 ];
 
 interface Call {
@@ -96,6 +112,7 @@ beforeEach(() => {
       const body = init.body ? (JSON.parse(String(init.body)) as unknown) : undefined;
       calls.push({ method, path, body });
       const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
+      if (method === 'GET' && path === '/api/asset-classes') return json({ assetClasses: [] });
       if (method === 'GET' && path.startsWith('/api/accounts'))
         return json({
           asOf: '2026-10-03',
@@ -148,6 +165,23 @@ describe('Einstellungen › Konten', () => {
     },
   );
 
+  it('keeps credit-card properties and budget behavior when editing the existing card', async () => {
+    page();
+    await userEvent.click(await screen.findByRole('button', { name: 'Karte Muster bearbeiten' }));
+    expect((screen.getByLabelText('Kontotyp') as HTMLSelectElement).value).toBe('credit_card');
+    expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('true');
+    expect((screen.getByLabelText('Kartenlimit') as HTMLInputElement).value).toBe('5.000,00');
+    expect((screen.getByLabelText('Zinssatz in Prozent') as HTMLInputElement).value).toBe('12,00');
+    expect((screen.getByLabelText('Monatliche Gebühr') as HTMLInputElement).value).toBe('29,90');
+    expect(screen.queryByLabelText('Verrechnungskonto')).toBeNull();
+
+    await userEvent.clear(screen.getByLabelText('Zinssatz in Prozent'));
+    await userEvent.type(screen.getByLabelText('Zinssatz in Prozent'), '12,5');
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+    await screen.findByText('Konto „Karte Muster“ gespeichert.');
+    expect(writes()[0]?.body).toEqual({ interestRateBp: 1250 });
+  });
+
   it('lists the accounts grouped like the sidebar, closed ones apart, with loan terms', async () => {
     page();
     await screen.findByText('Giro Muster');
@@ -159,6 +193,74 @@ describe('Einstellungen › Konten', () => {
     expect(loans.textContent).toContain('Rate 412,00 €');
     const closed = screen.getByRole('heading', { name: /Geschlossene Konten/ }).closest('section')!;
     expect(within(closed).getByText('Altes Konto')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Datenquellen' }).getAttribute('href')).toBe(
+      '/einstellungen/datenquellen',
+    );
+  });
+
+  it('edits the separate depot cash relation through the existing account field', async () => {
+    page();
+    await userEvent.click(await screen.findByRole('button', { name: 'Depot Muster bearbeiten' }));
+    const settlement = await screen.findByLabelText('Verrechnungskonto');
+    expect((settlement as HTMLSelectElement).value).toBe('giro');
+    await userEvent.selectOptions(settlement, 'spar');
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+    await screen.findByText('Konto „Depot Muster“ gespeichert.');
+    expect(writes()[0]).toMatchObject({
+      method: 'PATCH',
+      path: '/api/accounts/depot',
+      body: { referenceAccountId: 'spar' },
+    });
+  });
+
+  it('creates a depot with an explicitly selected separate cash account', async () => {
+    page();
+    await userEvent.click(await screen.findByRole('button', { name: 'Konto anlegen' }));
+    await userEvent.type(screen.getByLabelText('Name'), 'Neues Depot');
+    await userEvent.selectOptions(screen.getByLabelText('Kontotyp'), 'brokerage');
+    await userEvent.selectOptions(screen.getByLabelText('Verrechnungskonto'), 'giro');
+    const createButtons = await screen.findAllByRole('button', { name: 'Konto anlegen' });
+    await userEvent.click(createButtons.at(-1)!);
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    expect(writes()[0]).toMatchObject({
+      method: 'POST',
+      path: '/api/accounts',
+      body: {
+        name: 'Neues Depot',
+        type: 'brokerage',
+        referenceAccountId: 'giro',
+      },
+    });
+  });
+
+  it('does not submit a hidden settlement selection after changing the new account type', async () => {
+    page();
+    await userEvent.click(await screen.findByRole('button', { name: 'Konto anlegen' }));
+    await userEvent.type(screen.getByLabelText('Name'), 'Neues Konto');
+    await userEvent.selectOptions(screen.getByLabelText('Kontotyp'), 'brokerage');
+    await userEvent.selectOptions(screen.getByLabelText('Verrechnungskonto'), 'giro');
+    await userEvent.selectOptions(screen.getByLabelText('Kontotyp'), 'checking');
+    expect(screen.queryByLabelText('Verrechnungskonto')).toBeNull();
+    await userEvent.click(
+      (await screen.findAllByRole('button', { name: 'Konto anlegen' })).at(-1)!,
+    );
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    const body = writes()[0]?.body;
+    expect(body).toBeDefined();
+    expect(body).not.toHaveProperty('referenceAccountId');
+  });
+
+  it('clears an existing settlement relation when changing the account type', async () => {
+    page();
+    await userEvent.click(await screen.findByRole('button', { name: 'Depot Muster bearbeiten' }));
+    await userEvent.selectOptions(screen.getByLabelText('Kontotyp'), 'checking');
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+    await screen.findByText('Konto „Depot Muster“ gespeichert.');
+    expect(writes()[0]).toMatchObject({
+      method: 'PATCH',
+      path: '/api/accounts/depot',
+      body: { type: 'checking', referenceAccountId: null },
+    });
   });
 
   it('saves only the changed loan terms in one PATCH', async () => {
@@ -241,7 +343,7 @@ describe('Einstellungen › Konten', () => {
     expect(writes()[0]).toMatchObject({
       method: 'PATCH',
       path: '/api/accounts/order',
-      body: { ids: ['spar', 'giro', 'karte', 'kredit', 'alt'] },
+      body: { ids: ['spar', 'giro', 'karte', 'kredit', 'depot', 'alt'] },
     });
   });
 });

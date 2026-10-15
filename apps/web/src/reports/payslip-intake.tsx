@@ -79,6 +79,19 @@ export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean)
     [remember, setRemember] = useState(false),
     [rememberNote, setRememberNote] = useState('');
   const qc = useQueryClient();
+  function receive(files: File[]) {
+    if (busy || !files.length) return;
+    const file = files[0]!;
+    if (files.length !== 1 || (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf')) {
+      setError('Bitte genau eine PDF-Datei ablegen oder auswählen.');
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      setError('Eine PDF darf höchstens 15 MB groß sein.');
+      return;
+    }
+    void upload(file);
+  }
   async function upload(file?: File) {
     if (!file || busy) return;
     setBusy(true);
@@ -126,7 +139,20 @@ export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean)
     }
   }
   return (
-    <div className="payslip-upload">
+    <div
+      className="payslip-upload"
+      role="region"
+      aria-label="Gehaltszettel-PDF ablegen"
+      aria-busy={busy}
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = busy ? 'none' : 'copy';
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        receive(Array.from(event.dataTransfer.files));
+      }}
+    >
       <input
         ref={picker}
         className="sr-only"
@@ -136,7 +162,7 @@ export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean)
         aria-label="Gehaltszettel-PDF auswählen"
         disabled={busy}
         onChange={(e) => {
-          void upload(e.target.files?.[0]);
+          receive(Array.from(e.target.files ?? []));
           e.target.value = '';
         }}
       />
@@ -144,6 +170,7 @@ export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean)
         Gehaltszettel hochladen
       </Button>
       <span>PDF · höchstens 15 MB{busy ? ' · Wird ausgewertet …' : ''}</span>
+      <p className="payslip-drop-hint">PDF hier ablegen oder über den Button auswählen.</p>
       <details className="payslip-password-details">
         <summary>PDF-Passwort eingeben (optional)</summary>
         <PasswordFields
@@ -178,6 +205,8 @@ type Intake = {
   receiptId: string;
   status: string;
   parsed: ParsedPayrollDocument;
+  payoutAccountId: string | null;
+  accounts: SourceStatus['accounts'];
   matches: {
     id: string;
     date: string;
@@ -187,9 +216,14 @@ type Intake = {
   }[];
 };
 export function PayslipIntakeDetail({ id }: { id: string }) {
+  const [accountId, setAccountId] = useState<string>();
   const query = useQuery({
-    queryKey: ['payslip-intake', id],
-    queryFn: () => request<Intake>('GET', `${PATH}/${id}`),
+    queryKey: ['payslip-intake', id, accountId],
+    queryFn: () =>
+      request<Intake>(
+        'GET',
+        `${PATH}/${id}${accountId ? `?accountId=${encodeURIComponent(accountId)}` : ''}`,
+      ),
   });
   const [bookingId, setBookingId] = useState<string | undefined>(),
     [busy, setBusy] = useState(false),
@@ -205,8 +239,10 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
   const p = data?.parsed,
     totals = p?.draft ? payrollTotals([p.draft]) : null;
   const selectedMatch = data?.matches.find((m) => m.id === match);
+  const payoutAccount = data?.accounts.find((a) => a.id === data.payoutAccountId);
   const canConfirm = Boolean(
     p?.draft &&
+    (match || payoutAccount) &&
     Math.abs(p.differenceCents ?? 2) <= 1 &&
     p.warnings.every((w) => w === 'Abrechnungsmonat nur aus dem Dateinamen erkannt.'),
   );
@@ -222,7 +258,11 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
             ? password
               ? { password, ...(remember ? { remember: true } : {}) }
               : {}
-            : { action, bookingId: match || null },
+            : {
+                action,
+                bookingId: match || null,
+                ...(action === 'confirm' && payoutAccount ? { accountId: payoutAccount.id } : {}),
+              },
         ),
       () =>
         action === 'confirm'
@@ -296,6 +336,24 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
                   {l.section === 'reimbursement' ? ' · steuerfreie Erstattung' : ''}
                 </p>
               ))}
+              <Field label="Auszahlungskonto">
+                {({ id: fieldId }) => (
+                  <Select
+                    id={fieldId}
+                    value={data.payoutAccountId ?? ''}
+                    disabled={busy}
+                    onChange={(e) => {
+                      setAccountId(e.target.value);
+                      setBookingId(undefined);
+                    }}
+                  >
+                    <option value="" disabled>
+                      Konto auswählen
+                    </option>
+                    <AccountOptions accounts={data.accounts} />
+                  </Select>
+                )}
+              </Field>
               <Field label="Gehaltsbuchung (±5 Tage)">
                 {({ id: fieldId }) => (
                   <Select
@@ -304,7 +362,11 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
                     disabled={busy}
                     onChange={(e) => setBookingId(e.target.value)}
                   >
-                    <option value="">Ohne Buchungsverknüpfung speichern</option>
+                    <option value="">
+                      {payoutAccount?.type === 'cash'
+                        ? 'Neue Auszahlung bestätigen'
+                        : 'Neue Auszahlung vormerken'}
+                    </option>
                     {data.matches.map((m) => (
                       <option value={m.id} key={m.id}>
                         {longDay(m.date)} · {eur(m.amountCents)} · Differenz{' '}
@@ -322,14 +384,16 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
               )}
               {!data.matches.length && (
                 <p>
-                  Keine Gehaltsbuchung im Zeitfenster gefunden. Gehaltskonto unter Datenquellen
-                  prüfen.
+                  Keine Gehaltsbuchung im Zeitfenster gefunden. Nach der Bestätigung wird die
+                  Auszahlung auf dem gewählten Konto gebucht.
                 </p>
               )}
               <p>
-                Steuerfreie Erstattungen sind hier vom Gehalt getrennt. In der Gehaltsbuchung
-                Erstattungen ebenfalls separat zuordnen, damit sie nicht in die Sparquote eingehen.
-                Es wird keine Buchung erstellt.
+                {selectedMatch
+                  ? 'Die vorhandene Buchung wird verknüpft. Ihre Zuordnung bleibt erhalten.'
+                  : payoutAccount?.type === 'cash'
+                    ? 'Die neue Bargeldauszahlung wird sofort bestätigt.'
+                    : 'Die neue Auszahlung wird vorgemerkt. Gehalt und steuerfreie Erstattungen werden getrennt zugeordnet.'}
               </p>
             </>
           )}

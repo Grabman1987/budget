@@ -88,6 +88,7 @@ export interface AccountInput {
   originalAmountCents?: number | null;
   /** Rename and retype: the role follows the type on the server when it is not given. */
   role?: string;
+  referenceAccountId?: string | null;
 }
 
 /** The owner's account order: ids in the new order, one audit group (undoable). */
