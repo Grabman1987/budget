@@ -1,21 +1,11 @@
-## Changes
+Vermögen now answers each page's main question first: portfolio value/gain and annualised time-weighted history, total debt and actual history, and a freedom projection with an editable historical saving default. Period controls sit beside charts. Savings details show the next version-aware planned date and recorded gross purchases; trade history uses a compact table. Explanations, repayment models and rate versions are native disclosures.
 
-Vermögen now starts with the figures that answer each page's question: portfolio value/gain and annualised time-weighted performance, total debt and actual history, and an immediately available freedom projection with an editable historical saving default. Chart ranges sit next to the charts. Trade history uses a compact table; savings details show the next version-aware planned execution, recorded purchases and a collapsed rate history.
+The portfolio reuses the Reports calculation, and the saving default reuses the existing Zukunft allocation. Integer cents, financial guards, writes, locks and undo remain shared. Recorded purchases include manual buys in the same instrument/account since the first version and do not imply bank execution.
 
-Existing calculation sources, integer cents, guarded forms, booking writes and undo remain in place. Purchase totals explicitly include manual buys in the same instrument/account since the first plan version, and do not claim a confirmed bank execution. Shared changes are limited to removing the wealth header's period field, extracting the existing report query for reuse and admitting this package's spec to WebKit.
+The table's implicit grid minimum also caused phone pages to expand beyond 390px and clip native dialogs. Bounded grid tracks fix the underlying layout. Regression tests preserve metadata editing, persistence and undo, add real WebKit coverage, and verify chart label colours in both themes.
 
-## Validation
+Validation: fresh web typecheck, changed-file ESLint/Prettier, CSS scale, 21 targeted unit tests and E2E build passed. The final 14-case Playwright run passed across desktop, Chromium phone and WebKit, including all five pages, light/dark Axe, 44px controls, no page overflow and the corrected debt calculations/layout/actions. A wider run covered 53 passing affected cases and one existing phone skip; its four obsolete debt geometry cases were corrected and rerun in the final pass. Required CI and Linux baseline review gate delivery.
 
-Web/DB typechecks, ESLint, Prettier, 23 affected unit tests and the single E2E build passed. The package Playwright run for desktop/mobile/WebKit failed before tests: tsx could not start the synthetic server (uv_os_get_passwd / ENOMEM). Browser/Axe/touch/overflow acceptance and screenshots remain open. Exact results are recorded in [evidence](docs/evidence/ux-v1-vermoegen/README.md). No full local check or full E2E suite was run, as required by the package's memory constraint. CI is the final gate. No local visual baselines were regenerated; portfolio, debt, freedom and savings-detail snapshots require CI review.
-
-## Delivery status
-
-Local Git metadata writes are blocked: git add/commit cannot create the worktree index.lock (Permission denied). No commit, push or PR was created. This file is the prepared PR body.
-
-## Owner steps
-
-Rerun e2e/wealth-ux-v1.spec.ts on desktop/mobile/WebKit when runtime resources are available, inspect its synthetic desktop/phone images, and review required CI before merging. No migration, credentials, provider consent or bank order is required by this change. Existing bank savings schedules still need to be managed by the owner.
+[Synthetic desktop/iPhone evidence and exact checks](https://github.com/Grabman1987/budget/blob/feat/ux-v1-vermoegen/docs/evidence/ux-v1-vermoegen/README.md)
 
 Refs #480
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)

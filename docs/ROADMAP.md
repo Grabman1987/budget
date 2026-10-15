@@ -1158,5 +1158,6 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 ### UX V1 — Vermögen, #480 (2026-10-14)
 
 - [x] Compact portfolio performance, chart-local period controls, total debt/history, collapsed scenarios, historical freedom default and savings execution/purchase details.
-- [x] Targeted Web/DB typechecks, ESLint/Prettier, 23 affected unit tests and E2E build.
-- [ ] Browser/Axe/touch/overflow acceptance, desktop/phone images, required CI and owner acceptance: local sample-server startup failed with ENOMEM; see [delivery evidence](evidence/ux-v1-vermoegen/README.md).
+- [x] Fresh web typecheck, changed-file ESLint/Prettier/CSS scale, 21 targeted unit tests and E2E build after integration. Existing calculation tests and write/undo assertions remain.
+- [x] Final 14-case desktop/Chromium-phone/WebKit run: all five pages, light/dark Axe and chart-label roles, 44px controls, actual viewport-width guards, debt models and audited actions. Synthetic desktop/phone images and the wider 53-pass regression run are recorded in [delivery evidence](evidence/ux-v1-vermoegen/README.md).
+- [ ] Required final-head CI, Linux baseline review, deployed revision and owner physical-device acceptance.

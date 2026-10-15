@@ -36,10 +36,10 @@ export function DebtHistory() {
           }))}
         >
           <Line kind="actual" points={months.map((m, i) => [x(i), y(-m.debtsCents)])} />
-          <text x={16} y={174} className="chart-label">
+          <text x={16} y={174} className="svg-label">
             {months[0]?.month}
           </text>
-          <text x={704} y={174} textAnchor="end" className="chart-label">
+          <text x={704} y={174} textAnchor="end" className="svg-label">
             {months.at(-1)?.month}
           </text>
         </ChartSvg>

@@ -298,6 +298,7 @@ test('overlapping schedules preserve both rates and missing account makes totals
   await expect(row.locator('td').nth(1)).toContainText('200,00');
   await row.getByRole('button', { name: data.security.name, exact: true }).click();
   const panel = page.getByRole('region', { name: 'Sparplandetails', exact: true });
+  await panel.getByText('Raten und Versionen', { exact: true }).click();
   await expect(panel.getByRole('region', { name: 'Versionsverlauf' })).toContainText('100,00');
   await expect(panel.getByRole('region', { name: 'Versionsverlauf' })).toContainText('200,00');
   await page.getByRole('link', { name: 'Zurück zum Portfolio' }).click();

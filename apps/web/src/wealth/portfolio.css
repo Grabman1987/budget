@@ -128,6 +128,8 @@
 }
 .instrument-detail {
   display: grid;
+  /* Keep a wide trade table inside its own scroller, including on native-dialog pages. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 .instrument-detail h3 {
@@ -303,6 +305,7 @@
 }
 .portfolio-detail {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   min-width: 0;
 }

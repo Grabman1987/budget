@@ -75,10 +75,10 @@ export function PortfolioOverview() {
           }))}
         >
           <Line kind="actual" points={index.map((p, i) => [x(i), y(p.portfolio!)])} />
-          <text x={16} y={174} className="chart-label">
+          <text x={16} y={174} className="svg-label">
             {index[0]?.date}
           </text>
-          <text x={704} y={174} textAnchor="end" className="chart-label">
+          <text x={704} y={174} textAnchor="end" className="svg-label">
             {index.at(-1)?.date}
           </text>
         </ChartSvg>

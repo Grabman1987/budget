@@ -63,7 +63,8 @@ export function PortfolioAllocation() {
           <>
             {provisional && (
               <p className="vnote" role="status">
-                Aufteilung vorläufig: Klassifikation und Bewertung prüfen.
+                Aufteilung vorläufig: Klassifikation und Bewertung prüfen. Sparplanoptimierung wird
+                zurückgehalten.
               </p>
             )}
             <details className="wealth-details">
@@ -94,9 +95,11 @@ export function PortfolioAllocation() {
               </p>
               {risk && (
                 <p className="vnote">
-                  Brutto-Exposure {eurWhole(risk.cluster.totalGrossExposureCents)}: Hebel erhöhen
-                  den Zähler; negative Kassa senkt den Nenner. Risikoanteile können über 100 %
-                  liegen.
+                  Brutto-Exposure: {eurWhole(risk.cluster.totalGrossExposureCents)}. R14/R15 teilen
+                  das jeweilige Brutto-Exposure durch den Marktwert des Netto-Allokationsuniversums
+                  ({eurWhole(risk.cluster.totalCents)}), nicht durch die Brutto-Summe. Hebel erhöhen
+                  den Zähler; negative Kassa senkt den Nenner. Risikoanteile können deshalb über 100
+                  % liegen.
                 </p>
               )}
             </details>

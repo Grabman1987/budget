@@ -61,9 +61,24 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
         document.documentElement.dataset['theme'] = t;
       }, theme);
       await page.evaluate(() => document.fonts.ready);
+      if (name === 'portfolio' || name === 'debts') {
+        const labels = page.getByTestId(
+          name === 'portfolio' ? 'portfolio-overview-chart' : 'debt-history-chart',
+        );
+        const colors = await labels.locator('text').evaluateAll((nodes) => {
+          const probe = document.createElement('span');
+          probe.style.color = 'var(--ink-3)';
+          document.body.append(probe);
+          const expected = getComputedStyle(probe).color;
+          probe.remove();
+          return { expected, actual: nodes.map((node) => getComputedStyle(node).fill) };
+        });
+        expect(colors.actual).toHaveLength(2);
+        expect(colors.actual).toEqual([colors.expected, colors.expected]);
+      }
       expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-        true,
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+        page.viewportSize()!.width,
       );
       if (info.project.name !== 'desktop') {
         const small = await page.locator('main').evaluate((main) =>
@@ -74,7 +89,7 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
                 rect.width > 0 &&
                 rect.height > 0 &&
                 getComputedStyle(el).visibility !== 'hidden' &&
-                rect.height < 44
+                (rect.height < 44 || rect.width < 44)
               );
             })
             .map((el) => ({
