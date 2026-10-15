@@ -1,13 +1,30 @@
 # Automatic payslip intake
 
-New payroll PDFs enter **Posteingang**, from the Gehaltsreport/Posteingang upload or
-an optional nightly Dropbox scan. Upload and analysis create no booking. Confirmation
-saves the captured payslip and receipt through the existing audited repository.
-The review preselects the configured salary account and lets the owner select an
-active EUR payout account. It links an existing salary booking, or creates a
-pending payout on confirmation (cash: immediately confirmed). Rejection discards the draft from the
-queue. Both decisions support grouped undo/redo. Original files and intake identity
-remain retained for audit, deduplication and recovery.
+Manual PDF uploads open the parsed result directly in the wide review dialog. The
+retained **Posteingang** task lets the owner resume later; optional nightly scans
+still enter that queue. Upload and analysis create no booking. The review proposes
+the configured active EUR salary account and allows another active EUR account.
+Confirmation links an existing matching salary booking or creates a pending payout
+(cash: confirmed), together with the payslip, receipt, expectation link and inbox
+decision in one audited, undoable transaction. Rejection retains the original and
+intake identity for audit, deduplication and recovery.
+
+The review exposes **Auszahlungsdatum**, **Von** and **Gehalts-Erwartung**. An explicit
+owner date wins; a printed PDF date or an eligible expected payment supplies a
+proposal. Without a date, confirmation cannot create or link a payout. There is no
+silent month-end payout fallback. Eligible expectations are unbooked expected EUR
+salary/special inflows on the chosen account in the document month; choosing one
+settles that occurrence instead of leaving a second expectation. A matched existing
+booking keeps its date and payee. Existing production corrections are not migrated.
+
+Known wage codes are classified automatically. Unknown numeric codes show their
+label and amount alongside the five existing section choices. **Zuordnen und neu
+auswerten** preserves the current salary source configuration and reparses the
+original bytes before atomically saving the mapping, parsed result and inbox
+urgency. Concurrent source-config or intake changes cause a conflict. An unreadable
+PDF never partially saves a mapping. Meal deductions remain labelled deduction
+lines; no new schema columns or payroll formulas are invented. Private historical
+PDFs have not been used for verification.
 
 ## Owner setup
 
@@ -124,8 +141,9 @@ captured salary net or salary ratios.
 
 Booking suggestions use the selected payout account (initially the configured salary
 account), existing EUR salary/special
-income splits and ±5 calendar days of the document's payout date, otherwise month
-end. The whole bank payout is compared with Auszahlung; the difference is visible.
+income splits and ±5 calendar days of the selected/proposed payout date. Without a
+date the review returns no matching suggestions. The whole bank payout is compared
+with Auszahlung; the difference is visible.
 A single exact match is preselected. The owner can choose another disclosed
 candidate or explicitly create a new payout. A matching exact payout in that
 account blocks accidental duplicate creation; choose the existing booking instead. Confirmation rechecks live account/booking

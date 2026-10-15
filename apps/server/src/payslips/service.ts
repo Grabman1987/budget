@@ -10,10 +10,15 @@ import {
   payslipScope,
   payslipScopeReason,
   replaceParsedPayslip,
+  replacePayslipMappings,
   stagePayslip,
   type Db,
 } from '@budget/db';
-import { parsePayrollDocument, type ParsedPayrollDocument } from '@budget/domain';
+import {
+  parsePayrollDocument,
+  type ParsedPayrollDocument,
+  type PayslipSourceConfig,
+} from '@budget/domain';
 import {
   dropboxTargetPath,
   dropboxTargetYear,
@@ -112,6 +117,7 @@ export class PayslipIntakeService {
     bytes: Buffer,
     filename: string,
     upload?: string,
+    config?: PayslipSourceConfig,
   ): Promise<{ parsed: ParsedPayrollDocument; opened: string | undefined }> {
     const candidates = this.candidates(upload);
     let result: { text?: string; error?: string } = { error: 'pdf' },
@@ -128,7 +134,11 @@ export class PayslipIntakeService {
       try {
         return {
           opened,
-          parsed: parsePayrollDocument(result.text, filename, getPayslipSourceConfig(this.db)),
+          parsed: parsePayrollDocument(
+            result.text,
+            filename,
+            config ?? getPayslipSourceConfig(this.db),
+          ),
         };
       } catch {
         return {
@@ -271,5 +281,37 @@ export class PayslipIntakeService {
       ...replaceParsedPayslip(this.db, id, parsed, { actor: 'owner' }),
       passwordRemember: this.remember(bytes, opened, options),
     };
+  }
+  /** Reparse a pending original PDF with owner-supplied mappings, then atomically persist both. */
+  async mapWageTypes(
+    id: string,
+    mappings: Record<string, PayslipSourceConfig['wageTypes'][string]>,
+    options: PasswordOptions = {},
+  ) {
+    const row = getPayslipIntake(this.db, id);
+    if (row.status !== 'pending') throw new Error('conflict');
+    const before = getPayslipSourceConfig(this.db);
+    const unknown = new Set((row.parsed.unmappedWageTypes ?? []).map((item) => item.code));
+    if (!Object.keys(mappings).length || Object.keys(mappings).some((code) => !unknown.has(code)))
+      throw new Error('conflict');
+    const receipt = getReceipt(this.db, row.receiptId);
+    const bytes = await readFile(await verifyReceiptFile(this.dir, row.sha256, receipt.sizeBytes));
+    const wageTypes = { ...before.wageTypes, ...mappings };
+    const next = { ...before, wageTypes };
+    const evaluated = await this.evaluate(
+      bytes,
+      receipt.originalFilename ?? '',
+      options.password,
+      next,
+    );
+    const parsed = evaluated.parsed;
+    if (
+      parsed.documentType === 'unknown' ||
+      (parsed.unmappedWageTypes ?? []).some((item) => mappings[item.code])
+    )
+      throw new Error('reparse');
+    return replacePayslipMappings(this.db, id, before, row.parsed, next, parsed, {
+      actor: 'owner',
+    });
   }
 }

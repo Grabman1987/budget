@@ -1,5 +1,14 @@
 # Roadmap
 
+### Direct payroll review, date and sender — #499 (2026-10-15)
+
+- [x] Implement direct wide upload review, payout date/sender/eligible expectation, and inline unknown wage-code mapping with existing formulas.
+- [x] Backend focused regressions: 49 tests; atomic mapping and payout/expectation undo; existing booking metadata retained.
+- [ ] Final integrated full check and desktop/mobile/WebKit evidence after frontend selection/date-clear fixes.
+- [ ] Exact-head required CI, serial merge, main CI, automatic deployment and live revision proof.
+- [ ] Original Windows Chrome pre-native-picker hang remains unproven; drag/drop is a separately tested alternative.
+
+
 ### Contact history and monthly payments — #499 (2026-10-15)
 
 - [x] Balance/name share the contact detail; recorded full repayment defines retained, collapsible history.

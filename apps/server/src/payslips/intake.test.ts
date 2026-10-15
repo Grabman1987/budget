@@ -117,6 +117,39 @@ describe('encrypted synthetic payroll PDFs and owner intake', { timeout: 30_000 
       expect(getPayslipIntake(opened.db, staged.id).parsed.warnings).toEqual([]);
     },
   );
+  it('reparses a pending PDF after an unknown wage code is mapped and keeps the change undoable', async () => {
+    const rows = [
+      ...syntheticWageRows.slice(0, 3),
+      '777 Synthetische Leistung 0,00',
+      ...syntheticWageRows.slice(3),
+    ];
+    const staged = await service().ingest(
+      await syntheticPayslipPdf(rows),
+      'synthetic.pdf',
+      'manual',
+    );
+    const before = getPayslipIntake(opened.db, staged.id);
+    expect(before.parsed.unmappedWageTypes).toEqual([
+      { code: '777', label: 'Synthetische Leistung', amountCents: 0 },
+    ]);
+    expect(before.parsed.warnings).toContain(
+      'Unbekannte Lohnart oder Aufrollung: Zuordnung prüfen.',
+    );
+    const mapped = await service().mapWageTypes(staged.id, { '777': 'deduction' });
+    const after = getPayslipIntake(opened.db, staged.id);
+    expect(after.parsed.unmappedWageTypes).toBeUndefined();
+    expect(after.parsed.warnings).toEqual([]);
+    expect(after.parsed.draft?.lines).toContainEqual({
+      section: 'deduction',
+      label: 'Synthetische Leistung',
+      amountCents: 0,
+    });
+    expect(mapped.groupId).toBeTruthy();
+    undo(opened.db, { groupId: mapped.groupId }, { actor: 'test' });
+    expect(getPayslipIntake(opened.db, staged.id).parsed.unmappedWageTypes).toEqual([
+      { code: '777', label: 'Synthetische Leistung', amountCents: 0 },
+    ]);
+  });
   it('confirms atomically, links receipt, never creates a booking, and restores draft on grouped undo/redo', async () => {
     const salary = createBooking(
       opened.db,

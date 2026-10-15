@@ -1,4 +1,4 @@
-import { expect } from '@playwright/test';
+import { expect, type Page, type TestInfo } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from './isolated-ledger';
@@ -8,10 +8,7 @@ import { toast } from './ledger-helpers';
 
 test.describe.configure({ timeout: 120000 });
 
-async function captureReviewViewport(
-  page: import('@playwright/test').Page,
-  info: import('@playwright/test').TestInfo,
-) {
+async function captureReviewViewport(page: Page, info: TestInfo) {
   const dir = process.env['BUDGET_SPENDING_EVIDENCE'];
   if (!dir) return;
   mkdirSync(dir, { recursive: true });
