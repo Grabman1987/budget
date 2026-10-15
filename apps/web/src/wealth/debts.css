@@ -1,4 +1,24 @@
 /* Result first; calculation sections use the full content width. */
+.debt-history {
+  min-width: 0;
+}
+.debt-history svg {
+  max-width: 100%;
+}
+.debt-overview summary,
+.debt-overview a[href='#debt-adjustments'] {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+}
+.debt-overview a[href='#debt-adjustments'] {
+  display: inline-block;
+}
+@media (max-width: 980px) {
+  .debt-history {
+    grid-column: 1 / -1;
+  }
+}
 .debt-overview,
 .debt-rechenweg {
   padding: 24px;

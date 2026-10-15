@@ -55,6 +55,8 @@ test('shows stored debt terms, unknown freshness, type-specific limits and edit 
   await page.goto('/vermoegen/schulden');
   const known = page.getByTestId(`debt-terms-${knownLoan.id}`);
   await expect(known.getByText('Gespeicherte Konditionen', { exact: true })).toBeVisible();
+  await expect(known).not.toHaveAttribute('open', '');
+  await known.locator('summary').click();
   await expect(known).toContainText(/Zinssatz\s*0,00 %/);
   await expect(known).toContainText(/Zinsart\s*fix/);
   await expect(known).toContainText(/Monatsrate\s*30,00 €/);
@@ -63,6 +65,8 @@ test('shows stored debt terms, unknown freshness, type-specific limits and edit 
   await expect(known).toHaveRole('group', { name: 'Gespeicherte Konditionen Kredit Nullzins' });
 
   const unknownFee = page.getByTestId(`debt-terms-${unknownFeeLoan.id}`);
+  await expect(unknownFee).not.toHaveAttribute('open', '');
+  await unknownFee.locator('summary').click();
   await expect(unknownFee).toContainText(/Gebühr\s*unbekannt/);
   await expect(unknownFee).toContainText(/Zinsart\s*unbekannt/);
   await expect(unknownFee).toContainText(/Monatsrate\s*30,00 €/);

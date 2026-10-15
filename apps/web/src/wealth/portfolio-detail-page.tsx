@@ -15,6 +15,7 @@ import { TradePanel } from './trade-panel';
 import { savingsPlansQuery } from './savings-api';
 import { SavingsHistory, SavingsPanel } from './savings-panel';
 import { BANK_NOTE } from './savings-model';
+import { SavingsDetail } from './savings-detail';
 import './portfolio.css';
 import './savings.css';
 
@@ -199,11 +200,21 @@ export function SavingsPlanPage() {
                 </Button>
               </div>
             )}
-            <SavingsHistory
-              plan={plan}
-              plans={plans.data.plans}
-              accounts={accounts.data.accounts}
+            <SavingsDetail
+              rows={plans.data.plans.filter(
+                (p) => p.securityId === plan.securityId && p.accountId === plan.accountId,
+              )}
+              today={accounts.data.asOf}
+              currency={accounts.data.accounts.find((a) => a.id === plan.accountId)?.currency}
             />
+            <details className="wealth-details savings-versions">
+              <summary>Raten und Versionen</summary>
+              <SavingsHistory
+                plan={plan}
+                plans={plans.data.plans}
+                accounts={accounts.data.accounts}
+              />
+            </details>
           </section>
         )}
       </div>

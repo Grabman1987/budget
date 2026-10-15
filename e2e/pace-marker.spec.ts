@@ -115,7 +115,7 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
       });
     }
   }
-  await page.goto('/plan?monat=2026-09');
+  await page.goto('/plan/monat?monat=2026-09');
   const marks = page.locator('.pbar-tick');
   await expect(marks.first()).toBeVisible();
   await expect(marks.first().locator('..').locator('..').locator('.pname')).toHaveAttribute(
@@ -126,6 +126,6 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
     parseFloat(await marks.first().evaluate((el) => (el as HTMLElement).style.left)),
   ).toBeCloseTo((17 / 30) * 100);
   await page.screenshot({ path: info.outputPath('plan-today.png'), fullPage: true });
-  await page.goto('/plan?monat=2026-08');
+  await page.goto('/plan/monat?monat=2026-08');
   await expect(marks).toHaveCount(0);
 });

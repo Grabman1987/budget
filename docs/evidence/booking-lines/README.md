@@ -19,9 +19,8 @@ screens retain the two-row fallback. Accessible button names remain intact.
 - Fresh focused unit run: **72 tests in six files passed** with one thread worker.
   Covers largest-remainder allocation, refunds, exact payloads, retained metadata,
   stale payee caches and undo of inline contact creation.
-- Fresh web typecheck and the E2E-mode application build passed. Changed-file lint,
-  formatting, CSS scale and broader affected browser checks are recorded below
-  when completed. Full required CI remains the integration gate.
+- Fresh web typecheck and the E2E-mode application build passed. Changed-file ESLint,
+  Prettier, CSS scale and diff checks passed. Full required CI remains the integration gate.
 - **27 browser/setup cases passed** in `capture-dialog-layout.spec.ts`: desktop
   1440px, Chromium mobile 390px and WebKit iPhone 390px. All five scenarios preserve
   exact split values and memo-only edit round trips. The tests retain rest/save
@@ -55,7 +54,12 @@ scenario run using synthetic data. They are ordinary evidence, not Playwright
 baselines. Desktop light and WebKit dark examples were visually reviewed. Linux
 baselines are generated only by GitHub's snapshot workflow.
 
-Affected capture, keyboard, contact, repetition, transfer and ledger undo/redo
-regressions are being verified separately. Final-head CI, serial deployment and
+The wider five-spec capture/register run passed 53 cases; the two obsolete empty-amount
+footer-click expectations were adapted to assert the new disabled-save reason and
+an invalid-date footer click with the payee dropdown open. Both corrected variants
+passed in a separate five-case desktop/mobile/setup run. All original balance,
+confirmation, lock, undo/redo and no-write-before-save assertions remain.
+
+Final-head CI, serial deployment and
 the live revision must pass before closing #463. Physical-iPhone owner acceptance
 remains separate from automated WebKit coverage.

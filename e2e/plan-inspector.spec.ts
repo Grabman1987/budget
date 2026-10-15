@@ -74,18 +74,21 @@ test('inspector discloses month figures and reuses category writes, quick values
       writes.push({ path: new URL(request.url()).pathname, body: request.postDataJSON() });
   });
   const toast = page.locator('.toast.is-open');
-  const assigned = page.locator('.prow', { hasText: 'Musterziel' }).locator('.assign-btn');
+  const phone = info.project.name !== 'desktop';
+  const assigned = page
+    .locator('.prow', { hasText: 'Musterziel' })
+    .locator(phone ? '.phone-assigned' : '.assign-btn');
   await inspector.getByLabel('Zugewiesen', { exact: true }).fill('10+0,01');
   await inspector.getByRole('button', { name: 'Übernehmen', exact: true }).click();
-  await expect(assigned).toHaveText('10,01 €');
+  await expect(assigned).toHaveText(phone ? 'Zugewiesen 10,01 €' : '10,01 €');
   expect(writes[0]).toEqual({
     path: `/api/budget/${month}/assigned`,
     body: { items: [{ categoryId: ids[0], assignedCents: 1001 }] },
   });
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
-  await expect(assigned).toHaveText('≈ 100,01 €');
+  await expect(assigned).toHaveText(phone ? 'Zugewiesen ≈ 100,01 €' : '≈ 100,01 €');
   await inspector.getByRole('button', { name: 'Ziel', exact: true }).click();
-  await expect(assigned).toHaveText('100,01 €');
+  await expect(assigned).toHaveText(phone ? 'Zugewiesen 100,01 €' : '100,01 €');
   expect(writes[1]).toEqual({
     path: `/api/budget/${month}/quick-assign`,
     body: { mode: 'target', categoryIds: [ids[0]] },
@@ -94,13 +97,13 @@ test('inspector discloses month figures and reuses category writes, quick values
   await inspector.getByLabel('Nach', { exact: true }).selectOption(ids[1]!);
   await inspector.getByLabel('Betrag', { exact: true }).fill('0,01');
   await inspector.getByRole('button', { name: 'Verschieben', exact: true }).click();
-  await expect(assigned).toHaveText('100,00 €');
+  await expect(assigned).toHaveText(phone ? 'Zugewiesen 100,00 €' : '100,00 €');
   expect(writes[2]).toEqual({
     path: `/api/budget/${month}/move`,
     body: { fromId: ids[0], toId: ids[1], amountCents: 1 },
   });
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
-  await expect(assigned).toHaveText('100,01 €');
+  await expect(assigned).toHaveText(phone ? 'Zugewiesen 100,01 €' : '100,01 €');
   await toast.getByRole('button', { name: 'Wiederholen' }).focus();
   await page.keyboard.press('Escape');
   await expect(toast).not.toBeVisible();

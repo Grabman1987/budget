@@ -8,7 +8,7 @@ export const monthText = (month: string) =>
     new Date(`${month}-01T00:00:00Z`),
   );
 
-/** Explicit ephemeral scenario, using the one shared projection. No inferred saving rate. */
+/** Ephemeral scenario, using the one shared projection and an editable historical default. */
 export function freedomScenario(
   view: FreedomView,
   saving: string,
