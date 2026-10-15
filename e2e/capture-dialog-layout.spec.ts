@@ -268,6 +268,20 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
     if (scenario === 'outlay')
       await choose(dialog, 'Kategorie', contact.name, /^Für Kontakt auslegen/);
     else await choose(dialog, 'Kategorie', 'Essen', /^Essen/);
+    if (scenario === 'category') {
+      const rail = dialog.getByRole('group', { name: 'Vorschläge' });
+      await expect(rail.getByRole('button')).toHaveCount(4);
+      await expect(rail).toHaveCSS('overflow-x', 'auto');
+      const railBox = (await rail.boundingBox())!;
+      expect(railBox.x).toBeGreaterThanOrEqual(0);
+      expect(railBox.x + railBox.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+      const last = rail.getByRole('button').last();
+      await last.scrollIntoViewIfNeeded();
+      await expect(last).toBeInViewport({ ratio: 1 });
+      await rail.evaluate((el) => {
+        el.scrollLeft = 0;
+      });
+    }
 
     const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
     if (scenario === 'percent' || scenario === 'amount' || scenario === 'several') {

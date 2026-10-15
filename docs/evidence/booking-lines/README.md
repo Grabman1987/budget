@@ -11,8 +11,9 @@ and status, then date/repetition in 2:1 columns. Direct German dates and the nat
 calendar remain. Date chips, the separate outlay field and Split button are replaced
 by the category/contact picker, Teilen and Weitere Kategorie. Four slim category
 suggestions share one horizontal rail. The body scrolls independently of the save
-footer. At 390px the header fits one row with 44px flag/close targets; narrower
-screens retain the two-row fallback. Accessible button names remain intact.
+footer. At 390px the compact two-row header retains visible flag/close labels and 44px
+targets. Smaller field gaps keep the category in the first viewport without
+hiding account/date controls or the arithmetic hint. Accessible names remain intact.
 
 ## Verification
 
@@ -46,6 +47,19 @@ Commands use `NODE_OPTIONS=--max-old-space-size=1536`, one worker,
 npx vitest run apps/web/src/ledger/capture-form.test.tsx apps/web/src/ledger/split-editor.test.tsx apps/web/src/ledger/booking-lines.test.ts apps/web/src/ledger/booking-model.test.ts apps/web/src/ledger/split-rest.test.ts packages/domain/src/ledger/booking-lines.test.ts --maxWorkers=1 --pool=threads
 npx playwright test e2e/capture-dialog-layout.spec.ts --workers=1
 ```
+
+The final labelled-head run passed all 27 dialog/setup cases again, including four
+suggestions in a bounded horizontal rail and access to its last button. Fourteen
+additional targeted cases passed (three existing desktop-only phone skips):
+category capture, shortcut help on desktop/mobile, light/dark mobile-panel geometry
+and the original touch/visible-label checks on Chromium and WebKit.
+
+The shortcut help now asserts the complete owner-approved Enter/Ctrl+Enter/Escape
+text in unit and browser tests. All 56 search unit tests pass. Before reopening
+search after navigation, the browser test also verifies that the old search input
+has unmounted; URL changes alone were too early. Panel geometry measures the
+painted interval of suggestion children clipped by their scroll rail, while the
+rail itself and every other element retain the original overflow assertions.
 
 ## Evidence and remaining gates
 

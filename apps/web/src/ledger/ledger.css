@@ -1967,11 +1967,13 @@
 }
 @media (min-width: 375px) and (max-width: 767px) {
   .bk-head {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+    padding-block: 0;
+    row-gap: 0;
   }
   .bk-kind {
-    order: 0;
-    flex: 1;
+    order: 5;
+    flex: 1 0 100%;
   }
   .bk-head .seg button {
     padding-inline: 4px;
@@ -1982,5 +1984,11 @@
   }
   .bk-context-fields {
     gap: 4px;
+  }
+  .bk-body .field-row {
+    gap: 0;
+  }
+  .bk-body .amount-box {
+    padding-block: 0;
   }
 }
