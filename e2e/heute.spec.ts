@@ -209,7 +209,7 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   await expect(page.getByRole('heading', { name: 'Envelopes Bedarf' })).toBeVisible();
 
   await expect(page.getByRole('heading', { name: 'Angepinnte Envelopes' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Was steht an?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Fällig 14 Tage' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Finanz-Check' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Nettovermögen · 12 Monate' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Letzte Buchungen' })).toBeVisible();
@@ -221,7 +221,8 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   );
   const forecastStart = Number(forecastPath?.match(/^M([\d.]+)/)?.[1]);
   expect(Math.abs(forecastStart - todayX)).toBeLessThan(0.01);
-  await expect(page.locator('.heute-detail-grid .circle-no')).toHaveText(['1', '3', '4', '5']);
+  await expect(page.locator('.heute-detail-grid .circle-no')).toHaveText(['1', '4', '5']);
+  await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toBeVisible();
   const nonAcuteStates = await page
     .locator('.heute-state.is-bad, .heute-state.is-warn')
     .evaluateAll((elements) => {
@@ -341,27 +342,24 @@ test('a past month has no out-of-range today marker in the balance or pace chart
   expect((await response.json()).stand.period).toBe('month');
 });
 
-test('empty Heute lists explain what has no rows', async ({ page }) => {
+test('empty due and next-step blocks disappear while data-list empty states stay explicit', async ({
+  page,
+}) => {
   const response = await page.request.get('/api/heute?period=month&month=2026-09');
   const data = (await response.json()) as Record<string, unknown>;
   const empty = {
     ...data,
     pinned: [],
     upcoming14: [],
+    upcomingEvents: [],
     lastBookings: [],
     nextSteps: { items: [], count: 0 },
   };
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: empty }));
   await page.goto('/?monat=2026-09');
   await expect(page.getByText('Keine Envelopes angepinnt.')).toBeVisible();
-  await expect(
-    page.getByText('Keine wiederkehrenden Zahlungen in diesem Zeitraum.').first(),
-  ).toBeVisible();
-  await expect(
-    page.getByText(
-      'Keine zusätzlichen Schritte. Offene Punkte stehen unter „Braucht Aufmerksamkeit“.',
-    ),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Fällig 14 Tage' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Nächste Schritte' })).toHaveCount(0);
   await expect(page.getByText('Noch keine Buchungen vorhanden.')).toBeVisible();
 });
 
@@ -401,10 +399,10 @@ test('attention leaves overspending to the top-bar chip and links to the inbox',
     }),
   );
   await page.goto('/?monat=2026-08');
-  const attention = page.getByRole('region', { name: 'Braucht Aufmerksamkeit' });
+  const attention = page.getByRole('region', { name: 'Zu tun' });
   await expect(attention).not.toContainText('zu decken');
   await expect(page.locator('[data-overspent="test"]')).toHaveCount(0);
-  await expect(page.locator('.heute-next-steps')).not.toContainText('Test-Envelope');
+  await expect(attention).not.toContainText('Test-Envelope');
   await expect(page.locator('.heute-mobile-next')).toHaveCount(0);
   await attention.getByRole('link', { name: 'Zuordnen' }).click();
   await expect(page).toHaveURL(/\/konten\/posteingang/);
@@ -413,7 +411,7 @@ test('attention leaves overspending to the top-bar chip and links to the inbox',
 test('source-view links open the corresponding live pages', async ({ page }) => {
   for (const [heading, link, target] of [
     ['Angepinnte Envelopes', 'Plan öffnen', '/plan/monat'],
-    ['Was steht an?', 'Alle', '/plan/erwartet'],
+    ['Fällig 14 Tage', 'Alle', '/plan/erwartet'],
     ['Finanz-Check', 'Alle Regeln', '/einstellungen/regelwerk'],
     ['Vermögensaufteilung', 'Details', '/vermoegen/nettovermoegen'],
     ['Letzte Buchungen', 'Alle', '/konten/buchungen'],
@@ -463,7 +461,7 @@ test('negative lead uses the action colour and attention precedes the month fold
     });
     expect(colours.whole).toBe(colours.red);
     expect(colours.cents).toBe(colours.red);
-    const attention = page.getByRole('region', { name: 'Braucht Aufmerksamkeit' });
+    const attention = page.getByRole('region', { name: 'Zu tun' });
     await expect(attention).toBeVisible();
     const upcomingBox = await page.locator('#heute-upcoming-title').boundingBox();
     const attentionBox = await attention.boundingBox();
@@ -687,7 +685,7 @@ ledgerTest(
         memo: futureMemo,
       });
       await page.goto(`/?monat=${month}`);
-      const attention = page.getByRole('region', { name: 'Braucht Aufmerksamkeit' });
+      const attention = page.getByRole('region', { name: 'Zu tun' });
       await expect(attention).toContainText('ohne Kategorie');
       await attention.getByRole('link', { name: 'Zuordnen' }).click();
       await expect(page).toHaveURL(/\/konten\/posteingang/);

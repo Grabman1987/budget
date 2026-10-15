@@ -188,6 +188,8 @@ components:
 
 # Design System: Finanz-App
 
+**Owner Q3 decision (2026-10-14, #466, 3B):** Heute keeps the month switch and Monat / Bis Gehalt. One nonempty Zu tun section contains at most four compact source rows, ordered Plan, rules, inbox/bookings, account checks; secondary routine actions share their source row. A single nonempty Fällig 14 Tage list replaces Was steht an / Danach. Finanz-Check is a compact tile with counts and source links, without a duplicate findings list. In other months the former explanatory box becomes Ansicht: <month> – Zum aktuellen Monat; current-only sections carry Stand heute. Existing precision-layer tokens and 44px touch targets apply. This supersedes the separate Nächste Schritte revision table on Heute.
+
 Owner UX V1 directive (2026-10-14, #480): Vermögen shows a compact performance summary before decisions: value, unrealised gain in EUR/percent, annualised time-weighted return and a chart using the Reports calculation. Detailed benchmark and performance analysis stays in Reports. Period controls sit beside the chart and are absent from non-chart details. Schulden starts with total debt and actual history; payoff dates require complete calculable terms, and repayment scenarios/terms explanations are disclosures. Freiheit starts with an editable average of up to six closed Zukunft months; expense sources are collapsed. Savings details show the next version-aware planned date, recorded gross buys since the first version in the selected instrument/account (including manual buys), and collapsed rate versions. No write, booking, bank-order or undo semantics change.
 
 

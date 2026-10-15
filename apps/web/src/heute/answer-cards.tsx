@@ -1,5 +1,5 @@
 import { useAmountPrivacy } from '@budget/ui';
-import { eur, shortDay } from '../ledger/format';
+import { eur, longDay, shortDay } from '../ledger/format';
 import { monthLabel } from '../nav/month';
 import { AppLink } from '../shell/app-link';
 import type { Heute } from './api';
@@ -23,6 +23,9 @@ export function AnswerCards({
   const householdMonth = data.stand.today.slice(0, 7);
   return (
     <div className="heute-answers">
+      {data.stand.month && data.stand.month !== householdMonth && (
+        <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>
+      )}
       <div className="heute-answer-grid">
         <section className="heute-answer" aria-labelledby="answer-budget-title">
           <h2 id="answer-budget-title">Frei bis Gehalt</h2>

@@ -70,8 +70,8 @@ test.describe('Heute month switch', () => {
     await expect(page).toHaveURL(/monat=2026-08/);
     await expect(page.getByRole('heading', { name: 'August 2026', exact: true })).toBeVisible();
     // Bis Gehalt stays anchored to today and says so.
-    await expect(page.getByTestId('heute-anchor')).toContainText('ab heute (17.09.', SLOW);
-    await expect(page.getByTestId('heute-month-note')).toContainText('Stand von heute', SLOW);
+    await expect(page.getByTestId('heute-anchor')).toContainText('Stand heute · 17.09.2026', SLOW);
+    await expect(page.getByTestId('heute-month-note')).toContainText('Ansicht: August 2026', SLOW);
     await expect(page.getByText('August 2026 · Pace')).toBeVisible(SLOW);
 
     // Arrow keys with nothing focused move the month, like the buttons.
