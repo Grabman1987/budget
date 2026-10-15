@@ -23,3 +23,9 @@ Focused verification:
 - Targeted ESLint and Prettier checks passed.
 - An independent read-only financial and chart review found no blocking defect in the daily flow window, gap behavior, date placement, or signed common-zero geometry. This is scoped to the Wealth #499 changes, not a whole-application audit.
 - After merging `origin/main` at `501f2e8f`, the integrated `npm run check` passed: 433 test files and 3,940 tests. The actual runtime was Node v24.19.0 with `BUDGET_REQUIRE_AGE=1`; typechecks, lint (0 errors; one pre-existing unused-disable warning in `packages/ui/src/components/panel.tsx`), and Prettier passed. The required Node 22 exact-head verification remains with the lead/CI, which will also verify the combined delivery branch.
+
+## Combined delivery verification
+
+After integration with Q2 and main `8b9dbe55`, the lead's final serial full check passed under **Node 22.23.3**, required age enabled: **434 files / 3,951 tests, zero skips**. Typechecks, lint and formatting passed. The earlier standalone Node 24 result above records its actual runtime; it is not presented as a Node 22 run.
+
+The fresh production build and current Playwright 1.64.1 / WebKit 2370 wealth flows passed. The seven phone images were refreshed against that integrated build. The portfolio viewport image was visually reviewed for readable axes and endpoint dates. The broader report batch's unchanged salary-history rerun and initial concurrent seed-hook timeout are documented in [Q2 evidence](../q2/README.md). Exact-head GitHub CI, deployment and live proof remain pending.

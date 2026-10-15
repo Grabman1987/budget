@@ -119,16 +119,19 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
             page
               .getByTestId(name === 'portfolio' ? 'portfolio-overview-chart' : 'debt-history-chart')
               .locator('text')
-              .evaluateAll((nodes) => {
+              .evaluateAll((nodes, portfolio) => {
                 const probe = document.createElement('span');
                 probe.style.color = 'var(--ink-3)';
                 document.body.append(probe);
                 const expected = getComputedStyle(probe).color;
                 probe.remove();
-                return nodes.map((node) => getComputedStyle(node).fill === expected);
-              }),
+                return (
+                  (portfolio ? nodes.length > 2 : nodes.length === 2) &&
+                  nodes.every((node) => getComputedStyle(node).fill === expected)
+                );
+              }, name === 'portfolio'),
           )
-          .toEqual([true, true]);
+          .toBe(true);
       }
       await page.evaluate(() => document.fonts.ready);
       if (name === 'portfolio' || name === 'debts') {
