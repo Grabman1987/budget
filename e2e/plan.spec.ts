@@ -237,9 +237,15 @@ isolatedTest(
     await page.locator('.plan-topbar summary').filter({ hasText: '2 überzogen' }).click();
 
     // Assign inline with the arithmetic field.
-    await page.getByRole('button', { name: `Zugewiesen 0,00 € für ${cafe} ändern` }).click();
-    await page.getByLabel(`Zugewiesen für ${cafe}. Rechnen erlaubt, +50 addiert.`).fill('60+40');
-    await page.keyboard.press('Enter');
+    if (testInfo.project.name === 'mobile') {
+      await row(page, cafe).locator('.plan-available').click();
+      await page.getByLabel('Zugewiesen', { exact: true }).fill('60+40');
+      await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+    } else {
+      await page.getByRole('button', { name: `Zugewiesen 0,00 € für ${cafe} ändern` }).click();
+      await page.getByLabel(`Zugewiesen für ${cafe}. Rechnen erlaubt, +50 addiert.`).fill('60+40');
+      await page.keyboard.press('Enter');
+    }
     await expect(toast(page)).toContainText(`${cafe}: 0,00 € → 100,00 € zugewiesen`);
     await expect(available(page, cafe)).toHaveText('100,00 €');
 
@@ -329,27 +335,41 @@ test('plan: a negative assignment stays editable, Escape keeps it, Decken asks w
   });
 
   await page.goto(`/plan/monat?monat=${month}`);
-  const field = page.getByLabel(`Zugewiesen für ${name}. Rechnen erlaubt, +50 addiert.`);
+  const phone = testInfo.project.name === 'mobile';
+  const field = phone
+    ? page.getByLabel('Zugewiesen', { exact: true })
+    : page.getByLabel(`Zugewiesen für ${name}. Rechnen erlaubt, +50 addiert.`);
   const edit = () =>
-    row(page, name)
-      .getByRole('button', { name: /^Zugewiesen .* ändern$/ })
-      .click();
+    phone
+      ? row(page, name).locator('.plan-available').click()
+      : row(page, name)
+          .getByRole('button', { name: /^Zugewiesen .* ändern$/ })
+          .click();
+  const commit = () =>
+    phone
+      ? page.getByRole('button', { name: 'Übernehmen', exact: true }).click()
+      : page.keyboard.press('Enter');
   // The pre-filled "−50,00" is the value, not "50 less": Enter keeps it and writes nothing.
   await edit();
   await expect(field).toHaveValue('−50,00');
-  await page.keyboard.press('Enter');
+  await commit();
+  if (phone) {
+    await expect(field).toHaveValue('−50,00');
+    await page.keyboard.press('Escape');
+  }
   await expect(field).toHaveCount(0);
   // Escape leaves without writing, also not through the blur of the field going away.
   await edit();
-  await page.keyboard.type('99');
+  await field.fill('99');
   await page.keyboard.press('Escape');
   await expect(field).toHaveCount(0);
   await expect(row(page, name).locator('.col-assign')).toContainText('−50,00 €');
   expect(writes).toEqual([]);
   // A sign typed first is a change: −50 + 20 = −30, written once (Enter, not again on blur).
   await edit();
-  await page.keyboard.type('+20');
-  await page.keyboard.press('Enter');
+  if (phone) await field.fill('−50+20');
+  else await page.keyboard.type('+20');
+  await commit();
   await expect(toast(page)).toContainText(`${name}: −50,00 € → −30,00 € zugewiesen`);
   expect(writes).toHaveLength(1);
 
@@ -435,12 +455,18 @@ test('plan: the guard refuses assigning more than Zu verteilen holds, in the fie
 
   // The inline field refuses too, says why and stays open; no request leaves the page.
   await page.goto(`/plan/monat?monat=${month}`);
-  await row(page, name)
-    .getByRole('button', { name: /^Zugewiesen .* ändern$/ })
-    .click();
-  await page.keyboard.type('999999999');
-  await page.keyboard.press('Enter');
-  const field = page.getByLabel(`Zugewiesen für ${name}. Rechnen erlaubt, +50 addiert.`);
+  const phone = testInfo.project.name === 'mobile';
+  const field = phone
+    ? page.getByLabel('Zugewiesen', { exact: true })
+    : page.getByLabel(`Zugewiesen für ${name}. Rechnen erlaubt, +50 addiert.`);
+  if (phone) await row(page, name).locator('.plan-available').click();
+  else
+    await row(page, name)
+      .getByRole('button', { name: /^Zugewiesen .* ändern$/ })
+      .click();
+  await field.fill('999999999');
+  if (phone) await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  else await page.keyboard.press('Enter');
   await expect(field).toHaveAttribute('aria-invalid', 'true');
   await expect(page.getByRole('alert').filter({ hasText: /Höchstens|nichts frei/ })).toBeVisible();
   expect(writes).toEqual([]);

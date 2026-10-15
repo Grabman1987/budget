@@ -1,5 +1,7 @@
 # Product
 
+Owner Z1 decision (2026-10-13, #448): Plan › Monat adopts the Zerosum category-grid arrangement with group header creation, group/overall checkboxes and spending status/two-tone green bars, preserving Budget's backgrounds and colour tokens. Mobile uses one scrolling chip row and compact category rows; the available pill opens the existing assignment/cover inspector. Write paths and undo remain unchanged; Z2–Z4 are separate packages.
+
 Owner Z4 decision (2026-10-13, #451): the left account list uses the Zerosum
 arrangement with create/account-settings shortcuts, group/type icons and no
 navigation numbers or group subtitles. Every negative sidebar balance is red
