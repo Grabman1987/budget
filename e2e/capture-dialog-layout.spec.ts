@@ -1,9 +1,9 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator } from '@playwright/test';
 
-async function choose(line: Locator, label: string, search: string, option: RegExp) {
+async function choose(line: Locator, label: string, search: string, option: RegExp | string) {
   await line.getByLabel(label, { exact: true }).fill(search);
-  await line.getByRole('listbox').getByRole('option', { name: option }).click();
+  await line.getByRole('listbox').getByRole('option', { name: option, exact: true }).click();
 }
 
 test('only Escape, close and a genuine outside click ask to discard a dirty booking', async ({
@@ -125,7 +125,7 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   await dialog.getByRole('option', { name: new RegExp(payee.name) }).click();
   const category = dialog.getByLabel('Kategorie', { exact: true });
   await choose(dialog, 'Kategorie', 'Essen', /^Essen/);
-  await choose(dialog, 'Kategorie', contact.name, /^Für Kontakt auslegen/);
+  await choose(dialog, 'Kategorie', contact.name, `Für Kontakt auslegen → ${contact.name}`);
   await expect(category).toHaveValue(new RegExp(contact.name));
   await choose(dialog, 'Kategorie', 'Essen', /^Essen/);
   await receiver.focus();

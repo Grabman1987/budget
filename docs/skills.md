@@ -1,6 +1,6 @@
 # Project skill profiles
 
-Selected from the owner-provided `claude_skills_master_registry_capability_catalogue.md` on 2026-10-01 (SHA-256 `dfe7dd2083cff6db3084fb4669a4b7eb7720494f66ffc815a9e952c692737071`). Its capability descriptions informed locally authored, project-specific adaptations; no upstream packages, commands or licenses are claimed installed or verified.
+Selected from the owner-provided `claude_skills_master_registry_capability_catalogue.md` on 2026-10-01 (SHA-256 `dfe7dd2083cff6db3084fb4669a4b7eb7720494f66ffc815a9e952c692737071`). Its capability descriptions informed locally authored, project-specific adaptations; at that time no upstream packages, commands or licenses were installed or verified. The original-source adoption below records the later owner request.
 
 The relevant capability matches are Caveman/no-ai-slop → `budget-caveman`; Ponytail,
 pstack-potato, Matt-Pok and Unlazy → `budget-verified-delivery`; vibe-security →
@@ -37,8 +37,8 @@ owner's original. Reference links: [central registry](https://www.dropbox.com/sc
 [direct file](https://dl.dropboxusercontent.com/scl/fi/273ihjk6v5h4fbrem8wv0/claude_skills_master_registry_capability_catalogue.md?rlkey=17q64qkp7hgvmgd3s3imq3yoa&dl=1),
 and [Plado](https://plado.pages.dev/). These URLs returned HTTP 403 during earlier runtime
 checks, but no further HTTP access is needed for the supplied catalogue. External
-package contents and licenses were not part of that file and remain unverified; no
-upstream package or command is claimed installed.
+package contents and licenses were not part of that catalogue file. The five sources
+verified later are listed below; other catalogue packages remain unverified.
 
 ### Profiles relevant to the current audit
 
@@ -58,3 +58,19 @@ not an installed repository profile. Private Dropbox migration access requires a
 separate authorized file-access capability; a catalogue link does not provide it.
 
 Current task status is tracked in [TASKS.md](TASKS.md).
+
+## Owner-requested original sources — 2026-10-15
+
+All five repositories were cloned into isolated cloud scratch space, their relevant instructions read, and source commits pinned. These are local adapters with original-source use, not global plugin installation or automatic slash-command registration. No upstream package is added to Budget’s application dependencies.
+
+| Source | Reviewed commit | License | Budget profile |
+| --- | --- | --- | --- |
+| [dietrichgebert/ponytail](https://github.com/dietrichgebert/ponytail/blob/84740e3d344b69b4a133201fa519eb37a62a2b2a/skills/ponytail/SKILL.md) | `84740e3d344b69b4a133201fa519eb37a62a2b2a` | MIT | [budget-ponytail](../.agents/skills/budget-ponytail/SKILL.md) |
+| [pbakaus/impeccable](https://github.com/pbakaus/impeccable/blob/abf5779cabc20147fd9c013fa4705088c200bf8a/plugin/skills/impeccable/SKILL.md) | `abf5779cabc20147fd9c013fa4705088c200bf8a` | Apache-2.0 | [budget-impeccable](../.agents/skills/budget-impeccable/SKILL.md) |
+| [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill/blob/56ea9cf174ed86786187daa9de0e6247cb0747e4/src/ui-ux-pro-max/templates/base/skill-content.md) | `56ea9cf174ed86786187daa9de0e6247cb0747e4` | MIT | [budget-ui-ux-pro-max](../.agents/skills/budget-ui-ux-pro-max/SKILL.md) |
+| [nutlope/hallmark](https://github.com/nutlope/hallmark/blob/13ac0ec7e148655948100b6396439e481361d690/skills/hallmark/SKILL.md) | `13ac0ec7e148655948100b6396439e481361d690` | MIT | [budget-hallmark](../.agents/skills/budget-hallmark/SKILL.md) |
+| [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design/blob/d97c5c7477e54cee17cfa6459190610da0643a05/skills/diagram-design/SKILL.md) | `d97c5c7477e54cee17cfa6459190610da0643a05` | MIT | [budget-diagram-design](../.agents/skills/budget-diagram-design/SKILL.md) |
+
+Use the pinned source when reading an original workflow or running its tool. Review source changes before updating a pin; do not execute an unreviewed global installer. Existing user authorization, financial invariants, design contracts and required delivery checks take precedence over generic workflow suggestions.
+
+Actual application and tool limits are recorded in [the adoption evidence](evidence/skill-adoption-2026-10-15.md). Ponytail guides minimal implementation review; Impeccable and Hallmark review the existing UI; UI UX Pro Max supplies focused research; Diagram Design reviews truthful geometry and readable charts. None replaces tests or proves delivery by itself.

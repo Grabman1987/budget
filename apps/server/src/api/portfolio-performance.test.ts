@@ -88,6 +88,13 @@ it('compares an unheld owner benchmark, uses shared TTWROR and retains a sold cl
   expect(history.classes[0]?.performance?.ttwror).toBeCloseTo(0.21);
   expect(history.classes[1]?.performance?.ttwror).toBeCloseTo(-0.1);
   expect(history.months.map((m) => m.month)).toEqual(['2026-01', '2026-02']);
+  expect(history.dailyIndex[0]).toEqual({ date: '2025-12-31', portfolio: 100 });
+  expect(history.dailyIndex.at(-1)?.date).toBe('2026-02-28');
+  expect(history.dailyIndex.at(-1)?.portfolio).toBeCloseTo(history.index.at(-1)!.portfolio!);
+  for (const point of history.index)
+    expect(history.dailyIndex.find((daily) => daily.date === point.date)?.portfolio).toBeCloseTo(
+      point.portfolio!,
+    );
   expect(history.years[0]?.rate).toBeCloseTo(portfolio.performance!.ttwror);
   expect(history.classes.reduce((s, c) => s + c.valueCents, 0)).toBe(
     portfolio.performance!.endValueCents,

@@ -24,6 +24,32 @@ export function periodText(period: Period, from: string): string {
   }
 }
 
+export interface CompositionGeometry {
+  /** Position of the common zero line, from the left edge of the track. */
+  zeroPercent: number;
+  /** Positive range plus absolute negative range, in integer cents. */
+  spanCents: number;
+}
+
+/** Scale signed account values around one shared zero line without changing their cents. */
+export function compositionGeometry(
+  assets: readonly number[],
+  debts: readonly number[],
+): CompositionGeometry {
+  const positiveMax = Math.max(0, ...assets);
+  const negativeMax = Math.max(0, ...debts.map((value) => Math.abs(value)));
+  const spanCents = positiveMax + negativeMax;
+  return {
+    spanCents,
+    zeroPercent: spanCents === 0 ? 50 : (negativeMax / spanCents) * 100,
+  };
+}
+
+/** Width of one signed account amount relative to the positive and debt ranges. */
+export function compositionWidthPercent(valueCents: number, spanCents: number): number {
+  return spanCents > 0 ? (Math.abs(valueCents) / spanCents) * 100 : 0;
+}
+
 /** Maßkette of the window: Anfang + Eigenleistung + Markt = jetzt (a loss is subtracted). */
 export function chainTerms(window: Omit<NetWorthWindow, 'deltaCents'>, from: string): ChainTerm[] {
   const part = (label: string, value: number): ChainTerm => ({
@@ -48,6 +74,24 @@ export function yTicks(lo: number, hi: number, n = 4): number[] {
   const out: number[] = [];
   for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-6; v += step) out.push(v);
   return out;
+}
+
+/** A padded index axis whose labels keep enough precision to remain distinct. */
+export function portfolioIndexAxis(values: readonly number[]) {
+  if (values.length === 0)
+    return { min: 0, max: 1, ticks: [0, 0.25, 0.5, 0.75, 1], fractionDigits: 0 };
+  const low = Math.min(...values);
+  const high = Math.max(...values);
+  const padding =
+    high === low ? Math.max(Math.abs(high) * 0.005, 0.5) : Math.max((high - low) * 0.12, 0.005);
+  const min = low - padding;
+  const max = high + padding;
+  const ticks = yTicks(min, max, 4);
+  const step = Math.min(...ticks.slice(1).map((tick, i) => tick - ticks[i]!));
+  const fractionDigits = Number.isFinite(step)
+    ? Math.min(6, Math.max(0, Math.ceil(-Math.log10(step)) + 1))
+    : 0;
+  return { min, max, ticks, fractionDigits };
 }
 
 const whole = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 });

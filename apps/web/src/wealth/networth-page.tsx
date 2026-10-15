@@ -2,6 +2,7 @@ import { ChartValue } from '@budget/ui';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp } from 'lucide-react';
+import type { CSSProperties } from 'react';
 import { VERMOEGEN_NETTO_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { eur, eurParts, eurWhole } from '../ledger/format';
@@ -9,7 +10,12 @@ import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { ValuationHint } from '../ledger/valuation-hint';
 import { netWorthQuery, type CompositionRow, type NetWorthView } from './api';
 import { NetWorthChart } from './networth-chart';
-import { chainTerms, periodText } from './networth-model';
+import {
+  chainTerms,
+  compositionGeometry,
+  compositionWidthPercent,
+  periodText,
+} from './networth-model';
 import { useZeitraum } from './zeitraum';
 import { ZeitraumSwitch } from './frame';
 
@@ -105,7 +111,11 @@ function Course({ view }: { view: NetWorthView }) {
 function Composition({ view }: { view: NetWorthView }) {
   useAmountPrivacy();
   const { assets, debts } = view.composition;
-  const max = Math.max(...assets.map((a) => a.valueCents), ...debts.map((d) => -d.valueCents), 1);
+  const geometry = compositionGeometry(
+    assets.map((row) => row.valueCents),
+    debts.map((row) => row.valueCents),
+  );
+  const width = (valueCents: number) => compositionWidthPercent(valueCents, geometry.spanCents);
   const row = (r: CompositionRow, debt: boolean) => (
     <li key={r.accountId} className={debt ? 'is-debt' : undefined}>
       <span className="vb-name">{r.name}</span>
@@ -114,8 +124,21 @@ function Composition({ view }: { view: NetWorthView }) {
         date={view.to}
         series={[{ name: 'Konto', value: eur(r.valueCents), color: 'var(--line)' }]}
       >
-        <span className="vb-bar">
-          <i style={{ width: `${(Math.abs(r.valueCents) / max) * 100}%` }} />
+        <span
+          className="vb-bar"
+          data-zero-percent={geometry.zeroPercent}
+          data-width-percent={width(r.valueCents)}
+          style={{ '--zero': `${geometry.zeroPercent}%` } as CSSProperties}
+        >
+          <i
+            style={{
+              left:
+                r.valueCents < 0
+                  ? `${geometry.zeroPercent - width(r.valueCents)}%`
+                  : `${geometry.zeroPercent}%`,
+              width: `${width(r.valueCents)}%`,
+            }}
+          />
         </span>
       </ChartValue>
       <span className="vb-val">{eurWhole(r.valueCents)}</span>

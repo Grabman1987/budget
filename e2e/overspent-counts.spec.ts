@@ -1,7 +1,9 @@
 import { expect as baseExpect, sampleTest as test } from './sample';
+import AxeBuilder from '@axe-core/playwright';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 import type { Heute } from '../apps/web/src/heute/api';
 import type { InboxView } from '../apps/web/src/inbox/api';
+import { eur } from '../apps/web/src/ledger/format';
 
 // Heute, Plan and the envelope page each aggregate the whole ledger; under parallel load that
 // takes longer than the default 5 s.
@@ -21,6 +23,8 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
     .map((e) => e.categoryId)
     .sort();
   const count = ids.length;
+  const overspentRows = inbox.entries.filter((entry) => entry.type === 'envelope');
+  const deficitCents = overspentRows.reduce((sum, entry) => sum + entry.deficitCents, 0);
   expect(count).toBeGreaterThan(2);
   expect(
     today.nextSteps.items
@@ -37,7 +41,7 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   expect(badge.count).toBe(inbox.count);
 
   await page.goto('/');
-  const bar = page.locator(info.project.name === 'mobile' ? '.m-head' : '.topbar');
+  const bar = page.locator((page.viewportSize()?.width ?? Infinity) <= 767 ? '.m-head' : '.topbar');
   const chip = bar.getByRole('link', {
     name: new RegExp(`^${count} Envelopes überzogen, .* zu decken – Überziehungen prüfen$`),
   });
@@ -68,27 +72,46 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   await expect(
     page.locator('.kgroup', { hasText: 'Überzogene Kategorien' }).locator('.kgcount'),
   ).toHaveText(String(count));
-  const rows = page.getByTestId('inbox-row').filter({ hasText: 'ist überzogen' });
-  await expect(rows).toHaveCount(count);
-  await expect(rows.getByRole('link', { name: 'Decken', exact: true })).toHaveCount(count);
-  await expect(rows.getByRole('button', { name: 'Als erledigt markieren' })).toHaveCount(0);
+  const summary = page.getByTestId('inbox-overspent-summary');
+  await expect(summary).toHaveCount(1);
+  await expect(summary).toContainText(`${count} Kategorien überzogen`);
+  await expect(summary).toContainText(eur(deficitCents));
+  await expect(page.getByTestId('inbox-row').filter({ hasText: 'ist überzogen' })).toHaveCount(0);
+  const planLink = summary.getByRole('link', { name: 'Im Plan decken', exact: true });
+  await expect(planLink).toHaveAttribute('href', /\/plan\/monat\?monat=2026-09&ansicht=triage/);
   await expect(
     page
-      .locator(info.project.name === 'mobile' ? '.m-head' : '.topbar')
+      .locator((page.viewportSize()?.width ?? Infinity) <= 767 ? '.m-head' : '.topbar')
       .getByRole('link', { name: /^Posteingang,/ }),
   ).toHaveAttribute('aria-label', `Posteingang, ${badge.count} offen`);
-  await page.screenshot({ path: info.outputPath('inbox.png'), fullPage: true });
-  await rows.getByRole('link', { name: 'Decken', exact: true }).first().click();
-  await expect(page).toHaveURL(/\/plan\/monat\/envelope\/[^?]+\?.*monat=2026-09/);
-  // Envelope details are a page now; the cover controls open from its edit button.
-  await page.getByRole('button', { name: 'Zuweisen oder verschieben' }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Decken oder verschieben' })).toBeVisible();
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    const axe = await new AxeBuilder({ page }).analyze();
+    expect(
+      axe.violations.filter((violation) =>
+        ['serious', 'critical'].includes(violation.impact ?? ''),
+      ),
+    ).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.screenshot({ path: info.outputPath(`inbox-${theme}.png`), fullPage: true });
+  }
+  await page.evaluate(() => delete document.documentElement.dataset['theme']);
+  let coverPosts = 0;
+  await page.route('**/api/budget/2026-09/cover', async (route) => {
+    coverPosts += 1;
+    await route.fulfill({ status: 409, json: { error: 'Unexpected summary write' } });
+  });
+  await planLink.click();
+  await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-09&ansicht=triage/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(coverPosts).toBe(0);
 });
 
 test('top-bar link opens triage with the missing amount and performs no cover write', async ({
   page,
-}, info) => {
+}) => {
   test.setTimeout(120_000);
   await page.route('**/api/budget/2026-09', async (route) => {
     const response = await route.fetch();
@@ -99,7 +122,7 @@ test('top-bar link opens triage with the missing amount and performs no cover wr
     await route.fulfill({ response, json: body });
   });
   await page.goto('/');
-  const bar = page.locator(info.project.name === 'mobile' ? '.m-head' : '.topbar');
+  const bar = page.locator((page.viewportSize()?.width ?? Infinity) <= 767 ? '.m-head' : '.topbar');
   const chip = bar.getByRole('link', { name: /Envelopes überzogen/ });
   let coverPosts = 0;
   await page.route('**/api/budget/2026-09/move', async (route) => {

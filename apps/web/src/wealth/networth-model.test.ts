@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { chainTerms, kfmt, monthTicks, periodText, yTicks } from './networth-model';
+import {
+  chainTerms,
+  compositionGeometry,
+  compositionWidthPercent,
+  kfmt,
+  monthTicks,
+  periodText,
+  portfolioIndexAxis,
+  yTicks,
+} from './networth-model';
 
 describe('periodText', () => {
   it('names the window as the prototype does', () => {
@@ -27,6 +36,30 @@ describe('chainTerms', () => {
   });
 });
 
+describe('signed composition geometry', () => {
+  it('positions account amounts around zero using the positive and debt ranges', () => {
+    const geometry = compositionGeometry([600_000, 300_000], [-200_000, -50_000]);
+    expect(geometry.zeroPercent).toBe(25);
+    expect(geometry.spanCents).toBe(800_000);
+    expect(
+      [600_000, 300_000, -200_000, -50_000].map((value) =>
+        compositionWidthPercent(value, geometry.spanCents),
+      ),
+    ).toEqual([75, 37.5, 25, 6.25]);
+  });
+
+  it('handles tiny signed values, one-sided ranges and empty/zero composition', () => {
+    const tiny = compositionGeometry([3], [-2]);
+    expect(tiny).toEqual({ zeroPercent: 40, spanCents: 5 });
+    expect(compositionWidthPercent(3, tiny.spanCents)).toBe(60);
+    expect(compositionWidthPercent(-2, tiny.spanCents)).toBe(40);
+    expect(compositionGeometry([10], [])).toEqual({ zeroPercent: 0, spanCents: 10 });
+    expect(compositionGeometry([], [-10])).toEqual({ zeroPercent: 100, spanCents: 10 });
+    expect(compositionGeometry([], [])).toEqual({ zeroPercent: 50, spanCents: 0 });
+    expect(compositionWidthPercent(0, 0)).toBe(0);
+  });
+});
+
 describe('axis helpers', () => {
   it('yTicks picks round steps like the prototype', () => {
     expect(yTicks(61_000, 87_000)).toEqual([70_000, 80_000]);
@@ -48,5 +81,24 @@ describe('axis helpers', () => {
     ];
     expect(monthTicks(days, 10_000).map((t) => t.index)).toEqual([2, 4, 5]);
     expect(monthTicks(days, 100).map((t) => t.index)).toEqual([2, 5]);
+  });
+  it('pads flat index history and keeps small-range tick labels distinct', () => {
+    const flat = portfolioIndexAxis([100, 100]);
+    expect(flat.min).toBeLessThan(100);
+    expect(flat.max).toBeGreaterThan(100);
+    expect(flat.ticks).toContain(100);
+
+    const narrow = portfolioIndexAxis([100, 100.3]);
+    const labels = narrow.ticks.map((tick) =>
+      new Intl.NumberFormat('de-AT', { maximumFractionDigits: narrow.fractionDigits }).format(tick),
+    );
+    expect(new Set(labels).size).toBe(labels.length);
+
+    const tiny = portfolioIndexAxis([100, 100.00000001]);
+    const tinyLabels = tiny.ticks.map((tick) =>
+      new Intl.NumberFormat('de-AT', { maximumFractionDigits: tiny.fractionDigits }).format(tick),
+    );
+    expect(tiny.ticks.length).toBeLessThanOrEqual(5);
+    expect(new Set(tinyLabels).size).toBe(tinyLabels.length);
   });
 });

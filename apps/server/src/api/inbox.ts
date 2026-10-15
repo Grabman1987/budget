@@ -42,6 +42,17 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
         (!fromDate || date(entry) >= fromDate) &&
         (!title || (entry.type === 'stored' && entry.title === title)),
     );
+    const overspent = filtered.filter(
+      (entry): entry is Extract<(typeof filtered)[number], { type: 'envelope' }> =>
+        entry.type === 'envelope',
+    );
+    const overspentSummary = overspent.length
+      ? {
+          month: overspent[0]!.month,
+          count: overspent.length,
+          deficitCents: overspent.reduce((sum, entry) => sum + entry.deficitCents, 0),
+        }
+      : undefined;
     if (dateSort)
       filtered.sort(
         (a, b) =>
@@ -49,7 +60,7 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
           a.id.localeCompare(b.id),
       );
     // Without `limit` the whole queue, as before; `count` always is the full number of tasks.
-    if (limit === undefined) return c.json({ ...inbox, entries: filtered });
+    if (limit === undefined) return c.json({ ...inbox, entries: filtered, overspentSummary });
     const start = offset ?? 0;
     const entries = filtered.slice(start, start + limit);
     const next = start + entries.length < filtered.length ? start + entries.length : null;
@@ -63,6 +74,7 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
     return c.json({
       ...inbox,
       entries,
+      overspentSummary,
       totalEntries: filtered.length,
       countsByKind,
       countsByCause,

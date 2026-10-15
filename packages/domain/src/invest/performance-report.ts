@@ -42,6 +42,23 @@ export function performanceReportSeries(
   const baseLevel =
     currentQuote(from, base) && base?.level != null && base.level > 0 ? base.level : null;
   let portfolioLevel = 100;
+  const dailySeries = input.series.filter((v) => v.date >= from && v.date <= to);
+  const dailyRateByDate = new Map(
+    dailyReturns(
+      dailySeries,
+      input.flows.filter((flow) => flow.date > from && flow.date <= to),
+    ).map(({ date, rate }) => [date, rate] as const),
+  );
+  const dailyIndex: { date: string; portfolio: number | null }[] = [
+    { date: from, portfolio: effective.startValueCents > 0 ? 100 : null },
+  ];
+  let dailyLevel = 100;
+  for (const valuation of dailySeries) {
+    if (valuation.date === from) continue;
+    const rate = dailyRateByDate.get(valuation.date);
+    if (rate !== undefined) dailyLevel *= 1 + rate;
+    dailyIndex.push({ date: valuation.date, portfolio: rate === undefined ? null : dailyLevel });
+  }
   const index: { date: string; portfolio: number | null; benchmark: number | null }[] = [
     {
       date: from,
@@ -114,6 +131,7 @@ export function performanceReportSeries(
     months,
     years,
     index,
+    dailyIndex,
     benchmarkReturn: compound(months.map((m) => m.benchmarkRate)),
   };
 }

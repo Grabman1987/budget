@@ -28,7 +28,7 @@ const every = (count: number, width: number) => Math.max(1, Math.ceil((count * 4
 
 /**
  * Vermögen und Schulden: the assets of every month end as ink bars above the zero line, the debts
- * as pale bars below it, the net worth of the same month ends as line. Click a month to select it;
+ * as dashed outline bars below it, the net worth of the same month ends as line. Click a month to select it;
  * the table beneath the chart is the same data and the keyboard path. Geometry only: the values are
  * read as plain numbers for drawing, never stored or summed again.
  */
@@ -119,15 +119,15 @@ function Drawing({
         [
           {
             name: 'Vermögenswerte',
-            negativeColor: 'var(--red)',
+            negativeColor: 'var(--ink-2)',
             values: months.map((m) => m.assetsCents),
             color: 'var(--line)',
           },
           {
             name: 'Schulden',
-            negativeColor: 'var(--red)',
+            negativeColor: 'var(--ink-2)',
             values: months.map((m) => m.debtsCents),
-            color: 'var(--red)',
+            color: 'var(--ink-2)',
           },
           { name: 'Nettovermögen', values: months.map((m) => m.netCents), color: 'var(--line)' },
         ],
@@ -145,8 +145,8 @@ function Drawing({
       )}
       <Graticule x1={L} x2={W - R} lines={grid} />
       <AxisLine x1={L} x2={W - R} y={y(0)} />
-      <BarsAroundZero bars={assetBars} y={y} barWidth={bw} tone="ink" />
-      <BarsAroundZero bars={debtBars} y={y} barWidth={bw} tone="pale" />
+      <BarsAroundZero bars={assetBars} y={y} barWidth={bw} tone="ink" negativeTone="ink" />
+      <BarsAroundZero bars={debtBars} y={y} barWidth={bw} tone="pale" negativeTone="outline" />
       <Line kind="actual" points={line} draw={false} className="rf-nw-halo" />
       <Line kind="actual" points={line} draw className="rf-nw-line" />
       {months.map((m, i) => (

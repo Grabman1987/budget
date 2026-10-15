@@ -18,6 +18,11 @@ describe('performance report series', () => {
     expect(result.months[2]).toMatchObject({ rate: 0, partial: true });
     expect(result.years[0]?.rate).toBeCloseTo(0.08);
     expect(result.index.at(-1)?.portfolio).toBeCloseTo(108);
+    expect(result.dailyIndex).toHaveLength(series.length);
+    expect(result.dailyIndex.at(-1)?.portfolio).toBeCloseTo(result.index.at(-1)!.portfolio!);
+    expect(result.dailyIndex.find((point) => point.date === '2026-01-31')?.portfolio).toBeCloseTo(
+      120,
+    );
   });
 
   it('never backfills a missing starting quote, and leaves a whole unquoted month as a gap', () => {
@@ -69,7 +74,40 @@ describe('performance report series', () => {
       { from: '2026-01-31', to: '2026-03-15' },
     );
     expect(sold.index.every((p) => p.portfolio === null)).toBe(true);
+    expect(sold.dailyIndex.every((p) => p.portfolio === null)).toBe(true);
     expect(sold.years[0]?.rate).toBeNull();
+  });
+
+  it('keeps zero and negative previous-value gaps while resuming the shared return chain', () => {
+    const daily = eachDay('2026-01-01', '2026-01-05').map((date) => ({
+      date,
+      valueCents: {
+        '2026-01-01': 100,
+        '2026-01-02': 50,
+        '2026-01-03': -10,
+        '2026-01-04': 10,
+        '2026-01-05': 20,
+      }[date]!,
+    }));
+    const result = performanceReportSeries(
+      { series: daily, flows: [] },
+      { from: '2026-01-01', to: '2026-01-05' },
+    );
+    expect(
+      result.dailyIndex.map((p) => (p.portfolio === null ? null : Number(p.portfolio.toFixed(4)))),
+    ).toEqual([100, 50, -10, null, -20]);
+
+    const zero = performanceReportSeries(
+      {
+        series: eachDay('2026-02-01', '2026-02-03').map((date) => ({
+          date,
+          valueCents: date === '2026-02-01' ? 100 : 0,
+        })),
+        flows: [],
+      },
+      { from: '2026-02-01', to: '2026-02-03' },
+    );
+    expect(zero.dailyIndex.map((point) => point.portfolio)).toEqual([100, 0, null]);
   });
 
   it('keeps a stale weekday close as a gap and resumes only with both observed boundaries', () => {
