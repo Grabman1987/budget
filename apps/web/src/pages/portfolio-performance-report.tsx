@@ -4,36 +4,20 @@ import type { ReactNode } from 'react';
 import { useAmountPrivacy, DimensionChain, Button } from '@budget/ui';
 import { cents, type Period } from '@budget/domain';
 import type { PortfolioSummary } from '@budget/db';
-import { useQuery, queryOptions } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import { useNavigate } from '@tanstack/react-router';
 import { userText } from '../api/error-text';
-import { ApiError, request } from '../api/http';
+import { ApiError } from '../api/http';
 import { ErrorNote, LoadingNote } from '../ledger/states';
-import { type WithValuationNotes } from '../ledger/valuation-hint';
 import { eur, longDay } from '../ledger/format';
 import { periodText } from '../wealth/networth-model';
-import { LEDGER_KEY } from '../ledger/queries';
+import { portfolioPerformanceQuery } from '../wealth/portfolio-api';
 import { PageFrame } from './placeholder-page';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import './portfolio-performance-report.css';
 import { PerformanceComparisons } from './portfolio-performance-comparisons';
-
-interface PortfolioResponse extends WithValuationNotes {
-  portfolio: PortfolioSummary;
-}
-
-const portfolioPerformanceQuery = (period: Period) =>
-  queryOptions({
-    queryKey: [...LEDGER_KEY, 'portfolio-performance-report', period, 'securities'],
-    retry: false,
-    queryFn: () =>
-      request<PortfolioResponse>(
-        'GET',
-        `/api/portfolio?period=${period}&view=securities&history=performance`,
-      ),
-  });
 
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
 

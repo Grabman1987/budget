@@ -27,7 +27,7 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     const { group } = await post('/categories/groups', { name: `Mustergruppe ${g + 1}` });
     for (let i = 0; i < 9; i++) {
       const { category } = await post('/categories', {
-        name: `Posten ${g + 1}.${i + 1}`,
+        name: `Posten ${g + 1}.${i + 1}${i === 8 ? ' mit einem langen Kategorienamen' : ''}`,
         groupId: group.id,
         class: 'need',
         stage: 2,
@@ -50,13 +50,45 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
       amountCents: -703,
     });
   }
+  for (const [index, amountCents] of [
+    [1, -201],
+    [2, -501],
+  ] as const) {
+    await post('/bookings', {
+      type: 'booking',
+      accountId: account.id,
+      date: `${month}-02`,
+      categoryId: categoryIds[index],
+      amountCents,
+    });
+  }
   await page.goto(`/plan/monat?monat=${month}`);
   await expect(page.locator('.ptable .prow')).toHaveCount(18);
+  await expect(page.locator('.plan-add-row')).toHaveCount(0);
+  await expect(page.locator('.prow .sw')).toHaveCount(0);
+  await expect(page.locator('.prow .spending-status').first()).toHaveText(
+    'Überzogen um 2,02 € · fehlt 5,00 € bis Ziel',
+  );
+  await expect(page.locator('.prow .spending-status').nth(1)).toHaveText(
+    'Ausgegeben 2,01 € von 5,01 € · fehlt 5,00 € bis Ziel',
+  );
+  await expect(page.locator('.prow .spending-status').nth(2)).toHaveText(
+    'Komplett ausgegeben · fehlt 5,00 € bis Ziel',
+  );
+  await page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }).check();
+  await expect(page.locator('.prow input:checked')).toHaveCount(18);
+  await page.getByRole('checkbox', { name: 'Mustergruppe 1 auswählen', exact: true }).uncheck();
+  await expect(page.locator('.prow input:checked')).toHaveCount(9);
+  await expect(
+    page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }),
+  ).toHaveJSProperty('indeterminate', true);
+  await page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }).check();
+  await page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }).uncheck();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('1.909,82 €');
   await expect(page.getByText('Unterfinanziert 90,00 €', { exact: true })).toBeVisible();
   await expect(page.locator('.pgroup').first().locator('.col-assign')).toHaveText('45,09 €');
-  await expect(page.locator('.pgroup').first().locator('.col-act')).toHaveText('−7,03 €');
-  await expect(page.locator('.pgroup').first().locator('.col-avail')).toHaveText('38,06 €');
+  await expect(page.locator('.pgroup').first().locator('.col-act')).toHaveText('−14,05 €');
+  await expect(page.locator('.pgroup').first().locator('.col-avail')).toHaveText('31,04 €');
   await expect(
     page.locator('.plan-topbar summary').filter({ hasText: '2 überzogen' }),
   ).toBeVisible();
@@ -141,25 +173,49 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     await expect(page.locator('.ptable-multi')).toHaveCount(0);
     await page.getByLabel('Ansicht', { exact: true }).selectOption('group');
   }
+  const more = page.locator('.plan-more summary');
+  await more.click();
+  await page.getByRole('link', { name: 'Monatsabschluss starten oder fortsetzen' }).focus();
+  await page.keyboard.press('Escape');
+  await expect(more).toBeFocused();
+  await expect(page.locator('.plan-more')).not.toHaveAttribute('open');
+  await page.locator('.plan-chip-scroll').evaluate((element) => {
+    element.scrollLeft = 0;
+  });
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-    ).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      page.viewportSize()!.width,
+    );
     if (!desktop) {
+      const rows = await page
+        .locator('.ptable .prow')
+        .evaluateAll((elements) => elements.map((e) => e.getBoundingClientRect().height));
+      expect(Math.max(...rows)).toBeLessThanOrEqual(76);
+      const bar = page.locator('.plan-topbar');
+      expect((await bar.boundingBox())!.height).toBeLessThanOrEqual(56);
+      await page.locator('.ptoolbar').scrollIntoViewIfNeeded();
+      const topbar = (await bar.boundingBox())!;
+      const toolbar = (await page.locator('.ptoolbar').boundingBox())!;
+      expect(toolbar.y).toBeGreaterThanOrEqual(topbar.y + topbar.height);
+      await page.evaluate(() => window.scrollTo(0, 0));
       for (const selector of [
         '.grp-toggle',
         '.plan-add',
-        '.assign-btn',
+        '.pname',
+        '.plan-available',
         '.plan-select',
         '.plan-topbar summary',
-        '.plan-topbar > .btn',
+        '.plan-chip-scroll > .btn',
       ]) {
-        const heights = await page
-          .locator(selector)
-          .evaluateAll((elements) => elements.map((e) => e.getBoundingClientRect().height));
+        const sizes = await page.locator(selector).evaluateAll((elements) =>
+          elements.map((e) => {
+            const rect = e.getBoundingClientRect();
+            return { width: rect.width, height: rect.height };
+          }),
+        );
         expect(
-          heights.every((h) => h >= 44),
+          sizes.every(({ width, height }) => width >= 44 && height >= 44),
           selector,
         ).toBe(true);
       }

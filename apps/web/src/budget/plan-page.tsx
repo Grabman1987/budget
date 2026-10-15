@@ -39,7 +39,7 @@ import {
   useStoredMonthSpan,
 } from './month-span';
 import { MultiTable } from './plan-multi';
-import { AssignCell } from './assign-cell';
+import { AssignCell, assignGhost, ghostSource } from './assign-cell';
 import { QuickAssignActions } from './quick-assign-actions';
 import {
   assign,
@@ -54,6 +54,7 @@ import { PlanInspector } from './plan-inspector';
 import { patchCategory } from './api';
 import {
   barFor,
+  spendingBar,
   CLASS_TEXT,
   expectedDues,
   freeCoverCents,
@@ -226,7 +227,9 @@ function PlanBody({
       if (
         event.target instanceof Element &&
         event.target.isConnected &&
-        !event.target.closest('.plan-inspector, .prow, dialog, .toast, .quick-assign-actions')
+        !event.target.closest(
+          '.plan-inspector, .prow, .plan-select, dialog, .toast, .quick-assign-actions',
+        )
       )
         clearSelection();
     };
@@ -298,6 +301,18 @@ function PlanBody({
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      return next;
+    });
+  };
+  const selectRows = (items: PlanRow[]) => {
+    setOpen(null);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const all = items.every((r) => prev.has(r.id));
+      for (const r of items) {
+        if (all) next.delete(r.id);
+        else next.add(r.id);
+      }
       return next;
     });
   };
@@ -534,24 +549,26 @@ function PlanBody({
               </div>
             )}
           </div>
-          <div className="plan-grid-head">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() =>
-                setCollapsed(collapsed.size ? new Set() : new Set(groups.map((g) => g.key)))
-              }
-            >
-              {collapsed.size ? 'Alle ausklappen' : 'Alle einklappen'}
-            </Button>
-            <Button
-              variant="ghost"
-              className="plan-add"
-              onClick={() => setCategoryForm({ mode: 'group' })}
-            >
-              + Gruppe
-            </Button>
-          </div>
+          {multi && (
+            <div className="plan-grid-head">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setCollapsed(collapsed.size ? new Set() : new Set(groups.map((g) => g.key)))
+                }
+              >
+                {collapsed.size ? 'Alle ausklappen' : 'Alle einklappen'}
+              </Button>
+              <Button
+                variant="ghost"
+                className="plan-add"
+                onClick={() => setCategoryForm({ mode: 'group' })}
+              >
+                + Gruppe
+              </Button>
+            </div>
+          )}
           {multi ? (
             views ? (
               <MultiTable
@@ -568,14 +585,42 @@ function PlanBody({
             )
           ) : (
             <>
-              <table className={cx('ptable', distribute && 'is-distributing')}>
+              <table className={cx('ptable ptable-zero', distribute && 'is-distributing')}>
                 <caption className="sr-only">
                   Envelopes mit Zugewiesen, Aktivität und Verfügbar
                 </caption>
                 <thead>
                   <tr>
                     <th className="tech col-name" scope="col">
-                      Kategorie
+                      <div className="group-heading">
+                        <PlanSelection
+                          label="Alle Kategorien auswählen"
+                          rows={shownRows}
+                          selected={selected}
+                          onChange={() => selectRows(shownRows)}
+                        />
+                        <button
+                          type="button"
+                          className="grp-toggle"
+                          aria-label={collapsed.size ? 'Alle ausklappen' : 'Alle einklappen'}
+                          onClick={() =>
+                            setCollapsed(
+                              collapsed.size ? new Set() : new Set(groups.map((g) => g.key)),
+                            )
+                          }
+                        >
+                          <ChevronDown size={16} aria-hidden="true" />
+                        </button>
+                        <span>Kategoriegruppe</span>
+                        <Button
+                          variant="ghost"
+                          className="plan-add"
+                          aria-label="Gruppe anlegen"
+                          onClick={() => setCategoryForm({ mode: 'group' })}
+                        >
+                          +
+                        </Button>
+                      </div>
                     </th>
                     <th className="tech col-num" scope="col">
                       Zugewiesen
@@ -608,27 +653,45 @@ function PlanBody({
                         id={`grp-${g.key}`}
                       >
                         <td className="col-name">
-                          <button
-                            type="button"
-                            className="grp-toggle"
-                            aria-expanded={!isCollapsed}
-                            title={`${g.sub ?? g.title} · ${statusText(g, st)}`}
-                            onClick={toggle}
-                          >
-                            <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
-                            <span className="grp-text">
-                              <span className="grp-title">{g.title}</span>
-                            </span>
-                          </button>
-                          {distribute && sugSum > 0 && (
-                            <Button
-                              size="xs"
-                              variant="ghost"
-                              onClick={() => take(g.rows.map((r) => r.id))}
+                          <div className="group-heading">
+                            <PlanSelection
+                              label={`${g.title} auswählen`}
+                              rows={g.rows}
+                              selected={selected}
+                              onChange={() => selectRows(g.rows)}
+                            />
+                            <button
+                              type="button"
+                              className="grp-toggle"
+                              aria-expanded={!isCollapsed}
+                              title={`${g.sub ?? g.title} · ${statusText(g, st)}`}
+                              onClick={toggle}
                             >
-                              {g.stage ? 'Stufe füllen' : 'Übernehmen'} · {eur(sugSum)}
-                            </Button>
-                          )}
+                              <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
+                              <span className="grp-text">
+                                <span className="grp-title">{g.title}</span>
+                              </span>
+                            </button>
+                            {shownView === 'group' && (
+                              <Button
+                                variant="ghost"
+                                className="plan-add"
+                                aria-label={`Kategorie in ${g.title} anlegen`}
+                                onClick={() => setCategoryForm({ mode: 'edit', groupId: g.key })}
+                              >
+                                +
+                              </Button>
+                            )}
+                            {distribute && sugSum > 0 && (
+                              <Button
+                                size="xs"
+                                variant="ghost"
+                                onClick={() => take(g.rows.map((r) => r.id))}
+                              >
+                                {g.stage ? 'Stufe füllen' : 'Übernehmen'} · {eur(sugSum)}
+                              </Button>
+                            )}
+                          </div>
                         </td>
                         <td className="col-num col-assign" data-label="Zugewiesen">
                           {eur(st.assigned)}
@@ -674,49 +737,12 @@ function PlanBody({
                               onInspect={() => inspect(r.id)}
                             />
                           ))),
-                      ...(shownView === 'group' && !isCollapsed
-                        ? [
-                            <tr key={`${g.key}-add`} className="plan-add-row">
-                              <td colSpan={4}>
-                                <Button
-                                  variant="ghost"
-                                  className="plan-add"
-                                  aria-label={`Kategorie in ${g.title} anlegen`}
-                                  onClick={() => setCategoryForm({ mode: 'edit', groupId: g.key })}
-                                >
-                                  + Kategorie
-                                </Button>
-                              </td>
-                            </tr>,
-                          ]
-                        : []),
                     ];
                   })}
                 </tbody>
               </table>
             </>
           )}
-          <div className="plan-create">
-            {shownView !== 'group' && data.groups[0] && (
-              <Button
-                variant="ghost"
-                className="plan-add"
-                onClick={() => setCategoryForm({ mode: 'edit', groupId: data.groups[0]!.id })}
-              >
-                + Kategorie
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              className="plan-add"
-              onClick={() => {
-                setView('group');
-                setCategoryForm({ mode: 'group' });
-              }}
-            >
-              + Gruppe
-            </Button>
-          </div>
         </section>
       </div>
       <PlanInspector
@@ -844,10 +870,28 @@ function PlanTopBar({
   onDistribute: () => void;
   coverControls: React.ReactNode;
 }) {
+  const [active, setActive] = useState<string | null>(null);
+  const disclosureToggle = (element: HTMLDetailsElement, key: string) => {
+    if (element.open) {
+      document
+        .querySelectorAll<HTMLDetailsElement>('.plan-topbar details[open]')
+        .forEach((other) => {
+          if (other !== element) other.open = false;
+        });
+      setActive(key);
+    } else setActive((current) => (current === key ? null : current));
+  };
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || !(event.target instanceof Element)) return;
-      const disclosure = event.target.closest<HTMLDetailsElement>('.plan-popover[open]');
+      const panel = event.target.closest('.plan-topbar .plan-popover-content');
+      const disclosure =
+        event.target.closest<HTMLDetailsElement>('.plan-popover[open]') ??
+        (panel
+          ? document.querySelector<HTMLDetailsElement>(
+              `.plan-topbar details[open]:has(summary[aria-controls="${panel.id}"])`,
+            )
+          : null);
       if (disclosure) {
         disclosure.open = false;
         disclosure.querySelector('summary')?.focus();
@@ -855,6 +899,7 @@ function PlanTopBar({
     };
     const outside = (event: MouseEvent) => {
       if (!(event.target instanceof Node)) return;
+      if (event.target instanceof Element && event.target.closest('.plan-popover-content')) return;
       document.querySelectorAll<HTMLDetailsElement>('.plan-popover[open]').forEach((disclosure) => {
         if (!disclosure.contains(event.target as Node)) disclosure.open = false;
       });
@@ -883,74 +928,121 @@ function PlanTopBar({
   ];
   return (
     <section className="plan-topbar" aria-label="Monat planen">
-      <details className="plan-popover">
-        <summary className={cx('plan-tba', tba > 0 && 'is-positive')}>
-          Zu verteilen{' '}
-          <strong data-testid="to-be-assigned" aria-live="polite">
-            {eur(tba)}
-          </strong>
-        </summary>
-        <div className="plan-popover-content" aria-label="Herleitung Zu verteilen">
-          <DimensionChain terms={terms} precision="cent" label="Maßkette Zu verteilen" />
-          {tba < 0 && urgent === 0 && coverControls}
-        </div>
-      </details>
-      <details className="plan-popover">
-        <summary className={cx('plan-chip', urgent > 0 && 'is-over')}>{urgent} überzogen</summary>
-        <div className="plan-popover-content">
-          {urgent ? coverControls : 'Nichts ist überzogen.'}
-        </div>
-      </details>
-      <button
-        type="button"
-        className="plan-chip"
-        title="Summe der fehlenden Zielbeträge"
-        onClick={() => {
-          // Outside dismissal first restores the month sections when a category is selected.
-          window.requestAnimationFrame(() => {
-            document.querySelector<HTMLDetailsElement>('.inspector-fold')?.setAttribute('open', '');
-            const section = document.querySelector<HTMLDetailsElement>('#inspector-income');
-            section?.setAttribute('open', '');
-            section?.querySelector('summary')?.focus();
-          });
-        }}
+      <div className="plan-chip-scroll">
+        <details
+          className="plan-popover"
+          onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-0')}
+        >
+          <summary
+            aria-controls="plan-chip-panel-0"
+            className={cx('plan-tba', tba > 0 && 'is-positive')}
+          >
+            Zu verteilen{' '}
+            <strong data-testid="to-be-assigned" aria-live="polite">
+              {eur(tba)}
+            </strong>
+          </summary>
+        </details>
+        <details
+          className="plan-popover"
+          onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-1')}
+        >
+          <summary
+            aria-controls="plan-chip-panel-1"
+            className={cx('plan-chip', urgent > 0 && 'is-over')}
+          >
+            {urgent} überzogen
+          </summary>
+        </details>
+        <button
+          type="button"
+          className="plan-chip"
+          title="Summe der fehlenden Zielbeträge"
+          onClick={() => {
+            // Outside dismissal first restores the month sections when a category is selected.
+            window.requestAnimationFrame(() => {
+              document
+                .querySelector<HTMLDetailsElement>('.inspector-fold')
+                ?.setAttribute('open', '');
+              const section = document.querySelector<HTMLDetailsElement>('#inspector-income');
+              section?.setAttribute('open', '');
+              section?.querySelector('summary')?.focus();
+            });
+          }}
+        >
+          Unterfinanziert {eur(unfunded)}
+        </button>
+        <details
+          className="plan-popover"
+          onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-2')}
+        >
+          <summary aria-controls="plan-chip-panel-2" className="plan-chip">
+            {s.unclassified?.count ?? 0} ohne Kategorie
+          </summary>
+        </details>
+        <Button size="sm" disabled={tba <= 0 || distribute} onClick={onDistribute}>
+          Geld verteilen
+        </Button>
+        <details
+          className="plan-popover plan-more"
+          onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-3')}
+        >
+          <summary
+            aria-controls="plan-chip-panel-3"
+            className="plan-chip"
+            aria-label="Weitere Monatsaktionen"
+          >
+            ⋯
+          </summary>
+        </details>
+      </div>
+      <div
+        className="plan-popover-content"
+        id="plan-chip-panel-0"
+        hidden={active !== 'plan-chip-panel-0'}
+        aria-label="Herleitung Zu verteilen"
       >
-        Unterfinanziert {eur(unfunded)}
-      </button>
-      <details className="plan-popover">
-        <summary className="plan-chip">{s.unclassified?.count ?? 0} ohne Kategorie</summary>
-        <div className="plan-popover-content">
-          <p>
-            Eingang {eur(s.unclassified?.inflowCents ?? 0)} · Ausgang{' '}
-            {eur(-(s.unclassified?.outflowCents ?? 0))} · Saldo {eur(s.unclassified?.netCents ?? 0)}
-          </p>
-          <AppLink
-            to="/konten/buchungen"
-            search={{ kategorie: 'none', von: `${month}-01`, bis: lastDayOfMonth(month) }}
-          >
-            Ohne Kategorie öffnen
-          </AppLink>
-          <AppLink
-            to="/konten/buchungen"
-            search={{ status: 'pending', von: `${month}-01`, bis: lastDayOfMonth(month) }}
-          >
-            Unbestätigte öffnen
-          </AppLink>
-        </div>
-      </details>
-      <Button size="sm" disabled={tba <= 0 || distribute} onClick={onDistribute}>
-        Geld verteilen
-      </Button>
-      <details className="plan-popover plan-more">
-        <summary className="plan-chip" aria-label="Weitere Monatsaktionen">
-          ⋯
-        </summary>
-        <div className="plan-popover-content">
-          <AppLink to={`/monatsabschluss/${month}`} search={{}}>
-            Monatsabschluss starten oder fortsetzen
-          </AppLink>
-        </div>
-      </details>
+        <DimensionChain terms={terms} precision="cent" label="Maßkette Zu verteilen" />
+        {tba < 0 && urgent === 0 && coverControls}
+      </div>
+      <div
+        className="plan-popover-content"
+        id="plan-chip-panel-1"
+        hidden={active !== 'plan-chip-panel-1'}
+      >
+        {urgent ? coverControls : 'Nichts ist überzogen.'}
+      </div>
+      <div
+        className="plan-popover-content"
+        id="plan-chip-panel-2"
+        hidden={active !== 'plan-chip-panel-2'}
+      >
+        <p>
+          Eingang {eur(s.unclassified?.inflowCents ?? 0)} · Ausgang{' '}
+          {eur(-(s.unclassified?.outflowCents ?? 0))} · Saldo {eur(s.unclassified?.netCents ?? 0)}
+        </p>
+        <AppLink
+          to="/konten/buchungen"
+          search={{ kategorie: 'none', von: `${month}-01`, bis: lastDayOfMonth(month) }}
+        >
+          Ohne Kategorie öffnen
+        </AppLink>
+        <AppLink
+          to="/konten/buchungen"
+          search={{ status: 'pending', von: `${month}-01`, bis: lastDayOfMonth(month) }}
+        >
+          Unbestätigte öffnen
+        </AppLink>
+      </div>
+      <div
+        className="plan-popover-content"
+        id="plan-chip-panel-3"
+        hidden={active !== 'plan-chip-panel-3'}
+      >
+        <AppLink to={`/monatsabschluss/${month}`} search={{}}>
+          Monatsabschluss starten oder fortsetzen
+        </AppLink>
+      </div>
     </section>
   );
 }
@@ -1189,6 +1281,34 @@ function Rail({
   );
 }
 
+function PlanSelection({
+  label,
+  rows,
+  selected,
+  onChange,
+}: {
+  label: string;
+  rows: PlanRow[];
+  selected: ReadonlySet<string>;
+  onChange: () => void;
+}) {
+  const count = rows.filter((r) => selected.has(r.id)).length;
+  return (
+    <label className="plan-select">
+      <input
+        type="checkbox"
+        aria-label={label}
+        checked={rows.length > 0 && count === rows.length}
+        disabled={!rows.length}
+        ref={(input) => {
+          if (input) input.indeterminate = count > 0 && count < rows.length;
+        }}
+        onChange={onChange}
+      />
+    </label>
+  );
+}
+
 function EnvelopeRow({
   row: r,
   ctx,
@@ -1222,6 +1342,19 @@ function EnvelopeRow({
   const credit = !cash && r.creditOverspentCents > 0;
   const over = r.overspentCents > 0;
   const bar = barFor(r, ctx);
+  const spending = spendingBar(r);
+  const assignment = assignGhost(r);
+  const phone = useIsPhone();
+  const ghost = suggestion !== undefined && (
+    <button
+      type="button"
+      className="ghost"
+      aria-label={`Vorschlag ${eur(suggestion)} für ${r.name} übernehmen`}
+      onClick={onTake}
+    >
+      +{eur(suggestion).replace(/\s?€$/, '')}
+    </button>
+  );
   return (
     <tr className={cx('prow', over && 'is-over', credit && 'is-credit', selected && 'is-selected')}>
       <td
@@ -1231,16 +1364,14 @@ function EnvelopeRow({
             onInspect();
         }}
       >
-        {r.quickAssign && (
-          <label className="plan-select">
-            <input
-              type="checkbox"
-              checked={selected}
-              onChange={onSelect}
-              aria-label={`${r.name} auswählen`}
-            />
-          </label>
-        )}
+        <label className="plan-select">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onSelect}
+            aria-label={`${r.name} auswählen`}
+          />
+        </label>
         <button
           type="button"
           className="pname"
@@ -1257,62 +1388,78 @@ function EnvelopeRow({
           aria-pressed={selected}
           onClick={onInspect}
         >
-          {r.cls ? <ClassSwatch kind={r.cls} /> : <ClassSwatch kind="bound" />}
           <CategoryIcon icon={r.icon} />
-          {r.name}
+          <span className="category-name">{r.name}</span>
         </button>
-        {bar.fill !== null && (
-          <span className="pbar" aria-hidden="true">
-            <i
-              className={cx('pbar-fill', r.cls && `hatch-${r.cls}`)}
-              style={{ width: `${(bar.over ? 1 : bar.fill) * 100}%` }}
-            />
-            {bar.pace !== null && (
-              <i className="pbar-tick" style={{ left: `${bar.pace * 100}%` }}></i>
-            )}
-            {bar.goalMark && <i className="pbar-goal" style={{ left: '100%' }} />}
-          </span>
-        )}
+        <span
+          className={cx('spending-status', spending.over && 'neg-alert')}
+          title={spending.status}
+        >
+          {spending.status}
+        </span>
+        <span className={cx('pbar spending-bar', spending.over && 'is-over')} aria-hidden="true">
+          <i className="pbar-fill" style={{ width: `${spending.spentShare * 100}%` }} />
+          {bar.fill !== null && bar.pace !== null && (
+            <i className="pbar-tick" style={{ left: `${bar.pace * 100}%` }}></i>
+          )}
+        </span>
       </td>
       <td className="col-num col-assign" data-label="Zugewiesen">
-        <AssignCell
-          row={r}
-          tba={tba}
-          editing={editing}
-          monthKey={ctx.month}
-          onEdit={onEdit}
-          onCommit={onCommit}
-        />
-        {suggestion !== undefined && (
-          <button
-            type="button"
-            className="ghost"
-            aria-label={`Vorschlag ${eur(suggestion)} für ${r.name} übernehmen`}
-            onClick={onTake}
-          >
-            +{eur(suggestion).replace(/\s?€$/, '')}
-          </button>
+        {phone ? (
+          <span className="phone-assigned" title={assignment ? ghostSource(assignment) : undefined}>
+            Zugewiesen {assignment ? `≈ ${eur(assignment.ghostCents)}` : eur(r.assignedCents)}
+          </span>
+        ) : (
+          <>
+            <AssignCell
+              row={r}
+              tba={tba}
+              editing={editing}
+              monthKey={ctx.month}
+              onEdit={onEdit}
+              onCommit={onCommit}
+            />
+          </>
         )}
+        {!phone && ghost}
       </td>
       <td className="col-num col-act" data-label="Aktivität">
         {r.activityCents ? eur(r.activityCents) : <span className="muted">{eur(0)}</span>}
       </td>
       <td className="col-num col-avail" data-label="Verfügbar">
-        <span
-          className={cx('pill', over ? 'is-bad' : r.availableCents > 0 && 'is-good')}
-          title={credit ? 'neue Kartenschuld' : undefined}
-        >
-          {eur(r.availableCents)}
-        </span>
-        {over && (
+        {phone && ghost}
+        {phone ? (
           <button
             type="button"
-            className="cover-row"
-            aria-label={`${r.name} decken`}
-            onClick={onCover}
+            onClick={over ? onCover : onInspect}
+            aria-label={over ? `${r.name} decken` : `Zugewiesen für ${r.name} ändern`}
+            className={cx(
+              'plan-available pill',
+              over ? 'is-bad' : r.availableCents > 0 && 'is-good',
+            )}
           >
-            <ArrowRightLeft size={16} aria-hidden="true" />
+            {eur(r.availableCents)}
+            {over && <ArrowRightLeft size={16} aria-hidden="true" />}
           </button>
+        ) : (
+          <>
+            <span
+              className={cx('pill', over ? 'is-bad' : r.availableCents > 0 && 'is-good')}
+              title={credit ? 'neue Kartenschuld' : undefined}
+            >
+              {eur(r.availableCents)}
+            </span>
+            {over && (
+              <button
+                type="button"
+                className="cover-row"
+                aria-label={`${r.name} decken`}
+                onClick={onCover}
+              >
+                <ArrowRightLeft size={16} aria-hidden="true" />
+              </button>
+            )}
+          </>
         )}
       </td>
     </tr>

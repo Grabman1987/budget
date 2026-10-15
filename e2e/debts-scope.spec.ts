@@ -86,6 +86,10 @@ test('explains net versus cash debts, links financing and stacks the existing lo
   await expect(page.locator('.debt-overview')).toContainText(
     'positivem Nettowert und negativer Kassa',
   );
+  const explanation = page
+    .locator('.debt-overview')
+    .getByText('Wie wird gerechnet?', { exact: true });
+  await explanation.click();
   const check = page.locator('.debt-overview .debt-liquidity-check');
   await expect(check).toContainText('werden nicht übernommen');
   const link = check.getByRole('link', { name: /Liquiditätsprognose prüfen/ });
@@ -110,14 +114,18 @@ test('explains net versus cash debts, links financing and stacks the existing lo
   await page.getByRole('button', { name: 'Modell berechnen', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Modellvergleich' })).toBeVisible();
 
-  const lead = (await page.locator('.debt-rechenweg .vnw').boundingBox())!;
+  const lead = (await page.locator('.debts-view > .vnw').boundingBox())!;
+  const calculation = (await page.locator('.debt-rechenweg').boundingBox())!;
+  const content = (await page.locator('.debt-rechenweg > .vview').boundingBox())!;
   const model = (await page.locator('.debt-assumptions').boundingBox())!;
   const summary = (await page.locator('.loan-scenarios').boundingBox())!;
   expect(model.y).toBeGreaterThanOrEqual(lead.y + lead.height);
+  expect(Math.abs(calculation.x - lead.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(calculation.width - lead.width)).toBeLessThanOrEqual(1);
   expect(summary.y).toBeGreaterThanOrEqual(model.y + model.height);
   for (const section of [model, summary]) {
-    expect(Math.abs(section.x - lead.x)).toBeLessThanOrEqual(1);
-    expect(Math.abs(section.width - lead.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(section.x - content.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(section.width - content.width)).toBeLessThanOrEqual(1);
   }
   const comparison = page.getByRole('table', { name: 'Ohne und mit monatlicher Sondertilgung' });
   const rowY = await comparison
@@ -158,14 +166,14 @@ test('explains net versus cash debts, links financing and stacks the existing lo
   };
   // Preserve the existing focus behavior against the previous column geometry.
   // The unchanged loan dialog unmounts immediately on cancel; trigger restoration is a separate gap.
-  await page.locator('.debt-rechenweg .vnw').evaluate((el) => {
+  await page.locator('.debts-view > .vnw').evaluate((el) => {
     (el as HTMLElement).style.gridColumn = '1';
   });
   await page.locator('.debt-assumptions').evaluate((el, project) => {
     (el as HTMLElement).style.gridColumn = project === 'mobile' ? '1 / -1' : '2';
   }, info.project.name);
   const previousFocus = await cancelAndReadFocus();
-  await page.locator('.debt-rechenweg .vnw, .debt-assumptions').evaluateAll((els) => {
+  await page.locator('.debts-view > .vnw, .debt-assumptions').evaluateAll((els) => {
     for (const el of els) (el as HTMLElement).style.removeProperty('grid-column');
   });
   expect(await cancelAndReadFocus()).toBe(previousFocus);

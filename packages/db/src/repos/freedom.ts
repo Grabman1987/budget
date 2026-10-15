@@ -1,5 +1,9 @@
 import {
   DEFAULT_REAL_RETURN_BP,
+  addMonths,
+  allocation,
+  averageCents,
+  freedomSumCents,
   freedomAnnualSpendCents,
   freedomProgressBp,
   freedomTargetCents,
@@ -11,6 +15,7 @@ import { isNull, eq, and } from 'drizzle-orm';
 import { account, category, rule } from '../schema';
 import { netWorthValuationAsOf } from './portfolio';
 import { budget } from './queries';
+import { allocationMonth } from './allocation';
 import { referenceMonth } from './rule-inputs';
 import {
   freedomExpenseMonths,
@@ -29,6 +34,8 @@ export interface FreedomView {
   investedCents: number | null;
   progressBp: number | null;
   defaultRealReturnBp: number;
+  defaultSavingCents: number | null;
+  savingMonths: number;
   expensesUnsafe: boolean;
   accounts: {
     id: string;
@@ -50,6 +57,14 @@ export function freedomView(db: Executor, asOf: string): FreedomView {
   );
   const refMonth = referenceMonth(asOf);
   const months = freedomExpenseMonths({ categories, budgetByMonth }, refMonth);
+  const saving = monthsBetween(addMonths(refMonth, -5), refMonth)
+    .filter((month) => budgetByMonth.has(month))
+    .map(
+      (month) =>
+        allocation([allocationMonth(db, month, budgetByMonth.get(month)!.envelopes)]).futureCents,
+    );
+  const defaultSavingCents =
+    freedomSumCents(saving) === null ? null : Math.max(0, averageCents(saving));
   const raw = db
     .select()
     .from(rule)
@@ -107,6 +122,8 @@ export function freedomView(db: Executor, asOf: string): FreedomView {
     investedCents,
     progressBp: progress !== null && Number.isSafeInteger(progress) ? progress : null,
     defaultRealReturnBp: DEFAULT_REAL_RETURN_BP,
+    defaultSavingCents,
+    savingMonths: saving.length,
     expensesUnsafe: annualSpendCents === null || targetCents === null,
     accounts: sources,
   };
