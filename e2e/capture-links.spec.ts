@@ -28,13 +28,13 @@ ledgerTest(
     await expect(dialog.getByLabel('Bezahlt von', { exact: true })).toHaveValue(account.id);
     await expect(dialog.getByLabel('Kategorie', { exact: true })).toHaveValue('Essen');
     expect(writes).toEqual([]);
-    await dialog.locator('summary').click();
-    await dialog.getByRole('button', { name: 'Split', exact: true }).click();
+    await dialog.getByRole('button', { name: '+ Weitere Kategorie', exact: true }).click();
     await dialog.getByLabel('Betrag 1', { exact: true }).fill('10');
     await dialog.getByLabel('Betrag 2', { exact: true }).fill('20');
     await dialog.getByRole('button', { name: 'Rest verteilen in Zeile 2' }).click();
     await expect(dialog.getByLabel('Betrag 2', { exact: true })).toHaveValue('40,01');
-    await dialog.getByLabel('Kategorie 2', { exact: true }).selectOption('e2e-essen');
+    await dialog.getByLabel('Kategorie 2', { exact: true }).fill('Essen');
+    await dialog.getByRole('option', { name: /^Essen/ }).click();
     expect(writes).toEqual([]);
     await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
     await expect(dialog).toBeHidden();
