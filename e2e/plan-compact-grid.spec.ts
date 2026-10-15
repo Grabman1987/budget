@@ -184,9 +184,9 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   });
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-    ).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      page.viewportSize()!.width,
+    );
     if (!desktop) {
       const rows = await page
         .locator('.ptable .prow')
@@ -208,11 +208,14 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
         '.plan-topbar summary',
         '.plan-chip-scroll > .btn',
       ]) {
-        const heights = await page
-          .locator(selector)
-          .evaluateAll((elements) => elements.map((e) => e.getBoundingClientRect().height));
+        const sizes = await page.locator(selector).evaluateAll((elements) =>
+          elements.map((e) => {
+            const rect = e.getBoundingClientRect();
+            return { width: rect.width, height: rect.height };
+          }),
+        );
         expect(
-          heights.every((h) => h >= 44),
+          sizes.every(({ width, height }) => width >= 44 && height >= 44),
           selector,
         ).toBe(true);
       }
