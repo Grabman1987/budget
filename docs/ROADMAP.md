@@ -1,5 +1,12 @@
 # Roadmap
 
+### Contact history and monthly payments — #499 (2026-10-15)
+
+- [x] Balance/name share the contact detail; recorded full repayment defines retained, collapsible history.
+- [x] Itemize current-month payments, recorded allocations and credit; keep older open outlays visible and preserve same-day order. No financial writes or historical edits.
+- [x] Full cloud check: 433 files / 3,936 tests; desktop/mobile Chromium and WebKit iPhone flows, light/dark Axe and synthetic screenshots. [Evidence](evidence/contact-history/README.md).
+- [ ] Current-main integration, final-head CI and serial deployment/live proof.
+
 ### Account properties — #499 (2026-10-15)
 
 - [x] Expose existing separate settlement cash on depot/crypto create/edit; integrated cash leaves the link empty, salary selection stays in Datenquellen and cash uses its existing account type.
