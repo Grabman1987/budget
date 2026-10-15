@@ -69,10 +69,11 @@ export function contactStatement<T extends ContactMovement>(
   const ordered = [...movements].sort((a, b) => a.date.localeCompare(b.date));
   const saved = new Map(settlements.map((s) => [s.receiptSplitId, s]));
   const outlays: OpenContactOutlay[] = [];
-  const receipts: ContactSettlement[] = [];
+  const receipts: (ContactSettlement & { recorded: boolean })[] = [];
   const lines: (T & { contactDeltaCents: number; balanceCents: number })[] = [];
   let creditCents = 0;
   let balanceCents = 0;
+  let closedThroughSplitId: string | null = null;
   for (const m of ordered) {
     if (!Number.isSafeInteger(m.amountCents)) throw new Error('Invalid contact movement');
     balanceCents -= m.amountCents;
@@ -91,12 +92,19 @@ export function contactStatement<T extends ContactMovement>(
       for (const a of plan.allocations)
         outlays.find((o) => o.splitId === a.outlaySplitId)!.remainingCents -= a.amountCents;
       creditCents += plan.creditCents;
-      receipts.push({ receiptSplitId: m.splitId, ...plan });
+      receipts.push({ receiptSplitId: m.splitId, ...plan, recorded: persisted !== undefined });
+      if (
+        persisted &&
+        balanceCents === 0 &&
+        creditCents === 0 &&
+        outlays.every((outlay) => outlay.remainingCents === 0)
+      )
+        closedThroughSplitId = m.splitId;
       saved.delete(m.splitId);
     }
   }
   if (saved.size) throw new Error('Contact settlement is missing its actual receipt');
-  return { balanceCents, creditCents, outlays, receipts, movements: lines };
+  return { balanceCents, creditCents, outlays, receipts, movements: lines, closedThroughSplitId };
 }
 
 /** Prototype report 5.4 chain. Derived balances stay outside income and net worth. */
