@@ -19,7 +19,8 @@ Existing tests open the new native disclosures before checking their original am
 - Fresh web TypeScript, changed-file ESLint/Prettier, CSS scale and E2E build passed. Targeted Vitest: **21 tests in three files passed** (`freedom` DB read model, `freedom-model`, `savings-model`).
 - Final browser run: **14 passed**, including setup, desktop, Chromium phone and real WebKit iPhone. It covers all five changed pages, light/dark Axe, computed chart text roles, 44px phone targets, 390px page width, literal debt calculations, Zinsänderung save/undo/redo, error/retry and model geometry.
 - The wider affected run passed **53 tests**, with one existing phone-specific freedom skip. Its four debt geometry failures used obsolete selectors; those cases were corrected and passed in the final run above. That wider run also contained a long local runtime interruption. Instrument/savings CRUD, held writes, failed-save draft retention, browser Back, exclusive dialogs, exact exposure/history, persistence and undo were covered, including the added WebKit exposure case.
-- Local regression logs are outside the repository. The owner requires targeted local checks with one worker because of limited memory; no full local suite is claimed. Required final-head CI, Linux snapshot review and deployed acceptance remain delivery gates. No Linux baseline was generated locally.
+- Linux workflow `38691829321` ran all seven screenshot-bearing specs: 120 passed and 17 existing project/setup skips in 3.4 minutes. Its four updated net-worth baselines were reviewed in desktop/phone light/dark; periods now sit beside the chart. No Linux baseline was generated locally.
+- Local regression logs are outside the repository. The owner requires targeted local checks with one worker because of limited memory; no full local suite is claimed. Required final-head CI and deployed acceptance remain delivery gates.
 
 ## Final synthetic browser images
 
