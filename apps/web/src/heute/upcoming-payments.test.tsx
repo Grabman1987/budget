@@ -91,9 +91,9 @@ it('labels envelope reserves without implying account coverage', () => {
   );
 });
 
-it('keeps the existing empty-state treatment when there are no upcoming payments', () => {
+it('hides the whole due block when neither payments nor events are due', () => {
   const { container } = render(<Upcoming id="upcoming-title" title="Anstehend" items={[]} />);
 
-  expect(screen.getByText('Keine wiederkehrenden Zahlungen in diesem Zeitraum.')).toBeTruthy();
-  expect(container.querySelector('.rev-empty')).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Anstehend' })).toBeNull();
+  expect(container.childElementCount).toBe(0);
 });

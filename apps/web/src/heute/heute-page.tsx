@@ -1,29 +1,19 @@
 import {
   useAmountPrivacy,
   ChartValue,
-  maskMoneyText,
   Button,
   ClassTag,
   DimensionChain,
   DimensionChainDrawing,
-  RevisionTable,
   SectionHead,
   type DimensionChainTerm,
   type RevisionRow,
 } from '@budget/ui';
-import { addDays, cents, closeEntryMonth } from '@budget/domain';
+import { addDays, cents } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useMemo, useState, type ReactNode } from 'react';
-import {
-  AlertTriangle,
-  ArrowDown,
-  Info,
-  ArrowUp,
-  ChevronRight,
-  CircleCheck,
-  Clock3,
-} from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, ChevronRight } from 'lucide-react';
 import { PaceAccuracyNote } from '../reports/planning-accuracy-report';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
@@ -94,44 +84,22 @@ function HeuteBody({ data }: { data: Heute }) {
       search: { monat: data.stand.month, period: data.stand.period },
     });
   const [, , setMonth] = useMonth();
-  const savings = useQuery(savingsProposalsQuery());
-  // Another month than today's: the lead, next steps, upcoming, checks, net worth and bookings
-  // stay anchored to today, and the page says so.
   const away = data.stand.month !== data.stand.today.slice(0, 7);
   const net = 'unavailable' in data.netWorth ? null : data.netWorth;
   const check = 'unavailable' in data.financeCheck ? null : data.financeCheck;
   const phone = useIsPhone();
-  const revisions: RevisionRow[] = [];
-  const closeMonth = closeEntryMonth(data.stand.today);
-  if (closeMonth)
-    revisions.push({
-      id: 'month-close',
-      letter: 'A',
-      urgent: false,
-      title: `Monatsabschluss · ${monthName(closeMonth)}`,
-      detail: 'Posteingang, Konten und Überziehungen prüfen; danach den nächsten Monat planen.',
-      action: {
-        label: 'Fortsetzen',
-        onClick: () =>
-          void navigate({
-            to: '/monatsabschluss/$month',
-            params: { month: closeMonth },
-            search: {},
-          }),
-      },
-    });
-  for (const proposal of savings.data?.proposals ?? [])
-    revisions.push({
-      id: proposal.id,
-      letter: String.fromCharCode(65 + (revisions.length % 26)),
-      urgent: false,
-      title: `Sparplan: ${proposal.securityName}`,
-      detail: `${longDay(proposal.date)} · ${sourceMoney(proposal.amountCents, proposal.currency)} · ${proposal.accountName}`,
-      action: {
-        label: 'Ausführung prüfen',
-        onClick: () => void navigate({ to: '/konten/posteingang' }),
-      },
-    });
+  const savings = useQuery(savingsProposalsQuery());
+  const savingsRows: RevisionRow[] = (savings.data?.proposals ?? []).map((proposal, index) => ({
+    id: proposal.id,
+    letter: String.fromCharCode(65 + (index % 26)),
+    urgent: false,
+    title: `Sparplan: ${proposal.securityName}`,
+    detail: `${longDay(proposal.date)} · ${sourceMoney(proposal.amountCents, proposal.currency)} · ${proposal.accountName}`,
+    action: {
+      label: 'Ausführung prüfen',
+      onClick: () => void navigate({ to: '/konten/posteingang' }),
+    },
+  }));
   const leadTerms: DimensionChainTerm[] = data.lead.chain.map((term, index) => ({
     ...term,
     value: cents(term.value),
@@ -152,13 +120,7 @@ function HeuteBody({ data }: { data: Heute }) {
     <>
       {away && (
         <p className="heute-month-note" role="note" data-testid="heute-month-note">
-          <Info size={16} aria-hidden="true" />
-          <span>
-            Du siehst {monthName(data.stand.month)}. Pace, Verlauf und angepinnte Envelopes folgen
-            diesem Monat; Frei verfügbar bis Gehalt, Nächste Schritte, Anstehend, Finanz-Check,
-            Nettovermögen und Buchungen zeigen den Stand von heute ({longDay(data.stand.today)}).
-            Die Antwortkarten und das nächste Sparziel zeigen ebenfalls den laufenden Monat.
-          </span>
+          <span>Ansicht: {monthName(data.stand.month)} –</span>
           <Button variant="ghost" size="sm" onClick={() => setMonth(currentMonth())}>
             Zum aktuellen Monat
           </Button>
@@ -170,7 +132,19 @@ function HeuteBody({ data }: { data: Heute }) {
         onBudgetClick={() => setChainOpen((open) => !open)}
       />
       <VerdictLine facts={heuteFacts} />
-      <AttentionBar data={data} />
+      <AttentionBar
+        data={data}
+        savingsRows={savingsRows}
+        savingsError={
+          savings.isError && (
+            <ErrorNote
+              what="Sparplanvorschläge"
+              error={savings.error}
+              onRetry={() => void savings.refetch()}
+            />
+          )
+        }
+      />
       <section className="heute-lead" aria-labelledby="heute-lead-title">
         <div className="heute-lead-head">
           <div>
@@ -181,8 +155,8 @@ function HeuteBody({ data }: { data: Heute }) {
             </p>
             {away && (
               <span className="heute-anchor" data-testid="heute-anchor">
-                Bis Gehalt zählt immer ab heute ({shortDay(data.stand.today)}, Gehalt am{' '}
-                {shortDay(data.stand.payday.day)}), nicht ab {monthName(data.stand.month)}.
+                Frei bis Gehalt: Stand heute · {longDay(data.stand.today)}. Kontoprognose:{' '}
+                {monthName(data.stand.month)}.
               </span>
             )}
           </div>
@@ -303,13 +277,15 @@ function HeuteBody({ data }: { data: Heute }) {
       </section>
 
       <Upcoming
-        items={data.upcoming14.filter((p) => p.dueDate < addDays(data.stand.today, 7))}
+        items={data.upcoming14}
         id="heute-upcoming-title"
-        events={data.upcomingEvents}
-        title="Was steht an?"
+        events={data.upcomingEvents.filter((event) => event.date <= addDays(data.stand.today, 14))}
+        title="Fällig 14 Tage"
+        standToday={away ? longDay(data.stand.today) : undefined}
       />
       <section className="heute-wealth-line" aria-labelledby="heute-wealth-title">
         <h2 id="heute-wealth-title">Nettovermögen · 12 Monate</h2>
+        {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
         {net ? (
           <>
             <WealthSparkline series={net.series} />
@@ -325,35 +301,26 @@ function HeuteBody({ data }: { data: Heute }) {
           )
         )}
       </section>
+      <section className="heute-section heute-finance-check" aria-labelledby="heute-check-title">
+        <SectionHead
+          id="heute-check-title"
+          title="Finanz-Check"
+          aside={
+            <AppLink to="/einstellungen/regelwerk">
+              Alle Regeln <ChevronRight size={15} aria-hidden="true" />
+            </AppLink>
+          }
+        />
+        {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
+        {check ? (
+          <CheckCounts check={check} date={data.stand.today} />
+        ) : (
+          'unavailable' in data.financeCheck && (
+            <ValuationNote message={data.financeCheck.unavailable.message} />
+          )
+        )}
+      </section>
       <MoreMonth key={phone ? 'phone' : 'desktop'} phone={phone}>
-        <div className="heute-main-grid">
-          <section className="heute-section heute-next-steps" aria-labelledby="heute-next-title">
-            <SectionHead
-              id="heute-next-title"
-              title="Nächste Schritte"
-              aside={`${revisions.length} offen`}
-            />
-            {savings.isError && (
-              <ErrorNote
-                what="Sparplanvorschläge"
-                error={savings.error}
-                onRetry={() => void savings.refetch()}
-              />
-            )}
-            {revisions.length === 0 ? (
-              <EmptyNote>
-                Keine zusätzlichen Schritte. Offene Punkte stehen unter „Braucht Aufmerksamkeit“.
-              </EmptyNote>
-            ) : (
-              <RevisionTable
-                rows={revisions}
-                caption="Nächste Schritte"
-                empty={<EmptyNote>Keine offenen Schritte.</EmptyNote>}
-              />
-            )}
-          </section>
-        </div>
-
         <div className="heute-detail-grid">
           <section className="heute-section" aria-labelledby="heute-pinned-title">
             <SectionHead
@@ -430,52 +397,6 @@ function HeuteBody({ data }: { data: Heute }) {
             )}
           </section>
 
-          <section className="heute-section" aria-labelledby="heute-check-title">
-            <SectionHead
-              id="heute-check-title"
-              detail={3}
-              title="Finanz-Check"
-              aside={
-                <AppLink to="/einstellungen/regelwerk">
-                  Alle Regeln <ChevronRight size={15} aria-hidden="true" />
-                </AppLink>
-              }
-            />
-            {check ? (
-              <>
-                <CheckCounts check={check} date={data.stand.today} />
-                {check.keyRules.length === 0 ? (
-                  <EmptyNote>Für den Finanz-Check sind noch keine Regeln auswertbar.</EmptyNote>
-                ) : (
-                  <ul className="heute-list">
-                    {check.keyRules
-                      .filter((rule) => !rule.actionNeeded)
-                      .map((rule) => (
-                        <li className="heute-rule" key={rule.code}>
-                          <div>
-                            <strong>{rule.name}</strong>
-                            <span>{maskMoneyText(rule.valueText)}</span>
-                          </div>
-                          <span className={`heute-state is-${rule.status}`}>
-                            <StatusIcon status={rule.status} />
-                            {rule.status === 'ok'
-                              ? 'erfüllt'
-                              : rule.status === 'warn'
-                                ? 'Warnung'
-                                : 'verletzt'}
-                          </span>
-                        </li>
-                      ))}
-                  </ul>
-                )}
-              </>
-            ) : (
-              'unavailable' in data.financeCheck && (
-                <ValuationNote message={data.financeCheck.unavailable.message} />
-              )
-            )}
-          </section>
-
           <section className="heute-section heute-net-worth" aria-labelledby="heute-net-title">
             <SectionHead
               id="heute-net-title"
@@ -487,6 +408,7 @@ function HeuteBody({ data }: { data: Heute }) {
                 </AppLink>
               }
             />
+            {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
             {net ? (
               <>
                 <div className={`heute-delta ${net.deltaCents < 0 ? 'text-bad' : 'text-good'}`}>
@@ -578,6 +500,7 @@ function HeuteBody({ data }: { data: Heute }) {
                 </AppLink>
               }
             />
+            {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
             {data.lastBookings.length === 0 ? (
               <EmptyNote>Noch keine Buchungen vorhanden.</EmptyNote>
             ) : (
@@ -610,11 +533,6 @@ function HeuteBody({ data }: { data: Heute }) {
             )}
           </section>
         </div>
-        <Upcoming
-          items={data.upcoming14.filter((p) => p.dueDate >= addDays(data.stand.today, 7))}
-          id="heute-later-title"
-          title="Danach · bis in 14 Tagen"
-        />
         <FundingNotes data={data} />
       </MoreMonth>
     </>
@@ -635,8 +553,7 @@ function MoreMonth({ phone, children }: { phone: boolean; children: ReactNode })
         Mehr zum Monat
       </Button>
       <p className="heute-note">
-        Angepinnte Envelopes, Finanz-Check, Vermögensaufteilung, 50/30/20, Ziele, weitere Zahlungen
-        und letzte Buchungen.
+        Angepinnte Envelopes, Vermögensaufteilung, Ziele und letzte Buchungen.
       </p>
       <div id="heute-more-content" hidden={!open}>
         {children}
@@ -818,13 +735,6 @@ export function CheckCounts({
       )}
     </div>
   );
-}
-
-function StatusIcon({ status }: { status: 'ok' | 'warn' | 'bad' }) {
-  useAmountPrivacy();
-  if (status === 'ok') return <CircleCheck size={15} aria-hidden="true" />;
-  if (status === 'warn') return <Clock3 size={15} aria-hidden="true" />;
-  return <AlertTriangle size={15} aria-hidden="true" />;
 }
 
 function monthLabel(month: string) {

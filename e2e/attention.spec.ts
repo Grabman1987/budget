@@ -5,7 +5,7 @@ test('attention links and the unclassified row are usable at both viewport sizes
   page,
 }, info) => {
   await page.goto('/?monat=2026-09');
-  const bar = page.getByRole('region', { name: 'Braucht Aufmerksamkeit' });
+  const bar = page.getByRole('region', { name: 'Zu tun' });
   await expect(bar).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole('link', { name: /Envelopes überzogen/ })).toBeVisible();
   await page.screenshot({ path: info.outputPath('attention-strip.png') });
@@ -26,7 +26,7 @@ test('attention links and the unclassified row are usable at both viewport sizes
   ).toEqual([]);
 });
 
-test('attention explains the empty state when Heute has no open items', async ({ page }) => {
+test('attention hides the entire block when Heute has no open items', async ({ page }) => {
   await page.route('**/api/heute?**', async (route) => {
     const response = await route.fetch();
     const body = await response.json();
@@ -37,7 +37,7 @@ test('attention explains the empty state when Heute has no open items', async ({
     await route.fulfill({ response, json: body });
   });
   await page.goto('/?monat=2026-09');
-  const attention = page.getByRole('region', { name: 'Braucht Aufmerksamkeit' });
-  await expect(attention).toContainText('Keine offenen Aufgaben aus den Heute-Prüfungen.');
-  await expect(attention.getByRole('link')).toHaveCount(0);
+  const attention = page.getByRole('region', { name: 'Zu tun' });
+  await expect(page.getByTestId('heute-lead-value')).toBeVisible();
+  await expect(attention).toHaveCount(0);
 });

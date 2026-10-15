@@ -9,6 +9,23 @@
 - [x] Broader capture/register regression run: 53 passed; two adapted save-guard/footer cases passed in a separate five-case desktop/mobile/setup run. Changed-file lint/format and CSS scale passed.
 - [ ] Final-head CI, Linux baseline review, serial deployment/live revision and physical-iPhone owner acceptance.
 
+## UX Q1 — control and metadata contrast (#464)
+
+- [x] Generated boundaries, secondary lines and positive dark fills meet 3:1; text and positive-button foregrounds meet 4.5:1, including print.
+- [x] Tinted hover/selection metadata uses stronger ink; the full DS1 palette remains separate.
+- [x] Focused desktop/mobile/WebKit, light/dark Axe and synthetic evidence verified.
+- [ ] Required PR CI and deployed revision verified before closing.
+
+### UX Q3 — Today attention — #466 (2026-10-14)
+
+- [x] One nonempty Zu tun block with at most four source summaries, urgent sources first, existing account review and month-close destinations, and no duplicate savings proposal list.
+- [x] One nonempty Fällig 14 Tage list for recurring payments and planned one-off events; compact Finanz-Check tile and hidden empty funding notes.
+- [x] Decision 3B retained; short other-month return line and explicit Stand heute labels for current-only information.
+- [x] Synthetic red/green component regressions (4 files / 16 tests), changed-file lint/format/CSS scale and E2E build under the owner's scoped-check exception. [Evidence](evidence/heute-attention-q3/README.md).
+- [x] Six focused desktop/Chromium-mobile/WebKit-iPhone scenarios, current/other-month light/dark Axe, 44px changed-section targets, no horizontal page overflow and synthetic evidence images.
+- [x] Committed and pushed PR #494; fresh web typecheck, changed-file checks and prior required CI passed.
+- [ ] Required final-head CI after current-main integration, Linux visual baseline review, deployed revision and physical desktop/phone owner acceptance.
+
 ### Z1 — Plan month grid in Zerosum arrangement — #448 (2026-10-13)
 
 - [x] Spaced rounded group bands, group/overall checkboxes (including mixed selection), header creation shortcuts and retained C/G forms, alternative views and multiple months.

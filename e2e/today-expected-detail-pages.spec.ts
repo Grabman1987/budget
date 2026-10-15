@@ -26,7 +26,7 @@ test('Today dimension links retain month and period, account links, and full-wid
   await page.addInitScript(() => localStorage.setItem('budget-heute-more-phone', '1'));
   await page.goto('/?monat=2026-08&period=month');
   await expect(page.locator('.heute-answer')).toHaveCount(3);
-  const secondary = await page.locator('.heute-next-steps').boundingBox();
+  const secondary = await page.getByRole('region', { name: 'Zu tun', exact: true }).boundingBox();
   const main = await page.locator('.heute').boundingBox();
   expect(secondary && main && Math.abs(secondary.width - main.width) < 2).toBe(true);
   const trigger = page

@@ -85,9 +85,12 @@ test('Heute has eight warning items once, two first, neutral debts and accessibl
   ];
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: today }));
   await page.goto('/?monat=2026-09');
-  // Overspending lives in the top-bar chip, not in the attention bar.
+  // The top-bar chip owns cover actions; Today summarizes the same eight findings once.
   await expect(page.locator('[data-overspent]')).toHaveCount(0);
-  await expect(page.locator('.heute-next-steps')).not.toContainText('Testenvelope');
+  const tasks = page.getByRole('region', { name: 'Zu tun', exact: true });
+  await expect(tasks).toContainText('8 Kategorien überzogen');
+  await expect(tasks).not.toContainText('Testenvelope');
+  await expect(tasks.locator('.attention-row')).toHaveCount(4);
   await expect(page.locator('.heute-envelope .heute-alert')).toHaveCount(1);
   await expect(page.locator('.heute-envelope')).not.toContainText('überzogen');
   if (info.project.name === 'desktop') {

@@ -1,82 +1,132 @@
-import { unfundedSavingsGoals } from '@budget/domain';
+import { closeEntryMonth, unfundedSavingsGoals } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
-import { useAmountPrivacy } from '@budget/ui';
+import { RevisionTable, useAmountPrivacy, type RevisionRow } from '@budget/ui';
+import type { ReactNode } from 'react';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote } from '../ledger/states';
 import { budgetQuery } from '../budget/budget-api';
 import { goalsQuery } from '../budget/goals-api';
-import { shiftMonth } from '../nav/month';
+import { monthLabel, shiftMonth } from '../nav/month';
 import { AppLink } from '../shell/app-link';
 import type { Heute } from './api';
-import { AccountReminderRows } from './account-reminders';
 
-/** Overspending lives in the global top-bar chip; other work is neutral until it needs action. */
+/** One row per source; the existing destinations own all writes and undo. */
 export function AttentionBar({
   data,
+  savingsRows = [],
+  savingsError,
 }: {
   data: Pick<Heute, 'stand' | 'nextSteps' | 'financeCheck' | 'attention' | 'accountReminders'>;
+  savingsRows?: RevisionRow[];
+  savingsError?: ReactNode;
 }) {
   useAmountPrivacy();
   const rules = 'unavailable' in data.financeCheck ? [] : data.financeCheck.actionRules;
   const uncategorized = data.nextSteps.items.find((i) => i.kind === 'uncategorized');
-  const overspending = data.nextSteps.items.some((i) => i.kind === 'overspent');
+  const overspending = data.nextSteps.items.filter((i) => i.kind === 'overspent').length;
+  const reminders = data.accountReminders?.length ?? 0;
   const month = data.stand.today.slice(0, 7);
+  const closeMonth = closeEntryMonth(data.stand.today);
+  if (
+    !overspending &&
+    !closeMonth &&
+    !rules.length &&
+    !data.attention.inboxCount &&
+    !data.attention.pendingCount &&
+    !savingsRows.length &&
+    !savingsError &&
+    !reminders
+  )
+    return null;
   return (
     <section className="heute-attention" aria-labelledby="attention-title">
-      <h2 id="attention-title">Braucht Aufmerksamkeit</h2>
-      <AccountReminderRows items={data.accountReminders ?? []} />
-      {data.attention.inboxCount > 0 && (
-        <div className="attention-row">
-          <span>
-            {data.attention.inboxCount} offen im Posteingang
-            {uncategorized ? ` · ohne Kategorie: ${eur(uncategorized.cents)}` : ''}
-          </span>
-          <AppLink to="/konten/posteingang">Zuordnen</AppLink>
-        </div>
+      <h2 id="attention-title">Zu tun</h2>
+      {data.stand.month && data.stand.month !== month && (
+        <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>
       )}
-      {data.attention.pendingCount > 0 && (
+      {(overspending > 0 || closeMonth) && (
         <div className="attention-row">
           <span>
-            {data.attention.pendingCount} unbestätigte Buchungen · bis{' '}
-            {longDay(data.attention.pendingBefore)} (mindestens 7 Tage alt)
+            {overspending > 0
+              ? `${overspending} ${overspending === 1 ? 'Kategorie' : 'Kategorien'} überzogen`
+              : 'Monat abschließen'}
           </span>
-          <AppLink
-            to="/konten/buchungen"
-            search={{ status: 'pending', bis: data.attention.pendingBefore }}
-          >
-            Bestätigen
-          </AppLink>
+          <div className="attention-actions">
+            {overspending > 0 && (
+              <AppLink to="/plan/monat" search={{ monat: month, ansicht: 'triage' }}>
+                Plan prüfen
+              </AppLink>
+            )}
+            {closeMonth && (
+              <AppLink to={`/monatsabschluss/${closeMonth}`}>
+                Monatsabschluss · {monthLabel(closeMonth)}
+              </AppLink>
+            )}
+          </div>
         </div>
       )}
       {rules.length > 0 && (
         <div className="attention-row">
-          <span>{rules.length} Regelbefunde zum Handeln</span>
+          <span>
+            {rules.length} {rules.length === 1 ? 'Regelbefund' : 'Regelbefunde'} zum Handeln
+          </span>
           <AppLink to="/einstellungen/regelwerk" hash={`rule-result-${rules[0]!.code}`}>
             Handeln
           </AppLink>
         </div>
       )}
-      {overspending && (
+      {(data.attention.inboxCount > 0 ||
+        data.attention.pendingCount > 0 ||
+        savingsRows.length > 0 ||
+        savingsError) && (
         <div className="attention-row">
-          <span>Überziehungen im Plan prüfen</span>
-          <AppLink to="/plan/monat" search={{ monat: month, ansicht: 'triage' }}>
-            Plan prüfen
-          </AppLink>
+          <span>
+            {data.attention.inboxCount > 0 && (
+              <>
+                {data.attention.inboxCount} im Posteingang
+                {uncategorized ? ` · ohne Kategorie: ${eur(uncategorized.cents)}` : ''}
+              </>
+            )}
+            {data.attention.pendingCount > 0 && (
+              <>
+                {data.attention.inboxCount > 0 ? ' · ' : ''}
+                {data.attention.pendingCount} unbestätigte Buchungen · bis{' '}
+                {longDay(data.attention.pendingBefore)} (mindestens 7 Tage alt)
+              </>
+            )}
+          </span>
+          <div className="attention-actions">
+            {data.attention.inboxCount > 0 && <AppLink to="/konten/posteingang">Zuordnen</AppLink>}
+            {data.attention.pendingCount > 0 && (
+              <AppLink
+                to="/konten/buchungen"
+                search={{ status: 'pending', bis: data.attention.pendingBefore }}
+              >
+                Bestätigen
+              </AppLink>
+            )}
+          </div>
+          {savingsRows.length > 0 && (
+            <details className="attention-proposals">
+              <summary>
+                {savingsRows.length}{' '}
+                {savingsRows.length === 1 ? 'Sparplanausführung' : 'Sparplanausführungen'} prüfen
+              </summary>
+              <RevisionTable rows={savingsRows} caption="Sparplanausführungen" />
+            </details>
+          )}
+          {savingsError}
         </div>
       )}
-      {!data.accountReminders?.length &&
-        !data.attention.inboxCount &&
-        !data.attention.pendingCount &&
-        !rules.length &&
-        !('unavailable' in data.financeCheck) &&
-        !data.financeCheck.counts?.notEvaluated &&
-        !overspending && (
-          <p className="heute-note">Keine offenen Aufgaben aus den Heute-Prüfungen.</p>
-        )}
-      {'unavailable' in data.financeCheck && (
-        <p className="heute-note">
-          Regelprüfungen nicht verfügbar: {data.financeCheck.unavailable.message}
-        </p>
+      {reminders > 0 && (
+        <div className="attention-row">
+          <span>
+            {reminders} {reminders === 1 ? 'Konto wartet' : 'Konten warten'} auf Prüfung
+          </span>
+          <AppLink to="/konten/posteingang" hash="account-reminder-title">
+            Prüfen
+          </AppLink>
+        </div>
       )}
     </section>
   );
@@ -95,9 +145,14 @@ export function FundingNotes({ data }: { data: Heute }) {
     previous.data?.goals ?? [],
     envelopes.filter((e) => e.target).map((e) => e.categoryId),
   );
+  if (!goals.length && !unfunded.length && !budget.isError && !savings.isError && !previous.isError)
+    return null;
   return (
     <section className="heute-section" aria-label="Ziele finanzieren">
       <h2>Ziele finanzieren</h2>
+      {data.stand.month !== month && (
+        <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>
+      )}
       {goals.length > 0 && (
         <p>
           <AppLink to="/plan/monat" search={{ monat: month, ansicht: 'triage' }}>

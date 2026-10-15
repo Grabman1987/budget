@@ -6,7 +6,7 @@ colors:
   primary-hover: "#0f3a8f"
   on-primary: "#ffffff"
   line: "#1747a6"
-  line-2: "#8fa9d6"
+  line-2: "#6786ac"
   ground: "#f2f5f9"
   ground-2: "#eef3fa"
   raised: "#ffffff"
@@ -14,9 +14,9 @@ colors:
   surface-2: "#f6f8fb"
   ink: "#0b1b33"
   ink-2: "#3a4e6e"
-  ink-3: "#586e90"
+  ink-3: "#4d6a89"
   rule: "#d6dfed"
-  rule-strong: "#b6c6df"
+  rule-strong: "#6786ac"
   graticule: "#e9eef6"
   red: "#c42a1f"
   good: "#1d5a35"
@@ -35,18 +35,18 @@ colors:
   dark-surface-2: "#0d3657"
   dark-ink: "#eef6fc"
   dark-ink-2: "#b9d0e3"
-  dark-ink-3: "#8fb0cb"
+  dark-ink-3: "#8fb4d1"
   dark-line: "#d2ecff"
   dark-line-2: "#6f9dc2"
   dark-rule: "#25557a"
-  dark-rule-strong: "#386a91"
+  dark-rule-strong: "#4987bc"
   dark-graticule: "#15406a"
-  dark-primary: "#eef6fc"
+  dark-primary: "#d0f4ff"
   dark-on-primary: "#0b3152"
   dark-red: "#ff8b7b"
-  dark-good: "#1f6a40"
-  dark-good-hover: "#247a4a"
-  dark-on-good: "#ffffff"
+  dark-good: "#8fd6a8"
+  dark-good-hover: "#a8e6c0"
+  dark-on-good: "#0b3152"
   dark-good-soft: "#18493d"
   dark-on-good-soft: "#a8e6c0"
   dark-quiet-soft: "#164368"
@@ -190,6 +190,8 @@ components:
 
 Owner booking-line directive (2026-10-14, #463): the capture head shows amount, payee, account/status and date/repetition before category/contact lines on desktop and phone. Date/repetition use 2:1 columns; direct date entry and the calendar remain. One category row can represent a category, a whole contact outlay, or a category with percentage/fixed contact shares; additional gross lines show a cent-exact rest and block saving until it is zero. Slim suggestions share one row. Date chips, the separate outlay field and Split mode button are removed. Tab follows head → lines → actions; Enter saves valid input and Escape retains its guard. Map to the existing ledger splits with largest-remainder cents, preserving stored metadata, audited writes, locks and undo.
 
+**Owner Q3 decision (2026-10-14, #466, 3B):** Heute keeps the month switch and Monat / Bis Gehalt. One nonempty Zu tun section contains at most four compact source rows, ordered Plan, rules, inbox/bookings, account checks; secondary routine actions share their source row. A single nonempty Fällig 14 Tage list replaces Was steht an / Danach. Finanz-Check is a compact tile with counts and source links, without a duplicate findings list. In other months the former explanatory box becomes Ansicht: <month> – Zum aktuellen Monat; current-only sections carry Stand heute. Existing precision-layer tokens and 44px touch targets apply. This supersedes the separate Nächste Schritte revision table on Heute.
+
 Owner UX V1 directive (2026-10-14, #480): Vermögen shows a compact performance summary before decisions: value, unrealised gain in EUR/percent, annualised time-weighted return and a chart using the Reports calculation. Detailed benchmark and performance analysis stays in Reports. Period controls sit beside the chart and are absent from non-chart details. Schulden starts with total debt and actual history; payoff dates require complete calculable terms, and repayment scenarios/terms explanations are disclosures. Freiheit starts with an editable average of up to six closed Zukunft months; expense sources are collapsed. Savings details show the next version-aware planned date, recorded gross buys since the first version in the selected instrument/account (including manual buys), and collapsed rate versions. No write, booking, bank-order or undo semantics change.
 
 
@@ -262,6 +264,8 @@ Eine einzige Tuschfamilie in Blau auf glattem Grund, mit genau einer Fremdtinte:
 - **Haarlinie** (`rule`) und **Haarlinie kräftig** (`rule-strong`): Zeilentrenner, Kopflinien, Feld- und Tastenkonturen.
 - **Gradnetz** (`graticule`): die schwachen Rasterlinien hinter Diagrammen und im Kopfdetail des Seitenpanels, sonst nirgends.
 - Transparente Tönungen `--tint` (6 %/7 %) und `--tint-2` (11 %/13 %) der Tusche für Hover, Auswahl und Balkenträger; `--overlay` für den Scrim.
+
+Owner UX Q1 (2026-10-14, #464): control boundaries and meaningful secondary lines reach at least 3:1 against their normal surfaces; text reaches 4.5:1. Selected/hovered rows and selected controls use `ink-2` for metadata otherwise painted in `ink-3`. Dark positive fills use a lighter green with dark `on-good` text, so both the fill and its text remain distinguishable. These are contrast corrections; the full teal/orange palette follows separately in DS1.
 
 ### Named Rules
 **The Signal Rule.** Grün sagt „das Geld ist da“ (Hero, Mint-Pillen, erfüllt), Rot sagt „handeln“; beide erscheinen nie ohne Zahl, Vorzeichen oder Symbol.
