@@ -1,5 +1,12 @@
 # Roadmap
 
+### CI follow-up: consistent E2E observations — #465 / #499 (2026-10-15)
+
+- [x] Read paired report geometry in one browser turn; select exact contact options; split portfolio overview/detail while retaining every assertion and screenshot.
+- [x] Node22 full check434files /3,962tests, zero skips with required age and two workers; current WebKit capture12/12and diagnostic Chromium portfolio7/7. [Evidence](evidence/e2e-layout-2026-10-15.md).
+- [ ] Exact-head required CI, serial main/deployment/live proof.
+
+
 ### Q2: Quiet historical reports and one inbox alert — #465 (2026-10-15)
 
 - [x] Historical negative charts/text use existing ink; debt bars use dashed outlines; shared live-warning defaults, values and geometry remain.

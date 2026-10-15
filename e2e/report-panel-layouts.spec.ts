@@ -30,10 +30,18 @@ test('secondary report sections follow their main content at full width', async 
     const main = page.locator(item.main);
     const secondary = page.locator(item.secondary);
     await expect(secondary).toBeVisible({ timeout: 40_000 });
-    // Late-loading report sections can still grow the main block between the two reads: poll until
-    // the layout has settled, then assert on a consistent pair of boxes.
+    // Read both rectangles in one browser turn. Separate protocol calls can observe different
+    // animation/font-loading frames and manufacture an overlap that never exists on screen.
     const boxes = async () =>
-      [(await main.boundingBox())!, (await secondary.boundingBox())!] as const;
+      main.evaluate((element, selector) => {
+        const following = document.querySelector(selector);
+        if (!following) throw new Error(`Missing secondary report section: ${selector}`);
+        const snapshot = (node: Element) => {
+          const { x, y, width, height } = node.getBoundingClientRect();
+          return { x, y, width, height };
+        };
+        return [snapshot(element), snapshot(following)] as const;
+      }, item.secondary);
     await expect
       .poll(async () => {
         const [a, b] = await boxes();
