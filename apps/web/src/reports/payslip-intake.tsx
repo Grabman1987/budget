@@ -3,7 +3,7 @@ import {
   type ParsedPayrollDocument,
   type PayslipSourceConfig,
 } from '@budget/domain';
-import { Button, Field, SectionHead, Select, TextInput, useToast } from '@budget/ui';
+import { Button, Field, SectionHead, Select, TextInput, useToast, WideDialog } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { ApiError, notifyApiWrite, request } from '../api/http';
@@ -13,7 +13,6 @@ import { eur, longDay } from '../ledger/format';
 import { errorText } from '../ledger/labels';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { AccountRow } from '../ledger/types';
-import { AppLink } from '../shell/app-link';
 import './payslip-intake.css';
 
 const PATH = '/api/payslip-intake';
@@ -69,7 +68,19 @@ function PasswordFields({
     </div>
   );
 }
-export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean) => void } = {}) {
+export type PayslipUploadResult = {
+  id: string;
+  duplicate: boolean;
+  dropboxCopy?: 'saved' | 'failed' | 'off';
+  passwordRemember?: RememberResult;
+};
+export function PayslipUpload({
+  onBusyChange,
+  onUploaded,
+}: {
+  onBusyChange?: (busy: boolean) => void;
+  onUploaded?: (result: PayslipUploadResult) => void;
+} = {}) {
   const picker = useRef<HTMLInputElement>(null),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(''),
@@ -113,6 +124,7 @@ export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean)
         credentials: 'same-origin',
       });
       const result = (await response.json()) as {
+        id: string;
         duplicate: boolean;
         dropboxCopy?: 'saved' | 'failed' | 'off';
         passwordRemember?: RememberResult;
@@ -121,14 +133,16 @@ export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean)
       };
       if (!response.ok)
         throw new ApiError(response.status, result.error ?? 'unknown', result.message);
+      if (!result.id) throw new ApiError(0, 'invalid_upload_response');
       notifyApiWrite();
       setMessage(
         result.duplicate
-          ? 'Dieses PDF wurde bereits aufgenommen.'
-          : 'PDF im Posteingang zur Bestätigung bereit.',
+          ? 'Dieses PDF wurde bereits aufgenommen. Die vorhandene Prüfung wird geöffnet.'
+          : 'PDF ausgewertet. Die Prüfung ist jetzt geöffnet.',
       );
       setDropbox(result.duplicate ? 'off' : (result.dropboxCopy ?? 'off'));
       setRememberNote(rememberText(result.passwordRemember));
+      onUploaded?.(result);
       await qc.invalidateQueries();
     } catch (e) {
       setError(errorText(e));
@@ -182,11 +196,7 @@ export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean)
           onRemember={setRemember}
         />
       </details>
-      {message && (
-        <p role="status">
-          {message} <AppLink to="/konten/posteingang">Posteingang öffnen</AppLink>
-        </p>
-      )}
+      {message && <p role="status">{message}</p>}
       {message && dropbox === 'saved' && <p role="status">In Dropbox abgelegt</p>}
       {message && dropbox === 'failed' && (
         <p role="status">Dropbox-Ablage fehlgeschlagen – Datei liegt sicher in der App</p>
@@ -204,8 +214,11 @@ type Intake = {
   id: string;
   receiptId: string;
   status: string;
-  parsed: ParsedPayrollDocument;
+  parsed: ParsedPayrollDocument & {
+    unmappedWageTypes?: { code: string; label: string; amountCents: number }[];
+  };
   payoutAccountId: string | null;
+  proposedPayoutDate: string | null;
   accounts: SourceStatus['accounts'];
   matches: {
     id: string;
@@ -214,16 +227,48 @@ type Intake = {
     differenceCents: number;
     exact: boolean;
   }[];
+  proposedPayeeId: string | null;
+  selectedExpectedOccurrenceId: string | null;
+  expectedPayouts: {
+    occurrenceId: string;
+    paymentId: string;
+    name: string;
+    dueDate: string;
+    amountCents: number;
+    currency: string;
+    accountId: string;
+    payeeId: string | null;
+    payeeName: string | null;
+  }[];
+  payees: { id: string; name: string }[];
 };
-export function PayslipIntakeDetail({ id }: { id: string }) {
+export function PayslipIntakeDetail({
+  id,
+  inline = false,
+  duplicate = false,
+}: {
+  id: string;
+  /** Render the expanded review inside the upload dialog instead of opening another dialog. */
+  inline?: boolean;
+  duplicate?: boolean;
+}) {
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [accountId, setAccountId] = useState<string>();
+  const [payoutDate, setPayoutDate] = useState<string | null | undefined>();
+  const [expectedOccurrenceId, setExpectedOccurrenceId] = useState<string | null | undefined>();
+  const [payeeId, setPayeeId] = useState<string | null | undefined>();
+  const [wageMappings, setWageMappings] = useState<Record<string, string>>({});
+  const [mappingPassword, setMappingPassword] = useState('');
   const query = useQuery({
-    queryKey: ['payslip-intake', id, accountId],
-    queryFn: () =>
-      request<Intake>(
-        'GET',
-        `${PATH}/${id}${accountId ? `?accountId=${encodeURIComponent(accountId)}` : ''}`,
-      ),
+    queryKey: ['payslip-intake', id, accountId, payoutDate, expectedOccurrenceId],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (accountId) params.set('accountId', accountId);
+      if (payoutDate) params.set('payoutDate', payoutDate);
+      if (expectedOccurrenceId) params.set('expectedOccurrenceId', expectedOccurrenceId);
+      return request<Intake>('GET', `${PATH}/${id}${params.size ? `?${params}` : ''}`);
+    },
+    enabled: inline || dialogOpen,
   });
   const [bookingId, setBookingId] = useState<string | undefined>(),
     [busy, setBusy] = useState(false),
@@ -231,6 +276,8 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
     [remember, setRemember] = useState(false);
   const write = useBudgetWrite();
   const data = query.isSuccess && !query.isFetching ? query.data : undefined;
+  const effectiveExpectedId =
+    expectedOccurrenceId !== undefined ? expectedOccurrenceId : data?.selectedExpectedOccurrenceId;
   const match =
     bookingId ??
     (data?.matches.filter((m) => m.exact).length === 1
@@ -240,8 +287,26 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
     totals = p?.draft ? payrollTotals([p.draft]) : null;
   const selectedMatch = data?.matches.find((m) => m.id === match);
   const payoutAccount = data?.accounts.find((a) => a.id === data.payoutAccountId);
+  const selectedExpectation = data?.expectedPayouts.find(
+    (item) => item.occurrenceId === effectiveExpectedId,
+  );
+  const effectivePayeeId =
+    payeeId !== undefined
+      ? payeeId
+      : expectedOccurrenceId === null
+        ? null
+        : (selectedExpectation?.payeeId ?? data?.proposedPayeeId ?? null);
+  const effectiveDate =
+    payoutDate !== undefined ? (payoutDate ?? '') : data?.proposedPayoutDate || '';
+  const validEffectiveDate = (() => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveDate)) return false;
+    const date = new Date(`${effectiveDate}T00:00:00Z`);
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === effectiveDate;
+  })();
   const canConfirm = Boolean(
     p?.draft &&
+    !(p.unmappedWageTypes?.length ?? 0) &&
+    validEffectiveDate &&
     (match || payoutAccount) &&
     Math.abs(p.differenceCents ?? 2) <= 1 &&
     p.warnings.every((w) => w === 'Abrechnungsmonat nur aus dem Dateinamen erkannt.'),
@@ -261,7 +326,18 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
             : {
                 action,
                 bookingId: match || null,
-                ...(action === 'confirm' && payoutAccount ? { accountId: payoutAccount.id } : {}),
+                ...(action === 'confirm' && payoutAccount
+                  ? {
+                      accountId: payoutAccount.id,
+                      payoutDate: effectiveDate,
+                      payeeId: effectivePayeeId,
+                      ...(expectedOccurrenceId !== undefined
+                        ? { expectedOccurrenceId }
+                        : effectiveExpectedId
+                          ? { expectedOccurrenceId: effectiveExpectedId }
+                          : {}),
+                    }
+                  : {}),
               },
         ),
       () =>
@@ -274,9 +350,24 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
     if (action === 'retry') setPassword('');
     setBusy(false);
   }
-  return (
-    <details className="payslip-intake-detail">
-      <summary>Gehaltszettel prüfen</summary>
+  async function saveMappings() {
+    if (!data || busy) return;
+    setBusy(true);
+    await write(
+      () =>
+        request<Intake & { groupId: string }>('PUT', `${PATH}/${id}/mappings`, {
+          wageTypes: Object.fromEntries(
+            Object.entries(wageMappings).filter(([, section]) => Boolean(section)),
+          ),
+          ...(mappingPassword ? { password: mappingPassword } : {}),
+        }),
+      () => 'Lohnarten gespeichert und PDF neu ausgewertet.',
+    );
+    setMappingPassword('');
+    setBusy(false);
+  }
+  const review = (
+    <>
       {query.isFetching && <LoadingNote what="Gehaltszettel" />}
       {query.isError && (
         <ErrorNote what="Gehaltszettel" error={query.error} onRetry={() => void query.refetch()} />
@@ -354,6 +445,127 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
                   </Select>
                 )}
               </Field>
+              <div className="payslip-review-fields">
+                <Field label="Auszahlungsdatum">
+                  {({ id: fieldId }) => (
+                    <TextInput
+                      id={fieldId}
+                      type="date"
+                      value={effectiveDate}
+                      disabled={busy}
+                      onChange={(e) => {
+                        setPayoutDate(e.target.value || null);
+                        setBookingId(undefined);
+                      }}
+                    />
+                  )}
+                </Field>
+                <Field label="Gehalts-Erwartung">
+                  {({ id: fieldId }) => (
+                    <Select
+                      id={fieldId}
+                      value={effectiveExpectedId ?? ''}
+                      disabled={busy}
+                      onChange={(e) => {
+                        setExpectedOccurrenceId(e.target.value || null);
+                        setPayoutDate(undefined);
+                        setBookingId(undefined);
+                      }}
+                    >
+                      <option value="">Keine auswählen</option>
+                      {data.expectedPayouts.map((item) => (
+                        <option value={item.occurrenceId} key={item.occurrenceId}>
+                          {item.name} · {longDay(item.dueDate)} · {eur(item.amountCents)}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </Field>
+                <Field label="Von">
+                  {({ id: fieldId }) => (
+                    <Select
+                      id={fieldId}
+                      value={effectivePayeeId ?? ''}
+                      disabled={busy}
+                      onChange={(e) => setPayeeId(e.target.value || null)}
+                    >
+                      <option value="">Kein Zahlungspartner</option>
+                      {data.payees.map((payee) => (
+                        <option value={payee.id} key={payee.id}>
+                          {payee.name}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </Field>
+              </div>
+              {selectedExpectation && (
+                <p>
+                  Erwarteter Bezug: {selectedExpectation.name} ·{' '}
+                  {eur(selectedExpectation.amountCents)} am {longDay(selectedExpectation.dueDate)}
+                  {selectedExpectation.payeeName ? ` · Von ${selectedExpectation.payeeName}` : ''}
+                  {selectedExpectation.amountCents !== p?.draft?.netCents
+                    ? ` · Differenz zur Auszahlung ${eur(selectedExpectation.amountCents - (p?.draft?.netCents ?? 0))}`
+                    : ''}
+                </p>
+              )}
+              {!validEffectiveDate && <p>Bitte ein gültiges Auszahlungsdatum eintragen.</p>}
+              {(p?.unmappedWageTypes?.length ?? 0) > 0 && (
+                <section aria-label="Unbekannte Lohnarten">
+                  <h3>Unbekannte Lohnarten zuordnen</h3>
+                  <p>Die Auswertung wird erst nach der Zuordnung erneut gerechnet.</p>
+                  {p!.unmappedWageTypes!.map((item) => (
+                    <Field
+                      key={item.code}
+                      label={`${item.label} (${item.code}) · ${eur(item.amountCents)}`}
+                    >
+                      {({ id: fieldId }) => (
+                        <Select
+                          id={fieldId}
+                          value={wageMappings[item.code] ?? ''}
+                          onChange={(e) =>
+                            setWageMappings({ ...wageMappings, [item.code]: e.target.value })
+                          }
+                        >
+                          <option value="">Zuordnung auswählen</option>
+                          {[
+                            ['earning', 'Bezüge'],
+                            ['deduction', 'Abzüge'],
+                            ['reimbursement', 'Steuerfreie Erstattungen'],
+                            ['tax_adjustment', 'Lohnsteuer'],
+                            ['sv_adjustment', 'Sozialversicherung'],
+                          ].map(([section, label]) => (
+                            <option key={section} value={section}>
+                              {label}
+                            </option>
+                          ))}
+                        </Select>
+                      )}
+                    </Field>
+                  ))}
+                  <Field label="PDF-Passwort für erneute Auswertung (optional)">
+                    {({ id: fieldId }) => (
+                      <TextInput
+                        id={fieldId}
+                        type="password"
+                        autoComplete="off"
+                        maxLength={256}
+                        value={mappingPassword}
+                        disabled={busy}
+                        onChange={(e) => setMappingPassword(e.target.value)}
+                      />
+                    )}
+                  </Field>
+                  <Button
+                    disabled={
+                      busy || p!.unmappedWageTypes!.some((item) => !wageMappings[item.code])
+                    }
+                    onClick={() => void saveMappings()}
+                  >
+                    Zuordnen und neu auswerten
+                  </Button>
+                </section>
+              )}
               <Field label="Gehaltsbuchung (±5 Tage)">
                 {({ id: fieldId }) => (
                   <Select
@@ -397,10 +609,10 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
               </p>
             </>
           )}
-          <a className="btn btn-ghost" href={`/api/receipts/${data.receiptId}/download`}>
-            Original-PDF herunterladen
-          </a>
           <div className="sources-actions">
+            <a className="btn btn-ghost" href={`/api/receipts/${data.receiptId}/download`}>
+              Original-PDF herunterladen
+            </a>
             <Button
               disabled={busy || !canConfirm || data.status !== 'pending'}
               onClick={() => void act('confirm')}
@@ -424,7 +636,32 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
           </div>
         </>
       )}
-    </details>
+    </>
+  );
+  if (inline)
+    return (
+      <section className="payslip-intake-review" aria-label="Gehaltszettelprüfung">
+        {duplicate && (
+          <p role="status">Duplikat erkannt. Die bestehende Abrechnung wird angezeigt.</p>
+        )}
+        {!duplicate && <p role="status">PDF ausgewertet. Prüfung ohne automatische Buchung.</p>}
+        {review}
+      </section>
+    );
+  return (
+    <>
+      <Button variant="ghost" onClick={() => setDialogOpen(true)}>
+        Gehaltszettel prüfen
+      </Button>
+      <WideDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        title="Gehaltszettel prüfen"
+        beforeClose={() => !busy}
+      >
+        <div className="payslip-review-dialog">{review}</div>
+      </WideDialog>
+    </>
   );
 }
 type SourceStatus = {

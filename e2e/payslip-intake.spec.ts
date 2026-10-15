@@ -1,10 +1,42 @@
 import { expect } from '@playwright/test';
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from './isolated-ledger';
 import { syntheticPayslipPdf } from '../apps/server/src/payslips/testing';
 import { inspectReport } from './spending-helpers';
 import { toast } from './ledger-helpers';
 
 test.describe.configure({ timeout: 120000 });
+
+async function captureReviewViewport(
+  page: import('@playwright/test').Page,
+  info: import('@playwright/test').TestInfo,
+) {
+  const dir = process.env['BUDGET_SPENDING_EVIDENCE'];
+  if (!dir) return;
+  mkdirSync(dir, { recursive: true });
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    await page.screenshot({
+      fullPage: false,
+      animations: 'disabled',
+      path: join(dir, `payslip-review-viewport-${theme}-${info.project.name}.png`),
+    });
+    await page.locator('dialog.overlay .panel-body').evaluate((body) => {
+      body.scrollTop = body.scrollHeight;
+    });
+    await page.screenshot({
+      fullPage: false,
+      animations: 'disabled',
+      path: join(dir, `payslip-review-actions-${theme}-${info.project.name}.png`),
+    });
+    await page.locator('dialog.overlay .panel-body').evaluate((body) => {
+      body.scrollTop = 0;
+    });
+  }
+  await page.evaluate(() => delete document.documentElement.dataset['theme']);
+}
+
 test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desktop', async ({
   page,
   request,
@@ -46,7 +78,7 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   await inspectReport(page, info, 'payslip-source');
   await page.goto('/reports/gehalt?monat=2026-09');
   const bytes = await syntheticPayslipPdf();
-  // Upload lives in its own form dialog since #336.
+  // Upload transitions directly into the extracted intake inside the wide review dialog.
   await page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
   const upload = page.getByRole('dialog', { name: 'Gehaltszettel hochladen' });
   await expect(upload).toBeVisible();
@@ -61,22 +93,24 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
     buffer: bytes,
   });
   // Extraction may use the bounded 20-second PDF worker budget before staging completes.
-  await expect(page.getByRole('status').filter({ hasText: 'PDF im Posteingang' })).toBeVisible({
+  await expect(page.getByRole('status').filter({ hasText: 'PDF ausgewertet' })).toBeVisible({
     timeout: 25000,
   });
+  const review = page.getByRole('dialog', { name: 'Gehaltszettel hochladen' });
+  await expect(review).toContainText('2.975,00');
+  await review.getByLabel('Auszahlungsdatum').fill('30.09.2026');
+  await expect(review.getByLabel('Gehaltsbuchung (±5 Tage)')).toHaveValue(salary.id);
+  await inspectReport(page, info, 'payslip-intake');
+  await captureReviewViewport(page, info);
+  await review.getByRole('button', { name: 'Bestätigen', exact: true }).click();
+  await expect(page.getByTestId('inbox-row')).toHaveCount(0);
+  await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await page.goto('/konten/posteingang');
   const row = page.getByTestId('inbox-row').filter({ hasText: 'Gehaltszettel 09/2026 erkannt' });
   await row.getByText('Gehaltszettel prüfen', { exact: true }).click();
-  await expect(row).toContainText('2.975,00');
-  await expect(row).toContainText('innerhalb 1 Cent');
-  await expect(row.getByLabel('Gehaltsbuchung (±5 Tage)')).toHaveValue(salary.id);
-  await inspectReport(page, info, 'payslip-intake');
-  await row.getByRole('button', { name: 'Bestätigen', exact: true }).click();
-  await expect(row).toHaveCount(0);
-  await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
-  await expect(row).toHaveCount(1);
-  await row.getByText('Gehaltszettel prüfen', { exact: true }).click();
-  await row.getByRole('button', { name: 'Ablehnen', exact: true }).click();
+  const inboxReview = page.getByRole('dialog', { name: 'Gehaltszettel prüfen' });
+  await expect(inboxReview).toContainText('innerhalb 1 Cent');
+  await inboxReview.getByRole('button', { name: 'Ablehnen', exact: true }).click();
   await expect(row).toHaveCount(0);
   await page
     .getByLabel('Gehaltszettel-PDF auswählen')
@@ -151,21 +185,20 @@ for (const intakeMethod of ['chooser', 'drop'] as const) {
       await transfer.dispose();
       expect(chooserOpened).toBe(false);
     }
-    await expect(page.getByRole('status').filter({ hasText: 'PDF im Posteingang' })).toBeVisible({
+    await expect(page.getByRole('status').filter({ hasText: 'PDF ausgewertet' })).toBeVisible({
       timeout: 25000,
     });
     expect((await (await request.get('/api/bookings')).json()).items).toHaveLength(0);
-    await page.goto('/konten/posteingang');
-    const row = page.getByTestId('inbox-row').filter({ hasText: 'Gehaltszettel 09/2026 erkannt' });
-    await row.getByText('Gehaltszettel prüfen', { exact: true }).click();
-    await expect(row.getByLabel('Auszahlungskonto')).toHaveValue(suggested.id);
-    await row.getByLabel('Auszahlungskonto').selectOption(alternate.id);
-    await expect(row.getByLabel('Auszahlungskonto')).toHaveValue(alternate.id);
-    await expect(row.getByLabel('Gehaltsbuchung (±5 Tage)')).toHaveValue('');
-    await expect(row).toContainText('Die neue Auszahlung wird vorgemerkt');
+    const review = page.getByRole('dialog', { name: 'Gehaltszettel hochladen' });
+    await expect(review.getByLabel('Auszahlungskonto')).toHaveValue(suggested.id);
+    await review.getByLabel('Auszahlungskonto').selectOption(alternate.id);
+    await expect(review.getByLabel('Auszahlungskonto')).toHaveValue(alternate.id);
+    await expect(review.getByLabel('Gehaltsbuchung (±5 Tage)')).toHaveValue('');
+    await review.getByLabel('Auszahlungsdatum').fill('30.09.2026');
+    await expect(review).toContainText('Die neue Auszahlung wird vorgemerkt');
     await inspectReport(page, info, `payslip-payout-${intakeMethod}`);
-    await row.getByRole('button', { name: 'Bestätigen', exact: true }).click();
-    await expect(row).toHaveCount(0);
+    await review.getByRole('button', { name: 'Bestätigen', exact: true }).click();
+    await expect(page.getByTestId('inbox-row')).toHaveCount(0);
     const saved = (await (await request.get('/api/bookings')).json()).items;
     expect(saved).toHaveLength(1);
     expect(saved[0]).toMatchObject({
@@ -179,7 +212,8 @@ for (const intakeMethod of ['chooser', 'drop'] as const) {
       { amountCents: 10000, incomeTypeId: 'income-refund' },
     ]);
     await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
-    await expect(row).toHaveCount(1);
+    await page.goto('/konten/posteingang');
+    await expect(page.getByTestId('inbox-row')).toHaveCount(1);
     expect((await (await request.get('/api/bookings')).json()).items).toHaveLength(0);
     expect((await (await request.get('/api/payslips?month=2026-09')).json()).captured).toHaveLength(
       0,

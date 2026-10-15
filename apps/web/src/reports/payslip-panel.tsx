@@ -7,14 +7,14 @@ import {
   type CapturedPayslip,
   type PayslipInput,
 } from '@budget/domain';
-import { AmountInput, Button, FormDialog, DimensionChain } from '@budget/ui';
+import { AmountInput, Button, FormDialog, DimensionChain, WideDialog } from '@budget/ui';
 import { useBlocker } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { eur } from '../ledger/format';
 import type { PayrollData } from './payroll-projects-api';
-import { PayslipUpload } from './payslip-intake';
+import { PayslipIntakeDetail, PayslipUpload, type PayslipUploadResult } from './payslip-intake';
 
 export function PayslipPanel({
   initial,
@@ -398,6 +398,7 @@ export function PayslipPanel({
 
 export function PayslipUploadDialog({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [uploaded, setUploaded] = useState<PayslipUploadResult>();
   const blocker = useBlocker({
     shouldBlockFn: () => busy,
     withResolver: true,
@@ -407,20 +408,28 @@ export function PayslipUploadDialog({ onClose }: { onClose: () => void }) {
     if (blocker.status === 'blocked') blocker.reset();
   }, [blocker]);
   return (
-    <FormDialog open title="Gehaltszettel hochladen" onClose={onClose} beforeClose={() => !busy}>
-      <div className="pp-upload-form">
-        <div className="panel-head">
-          <h2>Gehaltszettel hochladen</h2>
-        </div>
-        <div className="panel-body">
-          <PayslipUpload onBusyChange={setBusy} />
-        </div>
-        <div className="panel-actions">
-          <Button variant="ghost" disabled={busy} onClick={onClose}>
-            Schließen
-          </Button>
-        </div>
+    <WideDialog open title="Gehaltszettel hochladen" onClose={onClose} beforeClose={() => !busy}>
+      <div className="pp-upload-form payslip-review-dialog">
+        {!uploaded && <PayslipUpload onBusyChange={setBusy} onUploaded={setUploaded} />}
+        {uploaded && (
+          <>
+            {uploaded.dropboxCopy === 'saved' && <p role="status">In Dropbox abgelegt</p>}
+            {uploaded.dropboxCopy === 'failed' && (
+              <p role="status">Dropbox-Ablage fehlgeschlagen – Datei liegt sicher in der App</p>
+            )}
+            {uploaded.passwordRemember === 'saved' && (
+              <p role="status">Passwort für künftige Uploads gemerkt.</p>
+            )}
+            {uploaded.passwordRemember === 'unavailable' && (
+              <p role="status">Passwort nicht gemerkt: Am Server fehlt BUDGET_PEPPER.</p>
+            )}
+            {uploaded.passwordRemember === 'not_opened' && (
+              <p role="status">Passwort nicht gemerkt: Es hat dieses PDF nicht geöffnet.</p>
+            )}
+            <PayslipIntakeDetail id={uploaded.id} inline duplicate={uploaded.duplicate} />
+          </>
+        )}
       </div>
-    </FormDialog>
+    </WideDialog>
   );
 }
