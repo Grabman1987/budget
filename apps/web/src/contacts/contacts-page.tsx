@@ -4,6 +4,7 @@ import {
   Button,
   FormDialog,
   Field,
+  maskMoneyText,
   Select,
   TextInput,
   useToast,
@@ -47,7 +48,13 @@ interface Statement {
   creditCents: number;
   movements: ContactMovement[];
   outlays: OpenContactOutlay[];
-  receipts: { receiptSplitId: string; allocations: ContactAllocation[]; creditCents: number }[];
+  receipts: {
+    receiptSplitId: string;
+    allocations: ContactAllocation[];
+    creditCents: number;
+    recorded: boolean;
+  }[];
+  closedThroughSplitId: string | null;
 }
 const META = PAGES.find((p) => p.path === '/konten/kontakte')!;
 const contactUrl = (id: string) => `/api/contacts/${encodeURIComponent(id)}`;
@@ -164,7 +171,16 @@ export function ContactsPage() {
                       </AppLink>
                       <ContactRename contact={c} />
                     </td>
-                    <td className="num">{eur(c.balanceCents)}</td>
+                    <td className="num">
+                      <AppLink
+                        className="contact-balance-link"
+                        aria-label={maskMoneyText(`${eur(c.balanceCents)}, Saldo ${c.name}`)}
+                        to={`/konten/kontakte/${encodeURIComponent(c.id)}`}
+                        search={history ? { verlauf: 1 } : {}}
+                      >
+                        {eur(c.balanceCents)}
+                      </AppLink>
+                    </td>
                     <td>
                       {c.balanceCents > 0
                         ? 'Kontakt schuldet dir'
@@ -348,6 +364,67 @@ function ContactBody({ statement }: { statement: Statement }) {
   useAmountPrivacy();
   const [receipt, setReceipt] = useState(false);
   const [writeOff, setWriteOff] = useState(false);
+  const currentMonth = statement.asOf.slice(0, 7);
+  const closureIndex = statement.movements.findIndex(
+    (movement) => movement.splitId === statement.closedThroughSplitId,
+  );
+  const currentMonthMovements = statement.movements.filter(
+    (movement) => movement.date.slice(0, 7) === currentMonth,
+  );
+  const archived =
+    closureIndex < 0
+      ? []
+      : statement.movements
+          .slice(0, closureIndex + 1)
+          .filter((movement) => movement.date.slice(0, 7) !== currentMonth);
+  const postClosure = statement.movements
+    .slice(closureIndex + 1)
+    .filter((movement) => movement.date.slice(0, 7) !== currentMonth);
+  const openOlderOutlays = statement.outlays.filter(
+    (outlay) => outlay.remainingCents > 0 && outlay.date.slice(0, 7) !== currentMonth,
+  );
+  const openOlderIds = new Set(openOlderOutlays.map((outlay) => outlay.splitId));
+  const renderMovement = (m: ContactMovement) => {
+    const repayment = statement.receipts.find((r) => r.receiptSplitId === m.splitId);
+    const outlay = statement.outlays.find((o) => o.splitId === m.splitId);
+    return (
+      <tr key={m.splitId}>
+        <td>
+          {longDay(m.date)} ·{' '}
+          {m.memo?.startsWith('Ausgleich Kontakt')
+            ? 'Ausgleich'
+            : m.amountCents < 0
+              ? 'Auslage'
+              : 'Rückzahlung'}
+          {m.memo && <small>{m.memo}</small>}
+          {outlay && outlay.remainingCents > 0 && (
+            <small>Offen: {eur(outlay.remainingCents)}</small>
+          )}
+          {repayment && (
+            <small>
+              {repayment.recorded ? (
+                <>
+                  {repayment.allocations
+                    .map(
+                      (a) =>
+                        `${longDay(statement.outlays.find((o) => o.splitId === a.outlaySplitId)!.date)}: ${eur(a.amountCents)}`,
+                    )
+                    .join(' · ')}
+                  {repayment.creditCents > 0 && ` · Guthaben: ${eur(repayment.creditCents)}`}
+                </>
+              ) : (
+                'Zuordnung nicht protokolliert'
+              )}
+            </small>
+          )}
+        </td>
+        <td className="num">{eur(m.amountCents)}</td>
+      </tr>
+    );
+  };
+  const visibleHistory = (closureIndex < 0 ? statement.movements : postClosure).filter(
+    (movement) => movement.date.slice(0, 7) !== currentMonth && !openOlderIds.has(movement.splitId),
+  );
   return (
     <div className="contacts-form">
       <div className="contacts-title">
@@ -383,51 +460,83 @@ function ContactBody({ statement }: { statement: Statement }) {
           onClose={() => setWriteOff(false)}
         />
       )}
-      <h3>Verlauf</h3>
-      {statement.movements.length === 0 ? (
-        <p>Noch keine Kontaktbuchungen. Beim Erfassen einer Auslage den Kontakt wählen.</p>
+      <h3>
+        Zahlungen im{' '}
+        {new Intl.DateTimeFormat('de-AT', {
+          month: 'long',
+          year: 'numeric',
+          timeZone: 'UTC',
+        }).format(new Date(`${currentMonth}-01T00:00:00Z`))}
+      </h3>
+      {currentMonthMovements.length === 0 ? (
+        <p>In diesem Monat gibt es noch keine Kontaktbuchungen.</p>
       ) : (
         <table className="contacts-table">
-          <caption className="sr-only">Kontaktbuchungen</caption>
+          <caption className="sr-only">Kontaktbuchungen im aktuellen Monat</caption>
           <thead>
             <tr>
               <th scope="col">Datum / Buchung</th>
               <th scope="col">Betrag</th>
             </tr>
           </thead>
-          <tbody>
-            {statement.movements.map((m) => {
-              const repayment = statement.receipts.find((r) => r.receiptSplitId === m.splitId);
-              const outlay = statement.outlays.find((o) => o.splitId === m.splitId);
-              return (
-                <tr key={m.splitId}>
-                  <td>
-                    {longDay(m.date)} ·{' '}
-                    {m.memo?.startsWith('Ausgleich Kontakt')
-                      ? 'Ausgleich'
-                      : m.amountCents < 0
-                        ? 'Auslage'
-                        : 'Rückzahlung'}
-                    {m.memo && <small>{m.memo}</small>}
-                    {outlay && <small>Offen: {eur(outlay.remainingCents)}</small>}
-                    {repayment && (
-                      <small>
-                        {repayment.allocations
-                          .map(
-                            (a) =>
-                              `${longDay(statement.outlays.find((o) => o.splitId === a.outlaySplitId)!.date)}: ${eur(a.amountCents)}`,
-                          )
-                          .join(' · ')}
-                        {repayment.creditCents > 0 && ` · Guthaben: ${eur(repayment.creditCents)}`}
-                      </small>
-                    )}
-                  </td>
-                  <td className="num">{eur(m.amountCents)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
+          <tbody>{currentMonthMovements.map(renderMovement)}</tbody>
         </table>
+      )}
+      {openOlderOutlays.length > 0 && (
+        <section aria-labelledby="contacts-open-older">
+          <h3 id="contacts-open-older">Offene ältere Auslagen</h3>
+          <table className="contacts-table">
+            <caption className="sr-only">Noch offene Auslagen aus früheren Monaten</caption>
+            <thead>
+              <tr>
+                <th scope="col">Datum / Auslage</th>
+                <th scope="col">Noch offen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {openOlderOutlays.map((outlay) => (
+                <tr key={outlay.splitId}>
+                  <td>
+                    {longDay(outlay.date)} · Auslage{outlay.memo && <small>{outlay.memo}</small>}
+                  </td>
+                  <td className="num">{eur(outlay.remainingCents)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+      <h3>Verlauf</h3>
+      {visibleHistory.length === 0 ? (
+        <p>Noch keine ältere oder spätere Kontaktbewegung.</p>
+      ) : (
+        <table className="contacts-table">
+          <caption className="sr-only">Kontaktbuchungen außerhalb des aktuellen Monats</caption>
+          <thead>
+            <tr>
+              <th scope="col">Datum / Buchung</th>
+              <th scope="col">Betrag</th>
+            </tr>
+          </thead>
+          <tbody>{visibleHistory.map(renderMovement)}</tbody>
+        </table>
+      )}
+      {archived.length > 0 && (
+        <details className="contacts-closed-history">
+          <summary>
+            Abgeschlossene Historie bis zum Ausgleich anzeigen ({archived.length} Buchungen)
+          </summary>
+          <table className="contacts-table">
+            <caption className="sr-only">Abgeschlossene Kontaktbuchungen bis zum Ausgleich</caption>
+            <thead>
+              <tr>
+                <th scope="col">Datum / Buchung</th>
+                <th scope="col">Betrag</th>
+              </tr>
+            </thead>
+            <tbody>{archived.map(renderMovement)}</tbody>
+          </table>
+        </details>
       )}
     </div>
   );

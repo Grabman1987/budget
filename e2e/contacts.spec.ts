@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
+import { join } from 'node:path';
 import { test } from './isolated-ledger';
 
 test('contact statement: edited allocation, excess credit, undo and retained balanced history', async ({
@@ -62,6 +63,10 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
   }
   await page.goto('/konten/kontakte');
   await expect(page.getByRole('link', { name: tag, exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: new RegExp(`Saldo ${tag}`) })).toHaveAttribute(
+    'href',
+    new RegExp(`/konten/kontakte/${created.contact.id}`),
+  );
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
@@ -93,6 +98,9 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
   await expect(saveReceipt).toBeEnabled();
   await saveReceipt.click();
   await expect(panel.locator('.contacts-balance')).toContainText('60,00 €');
+  await expect(
+    panel.getByRole('table', { name: 'Kontaktbuchungen im aktuellen Monat' }).locator('tbody tr'),
+  ).toContainText('02.09.2026: 40,00 €');
   const readStatement = async () =>
     (await request.get(`${origin}/api/contacts/${contactId}`)).json();
   expect(
@@ -108,6 +116,7 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
   await expect(panel).toContainText('Guthaben aus dieser Rückzahlung: 20,00 €');
   await panel.getByRole('button', { name: 'Rückzahlung speichern' }).click();
   await expect(panel.locator('.contacts-balance')).toContainText('−20,00 €');
+  await expect(panel).toContainText('Guthaben: 20,00 €');
   // The undo toast closes after 6 s of real time; the axe runs and screenshots below can take
   // longer on a slow runner. The toast keeps open while the pointer is over it (documented
   // behaviour of ToastProvider), so park the pointer on it for the undo further down.
@@ -146,4 +155,34 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
   await page.getByRole('link', { name: tag, exact: true }).click();
   await expect(panel.locator('.contacts-balance')).toContainText('0,00 €');
   await expect(panel).toContainText('Verlauf');
+  const statementRows = panel.getByRole('table', { name: 'Kontaktbuchungen im aktuellen Monat' });
+  await expect(statementRows.locator('tbody tr')).toHaveCount(2);
+  const oldHistory = panel.getByText(
+    /Abgeschlossene Historie bis zum Ausgleich anzeigen \(2 Buchungen\)/,
+  );
+  await expect(oldHistory).toBeVisible();
+  await oldHistory.click();
+  await expect(
+    panel
+      .getByRole('table', { name: 'Abgeschlossene Kontaktbuchungen bis zum Ausgleich' })
+      .locator('tbody tr'),
+  ).toHaveCount(2);
+  for (const theme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: theme });
+    const result = await new AxeBuilder({ page }).include('main').analyze();
+    expect(result.violations).toEqual([]);
+    await page.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      window.scrollTo(0, 0);
+    });
+    await panel.screenshot({
+      animations: 'disabled',
+      path: process.env['BUDGET_CONTACT_HISTORY_EVIDENCE']
+        ? join(
+            process.env['BUDGET_CONTACT_HISTORY_EVIDENCE'],
+            `statement-${info.project.name}-${theme}.png`,
+          )
+        : info.outputPath(`statement-${theme}.png`),
+    });
+  }
 });

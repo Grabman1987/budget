@@ -8,13 +8,20 @@
 - [x] Apply and pin the five owner-requested skill sources through scoped project profiles: [adoption evidence](evidence/skill-adoption-2026-10-15.md).
 - [ ] Integrated final full check, exact-head required CI, serial merge and main CI/deployment/live proof.
 
+### Contact history and monthly payments — #499 (2026-10-15)
+
+- [x] Balance/name share the contact detail; recorded full repayment defines retained, collapsible history.
+- [x] Itemize current-month payments, recorded allocations and credit; keep older open outlays visible and preserve same-day order. No financial writes or historical edits.
+- [x] Full cloud check: 433 files / 3,936 tests; desktop/mobile Chromium and WebKit iPhone flows, light/dark Axe and synthetic screenshots. [Evidence](evidence/contact-history/README.md).
+- [x] PR #502 final-head checks passed; main CI 38725948953 and automatic Deploy 38728003764 succeeded. Public health returned exact merge `501f2e8f0dec06c4bfd1d5a8faeed87256b04593`; tested-head ancestry verified. [Live proof](https://github.com/Grabman1987/budget/pull/502#issuecomment-6191133572).
+
 ### Account properties — #499 (2026-10-15)
 
 - [x] Expose existing separate settlement cash on depot/crypto create/edit; integrated cash leaves the link empty, salary selection stays in Datenquellen and cash uses its existing account type.
 - [x] Validate new references and incompatible linked-account type/currency changes; preserve historical metadata, credit-card fields and audited undo.
 - [x] Focused API/UI and desktop/mobile/WebKit form flows, light/dark Axe and synthetic screenshots. [Evidence](evidence/account-properties/README.md).
 - [x] Full integrated Node 22 check with required age: 433 files, 3930 passed, no skips; combined browser regressions and repeated asynchronous-undo completion check.
-- [ ] Final-head CI and serial deployment/live proof in PR #500.
+- [x] PR #500 final-head checks, main CI 38723344839 and automatic Deploy 38725377048 passed; exact live revision `5cf4f5f145e4bb210ae7fcf089dc3f60a88493fa` and ancestry verified. [Live proof](https://github.com/Grabman1987/budget/pull/500#issuecomment-6190736401).
 - [ ] Broader K2/K3 and cash import/transfer acceptance remain separate.
 
 ### Payslip upload and payout review — #499 (2026-10-15)
@@ -23,7 +30,7 @@
 - [x] Select payout account, reuse matching booking or confirm a pending payout (cash confirmed); exact salary/refund split and atomic undo.
 - [x] Nine synthetic chooser, drop, existing-match and payout/undo flows across Chromium desktop/mobile and WebKit iPhone; light/dark Axe and overflow checks. [Fresh cloud evidence](evidence/payslip-payout/README.md).
 - [x] Full integrated cloud check with required age: 433 files, 3930 passed, no skips; typecheck/lint/format and E2E build passed. All nine payout browser scenarios passed again.
-- [ ] Final-head CI and serial deployment/live proof.
+- [x] Delivered with account properties in PR #500; exact main/deploy/live proof above.
 - [ ] Owner retest of the original pre-file-chooser Chrome hang; not reproduced in an isolated profile.
 
 ### Booking line model — #463 (2026-10-14)
