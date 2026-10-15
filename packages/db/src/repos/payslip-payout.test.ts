@@ -5,6 +5,7 @@ import type { ParsedPayrollDocument } from '@budget/domain';
 import { account, booking, bookingSplit, inboxItem } from '../schema';
 import { undo } from './audit';
 import { createBooking } from './bookings';
+import { accounts } from './entities';
 import { decidePayslipIntake, getPayslipIntake, stagePayslip } from './payslip-intake';
 import { listPayslips } from './payroll-projects';
 import { listReceipts } from './receipts';
@@ -156,6 +157,64 @@ it.each(['missing', 'closed', 'currency', 'before-opening', 'warning', 'missing-
         testCtx,
       ),
     ).toThrow();
+    expect(liveBookings()).toHaveLength(0);
+    expect(listPayslips(opened.db)).toHaveLength(0);
+    expect(getPayslipIntake(opened.db, id).status).toBe('pending');
+  },
+);
+
+it.each([-1, 0, 1])(
+  'confirms a cash special payout and preserves a %i-cent rounding difference',
+  (difference) => {
+    accounts.create(
+      opened.db,
+      {
+        id: 'cash',
+        name: 'Bargeld Muster',
+        type: 'cash',
+        role: 'budget',
+        onBudget: true,
+        openingDate: '2025-01-01',
+      },
+      testCtx,
+    );
+    const id = stage({
+      ...parsed,
+      differenceCents: difference,
+      draft: {
+        ...parsed.draft!,
+        kind: 'special',
+        specialType: 'other',
+        netCents: 297500 - difference,
+      },
+    });
+    const saved = decidePayslipIntake(
+      opened.db,
+      id,
+      {
+        action: 'confirm',
+        bookingId: null,
+        accountId: 'cash',
+      },
+      testCtx,
+    );
+    const payout = liveBookings()[0]!;
+    expect(payout).toMatchObject({
+      accountId: 'cash',
+      status: 'confirmed',
+      amountCents: 297500 - difference,
+    });
+    expect(
+      opened.db.select().from(bookingSplit).where(eq(bookingSplit.bookingId, payout.id)).all(),
+    ).toMatchObject([
+      { amountCents: 287500 - difference, incomeTypeId: 'income-special' },
+      { amountCents: 10000, incomeTypeId: 'income-refund' },
+    ]);
+    expect(listPayslips(opened.db)[0]).toMatchObject({
+      kind: 'special',
+      netCents: 297500 - difference,
+    });
+    undo(opened.db, { groupId: saved.groupId }, testCtx);
     expect(liveBookings()).toHaveLength(0);
     expect(listPayslips(opened.db)).toHaveLength(0);
     expect(getPayslipIntake(opened.db, id).status).toBe('pending');

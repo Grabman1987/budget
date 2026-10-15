@@ -1,5 +1,13 @@
 # Roadmap
 
+### Payslip upload and payout review — #499 (2026-10-15)
+
+- [x] Preserve native chooser and accept one bounded PDF drop through existing analysis.
+- [x] Select payout account, reuse matching booking or confirm a pending payout (cash confirmed); exact salary/refund split and atomic undo.
+- [x] Nine synthetic chooser, drop, existing-match and payout/undo flows across Chromium desktop/mobile and WebKit iPhone; light/dark Axe and overflow checks. [Fresh cloud evidence](evidence/payslip-payout/README.md).
+- [ ] Full checks, final-head CI and serial deployment/live proof.
+- [ ] Owner retest of the original pre-file-chooser Chrome hang; not reproduced in an isolated profile.
+
 ### Booking line model — #463 (2026-10-14)
 
 Owner follow-up #499: new cash capture is confirmed automatically; bank capture remains pending with manual confirmation. The coherent cash change shares this delivery under the owner-approved 15.10. batching rule.
@@ -9,7 +17,8 @@ Owner follow-up #499: new cash capture is confirmed automatically; bank capture 
 - [x] Fresh web typecheck, E2E build and 73 affected unit tests in six files. No financial write, undo or lock boundaries changed.
 - [x] 30 dialog browser/setup cases across desktop, Chromium mobile and WebKit iPhone, including five exact split/edit scenarios, keyboard/dirty guards, light/dark Axe, 44px targets and actual viewport bounds; 30 refreshed synthetic screenshots. [Evidence](evidence/booking-lines/README.md).
 - [x] Broader capture/register regression run: 53 passed; two adapted save-guard/footer cases passed in a separate five-case desktop/mobile/setup run. Changed-file lint/format and CSS scale passed.
-- [ ] Final-head CI, Linux baseline review, serial deployment/live revision and physical-iPhone owner acceptance.
+- [x] Final-head CI and Linux snapshot workflow passed without baseline changes; main CI 38711473445 and automatic Deploy 38713559449 succeeded. Public health returned exact merge `514ed362ea7cbb422c60667003a5296e76904084`; tested-head ancestry verified. #463 closed after this evidence.
+- [ ] Physical-iPhone owner acceptance remains separate.
 
 ## UX Q1 — control and metadata contrast (#464)
 

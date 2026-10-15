@@ -87,75 +87,102 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   ).toHaveLength(0);
 });
 
-test('new payout uses the suggested account, allows another account and undoes the whole confirmation', async ({
-  page,
-  request,
-  baseURL,
-}, info) => {
-  const post = async (path: string, data: unknown) => {
-    const response = await request.post('/api' + path, { data, headers: { origin: baseURL! } });
-    expect(response.ok(), await response.text()).toBe(true);
-    return response.json();
-  };
-  const createAccount = async (name: string) =>
-    (
-      await post('/accounts', {
-        name,
-        type: 'checking',
-        openingDate: '2025-01-01',
-        openingBalanceCents: 0,
-      })
-    ).account;
-  const suggested = await createAccount('Gehaltskonto Muster');
-  const alternate = await createAccount('Alternativkonto Muster');
-  const config = await request.put('/api/payslip-intake/config', {
-    headers: { origin: baseURL! },
-    data: { salaryAccountId: suggested.id, wageTypes: {} },
+for (const intakeMethod of ['chooser', 'drop'] as const) {
+  test(`new payout via ${intakeMethod} uses the selected account and undoes the whole confirmation`, async ({
+    page,
+    request,
+    baseURL,
+  }, info) => {
+    const post = async (path: string, data: unknown) => {
+      const response = await request.post('/api' + path, { data, headers: { origin: baseURL! } });
+      expect(response.ok(), await response.text()).toBe(true);
+      return response.json();
+    };
+    const createAccount = async (name: string) =>
+      (
+        await post('/accounts', {
+          name,
+          type: 'checking',
+          openingDate: '2025-01-01',
+          openingBalanceCents: 0,
+        })
+      ).account;
+    const suggested = await createAccount('Gehaltskonto Muster');
+    const alternate = await createAccount('Alternativkonto Muster');
+    const config = await request.put('/api/payslip-intake/config', {
+      headers: { origin: baseURL! },
+      data: { salaryAccountId: suggested.id, wageTypes: {} },
+    });
+    expect(config.ok()).toBe(true);
+    await page.goto('/reports/gehalt?monat=2026-09');
+    await page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
+    const upload = page.getByRole('dialog', { name: 'Gehaltszettel hochladen' });
+    const bytes = await syntheticPayslipPdf();
+    if (intakeMethod === 'chooser') {
+      const chooserReady = page.waitForEvent('filechooser');
+      await upload.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
+      await (
+        await chooserReady
+      ).setFiles({
+        name: 'synthetic-payout.pdf',
+        mimeType: 'application/pdf',
+        buffer: bytes,
+      });
+    } else {
+      let chooserOpened = false;
+      page.on('filechooser', () => {
+        chooserOpened = true;
+      });
+      const transfer = await page.evaluateHandle(
+        (data) => {
+          const transfer = new DataTransfer();
+          transfer.items.add(
+            new File([new Uint8Array(data)], 'synthetic-payout.pdf', {
+              type: 'application/pdf',
+            }),
+          );
+          return transfer;
+        },
+        [...bytes],
+      );
+      await upload
+        .getByRole('region', { name: 'Gehaltszettel-PDF ablegen' })
+        .dispatchEvent('drop', { dataTransfer: transfer });
+      await transfer.dispose();
+      expect(chooserOpened).toBe(false);
+    }
+    await expect(page.getByRole('status').filter({ hasText: 'PDF im Posteingang' })).toBeVisible({
+      timeout: 25000,
+    });
+    expect((await (await request.get('/api/bookings')).json()).items).toHaveLength(0);
+    await page.goto('/konten/posteingang');
+    const row = page.getByTestId('inbox-row').filter({ hasText: 'Gehaltszettel 09/2026 erkannt' });
+    await row.getByText('Gehaltszettel prüfen', { exact: true }).click();
+    await expect(row.getByLabel('Auszahlungskonto')).toHaveValue(suggested.id);
+    await row.getByLabel('Auszahlungskonto').selectOption(alternate.id);
+    await expect(row.getByLabel('Auszahlungskonto')).toHaveValue(alternate.id);
+    await expect(row.getByLabel('Gehaltsbuchung (±5 Tage)')).toHaveValue('');
+    await expect(row).toContainText('Die neue Auszahlung wird vorgemerkt');
+    await inspectReport(page, info, `payslip-payout-${intakeMethod}`);
+    await row.getByRole('button', { name: 'Bestätigen', exact: true }).click();
+    await expect(row).toHaveCount(0);
+    const saved = (await (await request.get('/api/bookings')).json()).items;
+    expect(saved).toHaveLength(1);
+    expect(saved[0]).toMatchObject({
+      accountId: alternate.id,
+      date: '2026-09-30',
+      amountCents: 297500,
+      status: 'pending',
+    });
+    expect(saved[0].splits).toMatchObject([
+      { amountCents: 287500, incomeTypeId: 'income-salary' },
+      { amountCents: 10000, incomeTypeId: 'income-refund' },
+    ]);
+    await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
+    await expect(row).toHaveCount(1);
+    expect((await (await request.get('/api/bookings')).json()).items).toHaveLength(0);
+    expect((await (await request.get('/api/payslips?month=2026-09')).json()).captured).toHaveLength(
+      0,
+    );
   });
-  expect(config.ok()).toBe(true);
-  await page.goto('/reports/gehalt?monat=2026-09');
-  await page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
-  const upload = page.getByRole('dialog', { name: 'Gehaltszettel hochladen' });
-  const chooserReady = page.waitForEvent('filechooser');
-  await upload.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
-  await (
-    await chooserReady
-  ).setFiles({
-    name: 'synthetic-payout.pdf',
-    mimeType: 'application/pdf',
-    buffer: await syntheticPayslipPdf(),
-  });
-  await expect(page.getByRole('status').filter({ hasText: 'PDF im Posteingang' })).toBeVisible({
-    timeout: 25000,
-  });
-  expect((await (await request.get('/api/bookings')).json()).items).toHaveLength(0);
-  await page.goto('/konten/posteingang');
-  const row = page.getByTestId('inbox-row').filter({ hasText: 'Gehaltszettel 09/2026 erkannt' });
-  await row.getByText('Gehaltszettel prüfen', { exact: true }).click();
-  await expect(row.getByLabel('Auszahlungskonto')).toHaveValue(suggested.id);
-  await row.getByLabel('Auszahlungskonto').selectOption(alternate.id);
-  await expect(row.getByLabel('Auszahlungskonto')).toHaveValue(alternate.id);
-  await expect(row.getByLabel('Gehaltsbuchung (±5 Tage)')).toHaveValue('');
-  await expect(row).toContainText('Die neue Auszahlung wird vorgemerkt');
-  await inspectReport(page, info, 'payslip-payout-confirmation');
-  await row.getByRole('button', { name: 'Bestätigen', exact: true }).click();
-  await expect(row).toHaveCount(0);
-  const saved = (await (await request.get('/api/bookings')).json()).items;
-  expect(saved).toHaveLength(1);
-  expect(saved[0]).toMatchObject({
-    accountId: alternate.id,
-    date: '2026-09-30',
-    amountCents: 297500,
-    status: 'pending',
-  });
-  expect(saved[0].splits).toMatchObject([
-    { amountCents: 287500, incomeTypeId: 'income-salary' },
-    { amountCents: 10000, incomeTypeId: 'income-refund' },
-  ]);
-  await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
-  await expect(row).toHaveCount(1);
-  expect((await (await request.get('/api/bookings')).json()).items).toHaveLength(0);
-  expect((await (await request.get('/api/payslips?month=2026-09')).json()).captured).toHaveLength(
-    0,
-  );
-});
+}

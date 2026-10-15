@@ -1,9 +1,11 @@
 # Automatic payslip intake
 
 New payroll PDFs enter **Posteingang**, from the Gehaltsreport/Posteingang upload or
-an optional nightly Dropbox scan. No transaction is created. Confirmation saves
-the captured payslip through the existing audited repository and optionally links
-an existing salary booking and its receipt. Rejection discards the draft from the
+an optional nightly Dropbox scan. Upload and analysis create no booking. Confirmation
+saves the captured payslip and receipt through the existing audited repository.
+The review preselects the configured salary account and lets the owner select an
+active EUR payout account. It links an existing salary booking, or creates a
+pending payout on confirmation (cash: immediately confirmed). Rejection discards the draft from the
 queue. Both decisions support grouped undo/redo. Original files and intake identity
 remain retained for audit, deduplication and recovery.
 
@@ -120,14 +122,27 @@ one cent; confirmation records that difference as an explicit signed rounding li
 Lohnsteuer refunds remain their own lines. Reimbursement lines do not enter the
 captured salary net or salary ratios.
 
-Booking suggestions use the configured salary account, existing EUR salary/special
+Booking suggestions use the selected payout account (initially the configured salary
+account), existing EUR salary/special
 income splits and ±5 calendar days of the document's payout date, otherwise month
 end. The whole bank payout is compared with Auszahlung; the difference is visible.
 A single exact match is preselected. The owner can choose another disclosed
-candidate or save without linkage. Confirmation rechecks live account/booking
+candidate or explicitly create a new payout. A matching exact payout in that
+account blocks accidental duplicate creation; choose the existing booking instead. Confirmation rechecks live account/booking
 availability and the date window. No automatic split reassignment occurs: owner
 booking splits must separately classify reimbursements to exclude them from
-ledger-based savings-rate reports, as in the existing captured-payroll workflow.
+ledger-based savings-rate reports. New payouts separate salary/special income and
+tax-free reimbursements in integer cents. Payout, captured payroll, receipt link and
+inbox decision share one transaction and undo group. Invalid, closed, non-EUR or
+not-yet-open accounts roll back the whole action. Legacy API callers without
+`accountId` can still save without creating a booking. Existing records stay intact.
+
+The upload dialog also accepts one PDF dropped into its labelled region, with the
+same 15 MB limit and server validation/analysis as the file chooser. This provides
+an alternative input path; it does not prove a fix for the reported Chrome hang
+before native file selection. The automated chooser test clicks the actual inner
+button and waits for a filechooser event before supplying synthetic bytes. Native
+Windows dialog/profile behavior remains outside the Linux cloud evidence.
 
 ### Scope of the scheduled scan
 
