@@ -111,7 +111,7 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
 
 test('top-bar link opens triage with the missing amount and performs no cover write', async ({
   page,
-}, info) => {
+}) => {
   test.setTimeout(120_000);
   await page.route('**/api/budget/2026-09', async (route) => {
     const response = await route.fetch();
