@@ -7,7 +7,7 @@ import type { AccountRow, AccountType, BookingFlag, BookingStatus } from './type
 
 /** German (de-AT) names of the ledger vocabulary (glossary in PRODUCT.md). */
 export const CAPTURE_SHORTCUT_HINT =
-  'Enter weiter · Strg Enter speichert · Strg Umschalt Enter speichert und beginnt neu · Esc schließt';
+  'Enter speichert gültige Eingaben · Strg Enter speichert · Strg Umschalt Enter speichert und beginnt neu · Esc schließt';
 
 export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
   checking: 'Giro',

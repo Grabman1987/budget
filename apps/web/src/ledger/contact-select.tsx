@@ -21,6 +21,8 @@ export function ContactSelect({
   noneLabel,
   hint,
   error,
+  createInitially = false,
+  onUndoCreated,
 }: {
   label: string;
   value: string;
@@ -29,15 +31,21 @@ export function ContactSelect({
   noneLabel: string;
   hint?: ReactNode;
   error?: string | undefined;
+  createInitially?: boolean;
+  /** The inline category picker may unmount this editor after creation. */
+  onUndoCreated?: (contactId: string) => void;
 }) {
   const qc = useQueryClient();
   const toast = useToast();
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(createInitially);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | undefined>();
   const select = useRef<HTMLSelectElement>(null);
   const nameField = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (createInitially) nameField.current?.focus();
+  }, [createInitially]);
   // The undo toast outlives this render: it must see which contact is selected by then.
   const current = useRef(value);
   useEffect(() => {
@@ -90,7 +98,8 @@ export function ContactSelect({
         onAction: () =>
           void undoGroup(groupId).then(
             () => {
-              if (current.current === contact.id) onChange('');
+              if (onUndoCreated) onUndoCreated(contact.id);
+              else if (current.current === contact.id) onChange('');
               return qc.invalidateQueries({ queryKey: lookupsQuery().queryKey });
             },
             (e: unknown) => toast.show({ message: errorText(e) }),

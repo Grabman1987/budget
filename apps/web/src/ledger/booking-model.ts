@@ -1,4 +1,4 @@
-import { formatDecimal, cents as toCents, parseAmount } from '@budget/domain';
+import { bookingLineShares, formatDecimal, cents as toCents, parseAmount } from '@budget/domain';
 import type { BookingCreate, BookingPatch, SplitInput } from './api';
 import type { Rhythm } from '../expected/api';
 import type { BookingFlag, ListedBooking } from './types';
@@ -21,6 +21,15 @@ export interface SplitDraft {
   /** Not edited in the panel, but kept: an edit must not drop the income type or contact share. */
   contactId: string | null;
   incomeTypeId: string | null;
+}
+
+export interface ContactShareDraft extends SplitDraft {
+  mode: 'percent' | 'amount';
+}
+
+/** Gross category/outlay lines, translated to the existing ledger splits only at the boundary. */
+export interface BookingLineDraft extends SplitDraft {
+  shares: ContactShareDraft[];
 }
 
 export interface BookingDraft {
@@ -46,6 +55,7 @@ export interface BookingDraft {
   flag: '' | BookingFlag;
   splitOn: boolean;
   splits: SplitDraft[];
+  lines?: BookingLineDraft[];
 }
 
 export type DraftErrors = Partial<
@@ -146,6 +156,40 @@ const lineOf = (text: string): number | undefined => {
   return parsed.ok ? parsed.cents : undefined;
 };
 
+function expandLine(line: BookingLineDraft): SplitDraft[] {
+  if (!line.shares.length) return [line];
+  const amount = lineOf(line.amount);
+  if (amount === undefined || line.type !== 'category') throw new RangeError('Ungültige Zeile.');
+  const result = bookingLineShares(
+    amount,
+    line.shares.map((s) => {
+      const value = lineOf(s.amount);
+      if (value === undefined || !s.contactId) throw new RangeError('Kontakt und Anteil fehlen.');
+      return { mode: s.mode, value };
+    }),
+  );
+  return [
+    ...(result.categoryCents
+      ? [{ ...line, amount: formatDecimal(toCents(result.categoryCents)) }]
+      : []),
+    ...line.shares.map((s, i) => ({
+      ...s,
+      type: 'contact' as const,
+      amount: formatDecimal(toCents(result.contactCents[i]!)),
+    })),
+  ];
+}
+
+/** Invalid sharing expands to no rows so existing create/patch validation refuses the save. */
+export function expandBookingLines(draft: BookingDraft): BookingDraft {
+  if (!draft.lines) return draft;
+  try {
+    return { ...draft, splitOn: true, splits: draft.lines.flatMap(expandLine) };
+  } catch {
+    return { ...draft, splitOn: true, splits: [] };
+  }
+}
+
 /** The numbers of the split chain: total minus distributed is what is left (cents, unsigned). */
 export function splitChain(draft: BookingDraft) {
   const totalCents = amountOf(draft.amount) ?? 0;
@@ -178,7 +222,10 @@ function splitProblem(
   abs: number | undefined,
   options: ValidateOptions,
 ): string | undefined {
-  if (draft.splits.length < 2) return 'Eine Aufteilung braucht mindestens zwei Zeilen.';
+  if (draft.splits.length < (draft.lines ? 1 : 2))
+    return draft.lines
+      ? 'Eine Aufteilung braucht gültige Zeilen.'
+      : 'Eine Aufteilung braucht mindestens zwei Zeilen.';
   if (draft.splits.some((s) => (lineOf(s.amount) ?? 0) === 0))
     return 'Jede Zeile braucht einen Betrag.';
   for (const s of draft.splits) {
@@ -214,6 +261,7 @@ function splitInput(draft: BookingDraft, s: SplitDraft, options: ValidateOptions
       categoryId: s.categoryId || options.advanceCategoryId || null,
       amountCents,
       contactId: s.contactId,
+      ...(s.incomeTypeId ? { incomeTypeId: s.incomeTypeId } : {}),
       ...memo,
     };
   }
@@ -309,6 +357,7 @@ export function buildCreate(
   payeeId: string | null,
   options: ValidateOptions = {},
 ): Built<BookingCreate> | Failed {
+  draft = expandBookingLines(draft);
   const { errors, abs, splits } = validate(draft, options);
   if (Object.keys(errors).length > 0 || abs === undefined) return { ok: false, errors };
   const memo = draft.memo.trim() || null;
@@ -371,6 +420,7 @@ export function buildPatch(
   unlockReconciled: boolean,
   options: ValidateOptions = {},
 ): Built<BookingPatch> | Failed {
+  draft = expandBookingLines(draft);
   const { errors, abs, splits } = validate(draft, options);
   // Split transfers are created with the booking; an existing one cannot be added or changed.
   if (splits?.some((x) => x.transferAccountId) && !original.splits.some((x) => x.transferId))

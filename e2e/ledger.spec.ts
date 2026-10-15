@@ -59,17 +59,18 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await panel.getByLabel('Betrag', { exact: true }).fill('30');
   await panel.getByLabel('Empfänger').fill(`Splitmarkt ${tag}`);
-  await panel.locator('summary').click();
-  await panel.getByRole('button', { name: 'Split' }).click();
-  await panel.getByLabel('Kategorie 1').selectOption({ value: 'e2e-essen' });
+  await panel.getByRole('button', { name: '+ Weitere Kategorie' }).click();
+  await panel.getByLabel('Kategorie 1').fill('Essen');
+  await panel.getByRole('option', { name: /^Essen/ }).click();
   await panel.getByLabel('Betrag 1').fill('20');
-  await panel.getByLabel('Kategorie 2').selectOption({ value: 'e2e-reise' });
+  await panel.getByLabel('Kategorie 2').fill('Reise');
+  await panel.getByRole('option', { name: /^Reise/ }).click();
   await panel.getByLabel('Betrag 2').fill('5');
-  await expect(panel.getByText('Rest: 5,00 €')).toBeVisible();
+  await expect(panel.getByText('Rest: 5,00 €', { exact: false })).toBeVisible();
   // Saving waits until the split adds up.
   await expect(panel.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
   await panel.getByLabel('Betrag 2').fill('10');
-  await expect(panel.getByText('Aufteilung geht auf.')).toBeVisible();
+  await expect(panel.getByText('Rest: 0,00 €')).toBeVisible();
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByRole('row', { name: new RegExp(`Splitmarkt ${tag}`) })).toContainText(
     'Aufgeteilt (2)',

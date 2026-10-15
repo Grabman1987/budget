@@ -138,7 +138,9 @@ describe('command palette', () => {
     expect(screen.queryByRole('dialog', { name: 'Tastenkürzel' })).toBeNull();
     fireEvent.keyDown(window, { key: '?' });
     const dialog = await screen.findByRole('dialog', { name: 'Tastenkürzel' });
-    expect(dialog.textContent).toContain('Enter weiter');
+    expect(dialog.textContent).toContain(
+      'Enter speichert gültige Eingaben · Strg Enter speichert · Strg Umschalt Enter speichert und beginnt neu · Esc schließt',
+    );
     expect(dialog.textContent).toContain('Violett');
     expect(dialog.querySelector<HTMLElement>('.panel-body')?.tabIndex).toBe(0);
     fireEvent.keyDown(dialog, { key: 'Escape' });
