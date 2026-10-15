@@ -1,6 +1,6 @@
 # Current sitemap — source inventory
 
-Reviewed 2026-10-15 at `4841e7eb`. Sources: [router](../../apps/web/src/router.tsx),
+Reviewed 2026-10-15 at `01a10de8`. Sources: [router](../../apps/web/src/router.tsx),
 [page metadata](../../apps/web/src/nav/pages.ts) and
 [report catalog](../../apps/web/src/nav/reports-catalog.ts).
 This inventories registered destinations, not acceptance or screenshot evidence.

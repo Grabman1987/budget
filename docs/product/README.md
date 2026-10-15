@@ -1,6 +1,6 @@
 # Product foundation
 
-Source review: 2026-10-15, commit `4841e7ebd6cd315279d4e0063fbe4b416c2a7283`.
+Source review: 2026-10-15, integrated main commit `01a10de8b251f3b3bb05d8a5df6ae534e7d0d631`.
 
 This is the reading entry point for Budget's product definition. It does not
 replace the precedence in [SPEC](../../SPEC.md). Existing decisions remain binding;

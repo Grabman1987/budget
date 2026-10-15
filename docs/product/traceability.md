@@ -1,6 +1,6 @@
 # Traceability and coverage
 
-Review baseline: source `4841e7eb`, 2026-10-15. This maps documentation and source
+Review baseline: source `01a10de8`, 2026-10-15. This maps documentation and source
 entry points, not test-to-financial-acceptance certification. Existing tests listed
 below are regression starting points; inspect/add cases for the changed behavior.
 ONB01 has no financial onboarding implementation/test evidence yet.

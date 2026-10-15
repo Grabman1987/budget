@@ -14,8 +14,8 @@ Creating a competing specification from scratch would lose agreed behavior.
 
 | Source | Observation from this review | Limit |
 | --- | --- | --- |
-| Repository | Reviewed SPEC, PRODUCT, concept, feature/gap/acceptance/status documents, router, setup components, account form and data model at `4841e7eb` | Source inspection is not financial or device acceptance |
-| Live `/health` | `status: ok`, revision `4841e7ebd6cd315279d4e0063fbe4b416c2a7283`, 2026-10-15 | Health does not prove a complete user journey |
+| Repository | Reviewed SPEC, PRODUCT, concept, feature/gap/acceptance/status documents, router, setup components, account form and data model at `01a10de8` | Source inspection is not financial or device acceptance |
+| Live `/health` | `status: ok`, revision `01a10de8b251f3b3bb05d8a5df6ae534e7d0d631`, 2026-10-15 | Health does not prove a complete user journey |
 | Live `/api/auth/status` | `setupRequired: false`, `authenticated: false` | This instance already has authentication configured; no authenticated session available |
 | Live `/plan/monat` | HTTP 200 returns the application shell | No browser capture or authenticated interaction; no visual UX/a11y audit claimed |
 | Figma structure | Supplied node `172:2` is Heute; expanded review discovered 17 pages and inspected target area/global/prototype metadata, linked in screen contracts | Structural references only; screen R-codes are not report/rule IDs; no visual acceptance claimed |
@@ -25,6 +25,11 @@ No live financial data was read or changed. No passkey was registered, no setup
 token used, and no production records were created. A browser tool/skill was not
 available in this session; the requested planning work therefore uses source and
 metadata evidence, not a completed visual audit.
+
+The initial review used `4841e7eb`; final integration rechecked the changed
+source against main `01a10de8`, including quiet historical charts, full filtered
+inbox deficit aggregation and the daily portfolio index. Fresh live health matched
+that integrated main revision. This remains deployment identity, not flow acceptance.
 
 ## Prioritized gaps
 

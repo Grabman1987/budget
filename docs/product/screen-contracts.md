@@ -54,3 +54,9 @@ Chart/table views expose the same values and units; actual/forecast/benchmark
 line styles and non-color cues follow DESIGN. Save success, local persistence,
 background pending and confirmed actual cash use different language. After undo,
 refresh affected figures before presenting derived completion.
+
+The final main integration additionally requires quiet historical negatives (with
+signs/zero geometry retained), dashed debt outlines, full filtered inbox deficit
+summary before pagination, proportional signed composition and a gapped daily
+portfolio index. These follow the new 2026-10-15 directives; frame presence alone
+does not certify that a visual reference already reflects each detail.

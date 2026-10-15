@@ -2,7 +2,7 @@
 
 Status: existing scope summarized; new acceptance examples are proposed review
 cases. Binding precedence remains [SPEC](../../SPEC.md), then PRODUCT and the
-remaining ordered sources. Review baseline: 2026-10-15 at `4841e7eb`.
+remaining ordered sources. Review baseline: 2026-10-15 at `01a10de8`.
 
 ## Purpose and boundary
 

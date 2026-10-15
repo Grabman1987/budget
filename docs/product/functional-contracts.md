@@ -1,6 +1,6 @@
 # Functional contracts
 
-Baseline: application source `4841e7eb`, reviewed 2026-10-15. These requirements
+Baseline: application source `01a10de8`, reviewed 2026-10-15. These requirements
 consolidate existing scope; they do not certify implementation or replace SPEC.
 `BUDxx.nn` refines the family in [requirements](requirements.md). New first-use
 behavior stays under ONB01. Acceptance IDs refer to [acceptance-plan](acceptance-plan.md).
@@ -78,6 +78,7 @@ Detailed contracts: [month close](../month-close.md), [quick assignment](../plan
 | BUD07.05 | Receipt upload is bounded/authenticated, content-addressed and linked through audited metadata | Retain blobs through booking undo and include them in encrypted backup, not CSV export; AC16 |
 | BUD07.06 | Payslip upload opens review and never books by itself; map unknown numeric codes into existing sections | Parsing errors/duplicates remain reviewable; do not invent formulas or payday; AC16 |
 | BUD07.07 | Confirm payslip with active EUR payout account, explicit date, sender and eligible expectation | Linking/creation, receipt and inbox decision are atomic; preserve matched records; AC16 |
+| BUD07.08 | Inbox overview aggregates urgent overspent categories with exact count/deficit before pagination and a secondary Plan-triage link | Retain individual tasks, raw counts and detail; summary is read-only and never covers an envelope; AC21 |
 | BUD12.01 | Source settings show connection, last success, coverage and required owner action | Consent/parse/network/partial failures are distinct; manual budgeting remains usable; AC15 |
 | BUD12.02 | Rules expose enabled state, parameters, evaluability, status and useful action | Disabled/unknown rules never masquerade as fulfilled; [metric catalog](metric-catalog.md) |
 | BUD12.03 | Projects, basket and source-specific settings keep their own validated ownership | No blanket “configured” badge conceals a missing rule input or mapping; AC12 |
@@ -99,6 +100,7 @@ Detailed contracts: [bank source](../DATA_SOURCES.md), [assignment rules](../ass
 | BUD10.01 | Net worth, own contribution and market movement reconcile across surfaces | Derived contact receivables are excluded; manual/product valuation precedence retained; AC12 |
 | BUD10.02 | Debt starts with actual balance/history; payoff scenarios need complete calculable terms | No fabricated payoff date; scenario is not a bank instruction; AC18 |
 | BUD10.03 | Freedom projection labels expense history, saving assumption and return assumptions | Default saving basis is up to six closed Zukunft months; no promise of future return; AC18 |
+| BUD10.04 | Signed account composition uses one proportional zero axis; portfolio daily base-100 index uses shared TTWROR dates with explicit gaps | Assets right/debts left; no interpolation or implication of fresh daily quotes; actions follow chart; AC19 |
 | BUD11.01 | All 34 reports have a named question, period, source drill-down and missing-data contract | See [report contracts](report-contracts.md); a body alone is not acceptance; AC19 |
 | BUD11.02 | Shared figures agree across Heute/Plan/Vermögen/Reports for identical scope and date | Keep rounding at presentation; displayed chains reconcile; AC13, AC19 |
 | BUD11.03 | Print/CSV output uses the active documented report scope and labels | Different export and full backup purposes are explicit; AC19, AC20 |

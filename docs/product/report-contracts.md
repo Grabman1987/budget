@@ -1,7 +1,7 @@
 # Report contracts — current catalog
 
 Source inventory: `nav/reports-catalog.ts` and current `pages/reports-pages.tsx`
-at `4841e7eb`, 2026-10-15. `REP-<slug>` is a stable documentation ID; catalog
+at `01a10de8`, 2026-10-15. `REP-<slug>` is a stable documentation ID; catalog
 position and Figma R-number are different identifiers. Do not join them by number.
 
 Each row states the acceptance requirement for that report. A current component
