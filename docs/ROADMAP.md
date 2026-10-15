@@ -1,5 +1,12 @@
 # Roadmap
 
+## UX Q1 — control and metadata contrast (#464)
+
+- [x] Generated boundaries, secondary lines and positive dark fills meet 3:1; text and positive-button foregrounds meet 4.5:1, including print.
+- [x] Tinted hover/selection metadata uses stronger ink; the full DS1 palette remains separate.
+- [x] Focused desktop/mobile/WebKit, light/dark Axe and synthetic evidence verified.
+- [ ] Required PR CI and deployed revision verified before closing.
+
 ### UX Q3 — Today attention — #466 (2026-10-14)
 
 - [x] One nonempty Zu tun block with at most four source summaries, urgent sources first, existing account review and month-close destinations, and no duplicate savings proposal list.
