@@ -10,11 +10,11 @@ import {
   maskMoneyText,
 } from '@budget/ui';
 import { parseAmount, todayInVienna } from '@budget/domain';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { createAccount, undoGroup, type AccountInput } from './api';
 import { ACCOUNT_TYPE_LABEL, errorText } from './labels';
-import { LEDGER_KEY } from './queries';
+import { accountsQuery, LEDGER_KEY } from './queries';
 import { ACCOUNT_TYPES, type AccountType } from './types';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
 
@@ -73,6 +73,7 @@ function AccountForm({ onDone }: { onDone: () => void }) {
   useAmountPrivacy();
   const queryClient = useQueryClient();
   const toast = useToast();
+  const accountsQueryResult = useQuery(accountsQuery());
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('checking');
   const [onBudget, setOnBudget] = useState(true);
@@ -83,6 +84,7 @@ function AccountForm({ onDone }: { onDone: () => void }) {
   const [rate, setRate] = useState('');
   const [termEnd, setTermEnd] = useState('');
   const [fee, setFee] = useState('');
+  const [referenceAccountId, setReferenceAccountId] = useState('');
   const [errors, setErrors] = useState<Errors>({});
 
   const mutation = useMutation({
@@ -150,6 +152,7 @@ function AccountForm({ onDone }: { onDone: () => void }) {
       currency: 'EUR',
       openingBalanceCents: openingCents,
       openingDate,
+      ...(referenceAccountId ? { referenceAccountId } : {}),
       ...(limitCents !== null ? { creditLimitCents: limitCents } : {}),
       ...(overdraftCents !== null ? { overdraftLimitCents: overdraftCents } : {}),
       ...(feeCents !== null ? { monthlyFeeCents: feeCents } : {}),
@@ -173,9 +176,17 @@ function AccountForm({ onDone }: { onDone: () => void }) {
           />
         )}
       </Field>
-      <Field label="Kontotyp">
-        {({ id }) => (
-          <Select id={id} value={type} onChange={(e) => changeType(e.target.value as AccountType)}>
+      <Field
+        label="Kontotyp"
+        hint={type === 'cash' ? 'Neue Bargeldbuchungen sind sofort bestätigt.' : undefined}
+      >
+        {({ id, describedBy }) => (
+          <Select
+            id={id}
+            aria-describedby={describedBy}
+            value={type}
+            onChange={(e) => changeType(e.target.value as AccountType)}
+          >
             {ACCOUNT_TYPES.map((t) => (
               <option key={t} value={t}>
                 {ACCOUNT_TYPE_LABEL[t]}
@@ -184,6 +195,34 @@ function AccountForm({ onDone }: { onDone: () => void }) {
           </Select>
         )}
       </Field>
+      {(type === 'brokerage' || type === 'crypto') && (
+        <Field
+          label="Verrechnungskonto"
+          hint="Nur ein separates Konto auswählen. Geld im Depot selbst bleibt ohne Verknüpfung."
+        >
+          {({ id }) => (
+            <Select
+              id={id}
+              value={referenceAccountId}
+              onChange={(e) => setReferenceAccountId(e.target.value)}
+            >
+              <option value="">Kein separates Konto</option>
+              {(accountsQueryResult.data?.accounts ?? [])
+                .filter(
+                  (a) =>
+                    !a.closedAt &&
+                    a.currency === 'EUR' &&
+                    ['checking', 'cash', 'savings'].includes(a.type),
+                )
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} · {ACCOUNT_TYPE_LABEL[a.type]}
+                  </option>
+                ))}
+            </Select>
+          )}
+        </Field>
+      )}
       <div className="kform-switch">
         <span id="on-budget-label">
           Budget-Konto

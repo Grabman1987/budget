@@ -90,8 +90,9 @@ export function AccountsSettings() {
         }
       />
       <p className="accounts-purpose">
-        Hier pflegst du Name, Typ, Reihenfolge und Konditionen deiner Konten. Bei Krediten bilden
-        Zinssatz, Monatsrate, Laufzeit und ursprünglicher Betrag die Grundlage für den
+        Hier pflegst du Name, Typ, Reihenfolge und Konditionen deiner Konten. Das Gehaltskonto wird
+        bei den <a href="/einstellungen/datenquellen">Datenquellen</a> festgelegt. Bei Krediten
+        bilden Zinssatz, Monatsrate, Laufzeit und ursprünglicher Betrag die Grundlage für den
         Schuldenrechner unter Vermögen und den Report Bank- und Zinskosten. Jede Änderung ist
         protokolliert und lässt sich rückgängig machen.
       </p>
@@ -114,7 +115,7 @@ export function AccountsSettings() {
         />
       ))}
       {closed.length > 0 && <ClosedAccounts accounts={closed} onEdit={setEditingId} />}
-      <AccountEditPanel account={editing} onClose={() => setEditingId(null)} />
+      <AccountEditPanel account={editing} accounts={accounts} onClose={() => setEditingId(null)} />
       <AccountFormPanel open={creating} onClose={() => setCreating(false)} />
     </section>
   );
@@ -237,15 +238,19 @@ function ClosedAccounts({
 
 function AccountEditPanel({
   account,
+  accounts,
   onClose,
 }: {
   account: AccountRow | null;
+  accounts: AccountRow[];
   onClose: () => void;
 }) {
   useAmountPrivacy();
   return (
     <SettingsFormDialog open={account !== null} onClose={onClose} title="Konto bearbeiten">
-      {account && <AccountEditForm key={account.id} account={account} onDone={onClose} />}
+      {account && (
+        <AccountEditForm key={account.id} account={account} accounts={accounts} onDone={onClose} />
+      )}
     </SettingsFormDialog>
   );
 }
@@ -265,11 +270,20 @@ type Errors = Partial<
   >
 >;
 
-function AccountEditForm({ account, onDone }: { account: AccountRow; onDone: () => void }) {
+function AccountEditForm({
+  account,
+  accounts,
+  onDone,
+}: {
+  account: AccountRow;
+  accounts: AccountRow[];
+  onDone: () => void;
+}) {
   useAmountPrivacy();
   const write = useBudgetWrite();
   const classes = useQuery(assetClassesQuery());
   const [allocationClass, setAllocationClass] = useState(account.allocationAssetClassId ?? '');
+  const [referenceAccountId, setReferenceAccountId] = useState(account.referenceAccountId ?? '');
   const [name, setName] = useState(account.name);
   const [type, setType] = useState<AccountType>(account.type);
   const [onBudget, setOnBudget] = useState(account.onBudget);
@@ -299,6 +313,8 @@ function AccountEditForm({ account, onDone }: { account: AccountRow; onDone: () 
     const patch: Partial<AccountInput> = {};
     if ((allocationClass || null) !== (account.allocationAssetClassId ?? null))
       patch.allocationAssetClassId = allocationClass || null;
+    if ((referenceAccountId || null) !== (account.referenceAccountId ?? null))
+      patch.referenceAccountId = referenceAccountId || null;
     const trimmed = name.trim();
     if (trimmed === '') found.name = 'Bitte einen Namen eintragen.';
     else if (trimmed !== account.name) patch.name = trimmed;
@@ -420,6 +436,38 @@ function AccountEditForm({ account, onDone }: { account: AccountRow; onDone: () 
           </Select>
         )}
       </Field>
+      {(type === 'brokerage' || type === 'crypto' || account.referenceAccountId != null) && (
+        <Field
+          label="Verrechnungskonto"
+          hint="Nur ein separates Konto auswählen. Geld im Depot selbst bleibt ohne Verknüpfung."
+        >
+          {({ id }) => (
+            <Select
+              id={id}
+              value={referenceAccountId}
+              onChange={(e) => setReferenceAccountId(e.target.value)}
+            >
+              <option value="">Kein separates Konto</option>
+              {accounts
+                .filter(
+                  (a) =>
+                    a.id !== account.id &&
+                    (a.id === account.referenceAccountId ||
+                      (!a.closedAt &&
+                        a.currency === account.currency &&
+                        ['checking', 'cash', 'savings'].includes(a.type))),
+                )
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} · {ACCOUNT_TYPE_LABEL[a.type]}
+                    {a.closedAt ? ' · geschlossen' : ''}
+                    {a.currency !== account.currency ? ` · ${a.currency}` : ''}
+                  </option>
+                ))}
+            </Select>
+          )}
+        </Field>
+      )}
       {group.id === 'investments' ? (
         <Field label="Anlageklasse" hint="P2P und Cash-Positionen werden dieser Klasse zugeordnet.">
           {({ id }) => (

@@ -185,6 +185,28 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   };
   const audit = () => ({ actor: ACTOR, groupId: randomUUID() });
 
+  const validateReferenceAccount = (
+    executor: Db,
+    referenceAccountId: string | null | undefined,
+    ownerId: string | undefined,
+    currency: string,
+  ) => {
+    if (referenceAccountId == null) return;
+    if (referenceAccountId === ownerId)
+      throw new ApiError(
+        422,
+        'invariant',
+        'Ein Konto kann nicht sein eigenes Verrechnungskonto sein.',
+      );
+    const target = accounts.get(executor, referenceAccountId);
+    if (!target || target.closedAt || target.currency !== currency)
+      throw new ApiError(
+        422,
+        'invariant',
+        'Bitte ein offenes Verrechnungskonto in derselben Währung wählen.',
+      );
+  };
+
   app.get('/', (c) => {
     const { asOf } = readQuery(c, asOfQuery);
     const day = asOf ?? today();
@@ -193,6 +215,7 @@ export function accountRoutes(db: Db, today: () => string): Hono {
 
   app.post('/', async (c) => {
     const input = await readBody(c, accountCreate);
+    validateReferenceAccount(db, input.referenceAccountId, undefined, input.currency);
     const defaults = DEFAULTS[input.type];
     const onBudget = input.onBudget ?? defaults.onBudget;
     if (onBudget && TRACKING_ONLY.has(input.type)) {
@@ -290,6 +313,36 @@ export function accountRoutes(db: Db, today: () => string): Hono {
       patch.termStart === undefined ? current.termStart : patch.termStart,
       patch.termEnd === undefined ? current.termEnd : patch.termEnd,
     );
+    if (
+      patch.referenceAccountId !== undefined ||
+      (patch.currency !== undefined && patch.currency !== current.currency)
+    )
+      validateReferenceAccount(
+        db,
+        patch.referenceAccountId === undefined
+          ? current.referenceAccountId
+          : patch.referenceAccountId,
+        id,
+        patch.currency ?? current.currency,
+      );
+    if (patch.currency !== undefined && patch.currency !== current.currency) {
+      const dependents = db
+        .select({ id: account.id })
+        .from(account)
+        .where(and(eq(account.referenceAccountId, id), isNull(account.deletedAt)))
+        .all();
+      if (
+        dependents.some((dependent) => {
+          const owner = accounts.get(db, dependent.id);
+          return owner && owner.currency !== patch.currency;
+        })
+      )
+        throw new ApiError(
+          422,
+          'invariant',
+          'Die Währung passt nicht mehr zu einem verknüpften Depot.',
+        );
+    }
     // The opening balance is part of every checked balance: a stored Kontostand prüfen locks it.
     const opening =
       (patch.openingBalanceCents !== undefined &&
