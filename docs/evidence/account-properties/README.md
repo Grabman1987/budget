@@ -17,3 +17,9 @@ The manual-cash hint is deliberately scoped to new manual cash bookings. This sl
 ## Full check status
 
 An initial repository-wide `npm run check` exposed formatting issues in the new files; those were fixed. A subsequent full check passed workspace typecheck, ESLint and Prettier, then was stopped during Vitest at the lead's request to avoid duplicating the imminent integrated PR500 check. That run is recorded as interrupted for integration, not passed. The focused regression and browser runs above are complete; root will report the full integrated check separately.
+
+## Integrated lead verification
+
+The combined payout/account tree passed the full Node 22 check with `BUDGET_REQUIRE_AGE=1` and the actual age binaries on PATH: 433 files, 3930 tests passed, no skips. The first attempt's missing-age setup failure is superseded by this complete run; no backup test was skipped.
+
+The combined browser run passed 20 of 21 scenarios across desktop, mobile Chromium and WebKit iPhone. The remaining mobile case opened its edit form before the asynchronous undo/cache refresh finished. Trace evidence showed HTTP 200 undo and the correct restored depot/reference in the following account response. The test now waits for “Rückgängig gemacht.” before reopening, retaining all type/reference assertions; it then passed three consecutive mobile attempts (six cases including setup). Existing desktop/WebKit account flows and all nine payslip flows passed in the combined run. Changed-test lint/format was checked afterward. Final-head GitHub checks and deployment/live proof are still required.

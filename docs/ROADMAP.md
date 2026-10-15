@@ -12,7 +12,8 @@
 - [x] Expose existing separate settlement cash on depot/crypto create/edit; integrated cash leaves the link empty, salary selection stays in Datenquellen and cash uses its existing account type.
 - [x] Validate new references and incompatible linked-account type/currency changes; preserve historical metadata, credit-card fields and audited undo.
 - [x] Focused API/UI and desktop/mobile/WebKit form flows, light/dark Axe and synthetic screenshots. [Evidence](evidence/account-properties/README.md).
-- [ ] Full integrated check, final-head CI and serial deployment/live proof in PR #500.
+- [x] Full integrated Node 22 check with required age: 433 files, 3930 passed, no skips; combined browser regressions and repeated asynchronous-undo completion check.
+- [ ] Final-head CI and serial deployment/live proof in PR #500.
 - [ ] Broader K2/K3 and cash import/transfer acceptance remain separate.
 
 ### Payslip upload and payout review — #499 (2026-10-15)
@@ -20,7 +21,7 @@
 - [x] Preserve native chooser and accept one bounded PDF drop through existing analysis.
 - [x] Select payout account, reuse matching booking or confirm a pending payout (cash confirmed); exact salary/refund split and atomic undo.
 - [x] Nine synthetic chooser, drop, existing-match and payout/undo flows across Chromium desktop/mobile and WebKit iPhone; light/dark Axe and overflow checks. [Fresh cloud evidence](evidence/payslip-payout/README.md).
-- [x] Full cloud check: 433 files, 3922 passed, two existing skips; typecheck/lint/format and E2E build passed.
+- [x] Full integrated cloud check with required age: 433 files, 3930 passed, no skips; typecheck/lint/format and E2E build passed. All nine payout browser scenarios passed again.
 - [ ] Final-head CI and serial deployment/live proof.
 - [ ] Owner retest of the original pre-file-chooser Chrome hang; not reproduced in an isolated profile.
 

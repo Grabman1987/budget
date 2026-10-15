@@ -215,6 +215,8 @@ test('creates a depot settlement link, clears it on retype, and restores it with
   await panel.getByRole('button', { name: 'Speichern' }).click();
   await expect(toast(page)).toContainText('Konto „Depot Eigenschaften“ gespeichert.');
   await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  // The action starts undo asynchronously; reopen only after the account cache is refreshed.
+  await expect(toast(page)).toContainText('Rückgängig gemacht.');
   await edit.click();
   await expect(page.getByRole('dialog').getByLabel('Kontotyp')).toHaveValue('brokerage');
   await expect(page.getByRole('dialog').getByLabel('Verrechnungskonto')).toHaveValue(
