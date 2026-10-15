@@ -4,6 +4,15 @@
 benchmark index chart, asset-class chart/table and month-by-year returns heatmap.
 The depot cash view and private owner acceptance remain separate.
 
+The daily base-100 line on the Vermögen › Portfolio overview is a separate presentation
+of shared daily portfolio returns. It uses the existing flow-adjusted daily-return
+calculation, actual valuation dates and the selected overview window. A day without a
+calculable return is a gap; the chart does not interpolate it. Stored prices can be
+carried forward to valuation dates, so the line does not imply fresh daily quotes.
+This overview addition leaves the monthly index, benchmarks, class series and report
+calculations below unchanged. Signed account composition uses a common proportional
+zero axis, and the portfolio's follow-up actions appear below its chart.
+
 ## Sources and calculations
 
 - The report requests `GET /api/portfolio?period=…&view=securities&history=performance`.
