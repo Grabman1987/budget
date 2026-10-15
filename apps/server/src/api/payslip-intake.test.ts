@@ -7,7 +7,7 @@ import { createApp } from '../app';
 import { createAuth } from '../auth/routes';
 import { AuthStore } from '../auth/store';
 import { sha256Hex } from '../auth/crypto';
-import { syntheticPayslipPdf } from '../payslips/testing';
+import { syntheticPayslipPdf, syntheticWageRows } from '../payslips/testing';
 
 let opened: OpenedDatabase, dir: string, app: ReturnType<typeof createApp>;
 const origin = 'http://localhost:3000',
@@ -70,6 +70,24 @@ async function upload(customHeaders = headers) {
   });
 }
 describe('authenticated payslip intake HTTP boundary', () => {
+  it('offers real payment partners and excludes internal correction payees', async () => {
+    opened.db
+      .insert(schema.payee)
+      .values({ id: 'synthetic-employer', name: 'Musterarbeitgeber' })
+      .run();
+    const systemIds = opened.db
+      .select()
+      .from(schema.payee)
+      .all()
+      .filter((partner) => partner.systemKind)
+      .map((partner) => partner.id);
+    expect(systemIds.length).toBeGreaterThan(0);
+    const { id } = (await (await upload()).json()) as { id: string };
+    const result = await app.request(`/api/payslip-intake/${id}`, { headers });
+    const { payees } = (await result.json()) as { payees: { id: string; name: string }[] };
+    expect(payees).toContainEqual({ id: 'synthetic-employer', name: 'Musterarbeitgeber' });
+    expect(payees.some((partner) => systemIds.includes(partner.id))).toBe(false);
+  });
   it('confirms into the selected account only after validation and undoes the pending payout atomically', async () => {
     const jsonHeaders = { ...headers, 'content-type': 'application/json' };
     const created = await app.request('/api/accounts', {
@@ -166,6 +184,50 @@ describe('authenticated payslip intake HTTP boundary', () => {
       body: JSON.stringify({ groupId: saved.groupId }),
     });
     expect(undone.status).toBe(200);
+  });
+  it('does not invent month-end for a PDF without a printed date and accepts an explicit owner date', async () => {
+    const rows = syntheticWageRows.filter((row) => !row.startsWith('Auszahlungsdatum:'));
+    const form = new FormData();
+    form.set(
+      'file',
+      new File([new Uint8Array(await syntheticPayslipPdf(rows))], 'synthetic.pdf', {
+        type: 'application/pdf',
+      }),
+    );
+    const staged = await app.request('/api/payslip-intake/upload', {
+      method: 'POST',
+      body: form,
+      headers,
+    });
+    const { id } = (await staged.json()) as { id: string };
+    const read = await app.request(`/api/payslip-intake/${id}`, { headers });
+    expect(
+      ((await read.json()) as { proposedPayoutDate: string | null }).proposedPayoutDate,
+    ).toBeNull();
+    const created = await app.request('/api/accounts', {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Auszahlung Muster',
+        type: 'checking',
+        openingDate: '2025-01-01',
+      }),
+    });
+    const { account } = (await created.json()) as { account: { id: string } };
+    const decision = (payoutDate?: string) =>
+      app.request(`/api/payslip-intake/${id}/decision`, {
+        method: 'POST',
+        headers: { ...headers, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'confirm',
+          bookingId: null,
+          accountId: account.id,
+          ...(payoutDate ? { payoutDate } : {}),
+        }),
+      });
+    expect((await decision()).status).toBe(409);
+    expect((await decision('2026-09-15')).status).toBe(200);
+    expect(opened.db.select().from(schema.booking).all()).toMatchObject([{ date: '2026-09-15' }]);
   });
   it('reports only secret presence and refuses secret/config injection', async () => {
     const response = await app.request('/api/payslip-intake/status', { headers });

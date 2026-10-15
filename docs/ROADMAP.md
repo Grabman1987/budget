@@ -18,6 +18,15 @@
 - [x] Combined Node 22 full check: 434 files / 3,951 tests, zero skips; current WebKit wealth coverage passed.
 - [ ] Required CI, serial deployment/live proof and private owner financial reconciliation. This slice does not close Gate 3 or the broader K3 acceptance.
 
+### Direct payroll review, date and sender — #499 (2026-10-15)
+
+- [x] Implement direct wide upload review, payout date/sender/eligible expectation, and inline unknown wage-code mapping with existing formulas.
+- [x] Backend focused regressions: 49 tests; atomic mapping and payout/expectation undo; existing booking metadata retained.
+- [x] Final integrated Node 22 full check: 434 files / 3,955 tests, zero skips; original three-project browser matrix 12/12 plus integrated current WebKit 6/6. [Evidence](evidence/payslip-flow/README.md).
+- [ ] Exact-head required CI, serial merge, main CI, automatic deployment and live revision proof.
+- [ ] Original Windows Chrome pre-native-picker hang remains unproven; drag/drop is a separately tested alternative.
+
+
 ### Contact history and monthly payments — #499 (2026-10-15)
 
 - [x] Balance/name share the contact detail; recorded full repayment defines retained, collapsible history.

@@ -112,6 +112,7 @@ export function finishPayslip(input: {
   tax: number;
   lines: PayslipInput['lines'];
   warnings: string[];
+  unmappedWageTypes?: NonNullable<ParsedPayrollDocument['unmappedWageTypes']>;
 }): ParsedPayrollDocument {
   const { month, gross, net, warnings, documentType } = input;
   const draft: PayslipInput | null =
@@ -141,5 +142,6 @@ export function finishPayslip(input: {
     draft,
     differenceCents,
     warnings: [...new Set(warnings)],
+    ...(input.unmappedWageTypes?.length ? { unmappedWageTypes: input.unmappedWageTypes } : {}),
   };
 }

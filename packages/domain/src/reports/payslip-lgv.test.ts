@@ -122,11 +122,15 @@ describe('columnar payslip layout', () => {
     const text = rows({ extra: wage('777', 'Sondervergütung X', amount(82, '100,00')) });
     const parsed = parsePayrollDocument(text, 'synthetic.pdf', config);
     expect(parsed.warnings).toContain('Unbekannte Lohnart oder Aufrollung: Zuordnung prüfen.');
+    expect(parsed.unmappedWageTypes).toEqual([
+      { code: '777', label: 'Sondervergütung X', amountCents: 10_000 },
+    ]);
     const mapped = parsePayrollDocument(text, 'synthetic.pdf', {
       salaryAccountId: null,
       wageTypes: { '777': 'reimbursement' },
     });
     expect(mapped.warnings).toEqual([]);
+    expect(mapped.unmappedWageTypes).toBeUndefined();
     expect(mapped.draft?.lines).toContainEqual({
       section: 'reimbursement',
       label: 'Sondervergütung X',
