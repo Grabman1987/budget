@@ -60,7 +60,8 @@ test('a position without market quote is valued at cost and flagged; the first q
   await page.goto('/');
   await expect(page.getByTestId('heute-lead-value')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Letzte Buchungen' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Was steht an?' })).toBeVisible();
+  // This ledger contains only the synthetic holding; an empty due list stays hidden.
+  await expect(page.getByRole('heading', { name: 'Fällig 14 Tage' })).toHaveCount(0);
   await expect(page.locator('.heute-check-counts')).toBeVisible();
   await expect(page.locator('.heute-net-worth')).not.toContainText('Bewertung nicht verfügbar');
   await expect(page.locator('.heute-net-worth').getByTestId('valuation-hint')).toContainText(hint);

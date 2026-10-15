@@ -184,27 +184,14 @@
   .heute-month-note {
     display: flex;
     align-items: center;
-    gap: 10px 12px;
+    gap: 4px 8px;
     flex-wrap: wrap;
     margin: 0;
-    padding: 10px 14px;
-    border: 1px solid var(--card-border);
-    border-radius: 12px;
-    background: var(--surface);
-    box-shadow: var(--card-shadow);
     font-size: var(--fs-body);
     color: var(--ink-2);
   }
-  .heute-month-note > svg {
-    flex: 0 0 auto;
-    color: var(--line);
-  }
-  .heute-month-note > span {
-    flex: 1 1 320px;
-    min-width: 0;
-  }
   .heute-month-note .btn {
-    flex: 0 0 auto;
+    min-height: 44px;
   }
   .heute-lead-figure {
     position: absolute;
@@ -809,21 +796,43 @@
   border-block: 1px solid var(--rule);
 }
 .heute-attention h2 {
-  font-size: 17px;
+  font-size: var(--fs-title);
   margin: 0 0 8px;
 }
 .attention-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding-block: 4px;
   border-top: 1px solid var(--rule);
 }
+.attention-proposals {
+  flex-basis: 100%;
+  min-width: 0;
+}
+.attention-proposals summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+.attention-row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.attention-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+}
 .attention-row a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+  min-width: 44px;
   flex-shrink: 0;
 }
 .attention-row.is-over,
@@ -924,4 +933,19 @@
   font-size: 0.8125rem;
   line-height: 1.4;
   color: var(--ink-2);
+}
+
+.heute-finance-check {
+  padding: 16px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sheet);
+  background: var(--surface);
+}
+.heute-finance-check a,
+.heute-upcoming .heute-amount-status > a,
+.heute-upcoming .btn {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
 }

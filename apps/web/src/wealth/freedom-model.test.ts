@@ -15,6 +15,8 @@ const view: FreedomView = {
   investedCents: 0,
   progressBp: 0,
   defaultRealReturnBp: 500,
+  defaultSavingCents: 0,
+  savingMonths: 6,
   accounts: [],
   expensesUnsafe: false,
 };

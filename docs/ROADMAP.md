@@ -7,6 +7,24 @@
 - [x] Focused desktop/mobile/WebKit, light/dark Axe and synthetic evidence verified.
 - [ ] Required PR CI and deployed revision verified before closing.
 
+### UX Q3 — Today attention — #466 (2026-10-14)
+
+- [x] One nonempty Zu tun block with at most four source summaries, urgent sources first, existing account review and month-close destinations, and no duplicate savings proposal list.
+- [x] One nonempty Fällig 14 Tage list for recurring payments and planned one-off events; compact Finanz-Check tile and hidden empty funding notes.
+- [x] Decision 3B retained; short other-month return line and explicit Stand heute labels for current-only information.
+- [x] Synthetic red/green component regressions (4 files / 16 tests), changed-file lint/format/CSS scale and E2E build under the owner's scoped-check exception. [Evidence](evidence/heute-attention-q3/README.md).
+- [x] Six focused desktop/Chromium-mobile/WebKit-iPhone scenarios, current/other-month light/dark Axe, 44px changed-section targets, no horizontal page overflow and synthetic evidence images.
+- [x] Committed and pushed PR #494; fresh web typecheck, changed-file checks and prior required CI passed.
+- [ ] Required final-head CI after current-main integration, Linux visual baseline review, deployed revision and physical desktop/phone owner acceptance.
+
+### Z1 — Plan month grid in Zerosum arrangement — #448 (2026-10-13)
+
+- [x] Spaced rounded group bands, group/overall checkboxes (including mixed selection), header creation shortcuts and retained C/G forms, alternative views and multiple months.
+- [x] Cent-exact spending status with underfunded-target suffix; hatched spent/solid remaining green bars, red overspending and retained available pills. Class remains in the inspector.
+- [x] One scrolling sticky phone chip line; compact name/available, status/assigned and bar rows, 44px label/name/pill targets, existing inspector edits and same-line cover/suggestion actions.
+- [x] Fresh web typecheck, changed-file lint/format/CSS scale, 19 unit tests and 28 affected E2E/setup cases. Final compact-grid rerun: 6 desktop/Chromium-phone/WebKit cases with light/dark Axe, actual viewport-width guard and both touch dimensions at least 44px. Global checkbox/select correction integrated and six synthetic images refreshed. [Evidence and PR body](evidence/plan-zerosum-grid/PR.md).
+- [ ] Required final-head CI, Linux snapshot review, deployed revision and owner device acceptance. No local Linux baseline generation; Z2/Z3 and phone action layout remain separate packages.
+
 ### Account register: upcoming captures and next recurrence — #453 (2026-10-13)
 
 - [x] Remembered `Kommend · N` section in account and All Bookings registers, collapsed on phones; all future captures and only the next unbooked schedule occurrence, ascending date hints and distinct calendar/repeat icons.
@@ -1161,3 +1179,10 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [x] Bind sidebar and settings profile labels to the current server session method; preserve recovery/step-up restrictions.
 - [x] Separate account-specific source/observation state, stored owner check and technical retrieval dates; missing metadata stays explicit. No connection or sync action.
 - [ ] Required CI/PR integration after #405, Linux visual baseline review and physical-device/cloud owner acceptance. Targeted verification and task-scoped auth review: [evidence](evidence/auth-account-1009/README.md).
+
+### UX V1 — Vermögen, #480 (2026-10-14)
+
+- [x] Compact portfolio performance, chart-local period controls, total debt/history, collapsed scenarios, historical freedom default and savings execution/purchase details.
+- [x] Fresh web typecheck, changed-file ESLint/Prettier/CSS scale, 21 targeted unit tests and E2E build after integration. Existing calculation tests and write/undo assertions remain.
+- [x] Final 14-case desktop/Chromium-phone/WebKit run: all five pages, light/dark Axe and chart-label roles, 44px controls, actual viewport-width guards, debt models and audited actions. Synthetic desktop/phone images and the wider 53-pass regression run are recorded in [delivery evidence](evidence/ux-v1-vermoegen/README.md).
+- [ ] Required final-head CI, Linux baseline review, deployed revision and owner physical-device acceptance.

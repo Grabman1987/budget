@@ -22,6 +22,7 @@ import { DebtOverview } from './debt-overview';
 import { DebtStrategies } from './debt-strategies';
 import { DebtLiquidityCheck } from './debt-liquidity-check';
 import { LoanPlanning } from './loan-planning';
+import { DebtHistory } from './debt-history';
 import './debts.css';
 
 const modelMonthText = (month: string | null) =>
@@ -69,6 +70,8 @@ export function DebtsPage() {
         )}
         {view && (
           <>
+            <DebtLead view={view} />
+            <DebtHistory />
             <DebtOverview view={view} />
             <details className="debt-rechenweg debt-full">
               <summary>Rechenweg</summary>
@@ -79,7 +82,6 @@ export function DebtsPage() {
                 Zinsänderungen und Szenarien stehen in der Detailplanung.
               </p>
               <div className="kview vview">
-                <DebtLead view={view} />
                 {loan ? (
                   <>
                     <Scenario

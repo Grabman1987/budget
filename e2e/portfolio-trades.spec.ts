@@ -124,8 +124,20 @@ test('monthly savings proposals require actual execution confirmation and suppor
   await page.goto('/');
   const fold = page.getByRole('button', { name: 'Mehr zum Monat' });
   if ((await fold.getAttribute('aria-expanded')) === 'false') await fold.click();
-  const step = page.locator('.heute-next-steps .rev-row').filter({ hasText: `Sparplan: ${name}` });
+  const tasks = page.getByRole('region', { name: 'Zu tun', exact: true });
+  expect(await tasks.locator('.attention-row').count()).toBeLessThanOrEqual(4);
+  await tasks.getByText(/^\d+ Sparplanausführung(?:en)? prüfen$/).click();
+  const step = tasks
+    .locator('.attention-proposals .rev-row')
+    .filter({ hasText: `Sparplan: ${name}` });
   await expect(step).toContainText('100,00');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    expect(
+      (await new AxeBuilder({ page }).include('.heute-attention').analyze()).violations,
+    ).toEqual([]);
+  }
   await step.getByRole('button', { name: 'Ausführung prüfen' }).click();
   const row = page.getByTestId('inbox-row').filter({ hasText: name });
   await row.getByRole('button', { name: 'Ausführung prüfen' }).focus();

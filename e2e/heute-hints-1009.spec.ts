@@ -56,8 +56,8 @@ test('Today keeps payday first, unknown counts explicit and additional steps con
   await expect(first).toContainText('Nächster erwarteter Geldeingang: 30.09. · 3.812,00 €');
   const more = page.getByRole('button', { name: /Mehr zum Monat/ });
   if ((await more.getAttribute('aria-expanded')) === 'false') await more.click();
-  await expect(page.locator('.heute-next-steps')).toContainText('Keine zusätzlichen Schritte.');
-  await expect(page.locator('.heute-next-steps')).toContainText('Braucht Aufmerksamkeit');
+  await expect(page.getByRole('heading', { name: 'Nächste Schritte' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Zu tun' })).toContainText('2 im Posteingang');
   await expect(page.locator('.heute-check-counts')).toContainText('0 erfüllt');
   await expect(page.locator('.heute-check-counts')).toContainText('1 Warnung');
   await expect(page.locator('.heute-check-counts')).toContainText('2 verletzt');

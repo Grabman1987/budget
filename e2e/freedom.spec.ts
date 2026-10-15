@@ -4,7 +4,7 @@ import { sampleTest as test } from './sample';
 import { MAIN_URL } from '../playwright.config';
 import { join } from 'node:path';
 import type { FreedomView } from '@budget/db';
-import { addMonths } from '@budget/domain';
+import { addMonths, cents, formatDecimal } from '@budget/domain';
 import { pickCategory, toast } from './ledger-helpers';
 import { eur } from '../apps/web/src/ledger/format';
 
@@ -15,9 +15,10 @@ test('live sources, explicit scenario, original design and native drill-down lin
   const data: FreedomView = await (await page.request.get('/api/wealth/freedom')).json();
   expect(data.investedCents).not.toBeNull();
   await expect(page.getByTestId('freedom-figure')).not.toContainText('—');
-  await expect(page.getByLabel('Sparrate pro Monat', { exact: true })).toHaveValue('');
+  const defaultSaving = formatDecimal(cents(data.defaultSavingCents!));
+  await expect(page.getByLabel('Sparrate pro Monat', { exact: true })).toHaveValue(defaultSaving);
   await expect(page.getByLabel('Rendite nach Inflation')).toHaveValue('500');
-  await expect(page.getByTestId('freedom-chart')).toHaveCount(0);
+  await expect(page.getByTestId('freedom-chart')).toBeVisible();
   await expect(page.getByRole('group', { name: 'Zeitraum', exact: true })).toHaveCount(0);
   await page.getByLabel('Sparrate pro Monat', { exact: true }).fill('400+300');
   await expect(page.getByTestId('freedom-chart')).toBeVisible();
@@ -72,7 +73,8 @@ test('live sources, explicit scenario, original design and native drill-down lin
   await expect(page).toHaveURL(new RegExp(href!.split('?')[0]!));
   await page.goBack();
   await page.reload();
-  await expect(page.getByLabel('Sparrate pro Monat', { exact: true })).toHaveValue(''); // reload does not restore unsaved assumptions
+  await expect(page.getByLabel('Sparrate pro Monat', { exact: true })).toHaveValue(defaultSaving); // reload restores the historical default, not unsaved assumptions
+  await page.locator('#freedom-expenses > summary').click();
   await page
     .locator('#freedom-expenses')
     .getByRole('link', { name: 'Buchungen öffnen' })
@@ -100,6 +102,8 @@ const literal: FreedomView = {
   investedCents: 0,
   progressBp: 0,
   defaultRealReturnBp: 500,
+  defaultSavingCents: 0,
+  savingMonths: 6,
   expensesUnsafe: false,
   accounts: [],
 };

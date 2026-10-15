@@ -96,6 +96,12 @@ beforeEach(() => {
 });
 
 describe('current freedom read model shares R16 sources', () => {
+  it('prefills saving from the last six closed Zukunft months, excluding today', () => {
+    spend('2026-03-20', -600_000, 'future');
+    spend('2026-10-01', -900_000, 'future');
+    spend('2026-09-20', 6_000, 'future');
+    expect(freedomView(db, today)).toMatchObject({ defaultSavingCents: 98_999, savingMonths: 6 });
+  });
   it('literal expenses, investment cash + holdings, parameter override and parameter override', () => {
     const view = freedomView(db, today);
     expect(view).toMatchObject({

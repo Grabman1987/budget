@@ -1,8 +1,54 @@
-import { rowAppliesOn } from '@budget/domain';
+import { addDays, freedomSumCents, nextExecutionAfter, rowAppliesOn } from '@budget/domain';
 import type { SavingsPlanRecord } from './savings-api';
 
 export const BANK_NOTE =
   'Die App plant nur. Ausführung und Änderungen bei der Bank musst du selbst veranlassen.';
+
+/** The first future occurrence across inclusive versions; overlapping versions stay unavailable. */
+export function nextPlanExecution(rows: SavingsPlanRecord[], today: string) {
+  const candidates = rows
+    .map((row) => ({
+      row,
+      date: nextExecutionAfter(
+        row.dayOfMonth,
+        row.validFrom > today ? addDays(row.validFrom, -1) : today,
+      ),
+    }))
+    .filter(({ row, date }) => rowAppliesOn(row, date))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const first = candidates[0];
+  return !first || rows.filter((row) => rowAppliesOn(row, first.date)).length !== 1
+    ? null
+    : { date: first.date, amountCents: first.row.amountCents };
+}
+
+/** Recorded buys, including manual buys; this is not proof of bank schedule execution. */
+export function planPurchases<
+  T extends {
+    kind: string;
+    date: string;
+    securityId: string;
+    accountId: string;
+    amountCents: number;
+  },
+>(rows: SavingsPlanRecord[], trades: T[], today: string) {
+  const first = rows.slice().sort((a, b) => a.validFrom.localeCompare(b.validFrom))[0];
+  const buys = first
+    ? trades.filter(
+        (t) =>
+          t.kind === 'buy' &&
+          t.securityId === first.securityId &&
+          t.accountId === first.accountId &&
+          t.date >= first.validFrom &&
+          t.date <= today,
+      )
+    : [];
+  return {
+    buys,
+    since: first?.validFrom ?? null,
+    totalCents: freedomSumCents(buys.map((t) => t.amountCents)),
+  };
+}
 
 /** Open means editable, not necessarily effective today. Keep the inclusive version history. */
 export function planGroups(plans: SavingsPlanRecord[], today: string) {
