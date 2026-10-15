@@ -41,7 +41,7 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   expect(badge.count).toBe(inbox.count);
 
   await page.goto('/');
-  const bar = page.locator(info.project.name === 'mobile' ? '.m-head' : '.topbar');
+  const bar = page.locator((page.viewportSize()?.width ?? Infinity) <= 767 ? '.m-head' : '.topbar');
   const chip = bar.getByRole('link', {
     name: new RegExp(`^${count} Envelopes überzogen, .* zu decken – Überziehungen prüfen$`),
   });
@@ -81,7 +81,7 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   await expect(planLink).toHaveAttribute('href', /\/plan\/monat\?monat=2026-09&ansicht=triage/);
   await expect(
     page
-      .locator(info.project.name === 'mobile' ? '.m-head' : '.topbar')
+      .locator((page.viewportSize()?.width ?? Infinity) <= 767 ? '.m-head' : '.topbar')
       .getByRole('link', { name: /^Posteingang,/ }),
   ).toHaveAttribute('aria-label', `Posteingang, ${badge.count} offen`);
   for (const theme of ['light', 'dark']) {
@@ -122,7 +122,7 @@ test('top-bar link opens triage with the missing amount and performs no cover wr
     await route.fulfill({ response, json: body });
   });
   await page.goto('/');
-  const bar = page.locator(info.project.name === 'mobile' ? '.m-head' : '.topbar');
+  const bar = page.locator((page.viewportSize()?.width ?? Infinity) <= 767 ? '.m-head' : '.topbar');
   const chip = bar.getByRole('link', { name: /Envelopes überzogen/ });
   let coverPosts = 0;
   await page.route('**/api/budget/2026-09/move', async (route) => {

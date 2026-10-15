@@ -17,4 +17,4 @@ Chromium inbox desktop/mobile run: 7 tests including setup passed. Real WebKit i
 
 The original Impeccable detector returned no findings (`[]`, exit 0) for the 12 changed UI/chart source/CSS files. Other source-based reviews and their limits are in [skill adoption](../skill-adoption-2026-10-15.md).
 
-Final integrated full check, exact-head CI and deployment/live proof are pending.
+Q2-only integrated full check passed under Node 22.23.3 with required age: 433 files / 3,939 tests, no skips; all typecheck/lint/format checks passed. After that check, the related wealth slice was integrated and responsive header selectors were updated to use viewport width for the actual `webkit-iphone` project. The combined final full check, root-config WebKit run, exact-head CI and deployment/live proof remain pending.
