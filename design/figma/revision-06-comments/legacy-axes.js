@@ -1,0 +1,16 @@
+const monthSets={P05:[['Juni',0],['Juli',.25],['Aug.',.5],['Sep.',.75],['Okt.',1]],P11:[['Jul. 26',0],['Okt. 26',3/11],['Jän. 27',6/11],['Apr. 27',9/11],['Jun. 27',1]],V04:[['Nov. 25',0],['Jän. 26',2/11],['Mär. 26',4/11],['Mai 26',6/11],['Jul. 26',8/11],['Okt. 26',1]],V06:[['2026',0],['2035',9/36.33],['2045',19/36.33],['2055',29/36.33],['2063',1]],V16:[['Okt. 26',0],['Apr. 27',6/21],['Okt. 27',12/21],['Apr. 28',18/21],['Jul. 28',1]],R06:[['Mai',0],['Jun.',.2],['Jul.',.4],['Aug.',.6],['Sep.',.8],['Okt.',1]],R16:[['Mai',0],['Jun.',.2],['Jul.',.4],['Aug.',.6],['Sep.',.8],['Okt.',1]]};
+const targets=page.children.filter(n=>n.type==='FRAME'&&Object.keys(monthSets).includes(n.name.slice(0,3)));
+for(const target of targets){const f=target,sid=f.name.slice(0,3),m=f.width===390;const charts=f.findAll(n=>n.type==='FRAME'&&n.name.startsWith('Diagramm ·')&&n.height>130&&n.height<450&&n.width>250);
+for(const n of charts){for(const old of [...n.children].filter(c=>c.name.startsWith('REV06 · Achsen'))){removed.push(old.id);old.remove();}
+const texts=n.children.filter(c=>c.type==='TEXT'),oldX=texts.filter(t=>t.y>=n.height-28&&t.y<=n.height-15),l=sid==='V06'?64:sid==='V16'?80:48,right=sid==='V16'?24:16,baseline=oldX[0]?.y??n.height-26,pw=n.width-l-right;
+for(const t of oldX){t.visible=false;mutated.push(t.id);}const layer=panel(n,'REV06 · Achsen und Extremwerte',n.width,n.height);layer.fills=[];layer.strokes=[];layer.x=0;layer.y=0;
+let ticks=monthSets[sid]||[];if(m&&ticks.length>4)ticks=ticks.filter((_,i)=>i===0||i===ticks.length-1||i%2===0);
+for(const [s,frac]of ticks){const ww=m?54:82;label(layer,s,Math.max(0,Math.min(n.width-ww,l+pw*frac-ww/2)),baseline,ww,11,'muted','Regular','CENTER');}
+const ys=texts.filter(t=>t.x<10&&/\d/.test(t.characters)).sort((a,b)=>a.y-b.y);const parse=s=>{let v=Number(s.replace(/Tsd\./g,'').replace(/[^\d,−.-]/g,'').replace(/\./g,'').replace(',','.').replace('−','-'));return /Tsd/.test(s)?v*1000:v;};
+if(ys.length>=2){const top=ys[0],bottom=ys[ys.length-1],max=parse(top.characters),min=parse(bottom.characters),y1=top.y+8,y0=bottom.y+8;const svg=n.findAll(v=>v.type==='VECTOR'&&v.width>100&&v.height>10&&!v.name.startsWith('Raster'))[0];if(svg&&Number.isFinite(max)&&max>min){const points=[];for(const path of svg.vectorPaths){const re=/[ML]\s+(-?[\d.]+)\s+(-?[\d.]+)/g;let match;while((match=re.exec(path.data)))points.push([Number(match[1])+svg.x,Number(match[2])+svg.y]);}
+if(points.length){const vals=points.map(pt=>min+(y0-pt[1])/(y0-y1)*(max-min)),low=Math.min(...vals),high=Math.max(...vals),li=vals.indexOf(low),hi=vals.indexOf(high);for(const [idx,kind,value]of[[li,'Tief',low],[hi,'Hoch',high]]){const pt=points[idx],marker=track(figma.createEllipse());layer.appendChild(marker);marker.name=kind+' · vorhandener Datenpunkt';marker.resize(6,6);marker.x=pt[0]-3;marker.y=pt[1]-3;marker.fills=[paint('positive')];}
+const unit=top.characters.includes('%')?' %':sid==='R06'&&n.height<210?' Tage':' €';label(layer,(sid==='V06'?'Projektion · ':'')+'Tief '+num(Math.round(low))+unit+'   /   Hoch '+num(Math.round(high))+unit,l,0,n.width-l-12,m?10:11,'ink','Medium');}}
+}
+mutated.push(n.id);evidence.push({frame:f.id,chart:n.id,ticks:ticks.map(t=>t[0])});}
+}
+return{createdNodeIds:created,mutatedNodeIds:mutated,removedNodeIds:removed,evidence};

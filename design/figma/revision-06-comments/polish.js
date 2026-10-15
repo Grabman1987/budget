@@ -1,0 +1,10 @@
+for(const id of IDS){const f=await figma.getNodeByIdAsync(id),roots=f.findAll(n=>n.type==='FRAME'&&n.name.startsWith('REV06 ·'));
+for(const root of roots){for(const n of root.findAll(n=>n.type==='FRAME'&&/^(Wert [\d.]+ EUR|Skala [\d.]+|Wert [\d.]+)$/.test(n.name))){const v=Number(n.name.match(/[\d.]+/)[0]);n.fills=[paint('primary',.06+.32*v/1000)];mutated.push(n.id);}
+for(const n of root.findAll(n=>n.type==='VECTOR'&&/^(Wohnen|Lebensmittel|Weitere Ausgaben|Überschuss) · \d+ €$/.test(n.name))){n.fills=n.fills.map(p=>({...p,opacity:.22}));mutated.push(n.id);}
+for(const n of root.findAll(n=>n.type==='TEXT'&&/^(Aktien 64,5 %|Anleihen 35,5 %)$/.test(n.characters))){n.fills=[paint('onPrimary')];mutated.push(n.id);}
+for(const n of root.findAll(n=>n.type==='RECTANGLE'&&/^Vermögen \d+$/.test(n.name))){n.fills=n.fills.map(p=>({...p,opacity:.4}));mutated.push(n.id);}
+for(const n of root.findAll(n=>n.name.startsWith('GO '))){let target=null;const label=n.name.slice(9);if(label==='Erwartet und erhalten')target='R27';if(label==='Datenbasis und Berechnung')target='R21';if(label==='36-Monats-Tabelle')target='R34';if(label==='Eigene Auswertung')target='R23';if(label==='Projekte / Einnahmen und Kosten')target='R22';if(label==='Kontakte-Abrechnung')target='K11';if(label==='Sparpläne')target='V04';if(label==='Portfolio-Einstellungen')target='V08';if(label==='Gruppe anlegen')target='F26';if(label==='Kontostände prüfen · vor 8 Tagen')target='K09';if(label==='Ablehnen')target='G10';if(label==='Original-PDF')target='S11';if(target){n.name='GO '+target+' · '+label;mutated.push(n.id);}}
+}
+if(PAGE==='169:32'&&f.name.startsWith('P08 ·')){f.name=f.name.replace(' · Zahlungen ·',' · Zahlungen und Abos ·');mutated.push(f.id);const t=f.findOne(n=>n.type==='TEXT'&&n.characters==='Zahlungen'&&n.parent.name.startsWith('Schriftfeld'));if(t){t.characters='Zahlungen und Abos';mutated.push(t.id);}}
+evidence.push({id:f.id,name:f.name,corrected:mutated.length});}
+return{createdNodeIds:created,mutatedNodeIds:mutated,removedNodeIds:removed,evidence};

@@ -1,0 +1,520 @@
+[
+  {
+    "id": "172:3",
+    "name": "H01 · Überblick · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1807,
+    "page": "172:2"
+  },
+  {
+    "id": "172:125",
+    "name": "H01 · Überblick · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 2437,
+    "page": "172:2"
+  },
+  {
+    "id": "172:197",
+    "name": "H02 · Kontoprognose · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1196,
+    "page": "172:2"
+  },
+  {
+    "id": "172:284",
+    "name": "H02 · Kontoprognose · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1537,
+    "page": "172:2"
+  },
+  {
+    "id": "174:2",
+    "name": "P01 · Monatsplan · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1257,
+    "page": "169:32"
+  },
+  {
+    "id": "174:149",
+    "name": "P01 · Monatsplan · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 2306,
+    "page": "169:32"
+  },
+  {
+    "id": "174:225",
+    "name": "P02 · Monatsplan – Kategorie · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1319,
+    "page": "169:32"
+  },
+  {
+    "id": "174:372",
+    "name": "P02 · Monatsplan – Kategorie · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1584,
+    "page": "169:32"
+  },
+  {
+    "id": "174:436",
+    "name": "P03 · Monatsplan – Mehrfachauswahl · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1416,
+    "page": "169:32"
+  },
+  {
+    "id": "174:583",
+    "name": "P03 · Monatsplan – Mehrfachauswahl · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 2614,
+    "page": "169:32"
+  },
+  {
+    "id": "174:892",
+    "name": "P05 · Kategorie · Verlauf · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 998,
+    "page": "169:32"
+  },
+  {
+    "id": "174:957",
+    "name": "P05 · Kategorie · Verlauf · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1099,
+    "page": "169:32"
+  },
+  {
+    "id": "174:1256",
+    "name": "P08 · Zahlungen und Abos · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 900,
+    "page": "169:32"
+  },
+  {
+    "id": "174:1325",
+    "name": "P08 · Zahlungen und Abos · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 929,
+    "page": "169:32"
+  },
+  {
+    "id": "174:1610",
+    "name": "P11 · Sparziel · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1008,
+    "page": "169:32"
+  },
+  {
+    "id": "174:1692",
+    "name": "P11 · Sparziel · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1201,
+    "page": "169:32"
+  },
+  {
+    "id": "306:310",
+    "name": "P24 · Planaktionen · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 900,
+    "page": "169:32"
+  },
+  {
+    "id": "306:676",
+    "name": "P24 · Planaktionen · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1406,
+    "page": "169:32"
+  },
+  {
+    "id": "172:1943",
+    "name": "V01 · Nettovermögen · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1584,
+    "page": "172:1942"
+  },
+  {
+    "id": "172:2038",
+    "name": "V01 · Nettovermögen · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1853,
+    "page": "172:1942"
+  },
+  {
+    "id": "172:2107",
+    "name": "V02 · Portfolio · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 2237,
+    "page": "172:1942"
+  },
+  {
+    "id": "172:2202",
+    "name": "V02 · Portfolio · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 3282,
+    "page": "172:1942"
+  },
+  {
+    "id": "172:2419",
+    "name": "V04 · Sparplan · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 900,
+    "page": "172:1942"
+  },
+  {
+    "id": "172:2501",
+    "name": "V04 · Sparplan · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 989,
+    "page": "172:1942"
+  },
+  {
+    "id": "172:2695",
+    "name": "V06 · Freiheit · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1632,
+    "page": "172:1942"
+  },
+  {
+    "id": "172:2777",
+    "name": "V06 · Freiheit · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1984,
+    "page": "172:1942"
+  },
+  {
+    "id": "206:9364",
+    "name": "V16 · Tilgungsplan im Vergleich · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1924,
+    "page": "172:1942"
+  },
+  {
+    "id": "206:9632",
+    "name": "V16 · Tilgungsplan im Vergleich · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 2586,
+    "page": "172:1942"
+  },
+  {
+    "id": "316:324",
+    "name": "V22 · Portfolio · Weltaktien · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 2237,
+    "page": "172:1942"
+  },
+  {
+    "id": "316:605",
+    "name": "V22 · Portfolio · Weltaktien · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 3282,
+    "page": "172:1942"
+  },
+  {
+    "id": "316:832",
+    "name": "V23 · Portfolio · Nasdaq 100 · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 2237,
+    "page": "172:1942"
+  },
+  {
+    "id": "316:1113",
+    "name": "V23 · Portfolio · Nasdaq 100 · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 3282,
+    "page": "172:1942"
+  },
+  {
+    "id": "316:1340",
+    "name": "V24 · Portfolio · ohne Benchmark · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 2237,
+    "page": "172:1942"
+  },
+  {
+    "id": "316:1621",
+    "name": "V24 · Portfolio · ohne Benchmark · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 3282,
+    "page": "172:1942"
+  },
+  {
+    "id": "175:275",
+    "name": "R01 · Einnahmen und Cashflow · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1000,
+    "page": "171:373"
+  },
+  {
+    "id": "175:368",
+    "name": "R01 · Einnahmen und Cashflow · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1588,
+    "page": "171:373"
+  },
+  {
+    "id": "175:597",
+    "name": "R03 · Gehalt · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1219,
+    "page": "171:373"
+  },
+  {
+    "id": "175:698",
+    "name": "R03 · Gehalt · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1630,
+    "page": "171:373"
+  },
+  {
+    "id": "175:773",
+    "name": "R04 · Geldfluss · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1279,
+    "page": "171:373"
+  },
+  {
+    "id": "175:864",
+    "name": "R04 · Geldfluss · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1804,
+    "page": "171:373"
+  },
+  {
+    "id": "175:929",
+    "name": "R05 · Auswertung · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 987,
+    "page": "171:373"
+  },
+  {
+    "id": "175:1038",
+    "name": "R05 · Auswertung · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1439,
+    "page": "171:373"
+  },
+  {
+    "id": "175:1121",
+    "name": "R06 · Sparquote und Geldalter · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1167,
+    "page": "171:373"
+  },
+  {
+    "id": "175:1214",
+    "name": "R06 · Sparquote und Geldalter · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1260,
+    "page": "171:373"
+  },
+  {
+    "id": "175:1593",
+    "name": "R09 · Vermögen und Schulden · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1166,
+    "page": "171:373"
+  },
+  {
+    "id": "175:1685",
+    "name": "R09 · Vermögen und Schulden · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1455,
+    "page": "171:373"
+  },
+  {
+    "id": "175:1751",
+    "name": "R10 · Depots im Vergleich · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1038,
+    "page": "171:373"
+  },
+  {
+    "id": "175:1845",
+    "name": "R10 · Depots im Vergleich · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1466,
+    "page": "171:373"
+  },
+  {
+    "id": "175:1913",
+    "name": "R11 · Portfolio-Auswertung · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1068,
+    "page": "171:373"
+  },
+  {
+    "id": "175:2013",
+    "name": "R11 · Portfolio-Auswertung · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1562,
+    "page": "171:373"
+  },
+  {
+    "id": "175:2713",
+    "name": "R16 · Persönliche Inflation · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1027,
+    "page": "171:373"
+  },
+  {
+    "id": "175:2806",
+    "name": "R16 · Persönliche Inflation · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1120,
+    "page": "171:373"
+  },
+  {
+    "id": "240:1880",
+    "name": "R35 · Jahresansicht · Kategorien · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 900,
+    "page": "171:373"
+  },
+  {
+    "id": "240:2442",
+    "name": "R35 · Jahresansicht · Kategorien · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1801,
+    "page": "171:373"
+  },
+  {
+    "id": "308:629",
+    "name": "R38 · Gehalt · 3 Jahre · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1135,
+    "page": "171:373"
+  },
+  {
+    "id": "308:911",
+    "name": "R38 · Gehalt · 3 Jahre · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1624,
+    "page": "171:373"
+  },
+  {
+    "id": "308:1136",
+    "name": "R39 · Gehalt · 5 Jahre · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1219,
+    "page": "171:373"
+  },
+  {
+    "id": "308:1436",
+    "name": "R39 · Gehalt · 5 Jahre · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1704,
+    "page": "171:373"
+  },
+  {
+    "id": "308:1679",
+    "name": "R40 · Gehalt · 10 Jahre · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1429,
+    "page": "171:373"
+  },
+  {
+    "id": "308:2024",
+    "name": "R40 · Gehalt · 10 Jahre · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1904,
+    "page": "171:373"
+  },
+  {
+    "id": "174:2092",
+    "name": "F01 · Ausgabe bearbeiten · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1159,
+    "page": "171:197"
+  },
+  {
+    "id": "174:2194",
+    "name": "F01 · Ausgabe bearbeiten · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1548,
+    "page": "171:197"
+  },
+  {
+    "id": "174:2453",
+    "name": "F03 · Umbuchung Bank → Bargeld · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 966,
+    "page": "171:197"
+  },
+  {
+    "id": "174:2548",
+    "name": "F03 · Umbuchung Bank → Bargeld · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1218,
+    "page": "171:197"
+  },
+  {
+    "id": "174:2615",
+    "name": "F04 · Geteilte Ausgabe · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1404,
+    "page": "171:197"
+  },
+  {
+    "id": "174:2714",
+    "name": "F04 · Geteilte Ausgabe · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1855,
+    "page": "171:197"
+  },
+  {
+    "id": "173:246",
+    "name": "G03 · Ergebnis prüfen · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1528,
+    "page": "171:2"
+  },
+  {
+    "id": "173:357",
+    "name": "G03 · Ergebnis prüfen · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1856,
+    "page": "171:2"
+  },
+  {
+    "id": "173:441",
+    "name": "G04 · Unbekannte Lohnart · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 1222,
+    "page": "171:2"
+  },
+  {
+    "id": "173:543",
+    "name": "G04 · Unbekannte Lohnart · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 1668,
+    "page": "171:2"
+  },
+  {
+    "id": "173:821",
+    "name": "G06 · Bestätigt · Desktop 1440 · Hell",
+    "w": 1440,
+    "h": 900,
+    "page": "171:2"
+  },
+  {
+    "id": "173:894",
+    "name": "G06 · Bestätigt · Phone 390 · Dunkel",
+    "w": 390,
+    "h": 900,
+    "page": "171:2"
+  },
+  {
+    "id": "174:664",
+    "name": "P04 · Monatsplan – Unterdeckung · Desktop 1440 · Hell",
+    "w": 1440,
+    "page": "169:32",
+    "h": 1404
+  },
+  {
+    "id": "174:811",
+    "name": "P04 · Monatsplan – Unterdeckung · Phone 390 · Dunkel",
+    "w": 390,
+    "page": "169:32",
+    "h": 1067
+  }
+]

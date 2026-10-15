@@ -1,0 +1,668 @@
+[
+  {
+    "source": "172:3",
+    "prototype": "194:43166",
+    "scenario": "H01",
+    "mobile": false,
+    "sourceHeight": 1807,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "172:125",
+    "prototype": "194:43300",
+    "scenario": "H01",
+    "mobile": true,
+    "sourceHeight": 2437,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "172:197",
+    "prototype": "194:43418",
+    "scenario": "H02",
+    "mobile": false,
+    "sourceHeight": 1196,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "172:284",
+    "prototype": "194:43507",
+    "scenario": "H02",
+    "mobile": true,
+    "sourceHeight": 1537,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "174:2",
+    "prototype": "194:45414",
+    "scenario": "P01",
+    "mobile": false,
+    "sourceHeight": 1257,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "174:149",
+    "prototype": "194:45566",
+    "scenario": "P01",
+    "mobile": true,
+    "sourceHeight": 2306,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "174:225",
+    "prototype": "194:45659",
+    "scenario": "P02",
+    "mobile": false,
+    "sourceHeight": 1319,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "174:372",
+    "prototype": "194:45811",
+    "scenario": "P02",
+    "mobile": true,
+    "sourceHeight": 1584,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "174:436",
+    "prototype": "194:45888",
+    "scenario": "P03",
+    "mobile": false,
+    "sourceHeight": 1416,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "174:583",
+    "prototype": "194:46047",
+    "scenario": "P03",
+    "mobile": true,
+    "sourceHeight": 2614,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "174:892",
+    "prototype": "194:46424",
+    "scenario": "P05",
+    "mobile": false,
+    "sourceHeight": 998,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "174:957",
+    "prototype": "194:46515",
+    "scenario": "P05",
+    "mobile": true,
+    "sourceHeight": 1099,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "174:1256",
+    "prototype": "194:46900",
+    "scenario": "P08",
+    "mobile": false,
+    "sourceHeight": 900,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "174:1325",
+    "prototype": "194:46975",
+    "scenario": "P08",
+    "mobile": true,
+    "sourceHeight": 929,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "174:1610",
+    "prototype": "194:47294",
+    "scenario": "P11",
+    "mobile": false,
+    "sourceHeight": 1008,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "174:1692",
+    "prototype": "194:47385",
+    "scenario": "P11",
+    "mobile": true,
+    "sourceHeight": 1201,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "306:310",
+    "prototype": "322:4310",
+    "scenario": "P24",
+    "mobile": false,
+    "sourceHeight": 900,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "306:676",
+    "prototype": "322:4471",
+    "scenario": "P24",
+    "mobile": true,
+    "sourceHeight": 1406,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "172:1943",
+    "prototype": "194:53099",
+    "scenario": "V01",
+    "mobile": false,
+    "sourceHeight": 1584,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "172:2038",
+    "prototype": "194:53198",
+    "scenario": "V01",
+    "mobile": true,
+    "sourceHeight": 1853,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "172:2107",
+    "prototype": "194:53281",
+    "scenario": "V02",
+    "mobile": false,
+    "sourceHeight": 2237,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "172:2202",
+    "prototype": "194:53381",
+    "scenario": "V02",
+    "mobile": true,
+    "sourceHeight": 3282,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "172:2419",
+    "prototype": "194:53635",
+    "scenario": "V04",
+    "mobile": false,
+    "sourceHeight": 900,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "172:2501",
+    "prototype": "194:53723",
+    "scenario": "V04",
+    "mobile": true,
+    "sourceHeight": 989,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "172:2695",
+    "prototype": "194:53953",
+    "scenario": "V06",
+    "mobile": false,
+    "sourceHeight": 1632,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "172:2777",
+    "prototype": "194:54038",
+    "scenario": "V06",
+    "mobile": true,
+    "sourceHeight": 1984,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "206:9364",
+    "prototype": "217:68070",
+    "scenario": "V16",
+    "mobile": false,
+    "sourceHeight": 1924,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "206:9632",
+    "prototype": "217:68335",
+    "scenario": "V16",
+    "mobile": true,
+    "sourceHeight": 2586,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "316:324",
+    "prototype": "322:8746",
+    "scenario": "V22",
+    "mobile": false,
+    "sourceHeight": 2237,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "316:605",
+    "prototype": "322:9027",
+    "scenario": "V22",
+    "mobile": true,
+    "sourceHeight": 3282,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "316:832",
+    "prototype": "322:9276",
+    "scenario": "V23",
+    "mobile": false,
+    "sourceHeight": 2237,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "316:1113",
+    "prototype": "322:9557",
+    "scenario": "V23",
+    "mobile": true,
+    "sourceHeight": 3282,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "316:1340",
+    "prototype": "322:9806",
+    "scenario": "V24",
+    "mobile": false,
+    "sourceHeight": 2237,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "316:1621",
+    "prototype": "322:10087",
+    "scenario": "V24",
+    "mobile": true,
+    "sourceHeight": 3282,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "175:275",
+    "prototype": "194:48147",
+    "scenario": "R01",
+    "mobile": false,
+    "sourceHeight": 1000,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "175:368",
+    "prototype": "194:48235",
+    "scenario": "R01",
+    "mobile": true,
+    "sourceHeight": 1588,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "175:597",
+    "prototype": "194:48471",
+    "scenario": "R03",
+    "mobile": false,
+    "sourceHeight": 1219,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "175:698",
+    "prototype": "194:48566",
+    "scenario": "R03",
+    "mobile": true,
+    "sourceHeight": 1630,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "175:773",
+    "prototype": "194:48645",
+    "scenario": "R04",
+    "mobile": false,
+    "sourceHeight": 1279,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "175:864",
+    "prototype": "194:48731",
+    "scenario": "R04",
+    "mobile": true,
+    "sourceHeight": 1804,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "175:929",
+    "prototype": "194:48801",
+    "scenario": "R05",
+    "mobile": false,
+    "sourceHeight": 987,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "175:1038",
+    "prototype": "194:48905",
+    "scenario": "R05",
+    "mobile": true,
+    "sourceHeight": 1439,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "175:1121",
+    "prototype": "194:48993",
+    "scenario": "R06",
+    "mobile": false,
+    "sourceHeight": 1167,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "175:1214",
+    "prototype": "194:49095",
+    "scenario": "R06",
+    "mobile": true,
+    "sourceHeight": 1260,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "175:1593",
+    "prototype": "194:49499",
+    "scenario": "R09",
+    "mobile": false,
+    "sourceHeight": 1166,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "175:1685",
+    "prototype": "194:49604",
+    "scenario": "R09",
+    "mobile": true,
+    "sourceHeight": 1455,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "175:1751",
+    "prototype": "194:49693",
+    "scenario": "R10",
+    "mobile": false,
+    "sourceHeight": 1038,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "175:1845",
+    "prototype": "194:49785",
+    "scenario": "R10",
+    "mobile": true,
+    "sourceHeight": 1466,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "175:1913",
+    "prototype": "194:49861",
+    "scenario": "R11",
+    "mobile": false,
+    "sourceHeight": 1068,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "175:2013",
+    "prototype": "194:49956",
+    "scenario": "R11",
+    "mobile": true,
+    "sourceHeight": 1562,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "175:2713",
+    "prototype": "194:50637",
+    "scenario": "R16",
+    "mobile": false,
+    "sourceHeight": 1027,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "175:2806",
+    "prototype": "194:50728",
+    "scenario": "R16",
+    "mobile": true,
+    "sourceHeight": 1120,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "240:1880",
+    "prototype": "242:11746",
+    "scenario": "R35",
+    "mobile": false,
+    "sourceHeight": 900,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "240:2442",
+    "prototype": "242:11979",
+    "scenario": "R35",
+    "mobile": true,
+    "sourceHeight": 1801,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "308:629",
+    "prototype": "322:13438",
+    "scenario": "R38",
+    "mobile": false,
+    "sourceHeight": 1135,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "308:911",
+    "prototype": "322:13606",
+    "scenario": "R38",
+    "mobile": true,
+    "sourceHeight": 1624,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "308:1136",
+    "prototype": "322:13742",
+    "scenario": "R39",
+    "mobile": false,
+    "sourceHeight": 1219,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "308:1436",
+    "prototype": "322:13928",
+    "scenario": "R39",
+    "mobile": true,
+    "sourceHeight": 1704,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "308:1679",
+    "prototype": "322:14082",
+    "scenario": "R40",
+    "mobile": false,
+    "sourceHeight": 1429,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "308:2024",
+    "prototype": "322:14313",
+    "scenario": "R40",
+    "mobile": true,
+    "sourceHeight": 1904,
+    "viewport": 844,
+    "fixed": 2
+  },
+  {
+    "source": "174:2092",
+    "prototype": "194:39047",
+    "scenario": "F01",
+    "mobile": false,
+    "sourceHeight": 1159,
+    "viewport": 900,
+    "fixed": 0
+  },
+  {
+    "source": "174:2194",
+    "prototype": "194:39145",
+    "scenario": "F01",
+    "mobile": true,
+    "sourceHeight": 1548,
+    "viewport": 844,
+    "fixed": 0
+  },
+  {
+    "source": "174:2453",
+    "prototype": "194:39343",
+    "scenario": "F03",
+    "mobile": false,
+    "sourceHeight": 966,
+    "viewport": 900,
+    "fixed": 0
+  },
+  {
+    "source": "174:2548",
+    "prototype": "194:39434",
+    "scenario": "F03",
+    "mobile": true,
+    "sourceHeight": 1218,
+    "viewport": 844,
+    "fixed": 0
+  },
+  {
+    "source": "174:2615",
+    "prototype": "194:39485",
+    "scenario": "F04",
+    "mobile": false,
+    "sourceHeight": 1404,
+    "viewport": 900,
+    "fixed": 0
+  },
+  {
+    "source": "174:2714",
+    "prototype": "194:39580",
+    "scenario": "F04",
+    "mobile": true,
+    "sourceHeight": 1855,
+    "viewport": 844,
+    "fixed": 0
+  },
+  {
+    "source": "173:246",
+    "prototype": "194:41985",
+    "scenario": "G03",
+    "mobile": false,
+    "sourceHeight": 1528,
+    "viewport": 900,
+    "fixed": 0
+  },
+  {
+    "source": "173:357",
+    "prototype": "194:42090",
+    "scenario": "G03",
+    "mobile": true,
+    "sourceHeight": 1856,
+    "viewport": 844,
+    "fixed": 0
+  },
+  {
+    "source": "173:441",
+    "prototype": "194:42156",
+    "scenario": "G04",
+    "mobile": false,
+    "sourceHeight": 1222,
+    "viewport": 900,
+    "fixed": 0
+  },
+  {
+    "source": "173:543",
+    "prototype": "194:42251",
+    "scenario": "G04",
+    "mobile": true,
+    "sourceHeight": 1668,
+    "viewport": 844,
+    "fixed": 0
+  },
+  {
+    "source": "173:821",
+    "prototype": "194:42486",
+    "scenario": "G06",
+    "mobile": false,
+    "sourceHeight": 900,
+    "viewport": 900,
+    "fixed": 0
+  },
+  {
+    "source": "173:894",
+    "prototype": "194:42555",
+    "scenario": "G06",
+    "mobile": true,
+    "sourceHeight": 900,
+    "viewport": 844,
+    "fixed": 0
+  },
+  {
+    "source": "174:664",
+    "prototype": "194:46159",
+    "scenario": "P04",
+    "mobile": false,
+    "sourceHeight": 1404,
+    "viewport": 900,
+    "fixed": 2
+  },
+  {
+    "source": "174:811",
+    "prototype": "194:46315",
+    "scenario": "P04",
+    "mobile": true,
+    "sourceHeight": 1067,
+    "viewport": 844,
+    "fixed": 2
+  }
+]

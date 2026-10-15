@@ -1,0 +1,1357 @@
+{
+  "date": "2026-10-15",
+  "fileKey": "Nv9oaV96Npql6onEofCFEi",
+  "checkedFrames": 74,
+  "totalScenarios": 177,
+  "totalPrimaryFrames": 354,
+  "sourceTextPrototypeMismatches": [],
+  "textOverflows": [],
+  "navigation": {
+    "checkedLinks": 1511,
+    "missing": []
+  },
+  "benchmarkStates": [
+    {
+      "frame": "194:53281",
+      "scenario": "V02",
+      "series": [
+        {
+          "name": "Weltaktien · gestrichelt",
+          "visible": true
+        },
+        {
+          "name": "Nasdaq 100 · punktiert",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "frame": "194:53381",
+      "scenario": "V02",
+      "series": [
+        {
+          "name": "Weltaktien · gestrichelt",
+          "visible": true
+        },
+        {
+          "name": "Nasdaq 100 · punktiert",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "frame": "322:8746",
+      "scenario": "V22",
+      "series": [
+        {
+          "name": "Weltaktien · gestrichelt",
+          "visible": true
+        },
+        {
+          "name": "Nasdaq 100 · punktiert",
+          "visible": false
+        }
+      ]
+    },
+    {
+      "frame": "322:9027",
+      "scenario": "V22",
+      "series": [
+        {
+          "name": "Weltaktien · gestrichelt",
+          "visible": true
+        },
+        {
+          "name": "Nasdaq 100 · punktiert",
+          "visible": false
+        }
+      ]
+    },
+    {
+      "frame": "322:9276",
+      "scenario": "V23",
+      "series": [
+        {
+          "name": "Weltaktien · gestrichelt",
+          "visible": false
+        },
+        {
+          "name": "Nasdaq 100 · punktiert",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "frame": "322:9557",
+      "scenario": "V23",
+      "series": [
+        {
+          "name": "Weltaktien · gestrichelt",
+          "visible": false
+        },
+        {
+          "name": "Nasdaq 100 · punktiert",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "frame": "322:9806",
+      "scenario": "V24",
+      "series": [
+        {
+          "name": "Weltaktien · gestrichelt",
+          "visible": false
+        },
+        {
+          "name": "Nasdaq 100 · punktiert",
+          "visible": false
+        }
+      ]
+    },
+    {
+      "frame": "322:10087",
+      "scenario": "V24",
+      "series": [
+        {
+          "name": "Weltaktien · gestrichelt",
+          "visible": false
+        },
+        {
+          "name": "Nasdaq 100 · punktiert",
+          "visible": false
+        }
+      ]
+    }
+  ],
+  "sourceChecks": [
+    {
+      "id": "172:3",
+      "name": "H01 · Überblick · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1807,
+      "count": 102,
+      "hash": "263df0d6"
+    },
+    {
+      "id": "172:125",
+      "name": "H01 · Überblick · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 2437,
+      "count": 73,
+      "hash": "4fa9bc4"
+    },
+    {
+      "id": "172:197",
+      "name": "H02 · Kontoprognose · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1196,
+      "count": 79,
+      "hash": "43a8e41"
+    },
+    {
+      "id": "172:284",
+      "name": "H02 · Kontoprognose · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1537,
+      "count": 50,
+      "hash": "f16d1ed1"
+    },
+    {
+      "id": "174:2",
+      "name": "P01 · Monatsplan · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1257,
+      "count": 121,
+      "hash": "ca7b2ad6"
+    },
+    {
+      "id": "174:149",
+      "name": "P01 · Monatsplan · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 2306,
+      "count": 75,
+      "hash": "f6f32140"
+    },
+    {
+      "id": "174:225",
+      "name": "P02 · Monatsplan – Kategorie · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1319,
+      "count": 115,
+      "hash": "4119b571"
+    },
+    {
+      "id": "174:372",
+      "name": "P02 · Monatsplan – Kategorie · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1584,
+      "count": 37,
+      "hash": "89b42d6d"
+    },
+    {
+      "id": "174:436",
+      "name": "P03 · Monatsplan – Mehrfachauswahl · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1416,
+      "count": 120,
+      "hash": "8e9f6c73"
+    },
+    {
+      "id": "174:583",
+      "name": "P03 · Monatsplan – Mehrfachauswahl · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 2614,
+      "count": 74,
+      "hash": "6ae07acd"
+    },
+    {
+      "id": "174:892",
+      "name": "P05 · Kategorie · Verlauf · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 998,
+      "count": 71,
+      "hash": "fe57d31d"
+    },
+    {
+      "id": "174:957",
+      "name": "P05 · Kategorie · Verlauf · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1099,
+      "count": 40,
+      "hash": "251ce523"
+    },
+    {
+      "id": "174:1256",
+      "name": "P08 · Zahlungen und Abos · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 62,
+      "hash": "8b6b8b92"
+    },
+    {
+      "id": "174:1325",
+      "name": "P08 · Zahlungen und Abos · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 929,
+      "count": 34,
+      "hash": "a164892c"
+    },
+    {
+      "id": "174:1610",
+      "name": "P11 · Sparziel · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1008,
+      "count": 69,
+      "hash": "7f412b51"
+    },
+    {
+      "id": "174:1692",
+      "name": "P11 · Sparziel · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1201,
+      "count": 39,
+      "hash": "16a1e0c9"
+    },
+    {
+      "id": "306:310",
+      "name": "P24 · Planaktionen · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 60,
+      "hash": "2e720d94"
+    },
+    {
+      "id": "306:676",
+      "name": "P24 · Planaktionen · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1406,
+      "count": 31,
+      "hash": "ba3611ca"
+    },
+    {
+      "id": "174:664",
+      "name": "P04 · Monatsplan – Unterdeckung · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1404,
+      "count": 97,
+      "hash": "cc54dfb1"
+    },
+    {
+      "id": "174:811",
+      "name": "P04 · Monatsplan – Unterdeckung · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1067,
+      "count": 37,
+      "hash": "4489c306"
+    },
+    {
+      "id": "172:1943",
+      "name": "V01 · Nettovermögen · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1584,
+      "count": 93,
+      "hash": "cf67894a"
+    },
+    {
+      "id": "172:2038",
+      "name": "V01 · Nettovermögen · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1853,
+      "count": 63,
+      "hash": "d5125c35"
+    },
+    {
+      "id": "172:2107",
+      "name": "V02 · Portfolio · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 2237,
+      "count": 127,
+      "hash": "31201b90"
+    },
+    {
+      "id": "172:2202",
+      "name": "V02 · Portfolio · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 3282,
+      "count": 96,
+      "hash": "2f84739d"
+    },
+    {
+      "id": "172:2419",
+      "name": "V04 · Sparplan · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 66,
+      "hash": "af442b64"
+    },
+    {
+      "id": "172:2501",
+      "name": "V04 · Sparplan · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 989,
+      "count": 36,
+      "hash": "c51adbb3"
+    },
+    {
+      "id": "172:2695",
+      "name": "V06 · Freiheit · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1632,
+      "count": 91,
+      "hash": "3072a0b9"
+    },
+    {
+      "id": "172:2777",
+      "name": "V06 · Freiheit · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1984,
+      "count": 60,
+      "hash": "beb8c3d0"
+    },
+    {
+      "id": "206:9364",
+      "name": "V16 · Tilgungsplan im Vergleich · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1924,
+      "count": 114,
+      "hash": "710dd34e"
+    },
+    {
+      "id": "206:9632",
+      "name": "V16 · Tilgungsplan im Vergleich · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 2586,
+      "count": 88,
+      "hash": "6199e2f5"
+    },
+    {
+      "id": "316:324",
+      "name": "V22 · Portfolio · Weltaktien · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 2237,
+      "count": 127,
+      "hash": "6fe30a37"
+    },
+    {
+      "id": "316:605",
+      "name": "V22 · Portfolio · Weltaktien · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 3282,
+      "count": 96,
+      "hash": "7da53e56"
+    },
+    {
+      "id": "316:832",
+      "name": "V23 · Portfolio · Nasdaq 100 · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 2237,
+      "count": 127,
+      "hash": "29257323"
+    },
+    {
+      "id": "316:1113",
+      "name": "V23 · Portfolio · Nasdaq 100 · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 3282,
+      "count": 96,
+      "hash": "fcd1c6c6"
+    },
+    {
+      "id": "316:1340",
+      "name": "V24 · Portfolio · ohne Benchmark · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 2237,
+      "count": 127,
+      "hash": "61daa560"
+    },
+    {
+      "id": "316:1621",
+      "name": "V24 · Portfolio · ohne Benchmark · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 3282,
+      "count": 96,
+      "hash": "3e233e91"
+    },
+    {
+      "id": "175:275",
+      "name": "R01 · Einnahmen und Cashflow · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1000,
+      "count": 72,
+      "hash": "485f4d47"
+    },
+    {
+      "id": "175:368",
+      "name": "R01 · Einnahmen und Cashflow · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1588,
+      "count": 43,
+      "hash": "e4c590f7"
+    },
+    {
+      "id": "175:597",
+      "name": "R03 · Gehalt · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1219,
+      "count": 93,
+      "hash": "97d861e1"
+    },
+    {
+      "id": "175:698",
+      "name": "R03 · Gehalt · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1630,
+      "count": 58,
+      "hash": "cfa48666"
+    },
+    {
+      "id": "175:773",
+      "name": "R04 · Geldfluss · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1279,
+      "count": 67,
+      "hash": "41b549a3"
+    },
+    {
+      "id": "175:864",
+      "name": "R04 · Geldfluss · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1804,
+      "count": 38,
+      "hash": "2a2ca387"
+    },
+    {
+      "id": "175:929",
+      "name": "R05 · Auswertung · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 987,
+      "count": 82,
+      "hash": "7eabc7b8"
+    },
+    {
+      "id": "175:1038",
+      "name": "R05 · Auswertung · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1439,
+      "count": 53,
+      "hash": "1d9ef510"
+    },
+    {
+      "id": "175:1121",
+      "name": "R06 · Sparquote und Geldalter · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1167,
+      "count": 82,
+      "hash": "a4c16e07"
+    },
+    {
+      "id": "175:1214",
+      "name": "R06 · Sparquote und Geldalter · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1260,
+      "count": 49,
+      "hash": "ca3a05f7"
+    },
+    {
+      "id": "175:1593",
+      "name": "R09 · Vermögen und Schulden · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1166,
+      "count": 81,
+      "hash": "4c53fc80"
+    },
+    {
+      "id": "175:1685",
+      "name": "R09 · Vermögen und Schulden · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1455,
+      "count": 52,
+      "hash": "8c7ab88a"
+    },
+    {
+      "id": "175:1751",
+      "name": "R10 · Depots im Vergleich · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1038,
+      "count": 68,
+      "hash": "bcf31dc"
+    },
+    {
+      "id": "175:1845",
+      "name": "R10 · Depots im Vergleich · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1466,
+      "count": 37,
+      "hash": "435d19"
+    },
+    {
+      "id": "175:1913",
+      "name": "R11 · Portfolio-Auswertung · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1068,
+      "count": 75,
+      "hash": "f31121bd"
+    },
+    {
+      "id": "175:2013",
+      "name": "R11 · Portfolio-Auswertung · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1562,
+      "count": 44,
+      "hash": "1c83e8a4"
+    },
+    {
+      "id": "175:2713",
+      "name": "R16 · Persönliche Inflation · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1027,
+      "count": 69,
+      "hash": "844df47f"
+    },
+    {
+      "id": "175:2806",
+      "name": "R16 · Persönliche Inflation · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1120,
+      "count": 38,
+      "hash": "2b3f0695"
+    },
+    {
+      "id": "240:1880",
+      "name": "R35 · Jahresansicht · Kategorien · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 126,
+      "hash": "26cc41ed"
+    },
+    {
+      "id": "240:2442",
+      "name": "R35 · Jahresansicht · Kategorien · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1801,
+      "count": 116,
+      "hash": "bf981998"
+    },
+    {
+      "id": "308:629",
+      "name": "R38 · Gehalt · 3 Jahre · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1135,
+      "count": 78,
+      "hash": "754d12fb"
+    },
+    {
+      "id": "308:911",
+      "name": "R38 · Gehalt · 3 Jahre · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1624,
+      "count": 49,
+      "hash": "2962f77"
+    },
+    {
+      "id": "308:1136",
+      "name": "R39 · Gehalt · 5 Jahre · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1219,
+      "count": 86,
+      "hash": "68398ca6"
+    },
+    {
+      "id": "308:1436",
+      "name": "R39 · Gehalt · 5 Jahre · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1704,
+      "count": 57,
+      "hash": "4a44919a"
+    },
+    {
+      "id": "308:1679",
+      "name": "R40 · Gehalt · 10 Jahre · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1429,
+      "count": 106,
+      "hash": "caac7b3b"
+    },
+    {
+      "id": "308:2024",
+      "name": "R40 · Gehalt · 10 Jahre · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1904,
+      "count": 73,
+      "hash": "f59e54d6"
+    },
+    {
+      "id": "174:2092",
+      "name": "F01 · Ausgabe bearbeiten · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1159,
+      "count": 67,
+      "hash": "7d33eae8"
+    },
+    {
+      "id": "174:2194",
+      "name": "F01 · Ausgabe bearbeiten · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1548,
+      "count": 38,
+      "hash": "3dc9cb04"
+    },
+    {
+      "id": "174:2453",
+      "name": "F03 · Umbuchung Bank → Bargeld · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 966,
+      "count": 62,
+      "hash": "3cc6119a"
+    },
+    {
+      "id": "174:2548",
+      "name": "F03 · Umbuchung Bank → Bargeld · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1218,
+      "count": 33,
+      "hash": "86bd39c6"
+    },
+    {
+      "id": "174:2615",
+      "name": "F04 · Geteilte Ausgabe · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1404,
+      "count": 77,
+      "hash": "a3ad652b"
+    },
+    {
+      "id": "174:2714",
+      "name": "F04 · Geteilte Ausgabe · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1855,
+      "count": 48,
+      "hash": "c14cf667"
+    },
+    {
+      "id": "173:246",
+      "name": "G03 · Ergebnis prüfen · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1528,
+      "count": 85,
+      "hash": "8b12ad58"
+    },
+    {
+      "id": "173:357",
+      "name": "G03 · Ergebnis prüfen · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1856,
+      "count": 56,
+      "hash": "10632491"
+    },
+    {
+      "id": "173:441",
+      "name": "G04 · Unbekannte Lohnart · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 1222,
+      "count": 69,
+      "hash": "66f480d0"
+    },
+    {
+      "id": "173:543",
+      "name": "G04 · Unbekannte Lohnart · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 1668,
+      "count": 40,
+      "hash": "f0f20b75"
+    },
+    {
+      "id": "173:821",
+      "name": "G06 · Bestätigt · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 50,
+      "hash": "b525af0a"
+    },
+    {
+      "id": "173:894",
+      "name": "G06 · Bestätigt · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 900,
+      "count": 21,
+      "hash": "78462aef"
+    }
+  ],
+  "prototypeChecks": [
+    {
+      "id": "194:43166",
+      "name": "H01 · Überblick · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 102,
+      "hash": "263df0d6"
+    },
+    {
+      "id": "194:43300",
+      "name": "H01 · Überblick · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 73,
+      "hash": "4fa9bc4"
+    },
+    {
+      "id": "194:43418",
+      "name": "H02 · Kontoprognose · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 79,
+      "hash": "43a8e41"
+    },
+    {
+      "id": "194:43507",
+      "name": "H02 · Kontoprognose · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 50,
+      "hash": "f16d1ed1"
+    },
+    {
+      "id": "194:45414",
+      "name": "P01 · Monatsplan · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 121,
+      "hash": "ca7b2ad6"
+    },
+    {
+      "id": "194:45566",
+      "name": "P01 · Monatsplan · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 75,
+      "hash": "f6f32140"
+    },
+    {
+      "id": "194:45659",
+      "name": "P02 · Monatsplan – Kategorie · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 115,
+      "hash": "4119b571"
+    },
+    {
+      "id": "194:45811",
+      "name": "P02 · Monatsplan – Kategorie · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 37,
+      "hash": "89b42d6d"
+    },
+    {
+      "id": "194:45888",
+      "name": "P03 · Monatsplan – Mehrfachauswahl · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 120,
+      "hash": "8e9f6c73"
+    },
+    {
+      "id": "194:46047",
+      "name": "P03 · Monatsplan – Mehrfachauswahl · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 74,
+      "hash": "6ae07acd"
+    },
+    {
+      "id": "194:46424",
+      "name": "P05 · Kategorie · Verlauf · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 71,
+      "hash": "fe57d31d"
+    },
+    {
+      "id": "194:46515",
+      "name": "P05 · Kategorie · Verlauf · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 40,
+      "hash": "251ce523"
+    },
+    {
+      "id": "194:46900",
+      "name": "P08 · Zahlungen und Abos · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 62,
+      "hash": "8b6b8b92"
+    },
+    {
+      "id": "194:46975",
+      "name": "P08 · Zahlungen und Abos · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 34,
+      "hash": "a164892c"
+    },
+    {
+      "id": "194:47294",
+      "name": "P11 · Sparziel · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 69,
+      "hash": "7f412b51"
+    },
+    {
+      "id": "194:47385",
+      "name": "P11 · Sparziel · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 39,
+      "hash": "16a1e0c9"
+    },
+    {
+      "id": "322:4310",
+      "name": "P24 · Planaktionen · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 60,
+      "hash": "2e720d94"
+    },
+    {
+      "id": "322:4471",
+      "name": "P24 · Planaktionen · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 31,
+      "hash": "ba3611ca"
+    },
+    {
+      "id": "194:53099",
+      "name": "V01 · Nettovermögen · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 93,
+      "hash": "cf67894a"
+    },
+    {
+      "id": "194:53198",
+      "name": "V01 · Nettovermögen · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 63,
+      "hash": "d5125c35"
+    },
+    {
+      "id": "194:53281",
+      "name": "V02 · Portfolio · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 127,
+      "hash": "31201b90"
+    },
+    {
+      "id": "194:53381",
+      "name": "V02 · Portfolio · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 96,
+      "hash": "2f84739d"
+    },
+    {
+      "id": "194:53635",
+      "name": "V04 · Sparplan · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 66,
+      "hash": "af442b64"
+    },
+    {
+      "id": "194:53723",
+      "name": "V04 · Sparplan · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 36,
+      "hash": "c51adbb3"
+    },
+    {
+      "id": "194:53953",
+      "name": "V06 · Freiheit · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 91,
+      "hash": "3072a0b9"
+    },
+    {
+      "id": "194:54038",
+      "name": "V06 · Freiheit · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 60,
+      "hash": "beb8c3d0"
+    },
+    {
+      "id": "217:68070",
+      "name": "V16 · Tilgungsplan im Vergleich · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 114,
+      "hash": "710dd34e"
+    },
+    {
+      "id": "217:68335",
+      "name": "V16 · Tilgungsplan im Vergleich · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 88,
+      "hash": "6199e2f5"
+    },
+    {
+      "id": "322:8746",
+      "name": "V22 · Portfolio · Weltaktien · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 127,
+      "hash": "6fe30a37"
+    },
+    {
+      "id": "322:9027",
+      "name": "V22 · Portfolio · Weltaktien · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 96,
+      "hash": "7da53e56"
+    },
+    {
+      "id": "322:9276",
+      "name": "V23 · Portfolio · Nasdaq 100 · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 127,
+      "hash": "29257323"
+    },
+    {
+      "id": "322:9557",
+      "name": "V23 · Portfolio · Nasdaq 100 · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 96,
+      "hash": "fcd1c6c6"
+    },
+    {
+      "id": "322:9806",
+      "name": "V24 · Portfolio · ohne Benchmark · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 127,
+      "hash": "61daa560"
+    },
+    {
+      "id": "322:10087",
+      "name": "V24 · Portfolio · ohne Benchmark · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 96,
+      "hash": "3e233e91"
+    },
+    {
+      "id": "194:48147",
+      "name": "R01 · Einnahmen und Cashflow · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 72,
+      "hash": "485f4d47"
+    },
+    {
+      "id": "194:48235",
+      "name": "R01 · Einnahmen und Cashflow · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 43,
+      "hash": "e4c590f7"
+    },
+    {
+      "id": "194:48471",
+      "name": "R03 · Gehalt · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 93,
+      "hash": "97d861e1"
+    },
+    {
+      "id": "194:48566",
+      "name": "R03 · Gehalt · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 58,
+      "hash": "cfa48666"
+    },
+    {
+      "id": "194:48645",
+      "name": "R04 · Geldfluss · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 67,
+      "hash": "41b549a3"
+    },
+    {
+      "id": "194:48731",
+      "name": "R04 · Geldfluss · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 38,
+      "hash": "2a2ca387"
+    },
+    {
+      "id": "194:48801",
+      "name": "R05 · Auswertung · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 82,
+      "hash": "7eabc7b8"
+    },
+    {
+      "id": "194:48905",
+      "name": "R05 · Auswertung · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 53,
+      "hash": "1d9ef510"
+    },
+    {
+      "id": "194:48993",
+      "name": "R06 · Sparquote und Geldalter · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 82,
+      "hash": "a4c16e07"
+    },
+    {
+      "id": "194:49095",
+      "name": "R06 · Sparquote und Geldalter · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 49,
+      "hash": "ca3a05f7"
+    },
+    {
+      "id": "194:49499",
+      "name": "R09 · Vermögen und Schulden · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 81,
+      "hash": "4c53fc80"
+    },
+    {
+      "id": "194:49604",
+      "name": "R09 · Vermögen und Schulden · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 52,
+      "hash": "8c7ab88a"
+    },
+    {
+      "id": "194:49693",
+      "name": "R10 · Depots im Vergleich · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 68,
+      "hash": "bcf31dc"
+    },
+    {
+      "id": "194:49785",
+      "name": "R10 · Depots im Vergleich · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 37,
+      "hash": "435d19"
+    },
+    {
+      "id": "194:49861",
+      "name": "R11 · Portfolio-Auswertung · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 75,
+      "hash": "f31121bd"
+    },
+    {
+      "id": "194:49956",
+      "name": "R11 · Portfolio-Auswertung · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 44,
+      "hash": "1c83e8a4"
+    },
+    {
+      "id": "194:50637",
+      "name": "R16 · Persönliche Inflation · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 69,
+      "hash": "844df47f"
+    },
+    {
+      "id": "194:50728",
+      "name": "R16 · Persönliche Inflation · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 38,
+      "hash": "2b3f0695"
+    },
+    {
+      "id": "242:11746",
+      "name": "R35 · Jahresansicht · Kategorien · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 126,
+      "hash": "26cc41ed"
+    },
+    {
+      "id": "242:11979",
+      "name": "R35 · Jahresansicht · Kategorien · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 116,
+      "hash": "bf981998"
+    },
+    {
+      "id": "322:13438",
+      "name": "R38 · Gehalt · 3 Jahre · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 78,
+      "hash": "754d12fb"
+    },
+    {
+      "id": "322:13606",
+      "name": "R38 · Gehalt · 3 Jahre · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 49,
+      "hash": "2962f77"
+    },
+    {
+      "id": "322:13742",
+      "name": "R39 · Gehalt · 5 Jahre · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 86,
+      "hash": "68398ca6"
+    },
+    {
+      "id": "322:13928",
+      "name": "R39 · Gehalt · 5 Jahre · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 57,
+      "hash": "4a44919a"
+    },
+    {
+      "id": "322:14082",
+      "name": "R40 · Gehalt · 10 Jahre · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 106,
+      "hash": "caac7b3b"
+    },
+    {
+      "id": "322:14313",
+      "name": "R40 · Gehalt · 10 Jahre · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 73,
+      "hash": "f59e54d6"
+    },
+    {
+      "id": "194:39047",
+      "name": "F01 · Ausgabe bearbeiten · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 67,
+      "hash": "7d33eae8"
+    },
+    {
+      "id": "194:39145",
+      "name": "F01 · Ausgabe bearbeiten · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 38,
+      "hash": "3dc9cb04"
+    },
+    {
+      "id": "194:39343",
+      "name": "F03 · Umbuchung Bank → Bargeld · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 62,
+      "hash": "3cc6119a"
+    },
+    {
+      "id": "194:39434",
+      "name": "F03 · Umbuchung Bank → Bargeld · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 33,
+      "hash": "86bd39c6"
+    },
+    {
+      "id": "194:39485",
+      "name": "F04 · Geteilte Ausgabe · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 77,
+      "hash": "a3ad652b"
+    },
+    {
+      "id": "194:39580",
+      "name": "F04 · Geteilte Ausgabe · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 48,
+      "hash": "c14cf667"
+    },
+    {
+      "id": "194:41985",
+      "name": "G03 · Ergebnis prüfen · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 85,
+      "hash": "8b12ad58"
+    },
+    {
+      "id": "194:42090",
+      "name": "G03 · Ergebnis prüfen · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 56,
+      "hash": "10632491"
+    },
+    {
+      "id": "194:42156",
+      "name": "G04 · Unbekannte Lohnart · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 69,
+      "hash": "66f480d0"
+    },
+    {
+      "id": "194:42251",
+      "name": "G04 · Unbekannte Lohnart · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 40,
+      "hash": "f0f20b75"
+    },
+    {
+      "id": "194:42486",
+      "name": "G06 · Bestätigt · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 50,
+      "hash": "b525af0a"
+    },
+    {
+      "id": "194:42555",
+      "name": "G06 · Bestätigt · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 21,
+      "hash": "78462aef"
+    },
+    {
+      "id": "194:46159",
+      "name": "P04 · Monatsplan – Unterdeckung · Desktop 1440 · Hell",
+      "w": 1440,
+      "h": 900,
+      "count": 97,
+      "hash": "cc54dfb1"
+    },
+    {
+      "id": "194:46315",
+      "name": "P04 · Monatsplan – Unterdeckung · Phone 390 · Dunkel",
+      "w": 390,
+      "h": 844,
+      "count": 37,
+      "hash": "4489c306"
+    }
+  ],
+  "visualChecks": [
+    {
+      "source": "172:2107",
+      "kind": "Desktop portfolio, value/performance/assets",
+      "result": "pass; unchecked checkbox state fixed separately"
+    },
+    {
+      "source": "172:2202",
+      "kind": "Phone portfolio after checkbox fix",
+      "result": "pass"
+    },
+    {
+      "source": "174:2453",
+      "kind": "Desktop transfer after checkbox fix",
+      "result": "pass"
+    },
+    {
+      "source": "175:864",
+      "kind": "Phone cashflow",
+      "result": "pass"
+    },
+    {
+      "source": "173:357",
+      "kind": "Phone salary details",
+      "result": "pass"
+    },
+    {
+      "source": "174:436",
+      "kind": "Desktop plan multiselection",
+      "result": "pass"
+    },
+    {
+      "source": "172:284",
+      "kind": "Phone forecast",
+      "result": "pass"
+    }
+  ],
+  "notes": [
+    "Cross-page instance TEXT enumeration is incomplete outside its own page context. Source and prototype digests were therefore collected in separate, matching page contexts.",
+    "Figma comments were supplied as screenshots; native comment thread closure was unavailable.",
+    "Daily benchmark data and configurable payslip reporting fields remain design targets, not an implementation claim."
+  ]
+}
