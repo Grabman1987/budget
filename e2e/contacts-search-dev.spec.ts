@@ -40,18 +40,19 @@ test('package: contact history, search URL and developer details preserve naviga
   const input = page.getByRole('combobox', { name: 'Suchen', exact: true });
   await expect(input).toBeFocused();
   await input.fill('Girokonto');
+  await page.getByRole('button', { name: 'Alle Ergebnisse', exact: true }).click();
   await expect(page).toHaveURL(/q=Girokonto/);
-  await expect(page.getByRole('option').first()).toContainText('Girokonto');
+  await expect(page.getByRole('listbox').getByRole('option').first()).toContainText('Girokonto');
   await page.reload();
   await expect(input).toHaveValue('Girokonto');
-  await expect(page.getByRole('option').first()).toContainText('Girokonto');
+  await expect(page.getByRole('listbox').getByRole('option').first()).toContainText('Girokonto');
   await input.press('Enter');
   await expect(page).toHaveURL(/\/konten\/acc-giro$/);
   // Going back while the account page is still loading would leave the old search page mounted.
   await expect(page.getByRole('heading', { name: 'Girokonto', exact: true }).first()).toBeVisible();
   await page.goBack();
   await expect(input).toHaveValue('Girokonto');
-  await expect(page.getByRole('option').first()).toContainText('Girokonto');
+  await expect(page.getByRole('listbox').getByRole('option').first()).toContainText('Girokonto');
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);

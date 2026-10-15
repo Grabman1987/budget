@@ -694,6 +694,18 @@ const routeTree = rootRoute.addChildren([
       path: '/suche',
       validateSearch: (search: Record<string, unknown>) => ({
         q: typeof search['q'] === 'string' ? search['q'].slice(0, 200) : undefined,
+        typ: [
+          'page',
+          'report',
+          'action',
+          'account',
+          'category',
+          'payee',
+          'contact',
+          'booking',
+        ].includes(String(search['typ']))
+          ? String(search['typ'])
+          : undefined,
         von: validateInboxSearch(search).von,
       }),
       staticData: { meta: { ...HEUTE, title: 'Suchen' } },

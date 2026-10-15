@@ -110,6 +110,7 @@ test('Z4: account list, remembered collapse, active selection and light/dark acc
     await page.screenshot({ path: info.outputPath(`z4-${scheme}.png`) });
     if (!isMobile) {
       await page.getByRole('button', { name: 'Seitenleiste einklappen' }).click();
+      await expect(page.locator('.app')).toHaveClass(/is-collapsed/);
       expect((await sidebar.boundingBox())!.width).toBe(72);
       await expect(sidebar.getByRole('link', { name: 'Plan', exact: true })).toBeVisible();
       expect(

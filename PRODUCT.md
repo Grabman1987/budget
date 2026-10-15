@@ -18,6 +18,8 @@ Owner UX V1 directive (2026-10-14, #480): Vermögen shows a compact performance 
 
 Owner Z1 decision (2026-10-13, #448): Plan › Monat adopts the Zerosum category-grid arrangement with group header creation, group/overall checkboxes and spending status/two-tone green bars, preserving Budget's backgrounds and colour tokens. Mobile uses one scrolling chip row and compact category rows; the available pill opens the existing assignment/cover inspector. Write paths and undo remain unchanged; Z2–Z4 are separate packages.
 
+Owner search directive (2026-10-14, #484): global search opens a modal command palette without changing the source URL or page state; phones use a full-screen sheet. Actions lead, followed by grouped results; the empty palette contains actions and validated session recents only. `/suche` remains the deep-linkable all-results page with type filtering. This search-only exception supersedes the earlier forms-only dialog restriction. Existing capture, month-close, privacy and ledger destinations remain unchanged.
+
 Owner Z4 decision (2026-10-13, #451): the left account list uses the Zerosum
 arrangement with create/account-settings shortcuts, group/type icons and no
 navigation numbers or group subtitles. Every negative sidebar balance is red

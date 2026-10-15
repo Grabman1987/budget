@@ -148,6 +148,18 @@ test('negative bars contrast with the chart surface in both themes', async ({ pa
     await page.evaluate((t) => {
       document.documentElement.dataset['theme'] = t;
     }, theme);
+    await expect
+      .poll(() =>
+        bar.evaluate((el) => {
+          const probe = document.createElement('span');
+          probe.style.color = 'var(--red)';
+          document.body.append(probe);
+          const expected = getComputedStyle(probe).color;
+          probe.remove();
+          return getComputedStyle(el).fill === expected;
+        }),
+      )
+      .toBe(true);
     const ratio = await bar.evaluate((el) => {
       const style = getComputedStyle(el);
       const canvas = document.createElement('canvas').getContext('2d')!;

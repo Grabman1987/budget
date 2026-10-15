@@ -20,7 +20,7 @@ export async function expectScreenshot(
   if (process.platform !== VISUAL_BASELINE_PLATFORM) {
     test.info().annotations.push({
       type: 'visual comparison skipped',
-      description: `${name}: baselines exist for ${VISUAL_BASELINE_PLATFORM} only (this is ${process.platform}). Run in mcr.microsoft.com/playwright:v1.56.1-noble, see README.`,
+      description: `${name}: baselines exist for ${VISUAL_BASELINE_PLATFORM} only (this is ${process.platform}). Run in mcr.microsoft.com/playwright:v1.64.1-noble, see README.`,
     });
     return;
   }
