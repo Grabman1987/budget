@@ -492,9 +492,28 @@ describe('contacts API', () => {
     expect((await call('GET', '/contacts?history=1')).body.contacts).toHaveLength(1);
     const statement = (await call('GET', '/contacts/k1')).body;
     expect(statement.movements.map((m: any) => m.balanceCents)).toEqual([10000, 0]);
+    expect(statement.closedThroughSplitId).toBe(statement.movements[1].splitId);
+    expect(statement.receipts).toMatchObject([{ recorded: true }]);
     expect(statement.movements[0].bookingId).toBe(id);
     expect((await call('GET', '/contacts/k1?asOf=2026-10-01')).body.balanceCents).toBe(5000);
     expect((await call('GET', '/contacts/missing')).status).toBe(404);
+  });
+  it('does not expose a legacy positive movement as a recorded clearing boundary', async () => {
+    outlay(10000);
+    createBooking(
+      opened.db,
+      {
+        accountId: 'giro',
+        date: '2026-09-02',
+        amountCents: 10000,
+        splits: [{ categoryId: 'auslagen', contactId: 'k1', amountCents: 10000 }],
+      },
+      { actor: 'test' },
+    );
+    const statement = (await call('GET', '/contacts/k1')).body;
+    expect(statement.balanceCents).toBe(0);
+    expect(statement.closedThroughSplitId).toBeNull();
+    expect(statement.receipts).toMatchObject([{ recorded: false }]);
   });
   it('rejects the entire mixed-currency overview without a partial EUR total', async () => {
     outlay(10000);
