@@ -5,7 +5,8 @@
 - [x] Preserve native chooser and accept one bounded PDF drop through existing analysis.
 - [x] Select payout account, reuse matching booking or confirm a pending payout (cash confirmed); exact salary/refund split and atomic undo.
 - [x] Nine synthetic chooser, drop, existing-match and payout/undo flows across Chromium desktop/mobile and WebKit iPhone; light/dark Axe and overflow checks. [Fresh cloud evidence](evidence/payslip-payout/README.md).
-- [ ] Full checks, final-head CI and serial deployment/live proof.
+- [x] Full cloud check: 433 files, 3922 passed, two existing skips; typecheck/lint/format and E2E build passed.
+- [ ] Final-head CI and serial deployment/live proof.
 - [ ] Owner retest of the original pre-file-chooser Chrome hang; not reproduced in an isolated profile.
 
 ### Booking line model — #463 (2026-10-14)

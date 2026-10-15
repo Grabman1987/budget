@@ -24,7 +24,11 @@ integrates main `514ed362ea7cbb422c60667003a5296e76904084` without resetting it.
 
 Node 22.23.3, lockfile `npm ci`, E2E build: passed. Focused DB/API/intake/UI suite:
 32 tests passed, followed by 11 payout tests including three new cash/special/
-rounding cases. The complete check result is recorded below when complete.
+rounding cases. Full `npm run check` passed: typecheck, CSS scale, ESLint/Prettier,
+433 test files, **3922 passed and 2 pre-existing skips** (3924 total; unit suite
+286.00 seconds). One existing unused ESLint-disable warning in the shared panel
+was retained; no lint errors. Documentation-only evidence updates were formatted
+and checked after the full run.
 
 Playwright 1.56.1:
 
