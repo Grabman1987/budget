@@ -90,7 +90,7 @@ async function browserBack(page: Page) {
 }
 
 sampleTest(
-  'portfolio positions follow the original prototype and open reload-safe instrument details',
+  'portfolio positions follow the original prototype in both themes',
   async ({ page, request }, info) => {
     await page.goto('/vermoegen/portfolio?zeitraum=3J');
     await expect(page.getByTestId('portfolio-value')).toHaveText('88.000,00 €');
@@ -111,7 +111,6 @@ sampleTest(
     ).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Aktien Welt', exact: true })).toHaveCount(0);
     await expect(page.locator('.portfolio-table .kgroup').first()).toContainText('Aktien Welt');
-    const small = info.project.name === 'mobile';
     await page.evaluate(() => document.fonts.ready);
     await expect(page.locator('.portfolio-view > .vnw')).toBeVisible();
     const lead = await page.locator('.portfolio-view > .vnw').boundingBox();
@@ -131,6 +130,32 @@ sampleTest(
           ),
         });
     }
+    if (process.env['BUDGET_PORTFOLIO_PROTOTYPE']) {
+      await page.goto(process.env['BUDGET_PORTFOLIO_PROTOTYPE']);
+      await expect(page.locator('.tbd-fig')).toHaveText('88.000,00 €');
+      await expect(page.locator('.vpos')).toContainText('ETF Welt');
+      await page.evaluate(() => document.fonts.ready);
+      await expect(page.locator('#view > .vnw')).toBeVisible();
+      expect((await page.locator('#view > .vnw').boundingBox())!.width).toBeCloseTo(lead!.width, 0);
+      await settle(page);
+      await screenshot(page, `prototype-portfolio-${info.project.name}.png`, info);
+      if (process.env['BUDGET_PORTFOLIO_EVIDENCE'])
+        await page.locator('.vpos').screenshot({
+          path: join(
+            process.env['BUDGET_PORTFOLIO_EVIDENCE'],
+            `prototype-positions-${info.project.name}.png`,
+          ),
+        });
+    }
+  },
+);
+
+sampleTest(
+  'portfolio instrument details support keyboard editing and survive reload',
+  async ({ page }, info) => {
+    const small = info.project.name === 'mobile';
+    await page.goto('/vermoegen/portfolio?zeitraum=3J');
+    await expect(page.getByTestId('portfolio-value')).toHaveText('88.000,00 €');
     const trigger = page
       .getByRole('region', { name: 'Positionen', exact: true })
       .getByRole('button', { name: 'ETF Welt', exact: true });
@@ -175,23 +200,6 @@ sampleTest(
           .getByRole('region', { name: 'Positionen', exact: true })
           .getByRole('button', { name: 'ETF Welt', exact: true }),
       ).toBeVisible();
-    if (process.env['BUDGET_PORTFOLIO_PROTOTYPE']) {
-      await page.goto(process.env['BUDGET_PORTFOLIO_PROTOTYPE']);
-      await expect(page.locator('.tbd-fig')).toHaveText('88.000,00 €');
-      await expect(page.locator('.vpos')).toContainText('ETF Welt');
-      await page.evaluate(() => document.fonts.ready);
-      await expect(page.locator('#view > .vnw')).toBeVisible();
-      expect((await page.locator('#view > .vnw').boundingBox())!.width).toBeCloseTo(lead!.width, 0);
-      await settle(page);
-      await screenshot(page, `prototype-portfolio-${info.project.name}.png`, info);
-      if (process.env['BUDGET_PORTFOLIO_EVIDENCE'])
-        await page.locator('.vpos').screenshot({
-          path: join(
-            process.env['BUDGET_PORTFOLIO_EVIDENCE'],
-            `prototype-positions-${info.project.name}.png`,
-          ),
-        });
-    }
   },
 );
 
