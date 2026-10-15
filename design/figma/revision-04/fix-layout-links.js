@@ -1,0 +1,14 @@
+const fixTargets={
+ P01:{'Monatsübersicht':'P19','Verlauf':'P20','Vorschläge':'P21','Auswählen':'P03','Zeile auswählen':'P03'},
+ P02:{'Geld verschieben':'F09','Buchungen & Verlauf':'P20'},
+ V10:{'Trade erfassen':'F13'},V14:{'Neue Rate ab Datum':'F15','Trades ansehen':'K04'},
+ E07:{'Speichern':'E06','Abbrechen':'E06'},E08:{'Einstellungen speichern':'E03','Abruf starten':'E03','Quelle neu zuordnen':'E08'},
+ E09:{'Regel speichern':'E02'},E10:{'Speichern':'E06'},E11:{'Quoten speichern':'V07'},
+ H05:{'Finanzcheck':'H04'},R30:{'Aktueller Finanzcheck':'H04'},R29:{'Abbrechen':'R16'},V13:{'Quoten bearbeiten':'F16'}
+};
+let adjusted=0;for(const p of bpPages){await figma.setCurrentPageAsync(p);for(const f of p.children.filter(n=>n.type==='FRAME'&&/^[A-Z]\d\d ·/.test(n.name))){const mobile=f.width===390,id=f.name.slice(0,3),sheet=f.children.find(n=>n.name==='Schriftfeld · '+id);if(sheet){const label=sheet.children.find(n=>n.type==='TEXT'&&n.characters.startsWith('BLATT'));if(!mobile&&label)label.resize(sheet.width-348,label.height);if(mobile){const title=sheet.children.find(n=>n.type==='TEXT'&&n.fontSize>=20),foot=sheet.children.find(n=>n.type==='TEXT'&&n.characters.startsWith('15.10.2026'));if(title&&foot){const old=sheet.height;foot.y=Math.max(92,title.y+title.height+12);const height=foot.y+foot.height+12;if(height>old){sheet.resize(sheet.width,height);const grid=sheet.children.find(n=>n.name.startsWith('Millimeterpapier'));if(grid)grid.remove();const g=bpGrid(sheet,sheet.width,height);sheet.insertChild(0,g);for(const n of f.children)if(n!==sheet&&n.y>=sheet.y+old-6)n.y+=height-old;adjusted++;}}}}
+ for(const n of f.findAll(n=>n.name.startsWith('GO '))){const label=n.name.split(' · ').slice(1).join(' · ');for(const [prefix,target] of Object.entries(fixTargets[id]||{}))if(label.startsWith(prefix))n.name='GO '+target+' · '+label;}
+ bpFinish({f,mobile});}}
+// Correct source entry points to the six existing settings groups.
+for(const [wrong,correct,label,target] of [['E01','E03','Datenquelle konfigurieren','E08'],['E03','E02','Zuordnungsregeln','E09'],['E05','E06','Profil und Haushalt','E07'],['E02','E06','Projekte verwalten','E10'],['E04','V07','Anlageklassen und Zielbänder','E11'],['E02','E06','Warenkorb zuordnen','E12'],['R16','H04','Finanzcheck im Verlauf','R30']]){for(const f of await bpFrames(wrong)){const n=f.children.find(n=>n.name==='GO '+target+' · '+label);if(n)n.remove();bpFinish({f,mobile:f.width===390});}for(const f of await bpFrames(correct)){const mobile=f.width===390,nav=f.children.find(n=>n.name==='Hauptnavigation'),side=f.children.find(n=>n.name.startsWith('Navigation ·'));const y=Math.max(...f.children.filter(n=>n!==nav&&n!==side).map(n=>n.y+n.height))+24;button(f,label,mobile?12:260,y,mobile?366:360,'Ghost',target);bpFinish({f,mobile});}}
+return {mobileTitleblocksResized:adjusted,correctedNavigation:true};

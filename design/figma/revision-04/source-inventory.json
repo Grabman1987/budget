@@ -1,0 +1,531 @@
+[
+  {
+    "file": "apps/web/src/assignment/assignment-page.tsx",
+    "labels": [
+      "Datenquelle für Bereinigung",
+      "Empfänger aus Banktext bereinigen",
+      "Regelliste und Reihenfolge",
+      "Zuordnungsregeln",
+      "Zusätzliche Präfixe (mit Komma getrennt)"
+    ],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/auth/login-route.tsx",
+    "labels": [],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/auth/setup-route.tsx",
+    "labels": [],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/budget/categories-page.tsx",
+    "labels": [],
+    "headings": [
+      "\n              Gruppen und Kategorien\n            "
+    ]
+  },
+  {
+    "file": "apps/web/src/budget/envelope-page.tsx",
+    "labels": [
+      "Brotkrumen",
+      "Einnahmen"
+    ],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/budget/goals-page.tsx",
+    "labels": [
+      "Fehlt",
+      "Gespart",
+      "Kategorie",
+      "Nötige Rate",
+      "Ziel",
+      "Zieldatum"
+    ],
+    "headings": [
+      "\n            Sparziele im Überblick\n          "
+    ]
+  },
+  {
+    "file": "apps/web/src/budget/plan-page.tsx",
+    "labels": [
+      "Aktivität",
+      "Alle Kategorien auswählen",
+      "Ansicht",
+      "Anzahl Monate",
+      "Gruppe anlegen",
+      "Herleitung Zu verteilen",
+      "Maßkette Zu verteilen",
+      "Monat planen",
+      "Summe der fehlenden Zielbeträge",
+      "Verfügbar",
+      "Weitere Monatsaktionen",
+      "Zugewiesen",
+      "Zustand des Monats"
+    ],
+    "headings": [
+      "\n            Envelopes im Monat\n          ",
+      "\n            ⋯\n          ",
+      "\n          50/30/20\n        "
+    ]
+  },
+  {
+    "file": "apps/web/src/budget/plan-panel-pages.tsx",
+    "labels": [
+      "Brotkrumen",
+      "Kategorien"
+    ],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/budget/plan-year-page.tsx",
+    "labels": [
+      "Jahressummen des Haushalts",
+      "Jahreswerte aller Envelopes",
+      "Kennzahl im Jahresplan",
+      "Nächstes Jahr",
+      "Register von Plan",
+      "Vorjahr",
+      "Zwölf Monate, horizontal scrollbar"
+    ],
+    "headings": [
+      "Jahresübersicht",
+      "Jahreswerte je Kategorie"
+    ]
+  },
+  {
+    "file": "apps/web/src/contacts/contacts-page.tsx",
+    "labels": [
+      "Betrag",
+      "Brotkrumen",
+      "Budgetkonto",
+      "Datum",
+      "Einnahmenart",
+      "Kategorie",
+      "Kontakt ausgleichen",
+      "Kontakt umbenennen",
+      "Kontaktkontoauszug",
+      "Konto",
+      "Name",
+      "Neuer Kontakt",
+      "Notiz",
+      "Rückzahlung",
+      "Schließen"
+    ],
+    "headings": [
+      "Kontoblatt",
+      "Offene ältere Auslagen",
+      "Verlauf",
+      "Kontakt ausgleichen"
+    ]
+  },
+  {
+    "file": "apps/web/src/expected/expected-page.tsx",
+    "labels": [
+      "Ansicht",
+      "Betrag",
+      "Einnahmen oder Ausgaben",
+      "Fällig",
+      "Je Jahr",
+      "Je Monat",
+      "Kategorie",
+      "Nächste 90 Tage",
+      "Nächste Fälligkeit",
+      "Summe"
+    ],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/expected/payment-page.tsx",
+    "labels": [],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/heute/dimension-page.tsx",
+    "labels": [
+      "Brotkrumen"
+    ],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/heute/heute-page.tsx",
+    "labels": [
+      "Angepinnte Envelopes",
+      "Ausgegeben",
+      "Finanz-Check",
+      "Fällig 14 Tage",
+      "Letzte Buchungen",
+      "Maßkette Nettovermögen",
+      "Maßkette: Bedarf plus Wunsch minus offene Rechnungen bis Gehalt",
+      "Nettovermögen · Verlauf der letzten 12 Monate",
+      "Plan bis heute",
+      "Regelerfüllung",
+      "Vermögensaufteilung"
+    ],
+    "headings": [
+      "Kontoprognose",
+      "Nettovermögen · 12 Monate",
+      "Offen bis Gehalt"
+    ]
+  },
+  {
+    "file": "apps/web/src/inbox/inbox-page.tsx",
+    "labels": [
+      "Brotkrumen",
+      "Zurück zum Posteingang",
+      "Zurück zur vorherigen Ansicht"
+    ],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/ledger/account-page.tsx",
+    "labels": [
+      "Kontovorschau Zeitraum",
+      "Saldoverlauf Zeitraum"
+    ],
+    "headings": [
+      "EUR-Bewertung · Tageswerte und Kurse",
+      "Buchungen"
+    ]
+  },
+  {
+    "file": "apps/web/src/ledger/bookings-page.tsx",
+    "labels": [
+      "Aktive Filter",
+      "Auswahl bearbeiten",
+      "Bis",
+      "Buchungen filtern",
+      "In Buchungen suchen",
+      "Kategorie",
+      "Kategorie für die Auswahl setzen",
+      "Konto",
+      "Löschen bestätigen",
+      "Markierung",
+      "Markierung für die Auswahl setzen",
+      "Sortieren",
+      "Status",
+      "Von"
+    ],
+    "headings": [
+      "\n            Filter\n          "
+    ]
+  },
+  {
+    "file": "apps/web/src/ledger/capture-page.tsx",
+    "labels": [],
+    "headings": [
+      "Buchung erfassen"
+    ]
+  },
+  {
+    "file": "apps/web/src/ledger/overview-page.tsx",
+    "labels": [
+      "Maßkette Nettovermögen nach Kontogruppen",
+      "Seit mindestens 35 Tagen nicht aktualisiert"
+    ],
+    "headings": [
+      "Nettovermögen",
+      "\n        Konten nach Gruppe\n      "
+    ]
+  },
+  {
+    "file": "apps/web/src/month-close/month-close-page.tsx",
+    "labels": [
+      "Brotkrumen",
+      "Grund"
+    ],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/pages/accounts-settings.tsx",
+    "labels": [
+      "Anlageklasse",
+      "Kartenlimit",
+      "Konten",
+      "Konto bearbeiten",
+      "Kontotyp",
+      "Laufzeit ab",
+      "Laufzeit bis",
+      "Monatliche Gebühr",
+      "Monatsrate",
+      "Name",
+      "Ursprünglicher Kreditbetrag",
+      "Verrechnungskonto",
+      "Zinsart",
+      "Zinssatz in Prozent",
+      "Überziehungsrahmen"
+    ],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/pages/asset-classes-settings.tsx",
+    "labels": [
+      "Abweichung",
+      "Anlageklassen",
+      "Band",
+      "Gruppe",
+      "Instrumente",
+      "Ist",
+      "Nicht alle Klassen haben ein Soll",
+      "Soll",
+      "Sortierposition",
+      "Status"
+    ],
+    "headings": [
+      "Klassen und Sollmodell",
+      "Zugeordnete Instrumente und Exposure",
+      "Instrument zuordnen",
+      "Sollhistorie"
+    ]
+  },
+  {
+    "file": "apps/web/src/pages/data-sources.tsx",
+    "labels": [
+      "Bank suchen",
+      "Bank-Sync (PSD2)",
+      "Gebuchte Umsätze",
+      "Konto in Budget",
+      "Neue Bankverbindung",
+      "Umsätze ab"
+    ],
+    "headings": [
+      "Bank verbinden"
+    ]
+  },
+  {
+    "file": "apps/web/src/pages/export-placeholder.tsx",
+    "labels": [
+      "CSV-Export"
+    ],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/pages/inflation-basket-settings.tsx",
+    "labels": [
+      "Anteil Preisgruppe 1 (%)",
+      "Preisgruppe 1",
+      "Preisgruppe 2 (optional)",
+      "Warenkorb (Teuerung)"
+    ],
+    "headings": [
+      "Kategorien im Warenkorb",
+      "Preis aus der offiziellen Statistik"
+    ]
+  },
+  {
+    "file": "apps/web/src/pages/investment-settings.tsx",
+    "labels": [
+      "Einstandskosten",
+      "Einstandskostenmethode"
+    ],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/pages/profile-settings.tsx",
+    "labels": [
+      "Geburtsdatum",
+      "Kürzel",
+      "Name",
+      "Personen im Haushalt",
+      "Privatmodus",
+      "Profil",
+      "Region (Bundesland)"
+    ],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/pages/project-settings.tsx",
+    "labels": [
+      "Projektverwaltung"
+    ],
+    "headings": [
+      "Projekte verwalten"
+    ]
+  },
+  {
+    "file": "apps/web/src/pages/reports-pages.tsx",
+    "labels": [
+      "Druckblatt",
+      "Register von Reports",
+      "Report nicht gefunden"
+    ],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/pages/security-page.tsx",
+    "labels": [
+      "Gerätename",
+      "Passkeys",
+      "Sitzung",
+      "Wiederherstellungscodes"
+    ],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/pages/settings-index.tsx",
+    "labels": [],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/routes/charts-spike.tsx",
+    "labels": [],
+    "headings": [
+      "Diagramm-Spike",
+      "Heute: Tempo der Ausgaben",
+      "Geldfluss"
+    ]
+  },
+  {
+    "file": "apps/web/src/routes/components-page.tsx",
+    "labels": [
+      "Bauteile",
+      "Betrag",
+      "Betragsfeld",
+      "Blaupause in Bausteinen",
+      "Darstellung",
+      "Detailseite und Eingabedialog",
+      "Diagramm-Bausteine",
+      "Empfänger",
+      "Farben und Schrift",
+      "Frei verfügbar bis Gehalt: Bedarf plus Wunsch minus offen bis Gehalt",
+      "Kategorie",
+      "Kontostand prüfen",
+      "Maßkette (gezeichnet)",
+      "Maßkette (inline)",
+      "Nettovermögen: Budget-Konten, Sparen, Investment minus Schulden",
+      "Nächste Schritte",
+      "Ohne Ausgleich, mit Cent",
+      "Register",
+      "Saldo laut Bank",
+      "Schaltflächen, Segmente, Schalter, Stempel",
+      "Schließen",
+      "Stückliste",
+      "Zeitraum",
+      "Zu verteilen: Übertrag plus Einnahmen minus Zugewiesen"
+    ],
+    "headings": [
+      "Kontostand prüfen"
+    ]
+  },
+  {
+    "file": "apps/web/src/routes/detail-example.tsx",
+    "labels": [
+      "Brotkrumen"
+    ],
+    "headings": [
+      "Einzelposten"
+    ]
+  },
+  {
+    "file": "apps/web/src/routes/home.tsx",
+    "labels": [],
+    "headings": [
+      "Budget"
+    ]
+  },
+  {
+    "file": "apps/web/src/routes/panels-harness.tsx",
+    "labels": [
+      "Arbeitsdialog",
+      "Formulardialog",
+      "Schließen"
+    ],
+    "headings": [
+      "Detailseite und Eingabedialoge"
+    ]
+  },
+  {
+    "file": "apps/web/src/rules/rule-status-page.tsx",
+    "labels": [
+      "Brotkrumen"
+    ],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/rules/rules-page.tsx",
+    "labels": [
+      "Stufen"
+    ],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/shell/global-search.tsx",
+    "labels": [
+      "Brotkrumen",
+      "Suchen",
+      "Suchergebnisse"
+    ],
+    "headings": []
+  },
+  {
+    "file": "apps/web/src/wealth/debts-page.tsx",
+    "labels": [
+      "Kontosaldo",
+      "Maßkette Restschuld",
+      "Maßkette Restschuld unbekannt",
+      "Monatliche Gebühr",
+      "Monatsrate",
+      "Restschuld EUR",
+      "Sondertilgung pro Monat"
+    ],
+    "headings": [
+      "Rechenweg",
+      "Sondertilgung",
+      "Schulden nach Konto",
+      "Schulden",
+      "Sondertilgung",
+      "Restschuld",
+      "Zins und Tilgung je Jahr",
+      "Modellvergleich"
+    ]
+  },
+  {
+    "file": "apps/web/src/wealth/freedom-page.tsx",
+    "labels": [
+      "Maßkette Freiheitszahl",
+      "Rendite nach Inflation",
+      "Sparrate pro Monat"
+    ],
+    "headings": [
+      "Freiheitszahl",
+      "Annahmen",
+      "Weg zum Ziel",
+      "Woher die Jahresausgaben kommen",
+      "Investiert: Quellkonten"
+    ]
+  },
+  {
+    "file": "apps/web/src/wealth/networth-page.tsx",
+    "labels": [
+      "Maßkette Nettovermögen im Zeitraum",
+      "Vermögenszusammensetzung"
+    ],
+    "headings": [
+      "Nettovermögen",
+      "Woraus es besteht"
+    ]
+  },
+  {
+    "file": "apps/web/src/wealth/portfolio-detail-page.tsx",
+    "labels": [
+      "Brotkrumen",
+      "Sparplandetails"
+    ],
+    "headings": [
+      "Raten und Versionen"
+    ]
+  },
+  {
+    "file": "apps/web/src/wealth/portfolio-page.tsx",
+    "labels": [
+      "Maßkette Portfoliowert"
+    ],
+    "headings": [
+      "Positionen",
+      "Portfolio"
+    ]
+  }
+]
