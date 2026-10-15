@@ -8,6 +8,58 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
   await page.goto('/vermoegen/portfolio');
   await expect(page.getByTestId('portfolio-return')).toContainText('zeitgewichtet');
   await expect(page.getByTestId('portfolio-overview-chart')).toBeVisible();
+  const chart = page.locator('.chart-interactive').filter({
+    has: page.getByTestId('portfolio-overview-chart'),
+  });
+  await expect(chart).toHaveAttribute(
+    'aria-label',
+    'Portfolioentwicklung, zeitgewichtet, Indexbasis 100',
+  );
+  await expect(page.locator('.portfolio-overview .wealth-details')).toContainText(
+    'Ohne positiven Vorwert bleibt der betreffende Tag als Lücke sichtbar',
+  );
+  await expect(chart.locator('text').last()).toHaveText('17.09.26');
+  await expect(page.locator('.portfolio-overview')).toContainText(
+    'Tägliche Bewertungswerte; gespeicherte Kurse können bis zum nächsten gespeicherten Kurs fortgeschrieben sein.',
+  );
+  const chartBox = await page.getByTestId('portfolio-overview-chart').boundingBox();
+  const actionBox = await page.locator('.instrument-actions').boundingBox();
+  expect(chartBox && actionBox && actionBox.y >= chartBox.y + chartBox.height).toBe(true);
+  await chart.focus();
+  const firstChartDate = await page.locator('.chart-tooltip-date').textContent();
+  await chart.press('ArrowRight');
+  await expect
+    .poll(() => page.locator('.chart-tooltip-date').textContent())
+    .not.toBe(firstChartDate);
+  await expect(page.locator('.chart-tooltip')).toContainText('Entwicklung (Indexbasis 100)');
+  for (const period of ['1M', '1J', '3J']) {
+    await page.goto(`/vermoegen/portfolio?zeitraum=${period}`);
+    const periodChart = page.getByTestId('portfolio-overview-chart');
+    await expect(periodChart).toBeVisible();
+    const axisLabels = await periodChart.locator('text.svg-label').evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const box = (node as SVGGraphicsElement).getBBox();
+        const svg = (node as SVGGraphicsElement).ownerSVGElement!;
+        const transform = svg.getScreenCTM()!;
+        const fontSize = Number.parseFloat(getComputedStyle(node).fontSize);
+        return {
+          left: box.x,
+          right: box.x + box.width,
+          top: box.y,
+          renderedFontSize: fontSize * Math.hypot(transform.a, transform.b),
+        };
+      }),
+    );
+    expect(Math.min(...axisLabels.map((label) => label.renderedFontSize))).toBeGreaterThanOrEqual(
+      11,
+    );
+    const bottomAxisLabels = axisLabels
+      .filter((label) => label.top > 180)
+      .sort((a, b) => a.left - b.left);
+    for (let i = 1; i < bottomAxisLabels.length; i++)
+      expect(bottomAxisLabels[i]!.left).toBeGreaterThanOrEqual(bottomAxisLabels[i - 1]!.right);
+  }
+  await page.goto('/vermoegen/portfolio');
   await expect(page.getByTestId('portfolio-gain')).toContainText('€');
   if (info.project.name === 'desktop') {
     const chart = await page.getByTestId('portfolio-overview-chart').boundingBox();
@@ -22,6 +74,7 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
     .first()
     .getAttribute('data-savings-plan');
   const routes = [
+    ['networth', '/vermoegen/nettovermoegen'],
     ['portfolio', '/vermoegen/portfolio'],
     ['debts', '/vermoegen/schulden'],
     ['freedom', '/vermoegen/freiheit'],
@@ -73,8 +126,9 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
           probe.remove();
           return { expected, actual: nodes.map((node) => getComputedStyle(node).fill) };
         });
-        expect(colors.actual).toHaveLength(2);
-        expect(colors.actual).toEqual([colors.expected, colors.expected]);
+        if (name === 'portfolio') expect(colors.actual.length).toBeGreaterThan(2);
+        else expect(colors.actual).toHaveLength(2);
+        expect(colors.actual.every((color) => color === colors.expected)).toBe(true);
       }
       expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
@@ -105,11 +159,20 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
       ) {
         await page.evaluate(() => scrollTo(0, 0));
         await page.screenshot({
-          path: `docs/evidence/ux-v1-vermoegen/${name}-${info.project.name}-${theme}.jpg`,
+          path: `docs/evidence/wealth-performance-499/${name}-${info.project.name}-${theme}.jpg`,
           fullPage: true,
           type: 'jpeg',
           quality: 75,
         });
+        if (name === 'portfolio' && info.project.name === 'webkit-iphone') {
+          await page.getByTestId('portfolio-overview-chart').scrollIntoViewIfNeeded();
+          await page.evaluate(() => window.scrollBy({ top: 220, left: 0, behavior: 'instant' }));
+          await page.screenshot({
+            path: 'docs/evidence/wealth-performance-499/portfolio-chart-webkit-iphone-dark.jpg',
+            type: 'jpeg',
+            quality: 90,
+          });
+        }
       }
     }
   }

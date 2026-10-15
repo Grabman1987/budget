@@ -8,6 +8,14 @@
 - [x] Apply and pin the five owner-requested skill sources through scoped project profiles: [adoption evidence](evidence/skill-adoption-2026-10-15.md).
 - [ ] Integrated final full check, exact-head required CI, serial merge and main CI/deployment/live proof.
 
+### Wealth composition and portfolio detail — #499 (2026-10-15)
+
+- [x] Align signed asset/debt account bars on one proportional zero axis.
+- [x] Add the Portfolio overview's daily base-100 index using shared flow-adjusted daily returns; keep unavailable returns as gaps, preserve date spacing and explain stored valuations/carried quotes.
+- [x] Keep SVG axis labels legible at responsive widths and place portfolio actions below the chart. Existing monthly report index, benchmarks, class series and financial formulas remain unchanged.
+- [x] Synthetic financial/model/API tests, desktop/mobile/WebKit chart and composition coverage, responsive rendered-text assertions, Axe checks and fresh evidence: [wealth #499 evidence](evidence/wealth-performance-499/README.md).
+- [ ] Integrated final-head full check, required CI, serial deployment/live proof and private owner financial reconciliation. This slice does not close Gate 3 or the broader K3 acceptance.
+
 ### Contact history and monthly payments — #499 (2026-10-15)
 
 - [x] Balance/name share the contact detail; recorded full repayment defines retained, collapsible history.

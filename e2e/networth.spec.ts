@@ -67,6 +67,28 @@ test('"Woraus es besteht": assets by size, debts dashed and subtracted', async (
   const debts = await page.locator('.vbars li.is-debt .vb-val').allTextContents();
   expect(debts.length).toBeGreaterThanOrEqual(2);
   expect(debts.every((d) => d.startsWith('−'))).toBe(true);
+  const tracks = page.locator('.vbars .vb-bar');
+  const zeroPositions = await tracks.evaluateAll((nodes) =>
+    nodes.map((node) => Number(node.getAttribute('data-zero-percent'))),
+  );
+  expect(new Set(zeroPositions).size).toBe(1);
+  const barGeometry = await page.locator('.vbars li').evaluateAll((rows) =>
+    rows.map((row) => {
+      const track = row.querySelector<HTMLElement>('.vb-bar')!;
+      const bar = track.querySelector<HTMLElement>('i')!;
+      return {
+        debt: row.classList.contains('is-debt'),
+        zero: Number(track.dataset['zeroPercent']),
+        left: Number.parseFloat(bar.style.left),
+        width: Number.parseFloat(bar.style.width),
+      };
+    }),
+  );
+  expect(
+    barGeometry.every(
+      (bar) => Math.abs((bar.debt ? bar.left + bar.width : bar.left) - bar.zero) < 1e-3,
+    ),
+  ).toBe(true);
   const assets = values.slice(0, values.length - debts.length).map(euros);
   expect(assets).toEqual([...assets].sort((a, b) => b - a));
   await expect(page.getByText('Gestrichelt: Schulden, werden abgezogen.')).toBeVisible();
