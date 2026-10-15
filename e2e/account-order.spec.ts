@@ -169,6 +169,16 @@ test('sidebar: pencil on hover, edit mode with keyboard and drag', async ({
     .toEqual(['Alpha', 'Charlie', 'Bravo', 'Delta', 'Karte']);
 
   // Drag Alpha two rows down.
+  const previousToast = await toast(page).locator('.toast-body > span').elementHandle();
+  expect(previousToast).not.toBeNull();
+  let releaseOrder!: () => void;
+  const orderGate = new Promise<void>((resolve) => {
+    releaseOrder = resolve;
+  });
+  await page.route('**/api/accounts/order', async (route) => {
+    await orderGate;
+    await route.continue();
+  });
   const grip = page.getByRole('button', { name: new RegExp(`^Alpha ${tag} verschieben`) });
   const item = page.locator('.acct-item', { hasText: `Bravo ${tag}` });
   const rowHeight = (await item.boundingBox())!.height;
@@ -177,6 +187,12 @@ test('sidebar: pencil on hover, edit mode with keyboard and drag', async ({
     .poll(() => sidebarOrder(page, tag))
     .toEqual(['Charlie', 'Bravo', 'Alpha', 'Delta', 'Karte']);
 
+  // The shown order is optimistic. Until its write/refetch finishes, this is still the
+  // keyboard move's toast; undo must wait for the drag's own saved-action notification.
+  expect(await previousToast!.evaluate((element) => element.isConnected)).toBe(true);
+  releaseOrder();
+  await expect.poll(() => previousToast!.evaluate((element) => element.isConnected)).toBe(false);
+  await expect(toast(page)).toContainText('Reihenfolge der Konten gespeichert.');
   await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
   await expect
     .poll(() => sidebarOrder(page, tag))
