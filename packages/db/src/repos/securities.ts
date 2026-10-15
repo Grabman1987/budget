@@ -21,7 +21,7 @@ import {
   trade,
 } from '../schema';
 import { deleteTracked, insertTracked, updateTracked, withGroup, type AuditContext } from './audit';
-import { entityRepo, type NewRow, type RowPatch } from './entities';
+import { entityRepo, updateEntity, type NewRow, type RowPatch } from './entities';
 import { BookingInvariantError, ConflictError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
 
@@ -406,6 +406,15 @@ export interface TargetVersionOptions {
   completeSnapshot?: boolean;
   archiveClassId?: string;
   asOf?: string;
+  allocationAccounts?: AllocationAccountChange[];
+}
+
+export interface AllocationAccountChange {
+  id: string;
+  included: boolean;
+  cashClassId: string | null;
+  expectedScope: 'default' | 'included' | 'excluded';
+  expectedCashClassId: string | null;
 }
 
 export function setTargets(
@@ -431,6 +440,32 @@ export function setTargets(
     }
     const policy: TargetPolicy = { targets: wanted, tiers: options.tiers ?? [] };
     validateTargetPolicy(policy, new Set(liveClassIds(tx)));
+    const seenAccounts = new Set<string>();
+    for (const change of options.allocationAccounts ?? []) {
+      if (seenAccounts.has(change.id)) throw new RangeError('Ein Konto ist doppelt angegeben.');
+      seenAccounts.add(change.id);
+      const current = tx
+        .select()
+        .from(account)
+        .where(and(eq(account.id, change.id), isNull(account.deletedAt)))
+        .get();
+      if (
+        !current ||
+        current.allocationScope !== change.expectedScope ||
+        current.allocationAssetClassId !== change.expectedCashClassId
+      )
+        throw new ConflictError('Die Kontenauswahl wurde inzwischen geändert. Bitte neu laden.');
+      updateEntity(
+        tx,
+        account,
+        change.id,
+        {
+          allocationScope: change.included ? 'included' : 'excluded',
+          allocationAssetClassId: change.cashClassId,
+        },
+        grouped,
+      );
+    }
     const label = options.label?.trim() || null;
     const reason = options.reason?.trim() || null;
     if ((label?.length ?? 0) > 80 || (reason?.length ?? 0) > 500)

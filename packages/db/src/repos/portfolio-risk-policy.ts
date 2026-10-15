@@ -3,7 +3,7 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { rule } from '../schema';
 import { listAssetClasses, listTargetVersions } from './securities';
 import { allocationInputsAsOf } from './allocation-inputs';
-import { resolveTargetTier, type ClassTarget } from '@budget/domain';
+import { resolveTargetTier, targetTierStarts, type ClassTarget } from '@budget/domain';
 import type { Executor } from './types';
 
 export interface PortfolioRiskPolicy {
@@ -16,6 +16,7 @@ export interface PortfolioRiskPolicy {
   targetLabel: string | null;
   tierIndex: number | null;
   investmentCents: number | null;
+  wealthStage?: { label: string; fromCents: number; awaitingApproval: boolean };
 }
 
 /**
@@ -70,6 +71,18 @@ export function resolvePortfolioRiskPolicy(
     targetLabel: version?.label ?? null,
     tierIndex: resolved.tierIndex,
     investmentCents: sum,
+    ...(version && resolved.tierIndex !== null
+      ? {
+          wealthStage: {
+            label: version.tiers[resolved.tierIndex]!.label ?? '',
+            fromCents: targetTierStarts(version.tiers)[resolved.tierIndex]!,
+            awaitingApproval:
+              version.tiers[resolved.tierIndex]!.upToCents !== null &&
+              sum !== null &&
+              sum > version.tiers[resolved.tierIndex]!.upToCents!,
+          },
+        }
+      : {}),
     targets: resolved.targets.map((t) => ({
       assetClass: t.assetClassId,
       targetBp: t.targetShareBp,

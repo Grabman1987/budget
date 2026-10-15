@@ -167,10 +167,10 @@ test('Portfolio links to the shared settings editor: sums, dirty/template guards
   await page.getByRole('button', { name: 'Wiederholen', exact: true }).click();
   await expect.poll(async () => (await versions()).some((v) => v.validFrom === date)).toBe(true);
   await page.getByRole('button', { name: 'Sollquoten bearbeiten', exact: true }).click();
-  await panel.getByLabel('Vorlage').selectOption(date);
+  await panel.getByLabel('Vorlage', { exact: true }).selectOption(date);
   await expect(panel.getByLabel(names[0] + ' · Soll (%)')).toHaveValue('75,00');
   await panel.getByLabel(names[1] + ' · Soll (%)').fill('0');
-  await panel.getByLabel('Vorlage').selectOption(date);
+  await panel.getByLabel('Vorlage', { exact: true }).selectOption(date);
   await expect(panel).toContainText('Ungespeicherte Änderungen durch diese Vorlage ersetzen?');
   await panel.getByRole('button', { name: 'Weiter bearbeiten' }).click();
   await expect(panel.getByLabel(names[1] + ' · Soll (%)')).toHaveValue('0');

@@ -1,5 +1,12 @@
 import { expect, it } from 'vitest';
-import { resolveTargetTier, validateTargetPolicy, type TargetPolicy } from './target-policy';
+import {
+  resolveTargetTier,
+  validateTargetPolicy,
+  targetTierStarts,
+  targetTiersFromStarts,
+  type TargetPolicy,
+} from './target-policy';
+import { wealthStageTemplate } from './wealth-stage-template';
 import { allocationStatus } from './allocation';
 const policy: TargetPolicy = {
   targets: [{ assetClassId: 'a', targetShareBp: 10000 }],
@@ -15,6 +22,57 @@ const policy: TargetPolicy = {
     },
   ],
 };
+it('lower bounds activate at the exact cent and round-trip legacy upper boundaries unchanged', () => {
+  const tiers = targetTiersFromStarts([
+    { fromCents: 0, targets: policy.targets },
+    { fromCents: 50_000_000, targets: policy.tiers[1]!.targets },
+  ]);
+  expect(tiers.map((t) => t.upToCents)).toEqual([49_999_999, null]);
+  expect(resolveTargetTier({ ...policy, tiers }, 49_999_999).tierIndex).toBe(0);
+  expect(resolveTargetTier({ ...policy, tiers }, 50_000_000).tierIndex).toBe(1);
+  expect(targetTierStarts(policy.tiers)).toEqual([0, 1_000_001, 2_000_001]);
+  expect(
+    targetTiersFromStarts(
+      policy.tiers.map((t, i) => ({ ...t, fromCents: targetTierStarts(policy.tiers)[i]! })),
+    ),
+  ).toEqual(policy.tiers);
+  const smallest = targetTiersFromStarts([
+    { fromCents: 0, targets: policy.targets },
+    { fromCents: 1, targets: policy.targets },
+  ]);
+  validateTargetPolicy({ targets: policy.targets, tiers: smallest }, new Set(['a']));
+  expect(resolveTargetTier({ targets: policy.targets, tiers: smallest }, 1).tierIndex).toBe(1);
+  expect(() => targetTiersFromStarts([{ fromCents: 1, targets: policy.targets }])).toThrow('erste');
+});
+it('the editable seven-stage scenario preserves literal weights and requires approval of conditional stages', () => {
+  const tiers = wealthStageTemplate({ world: 'w', leveraged: 'l', managed: 'm', reserve: 'r' });
+  const template = { targets: tiers[0]!.targets, tiers };
+  validateTargetPolicy(template, new Set(['w', 'l', 'm', 'r']));
+  expect(targetTierStarts(tiers)).toEqual([
+    0, 1_000_000, 5_000_000, 10_000_000, 50_000_000, 100_000_000, 200_000_000,
+  ]);
+  expect(tiers.map((t) => t.targets.map((t) => t.targetShareBp))).toEqual([
+    [8500, 1500, 0, 0],
+    [7500, 500, 2000, 0],
+    [7500, 500, 2000, 0],
+    [7500, 500, 2000, 0],
+    [6500, 500, 2000, 1000],
+    [6000, 500, 2000, 1500],
+    [6000, 500, 2000, 1500],
+  ]);
+  expect(resolveTargetTier(template, 50_000_000).tierIndex).toBe(0);
+  tiers[2]!.enabled = true;
+  expect(resolveTargetTier(template, 50_000_000).tierIndex).toBe(2);
+  tiers[4]!.enabled = true;
+  expect(resolveTargetTier(template, 50_000_000).tierIndex).toBe(4);
+  expect(resolveTargetTier(template, 49_999_999).tierIndex).toBe(2);
+  expect(resolveTargetTier(template, null).targets).toEqual([]);
+  tiers[0]!.enabled = false;
+  expect(() => validateTargetPolicy(template, new Set(['w', 'l', 'm', 'r']))).toThrow('erste');
+  expect(() =>
+    wealthStageTemplate({ world: 'w', leveraged: 'w', managed: 'm', reserve: 'r' }),
+  ).toThrow('unterschiedliche');
+});
 it('inclusive cent boundaries, negative investment sums and unavailable valuations resolve deterministically', () => {
   validateTargetPolicy(policy, new Set(['a', 'b']));
   expect(resolveTargetTier(policy, -100).tierIndex).toBe(0);

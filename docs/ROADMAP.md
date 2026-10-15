@@ -1,5 +1,12 @@
 # Roadmap
 
+### Owner addition: asset allocation by wealth stage (2026-10-15)
+
+- [x] Reuse explicit account/instrument universe; edit eligible accounts and cash classes together with targets in one audited, conflict-checked transaction.
+- [x] Editable lower-bound wealth stages with exact-cent activation and unchanged legacy boundaries; retain one shared resolver.
+- [x] Seven-stage generic template with explicit class mapping and conditional approval draft; native Desktop/iPhone Figma extension.
+- [ ] Owner decision on conditional-stage activation; full verification and exact-head CI; serial deployment/live proof. See [contract and pending decision](allocation-wealth-stages.md).
+
 ### CI follow-up: consistent E2E observations — #465 / #499 (2026-10-15)
 
 - [x] Read paired report geometry in one browser turn; select exact contact options; split portfolio overview/detail while retaining every assertion and screenshot.

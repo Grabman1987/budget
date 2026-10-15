@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { sampleTest } from './sample';
+import { sampleTest, SAMPLE_URL } from './sample';
 
 // These complete owner flows include both themes, repeated Axe scans and WebKit rotation.
 test.setTimeout(90_000);
@@ -78,6 +78,100 @@ async function clean(page: Page) {
   const axe = await new AxeBuilder({ page }).analyze();
   expect(axe.violations).toEqual([]);
 }
+sampleTest(
+  'wealth stages: account scope, editable example, exact lower bounds and approval draft',
+  async ({ page }, info) => {
+    const created = await page.request.post('/api/asset-classes', {
+      headers: { Origin: SAMPLE_URL },
+      data: { name: 'Stufenreserve ' + info.project.name },
+    });
+    expect(created.status()).toBe(201);
+    const createdClass = await created.json();
+    const createdGroup = createdClass.groupId;
+    try {
+      await page.goto('/einstellungen/anlageklassen?panel=sollquoten');
+      const panel = page.getByRole('dialog', { name: 'Sollquoten bearbeiten' });
+      await expect(
+        panel.getByRole('heading', { name: '1. Konten und Depots auswählen' }),
+      ).toBeVisible();
+      const accounts = (await (await page.request.get('/api/accounts')).json()).accounts;
+      const wallet = accounts.find((a: { type: string }) => a.type === 'cash');
+      await expect(panel.getByLabel(wallet.name, { exact: true })).not.toBeChecked();
+      await panel.getByText('Beispielplan mit sieben Vermögensstufen', { exact: true }).click();
+      const allClasses = (
+        await (await page.request.get('/api/asset-classes')).json()
+      ).assetClasses.filter((c: { isGroup: boolean }) => !c.isGroup);
+      const classes = ['ac-welt', 'ac-spec', 'ac-em', createdClass.assetClass.id].map((id) =>
+        allClasses.find((c: { id: string }) => c.id === id),
+      );
+      const labels = [
+        'Weltaktien',
+        'Aktien mit Hebel 2×',
+        'Managed Futures',
+        'Liquidität / kurzlaufende EUR-Anlagen',
+      ];
+      // Template mapping is explicit; the app must not infer classes from instrument/provider names.
+      for (let i = 0; i < 4; i++)
+        await panel.getByLabel('Vorlage · ' + labels[i]).selectOption(classes[i].id);
+      await panel.getByRole('button', { name: 'Beispielplan übernehmen', exact: true }).click();
+      await expect(panel.getByLabel('Stufe bearbeiten').locator('option')).toHaveCount(7);
+      await panel.getByLabel('Stufe bearbeiten').selectOption('4');
+      await expect(panel.getByLabel('Ab Vermögen (€)')).toHaveValue('500000,00');
+      await expect(
+        panel.getByLabel('Stufe zur automatischen Auswahl freigegeben'),
+      ).not.toBeChecked();
+      await expect(panel.getByLabel(classes[0].name + ' · Soll (%)')).toHaveValue('65,00');
+      await panel.getByLabel('Ab Vermögen (€)').fill('500.000,-');
+      for (const theme of ['light', 'dark']) {
+        await page.evaluate((t) => (document.documentElement.dataset['theme'] = t), theme);
+        await panel.screenshot({ path: info.outputPath(`wealth-stages-${theme}.png`) });
+      }
+      // Inspect the exact submitted policy without mutating this shared sample database.
+      let payload: { tiers: { upToCents: number | null; enabled: boolean }[] } | undefined;
+      await page.route('**/api/asset-classes/targets', (route) => {
+        if (route.request().method() !== 'PUT') return route.continue();
+        payload = route.request().postDataJSON();
+        return route.fulfill({
+          status: 409,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            error: 'conflict',
+            message: 'Synthetischer Konflikt: erneut prüfen.',
+          }),
+        });
+      });
+      await panel.getByRole('button', { name: 'Sollquoten speichern', exact: true }).click();
+      await expect(panel.getByRole('alert')).toContainText('Synthetischer Konflikt');
+      expect(payload!.tiers.map((t) => t.upToCents)).toEqual([
+        999999,
+        4999999,
+        9999999,
+        49999999,
+        99999999,
+        199999999,
+        null,
+      ]);
+      expect(payload!.tiers.map((t) => t.enabled)).toEqual([
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+      ]);
+      await panel.getByRole('button', { name: 'Schließen', exact: true }).click();
+      await panel.getByRole('button', { name: 'Verwerfen', exact: true }).click();
+      await expect(page.locator('dialog[open]')).toHaveCount(0);
+    } finally {
+      const undo = await page.request.post('/api/undo', {
+        headers: { Origin: new URL(page.url()).origin },
+        data: { groupId: createdGroup },
+      });
+      expect(undo.status()).toBe(200);
+    }
+  },
+);
 sampleTest(
   'U01/M01-M12: real settings, class sheet, focus, Back, reopen, scroll, themes and rotation',
   async ({ page, isMobile }, info) => {
@@ -245,7 +339,8 @@ test('U02-U12: create, German field errors, duplicate, rename, reorder, safe/blo
   await panel.getByLabel('Gültig ab').fill(date);
   await panel.getByLabel('Bezeichnung (optional)').fill('Synthetische Strategie');
   await panel.getByLabel('Dynamische Stufen nach Anlagesumme').check();
-  await panel.getByLabel('Stufengrenze (€)').fill('12000');
+  await panel.getByLabel('Stufe bearbeiten').selectOption('1');
+  await panel.getByLabel('Ab Vermögen (€)').fill('12.000,00');
   await clean(page);
   await panel.getByRole('button', { name: 'Sollquoten speichern', exact: true }).click();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
@@ -253,9 +348,9 @@ test('U02-U12: create, German field errors, duplicate, rename, reorder, safe/blo
     await (await page.request.get('/api/asset-classes/targets')).json()
   ).versions.find((v: { validFrom: string }) => v.validFrom === date);
   expect(version.tiers.map((t: { upToCents: number | null }) => t.upToCents)).toEqual([
-    1200000,
-    2000000,
-    5000000,
+    1199999,
+    1999999,
+    4999999,
     null,
   ]);
   expect(version.targets[0]).toMatchObject({
