@@ -28,7 +28,10 @@ for (const scheme of ['light', 'dark'] as const) {
         'font-size',
         isMobile ? '15px' : '14px',
       );
-      await expect(page.locator('.plan-topbar > .btn')).toHaveCSS('border-top-left-radius', '8px');
+      await expect(page.locator('.plan-topbar .plan-chip-scroll > .btn')).toHaveCSS(
+        'border-top-left-radius',
+        '8px',
+      );
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
         isMobile ? 390 : 1440,
       );

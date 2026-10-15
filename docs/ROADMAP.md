@@ -1,5 +1,13 @@
 # Roadmap
 
+### Z1 — Plan month grid in Zerosum arrangement — #448 (2026-10-13)
+
+- [x] Spaced rounded group bands, group/overall checkboxes (including mixed selection), header creation shortcuts and retained C/G forms, alternative views and multiple months.
+- [x] Cent-exact spending status with underfunded-target suffix; hatched spent/solid remaining green bars, red overspending and retained available pills. Class remains in the inspector.
+- [x] One scrolling sticky phone chip line; compact name/available, status/assigned and bar rows, 44px label/name/pill targets, existing inspector edits and same-line cover/suggestion actions.
+- [x] Fresh web typecheck, changed-file lint/format/CSS scale, 19 unit tests and 28 affected E2E/setup cases. Final compact-grid rerun: 6 desktop/Chromium-phone/WebKit cases with light/dark Axe, actual viewport-width guard and both touch dimensions at least 44px. Global checkbox/select correction integrated and six synthetic images refreshed. [Evidence and PR body](evidence/plan-zerosum-grid/PR.md).
+- [ ] Required final-head CI, Linux snapshot review, deployed revision and owner device acceptance. No local Linux baseline generation; Z2/Z3 and phone action layout remain separate packages.
+
 ### Account register: upcoming captures and next recurrence — #453 (2026-10-13)
 
 - [x] Remembered `Kommend · N` section in account and All Bookings registers, collapsed on phones; all future captures and only the next unbooked schedule occurrence, ascending date hints and distinct calendar/repeat icons.
