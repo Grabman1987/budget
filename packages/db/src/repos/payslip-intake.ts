@@ -35,6 +35,7 @@ import { addReceipt, getReceipt, linkReceipt } from './receipts';
 import { savePayslip } from './payroll-projects';
 import { earliestAccountDate } from './portfolio';
 import { listEntities } from './entities';
+import { createBooking } from './bookings';
 
 export const getPayslipSourceConfig = (db: Executor): PayslipSourceConfig => {
   const value = db
@@ -354,10 +355,13 @@ export function replaceParsedPayslip(
     return { groupId: grouped.groupId };
   });
 }
-export function payslipMatches(db: Executor, parsed: ParsedPayrollDocument) {
-  const config = getPayslipSourceConfig(db),
-    draft = parsed.draft;
-  if (!draft || !config.salaryAccountId) return [];
+export function payslipMatches(
+  db: Executor,
+  parsed: ParsedPayrollDocument,
+  accountId = getPayslipSourceConfig(db).salaryAccountId,
+) {
+  const draft = parsed.draft;
+  if (!draft || !accountId) return [];
   const anchor =
     parsed.payoutDate ??
     new Date(Date.UTC(Number(draft.month.slice(0, 4)), Number(draft.month.slice(5)), 0))
@@ -369,7 +373,7 @@ export function payslipMatches(db: Executor, parsed: ParsedPayrollDocument) {
     .innerJoin(account, eq(account.id, booking.accountId))
     .where(
       and(
-        eq(booking.accountId, config.salaryAccountId),
+        eq(booking.accountId, accountId),
         isNull(booking.deletedAt),
         isNull(account.deletedAt),
         isNull(booking.transferId),
@@ -407,7 +411,11 @@ export function payslipMatches(db: Executor, parsed: ParsedPayrollDocument) {
 export function decidePayslipIntake(
   db: Executor,
   id: string,
-  decision: { action: 'confirm' | 'reject'; bookingId: string | null },
+  decision: {
+    action: 'confirm' | 'reject';
+    bookingId: string | null;
+    accountId?: string | undefined;
+  },
   ctx: AuditContext,
 ) {
   const grouped = withGroup(ctx);
@@ -425,11 +433,69 @@ export function decidePayslipIntake(
         Math.abs(p.differenceCents ?? 2) > 1
       )
         throw new ConflictError('Bitte zuerst die Warnungen beheben oder manuell erfassen.');
-      if (decision.bookingId && !payslipMatches(tx, p).some((b) => b.id === decision.bookingId))
+      if (
+        decision.bookingId &&
+        !payslipMatches(tx, p, decision.accountId).some((b) => b.id === decision.bookingId)
+      )
         throw new ConflictError(
           'Gehaltsbuchung ist nicht mehr verfügbar oder außerhalb des Zeitfensters.',
         );
       getReceipt(tx, row.receiptId);
+      let payoutId = decision.bookingId;
+      if (!payoutId && decision.accountId) {
+        const target = tx
+          .select()
+          .from(account)
+          .where(and(eq(account.id, decision.accountId), isNull(account.deletedAt)))
+          .get();
+        const date =
+          p.payoutDate ??
+          new Date(Date.UTC(Number(p.draft.month.slice(0, 4)), Number(p.draft.month.slice(5)), 0))
+            .toISOString()
+            .slice(0, 10);
+        if (!target || target.closedAt || target.currency !== 'EUR' || date < target.openingDate)
+          throw new ConflictError(
+            'Bitte ein offenes EUR-Auszahlungskonto mit passendem Startdatum wählen.',
+          );
+        if (payslipMatches(tx, p, target.id).some((candidate) => candidate.exact))
+          throw new ConflictError(
+            'Eine passende Auszahlung ist bereits vorhanden. Bitte diese Buchung auswählen.',
+          );
+        const totals = payrollTotals([p.draft]);
+        const salaryCents = p.draft.netCents - totals.reimbursementsCents;
+        if (p.draft.netCents <= 0 || salaryCents <= 0)
+          throw new ConflictError('Für diese Auszahlung bitte eine bestehende Buchung auswählen.');
+        payoutId = createBooking(
+          tx,
+          {
+            accountId: target.id,
+            date,
+            amountCents: p.draft.netCents,
+            currency: 'EUR',
+            status: target.type === 'cash' ? 'confirmed' : 'pending',
+            source: 'system',
+            memo: `Gehaltszettel ${p.draft.month}`,
+            splits: [
+              {
+                categoryId: null,
+                amountCents: salaryCents,
+                incomeTypeId:
+                  p.draft.kind === 'special' ? INCOME_TYPES.special.id : INCOME_TYPES.salary.id,
+              },
+              ...(totals.reimbursementsCents
+                ? [
+                    {
+                      categoryId: null,
+                      amountCents: totals.reimbursementsCents,
+                      incomeTypeId: INCOME_TYPES.refund.id,
+                    },
+                  ]
+                : []),
+            ],
+          },
+          grouped,
+        );
+      }
       const lines = [...p.draft.lines];
       const difference = payrollTotals([p.draft]).calculatedNetCents - p.draft.netCents;
       if (difference)
@@ -444,14 +510,14 @@ export function decidePayslipIntake(
           ...p.draft,
           lines,
           receiptId: row.receiptId,
-          bookingId: decision.bookingId,
+          bookingId: payoutId,
         }),
         grouped,
         undefined,
         row.id,
       );
       payslipId = saved.id;
-      if (decision.bookingId) linkReceipt(tx, row.receiptId, decision.bookingId, grouped);
+      if (payoutId) linkReceipt(tx, row.receiptId, payoutId, grouped);
     }
     updateTracked(
       tx,

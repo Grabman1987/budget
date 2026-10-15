@@ -47,6 +47,8 @@ export const accountCreate = z.object({
     .default('EUR'),
   institutionId: id.nullable().optional(),
   contactId: id.nullable().optional(),
+  /** Separate platform cash account for a depot; integrated cash keeps this unset. */
+  referenceAccountId: id.nullable().optional(),
   openingBalanceCents: cents.default(0),
   openingDate: day,
   note: nullableText.optional(),
