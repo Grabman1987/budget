@@ -95,11 +95,19 @@ function destination(result: PaletteItem) {
 /** Header entry point; opening and typing never change the underlying page. */
 export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
   const router = useRouter();
+  const trigger = useRef<HTMLButtonElement>(null);
   const [source, setSource] = useState('');
   const [palette, setPalette] = useState(false);
   const [help, setHelp] = useState(false);
-  const open = () => {
-    setSource(router.state.location.href);
+  const open = (preserveFocus = false) => {
+    const href = router.state.location.href;
+    const active = document.activeElement;
+    const hasReturnTarget =
+      active instanceof HTMLElement &&
+      active !== document.body &&
+      active !== document.documentElement;
+    if (!preserveFocus || !hasReturnTarget) trigger.current?.focus({ preventScroll: true });
+    setSource(href);
     setPalette(true);
   };
   useEffect(() => {
@@ -112,7 +120,7 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
         return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        open();
+        open(true);
       } else if (
         event.key === '?' &&
         !event.ctrlKey &&
@@ -131,12 +139,13 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
   return (
     <>
       <button
+        ref={trigger}
         id={mobile ? 'global-search-mobile' : 'global-search'}
         type="button"
         className={mobile ? 'icon-btn global-search-trigger' : 'search global-search-launch'}
         aria-label="Suchen"
         aria-keyshortcuts="Control+k Meta+k"
-        onClick={open}
+        onClick={() => open()}
       >
         <Search className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
         {!mobile && (
@@ -530,7 +539,7 @@ export function SearchResults({
               type="button"
               className="btn btn-ghost"
               onClick={() => {
-                onClose();
+                onClose?.();
                 void navigate({ to: '/suche', search: { q: value || undefined, von: sourceHref } });
               }}
             >

@@ -7,6 +7,10 @@ import { AppLink } from './app-link';
 import { ThemeButton } from './theme-button';
 import { useShellIdentity } from './use-profile';
 import { QueueBadge } from '../pwa/queue-ui';
+import { useRef } from 'react';
+import { GripVertical } from 'lucide-react';
+import { SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN } from './use-sidebar-width';
+import type { PointerEvent, KeyboardEvent } from 'react';
 
 export function BrandMark() {
   return (
@@ -45,7 +49,17 @@ export function BrandMark() {
  * "Planliste": the five areas with icons, the account hierarchy below them, settings and
  * profile at the bottom.
  */
-export function Sidebar({ area }: { area: AreaId | undefined }) {
+export function Sidebar({
+  area,
+  collapsed = false,
+  sidebarWidth = 236,
+  onSidebarWidthChange,
+}: {
+  area: AreaId | undefined;
+  collapsed?: boolean;
+  sidebarWidth?: number;
+  onSidebarWidthChange?: (width: number) => void;
+}) {
   const identity = useShellIdentity();
   const authMethod = useAuthMethodLabel();
   return (
@@ -113,6 +127,72 @@ export function Sidebar({ area }: { area: AreaId | undefined }) {
           </span>
         </AppLink>
       </div>
+      {!collapsed && onSidebarWidthChange && (
+        <SidebarResizeHandle width={sidebarWidth} onWidthChange={onSidebarWidthChange} />
+      )}
     </aside>
+  );
+}
+
+function SidebarResizeHandle({
+  width,
+  onWidthChange,
+}: {
+  width: number;
+  onWidthChange: (width: number) => void;
+}) {
+  const drag = useRef<{ pointerId: number; startX: number; startWidth: number } | null>(null);
+  const onPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    drag.current = { pointerId: event.pointerId, startX: event.clientX, startWidth: width };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const onPointerMove = (event: PointerEvent<HTMLButtonElement>) => {
+    if (drag.current?.pointerId !== event.pointerId) return;
+    onWidthChange(drag.current.startWidth + event.clientX - drag.current.startX);
+  };
+  const onPointerEnd = (event: PointerEvent<HTMLButtonElement>) => {
+    if (drag.current?.pointerId === event.pointerId) drag.current = null;
+  };
+  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const step = event.shiftKey ? 40 : 10;
+    const next =
+      event.key === 'ArrowRight'
+        ? width + step
+        : event.key === 'ArrowLeft'
+          ? width - step
+          : event.key === 'PageUp'
+            ? width + 40
+            : event.key === 'PageDown'
+              ? width - 40
+              : event.key === 'Home'
+                ? SIDEBAR_WIDTH_MIN
+                : event.key === 'End'
+                  ? SIDEBAR_WIDTH_MAX
+                  : undefined;
+    if (next === undefined) return;
+    event.preventDefault();
+    onWidthChange(next);
+  };
+  return (
+    <button
+      className="sidebar-resize"
+      type="button"
+      role="slider"
+      aria-label="Breite der Seitenleiste"
+      aria-orientation="horizontal"
+      aria-valuemin={SIDEBAR_WIDTH_MIN}
+      aria-valuemax={SIDEBAR_WIDTH_MAX}
+      aria-valuenow={width}
+      aria-valuetext={`${width} Pixel`}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerEnd}
+      onPointerCancel={onPointerEnd}
+      onKeyDown={onKeyDown}
+    >
+      <GripVertical size={14} strokeWidth={1.75} aria-hidden="true" />
+    </button>
   );
 }

@@ -111,15 +111,18 @@ test('loading, empty and failed searches are explicit, retry works, Escape retur
 
 test('overlay preserves the source URL, history, scroll, focus and month on Escape', async ({
   page,
-}, info) => {
+}) => {
   await page.goto('/plan/monat?monat=2026-08');
   const trigger = page.getByRole('button', { name: 'Suchen', exact: true });
   await trigger.focus();
   await page.evaluate(() => window.scrollTo(0, 240));
   const scroll = await page.evaluate(() => scrollY);
-  const mobile = info.project.name !== 'desktop';
   const before = await page.evaluate(() => history.length);
-  const input = await openSearch(page, mobile);
+  await page.keyboard.press('Control+k');
+  const dialog = page.getByRole('dialog', { name: 'Suchen', exact: true });
+  await expect(dialog).toBeVisible();
+  const input = dialog.getByRole('combobox', { name: 'Suchen', exact: true });
+  await expect(input).toBeFocused();
   await expect(page.getByRole('group', { name: 'Aktionen' }).getByRole('option')).toHaveCount(4);
   await expect(page.getByRole('group', { name: 'Seiten', exact: true })).toHaveCount(0);
   await input.fill('Girokonto');
@@ -129,6 +132,26 @@ test('overlay preserves the source URL, history, scroll, focus and month on Esca
   expect(await page.evaluate(() => history.length)).toBe(before);
   expect(await page.evaluate(() => scrollY)).toBe(scroll);
   await expect(trigger).toBeFocused();
+});
+
+test('keyboard search returns focus to the field that opened it', async ({ page }) => {
+  await page.goto('/konten/buchungen');
+  const sourceField = page.getByRole('searchbox');
+  await sourceField.fill('Supermarkt');
+  await expect(page).toHaveURL(/\/konten\/buchungen\?q=Supermarkt$/);
+  const sourceUrl = page.url();
+  await sourceField.focus();
+  await page.keyboard.press('Control+k');
+  const dialog = page.getByRole('dialog', { name: 'Suchen', exact: true });
+  await expect(dialog).toBeVisible();
+  const input = dialog.getByRole('combobox', { name: 'Suchen', exact: true });
+  await expect(input).toBeFocused();
+  await input.fill('Girokonto');
+  await input.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(page).toHaveURL(sourceUrl);
+  await expect(sourceField).toHaveValue('Supermarkt');
+  await expect(sourceField).toBeFocused();
 });
 
 test('pending responses cannot replace a newer query and search is accessible in both themes', async ({

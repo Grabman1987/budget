@@ -34,10 +34,12 @@ beforeEach(() => {
   }));
 });
 it('returns focus to the field that opened the palette through the shortcut', async () => {
-  render(<QueryClientProvider client={new QueryClient()}>
-    <input aria-label="Quellfeld" />
-    <GlobalSearch />
-  </QueryClientProvider>);
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <input aria-label="Quellfeld" />
+      <GlobalSearch />
+    </QueryClientProvider>,
+  );
   const source = screen.getByRole('textbox', { name: 'Quellfeld' });
   source.focus();
   fireEvent.keyDown(source, { key: 'k', ctrlKey: true });
