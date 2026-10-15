@@ -70,6 +70,73 @@ async function upload(customHeaders = headers) {
   });
 }
 describe('authenticated payslip intake HTTP boundary', () => {
+  it('confirms into the selected account only after validation and undoes the pending payout atomically', async () => {
+    const jsonHeaders = { ...headers, 'content-type': 'application/json' };
+    const created = await app.request('/api/accounts', {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify({
+        name: 'Auszahlung Muster',
+        type: 'checking',
+        openingDate: '2025-01-01',
+        openingBalanceCents: 0,
+      }),
+    });
+    expect(created.status).toBe(201);
+    const { account } = (await created.json()) as { account: { id: string } };
+    const staged = await upload();
+    expect(staged.status).toBe(201);
+    const { id } = (await staged.json()) as { id: string };
+    const decide = (accountId: unknown, customHeaders = jsonHeaders) =>
+      app.request(`/api/payslip-intake/${id}/decision`, {
+        method: 'POST',
+        headers: customHeaders,
+        body: JSON.stringify({ action: 'confirm', bookingId: null, accountId }),
+      });
+    expect((await decide(account.id, { ...jsonHeaders, cookie: '' })).status).toBe(401);
+    expect(
+      (await decide(account.id, { ...jsonHeaders, origin: 'https://synthetic-other.invalid' }))
+        .status,
+    ).toBe(403);
+    expect((await decide({ id: account.id })).status).toBe(400);
+    expect((await decide('missing-account')).status).toBe(409);
+    expect(opened.db.select().from(schema.payslip).all()).toHaveLength(0);
+    expect(opened.db.select().from(schema.booking).all()).toHaveLength(0);
+    const decision = await decide(account.id);
+    expect(decision.status).toBe(200);
+    const saved = (await decision.json()) as { groupId: string };
+    const payouts = opened.db.select().from(schema.booking).all();
+    expect(payouts).toHaveLength(1);
+    expect(payouts[0]).toMatchObject({
+      accountId: account.id,
+      amountCents: 297500,
+      status: 'pending',
+      date: '2026-09-30',
+    });
+    const undone = await app.request('/api/undo', {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify({ groupId: saved.groupId }),
+    });
+    expect(undone.status).toBe(200);
+    expect(
+      opened.db
+        .select()
+        .from(schema.booking)
+        .all()
+        .filter((row) => !row.deletedAt),
+    ).toHaveLength(0);
+    expect(
+      opened.db
+        .select()
+        .from(schema.payslip)
+        .all()
+        .filter((row) => !row.deletedAt),
+    ).toHaveLength(0);
+    const intake = await app.request(`/api/payslip-intake/${id}`, { headers });
+    expect(await intake.json()).toMatchObject({ status: 'pending' });
+  });
+
   it('requires session and origin and admits PDF multipart bodies', async () => {
     expect((await upload({ origin, cookie: '' })).status).toBe(401);
     expect(
