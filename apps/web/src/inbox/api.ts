@@ -58,6 +58,8 @@ export interface InboxEnvelope {
   kind: 'overspent';
   categoryId: string;
   month: string;
+  /** Positive amount in cents needed to bring the current envelope back to zero. */
+  deficitCents: number;
   title: string;
   detail: string;
   urgent: true;
@@ -68,6 +70,7 @@ export interface InboxView {
   count: number;
   entries: InboxEntry[];
   readSourceSummaries: { sourceId: string | null; name: string; count: number }[];
+  overspentSummary?: { month: string; count: number; deficitCents: number } | undefined;
 }
 export interface InboxPage extends InboxView {
   totalEntries: number;

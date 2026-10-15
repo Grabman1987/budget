@@ -9,7 +9,8 @@ import { join } from 'node:path';
  * folder (`BUDGET_OVERVIEW_EVIDENCE`) or the test output.
  */
 export async function inspectReport(page: Page, info: TestInfo, label: string) {
-  const width = info.project.name === 'mobile' ? 390 : 1440;
+  const width = page.viewportSize()?.width;
+  if (width === undefined) throw new Error('Report inspection requires a configured viewport.');
   await page.evaluate(() => {
     (document.activeElement as HTMLElement | null)?.blur();
     window.scrollTo(0, 0);

@@ -129,7 +129,7 @@ function Drawing({
           name: s.name,
           values: s.perMonth,
           className: s.fillClass,
-          negativeColor: 'var(--red)',
+          negativeColor: 'var(--ink-2)',
         })),
       )}
     >
@@ -161,7 +161,7 @@ function Drawing({
                   y={Math.min(y(start), y(end))}
                   width={bw}
                   height={Math.max(1, Math.abs(y(start) - y(end)))}
-                  className={v < 0 ? 'bar-neg2' : s.fillClass}
+                  className={v < 0 ? 'bar-neg-ink' : s.fillClass}
                 >
                   <title>{`${s.name} ${monthWithYear(m)}: ${eur(v)}`}</title>
                 </rect>

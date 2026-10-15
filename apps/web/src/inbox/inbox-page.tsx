@@ -26,7 +26,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ComponentProps } 
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { BookingPanel } from '../ledger/booking-panel';
-import { longDay, nativeCurrency } from '../ledger/format';
+import { eur, longDay, nativeCurrency } from '../ledger/format';
 import { errorText } from '../ledger/labels';
 import { useLedgerWrites } from '../ledger/mutations';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -45,6 +45,7 @@ import {
   type InboxEntry,
   type InboxKind,
   type InboxStored,
+  type InboxView,
 } from './api';
 import './inbox.css';
 import { ReceiptSection } from '../receipts/receipt-section';
@@ -449,6 +450,7 @@ function PaginatedInboxBody({
         {...props}
         entries={entries}
         count={firstPage?.count}
+        overspentSummary={firstPage?.overspentSummary}
         readSourceSummaries={firstPage?.readSourceSummaries}
         totalEntries={firstPage?.totalEntries}
         countsByKind={firstPage?.countsByKind}
@@ -474,6 +476,7 @@ function InboxBodyContent({
   totalEntries,
   countsByKind,
   countsByCause,
+  overspentSummary,
   detailView = false,
   groupByTitle = false,
   readSourceSummaries,
@@ -496,6 +499,7 @@ function InboxBodyContent({
   totalEntries: number | undefined;
   countsByKind: Partial<Record<InboxKind, number>> | undefined;
   countsByCause?: Record<string, number> | undefined;
+  overspentSummary?: InboxView['overspentSummary'];
   detailView?: boolean;
   groupByTitle?: boolean;
   readSourceSummaries?: { sourceId: string | null; name: string; count: number }[] | undefined;
@@ -599,6 +603,41 @@ function InboxBodyContent({
                 if (!all.length || (!serverPaginated && room <= 0)) return [];
                 const items = all.slice(0, room);
                 room -= items.length;
+                if (kind === 'overspent' && overspentSummary && !detailView && !groupByTitle) {
+                  return [
+                    <tr className="kgroup" key={kind}>
+                      <td className="rev-mark" />
+                      <th scope="rowgroup" colSpan={2}>
+                        {LABELS[kind]} <span className="kgcount">{overspentSummary.count}</span>
+                      </th>
+                    </tr>,
+                    <tr
+                      className="rev-row is-urgent"
+                      data-testid="inbox-overspent-summary"
+                      key="overspent-summary"
+                    >
+                      <td className="rev-mark">
+                        <RevisionTriangle letter="!" urgent />
+                      </td>
+                      <td className="rev-what">
+                        <strong>
+                          {overspentSummary.count} Kategorien überzogen · Summe{' '}
+                          {maskMoneyText(eur(overspentSummary.deficitCents))}
+                        </strong>
+                        <span>Offener Gesamtfehlbetrag im Plan</span>
+                      </td>
+                      <td className="rev-act kact">
+                        <AppLink
+                          className="btn btn-ghost btn-sm"
+                          to="/plan/monat"
+                          search={{ monat: overspentSummary.month, ansicht: 'triage' }}
+                        >
+                          Im Plan decken
+                        </AppLink>
+                      </td>
+                    </tr>,
+                  ];
+                }
                 return [
                   <tr className="kgroup" key={kind ?? 'bank-source'}>
                     <td className="rev-mark" />

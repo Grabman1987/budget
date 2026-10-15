@@ -285,8 +285,11 @@ describe('inbox API', () => {
       const plan = await call('GET', '/budget/2026-09');
       const today = await call('GET', '/heute');
       const inbox = await call('GET', '/inbox');
+      const firstPage = await call('GET', '/inbox?limit=1');
+      const historicalPage = await call('GET', '/inbox?period=historical&limit=1');
       const badge = await call('GET', '/inbox/count');
-      for (const response of [plan, today, inbox, badge]) expect(response.status).toBe(200);
+      for (const response of [plan, today, inbox, firstPage, historicalPage, badge])
+        expect(response.status).toBe(200);
       expect(
         plan.body.summary.envelopes
           .filter((e: any) => e.availableCents < 0)
@@ -299,12 +302,44 @@ describe('inbox API', () => {
           .map((e: any) => e.categoryId)
           .sort(),
       ).toEqual(expectedIds);
+      const envelopeRows = inbox.body.entries.filter((e: any) => e.type === 'envelope');
+      expect(envelopeRows.map((e: any) => e.categoryId).sort()).toEqual(expectedIds);
       expect(
         inbox.body.entries
           .filter((e: any) => e.kind === 'overspent')
           .map((e: any) => e.categoryId)
           .sort(),
       ).toEqual(expectedIds);
+      const literalDeficits = { essen: 1, reise: 2345 } as Record<string, number>;
+      expect(
+        envelopeRows
+          .map((e: any) => [e.categoryId, e.deficitCents])
+          .sort((a: any, b: any) => a[0].localeCompare(b[0])),
+      ).toEqual(expectedIds.map((id) => [id, literalDeficits[id]]));
+      expect(inbox.body.overspentSummary).toEqual(
+        expectedIds.length
+          ? {
+              month: '2026-09',
+              count: expectedIds.length,
+              deficitCents: expectedIds.reduce((sum, id) => sum + literalDeficits[id]!, 0),
+            }
+          : undefined,
+      );
+      expect(firstPage.body).toMatchObject({
+        count: expectedIds.length,
+        totalEntries: expectedIds.length,
+        entries: [expect.objectContaining({ type: 'envelope' })],
+        ...(expectedIds.length
+          ? {
+              overspentSummary: {
+                month: '2026-09',
+                count: expectedIds.length,
+                deficitCents: expectedIds.reduce((sum, id) => sum + literalDeficits[id]!, 0),
+              },
+            }
+          : { overspentSummary: undefined }),
+      });
+      expect(historicalPage.body.overspentSummary).toBeUndefined();
       expect(inbox.body.count).toBe(expectedIds.length);
       expect(badge.body.count).toBe(expectedIds.length);
       expect(today.body.attention.inboxCount).toBe(expectedIds.length);

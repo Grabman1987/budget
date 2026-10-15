@@ -341,6 +341,7 @@ test.describe('1.7 Sparquote und Geldalter', () => {
     );
     await expect(page.getByTestId('capital-note')).toContainText('nicht in der Sparquote');
     await expect(page.getByTestId('savings-chart')).toBeVisible();
+    await expect(page.getByTestId('savings-chart').locator('.bar-neg-ink').first()).toBeVisible();
     await expect(page.locator('.tbd-state').first()).toContainText('Ziel ≥ 20 % (R01)');
 
     // Geldalter: the last known month end value, the goal from rule R03

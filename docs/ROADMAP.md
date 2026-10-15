@@ -1,5 +1,23 @@
 # Roadmap
 
+### Q2: Quiet historical reports and one inbox alert — #465 (2026-10-15)
+
+- [x] Historical negative charts/text use existing ink; debt bars use dashed outlines; shared live-warning defaults, values and geometry remain.
+- [x] Read-only inbox overview aggregate includes full filtered count/deficit before pagination; individual tasks, counts, privacy and Plan triage remain.
+- [x] Focused regressions and synthetic desktop/mobile/WebKit light/dark evidence: [Q2 evidence](evidence/q2/README.md).
+- [x] Apply and pin the five owner-requested skill sources through scoped project profiles: [adoption evidence](evidence/skill-adoption-2026-10-15.md).
+- [x] Final integration with payroll main: Node 22 full check, 434 files / 3,962 tests, zero skips; rebuilt current WebKit integration 7/7.
+- [ ] Exact-head required CI, serial merge and main CI/deployment/live proof.
+
+### Wealth composition and portfolio detail — #499 (2026-10-15)
+
+- [x] Align signed asset/debt account bars on one proportional zero axis.
+- [x] Add the Portfolio overview's daily base-100 index using shared flow-adjusted daily returns; keep unavailable returns as gaps, preserve date spacing and explain stored valuations/carried quotes.
+- [x] Keep SVG axis labels legible at responsive widths and place portfolio actions below the chart. Existing monthly report index, benchmarks, class series and financial formulas remain unchanged.
+- [x] Synthetic financial/model/API tests, desktop/mobile/WebKit chart and composition coverage, responsive rendered-text assertions, Axe checks and fresh evidence: [wealth #499 evidence](evidence/wealth-performance-499/README.md).
+- [x] Final combined Node 22 full check: 434 files / 3,962 tests, zero skips; rebuilt current WebKit integration 7/7 including wealth coverage.
+- [ ] Required CI, serial deployment/live proof and private owner financial reconciliation. This slice does not close Gate 3 or the broader K3 acceptance.
+
 ### Direct payroll review, date and sender — #499 (2026-10-15)
 
 - [x] Implement direct wide upload review, payout date/sender/eligible expectation, and inline unknown wage-code mapping with existing formulas.
@@ -14,7 +32,7 @@
 - [x] Balance/name share the contact detail; recorded full repayment defines retained, collapsible history.
 - [x] Itemize current-month payments, recorded allocations and credit; keep older open outlays visible and preserve same-day order. No financial writes or historical edits.
 - [x] Full cloud check: 433 files / 3,936 tests; desktop/mobile Chromium and WebKit iPhone flows, light/dark Axe and synthetic screenshots. [Evidence](evidence/contact-history/README.md).
-- [ ] Current-main integration, final-head CI and serial deployment/live proof.
+- [x] PR #502 final-head checks passed; main CI 38725948953 and automatic Deploy 38728003764 succeeded. Public health returned exact merge `501f2e8f0dec06c4bfd1d5a8faeed87256b04593`; tested-head ancestry verified. [Live proof](https://github.com/Grabman1987/budget/pull/502#issuecomment-6191133572).
 
 ### Account properties — #499 (2026-10-15)
 
@@ -22,7 +40,7 @@
 - [x] Validate new references and incompatible linked-account type/currency changes; preserve historical metadata, credit-card fields and audited undo.
 - [x] Focused API/UI and desktop/mobile/WebKit form flows, light/dark Axe and synthetic screenshots. [Evidence](evidence/account-properties/README.md).
 - [x] Full integrated Node 22 check with required age: 433 files, 3930 passed, no skips; combined browser regressions and repeated asynchronous-undo completion check.
-- [ ] Final-head CI and serial deployment/live proof in PR #500.
+- [x] PR #500 final-head checks, main CI 38723344839 and automatic Deploy 38725377048 passed; exact live revision `5cf4f5f145e4bb210ae7fcf089dc3f60a88493fa` and ancestry verified. [Live proof](https://github.com/Grabman1987/budget/pull/500#issuecomment-6190736401).
 - [ ] Broader K2/K3 and cash import/transfer acceptance remain separate.
 
 ### Payslip upload and payout review — #499 (2026-10-15)
@@ -31,7 +49,7 @@
 - [x] Select payout account, reuse matching booking or confirm a pending payout (cash confirmed); exact salary/refund split and atomic undo.
 - [x] Nine synthetic chooser, drop, existing-match and payout/undo flows across Chromium desktop/mobile and WebKit iPhone; light/dark Axe and overflow checks. [Fresh cloud evidence](evidence/payslip-payout/README.md).
 - [x] Full integrated cloud check with required age: 433 files, 3930 passed, no skips; typecheck/lint/format and E2E build passed. All nine payout browser scenarios passed again.
-- [ ] Final-head CI and serial deployment/live proof.
+- [x] Delivered with account properties in PR #500; exact main/deploy/live proof above.
 - [ ] Owner retest of the original pre-file-chooser Chrome hang; not reproduced in an isolated profile.
 
 ### Booking line model — #463 (2026-10-14)

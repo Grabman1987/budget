@@ -73,6 +73,15 @@
   background: var(--tint);
   border-radius: 1px;
 }
+.vb-bar::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: -3px;
+  bottom: -3px;
+  left: var(--zero, 50%);
+  border-left: 1px solid var(--ink-3);
+}
 .vb-bar i {
   position: absolute;
   inset: 0 auto 0 0;

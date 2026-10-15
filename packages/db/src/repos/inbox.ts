@@ -61,6 +61,8 @@ export interface InboxEnvelope {
   kind: 'overspent';
   categoryId: string;
   month: string;
+  /** Positive amount in cents needed to bring the current envelope back to zero. */
+  deficitCents: number;
   title: string;
   detail: string;
   urgent: true;
@@ -106,6 +108,7 @@ function envelopeTasks(db: Executor, today: string): InboxEnvelope[] {
     kind: 'overspent',
     categoryId: e.categoryId,
     month,
+    deficitCents: -e.availableCents,
     title: `${tree.categories.find((c) => c.id === e.categoryId)!.name} ist überzogen`,
     detail: `${formatEuro(cents(e.availableCents))} · im Plan decken`,
     urgent: true,

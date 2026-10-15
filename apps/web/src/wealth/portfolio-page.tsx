@@ -72,12 +72,6 @@ export function PortfolioPage() {
   return (
     <PageFrame meta={VERMOEGEN_PORTFOLIO_META}>
       <div className="kview vview portfolio-view">
-        <div className="instrument-actions">
-          <Button variant="ghost" onClick={() => select('neu')}>
-            Instrument anlegen
-          </Button>
-          <Button onClick={() => trade('neu', undefined)}>Handel erfassen</Button>
-        </div>
         {query.isPending && <LoadingNote what="Positionen" />}
         {query.isError && (
           <ErrorNote what="Positionen" error={query.error} onRetry={() => void query.refetch()} />
@@ -85,6 +79,12 @@ export function PortfolioPage() {
         <ValuationHint incomplete={query.data?.incomplete} />
         {view && <PortfolioLead view={view} />}
         <PortfolioOverview />
+        <div className="instrument-actions">
+          <Button variant="ghost" onClick={() => select('neu')}>
+            Instrument anlegen
+          </Button>
+          <Button onClick={() => trade('neu', undefined)}>Handel erfassen</Button>
+        </div>
         <PortfolioAllocation />
         {view && (
           <>

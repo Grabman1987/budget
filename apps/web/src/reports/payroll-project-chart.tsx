@@ -48,7 +48,7 @@ export function PayrollProjectChart({
                 { name: 'Brutto', values: gross, color: 'var(--line-2)' },
                 { name: 'Netto', values },
               ]
-            : [{ name: 'Projektergebnis', values, negativeColor: 'var(--red)' }],
+            : [{ name: 'Projektergebnis', values, negativeColor: 'var(--ink-2)' }],
         )}
         label={
           gross
