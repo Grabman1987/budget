@@ -11,9 +11,6 @@ async function open(page: Page, colorScheme: 'light' | 'dark' = 'light') {
   await page.evaluate(() => document.fonts.ready);
 }
 
-const bodyBackground = (page: Page) =>
-  page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-
 test.describe('design system page /dev/bauteile', () => {
   test('renders every primitive without console or CSP errors', async ({ page }) => {
     const problems: string[] = [];
@@ -41,22 +38,22 @@ test.describe('design system page /dev/bauteile', () => {
     page,
   }) => {
     await open(page, 'light');
-    expect(await bodyBackground(page)).toBe('rgb(242, 245, 249)');
+    await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(242, 245, 249)');
 
     await page.emulateMedia({ colorScheme: 'dark' });
-    expect(await bodyBackground(page)).toBe('rgb(11, 49, 82)');
+    await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(11, 49, 82)');
 
     await page.getByRole('button', { name: 'Hell', exact: true }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-    expect(await bodyBackground(page)).toBe('rgb(242, 245, 249)');
+    await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(242, 245, 249)');
 
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-    expect(await bodyBackground(page)).toBe('rgb(242, 245, 249)');
+    await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(242, 245, 249)');
 
     await page.getByRole('button', { name: 'System', exact: true }).click();
     await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/);
-    expect(await bodyBackground(page)).toBe('rgb(11, 49, 82)');
+    await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(11, 49, 82)');
   });
 
   test('amount field evaluates arithmetic and commits cents', async ({ page }) => {

@@ -1,6 +1,7 @@
 /* Application shell, ported from design/prototype/styles.css (Shell, Sheet, mobile chrome). */
 
 .app {
+  --sidebar: var(--sidebar-width, 236px);
   display: grid;
   grid-template-columns: var(--sidebar) minmax(0, 1fr);
   min-height: 100vh;
@@ -43,6 +44,34 @@
   background: var(--ground-2);
   padding: 18px 14px 14px;
   overflow: hidden;
+}
+.sidebar-resize {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--line-2);
+  opacity: 0;
+  cursor: col-resize;
+  touch-action: none;
+  transition: opacity var(--t-fast) var(--ease-out);
+}
+.sidebar:hover .sidebar-resize,
+.sidebar-resize:focus-visible,
+.sidebar-resize:active {
+  opacity: 1;
+}
+.sidebar-resize:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: -2px;
 }
 .brand {
   display: flex;

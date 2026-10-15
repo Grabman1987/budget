@@ -47,7 +47,7 @@ npm start          # Produktions-Server (liefert die gebaute Web-App aus)
 **E2E und Screenshots.** Die Vergleichsbilder (`e2e/**-snapshots`) sind unter Linux erzeugt. Unter Windows/macOS werden die visuellen Vergleiche mit einem Hinweis übersprungen, alles andere läuft. Für identische Pixel (und zum Aktualisieren der Bilder) den Container verwenden:
 
 ```bash
-docker run --rm -it --ipc=host -v "$PWD":/work -w /work mcr.microsoft.com/playwright:v1.56.1-noble \
+docker run --rm -it --ipc=host -v "$PWD":/work -w /work mcr.microsoft.com/playwright:v1.64.1-noble \
   bash -c "npm ci && npm run test:e2e"          # Bilder aktualisieren: ... npx playwright test --update-snapshots
 ```
 
