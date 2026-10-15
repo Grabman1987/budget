@@ -1,5 +1,12 @@
 # Screen contracts and design handoff
 
+Open semantic/design gaps are tracked as [GAP01–08](open-gaps.md). V09 includes
+benchmark comparison but V02 lacks its direct comparison line; V02's index is not
+an actual EUR portfolio-value graph. V01 composition is a snapshot, not complete
+asset-group time development. V01's EUR net-worth graph exists and needs a bounded
+visibility diagnosis if absent in the app. O01–O08 still need reviewed designs.
+Node/name coverage alone must not be labeled feature/design acceptance.
+
 Figma file `Nv9oaV96Npql6onEofCFEi`, metadata inspected 2026-10-15. These are
 verified node/name references, not visually accepted screenshots. The file
 contains original/archive, target area pages, a composed prototype, theme checks

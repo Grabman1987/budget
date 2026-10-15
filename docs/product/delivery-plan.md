@@ -2,6 +2,9 @@
 
 This work completes the planning package. The packages below are reviewable
 implementation/acceptance tasks, not a promise that this docs PR implements them.
+The subsequent owner gap review identified functional/design omissions even with
+complete inventories. [GAP01–08](open-gaps.md) are now explicit open packages;
+PLAN01 completion does not establish semantic or visual feature completeness.
 
 ## Defaults carried forward
 
@@ -43,6 +46,19 @@ numeric availability/restore promise is added.
 | QUAL01 Routine acceptance | PLAN01 | Execute PR01–08 contracts with exact start/end/resume evidence | [Journeys](journeys.md) and AC matrix; fix only demonstrated current gaps |
 | QUAL02 Source/FX/offline reconciliation | PLAN01 | Current implementation versus D06/D07 and operation evidence | Source policy/catch-up, uncertain replay and incomplete-history cases; no old absence assumptions |
 | QUAL03 Private gates | Existing owner/source access | Separate scoped reconciliation and acceptance records | Gates 1–4 unchanged; no private data in repo or CI |
+
+## Open gap implementation sequence
+
+1. GAP08 establishes scope/measure/design authority; GAP04 diagnoses the existing
+   net-worth chart independently. These are prerequisites/diagnosis, not a new graph.
+2. GAP01/GAP02/GAP03 deliver compact benchmark, actual EUR history and asset-group
+   history using the shared data contracts. Each has its own AC26–28 evidence.
+3. GAP05 reconciles navigation/terms; GAP06 reuses ONB02–06; GAP07 records the
+   semantic frame/source/acceptance result throughout. AC29–31 protect the distinction.
+
+All remain unchecked in ROADMAP/TASKS. The owner's three wealth targets are
+requested product scope; detailed read-model/UI design and existing onboarding
+DEC01–04 dispositions remain part of the linked implementation preparation.
 
 ## Definition of implementation readiness
 

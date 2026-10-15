@@ -4,6 +4,8 @@ Review baseline: source `01a10de8`, 2026-10-15. This maps documentation and sour
 entry points, not test-to-financial-acceptance certification. Existing tests listed
 below are regression starting points; inspect/add cases for the changed behavior.
 ONB01 has no financial onboarding implementation/test evidence yet.
+Open semantic/design omissions are separately tracked in [GAP01–08](open-gaps.md).
+Inventory verification does not prove any chart answers the intended question.
 
 ## Requirement families → source → acceptance
 
@@ -106,6 +108,11 @@ Run `npx tsx scripts/verify-product-docs.ts` to check IDs, local links, register
 report/component/feature/rule/navigation coverage and acceptance references.
 This protects the documentation's inventory completeness, not business correctness
 or external availability. Required `npm run check` still applies to delivery.
+
+GAP01 maps BUD09.08 to AC26; GAP02/GAP03 map BUD10.05/06 to AC27/28.
+GAP04 is AC29 diagnosis, GAP05 is AC30 navigation, GAP06 reuses ONB01/AC24/25,
+and GAP07/GAP08 require the semantic matrix in AC31. Existing inventory counts
+cannot mark these new tasks implemented or accepted.
 
 A record can be specified, implemented, deployed and accepted separately. Link
 exact source, PR/CI, actual deployed revision and owner evidence before advancing

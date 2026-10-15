@@ -1,5 +1,16 @@
 # Budget — Specification
 
+Owner wealth completeness/backlog requirement (2026-10-15): Vermögen must expose
+a compact benchmark comparison, actual portfolio value history in EUR, and asset
+composition with time development under explicit scope/unit/date conventions.
+The compact comparison belongs in Vermögen; detailed performance analysis remains
+in Reports. This narrows the older report-only wording where it excluded the
+compact comparison. Existing total-net-worth history must be diagnosed if invisible,
+not declared absent or rebuilt without evidence. Implementation/design work remains
+open as GAP01–08 in [the gap backlog](docs/product/open-gaps.md), including navigation,
+onboarding frames and semantic Figma acceptance. No financial formula or gate is
+changed or accepted merely by recording these requirements.
+
 Current reading entry point (2026-10-15): [Product foundation](docs/product/README.md)
 consolidates the requirements, sitemap, state/data/process contracts and acceptance
 mapping. It preserves the precedence below. Proposed first-use onboarding remains
@@ -106,7 +117,7 @@ Five main areas plus settings (profile menu). Registers are the second level; no
 
 **Import/export feature scope (owner-confirmed 2026-10-01):** the application has no import feature or import UI. Provide one user-initiated ZIP download containing CSV export data for all accounts and depots. Reconfirm authentication before starting the sensitive export. The CSV ZIP is a data export, not an encrypted application backup; exclude auth/session state, secrets, audit events, import staging and raw migration data. This supersedes earlier in-app YNAB/PP and manual CSV/XLSX import requirements. See [`docs/export.md`](docs/export.md) for the file and field conventions. One-time migration remains a separate owner-authorized Codex/Claude task using existing exports and the PP file in private storage (§10).
 
-**Vermögen decides, Reports explain the effect.** Under the 2026-10-14 UX V1 directive, Vermögen includes its compact shared performance summary/chart; detailed benchmark/performance analysis remains in Reports. This replaces the older blanket exclusion of performance history from Vermögen.
+**Vermögen decides, Reports explain the effect.** Under the 2026-10-14 UX V1 directive, Vermögen includes its compact shared performance summary/chart; the newly requested compact benchmark comparison is open under GAP01, while detailed benchmark/performance analysis remains in Reports. This replaces the older blanket exclusion of performance history from Vermögen.
 
 Current savings-plan slice: Portfolio supports audited schedule create/edit/end and undo/redo, with source accounts, inclusive version history and future changes shown separately from today's rate. Rates and monthly totals retain the investment account's native currency. Overlapping effective versions remain visible and make the affected current rate/total unavailable; missing account currency makes totals explicitly incomplete. Schedule saves do not create trades/bookings or send bank orders; the owner must change the bank schedule manually. Due monthly proposals in Heute/Posteingang require the owner's actual execution date, units, gross amount and fees before creating an audited, undoable buy and its depot settlement; source transfers stay separate. Overdue proposals remain available, and one live confirmed execution per security/account/month prevents duplicate capture across schedule versions. Rate-optimisation proposal/apply UI and private Gate 3 acceptance remain separate work. See [trade and execution workflow](docs/trades-execution.md).
 

@@ -97,10 +97,13 @@ Detailed contracts: [bank source](../DATA_SOURCES.md), [assignment rules](../ass
 | BUD09.05 | Allocation/risk/proposals share one scope, signed cash and leverage policy | Missing quality suppresses proposals per policy; risk shares can exceed 100%; AC13 |
 | BUD09.06 | Savings schedules retain native currency, versions and next planned date | Saving a rate neither places an order nor creates a trade; AC14 |
 | BUD09.07 | Actual savings execution needs date, units, gross amount and fees before creating buy/settlement | Duplicate execution guard and undo remain; funding transfer is separate; AC14 |
+| BUD09.08 | Open GAP01: compact benchmark comparison in Vermögen using explicit common scope/date, persisted existing choices and shared normalized series | No manufactured benchmark start/history or misleading return convention; AC26 |
 | BUD10.01 | Net worth, own contribution and market movement reconcile across surfaces | Derived contact receivables are excluded; manual/product valuation precedence retained; AC12 |
 | BUD10.02 | Debt starts with actual balance/history; payoff scenarios need complete calculable terms | No fabricated payoff date; scenario is not a bank instruction; AC18 |
 | BUD10.03 | Freedom projection labels expense history, saving assumption and return assumptions | Default saving basis is up to six closed Zukunft months; no promise of future return; AC18 |
 | BUD10.04 | Signed account composition uses one proportional zero axis; portfolio daily base-100 index uses shared TTWROR dates with explicit gaps | Assets right/debts left; no interpolation or implication of fresh daily quotes; actions follow chart; AC19 |
+| BUD10.05 | Open GAP02: actual portfolio-value EUR history directly in Vermögen, distinct from flow-adjusted return and total household net worth | Match historical endpoint/table/lead scope; contributions affect value without inventing return; AC27 |
+| BUD10.06 | Open GAP03: current composition plus asset-group/instrument time development with explicit EUR/percentage scopes | Reconcile groups with shared aggregate; keep debt/unknown coverage explicit and prevent cash double count; AC28 |
 | BUD11.01 | All 34 reports have a named question, period, source drill-down and missing-data contract | See [report contracts](report-contracts.md); a body alone is not acceptance; AC19 |
 | BUD11.02 | Shared figures agree across Heute/Plan/Vermögen/Reports for identical scope and date | Keep rounding at presentation; displayed chains reconcile; AC13, AC19 |
 | BUD11.03 | Print/CSV output uses the active documented report scope and labels | Different export and full backup purposes are explicit; AC19, AC20 |

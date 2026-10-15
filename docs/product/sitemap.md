@@ -168,6 +168,11 @@ Group route: `/reports/gruppe/ueberblick`.
 
 ## Missing journey connection
 
+Open GAP01–03 extend the content of the existing Vermögen/Portfolio area; no new
+route is claimed delivered. GAP05 reconciles Figma's Plan/settings navigation with
+the registered destinations above before changing labels/routes. O01–O08 remain
+unimplemented first-use designs; see [open gaps](open-gaps.md).
+
 Secure setup ends at Heute. The proposed `/einrichtung` checklist would connect
 existing account/category/plan screens into a first-use journey. Its URL, state
 contract and Figma screens are proposals pending owner decisions. The supplied

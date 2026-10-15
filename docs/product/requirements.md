@@ -42,6 +42,11 @@ it does not mean every financial, visual or operational criterion is accepted.
 
 ## Cross-cutting contracts
 
+Requested open extensions BUD09.08 and BUD10.05/06 are defined in
+[functional contracts](functional-contracts.md) and [GAP01–03](open-gaps.md).
+Their route/source references do not claim that benchmark comparison, portfolio
+EUR history or integrated asset-group development is already implemented.
+
 Money is stored as integer cents, other scales follow the data model. Ledger
 mutations retain audit/undo, reconciliation locks and existing validation.
 Transfers must balance; a forecast is not a booking. Unknown information is not

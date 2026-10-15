@@ -7,6 +7,8 @@ replace the precedence in [SPEC](../../SPEC.md). Existing decisions remain bindi
 new onboarding requirements below are proposals, not accepted scope or delivered UI.
 The detailed planning package was completed against that application source on
 2026-10-15; execution and owner acceptance remain separately tracked.
+The subsequent owner review adds GAP01–08 as open implementation/design work;
+complete inventories do not establish semantic feature completeness.
 
 ## Read in this order
 
@@ -15,6 +17,7 @@ The detailed planning package was completed against that application source on
 3. [Current sitemap](sitemap.md): navigation grounded in the current router.
 4. [First-use onboarding proposal](onboarding.md): from secure access to a usable first budget.
 5. [Routine contracts](processes.md): triggers, steps, outcomes and failure paths.
+6. [Open wealth/Figma gaps](open-gaps.md): GAP01–08 implementation tasks, dependencies and acceptance.
 
 ## Detailed specification and handoff
 

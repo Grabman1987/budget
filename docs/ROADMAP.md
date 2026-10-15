@@ -1,5 +1,19 @@
 # Roadmap
 
+## Open wealth and Figma implementation gaps — owner 2026-10-15
+
+Implementation-ready scope, dependencies, sources and acceptance are in
+[GAP01–08](product/open-gaps.md). Every item remains open; recording the work is not delivery.
+
+- [ ] GAP08 — agree scope/measure/date and authoritative Figma matrix before wealth graph implementation (AC31).
+- [ ] GAP04 — reproduce/diagnose the existing total-net-worth EUR graph's missing visibility; fix only a verified defect (AC29).
+- [ ] GAP01 — compact benchmark selection/comparison, equal-period index and difference inside Vermögen; reconcile V02/V09 (AC26).
+- [ ] GAP02 — actual portfolio-value EUR history, distinct from return/index basis 100 (AC27).
+- [ ] GAP03 — asset-group composition and time development with explicit EUR/percentage denominators and aggregate reconciliation (AC28).
+- [ ] GAP05 — reconcile Plan/settings labels, destinations and financial glossary between Figma/docs/app; preserve deep links (AC30).
+- [ ] GAP06 — complete O01–O08 Figma states and ONB02–06 first-use implementation/evidence (AC24/25/31).
+- [ ] GAP07 — per-frame semantic requirement → design → source → acceptance matrix; record all partial/absent states (AC31).
+
 ## Product foundation and first-use planning — 2026-10-15
 
 - [x] Locate original requirements and document source precedence without replacing existing decisions.

@@ -1,5 +1,13 @@
 # Product
 
+Owner wealth completeness/backlog request (2026-10-15): add open implementation
+work for a compact benchmark comparison in Vermögen, actual portfolio-value EUR
+history and asset composition/development. Value, flow-adjusted return and allocation
+share are distinct measures with explicit scope/period. Detailed analysis remains
+in Reports. Verify the existing net-worth graph's visibility before changing it.
+The linked [GAP01–08 backlog](docs/product/open-gaps.md) also covers Figma/navigation
+reconciliation, missing onboarding designs and semantic acceptance; none is marked delivered.
+
 Current reading guide, 2026-10-15: [Product foundation](docs/product/README.md)
 connects the existing decisions to current requirements, routes, Figma references,
 processes and acceptance. Newer SPEC directives govern detail-page navigation,

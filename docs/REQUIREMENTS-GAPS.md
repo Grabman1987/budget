@@ -1,5 +1,16 @@
 # Requirements gaps and superseded concept statements
 
+## Current open wealth and Figma backlog — owner 2026-10-15
+
+[GAP01–08](product/open-gaps.md) is the implementation contract for compact
+benchmark comparison in Vermögen, actual portfolio EUR history, asset-group time
+development, diagnosis of the existing net-worth chart, navigation/term alignment,
+O01–O08 designs/implementation and semantic Figma coverage. All remain open.
+The three wealth targets are explicitly requested scope; no route/ID inventory
+or prior passing test count establishes their completion. SPEC's newer compact
+benchmark requirement narrows older report-only wording; detailed analysis stays
+in Reports. Concrete AC26–31 examples are in the product acceptance plan.
+
 2026-10-15 consolidation: [Product foundation](product/README.md) now supplies the
 current-source sitemap, detailed requirements, routines, onboarding proposal and
 acceptance/traceability package. This completes documentation coverage, not the

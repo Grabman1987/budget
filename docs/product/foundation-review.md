@@ -6,6 +6,11 @@ Budget has an original requirements document, sitemap, data model and routine
 descriptions. The problem is discoverability, historical drift and incomplete
 end-to-end contracts, especially financial first use after authentication.
 
+Subsequent owner review identified missing wealth behavior and Figma mismatches
+despite complete inventories. [GAP01–08](open-gaps.md) records these as open work,
+including benchmark/value/asset-history measures and semantic per-frame acceptance.
+Inventory completeness is not a completed functional or visual product audit.
+
 The original concept already contains processes (chapter 4), data model (5),
 sitemap (6), pages (7), KPIs (8), reports (9) and migration/security (11).
 Creating a competing specification from scratch would lose agreed behavior.
