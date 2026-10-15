@@ -46,7 +46,14 @@ const account = (over: Partial<AccountRow>): AccountRow => ({
 const ACCOUNTS: AccountRow[] = [
   account({ id: 'giro', name: 'Giro Muster', sortOrder: 1 }),
   account({ id: 'spar', name: 'Tagesgeld Muster', type: 'savings', sortOrder: 2 }),
-  account({ id: 'karte', name: 'Karte Muster', type: 'credit_card', interestRateBp: 1200 }),
+  account({
+    id: 'karte',
+    name: 'Karte Muster',
+    type: 'credit_card',
+    interestRateBp: 1200,
+    creditLimitCents: 500_000,
+    monthlyFeeCents: 2990,
+  }),
   account({
     id: 'kredit',
     name: 'Kredit Muster',
@@ -158,6 +165,23 @@ describe('Einstellungen › Konten', () => {
     },
   );
 
+  it('keeps credit-card properties and budget behavior when editing the existing card', async () => {
+    page();
+    await userEvent.click(await screen.findByRole('button', { name: 'Karte Muster bearbeiten' }));
+    expect((screen.getByLabelText('Kontotyp') as HTMLSelectElement).value).toBe('credit_card');
+    expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('true');
+    expect((screen.getByLabelText('Kartenlimit') as HTMLInputElement).value).toBe('5.000,00');
+    expect((screen.getByLabelText('Zinssatz in Prozent') as HTMLInputElement).value).toBe('12,00');
+    expect((screen.getByLabelText('Monatliche Gebühr') as HTMLInputElement).value).toBe('29,90');
+    expect(screen.queryByLabelText('Verrechnungskonto')).toBeNull();
+
+    await userEvent.clear(screen.getByLabelText('Zinssatz in Prozent'));
+    await userEvent.type(screen.getByLabelText('Zinssatz in Prozent'), '12,5');
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+    await screen.findByText('Konto „Karte Muster“ gespeichert.');
+    expect(writes()[0]?.body).toEqual({ interestRateBp: 1250 });
+  });
+
   it('lists the accounts grouped like the sidebar, closed ones apart, with loan terms', async () => {
     page();
     await screen.findByText('Giro Muster');
@@ -206,6 +230,36 @@ describe('Einstellungen › Konten', () => {
         type: 'brokerage',
         referenceAccountId: 'giro',
       },
+    });
+  });
+
+  it('does not submit a hidden settlement selection after changing the new account type', async () => {
+    page();
+    await userEvent.click(await screen.findByRole('button', { name: 'Konto anlegen' }));
+    await userEvent.type(screen.getByLabelText('Name'), 'Neues Konto');
+    await userEvent.selectOptions(screen.getByLabelText('Kontotyp'), 'brokerage');
+    await userEvent.selectOptions(screen.getByLabelText('Verrechnungskonto'), 'giro');
+    await userEvent.selectOptions(screen.getByLabelText('Kontotyp'), 'checking');
+    expect(screen.queryByLabelText('Verrechnungskonto')).toBeNull();
+    await userEvent.click(
+      (await screen.findAllByRole('button', { name: 'Konto anlegen' })).at(-1)!,
+    );
+    await waitFor(() => expect(writes()).toHaveLength(1));
+    const body = writes()[0]?.body;
+    expect(body).toBeDefined();
+    expect(body).not.toHaveProperty('referenceAccountId');
+  });
+
+  it('clears an existing settlement relation when changing the account type', async () => {
+    page();
+    await userEvent.click(await screen.findByRole('button', { name: 'Depot Muster bearbeiten' }));
+    await userEvent.selectOptions(screen.getByLabelText('Kontotyp'), 'checking');
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+    await screen.findByText('Konto „Depot Muster“ gespeichert.');
+    expect(writes()[0]).toMatchObject({
+      method: 'PATCH',
+      path: '/api/accounts/depot',
+      body: { type: 'checking', referenceAccountId: null },
     });
   });
 

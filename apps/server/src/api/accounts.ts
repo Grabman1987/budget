@@ -189,9 +189,16 @@ export function accountRoutes(db: Db, today: () => string): Hono {
     executor: Db,
     referenceAccountId: string | null | undefined,
     ownerId: string | undefined,
+    ownerType: string,
     currency: string,
   ) => {
     if (referenceAccountId == null) return;
+    if (ownerType !== 'brokerage' && ownerType !== 'crypto')
+      throw new ApiError(
+        422,
+        'invariant',
+        'Nur Depots und Krypto-Konten können ein Verrechnungskonto haben.',
+      );
     if (referenceAccountId === ownerId)
       throw new ApiError(
         422,
@@ -199,7 +206,12 @@ export function accountRoutes(db: Db, today: () => string): Hono {
         'Ein Konto kann nicht sein eigenes Verrechnungskonto sein.',
       );
     const target = accounts.get(executor, referenceAccountId);
-    if (!target || target.closedAt || target.currency !== currency)
+    if (
+      !target ||
+      target.closedAt ||
+      target.currency !== currency ||
+      !['checking', 'cash', 'savings'].includes(target.type)
+    )
       throw new ApiError(
         422,
         'invariant',
@@ -215,7 +227,7 @@ export function accountRoutes(db: Db, today: () => string): Hono {
 
   app.post('/', async (c) => {
     const input = await readBody(c, accountCreate);
-    validateReferenceAccount(db, input.referenceAccountId, undefined, input.currency);
+    validateReferenceAccount(db, input.referenceAccountId, undefined, input.type, input.currency);
     const defaults = DEFAULTS[input.type];
     const onBudget = input.onBudget ?? defaults.onBudget;
     if (onBudget && TRACKING_ONLY.has(input.type)) {
@@ -313,16 +325,36 @@ export function accountRoutes(db: Db, today: () => string): Hono {
       patch.termStart === undefined ? current.termStart : patch.termStart,
       patch.termEnd === undefined ? current.termEnd : patch.termEnd,
     );
+    const nextReferenceAccountId =
+      patch.referenceAccountId === undefined
+        ? current.referenceAccountId
+        : patch.referenceAccountId;
+    const referenceChanged =
+      patch.referenceAccountId !== undefined &&
+      patch.referenceAccountId !== current.referenceAccountId;
+    const typeChanged = patch.type !== undefined && patch.type !== current.type;
+    if (
+      nextReferenceAccountId != null &&
+      typeChanged &&
+      type !== 'brokerage' &&
+      type !== 'crypto' &&
+      !referenceChanged
+    )
+      throw new ApiError(
+        422,
+        'invariant',
+        'Bitte das Verrechnungskonto beim Wechsel des Kontotyps ausdrücklich lösen.',
+      );
     if (
       patch.referenceAccountId !== undefined ||
-      (patch.currency !== undefined && patch.currency !== current.currency)
+      (patch.currency !== undefined && patch.currency !== current.currency) ||
+      typeChanged
     )
       validateReferenceAccount(
         db,
-        patch.referenceAccountId === undefined
-          ? current.referenceAccountId
-          : patch.referenceAccountId,
+        nextReferenceAccountId,
         id,
+        type,
         patch.currency ?? current.currency,
       );
     if (patch.currency !== undefined && patch.currency !== current.currency) {
@@ -343,6 +375,20 @@ export function accountRoutes(db: Db, today: () => string): Hono {
           'Die Währung passt nicht mehr zu einem verknüpften Depot.',
         );
     }
+    if (
+      typeChanged &&
+      !['checking', 'cash', 'savings'].includes(type) &&
+      db
+        .select({ id: account.id })
+        .from(account)
+        .where(and(eq(account.referenceAccountId, id), isNull(account.deletedAt)))
+        .get()
+    )
+      throw new ApiError(
+        422,
+        'invariant',
+        'Bitte zuerst die Verrechnungskonten der verknüpften Depots lösen.',
+      );
     // The opening balance is part of every checked balance: a stored Kontostand prüfen locks it.
     const opening =
       (patch.openingBalanceCents !== undefined &&

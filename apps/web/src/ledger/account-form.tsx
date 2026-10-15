@@ -107,6 +107,7 @@ function AccountForm({ onDone }: { onDone: () => void }) {
   const changeType = (next: AccountType) => {
     setType(next);
     setOnBudget(DEFAULT_ON_BUDGET[next] ?? false);
+    if (next !== 'brokerage' && next !== 'crypto') setReferenceAccountId('');
   };
 
   const money = (text: string, key: keyof Errors, found: Errors, allowEmpty: boolean) => {
@@ -178,7 +179,7 @@ function AccountForm({ onDone }: { onDone: () => void }) {
       </Field>
       <Field
         label="Kontotyp"
-        hint={type === 'cash' ? 'Neue Bargeldbuchungen sind sofort bestätigt.' : undefined}
+        hint={type === 'cash' ? 'Neue manuelle Bargeldbuchungen sind sofort bestätigt.' : undefined}
       >
         {({ id, describedBy }) => (
           <Select
@@ -200,9 +201,10 @@ function AccountForm({ onDone }: { onDone: () => void }) {
           label="Verrechnungskonto"
           hint="Nur ein separates Konto auswählen. Geld im Depot selbst bleibt ohne Verknüpfung."
         >
-          {({ id }) => (
+          {({ id, describedBy }) => (
             <Select
               id={id}
+              aria-describedby={describedBy}
               value={referenceAccountId}
               onChange={(e) => setReferenceAccountId(e.target.value)}
             >

@@ -305,6 +305,7 @@ function AccountEditForm({
   const changeType = (next: AccountType) => {
     setType(next);
     setOnBudget(DEFAULT_ON_BUDGET[next] ?? false);
+    if (next !== 'brokerage' && next !== 'crypto') setReferenceAccountId('');
   };
 
   const submit = async (event: FormEvent) => {
@@ -436,14 +437,17 @@ function AccountEditForm({
           </Select>
         )}
       </Field>
-      {(type === 'brokerage' || type === 'crypto' || account.referenceAccountId != null) && (
+      {(type === 'brokerage' ||
+        type === 'crypto' ||
+        (type === account.type && account.referenceAccountId != null)) && (
         <Field
           label="Verrechnungskonto"
           hint="Nur ein separates Konto auswählen. Geld im Depot selbst bleibt ohne Verknüpfung."
         >
-          {({ id }) => (
+          {({ id, describedBy }) => (
             <Select
               id={id}
+              aria-describedby={describedBy}
               value={referenceAccountId}
               onChange={(e) => setReferenceAccountId(e.target.value)}
             >

@@ -349,6 +349,39 @@ describe('accounts', () => {
 
   it('sets a separate settlement account, validates it, and preserves the link through undo', async () => {
     const settlement = await newAccount({ name: 'Settlement', type: 'checking' });
+    const invalidOwner = await call('POST', '/accounts', {
+      name: 'Cash with reference',
+      type: 'checking',
+      openingDate: '2026-01-01',
+      referenceAccountId: settlement.id,
+    });
+    expect(invalidOwner.status).toBe(422);
+    const brokerageTarget = await newAccount({
+      name: 'Depot target',
+      type: 'brokerage',
+      onBudget: false,
+    });
+    const invalidTarget = await call('POST', '/accounts', {
+      name: 'Depot with depot settlement',
+      type: 'brokerage',
+      openingDate: '2026-01-01',
+      referenceAccountId: brokerageTarget.id,
+    });
+    expect(invalidTarget.status).toBe(422);
+    const creditCardTarget = await newAccount({
+      name: 'Credit card target',
+      type: 'credit_card',
+    });
+    expect(
+      (
+        await call('POST', '/accounts', {
+          name: 'Depot with card reference',
+          type: 'brokerage',
+          openingDate: '2026-01-01',
+          referenceAccountId: creditCardTarget.id,
+        })
+      ).status,
+    ).toBe(422);
     const depotResponse = await call('POST', '/accounts', {
       name: 'Depot',
       type: 'brokerage',
@@ -358,6 +391,30 @@ describe('accounts', () => {
     expect(depotResponse.status).toBe(201);
     const depot = depotResponse.body['account'] as { id: string; referenceAccountId: string };
     expect(depot.referenceAccountId).toBe(settlement.id);
+    expect(
+      (await call('PATCH', `/accounts/${settlement.id}`, { type: 'credit_card' })).status,
+    ).toBe(422);
+
+    const typeDepotResponse = await call('POST', '/accounts', {
+      name: 'Type change depot',
+      type: 'brokerage',
+      openingDate: '2026-01-01',
+      referenceAccountId: settlement.id,
+    });
+    const typeDepot = typeDepotResponse.body['account'] as { id: string };
+    expect((await call('PATCH', `/accounts/${typeDepot.id}`, { type: 'checking' })).status).toBe(
+      422,
+    );
+    const typeChange = await call('PATCH', `/accounts/${typeDepot.id}`, {
+      type: 'checking',
+      onBudget: true,
+      referenceAccountId: null,
+    });
+    expect(typeChange.status).toBe(200);
+    expect(typeChange.body['account']).toMatchObject({
+      type: 'checking',
+      referenceAccountId: null,
+    });
 
     const changed = await call('PATCH', `/accounts/${depot.id}`, { referenceAccountId: null });
     expect(changed.body['account']).toMatchObject({ referenceAccountId: null });
