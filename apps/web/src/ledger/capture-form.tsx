@@ -3,7 +3,6 @@ import {
   useAmountPrivacy,
   AmountInput,
   Button,
-  ClassSwatch,
   Field,
   Segmented,
   Select,
@@ -11,7 +10,7 @@ import {
   type SegmentedOption,
   maskMoneyText,
 } from '@budget/ui';
-import { addDays, todayInVienna } from '@budget/domain';
+import { todayInVienna } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Trash2, X } from 'lucide-react';
 import {
@@ -26,14 +25,11 @@ import { ApiError } from '../api/http';
 import { budgetQuery } from '../budget/budget-api';
 import { fetchBookings, createPayee, setPayeeDefaultCategory } from './api';
 import {
-  amountOf,
   buildCreate,
   buildPatch,
   draftFromBooking,
   emptyDraft,
   isTransferBooking,
-  newSplit,
-  splitRemainder,
   touchesLocked,
   type BookingDraft,
   type BookingKind,
@@ -53,11 +49,10 @@ import {
 } from './capture-model';
 import { CategoryCombobox } from './category-picker';
 import { Combobox } from './combobox';
-import { ContactSelect } from './contact-select';
 import { FlagPicker } from './flag-picker';
-import { SplitEditor } from './split-editor';
+import { SplitEditor, captureLines } from './split-editor';
 import { AccountOptions } from './account-options';
-import { eur, monthName } from './format';
+
 import { ReceiptSection } from '../receipts/receipt-section';
 import { CAPTURE_SHORTCUT_HINT, errorText } from './labels';
 import { useLedgerWrites } from './mutations';
@@ -103,7 +98,7 @@ export interface DiscardAsk {
 }
 
 /**
- * The capture form (Buchung erfassen / bearbeiten): keyboard first. Enter moves to the next field,
+ * The capture form (Buchung erfassen / bearbeiten): keyboard first. Enter saves valid inputs and otherwise moves on,
  * Ctrl+Enter saves, Ctrl+Umschalt+Enter saves and starts the next booking with account, date and
  * payee kept. Esc is handled by the dialog around it (with a discard question when dirty).
  */
@@ -189,7 +184,17 @@ export function CaptureForm({
   const from = open.find((a) => a.id === accountId);
   const to = open.find((a) => a.id === draft.toAccountId);
   const needsCategory = Boolean(isTransfer && from && to && from.onBudget !== to.onBudget);
-  const remainder = splitRemainder(draft.amount, draft.splits);
+  const singleMetadata =
+    editing?.splits.length === 1
+      ? {
+          memo: editing.splits[0]?.memo ?? '',
+          ...(draft.kind === 'expense'
+            ? { incomeTypeId: editing.splits[0]?.incomeTypeId ?? null }
+            : {}),
+          ...(draft.contactId ? { categoryId: editing.splits[0]?.categoryId ?? '' } : {}),
+        }
+      : {};
+  const lineDraft = isTransfer ? draft : { ...draft, lines: captureLines(draft, singleMetadata) };
 
   // The budget of the booking's month gives the categories by stage and their Available.
   const parsedDate = captureDate(draft.date, today.slice(0, 4));
@@ -228,7 +233,11 @@ export function CaptureForm({
     };
     void saveChoices(choices).catch(() => undefined);
   }, [accounts.data, lookups.data, all]);
-  const splitCategoryKey = draft.splits.map((x) => x.categoryId).join('|');
+  const splitCategoryKey = [
+    draft.categoryId,
+    ...draft.splits.map((x) => x.categoryId),
+    ...(draft.lines?.map((x) => x.categoryId) ?? []),
+  ].join('|');
   // A split line that already has an archived category keeps listing it, so the line stays valid.
   const splitPickable = useMemo(
     () => categoriesFor(all, draft.kind, splitCategoryKey.split('|')),
@@ -251,37 +260,20 @@ export function CaptureForm({
     [open],
   );
   const splitLocked = Boolean(editing?.splits.some((x) => x.transferId));
-  const blocked = draft.splitOn && remainder !== 0;
-  const startSplit = () =>
-    setDraft((d) => ({
-      ...d,
-      splitOn: true,
-      contactId: '',
-      splits: [
-        newSplit({
-          type: d.contactId ? 'contact' : 'category',
-          contactId: d.contactId || null,
-          categoryId: d.contactId ? '' : d.categoryId,
-          amount: d.amount,
-        }),
-        newSplit(),
-      ],
-    }));
+  const lineValidation = buildCreate({ ...lineDraft, accountId, date: parsedDate ?? '' }, null, {
+    requireCategory: !editing,
+    advanceCategoryId,
+    trackingAccountIds,
+  });
+  const lineProblem = !lineValidation.ok ? lineValidation.errors.splits : undefined;
+  const blocked = !isTransfer && Boolean(lineProblem);
 
   const dirty = queued
     ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(queued.draft))
     : editing
       ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(editDraft!))
-      : captureDirty(draft, keptPayee) || Boolean(draft.repeat);
-  // The panel opens to record money: the amount is the first thing typed. The dialog moves the
-  // focus itself when it opens, so this runs after it.
-  useEffect(() => {
-    if (editing) return;
-    const frame = requestAnimationFrame(() =>
-      formRef.current?.querySelector<HTMLElement>('.amount-input')?.focus(),
-    );
-    return () => cancelAnimationFrame(frame);
-  }, [editing]);
+      : captureDirty(draft, keptPayee) ||
+        Boolean(draft.repeat || draft.lines?.some((line) => line.shares.length));
 
   useEffect(() => {
     dirtyRef.current = dirty;
@@ -324,7 +316,13 @@ export function CaptureForm({
       if (next === undefined || !categoriesFor(all, d.kind, '').some((c) => c.id === next))
         return d;
       appliedByPayee.current = next;
-      return { ...d, categoryId: next };
+      return {
+        ...d,
+        categoryId: next,
+        ...(d.lines?.length === 1 && d.lines[0]?.type === 'category'
+          ? { lines: [{ ...d.lines[0], categoryId: next }] }
+          : {}),
+      };
     });
   };
 
@@ -333,7 +331,7 @@ export function CaptureForm({
       accountRequest.current++;
       appliedByPayee.current = null;
       const valid = kind !== 'expense' || all.find((c) => c.id === d.categoryId)?.kind !== 'income';
-      return {
+      const next = {
         ...d,
         kind,
         incomeNextMonth: kind === 'income' ? d.incomeNextMonth : false,
@@ -342,6 +340,10 @@ export function CaptureForm({
         contactId: kind === 'transfer' ? '' : d.contactId,
         splitOn: kind === 'transfer' ? false : d.splitOn,
       };
+      if (kind === 'transfer') delete next.lines;
+      else if (!valid && next.lines)
+        next.lines = next.lines.map((line) => ({ ...line, categoryId: '' }));
+      return next;
     });
 
   const typedPayee = () => {
@@ -349,7 +351,11 @@ export function CaptureForm({
     if (name === '' || isTransfer) return { name: '', known: undefined };
     return {
       name,
-      known: payees.data?.payees.find((p) => p.name.toLowerCase() === name.toLowerCase()),
+      // The booking's retained identity is authoritative while the payee cache catches up.
+      known:
+        editing?.payeeId && editing.payeeName?.toLowerCase() === name.toLowerCase()
+          ? { id: editing.payeeId, name, defaultCategoryId: null }
+          : payees.data?.payees.find((p) => p.name.toLowerCase() === name.toLowerCase()),
     };
   };
 
@@ -379,7 +385,7 @@ export function CaptureForm({
     if (saving.current) return;
     if (!editing && !from) return setErrors({ account: 'Bitte ein verfügbares Konto wählen.' });
     if (blocked) return setErrors({ splits: 'Speichern geht erst, wenn der Rest 0,00 € ist.' });
-    const filled = { ...draft, date: parsedDate ?? '', accountId, status: effectiveStatus };
+    const filled = { ...lineDraft, date: parsedDate ?? '', accountId, status: effectiveStatus };
     const advance = { advanceCategoryId, trackingAccountIds };
     saving.current = true;
     setBusy(true);
@@ -486,6 +492,10 @@ export function CaptureForm({
     if (!form || e.shiftKey || !(target instanceof HTMLInputElement)) return;
     if (['checkbox', 'radio', 'button', 'submit'].includes(target.type)) return;
     e.preventDefault();
+    if (!blocked && lineValidation.ok) {
+      void save(false);
+      return;
+    }
     const list = fields(form);
     const next = list
       .slice(list.indexOf(target) + 1)
@@ -496,11 +506,16 @@ export function CaptureForm({
 
   const categoryName =
     selected?.name ?? (draft.kind === 'income' && draft.categoryId === '' ? 'Zu verteilen' : '');
-  const chips = [...new Set([...(payeeDefault ? [payeeDefault] : []), ...memory.categories])]
+  const chips = [
+    ...new Set([
+      ...(payeeDefault ? [payeeDefault] : []),
+      ...memory.categories,
+      ...pickable.map((c) => c.id),
+    ]),
+  ]
     .map((id) => pickable.find((c) => c.id === id))
     .filter((c): c is NonNullable<typeof c> => Boolean(c))
     .slice(0, 4);
-  const amountAbs = amountOf(draft.amount) ?? 0;
 
   const pickCategory = (id: string) => set('categoryId', id === NONE ? '' : id);
 
@@ -550,27 +565,6 @@ export function CaptureForm({
     );
   const dateAndRepeat = (
     <div className="bk-dates" data-enter-skip>
-      <div className="kchips bk-date-chips" role="group" aria-label="Datum wählen">
-        <button
-          type="button"
-          className="chip"
-          aria-pressed={draft.date === today}
-          onClick={() => set('date', today)}
-        >
-          Heute
-        </button>
-        <button
-          type="button"
-          className="chip"
-          aria-pressed={draft.date === addDays(today, -1)}
-          onClick={() => set('date', addDays(today, -1))}
-        >
-          Gestern
-        </button>
-        <button type="button" className="chip" onClick={() => dateRef.current?.focus()}>
-          Datum…
-        </button>
-      </div>
       <div className="bk-date-row">
         <DateField
           draft={draft}
@@ -580,10 +574,7 @@ export function CaptureForm({
           year={today.slice(0, 4)}
         />
         {!isTransfer && (
-          <Field
-            label="Wiederholen"
-            hint="Legt beim Speichern eine wiederkehrende Zahlung an. Die nächste Fälligkeit folgt nach einem Rhythmus."
-          >
+          <Field label="Wiederholen">
             {({ id }) => (
               <Select
                 id={id}
@@ -603,11 +594,35 @@ export function CaptureForm({
     </div>
   );
 
+  const lineEditor = (
+    <SplitEditor
+      draft={draft}
+      setDraft={setDraft}
+      categories={splitPickable}
+      accounts={open}
+      accountId={accountId}
+      contacts={contacts}
+      hasAdvanceCategory={Boolean(advanceCategoryId)}
+      locked={splitLocked}
+      error={errors.splits ?? errors.category}
+      suggestions={chips}
+      singleMetadata={singleMetadata}
+    />
+  );
+
   return (
     // Keyboard flow is handled once for all fields of the form.
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <form
-      ref={formRef}
+      // React's autoFocus runs before showModal; the native dialog needs the attribute itself.
+      ref={(form) => {
+        formRef.current = form;
+        const amount = form?.querySelector<HTMLInputElement>('.amount-input');
+        if (!editing && amount && !amount.autofocus) {
+          amount.autofocus = true;
+          if (form?.closest('dialog')?.open) amount.focus();
+        }
+      }}
       className="bkform"
       onSubmit={(e) => {
         e.preventDefault();
@@ -704,120 +719,69 @@ export function CaptureForm({
             />
           </div>
         )}
-        <div
-          className={isTransfer ? 'kform-pair' : 'bk-account-row'}
-          {...(isTransfer ? {} : { 'data-enter-skip': true })}
-        >
-          <Field
-            label={isTransfer ? 'Von Konto' : draft.kind === 'expense' ? 'Bezahlt von' : 'Konto'}
-            error={errors.account}
-          >
-            {({ id, describedBy, invalid }) => (
-              <Select
-                id={id}
-                value={accountId}
-                disabled={legOfTransfer}
-                aria-invalid={invalid}
-                aria-describedby={describedBy}
-                onChange={(e) => {
-                  accountRequest.current++;
-                  set('accountId', e.target.value);
-                }}
-              >
-                <AccountOptions accounts={open} />
-              </Select>
-            )}
-          </Field>
-          {isTransfer ? (
-            <Field label="Nach Konto" error={errors.toAccount}>
-              {({ id, describedBy, invalid }) => (
-                <Select
-                  id={id}
-                  value={draft.toAccountId}
-                  disabled={legOfTransfer}
-                  aria-invalid={invalid}
-                  aria-describedby={describedBy}
-                  onChange={(e) => set('toAccountId', e.target.value)}
-                >
-                  <option value="">Konto wählen</option>
-                  <AccountOptions accounts={open} exclude={accountId} />
-                </Select>
-              )}
-            </Field>
-          ) : (
-            statusControl
-          )}
-        </div>
-        {isTransfer && statusControl}
-        {dateAndRepeat}
-        {!draft.splitOn && (
-          <div className="bk-category-row">
-            {showCategory && (
-              <fieldset className="kcatfield" disabled={Boolean(draft.contactId)}>
-                <CategoryCombobox
-                  label="Kategorie"
-                  categories={pickable}
-                  leading={leading}
-                  selectedName={categoryName}
-                  error={errors.category}
-                  onSelect={pickCategory}
-                />
-                {/* Always there (empty until a category is chosen): choosing one, e.g. by the
-                    payee's default as the payee field is left, must not move the fields below
-                    under the pointer. */}
-                <p className="kavail" aria-live="polite">
-                  {selected && selected.availableCents !== null && (
-                    <>
-                      Verfügbar im {monthName(parsedDate ?? today)}:{' '}
-                      <strong>{eur(selected.availableCents)}</strong>
-                      {draft.kind === 'expense' && amountAbs > 0 && (
-                        <> · danach {eur(selected.availableCents - amountAbs)}</>
-                      )}
-                    </>
-                  )}
-                </p>
-                {chips.length > 0 && (
-                  <div className="kchips" role="group" aria-label="Vorschläge">
-                    {chips.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        className="chip"
-                        aria-pressed={c.id === draft.categoryId}
-                        onClick={() => pickCategory(c.id)}
-                      >
-                        {c.cls && <ClassSwatch kind={c.cls} />}
-                        {c.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </fieldset>
-            )}
-            {!isTransfer && !draft.splitOn && (
-              <ContactSelect
-                label={draft.kind === 'income' ? 'Rückzahlung von Kontakt' : 'Auslage für Kontakt'}
-                value={draft.contactId}
-                onChange={(id) => set('contactId', id)}
-                contacts={contacts}
-                noneLabel="keiner"
-                error={errors.contact}
-                hint={
-                  draft.contactId
-                    ? advanceCategoryId
-                      ? 'Läuft über Auslagen, eine eigene Kategorie ist nicht nötig.'
-                      : 'Läuft über Auslagen. Die Kategorie wird beim ersten Mal automatisch angelegt.'
-                    : undefined
+        <div className="bk-context">
+          <div className="bk-context-fields">
+            <div
+              className={isTransfer ? 'kform-pair' : 'bk-account-row'}
+              {...(isTransfer ? {} : { 'data-enter-skip': true })}
+            >
+              <Field
+                label={
+                  isTransfer ? 'Von Konto' : draft.kind === 'expense' ? 'Bezahlt von' : 'Konto'
                 }
-              />
-            )}
-            {!isTransfer && (
-              <Button variant="ghost" className="ksplit-start" onClick={startSplit}>
-                Split
-              </Button>
-            )}
+                error={errors.account}
+              >
+                {({ id, describedBy, invalid }) => (
+                  <Select
+                    id={id}
+                    value={accountId}
+                    disabled={legOfTransfer}
+                    aria-invalid={invalid}
+                    aria-describedby={describedBy}
+                    onChange={(e) => {
+                      accountRequest.current++;
+                      set('accountId', e.target.value);
+                    }}
+                  >
+                    <AccountOptions accounts={open} />
+                  </Select>
+                )}
+              </Field>
+              {isTransfer ? (
+                <Field label="Nach Konto" error={errors.toAccount}>
+                  {({ id, describedBy, invalid }) => (
+                    <Select
+                      id={id}
+                      value={draft.toAccountId}
+                      disabled={legOfTransfer}
+                      aria-invalid={invalid}
+                      aria-describedby={describedBy}
+                      onChange={(e) => set('toAccountId', e.target.value)}
+                    >
+                      <option value="">Konto wählen</option>
+                      <AccountOptions accounts={open} exclude={accountId} />
+                    </Select>
+                  )}
+                </Field>
+              ) : (
+                statusControl
+              )}
+            </div>
+            {isTransfer && statusControl}
+            {dateAndRepeat}
           </div>
+        </div>
+        {isTransfer && showCategory && (
+          <CategoryCombobox
+            label="Kategorie"
+            categories={pickable}
+            leading={leading}
+            selectedName={categoryName}
+            error={errors.category}
+            onSelect={pickCategory}
+          />
         )}
+        {!isTransfer && lineEditor}
         <Field label="Notiz">
           {({ id }) => (
             <textarea
@@ -832,19 +796,6 @@ export function CaptureForm({
             />
           )}
         </Field>
-        {!isTransfer && draft.splitOn && (
-          <SplitEditor
-            draft={draft}
-            setDraft={setDraft}
-            categories={splitPickable}
-            accounts={open}
-            accountId={accountId}
-            contacts={contacts}
-            hasAdvanceCategory={Boolean(advanceCategoryId)}
-            locked={splitLocked}
-            error={errors.splits}
-          />
-        )}
         <details
           className="kmore"
           open={moreOpen}
@@ -919,6 +870,11 @@ export function CaptureForm({
           </Button>
         </div>
       )}
+      {blocked && (
+        <p id="booking-save-reason" className="bk-save-reason" role="status">
+          {lineProblem}
+        </p>
+      )}
       <div className="bk-foot">
         {editing && (
           <div className="bk-foot-extra">
@@ -938,7 +894,11 @@ export function CaptureForm({
             Abbrechen
           </Button>
         )}
-        <Button type="submit" disabled={busy || blocked}>
+        <Button
+          type="submit"
+          disabled={busy || blocked}
+          aria-describedby={blocked ? 'booking-save-reason' : undefined}
+        >
           Speichern
         </Button>
       </div>
@@ -1011,5 +971,17 @@ function DateField({
 
 /** A draft without the generated split keys: two drafts are the same when nothing was typed. */
 function strip(draft: BookingDraft) {
-  return { ...draft, splits: draft.splits.map((s) => ({ ...s, key: '' })) };
+  return {
+    ...draft,
+    splits: draft.splits.map((s) => ({ ...s, key: '' })),
+    ...(draft.lines
+      ? {
+          lines: draft.lines.map((line) => ({
+            ...line,
+            key: '',
+            shares: line.shares.map((share) => ({ ...share, key: '' })),
+          })),
+        }
+      : {}),
+  };
 }

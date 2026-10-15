@@ -1,5 +1,7 @@
 # Product
 
+Owner booking-line directive (2026-10-14, #463): the capture head shows amount, payee, account/status and date/repetition before category/contact lines on desktop and phone. Date/repetition use 2:1 columns; direct date entry and the calendar remain. One category row can represent a category, a whole contact outlay, or a category with percentage/fixed contact shares; additional gross lines show a cent-exact rest and block saving until it is zero. Slim suggestions share one row. Date chips, the separate outlay field and Split mode button are removed. Tab follows head → lines → actions; Enter saves valid input and Escape retains its guard. Map to the existing ledger splits with largest-remainder cents, preserving stored metadata, audited writes, locks and undo.
+
 Owner Z4 decision (2026-10-13, #451): the left account list uses the Zerosum
 arrangement with create/account-settings shortcuts, group/type icons and no
 navigation numbers or group subtitles. Every negative sidebar balance is red

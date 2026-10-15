@@ -1858,3 +1858,129 @@
     display: block;
   }
 }
+/* Booking lines share the capture grid and stay inside the sheet's scrolling body. */
+.bk-context {
+  min-width: 0;
+}
+.bk-context-fields,
+.bk-lines,
+.bk-line {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.bk-lines {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.bk-lines > .btn {
+  justify-self: start;
+}
+.bk-line + .bk-line {
+  border-top: 1px solid var(--rule);
+  padding-top: 12px;
+}
+.bk-line-fields,
+.bk-date-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: end;
+}
+.bk-line-fields.is-multiple > .amount {
+  grid-column: 1 / -1;
+}
+.bk-line-fields > :first-child:last-child {
+  grid-column: 1 / -1;
+}
+.bk-line-fields .field-row,
+.bk-share .field-row {
+  min-width: 0;
+}
+.bk-lines .input,
+.bk-lines .select {
+  min-width: 0;
+  width: 100%;
+}
+.bk-share-toggle {
+  align-self: end;
+}
+.bk-suggestions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  overflow-x: auto;
+  min-width: 0;
+}
+.bk-suggestions .chip {
+  flex: none;
+  padding-inline: 8px;
+  font-size: var(--fs-small);
+}
+.bk-share {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+.bk-share-heading {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.bk-share-value {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.bk-share-value .seg button {
+  padding-inline: 8px;
+}
+.bk-share > .btn {
+  justify-self: start;
+}
+.bk-line-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bk-save-reason {
+  margin: 0;
+  padding: 8px 20px;
+  color: var(--red);
+  font-size: var(--fs-small);
+}
+@media (max-width: 767px) {
+  .bk-line-fields.is-multiple > .amount {
+    grid-column: 1 / -1;
+  }
+  .bk-share-value .seg {
+    flex-wrap: wrap;
+  }
+}
+/* Contact shares and lock reasons remain visible on the phone. */
+.bk-lines .khint {
+  display: block;
+}
+@media (min-width: 375px) and (max-width: 767px) {
+  .bk-head {
+    flex-wrap: nowrap;
+  }
+  .bk-kind {
+    order: 0;
+    flex: 1;
+  }
+  .bk-head .seg button {
+    padding-inline: 4px;
+  }
+  .bk-body {
+    padding-top: 4px;
+    gap: 4px;
+  }
+  .bk-context-fields {
+    gap: 4px;
+  }
+}

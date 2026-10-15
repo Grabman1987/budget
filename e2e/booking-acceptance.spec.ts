@@ -91,12 +91,6 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     'aria-pressed',
     'false',
   );
-  await dialog.getByRole('button', { name: 'Gestern', exact: true }).click();
-  await expect(date).toHaveValue('08.10.2026');
-  await dialog.getByRole('button', { name: 'Heute', exact: true }).click();
-  await expect(date).toHaveValue('09.10.2026');
-  await dialog.getByRole('button', { name: 'Datum…', exact: true }).click();
-  await expect(date).toBeFocused();
   await date.fill('07.10.2026');
   await date.press('Tab');
   await expect(dialog.getByLabel('Budgetmonat')).toHaveCount(0);
@@ -106,14 +100,17 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     }, theme);
     await expect(save).toBeInViewport({ ratio: 1 });
     // A default category adds Available and suggestion rows; Mehr remains in the body scroller.
-    await dialog.locator('summary').scrollIntoViewIfNeeded();
-    await expect(dialog.locator('summary')).toBeInViewport({ ratio: 1 });
+    await dialog
+      .locator('.kmore > summary')
+      .evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+    await expect(dialog.locator('.kmore > summary')).toBeInViewport({ ratio: 1 });
     await expect(save).toBeInViewport({ ratio: 1 });
     await dialog.locator('.bk-body').evaluate((el) => {
       el.scrollTop = 0;
     });
     await expect(amount).toBeInViewport({ ratio: 1 });
     await expect(date).toBeInViewport({ ratio: 1 });
+    await expect(dialog.getByLabel('Kategorie', { exact: true })).toBeInViewport({ ratio: 1 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
@@ -141,7 +138,7 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     await evidence(page, info, `booking-${theme}`, dialog);
   }
   // Expanded content scrolls inside the sheet; the save action stays visible.
-  await dialog.locator('summary').click();
+  await dialog.locator('.kmore > summary').click();
   await dialog.getByLabel('Notiz').fill('Synthetische Abnahme');
   await expect(save).toBeInViewport({ ratio: 1 });
   await evidence(page, info, 'booking-dark-expanded', dialog);
@@ -176,6 +173,17 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
     data: { name: 'Kasse Muster', type: 'cash', openingDate: '2026-01-01', openingBalanceCents: 0 },
   });
   expect(response.ok(), await response.text()).toBe(true);
+  const groupResponse = await request.post('/api/categories/groups', {
+    headers: { origin: baseURL! },
+    data: { name: 'Tastatur Muster' },
+  });
+  expect(groupResponse.ok()).toBe(true);
+  const { group } = await groupResponse.json();
+  const categoryResponse = await request.post('/api/categories', {
+    headers: { origin: baseURL! },
+    data: { name: 'Kategorie Tastatur', groupId: group.id, class: 'need' },
+  });
+  expect(categoryResponse.ok()).toBe(true);
   await page.goto('/');
   const opener = page
     .getByRole('link', { name: /^(Buchung|Buchung erfassen)$/ })
@@ -190,31 +198,37 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
   await expect(opener).toBeFocused();
   await opener.press('Enter');
   await expect(amount).toBeFocused();
+  await dialog.getByLabel('Kategorie', { exact: true }).fill('Kategorie Tastatur');
+  await dialog.getByRole('option', { name: /^Kategorie Tastatur/ }).click();
   await amount.fill('12,34');
   await amount.press('Tab');
   await expect(dialog.getByLabel('Empfänger', { exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(dialog.getByLabel('Bezahlt von', { exact: true })).toBeFocused();
+  await expect(dialog.getByLabel('Bezahlt von')).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Vorgemerkt', exact: true })).toBeFocused();
-  for (const name of ['Heute', 'Gestern', 'Datum…']) {
-    await page.keyboard.press('Tab');
-    await expect(dialog.getByRole('button', { name, exact: true })).toBeFocused();
-  }
+  await expect(dialog.getByRole('button', { name: 'Vorgemerkt' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Datum', { exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByRole('button', { name: 'Kalender öffnen' })).toBeFocused();
-  for (const name of ['Wiederholen', 'Kategorie', 'Auslage für Kontakt']) {
-    await page.keyboard.press('Tab');
-    await expect(dialog.getByLabel(name, { exact: true })).toBeFocused();
-  }
   await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Split' })).toBeFocused();
+  await expect(dialog.getByLabel('Wiederholen')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByLabel('Kategorie', { exact: true })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('button', { name: 'Teilen ▾' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(
+    dialog
+      .getByRole('group', { name: 'Vorschläge' })
+      .getByRole('button', { name: 'Kategorie Tastatur' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('button', { name: '+ Weitere Kategorie' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Notiz')).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(dialog.locator('summary')).toBeFocused();
+  await expect(dialog.locator('.kmore > summary')).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByRole('button', { name: 'Speichern und neu' })).toBeFocused();
   const save = dialog.getByRole('button', { name: 'Speichern', exact: true });

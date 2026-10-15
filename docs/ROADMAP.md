@@ -1,13 +1,12 @@
 # Roadmap
 
-### Booking line model — #463 (2026-10-14), first part
+### Booking line model — #463 (2026-10-14)
 
-- [x] Pure gross-line percentage/fixed contact-share allocation using existing largest-remainder cents; optional draft lines map to existing split create/patch payloads.
-- [x] Synthetic mapping for category-only, outlay-only, half/partial sharing and multiple categories/contacts, nonzero rest refusal and retained split metadata. [Scope and delivery notes](evidence/booking-lines/PR.md).
-- [x] Focused Web/Domain typechecks, changed-file ESLint/Prettier/diff checks and 5 affected Vitest files / 66 tests passed. No UI files or visual baselines changed in this first part.
-- [ ] Dialog layout, searchable category/contact picker and creation, sharing controls and visible save/rest behavior.
-- [ ] Desktop/mobile/WebKit iPhone E2E, exact dialog edit round trips, Axe light/dark, 390px touch/overflow and synthetic screenshots.
-- [ ] Git delivery, required CI and owner/device acceptance. This first part does not complete #463.
+- [x] Pure percentage/fixed contact-share allocation using existing largest-remainder integer cents; draft lines map to the existing split create/patch payloads with saved metadata/order retained.
+- [x] Visible head before lines on all viewports, direct date/calendar and 2:1 repetition, one suggestion rail, inline contacts/shares and exact rest/save guard.
+- [x] Fresh web typecheck, E2E build and 72 affected unit tests in six files. No financial write, undo or lock boundaries changed.
+- [x] 27 dialog browser/setup cases across desktop, Chromium mobile and WebKit iPhone, including five exact split/edit scenarios, keyboard/dirty guards, light/dark Axe, 44px targets and actual viewport bounds; 30 refreshed synthetic screenshots. [Evidence](evidence/booking-lines/README.md).
+- [ ] Broader affected regressions, final-head CI, Linux baseline review, serial deployment/live revision and physical-iPhone owner acceptance.
 
 ### Account register: upcoming captures and next recurrence — #453 (2026-10-13)
 

@@ -8,7 +8,11 @@ import { CaptureForm } from './capture-form';
 import * as ledgerApi from './api';
 
 const create = vi.hoisted(() => vi.fn());
-vi.mock('./mutations', () => ({ useLedgerWrites: () => ({ create: { mutateAsync: create } }) }));
+const patch = vi.hoisted(() => vi.fn());
+vi.mock('../receipts/receipt-section', () => ({ ReceiptSection: () => null }));
+vi.mock('./mutations', () => ({
+  useLedgerWrites: () => ({ create: { mutateAsync: create }, patch: { mutateAsync: patch } }),
+}));
 vi.mock('../budget/budget-api', () => ({
   budgetQuery: () => ({ queryKey: ['budget'], queryFn: async () => null }),
 }));
@@ -44,6 +48,8 @@ vi.mock('../pwa/queue-store', () => ({
 }));
 beforeEach(() => {
   create.mockReset();
+  patch.mockReset();
+  patch.mockResolvedValue({ groupId: 'synthetic-patch' });
   create.mockResolvedValue({ bookings: [], groupId: 'synthetic-group' });
 });
 it.each(['1.10.2026', '1.10.26', '01.10.', '1.10.'])(
@@ -87,7 +93,7 @@ it.each(['1.10.2026', '1.10.26', '01.10.', '1.10.'])(
   },
 );
 
-it('places status by account, repeat by date and contact before Split, and opens the native calendar', async () => {
+it('places status by account, repeat by date and sharing by category, and opens the native calendar', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const { container } = render(
     <QueryClientProvider client={client}>
@@ -114,9 +120,9 @@ it('places status by account, repeat by date and contact before Split, and opens
   ).toBe(true);
   const categoryRow = screen
     .getByLabelText('Kategorie', { exact: true })
-    .closest('.bk-category-row')!;
-  expect(categoryRow.contains(screen.getByLabelText('Auslage für Kontakt'))).toBe(true);
-  expect(categoryRow.contains(screen.getByRole('button', { name: 'Split' }))).toBe(true);
+    .closest('.bk-line-fields')!;
+  expect(categoryRow.contains(screen.getByRole('button', { name: 'Teilen ▾' }))).toBe(true);
+  expect(screen.queryByLabelText('Auslage für Kontakt')).toBeNull();
   const picker = container.querySelector<HTMLInputElement>('input[type="date"]')!;
   expect(picker.tabIndex).toBe(-1);
   expect(screen.getByRole('button', { name: 'Kalender öffnen' })).toBeTruthy();
@@ -213,7 +219,7 @@ it('cash starts pending, has no Budgetmonat, and saves repetition', async () => 
   expect(done).toHaveBeenCalledTimes(1);
 });
 
-it('shows note and split outside Mehr and keeps relative dates without calculator keys', async () => {
+it('shows note and category lines outside Mehr and accepts direct dates without calculator keys', async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-05T12:00:00+02:00'));
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -237,21 +243,21 @@ it('shows note and split outside Mehr and keeps relative dates without calculato
     expect(more.contains(screen.getByLabelText('Wiederholen'))).toBe(false);
     expect(more.contains(screen.getByLabelText('Notiz'))).toBe(false);
     expect(screen.getByLabelText('Notiz').tagName).toBe('TEXTAREA');
-    expect(more.contains(screen.getByRole('button', { name: 'Split', hidden: true }))).toBe(false);
+    expect(
+      more.contains(screen.getByRole('button', { name: '+ Weitere Kategorie', hidden: true })),
+    ).toBe(false);
     expect(container.querySelector('.amount-ops')).toBeNull();
     expect(screen.getByText(/Rechnen im Feld möglich: 12,50\+3/)).toBeTruthy();
-    await user.click(screen.getByRole('button', { name: 'Gestern' }));
+    fireEvent.change(screen.getByLabelText('Datum'), { target: { value: '4.10.' } });
+    fireEvent.blur(screen.getByLabelText('Datum'));
     expect((screen.getByLabelText('Datum') as HTMLInputElement).value).toBe('04.10.2026');
-    await user.click(screen.getByRole('button', { name: 'Heute' }));
-    expect((screen.getByLabelText('Datum') as HTMLInputElement).value).toBe('05.10.2026');
-    await user.click(screen.getByRole('button', { name: 'Datum…' }));
-    expect(document.activeElement).toBe(screen.getByLabelText('Datum'));
+    expect(screen.queryByRole('button', { name: 'Gestern' })).toBeNull();
     await user.click(screen.getByText('Mehr', { exact: true }));
     await user.selectOptions(screen.getByLabelText('Wiederholen'), 'monthly');
     await user.type(screen.getByLabelText('Notiz'), 'Muster');
     expect(more.querySelector('summary')?.textContent).not.toContain('Notiz');
     await user.click(screen.getByText('Mehr', { exact: true }));
-    await user.click(screen.getByRole('button', { name: 'Split' }));
+    await user.click(screen.getByRole('button', { name: '+ Weitere Kategorie' }));
     expect(more.contains(screen.getByRole('group', { name: 'Zeile 1' }))).toBe(false);
   } finally {
     vi.useRealTimers();
@@ -349,4 +355,100 @@ it('ignores a delayed account suggestion after a manual account selection', asyn
   } finally {
     lookup.mockRestore();
   }
+});
+
+it.each(['confirmed', 'reconciled'] as const)(
+  'edits an unchanged payee without creating it again while the payee cache is stale (%s)',
+  async (status) => {
+    const createPayee = vi
+      .spyOn(ledgerApi, 'createPayee')
+      .mockRejectedValue(new Error('duplicate synthetic payee'));
+    const done = vi.fn();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    try {
+      render(
+        <QueryClientProvider client={client}>
+          <ToastProvider>
+            <CaptureForm
+              state={{
+                mode: 'edit',
+                booking: {
+                  id: 'booking-stale',
+                  accountId: 'wallet',
+                  accountName: 'Bargeld Muster',
+                  date: '2026-10-01',
+                  amountCents: -12000,
+                  payeeId: 'payee-new',
+                  payeeName: 'Empfänger Beispiel Neu',
+                  memo: null,
+                  status,
+                  flag: null,
+                  transferId: null,
+                  transferAccountId: null,
+                  transferAccountName: null,
+                  projectId: null,
+                  currency: 'EUR',
+                  originalAmountCents: null,
+                  originalCurrency: null,
+                  balanceAfterCents: null,
+                  splits: [
+                    {
+                      id: 'split-existing',
+                      categoryId: 'category-existing',
+                      categoryName: 'Kategorie Muster',
+                      amountCents: -12000,
+                      contactId: null,
+                      incomeTypeId: null,
+                      memo: 'Zeilennotiz Muster',
+                      transferId: null,
+                    },
+                  ],
+                },
+              }}
+              onDone={done}
+              dirtyRef={{ current: false }}
+              discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+              requestClose={vi.fn()}
+            />
+          </ToastProvider>
+        </QueryClientProvider>,
+      );
+      await waitFor(() =>
+        expect(screen.getByRole('option', { name: 'Bargeld Muster' })).toBeTruthy(),
+      );
+      fireEvent.change(screen.getByLabelText('Notiz'), { target: { value: 'Notiz geändert' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+      await waitFor(() => expect(done).toHaveBeenCalledTimes(1));
+      expect(createPayee).not.toHaveBeenCalled();
+      expect(patch.mock.calls[0]![0]).toMatchObject({
+        id: 'booking-stale',
+        patch: { memo: 'Notiz geändert' },
+      });
+      expect(patch.mock.calls[0]![0].patch.splits).toBeUndefined();
+    } finally {
+      createPayee.mockRestore();
+    }
+  },
+);
+
+it('treats contact-sharing input as dirty before the gross amount is entered', async () => {
+  const dirty = { current: false };
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <ToastProvider>
+        <CaptureForm
+          state={{ mode: 'create' }}
+          onDone={vi.fn()}
+          dirtyRef={dirty}
+          discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
+          requestClose={vi.fn()}
+        />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  expect(dirty.current).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: 'Teilen ▾' }));
+  await waitFor(() => expect(dirty.current).toBe(true));
 });

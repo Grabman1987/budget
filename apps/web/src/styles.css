@@ -50,6 +50,19 @@
   }
 }
 
+/* Compact capture heads retain named 44px icon controls beside all three booking kinds. */
+@media screen and (min-width: 375px) and (max-width: 767px) {
+  .bk-head .bk-close,
+  .bk-head .kflagpick:not(.in-list) .kflagbtn {
+    width: var(--touch);
+    padding-inline: 0;
+  }
+  .bk-head .bk-close::after,
+  .bk-head .kflagpick:not(.in-list) .kflagbtn::after {
+    content: none;
+  }
+}
+
 @media screen and (max-width: 767px) {
   /* Reserve the selection control's 44 px without letting it overlap the neighbouring flag. */
   .ktx-all tr[data-booking] {

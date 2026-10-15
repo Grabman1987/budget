@@ -1,5 +1,7 @@
 # Budget — Specification
 
+Owner booking-line directive (2026-10-14, #463): the capture head shows amount, payee, account/status and date/repetition before category/contact lines on desktop and phone. Date/repetition use 2:1 columns; direct date entry and the calendar remain. One category row can represent a category, a whole contact outlay, or a category with percentage/fixed contact shares; additional gross lines show a cent-exact rest and block saving until it is zero. Slim suggestions share one row. Date chips, the separate outlay field and Split mode button are removed. Tab follows head → lines → actions; Enter saves valid input and Escape retains its guard. Map to the existing ledger splits with largest-remainder cents, preserving stored metadata, audited writes, locks and undo.
+
 Owner Plan directive (2026-10-12, #446): Plan › Monat restores a 320px sticky right inspector from 1180px. With no category selected, native disclosures show Monatsüberblick open and 50/30/20, expected income versus targets, budget-account money and waterfall stages closed. Category selection shows existing assignment/move/cover forms, target progress, quick assignment and category actions; history remains on the envelope URL. Below 1180px this package uses a collapsible inspector below the grid; the phone action layout is a separate package. This narrowly supersedes the 2026-10-05 navigation directive for Plan › Monat only.
 
 Owner navigation directive (2026-10-05): content details use deep-linkable sub-pages

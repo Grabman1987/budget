@@ -1,0 +1,61 @@
+# Booking lines — #463
+
+The capture dialog uses the existing integer-cent booking-line mapper from
+`8f659a19`. Category-only, whole-contact outlay, percentage share, fixed share and
+several categories/contacts use one editor. Stored splits retain their independent
+rows, order and metadata when edited; the ledger does not store gross-line grouping.
+Existing create/patch, undo and reconciled-lock boundaries remain in place.
+
+The visible head precedes the lines on desktop and phones: amount, payee, account
+and status, then date/repetition in 2:1 columns. Direct German dates and the native
+calendar remain. Date chips, the separate outlay field and Split button are replaced
+by the category/contact picker, Teilen and Weitere Kategorie. Four slim category
+suggestions share one horizontal rail. The body scrolls independently of the save
+footer. At 390px the header fits one row with 44px flag/close targets; narrower
+screens retain the two-row fallback. Accessible button names remain intact.
+
+## Verification
+
+- Fresh focused unit run: **72 tests in six files passed** with one thread worker.
+  Covers largest-remainder allocation, refunds, exact payloads, retained metadata,
+  stale payee caches and undo of inline contact creation.
+- Fresh web typecheck and the E2E-mode application build passed. Changed-file lint,
+  formatting, CSS scale and broader affected browser checks are recorded below
+  when completed. Full required CI remains the integration gate.
+- **27 browser/setup cases passed** in `capture-dialog-layout.spec.ts`: desktop
+  1440px, Chromium mobile 390px and WebKit iPhone 390px. All five scenarios preserve
+  exact split values and memo-only edit round trips. The tests retain rest/save
+  guards, Enter, dirty Escape/outside-click protection, initial focus, light/dark
+  Axe, both 44px target dimensions and actual viewport/header overflow guards.
+- A red phone regression exposed hidden account/date controls and the wrong Tab
+  order. The head now remains visible before the lines on every viewport. The
+  original capture/calendar/dropdown regression was restored and adapted to the
+  new controls, retaining its German dates, exact 19.99 split, status, flags,
+  draft preservation, footer and accessibility assertions.
+- Headless WebKit can deliver native-calendar Escape to the dialog. The test
+  observes actual Escape/cancel delivery and verifies the existing dirty guard
+  and retained draft in that case. Chromium retains its original strict popup
+  dismissal assertion. Production Escape behavior is unchanged.
+- Theme audits await finite CSS animations before running Axe. This prevents a
+  background-only theme transition from mixing the new foreground with the old
+  background; contrast assertions and the application's colors are unchanged.
+
+Commands use `NODE_OPTIONS=--max-old-space-size=1536`, one worker,
+`E2E_PORT=5080` and `E2E_LEDGER_PORT_OFFSET=100`.
+
+```sh
+npx vitest run apps/web/src/ledger/capture-form.test.tsx apps/web/src/ledger/split-editor.test.tsx apps/web/src/ledger/booking-lines.test.ts apps/web/src/ledger/booking-model.test.ts apps/web/src/ledger/split-rest.test.ts packages/domain/src/ledger/booking-lines.test.ts --maxWorkers=1 --pool=threads
+npx playwright test e2e/capture-dialog-layout.spec.ts --workers=1
+```
+
+## Evidence and remaining gates
+
+The 30 `<project>-<scenario>-0-<theme>.png` files were refreshed from the passing
+scenario run using synthetic data. They are ordinary evidence, not Playwright
+baselines. Desktop light and WebKit dark examples were visually reviewed. Linux
+baselines are generated only by GitHub's snapshot workflow.
+
+Affected capture, keyboard, contact, repetition, transfer and ledger undo/redo
+regressions are being verified separately. Final-head CI, serial deployment and
+the live revision must pass before closing #463. Physical-iPhone owner acceptance
+remains separate from automated WebKit coverage.
