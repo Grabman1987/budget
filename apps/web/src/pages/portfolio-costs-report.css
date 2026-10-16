@@ -13,7 +13,7 @@
   width: 44px;
   color: var(--ink-3);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-measure);
 }
 .costs-parts td,
 .costs-other td {
@@ -36,7 +36,7 @@
 }
 .costs-facts dt {
   color: var(--ink-2);
-  font-size: 11px;
+  font-size: var(--fs-label);
 }
 .costs-facts dd {
   margin: 4px 0 0;
@@ -47,7 +47,7 @@
 .costs-facts dd small {
   display: block;
   margin-top: 2px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 400;
   color: var(--ink-3);
 }

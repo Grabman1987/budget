@@ -182,7 +182,7 @@
   background: var(--on-good);
   color: var(--good);
   font-weight: 640;
-  font-size: 14px;
+  font-size: var(--fs-body);
   transition:
     transform var(--t-fast) var(--ease-out),
     background var(--t-fast) var(--ease-out);
@@ -326,7 +326,7 @@ button {
   border-radius: 6px;
   background: var(--surface);
   color: var(--ink);
-  font-size: 12px;
+  font-size: var(--fs-label);
   font-weight: 600;
   box-shadow: var(--card-shadow);
 }
@@ -361,7 +361,7 @@ button {
 }
 .acct-group-title {
   min-width: 0;
-  font-size: 11px;
+  font-size: var(--fs-label);
   letter-spacing: 0.07em;
 }
 .acct-group ul {
@@ -413,7 +413,7 @@ button {
   white-space: nowrap;
 }
 .acct-group-bar .acct-amount {
-  font-size: 12px;
+  font-size: var(--fs-label);
   color: var(--ink-3);
 }
 /* Negative balances retain their minus and use the owner's Z4 red ink. */

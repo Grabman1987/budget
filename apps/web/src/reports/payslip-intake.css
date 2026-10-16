@@ -59,7 +59,7 @@
   min-height: 44px;
 }
 .payslip-intake-review .source-status dt {
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--ink-3);
 }
 .payslip-intake-review .source-status dd {

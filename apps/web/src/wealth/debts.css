@@ -29,7 +29,7 @@
 }
 .debt-result h2 {
   margin: 0;
-  font-size: clamp(24px, 3vw, 40px);
+  font-size: var(--fs-display);
   font-weight: 650;
   letter-spacing: -0.03em;
 }
@@ -40,7 +40,7 @@
   align-items: baseline;
 }
 .debt-result-interest strong {
-  font-size: 24px;
+  font-size: var(--fs-figure);
 }
 .debt-progress progress {
   display: block;
@@ -90,7 +90,7 @@
 .debt-stored-terms {
   margin-top: 8px;
   max-width: 30rem;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 400;
 }
 .debt-stored-terms dl {
@@ -212,14 +212,14 @@
 }
 .debts-view .vtable small {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 400;
   color: var(--ink-3);
 }
 .debts-view .vtable th.tech {
   font-family: var(--font-tech);
   text-transform: uppercase;
-  font-size: 11.5px;
+  font-size: var(--fs-label);
   font-weight: 500;
   letter-spacing: 0.06em;
   color: var(--ink-3);
@@ -277,7 +277,7 @@
     display: block;
     font-family: var(--font-tech);
     text-transform: uppercase;
-    font-size: 11px;
+    font-size: var(--fs-label);
     color: var(--ink-3);
   }
 }
@@ -306,7 +306,7 @@
   .debt-comparison .vtable th,
   .debt-comparison .vtable td {
     padding: 8px 4px;
-    font-size: 12px;
+    font-size: var(--fs-table);
     white-space: normal;
   }
 }

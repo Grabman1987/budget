@@ -100,12 +100,12 @@
   margin: 0;
 }
 .contacts-balance {
-  font-size: 24px;
+  font-size: var(--fs-figure);
   font-weight: 640;
 }
 .contacts-balance span {
   display: block;
-  font-size: 14px;
+  font-size: var(--fs-table);
   font-weight: 400;
 }
 .contacts-receipt {
@@ -121,7 +121,7 @@
     padding: 6px;
   }
   .contacts-table td:last-child {
-    font-size: 12px;
+    font-size: var(--fs-label);
   }
 }
 

@@ -1,5 +1,13 @@
 # Roadmap
 
+### DS2: binding type scale — #473 (2026-10-16)
+
+- [x] Record owner decision 2B as T1–T12 in DESIGN.md; generate desktop/phone size and line-height tokens, with a restricted T12 role.
+- [x] Migrate all CSS font sizes (wealth included); enforce declared type tokens in longhand and shorthand while retaining radius checks.
+- [x] Cover literal rejection, valid tokens, T12 selectors, and responsive generation with focused tests.
+- [x] Inspect desktop 1440 / Chromium mobile 390 captures and pass the existing overflow/Axe assertions with the unchanged compiled synthetic seed (standard tsx startup is blocked by os.userInfo).
+- [ ] Green CI on the PR, including the Linux snapshot refresh (never regenerated on Windows).
+
 ### K2 — depot account template (#478, owner review 2026-10-16)
 
 - [x] Reuse Portfolio's unsplit account positions and valuation date; literal database fixture proves 2,683 cents, identical units and unavailable missing prices.
@@ -67,7 +75,6 @@ proposal; no new financial onboarding UI or product gate is marked delivered.
 - [x] Node22 full check434files /3,962tests, zero skips with required age and two workers; current WebKit capture12/12and diagnostic Chromium portfolio7/7. [Evidence](evidence/e2e-layout-2026-10-15.md).
 - [ ] Exact-head required CI, serial main/deployment/live proof.
 
-
 ### Q2: Quiet historical reports and one inbox alert — #465 (2026-10-15)
 
 - [x] Historical negative charts/text use existing ink; debt bars use dashed outlines; shared live-warning defaults, values and geometry remain.
@@ -93,7 +100,6 @@ proposal; no new financial onboarding UI or product gate is marked delivered.
 - [x] Final integrated Node 22 full check: 434 files / 3,955 tests, zero skips; original three-project browser matrix 12/12 plus integrated current WebKit 6/6. [Evidence](evidence/payslip-flow/README.md).
 - [ ] Exact-head required CI, serial merge, main CI, automatic deployment and live revision proof.
 - [ ] Original Windows Chrome pre-native-picker hang remains unproven; drag/drop is a separately tested alternative.
-
 
 ### Contact history and monthly payments — #499 (2026-10-15)
 
@@ -235,7 +241,6 @@ Owner follow-up #499: new cash capture is confirmed automatically; bank capture 
 - [x] Focused type/lint/format/unit checks and all five changed desktop/mobile scenarios. [Evidence](evidence/bank-inbox-bulk/README.md).
 - [ ] Commit/push/PR (Git index lock permission denied), required CI and owner phone acceptance.
 
-
 ### Reports package P - history, cell links and full-width summaries (2026-10-09)
 
 - [x] #335/#336: payslip history/details subpage and existing capture/edit/upload form dialogs, with month context and audited-write reuse.
@@ -253,7 +258,6 @@ Owner follow-up #499: new cash capture is confirmed automatically; bank capture 
 - [x] Dev-only `/dev/details`; remove the example panel entry and use detail routes plus input dialogs in the gallery/harness.
 - [x] Synthetic component regressions, including preventing detail IDs from becoming capture account IDs; scoped verification is recorded in [package evidence](evidence/contacts-search-dev/README.md).
 - [ ] Required CI, Linux visual baseline review, integration after #406 and owner/device acceptance.
-
 
 ### P2 #316 / #317 / #328 / #329 / #341 — Today and Expected detail pages — 2026-10-09
 
@@ -531,7 +535,6 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Pinned Linux rule-book visual review; approved differences and all four image hashes are recorded in current evidence.
 - [ ] Required final-head CI and owner acceptance.
 
-
 ### Heute three answer cards — owner 05.10.2026
 
 - [x] Three current answer cards reuse Vermögen, Gesamtübersicht, One-Pager, Leitmaß and Pace sources; nearest unfinished Sparziel reuses saved/missing cents and date ordering.
@@ -576,7 +579,6 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Plan panels #323–#327: category detail and shared goal history routes, category/group/goal/event FormDialogs, preserved month/source/hidden-category context and existing audit/undo writes ([evidence](evidence/plan-panels-1009/README.md)).
 - [ ] Linux snapshot-baseline review, exact-head PR CI and remaining inventory; owner desktop/phone acceptance, physical iPhone Safari, private financial Gate 4 and live acceptance remain separate open gates.
 
-
 ### UX-3b — Shared touch controls (owner feedback 2026-10-05)
 
 - [x] Shared 44 × 44 px control floor for coarse pointers and phone widths, including separate booking-row selection/flag areas.
@@ -584,7 +586,6 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Synthetic unit and bounding-box/hit-test phone regressions; [scope and baseline list](ux-tap-targets-1005.md).
 - [x] Final local check phases (336 files / 3,175 tests), production build and affected Chromium/WebKit browser checks; [verification evidence](ux-tap-targets-1005.md).
 - [ ] Pinned Linux screenshot review and owner phone acceptance (see delivery evidence).
-
 
 
 ### Heute daily budget — owner 05.10.2026
@@ -835,7 +836,6 @@ Process from P1f on: one branch per task, PRs ≤ ~1.500 changed lines, tick onl
 - [x] Motion as in the prototype: solid chart lines plot in 900 ms (optional 260/520 ms stagger), annotations fade in (500 ms after 380 ms); the Maßkette plots only its result line
 - [x] ElevationMark shelf under the label; Sankey want/future nodes hatched with outline
 
-
 ### Plan year follow-up — read-only overview (2026-10-02, PR #133)
 - [x] Connect Plan › Jahr to all twelve existing budget-month reads; category and group detail, signed assigned/activity annual sums and December available balance (never sum rollover balances).
 - [x] Sticky category column on desktop; all metrics, month selector and category annual values on a 375px phone, with read-only year navigation.
@@ -1074,7 +1074,6 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [x] Explicit unsaved saving assumption and 5 % real-return default; shared monthly projection with +100 EUR comparison, bounded numeric errors, desktop/mobile light/dark and accessible values.
 - [ ] Historical Soll-Pfad, chosen goal year and persisted assumptions await separate owner decisions; the complete freedom workflow and private acceptance remain open.
 
-
 ## P6 Reports und Umstellung
 
 ### Category trend — #385, owner decision 2026-10-09
@@ -1246,7 +1245,6 @@ Contract and baseline matrix: [asset-class settings](asset-classes-settings.md).
 
 Owner feedback 2026-10-04: spending/cost reports 1.4/1.10/2.3–2.6/3.4–3.5 and early Heute pace implemented on `codex/spending-reports-1004`; source-model limitations and evidence are recorded in [spending report feedback](spending-report-feedback.md).
 - [x] Owner booking UX 2026-10-04: inline date/amount, status/flags, cash default, Wiederholen/weekly schedules, no capture Budgetmonat, ranged account forecast and 0–365-day display setting; CI/owner visual acceptance pending.
-
 
 ### PR #190 money review — 2026-10-05
 

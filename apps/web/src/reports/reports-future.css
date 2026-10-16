@@ -192,7 +192,7 @@
   text-align: left;
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
-  font-size: 11px;
+  font-size: var(--fs-label);
   white-space: nowrap;
   color: var(--ink-2);
   font-weight: 560;
@@ -210,7 +210,7 @@
 .rf-table th small {
   display: block;
   margin-top: 2px;
-  font-size: 12px;
+  font-size: var(--fs-label);
   font-weight: 400;
   color: var(--ink-2);
 }
@@ -407,7 +407,7 @@
   border-radius: var(--radius-md);
   background: var(--surface-2);
   color: var(--ink-2);
-  font-size: 14px;
+  font-size: var(--fs-meta);
 }
 .rf-note-row strong {
   color: var(--ink);
@@ -458,10 +458,10 @@
     padding: 16px;
   }
   .rf-figure {
-    font-size: 40px;
+    font-size: var(--fs-dimension);
   }
   .rf-figs strong {
-    font-size: 21px;
+    font-size: var(--fs-figure);
   }
   .rf-add {
     grid-template-columns: minmax(0, 1fr);

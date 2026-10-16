@@ -176,7 +176,7 @@
     content: attr(data-label);
     display: block;
     margin-bottom: 8px;
-    font: 12px var(--font-tech);
+    font: var(--fs-label) var(--font-tech);
     color: var(--ink-2);
   }
 }

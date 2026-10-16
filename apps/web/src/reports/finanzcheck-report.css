@@ -43,7 +43,7 @@
 }
 .fc-stage-rules h3 {
   margin: 0 0 6px;
-  font-size: 12px;
+  font-size: var(--fs-label);
   font-weight: 500;
   color: var(--ink-2);
 }
@@ -62,7 +62,7 @@
 }
 .fc-next small {
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .fc-table {
   min-width: 760px;

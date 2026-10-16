@@ -10,7 +10,7 @@
 }
 .whole-section h2 {
   margin: 0 0 16px;
-  font-size: 20px;
+  font-size: var(--fs-headline);
 }
 .whole-table-head {
   display: flex;
@@ -75,7 +75,7 @@
     padding: 16px;
   }
   .whole-scroll {
-    font-size: 12px;
+    font-size: var(--fs-label);
   }
   .whole-scroll a {
     min-height: 44px;

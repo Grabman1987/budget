@@ -14,7 +14,7 @@
 .receipt-hint,
 .receipt-name small {
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .receipt-list {
   list-style: none;
@@ -41,7 +41,7 @@
 .receipt-format {
   display: grid;
   place-items: center;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   flex-shrink: 0;
 }
 .receipt-name {

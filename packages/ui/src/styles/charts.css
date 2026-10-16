@@ -14,21 +14,21 @@ svg.chart {
 }
 .svg-label-strong {
   font-family: var(--font-tech);
-  font-size: var(--fs-chart-label-strong);
+  font-size: var(--fs-measure);
   font-weight: 600;
   letter-spacing: 0.04em;
   fill: var(--ink);
 }
 .svg-label-line {
   font-family: var(--font-tech);
-  font-size: var(--fs-chart-label-strong);
+  font-size: var(--fs-measure);
   font-weight: 500;
   letter-spacing: 0.04em;
   fill: var(--line);
 }
 .svg-label-red {
   font-family: var(--font-tech);
-  font-size: var(--fs-chart-label-strong);
+  font-size: var(--fs-measure);
   font-weight: 600;
   letter-spacing: 0.04em;
   fill: var(--red);
@@ -354,7 +354,7 @@ svg.chart {
   background: var(--raised);
   color: var(--ink);
   box-shadow: var(--shadow);
-  font-size: 12px;
+  font-size: var(--fs-label);
   pointer-events: none;
 }
 .chart-tooltip-row {

@@ -109,7 +109,7 @@
 }
 .portfolio-status {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 400;
   color: var(--ink-2);
 }
@@ -155,14 +155,14 @@
 }
 .instrument-quote {
   margin: 0;
-  font-size: 24px;
+  font-size: var(--fs-figure);
   font-weight: 620;
 }
 .instrument-quote small,
 .instrument-accounts small {
   display: block;
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 400;
 }
 .instrument-accounts {

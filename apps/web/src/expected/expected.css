@@ -93,7 +93,7 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
-  font-size: 14px;
+  font-size: var(--fs-table);
 }
 .xp-name strong {
   font-weight: 580;
@@ -161,7 +161,7 @@
   gap: 22px;
 }
 .xp-big {
-  font-size: 36px;
+  font-size: var(--fs-dimension);
   font-weight: 650;
   letter-spacing: -0.03em;
   margin: 6px 0 2px;
@@ -183,7 +183,7 @@
 .xp-newversion .xp-sub,
 h4.xp-sub {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--fs-meta);
   font-weight: 600;
   color: var(--ink);
 }
@@ -263,7 +263,7 @@ h4.xp-sub {
   padding: 6px 0 8px;
   border-bottom: 1px solid var(--line-2);
   text-align: left;
-  font-size: 11px;
+  font-size: var(--fs-label);
   font-weight: 500;
 }
 .xp-table:not(.ptable) th.col-num {
@@ -338,7 +338,7 @@ h4.xp-sub {
   }
   .xp-table.ptable .col-num {
     text-align: right;
-    font-size: 14px;
+    font-size: var(--fs-table);
   }
   .xp-next .col-num {
     grid-column: 3;
@@ -387,7 +387,7 @@ h4.xp-sub {
     content: attr(data-label);
     display: block;
     font-family: var(--font-tech);
-    font-size: var(--fs-class-tag);
+    font-size: var(--fs-label);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--ink-3);
@@ -431,6 +431,6 @@ h4.xp-sub {
     margin: 2px 0 0 22px;
   }
   .xp-big {
-    font-size: 30px;
+    font-size: var(--fs-dimension);
   }
 }

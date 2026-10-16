@@ -127,9 +127,9 @@ button {
   color: var(--ink-3);
 }
 
-/* Cents in half size next to a dimension value */
+/* Cents use the smaller T5 step next to a dimension value. */
 .cents {
-  font-size: 0.55em;
+  font-size: var(--fs-figure);
   color: var(--ink-3);
   font-weight: 500;
   letter-spacing: 0;

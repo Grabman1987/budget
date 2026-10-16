@@ -45,7 +45,7 @@
 .sr-state {
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
   font-variant-numeric: tabular-nums;
 }
 .sr-state.is-good {
@@ -58,7 +58,7 @@
   margin: 6px 0 0;
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
 }
 .sr-fig {
   display: grid;
@@ -68,10 +68,10 @@
 .sr-fig span {
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
 }
 .sr-fig strong {
-  font-size: clamp(var(--fs-figure-large), 4.4vw, var(--fs-amount));
+  font-size: var(--fs-figure);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
@@ -97,7 +97,7 @@
 }
 .sr h3 {
   margin: 18px 0 8px;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 620;
 }
 
@@ -201,7 +201,7 @@ a.sr-name:hover {
 }
 .sr-val small {
   color: var(--ink-2);
-  font-size: 11.5px;
+  font-size: var(--fs-label);
   font-weight: 500;
 }
 .sr-delta {
@@ -272,7 +272,7 @@ a.sr-name:hover {
   border-bottom-color: var(--line-2);
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 11px;
+  font-size: var(--fs-label);
   font-weight: 500;
   letter-spacing: 0.04em;
   white-space: nowrap;
@@ -288,7 +288,7 @@ a.sr-name:hover {
 .sr-table small {
   display: block;
   color: var(--ink-3);
-  font-size: 11.5px;
+  font-size: var(--fs-label);
 }
 .sr-table tr.is-total td,
 .sr-table tr.is-total th {
@@ -350,7 +350,7 @@ a.sr-name:hover {
   margin: 16px 0 2px;
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 11px;
+  font-size: var(--fs-label);
   font-weight: 500;
   letter-spacing: 0.04em;
 }
@@ -467,7 +467,7 @@ a.sr-name:hover {
 .sr-523-month {
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
 }
 .sr-523-bar {
   position: relative;
@@ -501,7 +501,7 @@ a.sr-name:hover {
 }
 .sr-523-num small {
   margin-left: 4px;
-  font-size: 11px;
+  font-size: var(--fs-label);
 }
 .sw-rest {
   background: var(--good-soft);
@@ -534,7 +534,7 @@ a.sr-name:hover {
   width: 48px;
   color: var(--ink-3);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
 }
 .sr-hints {
   display: grid;
@@ -569,7 +569,7 @@ a.sr-name:hover {
 }
 .sr-hint-val small {
   color: var(--ink-2);
-  font-size: 11.5px;
+  font-size: var(--fs-label);
   font-weight: 500;
 }
 
@@ -604,11 +604,11 @@ a.sr-name:hover {
 .sr-year-label {
   display: grid;
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
 }
 .sr-year-label small {
   color: var(--ink-3);
-  font-size: 11px;
+  font-size: var(--fs-label);
 }
 .sr-stack {
   display: flex;
@@ -639,7 +639,7 @@ a.sr-name:hover {
 .sr-facts dt {
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 11.5px;
+  font-size: var(--fs-label);
 }
 .sr-facts dd {
   margin: 0;
@@ -649,7 +649,7 @@ a.sr-name:hover {
 .sr-facts dd small {
   display: block;
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 450;
 }
 .sr-use {
@@ -741,7 +741,7 @@ a.sr-state {
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--rule-strong);
-  font: var(--font-body);
+  font: var(--fs-body)/var(--lh-body) var(--font-ui);
   white-space: normal;
 }
 

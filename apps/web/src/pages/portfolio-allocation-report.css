@@ -113,7 +113,7 @@
 .allocation-kind-hint {
   display: block;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .allocation-unheld .prep-product {
   color: var(--ink-3);
@@ -188,7 +188,7 @@
   fill: var(--alloc-label, var(--ink));
   stroke: var(--outer);
   stroke-width: 2px;
-  font-size: 12px;
+  font-size: var(--fs-label);
 }
 .sb-composition .sb-lbl-inv {
   fill: var(--alloc-inverse, var(--surface));

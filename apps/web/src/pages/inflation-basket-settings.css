@@ -9,7 +9,7 @@
   padding: 0;
 }
 .basket-group legend {
-  font-size: 17px;
+  font-size: var(--fs-chart-label);
   font-weight: 620;
   padding-right: 12px;
 }

@@ -120,7 +120,7 @@
   text-align: left;
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
-  font-size: 11px;
+  font-size: var(--fs-label);
   white-space: nowrap;
 }
 .mr-table td {
@@ -134,7 +134,7 @@
 }
 .mr-table small {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-label);
   color: var(--ink-3);
 }
 .mr-table tr.is-total td {
@@ -239,7 +239,7 @@
   background: var(--rule-strong);
 }
 .mr-cap-fig {
-  font-size: 30px;
+  font-size: var(--fs-figure);
   font-weight: 650;
   letter-spacing: -0.02em;
   line-height: 1.1;

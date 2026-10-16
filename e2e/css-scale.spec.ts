@@ -24,6 +24,7 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.goto('/plan/monat?monat=2026-09');
       await expect(page.locator('.plan .plan-topbar')).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
+      // Plan chips are compact controls (T7), one step below body text.
       await expect(page.getByTestId('to-be-assigned')).toHaveCSS(
         'font-size',
         isMobile ? '15px' : '14px',
@@ -39,16 +40,16 @@ for (const scheme of ['light', 'dark'] as const) {
 
       await page.goto('/reports/onepager?monat=2026-09');
       await expect(page.locator('.ps-tb-cell .tech').first()).toBeVisible();
-      await expect(page.locator('.ps-tb-cell .tech').first()).toHaveCSS('font-size', '11px');
+      await expect(page.locator('.ps-tb-cell .tech').first()).toHaveCSS('font-size', '12px');
       await page.screenshot({ path: info.outputPath(`onepager-${scheme}.png`), fullPage: true });
 
       await page.goto('/dev/bauteile');
       await expect(page.getByTestId('chart-lines')).toBeVisible();
-      await expect(page.locator('.svg-label-strong').first()).toHaveCSS('font-size', '13px');
+      await expect(page.locator('.svg-label-strong').first()).toHaveCSS('font-size', '14px');
       await expect(page.locator('.sw').first()).toHaveCSS('border-top-left-radius', '1px');
       await expect(page.locator('.seg button').first()).toHaveCSS(
         'font-size',
-        isMobile ? '15px' : '14px',
+        isMobile ? '16px' : '15px',
       );
     },
   );

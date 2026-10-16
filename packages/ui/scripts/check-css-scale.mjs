@@ -4,13 +4,12 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 
-// DESIGN.md chart lettering and square bar/legend marks, never general UI exceptions.
-const chartLabels = new Set([
-  '.svg-label-strong',
-  '.svg-label-line',
-  '.svg-label-red',
-  '.preview-chart text',
+const revisionLabels = new Set([
+  ":root[data-theme='dark'] .tb-revision",
+  ":root[data-theme='dark'] .ps-revision",
 ]);
+
+// DESIGN.md square bar/legend marks, never general UI exceptions.
 const chartMarks = new Set([
   '.sw',
   '.plan .sb-bar',
@@ -37,14 +36,13 @@ const chartMarks = new Set([
 ]);
 
 export function findScaleViolations(css, file, tokens) {
+  const fontTokens = new Set([...tokens.matchAll(/(--fs-[\w-]+):/g)].map((m) => m[1]));
   const sizes = (prefix) =>
     new Set(
       [...tokens.matchAll(new RegExp(`--${prefix}-[\\w-]+:\\s*([\\d.]+)px`, 'g'))].map((m) =>
         Number(m[1]),
       ),
     );
-  // 13px is chart-only; ordinary body copy uses the normal scale.
-  const fonts = new Set([...sizes('fs')].filter((size) => size !== 13));
   const radii = new Set([0, ...sizes('radius')]);
   const violations = [];
   const clean = css.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '));
@@ -58,16 +56,30 @@ export function findScaleViolations(css, file, tokens) {
     )) {
       const [, property, value] = declaration;
       const isFont = property === 'font' || property === 'font-size';
+      const offset = block.index + block[0].indexOf('{') + 1 + declaration.index;
+      const line = clean.slice(0, offset).split('\n').length;
+      if (isFont) {
+        // Native controls inherit the surrounding role; explicit sizes must use type tokens.
+        if (value.trim() === 'inherit') continue;
+        const token = /var\(--fs-[\w-]+\)/;
+        const valid =
+          [...value.matchAll(/var\((--fs-[\w-]+)\)/g)].every((m) => fontTokens.has(m[1])) &&
+          (!value.includes('--fs-revision') || selectors.every((s) => revisionLabels.has(s))) &&
+          (property === 'font-size'
+            ? new RegExp(`^${token.source}\\s*(?:!important)?$`).test(value.trim())
+            : /^(?:(?:normal|italic|oblique|small-caps|bold|bolder|lighter|[1-9]00)\s+)*var\(--fs-[\w-]+\)(?:\s*\/\s*(?:[\d.]+(?:px)?|var\(--lh-[\w-]+\)))?\s+/.test(
+                value.trim(),
+              ));
+        if (!valid)
+          violations.push(`${file}:${line} ${selectors.join(', ')}: ${property}: ${value.trim()}`);
+        continue;
+      }
       const pixels = [...value.matchAll(/(-?(?:\d*\.)?\d+)px\b/gi)];
-      for (const pixel of property === 'font' ? pixels.slice(0, 1) : pixels) {
+      for (const pixel of pixels) {
         const size = Number(pixel[1]);
-        if ((isFont ? fonts : radii).has(size)) continue;
-        if (isFont && selectors.every((s) => /\.emoji$/.test(s))) continue;
-        if (isFont && size === 13 && selectors.every((s) => chartLabels.has(s))) continue;
+        if (radii.has(size)) continue;
         if (property === 'border-radius' && size === 1 && selectors.every((s) => chartMarks.has(s)))
           continue;
-        const offset = block.index + block[0].indexOf('{') + 1 + declaration.index;
-        const line = clean.slice(0, offset).split('\n').length;
         violations.push(`${file}:${line} ${selectors.join(', ')}: ${property}: ${pixel[0]}`);
       }
     }

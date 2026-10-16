@@ -45,7 +45,7 @@
   min-width: 22px;
   height: 22px;
   border: 1px solid var(--line-2);
-  font: 11px var(--font-tech);
+  font: var(--fs-label) var(--font-tech);
 }
 .goal-report-open {
   color: var(--ink);
@@ -70,7 +70,7 @@
 .goal-report-meta {
   margin: 0 0 12px;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   overflow-wrap: anywhere;
 }
 .goal-report-bar {
@@ -139,7 +139,7 @@
   border-bottom: 1px solid var(--rule);
 }
 .goals-report-table thead th {
-  font: 12px var(--font-tech);
+  font: var(--fs-label) var(--font-tech);
   color: var(--ink-2);
 }
 .goals-report-table th:first-child {

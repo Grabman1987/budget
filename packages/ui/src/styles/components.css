@@ -59,7 +59,7 @@
   padding: 0 16px;
   border-radius: var(--radius-md);
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-body);
   white-space: nowrap;
   transition:
     background var(--t-fast) var(--ease-out),
@@ -170,7 +170,7 @@
 }
 .tb-value {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-table);
   white-space: nowrap;
   display: flex;
   align-items: center;
@@ -358,7 +358,7 @@
   border-radius: 50%;
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--fs-measure);
   color: var(--line);
   translate: 0 2px;
 }
@@ -462,7 +462,8 @@
   margin-bottom: 14px;
 }
 .field-row > label {
-  font-size: var(--fs-body);
+  /* Form labels sit one step below body (T7) so dense dialogs keep their fold. */
+  font-size: var(--fs-table);
   font-weight: 560;
   color: var(--ink-2);
 }
@@ -532,7 +533,7 @@
   border-radius: var(--radius-xs);
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-table);
   line-height: 1;
   color: var(--line);
   display: grid;
@@ -550,7 +551,7 @@
   grid-template-columns: auto 1fr auto;
 }
 .amount-cur {
-  font-size: 20px;
+  font-size: var(--fs-headline);
   font-weight: 600;
   color: var(--ink-3);
 }
@@ -559,9 +560,10 @@
   outline: 0;
   background: transparent;
   min-width: 0;
+  min-height: var(--touch);
   width: 100%;
   text-align: right;
-  font-size: 30px;
+  font-size: var(--fs-display);
   font-weight: 650;
   letter-spacing: -0.02em;
   color: var(--ink);
@@ -653,7 +655,7 @@ button.ct-term:hover {
   background: var(--tint);
 }
 .ct-label {
-  font-size: 11px;
+  font-size: var(--fs-label);
   white-space: nowrap;
 }
 .ct-val {
@@ -672,7 +674,7 @@ button.ct-term .ct-val {
 .ct-op {
   align-self: center;
   font-family: var(--font-tech);
-  font-size: 18px;
+  font-size: var(--fs-measure);
   font-weight: 600;
   color: var(--line);
   padding: 14px 2px 0;
@@ -687,7 +689,7 @@ button.ct-term .ct-val {
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
   text-align: left;
-  font-size: 11px;
+  font-size: var(--fs-label);
 }
 .ptable th.col-num {
   text-align: right;
@@ -741,7 +743,7 @@ button.ct-term .ct-val {
 }
 .pos {
   font-family: var(--font-tech);
-  font-size: var(--fs-chart-label);
+  font-size: var(--fs-measure);
   letter-spacing: 0.04em;
   color: var(--ink-3);
 }
@@ -799,7 +801,7 @@ button.ct-term .ct-val {
   font-weight: 500;
 }
 .rev-table th.tech {
-  font-size: 11px;
+  font-size: var(--fs-label);
   padding: 6px 0 8px;
   border-bottom: 1px solid var(--rule);
 }
@@ -828,7 +830,7 @@ button.ct-term .ct-val {
 .rev-tri text {
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: 11px;
+  font-size: var(--fs-label);
   fill: var(--line);
 }
 .rev-tri.is-urgent path,
@@ -915,7 +917,7 @@ button.ct-term .ct-val {
   border: 1px solid var(--line-2);
   border-radius: var(--radius-titleblock);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
   font-weight: 500;
   letter-spacing: 0.04em;
   color: var(--ink-2);
@@ -951,7 +953,7 @@ button.ct-term .ct-val {
   color: var(--ground);
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--fs-label);
   letter-spacing: 0.03em;
 }
 .count-alert {

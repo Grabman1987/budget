@@ -10,7 +10,7 @@
 }
 .savings-section .aside {
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .savings-table {
   margin-bottom: 16px;

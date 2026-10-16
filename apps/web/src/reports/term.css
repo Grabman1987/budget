@@ -30,7 +30,7 @@
   background: var(--surface);
   color: var(--ink);
   box-shadow: var(--card-shadow);
-  font: 400 14px / 1.45 var(--font-ui);
+  font: 400 var(--fs-table) / 1.45 var(--font-ui);
   text-align: left;
 }
 @media print {
