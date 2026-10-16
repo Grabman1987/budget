@@ -11,6 +11,8 @@ open as GAP01–08 in [the gap backlog](docs/product/open-gaps.md), including na
 onboarding frames and semantic Figma acceptance. No financial formula or gate is
 changed or accepted merely by recording these requirements.
 
+Page review (2026-10-16): owner-approved per-page decisions in [docs/product/page-review-2026-10-16.md](docs/product/page-review-2026-10-16.md) supersede older Figma frames, audit recommendations and proposals where they differ; financial rules still follow this SPEC.
+
 Current reading entry point (2026-10-15): [Product foundation](docs/product/README.md)
 consolidates the requirements, sitemap, state/data/process contracts and acceptance
 mapping. It preserves the precedence below. Proposed first-use onboarding remains
