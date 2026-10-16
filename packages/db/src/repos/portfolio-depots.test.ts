@@ -60,7 +60,7 @@ describe('depotComparison (report 4.1)', () => {
     for (const depot of [...result.depots, result.total!]) {
       expect(depot.index[0]?.level).toBe(100);
       expect(depot.index.at(-1)?.date).toBe(result.window?.to);
-      expect(depot.index.at(-1)?.level).toBeCloseTo(100 * (1 + depot.performance!.ttwror), 9);
+      expect(depot.index.at(-1)?.level).toBeCloseTo(100 * (1 + depot.performance!.ttwror!), 9);
     }
     expect(result.benchmarkIndex?.map((p) => p.date)).toEqual(
       result.total?.index.map((p) => p.date),

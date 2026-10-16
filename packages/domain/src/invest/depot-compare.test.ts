@@ -3,6 +3,7 @@ import { benchmarkIndexLine, depotIndexLine, returnGap } from './depot-compare';
 import { monthBoundaries, windowPerformance } from './performance';
 import { eachDay } from './series';
 import type { CashFlow, Valuation } from './returns';
+import { performanceReportSeries } from './performance-report';
 
 const days = eachDay('2026-01-01', '2026-04-15');
 // A drifting value with a deposit of 100 EUR on 2026-02-10 that is part of the value.
@@ -13,6 +14,24 @@ const series: Valuation[] = days.map((date, i) => ({
 }));
 
 describe('depotIndexLine', () => {
+  it('matches report gaps before March funding and after full liquidation', () => {
+    const input = {
+      series: eachDay('2025-12-31', '2026-05-31').map((date) => ({
+        date,
+        valueCents: date < '2026-03-01' || date >= '2026-04-01' ? 0 : 50_000,
+      })),
+      flows: [
+        { date: '2026-03-01', cents: 50_000 },
+        { date: '2026-04-01', cents: -50_000 },
+      ],
+    };
+    const window = { from: '2025-12-31', to: '2026-05-31' };
+    const line = depotIndexLine(input, window);
+    expect(line.map((point) => point.level)).toEqual([null, null, null, 100, 100, null]);
+    expect(line.map((point) => point.level)).toEqual(
+      performanceReportSeries(input, window).index.map((point) => point.portfolio),
+    );
+  });
   it('starts at 100 and reads the window start and every month boundary', () => {
     const line = depotIndexLine({ series, flows }, { from: '2026-01-01', to: '2026-04-15' });
     expect(line.map((p) => p.date)).toEqual(monthBoundaries('2026-01-01', '2026-04-15'));
@@ -23,7 +42,7 @@ describe('depotIndexLine', () => {
     const window = { from: '2026-01-01', to: '2026-04-15' };
     const line = depotIndexLine({ series, flows }, window);
     const perf = windowPerformance({ series, flows }, window);
-    expect(line[line.length - 1]?.level).toBe(100 * (1 + perf.ttwror));
+    expect(line[line.length - 1]?.level).toBe(100 * (1 + perf.ttwror!));
   });
 
   it('removes the effect of a deposit: a flat market stays at 100', () => {
@@ -52,7 +71,7 @@ describe('depotIndexLine', () => {
       { series: late, flows: [{ date: '2026-02-01', cents: 50_000 }] },
       { from: '2026-01-01', to: '2026-03-31' },
     );
-    expect(line.every((p) => p.level === 100)).toBe(true);
+    expect(line.map((p) => p.level)).toEqual([null, null, 100, 100]);
   });
 });
 

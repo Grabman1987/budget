@@ -78,7 +78,7 @@ describe('performance report series', () => {
     expect(sold.years[0]?.rate).toBeNull();
   });
 
-  it('uses nonzero signed denominators like PP and leaves unfunded zero denominators as gaps', () => {
+  it('leaves non-positive denominators as gaps and resumes the valid chain', () => {
     const daily = eachDay('2026-01-01', '2026-01-05').map((date) => ({
       date,
       valueCents: {
@@ -95,7 +95,7 @@ describe('performance report series', () => {
     );
     expect(
       result.dailyIndex.map((p) => (p.portfolio === null ? null : Number(p.portfolio.toFixed(4)))),
-    ).toEqual([100, 50, -10, 10, 20]);
+    ).toEqual([100, 50, -10, null, -20]);
 
     const zero = performanceReportSeries(
       {

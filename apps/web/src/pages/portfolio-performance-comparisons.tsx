@@ -45,7 +45,9 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
               </dt>
               <dd>
                 {ppText(
-                  b.benchmarkReturn === null || !perf ? null : perf.ttwror - b.benchmarkReturn,
+                  b.benchmarkReturn === null || !perf || perf.ttwror === null
+                    ? null
+                    : perf.ttwror - b.benchmarkReturn,
                 )}{' '}
                 · {decimal(b.beta)}
               </dd>
@@ -398,7 +400,7 @@ function ClassMetrics({
               {benchmarks.map((b) => (
                 <td className="n" key={b.id}>
                   {ppText(
-                    b.benchmarkReturn === null || !c.performance
+                    b.benchmarkReturn === null || !c.performance || c.performance.ttwror === null
                       ? null
                       : c.performance.ttwror - b.benchmarkReturn,
                   )}

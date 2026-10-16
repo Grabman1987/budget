@@ -25,34 +25,7 @@ export function periodReturn(
   outflowsCents: number,
 ): number | null {
   const capital = previousCents + inflowsCents;
-  return capital === 0 ? null : (currentCents + outflowsCents) / capital - 1;
-}
-
-/**
- * PP TTWROR: chain `(end + withdrawals) / (start + deposits)` across valuation periods.
- * Requires a closing valuation on every cash-flow day for exact daily returns. Keep deposits
- * and withdrawals separate, even on the same day. An unfunded period does not count.
- */
-export function ttwror(
-  valuations: ReadonlyArray<Valuation>,
-  flows: ReadonlyArray<CashFlow>,
-): number {
-  const sorted = [...valuations].sort((a, b) => a.date.localeCompare(b.date));
-  let growth = 1;
-  for (let i = 1; i < sorted.length; i++) {
-    const prev = sorted[i - 1] as Valuation;
-    const cur = sorted[i] as Valuation;
-    let inflows = 0;
-    let outflows = 0;
-    for (const flow of flows) {
-      if (flow.date <= prev.date || flow.date > cur.date) continue;
-      if (flow.cents > 0 || flow.atStart) inflows += flow.cents;
-      else outflows -= flow.cents;
-    }
-    const rate = periodReturn(prev.valueCents, cur.valueCents, inflows, outflows);
-    if (rate !== null) growth *= 1 + rate;
-  }
-  return growth - 1;
+  return capital <= 0 ? null : (currentCents + outflowsCents) / capital - 1;
 }
 
 /**
@@ -63,7 +36,7 @@ export function modifiedDietz(
   start: Valuation,
   end: Valuation,
   flows: ReadonlyArray<CashFlow>,
-): number {
+): number | null {
   const days = daysBetween(start.date, end.date);
   if (days <= 0) throw new RangeError('The period must end after it starts');
   let net = 0;
@@ -74,7 +47,7 @@ export function modifiedDietz(
     weighted += (f.cents * daysBetween(f.date, end.date)) / days;
   }
   const capital = start.valueCents + weighted;
-  return capital === 0 ? 0 : (end.valueCents - start.valueCents - net) / capital;
+  return capital === 0 ? null : (end.valueCents - start.valueCents - net) / capital;
 }
 
 /**

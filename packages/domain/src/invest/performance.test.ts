@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  dailyReturns,
   dietzMonthly,
   maxDrawdown,
   monthBoundaries,
@@ -9,7 +8,8 @@ import {
   periodWindow,
   windowPerformance,
 } from './performance';
-import { ttwror, type CashFlow, type Valuation } from './returns';
+import type { CashFlow, Valuation } from './returns';
+import { eachDay } from './series';
 
 describe('period windows', () => {
   it('starts on the same day of the earlier month, clamped, or at 31.12.', () => {
@@ -55,6 +55,47 @@ function ppCase() {
 }
 
 describe('window performance', () => {
+  it('leaves returns unavailable for a position sold before the one-year window', () => {
+    const series = eachDay('2024-12-31', '2026-01-01').map((date) => ({
+      date,
+      valueCents: date === '2024-12-31' ? 10_000 : 0,
+    }));
+    const result = periodPerformance(
+      { series, flows: [{ date: '2025-01-01', cents: -10_000 }] },
+      '1J',
+      '2026-01-01',
+    );
+    expect(result.ttwror).toBeNull();
+    expect(result.ttwrorAnnualised).toBeNull();
+    expect(result.moneyWeighted).toBeNull();
+    expect(result.xirr).toBeNull();
+    expect(result.monthCount).toBe(0);
+  });
+
+  it('counts only months with a valued return and aligns benchmark months', () => {
+    const series = eachDay('2025-12-31', '2026-03-31').map((date) => ({
+      date,
+      valueCents: date < '2026-03-01' ? 0 : date === '2026-03-31' ? 11_000 : 10_000,
+    }));
+    const result = windowPerformance(
+      {
+        series,
+        flows: [{ date: '2026-03-01', cents: 10_000 }],
+        benchmark: [
+          { date: '2025-12-31', level: 100 },
+          { date: '2026-01-31', level: 120 },
+          { date: '2026-02-28', level: 150 },
+          { date: '2026-03-31', level: 165 },
+        ],
+      },
+      { from: '2025-12-31', to: '2026-03-31' },
+    );
+    expect(result.monthCount).toBe(1);
+    expect(result.ttwror).toBeCloseTo(0.1, 12);
+    expect(result.benchmarkTtwror).toBeCloseTo(0.1, 12);
+    expect(result.positiveMonthShare).toBe(1);
+  });
+
   it('buy, dividend, sale with fee and tax: TTWROR, gain and contributions', () => {
     const { series, flows } = ppCase();
     const w = windowPerformance({ series, flows }, { from: '2026-01-01', to: '2026-01-07' });
@@ -75,13 +116,6 @@ describe('window performance', () => {
     expect(w.gainCents).toBe(22_500);
     expect(w.from).toBe('2026-01-01');
     expect(w.days).toBe(6);
-  });
-
-  it('chains the same as ttwror() and the daily returns', () => {
-    const { series, flows } = ppCase();
-    const w = windowPerformance({ series, flows }, { from: '2026-01-01', to: '2026-01-07' });
-    expect(w.ttwror).toBeCloseTo(ttwror(series, flows), 12);
-    expect(dailyReturns(series, flows)).toHaveLength(6);
   });
 
   it('flows on the start day belong to the start value', () => {

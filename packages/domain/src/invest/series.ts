@@ -12,7 +12,7 @@ import type { CashFlow } from './returns';
  * Portfolio Performance semantics implemented here
  * ------------------------------------------------
  * A cash flow is money put INTO the portfolio (positive) or taken OUT of it (negative), in EUR
- * cents on the day of the booking; `ttwror`, `irr` and `modifiedDietz` (returns.ts) consume them.
+ * cents on the day of the booking; `windowPerformance`, `irr` and `modifiedDietz` consume them.
  *
  * 1. View "securities only" (`securityFlows`): the portfolio is the set of positions. A buy puts
  *    money in (gross amount plus fee plus tax), a sale takes money out (gross amount minus fee

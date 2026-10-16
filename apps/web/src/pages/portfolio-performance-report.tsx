@@ -181,7 +181,9 @@ function PerformanceBody({
                 <Term>TTWROR</Term> im Zeitraum · {performance.days} Tage · {performance.monthCount}{' '}
                 bewertete Monate
               </span>
-              <strong data-testid="period-ttwror">{percent(performance.ttwror)}</strong>
+              <strong data-testid="period-ttwror">
+                {performance.ttwror === null ? 'nicht verfügbar' : percent(performance.ttwror)}
+              </strong>
             </div>
             <p className="vnote">
               TTWROR und XIRR nach Portfolio Performance: Wertpapiere ohne Depotkassa, nach Gebühren
@@ -206,6 +208,9 @@ function PerformanceBody({
                   </>
                 }
                 value={percent(performance.ttwrorAnnualised)}
+                note={
+                  performance.ttwrorAnnualised === null ? 'für diesen Zeitraum nicht verfügbar' : ''
+                }
               />
               <Metric
                 label={
@@ -214,7 +219,13 @@ function PerformanceBody({
                   </>
                 }
                 value={percent(performance.moneyWeighted)}
-                note={performance.days > 365 ? 'annualisiert' : 'nicht annualisiert'}
+                note={
+                  performance.moneyWeighted === null
+                    ? 'für diesen Zeitraum nicht verfügbar'
+                    : performance.days > 365
+                      ? 'annualisiert'
+                      : 'nicht annualisiert'
+                }
               />
               <Metric
                 label={

@@ -65,7 +65,7 @@ export interface DailyReturn {
 
 /**
  * Daily PP returns of consecutive valuations: deposits at the start, withdrawals at the end.
- * A zero opening balance can earn a return when funded that day; only a zero denominator is
+ * A zero opening balance can earn a return when funded that day; a non-positive denominator is
  * unavailable. Inputs must retain the gross flows rather than netting opposite signs.
  */
 export function dailyReturns(
@@ -126,7 +126,7 @@ export function maxDrawdown(rates: ReadonlyArray<number>): number {
 
 export interface SeriesFigures {
   /** Chained return of the window. */
-  ttwror: number;
+  ttwror: number | null;
   /** Monthly standard deviation × √12. */
   volatility: number;
   maxDrawdown: number;
@@ -227,9 +227,9 @@ export interface WindowPerformance extends SeriesFigures {
   contributionsCents: number;
   /** End − start − contributions. */
   gainCents: number;
-  ttwrorAnnualised: number;
+  ttwrorAnnualised: number | null;
   /** Modified Dietz, annualised beyond 12 months (the prototype's IRR). */
-  moneyWeighted: number;
+  moneyWeighted: number | null;
   /** XIRR, actual/365 annualised; null when no rate exists. */
   xirr: number | null;
   monthCount: number;
@@ -281,7 +281,9 @@ export function windowPerformance(input: PerformanceInput, window: Window): Wind
   for (let i = 1; i < bounds.length; i++) {
     const a = bounds[i - 1] as string;
     const b = bounds[i] as string;
-    months.push(chain(daily.filter((d) => d.date > a && d.date <= b).map((d) => d.rate)));
+    const valued = daily.filter((d) => d.date > a && d.date <= b);
+    if (valued.length === 0) continue;
+    months.push(chain(valued.map((d) => d.rate)));
     if (benchmarkOk) {
       const la = levelOn(input.benchmark ?? [], a);
       const lb = levelOn(input.benchmark ?? [], b);
@@ -296,10 +298,10 @@ export function windowPerformance(input: PerformanceInput, window: Window): Wind
   });
   // Window return and drawdown from the daily chain (more exact than the monthly one).
   const dailyRates = daily.map((d) => d.rate);
-  const ttwror = chain(dailyRates);
+  const ttwror = dailyRates.length > 0 ? chain(dailyRates) : null;
 
   let xirr: number | null = null;
-  let moneyWeighted = 0;
+  let moneyWeighted: number | null = null;
   if (days > 0) {
     const start = { date: from, valueCents: startValueCents };
     const end = { date: to, valueCents: endValueCents };
@@ -309,7 +311,7 @@ export function windowPerformance(input: PerformanceInput, window: Window): Wind
       xirr = null;
     }
     const md = modifiedDietz(start, end, flows);
-    moneyWeighted = days > 365 ? Math.pow(1 + md, 365 / days) - 1 : md;
+    moneyWeighted = md === null ? null : days > 365 ? Math.pow(1 + md, 365 / days) - 1 : md;
   }
   return {
     ...figures,
@@ -322,7 +324,7 @@ export function windowPerformance(input: PerformanceInput, window: Window): Wind
     endValueCents,
     contributionsCents,
     gainCents: endValueCents - startValueCents - contributionsCents,
-    ttwrorAnnualised: days > 0 ? Math.pow(1 + ttwror, 365 / days) - 1 : 0,
+    ttwrorAnnualised: ttwror !== null && days > 0 ? Math.pow(1 + ttwror, 365 / days) - 1 : null,
     moneyWeighted,
     xirr,
     monthCount: months.length,

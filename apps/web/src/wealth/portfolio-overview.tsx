@@ -83,7 +83,9 @@ export function PortfolioOverview() {
         <details className="wealth-details">
           <summary data-testid="portfolio-return">
             Rendite p. a.{' '}
-            {Number.isFinite(performance.ttwrorAnnualised) && performance.days > 0
+            {performance.ttwrorAnnualised !== null &&
+            Number.isFinite(performance.ttwrorAnnualised) &&
+            performance.days > 0
               ? percent(performance.ttwrorAnnualised)
               : '—'}{' '}
             (zeitgewichtet) <Info size={18} strokeWidth={1.75} aria-hidden="true" />
