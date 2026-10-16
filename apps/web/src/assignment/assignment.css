@@ -1,4 +1,6 @@
 .assignment-page {
+  /* Grid item: let the rule table scroll inside its region instead of widening the page. */
+  min-width: 0;
   padding: 24px 28px;
 }
 .assignment-page > section + section {
