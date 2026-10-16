@@ -69,7 +69,11 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
             <dt>
               <Term>Sharpe</Term> · sicherer Zins 2,5 %
             </dt>
-            <dd>{perf && perf.volatility >= 0.005 ? decimal(perf.sharpe) : '–'}</dd>
+            <dd>
+              {perf && perf.volatility !== null && perf.volatility >= 0.005
+                ? decimal(perf.sharpe)
+                : '–'}
+            </dd>
           </div>
         </dl>
         {summary.benchmarks.some((b) => b.benchmarkReturn === null) && (
@@ -409,7 +413,9 @@ function ClassMetrics({
               <td className="n">{percentText(c.performance?.volatility)}</td>
               <td className="n">{rateText(c.performance?.maxDrawdown)}</td>
               <td className="n">
-                {c.performance && c.performance.volatility >= 0.005
+                {c.performance &&
+                c.performance.volatility !== null &&
+                c.performance.volatility >= 0.005
                   ? decimal(c.performance.sharpe)
                   : '–'}
               </td>

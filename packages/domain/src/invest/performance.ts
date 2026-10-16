@@ -128,15 +128,15 @@ export interface SeriesFigures {
   /** Chained return of the window. */
   ttwror: number | null;
   /** Monthly standard deviation × √12. */
-  volatility: number;
-  maxDrawdown: number;
+  volatility: number | null;
+  maxDrawdown: number | null;
   /** (annualised return − risk-free rate) / volatility; 0 without volatility. */
   sharpe: number;
   /** Covariance with the benchmark over its variance; null without a benchmark. */
   beta: number | null;
-  bestMonth: number;
-  worstMonth: number;
-  positiveMonthShare: number;
+  bestMonth: number | null;
+  worstMonth: number | null;
+  positiveMonthShare: number | null;
   benchmarkTtwror: number | null;
 }
 
@@ -168,13 +168,13 @@ export function monthlyFigures(
   }
   return {
     ttwror: tw,
-    volatility: vol,
-    maxDrawdown: maxDrawdown(months),
+    volatility: n ? vol : null,
+    maxDrawdown: n ? maxDrawdown(months) : null,
     sharpe: vol ? (annualised - (options.riskFree ?? RISK_FREE_RATE)) / vol : 0,
     beta,
-    bestMonth: n ? Math.max(...months) : 0,
-    worstMonth: n ? Math.min(...months) : 0,
-    positiveMonthShare: n ? months.filter((r) => r > 0).length / n : 0,
+    bestMonth: n ? Math.max(...months) : null,
+    worstMonth: n ? Math.min(...months) : null,
+    positiveMonthShare: n ? months.filter((r) => r > 0).length / n : null,
     benchmarkTtwror: benchmark ? chain(benchmark) : null,
   };
 }
@@ -316,7 +316,7 @@ export function windowPerformance(input: PerformanceInput, window: Window): Wind
   return {
     ...figures,
     ttwror,
-    maxDrawdown: maxDrawdown(dailyRates),
+    maxDrawdown: dailyRates.length ? maxDrawdown(dailyRates) : null,
     from,
     to,
     days,

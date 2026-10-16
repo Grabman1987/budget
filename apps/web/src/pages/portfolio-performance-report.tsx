@@ -181,9 +181,7 @@ function PerformanceBody({
                 <Term>TTWROR</Term> im Zeitraum · {performance.days} Tage · {performance.monthCount}{' '}
                 bewertete Monate
               </span>
-              <strong data-testid="period-ttwror">
-                {performance.ttwror === null ? 'nicht verfügbar' : percent(performance.ttwror)}
-              </strong>
+              <strong data-testid="period-ttwror">{percent(performance.ttwror)}</strong>
             </div>
             <p className="vnote">
               TTWROR und XIRR nach Portfolio Performance: Wertpapiere ohne Depotkassa, nach Gebühren

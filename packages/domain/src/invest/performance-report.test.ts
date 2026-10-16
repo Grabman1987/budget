@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { eachDay } from './series';
 import { performanceReportSeries } from './performance-report';
+import { windowPerformance } from './performance';
 
 const series = eachDay('2025-12-31', '2026-03-15').map((date) => ({
   date,
@@ -10,18 +11,34 @@ const input = { series, flows: [{ date: '2026-01-31', cents: 10_000 }] };
 const window = { from: '2025-12-31', to: '2026-03-15' };
 
 describe('performance report series', () => {
+  it('chains only valued months in a year funded on 1 March, matching the headline', () => {
+    const input = {
+      series: eachDay('2025-12-31', '2026-12-31').map((date) => ({
+        date,
+        valueCents: date < '2026-03-01' ? 0 : date < '2026-12-31' ? 10_000 : 11_000,
+      })),
+      flows: [{ date: '2026-03-01', cents: 10_000 }],
+    };
+    const window = { from: '2025-12-31', to: '2026-12-31' };
+    const report = performanceReportSeries(input, window);
+    expect(report.months.slice(0, 2).map((month) => month.rate)).toEqual([null, null]);
+    expect(report.years[0]?.rate).toBeCloseTo(0.1, 12);
+    expect(report.years[0]?.rate).toBeCloseTo(windowPerformance(input, window).ttwror!, 12);
+  });
+
   it('chains daily flow-adjusted returns, labels partial months and compounds years', () => {
     const result = performanceReportSeries(input, window);
     expect(result.months.map((m) => m.month)).toEqual(['2026-01', '2026-02', '2026-03']);
-    expect(result.months[0]?.rate).toBeCloseTo(0.1);
-    expect(result.months[1]?.rate).toBeCloseTo(-0.1);
+    expect(result.months[0]?.rate).toBeCloseTo(0.1, 12);
+    expect(result.months[1]?.rate).toBeCloseTo(-0.1, 12);
     expect(result.months[2]).toMatchObject({ rate: 0, partial: true });
-    expect(result.years[0]?.rate).toBeCloseTo(-0.01);
-    expect(result.index.at(-1)?.portfolio).toBeCloseTo(99);
+    expect(result.years[0]?.rate).toBeCloseTo(-0.01, 12);
+    expect(result.index.at(-1)?.portfolio).toBeCloseTo(99, 12);
     expect(result.dailyIndex).toHaveLength(series.length);
-    expect(result.dailyIndex.at(-1)?.portfolio).toBeCloseTo(result.index.at(-1)!.portfolio!);
+    expect(result.dailyIndex.at(-1)?.portfolio).toBeCloseTo(result.index.at(-1)!.portfolio!, 12);
     expect(result.dailyIndex.find((point) => point.date === '2026-01-31')?.portfolio).toBeCloseTo(
       110,
+      12,
     );
   });
 
@@ -118,7 +135,7 @@ describe('performance report series', () => {
       { date: '2026-03-13', level: 0, reason: null },
     ]);
     expect(result.months[0]?.benchmarkGap).toBe('missing_price');
-    expect(result.months[1]?.benchmarkRate).toBeCloseTo(110 / 105 - 1);
+    expect(result.months[1]?.benchmarkRate).toBeCloseTo(110 / 105 - 1, 12);
     expect(result.months[2]?.benchmarkRate).toBe(-1);
     expect(result.benchmarkReturn).toBeNull();
     expect(result.index.every((p) => p.benchmark === null)).toBe(true);

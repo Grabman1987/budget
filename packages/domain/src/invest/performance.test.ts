@@ -70,6 +70,13 @@ describe('window performance', () => {
     expect(result.moneyWeighted).toBeNull();
     expect(result.xirr).toBeNull();
     expect(result.monthCount).toBe(0);
+    expect(result).toMatchObject({
+      volatility: null,
+      maxDrawdown: null,
+      bestMonth: null,
+      worstMonth: null,
+      positiveMonthShare: null,
+    });
   });
 
   it('counts only months with a valued return and aligns benchmark months', () => {
@@ -196,7 +203,7 @@ describe('risk figures of monthly returns', () => {
     expect(f.ttwror).toBeCloseTo(1.1 * 0.95 * 1.02 - 1, 12);
     // Annualised with 12/n (the prototype's rule), risk-free 2,5 %.
     const annual = Math.pow(1.1 * 0.95 * 1.02, 4) - 1;
-    expect(f.sharpe).toBeCloseTo((annual - 0.025) / f.volatility, 10);
+    expect(f.sharpe).toBeCloseTo((annual - 0.025) / f.volatility!, 10);
     expect(monthlyFigures(months).beta).toBeNull();
     expect(monthlyFigures([]).sharpe).toBe(0);
   });

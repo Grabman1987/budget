@@ -121,7 +121,7 @@ export function performanceReportSeries(
       from: mine[0]!.from,
       to: mine.at(-1)!.to,
       partial: mine.length !== 12 || mine.some((m) => m.partial),
-      rate: compound(mine.map((m) => m.rate)),
+      rate: compound(mine.map((m) => m.rate).filter((rate) => rate !== null)),
       benchmarkRate: compound(mine.map((m) => m.benchmarkRate)),
     };
   });
