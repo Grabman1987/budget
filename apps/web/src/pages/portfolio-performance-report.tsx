@@ -183,6 +183,12 @@ function PerformanceBody({
               </span>
               <strong data-testid="period-ttwror">{percent(performance.ttwror)}</strong>
             </div>
+            <p className="vnote">
+              TTWROR und XIRR nach Portfolio Performance: Wertpapiere ohne Depotkassa, nach Gebühren
+              und vor Steuern. TTWROR zählt Zuflüsse am Tagesanfang und Abflüsse am Tagesende.
+              Periodengewinn, Nettozuflüsse und Modified Dietz verwenden die tatsächlichen Beträge
+              nach Steuern.
+            </p>
             <DimensionChain
               terms={[
                 { label: 'Anfang', value: cents(performance.startValueCents) },
@@ -200,6 +206,9 @@ function PerformanceBody({
                   </>
                 }
                 value={percent(performance.ttwrorAnnualised)}
+                note={
+                  performance.ttwrorAnnualised === null ? 'für diesen Zeitraum nicht verfügbar' : ''
+                }
               />
               <Metric
                 label={
@@ -208,7 +217,13 @@ function PerformanceBody({
                   </>
                 }
                 value={percent(performance.moneyWeighted)}
-                note={performance.days > 365 ? 'annualisiert' : 'nicht annualisiert'}
+                note={
+                  performance.moneyWeighted === null
+                    ? 'für diesen Zeitraum nicht verfügbar'
+                    : performance.days > 365
+                      ? 'annualisiert'
+                      : 'nicht annualisiert'
+                }
               />
               <Metric
                 label={

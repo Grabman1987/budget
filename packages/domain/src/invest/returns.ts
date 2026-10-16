@@ -8,6 +8,8 @@ import { daysBetween } from '../date';
 export interface CashFlow {
   date: string;
   cents: number;
+  /** Dated internal class reassignment at the opening; external withdrawals retain PP day-end timing. */
+  atStart?: true;
 }
 
 export interface Valuation {
@@ -15,28 +17,15 @@ export interface Valuation {
   valueCents: number;
 }
 
-/**
- * True time-weighted rate of return: sub-periods between consecutive valuations, a flow in a
- * sub-period counts at its end (the valuation already contains it), so
- * `r = (value − flows) / previous value − 1`, chained. Exact when there is a valuation on every
- * cash-flow day. Periods starting at 0 (before the first buy) do not count.
- */
-export function ttwror(
-  valuations: ReadonlyArray<Valuation>,
-  flows: ReadonlyArray<CashFlow>,
-): number {
-  const sorted = [...valuations].sort((a, b) => a.date.localeCompare(b.date));
-  let growth = 1;
-  for (let i = 1; i < sorted.length; i++) {
-    const prev = sorted[i - 1] as Valuation;
-    const cur = sorted[i] as Valuation;
-    const flow = flows
-      .filter((f) => f.date > prev.date && f.date <= cur.date)
-      .reduce((a, f) => a + f.cents, 0);
-    if (prev.valueCents <= 0) continue;
-    growth *= (cur.valueCents - flow) / prev.valueCents;
-  }
-  return growth - 1;
+/** PP convention: inflows at the start, withdrawals at the end; null without invested capital. */
+export function periodReturn(
+  previousCents: number,
+  currentCents: number,
+  inflowsCents: number,
+  outflowsCents: number,
+): number | null {
+  const capital = previousCents + inflowsCents;
+  return capital <= 0 ? null : (currentCents + outflowsCents) / capital - 1;
 }
 
 /**
@@ -47,7 +36,7 @@ export function modifiedDietz(
   start: Valuation,
   end: Valuation,
   flows: ReadonlyArray<CashFlow>,
-): number {
+): number | null {
   const days = daysBetween(start.date, end.date);
   if (days <= 0) throw new RangeError('The period must end after it starts');
   let net = 0;
@@ -58,7 +47,7 @@ export function modifiedDietz(
     weighted += (f.cents * daysBetween(f.date, end.date)) / days;
   }
   const capital = start.valueCents + weighted;
-  return capital === 0 ? 0 : (end.valueCents - start.valueCents - net) / capital;
+  return capital === 0 ? null : (end.valueCents - start.valueCents - net) / capital;
 }
 
 /**
@@ -74,6 +63,10 @@ export function irr(start: Valuation, end: Valuation, flows: ReadonlyArray<CashF
       .map((f) => ({ t: daysBetween(start.date, f.date) / 365, cents: -f.cents })),
     { t: daysBetween(start.date, end.date) / 365, cents: end.valueCents },
   ];
+  const netByDate = new Map<number, number>();
+  for (const item of items) netByDate.set(item.t, (netByDate.get(item.t) ?? 0) + item.cents);
+  if ([...netByDate.values()].every((cents) => cents === 0))
+    throw new RangeError('No unique rate for zero net cash flows on every date');
   const npv = (r: number) => items.reduce((a, x) => a + x.cents / Math.pow(1 + r, x.t), 0);
   const slope = (r: number) =>
     items.reduce((a, x) => a - (x.t * x.cents) / Math.pow(1 + r, x.t + 1), 0);

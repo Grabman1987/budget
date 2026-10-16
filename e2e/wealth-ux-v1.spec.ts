@@ -16,7 +16,7 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
     'Portfolioentwicklung, zeitgewichtet, Indexbasis 100',
   );
   await expect(page.locator('.portfolio-overview .wealth-details')).toContainText(
-    'Ohne positiven Vorwert bleibt der betreffende Tag als Lücke sichtbar',
+    'Ohne Kapital einschließlich Tageszuflüssen bleibt der betreffende Tag als Lücke sichtbar',
   );
   await expect(chart.locator('text').last()).toHaveText('17.09.26');
   await expect(page.locator('.portfolio-overview')).toContainText(

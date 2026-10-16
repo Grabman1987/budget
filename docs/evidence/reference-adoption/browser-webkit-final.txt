@@ -1,0 +1,102 @@
+[Evidence copy: workspace paths and trailing whitespace normalized.]
+[WebServer] (node:25720) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).
+[WebServer] (node:23492) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).
+[WebServer] (node:24108) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).
+[WebServer] (node:29184) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:28976) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:21256) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:28068) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).
+
+Running 5 tests using 1 worker
+
+(node:23688) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:25720) ExperimentalWarning: The supports Web Crypto API method is an experimental feature and might change at any time
+[WebServer] (node:25720) ExperimentalWarning: The ML-DSA-44 Web Crypto API algorithm is an experimental feature and might change at any time
+  ok 1 [setup] › e2e\auth.setup.ts:10:1 › register the first passkey and store the session (121ms)
+  ok 2 [setup] › e2e\ledger.setup.ts:17:1 › seed categories for the ledger tests (453ms)
+(node:9200) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:28068) ExperimentalWarning: The supports Web Crypto API method is an experimental feature and might change at any time
+[WebServer] (node:28068) ExperimentalWarning: The ML-DSA-44 Web Crypto API algorithm is an experimental feature and might change at any time
+  ok 3 [setup-sample] › e2e\sample.setup.ts:6:1 › register the first passkey on the sample server (223ms)
+(node:2200) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  4 [webkit-iphone] › e2e\glossary.spec.ts:4:1 › report terms explain returns with keyboard and touch without leaving the report (31.3s)
+(node:14500) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  5 [webkit-iphone] › e2e\wealth-ux-v1.spec.ts:4:1 › V1 wealth answers, disclosures and accessible desktop/phone layouts (3.3m)
+
+
+  1) [webkit-iphone] › e2e\glossary.spec.ts:4:1 › report terms explain returns with keyboard and touch without leaving the report
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.screenshot: Test timeout of 30000ms exceeded.
+    Call log:
+      - taking page screenshot
+      - waiting for fonts to load...
+      - fonts loaded
+
+
+      34 |     expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+      35 |     expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+    > 36 |     await page.screenshot({ path: info.outputPath(`glossary-${theme}.png`), fullPage: true });
+         |                ^
+      37 |   }
+      38 |   await page.getByRole('heading', { name: 'Rendite und Kennzahlen', exact: true }).click();
+      39 |   await expect(explanation).toHaveCount(0);
+        at <workspace>\e2e\glossary.spec.ts:36:16
+
+    Error Context: test-results\glossary-report-terms-expl-1b7e3--without-leaving-the-report-webkit-iphone\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\glossary-report-terms-expl-1b7e3--without-leaving-the-report-webkit-iphone\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\glossary-report-terms-expl-1b7e3--without-leaving-the-report-webkit-iphone\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [webkit-iphone] › e2e\wealth-ux-v1.spec.ts:4:1 › V1 wealth answers, disclosures and accessible desktop/phone layouts
+
+    Test timeout of 180000ms exceeded.
+
+    Error: frame.evaluate: Test timeout of 180000ms exceeded.
+
+      151 |         expect(colors.actual.every((color) => color === colors.expected)).toBe(true);
+      152 |       }
+    > 153 |       expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+          |               ^
+      154 |       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      155 |         page.viewportSize()!.width,
+      156 |       );
+        at AxeBuilder.runPartialRecursive (<workspace>\node_modules\@axe-core\playwright\dist\index.mjs:280:39)
+        at AxeBuilder.analyze (<workspace>\node_modules\@axe-core\playwright\dist\index.mjs:210:39)
+        at <workspace>\e2e\wealth-ux-v1.spec.ts:153:15
+
+    Error Context: test-results\wealth-ux-v1-V1-wealth-ans-77c81-sible-desktop-phone-layouts-webkit-iphone\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\wealth-ux-v1-V1-wealth-ans-77c81-sible-desktop-phone-layouts-webkit-iphone\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\wealth-ux-v1-V1-wealth-ans-77c81-sible-desktop-phone-layouts-webkit-iphone\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [webkit-iphone] › e2e\glossary.spec.ts:4:1 › report terms explain returns with keyboard and touch without leaving the report
+    [webkit-iphone] › e2e\wealth-ux-v1.spec.ts:4:1 › V1 wealth answers, disclosures and accessible desktop/phone layouts
+  3 passed (4.5m)

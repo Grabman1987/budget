@@ -773,7 +773,7 @@ function tradesOf(
   db: Executor,
   filter: FlowFilter,
   after: string,
-): (SeriesTrade & { accountId: string; securityId: string })[] {
+): (SeriesTrade & { accountId: string; securityId: string; settlementAccountId: string | null })[] {
   return db
     .select({
       accountId: trade.accountId,
@@ -785,9 +785,11 @@ function tradesOf(
       feeCents: trade.feeCents,
       taxCents: trade.taxCents,
       currency: account.currency,
+      settlementAccountId: booking.accountId,
     })
     .from(trade)
     .innerJoin(account, eq(account.id, trade.accountId))
+    .leftJoin(booking, and(eq(booking.id, trade.bookingId), isNull(booking.deletedAt)))
     .where(
       and(
         isNull(trade.deletedAt),
@@ -827,19 +829,45 @@ export function portfolioFlows(
   filter: FlowFilter & {
     view?: 'securities' | 'depot';
     referenceAccounts?: ReadonlyArray<string>;
+    /** Mixed depot comparison: cash already included in the measured value. */
+    includedCashAccounts?: ReadonlyArray<string>;
+    /** Mixed comparison: these securities' cash-linked settlements are already internal. */
+    includedSecuritiesAccounts?: ReadonlyArray<string>;
     externalAccounts?: ReadonlyArray<string>;
+    /** Securities-only PP returns exclude taxes; cash contribution facts include them. */
+    taxBasis?: 'after-tax' | 'before-tax' | 'pp-irr';
   },
 ): CashFlow[] {
   const rates = rateTable(db, filter.to);
   if ((filter.view ?? 'securities') === 'securities')
-    return securityFlows(tradesOf(db, filter, filter.from), rates);
+    return securityFlows(
+      tradesOf(db, filter, filter.from).filter(
+        (t) =>
+          t.settlementAccountId === null ||
+          !filter.includedCashAccounts?.includes(t.settlementAccountId),
+      ),
+      rates,
+      filter.taxBasis,
+    );
 
   const reference = new Set(filter.referenceAccounts ?? []);
   const inside = new Set([...(filter.accounts ?? []), ...reference]);
+  const includedSecurities = new Set(filter.includedSecuritiesAccounts ?? []);
+  const internalSettlements = new Set(
+    includedSecurities.size
+      ? db
+          .select({ bookingId: trade.bookingId })
+          .from(trade)
+          .where(and(isNull(trade.deletedAt), inArray(trade.accountId, [...includedSecurities])))
+          .all()
+          .map((t) => t.bookingId)
+      : [],
+  );
   // Both kinds of transfer legs: whole bookings and single splits.
   const legs = [
     ...db
       .select({
+        bookingId: booking.id,
         transferId: booking.transferId,
         accountId: booking.accountId,
         date: booking.date,
@@ -853,6 +881,7 @@ export function portfolioFlows(
       .all(),
     ...db
       .select({
+        bookingId: booking.id,
         transferId: bookingSplit.transferId,
         accountId: booking.accountId,
         date: booking.date,
@@ -880,6 +909,14 @@ export function portfolioFlows(
   for (const leg of legs) {
     if (!reference.has(leg.accountId) || leg.date <= filter.from) continue;
     const others = (byTransfer.get(leg.transferId as string) ?? []).filter((l) => l !== leg);
+    // Match the securities-side exclusion only for linked settlements. Separate funding
+    // transfers still offset their own depot trade flows; equal amounts are not provenance.
+    if (
+      internalSettlements.has(leg.bookingId) &&
+      others.length > 0 &&
+      others.every((o) => inside.has(o.accountId) || includedSecurities.has(o.accountId))
+    )
+      continue;
     if (
       others.length > 0 &&
       others.every((o) => !inside.has(o.accountId)) &&
@@ -895,8 +932,8 @@ export function portfolioFlows(
   if (filter.externalAccounts === undefined)
     boundary.push(...externalDeposits(db, reference, filter.from, filter.to));
   // Deliveries in and out move value across the boundary without cash, as in Portfolio
-  // Performance: capital in or out at their stored amount (transfers between portfolios of the
-  // same depot net out, as both legs are deliveries of accounts inside).
+  // Performance: capital in or out at their stored amount. Unlinked deliveries remain external;
+  // equal opposing amounts alone are not proof of an internal security transfer.
   for (const t of tradesOf(db, filter, filter.from))
     if (
       filter.externalAccounts === undefined &&

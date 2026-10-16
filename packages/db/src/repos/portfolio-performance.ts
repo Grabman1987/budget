@@ -6,6 +6,7 @@ import {
   type PerformanceInput,
   type Window,
   type ReportQuote,
+  type CashFlow,
 } from '@budget/domain';
 import type { valuationSeries } from './portfolio';
 
@@ -18,7 +19,10 @@ export function portfolioPerformanceHistory(
   window: Window,
   series: ReturnType<typeof valuationSeries>,
   classes: { assetClassId: string | null; name: string; securityIds?: string[] }[],
-  securityFlows: (ids: string[]) => PerformanceInput['flows'],
+  securityFlows: (
+    ids: string[],
+    taxBasis?: 'after-tax' | 'before-tax' | 'pp-irr',
+  ) => PerformanceInput['flows'],
   quotes?: ReportQuote[],
 ) {
   const history = performanceReportSeries(input, window, quotes);
@@ -38,12 +42,11 @@ export function portfolioPerformanceHistory(
   const flowsBySecurity = new Map(
     [...new Set(series.positions.map((p) => p.securityId))].map((id) => [id, securityFlows([id])]),
   );
-  const flowsByDay = new Map(
-    [...flowsBySecurity].map(([id, rows]) => {
-      const byDay = new Map<string, typeof rows>();
-      for (const flow of rows) byDay.set(flow.date, [...(byDay.get(flow.date) ?? []), flow]);
-      return [id, byDay] as const;
-    }),
+  const irrFlowsBySecurity = new Map(
+    [...flowsBySecurity.keys()].map((id) => [id, securityFlows([id], 'pp-irr')]),
+  );
+  const returnFlowsBySecurity = new Map(
+    [...flowsBySecurity.keys()].map((id) => [id, securityFlows([id], 'before-tax')]),
   );
   // Every position-day is split once into all classes (the class sleeves are sums of those parts).
   const valuesByClass = new Map<string | null, number[]>(
@@ -63,7 +66,6 @@ export function portfolioPerformanceHistory(
     date: string;
     previous: string;
     positions: { id: string; value: number }[];
-    flows: { id: string; cents: number }[];
   }[] = [];
   for (let i = 1; i < series.days.length; i++) {
     const date = series.days[i]!;
@@ -73,29 +75,29 @@ export function portfolioPerformanceHistory(
       previous,
       positions: series.positions
         .filter((p) => weightsOn(p.securityId, date) !== weightsOn(p.securityId, previous))
-        .map((p) => ({ id: p.securityId, value: p.valueCents[i]! })),
-      flows: [...flowsByDay].flatMap(([id, byDay]) =>
-        weightsOn(id, date) === weightsOn(id, previous)
-          ? []
-          : (byDay.get(date) ?? []).map((flow) => ({ id, cents: flow.cents })),
-      ),
+        .map((p) => ({ id: p.securityId, value: p.valueCents[i - 1]! })),
     };
-    if (work.positions.length > 0 || work.flows.length > 0) reclassified.push(work);
+    if (work.positions.length > 0) reclassified.push(work);
   }
   return {
     ...history,
     classes: classes.map((cls) => {
       const values = valuesByClass.get(cls.assetClassId) ?? [];
-      const flows = [...flowsBySecurity].flatMap(([id, rows]) =>
-        rows.map((flow) => ({
-          date: flow.date,
-          cents:
-            split(flow.cents, weightsOn(id, flow.date)).find(
-              (part) => part.assetClassId === cls.assetClassId,
-            )?.valueCents ?? 0,
-        })),
-      );
-      // A classification change transfers value between class sleeves, not investment return.
+      const splitFlows = (bySecurity: typeof flowsBySecurity): CashFlow[] =>
+        [...bySecurity].flatMap(([id, rows]) =>
+          rows.map((flow) => ({
+            date: flow.date,
+            cents:
+              split(flow.cents, weightsOn(id, flow.date)).find(
+                (part) => part.assetClassId === cls.assetClassId,
+              )?.valueCents ?? 0,
+          })),
+        );
+      const flows = splitFlows(flowsBySecurity);
+      const returnFlows = splitFlows(returnFlowsBySecurity);
+      const irrFlows = splitFlows(irrFlowsBySecurity);
+      // Inclusive dated weights apply from the opening. Move the preceding close between
+      // classes before today's trades/market return, with both directions at the opening.
       for (const work of reclassified) {
         let transfer = 0;
         for (const { id, value } of work.positions) {
@@ -104,19 +106,18 @@ export function portfolioPerformanceHistory(
               ?.valueCents ?? 0;
           transfer += share(work.date) - share(work.previous);
         }
-        // Same-day contributions/withdrawals already enter the dated security cash flows.
-        // Transfer only the value excluding them, so a buy plus reclassification is not a gain.
-        for (const { id, cents } of work.flows) {
-          const share = (day: string) =>
-            split(cents, weightsOn(id, day)).find((part) => part.assetClassId === cls.assetClassId)
-              ?.valueCents ?? 0;
-          transfer -= share(work.date) - share(work.previous);
+        if (transfer) {
+          const flow = { date: work.date, cents: transfer, atStart: true as const };
+          flows.push(flow);
+          returnFlows.push(flow);
+          irrFlows.push(flow);
         }
-        if (transfer) flows.push({ date: work.date, cents: transfer });
       }
       const classInput = {
         series: series.days.map((date, i) => ({ date, valueCents: values[i] ?? 0 })),
         flows,
+        returnFlows,
+        irrFlows,
       };
       const classHistory = performanceReportSeries(classInput, window);
       const hasReturn = classHistory.months.some((m) => m.rate !== null);
