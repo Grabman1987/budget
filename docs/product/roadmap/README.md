@@ -1,5 +1,9 @@
 # Roadmap and local implementation backlog
 
+**Owner decision update:** [Reference adoption](../reference-adoption.md) supersedes this proposal's end-flow/default-preservation recommendation. PP returns are the standard; database-backed Explorer views and preparation of limited transfers are approved. Estimates below are the historical proposal, not implemented features.
+
+Current execution: [GitHub backlog index](../github-backlog.md), synchronized by the separate owner request on 2026-10-16. Issue contracts override the historical default-preservation and pending-storage-choice wording below. An issue is an open task, not evidence of a released feature.
+
 Proposal dated 2026-10-15 against `01a10de8`; [target model](../target-model.md), [specifications](../specs/README.md), [row-level trace](../feature-matrix/features.csv). This is versionable local planning. No issue, PR, repository setting, product implementation, push or deployment is created by this document.
 
 Estimates are focused **engineer-days**, including meaningful tests/review, not elapsed delivery promises. They assume the pinned architecture and current dependencies work, exclude waiting for private/provider/policy evidence, and must be revised after the first bounded slice. Existing passing tests or deployed features are not billed as new implementation. If a response/UI already meets a proposed explanation, retain it and record evidence instead of rebuilding it.

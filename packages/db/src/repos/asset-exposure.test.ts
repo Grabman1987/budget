@@ -142,28 +142,42 @@ describe('historical exposure foundation', () => {
     ]);
   });
 
-  it('class history treats a same-day purchase and reclassification as flows, never artificial return', () => {
-    opened.sqlite.exec(
-      "DELETE FROM trade; DELETE FROM holding WHERE security_id != 'etf'; UPDATE price SET price_micro = 100000000 WHERE security_id = 'etf'; INSERT INTO trade (id, security_id, account_id, date, kind, units_e8, amount_cents) VALUES ('same-day-buy', 'etf', 'depot-a', '2026-06-01', 'buy', 100000000, 10000);",
-    );
-    const before = portfolioSummary(opened.db, {
-      today: REPORT_TODAY,
-      period: 'YTD',
-      includePerformanceHistory: true,
-    });
-    write('2026-06-01');
-    const after = portfolioSummary(opened.db, {
-      today: REPORT_TODAY,
-      period: 'YTD',
-      includePerformanceHistory: true,
-    });
-    expect(after.valueCents).toBe(410000);
-    expect(after.performance).toEqual(before.performance);
-    const classes = after.performanceHistory!.classes;
-    expect(classes.find((c) => c.assetClassId === 'world')!.performance!.ttwror).toBeCloseTo(0);
-    expect(classes.find((c) => c.assetClassId === 'spec')!.performance!.ttwror).toBeCloseTo(0);
-    expect(classes.reduce((a, c) => a + c.valueCents, 0)).toBe(410000);
-  });
+  it.each([
+    [100000000, 410000, 0],
+    [120000000, 492000, 0.2],
+  ])(
+    'class history separates a same-day purchase/reclassification from market return at price %i',
+    (quote, expectedValue, expectedReturn) => {
+      opened.sqlite.exec(
+        "DELETE FROM trade; DELETE FROM holding WHERE security_id != 'etf'; UPDATE price SET price_micro = 100000000 WHERE security_id = 'etf'; INSERT INTO trade (id, security_id, account_id, date, kind, units_e8, amount_cents) VALUES ('same-day-buy', 'etf', 'depot-a', '2026-06-01', 'buy', 100000000, 10000);",
+      );
+      opened.sqlite.exec(`
+      UPDATE price SET price_micro = ${quote} WHERE security_id = 'etf' AND date >= '2026-06-01';
+      INSERT INTO price (security_id, date, price_micro, currency, source)
+      VALUES ('etf', '2026-06-01', ${quote}, 'EUR', 'manual')
+      ON CONFLICT (security_id, date) DO UPDATE SET price_micro = excluded.price_micro;
+    `);
+      const before = portfolioSummary(opened.db, {
+        today: REPORT_TODAY,
+        period: 'YTD',
+        includePerformanceHistory: true,
+      });
+      write('2026-06-01');
+      const after = portfolioSummary(opened.db, {
+        today: REPORT_TODAY,
+        period: 'YTD',
+        includePerformanceHistory: true,
+      });
+      expect(after.valueCents).toBe(expectedValue);
+      expect(after.performance).toEqual(before.performance);
+      const classes = after.performanceHistory!.classes;
+      expect(classes.find((c) => c.assetClassId === 'world')!.performance!.ttwror).toBeCloseTo(0);
+      expect(classes.find((c) => c.assetClassId === 'spec')!.performance!.ttwror).toBeCloseTo(
+        expectedReturn,
+      );
+      expect(classes.reduce((a, c) => a + c.valueCents, 0)).toBe(expectedValue);
+    },
+  );
 
   it('exposure change and same-day replacement undo/redo restore exact rows', () => {
     const before = rows();

@@ -133,29 +133,33 @@ export function depotComparison(
       date,
       valueCents: values[i] as number,
     }));
+    const flowsOf = (taxBasis: 'after-tax' | 'before-tax' | 'pp-irr') => [
+      ...portfolioFlows(db, {
+        from: start,
+        to: today,
+        view: 'securities',
+        taxBasis,
+        accounts: accounts.filter((id) =>
+          ['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
+        ),
+      }),
+      ...portfolioFlows(db, {
+        from: start,
+        to: today,
+        view: 'depot',
+        accounts: accounts.filter(
+          (id) => !['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
+        ),
+        referenceAccounts: accounts.filter(
+          (id) => !['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
+        ),
+      }),
+    ];
     return {
       series: valuations,
-      flows: [
-        ...portfolioFlows(db, {
-          from: start,
-          to: today,
-          view: 'securities',
-          accounts: accounts.filter((id) =>
-            ['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
-          ),
-        }),
-        ...portfolioFlows(db, {
-          from: start,
-          to: today,
-          view: 'depot',
-          accounts: accounts.filter(
-            (id) => !['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
-          ),
-          referenceAccounts: accounts.filter(
-            (id) => !['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
-          ),
-        }),
-      ],
+      flows: flowsOf('after-tax'),
+      returnFlows: flowsOf('before-tax'),
+      irrFlows: flowsOf('pp-irr'),
     };
   };
 

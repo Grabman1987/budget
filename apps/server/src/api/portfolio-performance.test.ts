@@ -336,7 +336,8 @@ it('uses dated exposure versions for each historical class return period', async
   const levelsA = monthEndLevels(classA.index);
   const levelsB = monthEndLevels(classB.index);
   expect(levelsA[0]).toBeCloseTo(110);
-  expect(levelsA[1]).toBeCloseTo(110);
+  // A has no invested capital for any day in February after the opening reclassification.
+  expect(levelsA[1]).toBeNull();
   expect(levelsB[0]).toBeCloseTo(110);
   expect(levelsB[1]).toBeCloseTo(121);
   expect(classA.performance?.ttwror).toBeCloseTo(0.1);

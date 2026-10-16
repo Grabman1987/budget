@@ -13,15 +13,15 @@ describe('performance report series', () => {
   it('chains daily flow-adjusted returns, labels partial months and compounds years', () => {
     const result = performanceReportSeries(input, window);
     expect(result.months.map((m) => m.month)).toEqual(['2026-01', '2026-02', '2026-03']);
-    expect(result.months[0]?.rate).toBeCloseTo(0.2);
+    expect(result.months[0]?.rate).toBeCloseTo(0.1);
     expect(result.months[1]?.rate).toBeCloseTo(-0.1);
     expect(result.months[2]).toMatchObject({ rate: 0, partial: true });
-    expect(result.years[0]?.rate).toBeCloseTo(0.08);
-    expect(result.index.at(-1)?.portfolio).toBeCloseTo(108);
+    expect(result.years[0]?.rate).toBeCloseTo(-0.01);
+    expect(result.index.at(-1)?.portfolio).toBeCloseTo(99);
     expect(result.dailyIndex).toHaveLength(series.length);
     expect(result.dailyIndex.at(-1)?.portfolio).toBeCloseTo(result.index.at(-1)!.portfolio!);
     expect(result.dailyIndex.find((point) => point.date === '2026-01-31')?.portfolio).toBeCloseTo(
-      120,
+      110,
     );
   });
 
@@ -78,7 +78,7 @@ describe('performance report series', () => {
     expect(sold.years[0]?.rate).toBeNull();
   });
 
-  it('keeps zero and negative previous-value gaps while resuming the shared return chain', () => {
+  it('uses nonzero signed denominators like PP and leaves unfunded zero denominators as gaps', () => {
     const daily = eachDay('2026-01-01', '2026-01-05').map((date) => ({
       date,
       valueCents: {
@@ -95,7 +95,7 @@ describe('performance report series', () => {
     );
     expect(
       result.dailyIndex.map((p) => (p.portfolio === null ? null : Number(p.portfolio.toFixed(4)))),
-    ).toEqual([100, 50, -10, null, -20]);
+    ).toEqual([100, 50, -10, 10, 20]);
 
     const zero = performanceReportSeries(
       {

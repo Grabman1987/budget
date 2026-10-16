@@ -5,6 +5,7 @@ import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
 import { exposuresAsOf, splitAssetExposure, singleAssetClass } from './asset-exposure';
 import {
   addMonths,
+  addDays,
   allocationStatus,
   clusterRisk,
   documentedCostOf,
@@ -41,10 +42,11 @@ import {
   type WindowPerformance,
   windowPerformance,
 } from '@budget/domain';
-import { and, asc, eq, isNull, lte } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNull, lte, ne } from 'drizzle-orm';
 import {
   account,
   assetClass,
+  booking,
   fxRate,
   holding,
   institution,
@@ -674,22 +676,31 @@ export function riskOf(db: Executor, asOf: string) {
 }
 
 export function firstDay(db: Executor, today: string): string | null {
-  const dates = [
-    db
-      .select({ d: holding.asOf })
-      .from(holding)
-      .where(isNull(holding.deletedAt))
-      .orderBy(asc(holding.asOf))
-      .limit(1)
-      .get()?.d,
-    db
-      .select({ d: trade.date })
-      .from(trade)
-      .where(isNull(trade.deletedAt))
-      .orderBy(asc(trade.date))
-      .limit(1)
-      .get()?.d,
-  ].filter((d): d is string => d !== undefined && d <= today);
+  const firstHolding = db
+    .select({ d: holding.asOf })
+    .from(holding)
+    .where(isNull(holding.deletedAt))
+    .orderBy(asc(holding.asOf))
+    .limit(1)
+    .get()?.d;
+  // Holdings are closing snapshots; a first trade needs the preceding close so that the
+  // initial funding day's return (including fees) is not silently excluded.
+  const firstTrade = db
+    .select({ d: trade.date })
+    .from(trade)
+    .where(
+      and(
+        isNull(trade.deletedAt),
+        inArray(trade.kind, ['buy', 'delivery_in']),
+        gt(trade.unitsE8, 0),
+      ),
+    )
+    .orderBy(asc(trade.date))
+    .limit(1)
+    .get()?.d;
+  const dates = [firstHolding, firstTrade && addDays(firstTrade, -1)].filter(
+    (d): d is string => d !== undefined && d <= today,
+  );
   return dates.sort()[0] ?? null;
 }
 
@@ -713,9 +724,55 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
   const range = periodWindow(
     options.period ?? '1J',
     options.today,
-    firstDay(db, options.today) ?? options.today,
+    performanceStart(db, options, options.today) ?? options.today,
   );
   return withValuationRange(range.from, range.to, () => portfolioSummaryInRange(db, options));
+}
+
+/** Cash is part of depot performance even before the first security holding exists. */
+function performanceStart(db: Executor, options: PortfolioOptions, today: string): string | null {
+  const securityStart = firstDay(db, today);
+  if ((options.view ?? 'securities') === 'securities') return securityStart;
+  const cashAccounts = db
+    .select({
+      id: account.id,
+      date: account.openingDate,
+      openingBalance: account.openingBalanceCents,
+    })
+    .from(account)
+    .where(
+      and(
+        isNull(account.deletedAt),
+        lte(account.openingDate, today),
+        options.referenceAccounts === undefined
+          ? eq(account.role, 'investment')
+          : inArray(account.id, [...options.referenceAccounts]),
+      ),
+    )
+    .orderBy(asc(account.openingDate))
+    .all();
+  const hasCashHistory =
+    cashAccounts.some((a) => a.openingBalance !== 0) ||
+    !!db
+      .select({ id: booking.id })
+      .from(booking)
+      .where(
+        and(
+          inArray(
+            booking.accountId,
+            cashAccounts.map((a) => a.id),
+          ),
+          isNull(booking.deletedAt),
+          lte(booking.date, today),
+          ne(booking.amountCents, 0),
+        ),
+      )
+      .limit(1)
+      .get();
+  const cashStart = hasCashHistory ? cashAccounts[0]?.date : undefined;
+  return (
+    [securityStart, cashStart].filter((date): date is string => date != null).sort()[0] ?? null
+  );
 }
 
 function portfolioSummaryInRange(db: Executor, options: PortfolioOptions): PortfolioSummary {
@@ -758,7 +815,7 @@ function portfolioSummaryInRange(db: Executor, options: PortfolioOptions): Portf
     .map((a) => a.id);
 
   // ---- performance of the period ----
-  const start = firstDay(db, today);
+  const start = performanceStart(db, options, today);
   let performance: WindowPerformance | null = null;
   let performanceHistory: PortfolioPerformanceHistory | null = null;
   let benchmark: PortfolioSummary['benchmark'] = null;
@@ -786,6 +843,27 @@ function portfolioSummaryInRange(db: Executor, options: PortfolioOptions): Portf
       referenceAccounts: options.referenceAccounts ?? investmentAccounts,
       accounts: investmentAccounts,
     });
+    const returnFlows =
+      view === 'securities'
+        ? portfolioFlows(db, {
+            from: start,
+            to: today,
+            view,
+            accounts: investmentAccounts,
+            taxBasis: 'before-tax',
+          })
+        : flows;
+    const irrFlows =
+      view === 'securities'
+        ? portfolioFlows(db, {
+            from: start,
+            to: today,
+            view,
+            accounts: investmentAccounts,
+            taxBasis: 'pp-irr',
+          })
+        : flows;
+    const performanceInput = { series: valuations, flows, returnFlows, irrFlows };
 
     const benchmarkId = options.benchmarkSecurityId ?? lines[0]?.securityId;
     let levels: BenchmarkLevel[] | undefined;
@@ -802,12 +880,12 @@ function portfolioSummaryInRange(db: Executor, options: PortfolioOptions): Portf
       else levels = undefined;
     }
     performance = periodPerformance(
-      { series: valuations, flows, ...(levels ? { benchmark: levels } : {}) },
+      { ...performanceInput, ...(levels ? { benchmark: levels } : {}) },
       period,
       today,
     );
 
-    benchmarks = portfolioBenchmarks(db, { series: valuations, flows }, performance);
+    benchmarks = portfolioBenchmarks(db, performanceInput, performance);
     if (options.includePerformanceHistory) {
       const selected = portfolioBenchmark(db);
       const rows =
@@ -842,17 +920,18 @@ function portfolioSummaryInRange(db: Executor, options: PortfolioOptions): Portf
       groups.push({ assetClassId: null, name: 'Ohne Anlageklasse' });
       performanceHistory = portfolioPerformanceHistory(
         db,
-        { series: valuations, flows },
+        performanceInput,
         performance,
         series,
         groups,
-        (securities) =>
+        (securities, taxBasis = 'after-tax') =>
           portfolioFlows(db, {
             from: start,
             to: today,
             view: 'securities',
             accounts: investmentAccounts,
             securities,
+            taxBasis,
           }),
         selected.securityId ? quotes : undefined,
       );
@@ -901,7 +980,7 @@ function portfolioSummaryInRange(db: Executor, options: PortfolioOptions): Portf
             assertSafeCents([v.valueCents, investedCents]);
             return { ...v, investedCents };
           });
-        const windowInput = { series: valuations, flows };
+        const windowInput = performanceInput;
         const bounds = monthBoundaries(selectedPerformance.from, selectedPerformance.to);
         let cumulativeFlow = 0;
         const months = bounds.slice(1).map((to, index) => {

@@ -21,7 +21,7 @@ export interface IndexPoint {
 
 /** Depot level: chain of the daily returns, read at the window start and at every month boundary. */
 export function depotIndexLine(
-  input: Pick<PerformanceInput, 'series' | 'flows'>,
+  input: Pick<PerformanceInput, 'series' | 'flows' | 'returnFlows'>,
   window: Window,
 ): IndexPoint[] {
   const first = input.series[0];
@@ -31,7 +31,7 @@ export function depotIndexLine(
   const to = window.to > last.date ? last.date : window.to;
   if (to < from) return [];
   const slice = input.series.filter((v) => v.date >= from && v.date <= to);
-  const flows = input.flows.filter((f) => f.date > from && f.date <= to);
+  const flows = (input.returnFlows ?? input.flows).filter((f) => f.date > from && f.date <= to);
   const daily = dailyReturns(slice, flows);
   const bounds = monthBoundaries(from, to);
   const out: IndexPoint[] = [{ date: from, level: 100 }];

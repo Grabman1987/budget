@@ -39,7 +39,7 @@ describe('period windows', () => {
   });
 });
 
-/** Hand-computed Portfolio Performance style case, securities-only view (see series.ts). */
+/** Timing-only case with explicitly after-tax input flows; PP tax selection is tested separately. */
 function ppCase() {
   const values = [0, 100_000, 110_000, 110_000, 120_000, 60_000, 63_000];
   const series: Valuation[] = values.map((valueCents, i) => ({
@@ -58,9 +58,10 @@ describe('window performance', () => {
   it('buy, dividend, sale with fee and tax: TTWROR, gain and contributions', () => {
     const { series, flows } = ppCase();
     const w = windowPerformance({ series, flows }, { from: '2026-01-01', to: '2026-01-07' });
-    // 02.01. starts from 0 and is skipped; then 110/100, (110 + 1,5)/110, 120/110, (60 + 58,5)/120, 63/60.
+    // The first day's fee now counts: 1000 / 1005. Remaining withdrawals occur at day end.
     const expected =
-      (110_000 / 100_000) *
+      (100_000 / 100_500) *
+        (110_000 / 100_000) *
         (111_500 / 110_000) *
         (120_000 / 110_000) *
         (118_500 / 120_000) *
@@ -80,7 +81,7 @@ describe('window performance', () => {
     const { series, flows } = ppCase();
     const w = windowPerformance({ series, flows }, { from: '2026-01-01', to: '2026-01-07' });
     expect(w.ttwror).toBeCloseTo(ttwror(series, flows), 12);
-    expect(dailyReturns(series, flows)).toHaveLength(5);
+    expect(dailyReturns(series, flows)).toHaveLength(6);
   });
 
   it('flows on the start day belong to the start value', () => {

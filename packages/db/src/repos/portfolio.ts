@@ -828,11 +828,13 @@ export function portfolioFlows(
     view?: 'securities' | 'depot';
     referenceAccounts?: ReadonlyArray<string>;
     externalAccounts?: ReadonlyArray<string>;
+    /** Securities-only PP returns exclude taxes; cash contribution facts include them. */
+    taxBasis?: 'after-tax' | 'before-tax' | 'pp-irr';
   },
 ): CashFlow[] {
   const rates = rateTable(db, filter.to);
   if ((filter.view ?? 'securities') === 'securities')
-    return securityFlows(tradesOf(db, filter, filter.from), rates);
+    return securityFlows(tradesOf(db, filter, filter.from), rates, filter.taxBasis);
 
   const reference = new Set(filter.referenceAccounts ?? []);
   const inside = new Set([...(filter.accounts ?? []), ...reference]);
@@ -895,8 +897,8 @@ export function portfolioFlows(
   if (filter.externalAccounts === undefined)
     boundary.push(...externalDeposits(db, reference, filter.from, filter.to));
   // Deliveries in and out move value across the boundary without cash, as in Portfolio
-  // Performance: capital in or out at their stored amount (transfers between portfolios of the
-  // same depot net out, as both legs are deliveries of accounts inside).
+  // Performance: capital in or out at their stored amount. Unlinked deliveries remain external;
+  // equal opposing amounts alone are not proof of an internal security transfer.
   for (const t of tradesOf(db, filter, filter.from))
     if (
       filter.externalAccounts === undefined &&

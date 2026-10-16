@@ -1,6 +1,91 @@
 import { describe, expect, it } from 'vitest';
 import { averageCost, fifoCost, marketValueEurCents, toEurCents, type CostTrade } from './invest';
 import { irr, modifiedDietz, ttwror } from './returns';
+import { dailyReturns, windowPerformance } from './performance';
+import { depotFlows, securityFlows, type SeriesTrade } from './series';
+
+describe('PP cash-flow timing', () => {
+  const first = { date: '2026-01-01', valueCents: 10_000 };
+  const day = '2026-01-02';
+
+  it('invests deposits at the start of the day', () => {
+    const series = [first, { date: day, valueCents: 22_000 }];
+    const flows = [{ date: day, cents: 10_000 }];
+    expect(ttwror(series, flows)).toBeCloseTo(0.1, 12);
+    expect(dailyReturns(series, flows)[0]?.rate).toBeCloseTo(0.1, 12);
+  });
+
+  it('retains both sides of a same-day deposit and withdrawal through the report', () => {
+    // 100 opening + 100 deposited; 10 earned; 100 withdrawn = 110 closing. Return: 5%.
+    const series = [first, { date: day, valueCents: 11_000 }];
+    const flows = depotFlows(
+      [
+        { date: day, cents: 10_000 },
+        { date: day, cents: -10_000 },
+      ],
+      new Map(),
+    );
+    expect(flows).toHaveLength(2);
+    expect(ttwror(series, flows)).toBeCloseTo(0.05, 12);
+    const result = windowPerformance({ series, flows }, { from: first.date, to: day });
+    expect(result.ttwror).toBeCloseTo(0.05, 12);
+    expect(result.contributionsCents).toBe(0);
+    expect(result.gainCents).toBe(1_000);
+  });
+
+  it('includes the funded first day and its costs after an empty balance', () => {
+    const series = [
+      { ...first, valueCents: 0 },
+      { date: day, valueCents: 9_900 },
+    ];
+    const flows = [{ date: day, cents: 10_000 }];
+    expect(ttwror(series, flows)).toBeCloseTo(-0.01, 12);
+    expect(dailyReturns(series, flows)[0]?.rate).toBeCloseTo(-0.01, 12);
+  });
+
+  it('neutralises an end-of-day withdrawal, including a complete liquidation', () => {
+    expect(
+      ttwror([first, { date: day, valueCents: 0 }], [{ date: day, cents: -10_500 }]),
+    ).toBeCloseTo(0.05, 12);
+    expect(
+      dailyReturns(
+        [
+          { ...first, valueCents: 0 },
+          { date: day, valueCents: 0 },
+        ],
+        [],
+      ),
+    ).toEqual([]);
+  });
+
+  it('moves a dated class reassignment at the opening without diluting the retained holding', () => {
+    // Half the class moves out before today's 10% market gain on the remaining 50 EUR.
+    const flows = [{ date: day, cents: -5_000, atStart: true as const }];
+    const series = [first, { date: day, valueCents: 5_500 }];
+    expect(ttwror(series, flows)).toBeCloseTo(0.1, 12);
+    expect(dailyReturns(series, flows)[0]?.rate).toBeCloseTo(0.1, 12);
+  });
+
+  it('uses PP security returns before tax while preserving actual contributions and gain', () => {
+    const end = '2027-01-01';
+    const trade: SeriesTrade = {
+      date: end,
+      kind: 'dividend',
+      unitsE8: 0,
+      amountCents: 1_000,
+      feeCents: 0,
+      taxCents: 250,
+    };
+    const flows = securityFlows([trade], new Map());
+    const returnFlows = securityFlows([trade], new Map(), 'before-tax');
+    const series = [first, { date: end, valueCents: 10_000 }];
+    const result = windowPerformance({ series, flows, returnFlows }, { from: first.date, to: end });
+    expect(result.ttwror).toBeCloseTo(0.1, 12);
+    expect(result.contributionsCents).toBe(-750);
+    expect(result.gainCents).toBe(750);
+    expect(result.xirr).toBeCloseTo(0.1, 9);
+  });
+});
 
 describe('returns with cash flows', () => {
   const start = { date: '2025-01-01', valueCents: 100_000 };
@@ -12,13 +97,31 @@ describe('returns with cash flows', () => {
     expect(irr(start, end, [])).toBeCloseTo(0.1, 9);
   });
 
+  it('does not invent XIRR when every dated investor cash flow cancels to zero', () => {
+    const series = [
+      { date: '2025-01-01', valueCents: 0 },
+      { date: '2026-01-01', valueCents: 0 },
+    ];
+    const flows = [
+      { date: '2026-01-01', cents: 10_000 },
+      { date: '2026-01-01', cents: -10_000 },
+    ];
+    const result = windowPerformance(
+      { series, flows },
+      { from: series[0]!.date, to: series[1]!.date },
+    );
+    expect(result.ttwror).toBe(0);
+    expect(result.xirr).toBeNull();
+    expect(() => irr(series[0]!, series[1]!, [])).toThrow(RangeError);
+  });
+
   it('a deposit in the middle of the year: each method answers its own question', () => {
-    // 1.000 invested, 1.050 on 02.07., then 1.000 more, 2.200 at the end of the year.
+    // 1.000 opening, 1.000 deposited on 02.07., 2.050 closing that day, 2.200 at year end.
     const mid = { date: '2025-07-02', valueCents: 205_000 };
     const end = { date: '2026-01-01', valueCents: 220_000 };
     const flows = [{ date: '2025-07-02', cents: 100_000 }];
-    // Time-weighted: 1,05 × (2.200 / 2.050) − 1, independent of the deposit's timing.
-    expect(ttwror([start, mid, end], flows)).toBeCloseTo(1.05 * (220_000 / 205_000) - 1, 12);
+    // PP: the deposit funds the opening capital on 02.07.; chained return is 10%.
+    expect(ttwror([start, mid, end], flows)).toBeCloseTo(0.1, 12);
     // Modified Dietz: 200 gain over 1.000 + 1.000 × 183/365.
     expect(modifiedDietz(start, end, flows)).toBeCloseTo(
       20_000 / (100_000 + (100_000 * 183) / 365),

@@ -35,14 +35,16 @@ describe('daily series of the seeded sample ledger', () => {
     );
   });
 
-  it('portfolio figures agree with the prototype (Vermögen PERF) within the daily-price rounding', () => {
+  it('portfolio figures apply PP timing and pre-tax return flows to the unchanged sample ledger', () => {
     const s = valuationSeries(db, { from: FROM, to: TODAY });
     const series: Valuation[] = s.days.map((date, i) => ({ date, valueCents: s.totalCents[i]! }));
     const flows = portfolioFlows(db, { from: FROM, to: TODAY });
+    const returnFlows = portfolioFlows(db, { from: FROM, to: TODAY, taxBasis: 'before-tax' });
+    const irrFlows = portfolioFlows(db, { from: FROM, to: TODAY, taxBasis: 'pp-irr' });
     const figures = (period: '3M' | 'YTD' | '1J' | '3J') =>
-      windowPerformance({ series, flows }, periodWindow(period, TODAY));
-    // The prototype's monthly returns are hit exactly at every month end: the whole period matches.
-    expect(figures('3J').ttwror).toBeCloseTo(0.382, 3);
+      windowPerformance({ series, flows, returnFlows, irrFlows }, periodWindow(period, TODAY));
+    // Independent PP examples establish the method; this pins the unchanged synthetic ledger.
+    expect(figures('3J').ttwror).toBeCloseTo(0.3806630473072903, 9);
     expect(figures('YTD').ttwror).toBeCloseTo(0.06, 2);
     expect(figures('3M').ttwror).toBeCloseTo(0.024, 2);
     const all = figures('3J');

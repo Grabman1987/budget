@@ -1,5 +1,7 @@
 # SPEC-007 — Investment calculation identity and explainability
 
+**Superseded policy:** the [owner adoption decision](../reference-adoption.md) replaces this research proposal's end-flow/after-tax-security default. PP TTWROR/XIRR is the standard. Retain the remaining identity and quality requirements; the original proposal below remains historical analysis.
+
 CAP-016/017/018. WP-002, WP-004 and WP-005. First increment adds read-only transparency and evidence to implemented accounting.
 
 ## 1. Goal and user problem

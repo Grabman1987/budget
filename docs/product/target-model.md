@@ -1,5 +1,7 @@
 # Combined budget and wealth model
 
+**Adoption update:** [Owner decisions](reference-adoption.md) supersede the end-flow/default-preservation recommendation below and approve cross-device Explorer views plus limited transfer preparation. This document remains the research baseline.
+
 Proposal grounded in baseline `01a10de8`, research date 2026-10-15. Existing [SPEC](../../SPEC.md) and its dated owner directives prevail. This document recommends bounded increments; it does not change product scope or authorize implementation. [Source research](../research/rea/README.md), [matrix](feature-matrix/README.md), [specifications](specs/README.md), [roadmap](roadmap/README.md).
 
 ## One ledger, several explicit boundaries

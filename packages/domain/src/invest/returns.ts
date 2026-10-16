@@ -8,6 +8,8 @@ import { daysBetween } from '../date';
 export interface CashFlow {
   date: string;
   cents: number;
+  /** Dated internal class reassignment at the opening; external withdrawals retain PP day-end timing. */
+  atStart?: true;
 }
 
 export interface Valuation {
@@ -15,11 +17,21 @@ export interface Valuation {
   valueCents: number;
 }
 
+/** PP convention: inflows at the start, withdrawals at the end; null without invested capital. */
+export function periodReturn(
+  previousCents: number,
+  currentCents: number,
+  inflowsCents: number,
+  outflowsCents: number,
+): number | null {
+  const capital = previousCents + inflowsCents;
+  return capital === 0 ? null : (currentCents + outflowsCents) / capital - 1;
+}
+
 /**
- * True time-weighted rate of return: sub-periods between consecutive valuations, a flow in a
- * sub-period counts at its end (the valuation already contains it), so
- * `r = (value − flows) / previous value − 1`, chained. Exact when there is a valuation on every
- * cash-flow day. Periods starting at 0 (before the first buy) do not count.
+ * PP TTWROR: chain `(end + withdrawals) / (start + deposits)` across valuation periods.
+ * Requires a closing valuation on every cash-flow day for exact daily returns. Keep deposits
+ * and withdrawals separate, even on the same day. An unfunded period does not count.
  */
 export function ttwror(
   valuations: ReadonlyArray<Valuation>,
@@ -30,11 +42,15 @@ export function ttwror(
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1] as Valuation;
     const cur = sorted[i] as Valuation;
-    const flow = flows
-      .filter((f) => f.date > prev.date && f.date <= cur.date)
-      .reduce((a, f) => a + f.cents, 0);
-    if (prev.valueCents <= 0) continue;
-    growth *= (cur.valueCents - flow) / prev.valueCents;
+    let inflows = 0;
+    let outflows = 0;
+    for (const flow of flows) {
+      if (flow.date <= prev.date || flow.date > cur.date) continue;
+      if (flow.cents > 0 || flow.atStart) inflows += flow.cents;
+      else outflows -= flow.cents;
+    }
+    const rate = periodReturn(prev.valueCents, cur.valueCents, inflows, outflows);
+    if (rate !== null) growth *= 1 + rate;
   }
   return growth - 1;
 }
@@ -74,6 +90,10 @@ export function irr(start: Valuation, end: Valuation, flows: ReadonlyArray<CashF
       .map((f) => ({ t: daysBetween(start.date, f.date) / 365, cents: -f.cents })),
     { t: daysBetween(start.date, end.date) / 365, cents: end.valueCents },
   ];
+  const netByDate = new Map<number, number>();
+  for (const item of items) netByDate.set(item.t, (netByDate.get(item.t) ?? 0) + item.cents);
+  if ([...netByDate.values()].every((cents) => cents === 0))
+    throw new RangeError('No unique rate for zero net cash flows on every date');
   const npv = (r: number) => items.reduce((a, x) => a + x.cents / Math.pow(1 + r, x.t), 0);
   const slope = (r: number) =>
     items.reduce((a, x) => a - (x.t * x.cents) / Math.pow(1 + r, x.t + 1), 0);

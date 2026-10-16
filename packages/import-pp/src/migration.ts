@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { statementConfigSchema, type StatementConfig } from './statement';
 import {
   dailyValuation,
+  depotFlows,
   eachDay,
   marketValueEurCents,
   type CashFlow,
@@ -842,13 +843,6 @@ export function ppDepotSeries(
       if (tx.type.startsWith('TRANSFER') && peer !== null && ownPf.has(peer)) continue;
       flows.push({ date: tx.date, cents: sign * tx.amountCents });
     }
-  flows.sort(byDate);
-  const merged: CashFlow[] = [];
-  for (const f of flows) {
-    const last = merged[merged.length - 1];
-    if (last && last.date === f.date) last.cents += f.cents;
-    else merged.push({ ...f });
-  }
 
   const opening = ppCash(model, target.ppAccountUuids, from, false);
   let run = opening;
@@ -863,7 +857,7 @@ export function ppDepotSeries(
   return {
     days,
     valuations,
-    flows: merged.filter((f) => f.cents !== 0),
+    flows: depotFlows(flows, noRates),
     cashCents,
     holdingsCents: holdings,
   };

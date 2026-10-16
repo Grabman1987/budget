@@ -364,7 +364,10 @@ describe('owner-trades', () => {
         from: '2026-03-01',
         to: '2026-03-20',
       }),
-    ).toEqual([]);
+    ).toEqual([
+      { date: '2026-03-02', cents: 500 },
+      { date: '2026-03-02', cents: -500 },
+    ]);
     const before = counts();
     expect(run([reward]).outcomes[0]!.status).toBe('unchanged');
     expect(counts()).toEqual(before);
@@ -398,7 +401,7 @@ describe('owner-trades', () => {
     expect(balances()).toEqual({ cash: 100000, depot: 0 });
   });
 
-  it('reward value increases the performance gain without external contributions', () => {
+  it('reward value increases gain with zero net reward contribution and PP gross-flow timing', () => {
     run([
       add({
         id: 'opening',
@@ -427,12 +430,17 @@ describe('owner-trades', () => {
     expect(summary.positions[0]!.unitsE8).toBe(105000000);
     expect(summary.income.grossCents).toBe(500);
     expect(summary.performance).toMatchObject({
-      startValueCents: 10000,
+      startValueCents: 0,
       endValueCents: 10500,
-      contributionsCents: 0,
+      contributionsCents: 10000,
       gainCents: 500,
     });
-    expect(summary.performance!.ttwror).toBeCloseTo(0.05);
+    // PP security scope: the reinvested buy funds the opening; its distribution leaves at close.
+    // 100 EUR prior + 5 EUR buy; 105 EUR holding + 5 EUR distribution -> 4.76190476%.
+    expect(summary.performance!.ttwror).toBeCloseTo(0.0476190476190476, 12);
+    const depot = portfolioSummary(db, { today: '2026-03-20', view: 'depot' });
+    // In the 1000 EUR portfolio including cash, reinvestment stays internal: 5 EUR gain = 0.5%.
+    expect(depot.performance!.ttwror).toBeCloseTo(0.005, 12);
     expect(summary.performanceHistory).not.toBeNull();
     expect(balances()).toEqual({ cash: 90000, depot: 0 });
   });

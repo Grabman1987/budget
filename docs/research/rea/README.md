@@ -1,5 +1,9 @@
 # Reference product research
 
+Subsequent [owner adoption decisions](../../product/reference-adoption.md) supersede this research's recommendation to retain Budget's end-flow default. The research below records the inspected baseline, not the later implementation state.
+
+GitHub synchronization was authorized separately on 2026-10-16. Current implementation tasks and open gates are tracked in [the GitHub backlog index](../../product/github-backlog.md) and [overview #508](https://github.com/Grabman1987/budget/issues/508); the original research authorization below remains historical.
+
 Research date: 2026-10-15 (Europe/Vienna). Repository baseline: `01a10de8b251f3b3bb05d8a5df6ae534e7d0d631` (`origin/main`). Branch: `docs/reference-product-research-2026-10-15`. Documentation only; no product implementation, issues, pull requests, settings changes or production writes are authorized by this research task.
 
 ## Working plan and gates
