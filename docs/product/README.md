@@ -74,3 +74,7 @@ For a product change, update the binding decision once, then update its affected
 process, acceptance criteria, design links and task. Date any historical evidence.
 Do not silently rewrite the original concept or mark old gates accepted. The new
 IDs in this folder are traceability labels, not automatic implementation tasks.
+
+## Page review 2026-10-16
+
+Owner-approved decisions for every page (Heute through Einstellungen; onboarding deferred to PUB1): [page review](page-review-2026-10-16.md). They take precedence over older Figma frames and the proposals above where they differ.
