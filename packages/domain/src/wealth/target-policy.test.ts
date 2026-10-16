@@ -1,5 +1,12 @@
 import { expect, it } from 'vitest';
-import { resolveTargetTier, validateTargetPolicy, type TargetPolicy } from './target-policy';
+import {
+  resolveTargetTier,
+  validateTargetPolicy,
+  targetTierStarts,
+  targetTiersFromStarts,
+  type TargetPolicy,
+} from './target-policy';
+import { wealthStageTemplate } from './wealth-stage-template';
 import { allocationStatus } from './allocation';
 const policy: TargetPolicy = {
   targets: [{ assetClassId: 'a', targetShareBp: 10000 }],
@@ -15,6 +22,74 @@ const policy: TargetPolicy = {
     },
   ],
 };
+it('lower bounds activate at the exact cent and round-trip legacy upper boundaries unchanged', () => {
+  const tiers = targetTiersFromStarts([
+    { fromCents: 0, targets: policy.targets },
+    { fromCents: 50_000_000, targets: policy.tiers[1]!.targets },
+  ]);
+  expect(tiers.map((t) => t.upToCents)).toEqual([49_999_999, null]);
+  expect(resolveTargetTier({ ...policy, tiers }, 49_999_999).tierIndex).toBe(0);
+  expect(resolveTargetTier({ ...policy, tiers }, 50_000_000).tierIndex).toBe(1);
+  expect(targetTierStarts(policy.tiers)).toEqual([0, 1_000_001, 2_000_001]);
+  expect(
+    targetTiersFromStarts(
+      policy.tiers.map((t, i) => ({ ...t, fromCents: targetTierStarts(policy.tiers)[i]! })),
+    ),
+  ).toEqual(policy.tiers);
+  const smallest = targetTiersFromStarts([
+    { fromCents: 0, targets: policy.targets },
+    { fromCents: 1, targets: policy.targets },
+  ]);
+  validateTargetPolicy({ targets: policy.targets, tiers: smallest }, new Set(['a']));
+  expect(resolveTargetTier({ targets: policy.targets, tiers: smallest }, 1).tierIndex).toBe(1);
+  expect(() => targetTiersFromStarts([{ fromCents: 1, targets: policy.targets }])).toThrow('erste');
+});
+it('the editable seven-stage scenario preserves literal weights and activates every stage by threshold', () => {
+  const tiers = wealthStageTemplate({ world: 'w', leveraged: 'l', managed: 'm', reserve: 'r' });
+  const template = { targets: tiers[0]!.targets, tiers };
+  validateTargetPolicy(template, new Set(['w', 'l', 'm', 'r']));
+  expect(targetTierStarts(tiers)).toEqual([
+    0, 1_000_000, 5_000_000, 10_000_000, 50_000_000, 100_000_000, 200_000_000,
+  ]);
+  expect(tiers.map((t) => t.targets.map((t) => t.targetShareBp))).toEqual([
+    [8500, 1500, 0, 0],
+    [7500, 500, 2000, 0],
+    [7500, 500, 2000, 0],
+    [7500, 500, 2000, 0],
+    [6500, 500, 2000, 1000],
+    [6000, 500, 2000, 1500],
+    [6000, 500, 2000, 1500],
+  ]);
+  expect(tiers.every((t) => !('enabled' in t))).toBe(true);
+  expect(resolveTargetTier(template, 49_999_999).tierIndex).toBe(3);
+  expect(resolveTargetTier(template, 50_000_000).tierIndex).toBe(4);
+  expect(resolveTargetTier(template, null).targets).toEqual([]);
+  expect(() =>
+    wealthStageTemplate({ world: 'w', leveraged: 'w', managed: 'm', reserve: 'r' }),
+  ).toThrow('unterschiedliche');
+});
+it('a reached stage stays active until the sum falls below 90 % of its lower bound', () => {
+  const tiers = wealthStageTemplate({ world: 'w', leveraged: 'l', managed: 'm', reserve: 'r' });
+  const template = { targets: tiers[0]!.targets, tiers };
+  // Upward switch exactly at EUR 500,000.00; one cent below stays in the EUR 100,000 stage.
+  expect(resolveTargetTier(template, 49_999_999, 3).tierIndex).toBe(3);
+  expect(resolveTargetTier(template, 50_000_000, 3).tierIndex).toBe(4);
+  // Downward only below EUR 450,000.00.
+  expect(resolveTargetTier(template, 49_999_999, 4).tierIndex).toBe(4);
+  expect(resolveTargetTier(template, 45_000_000, 4).tierIndex).toBe(4);
+  expect(resolveTargetTier(template, 44_999_999, 4).tierIndex).toBe(3);
+  // Without a previous stage the threshold alone decides.
+  expect(resolveTargetTier(template, 45_000_000).tierIndex).toBe(3);
+  // A month-end sequence: up, buffered dip, recovery, real drop, partial recovery.
+  let previous: number | null = null;
+  const path = [40_000_000, 50_000_000, 46_000_000, 52_000_000, 44_000_000, 47_000_000].map(
+    (cents) => (previous = resolveTargetTier(template, cents, previous).tierIndex),
+  );
+  expect(path).toEqual([3, 4, 4, 4, 3, 3]);
+  // The buffer never lifts a sum into a stage it has not reached and ignores invalid indices.
+  expect(resolveTargetTier(template, 46_000_000, 3).tierIndex).toBe(3);
+  expect(resolveTargetTier(template, 46_000_000, 99).tierIndex).toBe(3);
+});
 it('inclusive cent boundaries, negative investment sums and unavailable valuations resolve deterministically', () => {
   validateTargetPolicy(policy, new Set(['a', 'b']));
   expect(resolveTargetTier(policy, -100).tierIndex).toBe(0);

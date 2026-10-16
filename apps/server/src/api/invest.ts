@@ -271,13 +271,27 @@ const targetsBody = z.object({
   tiers: z
     .array(
       z.object({
-        upToCents: z.int().min(1).max(Number.MAX_SAFE_INTEGER).nullable(),
+        upToCents: z.int().min(0).max(Number.MAX_SAFE_INTEGER).nullable(),
         targets: targetRows,
+        label: z.string().trim().max(80).optional(),
+        condition: z.string().trim().max(240).optional(),
       }),
     )
     .max(10)
     .optional(),
   archiveClassId: id.optional(),
+  allocationAccounts: z
+    .array(
+      z.object({
+        id,
+        included: z.boolean(),
+        cashClassId: id.nullable(),
+        expectedScope: z.enum(['default', 'included', 'excluded']),
+        expectedCashClassId: id.nullable(),
+      }),
+    )
+    .max(500)
+    .optional(),
 });
 
 export function assetClassRoutes(db: Db, today: () => string): Hono {
@@ -288,7 +302,10 @@ export function assetClassRoutes(db: Db, today: () => string): Hono {
     const { deleted } = readQuery(c, deletedQuery);
     const policy = resolvePortfolioRiskPolicy(db, today());
     const current = new Map(
-      targetsAsOf(db, today(), true, policy.investmentCents).map((t) => [t.assetClassId, t]),
+      targetsAsOf(db, today(), true, policy.investmentCents, policy.tierIndex).map((t) => [
+        t.assetClassId,
+        t,
+      ]),
     );
     const inUse = assetClassesInUse(db);
     return c.json({

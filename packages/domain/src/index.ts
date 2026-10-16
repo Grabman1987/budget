@@ -38,6 +38,7 @@ export * from './income-targets';
 
 export * from './wealth/asset-exposure';
 export * from './wealth/target-policy';
+export * from './wealth/wealth-stage-template';
 
 export * from './ledger/account-preview';
 export * from './spending/coicop';
