@@ -8,6 +8,8 @@ import { TRADE_LABELS } from '../wealth/trade-draft';
 import { sourceMoney } from '../wealth/trade-api';
 import { accountsQuery } from './queries';
 import { AccountRegister } from './account-register';
+import { AccountReview } from './account-review';
+import { AccountFreshness } from './account-freshness';
 import { depotHoldings } from './depot-model';
 import { depotTradesQuery } from './depot-queries';
 import { longDay, nativeCurrency } from './format';
@@ -60,7 +62,19 @@ export function DepotBody({ account }: { account: AccountRow }) {
             </p>
           )}
         </div>
+        <AccountFreshness
+          lastReconciledOn={account.lastReconciledOn}
+          bankBalance={account.closedAt ? undefined : account.bankBalance}
+        />
+        <div className="kacct-actions">
+          <AccountReview account={account} />
+        </div>
       </div>
+      {account.balanceCents !== 0 && (
+        <p className="depot-settlement" data-testid="depot-cash">
+          Bargeld im Depotkonto: {nativeCurrency(account.balanceCents, account.currency)}
+        </p>
+      )}
       {settlement && (
         <p className="depot-settlement" data-testid="depot-settlement">
           Verrechnungskonto:{' '}
@@ -151,12 +165,12 @@ export function DepotBody({ account }: { account: AccountRow }) {
           }
         />
       )}
-      {tab === 'verrechnung' &&
-        (settlement ? (
-          <AccountRegister account={settlement} showTodayBalance={false} />
-        ) : (
-          <EmptyNote>Kein separates Verrechnungskonto verknüpft.</EmptyNote>
-        ))}
+      {tab === 'verrechnung' && (
+        <>
+          {!settlement && <p className="kmeta">Kein separates Verrechnungskonto verknüpft.</p>}
+          <AccountRegister account={settlement ?? account} showTodayBalance={false} />
+        </>
+      )}
     </div>
   );
 }

@@ -80,6 +80,8 @@ for (const theme of ['light', 'dark'] as const) {
     await page.goto(`/konten/${depot.id}`);
     await expect(page.getByTestId('depot-value')).toHaveText(/24,68/);
     await expect(page.getByTestId('depot-settlement')).toContainText('118,45');
+    // Own cash includes the EUR 24.68 buy, EUR 0.99 fee and EUR 1.23 ordinary booking.
+    await expect(page.getByTestId('depot-cash')).toHaveText('Bargeld im Depotkonto: −26,90 €');
     await expect(page.getByRole('link', { name: 'Bestände', exact: true })).toHaveAttribute(
       'aria-current',
       'page',
@@ -226,7 +228,10 @@ test('crypto without settlement marks missing quotes per row and incomplete depo
   await expect(page.locator('.depot-table tbody tr')).toContainText('Kurs fehlt');
   await expect(page.locator('.depot-table tbody tr')).not.toContainText('0,00');
   await expect(page.getByTestId('depot-settlement')).toHaveCount(0);
+  await expect(page.getByTestId('depot-cash')).toHaveCount(0);
   await page.getByRole('link', { name: 'Verrechnung', exact: true }).click();
   await expect(page.getByText('Kein separates Verrechnungskonto verknüpft.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Buchungen', exact: true })).toBeVisible();
+  await expect(page.getByText('Noch keine Buchungen auf diesem Konto.')).toBeVisible();
   await fits(page);
 });

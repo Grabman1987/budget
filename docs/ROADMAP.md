@@ -7,7 +7,9 @@
 - [x] Suppress only actual investment trade-settlement category warnings; retain ordinary warnings and existing categories. No write, lock or undo path changes.
 - [x] Desktop 1440 / phone 390 / WebKit iPhone: all 12 isolated browser cases pass, including light/dark Axe, 44px targets and synthetic screenshots. [Evidence](evidence/depot-template/README.md).
 - [x] Eight new regressions and 47 existing investment/account regressions pass; follow-up workspace typechecks, lint/CSS scale and E2E build verified. No Windows baseline regeneration; no depot baseline refresh needed.
-- [ ] One uninterrupted green full check and draft PR delivery: initial full check failed at a corrected type error; the subsequent full test attempt was stopped without totals after over 20 minutes. Git cannot create the worktree index.lock (permission denied); changes remain uncommitted.
+- [x] Round 2: retain shared review actions/dialogs and stored check status; show integrated depot cash and its register without a second Saldo. Chromium review/trades/depot regressions and WebKit depot cases pass; unchanged verdict coverage and Main-path timeout are recorded in the [evidence](evidence/depot-template/README.md#round-2--retained-account-header-behaviour).
+- [ ] Required CI green on PR [#534](https://github.com/Grabman1987/budget/pull/534). Round 1's interrupted full-check history remains in the evidence; the owner explicitly requested focused checks and CI as the gate for round 2.
+- [ ] Commit/push round 2: staging is blocked by `index.lock` permission denied; owner instruction is to leave the verified changes uncommitted.
 
 ### Reference adoption: PP returns and accepted follow-ups — 2026-10-15
 

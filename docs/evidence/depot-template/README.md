@@ -2,6 +2,86 @@
 
 Synthetic data only. Implements owner decision 9A and the 2026-10-16 page review.
 
+## Round 2 — retained account-header behaviour
+
+The depot branch previously bypassed the entire `AccountBody`, removing owner review
+actions, dialogs and the stored review date. `AccountReview` now extracts the existing
+buttons, URL state, `ReconcilePanel` and `ManualValue` without duplicating their logic.
+Both headers use it; the depot also uses the existing `AccountFreshness` beside Depotwert.
+The review regression includes brokerage and crypto, saving a check, its displayed date,
+the direct review URL and phone touch targets. Existing manual-value/undo checks remain.
+
+Own nonzero cash is shown separately in its native currency, including negative cash and
+accounts with a separate settlement link. Zero cash adds no line. Verrechnung uses the
+linked account when present and otherwise the depot's own shared register.
+
+The only replaced existing assertion is `portfolio-trades.spec.ts`'s `account-balance =
+2.284,00 €`: it now strictly asserts `depot-value = 720,00 €` and `depot-cash = Bargeld im
+Depotkonto: 1.564,00 €`. Independently: (10 bought − 4 sold) × EUR 120 = EUR 720 holdings;
+EUR 2,000 opening − 1,000 purchase − 10 purchase fee + 600 sale − 6 edited sale fee − 20 tax
+= EUR 1,564 cash. Their sum preserves the old EUR 2,284 total. A source-booking assertion
+also proves the unlinked depot's register is reachable. The derivation is in the spec.
+
+The E2E inventory searched account types (`brokerage`/`crypto`), account URLs and account
+link clicks. Only `account-review`, `portfolio-trades` and `depot-template` actually enter
+these depot detail pages. Other matching fixture specs enter overview, portfolio or inbox
+pages instead. Their existing assertions were not changed.
+
+Chromium verification: `portfolio-trades` 6/6 desktop + 6/6 mobile; `depot-template` 4/4
+desktop + 4/4 mobile; `account-review` 1/1 desktop + 1/1 mobile; `verdicts`'s “Fazit:
+Überblick” 1/1 desktop + 1/1 mobile. The two initial extended review failures used the
+wrong new test-only input label; corrected to the existing depot-specific
+“Bargeld-Saldo (ohne Wertpapiere)” without changing any original assertion.
+
+Local Windows runs used one worker and only the required main/sample servers. `tsx`
+could not start the sample seeder (`os.userInfo`: ENOMEM), so a temporary esbuild bundle
+ran the same seed source with `BUDGET_MIGRATIONS_DIR=packages/db/drizzle`. Production
+bundles, browser projects, authentication and assertions remained the normal ones.
+No full check was run in this round, as explicitly requested; CI remains the gate.
+
+WebKit iPhone: 4/4 depot cases pass on the single rerun with local expectation timeout
+30 s and action timeout 90 s. The first run had three 5 s loading timeouts (value, tab,
+trade-row availability; recorded API requests returned HTTP 200) and one passing crypto
+case. The first retry could not start while Windows retained the old test servers' SQLite
+files; those completed-run servers were stopped before the successful rerun. No product
+code, assertion or committed timeout was changed for this retry. Evidence screenshots
+were refreshed in all three projects; these are captures, not screenshot baselines.
+
+Verdict investigation: “Fazit: Überblick” visits the report group (Gesamtübersicht,
+Jahresreport, Finanz-Check-Verlauf, Explorer, Kontakte-Abrechnung, Zeitraumvergleich),
+never a depot account. Report sources, PageFrame, catalog and verdict spec have no diff
+against `origin/main@2579390341a15411e83448cf4ad66dfdab262d92`; depot styles are scoped.
+For the baseline run, all four changed existing production modules (account page,
+booking cells/table and portfolio positions) were temporarily restored from that ref,
+and equality was verified with `git diff --exit-code` before building. Added depot
+modules were unreachable from the restored entry points. No merge or rebase occurred.
+The unchanged desktop spec failed on Main too: 0/1, at the explicit 45 s verdict wait
+on `/reports/finanzcheck`, while the heading/banner and loading placeholders remained.
+This is a different failure from CI's null bounding box; the exact CI timing cause is
+not reproduced. On the repaired branch the same overview case passed desktop/mobile
+(2/2), and on the original PR head it also passed desktop (1/1). No verdict assertion
+was changed. The four repaired-branch files were restored byte-for-byte from backups
+before the final build and focused unit/static checks.
+
+The restored branch's final `npm run build:e2e` passed. Focused unit verification,
+`npx vitest run apps/web/src/ledger apps/server/src/api/depot-template.test.ts
+--maxWorkers=1`, passed all 29 files / 203 tests (432.78 s). The runner buffered its
+results until completion. A diagnostic repeat had already started when those totals
+arrived; the attempted stop did not take effect, and it also passed 29 files / 203 tests
+(one thread worker, verbose reporter, 230.82 s). No unit assertion was changed.
+
+Round 2 delivery is blocked before staging: `git add` returned exit 128 because Git
+cannot create the shared Git directory's `worktrees/budget-478/index.lock` (Permission
+denied). Per owner instruction, changes remain uncommitted and no push was attempted;
+PR #534 still points to `eade9832`. No permissions or Git history were changed.
+
+Final static checks: `npm run typecheck` exit 0; `npm run lint` exit 0 (CSS scale,
+ESLint and Prettier). ESLint reports one existing unused-disable warning in
+`packages/ui/src/components/panel.tsx:208`; no errors. The forbidden router, navigation
+and UI-package paths have no diff. The original Impeccable CLI engine is not available
+in this local checkout; no upstream detector result is claimed. UI evidence uses the
+existing design reference, rendered desktop/phone captures and browser Axe/touch checks.
+
 The depot reads the same unsplit positions and valuation date as Portfolio. Each account's
 integer-cent values are retained; the depot never recalculates holdings from formatted prices.
 The additive `valuationQuote` read field exposes the shared valuation's actual quote or gross
