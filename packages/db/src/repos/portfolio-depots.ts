@@ -139,6 +139,9 @@ export function depotComparison(
         to: today,
         view: 'securities',
         taxBasis,
+        includedCashAccounts: accounts.filter(
+          (id) => !['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
+        ),
         accounts: accounts.filter((id) =>
           ['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
         ),

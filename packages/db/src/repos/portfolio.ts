@@ -773,7 +773,7 @@ function tradesOf(
   db: Executor,
   filter: FlowFilter,
   after: string,
-): (SeriesTrade & { accountId: string; securityId: string })[] {
+): (SeriesTrade & { accountId: string; securityId: string; settlementAccountId: string | null })[] {
   return db
     .select({
       accountId: trade.accountId,
@@ -785,9 +785,11 @@ function tradesOf(
       feeCents: trade.feeCents,
       taxCents: trade.taxCents,
       currency: account.currency,
+      settlementAccountId: booking.accountId,
     })
     .from(trade)
     .innerJoin(account, eq(account.id, trade.accountId))
+    .leftJoin(booking, and(eq(booking.id, trade.bookingId), isNull(booking.deletedAt)))
     .where(
       and(
         isNull(trade.deletedAt),
@@ -827,6 +829,8 @@ export function portfolioFlows(
   filter: FlowFilter & {
     view?: 'securities' | 'depot';
     referenceAccounts?: ReadonlyArray<string>;
+    /** Mixed depot comparison: cash already included in the measured value. */
+    includedCashAccounts?: ReadonlyArray<string>;
     externalAccounts?: ReadonlyArray<string>;
     /** Securities-only PP returns exclude taxes; cash contribution facts include them. */
     taxBasis?: 'after-tax' | 'before-tax' | 'pp-irr';
@@ -834,7 +838,15 @@ export function portfolioFlows(
 ): CashFlow[] {
   const rates = rateTable(db, filter.to);
   if ((filter.view ?? 'securities') === 'securities')
-    return securityFlows(tradesOf(db, filter, filter.from), rates, filter.taxBasis);
+    return securityFlows(
+      tradesOf(db, filter, filter.from).filter(
+        (t) =>
+          t.settlementAccountId === null ||
+          !filter.includedCashAccounts?.includes(t.settlementAccountId),
+      ),
+      rates,
+      filter.taxBasis,
+    );
 
   const reference = new Set(filter.referenceAccounts ?? []);
   const inside = new Set([...(filter.accounts ?? []), ...reference]);
