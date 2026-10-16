@@ -158,7 +158,7 @@ Soll: F01 `174:2092` + Zeilenmodell 14.10. (live). Aufgabe: #523 (neu).
 1. Desktop breit (~960 px), 2 Spalten: links Kopf, rechts Zeilen.
 2. Notiz sichtbar; Projekt + Markierung unter „Mehr ▾“ (offen wenn gefüllt).
 3. Zeilenbetrag erst ab 2 Zeilen / bei Teilen.
-4. Routine: max. 3 Kategorie-Vorschläge einzeilig; Start „vorgemerkt“; iPhone Vollbild mit festem Speichern.
+4. Routine: max. 3 Kategorie-Vorschläge einzeilig; neue Bargeldbuchung sofort bestätigt, Bankbuchung vorgemerkt (laut SPEC/#499); iPhone Vollbild mit festem Speichern.
 
 **Abnahmekriterium Erfassung:** Szenarien 1–5 ohne Scrollen (≤ 2 Zeilen, 1440×900); 1 Zeile = 1 Betragsfeld; Rest centgenau; iPhone Speichern sichtbar; Capture-E2E grün.
 
@@ -275,7 +275,7 @@ Soll: V06 `172:2695`. Aufgabe: #528 (abhängig von PR #507).
 Soll: R00 `175:2` (Hub 6A). Aufgabe: #487.
 
 1. Zuordnung 34 → 16 laut Kommentar in #487 (zusammengelegte Reports werden Ansichten, alte Slugs leiten weiter).
-2. Persönliche Inflation als eigener Report (16.).
+2. Persönliche Inflation als eigener Eintrag (Nr. 8 von 16, Gruppe Einnahmen/Ausgaben).
 3. Projekte als Filter in „Einnahmen und Cashflow“.
 4. Entfallen: Liquiditätsprognose, Jahresvorschau, Sparziele, Kontakte, Finanz-Check-Verlauf (leben im Bereich).
 
