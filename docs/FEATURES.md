@@ -1,5 +1,12 @@
 # Budget feature coverage: YNAB and Portfolio Performance replacement
 
+2026-10-15 reading guide: [Traceability](product/traceability.md) maps all 50 Y/I
+feature IDs to current contracts, source/test starting points and acceptance
+examples. [Report contracts](product/report-contracts.md) covers the 34 current
+registered reports. The historical status rows below do not override newer SPEC
+directives or prove current absence/completion; source, deployment and private
+acceptance remain distinct.
+
 Current source/live evidence and acceptance baseline (2026-10-08): [STATUS](STATUS.md) and [ACCEPTANCE](ACCEPTANCE.md). The dated delivery/requirements notes below include historical states; verify each against the current source before treating an old placeholder, missing-PR or missing-feature statement as present work. Open owner/financial/device criteria are not automatically accepted.
 
 Sidepanels-2a (2026-10-06): Vermögen instrument/schedule detail URLs, breadcrumbs/back/scroll restoration; existing FormDialog for metadata, quotes, schedules and trades, and full-width net-worth composition. Shared validation, audit/undo and cent logic retained; Linux visual CI and owner acceptance remain open. See [inventory](no-side-panels-1005.md).
@@ -169,7 +176,7 @@ Average/FIFO selection does not rewrite source trades, and no tax-filing parity
 has been accepted. Corporate actions, transfer basis and unknown history require
 explicit migration findings; parser support is not proof of lossless private transfer.
 
-## All 30 agreed reports
+## Report coverage — original catalog with later additions
 
 The [report catalog](../apps/web/src/nav/reports-catalog.ts) and navigation are
 implemented. The current [ReportPage](../apps/web/src/pages/reports-pages.tsx)
