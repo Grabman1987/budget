@@ -831,6 +831,8 @@ export function portfolioFlows(
     referenceAccounts?: ReadonlyArray<string>;
     /** Mixed depot comparison: cash already included in the measured value. */
     includedCashAccounts?: ReadonlyArray<string>;
+    /** Mixed comparison: these securities' cash-linked settlements are already internal. */
+    includedSecuritiesAccounts?: ReadonlyArray<string>;
     externalAccounts?: ReadonlyArray<string>;
     /** Securities-only PP returns exclude taxes; cash contribution facts include them. */
     taxBasis?: 'after-tax' | 'before-tax' | 'pp-irr';
@@ -850,10 +852,22 @@ export function portfolioFlows(
 
   const reference = new Set(filter.referenceAccounts ?? []);
   const inside = new Set([...(filter.accounts ?? []), ...reference]);
+  const includedSecurities = new Set(filter.includedSecuritiesAccounts ?? []);
+  const internalSettlements = new Set(
+    includedSecurities.size
+      ? db
+          .select({ bookingId: trade.bookingId })
+          .from(trade)
+          .where(and(isNull(trade.deletedAt), inArray(trade.accountId, [...includedSecurities])))
+          .all()
+          .map((t) => t.bookingId)
+      : [],
+  );
   // Both kinds of transfer legs: whole bookings and single splits.
   const legs = [
     ...db
       .select({
+        bookingId: booking.id,
         transferId: booking.transferId,
         accountId: booking.accountId,
         date: booking.date,
@@ -867,6 +881,7 @@ export function portfolioFlows(
       .all(),
     ...db
       .select({
+        bookingId: booking.id,
         transferId: bookingSplit.transferId,
         accountId: booking.accountId,
         date: booking.date,
@@ -894,6 +909,14 @@ export function portfolioFlows(
   for (const leg of legs) {
     if (!reference.has(leg.accountId) || leg.date <= filter.from) continue;
     const others = (byTransfer.get(leg.transferId as string) ?? []).filter((l) => l !== leg);
+    // Match the securities-side exclusion only for linked settlements. Separate funding
+    // transfers still offset their own depot trade flows; equal amounts are not provenance.
+    if (
+      internalSettlements.has(leg.bookingId) &&
+      others.length > 0 &&
+      others.every((o) => inside.has(o.accountId) || includedSecurities.has(o.accountId))
+    )
+      continue;
     if (
       others.length > 0 &&
       others.every((o) => !inside.has(o.accountId)) &&

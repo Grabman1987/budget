@@ -150,6 +150,9 @@ export function depotComparison(
         from: start,
         to: today,
         view: 'depot',
+        includedSecuritiesAccounts: accounts.filter((id) =>
+          ['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
+        ),
         accounts: accounts.filter(
           (id) => !['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
         ),

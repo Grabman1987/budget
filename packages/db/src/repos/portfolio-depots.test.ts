@@ -4,6 +4,8 @@ import { depotComparison } from './portfolio-depots';
 import { portfolioSummary } from './portfolio-summary';
 import { REPORT_TODAY, reportPortfolioFixture } from './portfolio-report-fixture';
 import { seedBasics } from './test-helpers';
+import { createTrade, tradeCashTransferInput } from './trades';
+import { createTransfer } from './bookings';
 
 let opened: OpenedDatabase;
 
@@ -15,6 +17,77 @@ beforeEach(() => {
 afterEach(() => opened.close());
 
 describe('depotComparison (report 4.1)', () => {
+  it.each(['brokerage', 'crypto'])(
+    'keeps a transfer-leg settlement internal to Alle Depots (%s)',
+    (type) => {
+      const fixture = createTestDatabase();
+      try {
+        // Read-side regression: current write invariants reject a transfer leg as settlement.
+        fixture.sqlite.exec(`
+          INSERT INTO account (id,name,type,role,on_budget,opening_date,opening_balance_cents,reference_account_id) VALUES
+            ('cash','Cash Test','checking','investment',0,'2025-12-31',50000,NULL),
+            ('depot','Depot Test','${type}','investment',0,'2025-12-31',0,'cash');
+          INSERT INTO security (id,name,kind) VALUES ('fund','Fund Test','etf');
+          INSERT INTO holding (id,security_id,account_id,as_of,units_e8,cost_basis_cents) VALUES
+            ('opening','fund','depot','2025-12-31',100000000,50000);
+          INSERT INTO price (security_id,date,price_micro,currency,source) VALUES
+            ('fund','2025-12-31',500000000,'EUR','manual');
+          INSERT INTO transfer (id) VALUES ('transfer');
+          INSERT INTO booking (id,account_id,date,amount_cents,currency,status,transfer_id) VALUES
+            ('cash-leg','cash','2026-01-15',-50000,'EUR','confirmed','transfer'),
+            ('depot-leg','depot','2026-01-15',50000,'EUR','confirmed','transfer');
+          INSERT INTO booking_split (id,booking_id,amount_cents) VALUES
+            ('cash-split','cash-leg',-50000),('depot-split','depot-leg',50000);
+          INSERT INTO trade (id,security_id,account_id,date,kind,units_e8,amount_cents,booking_id) VALUES
+            ('purchase','fund','depot','2026-01-15','buy',100000000,50000,'cash-leg');
+        `);
+        const result = depotComparison(fixture.db, { today: '2026-01-31', period: 'YTD' });
+        expect(result.total?.performance).toMatchObject({
+          startValueCents: 100_000,
+          endValueCents: 100_000,
+          contributionsCents: 0,
+          gainCents: 0,
+          ttwror: 0,
+        });
+      } finally {
+        fixture.close();
+      }
+    },
+  );
+
+  it('preserves the regular separate settlement and cash transfer used by imports', () => {
+    const fixture = createTestDatabase();
+    try {
+      fixture.sqlite.exec(`
+        INSERT INTO account (id,name,type,role,on_budget,opening_date,opening_balance_cents,reference_account_id) VALUES
+          ('cash','Cash Test','checking','investment',0,'2025-12-31',50000,NULL),
+          ('depot','Depot Test','brokerage','investment',0,'2025-12-31',0,'cash');
+        INSERT INTO security (id,name,kind) VALUES ('fund','Fund Test','etf');
+        INSERT INTO holding (id,security_id,account_id,as_of,units_e8,cost_basis_cents) VALUES
+          ('opening','fund','depot','2025-12-31',100000000,50000);
+        INSERT INTO price (security_id,date,price_micro,currency,source) VALUES
+          ('fund','2025-12-31',500000000,'EUR','manual');
+      `);
+      const input = {
+        accountId: 'depot',
+        securityId: 'fund',
+        date: '2026-01-15',
+        kind: 'buy' as const,
+        unitsE8: 100000000,
+        amountCents: 50000,
+        importKey: 'purchase',
+      };
+      const ctx = { actor: 'test' };
+      createTrade(fixture.db, input, ctx);
+      createTransfer(fixture.db, tradeCashTransferInput(input, 'cash')!, ctx);
+      expect(
+        depotComparison(fixture.db, { today: '2026-01-31', period: 'YTD' }).total?.performance,
+      ).toMatchObject({ contributionsCents: 0, gainCents: 0, ttwror: 0 });
+    } finally {
+      fixture.close();
+    }
+  });
+
   it('keeps a purchase funded by included settlement cash internal to Alle Depots', () => {
     const fixture = createTestDatabase();
     try {
