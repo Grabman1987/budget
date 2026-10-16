@@ -55,6 +55,27 @@ function ppCase() {
 }
 
 describe('window performance', () => {
+  it('aligns a mid-month funded benchmark to the daily portfolio return window', () => {
+    const window = { from: '2026-02-28', to: '2026-03-31' };
+    const result = windowPerformance(
+      {
+        series: eachDay(window.from, window.to).map((date) => ({
+          date,
+          valueCents: date < '2026-03-15' ? 0 : date < window.to ? 10_000 : 11_000,
+        })),
+        flows: [{ date: '2026-03-15', cents: 10_000 }],
+        benchmark: [
+          { date: window.from, level: 100 },
+          { date: '2026-03-14', level: 120 },
+          { date: window.to, level: 120 },
+        ],
+      },
+      window,
+    );
+    expect(result.benchmarkTtwror).toBe(0);
+    expect(result.ttwror).toBeCloseTo(0.1, 12);
+  });
+
   it('leaves returns unavailable for a position sold before the one-year window', () => {
     const series = eachDay('2024-12-31', '2026-01-01').map((date) => ({
       date,

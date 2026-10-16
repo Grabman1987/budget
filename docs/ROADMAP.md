@@ -1341,5 +1341,7 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [x] Read issue #525 and all four comments through the connected GitHub app after the CLI returned HTTP 401.
 - [x] Final three-browser Portfolio spec: 9 feature cases plus 3 setup cases, including light/dark Axe, privacy, exact hover and no horizontal scroll. [Evidence](evidence/portfolio-chart/README.md).
 - [x] Full local check: 436 files / 4,006 tests passed, no failures or skips; final Portfolio browser spec 12/12 and E2E build passed.
-- [ ] Commit/push/draft PR: commit blocked by `index.lock: Permission denied`; owner's no-workaround fallback followed, local PR body at `test-results/p525a-pr.md`.
+- [x] Round-1 delivery committed by the project lead; main merged into the branch, existing [PR #536](https://github.com/Grabman1987/budget/pull/536).
+- [x] Round-2 money review: benchmark boundaries follow daily funded stretches (including within-month gaps), resume from the last daily level, preserve missing bases and classify signed opening transfers consistently. Added gross-flow/start-boundary and actual depot-cash/selected-benchmark regressions. [Evidence](evidence/portfolio-chart/README.md).
+- [ ] Round-2 publication: `git add` blocked by `index.lock: Permission denied`; changes left uncommitted without a workaround.
 - [ ] Required PR CI and the remaining #525 packages; private PP reconciliation remains Gate 3.

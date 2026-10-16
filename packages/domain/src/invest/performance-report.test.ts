@@ -11,6 +11,185 @@ const input = { series, flows: [{ date: '2026-01-31', cents: 10_000 }] };
 const window = { from: '2025-12-31', to: '2026-03-15' };
 
 describe('performance report series', () => {
+  it('starts a mid-month benchmark on the day before funding and matches the TTWROR difference', () => {
+    // Benchmark gains 20% before funding; 10_000 cents on March 15 grow to 11_000.
+    const input = {
+      series: eachDay('2026-02-28', '2026-03-31').map((date) => ({
+        date,
+        valueCents: date < '2026-03-15' ? 0 : date < '2026-03-31' ? 10_000 : 11_000,
+      })),
+      flows: [{ date: '2026-03-15', cents: 10_000 }],
+    };
+    const window = { from: '2026-02-28', to: '2026-03-31' };
+    const report = performanceReportSeries(
+      input,
+      window,
+      eachDay(window.from, window.to).map((date) => ({
+        date,
+        level: date < '2026-03-14' ? 100 : 120,
+        reason: null,
+      })),
+    );
+    expect(report.benchmarkReturn).toBe(0);
+    expect(report.months[0]?.benchmarkRate).toBe(0);
+    expect(report.months[0]?.startQuoteDate).toBe('2026-03-14');
+    expect(report.index.at(-1)?.benchmark).toBe(100);
+    expect(
+      report.dailyBenchmark.filter((p) => p.date < '2026-03-15').every((p) => p.benchmark === null),
+    ).toBe(true);
+    expect(report.dailyBenchmark.find((p) => p.date === '2026-03-15')?.benchmark).toBe(100);
+    expect(windowPerformance(input, window).ttwror).toBeCloseTo(0.1, 12);
+    expect(windowPerformance(input, window).ttwror! - report.benchmarkReturn!).toBeCloseTo(0.1, 12);
+  });
+
+  it('excludes an unfunded gap inside one month from both benchmark calculations', () => {
+    // Withdrawal on the 3rd, no capital on the 4th/5th, funding on the 6th.
+    // The benchmark's only gain is 20% on the unfunded 5th: comparable return is zero.
+    const window = { from: '2026-03-01', to: '2026-03-08' };
+    const input = {
+      series: eachDay(window.from, window.to).map((date) => ({
+        date,
+        valueCents: date >= '2026-03-03' && date < '2026-03-06' ? 0 : 10_000,
+      })),
+      flows: [
+        { date: '2026-03-03', cents: -10_000 },
+        { date: '2026-03-06', cents: 10_000 },
+      ],
+      benchmark: eachDay(window.from, window.to).map((date) => ({
+        date,
+        level: date < '2026-03-05' ? 100 : 120,
+      })),
+    };
+    const report = performanceReportSeries(
+      input,
+      window,
+      input.benchmark.map((q) => ({ ...q, reason: null })),
+    );
+    expect(report.benchmarkReturn).toBe(0);
+    expect(report.months[0]?.benchmarkRate).toBe(0);
+    expect(report.index.at(-1)?.benchmark).toBe(100);
+    expect(report.dailyBenchmark.map((p) => p.benchmark)).toEqual([
+      100,
+      100,
+      100,
+      null,
+      null,
+      100,
+      100,
+      100,
+    ]);
+    expect(windowPerformance(input, window)).toMatchObject({ ttwror: 0, benchmarkTtwror: 0 });
+  });
+
+  it('resumes from the last daily benchmark level after an unquoted month end and unfunded gap', () => {
+    // January ends at 105, February reaches 112 on the 27th but has no 28th close.
+    // March is unfunded; April starts at quote 200 and ends at 220 -> index 123.2.
+    const window = { from: '2025-12-31', to: '2026-04-30' };
+    const report = performanceReportSeries(
+      {
+        series: eachDay(window.from, window.to).map((date) => ({
+          date,
+          valueCents: date >= '2026-02-28' && date < '2026-04-01' ? 0 : 10_000,
+        })),
+        flows: [
+          { date: '2026-02-28', cents: -10_000 },
+          { date: '2026-04-01', cents: 10_000 },
+        ],
+      },
+      window,
+      [
+        { date: '2025-12-31', level: 100, reason: null, weekendCarry: false },
+        { date: '2026-01-31', level: 105, reason: null, weekendCarry: false },
+        { date: '2026-02-27', level: 112, reason: null, weekendCarry: false },
+        { date: '2026-03-31', level: 200, reason: null, weekendCarry: false },
+        { date: '2026-04-01', level: 200, reason: null, weekendCarry: false },
+        { date: '2026-04-30', level: 220, reason: null, weekendCarry: false },
+      ],
+    );
+    expect(report.dailyBenchmark.find((p) => p.date === '2026-02-27')?.benchmark).toBeCloseTo(
+      112,
+      12,
+    );
+    expect(report.dailyBenchmark.find((p) => p.date === '2026-02-28')?.benchmark).toBeNull();
+    expect(report.dailyBenchmark.find((p) => p.date === '2026-04-01')?.benchmark).toBeCloseTo(
+      112,
+      12,
+    );
+    expect(report.dailyBenchmark.at(-1)?.benchmark).toBeCloseTo(123.2, 12);
+    expect(report.index.at(-1)?.benchmark).toBeCloseTo(123.2, 12);
+    expect(report.benchmarkReturn).toBeNull();
+  });
+
+  it('keeps the first funded stretch null when its benchmark base is missing', () => {
+    const window = { from: '2026-02-28', to: '2026-04-30' };
+    const report = performanceReportSeries(
+      {
+        series: eachDay(window.from, window.to).map((date) => ({
+          date,
+          valueCents: date < '2026-03-15' ? 0 : 10_000,
+        })),
+        flows: [{ date: '2026-03-15', cents: 10_000 }],
+      },
+      window,
+      [
+        { date: '2026-02-27', level: 100, reason: null },
+        { date: '2026-03-15', level: 120, reason: null },
+        { date: '2026-03-31', level: 120, reason: null },
+        { date: '2026-04-30', level: 132, reason: null },
+      ],
+    );
+    expect(report.benchmarkReturn).toBeNull();
+    expect(report.dailyBenchmark.every((p) => p.benchmark === null)).toBe(true);
+    expect(report.index.every((p) => p.benchmark === null)).toBe(true);
+  });
+
+  it('classifies a negative atStart transfer as a signed deposit like dailyReturns', () => {
+    const report = performanceReportSeries(
+      {
+        series: [
+          { date: '2026-03-01', valueCents: 10_000 },
+          { date: '2026-03-02', valueCents: 5_000 },
+        ],
+        flows: [{ date: '2026-03-02', cents: -5_000, atStart: true }],
+      },
+      { from: '2026-03-01', to: '2026-03-02' },
+    );
+    expect(report.dailyValues[1]).toEqual({
+      date: '2026-03-02',
+      valueCents: 5_000,
+      depositsCents: -5_000,
+      withdrawalsCents: 0,
+    });
+    expect(report.dailyIndex.at(-1)?.portfolio).toBe(100);
+  });
+
+  it('retains same-day gross opposing flows and excludes flows exactly on from', () => {
+    // Opening-day 7_000 cents are already in 10_000; next day +10_000/-4_000
+    // leaves 16_000 cents, with no investment return.
+    const input = {
+      series: [
+        { date: '2026-03-01', valueCents: 10_000 },
+        { date: '2026-03-02', valueCents: 16_000 },
+      ],
+      flows: [
+        { date: '2026-03-01', cents: 7_000 },
+        { date: '2026-03-02', cents: 10_000 },
+        { date: '2026-03-02', cents: -4_000 },
+      ],
+    };
+    const window = { from: '2026-03-01', to: '2026-03-02' };
+    const report = performanceReportSeries(input, window);
+    expect(report.dailyValues).toEqual([
+      { date: '2026-03-01', valueCents: 10_000, depositsCents: 0, withdrawalsCents: 0 },
+      { date: '2026-03-02', valueCents: 16_000, depositsCents: 10_000, withdrawalsCents: 4_000 },
+    ]);
+    expect(report.dailyIndex.at(-1)?.portfolio).toBe(100);
+    expect(windowPerformance(input, window)).toMatchObject({
+      contributionsCents: 6_000,
+      ttwror: 0,
+    });
+  });
+
   it('excludes the unfunded January benchmark gain from the valued March comparison', () => {
     // No capital in January (+20% benchmark); 10_000 cents fund 1 March,
     // ending at 11_000 cents (+10%). Both comparable returns must be +10%, not +32%.
