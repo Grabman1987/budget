@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, ArrowLeftRight, Check, CheckCheck, Clock, Split } from 'lucide-react';
 import { FlagGlyph, FlagPicker } from './flag-picker';
 import { FLAG_LABEL, STATUS_LABEL } from './labels';
-import { lookupsQuery } from './queries';
+import { accountsQuery, lookupsQuery } from './queries';
+import { depotTradesQuery } from './depot-queries';
 import type { BookingFlag, BookingStatus, ListedBooking } from './types';
 
 const STATUS_ICON = { pending: Clock, confirmed: Check, reconciled: CheckCheck } as const;
@@ -100,6 +101,13 @@ export function CategoryCell({
   booking: ListedBooking;
   classes: Map<string, SwatchKind>;
 }) {
+  const accounts = useQuery(accountsQuery());
+  const investment =
+    accounts.data?.accounts.find((a) => a.id === booking.accountId)?.role === 'investment';
+  const trades = useQuery({
+    ...depotTradesQuery(),
+    enabled: investment && !booking.splits[0]?.categoryId,
+  });
   if (booking.splits.length > 1) {
     return (
       <span className="kcat">
@@ -127,6 +135,12 @@ export function CategoryCell({
       </span>
     );
   }
+  if (
+    !only?.categoryId &&
+    investment &&
+    trades.data?.trades.some((t) => t.bookingId === booking.id)
+  )
+    return <span className="kcat">Trade · Verrechnung</span>;
   if (!only?.categoryId || !only.categoryName) {
     return (
       <span className="kcat is-none">

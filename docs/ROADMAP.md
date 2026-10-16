@@ -1,5 +1,14 @@
 # Roadmap
 
+### K2 — depot account template (#478, owner review 2026-10-16)
+
+- [x] Reuse Portfolio's unsplit account positions and valuation date; literal database fixture proves 2,683 cents, identical units and unavailable missing prices.
+- [x] Separate Depotwert from linked settlement cash; Bestände / Trades / Verrechnung use URL state, the existing trade editor and one shared account money register.
+- [x] Suppress only actual investment trade-settlement category warnings; retain ordinary warnings and existing categories. No write, lock or undo path changes.
+- [x] Desktop 1440 / phone 390 / WebKit iPhone: all 12 isolated browser cases pass, including light/dark Axe, 44px targets and synthetic screenshots. [Evidence](evidence/depot-template/README.md).
+- [x] Eight new regressions and 47 existing investment/account regressions pass; follow-up workspace typechecks, lint/CSS scale and E2E build verified. No Windows baseline regeneration; no depot baseline refresh needed.
+- [ ] One uninterrupted green full check and draft PR delivery: initial full check failed at a corrected type error; the subsequent full test attempt was stopped without totals after over 20 minutes. Git cannot create the worktree index.lock (permission denied); changes remain uncommitted.
+
 ### Reference adoption: PP returns and accepted follow-ups — 2026-10-15
 
 - [x] Record owner decisions: PP returns as standard, cross-device Explorer views, limited transfer preparation. [Contract](product/reference-adoption.md).

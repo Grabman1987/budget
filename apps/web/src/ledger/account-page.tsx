@@ -12,7 +12,7 @@ import {
   type LiquidityHorizon,
   type LiquidityLeverId,
 } from '@budget/domain';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearch, useNavigate } from '@tanstack/react-router';
 import { CheckCircle2, ChevronLeft, Plus } from 'lucide-react';
 import { useState } from 'react';
@@ -20,13 +20,12 @@ import { ACCOUNT_PAGE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { BalanceChart } from './balance-chart';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
-import { BookingTable } from './booking-table';
-import { useRegisterToday, useUpcomingRegister } from './upcoming-register';
+import { AccountRegister } from './account-register';
+import { useRegisterToday } from './upcoming-register';
 import {
   eur,
   longDay,
   monthName,
-  pluralBookings,
   nativeCurrency,
   valuedCurrency,
   valuedCurrencyParts,
@@ -42,8 +41,7 @@ import {
 import { fetchSeries } from './api';
 import { displaySettingsQuery } from '../pages/future-preview-setting';
 import { PeriodQuickSelect } from '../reports/period-quick-select';
-import { accountsQuery, bookingsInfiniteQuery, bookingsQuery } from './queries';
-import { LoadOlder } from './load-older';
+import { accountsQuery, bookingsQuery } from './queries';
 import { ReconcilePanel } from './reconcile-panel';
 import { ManualValue } from './manual-value';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
@@ -51,9 +49,7 @@ import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
 import { useLiquiditySelection } from '../reports/liquidity-selection';
 import { AppLink } from '../shell/app-link';
-
-/** Bookings per page of the continuous account history. */
-const PAGE_SIZE = 100;
+import { DepotBody } from './depot-page';
 
 /** Route component of `/konten/$id`. */
 export function AccountRoute() {
@@ -113,7 +109,12 @@ export function AccountPage({ id }: { id: string }) {
             Dieses Konto gibt es nicht (mehr).
           </EmptyNote>
         )}
-        {account && <AccountBody account={account} />}
+        {account &&
+          (account.type === 'brokerage' || account.type === 'crypto' ? (
+            <DepotBody account={account} />
+          ) : (
+            <AccountBody account={account} />
+          ))}
       </section>
     </PageFrame>
   );
@@ -181,10 +182,6 @@ function AccountBody({ account }: { account: AccountRow }) {
   });
   const limit = account.overdraftLimitCents ?? account.creditLimitCents;
   const limitLabel = account.overdraftLimitCents !== null ? 'Dispolimit' : 'Kreditrahmen';
-  const list = useInfiniteQuery(
-    bookingsInfiniteQuery({ accountId: account.id, to: today }, PAGE_SIZE),
-  );
-  const upcoming = useUpcomingRegister({ accountId: account.id }, today, 'account');
   // The month figure remains independent of the history's loaded pages.
   const movement = useQuery(
     bookingsQuery(
@@ -209,8 +206,6 @@ function AccountBody({ account }: { account: AccountRow }) {
     account.currency,
     account.pendingValuation,
   );
-  const page = list.data?.pages[0];
-  const items = list.data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
     <>
@@ -445,34 +440,7 @@ function AccountBody({ account }: { account: AccountRow }) {
           </div>
         </>
       )}
-      <div className="head kh">
-        <h2>Buchungen</h2>
-        {page && <span className="aside">{pluralBookings(page.total)}</span>}
-      </div>
-      {list.isPending && <LoadingNote what="Buchungen" />}
-      {list.isError && (
-        <ErrorNote what="Buchungen" error={list.error} onRetry={() => void list.refetch()} />
-      )}
-      {upcoming.notes}
-      {page && items.length === 0 && (
-        <EmptyNote>
-          {(upcoming.model?.count ?? 0) > 0
-            ? 'Noch keine Buchungen bis heute auf diesem Konto.'
-            : 'Noch keine Buchungen auf diesem Konto.'}
-        </EmptyNote>
-      )}
-      {(items.length > 0 || (upcoming.model?.count ?? 0) > 0) && (
-        <BookingTable
-          items={items}
-          caption="Buchungen mit laufendem Saldo"
-          variant="account"
-          upcoming={upcoming.model}
-          onOpen={(booking) => setPanel({ mode: 'edit', booking })}
-        />
-      )}
-      {list.hasNextPage && (
-        <LoadOlder fetching={list.isFetching} failed={list.isError} load={list.fetchNextPage} />
-      )}
+      <AccountRegister account={account} />
       <BookingPanel state={panel} onClose={() => setPanel(null)} />
       <ReconcilePanel
         account={account}

@@ -14,6 +14,8 @@ export interface PositionQuote {
   source: string;
 }
 export interface PositionAccount {
+  /** Actual quote/execution used by the shared valuation, including its native currency. */
+  valuationQuote?: PositionQuote | null;
   accountId: string;
   name: string;
   institution: string | null;
@@ -136,6 +138,20 @@ export function portfolioPositions(db: Executor, asOf: string): PortfolioPositio
     };
     line.unitsE8 += holding.unitsE8;
     line.accounts.push({
+      valuationQuote:
+        'priceDate' in holding &&
+        typeof holding.priceDate === 'string' &&
+        'priceMicro' in holding &&
+        typeof holding.priceMicro === 'number' &&
+        'priceCurrency' in holding &&
+        typeof holding.priceCurrency === 'string'
+          ? {
+              date: holding.priceDate,
+              priceMicro: holding.priceMicro,
+              currency: holding.priceCurrency,
+              source: quote && quote.date === holding.priceDate ? quote.source : 'trade',
+            }
+          : null,
       accountId: acct.id,
       name: acct.name,
       institution: acct.institutionId ? (institutions.get(acct.institutionId) ?? null) : null,
