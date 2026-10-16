@@ -1,0 +1,38 @@
+# P525-A — Portfolio chart, part 1
+
+Scope: the existing Portfolio overview, selected `portfolio.benchmark_ids`, the report benchmark month partition and removal of displayed Modified Dietz. No navigation, migration or shared UI changes. The application does not select or save benchmarks implicitly.
+
+The chart reads daily valuations and gross actual flow markers from the existing performance input. It retains PP daily TTWROR without a new portfolio return formula. The return axis shows percentage change from base 100; inspection exposes the index and percentage. Benchmark weekdays require observed closes; the existing explicit Friday/weekend policy remains. Null quotes split paths. Benchmark returns compound only the same valued months as `windowPerformance`; unfunded months do not enter the comparison or its base.
+
+Literal evidence:
+
+- `performance-report.test.ts`: unfunded January benchmark +20%, funding of 10,000 cents on 1 March and a closing 11,000 cents -> comparable benchmark +10%, never +32%.
+- Same file: opening 10,000 cents + deposit 10,000 cents -> closing 22,000 cents and index 110. Exact daily values and gross markers are retained.
+- Same file: benchmark 100, 105, missing, 110 stays 100, 105, null, 110.
+- Same file: after a full withdrawal, wholly unfunded February/March require no intermediate benchmark quotes; April funding resumes the comparable index at the last valued level and ends at 110, matching +10%. Its initial regression returned a permanently null index; the corrected focused run passed **3 files / 27 tests**.
+- `apps/server/src/api/portfolio-performance.test.ts`: the last daily value, lead value and unsplit positions share the valuation date and equal 12,100 cents. Reading leaves the benchmark setting absent and audit count unchanged.
+- `e2e/portfolio-overview.spec.ts`: actual synthetic sample end value 8,800,000 cents, one period for both modes, exact hover, keyboard/touch, visible benchmark gaps, Dietz removal, light/dark Axe, no horizontal scrolling and privacy masking.
+
+TDD: the initial domain run failed at +32% versus +10% and missing daily value/benchmark output. After the implementation, the focused domain/API/comparison-model run passed 3 files / 26 tests. The first desktop browser test failed because the value/return control was absent. The chart measurement regression reproduced a 1,124px section with a 340px viewBox; measurement now attaches to the always-mounted section. The first full browser iteration passed 10 tests (including setup) and timed out twice because the new phone privacy test did not open the existing profile menu. The test now follows that menu; no timeout or assertion was weakened.
+
+The rebuilt final Portfolio spec passed **12 tests: 9 feature cases across desktop 1440, Chromium phone 390 and WebKit iPhone, plus 3 setup cases**, no failures or skips. Command: `npx playwright test e2e/portfolio-overview.spec.ts --workers=1`. This includes light/dark Axe, exact 88,000.00 EUR end inspection, full-width viewBox, privacy, equal-period switching, selected benchmark gaps and removal of Dietz. Fresh `npm run build:e2e` passed. The earlier combined run passed 14/17: the existing desktop wealth tour hit its unchanged 5-second year-history loading assertion, and two new exact-end touch assertions selected 16 September instead of 17 September because their target was one pixel left of the final point. The final spec uses the chart's right padding to select the last point and retains the literal 88,000.00 EUR assertion. The existing wealth tour passed on Chromium phone and WebKit iPhone in that combined run; the desktop rerun is recorded below.
+
+The unchanged-limit isolated desktop wealth tour passed **4/4 including setup**, using `npx playwright test e2e/wealth-ux-v1.spec.ts --project=desktop --workers=1`. All of its existing assertions remain; the only test adaptation selects the newly explicit return mode before the old index assertions. Its generated images outside this evidence directory were restored.
+
+The initial `npm run check` passed all workspace typechecks, CSS scale and ESLint, then stopped at Prettier in the chart file after the final zero-label normalisation; Vitest did not run. The file was formatted and the required complete check restarted. This records two check invocations, with the full suite executed only in the second; no assertion or timeout was weakened.
+
+Screenshots use only synthetic data: [desktop light](desktop-light.png) and [WebKit iPhone dark](webkit-iphone-dark.png), with chart close-ups [desktop](desktop-chart-light.png) and [iPhone](iphone-chart-dark.png) captured after centring the chart above the fixed phone navigation. Read-only geometry inspection confirms the final point equals the right axis endpoint (desktop x=1,108 of 1,124px; phone x=342 of 358px). Linux screenshot baselines are preserved; no affected Portfolio screenshot-baseline assertion was found. CI remains the platform-specific visual gate. The project Impeccable/Diagram Design/Ponytail adapters guided review of existing tokens, real date spacing, gaps, separate units and shared inspection. No unavailable upstream detector execution is claimed.
+
+GitHub: `gh issue view 525 --comments` returned HTTP 401; public fallbacks also failed. The connected GitHub app subsequently returned the issue body and all four comments, including the explicit no-code-default clarification and the valued-month follow-up. All were read. The task's explicit P525-A instructions govern the implementation; the broader five-register redesign and benchmark preselection remain outside this slice. Annualisation still uses the whole reporting period. Modified Dietz remains used by domain performance and callers, so its function and tests are retained. Private PP reconciliation and Gate 3 remain outside synthetic acceptance.
+
+## Final local verification
+
+Windows, Node 24.12.0: the completed `npm run check` with `VITEST_MAX_WORKERS=1` and `BUDGET_REQUIRE_AGE=1` exited **0**. All workspace typechecks, CSS scale, ESLint and Prettier passed; Vitest reported **436 files / 4,006 tests passed, zero failures or skips**, in **2,632.05 seconds**. No timeout or isolated unit rerun was necessary. The existing unused-disable warning in locked `packages/ui/src/components/panel.tsx`, Web Crypto/jsdom notices and temporary synthetic-fixture Git line-ending warnings remain informational. The earlier format-only abort before Vitest is recorded above; the full suite ran once.
+
+After the final unfunded-month resumption correction: domain typecheck **exit 0**, focused financial/API/model tests **27/27**, fresh `npm run build:e2e` **exit 0**, and the complete three-project Portfolio spec **12/12** (9 feature cases plus 3 setup cases, 3.1 minutes). The prior combined run and unchanged-limit isolated desktop wealth rerun are recorded above. No existing assertion or timeout was weakened. Only the existing wealth test's explicit return-mode selection changed.
+
+Required PR CI remains open. No Linux baselines were regenerated, no private data was accessed, and no application setting or financial source record is written by the new overview.
+
+## Delivery blocker
+
+The first commit attempt failed because Git could not create the worktree `index.lock`: **Permission denied**. The owner's explicit fallback applies: no workaround, all changes left uncommitted, and no push or PR creation. The three financial files remain staged; the remaining changes are unstaged. The English PR description, ending with `Refs #525`, is saved locally at `test-results/p525a-pr.md`. Local verification above is complete; publication requires restoring the Git write permission and then committing/pushing/opening the draft PR.

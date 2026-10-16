@@ -11,6 +11,93 @@ const input = { series, flows: [{ date: '2026-01-31', cents: 10_000 }] };
 const window = { from: '2025-12-31', to: '2026-03-15' };
 
 describe('performance report series', () => {
+  it('excludes the unfunded January benchmark gain from the valued March comparison', () => {
+    // No capital in January (+20% benchmark); 10_000 cents fund 1 March,
+    // ending at 11_000 cents (+10%). Both comparable returns must be +10%, not +32%.
+    const input = {
+      series: eachDay('2025-12-31', '2026-03-31').map((date) => ({
+        date,
+        valueCents: date < '2026-03-01' ? 0 : date < '2026-03-31' ? 10_000 : 11_000,
+      })),
+      flows: [{ date: '2026-03-01', cents: 10_000 }],
+    };
+    const report = performanceReportSeries(input, { from: '2025-12-31', to: '2026-03-31' }, [
+      { date: '2025-12-31', level: 100, reason: null },
+      { date: '2026-01-30', level: 120, reason: null },
+      { date: '2026-02-27', level: 120, reason: null },
+      { date: '2026-03-31', level: 132, reason: null },
+    ]);
+    expect(report.benchmarkReturn).toBeCloseTo(0.1, 12);
+    expect(report.years[0]?.benchmarkRate).toBeCloseTo(0.1, 12);
+    expect(report.index.slice(0, 3).map((p) => p.benchmark)).toEqual([null, null, null]);
+    expect(report.index.at(-1)?.benchmark).toBeCloseTo(110, 12);
+  });
+
+  it('uses the same benchmark base and leaves missing daily quotes as gaps', () => {
+    const input = {
+      series: eachDay('2026-03-02', '2026-03-05').map((date) => ({ date, valueCents: 10_000 })),
+      flows: [],
+    };
+    const report = performanceReportSeries(input, { from: '2026-03-02', to: '2026-03-05' }, [
+      { date: '2026-03-02', level: 100, reason: null },
+      { date: '2026-03-03', level: 105, reason: null },
+      { date: '2026-03-05', level: 110, reason: null },
+    ]);
+    expect(report.dailyBenchmark.map((p) => p.benchmark)).toEqual([100, 105, null, 110]);
+    expect(report.benchmarkReturn).toBeCloseTo(0.1, 12);
+  });
+
+  it('does not require benchmark quotes inside wholly unfunded months when capital resumes', () => {
+    // 10_000 cents are withdrawn on 31 January; February/March have no capital.
+    // April is funded with 10_000 cents and ends at 11_000 cents. Benchmark: 0%, then 10%.
+    const input = {
+      series: eachDay('2025-12-31', '2026-04-30').map((date) => ({
+        date,
+        valueCents:
+          date < '2026-01-31'
+            ? 10_000
+            : date < '2026-04-01'
+              ? 0
+              : date < '2026-04-30'
+                ? 10_000
+                : 11_000,
+      })),
+      flows: [
+        { date: '2026-01-31', cents: -10_000 },
+        { date: '2026-04-01', cents: 10_000 },
+      ],
+    };
+    const result = performanceReportSeries(input, { from: '2025-12-31', to: '2026-04-30' }, [
+      { date: '2025-12-31', level: 100, reason: null },
+      { date: '2026-01-30', level: 100, reason: null },
+      { date: '2026-03-31', level: 120, reason: null },
+      { date: '2026-04-30', level: 132, reason: null },
+    ]);
+    expect(result.benchmarkReturn).toBeCloseTo(0.1, 12);
+    expect(result.index.at(-1)?.benchmark).toBeCloseTo(110, 12);
+    expect(result.dailyBenchmark.at(-1)?.benchmark).toBeCloseTo(110, 12);
+  });
+
+  it('exposes exact daily values and gross markers while a deposit leaves only 10% return', () => {
+    // Opening 10_000 cents + deposit 10_000 cents -> closing 22_000 cents;
+    // PP index is 110, never 220. No rounding of rates or stored-money writes.
+    const report = performanceReportSeries(
+      {
+        series: [
+          { date: '2026-01-01', valueCents: 10_000 },
+          { date: '2026-01-02', valueCents: 22_000 },
+        ],
+        flows: [{ date: '2026-01-02', cents: 10_000 }],
+      },
+      { from: '2026-01-01', to: '2026-01-02' },
+    );
+    expect(report.dailyValues).toEqual([
+      { date: '2026-01-01', valueCents: 10_000, depositsCents: 0, withdrawalsCents: 0 },
+      { date: '2026-01-02', valueCents: 22_000, depositsCents: 10_000, withdrawalsCents: 0 },
+    ]);
+    expect(report.dailyIndex.at(-1)?.portfolio).toBeCloseTo(110, 12);
+  });
+
   it('chains only valued months in a year funded on 1 March, matching the headline', () => {
     const input = {
       series: eachDay('2025-12-31', '2026-12-31').map((date) => ({

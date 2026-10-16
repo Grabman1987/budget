@@ -1333,3 +1333,13 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [x] Fresh web typecheck, changed-file ESLint/Prettier/CSS scale, 21 targeted unit tests and E2E build after integration. Existing calculation tests and write/undo assertions remain.
 - [x] Final 14-case desktop/Chromium-phone/WebKit run: all five pages, light/dark Axe and chart-label roles, 44px controls, actual viewport-width guards, debt models and audited actions. Synthetic desktop/phone images and the wider 53-pass regression run are recorded in [delivery evidence](evidence/ux-v1-vermoegen/README.md).
 - [ ] Required final-head CI, Linux baseline review, deployed revision and owner physical-device acceptance.
+### P525-A — Portfolio value/return chart, part 1 (#525)
+
+- [x] One value/TTWROR chart and shared period control; securities-only daily cents and gross flow markers, selected benchmarks only, and a link to the existing empty selection setting.
+- [x] Align benchmark comparison to valued portfolio months; literal unfunded-January, March-funding and 100 + 100 → 220 / +10% regressions.
+- [x] Remove Modified Dietz from report figures and glossary; retain the still-used domain approximation and its tests.
+- [x] Read issue #525 and all four comments through the connected GitHub app after the CLI returned HTTP 401.
+- [x] Final three-browser Portfolio spec: 9 feature cases plus 3 setup cases, including light/dark Axe, privacy, exact hover and no horizontal scroll. [Evidence](evidence/portfolio-chart/README.md).
+- [x] Full local check: 436 files / 4,006 tests passed, no failures or skips; final Portfolio browser spec 12/12 and E2E build passed.
+- [ ] Commit/push/draft PR: commit blocked by `index.lock: Permission denied`; owner's no-workaround fallback followed, local PR body at `test-results/p525a-pr.md`.
+- [ ] Required PR CI and the remaining #525 packages; private PP reconciliation remains Gate 3.

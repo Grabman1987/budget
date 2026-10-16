@@ -70,6 +70,30 @@ const save = (securityId: string | null, origin?: string) =>
     body: JSON.stringify({ securityId }),
   });
 
+it('daily value endpoint equals the lead and unsplit positions at the same valuation date without writes', async () => {
+  // Synthetic closing positions: 12_100 cents + 0 cents = 12_100 cents;
+  // the depot's settlement cash is outside this securities-only scope.
+  const before = opened.sqlite.prepare('SELECT COUNT(*) AS n FROM audit_log').get();
+  const portfolio = await readPortfolio();
+  const response = await app.request('/api/portfolio/positions');
+  const positions = (await response.json()) as {
+    asOf: string;
+    valueCents: number;
+    positions: { valueCents: number }[];
+  };
+  expect(portfolio.performanceHistory!.dailyValues.at(-1)).toMatchObject({
+    date: positions.asOf,
+    valueCents: 12_100,
+  });
+  expect(positions.valueCents).toBe(12_100);
+  expect(positions.positions.reduce((sum, p) => sum + p.valueCents, 0)).toBe(12_100);
+  expect(portfolio.benchmarks).toEqual([]);
+  expect(
+    opened.sqlite.prepare("SELECT value FROM app_setting WHERE id='portfolio.benchmark_ids'").get(),
+  ).toBeUndefined();
+  expect(opened.sqlite.prepare('SELECT COUNT(*) AS n FROM audit_log').get()).toEqual(before);
+});
+
 it('compares an unheld owner benchmark, uses shared TTWROR and retains a sold class', async () => {
   expect((await save('bench')).status).toBe(200);
   const response = await read();

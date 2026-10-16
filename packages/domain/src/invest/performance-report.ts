@@ -38,9 +38,6 @@ export function performanceReportSeries(
     );
     return quote !== undefined && quote.date >= closeDay;
   };
-  const base = quoteOn(from);
-  const baseLevel =
-    currentQuote(from, base) && base?.level != null && base.level > 0 ? base.level : null;
   let portfolioLevel = 100;
   const dailySeries = input.series.filter((v) => v.date >= from && v.date <= to);
   const dailyRateByDate = new Map(
@@ -49,6 +46,21 @@ export function performanceReportSeries(
       (input.returnFlows ?? input.flows).filter((flow) => flow.date > from && flow.date <= to),
     ).map(({ date, rate }) => [date, rate] as const),
   );
+  const firstValuedMonth = bounds.findIndex((start, i) =>
+    [...dailyRateByDate.keys()].some((date) => date > start && date <= (bounds[i + 1] ?? start)),
+  );
+  const baseDate = bounds[firstValuedMonth] ?? from;
+  const base = quoteOn(baseDate);
+  const baseLevel =
+    currentQuote(baseDate, base) && base?.level != null && base.level > 0 ? base.level : null;
+  const dailyValues = dailySeries.map((valuation) => {
+    const flows = input.flows.filter((f) => f.date === valuation.date && f.date > from);
+    return {
+      ...valuation,
+      depositsCents: flows.reduce((sum, f) => sum + Math.max(0, f.cents), 0),
+      withdrawalsCents: flows.reduce((sum, f) => sum + Math.max(0, -f.cents), 0),
+    };
+  });
   const dailyIndex: { date: string; portfolio: number | null }[] = [
     { date: from, portfolio: effective.startValueCents > 0 ? 100 : null },
   ];
@@ -63,9 +75,13 @@ export function performanceReportSeries(
     {
       date: from,
       portfolio: effective.startValueCents > 0 ? 100 : null,
-      benchmark: baseLevel !== null ? 100 : null,
+      benchmark: baseDate === from && baseLevel !== null && firstValuedMonth >= 0 ? 100 : null,
     },
   ];
+  let benchmarkBase = baseLevel;
+  let lastBenchmarkLevel = 100;
+  let previousMonthValued = false;
+  const dailyBenchmark = [{ date: from, benchmark: index[0]!.benchmark }];
   const months = bounds.slice(1).map((end, i) => {
     const start = bounds[i] as string;
     const segment = { from: start, to: end };
@@ -92,11 +108,42 @@ export function performanceReportSeries(
             ? 'missing_price'
             : null;
     const benchmarkRate = benchmarkGap === null ? b!.level! / a!.level! - 1 : null;
+    if (valued && i > firstValuedMonth && !previousMonthValued) {
+      benchmarkBase =
+        currentQuote(start, a) && a?.level != null && a.level > 0 && lastBenchmarkLevel > 0
+          ? (100 * a.level) / lastBenchmarkLevel
+          : null;
+    }
+    // Compare only months in which the portfolio has a return, exactly as windowPerformance.
+    // Missing observed daily closes break the chart; they are never interpolated.
+    for (const valuation of dailySeries.filter((v) => v.date > start && v.date <= end)) {
+      const quote = quoteOn(valuation.date);
+      dailyBenchmark.push({
+        date: valuation.date,
+        benchmark:
+          valued &&
+          benchmarkBase !== null &&
+          currentQuote(start, a) &&
+          a?.level != null &&
+          a.level > 0 &&
+          currentQuote(valuation.date, quote) &&
+          quote?.level != null &&
+          quote.level >= 0
+            ? (100 * quote.level) / benchmarkBase
+            : null,
+      });
+    }
     if (rate !== null) portfolioLevel *= 1 + rate;
+    const benchmarkIndex =
+      valued && benchmarkGap === null && benchmarkBase !== null
+        ? (100 * b!.level!) / benchmarkBase
+        : null;
+    if (benchmarkIndex !== null) lastBenchmarkLevel = benchmarkIndex;
+    previousMonthValued = valued;
     index.push({
       date: end,
       portfolio: rate === null ? null : portfolioLevel,
-      benchmark: benchmarkGap === null && baseLevel !== null ? (100 * b!.level!) / baseLevel : null,
+      benchmark: benchmarkIndex,
     });
     return {
       month: end.slice(0, 7),
@@ -122,7 +169,7 @@ export function performanceReportSeries(
       to: mine.at(-1)!.to,
       partial: mine.length !== 12 || mine.some((m) => m.partial),
       rate: compound(mine.map((m) => m.rate).filter((rate) => rate !== null)),
-      benchmarkRate: compound(mine.map((m) => m.benchmarkRate)),
+      benchmarkRate: compound(mine.filter((m) => m.rate !== null).map((m) => m.benchmarkRate)),
     };
   });
   return {
@@ -132,7 +179,9 @@ export function performanceReportSeries(
     years,
     index,
     dailyIndex,
-    benchmarkReturn: compound(months.map((m) => m.benchmarkRate)),
+    dailyValues,
+    dailyBenchmark,
+    benchmarkReturn: compound(months.filter((m) => m.rate !== null).map((m) => m.benchmarkRate)),
   };
 }
 
