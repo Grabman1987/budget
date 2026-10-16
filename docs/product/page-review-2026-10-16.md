@@ -25,7 +25,7 @@ Outcome of the owner page review on 2026-10-16 (German, owner-approved). Where i
 - Schulden: negative Giro-/Verrechnungskonten zählen als Schuld; „schuldenfrei“ = alle Kredite mit Konditionen getilgt, Karten „laufend ausgeglichen“ daneben.
 - Rendite: Wechsel auf PP-Konvention ändert Renditezahlen bewusst (Beispiel Endfluss: bisher 20 %, PP 10 %) – unter GAP08 vermerkt.
 
-**Offen (Owner-Frage):** Freiheit „Investiert = Anlagebasis (#507)“ – die Kontenauswahl ist nur aktuell, nicht historisiert, und würde rückwirkend auf die Ist-Kurve seit 10/2023 wirken; R16 nutzt heute `role=investment` und würde mitwechseln.
+**Vereinbart (Owner, 16.10.2026, #528):** „Investiert“ = Anlagebasis aus #507 überall gleich – Freiheitszahl, R16 und Allokation nutzen dieselbe Kontenauswahl. Die heutige Auswahl gilt auch für die Ist-Kurve seit 10/2023 mit Hinweis „Kontenauswahl Stand heute“; R16 wechselt von `role=investment` auf denselben Resolver, frühere Kurvenwerte dürfen sich verschieben.
 
 ## Prüfstand Seitenreview
 
