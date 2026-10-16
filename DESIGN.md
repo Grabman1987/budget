@@ -28,6 +28,8 @@ colors:
   need: "#1747a6"
   want: "#3d86e0"
   future: "#0c7a86"
+  plus-ink: "#0b7285"
+  minus-ink: "#b8380a"
   dark-ground: "#0b3152"
   dark-ground-2: "#092a47"
   dark-raised: "#0f3b60"
@@ -53,6 +55,8 @@ colors:
   dark-need: "#e4f2ff"
   dark-want: "#7cc0f5"
   dark-future: "#6fd8d2"
+  dark-plus-ink: "#4fe3d0"
+  dark-minus-ink: "#ff9d7a"
 typography:
   dimension:
     fontFamily: "Archivo, Segoe UI, system-ui, sans-serif"
@@ -280,7 +284,15 @@ Eine einzige Tuschfamilie in Blau auf glattem Grund, mit genau einer Fremdtinte:
 - **Gradnetz** (`graticule`): die schwachen Rasterlinien hinter Diagrammen und im Kopfdetail des Seitenpanels, sonst nirgends.
 - Transparente Tönungen `--tint` (6 %/7 %) und `--tint-2` (11 %/13 %) der Tusche für Hover, Auswahl und Balkenträger; `--overlay` für den Scrim.
 
-Owner UX Q1 (2026-10-14, #464): control boundaries and meaningful secondary lines reach at least 3:1 against their normal surfaces; text reaches 4.5:1. Selected/hovered rows and selected controls use `ink-2` for metadata otherwise painted in `ink-3`. Dark positive fills use a lighter green with dark `on-good` text, so both the fill and its text remain distinguishable. These are contrast corrections; the full teal/orange palette follows separately in DS1.
+Owner UX Q1 (2026-10-14, #464): control boundaries and meaningful secondary lines reach at least 3:1 against their normal surfaces; text reaches 4.5:1. Selected/hovered rows and selected controls use `ink-2` for metadata otherwise painted in `ink-3`. Dark positive fills use a lighter green with dark `on-good` text, so both the fill and its text remain distinguishable. For signed values, see [Farbrollen v2 (DS1, #472)](#farbrollen-v2-ds1-472).
+
+### Farbrollen v2 (DS1, #472)
+
+Owner decision 1A (2026-10-14): signed amounts and direction series use `--plus-ink` (teal: light `#0b7285`, dark `#4fe3d0`) and `--minus-ink` (orange: light `#b8380a`, dark `#ff9d7a`). Keep signs, arrows and zero geometry as a second channel; colour never carries direction alone. Legacy `--good-ink` / `--bad-ink` alias these roles. Text reaches 4.5:1 on normal surfaces. Plus means the favourable direction of the shown figure: for spending, "less spent" is plus (teal) and "more spent" is minus (orange). Colour-vision guard: Machado severity 1.0, CIE Delta E 1976 ≥ 25 between plus and minus (measured light 74.08 / 58.92, dark 43.31 / 29.12 for deuteranopia / protanopia; the retired red/green reached 7–18).
+
+Red (`--red`, `--red-soft`, `--on-red`) remains exclusively for act-now states: current overspending, errors and destructive actions. Green `--good`, `--good-hover`, `--good-soft`, `--on-good` and `--on-good-soft` retain available-money and OK-status semantics. Primary blue remains structure/actions; neutral ink remains context. Historical quiet negatives and dashed debt outlines retain the Q2 exception.
+
+Charts use at most four series with direct labels. Heatmaps use single-hue density with direction markers. This token-only slice leaves the existing signed heatmap fills and chart structure unchanged; their markers, density scale and series-label migration require a separate UI slice.
 
 ### Named Rules
 **The Signal Rule.** Grün sagt „das Geld ist da“ (Hero, Mint-Pillen, erfüllt), Rot sagt „handeln“; beide erscheinen nie ohne Zahl, Vorzeichen oder Symbol.
@@ -351,7 +363,7 @@ Zeichenmittel: Maßlinien mit Schrägstrich-Begrenzung (Strich 1,25–1,6), gepu
 Schraffuren: Bedarf Vollfläche, Wunsch 135°-Schraffur (2 px Strich, 5 px Rapport), Zukunft Kreuzschraffur (45° und 135°, 1,5 px), gebunden 135°-Schraffur in blasser Tusche. Schulden in Ketten: gestrichelte Kontur `5 3`, ohne Füllung.
 
 ### Shared chart inspection
-All chart forms share one raised, hairline-bordered tooltip with tabular exact values, a legend-colour swatch and series name per visible layer, and the date/month at the bottom. Time charts snap a vertical dotted crosshair to the nearest stored point; ranked bars, sectors and Sankey nodes/links use their actual hit target (Sankey includes amount and share of the income pool). Focus plus left/right explores points, Escape hides, touch taps select and an outside tap hides. Amount privacy also masks these values. Negative bars use the opaque `red` token in both themes; signs and position around zero carry meaning alongside colour.
+All chart forms share one raised, hairline-bordered tooltip with tabular exact values, a legend-colour swatch and series name per visible layer, and the date/month at the bottom. Time charts snap a vertical dotted crosshair to the nearest stored point; ranked bars, sectors and Sankey nodes/links use their actual hit target (Sankey includes amount and share of the income pool). Focus plus left/right explores points, Escape hides, touch taps select and an outside tap hides. Amount privacy also masks these values. Signed bars use `plus-ink` / `minus-ink`; Q2 historical quiet negatives and dashed debt outlines remain. Signs and position around zero carry meaning alongside colour.
 
 ## Components
 
@@ -448,7 +460,7 @@ Je Konto: Quelle (Bank-Sync PSD2, API nur lesen, Datei-Import, manuell), Schalte
 - **Nicht-Klassen-Reihen** (Kontotypen, Einnahmearten, Kostenarten) laufen in Tuschestufen 100 · 60 · 38 %, blasse Tusche, Tönung mit Kontur. Schraffur bleibt Klassen und gebundenem Geld (Rücklagen) vorbehalten.
 - **Druckblatt (Signature):** A4-Rahmen mit Zonenmarken 1–6 / A–F, Innenrand, Abschnitte A–F mit Buchstabenmarke, Schriftfeld unten rechts bündig am Innenrand (Benennung, Monat/Jahr, Stand, Zeichnungs-Nr. `FA-R1.1-2608`, Einheit €, Blatt n/m). Monats-One-Pager 1 Blatt, Jahresreport 2 Blätter. `@media print` blendet die App-Hülle aus und erzwingt helle Tokens; mobil fällt der Rahmen weg.
 - **Rotstift in Reports** nur für Handlungsbedarf jetzt: überzogene Kategorie im laufenden Monat, negativer Tiefpunkt, verletzte Regel. Vergangene Überschreitungen sind Tusche mit Vorzeichen.
-- **Richtungsfarben (Entscheidung 29.09.2026):** Pastelliges Grün (`--heat-green` #a9dbb8) und Rot (`--heat-red` #f3b3a9) nur für Heatmaps und für Veränderungen mit Vorzeichen (besser/schlechter, `--good-ink`/`--bad-ink` für Text). Heatmap-Zellen färben je Zeile gegen den Zeilendurchschnitt (Ausgaben: teurer = rot; Einnahmen, Zukunft, Rendite: höher = grün; Projekte gegen 0); Abweichungen unter 8 % bleiben neutral. `--red` bleibt dem Handlungsbedarf vorbehalten.
+- **Richtungsfarben:** Signed text and series follow [Farbrollen v2 (DS1, #472)](#farbrollen-v2-ds1-472). Existing signed heatmaps retain their row-average calculation and neutral band below 8 % until the separate single-hue UI migration; their `--heat-green` / `--heat-red` fills are not act-now roles.
 - **Katalog 30 Reports, 5 Baugruppen** (Monat und Einkommen, Ausgaben und Plan, Zukunft und Vermögen, Portfolio, Überblick). Vorige/nächste Zeichnung steht oben im Report.
 - **50/30/20 als zugewiesenes Geld:** `RC.alloc()` rechnet periodische Kosten, Sonderzahlungen und Windfall-Umbuchungen als Zwölftel; Balken Bedarf/Wunsch/Zukunft plus „Übrig“ (Kontur) bzw. „Aus Guthaben“ (hinter der gestrichelten 100-%-Marke); Legende mit Prozent und Euro, zusammen immer 100 %.
 - **Liquiditätsprognose als Planungswerkzeug:** Urteilskasten (voller 1-px-Rahmen, keine Seitenleiste), Ereignisliste mit „+ Ereignis“, Stellschrauben als Checkboxen mit Wirkung auf den Tiefpunkt, 10-%-Puffer als Band, Monatstabelle und Bewegungen je Monat (Anfang, Bewegungen ab 250 €, Rest als eine Zeile, Ende) über denselben Horizont wie das Urteil.

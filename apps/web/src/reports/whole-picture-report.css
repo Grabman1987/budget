@@ -85,8 +85,8 @@
 }
 
 .whole-picture .is-up {
-  color: var(--good-ink);
+  color: var(--plus-ink);
 }
 .whole-picture .is-down {
-  color: var(--bad-ink);
+  color: var(--minus-ink);
 }

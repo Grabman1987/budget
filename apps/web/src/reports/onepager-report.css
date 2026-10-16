@@ -185,10 +185,10 @@
   font-weight: 600;
 }
 .is-up {
-  color: var(--good-ink);
+  color: var(--plus-ink);
 }
 .is-down {
-  color: var(--bad-ink);
+  color: var(--minus-ink);
 }
 .ps-cats {
   width: 100%;

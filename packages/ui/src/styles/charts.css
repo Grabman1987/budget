@@ -133,13 +133,13 @@ svg.chart {
   fill: var(--line-2);
 }
 .bar-pos {
-  fill: var(--heat-green);
-  stroke: var(--good-ink);
+  fill: var(--plus-ink);
+  stroke: var(--plus-ink);
   stroke-width: 0.8;
 }
 .bar-neg2 {
-  fill: var(--red);
-  stroke: var(--red);
+  fill: var(--minus-ink);
+  stroke: var(--minus-ink);
   stroke-width: 0.8;
 }
 .bar-neg-ink {

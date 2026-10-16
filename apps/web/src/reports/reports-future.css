@@ -221,7 +221,7 @@
   color: var(--red);
 }
 .rf-table .is-short {
-  color: var(--bad-ink);
+  color: var(--minus-ink);
 }
 .rf-table .is-total td {
   border-top: 1px solid var(--line-2);
