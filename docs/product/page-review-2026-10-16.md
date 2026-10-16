@@ -1,6 +1,6 @@
 # Page review 2026-10-16 – agreed page decisions
 
-Outcome of the owner page review on 2026-10-16 (German, owner-approved). Where it differs from older Figma frames, docs or audit recommendations, **this record and the linked issue comments take precedence**. Status per page: agreed, not implemented. Example amounts are synthetic.
+Outcome of the owner page review on 2026-10-16 (German, owner-approved). Where it differs from older Figma frames, docs or audit recommendations, **this record and the linked issue comments take precedence**. Status per page: see the stage legend in the Prüfstand below (state 2026-10-16 evening; live revision `d945c30d`). Example amounts are synthetic.
 
 ## Supersessions, Präzisierungen, offene Punkte (Konfliktprüfung 16.10.2026)
 
@@ -29,43 +29,57 @@ Outcome of the owner page review on 2026-10-16 (German, owner-approved). Where i
 
 ## Prüfstand Seitenreview
 
-Status je Seite: vorgeschlagen → vereinbart → implementiert → deployt → abgenommen.
+Status je Seite in vier Stufen. Eine Seite trägt nur die Stufe, die nachweisbar erreicht ist; Teilstände stehen als „teilweise <Stufe> (PR); Rest <Stufe>“, die Restarbeit steht in der Spalte „Offen“.
+
+| Stufe | Bedeutung |
+| --- | --- |
+| **vereinbart** | Owner-Entscheidung liegt vor, nichts gebaut. |
+| **implementiert** | PR offen, nicht gemergt. |
+| **deployt** | Gemergt, CI auf `main` + Deploy grün, Live-Revision (`/health`) enthält den Merge-Commit. |
+| **abgenommen** | Vom Owner persönlich abgenommen. Nur mit Owner-Kommentar im Issue; bisher ist keine Seite abgenommen. |
+
+Die Freigabe der Figma-Frames durch den Owner (16.10.2026, Kommentar in #529) ist eine Layout-Freigabe und macht keine Seite „abgenommen“. Wo die Typo-Skala DS2 (#473) greift, gelten ihre Größen vor den Frame-Größen.
+
+Spalten: **Figma-Frame** = Soll-Layout (v2 = vom Owner am 16.10.2026 freigegeben, überholte Frames in eckigen Klammern); **Umsetzung** = PR/Commit oder „–“; **Vereinbart** = Link auf den Entscheidungsabschnitt in diesem Dokument; **Aufgabe** = Issue(s) mit der Restarbeit.
+
 Figma-Datei: https://www.figma.com/design/Nv9oaV96Npql6onEofCFEi
 
-**Phase 1 abgeschlossen (16.10.2026).** Nächster Schritt: Phase 2 – priorisierte Umsetzungsliste aus den Issues; vorher #505 mergen und Review-Ergebnis in docs/product nachtragen.
+**Phase 1 abgeschlossen (16.10.2026).** Phase 2 (#529): Umsetzung in Bahnen nach den Issues; PR #505 und dieses Dokument (#530) sind gemergt. Stand abends: Live-Revision `d945c30d` enthält #507, #531, #532, #534.
 
 Fortschritt: Blöcke 1–7 ✓ (Block 7 Onboarding bis PUB1 zurückgestellt).
 
-| Seite/Route | Figma-Frame | Status | Vereinbart | Offen | Aufgabe | Abnahmekriterium |
-| --- | --- | --- | --- | --- | --- | --- |
-| Heute `/` | H01 Desktop `172:3`, Phone `172:125`; H02 `172:197`, H03 `172:345`, H04 `172:457`, H05 `206:5910` | vereinbart 16.10. | siehe unten | Figma-Frame noch nicht nachgezogen | #475, #476 | siehe unten |
-| Plan › Monat `/plan/monat` | P01 `174:2` (Seite `169:32`) | vereinbart 16.10. | siehe unten | P02–P06/P15–P23 Zustände beim Umsetzen prüfen | #449, #450, #469 | siehe unten |
-| Plan › Ziele `/plan/sparziele` | P10 `174:1480` (verworfen), P11 `174:1610` | vereinbart 16.10. | siehe unten | – | #482, #514 | siehe unten |
-| Plan › Zahlungen `/plan/erwartet` | P08 `174:1256`, P09 `174:1368` | vereinbart 16.10. | siehe unten | – | #482 | siehe unten |
-| Plan › Jahr `/plan/jahr` | P07 `174:1106` (zu dünn) | vereinbart 16.10. | siehe unten | – | #482 | siehe unten |
-| Monatsabschluss `/monatsabschluss/$month` | P13 `174:1864`, P14 `174:1976` | vereinbart 16.10. | siehe unten | – | #483, #357 | siehe unten |
-| Konten › Übersicht `/konten` | K01 `172:570` | vereinbart 16.10. | siehe unten | – | #467, #478 | siehe unten |
-| Konto-Register + Depot `/konten/$id` | K02 `172:698`, K03 `172:842`, K04 `172:968`, K05 `172:1094` | vereinbart 16.10. | siehe unten | – | #467, #478 | siehe unten |
-| Buchung erfassen (Dialog) | F01 `174:2092` | vereinbart 16.10. | siehe unten | – | #523 | siehe unten |
-| Konten › Prüfen + Abgleich `/konten/pruefen` | K07–K09, K12–K13 | vereinbart 16.10. | siehe unten | – | #477 | siehe unten |
-| Alle Buchungen `/konten/buchungen` | K06 `172:1220`, K14 `206:5060`, K15 `206:5476` | vereinbart 16.10. | siehe unten | – | #479, #515 | siehe unten |
-| Kontakte `/konten/kontakte` | K10 `172:1694`, K11 `172:1814` | vereinbart 16.10. | siehe unten | – | #479 | siehe unten |
-| Gehaltszettel → Plan › Einnahmen | G01 `173:2` | vereinbart 16.10. | siehe unten | G02–G11 in Figma nicht gefunden | #482 | siehe unten |
-| Vermögen › Nettovermögen `/vermoegen/nettovermoegen` | V01 `172:1943` (App besser) | vereinbart 16.10. | siehe unten | – | #524, #469 | siehe unten |
-| Vermögen › Portfolio `/vermoegen/portfolio` | V02 `172:2107`, V09 `206:6344` | vereinbart 16.10. | siehe unten | – | #525, #510 | siehe unten |
-| Allokation + Vermögensstufen | V18–V21 (`260:1865`, `260:2002`) | Stufen-Logik deployt 16.10. (20c24257); Tabelle offen | siehe unten | Editor-Tabelle #526 | PR #507, #526 | siehe unten |
-| Positionen, Instrument, Sparpläne | V10 `206:6836`, V03 `172:2271`, V14 `206:8502` | vereinbart 16.10. | siehe unten | – | #525 | siehe unten |
-| Vermögen › Schulden `/vermoegen/schulden` | V05 `172:2557`, V15 `206:8922`, V16 `206:9364` | vereinbart 16.10. | siehe unten | Kreditkonditionen trägt der Owner ein | #527 | siehe unten |
-| Vermögen › Freiheit `/vermoegen/freiheit` | V06 `172:2695` | vereinbart 16.10. | siehe unten | – | #528 | siehe unten |
-| Reports › Katalog `/reports` | R00 `175:2` | vereinbart 16.10. | siehe unten | – | #487 | siehe unten |
-| Report-Vorlage (alle Reports) | R02 `175:435` als Beispiel | vereinbart 16.10. | siehe unten | – | #488 | siehe unten |
-| Reports › Auswertung/Explorer | R05 `175:929`, R23 `206:10218`, R24 `206:10630` | vereinbart 16.10. | siehe unten | – | #517 | siehe unten |
-| Reports › Portfolio-Auswertung | R11 `175:1913`, R28 `206:12223` | vereinbart 16.10. | siehe unten | – | #525, #487 | siehe unten |
-| Einstellungen › Übersicht `/einstellungen` | E00 `172:3110` | vereinbart 16.10. | siehe unten | – | #485, #486 | siehe unten |
-| Einstellungen › Verbindungen | E03 `172:3474`, E08 `206:13904` | vereinbart 16.10. | siehe unten | Zugänge (Enable Banking, Dropbox) richtet der Owner ein | #486 | siehe unten |
-| Suche + globale Zustände | S01 `173:1269` … S13 `186:1660` | vereinbart 16.10. | siehe unten | – | #522, #511, #479 | siehe unten |
-| Onboarding O01–O08 | – (keine Frames) | zurückgestellt bis PUB1 | siehe unten | – | #490 | – |
-| Globale Navigation | Seitenleiste/Kopf in H01 `172:3` / `172:125`, Regeln `197:1970` | vereinbart 16.10. | siehe unten | Figma-Frames nachziehen | #468, #476 | siehe unten |
+| Seite/Route | Figma-Frame | Status | Umsetzung | Vereinbart | Offen | Aufgabe | Abnahmekriterium |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Heute `/` | H01 v2 (Owner-Freigabe 16.10.): Desktop `349:62`, Phone `350:76` [H01 `172:3` / `172:125` überholt]; H02 `172:197`, H03 `172:345`, H04 `172:457`, H05 `206:5910` | vereinbart 16.10. | – | [Entscheidung](#heute--entscheidungen-16102026-owner) | Umsetzung offen | #475, #476 | siehe Abschnitt |
+| Plan › Monat `/plan/monat` | P01 `174:2` (Seite `169:32`) | vereinbart 16.10. | – | [Entscheidung](#plan--monat--entscheidungen-16102026-owner) | P02–P06/P15–P23 Zustände beim Umsetzen prüfen | #449, #450, #469 | siehe Abschnitt |
+| Plan › Ziele `/plan/sparziele` | P10 `174:1480` (verworfen), P11 `174:1610` | vereinbart 16.10. | – | [Entscheidung](#plan--ziele--entscheidungen-16102026-owner) | – | #482, #514 | siehe Abschnitt |
+| Plan › Zahlungen `/plan/erwartet` | P08 `174:1256`, P09 `174:1368` | vereinbart 16.10. | – | [Entscheidung](#plan--zahlungen--entscheidungen-16102026-owner) | – | #482 | siehe Abschnitt |
+| Plan › Jahr `/plan/jahr` | P07 `174:1106` (zu dünn) | vereinbart 16.10. | – | [Entscheidung](#plan--jahr--entscheidungen-16102026-owner) | – | #482 | siehe Abschnitt |
+| Monatsabschluss `/monatsabschluss/$month` | P13 `174:1864`, P14 `174:1976` | vereinbart 16.10. | – | [Entscheidung](#monatsabschluss--entscheidungen-16102026-owner) | – | #483, #357 | siehe Abschnitt |
+| Konten › Übersicht `/konten` | K01 v2 (Owner-Freigabe 16.10.): Desktop `352:129`, Phone `353:136`, Komponente Prüfbadge `352:128` [K01 `172:570` überholt] | vereinbart 16.10. | – | [Entscheidung](#konten--übersicht--entscheidungen-16102026-owner) | Umsetzung offen | #467 | siehe Abschnitt |
+| Konto-Register + Depot `/konten/$id` | K02 `172:698`, K03 `172:842`, K04 `172:968`, K05 `172:1094` | teilweise deployt (#534); Rest vereinbart 16.10. | Depotseite: #534 (`d945c30d`, #478) | [Entscheidung](#konto-register--depotseite--entscheidungen-16102026-owner) | Seitenleiste zeigt beim Depot noch den Buchsaldo (#467); Register-Änderungen für normale Konten | #467 (Rest), #478 (umgesetzt) | siehe Abschnitt |
+| Buchung erfassen (Dialog) | F01 `174:2092` | vereinbart 16.10. | – | [Entscheidung](#buchung-erfassen--entscheidungen-16102026-owner) | Umbuchung Bar↔Bank: Status je Seite | #523 | siehe Abschnitt |
+| Konten › Prüfen + Abgleich `/konten/pruefen` | K07–K09, K12–K13 | vereinbart 16.10. | – | [Entscheidung](#konten--prüfen--abgleich--entscheidungen-16102026-owner) | – | #477 | siehe Abschnitt |
+| Alle Buchungen `/konten/buchungen` | K06 `172:1220`, K14 `206:5060`, K15 `206:5476` | vereinbart 16.10. | – | [Entscheidung](#alle-buchungen--entscheidungen-16102026-owner) | – | #479, #515 | siehe Abschnitt |
+| Kontakte `/konten/kontakte` | K10 `172:1694`, K11 `172:1814` | vereinbart 16.10. | – | [Entscheidung](#kontakte--entscheidungen-16102026-owner) | – | #479 | siehe Abschnitt |
+| Gehaltszettel → Plan › Einnahmen | G01 `173:2` | vereinbart 16.10. | – | [Entscheidung](#gehaltszettel--entscheidungen-16102026-owner) | G02–G11 in Figma nicht gefunden | #482 | siehe Abschnitt |
+| Vermögen › Nettovermögen `/vermoegen/nettovermoegen` | V01 `172:1943` (App besser) | vereinbart 16.10. | – | [Entscheidung](#vermögen--nettovermögen--entscheidungen-16102026-owner) | – | #524, #469 | siehe Abschnitt |
+| Vermögen › Portfolio `/vermoegen/portfolio` | V02 `172:2107`, V09 `206:6344` | teilweise deployt (#531); Rest vereinbart 16.10. | Rechenbasis: #531 (`c58aa2f5`, PP-Konvention TTWROR, Einzahlung am Tagesanfang) | [Entscheidung](#vermögen--portfolio--entscheidungen-16102026-owner) | Seitenlayout (Diagramm-Umschalter, Benchmarks, 5 Register); #525 Teil 1 in Arbeit, noch kein PR | #525, #510 | siehe Abschnitt |
+| Allokation + Vermögensstufen | V18–V21 (`260:1865`, `260:2002`); V21 v2 (Owner-Freigabe 16.10.): `355:498` [V21 alt überholt] | teilweise deployt (#507); Rest vereinbart 16.10. | Stufenlogik (Schwelle + 10 % Puffer): #507 (`20c24257`) | [Entscheidung](#allokation--vermögensstufen--entscheidungen-16102026-owner) | Editor-Tabelle Stufe × Anlageklasse | #526 | siehe Abschnitt |
+| Positionen, Instrument, Sparpläne | V10 `206:6836`, V03 `172:2271`, V14 `206:8502` | vereinbart 16.10. | – | [Entscheidung](#positionen-instrument-sparpläne--entscheidungen-16102026-owner) | – | #525 | siehe Abschnitt |
+| Vermögen › Schulden `/vermoegen/schulden` | V05 `172:2557`, V15 `206:8922`, V16 `206:9364` | vereinbart 16.10. | – | [Entscheidung](#vermögen--schulden--entscheidungen-16102026-owner) | Kreditkonditionen trägt der Owner ein | #527 | siehe Abschnitt |
+| Vermögen › Freiheit `/vermoegen/freiheit` | V06 `172:2695` | vereinbart 16.10. | – | [Entscheidung](#vermögen--freiheit--entscheidungen-16102026-owner) | – | #528 | siehe Abschnitt |
+| Reports › Katalog `/reports` | R00 `175:2` | vereinbart 16.10. | – | [Entscheidung](#reports--katalog--entscheidungen-16102026-owner) | – | #487 | siehe Abschnitt |
+| Report-Vorlage (alle Reports) | R02 v2 (Owner-Freigabe 16.10.): `354:520` [R02 `175:435` überholt] | vereinbart 16.10. | – | [Entscheidung](#report-vorlage-antwort-zuerst--entscheidungen-16102026-owner) | Umsetzung offen | #488 | siehe Abschnitt |
+| Reports › Auswertung/Explorer | R05 `175:929`, R23 `206:10218`, R24 `206:10630` | vereinbart 16.10. | – | [Entscheidung](#auswertungexplorer--entscheidungen-16102026-owner) | – | #517 | siehe Abschnitt |
+| Reports › Portfolio-Auswertung | R11 `175:1913`, R28 `206:12223` | teilweise deployt (#531); Rest vereinbart 16.10. | Rechenbasis: #531 (`c58aa2f5`) | [Entscheidung](#portfolio-auswertung--renditerisiko--entscheidungen-16102026-owner) | Seitenlayout (Raster, Kennzahlen-Hinweise, Modified Dietz aus dem Code entfernen); #525 Teil 1 in Arbeit, noch kein PR | #525, #487 | siehe Abschnitt |
+| Einstellungen › Übersicht `/einstellungen` | E00 `172:3110` | vereinbart 16.10. | – | [Entscheidung](#einstellungen--übersicht--entscheidungen-16102026-owner) | – | #485, #486 | siehe Abschnitt |
+| Einstellungen › Verbindungen | E03 `172:3474`, E08 `206:13904` | vereinbart 16.10. | – | [Entscheidung](#einstellungen--verbindungen--entscheidungen-16102026-owner) | Zugänge (Enable Banking, Dropbox) richtet der Owner ein | #486 | siehe Abschnitt |
+| Suche + globale Zustände | S01 `173:1269` … S13 `186:1660` | vereinbart 16.10. | – | [Entscheidung](#suche--globale-zustände--entscheidungen-16102026-owner) | – | #522, #511, #479 | siehe Abschnitt |
+| Onboarding O01–O08 | – (keine Frames) | zurückgestellt bis PUB1 | – | [Entscheidung](#block-7--phase-2-übergang--entscheidungen-16102026-owner) | – | #490 | – |
+| Globale Navigation | Seitenleiste/Kopf in H01 `172:3` / `172:125`, Regeln `197:1970` | vereinbart 16.10. | – | [Entscheidung](#globale-navigation--entscheidungen-16102026-owner) | Figma-Frames nachziehen | #468, #476 | siehe Abschnitt |
+| Querschnitt: Rot nur für „jetzt handeln“ (Farbrollen) | – (Regel `197:1970`) | teilweise deployt (#532); Rest vereinbart 16.10. | Farbrollen Teal/Orange: #532 (`25793903`, DS1 #472) | [Entscheidung](#globale-navigation--entscheidungen-16102026-owner) | Seitenmigrationen (Orange statt Rot, ein Alarmort) | #465 | siehe Abschnitt |
+| Querschnitt: Typo-Skala DS2 | – | implementiert (PR offen) | #533 | [Entscheidung](#globale-navigation--entscheidungen-16102026-owner) | Merge und Deploy abwarten | #473 | siehe Abschnitt |
 
 ## Heute – Entscheidungen 16.10.2026 (Owner)
 
@@ -154,7 +168,7 @@ Soll: P13 `174:1864`, P14 `174:1976`. Aufgabe: #483 (Gate 4 #357).
 
 ## Konten › Übersicht – Entscheidungen 16.10.2026 (Owner)
 
-Soll: K01 `172:570`. Aufgabe: #467 (Depot-Vorlage #478).
+Soll: K01 v2 `352:129` / `353:136` (Owner-Freigabe 16.10.; K01 `172:570` überholt). Aufgabe: #467 (Depot-Vorlage #478).
 
 1. Leitzahl Saldo Budget-Konten + „X von Y geprüft“; kein Nettovermögen-Hero.
 2. Liste 36–40 px: Name · Prüfbadge · 30-Tage-Sparkline (Hover) · Saldo.
@@ -255,7 +269,7 @@ Soll: V02 `172:2107`, V09 `206:6344`. Aufgabe: #525 (GAP01/02).
 
 ## Allokation + Vermögensstufen – Entscheidungen 16.10.2026 (Owner)
 
-Soll: V18–V21 (Desktop-Flow `260:1865`, Phone-Flow `260:2002`). Aufgaben: PR #507, #526 (Tabelle).
+Soll: V18–V21 (Desktop-Flow `260:1865`, Phone-Flow `260:2002`), Stufentabelle V21 v2 `355:498` (Owner-Freigabe 16.10.). Aufgaben: PR #507, #526 (Tabelle).
 
 1. **Bedingte Stufen automatisch per Schwelle aktiv** (gegen Claudes Empfehlung „erst nach Freigabe“); Bedingung nur Hinweis. Beantwortet die offene PR-#507-Frage.
 2. Hysterese: Stufe bleibt, bis Anlagesumme 10 % unter ihre Schwelle fällt; Aufstieg exakt an der Schwelle.
@@ -308,7 +322,7 @@ Soll: R00 `175:2` (Hub 6A). Aufgabe: #487.
 
 ## Report-Vorlage „Antwort zuerst“ – Entscheidungen 16.10.2026 (Owner)
 
-Beispiel R02 `175:435`. Aufgabe: #488.
+Beispiel R02 v2 `354:520` (Owner-Freigabe 16.10.; R02 `175:435` überholt). Aufgabe: #488.
 
 1. Oben Satz + Leitzahl + Hauptdiagramm im ersten Viewport.
 2. Weitere Abschnitte eingeklappt, Zustand gemerkt.
@@ -376,7 +390,7 @@ Soll: S01–S13 (Seite `173:1268`, `186:*`). Aufgaben: #522, #511, #479.
 ## Block 7 + Phase-2-Übergang – Entscheidungen 16.10.2026 (Owner)
 
 1. Onboarding O01–O08 bis PUB1 zurückgestellt (#490); offene Einrichtungspunkte über Zu tun.
-2. PR #505 mergen (Doku), danach Review-Ergebnis in docs/product + DESIGN.md nachtragen.
-3. Figma: nur neue Layouts nachziehen (Heute mit Kontoprognose, Stufen-Tabelle, Report-Vorlage, Konten-Liste); maßgeblich sind Prüfstand + Issues.
+2. PR #505 mergen (Doku, gemergt), danach Review-Ergebnis in docs/product + DESIGN.md nachtragen.
+3. Figma: nur neue Layouts nachziehen (Heute mit Kontoprognose, Stufen-Tabelle, Report-Vorlage, Konten-Liste; alle vier als v2 am 16.10. vom Owner freigegeben, siehe Prüfstand); maßgeblich sind Prüfstand + Issues.
 
 **Abnahmekriterium Heute (Entwurf):** erster Desktop-Viewport (1440×900) zeigt Titelblatt mit Schalter, 3 Kennzahlen und Monat im Blick; Kontoprognose zeigt Tiefpunkt-Marker; alle Zahlen stimmen mit Plan/Vermögen für denselben Stichtag (BUD11.02); Desktop/iPhone, hell/dunkel, Lade-/Fehler-/Leerzustand belegt.
