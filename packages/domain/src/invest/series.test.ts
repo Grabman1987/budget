@@ -284,6 +284,17 @@ const t = (p: Partial<SeriesTrade> & Pick<SeriesTrade, 'date' | 'kind'>): Series
 });
 
 describe('cash flows (Portfolio Performance semantics)', () => {
+  it('converts the net payment and withheld tax separately for PP security returns', () => {
+    const trades = [
+      t({ date: '2026-01-02', kind: 'dividend', amountCents: 2, taxCents: 1, currency: 'USD' }),
+    ];
+    const fx: RateTable = new Map([['USD', [{ date: '2026-01-01', rateMicro: 500_000 }]]]);
+    // Each half-cent rounds to one EUR cent: PP adds the converted tax to the converted net.
+    expect(securityFlows(trades, fx)).toEqual([{ date: '2026-01-02', cents: -1 }]);
+    expect(securityFlows(trades, fx, 'before-tax')).toEqual([{ date: '2026-01-02', cents: -1 }]);
+    expect(securityFlows(trades, fx, 'pp-irr')).toEqual([{ date: '2026-01-02', cents: -2 }]);
+  });
+
   it('securities-only view: buy in, sale and dividend out, costs as inflow, split none', () => {
     expect(
       securityFlowCents(
@@ -338,7 +349,8 @@ describe('cash flows (Portfolio Performance semantics)', () => {
         rates,
       ),
     ).toEqual([
-      { date: '2026-01-02', cents: 40_000 },
+      { date: '2026-01-02', cents: 50_000 },
+      { date: '2026-01-02', cents: -10_000 },
       { date: '2026-01-05', cents: 950 },
     ]);
   });

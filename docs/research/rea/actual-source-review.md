@@ -1,0 +1,27 @@
+# Actual Budget review notes
+
+Reviewed 2026-10-15 from the authorized public clone at commit `d5d6035a8f5867717a80635d270fbe64e370ea08`; `git status --short` was clean at start. The current official docs were spot-checked the same day at actualbudget.org. No local personal Actual data, authenticated session, or app deployment was accessed; no upstream code was run or changed. Findings are staged in `actual-reports.csv` (ACT-081–103, canonical 11-column inventory schema).
+
+## Evidence and coverage
+
+The official Reports Dashboard docs say the report page has customizable dashboard(s), filters and live/static date ranges, list built-in widgets, and label Budget Analysis, Balance Forecast, Sankey, and Monte Carlo as experimental: https://actualbudget.org/docs/reports/. Custom Reports docs detail table/bar/line/area/donut chart options; Payment/Deposit/Net, splits, date controls, filters, display options, exclusions, save/update/revert behavior: https://actualbudget.org/docs/reports/custom-reports/. The official tour provides the tiled navigation model, full-screen report opening, and account-level net worth description: https://actualbudget.org/docs/tour/reports/.
+
+Source corroboration is strongest in `packages/desktop-client/src/components/reports/` (report routing, selection, dates, filters, save menu, chart implementations), `packages/desktop-client/src/reports/mutations.ts` (report and dashboard CRUD/widget actions), `packages/desktop-client/src/hooks/useDashboardPages.ts` and `useReports.ts` (read path), and `packages/loot-core/src/server/dashboard/app.ts` (dashboard page/widget CRUD, export/import). ActualQL is officially offered through the Node package; docs cover filtering, fields, grouping, aggregation and split-row behavior, but explicitly call it mostly undocumented: https://actualbudget.org/docs/api/actual-ql/, https://actualbudget.org/docs/api/actual-ql/functions/, https://actualbudget.org/docs/api/actual-ql/examples/. The API docs clarify this is not a general HTTP/REST API and client-side code works against a local copy: https://actualbudget.org/docs/api/.
+
+Navigation and settings coverage comes from https://actualbudget.org/docs/settings/ plus `packages/desktop-client/src/components/settings/SidebarSettings.tsx` and `SidebarMenuListItem.tsx`; the docs say sidebar visibility/order/start page are stored in the budget file and mobile layout does not yet use those settings. That narrow statement must not be generalized into “reports unavailable on mobile.” The task covered reporting, analysis, navigation/mobile parity, settings, multi-currency, investment-reporting scope, and licensing; it deliberately excludes generic envelope budgeting, transaction editing/import, and sync feature inventory assigned elsewhere.
+
+## Findings and limits
+
+Custom reports provide a promising reference for configurable analysis; dashboard pages provide saved analytical workspaces. Don’t flatten chart-specific disabled controls or documented semantics into universal behavior. In particular, “Split by Account” means transaction sums from on-budget accounts, not historical balances; net is only supported on some chart families; off-budget transfer inclusion has stated exclusions. Saved report edits can be overwritten, forked as a new report, reverted, or discarded on leaving without saving.
+
+Investment reporting is established at account level: Net Worth tracks all account balances, includes off-budget accounts, and the docs explicitly mention investment accounts in stacked mode. Crossover Point treats selected investment accounts as income sources/portfolio balances. The reviewed docs and source do not establish security-level holdings, market quotes, cost basis, or trade/performance accounting. This is an evidence boundary, not a claim that no community extension exists.
+
+The official multi-currency page states there is no native multi-currency support. Its experimental workaround manually applies a fixed FX rate to a transaction through rule templates and stores source amount/rate in notes: https://actualbudget.org/docs/budgeting/multi-currency/. It should be represented as a manual experimental workaround, not automatic conversion or consolidated-currency reporting. Number and currency display preferences in Settings do not imply multicurrency calculations.
+
+Privacy scope: the Settings docs say end-to-end encryption covers remote-server budget data, while bank-sync tokens are stored separately and excluded: https://actualbudget.org/docs/settings/. This review does not infer deployment security beyond that documented boundary.
+
+Licensing requires per-package provenance. The pinned root `LICENSE.txt` contains MIT text and `packages/desktop-client/package.json` declares MIT, while `packages/loot-core/package.json` declares ISC. Therefore do not label every source file “MIT” based only on root `LICENSE.txt`; inspect file headers, package ownership and included third-party code before copying any specific implementation. Staged inventory cites immutable commit URLs for these manifests and root license.
+
+## Status and limitations
+
+Live docs and pinned source can represent different release moments; records use docs URLs for user-facing claims and the pinned clone SHA for source confirmation. The review is bounded to relevant report/settings/AQL files, official docs and license metadata; it does not enumerate source tables, test suites or the whole project. No tests were run because this is a read-only research task.

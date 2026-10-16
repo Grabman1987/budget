@@ -1,5 +1,21 @@
 # Roadmap
 
+### Reference adoption: PP returns and accepted follow-ups — 2026-10-15
+
+- [x] Record owner decisions: PP returns as standard, cross-device Explorer views, limited transfer preparation. [Contract](product/reference-adoption.md).
+- [x] Synchronize the WIP branch and all 14 package issues with GitHub/Project 1 under the owner's separate 2026-10-16 request. [Execution index](product/github-backlog.md), [overview #508](https://github.com/Grabman1987/budget/issues/508). Release/private gates remain open.
+- [x] Reproduce timing boundaries before changing the calculation; retain gross opposing flows and include initial buy fees.
+- [x] Separate after-tax cash facts from PP security TTWROR/XIRR flows, including currency rounding; share the method across overview, reports, depot indices and allocation.
+- [x] Explain timing, scope and tax basis in existing disclosure/glossary/report surfaces.
+- [x] Financial regressions, workspace typechecks/lint and independent final review; [evidence](evidence/reference-adoption/README.md) distinguishes the full run from the corrected assertion's targeted verification.
+- [x] Inspect rebuilt desktop/mobile reports and preserve current synthetic captures.
+- [ ] Complete final WebKit glossary/wealth checks within their unchanged time limits; isolated rerun still timed out at screenshot/Axe under observed memory pressure.
+- [ ] Single all-green exact-head full check and required CI before publication.
+- [ ] Private PP reconciliation with identical dates, instruments, accounts, prices, FX and tax scope; Gate 3 remains open.
+- [ ] Implement database-backed Explorer views, including legacy preference migration, conflict handling and undo.
+- [ ] Implement the limited transfer stages with explicit pairing and conservation/rollback proof.
+- [ ] Other [research work packages](product/roadmap/README.md) remain sequenced backlog, not shipped features.
+
 ## Open wealth and Figma implementation gaps — owner 2026-10-15
 
 Implementation-ready scope, dependencies, sources and acceptance are in
@@ -32,7 +48,7 @@ proposal; no new financial onboarding UI or product gate is marked delivered.
 - [x] Reuse explicit account/instrument universe; edit eligible accounts and cash classes together with targets in one audited, conflict-checked transaction.
 - [x] Editable lower-bound wealth stages with exact-cent activation and unchanged legacy boundaries; retain one shared resolver.
 - [x] Seven-stage generic template with explicit class mapping and threshold activation with a 10 % hold-down buffer (owner decision 2026-10-16); native Desktop/iPhone Figma extension.
-- [ ] Owner decision on conditional-stage activation; full verification and exact-head CI; serial deployment/live proof. See [contract and pending decision](allocation-wealth-stages.md).
+- [x] Owner decision 2026-10-16 (threshold activation, 10 % hold-down); exact-head CI, merge #507 and live revision `20c24257` verified. See [contract](allocation-wealth-stages.md).
 
 ### CI follow-up: consistent E2E observations — #465 / #499 (2026-10-15)
 

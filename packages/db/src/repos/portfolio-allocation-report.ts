@@ -199,6 +199,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
         view: 'securities',
         securities: [line.securityId],
         accounts: universe.accounts.map((a) => a.id),
+        taxBasis: 'before-tax',
       });
       const hasValue = valuations.some((v) => v.valueCents > 0);
       ttwror12.set(

@@ -83,17 +83,20 @@ export function PortfolioOverview() {
         <details className="wealth-details">
           <summary data-testid="portfolio-return">
             Rendite p. a.{' '}
-            {Number.isFinite(performance.ttwrorAnnualised) && performance.days > 0
+            {performance.ttwrorAnnualised !== null &&
+            Number.isFinite(performance.ttwrorAnnualised) &&
+            performance.days > 0
               ? percent(performance.ttwrorAnnualised)
               : '—'}{' '}
             (zeitgewichtet) <Info size={18} strokeWidth={1.75} aria-hidden="true" />
           </summary>
           <p className="vnote">
-            Tägliche Renditen ohne den Einfluss von Ein- und Auszahlungen, auf ein Jahr umgerechnet.{' '}
-            {longDay(performance.from)} bis {longDay(performance.to)}. Kurze Zeiträume können stark
-            schwanken. Die Renditen werden auf Basis 100 verkettet. Ohne positiven Vorwert bleibt
-            der betreffende Tag als Lücke sichtbar; die Linie zeigt dieselbe zeitgewichtete
-            Entwicklung wie die Reports.
+            Zeitgewichtete Rendite nach Portfolio Performance, auf ein Jahr umgerechnet. Zuflüsse
+            zählen am Tagesanfang, Abflüsse am Tagesende. Wertpapiere ohne Depotkassa: nach
+            Gebühren, vor Steuern. {longDay(performance.from)} bis {longDay(performance.to)}. Kurze
+            Zeiträume können stark schwanken. Die Renditen werden auf Basis 100 verkettet. Ohne
+            Kapital einschließlich Tageszuflüssen bleibt der betreffende Tag als Lücke sichtbar; die
+            Linie zeigt dieselbe zeitgewichtete Entwicklung wie die Reports.
           </p>
         </details>
       )}

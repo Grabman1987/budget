@@ -46,7 +46,7 @@ export function performanceReportSeries(
   const dailyRateByDate = new Map(
     dailyReturns(
       dailySeries,
-      input.flows.filter((flow) => flow.date > from && flow.date <= to),
+      (input.returnFlows ?? input.flows).filter((flow) => flow.date > from && flow.date <= to),
     ).map(({ date, rate }) => [date, rate] as const),
   );
   const dailyIndex: { date: string; portfolio: number | null }[] = [
@@ -72,7 +72,7 @@ export function performanceReportSeries(
     const valued =
       dailyReturns(
         input.series.filter((v) => v.date >= start && v.date <= end),
-        input.flows,
+        input.returnFlows ?? input.flows,
       ).length > 0;
     const rate = valued ? windowPerformance(input, segment).ttwror : null;
     const a = quoteOn(start),
@@ -121,7 +121,7 @@ export function performanceReportSeries(
       from: mine[0]!.from,
       to: mine.at(-1)!.to,
       partial: mine.length !== 12 || mine.some((m) => m.partial),
-      rate: compound(mine.map((m) => m.rate)),
+      rate: compound(mine.map((m) => m.rate).filter((rate) => rate !== null)),
       benchmarkRate: compound(mine.map((m) => m.benchmarkRate)),
     };
   });

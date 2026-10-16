@@ -281,7 +281,9 @@ function KpiTable({ columns }: { columns: DepotColumn[] }) {
     [
       'Sharpe-Quote',
       (d) =>
-        d.performance && d.performance.volatility >= MIN_VOLATILITY_FOR_SHARPE
+        d.performance &&
+        d.performance.volatility !== null &&
+        d.performance.volatility >= MIN_VOLATILITY_FOR_SHARPE
           ? new Intl.NumberFormat('de-AT', {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,

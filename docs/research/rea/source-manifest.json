@@ -1,0 +1,43 @@
+{
+  "retrieved_at": "2026-10-15",
+  "budget_baseline": "01a10de8b251f3b3bb05d8a5df6ae534e7d0d631",
+  "products": [
+    {
+      "id": "YNAB",
+      "entry": "https://www.ynab.com/",
+      "documentation": "https://support.ynab.com/",
+      "api": "https://api.ynab.com/",
+      "version": "API v1.87; live help as of retrieval; authenticated web build unknown",
+      "source_available": false,
+      "runtime": "Ten read-only authenticated surface records; no financial mutation, private values or screenshots retained"
+    },
+    {
+      "id": "TK",
+      "entry": "https://www.toolkitforynab.com/",
+      "repository": "https://github.com/toolkit-for-ynab/toolkit-for-ynab",
+      "commit": "631c914714e747e0b4478e3ac521057761622bcd",
+      "version": "3.23.0",
+      "license": "MIT root notice; dependencies separately governed",
+      "runtime": "Not installed or executed"
+    },
+    {
+      "id": "ACT",
+      "entry": "https://actualbudget.org/",
+      "repository": "https://github.com/actualbudget/actual",
+      "commit": "d5d6035a8f5867717a80635d270fbe64e370ea08",
+      "version": "26.10.0 client/core/API/sync-server; root metadata 0.0.1",
+      "license": "Root MIT; loot-core manifest ISC; resolve per file/package before reuse",
+      "runtime": "Public disposable demo startup only; loaded budget not observed"
+    },
+    {
+      "id": "PP",
+      "entry": "https://www.portfolio-performance.info/",
+      "documentation": "https://help.portfolio-performance.info/en/",
+      "repository": "https://github.com/portfolio-performance/portfolio",
+      "commit": "805c20dff5d999e987675181b4f1d82f81df10c0",
+      "version": "0.89.1-SNAPSHOT source; website download 0.89.0",
+      "license": "Code EPL-1.0; manual CC BY-NC-SA 4.0; third-party inclusions separately governed",
+      "runtime": "No desktop application or private portfolio executed/opened"
+    }
+  ]
+}

@@ -76,7 +76,7 @@ it('compares an unheld owner benchmark, uses shared TTWROR and retains a sold cl
   expect(response.status).toBe(200);
   const { portfolio } = (await response.json()) as { portfolio: PortfolioSummary };
   const history = portfolio.performanceHistory!;
-  expect(history.benchmarkReturn).toBeCloseTo(0.1025);
+  expect(history.benchmarkReturn).toBeCloseTo(0.1025, 12);
   expect(portfolio.performance?.ttwror).toBe(
     portfolioSummary(db, { today: '2026-02-28', period: 'YTD' }).performance?.ttwror,
   );
@@ -85,17 +85,18 @@ it('compares an unheld owner benchmark, uses shared TTWROR and retains a sold cl
     ['Klasse B', 0],
     ['Ohne Anlageklasse', 0],
   ]);
-  expect(history.classes[0]?.performance?.ttwror).toBeCloseTo(0.21);
-  expect(history.classes[1]?.performance?.ttwror).toBeCloseTo(-0.1);
+  expect(history.classes[0]?.performance?.ttwror).toBeCloseTo(0.21, 12);
+  expect(history.classes[1]?.performance?.ttwror).toBeCloseTo(-0.1, 12);
   expect(history.months.map((m) => m.month)).toEqual(['2026-01', '2026-02']);
   expect(history.dailyIndex[0]).toEqual({ date: '2025-12-31', portfolio: 100 });
   expect(history.dailyIndex.at(-1)?.date).toBe('2026-02-28');
-  expect(history.dailyIndex.at(-1)?.portfolio).toBeCloseTo(history.index.at(-1)!.portfolio!);
+  expect(history.dailyIndex.at(-1)?.portfolio).toBeCloseTo(history.index.at(-1)!.portfolio!, 12);
   for (const point of history.index)
     expect(history.dailyIndex.find((daily) => daily.date === point.date)?.portfolio).toBeCloseTo(
       point.portfolio!,
+      12,
     );
-  expect(history.years[0]?.rate).toBeCloseTo(portfolio.performance!.ttwror);
+  expect(history.years[0]?.rate).toBeCloseTo(0.1, 12);
   expect(history.classes.reduce((s, c) => s + c.valueCents, 0)).toBe(
     portfolio.performance!.endValueCents,
   );
@@ -135,9 +136,9 @@ it('uses the selected historical month end for class values and the benchmark pe
   expect(history).toMatchObject({ from: '2025-12-31', to: '2026-01-31' });
   expect(history.classes.map((c) => c.valueCents)).toEqual([11000, 9000, 0]);
   expect(history.classes.reduce((sum, c) => sum + c.valueCents, 0)).toBe(20000);
-  expect(history.benchmarkReturn).toBeCloseTo(0.05);
-  expect(history.classes[0]?.performance?.moneyWeighted).toBeCloseTo(0.1);
-  expect(history.classes[1]?.performance?.moneyWeighted).toBeCloseTo(-0.1);
+  expect(history.benchmarkReturn).toBeCloseTo(0.05, 12);
+  expect(history.classes[0]?.performance?.moneyWeighted).toBeCloseTo(0.1, 12);
+  expect(history.classes[1]?.performance?.moneyWeighted).toBeCloseTo(-0.1, 12);
 });
 
 it('rejects invalid/deleted ids and cross-origin or unauthenticated writes', async () => {
@@ -175,8 +176,8 @@ it('compares stored foreign quotes in EUR using quote-date FX without rounding p
     "UPDATE price SET currency='USD' WHERE security_id='bench'; INSERT INTO fx_rate (currency,date,rate_micro) VALUES ('USD','2025-12-31',2000000),('USD','2026-01-01',1000000)",
   );
   const portfolio = await readPortfolio();
-  expect(portfolio.performanceHistory?.benchmarkReturn).toBeCloseTo(1.205);
-  expect(portfolio.performanceHistory?.months[0]?.benchmarkRate).toBeCloseTo(1.1);
+  expect(portfolio.performanceHistory?.benchmarkReturn).toBeCloseTo(1.205, 12);
+  expect(portfolio.performanceHistory?.months[0]?.benchmarkRate).toBeCloseTo(1.1, 12);
 });
 
 it('allows Friday closes for exchange-traded benchmarks but requires the exact date for crypto', async () => {
@@ -184,7 +185,7 @@ it('allows Friday closes for exchange-traded benchmarks but requires the exact d
   opened.sqlite.exec(
     "UPDATE price SET date='2026-02-27' WHERE security_id='bench' AND date='2026-02-28'",
   );
-  expect((await readPortfolio()).performanceHistory?.benchmarkReturn).toBeCloseTo(0.1025);
+  expect((await readPortfolio()).performanceHistory?.benchmarkReturn).toBeCloseTo(0.1025, 12);
   opened.sqlite.exec("UPDATE security SET kind='crypto' WHERE id='bench'");
   const history = (await readPortfolio()).performanceHistory!;
   expect(history.months[1]?.benchmarkGap).toBe('missing_price');
@@ -197,7 +198,7 @@ it('reports missing starting/monthly quotes and FX explicitly without hiding por
   let portfolio = await readPortfolio();
   expect(portfolio.performanceHistory?.months[0]?.benchmarkGap).toBe('missing_price');
   expect(portfolio.performanceHistory?.benchmarkReturn).toBeNull();
-  expect(portfolio.performance?.ttwror).not.toBeNull();
+  expect(portfolio.performance?.ttwror).toBeCloseTo(0.1, 12);
   opened.sqlite.exec("UPDATE price SET currency='USD' WHERE security_id='bench'");
   portfolio = await readPortfolio();
   expect(portfolio.performanceHistory?.months[0]?.benchmarkGap).toBe('missing_fx');
@@ -260,8 +261,8 @@ it('persists multiple index selections with audit undo and compares synthetic EU
   const report = await readPortfolio();
   expect(report.benchmarks.map((b) => b.index[0]!.benchmark)).toEqual([100, 100]);
   expect(report.benchmarks.map((b) => b.index.at(-1)!.benchmark)).toEqual([121, 99]);
-  expect(report.benchmarks[0]!.benchmarkReturn).toBeCloseTo(0.21);
-  expect(report.benchmarks[1]!.benchmarkReturn).toBeCloseTo(-0.01);
+  expect(report.benchmarks[0]!.benchmarkReturn).toBeCloseTo(0.21, 12);
+  expect(report.benchmarks[1]!.benchmarkReturn).toBeCloseTo(-0.01, 12);
   expect(await (await app.request('/api/portfolio/benchmarks')).json()).toMatchObject({
     ids: selected,
   });
@@ -335,12 +336,13 @@ it('uses dated exposure versions for each historical class return period', async
   expect(classB).toMatchObject({ currentHolding: true });
   const levelsA = monthEndLevels(classA.index);
   const levelsB = monthEndLevels(classB.index);
-  expect(levelsA[0]).toBeCloseTo(110);
-  expect(levelsA[1]).toBeCloseTo(110);
-  expect(levelsB[0]).toBeCloseTo(110);
-  expect(levelsB[1]).toBeCloseTo(121);
-  expect(classA.performance?.ttwror).toBeCloseTo(0.1);
-  expect(classB.performance?.ttwror).toBeCloseTo(0.21);
+  expect(levelsA[0]).toBeCloseTo(110, 12);
+  // A has no invested capital for any day in February after the opening reclassification.
+  expect(levelsA[1]).toBeNull();
+  expect(levelsB[0]).toBeCloseTo(110, 12);
+  expect(levelsB[1]).toBeCloseTo(121, 12);
+  expect(classA.performance?.ttwror).toBeCloseTo(0.1, 12);
+  expect(classB.performance?.ttwror).toBeCloseTo(0.21, 12);
   expect(history.classes.reduce((sum, cls) => sum + cls.valueCents, 0)).toBe(12_100);
 });
 

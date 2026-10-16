@@ -12,7 +12,7 @@ import type { CashFlow } from './returns';
  * Portfolio Performance semantics implemented here
  * ------------------------------------------------
  * A cash flow is money put INTO the portfolio (positive) or taken OUT of it (negative), in EUR
- * cents on the day of the booking; `ttwror`, `irr` and `modifiedDietz` (returns.ts) consume them.
+ * cents on the day of the booking; `windowPerformance`, `irr` and `modifiedDietz` consume them.
  *
  * 1. View "securities only" (`securityFlows`): the portfolio is the set of positions. A buy puts
  *    money in (gross amount plus fee plus tax), a sale takes money out (gross amount minus fee
@@ -458,19 +458,26 @@ export function sumSeries(...series: ReadonlyArray<ReadonlyArray<number>>): numb
 }
 
 /** Signed flow of one trade in the trade's currency (securities-only view); 0 for a split. */
-export function securityFlowCents(t: SeriesTrade): number {
+export type SecurityTaxBasis = 'after-tax' | 'before-tax' | 'pp-irr';
+
+export function securityFlowCents(
+  t: SeriesTrade,
+  taxBasis: SecurityTaxBasis = 'after-tax',
+): number {
+  const tax = taxBasis === 'after-tax' ? t.taxCents : 0;
   switch (t.kind) {
     case 'buy':
     case 'delivery_in':
-      return t.amountCents + t.feeCents + t.taxCents;
+      return t.amountCents + t.feeCents + tax;
     case 'sell':
     case 'delivery_out':
     case 'dividend':
     case 'interest':
-      return -(t.amountCents - t.feeCents - t.taxCents);
+      return -(t.amountCents - t.feeCents - tax);
     case 'fee':
+      return t.amountCents + t.feeCents + tax;
     case 'tax':
-      return t.amountCents + t.feeCents + t.taxCents;
+      return taxBasis !== 'after-tax' ? 0 : t.amountCents + t.feeCents + tax;
     case 'split':
       return 0;
   }
@@ -478,30 +485,42 @@ export function securityFlowCents(t: SeriesTrade): number {
 
 const byDate = (a: { date: string }, b: { date: string }) => a.date.localeCompare(b.date);
 
-/** Merge flows of the same day into one (amounts add up), ascending by date. */
+/** Merge each day's inflows and outflows separately; PP uses different timing for each sign. */
 function mergeByDay(flows: ReadonlyArray<CashFlow>): CashFlow[] {
-  const sorted = [...flows].sort(byDate);
+  const sorted = [...flows].sort((a, b) => byDate(a, b) || Math.sign(b.cents) - Math.sign(a.cents));
   const out: CashFlow[] = [];
   for (const f of sorted) {
     const last = out[out.length - 1];
-    if (last && last.date === f.date) last.cents += f.cents;
+    if (last && last.date === f.date && Math.sign(last.cents) === Math.sign(f.cents))
+      last.cents += f.cents;
     else out.push({ ...f });
   }
   return out.filter((f) => f.cents !== 0);
 }
 
 /** Cash flows of the securities-only view in EUR cents (converted at the rate of the trade day). */
-export function securityFlows(trades: ReadonlyArray<SeriesTrade>, rates: RateTable): CashFlow[] {
+export function securityFlows(
+  trades: ReadonlyArray<SeriesTrade>,
+  rates: RateTable,
+  taxBasis: SecurityTaxBasis = 'after-tax',
+): CashFlow[] {
   return mergeByDay(
     trades.map((t) => {
-      const cents = securityFlowCents(t);
+      const cents = securityFlowCents(t, taxBasis);
       const currency = t.currency ?? 'EUR';
+      const convert = (amount: number) =>
+        currency === 'EUR' || amount === 0
+          ? amount
+          : toEurCents(amount, fxOn(rates, currency, t.date));
+      // PP's security IRR converts net payments and tax separately. TTWROR filters
+      // taxes in the original currency before conversion; those roundings can differ.
+      const converted =
+        taxBasis === 'pp-irr' && t.kind !== 'tax' && t.kind !== 'split'
+          ? convert(securityFlowCents(t)) - convert(t.taxCents)
+          : convert(cents);
       return {
         date: t.date,
-        cents:
-          currency === 'EUR' || cents === 0
-            ? cents
-            : toEurCents(cents, fxOn(rates, currency, t.date)),
+        cents: converted,
       };
     }),
   );

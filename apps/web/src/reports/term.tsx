@@ -5,7 +5,7 @@ import './term.css';
 const GLOSSARY = new Map<string, string>([
   [
     'TWR',
-    'Die zeitgewichtete Rendite misst die Anlageentwicklung und blendet den Einfluss von Ein- und Auszahlungen aus.',
+    'Die zeitgewichtete Rendite neutralisiert Ein- und Auszahlungen nach Portfolio Performance: Zuflüsse zählen am Tagesanfang, Abflüsse am Tagesende. Die Tagesrenditen werden miteinander verkettet.',
   ],
   [
     'MWR/IZF',
