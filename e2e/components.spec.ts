@@ -87,11 +87,15 @@ test.describe('design system page /dev/bauteile', () => {
     await expect(row).toBeVisible();
   });
 
-  test('drawn dimension chain: segments work by keyboard, it folds, lines are plotted', async ({
+  test('drawn dimension chain: keyboard, folding and first-visit plotter motion', async ({
     page,
   }) => {
     await open(page);
     await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await expect(page.locator('svg.plot-first')).toHaveCount(1);
+    const firstLine = page.locator('.plot-first :is(.plot-line, .draw)').first();
+    await expect(firstLine).toHaveCSS('animation-name', 'plot-draw');
+    await expect(firstLine).toHaveCSS('animation-duration', '0.9s');
     const segment = page.getByRole('button', { name: 'Bedarf 1.280,00 €, Einzelposten zeigen' });
     await segment.focus();
     await page.keyboard.press('Enter');
@@ -104,7 +108,8 @@ test.describe('design system page /dev/bauteile', () => {
       const style = getComputedStyle(el);
       return { name: style.animationName, duration: style.animationDuration };
     });
-    expect(animation).toEqual({ name: 'plot-draw', duration: '0.9s' });
+    expect(animation).toEqual({ name: 'none', duration: '0s' });
+    await expect(page.locator('svg.plot-first')).toHaveCount(0);
 
     const toggle = page.getByRole('button', { name: 'Herleitung ausblenden' });
     await toggle.click();
@@ -115,6 +120,7 @@ test.describe('design system page /dev/bauteile', () => {
     await expect(segment).toBeHidden();
     await page.getByRole('button', { name: 'Herleitung zeigen' }).click();
     await expect(segment).toBeVisible();
+    await expect(line).toHaveCSS('animation-name', 'none');
   });
 
   test('drawn dimension chain has no animation for reduced motion', async ({ page }) => {
