@@ -1,5 +1,20 @@
 # Budget: Tasks und Fortschritt
 
+## Open wealth and Figma gaps — 2026-10-15
+
+These are current open tasks. The historical register below keeps its own date.
+The canonical specification and dependencies are in [GAP01–08](product/open-gaps.md)
+and the [roadmap](ROADMAP.md); use the same IDs in implementation PRs.
+
+- [ ] GAP08 — define graph scopes, units, periods and authoritative design references.
+- [ ] GAP04 — investigate the existing net-worth chart's visibility/data path.
+- [ ] GAP01 — implement compact benchmark comparison in Vermögen.
+- [ ] GAP02 — add actual portfolio-value history in EUR.
+- [ ] GAP03 — add asset composition and its time development.
+- [ ] GAP05 — align navigation, financial terms and destinations across Figma/docs/app.
+- [ ] GAP06 — design and implement first-use O01–O08 through the existing ONB tasks.
+- [ ] GAP07 — complete semantic frame/requirement/code acceptance mapping.
+
 Current source/live evidence and acceptance baseline (2026-10-08): [STATUS](STATUS.md) and [ACCEPTANCE](ACCEPTANCE.md). The dated delivery/requirements notes below include historical states; verify each against the current source before treating an old placeholder, missing-PR or missing-feature statement as present work. Open owner/financial/device criteria are not automatically accepted.
 
 Stand: 1. Oktober 2026. Diese Liste zeigt Implementierung, Prüfung und Integration

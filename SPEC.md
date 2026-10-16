@@ -4,6 +4,24 @@ Owner reference-adoption decision (2026-10-15): Portfolio Performance is the def
 
 Owner allocation addition (2026-10-15; delivered in #507): users select the accounts/depots counted for both wealth thresholds and cash share, map existing instruments to asset classes, and enter editable lower-bound stages ("ab Vermögen"). Preserve the existing explicit universe, signed cash, dated target versions and inclusive upper-bound storage: translate each next lower bound to one cent below it without moving legacy boundaries. The requested generic seven-stage example is an explicitly mapped template, never a production seed or trading instruction. Account-scope/cash-class edits and targets must save atomically with conflict detection and grouped undo. Owner decision 2026-10-16: every stage activates by its threshold (conditions are hints) and a reached stage holds until the month-end sum falls below 90 % of its lower bound; see [contract](docs/allocation-wealth-stages.md).
 
+Owner wealth completeness/backlog requirement (2026-10-15): Vermögen must expose
+a compact benchmark comparison, actual portfolio value history in EUR, and asset
+composition with time development under explicit scope/unit/date conventions.
+The compact comparison belongs in Vermögen; detailed performance analysis remains
+in Reports. This narrows the older report-only wording where it excluded the
+compact comparison. Existing total-net-worth history must be diagnosed if invisible,
+not declared absent or rebuilt without evidence. Implementation/design work remains
+open as GAP01–08 in [the gap backlog](docs/product/open-gaps.md), including navigation,
+onboarding frames and semantic Figma acceptance. No financial formula or gate is
+changed or accepted merely by recording these requirements.
+
+Current reading entry point (2026-10-15): [Product foundation](docs/product/README.md)
+consolidates the requirements, sitemap, state/data/process contracts and acceptance
+mapping. It preserves the precedence below. Proposed first-use onboarding remains
+a review candidate, not an implemented feature or a newly accepted financial rule.
+
+Owner allocation addition (2026-10-15, implementation draft): users select the accounts/depots counted for both wealth thresholds and cash share, map existing instruments to asset classes, and enter editable lower-bound stages ("ab Vermögen"). Preserve the existing explicit universe, signed cash, dated target versions and inclusive upper-bound storage: translate each next lower bound to one cent below it without moving legacy boundaries. The requested generic seven-stage example is an explicitly mapped template, never a production seed or trading instruction. Account-scope/cash-class edits and targets must save atomically with conflict detection and grouped undo. The conditional-stage default awaits the owner's answer; see [draft contract](docs/allocation-wealth-stages.md).
+
 Owner Q2 directive (2026-10-15, #465): historical report negatives use quiet ink while retaining their signs and zero geometry; historical debt bars use a dashed outline. Current action-needed warnings, negative sidebar balances and specified signed heatmaps retain their existing semantics. The inbox overview shows one urgent overspent summary with category count, exact total deficit and a secondary link to Plan triage. Individual entries, raw counts and detail views remain; the filtered full summary is computed before pagination. This read-only presentation never covers categories or changes bookings by itself.
 
 Owner direct payroll review directive (2026-10-15, #499): a manually uploaded PDF opens its result immediately in the wide upload/review dialog; the retained inbox task remains a recovery entry. Known wage codes are parsed automatically. Unknown numeric wage codes can be assigned at the review to the existing earning, deduction, reimbursement, tax-adjustment or social-insurance-adjustment sections and reparsed; this neither adds database columns nor changes payroll formulas. Saving the mapping, parsed result and inbox urgency is one audited group, guarded against concurrent changes. New payout confirmation exposes account, explicit payout date, sender and an eligible unbooked salary expectation. A printed date or the selected expectation can propose the date; no missing date silently becomes month end. Confirmation links the expectation and creates or links the payout atomically with the payslip and receipt. Existing matched booking dates, senders and manually corrected records remain unchanged. Desktop PDF/download/confirm/reject/reanalyse actions share one row; phone layout preserves readable fields and touch targets. Upload alone never books money.
@@ -54,7 +72,7 @@ Status: Gate 1 candidate; owner sign-off remains pending, 2026-10-01. App name: 
 
 Budget is a private household finance web app (installable PWA) that replaces YNAB (and the interim Actual-Budget cockpit) and Portfolio Performance with one app, one database and one language. Envelope budgeting at the core, a rule set of finance basics on top, full net-worth and portfolio tracking in the same ledger. Goal: not only track cash flow and wealth, but actively optimise them.
 
-Feature-by-feature implementation coverage, including all 30 report bodies:
+Feature-by-feature implementation coverage, including the current 34-report catalog:
 [`docs/FEATURES.md`](docs/FEATURES.md). Remaining requirement details and superseded
 concept statements: [`docs/REQUIREMENTS-GAPS.md`](docs/REQUIREMENTS-GAPS.md).
 These inventories track delivery and open acceptance; they do not change scope
@@ -92,7 +110,7 @@ The old concept's design language (Manrope, teal accent, white tiles, `03_Mockup
 
 ## 3. Information architecture
 
-Five main areas plus settings (profile menu). Registers are the second level; no third menu level. Details open as a side panel (desktop) or bottom sheet (phone). Every view has its own URL. Global on every page: search (Ctrl K), inbox with counter, "+ Buchung".
+Five main areas plus settings (profile menu). Registers are the second level; no third menu level. Content details use deep-linkable pages with breadcrumbs/back navigation under the 2026-10-05 directive. The later Plan inspector and search-palette directives are explicit exceptions; dialogs/sheets retain their stated input/filter purposes. Every view has its own URL. Global on every page: search (Ctrl K), inbox with counter, "+ Buchung".
 
 | Area | Question | Registers / views (prototype file) |
 | --- | --- | --- |
@@ -100,12 +118,12 @@ Five main areas plus settings (profile menu). Registers are the second level; no
 | Plan | Jeder Euro hat einen Job | Plan › Monat with views Wasserfall / Zeit / Gruppen / Klassen / Triage, Geld verteilen (`plan.html`) |
 | Konten | Was ist passiert? | Übersicht, Einzelkonto with Kontostand prüfen, Alle Buchungen, Posteingang, Kontakte (`konten.html`) |
 | Vermögen | Was besitze ich, was entscheide ich? | Nettovermögen, Portfolio (Soll/Ist, Rebalancing, Sparpläne), Schulden (Sondertilgung), Freiheitszahl with Soll-Pfad (`vermoegen.html`) |
-| Reports | Warum und wohin, und wie haben Entscheidungen gewirkt? | Catalog of 30 reports in 5 groups (`reports.html`) |
+| Reports | Warum und wohin, und wie haben Entscheidungen gewirkt? | Current catalog of 34 reports in 5 groups; exact slugs in `apps/web/src/nav/reports-catalog.ts` |
 | Einstellungen | — | Konten (terms: limits, rates, term; loan terms for the debt calculator and the cost report), Kategorien, Regelwerk (stages + registered rules (`RULE_CODES`)), Zuordnungsregeln, Datenquellen, Anlageklassen, CSV-Export, Sicherheit (`einstellungen.html`, partly built) |
 
 **Import/export feature scope (owner-confirmed 2026-10-01):** the application has no import feature or import UI. Provide one user-initiated ZIP download containing CSV export data for all accounts and depots. Reconfirm authentication before starting the sensitive export. The CSV ZIP is a data export, not an encrypted application backup; exclude auth/session state, secrets, audit events, import staging and raw migration data. This supersedes earlier in-app YNAB/PP and manual CSV/XLSX import requirements. See [`docs/export.md`](docs/export.md) for the file and field conventions. One-time migration remains a separate owner-authorized Codex/Claude task using existing exports and the PP file in private storage (§10).
 
-**Vermögen decides, Reports show the effect.** No outcome/performance history on Vermögen; no decisions in Reports.
+**Vermögen decides, Reports explain the effect.** Under the 2026-10-14 UX V1 directive, Vermögen includes its compact shared performance summary/chart; the newly requested compact benchmark comparison is open under GAP01, while detailed benchmark/performance analysis remains in Reports. This replaces the older blanket exclusion of performance history from Vermögen.
 
 Current savings-plan slice: Portfolio supports audited schedule create/edit/end and undo/redo, with source accounts, inclusive version history and future changes shown separately from today's rate. Rates and monthly totals retain the investment account's native currency. Overlapping effective versions remain visible and make the affected current rate/total unavailable; missing account currency makes totals explicitly incomplete. Schedule saves do not create trades/bookings or send bank orders; the owner must change the bank schedule manually. Due monthly proposals in Heute/Posteingang require the owner's actual execution date, units, gross amount and fees before creating an audited, undoable buy and its depot settlement; source transfers stay separate. Overdue proposals remain available, and one live confirmed execution per security/account/month prevents duplicate capture across schedule versions. Rate-optimisation proposal/apply UI and private Gate 3 acceptance remain separate work. See [trade and execution workflow](docs/trades-execution.md).
 
@@ -160,12 +178,17 @@ Invariants (binding):
 
 ## 7. Reports (catalog, decided 29.09.2026)
 
+The numbered list below records the original catalog and subsequent decisions.
+The current registered inventory is 34 reports; [report contracts](docs/product/report-contracts.md)
+maps every current slug/component and its acceptance boundary without renumbering
+historical references. Figma R-screen codes and rule R-codes are separate identifiers.
+
 Every report answers one question with one fixed chart form (grammar: concept 9.2/9.3 and DESIGN.md), unfolds to the booking, and reads the same ledger.
 
 1. **Monat und Einkommen:** 1.1 Monats-One-Pager (printable A4 sheet), 1.2 Gehaltsreport (payslip lines, payout per month and year, yearly salaries with growth, collective raise vs step raise, "Gehaltszettel hinzufügen": PDF upload to object storage or line-by-line entry with check), 1.3 Einnahmen, 1.4 Geldfluss (Sankey via one income pool), 1.5 Jahresansicht (with previous year), 1.6 Kategorieübersicht, 1.7 Sparquote und Geldalter, 1.8 Gesamttabelle (CSV), 1.9 Projekte und Nebeneinkünfte, 1.10 Einnahmen und Ausgaben (owner feedback 04.10.2026: actual monthly income/expense table, chart, booking drilldown and displayed-table CSV; capital/refunds outside household income).
 2. **Ausgaben und Plan:** 2.1 Ausgabenanalyse, 2.2 Budgettreue incl. 50/30/20, 2.3 Verträge und Abos (terms, notice, USD), 2.4 Persönliche Inflation, 2.5 Empfänger-Analyse, 2.6 Bank- und Zinskosten (credit lines incl. overdraft and card).
 3. **Zukunft und Vermögen:** 3.1 Liquiditätsprognose (planned events, levers, 6-month outlook, verdict), 3.2 Cashflow-Verlauf, 3.3 Vermögensverläufe, 3.4 Jahresvorschau Zahlungen, 3.5 Sparziele.
-4. **Portfolio:** 4.1 Depots im Vergleich, 4.2 Allocation (sunburst class/product and region/product, Soll/Ist over time), 4.3 Einzahlungen und Wert, 4.4 Rendite und Kennzahlen (benchmarks, asset classes side by side, heatmap), 4.5 Kosten, Steuern, Erträge (KESt 27.5 %, latent tax). Products open a panel with daily price history.
+4. **Portfolio:** 4.1 Depots im Vergleich, 4.2 Allocation (composition follows the later group/class sunburst and product-table directive), 4.3 Einzahlungen und Wert, 4.4 Rendite und Kennzahlen (benchmarks, asset classes side by side, heatmap), 4.5 Kosten, Steuern, Erträge (KESt 27.5 %, illustrative latent tax). Products open deep-linkable instrument details with daily price history under the current navigation directive.
 5. **Überblick:** 5.1 Jahresreport (2 printable sheets), 5.2 Finanz-Check-Verlauf (stages + registered rules (`RULE_CODES`)), 5.3 Explorer (pivot, saved views), 5.4 Kontakte-Abrechnung (one ledger per person), 5.5 Zeitraumvergleich.
 
 Report 5.4 currently provides a fixed all-time EUR overview and selected person ledger with shared running balances, credit and source drilldown. Retained balanced histories remain selectable; pending source bookings are explicitly included under the existing contact statement predicate. Unsupported foreign-currency reads are wholly unavailable. Sending, duplicate settlement controls and monthly selectors are outside this slice; owner/private acceptance and other report bodies remain open.
@@ -218,7 +241,7 @@ Source is the **YNAB export** (Register.tsv + Plan.tsv); Actual Budget was only 
 
 **First real import: EUR only** (owner decision 2026-10-01). Full foreign-currency support remains in scope; until implemented, unsupported foreign-currency budget accounts must be rejected or explicitly reported as unsupported, never silently summed as EUR.
 
-**Valuation availability:** Nonzero held units need a stored security quote on or before the valuation day. A missing quote is unavailable, never a zero market value or an acquisition-cost proxy. Account/current-position reads retain holdings and known acquisition basis with nullable value/gain and explicit missing-price or FX reasons. Numeric history/performance endpoints reject any unpriced held day with typed `valuation_unavailable` (503); later quotes do not backfill earlier values or create a market gain from zero. Today keeps budget, upcoming payments and bookings usable and explains unavailable finance-check/net-worth sections. Partial historical charts and independently available fields of the legacy aggregate summary remain follow-up scope. Zero-held positions need no quote; the pure valuation preserves genuine zero quotes without changing the positive-price storage/API rule.
+**Valuation availability:** the 2026-10-06 clarification above supersedes the earlier stored-quote-only guard. Default valuation uses the shared quote/trade-price fallback and explicitly labeled quality policy; it must not silently turn missing history into a zero-value holding. Required missing FX remains unavailable. See [current ledger API valuation contract](docs/api-ledger.md), [allocation quality/scope](docs/allocation-quality-scope.md) and the shared resolver. Benchmark boundary-quote requirements remain their separate report contract; do not apply the default holding fallback to manufacture benchmark history. Today keeps independently usable budget work available when valuation is incomplete.
 
 **Investment cost method (owner decision 2026-10-01):** moving average acquisition cost is the application default; FIFO is selectable in Einstellungen › Depots & Kryptos and applies consistently to remaining basis and realised gains. Broker-provided acquisition amounts, execution amounts, fees and already withheld taxes are source data; preserve them and reconcile the app's analytical figures against the broker statements during private migration. Do not calculate or book tax withholding again. Known realised gains survive later holding snapshots, including a zero position; missing historical basis is not invented. A method switch recalculates analytical figures without rewriting source transactions. This is not acceptance of tax-reporting parity; Gate 3 still needs independent reconciliation with full source history.
 
@@ -233,7 +256,7 @@ YNAB's structure is evaluated and adapted, not copied: raw import → owner-appr
 | **P3 Planung und Steuerung** | Expected payments, contacts, savings goals, distribute money, rule set + stages, Heute | Heute and Plan match the prototype with real data |
 | **P4 Datenquellen** | Enable Banking, nightly run, inbox, assignment rules; authenticated ZIP download with CSV data for all accounts and depots | Nightly run stable for 14 days; complete export download accepted |
 | **P5 Vermögen** | Price history, portfolio, returns, allocation, debts, freedom number | **Gate 3:** returns and holdings equal Portfolio Performance |
-| **P6 Reports und Umstellung** | 30 reports, explorer, printable sheets, parallel run with reconciliation | **Gate 4:** one month-end without difference, then retire remaining finance tools, including YNAB and PP |
+| **P6 Reports und Umstellung** | Current 34-report catalog, explorer, printable sheets, parallel run with reconciliation | **Gate 4:** one month-end without difference, then retire remaining finance tools, including YNAB and PP |
 
 **Gate 1 acceptance criterion:** this spec, PRODUCT.md, DESIGN.md and the prototype are accepted by the owner. The criterion is not yet confirmed as passed.
 
