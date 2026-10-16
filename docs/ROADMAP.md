@@ -1,5 +1,14 @@
 # Roadmap
 
+### DS2: binding type scale — #473 (2026-10-16)
+
+- [x] Record owner decision 2B as T1–T12 in DESIGN.md; generate desktop/phone size and line-height tokens, with a restricted T12 role.
+- [x] Migrate all CSS font sizes (wealth included); enforce declared type tokens in longhand and shorthand while retaining radius checks.
+- [x] Cover literal rejection, valid tokens, T12 selectors, and responsive generation with focused tests.
+- [x] Inspect desktop 1440 / Chromium mobile 390 captures and pass the existing overflow/Axe assertions with the unchanged compiled synthetic seed (standard tsx startup is blocked by os.userInfo).
+- [ ] Green CI on the PR, including the Linux snapshot refresh (never regenerated on Windows).
+
+
 ### Reference adoption: PP returns and accepted follow-ups — 2026-10-15
 
 - [x] Record owner decisions: PP returns as standard, cross-device Explorer views, limited transfer preparation. [Contract](product/reference-adoption.md).

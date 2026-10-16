@@ -60,54 +60,97 @@ colors:
 typography:
   dimension:
     fontFamily: "Archivo, Segoe UI, system-ui, sans-serif"
-    fontSize: "68px"
+    fontSize: "56px"
+    fontSizeMobile: "40px"
     fontWeight: 640
-    lineHeight: 1
-    letterSpacing: "-0.03em"
-    fontVariation: "'wdth' 96"
+    lineHeight: "56px"
+    lineHeightMobile: "44px"
     fontFeature: "'tnum'"
   display:
     fontFamily: "Archivo, Segoe UI, system-ui, sans-serif"
-    fontSize: "30px"
+    fontSize: "28px"
+    fontSizeMobile: "24px"
     fontWeight: 650
-    lineHeight: 1
-    letterSpacing: "-0.02em"
+    lineHeight: "32px"
+    lineHeightMobile: "28px"
   headline:
     fontFamily: "Archivo, Segoe UI, system-ui, sans-serif"
     fontSize: "20px"
+    fontSizeMobile: "18px"
     fontWeight: 620
-    lineHeight: 1.25
-    letterSpacing: "-0.01em"
+    lineHeight: "26px"
+    lineHeightMobile: "24px"
   title:
     fontFamily: "Archivo, Segoe UI, system-ui, sans-serif"
-    fontSize: "17px"
+    fontSize: "16px"
+    fontSizeMobile: "17px"
     fontWeight: 620
-    lineHeight: 1.3
-    letterSpacing: "-0.005em"
+    lineHeight: "22px"
+    lineHeightMobile: "24px"
   figure:
     fontFamily: "Archivo, Segoe UI, system-ui, sans-serif"
     fontSize: "24px"
+    fontSizeMobile: "22px"
     fontWeight: 640
-    lineHeight: 1.1
-    letterSpacing: "-0.02em"
+    lineHeight: "28px"
+    lineHeightMobile: "26px"
     fontFeature: "'tnum'"
   body:
     fontFamily: "Archivo, Segoe UI, system-ui, sans-serif"
-    fontSize: "14px"
+    fontSize: "15px"
+    fontSizeMobile: "16px"
     fontWeight: 400
-    lineHeight: 1.45
+    lineHeight: "22px"
+    lineHeightMobile: "24px"
+  table:
+    fontFamily: "Archivo, Segoe UI, system-ui, sans-serif"
+    fontSize: "14px"
+    fontSizeMobile: "15px"
+    fontWeight: 400
+    lineHeight: "20px"
+    lineHeightMobile: "22px"
     fontFeature: "'tnum'"
+  meta:
+    fontFamily: "Archivo, Segoe UI, system-ui, sans-serif"
+    fontSize: "13px"
+    fontSizeMobile: "13px"
+    fontWeight: 400
+    lineHeight: "18px"
+    lineHeightMobile: "18px"
   label:
     fontFamily: "Barlow Semi Condensed, Archivo, system-ui, sans-serif"
-    fontSize: "11.5px"
+    fontSize: "12px"
+    fontSizeMobile: "12px"
     fontWeight: 500
-    lineHeight: 1.3
+    lineHeight: "16px"
+    lineHeightMobile: "16px"
     letterSpacing: "0.06em"
   chart-label:
     fontFamily: "Barlow Semi Condensed, Archivo, system-ui, sans-serif"
     fontSize: "12px"
+    fontSizeMobile: "12px"
     fontWeight: 500
-    letterSpacing: "0.05em"
+    lineHeight: "16px"
+    lineHeightMobile: "16px"
+    letterSpacing: "0.06em"
+    fontFeature: "'tnum'"
+  measure:
+    fontFamily: "Barlow Semi Condensed, Archivo, system-ui, sans-serif"
+    fontSize: "14px"
+    fontSizeMobile: "14px"
+    fontWeight: 600
+    lineHeight: "18px"
+    lineHeightMobile: "18px"
+    letterSpacing: "0.06em"
+    fontFeature: "'tnum'"
+  revision:
+    fontFamily: "Barlow Semi Condensed, Archivo, system-ui, sans-serif"
+    fontSize: "11px"
+    fontSizeMobile: "11px"
+    fontWeight: 500
+    lineHeight: "14px"
+    lineHeightMobile: "14px"
+    letterSpacing: "0.06em"
 rounded:
   titleblock: "2px"
   xs: "4px"
@@ -315,15 +358,30 @@ Charts use at most four series with direct labels. Heatmaps use single-hue densi
 
 **Character:** Archivo ist die Werkhorst-Grotesk des Blatts: breite, ruhige Ziffern, im ganzen Dokument mit `tabular-nums`. Barlow Semi Condensed ist die technische Normschrift für Beschriftungen, Blattnummern, Achsen und Maßtexte in Diagrammen.
 
-### Hierarchy
-- **Dimension** (640, 68 px desktop / 40 px mobil, Breite 96 %): Der Leitmaßwert, gesetzt als Maßtext über der Maßlinie. Cent in halber Größe und `ink-3`.
-- **Display** (650, 30 px, Zeilenhöhe 1): Monatstitel im Schriftfeld („September 2026“), mobil 24 px im Kopf.
-- **Headline** (620, 20 px): Titel des Leitmaß-Abschnitts; mobil 18 px.
-- **Title** (620, 17 px): Abschnittsköpfe, Panel-Titel.
-- **Figure** (640, 24 px; mobil 21 px): Kennzahlen in Abschnitten. Große Solitärwerte stufen sich auf 34 px (Nettovermögen), 36 px (Panel) und 44 px (Buchungsdisplay, mobil 36 px), alle 650 mit −0,03 em.
-- **Body** (400, 14 px, 1,45; mobil 15 px): Fließtext, Zeilen; Zeilentitel 580, Beträge 620–640. Erklärtext maximal 38 ch.
-- **Label** (Barlow SC 500, 11,5 px, 0,06 em, Versalien, `ink-3`): Feldbeschriftungen im Schriftfeld, Tabellenköpfe, Planliste, Klassen-Tags (11 px, 0,07 em).
-- **Chart label** (Barlow SC 500, 12 px, 0,05 em): Achsen; hervorgehobene Maßtexte 13 px in 600 (`ink`), 500 (Tusche) oder 600 (Rotstift).
+### Typo-Skala v2 (DS2, #473)
+
+Owner decision 2B (2026-10-14): one binding scale, generated from the typography frontmatter. Pixel sizes and line heights apply on desktop and iPhone (below 768 px).
+
+| Step | Size / line-height tokens | Role | Font / weight | Desktop px/LH | iPhone px/LH |
+| --- | --- | --- | --- | --- | --- |
+| T1 | `--fs-dimension` / `--lh-dimension` | Leitmaß | Archivo 640, tnum | 56/56 | 40/44 |
+| T2 | `--fs-display` / `--lh-display` | Seitentitel | Archivo 650 | 28/32 | 24/28 |
+| T3 | `--fs-headline` / `--lh-headline` | Abschnitt | Archivo 620 | 20/26 | 18/24 |
+| T4 | `--fs-title` / `--lh-title` | Kartenkopf | Archivo 620 | 16/22 | 17/24 |
+| T5 | `--fs-figure` / `--lh-figure` | Kennzahl in Karte | Archivo 640, tnum | 24/28 | 22/26 |
+| T6 | `--fs-body` / `--lh-body` | Fließtext | Archivo 400 | 15/22 | 16/24 |
+| T7 | `--fs-table` / `--lh-table` | Tabelle, Beträge | Archivo 400, tnum | 14/20 | 15/22 |
+| T8 | `--fs-meta` / `--lh-meta` | Hinweis, Meta (ink-3) | Archivo 400 | 13/18 | 13/18 |
+| T9 | `--fs-label` / `--lh-label` | Tabellenkopf, Label (Versalien) | Barlow SC 500 | 12/16 | 12/16 |
+| T10 | `--fs-chart-label` / `--lh-chart-label` | Achsen, Legende | Barlow SC 500, tnum | 12/16 | 12/16 |
+| T11 | `--fs-measure` / `--lh-measure` | Maßtext, Positionsnummer | Barlow SC 600, tnum | 14/18 | 14/18 |
+| T12 | `--fs-revision` / `--lh-revision` | Blatt/Rev-Zeile (Versalien) | Barlow SC 500 | 11/14 | 11/14 |
+
+Numbers in lead measures, KPIs, tables and chart values use Archivo with `tabular-nums`. Barlow Semi Condensed is reserved for small uppercase labels, table heads, axes/legends and dimension lettering (Maßtext / positions). T9 uses +0.06 em tracking.
+
+The minimum is 12 px. T12 has its own `--fs-revision` token and is allowed only for Blatt/Rev lettering on a dark surface with measured contrast ≥ 5.5:1. Reserved allowed selectors: `:root[data-theme='dark'] .tb-revision` and `:root[data-theme='dark'] .ps-revision`; neither is currently used. Existing title-block metadata, including `.ps-tb-cell .tech`, stays T9 in both themes; print also stays at least 12 px.
+
+No literal CSS font sizes. Former names (`class-tag`, `chart-label-strong`, `figure-large`, `panel`, `amount`, `small`) are retired; every stylesheet, wealth included, uses T1–T12.
 
 ### Named Rules
 **The Tabular Rule.** Jede Ziffer steht in Tabellenziffern, damit Beträge in Spalten fluchten.

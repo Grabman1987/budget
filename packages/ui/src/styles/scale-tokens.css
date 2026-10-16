@@ -3,19 +3,30 @@
 /* Mode-independent tokens: type scale, radii, spacing. */
 :root {
   /* Type scale (phone overrides below) */
-  --fs-dimension: 68px;
-  --fs-display: 30px;
+  --fs-dimension: 56px;
+  --fs-display: 28px;
   --fs-headline: 20px;
-  --fs-title: 17px;
+  --fs-title: 16px;
   --fs-figure: 24px;
-  --fs-body: 14px;
-  --fs-label: 11.5px;
+  --fs-body: 15px;
+  --fs-table: 14px;
+  --fs-meta: 13px;
+  --fs-label: 12px;
   --fs-chart-label: 12px;
-  --fs-class-tag: 11px;
-  --fs-chart-label-strong: 13px;
-  --fs-figure-large: 34px;
-  --fs-panel: 36px;
-  --fs-amount: 44px;
+  --fs-measure: 14px;
+  --fs-revision: 11px;
+  --lh-dimension: 56px;
+  --lh-display: 32px;
+  --lh-headline: 26px;
+  --lh-title: 22px;
+  --lh-figure: 28px;
+  --lh-body: 22px;
+  --lh-table: 20px;
+  --lh-meta: 18px;
+  --lh-label: 16px;
+  --lh-chart-label: 16px;
+  --lh-measure: 18px;
+  --lh-revision: 14px;
 
   /* Radii */
   --radius-titleblock: 2px;
@@ -43,8 +54,26 @@
     --fs-dimension: 40px;
     --fs-display: 24px;
     --fs-headline: 18px;
-    --fs-figure: 21px;
-    --fs-body: 15px;
-    --fs-amount: 36px;
+    --fs-title: 17px;
+    --fs-figure: 22px;
+    --fs-body: 16px;
+    --fs-table: 15px;
+    --fs-meta: 13px;
+    --fs-label: 12px;
+    --fs-chart-label: 12px;
+    --fs-measure: 14px;
+    --fs-revision: 11px;
+    --lh-dimension: 44px;
+    --lh-display: 28px;
+    --lh-headline: 24px;
+    --lh-title: 24px;
+    --lh-figure: 26px;
+    --lh-body: 24px;
+    --lh-table: 22px;
+    --lh-meta: 18px;
+    --lh-label: 16px;
+    --lh-chart-label: 16px;
+    --lh-measure: 18px;
+    --lh-revision: 14px;
   }
 }

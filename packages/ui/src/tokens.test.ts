@@ -193,29 +193,36 @@ describe('design tokens', () => {
       'title',
       'figure',
       'body',
+      'table',
+      'meta',
       'label',
       'chart-label',
+      'measure',
+      'revision',
     ]);
     for (const [role, size] of Object.entries(sizes)) {
       expect(scaleTokensCss, role).toContain(`--fs-${role}: ${size};`);
     }
   });
 
-  it('includes only the extra sizes already named in the DESIGN.md hierarchy', () => {
-    expect(designMd).toContain('Klassen-Tags (11 px');
-    expect(designMd).toContain('Ma\u00dftexte 13 px');
-    expect(designMd).toContain(
-      '34 px (Nettoverm\u00f6gen), 36 px (Panel) und 44 px (Buchungsdisplay',
-    );
-    for (const [role, size] of [
-      ['class-tag', 11],
-      ['chart-label-strong', 13],
-      ['figure-large', 34],
-      ['panel', 36],
-      ['amount', 44],
-    ]) {
-      expect(scaleTokensCss).toContain('--fs-' + role + ': ' + size + 'px;');
-    }
+  it('generates responsive sizes and line heights from the supplied typography roles', () => {
+    const css = generateScaleTokensCss(`---
+typography:
+  body:
+    fontSize: "15px"
+    lineHeight: "22px"
+    fontSizeMobile: "16px"
+    lineHeightMobile: "24px"
+rounded:
+  sm: "6px"
+spacing:
+  touch: "44px"
+---`);
+    const [desktop, phone] = css.split('@media (max-width: 767px)');
+    expect(desktop).toContain('--fs-body: 15px;');
+    expect(desktop).toContain('--lh-body: 22px;');
+    expect(phone).toContain('--fs-body: 16px;');
+    expect(phone).toContain('--lh-body: 24px;');
   });
 
   it('every radius of DESIGN.md is a --radius-* token with the same value', () => {
@@ -239,7 +246,7 @@ describe('design tokens', () => {
   it('the mobile type scale overrides the desktop values inside the phone media query', () => {
     const phone = /@media \(max-width: 767px\) \{([\s\S]*)\}\s*$/.exec(scaleTokensCss)?.[1] ?? '';
     expect(phone).toContain('--fs-dimension: 40px;');
-    expect(phone).toContain('--fs-body: 15px;');
+    expect(phone).toContain('--fs-body: 16px;');
   });
 
   it('the hand-written scales.css does not redefine generated scale tokens', () => {

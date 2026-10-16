@@ -39,17 +39,19 @@ export const parseRadii = (designMd) => parseFlat(designMd, 'rounded');
 export const parseSpacing = (designMd) => parseFlat(designMd, 'spacing');
 
 /** `fontSize` of every `typography:` role, in file order. */
-export function parseFontSizes(designMd) {
+function parseTypographyProperty(designMd, property) {
   const out = {};
   let role = null;
   for (const line of frontmatterBlock(designMd, 'typography').split('\n')) {
     const r = /^ {2}([\w-]+):\s*$/.exec(line);
     if (r) role = r[1];
-    const size = /^ {4}fontSize: "([^"]+)"/.exec(line);
+    const size = new RegExp(`^ {4}${property}: "([^"]+)"`).exec(line);
     if (size && role) out[role] = size[1];
   }
   return out;
 }
+
+export const parseFontSizes = (designMd) => parseTypographyProperty(designMd, 'fontSize');
 
 // Roles that DESIGN.md names in prose only (tints, scrim, shadow, direction colours, dark hover).
 const EXTRA = {
@@ -187,27 +189,13 @@ ${declarations(light, '    ')}
 `;
 }
 
-// Sizes already specified in DESIGN.md's typography hierarchy (outside the frontmatter).
-const HIERARCHY_FONT_SIZES = {
-  'class-tag': '11px',
-  'chart-label-strong': '13px',
-  'figure-large': '34px',
-  panel: '36px',
-  amount: '44px',
-};
-
-// Phone type sizes (DESIGN.md "Typografie": Dimension 40, Display 24, Headline 18, Figure 21, Body 15).
-const MOBILE_FONT_SIZES = {
-  dimension: '40px',
-  display: '24px',
-  headline: '18px',
-  figure: '21px',
-  body: '15px',
-  amount: '36px',
-};
-
 export function generateScaleTokensCss(designMd) {
-  const sizes = { ...parseFontSizes(designMd), ...HIERARCHY_FONT_SIZES };
+  const typeTokens = (mobile = false) =>
+    ['fontSize', 'lineHeight'].flatMap((property) =>
+      Object.entries(parseTypographyProperty(designMd, property + (mobile ? 'Mobile' : ''))).map(
+        ([role, value]) => [`--${property === 'fontSize' ? 'fs' : 'lh'}-${role}`, value],
+      ),
+    );
   const radii = parseRadii(designMd);
   const spacing = parseSpacing(designMd);
   const lines = (entries, indent) => entries.map(([k, v]) => `${indent}${k}: ${v};`).join('\n');
@@ -216,10 +204,7 @@ export function generateScaleTokensCss(designMd) {
 /* Mode-independent tokens: type scale, radii, spacing. */
 :root {
   /* Type scale (phone overrides below) */
-${lines(
-  Object.entries(sizes).map(([k, v]) => [`--fs-${k}`, v]),
-  '  ',
-)}
+${lines(typeTokens(), '  ')}
 
   /* Radii */
 ${lines(
@@ -236,10 +221,7 @@ ${lines(
 
 @media (max-width: 767px) {
   :root {
-${lines(
-  Object.entries(MOBILE_FONT_SIZES).map(([k, v]) => [`--fs-${k}`, v]),
-  '    ',
-)}
+${lines(typeTokens(true), '    ')}
   }
 }
 `;
