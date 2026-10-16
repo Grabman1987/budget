@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import {
   createTestDatabase,
   replaceExposureVersion,
@@ -93,6 +94,42 @@ function fixture(currency = 'EUR', costBasisCents: number | null = null) {
     })
     .run();
 }
+it('a reached wealth stage holds until the month-end sum falls below 90 % of its lower bound', async () => {
+  fixture();
+  db.update(schema.holding).set({ asOf: '2026-07-01' }).run();
+  const price = (date: string, euros: number) =>
+    db
+      .insert(schema.price)
+      .values({
+        securityId: 's',
+        date,
+        priceMicro: euros * 1_000_000,
+        currency: 'EUR',
+        source: 'manual',
+      })
+      .run();
+  // Two units: 600 € at the end of July, 480 € at the end of August (within the buffer).
+  price('2026-07-31', 300);
+  price('2026-08-31', 240);
+  price(TODAY, 230);
+  const saved = await call('PUT', '/asset-classes/targets', {
+    ...targets('2026-07-01', 10000, 0),
+    tiers: [
+      { upToCents: 49_999, targets: targets('2026-07-01', 10000, 0).targets },
+      { upToCents: null, targets: targets('2026-07-01', 5000, 5000).targets, label: 'Ab 500' },
+    ],
+  });
+  expect(saved.status).toBe(200);
+  // 460 € today is below the 500 € bound but not below 450 €: the July stage still holds.
+  expect(await read()).toMatchObject({
+    valueCents: 46_000,
+    policy: { tierIndex: 1, wealthStage: { fromCents: 50_000, inBuffer: true } },
+  });
+  db.delete(schema.price).where(eq(schema.price.date, TODAY)).run();
+  price(TODAY, 224);
+  // 448 € falls below 450 €: back to the first stage.
+  expect(await read()).toMatchObject({ valueCents: 44_800, policy: { tierIndex: 0 } });
+});
 it('saving scope and stage targets is atomic, conflict-checked and undoable without touching balances', async () => {
   fixture();
   db.insert(schema.price)
@@ -137,7 +174,6 @@ it('saving scope and stage targets is atomic, conflict-checked and undoable with
         upToCents: null,
         targets: targets(TODAY, 7500, 2500).targets,
         label: 'Ab 150',
-        enabled: true,
       },
     ],
     allocationAccounts: [
@@ -158,7 +194,7 @@ it('saving scope and stage targets is atomic, conflict-checked and undoable with
     universe: { accountIds: ['depot', 'reserve'] },
     policy: {
       tierIndex: 1,
-      wealthStage: { label: 'Ab 150', fromCents: 15_000, awaitingApproval: false },
+      wealthStage: { label: 'Ab 150', fromCents: 15_000, inBuffer: false },
     },
   });
   expect((await call('PUT', '/asset-classes/targets', { ...body, label: 'Stale' })).status).toBe(

@@ -61,7 +61,6 @@ export function wealthStageTemplate(classes: Record<WealthStageRole, string>) {
       fromCents: s.fromCents,
       label: s.label,
       condition: s.condition,
-      enabled: !s.condition,
       targets: ids.map((assetClassId, i) => ({ assetClassId, targetShareBp: s.weights[i]! })),
     })),
   );

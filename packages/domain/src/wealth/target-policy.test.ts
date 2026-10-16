@@ -44,7 +44,7 @@ it('lower bounds activate at the exact cent and round-trip legacy upper boundari
   expect(resolveTargetTier({ targets: policy.targets, tiers: smallest }, 1).tierIndex).toBe(1);
   expect(() => targetTiersFromStarts([{ fromCents: 1, targets: policy.targets }])).toThrow('erste');
 });
-it('the editable seven-stage scenario preserves literal weights and requires approval of conditional stages', () => {
+it('the editable seven-stage scenario preserves literal weights and activates every stage by threshold', () => {
   const tiers = wealthStageTemplate({ world: 'w', leveraged: 'l', managed: 'm', reserve: 'r' });
   const template = { targets: tiers[0]!.targets, tiers };
   validateTargetPolicy(template, new Set(['w', 'l', 'm', 'r']));
@@ -60,18 +60,35 @@ it('the editable seven-stage scenario preserves literal weights and requires app
     [6000, 500, 2000, 1500],
     [6000, 500, 2000, 1500],
   ]);
-  expect(resolveTargetTier(template, 50_000_000).tierIndex).toBe(0);
-  tiers[2]!.enabled = true;
-  expect(resolveTargetTier(template, 50_000_000).tierIndex).toBe(2);
-  tiers[4]!.enabled = true;
+  expect(tiers.every((t) => !('enabled' in t))).toBe(true);
+  expect(resolveTargetTier(template, 49_999_999).tierIndex).toBe(3);
   expect(resolveTargetTier(template, 50_000_000).tierIndex).toBe(4);
-  expect(resolveTargetTier(template, 49_999_999).tierIndex).toBe(2);
   expect(resolveTargetTier(template, null).targets).toEqual([]);
-  tiers[0]!.enabled = false;
-  expect(() => validateTargetPolicy(template, new Set(['w', 'l', 'm', 'r']))).toThrow('erste');
   expect(() =>
     wealthStageTemplate({ world: 'w', leveraged: 'w', managed: 'm', reserve: 'r' }),
   ).toThrow('unterschiedliche');
+});
+it('a reached stage stays active until the sum falls below 90 % of its lower bound', () => {
+  const tiers = wealthStageTemplate({ world: 'w', leveraged: 'l', managed: 'm', reserve: 'r' });
+  const template = { targets: tiers[0]!.targets, tiers };
+  // Upward switch exactly at EUR 500,000.00; one cent below stays in the EUR 100,000 stage.
+  expect(resolveTargetTier(template, 49_999_999, 3).tierIndex).toBe(3);
+  expect(resolveTargetTier(template, 50_000_000, 3).tierIndex).toBe(4);
+  // Downward only below EUR 450,000.00.
+  expect(resolveTargetTier(template, 49_999_999, 4).tierIndex).toBe(4);
+  expect(resolveTargetTier(template, 45_000_000, 4).tierIndex).toBe(4);
+  expect(resolveTargetTier(template, 44_999_999, 4).tierIndex).toBe(3);
+  // Without a previous stage the threshold alone decides.
+  expect(resolveTargetTier(template, 45_000_000).tierIndex).toBe(3);
+  // A month-end sequence: up, buffered dip, recovery, real drop, partial recovery.
+  let previous: number | null = null;
+  const path = [40_000_000, 50_000_000, 46_000_000, 52_000_000, 44_000_000, 47_000_000].map(
+    (cents) => (previous = resolveTargetTier(template, cents, previous).tierIndex),
+  );
+  expect(path).toEqual([3, 4, 4, 4, 3, 3]);
+  // The buffer never lifts a sum into a stage it has not reached and ignores invalid indices.
+  expect(resolveTargetTier(template, 46_000_000, 3).tierIndex).toBe(3);
+  expect(resolveTargetTier(template, 46_000_000, 99).tierIndex).toBe(3);
 });
 it('inclusive cent boundaries, negative investment sums and unavailable valuations resolve deterministically', () => {
   validateTargetPolicy(policy, new Set(['a', 'b']));

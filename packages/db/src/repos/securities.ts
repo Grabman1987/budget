@@ -381,13 +381,14 @@ export function targetsAsOf(
   day: string,
   includeDay = true,
   investmentCents: number | null = null,
+  previousTierIndex: number | null = null,
 ): TargetRow[] {
   const version = listTargetVersions(db)
     .filter((v) => v.validFrom < day || (includeDay && v.validFrom === day))
     .at(-1);
   if (!version) return [];
   if (!version.tiers.length) return version.targets;
-  return resolveTargetTier(version, investmentCents).targets.map((t) => ({
+  return resolveTargetTier(version, investmentCents, previousTierIndex).targets.map((t) => ({
     ...t,
     id: t.assetClassId + '@' + version.validFrom,
     validFrom: version.validFrom,

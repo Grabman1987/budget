@@ -3,7 +3,12 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { rule } from '../schema';
 import { listAssetClasses, listTargetVersions } from './securities';
 import { allocationInputsAsOf } from './allocation-inputs';
-import { resolveTargetTier, targetTierStarts, type ClassTarget } from '@budget/domain';
+import {
+  monthBoundaries,
+  resolveTargetTier,
+  targetTierStarts,
+  type ClassTarget,
+} from '@budget/domain';
 import type { Executor } from './types';
 
 export interface PortfolioRiskPolicy {
@@ -16,7 +21,8 @@ export interface PortfolioRiskPolicy {
   targetLabel: string | null;
   tierIndex: number | null;
   investmentCents: number | null;
-  wealthStage?: { label: string; fromCents: number; awaitingApproval: boolean };
+  /** inBuffer: the sum is below the stage's lower bound but within its 10 % hold-down buffer. */
+  wealthStage?: { label: string; fromCents: number; inBuffer: boolean };
 }
 
 /**
@@ -24,11 +30,14 @@ export interface PortfolioRiskPolicy {
  * owner configuration without valid_from, so the stored policy also applies to historical reads.
  * Disabled rules still supply their stored limits (enabled controls finance-check participation).
  * Missing keys use schema defaults; invalid stored policy never silently changes financial limits.
+ * Wealth stages hold down by month end: pass the previous month end's result when iterating
+ * chronologically; otherwise the month ends since the version's start are replayed.
  */
 export function resolvePortfolioRiskPolicy(
   db: Executor,
   asOf: string,
   investmentCents?: number | null,
+  previous?: Pick<PortfolioRiskPolicy, 'targetValidFrom' | 'tierIndex'>,
 ): PortfolioRiskPolicy {
   const rows = db
     .select()
@@ -57,7 +66,21 @@ export function resolvePortfolioRiskPolicy(
       ? allocationInputsAsOf(db, asOf).valueCents
       : investmentCents
     : (investmentCents ?? null);
-  const resolved = version ? resolveTargetTier(version, sum) : { targets: [], tierIndex: null };
+  let previousTier: number | null = null;
+  if (version?.tiers.length) {
+    if (previous && previous.targetValidFrom === version.validFrom)
+      previousTier = previous.tierIndex;
+    else
+      for (const day of monthBoundaries(version.validFrom, asOf).filter((d) => d < asOf))
+        previousTier = resolveTargetTier(
+          version,
+          allocationInputsAsOf(db, day).valueCents,
+          previousTier,
+        ).tierIndex;
+  }
+  const resolved = version
+    ? resolveTargetTier(version, sum, previousTier)
+    : { targets: [], tierIndex: null };
   const order = new Map(listAssetClasses(db, { includeDeleted: true }).map((c, i) => [c.id, i]));
   resolved.targets = [...resolved.targets].sort(
     (a, b) => (order.get(a.assetClassId) ?? 0) - (order.get(b.assetClassId) ?? 0),
@@ -76,10 +99,7 @@ export function resolvePortfolioRiskPolicy(
           wealthStage: {
             label: version.tiers[resolved.tierIndex]!.label ?? '',
             fromCents: targetTierStarts(version.tiers)[resolved.tierIndex]!,
-            awaitingApproval:
-              version.tiers[resolved.tierIndex]!.upToCents !== null &&
-              sum !== null &&
-              sum > version.tiers[resolved.tierIndex]!.upToCents!,
+            inBuffer: sum !== null && sum < targetTierStarts(version.tiers)[resolved.tierIndex]!,
           },
         }
       : {}),

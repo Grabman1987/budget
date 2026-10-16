@@ -141,7 +141,6 @@ type TierDraft = {
   limit: string;
   entries: Record<string, Entry>;
   label?: string;
-  enabled?: boolean;
   condition?: string;
 };
 function entriesFor(view: PortfolioAllocationView, targets: ManagedTarget[]) {
@@ -189,7 +188,6 @@ export function TargetEditor({
           limit: bpText(targetTierStarts(initial.tiers)[i]!),
           entries: entriesFor(view, t.targets),
           label: t.label ?? '',
-          enabled: t.enabled ?? true,
           condition: t.condition ?? '',
         }))
       : [{ limit: '', entries: entriesFor(view, initial?.targets ?? []) }],
@@ -231,7 +229,6 @@ export function TargetEditor({
             limit: bpText(targetTierStarts(v.tiers)[i]!),
             entries: entriesFor(view, t.targets),
             label: t.label ?? '',
-            enabled: t.enabled ?? true,
             condition: t.condition ?? '',
           }))
         : [{ limit: '', entries: entriesFor(view, v.targets) }],
@@ -291,7 +288,6 @@ export function TargetEditor({
         targets,
         label: tier.label ?? '',
         condition: tier.condition ?? '',
-        enabled: tier.enabled ?? true,
       };
     });
     for (let i = 1; i < prepared.length; i++)
@@ -396,9 +392,9 @@ export function TargetEditor({
             %. Ab 1 Mio. € bei Entnahmen: 60 / 5 / 20 / 15 %.
           </p>
           <p className="vnote">
-            Bedingte Stufen sind zunächst nicht freigegeben. Ohne Freigabe bleibt die letzte
-            freigegebene Zielstruktur wirksam. Bis zur Produktfreigabe zusätzliche Einzahlungen
-            bevorzugt in Weltaktien prüfen. Sparraten werden hier nicht geändert.
+            Jede Stufe gilt automatisch ab ihrem Schwellenwert; die Voraussetzung ist ein Hinweis.
+            Eine erreichte Stufe bleibt aktiv, bis die Anlagesumme an einem Monatsende 10 % unter
+            ihren Schwellenwert fällt. Sparraten werden hier nicht geändert.
           </p>
           {confirmExample && (
             <p role="alert">Die Vorlage ersetzt deine ungespeicherten Stufen und Quoten.</p>
@@ -421,7 +417,6 @@ export function TargetEditor({
                     limit: bpText(targetTierStarts(template)[i]!),
                     entries: entriesFor(view, t.targets),
                     label: t.label ?? '',
-                    enabled: t.enabled ?? true,
                     condition: t.condition ?? '',
                   })),
                 );
@@ -557,10 +552,7 @@ export function TargetEditor({
                 >
                   {tiers.map((t, i) => (
                     <option key={i} value={i}>
-                      {'Ab ' +
-                        (i === 0 ? '0,00' : t.limit || '…') +
-                        ' €' +
-                        (t.enabled === false ? ' · Freigabe offen' : '')}
+                      {'Ab ' + (i === 0 ? '0,00' : t.limit || '…') + ' €'}
                     </option>
                   ))}
                 </Select>
@@ -617,23 +609,6 @@ export function TargetEditor({
                 />
               )}
             </Field>
-            {selected > 0 && (
-              <label className="asset-check">
-                <input
-                  type="checkbox"
-                  checked={tier.enabled !== false}
-                  onChange={(e) => {
-                    changed();
-                    setTiers(
-                      tiers.map((t, i) =>
-                        i === selected ? { ...t, enabled: e.target.checked } : t,
-                      ),
-                    );
-                  }}
-                />
-                Stufe zur automatischen Auswahl freigegeben
-              </label>
-            )}
             <div className="asset-actions">
               <Button
                 variant="ghost"

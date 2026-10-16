@@ -274,7 +274,6 @@ const targetsBody = z.object({
         upToCents: z.int().min(0).max(Number.MAX_SAFE_INTEGER).nullable(),
         targets: targetRows,
         label: z.string().trim().max(80).optional(),
-        enabled: z.boolean().optional(),
         condition: z.string().trim().max(240).optional(),
       }),
     )
@@ -303,7 +302,10 @@ export function assetClassRoutes(db: Db, today: () => string): Hono {
     const { deleted } = readQuery(c, deletedQuery);
     const policy = resolvePortfolioRiskPolicy(db, today());
     const current = new Map(
-      targetsAsOf(db, today(), true, policy.investmentCents).map((t) => [t.assetClassId, t]),
+      targetsAsOf(db, today(), true, policy.investmentCents, policy.tierIndex).map((t) => [
+        t.assetClassId,
+        t,
+      ]),
     );
     const inUse = assetClassesInUse(db);
     return c.json({

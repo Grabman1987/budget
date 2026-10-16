@@ -1,6 +1,6 @@
 # Wealth stages — owner addition, 2026-10-15
 
-Status: implementation draft; conditional-stage approval decision pending. No production configuration has been written. PUB1 remains excluded.
+Status: owner decision 2026-10-16 applied — every stage activates by its threshold; a reached stage holds until the month-end sum falls below 90 % of its lower bound. No production configuration has been written. PUB1 remains excluded.
 
 ## Contract
 
@@ -10,7 +10,7 @@ Scope changes and the complete dated policy save in one transaction and audit gr
 
 The UI accepts lower bounds, starting at zero: a stage entered as `500.000,00` begins at exactly EUR 500,000. Existing inclusive upper-bound storage is retained. Each previous bound is the next lower bound minus one cent. Loading a legacy policy displays the previous upper bound plus one cent, preserving its historical semantics exactly. A second stage at one cent is supported. Each stage has independently editable classes, integer basis-point weights totalling exactly 100%, and existing standard/custom bands.
 
-The shared resolver remains authoritative for allocation, risk rules, reports and savings proposals. The optional stage label, condition text and enabled flag live in the existing policy JSON. Legacy absent flags remain enabled. Draft conditional behavior: a stage explicitly disabled is skipped in favor of the last enabled stage at or below the current wealth; the zero stage must remain enabled. Unknown wealth resolves no targets. A portfolio label distinguishes the active stage and a higher stage awaiting approval. Approval edits create a dated policy version through the existing editor.
+The shared resolver remains authoritative for allocation, risk rules, reports and savings proposals. The optional stage label and condition text live in the existing policy JSON; the condition is an owner hint only and never blocks a stage (owner decision 2026-10-16). A stage activates exactly at its lower bound. Once reached at a month end it stays active until the investment sum falls below 90 % of that bound (EUR 500,000 holds down to EUR 450,000.00; EUR 449,999.99 drops). Callers iterating month ends pass the previous result; otherwise the month ends since the policy version's start are replayed. A new policy version starts from its threshold alone. Unknown wealth resolves no targets and does not carry a stage. The portfolio note shows when the active stage is held by the buffer.
 
 ## Editable example
 
@@ -26,13 +26,13 @@ The supplied workbook was read as data. Its private product/provider identifiers
 | 1,000,000 | 60% | 5% | 20% | 15% |
 | 2,000,000 | 60% | 5% | 20% | 15% |
 
-The final row is present in the workbook. The 70/10/20 alternative is not silently chosen. The EUR 400 / 340+60 contribution split is explanatory, not an automatic savings-plan mutation. Managed-futures approval, liquidity need and withdrawal planning remain explicit conditions. The owner has been asked whether conditional stages should await approval and retain the last approved targets; that answer is still required before delivery of this default. The draft template marks all conditional stages disabled.
+The final row is present in the workbook. The 70/10/20 alternative is not silently chosen. The EUR 400 / 340+60 contribution split is explanatory, not an automatic savings-plan mutation. Managed-futures approval, liquidity need and withdrawal planning remain written conditions for the owner; they do not gate activation.
 
 ## Verification and continuation
 
-- Literal domain regressions: exact thresholds, one cent below, legacy round-trip, negative/unknown values, exact seven-stage weights and approval fallback.
+- Literal domain regressions: exact thresholds, one cent below, legacy round-trip, negative/unknown values, exact seven-stage weights, hold-down buffer at 450,000.00 / 449,999.99 and a multi-month up/down sequence.
 - API regression: excluded wallet, signed selected cash, boundary-driven target, concurrent-edit rejection, rollback, grouped undo and redo with original balances unchanged.
 - Browser regressions: existing shared-editor guards and future versions remain; new explicit class mapping, seven stages, German grouped amount, persisted request payload, conflict and discard. Both themes run the complete Axe check. One existing template selector is made exact because four new labels also include “Vorlage”.
-- Figma: eight native source screens V18–V21 plus eight linked prototype screens in the existing file; no UI screenshot is imported as the design. Review starts at [Desktop](https://www.figma.com/design/Nv9oaV96Npql6onEofCFEi?node-id=260-1865) or [Phone](https://www.figma.com/design/Nv9oaV96Npql6onEofCFEi?node-id=260-2002). Conditional default remains labelled as a decision in the review screen.
+- Figma: eight native source screens V18–V21 plus eight linked prototype screens in the existing file; no UI screenshot is imported as the design. Review starts at [Desktop](https://www.figma.com/design/Nv9oaV96Npql6onEofCFEi?node-id=260-1865) or [Phone](https://www.figma.com/design/Nv9oaV96Npql6onEofCFEi?node-id=260-2002). The review screen's conditional-approval label is superseded by the 2026-10-16 decision.
 
 Final command results, exact commit and next action belong in the accompanying handoff. Required exact-head CI, serial merge, main CI, automatic deployment and live revision proof remain delivery gates.

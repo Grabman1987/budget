@@ -117,9 +117,7 @@ sampleTest(
       await expect(panel.getByLabel('Stufe bearbeiten').locator('option')).toHaveCount(7);
       await panel.getByLabel('Stufe bearbeiten').selectOption('4');
       await expect(panel.getByLabel('Ab Vermögen (€)')).toHaveValue('500000,00');
-      await expect(
-        panel.getByLabel('Stufe zur automatischen Auswahl freigegeben'),
-      ).not.toBeChecked();
+      await expect(panel.getByLabel('Stufe zur automatischen Auswahl freigegeben')).toHaveCount(0);
       await expect(panel.getByLabel(classes[0].name + ' · Soll (%)')).toHaveValue('65,00');
       await panel.getByLabel('Ab Vermögen (€)').fill('500.000,-');
       for (const theme of ['light', 'dark']) {
@@ -127,7 +125,7 @@ sampleTest(
         await panel.screenshot({ path: info.outputPath(`wealth-stages-${theme}.png`) });
       }
       // Inspect the exact submitted policy without mutating this shared sample database.
-      let payload: { tiers: { upToCents: number | null; enabled: boolean }[] } | undefined;
+      let payload: { tiers: { upToCents: number | null; enabled?: boolean }[] } | undefined;
       await page.route('**/api/asset-classes/targets', (route) => {
         if (route.request().method() !== 'PUT') return route.continue();
         payload = route.request().postDataJSON();
@@ -151,15 +149,8 @@ sampleTest(
         199999999,
         null,
       ]);
-      expect(payload!.tiers.map((t) => t.enabled)).toEqual([
-        true,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-      ]);
+      // Every stage activates by its threshold; no approval flag is stored (owner decision 16.10.).
+      expect(payload!.tiers.every((t) => !('enabled' in t))).toBe(true);
       await panel.getByRole('button', { name: 'Schließen', exact: true }).click();
       await panel.getByRole('button', { name: 'Verwerfen', exact: true }).click();
       await expect(page.locator('dialog[open]')).toHaveCount(0);

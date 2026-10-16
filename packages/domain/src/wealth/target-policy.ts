@@ -9,8 +9,7 @@ export interface TargetTier {
   upToCents: number | null;
   targets: ManagedTarget[];
   label?: string;
-  /** Absent on legacy policies, which retain their automatic activation. */
-  enabled?: boolean;
+  /** Owner hint only; a stage activates by its threshold alone (owner decision 2026-10-16). */
   condition?: string;
 }
 export interface TargetPolicy {
@@ -37,7 +36,6 @@ export function targetTiersFromStarts(
       throw new RangeError('Vermögensstufen müssen aufsteigende Eurobeträge sein.');
   return stages.map((stage, i) => ({
     ...(stage.label !== undefined ? { label: stage.label } : {}),
-    ...(stage.enabled !== undefined ? { enabled: stage.enabled } : {}),
     ...(stage.condition !== undefined ? { condition: stage.condition } : {}),
     upToCents: i === stages.length - 1 ? null : stages[i + 1]!.fromCents - 1,
     targets: stage.targets,
@@ -73,11 +71,7 @@ export function validateTargetPolicy(policy: TargetPolicy, activeIds: ReadonlySe
   for (const [i, tier] of policy.tiers.entries()) {
     validate(tier.targets);
     if ((tier.label?.length ?? 0) > 80 || (tier.condition?.length ?? 0) > 240)
-      throw new RangeError('Stufenname oder Freigabehinweis ist zu lang.');
-    if (tier.enabled !== undefined && typeof tier.enabled !== 'boolean')
-      throw new RangeError('Bitte den Freigabestatus der Stufe prüfen.');
-    if (i === 0 && tier.enabled === false)
-      throw new RangeError('Die erste Vermögensstufe muss freigegeben sein.');
+      throw new RangeError('Stufenname oder Voraussetzung ist zu lang.');
     if (i === policy.tiers.length - 1) {
       if (tier.upToCents !== null)
         throw new RangeError('Die letzte Stufe muss nach oben offen sein.');
@@ -94,8 +88,16 @@ export function validateTargetPolicy(policy: TargetPolicy, activeIds: ReadonlySe
   }
 }
 
-/** Null valuation means no tier can be asserted. Never silently fall back to another policy. */
-export function resolveTargetTier(policy: TargetPolicy, investmentCents: number | null) {
+/**
+ * Null valuation means no tier can be asserted. Never silently fall back to another policy.
+ * A stage activates exactly at its lower bound. Once reached it stays active until the sum falls
+ * below 90 % of that bound (owner decision 2026-10-16), so pass the tier of the previous month end.
+ */
+export function resolveTargetTier(
+  policy: TargetPolicy,
+  investmentCents: number | null,
+  previousTierIndex: number | null = null,
+) {
   if (!policy.tiers.length) return { targets: policy.targets, tierIndex: null };
   if (investmentCents === null) return { targets: [] as ManagedTarget[], tierIndex: null };
   const found = policy.tiers.findIndex(
@@ -103,6 +105,12 @@ export function resolveTargetTier(policy: TargetPolicy, investmentCents: number 
   );
   // A stored policy without an open last tier is invalid; read it as if the last tier were open.
   let tierIndex = found === -1 ? policy.tiers.length - 1 : found;
-  while (tierIndex > 0 && policy.tiers[tierIndex]!.enabled === false) tierIndex--;
+  if (
+    previousTierIndex !== null &&
+    previousTierIndex > tierIndex &&
+    previousTierIndex < policy.tiers.length &&
+    investmentCents * 10 >= targetTierStarts(policy.tiers)[previousTierIndex]! * 9
+  )
+    tierIndex = previousTierIndex;
   return { targets: policy.tiers[tierIndex]!.targets, tierIndex };
 }
