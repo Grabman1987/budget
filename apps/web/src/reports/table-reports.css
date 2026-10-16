@@ -249,7 +249,7 @@
 .spark polyline {
   fill: none;
   stroke: var(--line);
-  stroke-width: 1.5;
+  stroke-width: var(--stroke-measure);
 }
 .rc-btn {
   display: inline-flex;
@@ -311,7 +311,7 @@
 }
 .tr-plan-tick {
   stroke: var(--ink);
-  stroke-width: 2;
+  stroke-width: var(--stroke-hairline);
 }
 .chart-legend .legend-tick {
   width: 32px;

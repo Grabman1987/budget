@@ -172,7 +172,7 @@
   display: inline-block;
   width: 14px;
   height: 22px;
-  border-radius: var(--radius-titleblock);
+  border-radius: var(--radius-xs);
   background: var(--quiet-soft);
   border: 1px dashed var(--line-2);
 }
@@ -182,11 +182,11 @@
 }
 .ov-cell.is-warn {
   background: transparent;
-  border: 2px solid var(--line-2);
+  border: var(--stroke-hairline) solid var(--line-2);
 }
 .ov-cell.is-bad {
   background: var(--red-soft);
-  border: 2px solid var(--red);
+  border: var(--stroke-hairline) solid var(--red);
 }
 .ov-cells {
   display: flex;

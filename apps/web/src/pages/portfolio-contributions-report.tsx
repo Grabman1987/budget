@@ -390,9 +390,9 @@ function ContributionsChart({ history }: { history: ContributionHistory }) {
           return (
             <rect
               key={row.to}
-              x={(xDate(row.from) + xDate(row.to)) / 2 - slot * 0.27}
+              x={(xDate(row.from) + xDate(row.to)) / 2 - Math.min(slot * 0.54, 4) / 2}
               y={row.gainCents >= 0 ? zero - height : zero}
-              width={slot * 0.54}
+              width={Math.min(slot * 0.54, 4)}
               height={height}
               className={
                 row.gainCents >= 0 ? 'contributions-bar-positive' : 'contributions-bar-negative'

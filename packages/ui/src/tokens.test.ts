@@ -227,8 +227,8 @@ spacing:
 
   it('every radius of DESIGN.md is a --radius-* token with the same value', () => {
     const radii = parseRadii(designMd);
-    expect(radii['sheet-mobile']).toBe('16px');
-    expect(radii['sm']).toBe('6px');
+    expect(radii['sheet-mobile']).toBe('12px');
+    expect(radii['sm']).toBe('8px');
     for (const [name, value] of Object.entries(radii)) {
       expect(scaleTokensCss, name).toContain(`--radius-${name}: ${value};`);
     }

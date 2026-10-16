@@ -81,13 +81,13 @@
 }
 .pp-grid {
   stroke: var(--rule);
-  stroke-width: 1;
+  stroke-width: var(--stroke-hairline);
 }
 .pp-net,
 .pp-gross {
   fill: none;
   stroke: var(--line);
-  stroke-width: 2;
+  stroke-width: var(--stroke-hairline);
 }
 .pp-gross {
   stroke: var(--line-2);

@@ -9,6 +9,14 @@ const revisionLabels = new Set([
   ":root[data-theme='dark'] .ps-revision",
 ]);
 
+// Only active registers get a 2px border; inactive tracks stay transparent and thin.
+const activeRegisters = new Set([
+  ".registers a[aria-current='page']",
+  ".registers button[aria-pressed='true']",
+  '.depot-tabs a[aria-current]',
+  ".close-stepper button[aria-current='step']",
+]);
+
 // DESIGN.md square bar/legend marks, never general UI exceptions.
 const chartMarks = new Set([
   '.sw',
@@ -49,15 +57,47 @@ export function findScaleViolations(css, file, tokens) {
   for (const block of clean.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     const selectors = block[1]
       .trim()
-      .split(',')
+      .split(/,(?![^()]*\))/)
       .map((s) => s.trim());
     for (const declaration of block[2].matchAll(
-      /(?:^|;)\s*(font-size|font|border(?:-[\w-]+)?-radius)\s*:\s*([^;]+)/g,
+      /(?:^|;)\s*(font-size|font|border(?:-[\w-]+)?|outline(?:-width)?)\s*:\s*([^;]+)/g,
     )) {
       const [, property, value] = declaration;
       const isFont = property === 'font' || property === 'font-size';
       const offset = block.index + block[0].indexOf('{') + 1 + declaration.index;
       const line = clean.slice(0, offset).split('\n').length;
+      const report = () =>
+        violations.push(`${file}:${line} ${selectors.join(', ')}: ${property}: ${value.trim()}`);
+      if (!isFont && !property.endsWith('radius')) {
+        if (/-color$|-style$/.test(property)) continue;
+        const resolved = value
+          .replace(
+            /var\((--stroke-[\w-]+)\)/g,
+            (original, name) => new RegExp(`${name}:\\s*([^;]+)`).exec(tokens)?.[1] ?? original,
+          )
+          .trim()
+          .replace(/\s*!important$/, '');
+        const parts = resolved.match(/[\w-]+\((?:[^()]|\([^()]*\))*\)|[^\s]+/g) ?? [];
+        const widths = parts.filter((part) =>
+          /^(?:-?[\d.]|thin$|medium$|thick$|var\(--stroke-|calc\()/.test(part),
+        );
+        const outline = property === 'outline' || property === 'outline-width';
+        const valid =
+          !/\b(?:thin|medium|thick)\b/.test(resolved) &&
+          (!/-width$/.test(property) || !resolved.includes('var(')) &&
+          widths.every(
+            (width) =>
+              ['0', '0px', '1px', '1.5px'].includes(width) ||
+              (width === '2px' &&
+                (outline
+                  ? selectors.every((s) => /:focus(?:-visible|-within)?\b/.test(s))
+                  : property === 'border-bottom' || property === 'border-bottom-width'
+                    ? selectors.every((s) => activeRegisters.has(s))
+                    : false)),
+          );
+        if (!valid) report();
+        continue;
+      }
       if (isFont) {
         // Native controls inherit the surrounding role; explicit sizes must use type tokens.
         if (value.trim() === 'inherit') continue;
@@ -108,6 +148,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.error(violations.join('\n'));
     process.exitCode = 1;
   } else {
-    console.log('CSS typography and radii match the DESIGN.md scale.');
+    console.log('CSS typography, radii and border widths match the DESIGN.md scale.');
   }
 }

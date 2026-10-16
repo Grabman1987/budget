@@ -29,7 +29,7 @@
 }
 .fc-progress {
   display: block;
-  height: 8px;
+  height: var(--bar-progress);
   margin: 6px 0 2px;
   border: 1px solid var(--line-2);
   border-radius: 4px;

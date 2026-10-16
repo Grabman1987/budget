@@ -47,7 +47,7 @@
   margin-top: 18px;
   padding: 12px 14px;
   border: 1px solid var(--line-2);
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--ink);
   text-decoration: none;
 }
@@ -369,7 +369,7 @@
 .portfolio-withdrawal-marker {
   fill: var(--surface);
   stroke: var(--line);
-  stroke-width: 2;
+  stroke-width: var(--stroke-hairline);
 }
 .portfolio-lead-gain {
   font-weight: 620;

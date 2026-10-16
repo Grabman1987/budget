@@ -204,7 +204,7 @@
 .mr-fill-gif {
   fill: var(--tint-2);
   stroke: var(--line-2);
-  stroke-width: 1;
+  stroke-width: var(--stroke-hairline);
 }
 .mr-fill-oth {
   fill: var(--rule-strong);

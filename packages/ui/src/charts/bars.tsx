@@ -54,9 +54,9 @@ export function BarsAroundZero({
         return (
           <rect
             key={bar.x}
-            x={bar.x - barWidth / 2}
+            x={bar.x - Math.min(barWidth, 4) / 2}
             y={top}
-            width={barWidth}
+            width={Math.min(barWidth, 4)}
             height={height}
             className={cls}
           >

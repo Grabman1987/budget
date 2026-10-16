@@ -43,7 +43,7 @@
   height: 28px;
   display: grid;
   place-items: center;
-  border: 1.5px solid var(--line);
+  border: var(--stroke-hairline) solid var(--line);
   border-radius: 50%;
   color: var(--line);
   font-family: var(--font-tech);

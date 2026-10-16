@@ -43,7 +43,7 @@
   width: 100%;
   padding: 8px;
   border: 1px solid var(--rule-strong);
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--ink);
   background: var(--raised);
 }
@@ -85,7 +85,7 @@
   min-height: 44px;
   padding: 8px;
   border: 1px solid var(--rule-strong);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--raised);
   color: var(--ink);
 }
