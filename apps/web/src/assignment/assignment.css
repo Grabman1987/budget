@@ -13,7 +13,9 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  max-height: calc(100dvh - 100px);
+  /* Same bound as every form sheet, so the footer stays on screen with T6 body text. */
+  max-height: inherit;
+  min-height: 0;
   gap: 0;
 }
 .assignment-editor fieldset,

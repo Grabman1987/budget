@@ -24,9 +24,10 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.goto('/plan/monat?monat=2026-09');
       await expect(page.locator('.plan .plan-topbar')).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
+      // Plan chips are compact controls (T7), one step below body text.
       await expect(page.getByTestId('to-be-assigned')).toHaveCSS(
         'font-size',
-        isMobile ? '16px' : '15px',
+        isMobile ? '15px' : '14px',
       );
       await expect(page.locator('.plan-topbar .plan-chip-scroll > .btn')).toHaveCSS(
         'border-top-left-radius',
