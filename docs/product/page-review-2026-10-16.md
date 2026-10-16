@@ -1,6 +1,6 @@
 # Page review 2026-10-16 – agreed page decisions
 
-Outcome of the owner page review on 2026-10-16 (German, owner-approved). Where it differs from older Figma frames, docs or audit recommendations, **this record and the linked issue comments take precedence**. Status per page: see the stage legend in the Prüfstand below (state 2026-10-16 evening; live revision `d945c30d`). Example amounts are synthetic.
+Outcome of the owner page review on 2026-10-16 (German, owner-approved). Where it differs from older Figma frames, docs or audit recommendations, **this record and the linked issue comments take precedence**. Status per page: see the stage legend in the Prüfstand below (state 2026-10-16 late evening; live revision `72a73764`). Example amounts are synthetic.
 
 ## Supersessions, Präzisierungen, offene Punkte (Konfliktprüfung 16.10.2026)
 
@@ -44,7 +44,7 @@ Spalten: **Figma-Frame** = Soll-Layout (v2 = vom Owner am 16.10.2026 freigegeben
 
 Figma-Datei: https://www.figma.com/design/Nv9oaV96Npql6onEofCFEi
 
-**Phase 1 abgeschlossen (16.10.2026).** Phase 2 (#529): Umsetzung in Bahnen nach den Issues; PR #505 und dieses Dokument (#530) sind gemergt. Stand abends: Live-Revision `d945c30d` enthält #507, #531, #532, #534.
+**Phase 1 abgeschlossen (16.10.2026).** Phase 2 (#529): Umsetzung in Bahnen nach den Issues; PR #505 und dieses Dokument (#530) sind gemergt. Stand spätabends: Live-Revision `72a73764` enthält #507, #531, #532, #534, #535, #536, #533.
 
 Fortschritt: Blöcke 1–7 ✓ (Block 7 Onboarding bis PUB1 zurückgestellt).
 
@@ -64,7 +64,7 @@ Fortschritt: Blöcke 1–7 ✓ (Block 7 Onboarding bis PUB1 zurückgestellt).
 | Kontakte `/konten/kontakte` | K10 `172:1694`, K11 `172:1814` | vereinbart 16.10. | – | [Entscheidung](#kontakte--entscheidungen-16102026-owner) | – | #479 | siehe Abschnitt |
 | Gehaltszettel → Plan › Einnahmen | G01 `173:2` | vereinbart 16.10. | – | [Entscheidung](#gehaltszettel--entscheidungen-16102026-owner) | G02–G11 in Figma nicht gefunden | #482 | siehe Abschnitt |
 | Vermögen › Nettovermögen `/vermoegen/nettovermoegen` | V01 `172:1943` (App besser) | vereinbart 16.10. | – | [Entscheidung](#vermögen--nettovermögen--entscheidungen-16102026-owner) | – | #524, #469 | siehe Abschnitt |
-| Vermögen › Portfolio `/vermoegen/portfolio` | V02 `172:2107`, V09 `206:6344` | teilweise deployt (#531); Rest vereinbart 16.10. | Rechenbasis: #531 (`c58aa2f5`, PP-Konvention TTWROR, Einzahlung am Tagesanfang) | [Entscheidung](#vermögen--portfolio--entscheidungen-16102026-owner) | Seitenlayout (Diagramm-Umschalter, Benchmarks, 5 Register); #525 Teil 1 in Arbeit, noch kein PR | #525, #510 | siehe Abschnitt |
+| Vermögen › Portfolio `/vermoegen/portfolio` | V02 `172:2107`, V09 `206:6344` | teilweise deployt (#531, #536); Rest vereinbart 16.10. | Rechenbasis: #531 (`c58aa2f5`, PP-Konvention TTWROR, Einzahlung am Tagesanfang); Diagramm Wert/Rendite mit Markern, gespeicherter Benchmark-Auswahl und Benchmark ab erstem Kapitaltag: #536 (`b79ca8be`, #525 Teil 1) | [Entscheidung](#vermögen--portfolio--entscheidungen-16102026-owner) | 5 Register, Klassen-Entwicklung, Orange im Soll/Ist (#465), eine Kursregel für Benchmarks (Review-Folgepunkt); Benchmark-Auswahl einmal durch den Owner | #525, #510 | siehe Abschnitt |
 | Allokation + Vermögensstufen | V18–V21 (`260:1865`, `260:2002`); V21 v2 (Owner-Freigabe 16.10.): `355:498` [V21 alt überholt] | teilweise deployt (#507); Rest vereinbart 16.10. | Stufenlogik (Schwelle + 10 % Puffer): #507 (`20c24257`) | [Entscheidung](#allokation--vermögensstufen--entscheidungen-16102026-owner) | Editor-Tabelle Stufe × Anlageklasse | #526 | siehe Abschnitt |
 | Positionen, Instrument, Sparpläne | V10 `206:6836`, V03 `172:2271`, V14 `206:8502` | vereinbart 16.10. | – | [Entscheidung](#positionen-instrument-sparpläne--entscheidungen-16102026-owner) | – | #525 | siehe Abschnitt |
 | Vermögen › Schulden `/vermoegen/schulden` | V05 `172:2557`, V15 `206:8922`, V16 `206:9364` | vereinbart 16.10. | – | [Entscheidung](#vermögen--schulden--entscheidungen-16102026-owner) | Kreditkonditionen trägt der Owner ein | #527 | siehe Abschnitt |
@@ -72,14 +72,14 @@ Fortschritt: Blöcke 1–7 ✓ (Block 7 Onboarding bis PUB1 zurückgestellt).
 | Reports › Katalog `/reports` | R00 `175:2` | vereinbart 16.10. | – | [Entscheidung](#reports--katalog--entscheidungen-16102026-owner) | – | #487 | siehe Abschnitt |
 | Report-Vorlage (alle Reports) | R02 v2 (Owner-Freigabe 16.10.): `354:520` [R02 `175:435` überholt] | vereinbart 16.10. | – | [Entscheidung](#report-vorlage-antwort-zuerst--entscheidungen-16102026-owner) | Umsetzung offen | #488 | siehe Abschnitt |
 | Reports › Auswertung/Explorer | R05 `175:929`, R23 `206:10218`, R24 `206:10630` | vereinbart 16.10. | – | [Entscheidung](#auswertungexplorer--entscheidungen-16102026-owner) | – | #517 | siehe Abschnitt |
-| Reports › Portfolio-Auswertung | R11 `175:1913`, R28 `206:12223` | teilweise deployt (#531); Rest vereinbart 16.10. | Rechenbasis: #531 (`c58aa2f5`) | [Entscheidung](#portfolio-auswertung--renditerisiko--entscheidungen-16102026-owner) | Seitenlayout (Raster, Kennzahlen-Hinweise, Modified Dietz aus der Anzeige entfernen); #525 Teil 1 in Arbeit, noch kein PR | #525, #487 | siehe Abschnitt |
+| Reports › Portfolio-Auswertung | R11 `175:1913`, R28 `206:12223` | teilweise deployt (#531, #536); Rest vereinbart 16.10. | Rechenbasis: #531 (`c58aa2f5`); Modified Dietz aus der Anzeige entfernt und Benchmark-Zeitraum angeglichen: #536 (`b79ca8be`) | [Entscheidung](#portfolio-auswertung--renditerisiko--entscheidungen-16102026-owner) | Seitenlayout (3 Register, Raster Jahr × Monat, Kennzahlen-Hinweise) | #525, #487 | siehe Abschnitt |
 | Einstellungen › Übersicht `/einstellungen` | E00 `172:3110` | vereinbart 16.10. | – | [Entscheidung](#einstellungen--übersicht--entscheidungen-16102026-owner) | – | #485, #486 | siehe Abschnitt |
 | Einstellungen › Verbindungen | E03 `172:3474`, E08 `206:13904` | vereinbart 16.10. | – | [Entscheidung](#einstellungen--verbindungen--entscheidungen-16102026-owner) | Zugänge (Enable Banking, Dropbox) richtet der Owner ein | #486 | siehe Abschnitt |
 | Suche + globale Zustände | S01 `173:1269` … S13 `186:1660` | vereinbart 16.10. | – | [Entscheidung](#suche--globale-zustände--entscheidungen-16102026-owner) | – | #522, #511, #479 | siehe Abschnitt |
 | Onboarding O01–O08 | – (keine Frames) | zurückgestellt bis PUB1 | – | [Entscheidung](#block-7--phase-2-übergang--entscheidungen-16102026-owner) | – | #490 | – |
 | Globale Navigation | Seitenleiste/Kopf in H01 `172:3` / `172:125`, Regeln `197:1970` | vereinbart 16.10. | – | [Entscheidung](#globale-navigation--entscheidungen-16102026-owner) | Figma-Frames nachziehen | #468, #476 | siehe Abschnitt |
 | Querschnitt: Rot nur für „jetzt handeln“ (Farbrollen) | – (Regel `197:1970`) | teilweise deployt (#532); Rest vereinbart 16.10. | Farbrollen Teal/Orange: #532 (`25793903`, DS1 #472) | [Entscheidung](#globale-navigation--entscheidungen-16102026-owner) | Seitenmigrationen (Orange statt Rot, ein Alarmort) | #465 | siehe Abschnitt |
-| Querschnitt: Typo-Skala DS2 | – | implementiert (PR offen) | #533 | [Entscheidung](#globale-navigation--entscheidungen-16102026-owner) | Merge und Deploy abwarten | #473 | siehe Abschnitt |
+| Querschnitt: Typo-Skala DS2 | – | deployt | #533 (`72a73764`, #473; 31 Linux-Baselines erneuert) | [Entscheidung](#globale-navigation--entscheidungen-16102026-owner) | DS3 Linien/Radien (#474) folgt | #473, #474 | siehe Abschnitt |
 
 ## Heute – Entscheidungen 16.10.2026 (Owner)
 
