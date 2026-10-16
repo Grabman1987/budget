@@ -1,12 +1,14 @@
-import { ChartSvg, Line, useAmountPrivacy } from '@budget/ui';
+import { ChartSvg, Line, LineLegend, Segmented, useAmountPrivacy } from '@budget/ui';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Info } from 'lucide-react';
 import { portfolioPerformanceQuery } from './portfolio-api';
 import { ErrorNote, LoadingNote } from '../ledger/states';
-import { longDay } from '../ledger/format';
+import { eur, longDay } from '../ledger/format';
+import { ppText } from '../pages/portfolio-report-shared';
 import { ZeitraumSwitch } from './frame';
 import { useZeitraum } from './zeitraum';
-import { monthTickLabel, monthTicks, portfolioIndexAxis } from './networth-model';
+import { kfmt, monthTickLabel, monthTicks, portfolioIndexAxis } from './networth-model';
 import { AppLink } from '../shell/app-link';
 import { useElementWidth } from '../charts/use-element-width';
 
@@ -16,14 +18,37 @@ const percent = (rate: number) =>
 /** Read the same time-weighted history as Reports; only chart geometry lives here. */
 export function PortfolioOverview() {
   useAmountPrivacy();
+  const [mode, setMode] = useState<'value' | 'return'>('value');
   const [period] = useZeitraum();
-  const [chartFrameRef, chartFrameWidth] = useElementWidth<HTMLDivElement>();
+  const [chartFrameRef, chartFrameWidth] = useElementWidth<HTMLElement>();
   const query = useQuery(portfolioPerformanceQuery(period));
   const performance = query.data?.portfolio.performance;
   const index = query.data?.portfolio.performanceHistory?.dailyIndex ?? [];
-  const valued = index.filter((point) => point.portfolio !== null);
-  const hasHistory = valued.length > 1;
-  const axis = portfolioIndexAxis(valued.map((point) => point.portfolio!));
+  const values = query.data?.portfolio.performanceHistory?.dailyValues ?? [];
+  const benchmarks = query.data?.portfolio.benchmarks ?? [];
+  const valueMode = mode === 'value';
+  const colors = ['var(--line)', 'var(--future)', 'var(--want)', 'var(--ink-3)', 'var(--ink-2)'];
+  const lines = [
+    {
+      name: valueMode ? 'Wertpapiere' : 'Entwicklung (Indexbasis 100)',
+      points: valueMode
+        ? values.map((p) => ({ date: p.date, value: p.valueCents }))
+        : index.map((p) => ({ date: p.date, value: p.portfolio })),
+    },
+    ...(!valueMode
+      ? benchmarks.map((b) => ({
+          name: b.name,
+          points: b.dailyBenchmark.map((p) => ({ date: p.date, value: p.benchmark })),
+        }))
+      : []),
+  ];
+  const levels = lines.flatMap((line) =>
+    line.points.flatMap((p) => (p.value === null ? [] : [p.value])),
+  );
+  const hasHistory = levels.length > 0 && lines[0]!.points.length > 1;
+  const axis = portfolioIndexAxis(valueMode ? [0, ...levels] : levels);
+  if (valueMode && levels.every((v) => v >= 0)) axis.min = 0;
+  const rows = lines[0]!.points;
   const renderedWidth = chartFrameWidth || 340;
   const width = renderedWidth,
     height = 210,
@@ -31,8 +56,8 @@ export function PortfolioOverview() {
     right = 16,
     top = 20,
     bottom = 30;
-  const firstDay = Date.parse(`${index[0]?.date ?? '1970-01-01'}T00:00:00Z`);
-  const lastDay = Date.parse(`${index.at(-1)?.date ?? '1970-01-01'}T00:00:00Z`);
+  const firstDay = Date.parse(`${rows[0]?.date ?? '1970-01-01'}T00:00:00Z`);
+  const lastDay = Date.parse(`${rows.at(-1)?.date ?? '1970-01-01'}T00:00:00Z`);
   const x = (date: string) =>
     left +
     ((Date.parse(`${date}T00:00:00Z`) - firstDay) / Math.max(1, lastDay - firstDay)) *
@@ -49,15 +74,16 @@ export function PortfolioOverview() {
     const tickX = x(tick.day);
     return tickX >= left + svgTickGap && tickX <= width - right - svgTickGap;
   });
-  const segments: { date: string; portfolio: number }[][] = [];
-  let segment: { date: string; portfolio: number }[] = [];
-  for (const point of index) {
-    if (point.portfolio === null) {
-      if (segment.length > 0) segments.push(segment);
-      segment = [];
-    } else segment.push({ date: point.date, portfolio: point.portfolio });
-  }
-  if (segment.length > 0) segments.push(segment);
+  const segmentedLines = lines.map((line) => {
+    const segments: { date: string; value: number }[][] = [[]];
+    for (const point of line.points) {
+      if (point.value === null) segments.push([]);
+      else segments.at(-1)!.push({ date: point.date, value: point.value });
+    }
+    return segments.filter((segment) => segment.length > 0);
+  });
+  const valuesByDate = new Map(values.map((p) => [p.date, p]));
+  const lineValues = lines.map((line) => new Map(line.points.map((p) => [p.date, p.value])));
   const dateLabel = (date: string) =>
     new Intl.DateTimeFormat('de-AT', {
       day: '2-digit',
@@ -66,11 +92,24 @@ export function PortfolioOverview() {
       timeZone: 'UTC',
     }).format(new Date(`${date}T12:00:00Z`));
   return (
-    <section className="portfolio-overview" aria-label="Portfolioentwicklung">
+    <section ref={chartFrameRef} className="portfolio-overview" aria-label="Portfolioentwicklung">
       <div className="head">
         <h2>Verlauf</h2>
+        <Segmented
+          label="Darstellung"
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: 'value', label: 'Wert €' },
+            { value: 'return', label: 'Rendite %' },
+          ]}
+        />
         <ZeitraumSwitch />
       </div>
+      <p className="vnote">
+        Wertpapiere ohne Depot-Bargeld ·{' '}
+        {performance ? longDay(performance.to) : 'noch keine Bewertung'}
+      </p>
       {query.isPending && <LoadingNote what="Portfolioentwicklung" />}
       {query.isError && (
         <ErrorNote
@@ -101,46 +140,69 @@ export function PortfolioOverview() {
         </details>
       )}
       {hasHistory ? (
-        <div className="portfolio-chart-frame" ref={chartFrameRef}>
+        <div className="portfolio-chart-frame">
           <ChartSvg
             width={width}
             height={height}
-            label="Portfolioentwicklung, zeitgewichtet, Indexbasis 100"
+            label={
+              valueMode
+                ? 'Portfolioentwicklung, Wert in Euro'
+                : 'Portfolioentwicklung, zeitgewichtet, Indexbasis 100'
+            }
             testId="portfolio-overview-chart"
             tooltipNote="Tägliche Bewertungswerte; gespeicherte Kurse können bis zum nächsten gespeicherten Kurs fortgeschrieben sein."
-            points={index.map((p) => ({
+            points={rows.map((p) => ({
               x: x(p.date),
               date: p.date,
               series: [
-                {
-                  name: 'Entwicklung (Indexbasis 100)',
-                  value:
-                    p.portfolio === null
-                      ? 'Keine berechenbare Tagesrendite'
-                      : new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 }).format(
-                          p.portfolio,
-                        ),
-                  color: 'var(--line)',
-                },
+                ...lines.map((line, i) => {
+                  const value = lineValues[i]!.get(p.date);
+                  return {
+                    name: line.name,
+                    color: colors[i]!,
+                    value:
+                      value == null
+                        ? 'Nicht verfügbar · Kurs-/Renditelücke'
+                        : valueMode
+                          ? eur(value)
+                          : `${new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 }).format(value)} (${percent(value / 100 - 1)})`,
+                  };
+                }),
+                ...(valueMode
+                  ? [
+                      {
+                        name: 'Einzahlungen',
+                        value: eur(valuesByDate.get(p.date)?.depositsCents ?? 0),
+                      },
+                      {
+                        name: 'Auszahlungen',
+                        value: eur(valuesByDate.get(p.date)?.withdrawalsCents ?? 0),
+                      },
+                    ]
+                  : []),
               ],
             }))}
           >
-            {axis.ticks.map((tick) => (
-              <g key={tick}>
-                <line
-                  x1={left}
-                  x2={width - right}
-                  y1={y(tick)}
-                  y2={y(tick)}
-                  className="graticule"
-                />
-                <text x={left - 8} y={y(tick) + 4} textAnchor="end" className="svg-label">
-                  {new Intl.NumberFormat('de-AT', {
-                    maximumFractionDigits: axis.fractionDigits,
-                  }).format(tick)}
-                </text>
-              </g>
-            ))}
+            {axis.ticks
+              .filter((tick) => !valueMode || tick >= axis.min)
+              .map((tick) => (
+                <g key={tick}>
+                  <line
+                    x1={left}
+                    x2={width - right}
+                    y1={y(tick)}
+                    y2={y(tick)}
+                    className="graticule"
+                  />
+                  <text x={left - 8} y={y(tick) + 4} textAnchor="end" className="svg-label">
+                    {valueMode
+                      ? `${kfmt(tick === 0 ? 0 : tick / 100)} €`
+                      : `${new Intl.NumberFormat('de-AT', {
+                          maximumFractionDigits: axis.fractionDigits,
+                        }).format(tick - 100)} %`}
+                  </text>
+                </g>
+              ))}
             <line
               x1={left}
               x2={width - right}
@@ -148,24 +210,52 @@ export function PortfolioOverview() {
               y2={height - bottom}
               className="axis"
             />
-            {segments.map((points, i) =>
-              points.length > 1 ? (
-                <Line
-                  key={i}
-                  kind="actual"
-                  draw={false}
-                  points={points.map((point) => [x(point.date), y(point.portfolio)])}
-                />
-              ) : (
-                <circle
-                  key={i}
-                  cx={x(points[0]!.date)}
-                  cy={y(points[0]!.portfolio)}
-                  r={3}
-                  className="dot-actual"
-                />
-              ),
-            )}
+            {segmentedLines.map((segments, li) => (
+              <g key={li} className={`portfolio-chart-line portfolio-chart-line-${li}`}>
+                {segments.map((points, i) =>
+                  points.length > 1 ? (
+                    <Line
+                      key={i}
+                      kind={li === 0 ? 'actual' : 'benchmark'}
+                      draw={false}
+                      points={points.map((point) => [x(point.date), y(point.value)])}
+                    />
+                  ) : (
+                    <circle
+                      key={i}
+                      cx={x(points[0]!.date)}
+                      cy={y(points[0]!.value)}
+                      r={3}
+                      fill={colors[li]}
+                    />
+                  ),
+                )}
+              </g>
+            ))}
+            {valueMode &&
+              values
+                .filter((p) => p.depositsCents > 0 || p.withdrawalsCents > 0)
+                .map((p) => (
+                  <g key={p.date} data-testid="portfolio-flow-marker">
+                    {p.depositsCents > 0 && (
+                      <circle
+                        cx={x(p.date)}
+                        cy={y(p.valueCents)}
+                        r={4}
+                        className="portfolio-deposit-marker"
+                      />
+                    )}
+                    {p.withdrawalsCents > 0 && (
+                      <rect
+                        x={x(p.date) - 4}
+                        y={y(p.valueCents) - 4}
+                        width={8}
+                        height={8}
+                        className="portfolio-withdrawal-marker"
+                      />
+                    )}
+                  </g>
+                ))}
             {dateTicks.map(({ day }) => (
               <g key={day}>
                 <line
@@ -181,10 +271,10 @@ export function PortfolioOverview() {
               </g>
             ))}
             <text x={left} y={height - 4} textAnchor="start" className="svg-label">
-              {dateLabel(index[0]!.date)}
+              {dateLabel(rows[0]!.date)}
             </text>
             <text x={width - right} y={height - 4} textAnchor="end" className="svg-label">
-              {dateLabel(index.at(-1)!.date)}
+              {dateLabel(rows.at(-1)!.date)}
             </text>
           </ChartSvg>
         </div>
@@ -194,6 +284,42 @@ export function PortfolioOverview() {
         query.isSuccess && (
           <p className="vnote">Noch keine vollständige Renditehistorie für diesen Zeitraum.</p>
         )
+      )}
+      {hasHistory && (
+        <div className="portfolio-chart-legends">
+          {lines.map((line, i) => (
+            <div key={line.name} className={`portfolio-chart-line portfolio-chart-line-${i}`}>
+              <LineLegend items={[{ kind: i === 0 ? 'actual' : 'benchmark', label: line.name }]} />
+              {i > 0 && (
+                <span>
+                  Differenz Portfolio:{' '}
+                  {ppText(
+                    performance?.ttwror == null || benchmarks[i - 1]!.benchmarkReturn === null
+                      ? null
+                      : performance.ttwror - benchmarks[i - 1]!.benchmarkReturn!,
+                  )}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {valueMode && (
+        <p className="vnote">○ Einzahlung · □ Auszahlung · Beträge in der Diagramm-Inspektion.</p>
+      )}
+      {!valueMode && (
+        <p className="vnote">
+          Indexbasis 100 am gemeinsamen Start; Achse: Rendite in %. Kursindex, ohne Ausschüttungen.
+          Kurslücken unterbrechen die Vergleichslinien.
+        </p>
+      )}
+      {query.isSuccess && benchmarks.length === 0 && (
+        <p className="vnote">
+          Keine Benchmark gewählt.{' '}
+          <AppLink to="/einstellungen/depots" hash="benchmark-settings-title">
+            Benchmarks auswählen
+          </AppLink>
+        </p>
       )}
       {hasHistory && (
         <p className="vnote">

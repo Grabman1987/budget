@@ -6,6 +6,7 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
 }, info) => {
   test.setTimeout(180_000);
   await page.goto('/vermoegen/portfolio');
+  await page.getByRole('button', { name: 'Rendite %', exact: true }).click();
   await expect(page.getByTestId('portfolio-return')).toContainText('zeitgewichtet');
   await expect(page.getByTestId('portfolio-overview-chart')).toBeVisible();
   const chart = page.locator('.chart-interactive').filter({
