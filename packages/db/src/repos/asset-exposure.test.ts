@@ -171,9 +171,13 @@ describe('historical exposure foundation', () => {
       expect(after.valueCents).toBe(expectedValue);
       expect(after.performance).toEqual(before.performance);
       const classes = after.performanceHistory!.classes;
-      expect(classes.find((c) => c.assetClassId === 'world')!.performance!.ttwror).toBeCloseTo(0);
+      expect(classes.find((c) => c.assetClassId === 'world')!.performance!.ttwror).toBeCloseTo(
+        0,
+        12,
+      );
       expect(classes.find((c) => c.assetClassId === 'spec')!.performance!.ttwror).toBeCloseTo(
         expectedReturn,
+        12,
       );
       expect(classes.reduce((a, c) => a + c.valueCents, 0)).toBe(expectedValue);
     },
