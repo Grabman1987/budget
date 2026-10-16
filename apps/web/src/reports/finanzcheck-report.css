@@ -25,6 +25,7 @@
 }
 .fc-stages small {
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-2);
 }
 .fc-progress {
@@ -43,7 +44,8 @@
 }
 .fc-stage-rules h3 {
   margin: 0 0 6px;
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   font-weight: 500;
   color: var(--ink-2);
 }
@@ -62,7 +64,8 @@
 }
 .fc-next small {
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
 }
 .fc-table {
   min-width: 760px;

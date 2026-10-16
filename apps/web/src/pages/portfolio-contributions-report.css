@@ -18,13 +18,14 @@
 }
 .contributions-primary .tech {
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 .contributions-primary strong {
-  font-size: clamp(var(--fs-figure-large), 5vw, var(--fs-amount));
+  font-size: var(--fs-figure);
   font-weight: 650;
   letter-spacing: -0.02em;
-  line-height: 1.05;
+  line-height: var(--lh-figure);
   font-variant-numeric: tabular-nums;
 }
 .contributions-window .chain-inline {
@@ -40,7 +41,7 @@
   height: auto;
   overflow: visible;
   color: var(--ink-2);
-  font: var(--fs-class-tag) var(--font-tech);
+  font: var(--fs-chart-label) var(--font-tech);
 }
 .contributions-chart text {
   fill: currentColor;
@@ -78,7 +79,8 @@
   flex-wrap: wrap;
   gap: 10px 20px;
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
 }
 .contributions-legend span {
   display: inline-flex;

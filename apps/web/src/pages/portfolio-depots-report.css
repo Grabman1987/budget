@@ -29,12 +29,14 @@
 .depot-head h3 {
   margin: 0;
   font-size: var(--fs-title);
+  line-height: var(--lh-title);
   font-weight: 650;
   overflow-wrap: anywhere;
 }
 .depot-head small {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
   color: var(--ink-3);
 }
 .depot-pos {
@@ -47,12 +49,14 @@
   border-radius: 50%;
   color: var(--line);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-measure);
+  line-height: var(--lh-measure);
   font-weight: 600;
 }
 .depot-fig {
   margin: 0;
   font-size: var(--fs-figure);
+  line-height: var(--lh-figure);
   font-weight: 650;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
@@ -60,7 +64,8 @@
 .depot-calc {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--fs-table);
+  line-height: var(--lh-table);
   font-variant-numeric: tabular-nums;
 }
 .depot-calc td {
@@ -80,11 +85,13 @@
 }
 .depot-perf .tech {
   display: block;
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   color: var(--ink-2);
 }
 .depot-perf strong {
-  font-size: 18px;
+  font-size: var(--fs-figure);
+  line-height: var(--lh-figure);
   font-variant-numeric: tabular-nums;
 }
 .depot-chart {
@@ -100,7 +107,8 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  font-size: 14px;
+  font-size: var(--fs-table);
+  line-height: var(--lh-table);
 }
 .depot-prods li {
   display: flex;
@@ -122,7 +130,8 @@
   background: var(--surface);
   text-align: left;
   font-weight: 500;
-  font-size: 14px;
+  font-size: var(--fs-table);
+  line-height: var(--lh-table);
   color: var(--ink);
 }
 .depots-kpi thead .depots-first {

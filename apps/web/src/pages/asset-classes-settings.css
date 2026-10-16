@@ -164,6 +164,7 @@
     display: block;
     color: var(--ink-3);
     font-family: var(--font-label);
-    font-size: 12px;
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
   }
 }

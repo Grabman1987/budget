@@ -9,26 +9,30 @@ svg.chart {
 .svg-label {
   font-family: var(--font-tech);
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   letter-spacing: 0.05em;
   fill: var(--ink-3);
 }
 .svg-label-strong {
   font-family: var(--font-tech);
-  font-size: var(--fs-chart-label-strong);
+  font-size: var(--fs-measure);
+  line-height: var(--lh-measure);
   font-weight: 600;
   letter-spacing: 0.04em;
   fill: var(--ink);
 }
 .svg-label-line {
   font-family: var(--font-tech);
-  font-size: var(--fs-chart-label-strong);
+  font-size: var(--fs-measure);
+  line-height: var(--lh-measure);
   font-weight: 500;
   letter-spacing: 0.04em;
   fill: var(--line);
 }
 .svg-label-red {
   font-family: var(--font-tech);
-  font-size: var(--fs-chart-label-strong);
+  font-size: var(--fs-measure);
+  line-height: var(--lh-measure);
   font-weight: 600;
   letter-spacing: 0.04em;
   fill: var(--red);
@@ -163,6 +167,7 @@ svg.chart {
   padding: 0;
   list-style: none;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-2);
 }
 .chart-legend li {
@@ -354,7 +359,8 @@ svg.chart {
   background: var(--raised);
   color: var(--ink);
   box-shadow: var(--shadow);
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   pointer-events: none;
 }
 .chart-tooltip-row {

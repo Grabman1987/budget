@@ -4,6 +4,7 @@
   margin: 0;
   overflow-wrap: anywhere;
   font-size: var(--fs-title);
+  line-height: var(--lh-title);
 }
 .settings-form-head .btn {
   flex: none;

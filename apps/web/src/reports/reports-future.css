@@ -51,12 +51,14 @@
 .rf-verdict strong {
   display: block;
   font-size: var(--fs-title);
+  line-height: var(--lh-title);
   font-weight: 640;
 }
 .rf-verdict small {
   display: block;
   margin-top: 2px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   color: var(--ink-2);
 }
 .rf-verdict.is-ok {
@@ -93,6 +95,7 @@
   display: block;
   margin: 2px 0 0;
   font-size: var(--fs-figure);
+  line-height: var(--lh-figure);
   font-weight: 650;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
@@ -104,6 +107,7 @@
 .rf-figs small {
   display: block;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-2);
 }
 
@@ -130,6 +134,7 @@
   margin: 6px 0 8px;
   padding: 0;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-2);
 }
 .rf-legend li {
@@ -192,7 +197,8 @@
   text-align: left;
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   white-space: nowrap;
   color: var(--ink-2);
   font-weight: 560;
@@ -210,7 +216,8 @@
 .rf-table th small {
   display: block;
   margin-top: 2px;
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   font-weight: 400;
   color: var(--ink-2);
 }
@@ -230,6 +237,7 @@
 .rf-table .rf-grp th {
   padding-top: 14px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   color: var(--ink);
   font-weight: 640;
   border-bottom: 1px solid var(--rule-strong);
@@ -380,6 +388,7 @@
   display: block;
   margin-top: 2px;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-2);
 }
 .rf-gain {
@@ -394,7 +403,7 @@
   font-size: var(--fs-dimension);
   font-weight: 650;
   letter-spacing: -0.03em;
-  line-height: 1.05;
+  line-height: var(--lh-dimension);
   margin: 10px 0 16px;
   font-variant-numeric: tabular-nums;
 }
@@ -407,7 +416,8 @@
   border-radius: var(--radius-md);
   background: var(--surface-2);
   color: var(--ink-2);
-  font-size: 14px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
 }
 .rf-note-row strong {
   color: var(--ink);
@@ -458,10 +468,12 @@
     padding: 16px;
   }
   .rf-figure {
-    font-size: 40px;
+    font-size: var(--fs-dimension);
+    line-height: var(--lh-dimension);
   }
   .rf-figs strong {
-    font-size: 21px;
+    font-size: var(--fs-figure);
+    line-height: var(--lh-figure);
   }
   .rf-add {
     grid-template-columns: minmax(0, 1fr);

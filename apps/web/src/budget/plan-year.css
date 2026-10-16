@@ -13,7 +13,8 @@
 .event-phone-row > small {
   display: block;
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
   margin-top: 6px;
 }
 .event-check {
@@ -81,11 +82,13 @@ button.event-plan {
 }
 .year-toolbar h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--fs-headline);
+  line-height: var(--lh-headline);
 }
 .year-note {
   color: var(--ink-2);
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   padding: 0 24px 16px;
   margin: 0;
   max-width: 72ch;
@@ -188,7 +191,8 @@ button.event-plan {
   color: var(--ink);
   border: 1px solid var(--rule-strong);
   border-radius: var(--r-sm);
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   font-weight: 400;
   white-space: normal;
 }
@@ -203,10 +207,12 @@ button.event-plan {
 .year-totals dt {
   color: var(--ink-2);
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .year-totals dd {
   margin: 6px 0 0;
-  font-size: 20px;
+  font-size: var(--fs-figure);
+  line-height: var(--lh-figure);
   font-weight: 620;
   font-variant-numeric: tabular-nums;
 }
@@ -235,7 +241,8 @@ button.event-plan {
   }
   .year-note {
     padding: 0 16px 16px;
-    font-size: 12px;
+    font-size: var(--fs-meta);
+    line-height: var(--lh-meta);
   }
   .year-desktop {
     display: none;
@@ -260,7 +267,8 @@ button.event-plan {
     align-items: baseline;
   }
   .year-phone-head {
-    font-size: 12px;
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
     color: var(--ink-2);
   }
   .year-phone-row > span:first-child {
@@ -306,6 +314,7 @@ button.event-plan {
     margin: 0;
     padding: 12px 16px;
     font-size: var(--fs-body);
+    line-height: var(--lh-body);
     background: var(--surface-2);
   }
   .year-totals {

@@ -86,7 +86,8 @@
   position: absolute;
   transform: translateX(-50%);
   font-family: var(--font-tech);
-  font-size: 11.5px;
+  font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   letter-spacing: 0.04em;
   color: var(--ink-3);
 }
@@ -116,6 +117,7 @@
   gap: 6px 18px;
   margin-top: 12px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   color: var(--ink-2);
 }
 .plan .sb-legend span {
@@ -177,6 +179,7 @@
 }
 .plan .rail-io strong {
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 650;
 }
 .plan .rail-io-sub {
@@ -184,6 +187,7 @@
 }
 .plan .rail-io-sub strong {
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 600;
   color: var(--ink-2);
 }
@@ -214,7 +218,8 @@
   background: var(--ground);
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: var(--fs-body);
+  font-size: var(--fs-measure);
+  line-height: var(--lh-measure);
   color: var(--ink-2);
 }
 .plan .rail-list:not(.is-flow) .rail-no {
@@ -240,12 +245,13 @@
   grid-area: name;
   font-weight: 580;
   font-size: var(--fs-body);
-  line-height: 1.3;
+  line-height: var(--lh-body);
   padding-top: 4px;
 }
 .plan .rail-name small {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
   font-weight: 500;
   color: var(--ink-3);
 }
@@ -270,7 +276,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 8px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
   color: var(--ink-3);
 }
 .plan .rail-status svg {
@@ -282,7 +289,8 @@
   gap: 6px;
   margin: -4px 0 10px;
   padding-bottom: 0;
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   font-weight: 600;
   color: var(--line);
 }
@@ -335,9 +343,10 @@
   gap: 6px;
 }
 .plan .dist-left {
-  font-family: var(--font-tech);
+  font-family: var(--font-ui);
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-table);
+  line-height: var(--lh-table);
   letter-spacing: 0.03em;
   color: var(--line);
 }
@@ -353,12 +362,14 @@
   border-radius: 50%;
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: var(--fs-chart-label);
+  font-size: var(--fs-measure);
+  line-height: var(--lh-measure);
   color: var(--line);
 }
 .plan .grp-sub {
   margin-left: 8px;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   font-weight: 500;
   color: var(--ink-3);
 }
@@ -381,7 +392,8 @@
   align-items: center;
   gap: 8px;
   font-weight: 580;
-  font-size: 14px;
+  font-size: var(--fs-table);
+  line-height: var(--lh-table);
   text-decoration: none;
   text-align: left;
   border-radius: 4px;
@@ -391,7 +403,8 @@
 }
 .plan .env-class {
   font-family: var(--font-tech);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -427,10 +440,10 @@
   position: absolute;
   bottom: 100%;
   right: 3px;
-  font-family: var(--font-tech);
-  font-size: var(--fs-class-tag);
+  font-family: var(--font-ui);
+  font-size: var(--fs-table);
   font-style: normal;
-  line-height: 1.2;
+  line-height: var(--lh-table);
   color: var(--ink);
 }
 .plan .pbar-goal {
@@ -445,6 +458,7 @@
   gap: 4px;
   margin-top: 4px;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-3);
 }
 .plan .pmeta svg {
@@ -472,7 +486,8 @@
 }
 .plan .lg-debt {
   font-style: normal;
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 .plan .assign-btn {
   margin: -4px -8px;
@@ -508,9 +523,10 @@
   padding: 2px 8px;
   border: 1px dashed var(--line);
   border-radius: 4px;
-  font-family: var(--font-tech);
+  font-family: var(--font-ui);
   font-weight: 600;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   letter-spacing: 0.03em;
   color: var(--line);
 }
@@ -530,6 +546,7 @@
   gap: 6px 20px;
   margin-top: 12px;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-2);
 }
 .plan .plegend span {
@@ -559,9 +576,10 @@
 }
 .plan .lg-ghost {
   font-style: normal;
-  font-family: var(--font-tech);
+  font-family: var(--font-ui);
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   color: var(--line);
   border: 1px dashed var(--line);
   border-radius: 4px;
@@ -570,7 +588,8 @@
 
 /* Envelope panel */
 .plan .kform .big {
-  font-size: 36px;
+  font-size: var(--fs-dimension);
+  line-height: var(--lh-dimension);
   font-weight: 650;
   letter-spacing: -0.03em;
   margin: 6px 0 2px;
@@ -578,6 +597,7 @@
 .plan .panel-h {
   margin: 12px 0 0;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 620;
 }
 .plan .kv-total {
@@ -691,10 +711,12 @@
   .plan .rail-no {
     width: 24px;
     height: 24px;
-    font-size: 12px;
+    font-size: var(--fs-measure);
+    line-height: var(--lh-measure);
   }
   .plan .rail-name {
     font-size: var(--fs-chart-label);
+    line-height: var(--lh-chart-label);
     padding-top: 2px;
   }
   .plan .is-next .rail-btn {
@@ -744,7 +766,8 @@
     grid-row: 2;
     width: auto;
     text-align: right;
-    font-size: 14px;
+    font-size: var(--fs-table);
+    line-height: var(--lh-table);
   }
   .plan .ptable .col-assign {
     grid-column: 2;
@@ -766,7 +789,8 @@
     content: attr(data-label);
     display: block;
     font-family: var(--font-tech);
-    font-size: var(--fs-class-tag);
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--ink-3);
@@ -910,6 +934,7 @@
 .plan .insp-title {
   margin: 0;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 640;
   letter-spacing: -0.005em;
   color: var(--ink);
@@ -922,6 +947,7 @@
   padding: 8px 10px;
   border-radius: 8px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 560;
 }
 .plan .insp-status.is-good {
@@ -943,6 +969,7 @@
   min-height: 34px;
   border-bottom: 1px solid var(--card-border);
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .plan .insp-list > div:last-child {
   border-bottom: 0;
@@ -966,6 +993,7 @@
 }
 .plan .split-band .tbd-state {
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
 }
 .plan .split-band .tbd-state span {
   display: inline-flex;
@@ -977,6 +1005,7 @@
 }
 .plan .split-band .sb-legend {
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
 }
 .plan .insp-rail .rail {
   position: static;
@@ -994,7 +1023,8 @@
     flex-direction: column;
   }
   .plan .hero-fig {
-    font-size: 40px;
+    font-size: var(--fs-dimension);
+    line-height: var(--lh-dimension);
   }
   .plan .btn-on-hero {
     width: 100%;
@@ -1038,7 +1068,7 @@
   border-radius: 8px;
   font-size: var(--fs-body);
   font-weight: 560;
-  line-height: 1.35;
+  line-height: var(--lh-body);
 }
 .plan .insp-status li svg {
   flex: none;
@@ -1064,7 +1094,7 @@
   gap: 6px;
   margin: 10px 0 0;
   font-size: var(--fs-chart-label);
-  line-height: 1.4;
+  line-height: var(--lh-chart-label);
   color: var(--ink-3);
 }
 .plan .split-band .sb-note svg {
@@ -1107,6 +1137,7 @@
 .plan .pgroup .grp-sub {
   margin: 0;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   font-weight: 500;
   color: var(--ink-3);
 }
@@ -1121,6 +1152,7 @@
   align-items: center;
   gap: 6px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   color: var(--ink-3);
 }
 .plan .pempty svg {
@@ -1138,7 +1170,7 @@
   margin-top: 6px;
   font-size: var(--fs-chart-label);
   font-weight: 500;
-  line-height: 1.35;
+  line-height: var(--lh-chart-label);
   text-align: right;
   white-space: normal;
   color: var(--red);
@@ -1147,6 +1179,7 @@
   min-height: 32px;
   padding: 0 4px;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   font-weight: 620;
   color: var(--ink);
   text-decoration: underline;
@@ -1158,6 +1191,7 @@
   }
   .plan .hero-kpi.is-negative .hero-fig {
     font-size: var(--fs-figure);
+    line-height: var(--lh-figure);
   }
   .plan .pgroup .grp-text {
     flex-direction: column;
@@ -1179,6 +1213,7 @@
 .plan .pm-layout {
   margin: 0;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 560;
   color: var(--ink-2);
 }
@@ -1190,7 +1225,8 @@
 }
 .plan .pm-span-label {
   font-family: var(--font-tech);
-  font-size: 11.5px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -1212,6 +1248,7 @@
   min-width: 100%;
   table-layout: fixed;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .plan .ptable-multi.has-2 {
   min-width: 720px;
@@ -1247,7 +1284,8 @@
 }
 .plan .ptable-multi .pm-head .pm-month {
   display: block;
-  font-size: 14px;
+  font-size: var(--fs-table);
+  line-height: var(--lh-table);
   font-weight: 650;
   letter-spacing: -0.005em;
   color: var(--ink);
@@ -1259,7 +1297,8 @@
   border-radius: 999px;
   background: var(--good-soft);
   color: var(--on-good-soft);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -1267,6 +1306,7 @@
   display: block;
   margin-top: 2px;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   font-weight: 500;
   color: var(--ink-2);
 }
@@ -1289,6 +1329,7 @@
 .plan .ptable-multi td.pm-none {
   color: var(--ink-3);
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   text-align: center;
 }
 .plan .ptable-multi .assign-btn,
@@ -1316,7 +1357,8 @@
 
 .income-targets-source {
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
   margin: 8px 0;
 }
 .income-targets-gap {
@@ -1376,6 +1418,7 @@
 }
 .triage-compact h2 {
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   color: var(--red);
 }
 .cover-row {
@@ -1421,6 +1464,7 @@
   margin-bottom: 12px;
   color: var(--ink-2);
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .plan-budget-money summary {
   min-height: 44px;
@@ -1487,6 +1531,7 @@
   border-radius: var(--radius-md);
   padding: 4px 8px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .plan .plan-popover {
   position: static;
@@ -1504,6 +1549,7 @@
   cursor: pointer;
   font-family: var(--font-ui);
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .plan .plan-popover summary {
   list-style: none;
@@ -1583,6 +1629,7 @@
   height: 32px;
   width: auto;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .plan .plan-grid-head {
   display: flex;
@@ -1625,6 +1672,7 @@
 .plan .pname {
   max-width: 100%;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .plan .plan-select {
   min-width: 28px;
@@ -1864,6 +1912,7 @@
 .plan .inspector-head h2 {
   margin: 0;
   font-size: var(--fs-title);
+  line-height: var(--lh-title);
 }
 .plan .inspector-head .btn,
 .plan .inspector-menu .btn,
@@ -2115,6 +2164,7 @@
 .plan .spending-status {
   text-align: right;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-3);
   font-weight: 400;
 }
@@ -2203,6 +2253,7 @@
   }
   .plan .ptable-zero .pgroup .col-num {
     font-size: var(--fs-chart-label);
+    line-height: var(--lh-chart-label);
     padding-bottom: 6px;
   }
   .plan .ptable-zero .pgroup .col-num::before,
@@ -2248,13 +2299,15 @@
     min-height: 44px;
     margin: 0;
     font-size: var(--fs-body);
+    line-height: var(--lh-body);
   }
   .plan .ptable-zero .prow .col-assign {
     grid-column: 3;
     grid-row: 2;
     padding: 0;
     align-self: center;
-    font-size: var(--fs-class-tag);
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
     color: var(--ink-3);
   }
   .plan .ptable-zero .prow .col-act {
@@ -2264,7 +2317,8 @@
     grid-column: 1 / 3;
     grid-row: 2;
     text-align: left;
-    font-size: var(--fs-class-tag);
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
   }
   .plan .ptable-zero .spending-bar {
     grid-column: 1 / -1;

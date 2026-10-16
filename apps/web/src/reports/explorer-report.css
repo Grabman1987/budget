@@ -17,6 +17,7 @@
   color: var(--ink);
   font: inherit;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   cursor: pointer;
 }
 .ex-chip:hover {

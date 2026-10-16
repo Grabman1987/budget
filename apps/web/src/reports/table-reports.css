@@ -33,10 +33,12 @@
   color: var(--ink-3);
 }
 .table-report .tbd-fig {
-  font-size: clamp(40px, 6vw, var(--fs-dimension));
+  font-size: var(--fs-dimension);
+  line-height: var(--lh-dimension);
 }
 .table-report .tbd-fig .cents {
-  font-size: 0.45em;
+  font-size: var(--fs-figure);
+  line-height: var(--lh-figure);
   font-weight: 560;
   letter-spacing: 0;
 }
@@ -70,7 +72,8 @@
   text-align: left;
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   white-space: nowrap;
 }
 .table-report .rtable td,
@@ -86,13 +89,15 @@
   white-space: nowrap;
 }
 .table-report .rtable small {
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 .rgrid thead th,
 .rgrid td,
 .rgrid tbody th {
   padding: 7px 8px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .rg-first {
   min-width: 190px;
@@ -160,6 +165,7 @@
   align-items: center;
   gap: 3px;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   font-weight: 560;
   white-space: nowrap;
 }
@@ -192,11 +198,13 @@
 }
 .year-compare strong {
   font-size: var(--fs-figure);
+  line-height: var(--lh-figure);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 .year-compare small {
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-3);
 }
 
@@ -264,7 +272,8 @@
   margin-left: 4px;
   font-weight: 450;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
 }
 .rc-row.is-open td,
 .rc-row.is-open th,
@@ -293,10 +302,12 @@
   display: block;
   font-weight: 450;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
 }
 .rcats .n small {
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
 }
 
 /* ---------- Charts ---------- */

@@ -24,10 +24,10 @@
   margin: 16px 0;
 }
 .preview-lead strong {
-  font-size: clamp(30px, 4vw, var(--fs-amount));
+  font-size: var(--fs-dimension);
   font-weight: 650;
   letter-spacing: -0.03em;
-  line-height: 1.15;
+  line-height: var(--lh-dimension);
 }
 .preview-average {
   margin: 12px 0;
@@ -44,7 +44,7 @@
 }
 .preview-chart text {
   fill: var(--ink-2);
-  font: 13px var(--font-tech);
+  font: var(--fs-chart-label) var(--font-tech);
 }
 .preview-grid {
   stroke: var(--graticule);
@@ -63,7 +63,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
 }
 .preview-swatch {
   width: 14px;
@@ -100,7 +101,8 @@
 .preview-table td {
   white-space: nowrap;
   padding: 12px 8px;
-  font-size: 12px;
+  font-size: var(--fs-table);
+  line-height: var(--lh-table);
   text-align: right;
   border-bottom: 1px solid var(--rule);
 }
@@ -123,7 +125,8 @@
 .preview-events small {
   display: block;
   color: var(--ink-3);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   font-weight: 400;
   margin-top: 4px;
 }
@@ -158,25 +161,29 @@
 }
 @media (max-width: 700px) {
   .preview-chart text {
-    font-size: 12px;
+    font-size: var(--fs-chart-label);
+    line-height: var(--lh-chart-label);
   }
   .preview-table th:first-child {
     min-width: 135px;
     max-width: 150px;
     font-size: var(--fs-body);
+    line-height: var(--lh-body);
   }
   .preview-table th,
   .preview-table td {
     padding: 10px 8px;
   }
   .preview-events table {
-    font-size: 12px;
+    font-size: var(--fs-table);
+    line-height: var(--lh-table);
   }
   .preview-events th,
   .preview-events td {
     padding-inline: 4px;
   }
   .preview-head span {
-    font-size: 12px;
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
   }
 }

@@ -59,7 +59,8 @@
   display: grid;
   place-items: center;
   font-family: var(--font-tech);
-  font-size: var(--fs-class-tag);
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   font-weight: 500;
   color: var(--ink-3);
 }
@@ -88,13 +89,14 @@
 }
 .ps-head h2 {
   margin: 4px 0 0;
-  font-size: 30px;
+  font-size: var(--fs-display);
   font-weight: 650;
   letter-spacing: -0.02em;
-  line-height: 1.05;
+  line-height: var(--lh-display);
 }
 .ps-head h2 small {
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 500;
   color: var(--ink-3);
   letter-spacing: 0;
@@ -105,18 +107,20 @@
   gap: 2px;
 }
 .ps-fig strong {
-  font-size: 40px;
+  font-size: var(--fs-dimension);
   font-weight: 650;
   letter-spacing: -0.03em;
-  line-height: 1;
+  line-height: var(--lh-dimension);
   font-stretch: 96%;
 }
 .ps-fig strong .cents {
-  font-size: 0.5em;
+  font-size: var(--fs-figure);
+  line-height: var(--lh-figure);
   color: var(--ink-3);
 }
 .ps-fig > span:last-child {
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 600;
   color: var(--line);
 }
@@ -152,6 +156,7 @@
   gap: 8px;
   margin: 0 0 10px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 640;
 }
 .ps-h span {
@@ -161,13 +166,15 @@
   place-items: center;
   border: 1px solid var(--line-2);
   font-family: var(--font-tech);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   font-weight: 600;
   color: var(--line);
 }
 .ps-note {
   margin: 8px 0 0;
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
   color: var(--ink-3);
 }
 .ps-nwfig {
@@ -177,11 +184,13 @@
   margin-bottom: 6px;
 }
 .ps-nwfig strong {
-  font-size: 20px;
+  font-size: var(--fs-figure);
+  line-height: var(--lh-figure);
   font-weight: 650;
 }
 .ps-delta {
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 600;
 }
 .is-up {
@@ -194,6 +203,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-variant-numeric: tabular-nums;
 }
 .ps-cats td {
@@ -235,10 +245,11 @@
 .ps-kpi strong {
   font-size: var(--fs-display);
   font-weight: 650;
-  line-height: 1;
+  line-height: var(--lh-display);
 }
 .ps-kpi span {
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   color: var(--ink-2);
 }
 .ps-over {
@@ -246,6 +257,7 @@
   margin: 10px 0 0;
   padding: 0;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .ps-over li {
   display: flex;
@@ -291,7 +303,8 @@
 .ps-revt thead th {
   padding: 4px 8px 6px 0;
   border-bottom: 1px solid var(--rule-strong);
-  font-size: var(--fs-class-tag);
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   text-align: left;
 }
 .ps-revt thead th.n {
@@ -301,6 +314,7 @@
   padding: 7px 8px 7px 0;
   border-top: 1px solid var(--rule);
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   vertical-align: middle;
 }
 .ps-revt td.n {
@@ -344,10 +358,12 @@
   border-bottom: 0;
 }
 .ps-tb-cell .tech {
-  font-size: var(--fs-class-tag);
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 .ps-tb-cell strong {
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 620;
   white-space: nowrap;
   overflow: hidden;
@@ -355,6 +371,7 @@
 }
 .ps-tb-name strong {
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 
 /* 50/30/20 bar */
@@ -400,6 +417,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px 14px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .b523-leg span {
   display: grid;
@@ -410,14 +428,16 @@
 .b523-leg small {
   grid-column: 2;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
 }
 .sw-rest {
   border: 1.5px dashed var(--ink-2);
 }
 .b523-note {
   margin: 8px 0 0;
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
   color: var(--ink-3);
 }
 .ps-sec .heute-chart {
@@ -447,7 +467,8 @@
     justify-items: start;
   }
   .ps-fig strong {
-    font-size: var(--fs-figure-large);
+    font-size: var(--fs-figure);
+    line-height: var(--lh-figure);
   }
   .ps-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -532,9 +553,9 @@
   .psheet {
     /* Paper keeps the compact scale whatever the print viewport width (phone tokens must not leak in). */
     --fs-body: 13px;
-    --fs-class-tag: 10px;
+    --fs-label: 10px;
     --fs-display: 28px;
-    --fs-figure-large: 32px;
+    --fs-figure: 32px;
     zoom: 0.66;
     max-width: none;
     width: calc(100% / 0.66);
@@ -561,13 +582,14 @@
   }
   .ps-note,
   .b523-note {
-    font-size: 11px;
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
   }
   /* The verdict takes part of the fixed sheet height: tighter than on screen so nothing is cut. */
   .psheet .report-verdict {
     margin: 0;
-    font-size: 12px;
-    line-height: 1.35;
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
   }
   .ps-sec .chart {
     max-height: 196px;

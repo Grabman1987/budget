@@ -20,14 +20,14 @@
 .rw-pos {
   display: inline-block;
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-measure);
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--line);
   border: 1px solid var(--line-2);
   border-radius: 2px;
   padding: 1px 6px;
-  line-height: 1.4;
+  line-height: var(--lh-measure);
 }
 
 .rw-stages {
@@ -50,7 +50,8 @@
 }
 .rw-stage-h h3 {
   margin: 0;
-  font-size: 17px;
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
   font-weight: 600;
 }
 .rw-stage-h h3 .rw-pos {
@@ -59,7 +60,8 @@
 }
 .rw-stage-h small {
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
 }
 
 .rw-list {
@@ -85,6 +87,7 @@
 .rw-list small {
   display: block;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-3);
   margin-top: 2px;
 }
@@ -99,7 +102,8 @@
 .rw-disabled summary {
   margin: 0;
   padding: 12px 0;
-  font-size: 17px;
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
   font-weight: 600;
 }
 .rw-disabled summary {
@@ -170,6 +174,7 @@
 }
 .rw-now-sub {
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-3);
 }
 .rw-action {
@@ -178,7 +183,8 @@
 }
 .rw-action-k {
   font-family: var(--font-tech);
-  font-size: var(--fs-class-tag);
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -194,6 +200,7 @@
 .rw-suffix {
   color: var(--ink-2);
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 
 @media (max-width: 980px) {

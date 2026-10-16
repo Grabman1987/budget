@@ -44,7 +44,8 @@
   min-width: 0;
 }
 .ov-figs .tech {
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   color: var(--ink-2);
 }
 .ov-figs strong {
@@ -52,16 +53,18 @@
   font-weight: 640;
   letter-spacing: -0.015em;
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
+  line-height: var(--lh-figure);
 }
 .ov-figs small {
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 .ov-note {
   margin: 12px 0 0;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   color: var(--ink-2);
   max-width: 72ch;
 }
@@ -98,7 +101,8 @@
   text-align: left;
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   white-space: nowrap;
   font-weight: 500;
 }
@@ -107,7 +111,8 @@
   padding: 10px 8px;
   border-bottom: 1px solid var(--rule);
   vertical-align: top;
-  font-size: 14px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   font-weight: 400;
   text-align: left;
 }
@@ -117,7 +122,8 @@
 }
 .ov-table small {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   color: var(--ink-3);
 }
 .ov-table tr.is-total td,
@@ -135,7 +141,7 @@
   padding: 0 5px;
   border: 1px solid var(--line-2);
   border-radius: 4px;
-  font: 11px var(--font-tech);
+  font: var(--fs-label) var(--font-tech);
   color: var(--ink-3);
 }
 .ov-name {
@@ -148,6 +154,7 @@
   align-items: center;
   gap: 5px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 560;
   white-space: nowrap;
   color: var(--ink-2);
@@ -227,6 +234,7 @@
   }
   .ov-figs strong {
     font-size: var(--fs-figure);
+    line-height: var(--lh-figure);
   }
 }
 

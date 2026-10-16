@@ -17,14 +17,15 @@
 
 .performance-primary .tech {
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 
 .performance-primary strong {
-  font-size: clamp(var(--fs-figure-large), 5vw, var(--fs-amount));
+  font-size: var(--fs-figure);
   font-weight: 650;
   letter-spacing: -0.02em;
-  line-height: 1.05;
+  line-height: var(--lh-figure);
   font-variant-numeric: tabular-nums;
 }
 
@@ -53,7 +54,8 @@
 .performance-metric dt {
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -61,6 +63,7 @@
 .performance-metric dd {
   margin: 4px 0 0;
   font-size: var(--fs-figure);
+  line-height: var(--lh-figure);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
@@ -69,7 +72,8 @@
   display: block;
   margin-top: 3px;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
 }
 
 .performance-window .vnote,
@@ -84,7 +88,8 @@
 
 .performance-realized-value {
   margin: 10px 0 0;
-  font-size: 30px;
+  font-size: var(--fs-figure);
+  line-height: var(--lh-figure);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
@@ -198,6 +203,7 @@
   }
 
   .performance-metric dd {
-    font-size: 20px;
+    font-size: var(--fs-figure);
+    line-height: var(--lh-figure);
   }
 }

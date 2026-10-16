@@ -13,7 +13,8 @@
   width: 44px;
   color: var(--ink-3);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-measure);
+  line-height: var(--lh-measure);
 }
 .costs-parts td,
 .costs-other td {
@@ -22,6 +23,7 @@
 .costs-sub {
   margin: 22px 0 6px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 620;
 }
 .costs-facts {
@@ -36,18 +38,21 @@
 }
 .costs-facts dt {
   color: var(--ink-2);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 .costs-facts dd {
   margin: 4px 0 0;
   font-size: var(--fs-figure);
+  line-height: var(--lh-figure);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 .costs-facts dd small {
   display: block;
   margin-top: 2px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
   font-weight: 400;
   color: var(--ink-3);
 }

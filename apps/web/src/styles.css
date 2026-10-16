@@ -25,6 +25,7 @@
   .registers button,
   .seg button {
     font-size: var(--fs-body) !important;
+    line-height: var(--lh-body);
   }
 
   /* Existing accessible names also label the booking header on devices without hover tooltips. */
@@ -43,6 +44,7 @@
   .kflagpick:not(.in-list) .kflagbtn::after {
     content: attr(aria-label);
     font-size: var(--fs-body);
+    line-height: var(--lh-body);
   }
 
   .ktable input[type='checkbox'] {
@@ -131,6 +133,7 @@
     align-items: center;
     gap: 8px;
     font-size: var(--fs-chart-label);
+    line-height: var(--lh-chart-label);
   }
 
   .token i {
@@ -186,7 +189,8 @@
 
   .spike h2 {
     margin: 0 0 4px;
-    font-size: 17px;
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
     font-weight: 620;
   }
 
@@ -208,7 +212,8 @@
   text-align: left;
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 .rcat td {
   padding: 13px 8px;
@@ -234,12 +239,14 @@
 }
 .rcat-grp strong {
   font-size: var(--fs-title);
+  line-height: var(--lh-title);
   font-weight: 640;
 }
 .rcat-count {
   margin-left: 12px;
   font-family: var(--font-tech);
-  font-size: 11.5px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -266,13 +273,15 @@
   color: var(--ink-2);
 }
 .rcat-form {
-  font-size: 11.5px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ink-3);
 }
 .rcat-ctl {
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   color: var(--ink-2);
   white-space: nowrap;
 }
@@ -323,7 +332,8 @@
   }
   .rcat-q {
     grid-column: 2 / 4;
-    font-size: 14px;
+    font-size: var(--fs-table);
+    line-height: var(--lh-table);
   }
   .rcat-form {
     grid-column: 2 / 4;

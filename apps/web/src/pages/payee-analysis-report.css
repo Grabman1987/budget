@@ -39,7 +39,8 @@
 .payee-section-head h3 {
   min-width: 0;
   margin: 0;
-  font-size: 18px;
+  font-size: var(--fs-headline);
+  line-height: var(--lh-headline);
   font-weight: 620;
 }
 
@@ -48,7 +49,8 @@
 .payee-period {
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   font-variant-numeric: tabular-nums;
 }
 
@@ -66,14 +68,15 @@
 .payee-total span {
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 
 .payee-total strong {
-  font-size: clamp(30px, 4vw, var(--fs-amount));
+  font-size: var(--fs-dimension);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
+  line-height: var(--lh-dimension);
 }
 
 .payee-analysis-report .chain-inline {
@@ -85,7 +88,7 @@
 .payee-scope {
   color: var(--ink-2);
   font-size: var(--fs-body);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .payee-chain-note {
@@ -93,7 +96,8 @@
 }
 .payee-chart-title {
   margin: 20px 0 10px;
-  font-size: 14px;
+  font-size: var(--fs-table);
+  line-height: var(--lh-table);
   font-weight: 600;
 }
 .payee-note {
@@ -190,6 +194,7 @@
 .payee-bars li > strong {
   text-align: end;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -199,6 +204,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 
 .payee-compact-table {
@@ -218,7 +224,8 @@
 .payee-table thead th {
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   font-weight: 560;
 }
 
@@ -314,7 +321,8 @@
     align-items: flex-start;
   }
   .payee-section-head h2 {
-    font-size: 17px;
+    font-size: var(--fs-title);
+    line-height: var(--lh-title);
   }
   .payee-state {
     text-align: end;
@@ -324,15 +332,18 @@
     gap: 7px;
   }
   .payee-bars li > strong {
-    font-size: 12px;
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
   }
   .payee-bar-name {
     font-size: var(--fs-body);
+    line-height: var(--lh-body);
   }
   .payee-scroll {
     width: 100%;
   }
   .payee-scope {
-    font-size: 12px;
+    font-size: var(--fs-meta);
+    line-height: var(--lh-meta);
   }
 }

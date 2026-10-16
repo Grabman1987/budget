@@ -43,6 +43,7 @@
 .global-search-status {
   padding: 12px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   color: var(--ink-2);
 }
 .global-search-group {
@@ -79,6 +80,7 @@
 .global-search-label small {
   display: block;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-2);
   margin-top: 4px;
 }

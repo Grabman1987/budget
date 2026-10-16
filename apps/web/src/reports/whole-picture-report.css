@@ -10,7 +10,8 @@
 }
 .whole-section h2 {
   margin: 0 0 16px;
-  font-size: 20px;
+  font-size: var(--fs-headline);
+  line-height: var(--lh-headline);
 }
 .whole-table-head {
   display: flex;
@@ -27,6 +28,7 @@
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .whole-scroll th,
 .whole-scroll td {
@@ -59,6 +61,7 @@
   padding: 0;
   list-style: none;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .whole-legend i {
   display: inline-block;
@@ -75,7 +78,8 @@
     padding: 16px;
   }
   .whole-scroll {
-    font-size: 12px;
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
   }
   .whole-scroll a {
     min-height: 44px;

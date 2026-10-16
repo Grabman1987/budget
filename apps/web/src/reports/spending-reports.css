@@ -39,13 +39,15 @@
 .sr-head h2 {
   margin: 0;
   font-size: var(--fs-headline);
+  line-height: var(--lh-headline);
   font-weight: 620;
   letter-spacing: -0.01em;
 }
 .sr-state {
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   font-variant-numeric: tabular-nums;
 }
 .sr-state.is-good {
@@ -58,7 +60,8 @@
   margin: 6px 0 0;
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 .sr-fig {
   display: grid;
@@ -68,14 +71,15 @@
 .sr-fig span {
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 .sr-fig strong {
-  font-size: clamp(var(--fs-figure-large), 4.4vw, var(--fs-amount));
+  font-size: var(--fs-figure);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
-  line-height: 1.05;
+  line-height: var(--lh-figure);
 }
 .sr .chain-inline {
   margin-block: 10px 14px;
@@ -85,7 +89,7 @@
   max-width: 72ch;
   color: var(--ink-2);
   font-size: var(--fs-body);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 .sr-note strong {
   color: var(--ink);
@@ -97,7 +101,8 @@
 }
 .sr h3 {
   margin: 18px 0 8px;
-  font-size: 14px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 620;
 }
 
@@ -124,6 +129,7 @@
   list-style: none;
   color: var(--ink-2);
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .sr-seg-leg li,
 .sr-leg li,
@@ -159,6 +165,7 @@
   padding: 4px 0;
   border-top: 1px solid var(--rule);
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .sr-bars li:first-child {
   border-top: 0;
@@ -201,7 +208,8 @@ a.sr-name:hover {
 }
 .sr-val small {
   color: var(--ink-2);
-  font-size: 11.5px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   font-weight: 500;
 }
 .sr-delta {
@@ -260,6 +268,7 @@ a.sr-name:hover {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .sr-table th,
 .sr-table td {
@@ -272,7 +281,8 @@ a.sr-name:hover {
   border-bottom-color: var(--line-2);
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   font-weight: 500;
   letter-spacing: 0.04em;
   white-space: nowrap;
@@ -288,7 +298,8 @@ a.sr-name:hover {
 .sr-table small {
   display: block;
   color: var(--ink-3);
-  font-size: 11.5px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 .sr-table tr.is-total td,
 .sr-table tr.is-total th {
@@ -305,6 +316,7 @@ a.sr-name:hover {
 /* Heatmap: diverging pastel against the row average, never the only signal (numbers stay). */
 .sr-heat {
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
 }
 .sr-heat th,
 .sr-heat td {
@@ -350,7 +362,8 @@ a.sr-name:hover {
   margin: 16px 0 2px;
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   font-weight: 500;
   letter-spacing: 0.04em;
 }
@@ -363,6 +376,7 @@ a.sr-name:hover {
   padding: 4px 0;
   border-top: 1px solid var(--rule);
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .sr-bl-track {
   position: relative;
@@ -459,6 +473,7 @@ a.sr-name:hover {
   padding: 2px 6px;
   border-radius: 6px;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
 }
 .sr-523-row.is-cur {
   background: var(--tint);
@@ -467,7 +482,8 @@ a.sr-name:hover {
 .sr-523-month {
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 .sr-523-bar {
   position: relative;
@@ -501,7 +517,8 @@ a.sr-name:hover {
 }
 .sr-523-num small {
   margin-left: 4px;
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 .sw-rest {
   background: var(--good-soft);
@@ -534,7 +551,8 @@ a.sr-name:hover {
   width: 48px;
   color: var(--ink-3);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 .sr-hints {
   display: grid;
@@ -550,6 +568,7 @@ a.sr-name:hover {
   padding: 10px 0;
   border-top: 1px solid var(--rule);
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .sr-hints li:first-child {
   border-top: 0;
@@ -569,7 +588,8 @@ a.sr-name:hover {
 }
 .sr-hint-val small {
   color: var(--ink-2);
-  font-size: 11.5px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   font-weight: 500;
 }
 
@@ -600,15 +620,18 @@ a.sr-name:hover {
   gap: 12px;
   min-height: 44px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .sr-year-label {
   display: grid;
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 .sr-year-label small {
   color: var(--ink-3);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 .sr-stack {
   display: flex;
@@ -639,7 +662,8 @@ a.sr-name:hover {
 .sr-facts dt {
   color: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 11.5px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 .sr-facts dd {
   margin: 0;
@@ -649,7 +673,8 @@ a.sr-name:hover {
 .sr-facts dd small {
   display: block;
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
   font-weight: 450;
 }
 .sr-use {
@@ -696,7 +721,7 @@ a.sr-state {
   margin: 12px 0 0;
   padding-left: 20px;
   font-size: var(--fs-body);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 .sr-pp {
   position: relative;
@@ -741,7 +766,7 @@ a.sr-state {
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--rule-strong);
-  font: var(--font-body);
+  font: var(--fs-body)/var(--lh-body) var(--font-ui);
   white-space: normal;
 }
 

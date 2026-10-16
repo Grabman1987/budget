@@ -80,6 +80,7 @@
 .mr-note {
   margin: 0;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   color: var(--ink-2);
   max-width: 72ch;
 }
@@ -89,6 +90,7 @@
 .mr-sub {
   margin: 0 0 4px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   color: var(--ink-2);
 }
 @media (max-width: 980px) {
@@ -120,7 +122,8 @@
   text-align: left;
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   white-space: nowrap;
 }
 .mr-table td {
@@ -134,7 +137,8 @@
 }
 .mr-table small {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   color: var(--ink-3);
 }
 .mr-table tr.is-total td {
@@ -160,6 +164,7 @@
   align-items: center;
   gap: 6px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 560;
   color: var(--ink-2);
   white-space: nowrap;
@@ -239,10 +244,10 @@
   background: var(--rule-strong);
 }
 .mr-cap-fig {
-  font-size: 30px;
+  font-size: var(--fs-figure);
   font-weight: 650;
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: var(--lh-figure);
   margin: 6px 0 10px;
 }
 

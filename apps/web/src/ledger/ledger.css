@@ -181,12 +181,14 @@
 }
 .tbd-head h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--fs-headline);
+  line-height: var(--lh-headline);
   font-weight: 620;
   letter-spacing: -0.01em;
 }
 .tbd-state {
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 600;
 }
 .tbd-state span {
@@ -204,7 +206,7 @@
   font-size: var(--fs-dimension);
   font-weight: 650;
   letter-spacing: -0.03em;
-  line-height: 1.05;
+  line-height: var(--lh-dimension);
   margin: 10px 0 16px;
   font-stretch: 96%;
 }
@@ -218,7 +220,8 @@
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
   text-align: left;
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
 }
 .ktable td {
   padding: 12px 8px;
@@ -271,8 +274,9 @@
   min-width: 56px;
   margin-left: 8px;
   text-align: right;
-  font-family: var(--font-tech);
+  font-family: var(--font-ui);
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   letter-spacing: 0.03em;
   color: var(--ink-2);
 }
@@ -287,10 +291,12 @@
 .grp-title {
   font-weight: 640;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .grp-sub {
   margin-left: 8px;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   font-weight: 500;
   color: var(--ink-3);
 }
@@ -316,6 +322,7 @@
   gap: 4px 8px;
   margin: 3px 0 0;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-3);
 }
 .kutil {
@@ -323,7 +330,8 @@
   align-items: center;
   gap: 8px;
   margin-top: 6px;
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   color: var(--ink-3);
 }
 .kcheck.is-stale {
@@ -345,6 +353,7 @@
 .kclosed {
   margin: 14px 0 4px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   color: var(--ink-2);
   border-radius: 6px;
 }
@@ -356,7 +365,8 @@
   padding: 0 4px;
   cursor: pointer;
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -390,6 +400,7 @@
 .ksum {
   margin: 12px 0 4px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   color: var(--ink-2);
 }
 
@@ -417,6 +428,7 @@
 .kacct-head h2 {
   margin: 0;
   font-size: var(--fs-figure);
+  line-height: var(--lh-figure);
   font-weight: 650;
   letter-spacing: -0.02em;
 }
@@ -437,10 +449,10 @@
   gap: 2px;
 }
 .fig strong {
-  font-size: 24px;
+  font-size: var(--fs-figure);
   font-weight: 640;
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: var(--lh-figure);
 }
 .fig strong.muted {
   color: var(--ink-2);
@@ -448,6 +460,7 @@
 }
 .fig small {
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-3);
 }
 .kchart-box {
@@ -463,6 +476,7 @@
   gap: 6px 20px;
   margin-top: 8px;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-2);
 }
 .legend span {
@@ -479,8 +493,9 @@
 }
 .kc-date {
   width: 76px;
-  font-family: var(--font-tech);
+  font-family: var(--font-ui);
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   letter-spacing: 0.04em;
   color: var(--ink-2);
 }
@@ -493,6 +508,7 @@
   align-items: center;
   gap: 6px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .kcat.is-none {
   color: var(--ink);
@@ -512,6 +528,7 @@
   align-items: center;
   gap: 5px;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-3);
   font-weight: 500;
 }
@@ -690,6 +707,7 @@
   display: block;
   margin-top: 2px;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-3);
 }
 .panel-actions {
@@ -775,13 +793,15 @@
   border-bottom: 1px solid var(--line-2);
 }
 .kday .tech {
-  font-size: 11.5px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   color: var(--ink-2);
 }
 .kday-sum {
   float: right;
-  font-family: var(--font-tech);
+  font-family: var(--font-ui);
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-2);
 }
 .ktable tr.is-selected td {
@@ -789,6 +809,7 @@
 }
 .kc-acct {
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   color: var(--ink-2);
 }
 
@@ -798,6 +819,7 @@
   gap: 10px;
   margin: 12px 0 0;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   color: var(--ink-2);
 }
 .kf.kf-sort {
@@ -825,6 +847,7 @@
   align-items: center;
   gap: 6px;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-3);
 }
 /* Desktop row: the checkbox hangs below the account field so every field sits on one line. */
@@ -941,6 +964,7 @@
   border-radius: 6px;
   font-weight: 600;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 .kdiff.is-ok {
   color: var(--line);
@@ -983,13 +1007,15 @@
     gap: 20px;
   }
   .tbd-fig {
-    font-size: 44px;
+    font-size: var(--fs-dimension);
+    line-height: var(--lh-dimension);
   }
   .kfigs {
     gap: 12px 24px;
   }
   .fig strong {
-    font-size: 21px;
+    font-size: var(--fs-figure);
+    line-height: var(--lh-figure);
   }
   .kchart-box {
     min-height: 200px;
@@ -1150,6 +1176,7 @@
 .combo-hint {
   color: var(--ink-2);
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   text-align: right;
 }
 .combo-option.is-active,
@@ -1159,7 +1186,8 @@
 .combo-group {
   padding: 8px 10px 2px;
   font-family: var(--font-tech);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -1183,6 +1211,7 @@
   border: 1px solid var(--rule-strong);
   border-radius: 999px;
   font-size: var(--fs-body);
+  line-height: var(--lh-body);
   font-weight: 520;
   color: var(--ink);
 }
@@ -1200,6 +1229,7 @@
   min-height: 1.4em;
   margin: 6px 0 0;
   font-size: var(--fs-chart-label);
+  line-height: var(--lh-chart-label);
   color: var(--ink-2);
 }
 .kavail strong {
@@ -1225,7 +1255,8 @@
 }
 .khint {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
   color: var(--ink-3);
 }
 .kdiff .btn {
@@ -1367,7 +1398,8 @@
   padding: 6px 10px;
   border-radius: 6px;
   text-align: left;
-  font-size: 14px;
+  font-size: var(--fs-table);
+  line-height: var(--lh-table);
 }
 .kflagitem:hover,
 .kflagitem:focus-visible {
@@ -1386,7 +1418,8 @@
   border: 1px solid var(--rule-strong);
   border-radius: 4px;
   font-family: var(--font-tech);
-  font-size: 11.5px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   text-align: center;
   color: var(--ink-2);
 }
@@ -1435,6 +1468,7 @@
 .bk-kind-fixed {
   font-weight: 620;
   font-size: var(--fs-title);
+  line-height: var(--lh-title);
 }
 .bk-body {
   min-height: 0;
@@ -1509,7 +1543,8 @@
   background: var(--raised);
   border-bottom: 1px solid var(--rule);
   font-family: var(--font-tech);
-  font-size: 11px;
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -1916,7 +1951,8 @@
 .bk-suggestions .chip {
   flex: none;
   padding-inline: 8px;
-  font-size: var(--fs-small);
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
 }
 .bk-share {
   display: grid;
@@ -1951,7 +1987,8 @@
   margin: 0;
   padding: 8px 20px;
   color: var(--red);
-  font-size: var(--fs-small);
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
 }
 @media (max-width: 767px) {
   .bk-line-fields.is-multiple > .amount {
