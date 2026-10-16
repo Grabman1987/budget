@@ -25,6 +25,9 @@ IDs and record its bounded completion evidence.
 
 ## GAP08 — common scope and design authority
 
+- [x] The PP return convention (owner 2026-10-15, #510) intentionally changes displayed
+  returns, e.g. opening 100 + deposit 100 → closing 220 EUR: 20 % → 10 %. Release notes and
+  the portfolio disclosure name this change; it is not a silent lead-value change.
 - [ ] Record each graph's scope: total net worth, selected portfolio securities,
   or explicitly included investment cash/accounts. Preserve the existing portfolio
   securities view until another inclusion policy is agreed; never silently change
