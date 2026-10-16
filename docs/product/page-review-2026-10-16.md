@@ -2,6 +2,31 @@
 
 Outcome of the owner page review on 2026-10-16 (German, owner-approved). Where it differs from older Figma frames, docs or audit recommendations, **this record and the linked issue comments take precedence**. Status per page: agreed, not implemented. Example amounts are synthetic.
 
+## Supersessions, Präzisierungen, offene Punkte (Konfliktprüfung 16.10.2026)
+
+**Ersetzt (neuere Owner-Entscheidung 16.10. gewinnt):**
+
+1. Erfassung: neue Buchung startet vorgemerkt, **außer Bargeld** – sofort bestätigt, Status fest (#499). Restarbeit #523: Umbuchung Bar↔Bank → Bar-Seite bestätigt, Bank-Seite vorgemerkt (heute wird ein Status auf beide Seiten kopiert).
+2. Kopf: roter Überzogen-Chip entfällt (ersetzt ROADMAP-#237-Chip und „inbox with counter“) → Pille „Prüfen · N“. Überzogene Kategorien nicht mehr in Prüfen (ersetzt #465-„urgent overspent summary“) → Heute › Zu tun + Plan.
+3. Register: Plan Monat · Jahr · Zahlungen · Ziele · Prognose (Reiter „Zahlungen“, Seitenüberschrift darf „Zahlungen und Abos“ heißen). Konten Übersicht · Buchungen · Prüfen · Kontakte; Glossar „Posteingang“ → „Prüfen“; `/konten/posteingang(/$id)` leitet auf `/konten/pruefen` weiter (Suchparameter `pruefen=reconcile` existiert bereits).
+4. Liquiditätsprognose: Report-Eintrag entfällt; `/reports/liquiditaet` leitet auf `/plan/prognose` weiter (Festlegung Claude, passt zu „alte Slugs leiten weiter“).
+5. Modified Dietz entfällt aus der Anzeige (ersetzt „remains labelled“ der Referenzübernahme); Code-Entfernung in #525/#487.
+6. Kompakter Benchmark-Vergleich in Vermögen ersetzt #480 „detailed benchmark stays in Reports“ nur für den Kompaktvergleich; Detail bleibt in Reports.
+7. Onboarding: GAP06, ONB02–06, AC24/25, DEC01–04 zurückgestellt bis PUB1 (#490).
+
+**Präzisierungen (Routine, Festlegung Claude):**
+
+- Benchmarks: Vorauswahl Weltaktien (FTSE All-World) + Nasdaq 100 als einmaliger auditierter Schreibvorgang der bestehenden Benchmark-Auswahl, **kein Code-Default** (GAP01: leer = kein Vergleich; spätere Leerung bleibt leer). Differenz in Pp mit Hinweis „Kursindex, ohne Ausschüttungen“.
+- Begriffe: „Verteilen“ = „Zu verteilen“ auf mehrere Kategorien; „zuweisen“ bleibt für eine Kategorie („Rate zuweisen“, „Schnell zuweisen“). Abnahmetest: „Noch zu verplanen“ = 0 Treffer (Composita wie „Geplante Zahlung“ bleiben korrekt).
+- „Gespart“ = bestehende Formel Einnahmen − Konsum + reguläre Tilgung (DESIGN.md), damit Anfang + Gespart + Markt = Jetzt aufgeht.
+- Portfolio-Umfang: Wertpapiere ohne Depot-Bargeld, Gebühren ein, Steuern aus; die Allokationssumme (#507, inkl. Verrechnung) heißt nie „Portfoliowert“.
+- Sammel-Löschen: „unverknüpft“ = nicht mit Kontakt- oder Trade-Abrechnung verknüpft; Umbuchungspaare werden gemeinsam gelöscht. Einzel-Löschen gesperrt/verknüpft: Server lehnt ab, Dialog erklärt Grund und Weg (entsperren bzw. Abrechnung öffnen).
+- Gehaltszettel: Abgleichfenster ±5 Tage wie im Code (nicht ±7); eine gesperrte (abgeglichene) Auszahlung wird nicht aufgeteilt, nur verknüpft mit Hinweis.
+- Schulden: negative Giro-/Verrechnungskonten zählen als Schuld; „schuldenfrei“ = alle Kredite mit Konditionen getilgt, Karten „laufend ausgeglichen“ daneben.
+- Rendite: Wechsel auf PP-Konvention ändert Renditezahlen bewusst (Beispiel Endfluss: bisher 20 %, PP 10 %) – unter GAP08 vermerkt.
+
+**Offen (Owner-Frage):** Freiheit „Investiert = Anlagebasis (#507)“ – die Kontenauswahl ist nur aktuell, nicht historisiert, und würde rückwirkend auf die Ist-Kurve seit 10/2023 wirken; R16 nutzt heute `role=investment` und würde mitwechseln.
+
 ## Prüfstand Seitenreview
 
 Status je Seite: vorgeschlagen → vereinbart → implementiert → deployt → abgenommen.
@@ -201,7 +226,7 @@ Soll: G01 `173:2`; G02–G11 nicht auffindbar → Basis App-Ablauf. Aufgabe: #48
 
 1. Ort Plan › Einnahmen (Liste + Hochladen); Automatik → Prüfen › Aufgaben; Report nur Auswertung.
 2. Prüfdialog: PDF links, Maßkette rechts.
-3. Bestätigen teilt vorhandene Auszahlungsbuchung (± Toleranz, ± 7 Tage) in Gehalt + Erstattungen; sonst neue vorgemerkte; ein Rückgängig.
+3. Bestätigen teilt vorhandene Auszahlungsbuchung (± Toleranz, ± 5 Tage) in Gehalt + Erstattungen; sonst neue vorgemerkte; ein Rückgängig.
 4. Routine: „14 Gehälter“ nur erfasste Monate + Lückenzeile.
 
 **Abnahmekriterium Gehaltszettel:** keine Doppelbuchung; Aufteilung centgenau; Rückgängig exakt; Sparquote ohne Erstattungen; keine Upload-Aktion im Report.

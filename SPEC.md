@@ -11,7 +11,7 @@ open as GAP01–08 in [the gap backlog](docs/product/open-gaps.md), including na
 onboarding frames and semantic Figma acceptance. No financial formula or gate is
 changed or accepted merely by recording these requirements.
 
-Page review (2026-10-16): owner-approved per-page decisions in [docs/product/page-review-2026-10-16.md](docs/product/page-review-2026-10-16.md) supersede older Figma frames, audit recommendations and proposals where they differ; financial rules still follow this SPEC.
+Page review (2026-10-16): owner-approved per-page decisions in [docs/product/page-review-2026-10-16.md](docs/product/page-review-2026-10-16.md) supersede older Figma frames, audit recommendations and proposals where they differ; financial rules still follow this SPEC. Explicitly superseded there: cash capture confirmed / other capture pending (#499 stays authoritative, transfer Bar↔Bank per side); red overspent chip and inbox counter → one „Prüfen · N“ pill, overspent categories leave Prüfen (Heute › Zu tun + Plan); Plan/Konten register labels (Zahlungen, Prognose, Prüfen) with redirects; report 3.1 Liquiditätsprognose becomes Plan › Prognose; Modified Dietz no longer displayed; compact benchmark comparison in Vermögen (#480 wording applies to the detail only); onboarding deferred to PUB1 (#490).
 
 Current reading entry point (2026-10-15): [Product foundation](docs/product/README.md)
 consolidates the requirements, sitemap, state/data/process contracts and acceptance
@@ -114,7 +114,7 @@ Five main areas plus settings (profile menu). Registers are the second level; no
 | --- | --- | --- |
 | Heute | Hält der Monat? | Leitmaß "frei verfügbar bis Gehalt", pace, upcoming payments, Finanz-Check KPI, net worth (`index.html`) |
 | Plan | Jeder Euro hat einen Job | Plan › Monat with views Wasserfall / Zeit / Gruppen / Klassen / Triage, Geld verteilen (`plan.html`) |
-| Konten | Was ist passiert? | Übersicht, Einzelkonto with Kontostand prüfen, Alle Buchungen, Posteingang, Kontakte (`konten.html`) |
+| Konten | Was ist passiert? | Übersicht, Einzelkonto with Kontostand prüfen, Buchungen, Prüfen (formerly Posteingang, 2026-10-16), Kontakte (`konten.html`) |
 | Vermögen | Was besitze ich, was entscheide ich? | Nettovermögen, Portfolio (Soll/Ist, Rebalancing, Sparpläne), Schulden (Sondertilgung), Freiheitszahl with Soll-Pfad (`vermoegen.html`) |
 | Reports | Warum und wohin, und wie haben Entscheidungen gewirkt? | Current catalog of 34 reports in 5 groups; exact slugs in `apps/web/src/nav/reports-catalog.ts` |
 | Einstellungen | — | Konten (terms: limits, rates, term; loan terms for the debt calculator and the cost report), Kategorien, Regelwerk (stages + registered rules (`RULE_CODES`)), Zuordnungsregeln, Datenquellen, Anlageklassen, CSV-Export, Sicherheit (`einstellungen.html`, partly built) |
@@ -185,7 +185,7 @@ Every report answers one question with one fixed chart form (grammar: concept 9.
 
 1. **Monat und Einkommen:** 1.1 Monats-One-Pager (printable A4 sheet), 1.2 Gehaltsreport (payslip lines, payout per month and year, yearly salaries with growth, collective raise vs step raise, "Gehaltszettel hinzufügen": PDF upload to object storage or line-by-line entry with check), 1.3 Einnahmen, 1.4 Geldfluss (Sankey via one income pool), 1.5 Jahresansicht (with previous year), 1.6 Kategorieübersicht, 1.7 Sparquote und Geldalter, 1.8 Gesamttabelle (CSV), 1.9 Projekte und Nebeneinkünfte, 1.10 Einnahmen und Ausgaben (owner feedback 04.10.2026: actual monthly income/expense table, chart, booking drilldown and displayed-table CSV; capital/refunds outside household income).
 2. **Ausgaben und Plan:** 2.1 Ausgabenanalyse, 2.2 Budgettreue incl. 50/30/20, 2.3 Verträge und Abos (terms, notice, USD), 2.4 Persönliche Inflation, 2.5 Empfänger-Analyse, 2.6 Bank- und Zinskosten (credit lines incl. overdraft and card).
-3. **Zukunft und Vermögen:** 3.1 Liquiditätsprognose (planned events, levers, 6-month outlook, verdict), 3.2 Cashflow-Verlauf, 3.3 Vermögensverläufe, 3.4 Jahresvorschau Zahlungen, 3.5 Sparziele.
+3. **Zukunft und Vermögen:** 3.1 Liquiditätsprognose (planned events, levers, 6-month outlook, verdict; moves to Plan › Prognose, report slug redirects – page review 2026-10-16), 3.2 Cashflow-Verlauf, 3.3 Vermögensverläufe, 3.4 Jahresvorschau Zahlungen, 3.5 Sparziele.
 4. **Portfolio:** 4.1 Depots im Vergleich, 4.2 Allocation (composition follows the later group/class sunburst and product-table directive), 4.3 Einzahlungen und Wert, 4.4 Rendite und Kennzahlen (benchmarks, asset classes side by side, heatmap), 4.5 Kosten, Steuern, Erträge (KESt 27.5 %, illustrative latent tax). Products open deep-linkable instrument details with daily price history under the current navigation directive.
 5. **Überblick:** 5.1 Jahresreport (2 printable sheets), 5.2 Finanz-Check-Verlauf (stages + registered rules (`RULE_CODES`)), 5.3 Explorer (pivot, saved views), 5.4 Kontakte-Abrechnung (one ledger per person), 5.5 Zeitraumvergleich.
 
