@@ -122,10 +122,13 @@ test('benchmark selection persists and report shows class comparisons, accessibl
   await page.keyboard.press('Escape');
   await expect(page.getByRole('heading', { name: 'Anlageklassen nebeneinander' })).toBeVisible();
   const matrix = page.locator('.performance-heatmap');
-  await expect(matrix).toContainText('+20,0 %');
+  // PP convention (owner 2026-10-15, #510): the 31.01. deposit counts at day start, so
+  // January = 220 / (100 + 100) − 1 = +10 %, February = 198 / 220 − 1 = −10 %, partial
+  // year = 1.1 × 0.9 − 1 = −1 % (the superseded end-flow method showed +20 % / +8 %).
+  await expect(matrix).toContainText('+10,0 %');
   await expect(matrix).toContainText('−10,0 %');
   await expect(matrix).toContainText('0,0 % *');
-  await expect(matrix).toContainText('+8,0 % *');
+  await expect(matrix).toContainText('−1,0 % *');
   const fallback = page.getByText('Monatsrenditen als einfache Tabelle', { exact: true });
   await fallback.focus();
   await page.keyboard.press('Enter');
@@ -161,7 +164,7 @@ test('benchmark selection persists and report shows class comparisons, accessibl
   await expect(
     page.getByRole('table', { name: 'Renditen und gespeicherte Benchmark-Kursdaten' }),
   ).toContainText('Kurslücke');
-  await expect(matrix).toContainText('+20,0 %');
+  await expect(matrix).toContainText('−1,0 % *');
   await ftse.uncheck();
   await expect(ftse).toBeEnabled();
   await sp.uncheck();
