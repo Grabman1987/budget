@@ -61,6 +61,16 @@ export function PortfolioAllocation() {
         )}
         {view && (
           <>
+            {view.policy.wealthStage && (
+              <p className="vnote">
+                Aktive Vermögensstufe: ab {eurWhole(view.policy.wealthStage.fromCents)}
+                {view.policy.wealthStage.label ? ' · ' + view.policy.wealthStage.label : ''}.
+                {view.policy.wealthStage.inBuffer &&
+                  ` Im Puffer: Die Stufe bleibt bis unter ${eurWhole(Math.ceil((view.policy.wealthStage.fromCents * 9) / 10))} aktiv.`}{' '}
+                Basis: {view.valueCents === null ? 'nicht ermittelbar' : eurWhole(view.valueCents)}{' '}
+                in {view.universe.accountIds.length} ausgewählten Konten und Depots.
+              </p>
+            )}
             {provisional && (
               <p className="vnote" role="status">
                 Aufteilung vorläufig: Klassifikation und Bewertung prüfen. Sparplanoptimierung wird
