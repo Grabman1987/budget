@@ -16,7 +16,7 @@ live-app visibility was not tested. Treat frame references as bounded evidence.
 | GAP02 | P1 / feature + design | Actual portfolio value history in EUR | GAP08; AC27 |
 | GAP03 | P1 / feature + data + design | Asset composition and development in EUR/percent under explicit scopes | GAP08 and source coverage; AC28 |
 | GAP05 | P1 / navigation reconciliation | Agreed labels and route mapping across Figma/docs/app | GAP08; AC30 |
-| GAP06 | P0 / first-use design + implementation | O01–O08 plus errors/resume/existing-data path | DEC01–04, ONB02–06; AC24/25/31 |
+| GAP06 | Deferred to PUB1 (#490, owner 2026-10-16) / first-use design + implementation | O01–O08 plus errors/resume/existing-data path | DEC01–04, ONB02–06; AC24/25/31 |
 | GAP07 | P1 / semantic coverage | Per-frame user outcome → code → acceptance evidence matrix | Start with wealth, then remaining areas; AC31 |
 
 The roadmap and TASKS list link to these same IDs. They are not duplicate work
@@ -179,7 +179,7 @@ not a confirmed absent implementation or a replacement for GAP02.
 
 Done: AC30, keyboard/back/URL tests and matching route/design evidence.
 
-## GAP06 — first-use design and implementation
+## GAP06 — first-use design and implementation (deferred to PUB1, #490, owner 2026-10-16)
 
 - [ ] Resolve/review DEC01–04 and link the chosen finish/resume rules.
 - [ ] Create O01–O08 desktop/phone frames with empty, intentional zero, existing

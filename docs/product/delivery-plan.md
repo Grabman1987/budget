@@ -58,7 +58,7 @@ numeric availability/restore promise is added.
 
 All remain unchecked in ROADMAP/TASKS. The owner's three wealth targets are
 requested product scope; detailed read-model/UI design and existing onboarding
-DEC01–04 dispositions remain part of the linked implementation preparation.
+DEC01–04 dispositions remain part of the linked implementation preparation. Owner 2026-10-16: DEC01–04, ONB02–06 and AC24/25 are deferred to PUB1 (#490); no onboarding is built while the app is unpublished.
 
 ## Definition of implementation readiness
 
