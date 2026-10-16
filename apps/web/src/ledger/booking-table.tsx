@@ -30,6 +30,7 @@ export interface BookingTableProps {
   sort?: { key: BookingSort; direction: 'asc' | 'desc'; onSort: (key: BookingSort) => void };
   /** The "Kommend" section: future captures and next occurrences above the history, same columns. */
   upcoming?: UpcomingModel | null;
+  showTodayBalance?: boolean;
 }
 
 const canEditCategory = (b: ListedBooking) =>
@@ -48,6 +49,7 @@ export function BookingTable({
   selection,
   sort,
   upcoming,
+  showTodayBalance = true,
 }: BookingTableProps) {
   useAmountPrivacy();
   const classes = useCategoryClasses();
@@ -204,11 +206,13 @@ export function BookingTable({
                     ),
                   )}
             </tbody>
-            <tbody className="kregister-today">
-              <tr data-testid="register-today">
-                <td colSpan={columns}>Heute · Saldo {upcoming.balanceLabel}</td>
-              </tr>
-            </tbody>
+            {showTodayBalance && (
+              <tbody className="kregister-today">
+                <tr data-testid="register-today">
+                  <td colSpan={columns}>Heute · Saldo {upcoming.balanceLabel}</td>
+                </tr>
+              </tbody>
+            )}
           </>
         )}
         <tbody>
