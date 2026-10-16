@@ -47,7 +47,6 @@
 .contact-report small {
   display: block;
   font-size: var(--fs-meta);
-  line-height: var(--lh-meta);
   color: var(--ink-3);
 }
 .contact-report .kt-sheet h2 {
@@ -63,7 +62,6 @@
 }
 .contact-report .kt-sum {
   font-size: var(--fs-headline);
-  line-height: var(--lh-headline);
   font-weight: 650;
 }
 .contact-report .kt-grid {
@@ -83,7 +81,6 @@
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   white-space: nowrap;
 }
 .contact-report .rtable td {
@@ -121,7 +118,6 @@
   height: 34px;
   flex: 0 0 34px;
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
 }
 .contact-balance-chart {
   min-width: 0;

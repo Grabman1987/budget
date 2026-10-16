@@ -15,7 +15,6 @@
 .receipt-name small {
   color: var(--ink-3);
   font-size: var(--fs-meta);
-  line-height: var(--lh-meta);
 }
 .receipt-list {
   list-style: none;
@@ -43,7 +42,6 @@
   display: grid;
   place-items: center;
   font-size: var(--fs-meta);
-  line-height: var(--lh-meta);
   flex-shrink: 0;
 }
 .receipt-name {

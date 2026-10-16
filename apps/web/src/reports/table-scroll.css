@@ -10,7 +10,6 @@
     max-width: 100%;
     margin: 0 0 8px;
     font-size: var(--fs-label);
-    line-height: var(--lh-label);
     color: var(--ink-2);
   }
 }

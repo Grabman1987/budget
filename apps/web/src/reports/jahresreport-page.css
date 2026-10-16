@@ -50,11 +50,10 @@
   font-size: var(--fs-display);
   font-weight: 650;
   letter-spacing: -0.02em;
-  line-height: var(--lh-display);
+  line-height: 1.05;
 }
 .ov-sheet-head h2 small {
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   font-weight: 500;
   color: var(--ink-3);
   letter-spacing: 0;
@@ -68,12 +67,11 @@
   font-size: var(--fs-figure);
   font-weight: 650;
   letter-spacing: -0.03em;
-  line-height: var(--lh-figure);
+  line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .ov-sheet-fig > span:last-child {
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   font-weight: 600;
   color: var(--line);
 }
@@ -98,14 +96,12 @@
 }
 .ov-sheet-kpis strong {
   font-size: var(--fs-title);
-  line-height: var(--lh-title);
   font-weight: 650;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 .ov-sheet-kpis .tech {
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
 }
 .ov-sheet-grid {
   display: grid;
@@ -129,7 +125,6 @@
   gap: 8px;
   margin: 0 0 8px;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   font-weight: 640;
 }
 .ov-sheet-h span {
@@ -144,7 +139,6 @@
 .ov-sheet-note {
   margin: 6px 0 0;
   font-size: var(--fs-meta);
-  line-height: var(--lh-meta);
   color: var(--ink-3);
 }
 .ov-sheet-kpi {
@@ -156,22 +150,20 @@
 .ov-sheet-kpi strong {
   font-size: var(--fs-display);
   font-weight: 650;
-  line-height: var(--lh-display);
+  line-height: 1;
 }
 .ov-sheet-kpi span {
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   color: var(--ink-2);
 }
 .ov-table.ov-sheet-table th,
 .ov-table.ov-sheet-table td {
   padding: 4px 4px 4px 0;
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
+  line-height: 1.25;
 }
 .ov-table.ov-sheet-table thead th {
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   padding: 4px 4px 6px 0;
 }
 .ov-table.ov-sheet-table tbody th {
@@ -208,7 +200,6 @@
   align-items: center;
   gap: 8px;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
 }
 .ov-shares strong {
   font-variant-numeric: tabular-nums;
@@ -244,12 +235,10 @@
 }
 .ov-tb dt {
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
 }
 .ov-tb dd {
   margin: 0;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   font-weight: 620;
   white-space: nowrap;
   overflow: hidden;
@@ -257,7 +246,6 @@
 }
 .ov-tb-name dd {
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
 }
 
 @media screen and (max-width: 760px) {
@@ -277,7 +265,6 @@
   }
   .ov-sheet-fig strong {
     font-size: var(--fs-figure);
-    line-height: var(--lh-figure);
   }
   .ov-sheet-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -302,12 +289,10 @@
   .ov-table.ov-sheet-table td {
     padding-right: 3px;
     font-size: var(--fs-label);
-    line-height: var(--lh-label);
   }
   .ov-table.ov-sheet-table thead th {
     white-space: normal;
     font-size: var(--fs-label);
-    line-height: var(--lh-label);
     vertical-align: bottom;
   }
   .ov-heat-table th,
@@ -375,11 +360,9 @@
   }
   .ov-sheet-head h2 {
     font-size: var(--fs-display);
-    line-height: var(--lh-display);
   }
   .ov-sheet-fig strong {
     font-size: var(--fs-figure);
-    line-height: var(--lh-figure);
   }
   .ov-sheet-grid,
   .ov-sheet-stack {
@@ -392,12 +375,11 @@
   .ov-table.ov-sheet-table td {
     padding: 1px 3px 1px 0;
     font-size: var(--fs-label);
-    line-height: var(--lh-label);
+    line-height: 1.15;
   }
   .ov-sheet-note,
   .ov-sheet-kpi span {
     font-size: var(--fs-label);
-    line-height: var(--lh-label);
     margin-top: 3px;
   }
   .ov-sheet-h {

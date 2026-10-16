@@ -60,7 +60,6 @@
   place-items: center;
   font-family: var(--font-tech);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   font-weight: 500;
   color: var(--ink-3);
 }
@@ -92,11 +91,10 @@
   font-size: var(--fs-display);
   font-weight: 650;
   letter-spacing: -0.02em;
-  line-height: var(--lh-display);
+  line-height: 1.05;
 }
 .ps-head h2 small {
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   font-weight: 500;
   color: var(--ink-3);
   letter-spacing: 0;
@@ -110,17 +108,15 @@
   font-size: var(--fs-dimension);
   font-weight: 650;
   letter-spacing: -0.03em;
-  line-height: var(--lh-dimension);
+  line-height: 1;
   font-stretch: 96%;
 }
 .ps-fig strong .cents {
   font-size: var(--fs-figure);
-  line-height: var(--lh-figure);
   color: var(--ink-3);
 }
 .ps-fig > span:last-child {
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   font-weight: 600;
   color: var(--line);
 }
@@ -156,7 +152,6 @@
   gap: 8px;
   margin: 0 0 10px;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   font-weight: 640;
 }
 .ps-h span {
@@ -167,14 +162,12 @@
   border: 1px solid var(--line-2);
   font-family: var(--font-tech);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   font-weight: 600;
   color: var(--line);
 }
 .ps-note {
   margin: 8px 0 0;
   font-size: var(--fs-meta);
-  line-height: var(--lh-meta);
   color: var(--ink-3);
 }
 .ps-nwfig {
@@ -185,12 +178,10 @@
 }
 .ps-nwfig strong {
   font-size: var(--fs-figure);
-  line-height: var(--lh-figure);
   font-weight: 650;
 }
 .ps-delta {
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   font-weight: 600;
 }
 .is-up {
@@ -203,7 +194,6 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   font-variant-numeric: tabular-nums;
 }
 .ps-cats td {
@@ -245,11 +235,10 @@
 .ps-kpi strong {
   font-size: var(--fs-display);
   font-weight: 650;
-  line-height: var(--lh-display);
+  line-height: 1;
 }
 .ps-kpi span {
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   color: var(--ink-2);
 }
 .ps-over {
@@ -257,7 +246,6 @@
   margin: 10px 0 0;
   padding: 0;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
 }
 .ps-over li {
   display: flex;
@@ -304,7 +292,6 @@
   padding: 4px 8px 6px 0;
   border-bottom: 1px solid var(--rule-strong);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   text-align: left;
 }
 .ps-revt thead th.n {
@@ -314,7 +301,6 @@
   padding: 7px 8px 7px 0;
   border-top: 1px solid var(--rule);
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   vertical-align: middle;
 }
 .ps-revt td.n {
@@ -359,11 +345,9 @@
 }
 .ps-tb-cell .tech {
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
 }
 .ps-tb-cell strong {
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   font-weight: 620;
   white-space: nowrap;
   overflow: hidden;
@@ -371,7 +355,6 @@
 }
 .ps-tb-name strong {
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
 }
 
 /* 50/30/20 bar */
@@ -417,7 +400,6 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px 14px;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
 }
 .b523-leg span {
   display: grid;
@@ -429,7 +411,6 @@
   grid-column: 2;
   color: var(--ink-3);
   font-size: var(--fs-meta);
-  line-height: var(--lh-meta);
 }
 .sw-rest {
   border: 1.5px dashed var(--ink-2);
@@ -437,7 +418,6 @@
 .b523-note {
   margin: 8px 0 0;
   font-size: var(--fs-meta);
-  line-height: var(--lh-meta);
   color: var(--ink-3);
 }
 .ps-sec .heute-chart {
@@ -465,10 +445,6 @@
   }
   .ps-fig {
     justify-items: start;
-  }
-  .ps-fig strong {
-    font-size: var(--fs-figure);
-    line-height: var(--lh-figure);
   }
   .ps-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -554,8 +530,10 @@
     /* Paper keeps the compact scale whatever the print viewport width (phone tokens must not leak in). */
     --fs-body: 13px;
     --fs-label: 10px;
+    --fs-meta: 12px;
     --fs-display: 28px;
-    --fs-figure: 32px;
+    --fs-figure: 20px;
+    --fs-dimension: 40px;
     zoom: 0.66;
     max-width: none;
     width: calc(100% / 0.66);
@@ -583,13 +561,12 @@
   .ps-note,
   .b523-note {
     font-size: var(--fs-label);
-    line-height: var(--lh-label);
   }
   /* The verdict takes part of the fixed sheet height: tighter than on screen so nothing is cut. */
   .psheet .report-verdict {
     margin: 0;
     font-size: var(--fs-label);
-    line-height: var(--lh-label);
+    line-height: 1.35;
   }
   .ps-sec .chart {
     max-height: 196px;

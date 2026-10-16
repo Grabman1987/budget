@@ -19,13 +19,12 @@
 .contributions-primary .tech {
   color: var(--ink-2);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
 }
 .contributions-primary strong {
   font-size: var(--fs-figure);
   font-weight: 650;
   letter-spacing: -0.02em;
-  line-height: var(--lh-figure);
+  line-height: 1.05;
   font-variant-numeric: tabular-nums;
 }
 .contributions-window .chain-inline {
@@ -80,7 +79,6 @@
   gap: 10px 20px;
   color: var(--ink-2);
   font-size: var(--fs-chart-label);
-  line-height: var(--lh-chart-label);
 }
 .contributions-legend span {
   display: inline-flex;

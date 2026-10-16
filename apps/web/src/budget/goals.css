@@ -7,7 +7,6 @@
 }
 .plan.goals .goals-summary {
   font-size: var(--fs-table);
-  line-height: var(--lh-table);
   font-weight: 560;
   color: var(--ink-2);
 }
@@ -27,7 +26,6 @@
   flex-wrap: wrap;
   gap: 6px 8px;
   font-size: var(--fs-table);
-  line-height: var(--lh-table);
 }
 .plan.goals .goal-name {
   font-weight: 580;
@@ -80,7 +78,6 @@
     width: auto;
     text-align: left;
     font-size: var(--fs-table);
-    line-height: var(--lh-table);
   }
   .plan.goals .ptable .col-cat::before,
   .plan.goals .ptable .col-date::before,
@@ -89,7 +86,6 @@
     display: block;
     font-family: var(--font-tech);
     font-size: var(--fs-label);
-    line-height: var(--lh-label);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--ink-3);

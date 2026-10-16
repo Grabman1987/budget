@@ -24,7 +24,6 @@
 }
 .prep-decision {
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   color: var(--line);
   min-height: 44px;
   display: inline-flex;
@@ -59,13 +58,12 @@
 .prep-lead .tech {
   color: var(--ink-2);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
 }
 .prep-lead strong {
   font-size: var(--fs-dimension);
   font-weight: 650;
   letter-spacing: -0.02em;
-  line-height: var(--lh-dimension);
+  line-height: 1.05;
   font-variant-numeric: tabular-nums;
 }
 .prep .chain-inline {
@@ -89,7 +87,6 @@
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   font-weight: 600;
   white-space: nowrap;
   color: var(--ink-2);
@@ -107,7 +104,6 @@
 .prep-table small {
   display: block;
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   color: var(--ink-3);
 }
 .prep-table tr.is-group td,

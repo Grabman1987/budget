@@ -60,7 +60,6 @@
 }
 .queue-head h2 {
   font-size: var(--fs-title);
-  line-height: var(--lh-title);
   margin: 0;
 }
 .booking-queue p {

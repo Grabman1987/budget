@@ -18,14 +18,13 @@
 .performance-primary .tech {
   color: var(--ink-2);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
 }
 
 .performance-primary strong {
   font-size: var(--fs-figure);
   font-weight: 650;
   letter-spacing: -0.02em;
-  line-height: var(--lh-figure);
+  line-height: 1.05;
   font-variant-numeric: tabular-nums;
 }
 
@@ -55,7 +54,6 @@
   color: var(--ink-2);
   font-family: var(--font-tech);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -63,7 +61,6 @@
 .performance-metric dd {
   margin: 4px 0 0;
   font-size: var(--fs-figure);
-  line-height: var(--lh-figure);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
@@ -73,7 +70,6 @@
   margin-top: 3px;
   color: var(--ink-3);
   font-size: var(--fs-meta);
-  line-height: var(--lh-meta);
 }
 
 .performance-window .vnote,
@@ -89,7 +85,6 @@
 .performance-realized-value {
   margin: 10px 0 0;
   font-size: var(--fs-figure);
-  line-height: var(--lh-figure);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
@@ -204,6 +199,5 @@
 
   .performance-metric dd {
     font-size: var(--fs-figure);
-    line-height: var(--lh-figure);
   }
 }

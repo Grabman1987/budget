@@ -9,7 +9,6 @@
   display: flex;
   justify-content: space-between;
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   color: var(--ink-3);
 }
 .dv {
@@ -68,7 +67,6 @@
 }
 .dv-val small {
   font-size: var(--fs-meta);
-  line-height: var(--lh-meta);
   color: var(--ink-3);
   white-space: nowrap;
 }

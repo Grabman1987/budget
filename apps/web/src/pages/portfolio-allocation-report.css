@@ -83,7 +83,6 @@
 .sb-fig figcaption {
   margin-top: 6px;
   font-size: var(--fs-chart-label);
-  line-height: var(--lh-chart-label);
   color: var(--ink-3);
   text-align: center;
 }
@@ -115,7 +114,6 @@
   display: block;
   color: var(--ink-3);
   font-size: var(--fs-meta);
-  line-height: var(--lh-meta);
 }
 .allocation-unheld .prep-product {
   color: var(--ink-3);
@@ -146,7 +144,6 @@
 .composition-line.is-class {
   padding-inline-start: 16px;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
 }
 .sb-composition .prep-swatch,
 .alloc-table .prep-swatch {
@@ -192,7 +189,6 @@
   stroke: var(--outer);
   stroke-width: 2px;
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
 }
 .sb-composition .sb-lbl-inv {
   fill: var(--alloc-inverse, var(--surface));

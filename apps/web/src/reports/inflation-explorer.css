@@ -23,6 +23,5 @@
 }
 .pi-explorer-category h3 {
   font-size: var(--fs-headline);
-  line-height: var(--lh-headline);
   margin: 0;
 }

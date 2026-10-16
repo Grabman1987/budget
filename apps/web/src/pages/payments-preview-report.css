@@ -27,7 +27,7 @@
   font-size: var(--fs-dimension);
   font-weight: 650;
   letter-spacing: -0.03em;
-  line-height: var(--lh-dimension);
+  line-height: 1.15;
 }
 .preview-average {
   margin: 12px 0;
@@ -64,7 +64,6 @@
   align-items: center;
   gap: 8px;
   font-size: var(--fs-chart-label);
-  line-height: var(--lh-chart-label);
 }
 .preview-swatch {
   width: 14px;
@@ -102,7 +101,6 @@
   white-space: nowrap;
   padding: 12px 8px;
   font-size: var(--fs-table);
-  line-height: var(--lh-table);
   text-align: right;
   border-bottom: 1px solid var(--rule);
 }
@@ -126,7 +124,6 @@
   display: block;
   color: var(--ink-3);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   font-weight: 400;
   margin-top: 4px;
 }
@@ -162,13 +159,11 @@
 @media (max-width: 700px) {
   .preview-chart text {
     font-size: var(--fs-chart-label);
-    line-height: var(--lh-chart-label);
   }
   .preview-table th:first-child {
     min-width: 135px;
     max-width: 150px;
     font-size: var(--fs-body);
-    line-height: var(--lh-body);
   }
   .preview-table th,
   .preview-table td {
@@ -176,7 +171,6 @@
   }
   .preview-events table {
     font-size: var(--fs-table);
-    line-height: var(--lh-table);
   }
   .preview-events th,
   .preview-events td {
@@ -184,6 +178,5 @@
   }
   .preview-head span {
     font-size: var(--fs-label);
-    line-height: var(--lh-label);
   }
 }

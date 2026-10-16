@@ -183,7 +183,6 @@
   color: var(--good);
   font-weight: 640;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   transition:
     transform var(--t-fast) var(--ease-out),
     background var(--t-fast) var(--ease-out);
@@ -328,7 +327,6 @@ button {
   background: var(--surface);
   color: var(--ink);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   font-weight: 600;
   box-shadow: var(--card-shadow);
 }
@@ -345,7 +343,6 @@ button {
   border-radius: var(--radius-sm);
   color: var(--ink-2);
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
 }
 .acct-edit-row .icon-btn {
   width: 26px;
@@ -365,7 +362,6 @@ button {
 .acct-group-title {
   min-width: 0;
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   letter-spacing: 0.07em;
 }
 .acct-group ul {
@@ -384,7 +380,6 @@ button {
   color: var(--ink-2);
   text-decoration: none;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   border: 1px solid transparent;
   transition:
     background var(--t-fast) var(--ease-out),
@@ -412,7 +407,6 @@ button {
 }
 .acct-amount {
   font-size: var(--fs-chart-label);
-  line-height: var(--lh-chart-label);
   font-weight: 560;
   font-variant-numeric: tabular-nums;
   color: var(--ink-2);
@@ -420,7 +414,6 @@ button {
 }
 .acct-group-bar .acct-amount {
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   color: var(--ink-3);
 }
 /* Negative balances retain their minus and use the owner's Z4 red ink. */

@@ -60,7 +60,6 @@
 }
 .payslip-intake-review .source-status dt {
   font-size: var(--fs-meta);
-  line-height: var(--lh-meta);
   color: var(--ink-3);
 }
 .payslip-intake-review .source-status dd {

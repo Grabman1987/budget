@@ -101,13 +101,11 @@
 }
 .contacts-balance {
   font-size: var(--fs-figure);
-  line-height: var(--lh-figure);
   font-weight: 640;
 }
 .contacts-balance span {
   display: block;
   font-size: var(--fs-table);
-  line-height: var(--lh-table);
   font-weight: 400;
 }
 .contacts-receipt {
@@ -124,7 +122,6 @@
   }
   .contacts-table td:last-child {
     font-size: var(--fs-label);
-    line-height: var(--lh-label);
   }
 }
 

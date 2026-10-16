@@ -87,9 +87,8 @@
   border-radius: 4px;
   background: var(--line);
   color: var(--ground);
-  font-family: var(--font-ui);
+  font-family: var(--font-tech);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
 }
 .kinbox-table .kact {
   display: flex;
@@ -107,7 +106,6 @@
 .inbox-hint {
   color: var(--ink-2);
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   margin-top: 16px;
 }
 .inbox-more {

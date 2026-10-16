@@ -19,7 +19,6 @@
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   white-space: nowrap;
 }
 .pp-scroll .rtable td,
@@ -79,7 +78,6 @@
   fill: var(--ink-2);
   font-family: var(--font-tech);
   font-size: var(--fs-chart-label);
-  line-height: var(--lh-chart-label);
 }
 .pp-grid {
   stroke: var(--rule);

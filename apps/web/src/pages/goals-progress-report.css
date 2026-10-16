@@ -71,7 +71,6 @@
   margin: 0 0 12px;
   color: var(--ink-3);
   font-size: var(--fs-meta);
-  line-height: var(--lh-meta);
   overflow-wrap: anywhere;
 }
 .goal-report-bar {
@@ -181,15 +180,12 @@
   }
   .goals-report-head > span {
     font-size: var(--fs-body);
-    line-height: var(--lh-body);
   }
   .goal-report-meta {
     font-size: var(--fs-body);
-    line-height: var(--lh-body);
   }
   .goals-report-table {
     font-size: var(--fs-body);
-    line-height: var(--lh-body);
   }
   .goals-report-table th:first-child {
     min-width: 135px;

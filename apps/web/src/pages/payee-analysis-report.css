@@ -40,7 +40,6 @@
   min-width: 0;
   margin: 0;
   font-size: var(--fs-headline);
-  line-height: var(--lh-headline);
   font-weight: 620;
 }
 
@@ -50,7 +49,6 @@
   color: var(--ink-2);
   font-family: var(--font-tech);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   font-variant-numeric: tabular-nums;
 }
 
@@ -69,14 +67,13 @@
   color: var(--ink-2);
   font-family: var(--font-tech);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
 }
 
 .payee-total strong {
   font-size: var(--fs-dimension);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
-  line-height: var(--lh-dimension);
+  line-height: 1.1;
 }
 
 .payee-analysis-report .chain-inline {
@@ -88,7 +85,7 @@
 .payee-scope {
   color: var(--ink-2);
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
+  line-height: 1.5;
 }
 
 .payee-chain-note {
@@ -97,7 +94,6 @@
 .payee-chart-title {
   margin: 20px 0 10px;
   font-size: var(--fs-table);
-  line-height: var(--lh-table);
   font-weight: 600;
 }
 .payee-note {
@@ -194,7 +190,6 @@
 .payee-bars li > strong {
   text-align: end;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -204,7 +199,6 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
 }
 
 .payee-compact-table {
@@ -225,7 +219,6 @@
   color: var(--ink-2);
   font-family: var(--font-tech);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   font-weight: 560;
 }
 
@@ -322,7 +315,6 @@
   }
   .payee-section-head h2 {
     font-size: var(--fs-title);
-    line-height: var(--lh-title);
   }
   .payee-state {
     text-align: end;
@@ -333,17 +325,14 @@
   }
   .payee-bars li > strong {
     font-size: var(--fs-label);
-    line-height: var(--lh-label);
   }
   .payee-bar-name {
     font-size: var(--fs-body);
-    line-height: var(--lh-body);
   }
   .payee-scroll {
     width: 100%;
   }
   .payee-scope {
     font-size: var(--fs-meta);
-    line-height: var(--lh-meta);
   }
 }

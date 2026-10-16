@@ -46,7 +46,6 @@
   .control-label {
     display: inline;
     font-size: var(--fs-body);
-    line-height: var(--lh-body);
   }
 }
 
@@ -61,7 +60,6 @@
   border-radius: var(--radius-md);
   font-weight: 600;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   white-space: nowrap;
   transition:
     background var(--t-fast) var(--ease-out),
@@ -99,13 +97,11 @@
   height: 34px;
   padding: 0 12px;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
 }
 .btn-xs {
   height: 28px;
   padding: 0 10px;
   font-size: var(--fs-chart-label);
-  line-height: var(--lh-chart-label);
 }
 @media (max-width: 767px) {
   /* Touch targets stay at least 44 px on phones. */
@@ -147,14 +143,13 @@
 .tb-title h1 {
   margin: 0;
   font-size: var(--fs-display);
-  line-height: var(--lh-display);
+  line-height: 1;
   font-weight: 650;
   letter-spacing: -0.02em;
 }
 .tb-title p {
   margin: 0;
   font-size: var(--fs-title);
-  line-height: var(--lh-title);
   color: var(--ink-2);
 }
 .tb-short {
@@ -176,7 +171,6 @@
 .tb-value {
   font-weight: 600;
   font-size: var(--fs-table);
-  line-height: var(--lh-table);
   white-space: nowrap;
   display: flex;
   align-items: center;
@@ -233,7 +227,6 @@
   }
   .month-switch h1 {
     font-size: var(--fs-headline);
-    line-height: var(--lh-headline);
     min-width: 0;
     flex: 1;
   }
@@ -344,14 +337,12 @@
 .head h3 {
   margin: 0;
   font-size: var(--fs-title);
-  line-height: var(--lh-title);
   font-weight: 620;
   letter-spacing: -0.005em;
 }
 .head .aside {
   margin-left: auto;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   color: var(--ink-2);
   display: flex;
   align-items: center;
@@ -368,7 +359,6 @@
   font-family: var(--font-tech);
   font-weight: 600;
   font-size: var(--fs-measure);
-  line-height: var(--lh-measure);
   color: var(--line);
   translate: 0 2px;
 }
@@ -376,7 +366,6 @@
   width: 24px;
   height: 24px;
   font-size: var(--fs-chart-label);
-  line-height: var(--lh-chart-label);
   translate: none;
 }
 
@@ -399,7 +388,6 @@
   border-radius: var(--radius-xs);
   font-weight: 550;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   color: var(--ink-2);
 }
 .seg button[aria-pressed='true'] {
@@ -474,8 +462,8 @@
   margin-bottom: 14px;
 }
 .field-row > label {
-  font-size: var(--fs-body);
-  line-height: var(--lh-body);
+  /* Form labels sit one step below body (T7) so dense dialogs keep their fold. */
+  font-size: var(--fs-table);
   font-weight: 560;
   color: var(--ink-2);
 }
@@ -506,14 +494,12 @@
   margin: 0;
   color: var(--red);
   font-size: var(--fs-chart-label);
-  line-height: var(--lh-chart-label);
   font-weight: 560;
 }
 .field-hint {
   margin: 0;
   color: var(--ink-3);
   font-size: var(--fs-chart-label);
-  line-height: var(--lh-chart-label);
 }
 
 /* Amount field: arithmetic in the field, operator buttons, evaluated hint below */
@@ -545,10 +531,10 @@
 }
 .amount-ops button {
   border-radius: var(--radius-xs);
-  font-family: var(--font-ui);
+  font-family: var(--font-tech);
   font-weight: 600;
   font-size: var(--fs-table);
-  line-height: var(--lh-table);
+  line-height: 1;
   color: var(--line);
   display: grid;
   place-items: center;
@@ -558,7 +544,6 @@
 }
 .amount-sign {
   font-size: var(--fs-figure);
-  line-height: var(--lh-figure);
   font-weight: 600;
   color: var(--ink-2);
 }
@@ -567,7 +552,6 @@
 }
 .amount-cur {
   font-size: var(--fs-headline);
-  line-height: var(--lh-headline);
   font-weight: 600;
   color: var(--ink-3);
 }
@@ -576,10 +560,10 @@
   outline: 0;
   background: transparent;
   min-width: 0;
+  min-height: var(--touch);
   width: 100%;
   text-align: right;
   font-size: var(--fs-display);
-  line-height: var(--lh-display);
   font-weight: 650;
   letter-spacing: -0.02em;
   color: var(--ink);
@@ -591,21 +575,18 @@
 .amount-hint {
   margin: 0;
   font-size: var(--fs-chart-label);
-  line-height: var(--lh-chart-label);
   color: var(--ink-3);
 }
 .amount-hint.is-result {
   color: var(--line);
   font-weight: 600;
-  font-family: var(--font-ui);
+  font-family: var(--font-tech);
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   letter-spacing: 0.03em;
 }
 @media (max-width: 767px) {
   .amount-input {
-    font-size: var(--fs-display);
-    line-height: var(--lh-display);
+    font-size: var(--fs-figure);
   }
   /* Phone: no operator buttons (owner 04.10.2026: too large); + − × ÷ can still be typed. */
   .amount-box {
@@ -675,13 +656,11 @@ button.ct-term:hover {
 }
 .ct-label {
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   white-space: nowrap;
 }
 .ct-val {
   font-weight: 620;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   white-space: nowrap;
 }
 button.ct-term .ct-val {
@@ -696,7 +675,6 @@ button.ct-term .ct-val {
   align-self: center;
   font-family: var(--font-tech);
   font-size: var(--fs-measure);
-  line-height: var(--lh-measure);
   font-weight: 600;
   color: var(--line);
   padding: 14px 2px 0;
@@ -712,7 +690,6 @@ button.ct-term .ct-val {
   border-bottom: 1px solid var(--line-2);
   text-align: left;
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
 }
 .ptable th.col-num {
   text-align: right;
@@ -745,7 +722,6 @@ button.ct-term .ct-val {
   min-height: 32px;
   font-weight: 640;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   vertical-align: middle;
 }
 .grp-toggle .lucide,
@@ -761,7 +737,6 @@ button.ct-term .ct-val {
   gap: 4px;
   margin-left: 10px;
   font-size: var(--fs-chart-label);
-  line-height: var(--lh-chart-label);
   font-weight: 500;
   color: var(--ink-3);
   vertical-align: middle;
@@ -769,7 +744,6 @@ button.ct-term .ct-val {
 .pos {
   font-family: var(--font-tech);
   font-size: var(--fs-measure);
-  line-height: var(--lh-measure);
   letter-spacing: 0.04em;
   color: var(--ink-3);
 }
@@ -828,7 +802,6 @@ button.ct-term .ct-val {
 }
 .rev-table th.tech {
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   padding: 6px 0 8px;
   border-bottom: 1px solid var(--rule);
 }
@@ -858,7 +831,6 @@ button.ct-term .ct-val {
   font-family: var(--font-tech);
   font-weight: 600;
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   fill: var(--line);
 }
 .rev-tri.is-urgent path,
@@ -874,14 +846,12 @@ button.ct-term .ct-val {
   display: block;
   font-weight: 600;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
 }
 .rev-row.is-urgent .rev-what strong {
   color: var(--red);
 }
 .rev-what span {
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   color: var(--ink-2);
 }
 .rev-act {
@@ -948,7 +918,6 @@ button.ct-term .ct-val {
   border-radius: var(--radius-titleblock);
   font-family: var(--font-tech);
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   font-weight: 500;
   letter-spacing: 0.04em;
   color: var(--ink-2);
@@ -965,7 +934,6 @@ button.ct-term .ct-val {
   gap: 6px;
   font-weight: 600;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
   color: var(--ink);
 }
 .status-met svg {
@@ -983,10 +951,9 @@ button.ct-term .ct-val {
   border-radius: var(--radius-xs);
   background: var(--line);
   color: var(--ground);
-  font-family: var(--font-ui);
+  font-family: var(--font-tech);
   font-weight: 600;
   font-size: var(--fs-label);
-  line-height: var(--lh-label);
   letter-spacing: 0.03em;
 }
 .count-alert {
@@ -1081,7 +1048,6 @@ dialog.sheet-bottom:not(.is-full) .overlay-inner {
 .panel-head h2 {
   margin: 0;
   font-size: var(--fs-title);
-  line-height: var(--lh-title);
   font-weight: 620;
 }
 .panel-head .icon-btn {
