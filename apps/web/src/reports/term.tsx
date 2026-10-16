@@ -12,10 +12,6 @@ const GLOSSARY = new Map<string, string>([
     'Die geldgewichtete Rendite berücksichtigt Höhe und Zeitpunkte deiner Ein- und Auszahlungen.',
   ],
   [
-    'Modified Dietz',
-    'Modified Dietz nähert die geldgewichtete Rendite an, indem Ein- und Auszahlungen nach ihrer Anlagedauer gewichtet werden.',
-  ],
-  [
     'Exposure',
     'Exposure beschreibt die wirtschaftliche Beteiligung an Anlagen oder Risiken, einschließlich einer möglichen Hebelwirkung.',
   ],

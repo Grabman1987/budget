@@ -146,13 +146,10 @@ function DepotsBody({ data, period }: { data: DepotComparison; period: Period })
         </div>
         <KpiTable columns={columns} />
         <p className="vnote">
-          TTWROR blendet Ein- und Auszahlungen aus und ist mit dem Vergleichswert vergleichbar; die
-          geldgewichtete Rendite (Modified Dietz) zeigt, was das Geld mit den Einzahlungszeitpunkten
-          verdient hat
-          {total.performance && total.performance.days > 365 ? ' (pro Jahr)' : ''}. Sharpe mit 2,5 %
-          sicherem Zins (bei Volatilität unter 0,5 % nicht aussagekräftig und daher ausgelassen).
-          Broker und Krypto zeigen Wertpapiere ohne Depotkassa; weitere Anlagekonten ihre
-          gespeicherten Werte und externen Flüsse; Gewinn ist Wert am Ende minus Wert am Anfang
+          TTWROR blendet Ein- und Auszahlungen aus und ist mit dem Vergleichswert vergleichbar.
+          Sharpe mit 2,5 % sicherem Zins (bei Volatilität unter 0,5 % nicht aussagekräftig und daher
+          ausgelassen). Broker und Krypto zeigen Wertpapiere ohne Depotkassa; weitere Anlagekonten
+          ihre gespeicherten Werte und externen Flüsse; Gewinn ist Wert am Ende minus Wert am Anfang
           minus Nettoflüsse.
         </p>
       </section>
@@ -275,7 +272,6 @@ function KpiTable({ columns }: { columns: DepotColumn[] }) {
     ],
     ['Gewinn', (d) => (d.performance ? <SignedMoney cents={d.performance.gainCents} /> : '–')],
     ['TTWROR', (d) => percentText(d.performance?.ttwror, { sign: true })],
-    ['Geldgewichtet', (d) => percentText(d.performance?.moneyWeighted, { sign: true })],
     ['Volatilität p. a.', (d) => percentText(d.performance?.volatility)],
     ['Max. Rückgang', (d) => percentText(d.performance?.maxDrawdown)],
     [

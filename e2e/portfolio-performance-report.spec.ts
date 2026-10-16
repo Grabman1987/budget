@@ -108,7 +108,11 @@ test('Renditebericht reads period metrics and lifetime gains with an empty open-
   await expect(
     page.locator('.performance-metric').filter({ hasText: 'TTWROR annualisiert' }).locator('dd'),
   ).toHaveText('+45,6 %');
-  await expect(page.getByText('annualisiert', { exact: true })).toBeVisible();
+  // Modified Dietz left the display (page review 16.10., #525); XIRR stays as the money-weighted figure.
+  await expect(
+    page.locator('.performance-metric').filter({ hasText: 'Modified Dietz' }),
+  ).toHaveCount(0);
+  await expect(page.locator('.performance-metric').filter({ hasText: 'XIRR' })).toHaveCount(1);
   await expect(page.getByTestId('realized-gain')).toHaveText('+1.234,56 €');
   await expect(page.getByRole('heading', { name: /Wertpapiere · letzte 12 Monate/ })).toBeVisible();
   await expect(page.getByText('Ansicht ohne Depotkassa')).toBeVisible();

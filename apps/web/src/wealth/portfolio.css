@@ -325,6 +325,52 @@
 .portfolio-overview svg {
   max-width: 100%;
 }
+.portfolio-chart-line-0 {
+  --portfolio-series: var(--line);
+}
+.portfolio-chart-line-1 {
+  --portfolio-series: var(--future);
+}
+.portfolio-chart-line-2 {
+  --portfolio-series: var(--want);
+}
+.portfolio-chart-line-3 {
+  --portfolio-series: var(--ink-3);
+}
+.portfolio-chart-line-4 {
+  --portfolio-series: var(--ink-2);
+}
+.portfolio-chart-line .l-actual,
+.portfolio-chart-line .l-prev {
+  stroke: var(--portfolio-series);
+}
+.portfolio-chart-line-2 .l-prev {
+  stroke-dasharray: 8 3 2 3;
+}
+.portfolio-chart-line-3 .l-prev {
+  stroke-dasharray: 4 3 2 3;
+}
+.portfolio-chart-line-4 .l-prev {
+  stroke-dasharray: 16 4 2 4;
+}
+.portfolio-chart-legends,
+.portfolio-chart-legends > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+.portfolio-chart-legends {
+  gap: var(--space-lg);
+  font-size: var(--fs-chart-label);
+  color: var(--ink-2);
+}
+.portfolio-deposit-marker,
+.portfolio-withdrawal-marker {
+  fill: var(--surface);
+  stroke: var(--line);
+  stroke-width: 2;
+}
 .portfolio-lead-gain {
   font-weight: 620;
 }

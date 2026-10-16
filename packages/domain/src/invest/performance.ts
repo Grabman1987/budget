@@ -1,5 +1,5 @@
 import { calendarRangeWindow, isCalendarRange, type CalendarRange } from '../report-range';
-import { addMonths, daysBetween, lastDayOfMonth } from '../date';
+import { addDays, addMonths, daysBetween, lastDayOfMonth } from '../date';
 import { irr, modifiedDietz, periodReturn, type CashFlow, type Valuation } from './returns';
 
 /**
@@ -88,6 +88,18 @@ export function dailyReturns(
     if (rate !== null) out.push({ date: cur.date, rate });
   }
   return out;
+}
+
+/** Contiguous return days, including the preceding closing valuation as each base. */
+export function returnWindows(daily: ReadonlyArray<DailyReturn>): Window[] {
+  const windows: Window[] = [];
+  for (const { date } of daily) {
+    const from = addDays(date, -1);
+    const previous = windows.at(-1);
+    if (previous?.to === from) previous.to = date;
+    else windows.push({ from, to: date });
+  }
+  return windows;
 }
 
 /** The monthly boundaries of a window: `from`, every month end before `to`, `to`. */
@@ -285,10 +297,14 @@ export function windowPerformance(input: PerformanceInput, window: Window): Wind
     if (valued.length === 0) continue;
     months.push(chain(valued.map((d) => d.rate)));
     if (benchmarkOk) {
-      const la = levelOn(input.benchmark ?? [], a);
-      const lb = levelOn(input.benchmark ?? [], b);
-      if (la === undefined || lb === undefined || la === 0) benchmarkOk = false;
-      else benchmarkMonths.push(lb / la - 1);
+      let level = 1;
+      for (const segment of returnWindows(valued)) {
+        const la = levelOn(input.benchmark ?? [], segment.from);
+        const lb = levelOn(input.benchmark ?? [], segment.to);
+        if (la === undefined || lb === undefined || la <= 0) benchmarkOk = false;
+        else level *= lb / la;
+      }
+      benchmarkMonths.push(level - 1);
     }
   }
   const years = days / 365;
