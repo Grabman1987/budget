@@ -167,10 +167,10 @@
   color: var(--ink-3);
 }
 .dl-good {
-  color: var(--good-ink);
+  color: var(--plus-ink);
 }
 .dl-bad {
-  color: var(--bad-ink);
+  color: var(--minus-ink);
 }
 .rg-all td,
 .rg-all th.n {

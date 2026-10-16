@@ -49,10 +49,10 @@
   font-variant-numeric: tabular-nums;
 }
 .sr-state.is-good {
-  color: var(--good-ink);
+  color: var(--plus-ink);
 }
 .sr-state.is-bad {
-  color: var(--bad-ink);
+  color: var(--minus-ink);
 }
 .sr-range {
   margin: 6px 0 0;
@@ -209,10 +209,10 @@ a.sr-name:hover {
   font-variant-numeric: tabular-nums;
 }
 .is-better {
-  color: var(--good-ink);
+  color: var(--plus-ink);
 }
 .is-worse {
-  color: var(--bad-ink);
+  color: var(--minus-ink);
 }
 
 /* Changes: bars grow from the middle, left = less, right = more spent. */
@@ -233,12 +233,12 @@ a.sr-name:hover {
 }
 .sr-moves .sr-track i {
   inset: 0 auto 0 50%;
-  background: var(--bad-ink);
+  background: var(--minus-ink);
   opacity: 0.55;
 }
 .sr-moves .sr-track i.is-less {
   inset: 0 50% 0 auto;
-  background: var(--good-ink);
+  background: var(--plus-ink);
 }
 .sr-moves .sr-val {
   grid-auto-flow: column;
@@ -382,7 +382,7 @@ a.sr-name:hover {
   background: var(--ink);
 }
 .sr-bl.is-over .sr-bl-diff {
-  color: var(--bad-ink);
+  color: var(--minus-ink);
   font-weight: 620;
 }
 .sr-bl-diff {
@@ -399,10 +399,10 @@ a.sr-name:hover {
   white-space: nowrap;
 }
 .sr-status.is-ok {
-  color: var(--good-ink);
+  color: var(--good);
 }
 .sr-status.is-action {
-  color: var(--bad-ink);
+  color: var(--red);
   font-weight: 600;
 }
 
@@ -482,7 +482,7 @@ a.sr-name:hover {
 }
 .sr-523-rest {
   background: var(--good-soft);
-  box-shadow: inset 0 0 0 1px var(--good-ink);
+  box-shadow: inset 0 0 0 1px var(--good);
 }
 .sr-523-mark {
   position: absolute;
@@ -492,7 +492,7 @@ a.sr-name:hover {
 }
 .sr-523-mark.is-full {
   width: 2px;
-  background: var(--bad-ink);
+  background: var(--minus-ink);
 }
 .sr-523-num {
   text-align: right;
@@ -505,7 +505,7 @@ a.sr-name:hover {
 }
 .sw-rest {
   background: var(--good-soft);
-  box-shadow: inset 0 0 0 1px var(--good-ink);
+  box-shadow: inset 0 0 0 1px var(--good);
 }
 .sr-month-switch {
   display: inline-flex;
@@ -709,12 +709,12 @@ a.sr-state {
 .sr-pp i {
   position: absolute;
   inset: 0 auto 0 0;
-  background: var(--bad-ink);
+  background: var(--minus-ink);
   opacity: 0.6;
   border-radius: 1px;
 }
 .sr-pp i.is-neg {
-  background: var(--good-ink);
+  background: var(--plus-ink);
 }
 
 .sr-term {

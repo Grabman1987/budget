@@ -10,7 +10,7 @@ export interface Bar {
 
 /**
  * Bars around a zero line in their own band (no second y-axis).
- * `ink` = solid ink (own contribution), `pale` = pale ink (market), `signed` = pastel direction
+ * `ink` = solid ink (own contribution), `pale` = pale ink (market), `signed` = teal/orange direction
  * colours, only for signed changes. Direction is also readable from the bar's side of zero.
  */
 export type BarTone = 'ink' | 'pale' | 'signed';

@@ -96,7 +96,7 @@
   fill: var(--line);
 }
 .pp-positive {
-  fill: var(--heat-green);
+  fill: var(--plus-ink);
   stroke: var(--line);
 }
 .pp-negative {

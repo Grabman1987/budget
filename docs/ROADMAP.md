@@ -105,6 +105,14 @@ Owner follow-up #499: new cash capture is confirmed automatically; bank capture 
 - [x] Final-head CI and Linux snapshot workflow passed without baseline changes; main CI 38711473445 and automatic Deploy 38713559449 succeeded. Public health returned exact merge `514ed362ea7cbb422c60667003a5296e76904084`; tested-head ancestry verified. #463 closed after this evidence.
 - [ ] Physical-iPhone owner acceptance remains separate.
 
+## UX DS1 — signed-value palette and colour roles (#472)
+
+- [x] Exact owner teal/orange inks in generated light, system-dark, explicit themes and print; legacy signed-ink aliases retained.
+- [x] Signed CSS amounts/series use dedicated roles; available-money/OK green and act-now red stay distinct. No layout or money logic changes.
+- [x] Signed text reaches 4.5:1 on the five normal surfaces; role model and later single-hue heatmap/direct-label requirements documented in DESIGN.md.
+- [x] Colour-vision guard: Machado severity 1.0, CIE Delta E 1976 ≥ 25 between plus and minus (dark protanopia 29.12 is the minimum; retired red/green 7–18). Spending views map "less spent" to plus.
+- [ ] Green full check, browser acceptance and Linux CI snapshot refresh; no Windows baseline regeneration.
+
 ## UX Q1 — control and metadata contrast (#464)
 
 - [x] Generated boundaries, secondary lines and positive dark fills meet 3:1; text and positive-button foregrounds meet 4.5:1, including print.

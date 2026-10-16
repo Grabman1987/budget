@@ -139,12 +139,12 @@ button {
 .text-alert {
   color: var(--red);
 }
-/* Signed changes only (never status): pastel direction inks */
+/* Signed changes only (never status): teal plus / orange minus. */
 .text-good {
-  color: var(--good-ink);
+  color: var(--plus-ink);
 }
 .text-bad {
-  color: var(--bad-ink);
+  color: var(--minus-ink);
 }
 .text-muted {
   color: var(--ink-3);

@@ -152,7 +152,7 @@ test('negative bars contrast with the chart surface in both themes', async ({ pa
       .poll(() =>
         bar.evaluate((el) => {
           const probe = document.createElement('span');
-          probe.style.color = 'var(--red)';
+          probe.style.color = 'var(--minus-ink)';
           document.body.append(probe);
           const expected = getComputedStyle(probe).color;
           probe.remove();

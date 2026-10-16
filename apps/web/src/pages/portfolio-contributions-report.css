@@ -67,11 +67,11 @@
   stroke-width: 1;
 }
 .contributions-bar-positive {
-  fill: var(--good);
+  fill: var(--plus-ink);
   opacity: 0.72;
 }
 .contributions-bar-negative {
-  fill: var(--red);
+  fill: var(--minus-ink);
 }
 .contributions-legend {
   display: flex;

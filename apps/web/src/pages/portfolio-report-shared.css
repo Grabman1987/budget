@@ -42,10 +42,10 @@
   text-decoration-color: var(--line);
 }
 .prep-good {
-  color: var(--good-ink);
+  color: var(--plus-ink);
 }
 .prep-bad {
-  color: var(--bad-ink);
+  color: var(--minus-ink);
 }
 .prep-muted {
   color: var(--ink-3);

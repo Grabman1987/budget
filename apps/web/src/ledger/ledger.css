@@ -575,10 +575,10 @@
   font-weight: 400;
 }
 .ktx .is-upcoming .kupcoming-positive {
-  color: color-mix(in srgb, var(--good-ink) 70%, var(--ink-3));
+  color: color-mix(in srgb, var(--plus-ink) 70%, var(--ink-3));
 }
 .ktx .is-upcoming .kupcoming-negative {
-  color: color-mix(in srgb, var(--bad-ink) 70%, var(--ink-3));
+  color: color-mix(in srgb, var(--minus-ink) 70%, var(--ink-3));
 }
 /* Next occurrence: the name on the left, the two actions as small ghost buttons on its right. */
 .kschedule-line {
@@ -1397,7 +1397,7 @@
   color: var(--ink-2);
 }
 .kcleared.is-on {
-  color: var(--good-ink);
+  color: var(--good);
 }
 .kcleared.is-on:hover {
   background: var(--good-soft);

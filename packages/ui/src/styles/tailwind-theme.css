@@ -27,8 +27,10 @@
   --color-tint-2: var(--tint-2);
   --color-heat-red: var(--heat-red);
   --color-heat-green: var(--heat-green);
-  --color-good-ink: var(--good-ink);
-  --color-bad-ink: var(--bad-ink);
+  --color-plus-ink: var(--plus-ink);
+  --color-minus-ink: var(--minus-ink);
+  --color-good-ink: var(--plus-ink);
+  --color-bad-ink: var(--minus-ink);
 
   /* Literal copies of the generated scale-tokens.css / scales.css tokens of the same name (a unit test keeps them in sync). */
   --font-ui: 'Archivo', 'Segoe UI', system-ui, sans-serif;

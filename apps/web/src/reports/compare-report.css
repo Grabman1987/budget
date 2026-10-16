@@ -54,11 +54,11 @@
 }
 .dv-track i.is-more {
   left: 50%;
-  background: var(--ink-2);
+  background: var(--minus-ink);
 }
 .dv-track i.is-less {
   right: 50%;
-  background: var(--heat-green);
+  background: var(--plus-ink);
 }
 .dv-val {
   display: grid;
