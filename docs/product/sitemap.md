@@ -11,7 +11,7 @@ This inventories registered destinations, not acceptance or screenshot evidence.
 Budget
 ├── Access: /setup, /login
 ├── Heute: /
-├── Plan: Monat, Jahr, Wiederkehrende Zahlungen, Sparziele
+├── Plan: Monat, Jahr, Zahlungen, Ziele, Prognose (Seitenreview 16.10.2026)
 ├── Konten: Übersicht, Buchungen, Posteingang, Kontakte
 ├── Vermögen: Nettovermögen, Portfolio, Schulden, Freiheit
 ├── Reports: catalog → five groups → 34 reports
@@ -34,11 +34,11 @@ exceptions. Form dialogs remain forms. No new third-level primary menu is propos
 | Settings overview | `/einstellungen` |
 | Plan · Monat | `/plan/monat` |
 | Plan · Jahr | `/plan/jahr` |
-| Plan · Wiederkehrende Zahlungen | `/plan/erwartet` |
+| Plan · Zahlungen (Seite „Zahlungen und Abos“) | `/plan/erwartet` |
 | Plan · Sparziele | `/plan/sparziele` |
 | Konten | `/konten` |
 | Alle Buchungen | `/konten/buchungen` |
-| Posteingang | `/konten/posteingang` |
+| Prüfen (früher Posteingang; alte Adresse leitet weiter) | `/konten/posteingang` → `/konten/pruefen` |
 | Kontakte | `/konten/kontakte` |
 | Vermögen · Nettovermögen | `/vermoegen/nettovermoegen` |
 | Vermögen · Portfolio | `/vermoegen/portfolio` |
@@ -125,7 +125,7 @@ Group route: `/reports/gruppe/zukunft`.
 
 | Report | Path |
 | --- | --- |
-| Liquiditätsprognose | `/reports/liquiditaet` |
+| Liquiditätsprognose → Plan › Prognose (Report-Slug leitet weiter) | `/reports/liquiditaet` → `/plan/prognose` |
 | Cashflow-Verlauf | `/reports/cashflow` |
 | Vermögensverläufe | `/reports/vermoegen` |
 | Jahresvorschau Zahlungen | `/reports/vorschau` |
