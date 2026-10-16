@@ -117,9 +117,9 @@ export function CategoryTrend({ series, previous }: { series: Series[]; previous
                     p.spentCents === null ? null : (
                       <rect
                         key={`${p.month}-bar`}
-                        x={x(j) - Math.min(((width - 60) / months.length) * 0.56, 4) / 2}
+                        x={x(j) - ((width - 60) / months.length) * 0.28}
                         y={Math.min(y(0), y(p.spentCents))}
-                        width={Math.min(((width - 60) / months.length) * 0.56, 4)}
+                        width={((width - 60) / months.length) * 0.56}
                         height={Math.abs(y(0) - y(p.spentCents))}
                         fill={
                           s.category.class === 'want' || s.category.class === 'future'

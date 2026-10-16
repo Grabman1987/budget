@@ -122,9 +122,9 @@ export function CategoryChart({
             {points.map((p, i) => (
               <rect
                 key={p.month}
-                x={x(i) - Math.min(bw * 0.56, 4) / 2}
+                x={x(i) - bw * 0.28}
                 y={Math.min(y(0), y(p.spentCents / 100))}
-                width={Math.min(bw * 0.56, 4)}
+                width={bw * 0.56}
                 height={Math.abs(y(0) - y(p.spentCents / 100))}
                 fill={p.spentCents < 0 ? 'var(--ink-2)' : fill}
                 stroke={cls === 'need' ? undefined : `var(--${cls})`}

@@ -449,7 +449,7 @@ haarlinig; Fokusrahmen behalten 2 px.
 
 Fortschrittsbalken sind 3–4 px (`--bar-progress-small`, `--bar-progress`),
 Stapelbalken höchstens 10 px (`--bar-stacked`) mit 38–60 % Tönung
-(`--bar-tint`: 50 %). Die dünne Zeichnung verkleinert keine 44-px-Trefffläche.
+(`--bar-tint`: 50 %). Die dünne Zeichnung verkleinert keine 44-px-Trefffläche. Säulen in Diagrammen sind Datenmarken mit Hover-/Tippziel und behalten ihre Breite; die 3–4-px-Regel gilt nur für Fortschritts-, Plan- und Budgetbalken.
 Die Radienleiter ist 4 · 8 · 12 px, Pille nur für Status und 50 % für runde
 Elemente. Ausnahmen: Diagrammmarken 1 px, Schriftfeld 2 px, Quellstempel 3 px.
 Karten haben eine Schattenlage (hell `0 1px 2px rgba(15, 34, 64, 0.04)`,
