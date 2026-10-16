@@ -405,7 +405,13 @@ test('manual buy, partial sell, source edit and group undo refresh holdings and 
     .getByRole('link', { name: account.name, exact: true })
     .click();
   await expect(page).toHaveURL(new RegExp(`/konten/${account.id}`));
-  await expect(page.getByTestId('account-balance')).toHaveText('2.284,00 €');
+  // Holdings: (10 bought - 4 sold) * EUR 120 quote = EUR 720.
+  // Own cash: 2,000 opening - 1,000 buy - 10 fee + 600 sale - 6 fee - 20 tax = 1,564.
+  // Together these retain the old EUR 2,284 account total without a second Saldo.
+  await expect(page.getByTestId('depot-value')).toHaveText('720,00 €');
+  await expect(page.getByTestId('depot-cash')).toHaveText('Bargeld im Depotkonto: 1.564,00 €');
+  await page.getByRole('link', { name: 'Verrechnung', exact: true }).click();
+  await expect(page.locator(`[data-booking="${sale.bookingId}"]`)).toBeVisible();
 });
 
 test('validation, server retry, busy guard and explicit discard retain source draft', async ({

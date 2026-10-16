@@ -19,7 +19,7 @@ test('checks off-budget accounts, updates manual values with undo and prepares t
     return response.json();
   };
   const accounts = [];
-  for (const type of ['checking', 'loan', 'brokerage', 'p2p', 'other_asset']) {
+  for (const type of ['checking', 'loan', 'brokerage', 'crypto', 'p2p', 'other_asset']) {
     const { account } = await write('POST', '/accounts', {
       name: `Muster ${type}`,
       type,
@@ -36,7 +36,7 @@ test('checks off-budget accounts, updates manual values with undo and prepares t
     date: '2026-09-07',
     statementBalanceCents: 0,
   });
-  await write('PUT', `/accounts/${accounts[3].id}/valuation`, {
+  await write('PUT', `/accounts/${accounts[4].id}/valuation`, {
     date: '2026-09-06',
     valueCents: 12501,
   });
@@ -59,14 +59,29 @@ test('checks off-budget accounts, updates manual values with undo and prepares t
     }
   };
   await review('overview');
-  for (const account of accounts.slice(0, 3)) {
+  for (const account of accounts.slice(0, 4)) {
     await page.goto(`/konten/${account.id}`);
     const button = page.getByRole('button', { name: 'Kontostand prüfen', exact: true });
     await expect(button).toBeVisible();
     if (info.project.name === 'mobile')
       expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    if (account.type === 'brokerage' || account.type === 'crypto') {
+      const status = page.getByRole('group', { name: 'Datenstand', exact: true });
+      await expect(status).toContainText('Kontostand geprüft');
+      await expect(status.locator('strong')).toHaveText('Unbekannt');
+      await button.click();
+      const dialog = page.getByRole('dialog', { name: `Kontostand prüfen · ${account.name}` });
+      await dialog.getByLabel('Bargeld-Saldo (ohne Wertpapiere)', { exact: true }).fill('0');
+      await dialog.getByRole('button', { name: /Festschreiben/ }).click();
+      await expect(dialog).toBeHidden();
+      await expect(status.locator('strong')).toHaveText('11.10.2026');
+      await page.goto(`/konten/${account.id}?pruefen=reconcile`);
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
+      await expect(page).not.toHaveURL(/pruefen=/);
+    }
   }
-  for (const account of accounts.slice(3)) {
+  for (const account of accounts.slice(4)) {
     await page.goto(`/konten/${account.id}`);
     await page.getByRole('button', { name: 'Wert aktualisieren', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: `Wert aktualisieren · ${account.name}` });
