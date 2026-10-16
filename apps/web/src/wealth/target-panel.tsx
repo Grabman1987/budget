@@ -1,4 +1,14 @@
-import { defaultBandBp, parseScaledDecimal, type ManagedTarget } from '@budget/domain';
+import {
+  defaultBandBp,
+  parseScaledDecimal,
+  parseAmount,
+  targetTierStarts,
+  targetTiersFromStarts,
+  WEALTH_STAGE_ROLES,
+  wealthStageTemplate,
+  type WealthStageRole,
+  type ManagedTarget,
+} from '@budget/domain';
 import { Button, Field, Select, TextInput, maskMoneyText } from '@budget/ui';
 import { useBlocker } from '@tanstack/react-router';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
@@ -6,6 +16,9 @@ import { request } from '../api/http';
 import { errorText } from '../ledger/labels';
 import { useAssetWrite } from '../pages/asset-classes-api';
 import type { PortfolioAllocationView, TargetVersion } from './allocation-api';
+import type { AllocationAccountChange } from '@budget/db';
+import { AllocationScopeEditor } from './allocation-scope-editor';
+import { AppLink } from '../shell/app-link';
 import { SettingsFormDialog } from '../pages/settings-form-dialog';
 
 export const bpText = (bp: number) =>
@@ -124,7 +137,12 @@ export function AssetSettingsPanel({
   );
 }
 type Entry = { included: boolean; share: string; bandMode: 'standard' | 'custom'; band: string };
-type TierDraft = { limit: string; entries: Record<string, Entry> };
+type TierDraft = {
+  limit: string;
+  entries: Record<string, Entry>;
+  label?: string;
+  condition?: string;
+};
 function entriesFor(view: PortfolioAllocationView, targets: ManagedTarget[]) {
   return Object.fromEntries(
     view.classes.map((c) => {
@@ -151,15 +169,26 @@ export function TargetEditor({
   versions: TargetVersion[];
   archiveClassId?: string | undefined;
 }) {
+  const [allocationAccounts, setAllocationAccounts] = useState<AllocationAccountChange[]>([]);
+  const [exampleClasses, setExampleClasses] = useState<Record<WealthStageRole, string>>({
+    world: '',
+    leveraged: '',
+    managed: '',
+    reserve: '',
+  });
+  const [confirmExample, setConfirmExample] = useState(false);
+  const [exampleOpen, setExampleOpen] = useState(false);
   const initial = versions.filter((v) => v.validFrom <= view.asOf).at(-1);
   const [date, setDate] = useState(view.asOf),
     [label, setLabel] = useState(initial?.label ?? ''),
     [reason, setReason] = useState(initial?.reason ?? '');
   const [tiers, setTiers] = useState<TierDraft[]>(() =>
     initial?.tiers.length
-      ? initial.tiers.map((t) => ({
-          limit: t.upToCents === null ? '' : bpText(t.upToCents),
+      ? initial.tiers.map((t, i) => ({
+          limit: bpText(targetTierStarts(initial.tiers)[i]!),
           entries: entriesFor(view, t.targets),
+          label: t.label ?? '',
+          condition: t.condition ?? '',
         }))
       : [{ limit: '', entries: entriesFor(view, initial?.targets ?? []) }],
   );
@@ -196,9 +225,11 @@ export function TargetEditor({
     setSelected(0);
     setTiers(
       v.tiers.length
-        ? v.tiers.map((t) => ({
-            limit: t.upToCents === null ? '' : bpText(t.upToCents),
+        ? v.tiers.map((t, i) => ({
+            limit: bpText(targetTierStarts(v.tiers)[i]!),
             entries: entriesFor(view, t.targets),
+            label: t.label ?? '',
+            condition: t.condition ?? '',
           }))
         : [{ limit: '', entries: entriesFor(view, v.targets) }],
     );
@@ -245,24 +276,28 @@ export function TargetEditor({
           ': Die Sollquoten ergeben ' +
           bpText(sums[i]!) +
           ' %. Erforderlich sind genau 100,00 %.';
-      let upToCents: number | null = null;
-      if (dynamic && i < tiers.length - 1) {
-        const raw = tier.limit.trim().replace(',', '.');
-        if (!/^\d{1,12}(\.\d{1,2})?$/.test(raw))
-          nextErrors['limit:' + i] = 'Bitte eine positive Stufengrenze in Euro eingeben.';
-        else upToCents = parseScaledDecimal(raw, 2);
-        if (!upToCents)
-          nextErrors['limit:' + i] = 'Bitte eine positive Stufengrenze in Euro eingeben.';
+      let fromCents = 0;
+      if (dynamic && i > 0) {
+        const parsed = parseAmount(tier.limit.replace(/,[-–]\s*$/, ',00'));
+        if (!parsed.ok || parsed.cents <= 0)
+          nextErrors['limit:' + i] = 'Bitte einen positiven Betrag für „Ab Vermögen“ eingeben.';
+        else fromCents = parsed.cents;
       }
-      return { upToCents, targets };
+      return {
+        fromCents,
+        targets,
+        label: tier.label ?? '',
+        condition: tier.condition ?? '',
+      };
     });
-    for (let i = 1; i < prepared.length - 1; i++)
-      if (prepared[i]!.upToCents! <= prepared[i - 1]!.upToCents!)
-        nextErrors['limit:' + i] = 'Stufengrenzen müssen aufsteigend sein.';
+    for (let i = 1; i < prepared.length; i++)
+      if (prepared[i]!.fromCents <= prepared[i - 1]!.fromCents)
+        nextErrors['limit:' + i] = 'Vermögensstufen müssen aufsteigend sein.';
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);
-      const bad = Object.keys(nextErrors).find((k) => /^\d+:/.test(k));
-      if (bad) setSelected(Number(bad.split(':')[0]));
+      const bad = Object.keys(nextErrors).find((k) => /^(\d+:|limit:)/.test(k));
+      if (bad)
+        setSelected(Number(bad.startsWith('limit:') ? bad.split(':')[1] : bad.split(':')[0]));
       return;
     }
     saving.current = true;
@@ -276,7 +311,8 @@ export function TargetEditor({
             label: label || null,
             reason: reason || null,
             targets: prepared[0]!.targets,
-            tiers: dynamic ? prepared : [],
+            tiers: dynamic ? targetTiersFromStarts(prepared) : [],
+            ...(allocationAccounts.length ? { allocationAccounts } : {}),
             ...(archiveClassId ? { archiveClassId } : {}),
           }),
         archiveClassId
@@ -304,6 +340,97 @@ export function TargetEditor({
       }}
     >
       <fieldset disabled={busy}>
+        <AllocationScopeEditor
+          view={view}
+          changes={allocationAccounts}
+          onChange={(next) => {
+            changed();
+            setAllocationAccounts(next);
+          }}
+        />
+        <h3>2. Sollmodell und Vermögensstufen</h3>
+        <p className="vnote">
+          <AppLink to="/einstellungen/anlageklassen" search={{}}>
+            Anlageklassen und Wertpapiere verwalten
+          </AppLink>
+        </p>
+        <details
+          className="wealth-details"
+          open={exampleOpen}
+          onToggle={(e) => setExampleOpen(e.currentTarget.open)}
+        >
+          <summary>Beispielplan mit sieben Vermögensstufen</summary>
+          <p className="vnote">
+            0 / 10.000 / 50.000 / 100.000 / 500.000 / 1 Mio. / 2 Mio. €. Ordne zuerst vorhandene
+            Anlageklassen zu. Ihre Wertpapiere bleiben erhalten. Jede Stufe ist anschließend frei
+            bearbeitbar.
+          </p>
+          {WEALTH_STAGE_ROLES.map(([role, name]) => (
+            <Field key={role} label={'Vorlage · ' + name}>
+              {({ id }) => (
+                <Select
+                  id={id}
+                  value={exampleClasses[role]}
+                  onChange={(e) => {
+                    setExampleClasses({ ...exampleClasses, [role]: e.target.value });
+                    setConfirmExample(false);
+                  }}
+                >
+                  <option value="">Anlageklasse auswählen</option>
+                  {view.classes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          ))}
+          <p className="vnote">
+            Start: 85 % Weltaktien und 15 % Aktien mit Hebel; als Sparratenbeispiel 340 € + 60 € pro
+            Monat. Ab 10.000 €: 75 / 5 / 20 %. Ab 500.000 € bei Liquiditätsbedarf: 65 / 5 / 20 / 10
+            %. Ab 1 Mio. € bei Entnahmen: 60 / 5 / 20 / 15 %.
+          </p>
+          <p className="vnote">
+            Jede Stufe gilt automatisch ab ihrem Schwellenwert; die Voraussetzung ist ein Hinweis.
+            Eine erreichte Stufe bleibt aktiv, bis die Anlagesumme an einem Monatsende 10 % unter
+            ihren Schwellenwert fällt. Sparraten werden hier nicht geändert.
+          </p>
+          {confirmExample && (
+            <p role="alert">Die Vorlage ersetzt deine ungespeicherten Stufen und Quoten.</p>
+          )}
+          <Button
+            variant="ghost"
+            onClick={() => {
+              if (dirty && !confirmExample) {
+                setConfirmExample(true);
+                return;
+              }
+              try {
+                const template = wealthStageTemplate(exampleClasses);
+                changed();
+                setDynamic(true);
+                setSelected(0);
+                setLabel('Vermögensstufen');
+                setTiers(
+                  template.map((t, i) => ({
+                    limit: bpText(targetTierStarts(template)[i]!),
+                    entries: entriesFor(view, t.targets),
+                    label: t.label ?? '',
+                    condition: t.condition ?? '',
+                  })),
+                );
+                setConfirmExample(false);
+                setExampleOpen(false);
+              } catch (e) {
+                setErrors({ form: errorText(e) });
+              }
+            }}
+          >
+            {confirmExample ? 'Stufen durch Beispielplan ersetzen' : 'Beispielplan übernehmen'}
+          </Button>
+        </details>
+
         <Field label="Vorlage">
           {({ id }) => (
             <Select
@@ -399,8 +526,8 @@ export function TargetEditor({
               setSelected(0);
               setTiers(
                 e.target.checked
-                  ? [1000000, 2000000, 5000000, null].map((limit) => ({
-                      limit: limit === null ? '' : bpText(limit),
+                  ? [0, 1000000, 2000000, 5000000].map((limit) => ({
+                      limit: bpText(limit),
                       entries: { ...tiers[0]!.entries },
                     }))
                   : [tiers[selected]!],
@@ -412,8 +539,9 @@ export function TargetEditor({
         {dynamic && (
           <>
             <p className="vnote">
-              Depots + Anlage-Cash einschließlich negativer Salden. Die Grenze gehört zur
-              niedrigeren Stufe; jedes Monatsende wählt seine eigene Stufe.
+              Die Stufe gilt ab dem eingetragenen Vermögen in den ausgewählten Konten,
+              einschließlich negativer Salden. Jedes Monatsende wählt seine eigene Stufe.
+              Sollgewichte lösen keine Kauf- oder Verkaufsaufträge aus.
             </p>
             <Field label="Stufe bearbeiten">
               {({ id }) => (
@@ -424,14 +552,14 @@ export function TargetEditor({
                 >
                   {tiers.map((t, i) => (
                     <option key={i} value={i}>
-                      {i === tiers.length - 1 ? 'Darüber' : 'Bis ' + t.limit + ' €'}
+                      {'Ab ' + (i === 0 ? '0,00' : t.limit || '…') + ' €'}
                     </option>
                   ))}
                 </Select>
               )}
             </Field>
-            {selected < tiers.length - 1 && (
-              <Field label="Stufengrenze (€)" error={errors['limit:' + selected]}>
+            {selected > 0 && (
+              <Field label="Ab Vermögen (€)" error={errors['limit:' + selected]}>
                 {({ id, invalid, describedBy }) => (
                   <TextInput
                     id={id}
@@ -449,25 +577,53 @@ export function TargetEditor({
                 )}
               </Field>
             )}
+            <Field label="Name der Vermögensstufe (optional)">
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  maxLength={80}
+                  value={tier.label ?? ''}
+                  onChange={(e) => {
+                    changed();
+                    setTiers(
+                      tiers.map((t, i) => (i === selected ? { ...t, label: e.target.value } : t)),
+                    );
+                  }}
+                />
+              )}
+            </Field>
+            <Field label="Voraussetzung für diese Stufe (optional)">
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  maxLength={240}
+                  value={tier.condition ?? ''}
+                  onChange={(e) => {
+                    changed();
+                    setTiers(
+                      tiers.map((t, i) =>
+                        i === selected ? { ...t, condition: e.target.value } : t,
+                      ),
+                    );
+                  }}
+                />
+              )}
+            </Field>
             <div className="asset-actions">
               <Button
                 variant="ghost"
                 disabled={tiers.length >= 10}
                 onClick={() => {
                   changed();
-                  setSelected(tiers.length - 1);
-                  setTiers([
-                    ...tiers.slice(0, -1),
-                    { limit: '', entries: { ...tiers.at(-1)!.entries } },
-                    tiers.at(-1)!,
-                  ]);
+                  setSelected(tiers.length);
+                  setTiers([...tiers, { limit: '', entries: { ...tiers.at(-1)!.entries } }]);
                 }}
               >
-                Stufe hinzufügen
+                Vermögensstufe hinzufügen
               </Button>
               <Button
                 variant="ghost"
-                disabled={tiers.length <= 2 || selected === tiers.length - 1}
+                disabled={tiers.length <= 1 || selected === 0}
                 onClick={() => {
                   changed();
                   setTiers(tiers.filter((_, i) => i !== selected));
@@ -489,6 +645,13 @@ export function TargetEditor({
           return (
             <div className="asset-target-class" key={c.id}>
               <h3>{c.name}</h3>
+              <p className="vnote">
+                Wertpapiere:{' '}
+                {c.assignedSecurities?.length
+                  ? c.assignedSecurities.map((s) => s.name).join(', ')
+                  : 'Noch keine zugeordnet'}
+                . Zuordnungen unter Anlageklassen bearbeiten.
+              </p>
               <label className="asset-check">
                 <input
                   type="checkbox"

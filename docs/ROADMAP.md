@@ -17,6 +17,13 @@
 - [ ] Other [research work packages](product/roadmap/README.md) remain sequenced backlog, not shipped features.
 
 
+### Owner addition: asset allocation by wealth stage (2026-10-15)
+
+- [x] Reuse explicit account/instrument universe; edit eligible accounts and cash classes together with targets in one audited, conflict-checked transaction.
+- [x] Editable lower-bound wealth stages with exact-cent activation and unchanged legacy boundaries; retain one shared resolver.
+- [x] Seven-stage generic template with explicit class mapping and threshold activation with a 10 % hold-down buffer (owner decision 2026-10-16); native Desktop/iPhone Figma extension.
+- [x] Owner decision 2026-10-16 (threshold activation, 10 % hold-down); exact-head CI, merge #507 and live revision `20c24257` verified. See [contract and pending decision](allocation-wealth-stages.md).
+
 ### CI follow-up: consistent E2E observations — #465 / #499 (2026-10-15)
 
 - [x] Read paired report geometry in one browser turn; select exact contact options; split portfolio overview/detail while retaining every assertion and screenshot.

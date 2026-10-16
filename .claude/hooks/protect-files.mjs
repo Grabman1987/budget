@@ -30,7 +30,7 @@ async function main() {
       {
         cwd: repoRoot,
         encoding: 'utf8',
-        timeout: 800,
+        timeout: 3000,
         maxBuffer: 2 * 1024 * 1024,
         windowsHide: true,
         stdio: ['ignore', 'pipe', 'pipe'],
