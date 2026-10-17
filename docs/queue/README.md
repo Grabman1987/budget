@@ -38,7 +38,7 @@ Create them once with `bash scripts/queue/labels.sh` (idempotent).
 4. Merge: `risk:low` via `automerge.sh`, `risk:high` via review and manual merge.
 5. The merge to `main` triggers CI and deploy. Once the merge commit is contained in the deployed `/health` revision,
    `live.sh` closes the PR's own issue (comment "Live in <rev>", board Live) only if the merged PR has the label
-   `queue:complete` (set by the orchestrator after every acceptance criterion is verified). Otherwise it comments once
+   `queue:complete`, set by the orchestrator after every acceptance criterion is verified (its label event must be later than `mergedAt`). Otherwise it comments once
    per PR ("open items remain, issue stays open") and sets the board to CI / Review. Parents and epics (`Part of #N`) are never closed.
    PRs say `Refs #N`, never `Closes`: closing means live, not merged.
 
@@ -70,7 +70,7 @@ The runner is non-blocking: it starts detached jobs (`nohup`), records `logs/que
 | Test gate red  | Only with `tests-change-approved`, set by the owner                                                                       |
 | Merge conflict | The implementing agent rebases                                                                                            |
 | Flaky test     | One re-run; if it passes, open a `flaky-test` issue                                                                       |
-| Behind `main`  | PRs are handled oldest first; `automerge.sh` runs `gh pr update-branch` for the first PR in line only and waits for the new CI |
+| Behind `main`  | PRs are handled oldest first; `automerge.sh` runs `gh pr update-branch` for the first PR in line only and waits for the new CI; if that fails (conflict) the PR gets `needs-human` and the next one is tried |
 
 GitHub "Allow auto-merge" is off, and merges made by `GITHUB_TOKEN` would not trigger the main CI
 that deploys, so merges run locally under the owner's `gh` login.
@@ -91,7 +91,7 @@ Decision logic lives in `scripts/queue/policy.mjs` (pure functions, `policy.test
   The runner writes the block to `logs/queue/scope/issue-N.txt` BEFORE it starts a job (outside the worktree, write-once; delete the file to re-read an edited issue). An issue without a block is not started (one comment, `skip (no queue-scope block)`). Commit, push and automerge read only that file, never the live issue body; a missing snapshot means no commit and no merge.
 - **Protected paths**: independent of any scope, `.github/**`, `scripts/queue/**`, `scripts/ci/**`, `.claude/**`, `.agents/**`, `AGENTS.md`, `CLAUDE.md`, `fly.toml`, `Dockerfile`, `docker-entrypoint.sh`, `litestream.yml`, `packages/db/drizzle/**`, `playwright.config.ts`, `vitest.config.ts`, `package.json`, `package-lock.json`, `vitest.setup.ts`, `eslint.config.js` and `e2e/**/*-snapshots/**` always count as outside. Such an issue goes through the orchestrator, not automerge.
 - **Worktree git and gate input**: runner git calls in job worktrees pass explicit `--git-dir`/`--work-tree`, so a swapped `.git` file cannot redirect them. An empty `gh` answer in `gate.sh` becomes `null` (the policy names the real reason, e.g. "deploy run missing"; still BLOCK).
-- **Test changes** (`task-prompt.md`): already-decided UI changes may get matching new expectations, each traced to a documented owner decision and justified per test file in the PR, labelled `risk:high` (independent review). Never looser tolerances, skips, disabled rules, lower coverage or removed checks without an equivalent; finance, security, locking and undo rules need `tests-change-approved`.
+- **Test changes** (`task-prompt.md`): already-decided UI changes may get matching new expectations, each traced to a documented owner decision and justified per test file in the PR, labelled `risk:high` (independent review). Existing test files (`*.test.*`, `e2e/**/*.spec.ts`) changed or deleted always count as protected in `checkScope` (never automerge). Never looser tolerances, skips, disabled rules, lower coverage or removed checks without an equivalent; finance, security, locking and undo rules need `tests-change-approved`.
 - **Check**: Codex path (`publish_in_scope`), before the commit and again before the push: commits ahead of `origin/main` (`git diff --name-status -M -z origin/main...HEAD`) and the working tree (`git status --porcelain=v1 -z --untracked-files=all`); automerge: `git diff --name-status -M -z <H>...<sha>`. Added, deleted, untracked and both sides of renames must match. Only the checked paths are staged (`git add --pathspec-from-file`, never `-A`).
 - **Violation**: no commit/push or merge, label `needs-human` on issue (and PR), comment listing the offending paths. Worktree and work are kept; a worktree with uncommitted work is never deleted (a retry moves it to `wt/issue-N-kept-<time>`).
 - **Agent worktrees**: the runner's git runs there with `core.hooksPath` pointing at an empty dir and `core.fsmonitor=false`, and only after the worktree's `.git` file is checked to be exactly the `gitdir:` line git wrote; otherwise it stops, labels `needs-human` and keeps the worktree.

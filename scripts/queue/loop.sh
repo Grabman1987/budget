@@ -71,7 +71,8 @@ while :; do
   if [ "$err" = 1 ]; then errs=$((errs + 1)) idle=$((idle + 1))
   elif [ "$act" = 1 ]; then errs=0 idle=0
   else errs=0 idle=$((idle + 1)); fi
-  delay=$(node "$HERE/policy.mjs" delay "$INTERVAL" "$idle" "$errs")
+  delay=$(node "$HERE/policy.mjs" delay "$INTERVAL" "$idle" "$errs" 2>/dev/null)
+  { [[ "$delay" =~ ^[0-9]+$ ]] && [ "$delay" -ge 5 ]; } || delay=600 # node failed or bad --interval: slow, never a busy loop
   log "pace: idle=$idle errors=$errs next=${delay}s"
   [ "$ONCE" = 1 ] && break
   [ "$MAXR" -gt 0 ] && [ "$round" -ge "$MAXR" ] && break

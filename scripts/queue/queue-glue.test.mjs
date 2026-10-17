@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -15,10 +16,7 @@ import {
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-
-// Every test spawns Git Bash, git and node several times; on a busy Windows machine that exceeds the default 30 s.
-vi.setConfig({ testTimeout: 120_000 });
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 const QUEUE = dirname(fileURLToPath(import.meta.url));
 const fwd = (p) => p.replace(/\\/g, '/');
@@ -62,6 +60,7 @@ if [ -f "$d/move-on" ] && [ ! -f "$d/moved" ] && [ "$(cat "$d/move-on")" = "$1 $
   git -C "$MOVER" pull -q --ff-only origin main && git -C "$MOVER" commit -q --allow-empty -m moved && git -C "$MOVER" push -q origin main
 fi
 [ -f "$d/fail.$1.$2" ] && exit 1
+if [ "$1 $2" = "api -X" ]; then n=$(basename "$(dirname "$4")"); [ -f "$d/fail.update.$n" ] && exit 1; fi
 case "$1 $2" in
   "run list") case "$*" in *ci.yml*) cat "$d/ci.json" ;; *deploy.yml*) cat "$d/deploy.json" ;; esac ;;
   "pr list") case "$*" in *"--limit 200"*) cat "$d/heads.txt" ;; *"--state merged"*) cat "$d/merged.tsv" ;; *) cat "$d/prs.tsv" ;; esac ;;
@@ -70,6 +69,7 @@ case "$1 $2" in
   "issue list") case "$*" in *"--label ready"*) cat "$d/ready.tsv" ;; *"--json number"*) echo 0 ;; esac ;;
   "issue comment") echo "$*" >>"$d/comments.$3" ;;
   "api --paginate") cat "$d/checks.ndjson" ;;
+  "api repos/{owner}/{repo}/issues/"*/events) [ -f "$d/fail.events" ] && exit 1; cat "$d/events.$(basename "$(dirname "$2")")" 2>/dev/null ;;
 esac
 exit 0
 `;
@@ -78,23 +78,14 @@ const CURL_STUB = `#!/usr/bin/env bash
 cat "$STUB_DIR/health.json"
 `;
 
-const dirs = [];
-afterEach(() => {
-  while (dirs.length) rmSync(dirs.pop(), { recursive: true, force: true });
-});
-
-/** A bare origin, a clone as repo root with the queue scripts copied in, and stub gh/curl. */
-function fixture() {
-  const tmp = mkdtempSync(join(tmpdir(), 'queue-glue-'));
-  dirs.push(tmp);
-  const origin = join(tmp, 'origin.git');
-  const root = join(tmp, 'root');
-  const mover = join(tmp, 'mover');
-  const bin = join(tmp, 'bin');
-  const stub = join(tmp, 'stub');
-  for (const d of [bin, stub]) mkdirSync(d);
-  git(tmp, 'init', '-q', '--bare', '-b', 'main', origin);
-  git(tmp, 'clone', '-q', origin, root);
+/** The throw-away git setup shared by all fixtures: bare origin, repo root (queue scripts copied in), mover. */
+let BASE;
+beforeAll(() => {
+  BASE = mkdtempSync(join(tmpdir(), 'queue-glue-base-'));
+  const origin = join(BASE, 'origin.git');
+  const root = join(BASE, 'root');
+  git(BASE, 'init', '-q', '--bare', '-b', 'main', origin);
+  git(BASE, 'clone', '-q', origin, root);
   git(root, 'checkout', '-q', '-B', 'main');
   mkdirSync(join(root, 'src'));
   writeFileSync(join(root, 'src', 'a.ts'), 'a\n');
@@ -102,7 +93,10 @@ function fixture() {
   git(root, 'add', '-A');
   git(root, 'commit', '-q', '-m', 'init');
   git(root, 'push', '-q', '-u', 'origin', 'main');
-  git(tmp, 'clone', '-q', origin, mover);
+  git(BASE, 'clone', '-q', origin, join(BASE, 'mover'));
+  for (const repo of ['root', 'mover']) {
+    git(join(BASE, repo), 'remote', 'set-url', 'origin', fwd(origin));
+  }
   mkdirSync(join(root, 'scripts', 'queue'), { recursive: true });
   for (const f of [
     'gate.sh',
@@ -118,6 +112,34 @@ function fixture() {
     copyFileSync(join(QUEUE, f), join(root, 'scripts', 'queue', f));
   }
   mkdirSync(join(root, 'logs', 'queue', 'scope'), { recursive: true });
+});
+afterAll(() => rmSync(BASE, { recursive: true, force: true }));
+
+const dirs = [];
+afterEach(() => {
+  while (dirs.length) rmSync(dirs.pop(), { recursive: true, force: true });
+});
+
+/** A bare origin, a clone as repo root with the queue scripts copied in, and stub gh/curl. */
+function fixture() {
+  const tmp = mkdtempSync(join(tmpdir(), 'queue-glue-'));
+  dirs.push(tmp);
+  // the git setup is built once (beforeAll) and copied; only the remote URLs are re-pointed (plain file edit)
+  cpSync(BASE, tmp, { recursive: true });
+  for (const repo of ['root', 'mover']) {
+    const cfg = join(tmp, repo, '.git', 'config');
+    const text = readFileSync(cfg, 'utf8');
+    writeFileSync(
+      cfg,
+      text.replaceAll(fwd(join(BASE, 'origin.git')), fwd(join(tmp, 'origin.git'))),
+    );
+  }
+  const origin = join(tmp, 'origin.git');
+  const root = join(tmp, 'root');
+  const mover = join(tmp, 'mover');
+  const bin = join(tmp, 'bin');
+  const stub = join(tmp, 'stub');
+  for (const d of [bin, stub]) mkdirSync(d);
   writeFileSync(join(bin, 'gh'), GH_STUB);
   writeFileSync(join(bin, 'curl'), CURL_STUB);
   chmodSync(join(bin, 'gh'), 0o755);
@@ -309,6 +331,19 @@ describe.skipIf(!BASH)('automerge.sh integration order (oldest first)', () => {
     f.script('automerge.sh');
     expect(f.calls()).toContain(`pr merge 12 --squash --delete-branch --match-head-commit ${sha7}`);
     expect(f.calls()).not.toContain('pr merge 13');
+  });
+  it('a failed update-branch labels that PR needs-human and the next behind PR is updated', () => {
+    const { f } = two();
+    f.advanceMain();
+    f.green();
+    f.write('fail.update.12', '');
+    const r = f.script('automerge.sh');
+    expect(r.out).toMatch(/#12: update-branch failed/);
+    expect(r.out).toMatch(/#13: branch updated/);
+    expect(f.calls()).toContain('pr edit 12 --add-label needs-human');
+    expect(f.calls()).toMatch(/^pr comment 12 /m);
+    expect(f.calls()).toContain('pulls/13/update-branch');
+    expect(f.calls()).not.toContain('pr edit 13');
   });
   it('updates only the first PR in line that is behind main, the others wait', () => {
     const { f } = two();
@@ -535,14 +570,13 @@ describe.skipIf(!BASH)(
 );
 
 describe.skipIf(!BASH)('live.sh (closes only completed issues, never on errors)', () => {
-  const setup = (labelled) => {
+  const MERGED = '2026-10-17T09:00:00Z';
+  /** labelled = PR carries queue:complete now; labelledAt = time of its latest "labeled" event. */
+  const setup = (labelled, labelledAt = '2026-10-17T10:00:00Z') => {
     const f = fixture();
     f.green();
-    f.write(
-      'merged.tsv',
-      `agent/issue-7	${f.head()}	${labelled}	12
-`,
-    );
+    f.write('merged.tsv', `agent/issue-7\t${f.head()}\t${labelled}\t12\t${MERGED}\n`);
+    f.write('events.12', `${labelledAt}\n`);
     f.write('state.7', 'OPEN');
     return f;
   };
@@ -561,11 +595,25 @@ describe.skipIf(!BASH)('live.sh (closes only completed issues, never on errors)'
     expect(comments(f)).toHaveLength(1);
     expect(closed(f)).toBe(false);
   });
-  it('with queue:complete: closes and moves the board to Live', () => {
+  it('with queue:complete set after the merge: closes and moves the board to Live', () => {
     const f = setup('true');
     f.script('live.sh');
     expect(closed(f)).toBe(true);
     expect(f.calls()).toContain('6c62c1e6');
+  });
+  it('a queue:complete set before the merge (by the agent) does not count', () => {
+    const f = setup('true', '2026-10-17T08:00:00Z');
+    f.script('live.sh');
+    expect(closed(f)).toBe(false);
+    expect(comments(f)).toHaveLength(1);
+    expect(f.calls()).not.toContain('6c62c1e6');
+  });
+  it('does nothing when the label events cannot be read', () => {
+    const f = setup('true');
+    f.write('fail.events', '');
+    f.script('live.sh');
+    expect(closed(f)).toBe(false);
+    expect(comments(f)).toHaveLength(0);
   });
   it('does nothing when gh pr list fails', () => {
     const f = setup('true');
@@ -584,11 +632,7 @@ describe.skipIf(!BASH)('live.sh (closes only completed issues, never on errors)'
   it('does nothing while the merge commit is not live yet', () => {
     const f = setup('true');
     f.advanceMain();
-    f.write(
-      'merged.tsv',
-      `agent/issue-7	${f.head()}	true	12
-`,
-    );
+    f.write('merged.tsv', `agent/issue-7\t${f.head()}\ttrue\t12\t${MERGED}\n`);
     f.write('health.json', JSON.stringify({ status: 'ok', revision: 'b'.repeat(40) }));
     f.script('live.sh');
     expect(closed(f)).toBe(false);
@@ -623,7 +667,8 @@ describe.skipIf(!BASH)('live.sh never closes parents', () => {
   it('closes only the issue of the PR branch, never another issue the PR mentions', () => {
     const f = fixture();
     f.green();
-    f.write('merged.tsv', `agent/issue-7\t${f.head()}\ttrue\t12\n`);
+    f.write('merged.tsv', `agent/issue-7\t${f.head()}\ttrue\t12\t2026-10-17T09:00:00Z\n`);
+    f.write('events.12', `2026-10-17T10:00:00Z\n`);
     f.write('state.7', 'OPEN');
     f.write('state.3', 'OPEN');
     f.script('live.sh');
@@ -640,21 +685,14 @@ describe.skipIf(!BASH)('live.sh never closes parents', () => {
 });
 
 describe.skipIf(!BASH)('loop.sh pacing', () => {
-  const round = (prep) => {
+  // the delay arithmetic is unit-tested in policy.test.mjs (loopDelay); one real round checks the wiring
+  it('an error round with a bad --interval logs a 600 s fallback instead of spinning', () => {
     const f = fixture();
     f.green();
-    f.write('ready.tsv', '');
-    f.write('heads.txt', '');
-    f.write('merged.tsv', '');
-    f.write('prs.tsv', '');
-    prep?.(f);
-    f.script('loop.sh', '--once');
-    return readFileSync(join(f.root, 'logs', 'queue', 'loop.log'), 'utf8');
-  };
-  it('an idle round counts as idle and keeps the 60 s default', () => {
-    expect(round()).toMatch(/pace: idle=1 errors=0 next=60s/);
-  });
-  it('a network error round doubles the delay', () => {
-    expect(round((f) => f.write('curl-fail', ''))).toMatch(/pace: idle=\d errors=1 next=120s/);
+    for (const n of ['ready.tsv', 'heads.txt', 'merged.tsv', 'prs.tsv']) f.write(n, '');
+    f.write('curl-fail', '');
+    f.script('loop.sh', '--once', '--interval', 'abc');
+    const log = readFileSync(join(f.root, 'logs', 'queue', 'loop.log'), 'utf8');
+    expect(log).toMatch(/pace: idle=1 errors=1 next=600s/);
   });
 });

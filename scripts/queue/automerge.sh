@@ -76,11 +76,16 @@ while IFS=$'\t' read -r n draft head labels; do
 
   if ! g merge-base --is-ancestor "$H" "$sha" 2>/dev/null; then
     if [ -n "$UPDATED" ]; then echo "#$n: wait (behind main; #$UPDATED is updated first)"; continue; fi
-    UPDATED=$n # only the first PR in line is updated, so CI re-runs are not wasted on the others
-    if [ "$DRY" = 1 ]; then echo "#$n: would update branch (behind main)"
+    # only the first PR in line is updated (CI re-runs are not wasted on the others); a PR that cannot be
+    # updated (conflict, moved head) goes to the owner and no longer blocks the PRs behind it
+    if [ "$DRY" = 1 ]; then echo "#$n: would update branch (behind main)"; UPDATED=$n
     elif gh api -X PUT "repos/$GH_REPO/pulls/$n/update-branch" -f expected_head_sha="$sha" >/dev/null 2>&1; then
       echo "#$n: branch updated, CI re-runs (nothing else this round)"; break
-    else echo "#$n: update-branch failed"; fi
+    else
+      echo "#$n: update-branch failed, needs-human (the next PR in line is tried)"
+      gh pr edit "$n" --add-label needs-human >/dev/null 2>&1 || echo "warn: label needs-human on PR #$n failed" >&2
+      gh pr comment "$n" --body "Queue: \`update-branch\` failed (merge conflict or the head moved). Rebase or merge main by hand, then remove \`needs-human\`." >/dev/null 2>&1 || echo "warn: comment on PR #$n failed" >&2
+    fi
     continue
   fi
 
