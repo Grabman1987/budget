@@ -10,12 +10,18 @@ const check = (name, over = {}) => ({
   runPath: '.github/workflows/ci.yml',
   runEvent: 'pull_request',
   runHeadSha: 'h1',
+  runConclusion: 'success',
+  runHeadBranch: 'feat/x',
+  runHeadRepo: 'o/r',
   ...over,
 });
 
 const pull = (over = {}) => ({
   number: 7,
   sameRepo: true,
+  baseRef: 'main',
+  headRef: 'feat/x',
+  repo: 'o/r',
   headSha: 'h1',
   headTree: 't1',
   parentInHead: true,
@@ -61,6 +67,19 @@ describe('decide', () => {
     [
       'push run, not PR run',
       { checks: REQUIRED_CHECKS.map((n) => check(n, { runEvent: 'push' })) },
+    ],
+    [
+      'forged check-run, run itself failed',
+      { checks: REQUIRED_CHECKS.map((n) => check(n, { runConclusion: 'failure' })) },
+    ],
+    ['PR into another base', { baseRef: 'release' }],
+    [
+      'run of another branch',
+      { checks: REQUIRED_CHECKS.map((n) => check(n, { runHeadBranch: 'other' })) },
+    ],
+    [
+      'run of another repository',
+      { checks: REQUIRED_CHECKS.map((n) => check(n, { runHeadRepo: 'x/r' })) },
     ],
     ['run of another sha', { checks: REQUIRED_CHECKS.map((n) => check(n, { runHeadSha: 'h0' })) }],
   ])('fails closed: %s', (_label, over) => {

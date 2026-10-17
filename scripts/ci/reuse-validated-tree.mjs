@@ -8,12 +8,18 @@ import { pathToFileURL } from 'node:url';
 export const REQUIRED_CHECKS = ['check', 'check-windows', 'docker', 'restore-test'];
 const CI_PATH = '.github/workflows/ci.yml';
 
-const passed = (c) =>
+// A check-run's details_url is self-reported (an API-created run can point anywhere), so the
+// workflow run behind it must itself be successful and belong to this PR's branch and repository.
+const passed = (c, p) =>
   c.status === 'completed' &&
   c.conclusion === 'success' &&
   c.appSlug === 'github-actions' &&
   c.runPath === CI_PATH &&
-  c.runEvent === 'pull_request';
+  c.runEvent === 'pull_request' &&
+  c.runConclusion === 'success' &&
+  c.runHeadSha === p.headSha &&
+  c.runHeadBranch === p.headRef &&
+  c.runHeadRepo === p.repo;
 
 // The newest check-run per name wins, so a failed re-run after a green one blocks reuse.
 function validated(p) {
@@ -23,7 +29,7 @@ function validated(p) {
   }
   return REQUIRED_CHECKS.every((n) => {
     const c = latest.get(n);
-    return c && passed(c) && c.runHeadSha === p.headSha;
+    return c && passed(c, p);
   });
 }
 
@@ -31,7 +37,13 @@ function validated(p) {
 // the PR run tested had the same tree as the head.
 export function decide({ commitTree, pulls }) {
   const hit = pulls.find(
-    (p) => p.sameRepo && p.parentInHead && commitTree && p.headTree === commitTree && validated(p),
+    (p) =>
+      p.sameRepo &&
+      p.baseRef === 'main' &&
+      p.parentInHead &&
+      commitTree &&
+      p.headTree === commitTree &&
+      validated(p),
   );
   return hit
     ? { reuse: true, reason: `tree already validated by PR #${hit.number} head ${hit.headSha}` }
@@ -59,7 +71,14 @@ function collect({ repo, sha }) {
     if (!id) return {};
     if (!runs.has(id)) {
       const r = JSON.parse(gh(`repos/${repo}/actions/runs/${id}`));
-      runs.set(id, { runPath: r.path, runEvent: r.event, runHeadSha: r.head_sha });
+      runs.set(id, {
+        runPath: r.path,
+        runEvent: r.event,
+        runHeadSha: r.head_sha,
+        runConclusion: r.conclusion,
+        runHeadBranch: r.head_branch,
+        runHeadRepo: r.head_repository?.full_name,
+      });
     }
     return runs.get(id);
   };
@@ -67,6 +86,9 @@ function collect({ repo, sha }) {
     const p = {
       number: pr.number,
       headSha: pr.head.sha,
+      headRef: pr.head.ref,
+      baseRef: pr.base.ref,
+      repo,
       sameRepo: pr.head.repo?.full_name === repo,
       checks: [],
     };
