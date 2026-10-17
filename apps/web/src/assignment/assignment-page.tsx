@@ -65,10 +65,10 @@ export function AssignmentPage() {
           />
           <p>
             Regeln schlagen Empfänger, Kategorien und weitere Angaben für Bankumsätze vor. Die erste
-            passende Regel hat Vorrang. Die Buchung bestätigst du im Posteingang.
+            passende Regel hat Vorrang. Die Buchung bestätigst du unter Prüfen.
           </p>
           <p>
-            Bestätigte Zuordnungen im Posteingang werden als gelernte Vorschläge gemerkt. Du
+            Bestätigte Zuordnungen unter Prüfen werden als gelernte Vorschläge gemerkt. Du
             übernimmst sie mit einem Klick und kannst sie hier entfernen. Es wird nichts automatisch
             gebucht. Bei 100 Regeln werden keine neuen Vorschläge gelernt.
           </p>

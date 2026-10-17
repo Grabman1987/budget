@@ -111,7 +111,7 @@ Ein einzelner Nutzer, der die Finanzen eines Haushalts führt (Single-User, 1.2)
 
 Zwei Nutzungssituationen mit derselben Sitemap, unterschiedlich tief:
 
-- **Unterwegs am Handy:** Barzahlung oder Auslage in 10 Sekunden erfassen, Beleg fotografieren, in 5 Sekunden sehen, ob der Monat hält, Posteingang abarbeiten.
+- **Unterwegs am Handy:** Barzahlung oder Auslage in 10 Sekunden erfassen, Beleg fotografieren, in 5 Sekunden sehen, ob der Monat hält, Prüfen abarbeiten.
 - **Am Desktop:** steuern. Geld verteilen, Monatsabschluss, Jahresplanung, Schulden, Portfolio-Review, Berichte.
 
 Der Nutzer kennt YNAB, Actual Budget und Portfolio Performance aus jahrelanger Nutzung und ersetzt alle drei durch diese App.
@@ -148,14 +148,14 @@ Acht Routinen tragen die App (Konzept Kapitel 4), jede mit geführtem Ablauf und
 | --- | --- | --- |
 | Täglich, automatisch | Nachtlauf: Bank-Sync 2 × täglich, Kurse, Wechselkurse, erwartete Zahlungen zuordnen, Umbuchungen und Dubletten erkennen, Regeln prüfen | Server |
 | Laufend | Erfassen | Handy |
-| Wöchentlich | Posteingang leeren, Pace prüfen | Handy oder Desktop |
+| Wöchentlich | Prüfen leeren, Pace prüfen | Handy oder Desktop |
 | Gehaltstag | Geld verteilen mit dem Wasserfall-Assistenten | Desktop oder Handy |
 | Monatswechsel | Monatsabschluss: Kontostände prüfen, manuelle Werte, Überziehungen decken, Kontakte abrechnen, Monatsbericht | Desktop |
 | Quartal | Portfolio-Review, Abo-Preise, Bank-Einwilligungen erneuern (alle 180 Tage) | Desktop |
 | Jährlich | Jahresplanung, Jahresbericht, Wiederherstellung einer Sicherung testen | Desktop |
 | Ereignis | Szenario anlegen (Gehaltsänderung, Karenz, Teilzeit) | Desktop |
 
-Der **Posteingang** ist die zentrale Arbeitsliste: unkategorisierte Buchungen, Vorschläge, abweichende erwartete Zahlungen, Regelverletzungen, veraltete Werte, ablaufende Bank-Einwilligungen.
+**Prüfen** (`/konten/pruefen`, früher Posteingang) ist die zentrale Arbeitsliste: unkategorisierte Buchungen, Vorschläge, abweichende erwartete Zahlungen, Regelverletzungen, veraltete Werte, ablaufende Bank-Einwilligungen.
 
 Datenquellen: Enable Banking (PSD2) für österreichische Banken, Bitpanda-Lese-API, Kurse über yfinance mit Ersatzquelle Ariva, EZB-Wechselkurse, manuelle Bewertungen für P2P und Sonstiges Vermögen. Datei-Importe entfallen als App-Feature gemäß Entscheidung vom 01.10.2026; die einmalige Übernahme erfolgt separat mit Codex oder Claude aus den vorhandenen Exporten und der PP-Datei im privaten Datenbestand.
 

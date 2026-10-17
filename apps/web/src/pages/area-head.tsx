@@ -117,12 +117,23 @@ export function AreaHead({
       ];
       break;
     case 'plan':
-      titleNode = <MonthSwitch heading={monthRangeLabel(month, span)} />;
+      titleNode =
+        meta.register === 'prognose' ? (
+          (title ?? meta.title)
+        ) : (
+          <MonthSwitch heading={monthRangeLabel(month, span)} />
+        );
       titleOnMobile = TITLE_ON_MOBILE_AREAS.has('plan');
-      fields = [
-        { ...stand, hideOnMobile: true },
-        { label: 'Einnahmen', value: income ?? '–', labelOnMobile: true },
-      ];
+      fields =
+        meta.register === 'prognose'
+          ? [
+              { ...stand, hideOnMobile: true },
+              { label: 'Datenbasis', value: reportDataBasis, hideOnMobile: true },
+            ]
+          : [
+              { ...stand, hideOnMobile: true },
+              { label: 'Einnahmen', value: income ?? '–', labelOnMobile: true },
+            ];
       break;
     case 'konten':
       heading = 'Konten';

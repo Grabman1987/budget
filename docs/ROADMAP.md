@@ -1,5 +1,14 @@
 # Roadmap
 
+### NAV1 — area registers, #468 part A (2026-10-17)
+
+- [x] Short Plan/Konten registers, Plan › Prognose reusing the liquidity page, Konten › Prüfen and legacy URL redirects preserving search parameters.
+- [x] Internal links/search and minimal sitemap/glossary updates; phone register spacing retains the shared underline and scroll fade.
+- [x] Focused verification: 7 unit files / 85 tests; 12 browser cases including setup across desktop, Chromium 390 and WebKit iPhone; production and E2E builds. No Windows baseline regeneration.
+- [x] One final `npm run check` with one Vitest worker: 438 files / 4,027 tests passed; all workspace typechecks and formatting passed. Existing unused-disable warning in locked `packages/ui` remains.
+- [ ] Linux snapshot refresh in CI where register labels changed.
+- [ ] Draft PR/CI and owner acceptance. Header, FAB, sidebar and focus remain part B; page content remains #477.
+
 ### DS2: binding type scale — #473 (2026-10-16)
 
 - [x] Record owner decision 2B as T1–T12 in DESIGN.md; generate desktop/phone size and line-height tokens, with a restricted T12 role.

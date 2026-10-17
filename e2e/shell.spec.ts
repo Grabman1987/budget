@@ -83,11 +83,9 @@ test.describe('routes', () => {
       await expect(nav.locator('[aria-current="page"]'), path).toHaveText(new RegExp(area));
     }
     await page.goto('/konten/buchungen');
-    await expect(page.locator('.registers [aria-current="page"]')).toHaveText('Alle Buchungen');
+    await expect(page.locator('.registers [aria-current="page"]')).toHaveText('Buchungen');
     await page.goto('/reports/geldfluss');
-    await expect(page.locator('.registers [aria-current="page"]')).toHaveText(
-      'Monat und Einkommen',
-    );
+    await expect(page.locator('.registers [aria-current="page"]')).toHaveText('Monat');
     // Einstellungen have a grouped navigation instead of register tabs (rail on desktop).
     await page.goto('/einstellungen/sicherheit');
     if (!isPhone(testInfo))
@@ -179,7 +177,7 @@ test.describe('panel via route param', () => {
 
   test('legacy inbox links redirect to the page', async ({ page }) => {
     await page.goto('/konten?panel=posteingang');
-    await expect(page).toHaveURL(/\/konten\/posteingang/);
+    await expect(page).toHaveURL(/\/konten\/pruefen/);
     await expect(page.getByRole('dialog', { name: 'Posteingang' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
   });
@@ -387,8 +385,8 @@ test.describe('phone shell', () => {
   test('phone header links to the inbox page and retains return context', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/konten?monat=2026-09');
-    await page.getByRole('link', { name: /Posteingang, \d+ offen/ }).click();
-    await expect(page).toHaveURL(/\/konten\/posteingang/);
+    await page.getByRole('link', { name: /Prüfen, \d+ offen/ }).click();
+    await expect(page).toHaveURL(/\/konten\/pruefen/);
     await expect(page.getByRole('dialog', { name: 'Posteingang' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
     await page.getByRole('link', { name: 'Zur\u00fcck zur vorherigen Ansicht' }).click();

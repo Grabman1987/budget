@@ -256,7 +256,7 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
         )}
         <p className="vnote">
           {data.expectedMaterialised
-            ? 'Wiederkehrende Zahlungen ordnet der Nachtlauf automatisch zu; Abweichungen landen im Posteingang.'
+            ? 'Wiederkehrende Zahlungen ordnet der Nachtlauf automatisch zu; Abweichungen landen unter Prüfen.'
             : 'Die wiederkehrenden Zahlungen stammen aus dem Zahlungsplan und sind für diesen Monat noch nicht zugeordnet; ob sie eingegangen sind, zeigt die Tabelle darunter.'}
           {data.foreignCurrencyCount > 0
             ? ` ${data.foreignCurrencyCount} wiederkehrende Zahlung${data.foreignCurrencyCount === 1 ? '' : 'en'} in Fremdwährung ${data.foreignCurrencyCount === 1 ? 'ist' : 'sind'} hier nicht enthalten.`

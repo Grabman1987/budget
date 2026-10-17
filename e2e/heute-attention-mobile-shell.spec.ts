@@ -52,7 +52,7 @@ test('Today groups work, preserves its review destinations and distinguishes sel
     expect(box!.y + box!.height).toBeLessThan(900);
   }
   await tasks.getByRole('link', { name: 'Prüfen', exact: true }).click();
-  await expect(page).toHaveURL(/\/konten\/posteingang#account-reminder-title$/);
+  await expect(page).toHaveURL(/\/konten\/pruefen#account-reminder-title$/);
   const reminder = page.locator('.account-reminder').first();
   await reminder.getByRole('link', { name: 'Kontostand prüfen', exact: true }).click();
   await expect(page.getByRole('dialog', { name: /Kontostand prüfen/ })).toBeVisible();

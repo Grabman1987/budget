@@ -39,10 +39,7 @@ const serious = (violations: Array<{ impact?: string | null }>) =>
 sampleTest('the five fixture goals show their needed rates for 17.09.2026', async ({ page }) => {
   await page.goto('/plan/sparziele');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('September 2026');
-  await expect(page.getByRole('link', { name: 'Sparziele' })).toHaveAttribute(
-    'aria-current',
-    'page',
-  );
+  await expect(page.getByRole('link', { name: 'Ziele' })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByTestId('goals-summary')).toHaveText('3 von 5 im Plan');
   await expect(page.locator('tr.prow')).toHaveCount(5);
   for (const [name, target, saved, needed, line] of NEEDED) {

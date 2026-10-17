@@ -72,10 +72,10 @@ describe('command palette', () => {
     expect(screen.getByRole('option', { name: /Vermögen · Schulden/ })).toBeTruthy();
   });
   it.each([
-    ['Baby', '3.1 Liquiditätsprognose', '/reports/liquiditaet'],
-    ['Einkommenspause', '3.1 Liquiditätsprognose', '/reports/liquiditaet'],
-    ['Liquidität', '3.1 Liquiditätsprognose', '/reports/liquiditaet'],
-    ['Notgroschen', 'Plan · Sparziele', '/plan/sparziele'],
+    ['Baby', 'Plan · Prognose', '/plan/prognose'],
+    ['Einkommenspause', 'Plan · Prognose', '/plan/prognose'],
+    ['Liquidität', 'Plan · Prognose', '/plan/prognose'],
+    ['Notgroschen', 'Plan · Ziele', '/plan/sparziele'],
     ['Dispo', 'Vermögen · Schulden', '/vermoegen/schulden'],
     ['Gebühren', '2.6 Bank- und Zinskosten', '/reports/kosten'],
     ['Prognosegenauigkeit', '1.11 Prognosegenauigkeit', '/reports/planungstreue'],
@@ -280,7 +280,7 @@ describe('command palette', () => {
     const input = mount();
     for (const [label, panel] of [
       ['Neue Buchung', 'buchung'],
-      ['Posteingang öffnen', 'posteingang'],
+      ['Prüfen öffnen', 'posteingang'],
     ]) {
       fireEvent.change(input, { target: { value: label } });
       await waitFor(() =>
@@ -295,7 +295,7 @@ describe('command palette', () => {
         });
       else
         expect(call).toMatchObject({
-          to: '/konten/posteingang',
+          to: '/konten/pruefen',
           search: { von: '/plan/monat?monat=2026-09' },
         });
       fireEvent.focus(input);

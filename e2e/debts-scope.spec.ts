@@ -93,7 +93,7 @@ test('explains net versus cash debts, links financing and stacks the existing lo
   const check = page.locator('.debt-overview .debt-liquidity-check');
   await expect(check).toContainText('werden nicht übernommen');
   const link = check.getByRole('link', { name: /Liquiditätsprognose prüfen/ });
-  await expect(link).toHaveAttribute('href', '/reports/liquiditaet');
+  await expect(link).toHaveAttribute('href', '/plan/prognose');
   expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await link.click();
   await expect(page).toHaveURL(/\/reports\/liquiditaet$/);

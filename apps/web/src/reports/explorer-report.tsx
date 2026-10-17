@@ -416,7 +416,7 @@ function Pivot({
         {result.good === 'low' ? 'Rot teurer, Grün günstiger' : 'Grün mehr, Rot weniger'}); die Zahl
         bleibt das Signal. Umbuchungen, Erstattungen und Rückzahlungen von Kontakten sind kein
         Einkommen; Kapitalerträge stehen als eigene Einnahmenart. Ohne Kategorie erscheinen
-        Ausgaben, die noch im Posteingang liegen.
+        Ausgaben, die noch unter Prüfen liegen.
       </p>
     </section>
   );

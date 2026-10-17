@@ -47,8 +47,8 @@ export function InboxHeaderLink(props: AnchorHTMLAttributes<HTMLAnchorElement>) 
   return (
     <AppLink
       {...props}
-      to="/konten/posteingang"
-      search={location.pathname.startsWith('/konten/posteingang') ? {} : { von: location.href }}
+      to="/konten/pruefen"
+      search={location.pathname.startsWith('/konten/pruefen') ? {} : { von: location.href }}
       state={{ inboxOpenedInApp: true }}
     />
   );

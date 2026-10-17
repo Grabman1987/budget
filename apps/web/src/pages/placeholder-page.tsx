@@ -1,3 +1,4 @@
+import '../nav/registers.css';
 import { Registers, SectionHead, type RegisterItem, type TitleBlockField } from '@budget/ui';
 import type { ReactNode } from 'react';
 import { AREAS, areaById } from '../nav/areas';

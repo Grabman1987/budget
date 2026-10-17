@@ -44,7 +44,7 @@ const PAGES: PaletteItem[] = AREAS.flatMap((area) => [
 ]);
 const COMMANDS: PaletteItem[] = [
   { kind: 'action', id: 'buchung', label: 'Neue Buchung', detail: 'N' },
-  { kind: 'action', id: 'posteingang', label: 'Posteingang öffnen', detail: null },
+  { kind: 'action', id: 'posteingang', label: 'Prüfen öffnen', detail: null },
   {
     kind: 'action',
     id: 'monatsabschluss',
@@ -72,7 +72,9 @@ const STATIC_ITEMS: PaletteItem[] = [
 const SEARCH_TERMS: Record<string, readonly string[]> = {
   'page:/plan/monat': ['budget', 'monatsplanung'],
   'page:/plan/jahr': ['jahresplanung'],
-  'report:liquiditaet': ['baby', 'einkommenspause', 'elternzeit', 'karenz', 'liquidität'],
+  'action:posteingang': ['posteingang'],
+  'page:/konten/pruefen': ['posteingang'],
+  'page:/plan/prognose': ['baby', 'einkommenspause', 'elternzeit', 'karenz', 'liquidität'],
   'page:/plan/sparziele': ['sparen', 'sparziel', 'notgroschen'],
   'page:/vermoegen/schulden': ['dispo', 'kredit', 'tilgung'],
   'report:kosten': ['gebühren', 'bankgebühren', 'zinskosten'],
@@ -390,7 +392,7 @@ export function SearchResults({
       if (result.id === 'privacy') setAmountsHidden(!hidden);
       else if (result.id === 'posteingang')
         void navigate({
-          to: '/konten/posteingang',
+          to: '/konten/pruefen',
           search: { von: sourceHref ?? routeSearch.von },
         });
       else if (result.id === 'monatsabschluss')

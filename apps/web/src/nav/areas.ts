@@ -30,9 +30,9 @@ export const AREAS: ReadonlyArray<AreaDef> = [
     registers: [
       { id: 'monat', label: 'Monat', to: '/plan/monat' },
       { id: 'jahr', label: 'Jahr', to: '/plan/jahr' },
-      { id: 'erwartet', label: 'Wiederkehrende Zahlungen', to: '/plan/erwartet' },
-      { id: 'sparziele', label: 'Sparziele', to: '/plan/sparziele' },
-      { id: 'liquiditaet', label: 'Liquiditätsprognose', to: '/reports/liquiditaet' },
+      { id: 'erwartet', label: 'Zahlungen', to: '/plan/erwartet' },
+      { id: 'sparziele', label: 'Ziele', to: '/plan/sparziele' },
+      { id: 'prognose', label: 'Prognose', to: '/plan/prognose' },
     ],
   },
   {
@@ -43,8 +43,8 @@ export const AREAS: ReadonlyArray<AreaDef> = [
     icon: Landmark,
     registers: [
       { id: 'uebersicht', label: 'Übersicht', to: '/konten' },
-      { id: 'buchungen', label: 'Alle Buchungen', to: '/konten/buchungen' },
-      { id: 'posteingang', label: 'Posteingang', to: '/konten/posteingang' },
+      { id: 'buchungen', label: 'Buchungen', to: '/konten/buchungen' },
+      { id: 'pruefen', label: 'Prüfen', to: '/konten/pruefen' },
       { id: 'kontakte', label: 'Kontakte', to: '/konten/kontakte' },
     ],
   },
@@ -58,7 +58,7 @@ export const AREAS: ReadonlyArray<AreaDef> = [
       { id: 'nettovermoegen', label: 'Nettovermögen', to: '/vermoegen/nettovermoegen' },
       { id: 'portfolio', label: 'Portfolio', to: '/vermoegen/portfolio' },
       { id: 'schulden', label: 'Schulden', to: '/vermoegen/schulden' },
-      { id: 'freiheit', label: 'Freiheitszahl', to: '/vermoegen/freiheit' },
+      { id: 'freiheit', label: 'Freiheit', to: '/vermoegen/freiheit' },
     ],
   },
   {
@@ -69,9 +69,9 @@ export const AREAS: ReadonlyArray<AreaDef> = [
     icon: BarChart3,
     registers: [
       { id: 'katalog', label: 'Katalog', to: '/reports' },
-      { id: 'monat', label: 'Monat und Einkommen', to: '/reports/gruppe/monat' },
-      { id: 'ausgaben', label: 'Ausgaben und Plan', to: '/reports/gruppe/ausgaben' },
-      { id: 'zukunft', label: 'Zukunft und Vermögen', to: '/reports/gruppe/zukunft' },
+      { id: 'monat', label: 'Monat', to: '/reports/gruppe/monat' },
+      { id: 'ausgaben', label: 'Ausgaben', to: '/reports/gruppe/ausgaben' },
+      { id: 'zukunft', label: 'Zukunft', to: '/reports/gruppe/zukunft' },
       { id: 'portfolio', label: 'Portfolio', to: '/reports/gruppe/portfolio' },
       { id: 'ueberblick', label: 'Überblick', to: '/reports/gruppe/ueberblick' },
     ],

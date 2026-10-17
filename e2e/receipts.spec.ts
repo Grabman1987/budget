@@ -73,7 +73,7 @@ test('capture receipt first, link, attach PDF, remove and undo', async ({
   await expect(photo).toBeVisible();
   await page.locator('.toast.is-open').getByRole('button', { name: 'Wiederholen' }).click();
   await expect(photo).toHaveCount(0);
-  await receipts.getByLabel('Beleg aus dem Posteingang').selectOption({ label: filename });
+  await receipts.getByLabel('Beleg aus Prüfen').selectOption({ label: filename });
   await expect(photo).toBeVisible();
   for (const theme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: theme });

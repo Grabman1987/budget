@@ -82,8 +82,8 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   await expect(
     page
       .locator((page.viewportSize()?.width ?? Infinity) <= 767 ? '.m-head' : '.topbar')
-      .getByRole('link', { name: /^Posteingang,/ }),
-  ).toHaveAttribute('aria-label', `Posteingang, ${badge.count} offen`);
+      .getByRole('link', { name: /^Prüfen,/ }),
+  ).toHaveAttribute('aria-label', `Prüfen, ${badge.count} offen`);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
     const axe = await new AxeBuilder({ page }).analyze();
