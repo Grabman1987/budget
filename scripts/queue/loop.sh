@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Unattended queue loop: live.sh, automerge.sh, run_queue.sh, sleep. Stop with: touch logs/queue/STOP
+# Unattended queue loop: live.sh, gate.sh then automerge.sh (only if the merge gate passes), run_queue.sh, sleep. Stop with: touch logs/queue/STOP
 # Usage: loop.sh [--interval S] [--once] [--max-rounds N] [--dry-run]
 #                [--only-label L] [--engine E] [--model M] [--max-parallel N]
 set -uo pipefail
@@ -39,8 +39,14 @@ while :; do
   round=$((round + 1))
   out=$(bash "$HERE/live.sh" "${DRYARG[@]}" 2>&1); rc=$?
   log "live: $(oneline <<<"${out:-nothing}")"
-  out=$(bash "$HERE/automerge.sh" "${DRYARG[@]}" 2>&1)
-  log "automerge: $(oneline <<<"${out:-nothing}")"
+  if gout=$(bash "$HERE/gate.sh" 2>&1); then
+    log "gate: $(oneline <<<"${gout:-ok}")"
+    out=$(bash "$HERE/automerge.sh" "${DRYARG[@]}" 2>&1)
+    log "automerge: $(oneline <<<"${out:-nothing}")"
+  else
+    log "gate: $(oneline <<<"${gout:-BLOCK: gate.sh failed without output}")"
+    log "automerge: skipped (merge gate blocked, no merge this round)"
+  fi
   if [ "$rc" -eq 2 ]; then
     log "run_queue: not starting new work (main CI/deploy failed)"
   else
