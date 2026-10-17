@@ -35,13 +35,17 @@ test('inbox periods, repeated causes and warning details preserve context and op
     opened.close();
   }
   await page.goto('/plan/monat?monat=2026-09');
-  const header = page.locator(info.project.name === 'mobile' ? '.m-head' : '.topbar');
-  await header.getByRole('link', { name: /^Prüfen/ }).click();
+  // Phone: the Prüfen entry lives in the status line below the header (#468 B1).
+  const prufen =
+    info.project.name === 'mobile'
+      ? page.locator('.m-status').getByRole('link', { name: /zu prüfen$/ })
+      : page.locator('.topbar').getByRole('link', { name: /^Prüfen/ });
+  await prufen.click();
   await expect(page).toHaveURL(/\/konten\/pruefen/);
   await expect(page.getByRole('dialog', { name: 'Posteingang', exact: true })).toHaveCount(0);
   await page.getByRole('link', { name: 'Zurück zur vorherigen Ansicht' }).click();
   await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-09$/);
-  await header.getByRole('link', { name: /^Prüfen/ }).click();
+  await prufen.click();
   await page.getByLabel('Zeitraum der Aufgaben').selectOption('current');
   await expect(page.getByText('4 offen', { exact: true })).toBeVisible();
   await expect(page.getByTestId('inbox-row')).toHaveCount(1);
