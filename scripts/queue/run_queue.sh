@@ -94,7 +94,9 @@ $(tail -c 3000 "$prev" | redact)"
     prompt=${prompt//\{\{EXTRA\}\}/$extra}
     turns=40; [ "$size" = S ] && turns=25
     if [ "$eng" = codex ]; then
-      codex exec -C "$wt" --json -o "$log" "$prompt" >"$LOGDIR/issue-$n.codex.jsonl" 2>&1 </dev/null
+      # Sandboxed: writes only in the worktree and the shared .git dir; network for npm/gh.
+      codex exec -s workspace-write -c sandbox_workspace_write.network_access=true \
+        --add-dir "$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir)" -C "$wt" --json -o "$log" "$prompt" >"$LOGDIR/issue-$n.codex.jsonl" 2>&1 </dev/null
     else
       (cd "$wt" && claude -p "$prompt" --model "$MODEL" --permission-mode acceptEdits --max-turns "$turns" \
         --output-format json --allowedTools "$TOOLS") >"$log" 2>&1 </dev/null
