@@ -57,14 +57,13 @@ test('separates future captures and next weekly occurrence, projects cents and u
     await page.goto(url);
     const section = page.locator('.kupcoming');
     const summary = section.locator('.kupcoming-toggle');
-    await expect(summary).toHaveText('Kommend · 2');
+    await expect(summary).toHaveText('2 kommend · nächste: Wöchentlich Muster 19.10.');
     // One table: the section shares header and columns with the history below.
     await expect(page.locator('.ktable')).toHaveCount(1);
     await expect(page.locator('.ktable thead')).toHaveCount(1);
-    if (info.project.name === 'mobile') {
-      await expect(summary).toHaveAttribute('aria-expanded', 'false');
-      await summary.click();
-    } else await expect(summary).toHaveAttribute('aria-expanded', 'true');
+    await expect(summary).toHaveAttribute('aria-expanded', 'false');
+    await expect(section.locator('[data-booking], [data-occurrence]')).toHaveCount(0);
+    await summary.click();
     await expect(summary).toHaveAttribute('aria-expanded', 'true');
     const scheduled = section.locator('[data-occurrence]');
     const booked = section.locator(`[data-booking="${future.id}"]`);
@@ -104,6 +103,7 @@ test('separates future captures and next weekly occurrence, projects cents and u
       }
       const rowHeight = (await booked.boundingBox())!.height;
       expect((await scheduled.boundingBox())!.height).toBeLessThan(rowHeight * 1.4);
+      await scheduled.hover();
       const actions = await scheduled.getByRole('button', { name: 'Jetzt buchen' }).boundingBox();
       const skip = await scheduled.getByRole('button', { name: 'Überspringen' }).boundingBox();
       expect(actions!.height).toBeLessThanOrEqual(34);
@@ -111,6 +111,7 @@ test('separates future captures and next weekly occurrence, projects cents and u
     }
     if (info.project.name === 'mobile') {
       expect((await booked.locator('.kx-payee').boundingBox())!.width).toBeGreaterThan(100);
+      await scheduled.getByRole('button', { name: /^Aktionen:/ }).click();
       for (const name of ['Jetzt buchen', 'Überspringen']) {
         const box = await scheduled.getByRole('button', { name }).boundingBox();
         expect(box!.height).toBeGreaterThanOrEqual(44);
@@ -149,15 +150,22 @@ test('separates future captures and next weekly occurrence, projects cents and u
   await expect(futureRow).toBeVisible();
   await expect(page.getByTestId('register-today')).toContainText('997,97');
   const scheduled = page.locator('.kupcoming [data-occurrence]');
+  // Hover-only (desktop) or behind ⋯ (touch): reveal the actions the way a user does, then press.
+  const press = async (name: string) => {
+    const more = scheduled.getByRole('button', { name: /^Aktionen:/ });
+    if (!(await more.isVisible())) await scheduled.hover();
+    else if ((await more.getAttribute('aria-expanded')) === 'false') await more.click();
+    await scheduled.getByRole('button', { name }).click();
+  };
   const originalId = await scheduled.getAttribute('data-occurrence');
-  await scheduled.getByRole('button', { name: 'Überspringen' }).click();
+  await press('Überspringen');
   await expect(scheduled).not.toHaveAttribute('data-occurrence', originalId!);
   await page.getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await expect(scheduled).toHaveAttribute('data-occurrence', originalId!);
   const saved = page.waitForResponse(
     (r) => r.url().endsWith(`/occurrences/${originalId}/book`) && r.request().method() === 'POST',
   );
-  await scheduled.getByRole('button', { name: 'Jetzt buchen' }).click();
+  await press('Jetzt buchen');
   const savedResponse = await saved;
   expect(savedResponse.status()).toBe(201);
   const result = await savedResponse.json();
@@ -213,8 +221,10 @@ test('loads every future capture beyond the preview and first cursor page', asyn
   await page.goto(`/konten/${account.id}`);
   const section = page.locator('.kupcoming');
   const toggle = section.locator('.kupcoming-toggle');
-  await expect(toggle).toHaveText('Kommend · 201');
-  if (info.project.name === 'mobile') await toggle.click();
+  await expect(toggle).toHaveText('201 kommend · nächste: Buchung 01.12.');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(section.locator('[data-booking]')).toHaveCount(0);
+  await toggle.click();
   await expect(section.locator('[data-booking]')).toHaveCount(201);
   await expect(section.locator('[data-booking]').last().locator('.kx-run')).toContainText('997,99');
   await expect(page.getByTestId('account-balance')).toContainText('1.000,00');
