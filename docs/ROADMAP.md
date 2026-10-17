@@ -1,5 +1,17 @@
 # Roadmap
 
+### NAV3 — FAB, sidebar footer and detail focus/back paths, #468 part B2 (2026-10-17)
+
+- [x] Phone capture stays on every page, hides down and returns up without animation; existing safe-area/FAB bottom clearance retained. Desktop capture unchanged.
+- [x] One sidebar profile/settings link with adjacent persisted theme toggle and announced dark state; collapsed sidebar retained.
+- [x] Programmatic detail headings have no outline; interactive keyboard targets retain 2 px focus. Each touched detail name and contextual return link appears once; area registers retained.
+- [x] Category, account/depot, contact, goal, envelope, income/payment and Heute dimension details reviewed; no data, API, financial, router-path or write/undo changes.
+- [x] Focused units: 6 files / 12 tests; CSS scale: 0 violations. Browser validation includes 390 px, WebKit, light/dark Axe, return context and bounding-box clearance.
+- [x] Browser regressions: 75 passed / 16 intended skips / 6 failures initially; targeted serial shell/FAB rerun 13 passed / 6 skips / 2 early Chromium focus-style reads. Final updated FAB/focus spec: 9 passed / 3 skips / 0 failures across desktop, Chromium 390 and WebKit, including light/dark Axe. The account return target was raised to 44 px; assertions remain intact.
+- [x] One aggregate `npm run check` stopped on an unsupported `exact` option in the new contact unit. Fixed; separate Web typecheck and full lint passed (one existing UI warning). Complete serial unit suite: 443 files / 4,044 tests passed. E2E and production builds passed. No second aggregate run.
+- [x] Git commit/push/draft PR blocked by `index.lock: Permission denied`; complete checked patch and German PR description handed off in `test-results/nav3.patch` and `test-results/nav3-pr.md` for the project lead.
+- [ ] Fresh aggregate CI check, Linux snapshot refresh, actual draft PR and owner acceptance. No Windows baseline regeneration; `docs/evidence` restored and unchanged.
+
 ### NAV2 — header and search orientation, #468 part B1 (2026-10-17)
 
 - [x] Desktop: one Prüfen pill, zero without a badge; existing amount privacy and booking action retained, overspent chip removed.

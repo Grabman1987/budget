@@ -17,7 +17,7 @@ test('package: contact history, search URL and developer details preserve naviga
   await expect(capture.getByLabel('Bezahlt von', { exact: true })).not.toHaveValue('');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('region', { name: 'Kontaktkontoauszug' })).toContainText(
-    'Kontoblatt',
+    'Kontakt M. Muster',
   );
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.goBack();
@@ -25,7 +25,7 @@ test('package: contact history, search URL and developer details preserve naviga
   await page.goForward();
   await page.reload();
   await expect(page.getByRole('region', { name: 'Kontaktkontoauszug' })).toContainText(
-    'Kontoblatt',
+    'Kontakt M. Muster',
   );
   await page.screenshot({ path: info.outputPath('contact-page.png'), fullPage: true });
   await page.getByRole('link', { name: 'Zurück zu Kontakte', exact: true }).click();

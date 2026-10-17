@@ -27,7 +27,14 @@ export function ThemeButton({ variant }: { variant: 'side' | 'icon' }) {
   const toggle = () => setTheme(dark ? 'light' : 'dark');
   if (variant === 'icon') {
     return (
-      <button type="button" className="icon-btn" onClick={toggle} aria-label={label}>
+      <button
+        type="button"
+        className="icon-btn"
+        onClick={toggle}
+        title="Hell/Dunkel umschalten"
+        aria-label="Hell/Dunkel umschalten"
+        aria-pressed={dark}
+      >
         <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
       </button>
     );

@@ -139,6 +139,9 @@ it('keeps current-month movements out of history when no recorded closure exists
     name: 'Kontaktbuchungen im aktuellen Monat',
   });
   expect(monthTable.querySelectorAll('tbody tr')).toHaveLength(2);
+  const heading = screen.getByRole('heading', { name: 'Kontakt Beispiel' });
+  expect(document.activeElement).toBe(heading);
+  expect(heading.getAttribute('tabindex')).toBe('-1');
   expect(screen.getByText('Noch keine ältere oder spätere Kontaktbewegung.')).toBeDefined();
   expect(screen.queryByText('Zuordnung nicht protokolliert')).toBeNull();
 });

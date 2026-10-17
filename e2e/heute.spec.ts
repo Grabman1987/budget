@@ -708,16 +708,16 @@ test('mobile attention remains reachable above the floating capture button in bo
   await page.goto('/');
   const attention = page.locator('.heute-attention');
   await expect(attention).toBeVisible();
+  // The FAB is fixed and hides while scrolling down (#468), so measure its slot once at the top.
+  const fab = (await page.locator('.fab').boundingBox())!;
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => (document.documentElement.dataset['theme'] = t), theme);
     for (const action of await attention.locator('a, button').all()) {
       await action.evaluate((element) => element.scrollIntoView({ block: 'center' }));
       const box = (await action.boundingBox())!;
-      const fab = (await page.locator('.fab').boundingBox())!;
       expect(box.y).toBeGreaterThanOrEqual(0);
       expect(box.y + box.height).toBeLessThan(fab.y);
     }
-    const fab = (await page.locator('.fab').boundingBox())!;
     const capture = info.outputPath(`heute-attention-${theme}.png`);
     await page.screenshot({ path: capture });
     await info.attach(`Attention ${theme}`, { path: capture, contentType: 'image/png' });

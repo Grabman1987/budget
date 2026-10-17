@@ -72,10 +72,10 @@ test('result types open existing category, payee, contact and exact booking view
     await expect(page).toHaveURL(url);
     if (kind === 'Kontakt') {
       const panel = page.getByRole('region', { name: 'Kontaktkontoauszug' });
-      await expect(panel).toContainText('Kontoblatt');
+      await expect(panel).toContainText('Kontakt M. Muster');
       await page.reload();
       await expect(page.getByRole('region', { name: 'Kontaktkontoauszug' })).toContainText(
-        'Kontoblatt',
+        'Kontakt M. Muster',
       );
       await page.getByRole('link', { name: 'Zurück zu Kontakte', exact: true }).click();
     }

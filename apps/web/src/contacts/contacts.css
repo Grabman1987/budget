@@ -10,6 +10,10 @@
   align-items: center;
   gap: 8px;
 }
+.contacts-title > h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .contacts-statement {
   display: grid;
   gap: 16px;
