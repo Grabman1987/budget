@@ -622,7 +622,7 @@ test('visible growing note, direct split and responsive account note column', as
 }, testInfo) => {
   const tag = testInfo.project.name;
   const account = `Notiz Muster ${tag}${again(testInfo)}`;
-  const payee = `Notizladen Muster ${tag}`;
+  const payee = `Notizladen Muster ${tag}${again(testInfo)}`;
   const memo =
     'Synthetische Notiz mit langem Inhalt zur Darstellung im Register.\nZweite Zeile zur Prüfung des wachsenden Feldes.\nDritte Zeile.';
   await createAccount(page, account, 'Giro', '100');
