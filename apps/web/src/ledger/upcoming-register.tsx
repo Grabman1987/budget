@@ -3,7 +3,7 @@ import { useAmountPrivacy, useIsPhone } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 import { registerOccurrencesQuery, type Occurrence } from '../expected/api';
-import { nativeCurrency } from './format';
+import { nativeCurrency, shortDay } from './format';
 import { accountsQuery, futureBookingsQuery } from './queries';
 import { ErrorNote, LoadingNote } from './states';
 import type { BookingFilter, ListedBooking } from './types';
@@ -46,6 +46,28 @@ export interface UpcomingModel {
   balanceLabel: string;
 }
 
+export type UpcomingEntry = { date: string; id: string } & (
+  { booking: ListedBooking; schedule?: undefined } | { schedule: Occurrence; booking?: undefined }
+);
+
+/** Future captures and next occurrences in one list, soonest first. */
+export function upcomingEntries(
+  model: Pick<UpcomingModel, 'bookings' | 'schedules'>,
+): UpcomingEntry[] {
+  const entries: UpcomingEntry[] = [
+    ...model.bookings.map((b) => ({ date: b.date, id: b.id, booking: b })),
+    ...model.schedules.map((s) => ({ date: s.dueDate, id: s.occurrenceId, schedule: s })),
+  ];
+  return entries.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+}
+
+/** The collapsed one-line row: `19 kommend · nächste: Miete 01.11.`. */
+export function upcomingSummary(count: number, next: UpcomingEntry | undefined): string {
+  if (!next) return `${count} kommend`;
+  const name = next.schedule?.name ?? next.booking?.payeeName ?? next.booking?.memo ?? 'Buchung';
+  return `${count} kommend · nächste: ${name} ${shortDay(next.date)}`;
+}
+
 export function useUpcomingRegister(
   filter: BookingFilter,
   today: string,
@@ -55,12 +77,10 @@ export function useUpcomingRegister(
   const phone = useIsPhone();
   const storageKey = `budget.register.upcoming.${variant}.${filter.accountId ?? 'all'}.${phone ? 'phone' : 'desktop'}`;
   const [remembered, setRemembered] = useState<{ key: string; open: boolean } | null>(null);
-  let open = !phone;
+  // Collapsed by default everywhere; a remembered choice wins.
+  let open = false;
   try {
-    open =
-      localStorage.getItem(storageKey) === null
-        ? !phone
-        : localStorage.getItem(storageKey) === 'open';
+    open = localStorage.getItem(storageKey) === 'open';
   } catch {
     /* Storage may be disabled. */
   }
