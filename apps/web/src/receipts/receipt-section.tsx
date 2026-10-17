@@ -69,7 +69,7 @@ export function ReceiptSection({ bookingId }: { bookingId?: string }) {
         notifyApiWrite();
         return result;
       },
-      () => (bookingId ? 'Beleg angehängt.' : 'Beleg im Posteingang gespeichert.'),
+      () => (bookingId ? 'Beleg angehängt.' : 'Beleg unter Prüfen gespeichert.'),
     );
     setBusy(false);
   };
@@ -179,7 +179,7 @@ export function ReceiptSection({ bookingId }: { bookingId?: string }) {
                               ? `${path(r.id)}/links/${encodeURIComponent(bookingId)}`
                               : path(r.id),
                           ),
-                        bookingId ? 'Beleg gelöst und im Posteingang abgelegt.' : 'Beleg entfernt.',
+                        bookingId ? 'Beleg gelöst und unter Prüfen abgelegt.' : 'Beleg entfernt.',
                       )
                     }
                   >
@@ -204,7 +204,7 @@ export function ReceiptSection({ bookingId }: { bookingId?: string }) {
       )}
       {bookingId && !unlinked.isError && Boolean(unlinked.data?.receipts.length) && (
         <label className="receipt-existing">
-          Beleg aus dem Posteingang
+          Beleg aus Prüfen
           <select
             value=""
             disabled={busy}

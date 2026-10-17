@@ -51,7 +51,7 @@ import './inbox.css';
 import { ReceiptSection } from '../receipts/receipt-section';
 import { TradePanel } from '../wealth/trade-panel';
 import type { SavingsExecutionProposal } from '../wealth/savings-api';
-const META = PAGES.find((p) => p.path === '/konten/posteingang')!;
+const META = PAGES.find((p) => p.path === '/konten/pruefen')!;
 const LABELS: Record<InboxKind, string> = {
   uncategorized: 'Buchungen ohne Kategorie',
   revision: 'Vorschläge',
@@ -76,7 +76,7 @@ export function InboxPage() {
         <p>
           Aufgaben dieser Bankquelle.{' '}
           <AppLink
-            to="/konten/posteingang"
+            to="/konten/pruefen"
             search={{
               ...(search.aufgaben && { aufgaben: search.aufgaben }),
               ...(search.von && { von: search.von }),
@@ -106,13 +106,13 @@ export function InboxDetailPage() {
             Konten
           </AppLink>
           {' › '}
-          <AppLink to="/konten/posteingang" search={search}>
-            Posteingang
+          <AppLink to="/konten/pruefen" search={search}>
+            Prüfen
           </AppLink>
           {' › '}
           <span aria-current="page">Datenwarnung</span>
         </nav>
-        <InboxBack to={`/konten/posteingang?${params}`} label="Zurück zum Posteingang" />
+        <InboxBack to={`/konten/pruefen?${params}`} label="Zurück zu Prüfen" />
         {query.isPending && <LoadingNote what="Datenwarnung" />}
         {query.isError && (
           <ErrorNote
@@ -426,7 +426,7 @@ function PaginatedInboxBody({
             value={search.aufgaben ?? 'all'}
             onChange={(event) =>
               void navigate({
-                to: '/konten/posteingang',
+                to: '/konten/pruefen',
                 search: {
                   ...search,
                   aufgaben: event.target.value === 'all' ? undefined : event.target.value,
@@ -565,7 +565,7 @@ function InboxBodyContent({
             ? 'Keine offenen Bewegungen vorhanden.'
             : readSourceSummaries?.length
               ? 'Keine offenen Entscheidungen vorhanden.'
-              : 'Posteingang leer. Es sind keine offenen Aufgaben vorhanden.'}
+              : 'Prüfen leer. Es sind keine offenen Aufgaben vorhanden.'}
         </EmptyNote>
       )}
       {!pending && !error && count !== 0 && entries.length === 0 && (
@@ -915,7 +915,7 @@ function InboxRow({
             {item.kind === 'import' && !detailView && (
               <AppLink
                 className="btn btn-ghost btn-sm"
-                to={`/konten/posteingang/${encodeURIComponent(item.id)}`}
+                to={`/konten/pruefen/${encodeURIComponent(item.id)}`}
                 search={search}
                 state={{ inboxOpenedInApp: true }}
               >

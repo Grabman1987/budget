@@ -1,3 +1,4 @@
+import '../nav/registers.css';
 import { reportTablesQuery } from '../reports/table-reports-api';
 import { useAmountPrivacy, Registers, Select, TitleBlock, cx } from '@budget/ui';
 import {

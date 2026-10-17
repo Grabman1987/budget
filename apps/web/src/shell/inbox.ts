@@ -7,9 +7,6 @@ export function useInboxCount() {
   const count = query.data?.count;
   return {
     count,
-    label:
-      count === undefined
-        ? 'Posteingang, Anzahl noch nicht verfügbar'
-        : `Posteingang, ${count} offen`,
+    label: count === undefined ? 'Prüfen, Anzahl noch nicht verfügbar' : `Prüfen, ${count} offen`,
   };
 }

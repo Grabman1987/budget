@@ -30,6 +30,7 @@ import {
   PLAN_MONAT,
   PLAN_JAHR,
   PLAN_SPARZIELE,
+  PLAN_PROGNOSE,
   HEUTE,
   SETTINGS_INDEX,
   KONTEN_BUCHUNGEN_META,
@@ -97,9 +98,10 @@ const rootRoute = createRootRoute({
     const source = new URL(location.href, 'https://budget.invalid');
     source.searchParams.delete('panel');
     throw redirect({
-      to: '/konten/posteingang',
+      to: '/konten/pruefen',
       search: {
-        von: location.pathname.startsWith('/konten/posteingang')
+        ...Object.fromEntries(source.searchParams),
+        von: location.pathname.startsWith('/konten/pruefen')
           ? undefined
           : `${source.pathname}${source.search}`,
       },
@@ -135,8 +137,11 @@ const redirectRoute = (path: string, to: string) =>
   createRoute({
     getParentRoute: () => shellRoute,
     path,
-    beforeLoad: () => {
-      throw redirect({ to: to as never });
+    beforeLoad: ({ location, params }) => {
+      throw redirect({
+        href: `${to.replace('$id', encodeURIComponent((params as { id?: string }).id ?? ''))}${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
+        replace: true,
+      });
     },
   });
 
@@ -166,7 +171,7 @@ const BUILT_PATHS = new Set<string>([
   '/einstellungen/anlageklassen',
   '/konten/buchungen',
   '/konten/kontakte',
-  '/konten/posteingang',
+  '/konten/pruefen',
   EINSTELLUNGEN_KATEGORIEN.path,
   EINSTELLUNGEN_REGELWERK.path,
   PLAN_MONAT.path,
@@ -177,6 +182,7 @@ const BUILT_PATHS = new Set<string>([
   VERMOEGEN_PORTFOLIO_META.path,
   VERMOEGEN_SCHULDEN_META.path,
   PLAN_SPARZIELE.path,
+  PLAN_PROGNOSE.path,
   CSV_EXPORT_META.path,
 ]);
 const placeholderRoutes = PAGES.filter((page) => !BUILT_PATHS.has(page.path)).map((page) =>
@@ -192,16 +198,16 @@ const bookingsRoute = createRoute({
 });
 const inboxRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: '/konten/posteingang',
+  path: '/konten/pruefen',
   validateSearch: validateInboxSearch,
-  staticData: { meta: PAGES.find((p) => p.path === '/konten/posteingang')! },
+  staticData: { meta: PAGES.find((p) => p.path === '/konten/pruefen')! },
   component: lazyRouteComponent(() => import('./inbox/inbox-page'), 'InboxPage'),
 });
 const inboxDetailRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: '/konten/posteingang/$id',
+  path: '/konten/pruefen/$id',
   validateSearch: validateInboxSearch,
-  staticData: { meta: PAGES.find((p) => p.path === '/konten/posteingang')! },
+  staticData: { meta: PAGES.find((p) => p.path === '/konten/pruefen')! },
   component: lazyRouteComponent(() => import('./inbox/inbox-page'), 'InboxDetailPage'),
 });
 const contactsRoute = createRoute({
@@ -519,6 +525,9 @@ const settingsIndexRoute = createRoute({
   component: lazyRouteComponent(() => import('./pages/settings-index'), 'SettingsIndexPage'),
 });
 const redirects = [
+  redirectRoute('/reports/liquiditaet', '/plan/prognose'),
+  redirectRoute('/konten/posteingang', '/konten/pruefen'),
+  redirectRoute('/konten/posteingang/$id', '/konten/pruefen/$id'),
   // Legacy import bookmarks lead to the export placeholder; no import action remains in the UI.
   redirectRoute('/einstellungen/import', '/einstellungen/export'),
   redirectRoute('/plan', '/plan/monat'),
@@ -763,6 +772,13 @@ const routeTree = rootRoute.addChildren([
     savingsPlanRoute,
     debtsRoute,
     planGoalsRoute,
+    createRoute({
+      getParentRoute: () => shellRoute,
+      path: '/plan/prognose',
+      staticData: { meta: PLAN_PROGNOSE },
+      validateSearch: validateReportSearch,
+      component: lazyRouteComponent(() => import('./reports/liquidity-report'), 'PlanPrognosePage'),
+    }),
     ...redirects,
     settingsIndexRoute,
     overviewRoute,

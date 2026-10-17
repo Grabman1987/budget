@@ -253,7 +253,7 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
   await expect(page).toHaveURL(/\/vermoegen\/portfolio$/);
   for (const [label, panel] of [
     ['Neue Buchung', 'buchung'],
-    ['Posteingang öffnen', 'posteingang'],
+    ['Prüfen öffnen', 'posteingang'],
   ] as const) {
     input = await openSearch(page, mobile);
     await input.fill(label);
@@ -265,7 +265,7 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
       ).toBeVisible();
       await page.keyboard.press('Escape');
     } else {
-      await expect(page).toHaveURL(/\/konten\/posteingang/);
+      await expect(page).toHaveURL(/\/konten\/pruefen/);
       await expect(page.locator('.kinbox')).toBeVisible();
     }
     await expect(page.getByRole('dialog')).toHaveCount(0);

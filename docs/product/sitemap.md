@@ -12,9 +12,9 @@ Budget
 ├── Access: /setup, /login
 ├── Heute: /
 ├── Plan: Monat, Jahr, Zahlungen, Ziele, Prognose (Seitenreview 16.10.2026)
-├── Konten: Übersicht, Buchungen, Posteingang, Kontakte
+├── Konten: Übersicht, Buchungen, Prüfen, Kontakte
 ├── Vermögen: Nettovermögen, Portfolio, Schulden, Freiheit
-├── Reports: catalog → five groups → 34 reports
+├── Reports: catalog → five groups → 33 reports
 └── Settings: profile, accounts, depots, projects, basket, categories,
     rules, assignment rules, data sources, asset classes, export, security
 
@@ -35,10 +35,11 @@ exceptions. Form dialogs remain forms. No new third-level primary menu is propos
 | Plan · Monat | `/plan/monat` |
 | Plan · Jahr | `/plan/jahr` |
 | Plan · Zahlungen (Seite „Zahlungen und Abos“) | `/plan/erwartet` |
-| Plan · Sparziele | `/plan/sparziele` |
+| Plan · Ziele | `/plan/sparziele` |
+| Plan · Prognose (Seite „Liquiditätsprognose“) | `/plan/prognose` |
 | Konten | `/konten` |
 | Alle Buchungen | `/konten/buchungen` |
-| Prüfen (früher Posteingang; alte Adresse leitet weiter) | `/konten/posteingang` → `/konten/pruefen` |
+| Prüfen (früher Posteingang; alte Adresse leitet weiter) | `/konten/pruefen` |
 | Kontakte | `/konten/kontakte` |
 | Vermögen · Nettovermögen | `/vermoegen/nettovermoegen` |
 | Vermögen · Portfolio | `/vermoegen/portfolio` |
@@ -63,7 +64,7 @@ exceptions. Form dialogs remain forms. No new third-level primary menu is propos
 include detail pages and access flows, not additional top-level navigation.
 
 - `/erfassen`
-- `/konten/posteingang/$id`
+- `/konten/pruefen/$id`
 - `/einstellungen/kategorien/$id`
 - `/plan/sparziele/$id`
 - `/einstellungen/regelwerk/$code`
@@ -125,7 +126,6 @@ Group route: `/reports/gruppe/zukunft`.
 
 | Report | Path |
 | --- | --- |
-| Liquiditätsprognose → Plan › Prognose (Report-Slug leitet weiter) | `/reports/liquiditaet` → `/plan/prognose` |
 | Cashflow-Verlauf | `/reports/cashflow` |
 | Vermögensverläufe | `/reports/vermoegen` |
 | Jahresvorschau Zahlungen | `/reports/vorschau` |
@@ -160,6 +160,8 @@ Group route: `/reports/gruppe/ueberblick`.
 ## Redirects and developer surfaces
 
 - `/plan` redirects to `/plan/monat`.
+- `/reports/liquiditaet` redirects to `/plan/prognose` with search parameters preserved; the forecast is no longer a catalog report.
+- `/konten/posteingang` and `/konten/posteingang/$id` redirect to `/konten/pruefen` and `/konten/pruefen/$id`, preserving search parameters. Legacy `?panel=posteingang` opens Prüfen with its source context.
 - `/vermoegen` redirects to `/vermoegen/nettovermoegen`.
 - Legacy `/einstellungen/import` redirects to `/einstellungen/export`; it is not an import feature.
 - `/dev/*` routes are development/E2E surfaces, excluded from the production build.

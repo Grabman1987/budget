@@ -36,12 +36,12 @@ test('inbox periods, repeated causes and warning details preserve context and op
   }
   await page.goto('/plan/monat?monat=2026-09');
   const header = page.locator(info.project.name === 'mobile' ? '.m-head' : '.topbar');
-  await header.getByRole('link', { name: /^Posteingang/ }).click();
-  await expect(page).toHaveURL(/\/konten\/posteingang/);
+  await header.getByRole('link', { name: /^Prüfen/ }).click();
+  await expect(page).toHaveURL(/\/konten\/pruefen/);
   await expect(page.getByRole('dialog', { name: 'Posteingang', exact: true })).toHaveCount(0);
   await page.getByRole('link', { name: 'Zurück zur vorherigen Ansicht' }).click();
   await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-09$/);
-  await header.getByRole('link', { name: /^Posteingang/ }).click();
+  await header.getByRole('link', { name: /^Prüfen/ }).click();
   await page.getByLabel('Zeitraum der Aufgaben').selectOption('current');
   await expect(page.getByText('4 offen', { exact: true })).toBeVisible();
   await expect(page.getByTestId('inbox-row')).toHaveCount(1);
@@ -54,7 +54,7 @@ test('inbox periods, repeated causes and warning details preserve context and op
     .filter({ hasText: '01.10.2026' })
     .getByRole('link', { name: 'Warnung erklären' });
   await detailLink.click();
-  await expect(page).toHaveURL(/\/konten\/posteingang\/check-a/);
+  await expect(page).toHaveURL(/\/konten\/pruefen\/check-a/);
   await page.getByText('Quelldaten und Zuordnung anzeigen').click();
   await expect(page.locator('.source-inbox-detail pre')).toContainText('check-a');
   await expect(page.getByRole('link', { name: 'Datenquelle prüfen' })).toBeVisible();
@@ -72,7 +72,7 @@ test('inbox periods, repeated causes and warning details preserve context and op
     });
   }
   await page.reload();
-  await page.getByRole('link', { name: 'Zurück zum Posteingang' }).click();
+  await page.getByRole('link', { name: 'Zurück zu Prüfen' }).click();
   await expect(page.getByLabel('Zeitraum der Aufgaben')).toHaveValue('current');
   await expect(group).toHaveAttribute('aria-expanded', 'true');
   await detailLink.click();
@@ -86,7 +86,7 @@ test('inbox periods, repeated causes and warning details preserve context and op
   expect((await response.json()).entries).toHaveLength(4);
   await page.goto('/konten/posteingang/check-b?aufgaben=historical');
   await expect(page.locator('.source-inbox-detail')).toBeVisible();
-  await page.getByRole('link', { name: 'Zurück zum Posteingang' }).click();
+  await page.getByRole('link', { name: 'Zurück zu Prüfen' }).click();
   await expect(page.getByLabel('Zeitraum der Aufgaben')).toHaveValue('historical');
 });
 
@@ -133,7 +133,7 @@ test('repeated data checks retain whole-cause counts across network pages', asyn
   await expect(resolve).toHaveCount(0);
   await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();
   await expect(resolve).toBeVisible();
-  await page.getByRole('link', { name: 'Zurück zum Posteingang' }).click();
+  await page.getByRole('link', { name: 'Zurück zu Prüfen' }).click();
   await expect(page.getByTestId('inbox-row')).toHaveCount(101);
   expect((await (await page.request.get('/api/inbox')).json()).count).toBe(101);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

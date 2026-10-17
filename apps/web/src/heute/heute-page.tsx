@@ -97,7 +97,7 @@ function HeuteBody({ data }: { data: Heute }) {
     detail: `${longDay(proposal.date)} · ${sourceMoney(proposal.amountCents, proposal.currency)} · ${proposal.accountName}`,
     action: {
       label: 'Ausführung prüfen',
-      onClick: () => void navigate({ to: '/konten/posteingang' }),
+      onClick: () => void navigate({ to: '/konten/pruefen' }),
     },
   }));
   const leadTerms: DimensionChainTerm[] = data.lead.chain.map((term, index) => ({

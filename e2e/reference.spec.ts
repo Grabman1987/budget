@@ -54,9 +54,7 @@ test.describe('desktop 1440 px against design/screens', () => {
       route.fulfill({ json: { asOf: '2026-09-17', count: 9 } }),
     );
     await ready(page, `/plan/monat${SEP}`);
-    await expect(
-      page.getByRole('link', { name: 'Posteingang, 9 offen', exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Prüfen, 9 offen', exact: true })).toBeVisible();
     await expectMatchesReference(
       page,
       check({

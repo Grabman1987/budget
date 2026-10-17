@@ -117,8 +117,8 @@ Five main areas plus settings (profile menu). Registers are the second level; no
 | Area | Question | Registers / views (prototype file) |
 | --- | --- | --- |
 | Heute | Hält der Monat? | Leitmaß "frei verfügbar bis Gehalt", pace, upcoming payments, Finanz-Check KPI, net worth (`index.html`) |
-| Plan | Jeder Euro hat einen Job | Plan › Monat with views Wasserfall / Zeit / Gruppen / Klassen / Triage, Geld verteilen (`plan.html`) |
-| Konten | Was ist passiert? | Übersicht, Einzelkonto with Kontostand prüfen, Buchungen, Prüfen (formerly Posteingang, 2026-10-16), Kontakte (`konten.html`) |
+| Plan | Jeder Euro hat einen Job | Monat · Jahr · Zahlungen · Ziele · Prognose (`/plan/prognose`, formerly `/reports/liquiditaet`); Monat with views Wasserfall / Zeit / Gruppen / Klassen / Triage, Geld verteilen (`plan.html`) |
+| Konten | Was ist passiert? | Übersicht · Buchungen · Prüfen (`/konten/pruefen`, legacy `/konten/posteingang` redirects, including details) · Kontakte; Einzelkonto with Kontostand prüfen (`konten.html`) |
 | Vermögen | Was besitze ich, was entscheide ich? | Nettovermögen, Portfolio (Soll/Ist, Rebalancing, Sparpläne), Schulden (Sondertilgung), Freiheitszahl with Soll-Pfad (`vermoegen.html`) |
 | Reports | Warum und wohin, und wie haben Entscheidungen gewirkt? | Current catalog of 34 reports in 5 groups; exact slugs in `apps/web/src/nav/reports-catalog.ts` |
 | Einstellungen | — | Konten (terms: limits, rates, term; loan terms for the debt calculator and the cost report), Kategorien, Regelwerk (stages + registered rules (`RULE_CODES`)), Zuordnungsregeln, Datenquellen, Anlageklassen, CSV-Export, Sicherheit (`einstellungen.html`, partly built) |

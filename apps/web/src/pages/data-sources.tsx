@@ -126,7 +126,7 @@ function BankSourceSection() {
     <section className="data-source-section" aria-labelledby="bank-source-title">
       <SectionHead id="bank-source-title" title="Bank-Sync (PSD2)" />
       <p>
-        Neue Verbindungen merken Umsätze im Posteingang vor. Sie zählen erst nach deiner Bestätigung
+        Neue Verbindungen merken Umsätze unter Prüfen vor. Sie zählen erst nach deiner Bestätigung
         zum Kontostand. Vorhandene Buchungen werden abgeglichen.
       </p>
       {query.isPending && <p role="status">Datenquellen werden geladen …</p>}
@@ -388,7 +388,7 @@ function ConnectionCard({
           onClick={() =>
             void act(
               () => request('POST', PATH + '/' + connection.id + '/sync', {}),
-              'Abruf vorgemerkt. Das Ergebnis erscheint nach Abschluss hier; neue Umsätze im Posteingang.',
+              'Abruf vorgemerkt. Das Ergebnis erscheint nach Abschluss hier; neue Umsätze unter Prüfen.',
             )
           }
         >
@@ -498,8 +498,8 @@ function ConnectionCard({
               ⚠ {w.title}: {w.detail}
             </p>
           ))}
-          <AppLink to="/konten/posteingang" search={{ bankSource: a.id }} className="btn btn-ghost">
-            Im Posteingang prüfen
+          <AppLink to="/konten/pruefen" search={{ bankSource: a.id }} className="btn btn-ghost">
+            Aufgaben prüfen
           </AppLink>
         </div>
       ))}
@@ -541,8 +541,7 @@ function AccountLink({
           {row.currency === 'XXX' && (
             <p className="kmeta">
               Mehrwährungskonto: Es zählen die Umsätze in der Währung des gewählten Kontos. Umsätze
-              in anderen Währungen werden nicht gebucht, sondern im Posteingang zur Prüfung
-              angezeigt.
+              in anderen Währungen werden nicht gebucht, sondern unter Prüfen zur Prüfung angezeigt.
             </p>
           )}
           <Field label="Konto in Budget">

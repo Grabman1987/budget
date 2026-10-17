@@ -23,8 +23,8 @@ import { useState, type FormEvent } from 'react';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { eur, longDay, monthName, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
-import type { PageMeta } from '../nav/pages';
-import type { ReportEntry } from '../nav/reports-catalog';
+import { PLAN_PROGNOSE, type PageMeta } from '../nav/pages';
+import { LIQUIDITY_FORECAST, type ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
 import {
@@ -1028,4 +1028,8 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
       </p>
     </section>
   );
+}
+
+export function PlanPrognosePage() {
+  return <LiquidityReportPage report={LIQUIDITY_FORECAST} meta={PLAN_PROGNOSE} />;
 }

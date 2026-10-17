@@ -9,7 +9,7 @@ export function DebtLiquidityCheck() {
         Tiefpunkt und Puffer mit der zusätzlichen Belastung. Diese Modellbeträge werden nicht
         übernommen; die Rechnung bestätigt weder die Finanzierbarkeit noch eine eingerichtete Rate.
       </p>
-      <AppLink className="debt-liquidity-link" to="/reports/liquiditaet">
+      <AppLink className="debt-liquidity-link" to="/plan/prognose">
         Finanzierung in der Liquiditätsprognose prüfen
       </AppLink>
     </div>

@@ -405,7 +405,7 @@ test('attention leaves overspending to the top-bar chip and links to the inbox',
   await expect(attention).not.toContainText('Test-Envelope');
   await expect(page.locator('.heute-mobile-next')).toHaveCount(0);
   await attention.getByRole('link', { name: 'Zuordnen' }).click();
-  await expect(page).toHaveURL(/\/konten\/posteingang/);
+  await expect(page).toHaveURL(/\/konten\/pruefen/);
 });
 
 test('source-view links open the corresponding live pages', async ({ page }) => {
@@ -688,7 +688,7 @@ ledgerTest(
       const attention = page.getByRole('region', { name: 'Zu tun' });
       await expect(attention).toContainText('ohne Kategorie');
       await attention.getByRole('link', { name: 'Zuordnen' }).click();
-      await expect(page).toHaveURL(/\/konten\/posteingang/);
+      await expect(page).toHaveURL(/\/konten\/pruefen/);
       await expect(page.getByText(priorMemo, { exact: false })).toBeVisible();
       await expect(page.getByText(futureMemo, { exact: false })).toHaveCount(0);
     } finally {

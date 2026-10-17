@@ -18,8 +18,8 @@ test('everyday terms keep function routes, data kinds and global actions distinc
     return input;
   };
   for (const [term, label, path] of [
-    ['Baby', '3.1 Liquiditätsprognose', '/reports/liquiditaet'],
-    ['Einkommenspause', '3.1 Liquiditätsprognose', '/reports/liquiditaet'],
+    ['Baby', 'Plan · Prognose', '/plan/prognose'],
+    ['Einkommenspause', 'Plan · Prognose', '/plan/prognose'],
     ['Dispo', 'Vermögen · Schulden', '/vermoegen/schulden'],
     ['Gebühren', '2.6 Bank- und Zinskosten', '/reports/kosten'],
     ['Prognosegenauigkeit', '1.11 Prognosegenauigkeit', '/reports/planungstreue'],
@@ -55,7 +55,7 @@ test('everyday terms keep function routes, data kinds and global actions distinc
       .getByRole('option', { name: /Monatsabschluss/ }),
   ).toHaveCount(0);
   await input.fill('Posteingang');
-  await expect(actions.getByRole('option', { name: /Posteingang öffnen/ })).toBeVisible();
+  await expect(actions.getByRole('option', { name: /Prüfen öffnen/ })).toBeVisible();
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);

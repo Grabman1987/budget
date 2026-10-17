@@ -57,7 +57,7 @@ test('Today keeps payday first, unknown counts explicit and additional steps con
   const more = page.getByRole('button', { name: /Mehr zum Monat/ });
   if ((await more.getAttribute('aria-expanded')) === 'false') await more.click();
   await expect(page.getByRole('heading', { name: 'Nächste Schritte' })).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'Zu tun' })).toContainText('2 im Posteingang');
+  await expect(page.getByRole('region', { name: 'Zu tun' })).toContainText('2 unter Prüfen');
   await expect(page.locator('.heute-check-counts')).toContainText('0 erfüllt');
   await expect(page.locator('.heute-check-counts')).toContainText('1 Warnung');
   await expect(page.locator('.heute-check-counts')).toContainText('2 verletzt');

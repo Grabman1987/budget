@@ -271,7 +271,7 @@ test('connection cards explain limits and results, scope messages and deep-link 
       new URL(request.url()).pathname === '/api/inbox' &&
       new URL(request.url()).searchParams.get('bankSource') === sourceId,
   );
-  await first.getByRole('link', { name: 'Im Posteingang prüfen' }).click();
+  await first.getByRole('link', { name: 'Aufgaben prüfen' }).click();
   await sourceRequest;
   await expect(page).toHaveURL(new RegExp('bankSource=' + sourceId));
   await expect(page.getByText('Aufgabe von Bank A')).toBeVisible();
@@ -354,6 +354,6 @@ test('bank inbox suggestion requires an explicit posting decision', async ({ pag
   await expect(page.getByRole('button', { name: 'Nicht übernehmen', exact: true })).toBeVisible();
   await page.locator('.bank-review summary').click();
   await page.getByRole('button', { name: 'Als Buchung bestätigen' }).click();
-  await expect(page.getByText('Posteingang leer.', { exact: false })).toBeVisible();
+  await expect(page.getByText('Prüfen leer.', { exact: false })).toBeVisible();
   expect(confirmed).toBe(true);
 });

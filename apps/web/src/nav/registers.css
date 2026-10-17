@@ -1,0 +1,11 @@
+/* Short area registers retain the shared underline, type scale and scroll-edge fades. */
+@media (max-width: 767px) {
+  .registers[aria-label^='Register von '] {
+    gap: 0;
+  }
+
+  .registers[aria-label^='Register von '] a {
+    min-width: var(--touch);
+    padding-inline: 6px;
+  }
+}

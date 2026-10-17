@@ -83,7 +83,7 @@ export function AttentionBar({
           <span>
             {data.attention.inboxCount > 0 && (
               <>
-                {data.attention.inboxCount} im Posteingang
+                {data.attention.inboxCount} unter Prüfen
                 {uncategorized ? ` · ohne Kategorie: ${eur(uncategorized.cents)}` : ''}
               </>
             )}
@@ -96,7 +96,7 @@ export function AttentionBar({
             )}
           </span>
           <div className="attention-actions">
-            {data.attention.inboxCount > 0 && <AppLink to="/konten/posteingang">Zuordnen</AppLink>}
+            {data.attention.inboxCount > 0 && <AppLink to="/konten/pruefen">Zuordnen</AppLink>}
             {data.attention.pendingCount > 0 && (
               <AppLink
                 to="/konten/buchungen"
@@ -123,7 +123,7 @@ export function AttentionBar({
           <span>
             {reminders} {reminders === 1 ? 'Konto wartet' : 'Konten warten'} auf Prüfung
           </span>
-          <AppLink to="/konten/posteingang" hash="account-reminder-title">
+          <AppLink to="/konten/pruefen" hash="account-reminder-title">
             Prüfen
           </AppLink>
         </div>

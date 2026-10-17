@@ -744,7 +744,7 @@ export function PayslipSourceSection() {
           <PayslipSourceForm initial={query.data.config} accounts={query.data.accounts} />
         </>
       )}
-      <p>Dropbox wird nachts gelesen. PDFs erscheinen zur Bestätigung im Posteingang.</p>
+      <p>Dropbox wird nachts gelesen. PDFs erscheinen zur Bestätigung unter Prüfen.</p>
     </section>
   );
 }
@@ -957,7 +957,7 @@ function PayslipSourceForm({
           Zuordnung speichern
         </Button>
       </div>
-      <p>Nach Änderungen das PDF im Posteingang erneut auswerten.</p>
+      <p>Nach Änderungen das PDF unter Prüfen erneut auswerten.</p>
     </form>
   );
 }

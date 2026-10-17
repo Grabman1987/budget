@@ -84,8 +84,8 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
   const count = (await (await countResponse).json()).count;
   const inboxTrigger = page
     .locator(info.project.name === 'mobile' ? '.m-head' : '.topbar')
-    .getByRole('link', { name: /Posteingang, \d+ offen/ });
-  await expect(inboxTrigger).toHaveAttribute('aria-label', `Posteingang, ${count} offen`);
+    .getByRole('link', { name: /Prüfen, \d+ offen/ });
+  await expect(inboxTrigger).toHaveAttribute('aria-label', `Prüfen, ${count} offen`);
   const row = page.getByTestId('inbox-row').filter({ hasText: tag }).filter({ hasText: '12,00' });
   await expect(row).toContainText('vorgemerkt');
   await row.getByRole('button', { name: 'Bestätigen', exact: true }).click();
@@ -151,7 +151,7 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
   await expect(warning).toHaveCount(0);
   await page.goto('/konten');
   await inboxTrigger.click();
-  await expect(page).toHaveURL(/\/konten\/posteingang/);
+  await expect(page).toHaveURL(/\/konten\/pruefen/);
   await expect(page.getByRole('dialog', { name: 'Posteingang', exact: true })).toHaveCount(0);
   // Own synthetic fixtures only; no shared ledger assumptions or real data.
   const deleted = await request.delete(`${MAIN_URL}/api/bookings/${booking.id}`, {
@@ -167,9 +167,9 @@ test('empty and failed inbox count never present a fabricated nine', async ({ pa
     (route) => fulfillInboxFixture(route, { asOf: '2026-09-17', count: 0, entries: [] }),
   );
   await page.goto('/konten/posteingang');
-  await expect(page.getByText('Posteingang leer.', { exact: false })).toBeVisible();
+  await expect(page.getByText('Prüfen leer.', { exact: false })).toBeVisible();
   await expect(
-    page.getByRole('link', { name: 'Posteingang, 0 offen', exact: true }).filter({ visible: true }),
+    page.getByRole('link', { name: 'Prüfen, 0 offen', exact: true }).filter({ visible: true }),
   ).toBeVisible();
   await page.unroute('**/api/inbox/count');
   await page.route('**/api/inbox/count', (route) =>
@@ -178,7 +178,7 @@ test('empty and failed inbox count never present a fabricated nine', async ({ pa
   await page.reload();
   await expect(
     page
-      .getByRole('link', { name: 'Posteingang, Anzahl noch nicht verfügbar' })
+      .getByRole('link', { name: 'Prüfen, Anzahl noch nicht verfügbar' })
       .filter({ visible: true }),
   ).toBeVisible();
 });
@@ -212,7 +212,7 @@ test('a long queue draws in pages of 100 rows and keeps the group count', async 
 
 test('legacy inbox panel URLs lead to the existing page', async ({ page }) => {
   await page.goto('/konten?panel=posteingang');
-  await expect(page).toHaveURL(/\/konten\/posteingang/);
+  await expect(page).toHaveURL(/\/konten\/pruefen/);
   await expect(page.getByRole('dialog', { name: 'Posteingang', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
 });

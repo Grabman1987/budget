@@ -115,10 +115,10 @@ it('groups eight accounts and pending work into at most four source rows, urgent
   expect(rows).toHaveLength(4);
   expect(rows[0]!.textContent).toContain('1 Kategorie überzogen');
   expect(rows[1]!.textContent).toContain('2 Regelbefunde');
-  expect(rows[2]!.textContent).toContain('9 im Posteingang');
+  expect(rows[2]!.textContent).toContain('9 unter Prüfen');
   expect(rows[3]!.textContent).toContain('8 Konten warten auf Prüfung');
   expect(screen.getByRole('link', { name: 'Prüfen' }).getAttribute('href')).toBe(
-    '/konten/posteingang#account-reminder-title',
+    '/konten/pruefen#account-reminder-title',
   );
   expect(screen.getByRole('link', { name: 'Bestätigen' }).getAttribute('data-search')).toBe(
     JSON.stringify({ status: 'pending', bis: '2026-09-10' }),
