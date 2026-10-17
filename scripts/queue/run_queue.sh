@@ -37,7 +37,6 @@ board() { bash "$HERE/board.sh" "$1" "$2" >/dev/null 2>&1 || echo "warn: board $
 SCOPES="$LOGDIR/scope" # queue-scope snapshots, outside the agents' worktrees
 # shellcheck source=scope-lib.sh
 . "$HERE/scope-lib.sh"
-dirty() { [ -n "$(git -C "$1" status --porcelain=v1 --untracked-files=all 2>/dev/null)" ]; }
 
 # sets branch, wt, log for issue $1 and engine $2
 paths() {
@@ -77,7 +76,8 @@ $tail_txt
   fi
   gl issue edit "$n" --remove-label in-progress
   if dirty "$wt"; then # uncommitted work is never discarded: worktree and branch stay for the owner
-    git -C "$wt" diff HEAD -- . ':!node_modules' >"$LOGDIR/issue-$n.attempt-$k.diff" 2>/dev/null
+    if wt_ok "$wt"; then wgit "$wt" diff HEAD -- . ':!node_modules' >"$LOGDIR/issue-$n.attempt-$k.diff" 2>/dev/null
+    else scope_violation "$n" "" "The worktree's \`.git\` file was changed by the agent; no git command was run in it."; fi
     echo "#$n: uncommitted work kept in $wt (branch $branch)"
     return 0
   fi
@@ -89,28 +89,9 @@ $tail_txt
 # Removes the worktree at $1, but moves uncommitted work aside (detached, so the branch is free) instead.
 park_wt() {
   if dirty "$1"; then
-    git -C "$1" switch --detach -q && git -C "$ROOT" worktree move "$1" "$1-kept-$(date +%Y%m%d-%H%M%S)" || return 1
+    wt_ok "$1" && wgit "$1" switch --detach -q && git -C "$ROOT" worktree move "$1" "$1-kept-$(date +%Y%m%d-%H%M%S)" || return 1
   fi
   git -C "$ROOT" worktree remove --force "$1" 2>/dev/null; rm -rf "$1"
-}
-
-# Codex path: commit exactly the changed paths, but only if all of them are inside the issue's queue-scope.
-# git status -z is the real change set (modified, deleted, renamed, untracked); nothing is added blindly.
-commit_in_scope() {
-  local n=$1 wt=$2 title=$3 st report
-  st=$(mktemp)
-  git -C "$wt" status --porcelain=v1 -z --untracked-files=all >"$st"
-  if [ -s "$st" ]; then
-    if report=$(node "$HERE/policy.mjs" check-scope porcelain "$(scope_file "$n")" <"$st"); then
-      node "$HERE/policy.mjs" paths0 porcelain <"$st" |
-        GIT_LITERAL_PATHSPECS=1 git -C "$wt" add --pathspec-from-file=- --pathspec-file-nul &&
-        git -C "$wt" commit -q -m "$title" -m "Refs #$n"
-    else
-      echo "#$n: scope violation, nothing committed or pushed, work kept in $wt: $(tr '\n' ';' <<<"$report")"
-      scope_violation "$n" "" "$report" # finish() then moves the board card (needs-human)
-    fi
-  fi
-  rm -f "$st"
 }
 
 # ---------- job: one issue, runs detached ----------
@@ -123,17 +104,17 @@ run_job() {
     [ -n "$prev" ] && extra="Previous attempt failed. Tail of its log (fix the cause, do not repeat it):
 $(tail -c 3000 "$prev" | redact)"
   fi
-  # snapshot the issue's queue-scope now: later checks read only this file, never the (editable) issue body
-  [ -s "$SCOPES/issue-$n.txt" ] || scope_file "$n" >/dev/null
   git -C "$ROOT" fetch -q origin main
-  if park_wt "$wt" && git -C "$ROOT" worktree add -q -B "$branch" "$wt" origin/main; then
+  # the scope snapshot was written before this job was started (see selection); no snapshot, no job
+  if [ -s "$(scope_path "$n")" ] && park_wt "$wt" && git -C "$ROOT" worktree add -q -B "$branch" "$wt" origin/main; then
     prompt=$(cat "$TEMPLATE")
     prompt=${prompt//\{\{N\}\}/$n}
     prompt=${prompt//\{\{EXTRA\}\}/$extra}
     turns=40; [ "$size" = S ] && turns=25
     if [ "$eng" = codex ]; then
-      # Sandboxed: writes only in the worktree and the shared .git dir, network for npm. The sandbox
-      # cannot read the gh/git credentials, so the runner supplies the issue and pushes/opens the PR.
+      # Sandboxed: writes only in the worktree (NOT the shared .git dir: no --add-dir), network for npm. The
+      # sandbox cannot read the gh/git credentials, so the runner supplies the issue and commits, pushes and
+      # opens the PR itself (publish_in_scope: scope check on the full change set, hooks off, .git file verified).
       prompt="$prompt
 
 CODEX SANDBOX RULES (override steps 1, 6 and 7 above): you have no GitHub access – never run gh,
@@ -150,25 +131,21 @@ $(gh issue view "$n" 2>&1)
 
 $(gh issue view "$n" --comments 2>&1)"
       codex exec -s workspace-write -c sandbox_workspace_write.network_access=true \
-        --add-dir "$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir)" -C "$wt" --json -o "$log" "$prompt" >"$LOGDIR/issue-$n.codex.jsonl" 2>&1 </dev/null
+        -C "$wt" --json -o "$log" "$prompt" >"$LOGDIR/issue-$n.codex.jsonl" 2>&1 </dev/null
       if grep -q '^NEEDS-HUMAN:' "$log" 2>/dev/null; then
         gl issue comment "$n" --body-file "$log"
         gl issue edit "$n" --add-label needs-human
-      else
-        commit_in_scope "$n" "$wt" "$(head -n1 "$log")"
-      fi
-      if ! grep -q '^NEEDS-HUMAN:' "$log" 2>/dev/null && [ -n "$(git -C "$wt" log --oneline origin/main..HEAD)" ]; then
+      elif publish_in_scope "$n" "$wt" "$branch" "$(head -n1 "$log")" >>"$LOGDIR/runner-$n.out" 2>&1; then
         labels=$(gh issue view "$n" --json labels --jq '[.labels[].name | select(test("^(risk|area):"))] | join(",")')
-        git -C "$wt" push -q -u origin "$branch" &&
-          tail -n +2 "$log" | gh pr create --head "$branch" --title "$(head -n1 "$log")" --body-file - \
-            --label "$labels" >>"$LOGDIR/runner-$n.out" 2>&1
+        tail -n +2 "$log" | gh pr create --head "$branch" --title "$(head -n1 "$log")" --body-file - \
+          --label "$labels" >>"$LOGDIR/runner-$n.out" 2>&1
       fi
     else
       (cd "$wt" && claude -p "$prompt" --model "$MODEL" --permission-mode acceptEdits --max-turns "$turns" \
         --output-format json --allowedTools "$TOOLS") >"$log" 2>&1 </dev/null
     fi
   else
-    echo "worktree creation failed" >"$log"
+    echo "worktree creation failed (or no scope snapshot)" >"$log"
   fi
   finish "$n" "$k" "$eng"
   rm -f "$JOBS/issue-$n.pid"
@@ -230,6 +207,16 @@ while read -r rank n labels; do
   [ -n "$skip" ] && { echo "#$n: skip ($skip)"; continue; }
   area=$(tr ',' '\n' <<<"$labels" | grep '^area:' | head -n1)
   if [ -n "$area" ] && [[ "$busy" == *" $area "* ]]; then echo "#$n: skip (area lock $area)"; continue; fi
+
+  # the allowed files come from the issue's queue-scope block, snapshotted now (write-once); without a
+  # block the job is not started at all
+  sd=""; [ "$DRY" = 1 ] && sd=--dry-run
+  scope_snapshot "$n" $sd; rc=$?
+  if [ "$rc" -ne 0 ]; then
+    if [ "$rc" -eq 1 ]; then echo "#$n: skip (no queue-scope block)"; [ "$DRY" = 1 ] || no_scope_comment "$n"
+    else echo "#$n: skip (issue body unreadable)"; fi
+    continue
+  fi
 
   k=1; has attempt:1 && k=2; has attempt:2 && k=3; has attempt:3 && k=4
   size=M; [ "$rank" = 1 ] && size=S

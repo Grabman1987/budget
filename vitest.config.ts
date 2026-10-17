@@ -5,7 +5,7 @@ export default defineConfig({
     include: [
       '{apps,packages}/*/src/**/*.test.{ts,tsx}',
       'scripts/claude-hooks.test.mjs',
-      'scripts/queue/policy.test.mjs',
+      'scripts/queue/*.test.mjs',
     ],
     setupFiles: ['./vitest.setup.ts'],
     passWithNoTests: true,

@@ -209,3 +209,45 @@ describe('checkRuns (head-bound required checks)', () => {
     expect(verdict(worse).ok).toBe(false);
   });
 });
+
+describe('protected paths (denylist on top of any scope)', () => {
+  const everything = ['**'];
+  const denied = [
+    '.github/workflows/ci.yml',
+    'scripts/queue/automerge.sh',
+    'scripts/ci/check.mjs',
+    '.claude/settings.json',
+    '.agents/skills/x/SKILL.md',
+    'AGENTS.md',
+    'CLAUDE.md',
+    'fly.toml',
+    'Dockerfile',
+    'docker-entrypoint.sh',
+    'litestream.yml',
+    'packages/db/drizzle/0001_init.sql',
+    'playwright.config.ts',
+    'vitest.config.ts',
+    'e2e/plan/plan.spec.ts-snapshots/a.png',
+    'e2e/x-snapshots/b/c.png',
+  ];
+  it.each(denied)('blocks %s even if the scope allows everything', (path) => {
+    const r = checkScope([{ status: 'M', paths: [path] }], everything);
+    expect(r.ok).toBe(false);
+    expect(r.outside).toEqual([path]);
+  });
+  it('blocks a rename into a protected path and a deletion of one', () => {
+    expect(
+      checkScope([{ status: 'R100', paths: ['.github/x.yml', 'src/x.yml'] }], everything).outside,
+    ).toEqual(['.github/x.yml']);
+    expect(checkScope([{ status: 'D', paths: ['fly.toml'] }], everything).ok).toBe(false);
+  });
+  it('still allows ordinary files and look-alike names', () => {
+    const paths = [
+      'src/a.ts',
+      'docs/Dockerfile.md',
+      'e2e/plan.spec.ts',
+      'packages/db/src/schema.ts',
+    ];
+    expect(checkScope([{ status: 'M', paths }], everything)).toEqual({ ok: true, outside: [] });
+  });
+});

@@ -105,9 +105,31 @@ function globToRegExp(glob) {
   return re;
 }
 
+// Never changed by an unattended merge, whatever the issue scope says: CI, the queue itself, agent
+// instructions, deploy and migration files, test-runner config and visual baselines. An issue that needs
+// one of these goes through the orchestrator.
+const PROTECTED = [
+  '.github/**',
+  'scripts/queue/**',
+  'scripts/ci/**',
+  '.claude/**',
+  '.agents/**',
+  'AGENTS.md',
+  'CLAUDE.md',
+  'fly.toml',
+  'Dockerfile',
+  'docker-entrypoint.sh',
+  'litestream.yml',
+  'packages/db/drizzle/**',
+  'playwright.config.ts',
+  'vitest.config.ts',
+  'e2e/**/*-snapshots/**',
+];
+
 function inScope(path, globs) {
   if (!path || path.startsWith('/') || path.includes('\\') || path.split('/').includes('..'))
     return false;
+  if (PROTECTED.some((g) => globToRegExp(g).test(path))) return false;
   return globs.some((g) => globToRegExp(g).test(path));
 }
 
@@ -152,7 +174,11 @@ export function checkScope(changes, globs) {
   }
   const outside = paths.filter((p) => !inScope(p, globs));
   return outside.length
-    ? { ok: false, outside, reason: 'files outside the issue queue-scope:' }
+    ? {
+        ok: false,
+        outside,
+        reason: 'files outside the issue queue-scope or on the protected list:',
+      }
     : { ok: true, outside: [] };
 }
 
@@ -171,13 +197,14 @@ const parserFor = (kind) => ({ porcelain: parsePorcelain, 'name-status': parseNa
 
 function main([cmd, ...args]) {
   if (cmd === 'gate') {
-    let r;
+    let r, input;
     try {
-      r = mergeGate(JSON.parse(stdin()));
+      input = JSON.parse(stdin());
+      r = mergeGate(input);
     } catch {
       r = { ok: false, reason: 'gate input unreadable' };
     }
-    console.log(r.ok ? 'ok' : `BLOCK: ${r.reason}`);
+    console.log(r.ok ? `ok ${input.mainHead}` : `BLOCK: ${r.reason}`);
     return r.ok ? 0 : 1;
   }
   if (cmd === 'parse-scope') {
