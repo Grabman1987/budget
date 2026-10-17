@@ -2,7 +2,11 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['{apps,packages}/*/src/**/*.test.{ts,tsx}', 'scripts/claude-hooks.test.mjs'],
+    include: [
+      '{apps,packages}/*/src/**/*.test.{ts,tsx}',
+      'scripts/claude-hooks.test.mjs',
+      'scripts/ci/test-integrity.test.mjs',
+    ],
     setupFiles: ['./vitest.setup.ts'],
     passWithNoTests: true,
     // SQLite-backed tests open, migrate and close real files; the Windows CI runner is several
