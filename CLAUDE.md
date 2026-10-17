@@ -45,3 +45,24 @@ Private household finance PWA for one user. Read `SPEC.md` first; it defines pre
 ## Task-specific skills
 
 Local profiles and selection rationale: [`docs/skills.md`](docs/skills.md). Load the relevant `SKILL.md` through the mapping in `AGENTS.md`; avoid loading the entire capability catalogue for every task. Keep the existing prototype/design, technology stack, owner-defined placeholders and test/acceptance requirements. Use only available tools and report their actual results.
+
+## Autonomous queue rules
+
+Pipeline, labels, merge policy and model routing: [`docs/queue/README.md`](docs/queue/README.md). One issue = one fresh session = one PR; at most one running issue per `area:*` label.
+
+Hard guardrails (no exceptions without the owner):
+
+- No force-push or history rewrite on `main`; never weaken branch protection or the ruleset.
+- No destructive production data operations. Migrations must be reversible and tested on a copy first, otherwise label `needs-human`.
+- No secrets in code, logs, issues or PRs. No changes to secrets, deploy credentials or Fly settings without owner approval.
+- No weakening, skipping or deleting tests, tolerances or coverage without the `tests-change-approved` label.
+- No change to calculation rules (returns, portfolio logic, booking semantics) without documented approval; display-only changes are fine.
+- No financial advice content.
+- Do not interfere with other running work (worktrees, branches, PRs, issues you did not start).
+- Suspected data loss or security problem: stop and open an `incident` issue.
+
+Model routing: Opus orchestrates and decides `risk:high` merges; Sonnet implements; Explore/Haiku searches; Codex for second opinion and spare capacity.
+
+Token rules: grep or read line ranges instead of whole files; `gh` with `--json`/`--jq`/`--limit`; no polling; subagent reports at most 10 lines; write a handoff file at about 60 % context.
+
+Use the Ponytail skill for coding ([`docs/queue/ponytail-summary.md`](docs/queue/ponytail-summary.md)); this file wins on conflict, and every acceptance criterion gets a test.
