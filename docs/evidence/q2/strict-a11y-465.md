@@ -59,3 +59,19 @@ WebKit remains the explicitly permitted coverage gap. The queue-pilot instructio
 reserves `playwright.config.ts` for draft PR #541; its `webkit-iphone` matcher does
 not include this new spec. Configuration and snapshot baselines are unchanged.
 No product questions remain. CI remains the merge gate.
+
+## WebKit
+
+The strict Q2 Axe check is registered for the `webkit-iphone` project (iPhone 13, real
+WebKit) via its `testMatch` list in `playwright.config.ts`; nothing else in the
+configuration, the spec, the Axe rules or any tolerance changed. Synthetic sample data only.
+
+- Command: `npx playwright test e2e/a11y-strict-q2.spec.ts --project=webkit-iphone --workers=1`
+- Date: 2026-10-17 (Windows 11 local run), Playwright 1.64.1
+- Result: **17 passed / 17** = 14 strict cases (7 pages x light/dark) plus 3 setup tests;
+  zero Axe violations at every impact level and no touch target under 44 x 44 px.
+- With the default parallel workers, the first local run had 14 passed and 3 failed. The failures were
+  browser-infrastructure errors (`browserContext.newPage: Target page, context or browser
+  has been closed` inside `AxeBuilder.analyze`, and one 150 s test timeout), not
+  accessibility findings. The same three cases passed on the serial rerun, so no app change
+  was needed.
