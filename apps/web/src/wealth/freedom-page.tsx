@@ -1,6 +1,7 @@
 import { useAmountPrivacy, privateAmount, Button, Field, Select } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { Info } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import {
   cents,
   lastDayOfMonth,
@@ -18,6 +19,43 @@ import { freedomQuery, type FreedomView } from './freedom-api';
 import { freedomScenario, monthText, percent } from './freedom-model';
 import { FreedomChart } from './freedom-chart';
 import './freedom.css';
+
+/** The ⓘ button of a heading; the text it opens is an `InfoText` with the same id. */
+function InfoButton({
+  id,
+  label,
+  open,
+  onToggle,
+}: {
+  id: string;
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="icon-btn freedom-info"
+      aria-label={`Erklärung: ${label}`}
+      aria-expanded={open}
+      aria-controls={id}
+      onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && open) onToggle();
+      }}
+    >
+      <Info className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
+    </button>
+  );
+}
+
+function InfoText({ id, open, children }: { id: string; open: boolean; children: ReactNode }) {
+  return (
+    <div id={id} className="vnote freedom-info-text" hidden={!open}>
+      {children}
+    </div>
+  );
+}
 
 export function FreedomPage() {
   useAmountPrivacy();
@@ -39,12 +77,14 @@ export function FreedomPage() {
   );
 }
 
-function FreedomContent({ view }: { view: FreedomView }) {
+export function FreedomContent({ view }: { view: FreedomView }) {
   const hidden = useAmountPrivacy();
   const defaultSaving =
     view.defaultSavingCents === null ? '' : formatDecimal(cents(view.defaultSavingCents));
   const [saving, setSaving] = useState(defaultSaving);
   const [returnBp, setReturnBp] = useState(view.defaultRealReturnBp);
+  const [info, setInfo] = useState<'figure' | 'assumptions' | null>(null);
+  const toggle = (key: 'figure' | 'assumptions') => setInfo((now) => (now === key ? null : key));
   const monthsFreedom =
     view.investedCents !== null && view.annualSpendCents !== null
       ? freedomMonths(view.investedCents, view.annualSpendCents)
@@ -72,8 +112,27 @@ function FreedomContent({ view }: { view: FreedomView }) {
       <section className="vnw" aria-labelledby="freedom-title">
         <div className="tbd-head">
           <h2 id="freedom-title">Freiheitszahl</h2>
-          <span className="tbd-state ink">Ziel 100 %</span>
+          <span className="freedom-head-end">
+            <span className="tbd-state ink">Ziel 100 %</span>
+            <InfoButton
+              id="freedom-info-figure"
+              label="Freiheitszahl"
+              open={info === 'figure'}
+              onToggle={() => toggle('figure')}
+            />
+          </span>
         </div>
+        <InfoText id="freedom-info-figure" open={info === 'figure'}>
+          <p>
+            Bedarf und Wunsch, ohne Zukunft.{' '}
+            {view.multiple === 25
+              ? 'Bei 100 % entsprechen 4 % Entnahme im Jahr dieser Ausgabenbasis.'
+              : `Ziel: ${view.multiple} Jahresausgaben.`}
+          </p>
+          <p>
+            Bewertung am {longDay(view.asOf)}. Ausgaben bis {monthText(view.refMonth)}.
+          </p>
+        </InfoText>
         <div className="tbd-fig" data-testid="freedom-figure">
           {view.progressBp === null ? '—' : percent(view.progressBp)}
           <span className="cents"> %</span>
@@ -140,28 +199,36 @@ function FreedomContent({ view }: { view: FreedomView }) {
         <p className="vnote" data-testid="freedom-annual-spend">
           {view.annualSpendCents === null
             ? 'Jahresausgaben unbekannt'
-            : `${eur(view.annualSpendCents)} Jahresausgaben`}{' '}
-          · Bedarf und Wunsch, ohne Zukunft.{' '}
-          {view.multiple === 25
-            ? 'Bei 100 % entsprechen 4 % Entnahme im Jahr dieser Ausgabenbasis.'
-            : `Ziel: ${view.multiple} Jahresausgaben.`}
+            : `${eur(view.annualSpendCents)} Jahresausgaben`}
         </p>
-        <p className="vnote">
-          Bewertung am {longDay(view.asOf)}. Ausgaben bis {monthText(view.refMonth)}.
-          {view.months.length > 0 &&
-            view.months.length < 12 &&
-            ` Erst ${view.months.length} abgeschlossene Monate: ihr Durchschnitt wurde auf zwölf Monate hochgerechnet.`}
-        </p>
+        {view.months.length > 0 && view.months.length < 12 && (
+          <p className="vnote">
+            Erst {view.months.length} abgeschlossene Monate: ihr Durchschnitt wurde auf zwölf Monate
+            hochgerechnet.
+          </p>
+        )}
       </section>
       <section className="vcomp" aria-labelledby="freedom-assumptions">
         <div className="tbd-head">
           <h2 id="freedom-assumptions">Annahmen</h2>
+          <InfoButton
+            id="freedom-info-assumptions"
+            label="Annahmen"
+            open={info === 'assumptions'}
+            onToggle={() => toggle('assumptions')}
+          />
         </div>
-        <Field
-          label="Sparrate pro Monat"
-          hint={`Vorbelegt: Ø ${view.savingMonths} abgeschlossene Monate für Zukunft, Erstattungen gegengerechnet. Ungespeicherte Annahme; Rechnen erlaubt.`}
-          error={error || undefined}
-        >
+        <InfoText id="freedom-info-assumptions" open={info === 'assumptions'}>
+          <p>
+            Sparrate vorbelegt: Ø {view.savingMonths} abgeschlossene Monate für Zukunft,
+            Erstattungen gegengerechnet. Ungespeicherte Annahme; Rechnen erlaubt.
+          </p>
+          <p>
+            Diese Annahmen werden nicht gespeichert und ändern keine Sparpläne. Der historische
+            Soll-Pfad und ein persönliches Zieljahr sind noch nicht eingerichtet.
+          </p>
+        </InfoText>
+        <Field label="Sparrate pro Monat" error={error || undefined}>
           {({ id, describedBy, invalid }) => (
             <div className="amount-field amount-field-sm">
               <input
@@ -238,10 +305,6 @@ function FreedomContent({ view }: { view: FreedomView }) {
             Gib deine angenommene Sparrate ein, um ab heute zu rechnen. Auch 0 ist möglich.
           </p>
         )}
-        <p className="vnote">
-          Diese Annahmen werden nicht gespeichert und ändern keine Sparpläne. Der historische
-          Soll-Pfad und ein persönliches Zieljahr sind noch nicht eingerichtet.
-        </p>
       </section>
       <section className="freedom-wide" aria-labelledby="freedom-way">
         <div className="head">
@@ -249,27 +312,11 @@ function FreedomContent({ view }: { view: FreedomView }) {
           <span className="aside">Prognose ab heute · keine Garantie</span>
         </div>
         {projection && view.targetCents !== null ? (
-          <>
-            <FreedomChart
-              projection={projection}
-              target={view.targetCents}
-              startMonth={view.asOf.slice(0, 7)}
-            />
-            <div className="legend" aria-hidden="true">
-              <span>
-                <svg viewBox="0 0 26 8">
-                  <path className="l-forecast" d="M0 4h26" />
-                </svg>
-                Prognose ab heute
-              </span>
-              <span>
-                <svg viewBox="0 0 26 8">
-                  <path className="l-goal" d="M0 4h26" />
-                </svg>
-                Ziel {eur(view.targetCents)}
-              </span>
-            </div>
-          </>
+          <FreedomChart
+            projection={projection}
+            target={view.targetCents}
+            startMonth={view.asOf.slice(0, 7)}
+          />
         ) : (
           <p className="vnote">
             {reason || error || 'Die Prognose beginnt nach Eingabe einer Sparrate.'}
