@@ -93,30 +93,30 @@ test.describe('UX-3a phone shell', () => {
         );
       });
       expect(clearance, path).toBe(16);
+      // The FAB is fixed: measure its slot before it hides on the way down (#468).
+      const fabTop = await page.locator('.fab').evaluate((el) => el.getBoundingClientRect().top);
       // Reveal after reaching the bottom: the retained padding must also clear a visible FAB.
+      // Two separate steps, so WebKit cannot merge both programmatic scrolls into one event.
       await page.evaluate(async () => {
         window.scrollTo(0, document.documentElement.scrollHeight);
         await new Promise(requestAnimationFrame);
         await new Promise(requestAnimationFrame);
-        window.scrollBy(0, -1);
-        await new Promise(requestAnimationFrame);
-        await new Promise(requestAnimationFrame);
       });
+      await page.evaluate(() => window.scrollBy(0, -60));
       await expect(page.locator('.fab')).toBeVisible();
       await expect
         .poll(
           async () =>
-            page.locator('main').evaluate((el) => {
+            page.locator('main').evaluate((el, top) => {
               const bottom = Math.max(
                 ...[...el.children]
                   .filter((child) => child.getClientRects().length > 0)
                   .map((child) => child.getBoundingClientRect().bottom),
               );
-              const fab = document.querySelector('.fab')!.getBoundingClientRect();
-              // Normalize the one-pixel reveal scroll back to the page-end position.
+              // Normalize the reveal scroll back to the page-end position.
               const remaining = document.documentElement.scrollHeight - innerHeight - scrollY;
-              return Math.round(fab.top - bottom + remaining);
-            }),
+              return Math.round(top - bottom + remaining);
+            }, fabTop),
           { message: path },
         )
         .toBeGreaterThanOrEqual(16);
