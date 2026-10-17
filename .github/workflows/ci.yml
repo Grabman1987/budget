@@ -64,19 +64,17 @@ jobs:
   # skipped here (--ignore-snapshots, every other assertion runs): baselines are checked by the
   # separate `visual` job (also part of `check`), so shards only prove behaviour.
   e2e:
-    # Fail fast: no 12 browser jobs while typecheck/lint is red (most failed PR runs are cheap to find).
+    # Fail fast: no 12 browser jobs while typecheck/lint is red (most failed PR runs fail here).
     needs: static
     runs-on: ubuntu-latest
-    # Browsers and their system packages come preinstalled (saves the ~40 s apt/download step per
-    # shard). Keep the tag equal to the exact @playwright/test version in package-lock.json.
-    container: mcr.microsoft.com/playwright:v1.64.1-noble
     timeout-minutes: 30
     env:
-      SHARDS: 6
+      # Measured 2026-10-17 (PR 654): 12 shards 11.4 min wall, 8 shards 14.7, 6 shards 15.7.
+      SHARDS: 12
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -86,9 +84,17 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # The workspace is owned by the runner user, the container runs as root: without this
-      # `git rev-parse HEAD` (the /health revision) fails with "dubious ownership".
-      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      # With a cache hit the browsers are not downloaded again; the system packages still are.
+      - name: Install Chromium and WebKit
+        run: npx playwright install --with-deps chromium webkit
       - name: Build (e2e mode)
         run: npm run build:e2e
       - name: E2E shard ${{ matrix.shard }}/${{ env.SHARDS }}
