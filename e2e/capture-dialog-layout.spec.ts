@@ -179,7 +179,7 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   const first = dialog.getByRole('group', { name: 'Zeile 1', exact: true });
   const second = dialog.getByRole('group', { name: 'Zeile 2', exact: true });
   await first.getByLabel('Betrag 1', { exact: true }).fill('10,00');
-  await choose(second, 'Kategorie 2', contact.name, /^Für Kontakt auslegen/);
+  await choose(second, 'Kategorie 2', contact.name, `Für Kontakt auslegen → ${contact.name}`);
   await second.getByLabel('Betrag 2', { exact: true }).fill('9,99');
   await dialog.getByRole('button', { name: '+ Weitere Kategorie' }).click();
   const remove = dialog.getByRole('button', { name: 'Zeile 3 entfernen' });

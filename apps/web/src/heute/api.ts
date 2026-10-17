@@ -161,7 +161,12 @@ export interface Heute extends WithValuationNotes {
         series: Array<{ day: string; cents: number }>;
       }
     | HeuteUnavailable;
-  attention: { inboxCount: number; pendingCount: number; pendingBefore: string };
+  attention: {
+    inboxCount: number;
+    pendingCount: number;
+    pendingBefore: string;
+    loanTermsMissing: boolean;
+  };
   lastBookings: Array<{
     id: string;
     date: string;
