@@ -96,7 +96,7 @@ test('explains net versus cash debts, links financing and stacks the existing lo
   await expect(link).toHaveAttribute('href', '/plan/prognose');
   expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await link.click();
-  await expect(page).toHaveURL(/\/reports\/liquiditaet$/);
+  await expect(page).toHaveURL(/\/plan\/prognose$/);
   await expect(
     page.getByRole('heading', { name: 'Liquiditätsprognose', exact: true }),
   ).toBeVisible();
