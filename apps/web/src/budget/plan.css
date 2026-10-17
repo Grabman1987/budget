@@ -96,10 +96,12 @@
 .plan .sb-bar {
   position: relative;
   display: flex;
-  height: 18px;
+  height: var(--bar-stacked);
   border: 1px solid var(--line);
   border-radius: 1px;
   background: var(--raised);
+
+  opacity: var(--bar-tint);
 }
 .plan .sb-seg {
   height: 100%;
@@ -108,7 +110,7 @@
   position: absolute;
   top: -6px;
   bottom: -6px;
-  border-left: 1.5px solid var(--ink);
+  border-left: var(--stroke-hairline) solid var(--ink);
 }
 .plan .sb-legend {
   display: flex;
@@ -161,9 +163,10 @@
   position: absolute;
   left: 10px;
   bottom: 0;
-  border: 4px solid transparent;
-  border-top: 6px solid var(--line-2);
-  border-bottom: 0;
+  width: 8px;
+  height: 6px;
+  background: var(--line-2);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
 .plan .rail-list .rail-io {
   display: flex;
@@ -196,7 +199,7 @@
   width: 100%;
   text-align: left;
   padding: 2px 6px 2px 0;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 .plan .rail-btn:hover .rail-name {
   color: var(--line);
@@ -254,7 +257,7 @@
 }
 .plan .rail-fill {
   grid-area: fill;
-  height: 6px;
+  height: var(--bar-progress);
   background: var(--tint-2);
   border-radius: 1px;
   overflow: hidden;
@@ -293,7 +296,7 @@
   position: static;
   height: 0;
   border: 0;
-  border-top: 1.5px dashed var(--line);
+  border-top: var(--stroke-hairline) dashed var(--line);
 }
 .plan .rail-list li.rail-level::after {
   display: none;
@@ -401,7 +404,7 @@
   position: relative;
   display: block;
   max-width: 420px;
-  height: 6px;
+  height: var(--bar-progress);
   margin: 9px 0 3px;
   background: var(--tint-2);
   border-radius: 1px;
@@ -418,7 +421,7 @@
   position: absolute;
   top: -4px;
   bottom: -4px;
-  border-left: 1.5px solid var(--ink);
+  border-left: var(--stroke-hairline) solid var(--ink);
 }
 .plan .pbar:has(.pbar-tick) {
   margin-top: 22px;
@@ -437,7 +440,7 @@
   position: absolute;
   top: -4px;
   bottom: -4px;
-  border-left: 1.5px solid var(--line);
+  border-left: var(--stroke-hairline) solid var(--line);
 }
 .plan .pmeta {
   display: flex;
@@ -468,7 +471,7 @@
 .plan .lg-debt {
   padding: 0 6px;
   border: 1px dashed var(--ink-2);
-  border-radius: 2px;
+  border-radius: 4px;
 }
 .plan .lg-debt {
   font-style: normal;
@@ -478,7 +481,7 @@
   margin: -4px -8px;
   padding: 4px 8px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 8px;
   font-weight: 560;
 }
 .plan .assign-btn:hover {
@@ -492,7 +495,7 @@
   padding: 0 8px;
   text-align: right;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--raised);
   color: var(--ink);
   font-weight: 600;
@@ -541,7 +544,7 @@
   position: relative;
   display: inline-block;
   width: 36px;
-  height: 6px;
+  height: var(--bar-progress);
   background: var(--tint-2);
 }
 .plan .lg-fill {
@@ -555,7 +558,7 @@
   left: 55%;
   top: -4px;
   bottom: -4px;
-  border-left: 1.5px solid var(--ink);
+  border-left: var(--stroke-hairline) solid var(--ink);
 }
 .plan .lg-ghost {
   font-style: normal;
@@ -581,7 +584,7 @@
   font-weight: 620;
 }
 .plan .kv-total {
-  border-top: 1.5px solid var(--line);
+  border-top: var(--stroke-hairline) solid var(--line);
 }
 .plan .kv-total dt {
   color: var(--ink);
@@ -874,13 +877,13 @@
 /* Two tones: what was spent (class fill) on the rest of the target. */
 .plan .ptable .pbar {
   max-width: none;
-  height: 6px;
-  border-radius: var(--radius-titleblock);
+  height: var(--bar-progress);
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--good) 16%, var(--surface-2));
   overflow: visible;
 }
 .plan .ptable .pbar-fill {
-  border-radius: var(--radius-titleblock);
+  border-radius: var(--radius-xs);
 }
 .plan .col-avail .pill {
   margin: -3px 0;
@@ -1256,7 +1259,7 @@
   content: 'laufend';
   margin-left: 8px;
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: var(--good-soft);
   color: var(--on-good-soft);
   font-size: var(--fs-label);
@@ -1328,12 +1331,12 @@
   margin: 12px 0;
 }
 .income-targets-bars > div {
-  height: 6px;
+  height: var(--bar-progress);
   background: var(--line);
 }
 .income-targets-bars > .income-targets-goal {
   background: transparent;
-  border-top: 2px dashed var(--line-2);
+  border-top: var(--stroke-hairline) dashed var(--line-2);
 }
 .income-targets-links {
   list-style: none;
@@ -1499,7 +1502,7 @@
   min-height: 32px;
   padding: 4px 10px;
   border: 1px solid var(--rule-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   white-space: nowrap;
   cursor: pointer;
   font-family: var(--font-ui);
@@ -2002,7 +2005,7 @@
 .plan .inspector-selection progress {
   appearance: none;
   display: block;
-  height: 6px;
+  height: var(--bar-progress);
   margin: 8px 0 6px;
   border: 0;
   border-radius: var(--radius-xs);

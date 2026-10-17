@@ -261,10 +261,10 @@
   overflow: visible;
 }
 .kmini .l-actual {
-  stroke-width: 1.5;
+  stroke-width: var(--stroke-measure);
 }
 .kmini .l-plan {
-  stroke-width: 1;
+  stroke-width: var(--stroke-hairline);
 }
 .kdelta {
   display: inline-block;
@@ -333,7 +333,7 @@
   position: relative;
   display: block;
   width: 120px;
-  height: 6px;
+  height: var(--bar-progress);
   background: var(--tint-2);
   border-radius: 1px;
 }
@@ -346,7 +346,7 @@
   margin: 14px 0 4px;
   font-size: var(--fs-body);
   color: var(--ink-2);
-  border-radius: 6px;
+  border-radius: 8px;
 }
 .kclosed summary {
   display: inline-flex;
@@ -877,7 +877,7 @@
   height: auto;
   max-width: 100%;
   border: 1px solid var(--rule-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   white-space: normal;
   overflow-wrap: anywhere;
   text-align: left;
@@ -938,7 +938,7 @@
   gap: 8px;
   margin: 4px 0;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-weight: 600;
   font-size: var(--fs-body);
 }
@@ -1144,7 +1144,7 @@
   align-items: center;
   min-height: 40px;
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
 }
 .combo-hint {
@@ -1181,7 +1181,7 @@
   height: 36px;
   padding: 0 12px;
   border: 1px solid var(--rule-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   font-size: var(--fs-body);
   font-weight: 520;
   color: var(--ink);
@@ -1365,7 +1365,7 @@
   gap: 10px;
   min-height: 40px;
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: 8px;
   text-align: left;
   font-size: var(--fs-table);
 }

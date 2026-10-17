@@ -9,6 +9,16 @@
 - [ ] Linux snapshot refresh in CI where register labels changed.
 - [ ] Draft PR/CI and owner acceptance. Header, FAB, sidebar and focus remain part B; page content remains #477.
 
+### DS3: line, bar, radius and shadow ladders — #474 (2026-10-16)
+
+- [x] Document the line ladder, 4/8/12 radii and one-layer card shadow in DESIGN.md; regenerate tokens.
+- [x] Migrate structural/chart strokes, thin progress/stacked bars and card ghost borders while retaining focus and touch geometry.
+- [x] Restrict plotter motion to the first chart per page on its first session visit, with storage-denial fallback and regression coverage.
+- [x] Extend CSS scale checks for border widths and exact active-register exceptions.
+- [x] Run the full check: typechecks/lint/format pass; 4,010 tests pass initially, one formatter assertion and three setup failures pass in isolated reruns (45 tests). Final UI run: 146 tests pass.
+- [x] Verify the four focused browser files on desktop/mobile/WebKit: 55 pass, three capture failures and one intentional skip; all seven selected serial capture rerun cases pass. Plan geometry, 44px targets, overflow and light/dark Axe pass on all three projects. Windows Linux-baseline comparisons remain skipped by the existing helper.
+- [ ] Green CI and Linux snapshot refresh; Windows baselines remain unchanged.
+
 ### DS2: binding type scale — #473 (2026-10-16)
 
 - [x] Record owner decision 2B as T1–T12 in DESIGN.md; generate desktop/phone size and line-height tokens, with a restricted T12 role.
@@ -595,7 +605,6 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Synthetic unit and bounding-box/hit-test phone regressions; [scope and baseline list](ux-tap-targets-1005.md).
 - [x] Final local check phases (336 files / 3,175 tests), production build and affected Chromium/WebKit browser checks; [verification evidence](ux-tap-targets-1005.md).
 - [ ] Pinned Linux screenshot review and owner phone acceptance (see delivery evidence).
-
 
 ### Heute daily budget — owner 05.10.2026
 

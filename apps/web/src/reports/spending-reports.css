@@ -104,10 +104,11 @@
 /* Class bar (100 % bar): Bedarf solid, Wunsch hatched, Zukunft cross-hatched. */
 .sr-seg {
   display: flex;
-  height: 22px;
+  height: var(--bar-stacked);
+  opacity: var(--bar-tint);
   margin-top: 16px;
   overflow: hidden;
-  border-radius: 2px;
+  border-radius: 4px;
   background: var(--tint);
 }
 .sr-seg > span {
@@ -183,7 +184,7 @@ a.sr-name:hover {
 }
 .sr-track {
   position: relative;
-  height: 10px;
+  height: var(--bar-progress);
   background: var(--tint);
   border-radius: 1px;
 }
@@ -222,7 +223,7 @@ a.sr-name:hover {
   padding: 8px 0;
 }
 .sr-moves .sr-track {
-  height: 8px;
+  height: var(--bar-progress);
 }
 .sr-moves .sr-track::before {
   content: '';
@@ -366,7 +367,7 @@ a.sr-name:hover {
 }
 .sr-bl-track {
   position: relative;
-  height: 12px;
+  height: var(--bar-progress);
   background: var(--tint);
   border-radius: 1px;
 }
@@ -378,7 +379,7 @@ a.sr-name:hover {
 .sr-bl-track i.sr-bl-plan {
   position: absolute;
   inset: -4px auto -4px 0;
-  width: 2px;
+  width: var(--stroke-hairline);
   background: var(--ink);
 }
 .sr-bl.is-over .sr-bl-diff {
@@ -457,7 +458,7 @@ a.sr-name:hover {
   gap: 10px;
   min-height: 32px;
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: var(--fs-chart-label);
 }
 .sr-523-row.is-cur {
@@ -472,9 +473,11 @@ a.sr-name:hover {
 .sr-523-bar {
   position: relative;
   display: flex;
-  height: 14px;
+  height: var(--bar-stacked);
   background: var(--tint);
   border-radius: 1px;
+
+  opacity: var(--bar-tint);
 }
 .sr-523-bar > span {
   display: block;
@@ -491,7 +494,7 @@ a.sr-name:hover {
   background: var(--ink);
 }
 .sr-523-mark.is-full {
-  width: 2px;
+  width: var(--stroke-hairline);
   background: var(--minus-ink);
 }
 .sr-523-num {
@@ -612,11 +615,13 @@ a.sr-name:hover {
 }
 .sr-stack {
   display: flex;
-  height: 18px;
+  height: var(--bar-stacked);
   gap: 1px;
   background: var(--tint);
   border-radius: 1px;
   overflow: hidden;
+
+  opacity: var(--bar-tint);
 }
 .sr-stack i {
   display: block;
@@ -662,7 +667,7 @@ a.sr-name:hover {
   position: relative;
   display: inline-block;
   width: 64px;
-  height: 8px;
+  height: var(--bar-progress);
   background: var(--tint);
   border-radius: 1px;
 }
@@ -702,7 +707,7 @@ a.sr-state {
   position: relative;
   display: block;
   min-width: 90px;
-  height: 8px;
+  height: var(--bar-progress);
   background: var(--tint);
   border-radius: 1px;
 }

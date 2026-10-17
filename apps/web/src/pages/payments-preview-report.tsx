@@ -310,7 +310,7 @@ function PreviewChart({ data, group }: { data: PaymentsPreview; group: PreviewCu
   const left = small ? 52 : 75;
   const right = width - 12;
   const step = (right - left) / 12;
-  const barWidth = step * 0.56;
+  const barWidth = Math.min(step * 0.56, 10);
   const max = Math.max(1, ...group.months.map((m) => m.upperCents));
   const y = (c: number) => 232 - (c / max) * 175;
   return (
@@ -390,6 +390,7 @@ function PreviewChart({ data, group }: { data: PaymentsPreview; group: PreviewCu
                 width={barWidth}
                 height={y(0) - y(a.baseCents - per)}
                 className="preview-bar"
+                opacity="var(--bar-tint)"
               />
               {per > 0 && (
                 <rect
@@ -398,6 +399,7 @@ function PreviewChart({ data, group }: { data: PaymentsPreview; group: PreviewCu
                   width={barWidth}
                   height={y(a.baseCents - per) - y(a.baseCents)}
                   fill="url(#preview-bound)"
+                  opacity="var(--bar-tint)"
                   stroke="var(--line-2)"
                 />
               )}

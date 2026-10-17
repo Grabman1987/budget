@@ -259,8 +259,15 @@ function ClassBars({ width }: { width: number }) {
         const x1 = x(acc);
         return (
           <g key={row.key}>
-            <rect x={x0} y={30} width={x1 - x0} height={18} fill={row.fill} />
-            <rect x={x0} y={30} width={x1 - x0} height={18} fill="none" stroke="var(--line)" />
+            <rect
+              x={x0}
+              y={30}
+              width={x1 - x0}
+              height={10}
+              fill={row.fill}
+              opacity="var(--bar-tint)"
+            />
+            <rect x={x0} y={30} width={x1 - x0} height={10} fill="none" stroke="var(--line)" />
             <text x={(x0 + x1) / 2} y={22} textAnchor="middle" className="svg-label-strong">
               {`${row.label} ${row.value} %`}
             </text>

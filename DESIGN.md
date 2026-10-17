@@ -153,13 +153,25 @@ typography:
     letterSpacing: "0.06em"
 rounded:
   titleblock: "2px"
+  stamp: "3px"
   xs: "4px"
-  sm: "6px"
+  sm: "8px"
   md: "8px"
   sheet: "12px"
-  sheet-mobile: "16px"
+  sheet-mobile: "12px"
   pill: "999px"
   round: "50%"
+strokes:
+  hairline: "1px"
+  measure: "1.5px"
+  plan: "1px"
+  active: "2px"
+  focus: "2px"
+bars:
+  progress: "4px"
+  progress-small: "3px"
+  stacked: "10px"
+  tint: "0.5"
 spacing:
   xs: "4px"
   sm: "8px"
@@ -199,13 +211,13 @@ components:
   segmented-active:
     backgroundColor: "{colors.line}"
     textColor: "{colors.ground}"
-    rounded: "5px"
+    rounded: "{rounded.xs}"
     padding: "0 12px"
     height: "28px"
   chip:
     backgroundColor: "transparent"
     textColor: "{colors.ink}"
-    rounded: "{rounded.pill}"
+    rounded: "{rounded.md}"
     padding: "0 12px"
     height: "36px"
   chip-selected:
@@ -285,7 +297,7 @@ Dokument und im Prototyp. [Inventar und Umsetzungsstand](docs/no-side-panels-100
 
 Die Finanz-App ist ein technisches Zeichenblatt, keine Kachelwand. Jede Zahl ist ein Maß: Sie sitzt als Maßtext auf einer Maßlinie mit Schrägstrich-Maßbegrenzung und lässt sich in ihre Maßkette zerlegen, bis hinunter zur einzelnen Buchung. Die Blaupause steckt in der Haltung (Linienarten, Schriftfeld, Planliste, Revisionstabelle, Detailausschnitte), nicht in der Tapete: Ein feines Zeichenraster erscheint nur als Akzent in der rechten oberen Ecke und läuft über eine Maske in die Fläche aus.
 
-**Präzisionsschicht (Entscheidung 02.10.2026, „Architect / Precision Fintech“):** Ein kühler Slate-Grund (`ground`), darauf weiße Karten (`surface`) mit Haarlinienrand (`card-border`) und mehrlagigem, weichem Schatten (`card-shadow`); die Seitenleiste ist ein ruhiges Eisblau (`ground-2`) mit der Kontenhierarchie unter der Planliste. Grün ist das Signal für vorhandenes Geld: die Hero-Kennzahl in Waldgrün (`good`, Schrift weiß) und positive Restbeträge als Mint-Pillen (`good-soft` mit `on-good-soft`); ausgeschöpfte Beträge sind neutralgraue Pillen (`quiet-soft`). Plan › Monat hat drei Spalten: Seitenleiste, Stückliste als Karte und rechts einen Inspektor (Monatsüberblick, 50/30/20, Wasserfall). Die Mockups in `design/screens` sind damit keine Prüfreferenz mehr; eigene Vergleichsbilder sichern den Stand.
+**Präzisionsschicht (Entscheidung 02.10.2026, „Architect / Precision Fintech“):** Ein kühler Slate-Grund (`ground`), darauf weiße Karten (`surface`) mit Haarlinienrand (`card-border`) und einlagigem, weichem Schatten (`card-shadow`); die Seitenleiste ist ein ruhiges Eisblau (`ground-2`) mit der Kontenhierarchie unter der Planliste. Grün ist das Signal für vorhandenes Geld: die Hero-Kennzahl in Waldgrün (`good`, Schrift weiß) und positive Restbeträge als Mint-Pillen (`good-soft` mit `on-good-soft`); ausgeschöpfte Beträge sind neutralgraue Pillen (`quiet-soft`). Plan › Monat hat drei Spalten: Seitenleiste, Stückliste als Karte und rechts einen Inspektor (Monatsüberblick, 50/30/20, Wasserfall). Die Mockups in `design/screens` sind damit keine Prüfreferenz mehr; eigene Vergleichsbilder sichern den Stand.
 
 Hell ist blaue Tusche auf weißem Zeichenfilm, dunkel die klassische Blaupause, helle Linien auf Preußischblau. Beide Modi sind vollwertig und teilen dieselben Rollen. Die Farbwelt ist blau; dazu kommen genau zwei Signaltinten: Rotstift für Handlungsbedarf und Grün für vorhandenes Geld. Die Dichte ist die eines Arbeitsblatts für die abendliche Steuerungssitzung: wenige ruhige Karten als Arbeitsflächen, darin Zeilen mit Haarlinien statt Kacheln, Tabellenziffern überall.
 
@@ -398,7 +410,7 @@ Reihenfolge auf „Heute“ (Owner 05.10.2026): Leitfrage „Wie viel darf ich b
 
 Umbrüche: unter 1180 px zwei Detailspalten; unter 980 px Pace und Revisionen gestapelt; unter 768 px eine Spalte, Innenrand 16 px, Seitenleiste wird zur Tab-Leiste (64 px plus Safe Area) mit rundem Tusche-Knopf „Buchung“. Der Buchungsdialog ist einspaltig, 540 px breit, mobil ein Blatt von unten.
 
-Heute › Pace (Owner 06.10.2026): follows Kontoprognose; chart hierarchy is Ist solid ink (2.5 px) › Hochrechnung dashed accent (2 px, Mint/Waldgrün through Deckel, Rot above) › Deckel muted solid rule (1 px, sole right-end label); Plan bis heute is a dot on today with its label above the plot, context lines Einnahmen/Vormonat are off by default.
+Heute › Pace (Owner 06.10.2026): follows Kontoprognose; chart hierarchy is Ist solid ink (1.5 px) › Hochrechnung dashed accent (1 px, Mint/Waldgrün through Deckel, Rot above) › Deckel muted solid rule (1 px, sole right-end label); Plan bis heute is a dot on today with its label above the plot, context lines Einnahmen/Vormonat are off by default.
 
 Berührflächen mindestens 44 px auf Mobilgeräten.
 
@@ -414,11 +426,36 @@ Drei Ebenen: Grund (`ground`), Karte (`surface` mit `card-border` und dem weiche
 
 ## Shapes
 
-Die Formsprache ist die des Plans: Haarlinien in 1 px, fast scharfe Ecken. Das Schriftfeld hat 2 px, Zählmarken und Tastenkürzel 4 px, Zeilen und Listenfelder 6 px, Schaltflächen, Felder und Tasten 8 px, der Buchungsdialog 12 px (mobil als Blatt von unten 16 px, Seitenpanel mobil 14 px). Rund sind nur Kreisnummern, Avatar und der Buchungsknopf; Kategorie-Chips im Buchungsdialog sind Pillen.
+Die Formsprache ist die des Plans: Haarlinien in 1 px, fast scharfe Ecken. Das Schriftfeld hat 2 px, Zählmarken und Tastenkürzel 4 px, Zeilen und Listenfelder 8 px, Schaltflächen, Felder und Tasten 8 px, der Buchungsdialog 12 px (mobil als Blatt von unten und Seitenpanel mobil ebenfalls 12 px). Rund sind nur Kreisnummern, Avatar und der Buchungsknopf; Pillen sind Statusanzeigen vorbehalten; Kategorie-Chips haben 8 px Radius.
 
-Zeichenmittel: Maßlinien mit Schrägstrich-Begrenzung (Strich 1,25–1,6), gepunktete Maßhilfslinien (`2 3`), die Höhenkote als offenes, nach unten zeigendes Dreieck mit Bezugslinie, Revisionsdreiecke mit Buchstabe, Kreisnummern 22 px. Linienarten: Ist durchgezogen 2 px; Plan gestrichelt `7 5` in blasser Tusche 1,5 px; Prognose gestrichelt `7 5` in Tusche 1,75 px; Vormonat strichpunktiert `12 4 2 4` in `ink-3`; Heute-Linie gepunktet `1 3`.
+Zeichenmittel: Maßlinien mit Schrägstrich-Begrenzung (Strich 1,5 px), gepunktete Maßhilfslinien (`2 3`), die Höhenkote als offenes, nach unten zeigendes Dreieck mit Bezugslinie, Revisionsdreiecke mit Buchstabe, Kreisnummern 22 px. Linienarten: Ist durchgezogen 1,5 px; Plan gestrichelt `7 5` in blasser Tusche 1 px; Prognose gestrichelt `7 5` in Tusche 1 px; Vormonat strichpunktiert `12 4 2 4` in `ink-3`; Heute-Linie gepunktet `1 3`.
 
 Schraffuren: Bedarf Vollfläche, Wunsch 135°-Schraffur (2 px Strich, 5 px Rapport), Zukunft Kreuzschraffur (45° und 135°, 1,5 px), gebunden 135°-Schraffur in blasser Tusche. Schulden in Ketten: gestrichelte Kontur `5 3`, ohne Füllung.
+
+### Linienleiter (DS3, #474)
+
+| Rolle | Token | Stärke / Verwendung |
+| --- | --- | --- |
+| Haarlinie | `--stroke-hairline` | 1 px: Struktur und Feldrahmen (Felder mindestens 3:1) |
+| Maß | `--stroke-measure` | 1,5 px: ausschließlich Ist-Linien und Summen |
+| Plan | `--stroke-plan` | 1 px, gestrichelt (`7 5`), auch Prognose |
+| Aktiv | `--stroke-active` | 2 px: ausschließlich aktiver Register-Unterstrich |
+| Fokus | `--stroke-focus` | 2 px: Tastatur-Fokusrahmen |
+
+2-px-Unterstriche sind auf `.registers a[aria-current='page']`,
+`.registers button[aria-pressed='true']`, `.depot-tabs a[aria-current]` und
+`.close-stepper button[aria-current='step']` beschränkt. Inaktive Register bleiben
+haarlinig; Fokusrahmen behalten 2 px.
+
+Fortschrittsbalken sind 3–4 px (`--bar-progress-small`, `--bar-progress`),
+Stapelbalken höchstens 10 px (`--bar-stacked`) mit 38–60 % Tönung
+(`--bar-tint`: 50 %). Die dünne Zeichnung verkleinert keine 44-px-Trefffläche. Säulen in Diagrammen sind Datenmarken mit Hover-/Tippziel und behalten ihre Breite; die 3–4-px-Regel gilt nur für Fortschritts-, Plan- und Budgetbalken.
+Die Radienleiter ist 4 · 8 · 12 px, Pille nur für Status und 50 % für runde
+Elemente. Ausnahmen: Diagrammmarken 1 px, Schriftfeld 2 px, Quellstempel 3 px.
+Karten haben eine Schattenlage (hell `0 1px 2px rgba(15, 34, 64, 0.04)`,
+dunkel `0 1px 2px rgba(2, 10, 26, 0.35)`) oder nur eine Haarlinie.
+Der bestehende Schwebeschatten bleibt Panels, Dialogen, Combobox-Listen,
+Toasts und dem FAB vorbehalten.
 
 ### Shared chart inspection
 All chart forms share one raised, hairline-bordered tooltip with tabular exact values, a legend-colour swatch and series name per visible layer, and the date/month at the bottom. Time charts snap a vertical dotted crosshair to the nearest stored point; ranked bars, sectors and Sankey nodes/links use their actual hit target (Sankey includes amount and share of the income pool). Focus plus left/right explores points, Escape hides, touch taps select and an outside tap hides. Amount privacy also masks these values. Signed bars use `plus-ink` / `minus-ink`; Q2 historical quiet negatives and dashed debt outlines remain. Signs and position around zero carry meaning alongside colour.
@@ -430,15 +467,15 @@ Sachlich und dicht, wie Tuschfelder.
 - **Shape:** 8 px Radius, Höhe 40 px (klein 34 px, im Dialog und mobil 44–46 px).
 - **Primary:** Tusche-Fläche mit weißer Schrift (dunkel: Lichtpausweiß mit preußischblauer Schrift), 600, Innenabstand 16 px.
 - **Hover / Focus:** Hover vertieft die Tusche; Fokus ist ein 2-px-Tuscherahmen mit 2 px Abstand; beim Drücken 1 px nach unten.
-- **Ghost:** transparent mit kräftiger Haarlinie; Hover mit blasser Tusche und Tönung.
+- **Ghost:** transparent mit Haarlinie; innerhalb von Karten als Textbutton mit vorhandenem Icon ohne sichtbaren Rahmen. Transparente Randgeometrie erhält Höhe und Trefffläche; Fokus bleibt 2 px.
 - **Alert:** Rotstift-Fläche, nur für die eine dringende Aktion einer Revision.
 
 ### Chips
-- **Style:** Pille 36 px, kräftige Haarlinie, 13,5 px / 520, mit Klassen-Farbfeld (10 px, Schraffur der Klasse).
+- **Style:** 8 px Radius, Höhe 36 px, kräftige Haarlinie, 13,5 px / 520, mit Klassen-Farbfeld (10 px, Schraffur der Klasse).
 - **State:** gewählt = Tusche-Fläche mit Grundfarbe als Schrift; „leise“ Variante mit gestrichelter Kontur. Mobil horizontal scrollend.
 
 ### Cards / Containers
-Arbeitsflächen sind Karten: `surface`, 12 px Radius, Rand `card-border`, Schatten `card-shadow`; Tabellenköpfe und Baugruppenzeilen auf `surface-2`. Innerhalb der Karte bestehen Abschnitte aus einem Kopf (Titel, rechts Link in `ink-2`, darunter Haarlinie) und Zeilen mit Haarlinientrennern. Zeilen sind ganzflächige Schaltflächen mit 6 px Radius und Tönung beim Hover.
+Arbeitsflächen sind Karten: `surface`, 12 px Radius, Rand `card-border`, Schatten `card-shadow`; Tabellenköpfe und Baugruppenzeilen auf `surface-2`. Innerhalb der Karte bestehen Abschnitte aus einem Kopf (Titel, rechts Link in `ink-2`, darunter Haarlinie) und Zeilen mit Haarlinientrennern. Zeilen sind ganzflächige Schaltflächen mit 8 px Radius und Tönung beim Hover.
 
 ### Inputs / Fields
 - **Style:** 44 px hoch (Suche 40 px), kräftige Haarlinie, `raised`-Grund, 8 px Radius, Label 13 px / 560 in `ink-2` darüber.
@@ -457,7 +494,7 @@ Arbeitsflächen sind Karten: `surface`, 12 px Radius, Rand `card-border`, Schatt
 Der Seitenkopf als Schriftfeld: 1-px-Rahmen in blasser Tusche, 2 px Radius, Zellen durch senkrechte Linien getrennt. Titelzelle mit dem aktuellen Monat („September 2026“), dann Felder mit Versalbeschriftung: Stand, Zeitraum (Segmentschalter). Kein Urteilssatz („Ja, der Monat hält“), die Leitzahl ist die Antwort. Keine Blattnummer. Mobil wandert der Monat in den Kopf; das Schriftfeld behält Stand und Zeitraum in einer Zeile ohne Beschriftung.
 
 ### Maßkette (Signature)
-Eine einzige Komponente (`drawChain`) für jede Maßkette. Oben die Teilmaße als Maßlinien mit Schrägstrichbegrenzung und Maßtext, darunter ein 14-px-Balken aus Segmenten in Klassenfüllung mit Tuschekontur, darunter der abgezogene Teil (gebunden = Schraffur; Schulden = gestrichelte Kontur), unten das Ergebnismaß „= …“. Jedes Segment ist tastaturbedienbar und öffnet seine Einzelposten im Seitenpanel. Linien werden wie ein Plotter gezogen (900 ms, `cubic-bezier(0.16, 1, 0.3, 1)`); die Kette klappt in 240 ms auf. Bei reduzierter Bewegung erscheint alles sofort.
+Eine einzige Komponente (`drawChain`) für jede Maßkette. Oben die Teilmaße als Maßlinien mit Schrägstrichbegrenzung und Maßtext, darunter ein höchstens 10-px-Stapelbalken mit 50 % Tönung aus Segmenten in Klassenfüllung mit Tuschekontur, darunter der abgezogene Teil (gebunden = Schraffur; Schulden = gestrichelte Kontur), unten das Ergebnismaß „= …“. Jedes Segment ist tastaturbedienbar und öffnet seine Einzelposten im Seitenpanel. Nur das erste Diagramm je Seite wird beim ersten Besuch der Sitzung wie ein Plotter gezogen (sessionStorage, bei gesperrtem Speicher sofort sichtbar; 900 ms, `cubic-bezier(0.16, 1, 0.3, 1)`); die Kette klappt in 240 ms auf. Bei reduzierter Bewegung erscheint alles sofort.
 
 ### Leitmaß
 Der Leitwert steht als Maßtext über einer Maßlinie, die im Saldodiagramm von heute bis zum Gehaltstag reicht; darunter die Restlaufzeit als Maßtext. Ist durchgezogen bis heute, Prognose gestrichelt danach, Gehaltssprung als gestrichelte Senkrechte mit Pfeil, Höhenkote am prognostizierten Tiefpunkt. Antippen des Werts entfaltet die Maßkette.
@@ -498,7 +535,7 @@ Kategorie-Chips: ausgewählt als Tönung mit Tuschekontur, Häkchen und sichtbar
 - **Posteingang:** Revisionstabelle mit Kopf (Rev. · Änderung · Aktion), gruppiert nach Typ als Baugruppen mit Zähler; jede Entscheidung ein Klick, „Immer so zuordnen“ legt eine Zuordnungsregel an. Nur die Überziehung ist Rotstift.
 
 ### Einstellungen › Datenquellen
-Je Konto: Quelle (Bank-Sync PSD2, API nur lesen, Datei-Import, manuell), Schalter „Automatisch“, Rhythmus (2× / 1× täglich), Einwilligung bis (mit „Erneuern“ unter 14 Tagen), letzter Stand und Status als Quellstempel. Darunter Nachtlauf, Kursabruf, Ersatzquelle, EZB-Kurse als Schalter und die Veraltet-Schwelle für manuelle Werte. **Schalter:** 40 × 22 px, Spur mit 1,5-px-Kontur; an = Tuschefläche mit Grundfarbe-Knopf.
+Je Konto: Quelle (Bank-Sync PSD2, API nur lesen, Datei-Import, manuell), Schalter „Automatisch“, Rhythmus (2× / 1× täglich), Einwilligung bis (mit „Erneuern“ unter 14 Tagen), letzter Stand und Status als Quellstempel. Darunter Nachtlauf, Kursabruf, Ersatzquelle, EZB-Kurse als Schalter und die Veraltet-Schwelle für manuelle Werte. **Schalter:** 40 × 22 px, Spur mit 1-px-Kontur; an = Tuschefläche mit Grundfarbe-Knopf.
 
 ### Vermögen
 - **Register** Nettovermögen · Portfolio · Schulden · Freiheitszahl; Zeitraumschalter 1M · 3M · YTD · 1J · 3J · Alles im Schriftfeld (gilt für Nettovermögen und Portfolio).

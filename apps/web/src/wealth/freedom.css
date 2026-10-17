@@ -4,7 +4,7 @@
 }
 .freedom-view .vprog {
   position: relative;
-  height: 14px;
+  height: var(--bar-progress);
   margin-top: 18px;
   border: 1px solid var(--line);
   background: var(--raised);
@@ -39,7 +39,7 @@
 .freedom-view .l-goal {
   fill: none;
   stroke: var(--line-2);
-  stroke-width: 1;
+  stroke-width: var(--stroke-hairline);
 }
 .freedom-view .kv-table {
   width: 100%;

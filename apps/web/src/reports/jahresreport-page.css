@@ -26,7 +26,7 @@
   padding: 18px;
   background: var(--surface);
   border: 1px solid var(--card-border);
-  border-radius: 6px;
+  border-radius: 8px;
   box-shadow: var(--card-shadow);
 }
 .ov-sheet-body {
@@ -35,7 +35,7 @@
   flex-direction: column;
   gap: 16px;
   min-width: 0;
-  border: 1.5px solid var(--line);
+  border: var(--stroke-hairline) solid var(--line);
   padding: 24px 28px 0;
 }
 .ov-sheet-head {
@@ -180,7 +180,7 @@
 }
 .ov-bar i {
   display: block;
-  height: 6px;
+  height: var(--bar-progress);
   background: var(--line-2);
 }
 .ov-rev-no {
@@ -206,7 +206,7 @@
 }
 .ov-shares-rest {
   width: 12px;
-  height: 12px;
+  height: var(--bar-progress);
   border: 1px dashed var(--line-2);
   border-radius: 1px;
 }

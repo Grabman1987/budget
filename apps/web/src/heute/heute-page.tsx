@@ -580,7 +580,12 @@ function WealthSparkline({ series }: { series: { day: string; cents: number }[] 
         role="img"
         aria-label="Nettovermögen · Verlauf der letzten 12 Monate"
       >
-        <polyline points={points} fill="none" stroke="var(--line)" strokeWidth="2" />
+        <polyline
+          points={points}
+          fill="none"
+          stroke="var(--line)"
+          strokeWidth="var(--stroke-measure)"
+        />
       </svg>
     </AppLink>
   );
