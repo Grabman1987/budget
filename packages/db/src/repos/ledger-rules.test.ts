@@ -144,6 +144,59 @@ describe('EUR-only budget currency invariant on read models', () => {
   });
 });
 
+describe('WP-001 / CASE-001 exact-cent ledger assurance', () => {
+  it('keeps the account balance unchanged by assignment and shows 114.99 available', () => {
+    // An opening envelope carries 40.00; only the booking changes the account balance.
+    opened.sqlite.exec(`UPDATE category SET opening_available_cents = 4000 WHERE id = 'essen'`);
+    spend('giro', '2023-10-10', -2501, 'essen');
+    const giroBalance = () =>
+      accountBalances(db, '2023-10-31').find((row) => row.accountId === 'giro')?.balanceCents;
+    expect(giroBalance()).toBe(97499);
+
+    // Before assigning: cash 974.99 minus the 14.99 still available in the envelope.
+    const [before] = budget(db, ['2023-10']);
+    expect(before!.cashCents).toBe(97499);
+    expect(before!.toBeAssignedCents).toBe(96000);
+
+    setAssigned(db, 'essen', '2023-10', 10000, ctx);
+    expect(giroBalance()).toBe(97499);
+
+    const [october] = budget(db, ['2023-10']);
+    expect(october!.envelopes['essen']).toMatchObject({
+      carryCents: 4000,
+      assignedCents: 10000,
+      activityCents: -2501,
+      availableCents: 11499,
+      overspentCents: 0,
+    });
+    expect(october!.cashCents).toBe(97499);
+    expect(october!.toBeAssignedCents).toBe(86000);
+  });
+
+  it('reaches 114.99 through a real month rollover: 40.00 assigned in October carries into November', () => {
+    setAssigned(db, 'essen', '2023-10', 4000, ctx);
+    setAssigned(db, 'essen', '2023-11', 10000, ctx);
+    spend('giro', '2023-11-10', -2501, 'essen');
+
+    const [october, november] = budget(db, ['2023-10', '2023-11']);
+    expect(october!.envelopes['essen']).toMatchObject({
+      carryCents: 0,
+      assignedCents: 4000,
+      activityCents: 0,
+      availableCents: 4000,
+    });
+    expect(november!.envelopes['essen']).toMatchObject({
+      carryCents: 4000,
+      assignedCents: 10000,
+      activityCents: -2501,
+      availableCents: 11499,
+      overspentCents: 0,
+    });
+    expect(november!.cashCents).toBe(97499);
+    expect(november!.toBeAssignedCents).toBe(86000);
+  });
+});
+
 describe('C2 "Zu verteilen" from the database', () => {
   it('a YNAB-style month: card spend moves to Kartenzahlung, investing from the budget leg, card overspending is card debt', () => {
     const month = '2026-05';
