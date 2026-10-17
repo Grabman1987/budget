@@ -269,3 +269,53 @@
     box-shadow: inset -1px 0 var(--rule-strong);
   }
 }
+
+/* Wrapper that lets the frame find the report's sections; takes the sheet's place for its children
+   (.sheet > * already spans the page columns). */
+.rs-scope {
+  display: grid;
+  row-gap: var(--space-section);
+}
+
+/* Collapsible report sections: the frame adds the toggle (useCollapsibleSections). */
+.section-toggle {
+  flex: none;
+  align-self: center;
+}
+.section-toggle::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  margin-top: -3px;
+  border: solid currentcolor;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.section-toggle[aria-expanded='false']::before {
+  margin-top: 0;
+  margin-left: -3px;
+  transform: rotate(-45deg);
+}
+.section-toggle-bare {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+section:has(> .section-toggle-bare) {
+  position: relative;
+}
+section:has(> .section-toggle-bare) > :first-child {
+  padding-right: var(--touch);
+}
+section[data-collapsed='true'] > :not(:first-child):not(.section-toggle) {
+  display: none;
+}
+section[data-collapsed='true'] > :first-child {
+  margin-bottom: 0;
+}
+@media (min-width: 768px) {
+  .section-toggle {
+    width: 32px;
+    height: 32px;
+  }
+}
