@@ -810,6 +810,12 @@
   padding-block: 4px;
   border-top: 1px solid var(--rule);
 }
+/* The 44 px link already spaces the rows; five rows must end above the first-screen fold (900 px). */
+@media (min-width: 768px) {
+  .attention-row {
+    padding-block: 0;
+  }
+}
 .attention-proposals {
   flex-basis: 100%;
   min-width: 0;
