@@ -89,6 +89,27 @@
   border-color: var(--line-2);
   background: var(--tint);
 }
+/* Invisible border preserves button dimensions and the existing focus/touch geometry. */
+:is(
+    .card,
+    .titleblock,
+    .hero-kpi,
+    .inspector,
+    .heute-answer,
+    .sr-card,
+    .tr-card,
+    .mr-card,
+    .ov-card,
+    .psheet,
+    .ov-sheet,
+    .prep-card,
+    .source-connection,
+    .debt-overview,
+    .debt-rechenweg
+  )
+  .btn.btn-ghost {
+  border-color: transparent;
+}
 .btn-alert {
   background: var(--red);
   color: var(--on-red);
@@ -288,7 +309,7 @@
   color: var(--ink-2);
   text-decoration: none;
   font-weight: 560;
-  border-bottom: 2px solid transparent;
+  border-bottom: var(--stroke-hairline) solid transparent;
   white-space: nowrap;
   border-radius: 0;
 }
@@ -299,6 +320,7 @@
 }
 .registers a[aria-current='page'],
 .registers button[aria-pressed='true'] {
+  border-bottom-width: var(--stroke-active);
   color: var(--ink);
   border-bottom-color: var(--line);
   font-weight: 640;
@@ -416,7 +438,7 @@
   /* 40 x 22 track inside a 44 px touch target */
   padding: 11px 6px;
   margin: -11px -6px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   flex: none;
 }
 .switch:disabled {
@@ -427,8 +449,8 @@
   position: relative;
   width: 40px;
   height: 22px;
-  border: 1.5px solid var(--line-2);
-  border-radius: var(--radius-pill);
+  border: var(--stroke-hairline) solid var(--line-2);
+  border-radius: var(--radius-md);
   background: var(--raised);
   transition:
     background var(--t-fast) var(--ease-out),
@@ -626,7 +648,7 @@
   position: absolute;
   top: -5px;
   height: 10px;
-  border-left: 1.5px solid var(--line);
+  border-left: var(--stroke-hairline) solid var(--line);
   transform: rotate(45deg);
 }
 .chain-inline::before {
@@ -824,7 +846,7 @@ button.ct-term .ct-val {
 .rev-tri path {
   fill: none;
   stroke: var(--line);
-  stroke-width: 1.4;
+  stroke-width: var(--stroke-hairline);
   stroke-linejoin: round;
 }
 .rev-tri text {
@@ -899,10 +921,10 @@ button.ct-term .ct-val {
 }
 /* Debt: dashed outline, no fill (never hatched) */
 .sw-debt {
-  border: 1.5px dashed var(--ink-2);
+  border: var(--stroke-hairline) dashed var(--ink-2);
 }
 .sw-open {
-  border: 1.5px solid var(--line);
+  border: var(--stroke-hairline) solid var(--line);
 }
 .class-tag {
   display: inline-flex;
@@ -915,7 +937,7 @@ button.ct-term .ct-val {
   display: inline-block;
   padding: 1px 6px;
   border: 1px solid var(--line-2);
-  border-radius: var(--radius-titleblock);
+  border-radius: var(--radius-stamp);
   font-family: var(--font-tech);
   font-size: var(--fs-label);
   font-weight: 500;
@@ -1033,7 +1055,7 @@ dialog.sheet-bottom:not(.is-full) .overlay-inner {
   width: 36px;
   height: 4px;
   margin-top: 8px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: var(--rule-strong);
 }
 .panel-head {
@@ -1324,7 +1346,7 @@ input[type='radio']::before {
   width: var(--check-size, 20px);
   height: var(--check-size, 20px);
   translate: -50% -50%;
-  border: 1.5px solid var(--ink-3);
+  border: var(--stroke-hairline) solid var(--ink-3);
   border-radius: var(--radius-xs);
   background: var(--surface);
 }
@@ -1349,14 +1371,14 @@ input[type='checkbox']:checked::after {
   width: 6px;
   height: 11px;
   border: solid var(--surface);
-  border-width: 0 2px 2px 0;
+  border-width: 0 var(--stroke-hairline) var(--stroke-hairline) 0;
   translate: -50% -62%;
   rotate: 45deg;
 }
 input[type='checkbox']:indeterminate:not(:checked)::after {
   content: '';
   width: 10px;
-  height: 2px;
+  height: var(--stroke-hairline);
   background: var(--surface);
   translate: -50% -50%;
 }

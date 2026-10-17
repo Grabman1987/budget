@@ -56,7 +56,7 @@
   stroke: var(--line-2);
   stroke-dasharray: 7 5;
   fill: none;
-  stroke-width: 1.5;
+  stroke-width: var(--stroke-hairline);
 }
 .preview-legend {
   display: flex;

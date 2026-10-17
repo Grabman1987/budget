@@ -405,9 +405,10 @@ function WholeChart({ data }: { data: Data }) {
                   return (
                     <rect
                       key={key}
-                      x={x(i) - Math.min(36, slot * 0.65) / 2}
+                      x={x(i) - Math.min(10, slot * 0.65) / 2}
                       y={Math.min(y(start), y(end))}
-                      width={Math.min(36, slot * 0.65)}
+                      width={Math.min(10, slot * 0.65)}
+                      opacity="var(--bar-tint)"
                       height={Math.abs(y(start) - y(end))}
                       fill={
                         key === 'marketCents'

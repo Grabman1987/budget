@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
+import { usePlotMotion } from './use-plot-motion';
 import type { Point } from './types';
 import { useAmountPrivacy, maskMoneyText, privateAmount } from '../amount-privacy';
 
@@ -54,6 +55,7 @@ export function ChartSvg({
   useAmountPrivacy();
   const ref = useRef<HTMLDivElement>(null);
   const svg = useRef<SVGSVGElement>(null);
+  usePlotMotion(svg);
   const tooltip = useRef<HTMLDivElement>(null);
   const id = useId();
   const [index, setIndex] = useState<number | null>(null);

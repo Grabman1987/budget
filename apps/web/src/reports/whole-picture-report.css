@@ -45,7 +45,7 @@
 }
 .whole-total {
   font-weight: 650;
-  border-top: 2px solid var(--rule-strong);
+  border-top: var(--stroke-hairline) solid var(--rule-strong);
 }
 .whole-scroll a {
   color: inherit;

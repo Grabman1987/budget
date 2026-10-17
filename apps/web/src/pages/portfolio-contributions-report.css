@@ -48,23 +48,23 @@
 }
 .contributions-grid {
   stroke: var(--graticule);
-  stroke-width: 1;
+  stroke-width: var(--stroke-hairline);
 }
 .contributions-value-line {
   fill: none;
   stroke: var(--line);
-  stroke-width: 2.5;
+  stroke-width: var(--stroke-measure);
   vector-effect: non-scaling-stroke;
 }
 .contributions-invested-line {
   fill: none;
   stroke: var(--line-2);
-  stroke-width: 1.5;
+  stroke-width: var(--stroke-hairline);
   vector-effect: non-scaling-stroke;
 }
 .contributions-zero {
   stroke: var(--rule-strong);
-  stroke-width: 1;
+  stroke-width: var(--stroke-hairline);
 }
 .contributions-bar-positive {
   fill: var(--plus-ink);
@@ -88,13 +88,13 @@
 .contributions-legend i {
   display: inline-block;
   width: 22px;
-  height: 3px;
+  height: var(--stroke-measure);
 }
 .legend-value {
   background: var(--line);
 }
 .legend-invested {
-  height: 2px !important;
+  height: var(--stroke-measure) !important;
   background: var(--line-2);
 }
 .contributions-legend .legend-bars {

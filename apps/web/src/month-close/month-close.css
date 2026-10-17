@@ -21,11 +21,12 @@
   color: var(--ink);
   background: transparent;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-bottom: var(--stroke-hairline) solid transparent;
   font: inherit;
   cursor: pointer;
 }
 .close-stepper button[aria-current='step'] {
+  border-bottom-width: var(--stroke-active);
   border-bottom-color: var(--line);
   background: var(--tint);
   font-weight: 600;
@@ -40,7 +41,7 @@
 .close-stepper progress {
   display: block;
   width: 100%;
-  height: 8px;
+  height: var(--bar-progress);
   margin-top: 8px;
   accent-color: var(--line);
 }

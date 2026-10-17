@@ -55,7 +55,7 @@ describe('chain motion (DESIGN.md Maßkette)', () => {
 
   it('draws lines like a plotter over --t-plot with the shared easing', () => {
     expect(chartCss).toMatch(
-      /\.chain-drawing\.is-open \.plot-line\s*\{[^}]*animation:[^;]*var\(--t-plot\)[^;]*var\(--ease-out\)/,
+      /\.chain-drawing\.is-open \.plot-first \.plot-line\s*\{[^}]*animation:[^;]*var\(--t-plot\)[^;]*var\(--ease-out\)/,
     );
   });
 
@@ -65,7 +65,9 @@ describe('chain motion (DESIGN.md Maßkette)', () => {
 
   it('shows everything at once for reduced motion', () => {
     const block = chartCss.slice(chartCss.lastIndexOf('@media (prefers-reduced-motion: reduce)'));
-    expect(block).toMatch(/\.chain-drawing\.is-open \.plot-line\s*\{[^}]*animation:\s*none/);
+    expect(block).toMatch(
+      /\.chain-drawing\.is-open \.plot-first \.plot-line\s*\{[^}]*animation:\s*none/,
+    );
     expect(block).toMatch(/\.chain-drawing\s*\{[^}]*transition:\s*none/);
   });
 

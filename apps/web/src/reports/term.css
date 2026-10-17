@@ -15,7 +15,7 @@
 .term-trigger:focus-visible {
   outline: 2px solid var(--line);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 .term-popover {
   position: fixed;

@@ -65,7 +65,7 @@
 .goal-report-open:focus-visible {
   outline: 2px solid var(--line);
   outline-offset: 3px;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 .goal-report-meta {
   margin: 0 0 12px;
@@ -74,7 +74,7 @@
   overflow-wrap: anywhere;
 }
 .goal-report-bar {
-  height: 10px;
+  height: var(--bar-progress);
   position: relative;
   background: var(--tint);
   border: 1px solid var(--line-2);
@@ -89,7 +89,7 @@
   position: absolute;
   top: -4px;
   height: 16px;
-  width: 2px;
+  width: var(--stroke-hairline);
   margin-left: -1px;
   background: var(--ink);
 }

@@ -67,7 +67,7 @@
 }
 .recovery-sheet {
   border: 1px solid var(--line-2);
-  border-radius: var(--radius-titleblock);
+  border-radius: var(--radius-xs);
   background: var(--ground);
 }
 .recovery-head {
@@ -204,7 +204,7 @@
 }
 .sec-mark {
   border: 1px solid var(--rule-strong);
-  border-radius: 2px;
+  border-radius: 4px;
   padding: 1px 6px;
 }
 .sec-meta {

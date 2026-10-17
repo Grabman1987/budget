@@ -21,8 +21,8 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
           .locator('.heute-lead')
           .evaluate((el) => el.nextElementSibling?.classList.contains('heute-pace')),
       ).toBe(true);
-      await expect(page.locator('.heute-lead path.l-actual')).toHaveCSS('stroke-width', '2px');
-      await expect(page.locator('.heute-lead path.l-forecast')).toHaveCSS('stroke-width', '1.75px');
+      await expect(page.locator('.heute-lead path.l-actual')).toHaveCSS('stroke-width', '1.5px');
+      await expect(page.locator('.heute-lead path.l-forecast')).toHaveCSS('stroke-width', '1px');
     }
     const paceChart = page.locator('.heute-chart').filter({ has: chart });
     await expect(paceChart.locator('.chart-legend')).toHaveText('IstHochrechnungDeckel');
@@ -96,8 +96,9 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
         }),
       ).toBe(true);
       for (const [selector, strokeWidth, dash] of [
-        ['path.l-actual', '2.5px', 'none'],
-        ['path.l-forecast', '2px', '7px, 5px'],
+        // DS3 line ladder: actual = measure 1.5 px, forecast/plan = hairline 1 px.
+        ['path.l-actual', '1.5px', 'none'],
+        ['path.l-forecast', '1px', '7px, 5px'],
         ['.pace-limit-line', '1px', 'none'],
       ] as const) {
         await expect(chart.locator(selector)).toHaveCSS('stroke-width', strokeWidth);

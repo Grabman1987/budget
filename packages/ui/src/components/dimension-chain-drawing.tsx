@@ -1,7 +1,8 @@
 import { useAmountPrivacy } from '../amount-privacy';
 import { formatPrivateEuro as formatEuro } from '../amount-privacy';
 import { cents as toCents, type Cents } from '@budget/domain';
-import type { KeyboardEvent } from 'react';
+import { useRef, type KeyboardEvent } from 'react';
+import { usePlotMotion } from '../charts/use-plot-motion';
 import { ClassPatterns, patternFill, usePatternPrefix } from '../charts/class-patterns';
 import { SlashTick } from '../charts/frame';
 import { cx } from './cx';
@@ -39,7 +40,7 @@ export interface DimensionChainDrawingProps {
   result: { label: string; cents: Cents };
   /** Makes every segment a button that opens its line items (side panel). */
   onSelect?: ((key: string) => void) | undefined;
-  /** Unfolded (default) or folded away; opening replays the plotter draw. */
+  /** Unfolded (default) or folded away. Plotter motion is limited to the first page visit. */
   open?: boolean;
   /** Fixed drawing width in px instead of measuring the container (print, tests). */
   width?: number;
@@ -91,6 +92,8 @@ export function DimensionChainDrawing({
   const [ref, measured] = useElementWidth<HTMLDivElement>();
   const prefix = usePatternPrefix('ch');
   const width = fixedWidth ?? measured;
+  const svg = useRef<SVGSVGElement>(null);
+  usePlotMotion(svg, open && width > 0);
 
   const total = parts.reduce((sum, part) => sum + part.cents, 0);
   const right = width - 2;
@@ -164,6 +167,7 @@ export function DimensionChainDrawing({
       <div className="chain-drawing-inner" aria-hidden={!open} inert={!open}>
         {width > 0 && (
           <svg
+            ref={svg}
             className="chain-svg"
             viewBox={`0 0 ${width} ${height}`}
             width={width}
@@ -187,7 +191,7 @@ export function DimensionChainDrawing({
                     x={x0}
                     y={barY}
                     width={barWidth}
-                    height={BAR_H}
+                    height={10}
                     fill={FILL[part.fill](prefix)}
                   />
                   <rect
@@ -195,7 +199,7 @@ export function DimensionChainDrawing({
                     x={x0}
                     y={barY}
                     width={barWidth}
-                    height={BAR_H}
+                    height={10}
                     fill="none"
                     stroke="var(--line)"
                     strokeWidth={1}
@@ -248,7 +252,7 @@ export function DimensionChainDrawing({
                           x={x0}
                           y={minusY}
                           width={w}
-                          height={12}
+                          height={4}
                           fill={debt ? 'transparent' : patternFill(prefix, 'bound')}
                         />
                         <rect
@@ -256,7 +260,7 @@ export function DimensionChainDrawing({
                           x={x0}
                           y={minusY}
                           width={w}
-                          height={12}
+                          height={4}
                           fill="none"
                           stroke={debt ? 'var(--line)' : 'var(--line-2)'}
                           strokeDasharray={debt ? 'var(--dash-debt)' : undefined}
@@ -289,7 +293,7 @@ export function DimensionChainDrawing({
               y1={resultY}
               y2={resultY}
               className="l-dim plot-line"
-              strokeWidth={1.6}
+              strokeWidth="var(--stroke-measure)"
               pathLength={1}
             />
             <SlashTick x={x(0)} y={resultY} size={9} />

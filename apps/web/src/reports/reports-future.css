@@ -119,7 +119,7 @@
 .ev-mark {
   fill: var(--ink);
   stroke: var(--surface);
-  stroke-width: 1.5;
+  stroke-width: var(--stroke-hairline);
 }
 
 .rf-legend {
@@ -478,21 +478,21 @@
 /* 3.3 Vermögensverläufe: stacked areas in tones of one ink, debts as dashed outline */
 .rf-area {
   stroke: var(--surface);
-  stroke-width: 1;
+  stroke-width: var(--stroke-hairline);
 }
 .rf-area-debt {
   fill: none;
   stroke: var(--ink-2);
-  stroke-width: 1.5;
+  stroke-width: var(--stroke-hairline);
   stroke-dasharray: 5 4;
 }
 .rf-sq-debt {
   background: transparent;
-  border: 1.5px dashed var(--ink-2);
+  border: var(--stroke-hairline) dashed var(--ink-2);
 }
 .rf-chart .rf-nw-halo {
   stroke: var(--surface);
-  stroke-width: 4.5;
+  stroke-width: var(--stroke-hairline);
 }
 .rf-chart .rf-nw-line {
   stroke: var(--ink);

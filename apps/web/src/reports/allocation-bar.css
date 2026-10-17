@@ -5,10 +5,11 @@
 .income-scale-bar {
   position: relative;
   display: flex;
-  height: 22px;
+  height: var(--bar-stacked);
   background: var(--tint);
 }
 .income-scale-bar > span {
+  opacity: var(--bar-tint);
   flex-shrink: 0;
   height: 100%;
 }
@@ -36,7 +37,7 @@
   border-left: 1px solid var(--ink-2);
 }
 .income-scale-bar > .income-scale-end {
-  border-left: 2px dashed var(--ink);
+  border-left: var(--stroke-hairline) dashed var(--ink);
 }
 .income-scale-bar small {
   position: absolute;
