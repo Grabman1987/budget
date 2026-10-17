@@ -5,6 +5,7 @@
 # Starts jobs for free slots in the background and returns. Jobs of earlier runs that died are
 # reaped first. Internal mode: --run-job N K ENGINE SIZE (the detached job itself).
 set -uo pipefail
+command -v gh >/dev/null || export PATH="$PATH:/c/Program Files/GitHub CLI"
 shopt -u patsub_replacement 2>/dev/null || true # keep '&' in log text literal
 
 ENGINE=claude MODEL=sonnet MAXP=3 ONE="" ONLY="" DRY=0 JOB=""
@@ -27,7 +28,7 @@ WT_BASE="$(dirname "$ROOT")/wt"
 LOGDIR="$ROOT/logs/queue"
 JOBS="$LOGDIR/jobs"
 TEMPLATE="$HERE/task-prompt.md"
-TOOLS="Read,Edit,Write,Glob,Grep,Bash(npm run *),Bash(npx *),Bash(git *),Bash(gh issue *),Bash(gh pr *),Bash(gh label *),Skill"
+TOOLS="Read,Edit,Write,Glob,Grep,Bash(npm ci),Bash(npm run *),Bash(npx *),Bash(git *),Bash(gh issue *),Bash(gh pr *),Bash(gh label *),Skill"
 
 redact() { sed -E 's/(gh[pousr]_|github_pat_|sk-)[A-Za-z0-9_-]{10,}/[redacted]/g; s/[A-Za-z0-9_-]{32,}/[redacted]/g'; }
 gl() { gh "$@" >/dev/null 2>&1 || echo "warn: gh $* failed" >&2; }
@@ -48,6 +49,7 @@ finish() {
   labels=$(gh issue view "$n" --json labels --jq '.labels[].name' 2>/dev/null)
   if [ -n "$pr" ]; then
     board "$n" "CI / Review"
+    gl issue edit "$n" --remove-label ready # merged-but-not-live issues must not be picked again
     echo "#$n: PR $pr"
   elif grep -qx needs-human <<<"$labels"; then
     board "$n" "Wartet auf Fabian"

@@ -3,6 +3,7 @@
 # Usage: loop.sh [--interval S] [--once] [--max-rounds N] [--dry-run]
 #                [--only-label L] [--engine E] [--model M] [--max-parallel N]
 set -uo pipefail
+command -v gh >/dev/null || export PATH="$PATH:/c/Program Files/GitHub CLI"
 
 INTERVAL=300 ONCE=0 MAXR=0 DRY=0 RQ=()
 while [ $# -gt 0 ]; do
