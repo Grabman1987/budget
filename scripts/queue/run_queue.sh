@@ -34,6 +34,10 @@ redact() { sed -E 's/(gh[pousr]_|github_pat_|sk-)[A-Za-z0-9_-]{10,}/[redacted]/g
 export GH_REPO=Grabman1987/budget # gh must not depend on the job's working directory
 gl() { gh "$@" >/dev/null 2>>"$LOGDIR/gh-errors.log" || echo "warn: gh $* failed" >&2; }
 board() { bash "$HERE/board.sh" "$1" "$2" >/dev/null 2>&1 || echo "warn: board $1 '$2' failed" >&2; }
+SCOPES="$LOGDIR/scope" # queue-scope snapshots, outside the agents' worktrees
+# shellcheck source=scope-lib.sh
+. "$HERE/scope-lib.sh"
+dirty() { [ -n "$(git -C "$1" status --porcelain=v1 --untracked-files=all 2>/dev/null)" ]; }
 
 # sets branch, wt, log for issue $1 and engine $2
 paths() {
@@ -72,12 +76,41 @@ $tail_txt
 \`\`\`"
   fi
   gl issue edit "$n" --remove-label in-progress
-  # keep uncommitted work of a failed attempt for diagnosis before the worktree goes
-  [ -z "$pr" ] && git -C "$wt" add -A 2>/dev/null &&
-    git -C "$wt" diff --cached -- . ':!node_modules' >"$LOGDIR/issue-$n.attempt-$k.diff" 2>/dev/null
+  if dirty "$wt"; then # uncommitted work is never discarded: worktree and branch stay for the owner
+    git -C "$wt" diff HEAD -- . ':!node_modules' >"$LOGDIR/issue-$n.attempt-$k.diff" 2>/dev/null
+    echo "#$n: uncommitted work kept in $wt (branch $branch)"
+    return 0
+  fi
   git -C "$ROOT" worktree remove --force "$wt" 2>/dev/null; rm -rf "$wt"
   [ -z "$pr" ] && git -C "$ROOT" branch -D "$branch" >/dev/null 2>&1
   return 0
+}
+
+# Removes the worktree at $1, but moves uncommitted work aside (detached, so the branch is free) instead.
+park_wt() {
+  if dirty "$1"; then
+    git -C "$1" switch --detach -q && git -C "$ROOT" worktree move "$1" "$1-kept-$(date +%Y%m%d-%H%M%S)" || return 1
+  fi
+  git -C "$ROOT" worktree remove --force "$1" 2>/dev/null; rm -rf "$1"
+}
+
+# Codex path: commit exactly the changed paths, but only if all of them are inside the issue's queue-scope.
+# git status -z is the real change set (modified, deleted, renamed, untracked); nothing is added blindly.
+commit_in_scope() {
+  local n=$1 wt=$2 title=$3 st report
+  st=$(mktemp)
+  git -C "$wt" status --porcelain=v1 -z --untracked-files=all >"$st"
+  if [ -s "$st" ]; then
+    if report=$(node "$HERE/policy.mjs" check-scope porcelain "$(scope_file "$n")" <"$st"); then
+      node "$HERE/policy.mjs" paths0 porcelain <"$st" |
+        GIT_LITERAL_PATHSPECS=1 git -C "$wt" add --pathspec-from-file=- --pathspec-file-nul &&
+        git -C "$wt" commit -q -m "$title" -m "Refs #$n"
+    else
+      echo "#$n: scope violation, nothing committed or pushed, work kept in $wt: $(tr '\n' ';' <<<"$report")"
+      scope_violation "$n" "" "$report" # finish() then moves the board card (needs-human)
+    fi
+  fi
+  rm -f "$st"
 }
 
 # ---------- job: one issue, runs detached ----------
@@ -90,9 +123,10 @@ run_job() {
     [ -n "$prev" ] && extra="Previous attempt failed. Tail of its log (fix the cause, do not repeat it):
 $(tail -c 3000 "$prev" | redact)"
   fi
-  git -C "$ROOT" worktree remove --force "$wt" 2>/dev/null; rm -rf "$wt"
+  # snapshot the issue's queue-scope now: later checks read only this file, never the (editable) issue body
+  [ -s "$SCOPES/issue-$n.txt" ] || scope_file "$n" >/dev/null
   git -C "$ROOT" fetch -q origin main
-  if git -C "$ROOT" worktree add -q -B "$branch" "$wt" origin/main; then
+  if park_wt "$wt" && git -C "$ROOT" worktree add -q -B "$branch" "$wt" origin/main; then
     prompt=$(cat "$TEMPLATE")
     prompt=${prompt//\{\{N\}\}/$n}
     prompt=${prompt//\{\{EXTRA\}\}/$extra}
@@ -121,8 +155,7 @@ $(gh issue view "$n" --comments 2>&1)"
         gl issue comment "$n" --body-file "$log"
         gl issue edit "$n" --add-label needs-human
       else
-        [ -n "$(git -C "$wt" status --porcelain)" ] && git -C "$wt" add -A &&
-          git -C "$wt" commit -q -m "$(head -n1 "$log")" -m "Refs #$n"
+        commit_in_scope "$n" "$wt" "$(head -n1 "$log")"
       fi
       if ! grep -q '^NEEDS-HUMAN:' "$log" 2>/dev/null && [ -n "$(git -C "$wt" log --oneline origin/main..HEAD)" ]; then
         labels=$(gh issue view "$n" --json labels --jq '[.labels[].name | select(test("^(risk|area):"))] | join(",")')

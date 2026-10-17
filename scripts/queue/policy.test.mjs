@@ -1,0 +1,211 @@
+import { describe, expect, it } from 'vitest';
+import {
+  checkRuns,
+  checkScope,
+  mergeGate,
+  parseNameStatus,
+  parsePorcelain,
+  parseScope,
+} from './policy.mjs';
+
+const HEAD = 'a'.repeat(40);
+const OLD = 'b'.repeat(40);
+const run = (over = {}) => ({ headSha: HEAD, status: 'completed', conclusion: 'success', ...over });
+const live = (over = {}) => ({ status: 'ok', revision: HEAD, ancestor: true, ...over });
+const gate = (over = {}) =>
+  mergeGate({ mainHead: HEAD, ciRun: run(), deployRun: run(), health: live(), ...over });
+
+describe('mergeGate', () => {
+  it('passes only when head, CI, deploy and live revision are all confirmed', () => {
+    expect(gate()).toEqual({ ok: true, reason: 'ok' });
+  });
+  it('passes when the live revision is newer and contains the head', () => {
+    expect(gate({ health: live({ revision: OLD, ancestor: true }) }).ok).toBe(true);
+  });
+  it.each([
+    ['unknown main head', { mainHead: '' }],
+    ['malformed main head', { mainHead: 'main' }],
+    ['failed CI', { ciRun: run({ conclusion: 'failure' }) }],
+    ['cancelled CI', { ciRun: run({ conclusion: 'cancelled' }) }],
+    ['pending CI', { ciRun: run({ status: 'in_progress', conclusion: null }) }],
+    ['missing CI run', { ciRun: null }],
+    ['CI run of an older head', { ciRun: run({ headSha: OLD }) }],
+    ['missing deploy run', { deployRun: null }],
+    ['failed deploy', { deployRun: run({ conclusion: 'failure' }) }],
+    ['skipped deploy', { deployRun: run({ conclusion: 'skipped' }) }],
+    ['pending deploy', { deployRun: run({ status: 'queued', conclusion: null }) }],
+    ['deploy run of an older head', { deployRun: run({ headSha: OLD }) }],
+    ['unreachable health', { health: null }],
+    ['health error', { health: { error: 'curl failed' } }],
+    ['health not ok', { health: live({ status: 'degraded' }) }],
+    ['health without revision', { health: live({ revision: undefined }) }],
+    ['revision mismatch, head not contained', { health: live({ revision: OLD, ancestor: false }) }],
+    [
+      'revision mismatch, ancestry unknown',
+      { health: live({ revision: OLD, ancestor: undefined }) },
+    ],
+  ])('blocks on %s', (_name, over) => {
+    const r = gate(over);
+    expect(r.ok).toBe(false);
+    expect(r.reason).toMatch(/\S/);
+    expect(r.reason).not.toContain('\n');
+  });
+});
+
+describe('parseScope', () => {
+  const body = (block) => `Intro\n\n${block}\n\nOutro`;
+  it('reads the globs of the queue-scope block', () => {
+    const globs = parseScope(body('```queue-scope\nsrc/a.ts\n\napps/web/**\n```'));
+    expect(globs).toEqual(['src/a.ts', 'apps/web/**']);
+  });
+  it('copes with CRLF and trailing spaces', () => {
+    expect(parseScope('```queue-scope  \r\nsrc/a.ts \r\n```\r\n')).toEqual(['src/a.ts']);
+  });
+  it('returns null without a block, with an empty block or with other fences', () => {
+    expect(parseScope('no block')).toBeNull();
+    expect(parseScope('```queue-scope\n\n```')).toBeNull();
+    expect(parseScope('```ts\nsrc/a.ts\n```')).toBeNull();
+    expect(parseScope('```queue-scope\nsrc/a.ts')).toBeNull();
+  });
+  it('drops absolute and parent-relative patterns', () => {
+    expect(parseScope('```queue-scope\n/etc/passwd\n../x\nsrc/../y\nok.ts\n```')).toEqual([
+      'ok.ts',
+    ]);
+    expect(parseScope('```queue-scope\n../x\n```')).toBeNull();
+  });
+});
+
+const scope = ['src/**', 'docs/queue/README.md', 'a/*.ts', 'x/**/y.ts'];
+const porcelain = (...entries) => entries.join('\0') + '\0';
+const check = (text) => checkScope(parsePorcelain(text), scope);
+
+describe('parsePorcelain', () => {
+  it('parses modified, untracked, deleted and renamed entries (NUL separated)', () => {
+    const text = porcelain(
+      ' M src/a.ts',
+      '?? new file.ts',
+      ' D gone.ts',
+      'R  src/new.ts',
+      'src/old.ts',
+    );
+    expect(parsePorcelain(text)).toEqual([
+      { status: ' M', paths: ['src/a.ts'] },
+      { status: '??', paths: ['new file.ts'] },
+      { status: ' D', paths: ['gone.ts'] },
+      { status: 'R ', paths: ['src/new.ts', 'src/old.ts'] },
+    ]);
+  });
+  it('keeps unusual path characters unquoted', () => {
+    expect(parsePorcelain(porcelain('?? src/ä "q"\tx.ts'))[0].paths).toEqual(['src/ä "q"\tx.ts']);
+  });
+  it('is empty for no output', () => {
+    expect(parsePorcelain('')).toEqual([]);
+  });
+});
+
+describe('parseNameStatus', () => {
+  it('parses add, modify, delete and rename (old and new path)', () => {
+    const text =
+      ['A', 'src/a.ts', 'M', 'src/b.ts', 'D', 'src/c.ts', 'R087', 'src/old.ts', 'out/new.ts'].join(
+        '\0',
+      ) + '\0';
+    expect(parseNameStatus(text)).toEqual([
+      { status: 'A', paths: ['src/a.ts'] },
+      { status: 'M', paths: ['src/b.ts'] },
+      { status: 'D', paths: ['src/c.ts'] },
+      { status: 'R087', paths: ['src/old.ts', 'out/new.ts'] },
+    ]);
+  });
+});
+
+describe('checkScope', () => {
+  it('accepts in-scope additions, modifications and deletions', () => {
+    expect(check(porcelain(' M src/a.ts', '?? src/deep/b.ts', ' D src/c.ts'))).toEqual({
+      ok: true,
+      outside: [],
+    });
+  });
+  it('blocks an untracked file outside the scope', () => {
+    expect(check(porcelain(' M src/a.ts', '?? secrets.txt'))).toMatchObject({
+      ok: false,
+      outside: ['secrets.txt'],
+    });
+  });
+  it('blocks a deletion outside the scope', () => {
+    expect(check(porcelain(' D package.json')).outside).toEqual(['package.json']);
+  });
+  it('blocks a rename from inside to outside and from outside to inside', () => {
+    expect(check(porcelain('R  elsewhere/new.ts', 'src/old.ts')).outside).toEqual([
+      'elsewhere/new.ts',
+    ]);
+    expect(check(porcelain('R  src/new.ts', 'elsewhere/old.ts')).outside).toEqual([
+      'elsewhere/old.ts',
+    ]);
+    const ns = parseNameStatus(['R100', 'src/old.ts', 'out/new.ts'].join('\0') + '\0');
+    expect(checkScope(ns, scope).outside).toEqual(['out/new.ts']);
+  });
+  it('blocks everything without a scope block', () => {
+    const r = checkScope(parsePorcelain(porcelain(' M src/a.ts')), null);
+    expect(r.ok).toBe(false);
+    expect(r.outside).toEqual(['src/a.ts']);
+    expect(r.reason).toMatch(/queue-scope/);
+  });
+  it('matches globs: ** crosses directories, * does not, exact files, dots are literal', () => {
+    expect(check(porcelain(' M src/a/b/c.ts')).ok).toBe(true);
+    expect(check(porcelain(' M a/one.ts')).ok).toBe(true);
+    expect(check(porcelain(' M a/deep/one.ts')).ok).toBe(false);
+    expect(check(porcelain(' M x/y.ts', ' M x/1/2/y.ts')).ok).toBe(true);
+    expect(check(porcelain(' M docs/queue/README.md')).ok).toBe(true);
+    expect(check(porcelain(' M docs/queue/READMEXmd')).ok).toBe(false);
+    expect(check(porcelain(' M srcx/a.ts')).ok).toBe(false);
+  });
+  it('treats a trailing slash as a whole directory', () => {
+    expect(checkScope(parsePorcelain(porcelain(' M docs/a/b.md')), ['docs/']).ok).toBe(true);
+  });
+  it('blocks path traversal that only looks in scope', () => {
+    expect(check(porcelain(' M src/../package.json')).ok).toBe(false);
+  });
+});
+
+describe('checkRuns (head-bound required checks)', () => {
+  const req = ['check', 'check-windows', 'docker', 'restore-test'];
+  const opt = ['test-integrity', 'coverage'];
+  const ok = (name, id = 1, over = {}) => ({
+    name,
+    id,
+    head_sha: HEAD,
+    status: 'completed',
+    conclusion: 'success',
+    ...over,
+  });
+  const all = req.map((n) => ok(n));
+  const verdict = (runs) => checkRuns({ sha: HEAD, required: req, optional: opt, runs });
+
+  it('passes when every required check succeeded for this sha', () => {
+    expect(verdict(all)).toEqual({ ok: true, bad: [] });
+  });
+  it('requires optional checks only when present', () => {
+    expect(verdict([...all, ok('coverage')]).ok).toBe(true);
+    expect(verdict([...all, ok('coverage', 9, { conclusion: 'failure' })]).bad).toEqual([
+      'coverage',
+    ]);
+  });
+  it('fails on missing, failed or pending required checks', () => {
+    expect(verdict(all.slice(1)).bad).toEqual(['check']);
+    expect(verdict([...all.slice(1), ok('check', 5, { conclusion: 'failure' })]).bad).toEqual([
+      'check',
+    ]);
+    expect(
+      verdict([...all.slice(1), ok('check', 5, { status: 'in_progress', conclusion: null })]).bad,
+    ).toEqual(['check']);
+  });
+  it('ignores runs of another sha', () => {
+    expect(verdict([...all.slice(1), ok('check', 5, { head_sha: OLD })]).bad).toEqual(['check']);
+  });
+  it('uses the latest run of a check (a re-run replaces an earlier failure)', () => {
+    const rerun = [ok('check', 1, { conclusion: 'failure' }), ok('check', 7), ...all.slice(1)];
+    expect(verdict(rerun).ok).toBe(true);
+    const worse = [ok('check', 1), ok('check', 7, { conclusion: 'failure' }), ...all.slice(1)];
+    expect(verdict(worse).ok).toBe(false);
+  });
+});

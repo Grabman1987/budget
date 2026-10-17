@@ -3,7 +3,7 @@
 Small GitHub issues are implemented by agents (Claude Code or Codex) in isolated worktrees: one
 issue = one fresh session = one PR. State lives in labels and PRs, so any run can be restarted.
 Tooling: `scripts/queue/` (`labels.sh`, `run_queue.sh`, `automerge.sh`, `live.sh`, `loop.sh`,
-`board.sh`, `task-prompt.md`). Issue form: `.github/ISSUE_TEMPLATE/agent-task.yml`.
+`board.sh`, `gate.sh`, `policy.mjs`, `scope-lib.sh`, `task-prompt.md`). Issue form: `.github/ISSUE_TEMPLATE/agent-task.yml`.
 
 ## Labels
 
@@ -46,7 +46,7 @@ The runner is non-blocking: it starts detached jobs (`nohup`), records `logs/que
 
 ## Unattended loop
 
-`loop.sh` repeats `live.sh`, `automerge.sh`, `run_queue.sh`, then sleeps (`--interval`, default 300 s;
+`loop.sh` repeats `live.sh`, `gate.sh` + `automerge.sh`, `run_queue.sh`, then sleeps (`--interval`, default 300 s;
 `--once`, `--max-rounds N`, `--dry-run`, `--only-label`, `--engine`, `--model`, `--max-parallel` are passed through).
 
 - Start: `nohup bash scripts/queue/loop.sh > /dev/null 2>&1 &` (refuses to start if `logs/queue/loop.pid` holds a live pid).
@@ -63,7 +63,7 @@ The runner is non-blocking: it starts detached jobs (`nohup`), records `logs/que
 
 | Case           | Rule                                                                                                                      |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `risk:low`     | `automerge.sh`: `check` (aggregates unit, e2e, visual), `check-windows`, `docker`, `restore-test` green (+ `test-integrity`, `coverage` if present), branch current, squash merge |
+| `risk:low`     | `automerge.sh` (after the merge gate, head-bound, in scope): `check` (aggregates unit, e2e, visual), `check-windows`, `docker`, `restore-test` green (+ `test-integrity`, `coverage` if present), branch current, squash merge |
 | `risk:high`    | Independent review agent (Opus subagent or Codex), then the orchestrator merges manually                                  |
 | Test gate red  | Only with `tests-change-approved`, set by the owner                                                                       |
 | Merge conflict | The implementing agent rebases                                                                                            |
@@ -72,6 +72,23 @@ The runner is non-blocking: it starts detached jobs (`nohup`), records `logs/que
 
 GitHub "Allow auto-merge" is off, and merges made by `GITHUB_TOKEN` would not trigger the main CI
 that deploys, so merges run locally under the owner's `gh` login.
+
+## Merge gate, head binding, file scope
+
+Decision logic lives in `scripts/queue/policy.mjs` (pure functions, tests in `policy.test.mjs`); the shell scripts only gather facts.
+
+- **Merge gate** (`gate.sh`, called by `loop.sh` before `automerge.sh`, and again by `automerge.sh` itself): passes only if the latest `ci.yml` and `deploy.yml` runs for the exact `origin/main` head are completed+success and `/health` is `ok` with `revision` = that head (or containing it). Pending, missing, failed or unreadable state blocks (fail closed); `loop.log` shows `gate: BLOCK: <reason>`.
+- **Head binding**: `automerge.sh` reads the PR's `headRefOid` once. The required checks must be green for that SHA (check-runs API, latest run per name), the branch must contain `main`, and the merge is `--match-head-commit <sha>`. At most one merge per run; the next one waits until the gate sees that merge live. `live.sh` never closes on errors.
+- **File scope**: an issue lists the files it may touch in a fenced `queue-scope` block in its body, one glob per line (`**` crosses directories, `*` does not, a trailing `/` means the whole directory):
+
+      ```queue-scope
+      apps/web/src/plan/**
+      docs/queue/README.md
+      ```
+
+  The runner snapshots the block into `logs/queue/scope/issue-N.txt` at the first job start (outside the worktree); later checks read only the snapshot (delete it to re-read the issue). No block = nothing is committed by the Codex path and nothing is merged automatically.
+- **Check**: Codex path, before committing: `git status --porcelain=v1 -z --untracked-files=all`; automerge: `git diff --name-status -M -z origin/main...<sha>`. Added, deleted, untracked and both sides of renames must match. Only the checked paths are staged (`git add -- <paths>`, never `-A`).
+- **Violation**: no commit/push or merge, label `needs-human` on issue (and PR), comment listing the offending paths. Worktree and work are kept; a worktree with uncommitted work is never deleted (a retry moves it to `wt/issue-N-kept-<time>`).
 
 ## Model routing
 
