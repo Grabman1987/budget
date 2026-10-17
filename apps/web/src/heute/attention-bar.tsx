@@ -41,7 +41,10 @@ export function AttentionBar({
   )
     return null;
   return (
-    <section className="heute-attention" aria-labelledby="attention-title">
+    <section
+      className={`heute-attention${loanTermsMissing ? ' is-dense' : ''}`}
+      aria-labelledby="attention-title"
+    >
       <h2 id="attention-title">Zu tun</h2>
       {data.stand.month && data.stand.month !== month && (
         <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>

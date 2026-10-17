@@ -810,9 +810,9 @@
   padding-block: 4px;
   border-top: 1px solid var(--rule);
 }
-/* The 44 px link already spaces the rows; five rows must end above the first-screen fold (900 px). */
+/* With the loan-terms row there are five rows; the 44 px links already space them so the list ends above the 900 px fold. */
 @media (min-width: 768px) {
-  .attention-row {
+  .heute-attention.is-dense .attention-row {
     padding-block: 0;
   }
 }
