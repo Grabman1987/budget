@@ -139,3 +139,25 @@
 .freedom-view .amount-cur {
   grid-area: cur;
 }
+.freedom-view .freedom-head-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.freedom-view .freedom-info-text {
+  margin-top: 8px;
+}
+.freedom-view .freedom-info-text[hidden] {
+  display: none;
+}
+.freedom-view .freedom-table-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: var(--touch);
+  font-size: var(--fs-body);
+}
+.freedom-view .freedom-table-switch label {
+  flex: 1;
+}
