@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
+import type { Page } from '@playwright/test';
 import { eur } from '../apps/web/src/ledger/format';
 import { sampleTest as test, expect } from './sample';
 
@@ -38,6 +39,16 @@ test('Plan income estimate, targets and unfunded category navigation', async ({ 
   }
 });
 
+/** The 9 ranges live in the popover of the one period control; the explorer shows its select directly. */
+const openRange = async (page: Page) => {
+  const button = page.getByRole('button', { name: 'Zeitraum wählen' });
+  const select = page.getByLabel('Zeitraum-Schnellauswahl', { exact: true });
+  await expect(async () => {
+    if ((await button.count()) && (await button.getAttribute('aria-expanded')) === 'false')
+      await button.click({ timeout: 2000 });
+    await expect(select).toBeVisible({ timeout: 1000 });
+  }).toPass();
+};
 test('shared ranges, custom URL reload and optional trend', async ({ page }, info) => {
   for (const id of [
     'ausgaben',
@@ -53,6 +64,7 @@ test('shared ranges, custom URL reload and optional trend', async ({ page }, inf
   ]) {
     await page.goto(`/reports/${id}`);
     const select = page.getByLabel('Zeitraum-Schnellauswahl', { exact: true });
+    await openRange(page);
     await expect(select).toBeVisible();
     await expect(select.locator('option')).toHaveCount(9);
     await select.selectOption('6');
@@ -62,17 +74,24 @@ test('shared ranges, custom URL reload and optional trend', async ({ page }, inf
   await page.goto('/reports/peinzahlungen');
   await expect(page.getByTestId('contributions-chart')).toBeVisible();
   await expect(page.getByTestId('report-trend-line')).toHaveCount(0);
+  await openRange(page);
   await page.getByLabel('Zeitraum-Schnellauswahl', { exact: true }).selectOption('custom');
   await page.getByLabel('Von', { exact: true }).fill('2026-03');
   await page.getByLabel('Bis', { exact: true }).fill('2026-05');
   await page.getByRole('button', { name: 'Anwenden', exact: true }).click();
-  await page.getByLabel('Trendlinie', { exact: true }).check();
+  await openRange(page);
+  await page.getByRole('switch', { name: 'Trendlinie' }).click();
   await expect(page.getByTestId('report-trend-line').first()).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel('Trendlinie', { exact: true })).toBeChecked();
+  await openRange(page);
+  await expect(page.getByRole('switch', { name: 'Trendlinie' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
   await expect(page.getByTestId('contributions-chart')).toBeVisible();
   await expect(page.getByLabel('Von', { exact: true })).toHaveValue('2026-03');
   await expect(page.getByLabel('Bis', { exact: true })).toHaveValue('2026-05');
+  await page.keyboard.press('Escape'); // the popover floats over the head by design
   const headerFits = await page.locator('.titleblock').evaluate((header) => {
     const cells = [...header.querySelectorAll<HTMLElement>('.tb-cell')];
     return cells.every((cell) => {
@@ -87,11 +106,13 @@ test('shared ranges, custom URL reload and optional trend', async ({ page }, inf
   if (info.project.name === 'desktop') {
     const row = page.locator('.report-period-control');
     const presets = await row.locator('.seg').first().boundingBox();
-    const select = await row.getByLabel('Zeitraum-Schnellauswahl', { exact: true }).boundingBox();
+    const range = await row.getByRole('button', { name: 'Zeitraum wählen' }).boundingBox();
     expect(presets).not.toBeNull();
-    expect(select).not.toBeNull();
-    expect(Math.abs(presets!.y - select!.y)).toBeLessThan(8);
-    expect(select!.x).toBeGreaterThanOrEqual(presets!.x + presets!.width);
+    expect(range).not.toBeNull();
+    expect(
+      Math.abs(presets!.y + presets!.height / 2 - (range!.y + range!.height / 2)),
+    ).toBeLessThan(8);
+    expect(range!.x).toBeGreaterThanOrEqual(presets!.x + presets!.width);
   }
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => {
@@ -103,6 +124,8 @@ test('shared ranges, custom URL reload and optional trend', async ({ page }, inf
     ).toBe(true);
     await page.screenshot({ path: info.outputPath(`report-ranges-${theme}.png`), fullPage: true });
   }
-  await page.getByLabel('Trendlinie', { exact: true }).uncheck();
+  await page.keyboard.press('Escape');
+  await openRange(page);
+  await page.getByRole('switch', { name: 'Trendlinie' }).click();
   await expect(page.getByTestId('report-trend-line')).toHaveCount(0);
 });
