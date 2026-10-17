@@ -86,7 +86,10 @@
   .dv-val {
     grid-area: val;
   }
-  .dv-track {
+  .compare-report .dv .chart-interactive {
     grid-area: track;
+    display: grid;
+    align-items: center;
+    min-height: var(--touch);
   }
 }

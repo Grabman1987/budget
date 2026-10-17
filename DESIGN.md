@@ -444,6 +444,10 @@ Schraffuren: Bedarf Vollfläche, Wunsch 135°-Schraffur (2 px Strich, 5 px Rappo
 | Aktiv | `--stroke-active` | 2 px: ausschließlich aktiver Register-Unterstrich |
 | Fokus | `--stroke-focus` | 2 px: Tastatur-Fokusrahmen |
 
+Route-change headings with `tabindex="-1"` announce the detail without an outline,
+including browsers that inherit `:focus-visible` during programmatic focus. They are
+not Tab stops. Interactive keyboard targets retain the 2 px `:focus-visible` ring.
+
 2-px-Unterstriche sind auf `.registers a[aria-current='page']`,
 `.registers button[aria-pressed='true']`, `.depot-tabs a[aria-current]` und
 `.close-stepper button[aria-current='step']` beschränkt. Inaktive Register bleiben

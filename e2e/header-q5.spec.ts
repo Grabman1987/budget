@@ -100,7 +100,7 @@ test('search overlay and full results clear area selection and name the phone he
       page.locator(
         isMobile
           ? '.tabbar [aria-current="page"]'
-          : '.sheetlist [aria-current="page"], .sidebar-foot .side-btn[aria-current="page"]',
+          : '.sheetlist [aria-current="page"], .sidebar-foot [aria-current="page"]',
       ),
     ).toHaveCount(source === '/einstellungen' && isMobile ? 0 : 1);
     const title = await page.locator('.m-title-text').textContent();
@@ -110,7 +110,7 @@ test('search overlay and full results clear area selection and name the phone he
       page.locator(
         isMobile
           ? '.tabbar [aria-current="page"]'
-          : '.sheetlist [aria-current="page"], .sidebar-foot .side-btn[aria-current="page"]',
+          : '.sheetlist [aria-current="page"], .sidebar-foot [aria-current="page"]',
       ),
     ).toHaveCount(0);
     if (isMobile) await expect(page.locator('.m-title-text')).toHaveText('Suchen');
@@ -120,7 +120,7 @@ test('search overlay and full results clear area selection and name the phone he
       page.locator(
         isMobile
           ? '.tabbar [aria-current="page"]'
-          : '.sheetlist [aria-current="page"], .sidebar-foot .side-btn[aria-current="page"]',
+          : '.sheetlist [aria-current="page"], .sidebar-foot [aria-current="page"]',
       ),
     ).toHaveCount(source === '/einstellungen' && isMobile ? 0 : 1);
     if (isMobile) await expect(page.locator('.m-title-text')).toHaveText(title!);

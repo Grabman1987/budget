@@ -4,7 +4,7 @@ import { useMonth } from '../shell/use-month';
 import './expected.css';
 
 /** Both direct links and in-app visits carry the originating list's view and filter. */
-export function ExpectedDetailBack({ title }: { title: string }) {
+export function ExpectedDetailBack() {
   const [month] = useMonth();
   const { ansicht = 'next', art = 'all' } = useSearch({ strict: false }) as {
     ansicht?: 'next' | 'contracts' | 'all';
@@ -15,14 +15,9 @@ export function ExpectedDetailBack({ title }: { title: string }) {
     <div className="xp-detail-nav">
       <nav aria-label="Brotkrumen">
         <AppLink to="/plan/erwartet" search={{ monat: month }} state={state}>
-          Plan · Erwartet
+          Zurück zu Erwartet
         </AppLink>
-        {' › '}
-        <span aria-current="page">{title}</span>
       </nav>
-      <AppLink to="/plan/erwartet" search={{ monat: month }} state={state}>
-        Zurück zu Erwartet
-      </AppLink>
     </div>
   );
 }

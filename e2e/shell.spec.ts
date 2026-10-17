@@ -313,25 +313,23 @@ test.describe('desktop shell', () => {
     await expect(page).toHaveURL(/\/konten$/);
   });
 
-  test('theme button names the other theme as in the prototype and persists the choice', async ({
-    page,
-  }) => {
+  test('theme icon announces the current dark state and persists the choice', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto('/');
     const html = page.locator('html');
     const button = page.locator('.sidebar').getByTitle('Hell/Dunkel umschalten');
-    // Follows the system until the first switch; the button names the target theme.
-    await expect(button).toHaveText('Dunkle Blaupause');
+    await expect(button).toHaveAccessibleName('Hell/Dunkel umschalten');
+    await expect(button).toHaveAttribute('aria-pressed', 'false');
     await expect(html).not.toHaveAttribute('data-theme', /.+/);
     await button.click();
     await expect(html).toHaveAttribute('data-theme', 'dark');
-    await expect(button).toHaveText('Heller Zeichenfilm');
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
     await page.reload();
     await expect(html).toHaveAttribute('data-theme', 'dark');
-    await expect(button).toHaveText('Heller Zeichenfilm');
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
     await button.click();
     await expect(html).toHaveAttribute('data-theme', 'light');
-    await expect(button).toHaveText('Dunkle Blaupause');
+    await expect(button).toHaveAttribute('aria-pressed', 'false');
   });
 });
 

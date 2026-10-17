@@ -397,6 +397,7 @@
 .kback {
   display: inline-flex;
   align-items: center;
+  min-height: var(--touch);
   gap: 4px;
   margin-bottom: 14px;
   color: var(--ink-2);
@@ -419,6 +420,10 @@
   font-size: var(--fs-figure);
   font-weight: 650;
   letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+.kacct-head > div {
+  min-width: 0;
 }
 .kacct-actions {
   display: flex;
