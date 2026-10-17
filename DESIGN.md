@@ -424,6 +424,8 @@ Drei Ebenen: Grund (`ground`), Karte (`surface` mit `card-border` und dem weiche
 ### Named Rules
 **The One Card Rule.** Eine Arbeitsfläche ist eine Karte; in ihr gliedern Linien. Karten in Karten gibt es nicht, Kachelwände aus gleichwertigen Karten auch nicht.
 
+Owner navigation decision 16.10.2026 (#468, part B1): the desktop header keeps search, amount privacy, exactly one linked status pill `Prüfen · N` (zero: `Prüfen`) and `+ Buchung`. Overspending has no desktop header chip. The phone header has title, search and avatar; a separate neutral linked line below shows nonzero review/overspent counts. Offline writes use their own neutral `N offline gespeichert` chip, never a navigation counter. Search clears the area selection and names the phone header `Suchen` while the palette or results page is open. Existing amount masking remains unchanged.
+
 ## Shapes
 
 Die Formsprache ist die des Plans: Haarlinien in 1 px, fast scharfe Ecken. Das Schriftfeld hat 2 px, Zählmarken und Tastenkürzel 4 px, Zeilen und Listenfelder 8 px, Schaltflächen, Felder und Tasten 8 px, der Buchungsdialog 12 px (mobil als Blatt von unten und Seitenpanel mobil ebenfalls 12 px). Rund sind nur Kreisnummern, Avatar und der Buchungsknopf; Pillen sind Statusanzeigen vorbehalten; Kategorie-Chips haben 8 px Radius.

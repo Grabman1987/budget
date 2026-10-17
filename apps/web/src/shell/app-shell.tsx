@@ -1,6 +1,6 @@
 import { ToastProvider, cx } from '@budget/ui';
-import { Outlet } from '@tanstack/react-router';
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { Outlet, useLocation } from '@tanstack/react-router';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { TITLE_ON_MOBILE_AREAS } from '../pages/area-head';
 import { MobileHeader, TabBar, phoneTitle } from './mobile-chrome';
 import { useActivePage } from './page-meta';
@@ -13,6 +13,7 @@ import { useSidebarWidth } from './use-sidebar-width';
 import { QueueList } from '../pwa/queue-ui';
 import { useStorageProtection } from '../pwa/storage-protection';
 import { usePrivacyShortcut } from './privacy-button';
+import { OfflineStatus } from './header-status';
 
 const APP_NAME = 'Budget';
 
@@ -26,6 +27,10 @@ export function AppShell() {
   const [collapsed, setCollapsed] = useStoredFlag('budget-sidebar-collapsed');
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
   const page = useActivePage();
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searching = searchOpen || pathname === '/suche';
+  const area = searching ? undefined : page?.area;
   const main = useRef<HTMLElement>(null);
   const title = page?.title ?? APP_NAME;
   useCaptureShortcut();
@@ -51,24 +56,30 @@ export function AppShell() {
           Zum Inhalt springen
         </a>
         <Sidebar
-          area={page?.area}
+          area={area}
           sidebarWidth={sidebarWidth}
           onSidebarWidthChange={setSidebarWidth}
           collapsed={collapsed}
         />
         <div className="main">
-          <Topbar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
-          <MobileHeader
-            title={phoneTitle(page, title)}
-            asHeading={!(page && TITLE_ON_MOBILE_AREAS.has(page.area))}
+          <Topbar
+            collapsed={collapsed}
+            onToggle={() => setCollapsed(!collapsed)}
+            onSearchChange={setSearchOpen}
           />
+          <MobileHeader
+            title={searching ? 'Suchen' : phoneTitle(page, title)}
+            asHeading={!(page && TITLE_ON_MOBILE_AREAS.has(page.area))}
+            onSearchChange={setSearchOpen}
+          />
+          <OfflineStatus />
           <main className="sheet" id="main" tabIndex={-1} ref={main}>
             {(page?.area === 'heute' || page?.area === 'konten') && <QueueList />}
             <Outlet />
           </main>
         </div>
       </div>
-      <TabBar area={page?.area} />
+      <TabBar area={area} />
       <PanelHost />
       {/* Announces the new page to screen readers after client-side navigation. */}
       <div className="sr-only" role="status" aria-live="polite">

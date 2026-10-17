@@ -7,7 +7,8 @@ test('attention links and the unclassified row are usable at both viewport sizes
   await page.goto('/?monat=2026-09');
   const bar = page.getByRole('region', { name: 'Zu tun' });
   await expect(bar).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole('link', { name: /Envelopes überzogen/ })).toBeVisible();
+  await expect(page.locator('.topbar .overspent-chip')).toHaveCount(0);
+  await expect(bar.getByRole('link', { name: 'Plan prüfen', exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath('attention-strip.png') });
   await page.goto('/plan/monat?monat=2026-09&ansicht=triage');
   await expect(page).toHaveURL(/ansicht=triage/);

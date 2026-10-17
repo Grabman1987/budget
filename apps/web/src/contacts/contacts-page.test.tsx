@@ -10,24 +10,18 @@ vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
   useParams: () => ({ id: 'synthetic-contact' }),
   useLocation: () => ({ pathname: '/konten/kontakte', searchStr: '?verlauf=1' }),
-  Link: ({
+  useLinkProps: ({
     to,
     search,
-    children,
     activeOptions: _activeOptions,
     ...props
   }: {
     to: string;
     search?: Record<string, string>;
-    children: React.ReactNode;
     activeOptions?: unknown;
   }) => {
     void _activeOptions;
-    return (
-      <a href={`${to}${search ? `?${new URLSearchParams(search)}` : ''}`} {...props}>
-        {children}
-      </a>
-    );
+    return { href: `${to}${search ? `?${new URLSearchParams(search)}` : ''}`, ...props };
   },
 }));
 afterEach(() => setAmountsHidden(false));

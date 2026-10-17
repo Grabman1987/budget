@@ -83,9 +83,13 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
   await page.goto('/konten/posteingang');
   const count = (await (await countResponse).json()).count;
   const inboxTrigger = page
-    .locator(info.project.name === 'mobile' ? '.m-head' : '.topbar')
-    .getByRole('link', { name: /Prüfen, \d+ offen/ });
-  await expect(inboxTrigger).toHaveAttribute('aria-label', `Prüfen, ${count} offen`);
+    .locator(info.project.name === 'mobile' ? '.m-status' : '.topbar')
+    .getByRole('link', {
+      name: info.project.name === 'mobile' ? /\d+ zu prüfen/ : /Prüfen, \d+ offen/,
+    });
+  await expect(inboxTrigger).toHaveText(
+    info.project.name === 'mobile' ? `${count} zu prüfen` : `Prüfen · ${count}`,
+  );
   const row = page.getByTestId('inbox-row').filter({ hasText: tag }).filter({ hasText: '12,00' });
   await expect(row).toContainText('vorgemerkt');
   await row.getByRole('button', { name: 'Bestätigen', exact: true }).click();
@@ -160,7 +164,7 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
   expect(deleted.ok()).toBeTruthy();
 });
 
-test('empty and failed inbox count never present a fabricated nine', async ({ page }) => {
+test('empty and failed inbox count never present a fabricated nine', async ({ page, isMobile }) => {
   await page.route('**/api/inbox/count', (route) => route.fulfill({ json: { count: 0 } }));
   await page.route(
     (url) => url.pathname === '/api/inbox',
@@ -168,9 +172,9 @@ test('empty and failed inbox count never present a fabricated nine', async ({ pa
   );
   await page.goto('/konten/posteingang');
   await expect(page.getByText('Prüfen leer.', { exact: false })).toBeVisible();
-  await expect(
-    page.getByRole('link', { name: 'Prüfen, 0 offen', exact: true }).filter({ visible: true }),
-  ).toBeVisible();
+  if (isMobile)
+    await expect(page.locator('.m-status').getByRole('link', { name: /zu prüfen/ })).toHaveCount(0);
+  else await expect(page.locator('.review-pill')).toHaveText('Prüfen');
   await page.unroute('**/api/inbox/count');
   await page.route('**/api/inbox/count', (route) =>
     route.fulfill({ status: 503, json: { error: 'unavailable' } }),
@@ -178,7 +182,9 @@ test('empty and failed inbox count never present a fabricated nine', async ({ pa
   await page.reload();
   await expect(
     page
-      .getByRole('link', { name: 'Prüfen, Anzahl noch nicht verfügbar' })
+      .getByRole('link', {
+        name: isMobile ? 'Prüfen: Anzahl nicht verfügbar' : 'Prüfen, Anzahl noch nicht verfügbar',
+      })
       .filter({ visible: true }),
   ).toBeVisible();
 });

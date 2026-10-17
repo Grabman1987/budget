@@ -1,8 +1,10 @@
-import { Link } from '@tanstack/react-router';
-import type { AnchorHTMLAttributes, ComponentType } from 'react';
+import { useLinkProps } from '@tanstack/react-router';
+import type { AnchorHTMLAttributes } from 'react';
 
-// The typed `Link` only accepts literal route paths; nav data tables carry plain strings.
-const LooseLink = Link as unknown as ComponentType<Record<string, unknown>>;
+// The typed link hook only accepts literal route paths; nav tables carry plain strings.
+const useLooseLinkProps = useLinkProps as unknown as (
+  options: Record<string, unknown>,
+) => AnchorHTMLAttributes<HTMLAnchorElement>;
 
 type SearchParams = Record<string, unknown>;
 
@@ -19,14 +21,27 @@ type Props = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {
 
 /** Router link for paths that come from data tables (nav config), where literal types are lost. */
 export function AppLink({ to, search, state, ...rest }: Props) {
-  // Exact matching: aria-current follows the nav config (area, register), never a path prefix.
+  const controlled = Object.hasOwn(rest, 'aria-current');
+  const props = useLooseLinkProps({
+    ...rest,
+    to,
+    activeOptions: { exact: true },
+    ...(controlled ? { activeProps: {} } : {}),
+    ...(search ? { search } : {}),
+    ...(state ? { state } : {}),
+  });
+  // Explicit nav state also overrides the router's automatic exact-URL active state.
   return (
-    <LooseLink
-      {...rest}
-      to={to}
-      activeOptions={{ exact: true }}
-      {...(search ? { search } : {})}
-      {...(state ? { state } : {})}
-    />
+    <a
+      {...props}
+      {...(controlled
+        ? {
+            'aria-current': rest['aria-current'],
+            'data-status': rest['aria-current'] ? 'active' : undefined,
+          }
+        : {})}
+    >
+      {rest.children}
+    </a>
   );
 }

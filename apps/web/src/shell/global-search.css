@@ -3,7 +3,7 @@
   position: relative;
 }
 .global-search-launch {
-  height: 40px;
+  height: 44px;
   padding: 0 70px 0 38px;
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius-md);

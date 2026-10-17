@@ -1,5 +1,16 @@
 # Roadmap
 
+### NAV2 — header and search orientation, #468 part B1 (2026-10-17)
+
+- [x] Desktop: one Prüfen pill, zero without a badge; existing amount privacy and booking action retained, overspent chip removed.
+- [x] Phone: title/search/avatar, conditional linked status line to review and current-month Plan triage.
+- [x] Search palette/results clear active area and show Suchen on phones; offline queue gets its own neutral status chip.
+- [x] Focused units: 6 files / 75 tests. Full unit run: 439 files / 4,036 tests passed, one contact-suite import error from its old router double; after adapting only the double, the contact and two header files passed 16/16 targeted tests.
+- [x] Browser regressions: 130 passed / 14 existing skips / 2 WebKit timeouts; both affected cases passed a targeted serial rerun (5/5 including setup). All 12 new header cases passed across desktop, Chromium 390 and WebKit; light/dark Axe, 44px targets and overflow passed.
+- [x] One final `npm run check`: all typechecks passed, stopped at CSS formatting before units. Formatting corrected; separate full lint passed (one existing UI warning), CSS scale has 0 violations, E2E and production builds passed. No second aggregate run.
+- [ ] Fresh aggregate CI check and Linux header snapshot refresh; no Windows baseline regeneration.
+- [ ] Draft PR/CI and owner acceptance. Part B2 retains FAB behavior, sidebar footer, focus rings and back paths.
+
 ### NAV1 — area registers, #468 part A (2026-10-17)
 
 - [x] Short Plan/Konten registers, Plan › Prognose reusing the liquidity page, Konten › Prüfen and legacy URL redirects preserving search parameters.

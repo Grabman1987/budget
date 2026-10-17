@@ -5,7 +5,8 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { OverspentChip } from './overspent-chip';
+import { MobileStatusLine } from './header-status';
+vi.mock('./inbox', () => ({ useInboxCount: () => ({ count: 0 }) }));
 
 vi.mock('./app-link', () => ({
   AppLink: ({
@@ -18,7 +19,12 @@ vi.mock('./app-link', () => ({
     to: string;
     search?: unknown;
   }) => (
-    <a href={to} data-search={JSON.stringify(search)} {...props}>
+    <a
+      href={to}
+      data-search={JSON.stringify(search)}
+      onClick={(event) => event.preventDefault()}
+      {...props}
+    >
       {children}
     </a>
   ),
@@ -90,7 +96,7 @@ function mount(client = new QueryClient({ defaultOptions: { queries: { retry: fa
   return render(
     <QueryClientProvider client={client}>
       <ToastProvider>
-        <OverspentChip />
+        <MobileStatusLine />
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -117,14 +123,14 @@ it('is hidden without overspent envelopes', async () => {
   const { container } = mount();
   await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalled());
   await new Promise((r) => setTimeout(r, 20));
-  expect(container.querySelector('.overspent-chip')).toBeNull();
+  expect(container.querySelector('.m-status')).toBeNull();
 });
 
 it('links the overspending status to this month’s triage without opening an overlay or writing', async () => {
   stub(view([env('a', -1_000), env('b', -2_000)], 0));
   mount();
   const link = await screen.findByRole('link', {
-    name: '2 Envelopes überzogen, 30,00 € zu decken – Überziehungen prüfen',
+    name: '2 überzogen',
   });
   expect(link.getAttribute('href')).toBe('/plan/monat');
   expect(link.getAttribute('data-search')).toBe(
@@ -139,18 +145,18 @@ it('keeps the count and plan link visible while masking every amount', async () 
   stub(view([env('a', -1_000), env('c', 100_000)], 0));
   setAmountsHidden(true);
   mount();
-  const link = await screen.findByRole('link', { name: /1 Envelope überzogen/ });
+  const link = await screen.findByRole('link', { name: /1 überzogen/ });
   expect(link.textContent).toContain('1');
   expect(link.textContent).not.toContain('10,00');
-  expect(link.getAttribute('aria-label')).not.toContain('10,00');
+  expect(link.getAttribute('aria-label') ?? '').not.toContain('10,00');
   expect(link.getAttribute('href')).toBe('/plan/monat');
 });
 
-it('keeps the count and plan link when the summed cents exceed safe integer precision', async () => {
+it('shows the count without summing amounts, even at the safe integer boundary', async () => {
   stub(view([env('a', -Number.MAX_SAFE_INTEGER), env('b', -1)], 0));
   mount();
-  const link = await screen.findByRole('link', { name: /2 Envelopes überzogen/ });
-  expect(link.textContent).toContain('Betrag unbekannt');
+  const link = await screen.findByRole('link', { name: /2 überzogen/ });
+  expect(link.textContent).toBe('2 überzogen');
   expect(link.textContent).not.toContain('90.071.992.547.409,92');
   expect(link.getAttribute('href')).toBe('/plan/monat');
   expect(link.getAttribute('data-search')).toBe(
@@ -176,12 +182,12 @@ it('does not present cached overspending as current after a failed refetch', asy
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   stub(view([env('a', -1_000)], 0));
   mount(client);
-  await screen.findByRole('link', { name: /1 Envelope überzogen/ });
+  await screen.findByRole('link', { name: /1 überzogen/ });
   stubError();
   await client.invalidateQueries();
   const link = await screen.findByRole('link', {
     name: 'Budgetstatus nicht verfügbar – Plan prüfen',
   });
   expect(link.getAttribute('href')).toBe('/plan/monat');
-  expect(screen.queryByRole('link', { name: /Envelope überzogen/ })).toBeNull();
+  expect(screen.queryByRole('link', { name: /überzogen/ })).toBeNull();
 });

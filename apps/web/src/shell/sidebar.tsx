@@ -6,7 +6,6 @@ import { AccountTree } from './account-tree';
 import { AppLink } from './app-link';
 import { ThemeButton } from './theme-button';
 import { useShellIdentity } from './use-profile';
-import { QueueBadge } from '../pwa/queue-ui';
 import { useRef } from 'react';
 import { GripVertical } from 'lucide-react';
 import { SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN } from './use-sidebar-width';
@@ -88,7 +87,6 @@ export function Sidebar({
                     <Icon className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
                   )}
                   <span className="label">{a.label}</span>
-                  {(a.id === 'heute' || a.id === 'konten') && <QueueBadge />}
                 </AppLink>
               </li>
             );
