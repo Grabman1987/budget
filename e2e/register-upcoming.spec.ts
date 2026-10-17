@@ -188,7 +188,7 @@ test('loads every future capture beyond the preview and first cursor page', asyn
   request,
   baseURL,
   isolatedLedger,
-}, info) => {
+}) => {
   const response = await request.post('/api/accounts', {
     headers: { origin: baseURL! },
     data: {
