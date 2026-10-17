@@ -1,5 +1,5 @@
-import { Button, useAmountPrivacy } from '@budget/ui';
-import { Repeat2 } from 'lucide-react';
+import { Button, cx, useAmountPrivacy } from '@budget/ui';
+import { Ellipsis, Repeat2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { bookOccurrence, skipOccurrence, type Occurrence } from '../expected/api';
@@ -25,6 +25,7 @@ export function ScheduledRegisterRow({
   const write = useBudgetWrite();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const action = async (book: boolean) => {
     if (busy) return;
     setBusy(true);
@@ -51,13 +52,22 @@ export function ScheduledRegisterRow({
       <td className="kc-flag kx-flag" />
       <td className="kc-date kx-date">{upcomingDate(s.dueDate, today)}</td>
       <td className="kx-payee">
-        <div className="kschedule-line">
+        <div className={cx('kschedule-line', actionsOpen && 'is-open')}>
           <AppLink
             className="kname-btn kschedule-name"
             to={`/plan/erwartet/${encodeURIComponent(s.paymentId)}`}
           >
             {s.name}
           </AppLink>
+          <button
+            type="button"
+            className="kschedule-more"
+            aria-label={`Aktionen: ${s.name}`}
+            aria-expanded={actionsOpen}
+            onClick={() => setActionsOpen((open) => !open)}
+          >
+            <Ellipsis size={16} aria-hidden="true" />
+          </button>
           <div className="kschedule-actions">
             <Button size="xs" variant="ghost" disabled={busy} onClick={() => void action(true)}>
               Jetzt buchen

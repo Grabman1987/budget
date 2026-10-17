@@ -8,7 +8,7 @@ import { Fragment, useId, useState, type ReactNode } from 'react';
 import { CategoryCell, FlagCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
 import { dayHeading, nativeCurrency, valuedCurrency, shortDay, upcomingDate, eur } from './format';
 import { ScheduledRegisterRow } from './scheduled-register-row';
-import type { UpcomingModel } from './upcoming-register';
+import { upcomingEntries, upcomingSummary, type UpcomingModel } from './upcoming-register';
 import { flashRows, useFlashing } from './flash';
 import { useLedgerWrites } from './mutations';
 import { lookupsQuery } from './queries';
@@ -101,6 +101,7 @@ export function BookingTable({
     </th>
   );
 
+  const entries = upcoming ? upcomingEntries(upcoming) : [];
   const groups = all ? groupByDay(items) : [{ day: '', items: [...items], sum: 0 }];
   return (
     <>
@@ -161,50 +162,41 @@ export function BookingTable({
                     onClick={upcoming.toggle}
                   >
                     <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
-                    Kommend · {upcoming.count}
+                    {upcomingSummary(upcoming.count, entries[0])}
                   </button>
                 </th>
               </tr>
               {upcoming.open &&
-                [
-                  ...upcoming.bookings.map((b) => ({ date: b.date, id: b.id, booking: b })),
-                  ...upcoming.schedules.map((s) => ({
-                    date: s.dueDate,
-                    id: s.occurrenceId,
-                    schedule: s,
-                  })),
-                ]
-                  .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))
-                  .map((entry) =>
-                    'schedule' in entry ? (
-                      <ScheduledRegisterRow
-                        key={entry.id}
-                        occurrence={entry.schedule}
-                        today={upcoming.today}
-                        all={all}
-                        blankCheck={!!selection}
-                        balance={upcoming.balances.get(entry.id) ?? null}
-                      />
-                    ) : (
-                      <Row
-                        key={entry.id}
-                        booking={entry.booking}
-                        variant={variant}
-                        classes={classes}
-                        upcomingToday={upcoming.today}
-                        projectedBalance={upcoming.balances.get(entry.id) ?? null}
-                        blankCheck={!!selection}
-                        runColumn={runColumn}
-                        onOpen={onOpen}
-                        categories={lookups.data?.categories ?? []}
-                        groups={lookups.data?.groups ?? []}
-                        onCategory={setCategory}
-                        onFlag={setFlag}
-                        onPatch={(patch) => writes.patch.mutateAsync({ id: entry.id, patch })}
-                        busy={writes.patch.isPending}
-                      />
-                    ),
-                  )}
+                entries.map((entry) =>
+                  entry.schedule ? (
+                    <ScheduledRegisterRow
+                      key={entry.id}
+                      occurrence={entry.schedule}
+                      today={upcoming.today}
+                      all={all}
+                      blankCheck={!!selection}
+                      balance={upcoming.balances.get(entry.id) ?? null}
+                    />
+                  ) : (
+                    <Row
+                      key={entry.id}
+                      booking={entry.booking}
+                      variant={variant}
+                      classes={classes}
+                      upcomingToday={upcoming.today}
+                      projectedBalance={upcoming.balances.get(entry.id) ?? null}
+                      blankCheck={!!selection}
+                      runColumn={runColumn}
+                      onOpen={onOpen}
+                      categories={lookups.data?.categories ?? []}
+                      groups={lookups.data?.groups ?? []}
+                      onCategory={setCategory}
+                      onFlag={setFlag}
+                      onPatch={(patch) => writes.patch.mutateAsync({ id: entry.id, patch })}
+                      busy={writes.patch.isPending}
+                    />
+                  ),
+                )}
             </tbody>
             {showTodayBalance && (
               <tbody className="kregister-today">
