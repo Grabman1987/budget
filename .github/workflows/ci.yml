@@ -16,10 +16,30 @@ concurrency:
 
 jobs:
   # `check`, `check-windows`, `docker` and `restore-test` are the required status checks (branch
-  # protection, merge script): keep their names. `check` is the aggregate of `unit` and `e2e`.
+  # protection, merge script): keep their names. `check` is the aggregate of `static`, `unit`, `e2e` and `visual`.
+  # Typecheck and lint (OS-independent) in one job, unit tests sharded in the next one.
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+
   unit:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -33,25 +53,25 @@ jobs:
       # BUDGET_REQUIRE_AGE=1 it fails instead of skipping when the binary is missing.
       - name: Install age
         run: sudo apt-get update && sudo apt-get install -y age
-      - name: Typecheck, lint, unit tests
+      - name: Unit tests, shard ${{ matrix.shard }}/2
         env:
           BUDGET_REQUIRE_AGE: '1'
-        run: npm run check
+        run: npx vitest run --shard=${{ matrix.shard }}/2
 
   # E2E is split by Playwright sharding (SHARDS below must match the matrix). Every shard builds
   # the bundle (seconds, so no shared build artifact) and starts its own set of test servers (fresh
   # databases, see playwright.config.ts), so shards share no state. Screenshot assertions are
   # skipped here (--ignore-snapshots, every other assertion runs): baselines are checked by the
-  # separate, non-required `visual` job, so a UI change never turns this required check red.
+  # separate `visual` job (also part of `check`), so shards only prove behaviour.
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      SHARDS: 10
+      SHARDS: 12
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -85,25 +105,24 @@ jobs:
             test-results/
           retention-days: 7
 
-  # Required status check: green only if the unit job and every e2e shard succeeded.
+  # Required status check: green only if static, unit, e2e and visual succeeded.
   check:
-    needs: [unit, e2e]
+    needs: [static, unit, e2e, visual]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require unit and e2e
+      - name: Require static, unit, e2e and visual
         env:
-          RESULTS: ${{ needs.unit.result }} ${{ needs.e2e.result }}
+          RESULTS: ${{ needs.static.result }} ${{ needs.unit.result }} ${{ needs.e2e.result }} ${{ needs.visual.result }}
         run: |
-          echo "unit / e2e: $RESULTS"
-          [ "$RESULTS" = "success success" ]
+          echo "static / unit / e2e / visual: $RESULTS"
+          [ "$RESULTS" = "success success success success" ]
 
-  # NOT required and NOT part of `check`: the specs that compare screenshots (the only ones with
-  # baselines), without --ignore-snapshots. A PR that changes the UI on purpose may leave this red
-  # (label `ui-change`); after the merge visual-baselines.yml proposes the new baselines.
+  # The specs that compare screenshots (the only ones with baselines), without --ignore-snapshots.
+  # Blocking via `check`. A PR that changes the UI on purpose commits reviewed Linux baselines first
+  # (manual workflow update-snapshots.yml).
   visual:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -142,14 +161,14 @@ jobs:
 
   # Windows is the owner's development machine: `npm ci` (no compiler needed, see .npmrc) and the
   # unit tests must pass there, including the path handling of the database package. Typecheck and
-  # lint are OS-independent (.gitattributes pins eol=lf) and already run on ubuntu (`unit`).
+  # lint are OS-independent (.gitattributes pins eol=lf) and already run on ubuntu (`static`).
   windows-unit:
     runs-on: windows-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -159,8 +178,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Unit tests, shard ${{ matrix.shard }}/4
-        run: npx vitest run --shard=${{ matrix.shard }}/4
+      - name: Unit tests, shard ${{ matrix.shard }}/2
+        run: npx vitest run --shard=${{ matrix.shard }}/2
 
   # Required status check: green only if every Windows shard succeeded.
   check-windows:
