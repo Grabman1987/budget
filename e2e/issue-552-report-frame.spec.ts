@@ -155,3 +155,24 @@ for (const id of SAMPLE) {
     }
   });
 }
+
+// Reports with their own control in the head (plain Segmented, calendar select): the 64 px rule
+// must neither squeeze nor clip it, and the page must not scroll sideways.
+for (const id of ['projekte', 'finanzcheck', 'jahresansicht', 'gesamtuebersicht'] as const) {
+  test(`${id}: its own head control keeps its width`, async ({ page }) => {
+    test.skip(phone(page), 'desktop head layout');
+    await page.goto(`/reports/${id}`);
+    await expect(page.locator('.titleblock .tb-field').first()).toBeVisible({ timeout: 30_000 });
+    const squeezed = await page
+      .locator('.titleblock .tb-field')
+      .evaluateAll((cells) =>
+        cells
+          .filter((cell) => cell.querySelector('.seg, select'))
+          .filter((cell) => cell.scrollWidth > cell.clientWidth + 1),
+      );
+    expect(squeezed).toHaveLength(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  });
+}

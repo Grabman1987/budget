@@ -15,14 +15,15 @@ import { CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import './period-quick-select.css';
 
-/** The calendar months a period stands for; `undefined` for Alles. YTD is the whole calendar year. */
+/** The calendar months a period stands for; `undefined` for Alles. YTD is the calendar year of the last full month. */
 function windowOf(period: Period, today: string): [string, string] | undefined {
   if (isCalendarRange(period)) return period.split('..') as [string, string];
   const last = addMonths(today.slice(0, 7), -1);
   const lengths: Record<string, number> = { '1M': 1, '3M': 3, '1J': 12, '3J': 36 };
   const length = lengths[period];
   if (length) return [addMonths(last, 1 - length), last];
-  const year = today.slice(0, 4);
+  // YTD runs to the last full month, so in January it shows the year before.
+  const year = last.slice(0, 4);
   return period === 'YTD' ? [`${year}-01`, `${year}-12`] : undefined;
 }
 

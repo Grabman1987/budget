@@ -25,6 +25,11 @@ describe('shiftPeriod', () => {
     expect(shiftPeriod('1J', -1, TODAY)).toBe('2024-09..2025-08');
     expect(shiftPeriod('YTD', -1, TODAY)).toBe('2025-01..2025-12');
   });
+  it('steps from YTD to the year before the one it shows, also in January', () => {
+    // In January YTD shows the last full year (December of the year before).
+    expect(shiftPeriod('YTD', -1, '2027-01-15')).toBe('2025-01..2025-12');
+    expect(shiftPeriod('YTD', -1, '2026-09-17')).toBe('2025-01..2025-12');
+  });
   it('does not step into the future, before 1900, or from Alles', () => {
     expect(shiftPeriod('2026-06..2026-08', 1, TODAY)).toBeUndefined();
     expect(shiftPeriod('2026-08..2026-09', 1, TODAY)).toBeUndefined();

@@ -1,18 +1,3 @@
-.titleblock:not(.titleblock-report):has(.report-quick) {
-  display: flex;
-  flex-wrap: wrap;
-}
-.titleblock:not(.titleblock-report):has(.report-quick) .tb-title {
-  flex: 1 1 280px;
-}
-.titleblock:not(.titleblock-report) .tb-field:has(.report-quick) {
-  flex: 1 0 100%;
-  border-left: 0;
-  border-top: 1px solid var(--line-2);
-}
-.titleblock:not(.titleblock-report) .tb-field:has(.report-quick) .tb-value {
-  white-space: normal;
-}
 .report-quick {
   display: flex;
   flex-wrap: wrap;
@@ -163,6 +148,9 @@
   }
   .titleblock-report .tb-field {
     flex: 0 1 auto;
+  }
+  /* A long data basis wraps; fields with their own control keep their width. */
+  .titleblock-report .tb-field:not(:has(.seg, select, button, input)) {
     max-width: 260px;
   }
   .titleblock-report .tb-value {
@@ -214,6 +202,5 @@
   }
   .titleblock-report .tb-field:has(.report-period-control) {
     flex: none;
-    max-width: none;
   }
 }
