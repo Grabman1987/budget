@@ -64,7 +64,12 @@ jobs:
   # skipped here (--ignore-snapshots, every other assertion runs): baselines are checked by the
   # separate `visual` job (also part of `check`), so shards only prove behaviour.
   e2e:
+    # Fail fast: no 12 browser jobs while typecheck/lint is red (most failed PR runs are cheap to find).
+    needs: static
     runs-on: ubuntu-latest
+    # Browsers and their system packages come preinstalled (saves the ~40 s apt/download step per
+    # shard). Keep the tag equal to the exact @playwright/test version in package-lock.json.
+    container: mcr.microsoft.com/playwright:v1.64.1-noble
     timeout-minutes: 30
     env:
       SHARDS: 12
@@ -81,17 +86,6 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Playwright version
-        id: playwright
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-      - name: Cache Playwright browsers
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      # With a cache hit the browsers are not downloaded again; the system packages still are.
-      - name: Install Chromium and WebKit
-        run: npx playwright install --with-deps chromium webkit
       - name: Build (e2e mode)
         run: npm run build:e2e
       - name: E2E shard ${{ matrix.shard }}/${{ env.SHARDS }}
@@ -123,6 +117,7 @@ jobs:
   # Blocking via `check`. A PR that changes the UI on purpose commits reviewed Linux baselines first
   # (manual workflow update-snapshots.yml).
   visual:
+    needs: static
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
