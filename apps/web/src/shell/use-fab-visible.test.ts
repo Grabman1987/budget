@@ -11,11 +11,6 @@ const { useFabVisible } = await import('./use-fab-visible');
 
 beforeEach(() => {
   pathname = '/';
-  vi.stubGlobal('innerHeight', 800);
-  Object.defineProperty(document.documentElement, 'scrollHeight', {
-    configurable: true,
-    value: 3000,
-  });
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -48,12 +43,14 @@ it.each([false, true])(
   },
 );
 
-it('shows again at the page end and after a route change', () => {
+it('stays hidden at the page end and shows again after a route change', () => {
   vi.stubGlobal('scrollY', 0);
   const { result, rerender } = renderHook(() => useFabVisible());
   scroll(1000);
   expect(result.current).toBe(false);
   scroll(2200);
+  expect(result.current).toBe(false);
+  scroll(2199);
   expect(result.current).toBe(true);
   scroll(1500);
   scroll(1800);

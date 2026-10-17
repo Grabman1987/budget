@@ -52,11 +52,6 @@ it('offers search in the phone header and only booking capture below the page', 
   expect(within(capture).getByRole('link', { name: 'Buchung erfassen' })).toBeTruthy();
   expect(within(capture).queryByRole('button')).toBeNull();
   const fab = within(capture).getByRole('link', { name: 'Buchung erfassen' });
-  // A long page: the FAB only shows by itself again within reach of the page end.
-  Object.defineProperty(document.documentElement, 'scrollHeight', {
-    configurable: true,
-    value: 3000,
-  });
   act(() => {
     vi.stubGlobal('scrollY', 200);
     window.dispatchEvent(new Event('scroll'));
