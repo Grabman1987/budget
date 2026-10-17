@@ -31,7 +31,8 @@ TEMPLATE="$HERE/task-prompt.md"
 TOOLS="Read,Edit,Write,Glob,Grep,Bash(npm ci),Bash(npm run *),Bash(npx *),Bash(git *),Bash(gh issue *),Bash(gh pr *),Bash(gh label *),Skill"
 
 redact() { sed -E 's/(gh[pousr]_|github_pat_|sk-)[A-Za-z0-9_-]{10,}/[redacted]/g; s/[A-Za-z0-9_-]{32,}/[redacted]/g'; }
-gl() { gh "$@" >/dev/null 2>&1 || echo "warn: gh $* failed" >&2; }
+export GH_REPO=Grabman1987/budget # gh must not depend on the job's working directory
+gl() { gh "$@" >/dev/null 2>>"$LOGDIR/gh-errors.log" || echo "warn: gh $* failed" >&2; }
 board() { bash "$HERE/board.sh" "$1" "$2" >/dev/null 2>&1 || echo "warn: board $1 '$2' failed" >&2; }
 
 # sets branch, wt, log for issue $1 and engine $2
@@ -94,9 +95,28 @@ $(tail -c 3000 "$prev" | redact)"
     prompt=${prompt//\{\{EXTRA\}\}/$extra}
     turns=40; [ "$size" = S ] && turns=25
     if [ "$eng" = codex ]; then
-      # Sandboxed: writes only in the worktree and the shared .git dir; network for npm/gh.
+      # Sandboxed: writes only in the worktree and the shared .git dir, network for npm. The sandbox
+      # cannot read the gh/git credentials, so the runner supplies the issue and pushes/opens the PR.
+      prompt="$prompt
+
+CODEX SANDBOX RULES (override steps 1, 6 and 7 above): you have no GitHub access – never run gh,
+git push or git fetch. The issue with its comments is below. Commit your work on the current branch
+(Conventional Commits). Your final message: line 1 = the PR title (Conventional Commits), then the PR
+body from .github/pull_request_template.md with \"Refs #$n\". If a human decision is needed, commit
+nothing and start the final message with \"NEEDS-HUMAN:\" and the concrete question.
+
+$(gh issue view "$n" --comments 2>&1)"
       codex exec -s workspace-write -c sandbox_workspace_write.network_access=true \
         --add-dir "$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir)" -C "$wt" --json -o "$log" "$prompt" >"$LOGDIR/issue-$n.codex.jsonl" 2>&1 </dev/null
+      if grep -q '^NEEDS-HUMAN:' "$log" 2>/dev/null; then
+        gl issue comment "$n" --body-file "$log"
+        gl issue edit "$n" --add-label needs-human
+      elif [ -n "$(git -C "$wt" log --oneline origin/main..HEAD)" ]; then
+        labels=$(gh issue view "$n" --json labels --jq '[.labels[].name | select(test("^(risk|area):"))] | join(",")')
+        git -C "$wt" push -q -u origin "$branch" &&
+          tail -n +2 "$log" | gh pr create --head "$branch" --title "$(head -n1 "$log")" --body-file - \
+            --label "$labels" >>"$LOGDIR/runner-$n.out" 2>&1
+      fi
     else
       (cd "$wt" && claude -p "$prompt" --model "$MODEL" --permission-mode acceptEdits --max-turns "$turns" \
         --output-format json --allowedTools "$TOOLS") >"$log" 2>&1 </dev/null
