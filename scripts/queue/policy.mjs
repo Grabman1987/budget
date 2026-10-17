@@ -123,6 +123,10 @@ const PROTECTED = [
   'packages/db/drizzle/**',
   'playwright.config.ts',
   'vitest.config.ts',
+  'vitest.setup.ts',
+  'eslint.config.js',
+  'package.json',
+  'package-lock.json',
   'e2e/**/*-snapshots/**',
 ];
 
@@ -180,6 +184,15 @@ export function checkScope(changes, globs) {
         reason: 'files outside the issue queue-scope or on the protected list:',
       }
     : { ok: true, outside: [] };
+}
+
+// ---------- loop pacing ----------
+
+/** Seconds until the next loop round: `base` while busy, `idleDelay` after `idleAfter` idle rounds,
+ *  doubling per consecutive error round up to `max`. Never shorter than `base`. */
+export function loopDelay({ base, idle, errors, idleAfter = 5, idleDelay = 300, max = 600 }) {
+  if (errors > 0) return Math.min(max, base * 2 ** Math.min(errors, 20));
+  return idle >= idleAfter ? Math.max(base, idleDelay) : base;
 }
 
 // ---------- CLI ----------
@@ -247,8 +260,13 @@ function main([cmd, ...args]) {
     if (!r.ok) console.log(r.bad.join(' '));
     return r.ok ? 0 : 1;
   }
+  if (cmd === 'delay') {
+    const [base, idle, errors, idleAfter] = args.map(Number);
+    console.log(loopDelay({ base, idle, errors, ...(idleAfter && { idleAfter }) }));
+    return 0;
+  }
   console.error(
-    'usage: policy.mjs gate | parse-scope | check-scope <porcelain|name-status> <scopefile> | paths0 <kind> | checks <sha> <required> <optional>',
+    'usage: policy.mjs gate | delay <base> <idle> <errors> [idleAfter] | parse-scope | check-scope <porcelain|name-status> <scopefile> | paths0 <kind> | checks <sha> <required> <optional>',
   );
   return 2;
 }

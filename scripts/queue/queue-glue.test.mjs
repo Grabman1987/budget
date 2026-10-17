@@ -15,7 +15,10 @@ import {
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+// Every test spawns Git Bash, git and node several times; on a busy Windows machine that exceeds the default 30 s.
+vi.setConfig({ testTimeout: 120_000 });
 
 const QUEUE = dirname(fileURLToPath(import.meta.url));
 const fwd = (p) => p.replace(/\\/g, '/');
@@ -61,9 +64,9 @@ fi
 [ -f "$d/fail.$1.$2" ] && exit 1
 case "$1 $2" in
   "run list") case "$*" in *ci.yml*) cat "$d/ci.json" ;; *deploy.yml*) cat "$d/deploy.json" ;; esac ;;
-  "pr list") case "$*" in *"--limit 200"*) cat "$d/heads.txt" ;; *) cat "$d/prs.tsv" ;; esac ;;
+  "pr list") case "$*" in *"--limit 200"*) cat "$d/heads.txt" ;; *"--state merged"*) cat "$d/merged.tsv" ;; *) cat "$d/prs.tsv" ;; esac ;;
   "pr view") cat "$d/head.$3" ;;
-  "issue view") case "$*" in *"--json comments"*) cat "$d/comments.$3" 2>/dev/null ;; *) cat "$d/body.$3" 2>/dev/null || exit 1 ;; esac ;;
+  "issue view") case "$*" in *"--json comments"*) cat "$d/comments.$3" 2>/dev/null ;; *"--json state"*) cat "$d/state.$3" ;; *"--json url"*) echo "https://example.invalid/issues/$3" ;; *) cat "$d/body.$3" 2>/dev/null || exit 1 ;; esac ;;
   "issue list") case "$*" in *"--label ready"*) cat "$d/ready.tsv" ;; *"--json number"*) echo 0 ;; esac ;;
   "issue comment") echo "$*" >>"$d/comments.$3" ;;
   "api --paginate") cat "$d/checks.ndjson" ;;
@@ -103,6 +106,8 @@ function fixture() {
   mkdirSync(join(root, 'scripts', 'queue'), { recursive: true });
   for (const f of [
     'gate.sh',
+    'live.sh',
+    'loop.sh',
     'automerge.sh',
     'run_queue.sh',
     'scope-lib.sh',
@@ -230,6 +235,17 @@ describe.skipIf(!BASH)('gate.sh (fails closed)', () => {
     expect(r.status).toBe(1);
     expect(r.out).toMatch(/^BLOCK: gh run list ci\.yml failed/);
   });
+  it.each(['ci.json', 'deploy.json'])(
+    'reports the real reason when gh answers empty (%s)',
+    (file) => {
+      const f = fixture();
+      f.green();
+      f.write(file, '');
+      const r = f.script('gate.sh');
+      expect(r.status).toBe(1);
+      expect(r.out).toMatch(/^BLOCK: (ci|deploy)\.yml run for \w+ missing$/);
+    },
+  );
   it('blocks while CI is pending', () => {
     const f = fixture();
     f.green();
@@ -256,6 +272,54 @@ describe.skipIf(!BASH)('gate.sh (fails closed)', () => {
     const r = f.script('gate.sh');
     expect(r.status).toBe(1);
     expect(r.out).toMatch(/^BLOCK: health unreachable/);
+  });
+});
+
+describe.skipIf(!BASH)('automerge.sh integration order (oldest first)', () => {
+  const two = () => {
+    const f = fixture();
+    const sha7 = f.pr(7, { 'src/a.ts': 'one\n' });
+    const sha8 = f.pr(8, { 'src/b.ts': 'two\n' });
+    f.scope(7, 'src/**\n');
+    f.scope(8, 'src/**\n');
+    // listed newest first on purpose
+    f.write('prs.tsv', `13\tfalse\tagent/issue-8\trisk:low\n12\tfalse\tagent/issue-7\trisk:low\n`);
+    f.write('head.12', sha7);
+    f.write('head.13', sha8);
+    f.write(
+      'checks.ndjson',
+      [sha7, sha8]
+        .flatMap((s) =>
+          ['check', 'check-windows', 'docker', 'restore-test'].map((name, i) => ({
+            id: i + 1,
+            name,
+            status: 'completed',
+            conclusion: 'success',
+            head_sha: s,
+          })),
+        )
+        .map((x) => JSON.stringify(x))
+        .join('\n') + '\n',
+    );
+    return { f, sha7, sha8 };
+  };
+  it('merges the lowest PR number first', () => {
+    const { f, sha7 } = two();
+    f.green();
+    f.script('automerge.sh');
+    expect(f.calls()).toContain(`pr merge 12 --squash --delete-branch --match-head-commit ${sha7}`);
+    expect(f.calls()).not.toContain('pr merge 13');
+  });
+  it('updates only the first PR in line that is behind main, the others wait', () => {
+    const { f } = two();
+    f.advanceMain();
+    f.green();
+    const r = f.script('automerge.sh');
+    expect(f.calls().match(/update-branch/g)).toHaveLength(1);
+    expect(f.calls()).toContain('pulls/12/update-branch');
+    expect(f.calls()).not.toContain('pulls/13/update-branch');
+    expect(r.out).toMatch(/#12: branch updated/);
+    expect(f.calls()).not.toContain('pr merge');
   });
 });
 
@@ -441,6 +505,20 @@ describe.skipIf(!BASH)(
       expect(r.out).not.toContain('rc=0');
       expect(pushed()).toBe('');
     });
+    it('wgit ignores a .git file swapped after the check (explicit --git-dir and --work-tree)', () => {
+      const { f, wt } = setup();
+      const evil = join(f.tmp, 'evil');
+      git(f.tmp, 'init', '-q', evil);
+      rmSync(join(wt, '.git'));
+      writeFileSync(
+        join(wt, '.git'),
+        `gitdir: ${fwd(join(evil, '.git'))}
+`,
+      );
+      const r = f.lib(`wgit '${fwd(wt)}' rev-parse --absolute-git-dir --show-toplevel`);
+      expect(r.out).toContain('/.git/worktrees/issue-7');
+      expect(r.out).not.toContain('evil');
+    });
     it('refuses to run git in a worktree whose .git file points somewhere else', () => {
       const { f, wt, pushed, publish } = setup();
       const evil = join(f.tmp, 'evil');
@@ -455,3 +533,128 @@ describe.skipIf(!BASH)(
     });
   },
 );
+
+describe.skipIf(!BASH)('live.sh (closes only completed issues, never on errors)', () => {
+  const setup = (labelled) => {
+    const f = fixture();
+    f.green();
+    f.write(
+      'merged.tsv',
+      `agent/issue-7	${f.head()}	${labelled}	12
+`,
+    );
+    f.write('state.7', 'OPEN');
+    return f;
+  };
+  const closed = (f) => /^issue close 7/m.test(f.calls());
+  const comments = (f) => f.calls().match(/^issue comment 7/gm) ?? [];
+
+  it('without queue:complete: no close, one comment per PR, board to CI / Review', () => {
+    const f = setup('false');
+    const r = f.script('live.sh');
+    expect(r.out).toContain('#7: live');
+    expect(closed(f)).toBe(false);
+    expect(f.calls()).toMatch(/open items remain, issue stays open/);
+    expect(f.calls()).toContain('85b8e1ab');
+    expect(f.calls()).not.toContain('6c62c1e6');
+    f.script('live.sh');
+    expect(comments(f)).toHaveLength(1);
+    expect(closed(f)).toBe(false);
+  });
+  it('with queue:complete: closes and moves the board to Live', () => {
+    const f = setup('true');
+    f.script('live.sh');
+    expect(closed(f)).toBe(true);
+    expect(f.calls()).toContain('6c62c1e6');
+  });
+  it('does nothing when gh pr list fails', () => {
+    const f = setup('true');
+    f.write('fail.pr.list', '');
+    f.script('live.sh');
+    expect(closed(f)).toBe(false);
+    expect(comments(f)).toHaveLength(0);
+  });
+  it('does nothing when the issue comments cannot be read', () => {
+    const f = setup('false');
+    f.write('fail.issue.view', '');
+    f.script('live.sh');
+    expect(closed(f)).toBe(false);
+    expect(comments(f)).toHaveLength(0);
+  });
+  it('does nothing while the merge commit is not live yet', () => {
+    const f = setup('true');
+    f.advanceMain();
+    f.write(
+      'merged.tsv',
+      `agent/issue-7	${f.head()}	true	12
+`,
+    );
+    f.write('health.json', JSON.stringify({ status: 'ok', revision: 'b'.repeat(40) }));
+    f.script('live.sh');
+    expect(closed(f)).toBe(false);
+    expect(comments(f)).toHaveLength(0);
+  });
+});
+
+describe.skipIf(!BASH)('loop.sh STOP file', () => {
+  const stop = (text) => {
+    const f = fixture();
+    const file = join(f.root, 'logs', 'queue', 'STOP');
+    writeFileSync(file, text);
+    const r = f.script('loop.sh', '--once');
+    return { f, r, log: readFileSync(join(f.root, 'logs', 'queue', 'loop.log'), 'utf8'), file };
+  };
+  it('logs mtime, size and first line before removing the file', () => {
+    const { r, log, file } = stop('maintenance window\nsecond line\n');
+    expect(log).toMatch(
+      /STOP file found \(mtime \d{4}-\d\d-\d\d \d\d:\d\d:\d\d, 31 bytes, reason: maintenance window\)/,
+    );
+    expect(r.out).toContain('reason: maintenance window');
+    expect(existsSync(file)).toBe(false);
+  });
+  it('logs "none" for an empty STOP file and still honours it', () => {
+    const { log, file } = stop('');
+    expect(log).toMatch(/, 0 bytes, reason: none\)/);
+    expect(existsSync(file)).toBe(false);
+  });
+});
+
+describe.skipIf(!BASH)('live.sh never closes parents', () => {
+  it('closes only the issue of the PR branch, never another issue the PR mentions', () => {
+    const f = fixture();
+    f.green();
+    f.write('merged.tsv', `agent/issue-7\t${f.head()}\ttrue\t12\n`);
+    f.write('state.7', 'OPEN');
+    f.write('state.3', 'OPEN');
+    f.script('live.sh');
+    expect(f.calls()).toMatch(/^issue close 7/m);
+    expect(f.calls()).not.toMatch(/^issue (close|view|comment) 3/m);
+  });
+  it('ignores merged PRs that are not agent/codex issue branches', () => {
+    const f = fixture();
+    f.green();
+    f.write('merged.tsv', `feature/epic-3\t${f.head()}\ttrue\t12\n`);
+    f.script('live.sh');
+    expect(f.calls()).not.toMatch(/^issue close/m);
+  });
+});
+
+describe.skipIf(!BASH)('loop.sh pacing', () => {
+  const round = (prep) => {
+    const f = fixture();
+    f.green();
+    f.write('ready.tsv', '');
+    f.write('heads.txt', '');
+    f.write('merged.tsv', '');
+    f.write('prs.tsv', '');
+    prep?.(f);
+    f.script('loop.sh', '--once');
+    return readFileSync(join(f.root, 'logs', 'queue', 'loop.log'), 'utf8');
+  };
+  it('an idle round counts as idle and keeps the 60 s default', () => {
+    expect(round()).toMatch(/pace: idle=1 errors=0 next=60s/);
+  });
+  it('a network error round doubles the delay', () => {
+    expect(round((f) => f.write('curl-fail', ''))).toMatch(/pace: idle=\d errors=1 next=120s/);
+  });
+});

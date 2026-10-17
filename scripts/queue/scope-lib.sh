@@ -44,18 +44,22 @@ $3"
 
 # ---------- git in agent worktrees (the agent may have tampered with them) ----------
 
+# The git dir git wrote for worktree $1 when the runner created it.
+wt_gitdir() { echo "$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir)/worktrees/$(basename "$1")"; }
+
 # True iff the worktree's .git file is exactly the one git wrote when the runner created it. An agent can
 # rewrite that file to point at a repository whose config or hooks would then run with our credentials.
 wt_ok() {
-  [ "$(cat "$1/.git" 2>/dev/null)" = "gitdir: $(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir)/worktrees/$(basename "$1")" ]
+  [ "$(cat "$1/.git" 2>/dev/null)" = "gitdir: $(wt_gitdir "$1")" ]
 }
 
-# git in the worktree $1 without hooks and without fsmonitor. Call only after wt_ok.
+# git in the worktree $1 without hooks and without fsmonitor. Call only after wt_ok. --git-dir/--work-tree
+# are explicit, so a .git file swapped after the check cannot redirect the command.
 wgit() {
   local wt=$1
   shift
   mkdir -p "$LOGDIR/nohooks"
-  git -C "$wt" -c core.hooksPath="$LOGDIR/nohooks" -c core.fsmonitor=false "$@"
+  git -C "$wt" --git-dir="$(wt_gitdir "$wt")" --work-tree="$wt" -c core.hooksPath="$LOGDIR/nohooks" -c core.fsmonitor=false "$@"
 }
 
 # True if the worktree has uncommitted work or cannot be inspected safely (then it must be kept).

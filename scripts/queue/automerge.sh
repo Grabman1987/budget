@@ -32,7 +32,8 @@ g fetch -q origin 2>/dev/null
 [ "$(g rev-parse --verify -q origin/main)" = "$H" ] || { echo "no merge: main moved since the gate (gated ${H:0:7})"; exit 0; }
 
 prs=$(gh pr list --state open --label risk:low --limit 100 \
-  --json number,isDraft,labels,headRefName --jq '.[] | [.number, .isDraft, .headRefName, (.labels | map(.name) | join(","))] | @tsv' | tr -d '\r')
+  --json number,isDraft,labels,headRefName --jq '.[] | [.number, .isDraft, .headRefName, (.labels | map(.name) | join(","))] | @tsv' | tr -d '\r' | sort -t "$(printf '\t')" -k1,1n) # oldest PR (lowest number) first
+UPDATED=""
 
 while IFS=$'\t' read -r n draft head labels; do
   [ -z "${n:-}" ] && continue
@@ -74,9 +75,11 @@ while IFS=$'\t' read -r n draft head labels; do
   fi
 
   if ! g merge-base --is-ancestor "$H" "$sha" 2>/dev/null; then
+    if [ -n "$UPDATED" ]; then echo "#$n: wait (behind main; #$UPDATED is updated first)"; continue; fi
+    UPDATED=$n # only the first PR in line is updated, so CI re-runs are not wasted on the others
     if [ "$DRY" = 1 ]; then echo "#$n: would update branch (behind main)"
     elif gh api -X PUT "repos/$GH_REPO/pulls/$n/update-branch" -f expected_head_sha="$sha" >/dev/null 2>&1; then
-      echo "#$n: branch updated, CI re-runs (skipped this round)"
+      echo "#$n: branch updated, CI re-runs (nothing else this round)"; break
     else echo "#$n: update-branch failed"; fi
     continue
   fi

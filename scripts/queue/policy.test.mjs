@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   checkRuns,
   checkScope,
+  loopDelay,
   mergeGate,
   parseNameStatus,
   parsePorcelain,
@@ -227,6 +228,10 @@ describe('protected paths (denylist on top of any scope)', () => {
     'packages/db/drizzle/0001_init.sql',
     'playwright.config.ts',
     'vitest.config.ts',
+    'package.json',
+    'package-lock.json',
+    'vitest.setup.ts',
+    'eslint.config.js',
     'e2e/plan/plan.spec.ts-snapshots/a.png',
     'e2e/x-snapshots/b/c.png',
   ];
@@ -249,5 +254,25 @@ describe('protected paths (denylist on top of any scope)', () => {
       'packages/db/src/schema.ts',
     ];
     expect(checkScope([{ status: 'M', paths }], everything)).toEqual({ ok: true, outside: [] });
+  });
+});
+
+describe('loopDelay (loop.sh pacing)', () => {
+  it('uses the base interval while there is activity or only a few idle rounds', () => {
+    expect(loopDelay({ base: 60, idle: 0, errors: 0 })).toBe(60);
+    expect(loopDelay({ base: 60, idle: 4, errors: 0 })).toBe(60);
+  });
+  it('backs off to 5 minutes after the idle threshold', () => {
+    expect(loopDelay({ base: 60, idle: 5, errors: 0 })).toBe(300);
+    expect(loopDelay({ base: 60, idle: 50, errors: 0 })).toBe(300);
+  });
+  it('doubles per consecutive error round and caps at 10 minutes', () => {
+    const d = (errors) => loopDelay({ base: 60, idle: 0, errors });
+    expect([1, 2, 3, 4, 5, 500].map(d)).toEqual([120, 240, 480, 600, 600, 600]);
+  });
+  it('errors win over idle, and a larger base is never shortened', () => {
+    expect(loopDelay({ base: 60, idle: 9, errors: 1 })).toBe(120);
+    expect(loopDelay({ base: 400, idle: 9, errors: 0 })).toBe(400);
+    expect(loopDelay({ base: 400, idle: 0, errors: 3 })).toBe(600);
   });
 });
