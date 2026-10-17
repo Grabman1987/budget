@@ -1,5 +1,7 @@
 import {
+  addMonths,
   isCalendarRange,
+  monthsBetween,
   isReportPeriod,
   quickReportPeriod,
   REPORT_QUICK_OPTIONS,
@@ -7,12 +9,38 @@ import {
   type Period,
   type ReportQuick,
 } from '@budget/domain';
-import { Button, Select, Segmented } from '@budget/ui';
+import { Button, Select, Segmented, Switch } from '@budget/ui';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { useId, useState } from 'react';
+import { CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
 import './period-quick-select.css';
 
-/** Retain existing segmented controls and add the common calendar selector. */
+/** The calendar months a period stands for; `undefined` for Alles. YTD is the calendar year of the last full month. */
+function windowOf(period: Period, today: string): [string, string] | undefined {
+  if (isCalendarRange(period)) return period.split('..') as [string, string];
+  const last = addMonths(today.slice(0, 7), -1);
+  const lengths: Record<string, number> = { '1M': 1, '3M': 3, '1J': 12, '3J': 36 };
+  const length = lengths[period];
+  if (length) return [addMonths(last, 1 - length), last];
+  // YTD runs to the last full month, so in January it shows the year before.
+  const year = last.slice(0, 4);
+  return period === 'YTD' ? [`${year}-01`, `${year}-12`] : undefined;
+}
+
+/** One step back (-1) or forward (+1) by the length of the window; none into the future. */
+export function shiftPeriod(period: Period, step: -1 | 1, today: string): Period | undefined {
+  const window = windowOf(period, today);
+  if (!window) return undefined;
+  const months = monthsBetween(window[0], window[1]).length * step;
+  const [from, to] = [addMonths(window[0], months), addMonths(window[1], months)];
+  const shifted = `${from}..${to}`;
+  return isCalendarRange(shifted) && to <= today.slice(0, 7) ? shifted : undefined;
+}
+
+/**
+ * The one period control of a report: the preset segment, a step back and forward by the length of
+ * the window, and a popover with the calendar ranges, a custom range and the trend line switch.
+ */
 export function ReportPeriodControl({
   trend = true,
   ...props
@@ -24,10 +52,79 @@ export function ReportPeriodControl({
   className?: string;
   trend?: boolean;
 }) {
+  const today = todayInVienna();
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const previous = shiftPeriod(props.value, -1, today);
+  const next = shiftPeriod(props.value, 1, today);
+  const close = () => {
+    setOpen(false);
+    toggle.current?.focus();
+  };
+  useEffect(() => {
+    if (!open) return;
+    root.current?.querySelector('select')?.focus();
+    const away = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const escape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setOpen(false);
+      toggle.current?.focus();
+    };
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('pointerdown', away);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [open]);
   return (
-    <div className="report-period-control">
+    <div className="report-period-control" ref={root}>
+      <button
+        type="button"
+        className="rpc-step"
+        aria-label="Voriger Zeitraum"
+        disabled={!previous}
+        onClick={() => previous && props.onChange(previous)}
+      >
+        <ChevronLeft size={18} aria-hidden="true" />
+      </button>
       <Segmented {...props} />
-      <PeriodQuickSelect period={props.value} onChange={props.onChange} trend={trend} />
+      <button
+        type="button"
+        className="rpc-step"
+        aria-label="Nächster Zeitraum"
+        disabled={!next}
+        onClick={() => next && props.onChange(next)}
+      >
+        <ChevronRight size={18} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        ref={toggle}
+        className="rpc-step rpc-range"
+        aria-label="Zeitraum wählen"
+        title="Zeitraum wählen"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <CalendarRange size={18} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="rpc-popover" role="dialog" aria-label="Zeitraum und Trendlinie">
+          <PeriodQuickSelect
+            period={props.value}
+            onChange={(period) => {
+              props.onChange(period);
+              close();
+            }}
+            trend={trend}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -153,26 +250,26 @@ export function PeriodQuickSelect({
         </form>
       )}
       {trend && (
-        <label
+        <div
           className="report-trend-control"
           title="Gepunktet: lineare Ausgleichsgerade der dargestellten Ist-Werte, keine Prognose"
         >
-          <input
-            type="checkbox"
+          <span id={`${id}-trend`}>Trendlinie</span>
+          <Switch
+            labelledBy={`${id}-trend`}
             checked={search.trend === true}
-            onChange={(e) =>
+            onChange={(checked) =>
               void navigate({
                 to: '.',
                 search: ((prev: Record<string, unknown>) => ({
                   ...prev,
-                  trend: e.target.checked || undefined,
+                  trend: checked || undefined,
                 })) as never,
                 replace: true,
               })
             }
           />
-          Trendlinie
-        </label>
+        </div>
       )}
     </div>
   );

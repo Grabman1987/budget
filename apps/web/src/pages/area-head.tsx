@@ -2,6 +2,7 @@ import { useAuthMethodLabel } from '../auth/status-query';
 import { todayInVienna } from '@budget/domain';
 import { useParams } from '@tanstack/react-router';
 import { ReportNavigation } from '../reports/report-navigation';
+import '../reports/period-quick-select.css';
 import { Segmented, StandValue, TitleBlock, type TitleBlockField } from '@budget/ui';
 import { KeyRound } from 'lucide-react';
 import { useState } from 'react';
@@ -172,8 +173,9 @@ export function AreaHead({
         // The phone header already carries the report title as its h1.
       }
       // As in the prototype; the phone shows the registers right under the header.
+      // A report head says its data basis; the sync stamp stays only on the report overview.
       fields = [
-        { ...(reportStand ?? stand), hideOnMobile: true },
+        ...(reportStand || !reportId ? [{ ...(reportStand ?? stand), hideOnMobile: true }] : []),
         {
           label: 'Datenbasis',
           value: reportDataBasis ?? 'Okt 2023 bis heute',
@@ -204,7 +206,11 @@ export function AreaHead({
       fields={all}
       compactOnMobile
       titleOnMobile={titleOnMobile}
-      {...(meta.area === 'heute' ? { className: 'titleblock-stack' } : {})}
+      {...(meta.area === 'heute'
+        ? { className: 'titleblock-stack' }
+        : meta.area === 'reports' && reportId
+          ? { className: 'titleblock-report' }
+          : {})}
     />
   );
 }

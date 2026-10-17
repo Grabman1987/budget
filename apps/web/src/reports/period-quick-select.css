@@ -1,18 +1,3 @@
-.titleblock:has(.report-quick) {
-  display: flex;
-  flex-wrap: wrap;
-}
-.titleblock:has(.report-quick) .tb-title {
-  flex: 1 1 280px;
-}
-.titleblock .tb-field:has(.report-quick) {
-  flex: 1 0 100%;
-  border-left: 0;
-  border-top: 1px solid var(--line-2);
-}
-.titleblock .tb-field:has(.report-quick) .tb-value {
-  white-space: normal;
-}
 .report-quick {
   display: flex;
   flex-wrap: wrap;
@@ -53,7 +38,9 @@
   cursor: pointer;
 }
 @media print {
-  .report-quick {
+  .report-quick,
+  .rpc-step,
+  .rpc-popover {
     display: none;
   }
 }
@@ -67,5 +54,153 @@
 @media (min-width: 768px) {
   .report-period-control {
     flex-wrap: nowrap;
+  }
+}
+
+/* ---------- Report head: one row of 64 px, one period control ---------- */
+.titleblock.titleblock-report {
+  position: relative;
+  overflow: visible; /* the range popover hangs below the head */
+}
+.rpc-step {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  color: var(--ink-2);
+}
+.rpc-step:hover:not(:disabled) {
+  background: var(--tint);
+  color: var(--ink);
+}
+.rpc-step:disabled {
+  color: var(--ink-3);
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.rpc-step[aria-expanded='true'] {
+  background: var(--tint);
+  color: var(--ink);
+}
+.rpc-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  max-width: calc(100vw - 48px);
+  padding: 16px;
+  background: var(--raised);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sheet);
+  box-shadow: var(--shadow);
+}
+.rpc-popover .report-quick {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+.rpc-popover .report-quick select {
+  width: 100%;
+}
+.report-trend-control {
+  justify-content: space-between;
+}
+.titleblock-report .tb-field:has(.report-period-control) .tb-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  /* Presets on their own row, the steps and the range button below. */
+  .report-period-control .seg-period {
+    order: -1;
+  }
+  .rpc-step {
+    width: var(--touch);
+    height: var(--touch);
+  }
+  .rpc-range {
+    margin-left: auto;
+  }
+  .rpc-popover {
+    left: 0;
+    width: auto;
+  }
+  .titleblock-report .tb-field:has(.report-period-control) {
+    border-left: 0;
+  }
+}
+@media (min-width: 768px) {
+  .titleblock.titleblock-report {
+    display: flex;
+    min-height: 64px;
+  }
+  .titleblock-report .tb-cell {
+    padding: 0 16px;
+    align-content: center;
+    gap: 2px;
+  }
+  .titleblock-report .tb-field {
+    flex: 0 1 auto;
+  }
+  /* A long data basis wraps; fields with their own control keep their width. */
+  .titleblock-report .tb-field:not(:has(.seg, select, button, input)) {
+    max-width: 260px;
+  }
+  .titleblock-report .tb-value {
+    white-space: normal;
+    line-height: 1.15;
+  }
+  /* Title, question and the report arrows in two lines: h1 and arrows, then the question. */
+  .titleblock-report .tb-title {
+    flex: 1 1 0;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, max-content) auto;
+    column-gap: 12px;
+    padding-block: 0;
+  }
+  .titleblock-report .report-heading {
+    display: contents;
+  }
+  .titleblock-report .tb-title h1 {
+    grid-row: 1;
+    grid-column: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .titleblock-report .report-navigation {
+    grid-row: 1;
+    grid-column: 2;
+    align-self: center;
+    justify-self: start;
+  }
+  .titleblock-report .report-navigation .icon-btn {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+  }
+  .titleblock-report .tb-title p {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    width: 0;
+    min-width: 100%;
+    font-size: var(--fs-table);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .titleblock-report .tb-field:has(.report-period-control) {
+    flex: none;
   }
 }

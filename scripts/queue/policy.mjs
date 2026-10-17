@@ -123,6 +123,10 @@ const PROTECTED = [
   'packages/db/drizzle/**',
   'playwright.config.ts',
   'vitest.config.ts',
+  'vitest.setup.ts',
+  'eslint.config.js',
+  'package.json',
+  'package-lock.json',
   'e2e/**/*-snapshots/**',
 ];
 
@@ -162,6 +166,13 @@ export function parseNameStatus(text) {
   return out;
 }
 
+// Existing test files may not be modified, deleted or renamed by an unattended merge (orchestrator review);
+// adding new test files stays fine.
+const TEST_FILES = ['**/*.test.*', 'e2e/**/*.spec.ts'];
+const isTestFile = (p) => TEST_FILES.some((g) => globToRegExp(g).test(p));
+/** Paths that already exist in main and are changed: everything except additions (`A`, `??`) and copies. */
+const touchedExisting = ({ status, paths }) => (/^[A?C]/.test(status.trim()) ? [] : paths);
+
 /** Every path of every change (deletions and both sides of renames included) must match a glob. */
 export function checkScope(changes, globs) {
   const paths = [...new Set(changes.flatMap((c) => c.paths))];
@@ -172,14 +183,26 @@ export function checkScope(changes, globs) {
       reason: 'the issue has no queue-scope block (or it is empty)',
     };
   }
-  const outside = paths.filter((p) => !inScope(p, globs));
+  const tests = new Set(changes.flatMap(touchedExisting).filter(isTestFile));
+  const outside = paths.filter((p) => !inScope(p, globs) || tests.has(p));
   return outside.length
     ? {
         ok: false,
         outside,
-        reason: 'files outside the issue queue-scope or on the protected list:',
+        reason: 'files outside the issue queue-scope, on the protected list or existing tests:',
       }
     : { ok: true, outside: [] };
+}
+
+// ---------- loop pacing ----------
+
+/** Seconds until the next loop round: `base` while busy, `idleDelay` after `idleAfter` idle rounds,
+ *  doubling per consecutive error round up to `max`. Never shorter than `base`. */
+export function loopDelay({ base, idle, errors, idleAfter = 5, idleDelay = 300, max = 600 }) {
+  if (!Number.isInteger(base) || base < 5) return max; // bad --interval: slow and safe, never a busy loop
+  const count = (n) => (Number.isFinite(n) && n > 0 ? Math.floor(n) : 0);
+  if (count(errors) > 0) return Math.min(max, base * 2 ** Math.min(count(errors), 20));
+  return count(idle) >= idleAfter ? Math.max(base, idleDelay) : base;
 }
 
 // ---------- CLI ----------
@@ -247,8 +270,13 @@ function main([cmd, ...args]) {
     if (!r.ok) console.log(r.bad.join(' '));
     return r.ok ? 0 : 1;
   }
+  if (cmd === 'delay') {
+    const [base, idle, errors, idleAfter] = args.map(Number);
+    console.log(loopDelay({ base, idle, errors, ...(idleAfter && { idleAfter }) }));
+    return 0;
+  }
   console.error(
-    'usage: policy.mjs gate | parse-scope | check-scope <porcelain|name-status> <scopefile> | paths0 <kind> | checks <sha> <required> <optional>',
+    'usage: policy.mjs gate | delay <base> <idle> <errors> [idleAfter] | parse-scope | check-scope <porcelain|name-status> <scopefile> | paths0 <kind> | checks <sha> <required> <optional>',
   );
   return 2;
 }

@@ -222,7 +222,13 @@ export interface Heute {
         series: { day: string; cents: number }[];
       })
     | HeuteUnavailable;
-  attention: { inboxCount: number; pendingCount: number; pendingBefore: string };
+  attention: {
+    inboxCount: number;
+    pendingCount: number;
+    pendingBefore: string;
+    /** An open loan lacks its installment or interest rate; the owner enters them. */
+    loanTermsMissing: boolean;
+  };
   lastBookings: HeuteLastBooking[];
   nextSteps: { items: NextStep[]; count: number };
 }
@@ -744,6 +750,12 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
       pendingCount: queryBookings(db, { status: 'pending', to: addDays(today, -7), limit: 1 })
         .total,
       pendingBefore: addDays(today, -7),
+      loanTermsMissing: facts.accounts.some(
+        (a) =>
+          a.type === 'loan' &&
+          a.closedAt === null &&
+          (a.installmentCents === null || a.interestRateBp === null),
+      ),
     },
     lastBookings,
     nextSteps: nextSteps(db, today, facts),

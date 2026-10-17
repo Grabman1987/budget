@@ -25,6 +25,7 @@ export function AttentionBar({
   const uncategorized = data.nextSteps.items.find((i) => i.kind === 'uncategorized');
   const overspending = data.nextSteps.items.filter((i) => i.kind === 'overspent').length;
   const reminders = data.accountReminders?.length ?? 0;
+  const loanTermsMissing = data.attention.loanTermsMissing;
   const month = data.stand.today.slice(0, 7);
   const closeMonth = closeEntryMonth(data.stand.today);
   if (
@@ -35,11 +36,15 @@ export function AttentionBar({
     !data.attention.pendingCount &&
     !savingsRows.length &&
     !savingsError &&
-    !reminders
+    !reminders &&
+    !loanTermsMissing
   )
     return null;
   return (
-    <section className="heute-attention" aria-labelledby="attention-title">
+    <section
+      className={`heute-attention${loanTermsMissing ? ' is-dense' : ''}`}
+      aria-labelledby="attention-title"
+    >
       <h2 id="attention-title">Zu tun</h2>
       {data.stand.month && data.stand.month !== month && (
         <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>
@@ -126,6 +131,12 @@ export function AttentionBar({
           <AppLink to="/konten/pruefen" hash="account-reminder-title">
             Prüfen
           </AppLink>
+        </div>
+      )}
+      {loanTermsMissing && (
+        <div className="attention-row">
+          <span>Kreditkonditionen fehlen</span>
+          <AppLink to="/einstellungen/konten">Konditionen ergänzen</AppLink>
         </div>
       )}
     </section>

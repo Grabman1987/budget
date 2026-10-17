@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { ReportPeriodControl } from './period-quick-select';
@@ -93,7 +93,7 @@ describe('report frame', () => {
     expect(screen.getByTestId('report-verdict').textContent).not.toMatch(/undefined|NaN|0,0 %/);
     cleanup();
   });
-  it('puts presets and the period select in one row container, with wrapping only on narrow screens', () => {
+  it('puts the steps, the presets and the range button in one row container, with wrapping only on narrow screens', () => {
     const { container } = render(
       <ReportPeriodControl
         label="Zeitraum"
@@ -106,8 +106,14 @@ describe('report frame', () => {
       />,
     );
     const row = container.querySelector('.report-period-control')!;
-    expect(row.children[0]).toBe(screen.getByRole('group', { name: 'Zeitraum' }));
-    expect(row.children[1]).toBe(screen.getByRole('group', { name: 'Berichtsfilter' }));
+    // One control: step back, the preset segment, step forward, the range popover button.
+    expect(screen.getAllByRole('group', { name: 'Zeitraum' })).toHaveLength(1);
+    expect(row.children[1]).toBe(screen.getByRole('group', { name: 'Zeitraum' }));
+    expect(row.children[0]).toBe(screen.getByRole('button', { name: 'Voriger Zeitraum' }));
+    expect(row.children[3]).toBe(screen.getByRole('button', { name: 'Zeitraum wählen' }));
+    // The dropdown with the nine ranges is reachable in the popover only.
+    expect(screen.queryByRole('combobox')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Zeitraum wählen' }));
     expect(row.contains(screen.getByRole('combobox'))).toBe(true);
     const css = readFileSync('apps/web/src/reports/period-quick-select.css', 'utf8');
     expect(css).toMatch(/\.report-period-control\s*\{[^}]*display: flex/);
