@@ -136,6 +136,12 @@
   margin-top: auto;
   display: grid;
   gap: 6px;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+}
+.sidebar-foot .icon-btn {
+  width: var(--touch);
+  height: var(--touch);
 }
 .side-btn {
   display: flex;
@@ -160,10 +166,9 @@
 .profile {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 8px 4px;
-  border-top: 1px solid var(--rule);
-  margin-top: 6px;
+  gap: 6px;
+  min-width: 0;
+  min-height: var(--touch);
   color: inherit;
   text-decoration: none;
 }
@@ -195,8 +200,19 @@ a.profile:hover .profile-text strong {
   min-width: 0;
 }
 .profile-text strong {
-  font-size: var(--fs-body);
+  font-size: var(--fs-label);
   font-weight: 600;
+}
+.sidebar-foot .profile-text strong {
+  overflow-wrap: anywhere;
+}
+.sidebar-foot .profile-text span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.app.is-collapsed .sidebar-foot {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
 }
 .profile-text span {
   font-size: var(--fs-meta);
@@ -328,7 +344,9 @@ a.btn {
   row-gap: var(--space-section);
   align-content: start;
 }
-.sheet:focus {
+.sheet:focus:not(:focus-visible),
+/* Route headings are not Tab stops. Browsers may inherit :focus-visible on autofocus. */
+.sheet :is(h1, h2, h3)[tabindex='-1']:focus {
   outline: none;
 }
 .sheet > * {

@@ -16,30 +16,31 @@ import { EnvelopeDetails, EnvelopePanel } from './envelope-panel';
 import { planRows } from './plan-model';
 import './plan.css';
 
-function PlanDetailBack({ month, title }: { month: string; title: string }) {
+function PlanDetailBack({ month }: { month: string }) {
   const router = useRouter();
   const openedInApp = useLocation({ select: (location) => location.state.planDetailOpenedInApp });
   return (
     <div className="plan-detail-nav">
       <nav aria-label="Brotkrumen">
-        <AppLink to="/plan/monat" search={{ monat: month }}>
-          Plan · Monat
+        <AppLink
+          to="/plan/monat"
+          search={{ monat: month }}
+          onClick={(event) => {
+            if (
+              openedInApp &&
+              !event.ctrlKey &&
+              !event.metaKey &&
+              !event.shiftKey &&
+              !event.altKey
+            ) {
+              event.preventDefault();
+              router.history.back();
+            }
+          }}
+        >
+          Zurück zum Monat
         </AppLink>
-        {' › '}
-        <span aria-current="page">{title}</span>
       </nav>
-      <AppLink
-        to="/plan/monat"
-        search={{ monat: month }}
-        onClick={(event) => {
-          if (openedInApp && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
-            event.preventDefault();
-            router.history.back();
-          }
-        }}
-      >
-        Zurück zum Monat
-      </AppLink>
     </div>
   );
 }
@@ -61,11 +62,10 @@ export function EnvelopePage() {
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
   }, [row?.id]);
-  const title = row?.name ?? 'Envelope';
   return (
-    <PageFrame meta={PLAN_MONAT} title={title}>
+    <PageFrame meta={PLAN_MONAT}>
       <div className="plan plan-detail">
-        <PlanDetailBack month={month} title={title} />
+        <PlanDetailBack month={month} />
         {budget.isPending && <LoadingNote what="Envelope" />}
         {budget.isError && (
           <ErrorNote what="Envelope" error={budget.error} onRetry={() => void budget.refetch()} />
@@ -105,22 +105,13 @@ export function PlanIncomePage() {
     heading.current?.focus({ preventScroll: true });
   }, [month]);
   return (
-    <PageFrame
-      meta={expected ? PLAN_ERWARTET : PLAN_MONAT}
-      title={`Einnahmen ${monthLabel(month)}`}
-    >
+    <PageFrame meta={expected ? PLAN_ERWARTET : PLAN_MONAT}>
       <div className="plan plan-detail">
-        {expected ? (
-          <ExpectedDetailBack title="Einnahmen" />
-        ) : (
-          <PlanDetailBack month={month} title="Einnahmen" />
-        )}
+        {expected ? <ExpectedDetailBack /> : <PlanDetailBack month={month} />}
         <section className="card insp-card" aria-label="Einnahmen">
-          {expected && (
-            <h2 ref={heading} tabIndex={-1}>
-              Einnahmen {monthLabel(month)}
-            </h2>
-          )}
+          <h2 ref={heading} tabIndex={-1}>
+            Einnahmen {monthLabel(month)}
+          </h2>
           <IncomeBody month={month} bookedCents={budget.data?.summary.incomeCents} />
         </section>
       </div>

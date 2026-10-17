@@ -2,7 +2,7 @@
   min-width: 0;
 }
 .depot-name {
-  display: none;
+  overflow-wrap: anywhere;
 }
 .depot-tabs {
   display: flex;

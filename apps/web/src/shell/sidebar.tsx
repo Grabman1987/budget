@@ -1,6 +1,4 @@
 import { useAuthMethodLabel } from '../auth/status-query';
-import { cx } from '@budget/ui';
-import { Settings } from 'lucide-react';
 import { MAIN_AREAS, type AreaId } from '../nav/areas';
 import { AccountTree } from './account-tree';
 import { AppLink } from './app-link';
@@ -99,31 +97,22 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-foot">
-        <ThemeButton variant="side" />
-        <AppLink
-          className={cx('side-btn')}
-          to="/einstellungen/konten"
-          title="Einstellungen"
-          aria-label="Einstellungen"
-          aria-current={area === 'einstellungen' ? 'page' : undefined}
-        >
-          <Settings size={18} strokeWidth={1.75} aria-hidden="true" />
-          <span className="label">Einstellungen</span>
-        </AppLink>
         <AppLink
           className="profile"
           to="/einstellungen/profil"
-          title="Profil bearbeiten"
-          aria-label={`${identity.name}, Profil bearbeiten`}
+          title="Profil / Einstellungen"
+          aria-label="Profil / Einstellungen"
+          aria-current={area === 'einstellungen' ? 'page' : undefined}
         >
           <span className="avatar" aria-hidden="true">
             {identity.initials}
           </span>
           <span className="profile-text">
-            <strong>{identity.name}</strong>
+            <strong>Profil / Einstellungen</strong>
             <span>{authMethod}</span>
           </span>
         </AppLink>
+        <ThemeButton variant="icon" />
       </div>
       {!collapsed && onSidebarWidthChange && (
         <SidebarResizeHandle width={sidebarWidth} onWidthChange={onSidebarWidthChange} />

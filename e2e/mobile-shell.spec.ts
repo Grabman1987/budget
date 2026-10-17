@@ -6,6 +6,7 @@ test.describe('UX-3a phone shell', () => {
   test.skip(({ isMobile }) => !isMobile, '390 px phone project');
 
   test('search is in the header and booking is the only floating action', async ({ page }) => {
+    test.setTimeout(120_000);
     for (const path of PAGES) {
       await page.goto(path);
       const header = page.locator('.m-head');
@@ -79,9 +80,12 @@ test.describe('UX-3a phone shell', () => {
   test('the final content clears the FAB by 16 px after scrolling to the bottom', async ({
     page,
   }) => {
+    test.setTimeout(120_000);
     for (const path of PAGES) {
       await page.goto(path);
       await expect(page.locator('main')).toBeVisible();
+      await page.waitForLoadState('networkidle');
+      await page.evaluate(() => document.fonts.ready);
       const clearance = await page.locator('main').evaluate((el) => {
         const fab = document.querySelector('.fab')!.getBoundingClientRect();
         return (
@@ -89,18 +93,29 @@ test.describe('UX-3a phone shell', () => {
         );
       });
       expect(clearance, path).toBe(16);
+      // Reveal after reaching the bottom: the retained padding must also clear a visible FAB.
+      await page.evaluate(async () => {
+        window.scrollTo(0, document.documentElement.scrollHeight);
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        window.scrollBy(0, -1);
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+      });
+      await expect(page.locator('.fab')).toBeVisible();
       await expect
         .poll(
           async () =>
             page.locator('main').evaluate((el) => {
-              window.scrollTo(0, document.documentElement.scrollHeight);
               const bottom = Math.max(
                 ...[...el.children]
                   .filter((child) => child.getClientRects().length > 0)
                   .map((child) => child.getBoundingClientRect().bottom),
               );
               const fab = document.querySelector('.fab')!.getBoundingClientRect();
-              return Math.round(fab.top - bottom);
+              // Normalize the one-pixel reveal scroll back to the page-end position.
+              const remaining = document.documentElement.scrollHeight - innerHeight - scrollY;
+              return Math.round(fab.top - bottom + remaining);
             }),
           { message: path },
         )

@@ -330,22 +330,13 @@ export function ContactStatementPage() {
     queryFn: () => request<Statement>('GET', contactUrl(id)),
   });
   return (
-    <PageFrame meta={META} title={statement.data?.contact.name ?? 'Kontoblatt'}>
+    <PageFrame meta={META}>
       <section className="contacts-page contacts-statement" aria-label="Kontaktkontoauszug">
         <nav aria-label="Brotkrumen">
-          <AppLink to="/konten" search={{}}>
-            Konten
+          <AppLink className="btn btn-ghost" to="/konten/kontakte" search={context}>
+            Zurück zu Kontakte
           </AppLink>
-          {' › '}
-          <AppLink to="/konten/kontakte" search={context}>
-            Kontakte
-          </AppLink>
-          {' › '}
-          <span aria-current="page">{statement.data?.contact.name ?? 'Kontoblatt'}</span>
         </nav>
-        <AppLink className="btn btn-ghost" to="/konten/kontakte" search={context}>
-          Zurück zu Kontakte
-        </AppLink>
         {statement.isPending && <LoadingNote what="Kontoblatt" />}
         {statement.isError && (
           <ErrorNote
@@ -362,6 +353,10 @@ export function ContactStatementPage() {
 
 function ContactBody({ statement }: { statement: Statement }) {
   useAmountPrivacy();
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus({ preventScroll: true });
+  }, [statement.contact.id]);
   const [receipt, setReceipt] = useState(false);
   const [writeOff, setWriteOff] = useState(false);
   const currentMonth = statement.asOf.slice(0, 7);
@@ -428,7 +423,9 @@ function ContactBody({ statement }: { statement: Statement }) {
   return (
     <div className="contacts-form">
       <div className="contacts-title">
-        <h2>Kontoblatt</h2>
+        <h2 ref={heading} tabIndex={-1}>
+          {statement.contact.name}
+        </h2>
         <ContactRename contact={statement.contact} />
       </div>
       <p className="contacts-balance">

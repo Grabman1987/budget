@@ -49,4 +49,7 @@ it('keeps the five navigation icons and active link without sheet numbers', () =
   expect(container.querySelectorAll('.sheetlist a svg')).toHaveLength(5);
   expect(container.querySelector('.sheet-no')).toBeNull();
   expect(container.querySelector('.sheetlist a[aria-current="page"]')?.textContent).toBe('Konten');
+  const footer = container.querySelector('.sidebar-foot')!;
+  expect(footer.querySelectorAll('a')).toHaveLength(1);
+  expect(footer.querySelector('a')?.getAttribute('aria-label')).toBe('Profil / Einstellungen');
 });

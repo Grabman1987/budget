@@ -15,7 +15,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearch, useNavigate } from '@tanstack/react-router';
 import { ChevronLeft, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ACCOUNT_PAGE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { BalanceChart } from './balance-chart';
@@ -60,7 +60,6 @@ export function AccountPage({ id }: { id: string }) {
   return (
     <PageFrame
       meta={ACCOUNT_PAGE}
-      title={account?.name ?? 'Konto'}
       accountFields={[
         {
           label: 'Bankstand vom',
@@ -90,17 +89,7 @@ export function AccountPage({ id }: { id: string }) {
         {accounts.isError && (
           <ErrorNote what="Konto" error={accounts.error} onRetry={() => void accounts.refetch()} />
         )}
-        {accounts.data && !account && (
-          <EmptyNote
-            action={
-              <Link className="btn btn-ghost btn-sm" to="/konten">
-                Zur Übersicht
-              </Link>
-            }
-          >
-            Dieses Konto gibt es nicht (mehr).
-          </EmptyNote>
-        )}
+        {accounts.data && !account && <EmptyNote>Dieses Konto gibt es nicht (mehr).</EmptyNote>}
         {account &&
           (account.type === 'brokerage' || account.type === 'crypto' ? (
             <DepotBody account={account} />
@@ -114,6 +103,10 @@ export function AccountPage({ id }: { id: string }) {
 
 function AccountBody({ account }: { account: AccountRow }) {
   useAmountPrivacy();
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus({ preventScroll: true });
+  }, [account.id]);
   const search = useSearch({ strict: false }) as {
     pruefen?: 'reconcile' | 'value';
     vorschau?: string;
@@ -195,7 +188,9 @@ function AccountBody({ account }: { account: AccountRow }) {
     <>
       <div className="kacct-head">
         <div>
-          <h2>{account.name}</h2>
+          <h2 ref={heading} tabIndex={-1}>
+            {account.name}
+          </h2>
           <p className="kmeta">
             {ACCOUNT_TYPE_LABEL[account.type]} · {groupOf(account).title}
             {account.closedAt && <span>geschlossen am {longDay(account.closedAt)}</span>}
