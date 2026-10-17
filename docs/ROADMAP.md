@@ -1,5 +1,13 @@
 # Roadmap
 
+### WP-001 — CASE-001 reference assurance, first bounded slice (#509, 2026-10-17)
+
+- [x] Inventory existing CASE-001–007 domain/repository tests; document coverage, boundary and missing API proof in `docs/evidence/reference-adoption/wp-001-case-audit-2026-10-17.md`.
+- [x] Add exact-cent domain and DB CASE-001 regressions (11,499-cent available, account balance independent of assignment).
+- [ ] Run focused tests, full `npm run check`, and PR CI at the exact branch head; no successful run claimed yet.
+- [ ] Add missing API evidence for CASE-001 and split subsequent CASE-002–005 gaps into separately reviewable tasks.
+- [ ] Complete independent review, controlled merge/deploy and private owner acceptance. Do not close #509 from this slice.
+
 ### NAV3 — FAB, sidebar footer and detail focus/back paths, #468 part B2 (2026-10-17)
 
 - [x] Phone capture stays on every page, hides down and returns up without animation; existing safe-area/FAB bottom clearance retained. Desktop capture unchanged.
