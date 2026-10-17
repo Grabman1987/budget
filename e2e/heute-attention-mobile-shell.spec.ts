@@ -13,7 +13,9 @@ test('Today groups work, preserves its review destinations and distinguishes sel
   await page.goto('/?monat=2026-09');
   const tasks = page.getByRole('region', { name: 'Zu tun', exact: true });
   await expect(tasks).toBeVisible();
-  await expect(tasks.locator('.attention-row')).toHaveCount(4);
+  // #613 (owner decision #527 V05/V16): the sample loan lacks terms, so a fifth row asks for them.
+  await expect(tasks.locator('.attention-row')).toHaveCount(5);
+  await expect(tasks).toContainText('Kreditkonditionen fehlen');
   await expect(tasks).toContainText('8 Konten warten auf Prüfung');
   await expect(tasks.getByRole('link', { name: 'Kontostand prüfen' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Nächste Schritte' })).toHaveCount(0);

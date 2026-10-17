@@ -810,6 +810,12 @@
   padding-block: 4px;
   border-top: 1px solid var(--rule);
 }
+/* With the loan-terms row there are five rows; the 44 px links already space them so the list ends above the 900 px fold. */
+@media (min-width: 768px) {
+  .heute-attention.is-dense .attention-row {
+    padding-block: 0;
+  }
+}
 .attention-proposals {
   flex-basis: 100%;
   min-width: 0;
