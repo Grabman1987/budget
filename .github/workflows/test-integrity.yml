@@ -1,0 +1,74 @@
+name: Test integrity
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: test-integrity-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # PRs may add tests but not weaken them; see docs/queue/test-integrity.md.
+  test-integrity:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Test-integrity gate
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          ALLOW_TEST_CHANGES: ${{ contains(github.event.pull_request.labels.*.name, 'tests-change-approved') && '1' || '0' }}
+        run: node scripts/ci/test-integrity.mjs "origin/$BASE_REF"
+
+  # Line coverage must not drop by more than 0.1 points versus the latest green run on main.
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install age
+        run: sudo apt-get update && sudo apt-get install -y age
+      - name: Unit tests with coverage
+        env:
+          BUDGET_REQUIRE_AGE: '1'
+        run: npx vitest run --coverage --coverage.provider=v8 --coverage.reporter=json-summary --coverage.reportsDirectory=coverage
+      - name: Publish coverage baseline
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-summary
+          path: coverage/coverage-summary.json
+          retention-days: 90
+      - name: Compare with main
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=$(gh run list --workflow test-integrity.yml --branch main --event push --status success -L 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -z "$run_id" ] || ! gh run download "$run_id" -n coverage-summary -D base-coverage; then
+            echo "::notice::No coverage baseline on main yet; ratchet skipped."
+            exit 0
+          fi
+          node scripts/ci/coverage-ratchet.mjs base-coverage/coverage-summary.json coverage/coverage-summary.json
