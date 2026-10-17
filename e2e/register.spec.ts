@@ -53,7 +53,7 @@ test('scrolls account and all bookings through six months, with complete search 
     const past = page.locator('[data-booking]:not(.is-upcoming)');
     await expect(past.first()).toHaveAttribute('data-booking', 'history-151');
     const upcoming = page.locator('.kupcoming-toggle');
-    await expect(upcoming).toHaveText('Kommend · 28');
+    await expect(upcoming).toHaveText('28 kommend · nächste: History Muster 03.10.');
     if ((await upcoming.getAttribute('aria-expanded')) === 'false') await upcoming.click();
     await expect(page.locator('[data-booking]').first()).toHaveAttribute(
       'data-booking',
