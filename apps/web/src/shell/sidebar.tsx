@@ -58,6 +58,7 @@ export function Sidebar({
   onSidebarWidthChange?: (width: number) => void;
 }) {
   const identity = useShellIdentity();
+  const named = identity.name !== 'Profil';
   const authMethod = useAuthMethodLabel();
   return (
     <aside className="sidebar" id="sidebar" aria-label="Seitenleiste">
@@ -107,9 +108,10 @@ export function Sidebar({
           <span className="avatar" aria-hidden="true">
             {identity.initials}
           </span>
+          {/* One entry: the owner's name when set, otherwise the entry label. */}
           <span className="profile-text">
-            <strong>Profil / Einstellungen</strong>
-            <span>{authMethod}</span>
+            <strong>{named ? identity.name : 'Profil / Einstellungen'}</strong>
+            <span>{named ? 'Profil / Einstellungen' : authMethod}</span>
           </span>
         </AppLink>
         <ThemeButton variant="icon" />
