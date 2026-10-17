@@ -25,8 +25,12 @@ const isPhone = (info: TestInfo) => info.project.name === 'mobile';
 async function openCapture(page: Page, info: TestInfo): Promise<Locator> {
   // The shortcut only exists once the app has rendered.
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
-  if (isPhone(info)) await page.getByRole('link', { name: 'Buchung erfassen' }).click();
-  else {
+  if (isPhone(info)) {
+    // Owner rule (#541): the FAB hides while scrolling down and returns on the way up, like a user.
+    const fab = page.getByRole('link', { name: 'Buchung erfassen' });
+    if (!(await fab.isVisible())) await page.evaluate(() => window.scrollTo(0, 0));
+    await fab.click();
+  } else {
     // The key is ignored while a previous dialog is still closing.
     await expect(page.locator('dialog[open]')).toHaveCount(0);
     await page.keyboard.press('n');
