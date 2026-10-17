@@ -90,7 +90,9 @@ test('Heute has eight warning items once, two first, neutral debts and accessibl
   const tasks = page.getByRole('region', { name: 'Zu tun', exact: true });
   await expect(tasks).toContainText('8 Kategorien überzogen');
   await expect(tasks).not.toContainText('Testenvelope');
-  await expect(tasks.locator('.attention-row')).toHaveCount(4);
+  // #613 (owner decision #527 V05/V16): the sample loan lacks terms, so a fifth row asks for them.
+  await expect(tasks.locator('.attention-row')).toHaveCount(5);
+  await expect(tasks).toContainText('Kreditkonditionen fehlen');
   await expect(page.locator('.heute-envelope .heute-alert')).toHaveCount(1);
   await expect(page.locator('.heute-envelope')).not.toContainText('überzogen');
   if (info.project.name === 'desktop') {
