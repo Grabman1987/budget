@@ -10,11 +10,12 @@ import { useMonth } from '../shell/use-month';
 import './month-report.css';
 import type { VerdictFacts } from '@budget/domain';
 
-const sectionsKey = (slug: string) => `budget.report-sections.${slug}`;
+/** Per page, not per report: `/reports/gehalt` and `/reports/gehalt/historie` have their own sections. */
+const sectionsKey = () => `budget.report-sections.${location.pathname}`;
 
-function collapsedSections(slug: string): Set<string> {
+function collapsedSections(): Set<string> {
   try {
-    const stored: unknown = JSON.parse(localStorage.getItem(sectionsKey(slug)) ?? '[]');
+    const stored: unknown = JSON.parse(localStorage.getItem(sectionsKey()) ?? '[]');
     return new Set(Array.isArray(stored) ? stored.filter((k) => typeof k === 'string') : []);
   } catch {
     return new Set(); // no storage or a damaged value: everything stays expanded
@@ -22,10 +23,11 @@ function collapsedSections(slug: string): Set<string> {
 }
 
 /**
- * Adds a disclosure button to every top-level `<section>` of the report body that starts with a
- * heading, and remembers the collapsed ones per report in localStorage. The reports render their
- * sections themselves, so the frame enhances the DOM it owns (and again when a section is rendered
- * later, e.g. after loading). Collapsing hides everything but the heading by stylesheet.
+ * Adds a disclosure button to every top-level `<section>` of the report body that has a heading
+ * (a direct child, or a child of a direct child such as `.tbd-head`), and remembers the collapsed
+ * ones per page in localStorage. The reports render their sections themselves, so the frame
+ * enhances the DOM it owns (and again when a section is rendered later, e.g. after loading).
+ * Collapsing hides everything but the marked head by stylesheet.
  * A section is keyed by its heading id, else by its position (ponytail: shifts if sections come and go).
  */
 export function useCollapsibleSections(slug: string) {
@@ -33,27 +35,25 @@ export function useCollapsibleSections(slug: string) {
   useLayoutEffect(() => {
     const root = ref.current;
     if (!root) return;
-    const collapsed = collapsedSections(slug);
     const enhance = () => {
       let index = -1;
       for (const section of root.querySelectorAll('section')) {
         if (section.parentElement?.closest('section')) continue;
-        const first = section.firstElementChild;
-        const heading = first?.matches('h2, h3') ? first : first?.querySelector('h2, h3');
-        if (!first || !heading) continue;
+        const heading = section.querySelector(':scope > :is(h2, h3), :scope > * > :is(h2, h3)');
+        if (!heading) continue;
         index += 1;
-        if (
-          section.querySelector(':scope > .section-toggle, :scope > :first-child > .section-toggle')
-        )
+        if (section.querySelector(':scope > .section-toggle, :scope > * > .section-toggle'))
           continue;
+        const bare = heading.parentElement === section;
+        const head = bare ? heading : heading.parentElement!;
+        head.setAttribute('data-section-head', '');
         const key = heading.id || `#${index}`;
         heading.id ||= `${slug}-section-${index}`;
         const button = document.createElement('button');
         button.type = 'button';
-        button.className =
-          first === heading
-            ? 'icon-btn section-toggle section-toggle-bare'
-            : 'icon-btn section-toggle';
+        button.className = `icon-btn section-toggle${bare ? ' section-toggle-bare' : ''}`;
+        // A generic name, the title as description: a name containing the title would also match
+        // existing tests that look for a button by part of it (e.g. the year button "2026").
         button.setAttribute('aria-label', 'Abschnitt ein- oder ausklappen');
         button.setAttribute('aria-describedby', heading.id);
         const show = (open: boolean) => {
@@ -61,20 +61,21 @@ export function useCollapsibleSections(slug: string) {
           if (open) section.removeAttribute('data-collapsed');
           else section.setAttribute('data-collapsed', 'true');
         };
-        show(!collapsed.has(key));
+        show(!collapsedSections().has(key));
         button.addEventListener('click', () => {
           const open = button.getAttribute('aria-expanded') !== 'true';
           show(open);
+          const collapsed = collapsedSections(); // re-read: other instances may have written
           if (open) collapsed.delete(key);
           else collapsed.add(key);
           try {
-            localStorage.setItem(sectionsKey(slug), JSON.stringify([...collapsed]));
+            localStorage.setItem(sectionsKey(), JSON.stringify([...collapsed]));
           } catch {
             // no storage: the choice holds until the page is left
           }
         });
-        if (first === heading) heading.after(button);
-        else first.append(button);
+        if (bare) heading.after(button);
+        else head.append(button);
       }
     };
     enhance();

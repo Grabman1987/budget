@@ -12,6 +12,7 @@ test.describe.configure({ timeout: 90_000 });
 
 const MONTH = '/reports/einnahmen?monat=2026-08';
 const TABLE = '/reports/jahresansicht';
+const NOTE_FIRST = '/reports/sparquote'; // its main section starts with a note, not the head
 
 const sections = (page: Page) =>
   page.locator('main section:has(> .section-toggle), main section:has(> * > .section-toggle)');
@@ -22,8 +23,14 @@ async function open(page: Page, path: string) {
   await expect(toggles(page).first()).toBeVisible({ timeout: 20_000 });
 }
 
+async function reload(page: Page) {
+  await page.reload();
+  await expect(toggles(page).first()).toBeVisible({ timeout: 45_000 }); // the ledger read can be slow on a busy machine
+}
+
 for (const [label, path] of [
   ['month report Einnahmen', MONTH],
+  ['table report Sparquote (note before the head)', NOTE_FIRST],
   ['table report Jahresansicht', TABLE],
 ] as const) {
   test(`${label}: collapses a section, shows it again and remembers it after a reload`, async ({
@@ -34,7 +41,7 @@ for (const [label, path] of [
     // What the first section shows below its heading.
     const body = sections(page)
       .first()
-      .locator(':scope > :not(:first-child):not(.section-toggle)')
+      .locator(':scope > :not([data-section-head], .section-toggle)')
       .locator('visible=true');
     await expect(first).toHaveAttribute('aria-expanded', 'true');
     await expect(body).not.toHaveCount(0);
@@ -48,7 +55,7 @@ for (const [label, path] of [
     for (let i = 1; i < count; i += 1)
       await expect(toggles(page).nth(i)).toHaveAttribute('aria-expanded', 'true');
 
-    await page.reload();
+    await reload(page);
     await expect(toggles(page).first()).toHaveAttribute('aria-expanded', 'false');
     await expect(toggles(page).first()).toBeVisible();
     await expect(body).toHaveCount(0);
@@ -56,7 +63,7 @@ for (const [label, path] of [
     await toggles(page).first().click();
     await expect(toggles(page).first()).toHaveAttribute('aria-expanded', 'true');
     await expect(body).not.toHaveCount(0);
-    await page.reload();
+    await reload(page);
     await expect(toggles(page).first()).toHaveAttribute('aria-expanded', 'true');
   });
 }
@@ -67,6 +74,23 @@ test('the state is kept per report', async ({ page }) => {
   await open(page, TABLE);
   for (const button of await toggles(page).all())
     await expect(button).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('the state is kept per page, not per report: Gehalt and Gehalt-Historie do not collide', async ({
+  page,
+}) => {
+  await open(page, '/reports/gehalt?monat=2026-09');
+  await toggles(page).first().click();
+  await expect(toggles(page).first()).toHaveAttribute('aria-expanded', 'false');
+  await open(page, '/reports/gehalt/historie?monat=2026-09');
+  for (const button of await toggles(page).all())
+    await expect(button).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('a toggle is described by its section heading', async ({ page }) => {
+  await open(page, MONTH);
+  const heading = await sections(page).first().getByRole('heading').first().innerText();
+  await expect(toggles(page).first()).toHaveAccessibleDescription(heading);
 });
 
 test('Enter and Space toggle the focused disclosure button', async ({ page }) => {
@@ -105,6 +129,16 @@ test('Axe is clean in light and dark, the toggle is a 44 px target on the phone'
     expect(box!.width).toBeGreaterThanOrEqual(44);
     expect(box!.height).toBeGreaterThanOrEqual(44);
   }
+  // Print shows every section in full and no toggle.
+  await page.emulateMedia({ media: 'print' });
+  await expect(toggles(page).first()).toBeHidden();
+  await expect(
+    sections(page)
+      .first()
+      .locator(':scope > :not([data-section-head], .section-toggle)')
+      .locator('visible=true'),
+  ).not.toHaveCount(0);
+  await page.emulateMedia({ media: 'screen' });
   await page.evaluate(() => document.fonts.ready);
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
