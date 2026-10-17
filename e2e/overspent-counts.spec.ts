@@ -9,7 +9,7 @@ import { eur } from '../apps/web/src/ledger/format';
 // takes longer than the default 5 s.
 const expect = baseExpect.configure({ timeout: 45_000 });
 
-test('one synthetic month has the same overspent count in Heute, Plan, inbox and badge', async ({
+test('one synthetic month has the same overspent count in Heute, Plan, inbox and phone status', async ({
   page,
   request,
 }, info) => {
@@ -41,17 +41,18 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   expect(badge.count).toBe(inbox.count);
 
   await page.goto('/');
-  const bar = page.locator((page.viewportSize()?.width ?? Infinity) <= 767 ? '.m-head' : '.topbar');
-  const chip = bar.getByRole('link', {
-    name: new RegExp(`^${count} Envelopes überzogen, .* zu decken – Überziehungen prüfen$`),
-  });
-  await expect(chip).toBeVisible();
+  const phone = (page.viewportSize()?.width ?? Infinity) <= 767;
+  const link = phone
+    ? page.locator('.m-status').getByRole('link', { name: `${count} überzogen` })
+    : page.locator('.heute-attention').getByRole('link', { name: 'Plan prüfen', exact: true });
+  await expect(page.locator('.topbar .overspent-chip, .m-head .count')).toHaveCount(0);
+  await expect(link).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('.heute-attention')).toContainText(`${count} Kategorien überzogen`);
   await expect(page.locator('.heute-attention [data-overspent]')).toHaveCount(0);
-  await expect(chip).toHaveAttribute('href', /\/plan\/monat/);
+  await expect(link).toHaveAttribute('href', /\/plan\/monat/);
   await page.screenshot({ path: info.outputPath('heute.png'), fullPage: true });
-  await chip.click();
+  await link.click();
   await expect(page).toHaveURL(/\/plan\/monat\?/);
   const triageUrl = new URL(page.url());
   expect(triageUrl.searchParams.get('monat')).toBe('2026-09');
@@ -80,10 +81,10 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   const planLink = summary.getByRole('link', { name: 'Im Plan decken', exact: true });
   await expect(planLink).toHaveAttribute('href', /\/plan\/monat\?monat=2026-09&ansicht=triage/);
   await expect(
-    page
-      .locator((page.viewportSize()?.width ?? Infinity) <= 767 ? '.m-head' : '.topbar')
-      .getByRole('link', { name: /^Prüfen,/ }),
-  ).toHaveAttribute('aria-label', `Prüfen, ${badge.count} offen`);
+    page.locator(phone ? '.m-status' : '.topbar').getByRole('link', {
+      name: phone ? `${badge.count} zu prüfen` : `Prüfen, ${badge.count} offen`,
+    }),
+  ).toHaveText(phone ? `${badge.count} zu prüfen` : `Prüfen · ${badge.count}`);
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
     const axe = await new AxeBuilder({ page }).analyze();
@@ -109,7 +110,7 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   expect(coverPosts).toBe(0);
 });
 
-test('top-bar link opens triage with the missing amount and performs no cover write', async ({
+test('phone status or Heute action opens triage with the missing amount and performs no cover write', async ({
   page,
 }) => {
   test.setTimeout(120_000);
@@ -122,8 +123,10 @@ test('top-bar link opens triage with the missing amount and performs no cover wr
     await route.fulfill({ response, json: body });
   });
   await page.goto('/');
-  const bar = page.locator((page.viewportSize()?.width ?? Infinity) <= 767 ? '.m-head' : '.topbar');
-  const chip = bar.getByRole('link', { name: /Envelopes überzogen/ });
+  const chip =
+    (page.viewportSize()?.width ?? Infinity) <= 767
+      ? page.locator('.m-status').getByRole('link', { name: /\d+ überzogen/ })
+      : page.locator('.heute-attention').getByRole('link', { name: 'Plan prüfen', exact: true });
   let coverPosts = 0;
   await page.route('**/api/budget/2026-09/move', async (route) => {
     coverPosts += 1;

@@ -2,7 +2,7 @@ import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 
-test('top-bar overspending link opens real triage cover and undo on an isolated ledger', async ({
+test('phone status or Heute action opens real triage cover and undo on an isolated ledger', async ({
   page,
   request,
   baseURL,
@@ -66,12 +66,14 @@ test('top-bar overspending link opens real triage cover and undo on an isolated 
   };
   expect(await balances()).toEqual({ source: 8000, target: -5000 });
 
-  const bar = page.locator(info.project.name === 'mobile' ? '.m-head' : '.topbar');
+  const phone = info.project.name === 'mobile';
+  const status = page.locator('.m-status').getByRole('link', { name: '1 überzogen' });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  const chip = bar.getByRole('link', {
-    name: '1 Envelope überzogen, 50,00 € zu decken – Überziehungen prüfen',
-  });
+  const chip = phone
+    ? status
+    : page.locator('.heute-attention').getByRole('link', { name: 'Plan prüfen', exact: true });
+  await expect(page.locator('.topbar .overspent-chip')).toHaveCount(0);
   await expect(chip).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   for (const theme of ['light', 'dark'] as const) {
@@ -99,7 +101,10 @@ test('top-bar overspending link opens real triage cover and undo on an isolated 
   await sourceSelect.selectOption(source.id);
   await page.getByRole('button', { name: 'Alle aus Testquelle decken' }).click();
   await expect(page.locator('.toast.is-open')).toContainText('1 gedeckt, 0 offen');
-  await expect(bar.getByRole('link', { name: /Envelope überzogen/ })).toHaveCount(0);
+  await expect(status).toHaveCount(0);
+  await expect(page.locator('.plan-topbar summary').filter({ hasText: '1 überzogen' })).toHaveCount(
+    0,
+  );
   expect(await balances()).toEqual({ source: 3000, target: 0 });
 
   for (const theme of ['light', 'dark'] as const) {
@@ -116,5 +121,8 @@ test('top-bar overspending link opens real triage cover and undo on an isolated 
   await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();
   await expect(page.locator('.toast.is-open')).toContainText('Rückgängig gemacht');
   expect(await balances()).toEqual({ source: 8000, target: -5000 });
-  await expect(bar.getByRole('link', { name: /1 Envelope überzogen/ })).toBeVisible();
+  if (phone) await expect(status).toBeVisible();
+  await expect(
+    page.locator('.plan-topbar summary').filter({ hasText: '1 überzogen' }),
+  ).toBeVisible();
 });

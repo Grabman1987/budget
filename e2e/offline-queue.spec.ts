@@ -53,9 +53,8 @@ test('offline capture survives reload, edits/deletes locally and sends on reconn
   await expect(panel).toBeHidden();
   await expect(waiting(page)).toContainText('12,50 €');
   expect(await bookings(page, accountId)).toEqual([]);
-  await expect(
-    page.locator('.tabbar, .sheetlist').getByText('1', { exact: true }).first(),
-  ).toBeAttached();
+  await expect(page.locator('.offline-chip')).toHaveText('1 offline gespeichert');
+  await expect(page.locator('.tabbar .count, .sheetlist .count')).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Budget ist offline' })).toBeVisible();
   await expect(waiting(page)).toContainText('Queue shop');

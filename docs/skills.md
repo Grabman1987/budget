@@ -47,6 +47,7 @@ All four existing local profiles are relevant, with bounded use:
 | Task | Profiles to read | Evidence required |
 | --- | --- | --- |
 | Progress and task reporting | budget-caveman | Concrete status, PR links and unresolved blockers |
+| NAV2 header/search/offline status (#468, part B1) | budget-caveman, budget-impeccable, budget-verified-delivery, budget-ponytail; full Ponytail, TDD and verification-before-completion | Existing query/queue reuse, synthetic header regressions, desktop/390/WebKit, light/dark Axe and no Windows baseline regeneration. No local Impeccable engine was available; review uses the adapter and browser evidence. |
 | A03 overview and later native FX detail UI | budget-impeccable, budget-verified-delivery | Existing prototype, desktop/mobile checks, unchanged baselines |
 | A04 persisted migration reconciliation | budget-security-review, budget-verified-delivery | Independent account/month cents, structural account/currency differences, rollback and undo |
 | A02 FX costs, A09 sold-position gains, A10 multi-broker aggregation | budget-verified-delivery, budget-security-review | Literal independent financial expectations and scoped mutation/read integrity |

@@ -95,11 +95,21 @@ function destination(result: PaletteItem) {
 }
 
 /** Header entry point; opening and typing never change the underlying page. */
-export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
+export function GlobalSearch({
+  mobile = false,
+  onOpenChange,
+}: {
+  mobile?: boolean;
+  onOpenChange?: ((open: boolean) => void) | undefined;
+}) {
   const router = useRouter();
   const trigger = useRef<HTMLButtonElement>(null);
   const [source, setSource] = useState('');
   const [palette, setPalette] = useState(false);
+  const changePalette = (open: boolean) => {
+    setPalette(open);
+    onOpenChange?.(open);
+  };
   const [help, setHelp] = useState(false);
   const open = (preserveFocus = false) => {
     const href = router.state.location.href;
@@ -110,7 +120,7 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
       active !== document.documentElement;
     if (!preserveFocus || !hasReturnTarget) trigger.current?.focus({ preventScroll: true });
     setSource(href);
-    setPalette(true);
+    changePalette(true);
   };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -160,8 +170,8 @@ export function GlobalSearch({ mobile = false }: { mobile?: boolean }) {
         )}
       </button>
       <div className="search-overlay-host">
-        <WideDialog open={palette} onClose={() => setPalette(false)} title="Suchen">
-          {palette && <SearchResults sourceHref={source} onClose={() => setPalette(false)} />}
+        <WideDialog open={palette} onClose={() => changePalette(false)} title="Suchen">
+          {palette && <SearchResults sourceHref={source} onClose={() => changePalette(false)} />}
         </WideDialog>
       </div>
       <KeyboardShortcuts open={help} onClose={() => setHelp(false)} />

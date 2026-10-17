@@ -1,4 +1,4 @@
-import { Button, Count, FormDialog, useAmountPrivacy } from '@budget/ui';
+import { Button, FormDialog, useAmountPrivacy } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createContext,
@@ -118,18 +118,6 @@ export function QueueProvider({ children }: { children: ReactNode }) {
       )}
     </QueueContext.Provider>
   );
-}
-
-export function QueueBadge() {
-  const { items } = useBookingQueue();
-  return items.length ? (
-    <span
-      title={`${items.length} · Wartet auf Verbindung`}
-      aria-label={`${items.length} · Wartet auf Verbindung`}
-    >
-      <Count>{items.length}</Count>
-    </span>
-  ) : null;
 }
 
 /** Shared capture dialog: the static offline workspace never mounts financial routes. */

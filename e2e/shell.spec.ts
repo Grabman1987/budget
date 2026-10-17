@@ -384,8 +384,9 @@ test.describe('phone shell', () => {
 
   test('phone header links to the inbox page and retains return context', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.route('**/api/inbox/count', (route) => route.fulfill({ json: { count: 4 } }));
     await page.goto('/konten?monat=2026-09');
-    await page.getByRole('link', { name: /Prüfen, \d+ offen/ }).click();
+    await page.locator('.m-status').getByRole('link', { name: '4 zu prüfen' }).click();
     await expect(page).toHaveURL(/\/konten\/pruefen/);
     await expect(page.getByRole('dialog', { name: 'Posteingang' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();

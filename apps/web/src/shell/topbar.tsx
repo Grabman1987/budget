@@ -1,10 +1,8 @@
-import { Count } from '@budget/ui';
-import { Inbox, PanelLeft, Plus } from 'lucide-react';
+import { PanelLeft, Plus } from 'lucide-react';
 import { GlobalSearch } from './global-search';
 import { PanelLink } from './panel-link';
 import { InboxHeaderLink } from '../inbox/navigation';
 import { useInboxCount } from './inbox';
-import { OverspentChip } from './overspent-chip';
 import { PrivacyButton } from './privacy-button';
 
 /**
@@ -12,9 +10,17 @@ import { PrivacyButton } from './privacy-button';
  * column (`--page-max`) and uses the same side padding, so search and actions form one row above
  * the content instead of sitting at the window edge.
  *
- * Contents: collapse toggle, search (Ctrl K), privacy eye, Posteingang with counter, "+ Buchung".
+ * Contents: collapse toggle, search (Ctrl K), privacy eye, Prüfen pill, "+ Buchung".
  */
-export function Topbar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+export function Topbar({
+  collapsed,
+  onToggle,
+  onSearchChange,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+  onSearchChange?: (open: boolean) => void;
+}) {
   const inbox = useInboxCount();
   return (
     <header className="topbar">
@@ -29,16 +35,12 @@ export function Topbar({ collapsed, onToggle }: { collapsed: boolean; onToggle: 
         >
           <PanelLeft size={18} strokeWidth={1.75} aria-hidden="true" />
         </button>
-        <GlobalSearch />
+        <GlobalSearch onOpenChange={onSearchChange} />
         <div className="topbar-actions">
           <PrivacyButton />
-          <InboxHeaderLink className="btn btn-ghost" aria-label={inbox.label}>
-            <Inbox size={18} strokeWidth={1.75} aria-hidden="true" />
-            Posteingang{' '}
-            {inbox.count !== undefined && inbox.count > 0 && <Count>{inbox.count}</Count>}
-            <span className="sr-only"> offen</span>
+          <InboxHeaderLink className="review-pill" aria-label={inbox.label}>
+            Prüfen{inbox.count !== undefined && inbox.count > 0 ? ` · ${inbox.count}` : ''}
           </InboxHeaderLink>
-          <OverspentChip />
           <PanelLink
             className="btn btn-primary"
             panel="buchung"
