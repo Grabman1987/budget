@@ -16,12 +16,17 @@ import { longDay, nativeCurrency } from './format';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
 import './depot.css';
+import { useEffect, useRef } from 'react';
 
 const TABS = { bestaende: 'Bestände', trades: 'Trades', verrechnung: 'Verrechnung' } as const;
 type DepotTab = keyof typeof TABS;
 
 export function DepotBody({ account }: { account: AccountRow }) {
   useAmountPrivacy();
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus({ preventScroll: true });
+  }, [account.id]);
   // Raw location retains this page-local parameter without extending the shared route schema.
   const requested = useLocation({
     select: (location) => location.search as { depot?: string },
@@ -35,7 +40,9 @@ export function DepotBody({ account }: { account: AccountRow }) {
   const depot = positions.data && depotHoldings(positions.data, account.id);
   return (
     <div className="depot" data-testid="depot-page">
-      <h2 className="depot-name">{account.name}</h2>
+      <h2 className="depot-name" ref={heading} tabIndex={-1}>
+        {account.name}
+      </h2>
       {positions.isPending && <LoadingNote what="Depotwert" />}
       {positions.isError && (
         <ErrorNote

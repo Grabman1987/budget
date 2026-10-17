@@ -9,6 +9,7 @@ import { ThemeButton } from './theme-button';
 import { useShellIdentity } from './use-profile';
 import { MobileStatusLine } from './header-status';
 import { PrivacyButton } from './privacy-button';
+import { useFabVisible } from './use-fab-visible';
 
 /**
  * What the phone header shows, as in the prototype: the area name (the month switch and the strip
@@ -89,6 +90,7 @@ export function MobileHeader({
 
 /** Bottom tab bar with the same five areas in the same order as the sidebar, plus the + button. */
 export function TabBar({ area }: { area: AreaId | undefined }) {
+  const fabVisible = useFabVisible();
   return (
     <>
       <nav className="tabbar" aria-label="Hauptnavigation">
@@ -103,7 +105,12 @@ export function TabBar({ area }: { area: AreaId | undefined }) {
         })}
       </nav>
       <nav aria-label="Schnellerfassung">
-        <PanelLink className="fab" panel="buchung" aria-label="Buchung erfassen">
+        <PanelLink
+          className="fab"
+          panel="buchung"
+          aria-label="Buchung erfassen"
+          hidden={!fabVisible}
+        >
           <Plus size={26} strokeWidth={2} aria-hidden="true" />
         </PanelLink>
       </nav>

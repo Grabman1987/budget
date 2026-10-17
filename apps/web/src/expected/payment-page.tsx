@@ -25,9 +25,9 @@ export function PaymentPage() {
   }, [payment?.id]);
   const title = payment?.name ?? 'Wiederkehrende Zahlung';
   return (
-    <PageFrame meta={PLAN_ERWARTET} title={title}>
+    <PageFrame meta={PLAN_ERWARTET}>
       <div className="xp xp-detail">
-        <ExpectedDetailBack title={title} />
+        <ExpectedDetailBack />
         {payments.isPending && <LoadingNote what="Wiederkehrende Zahlung" />}
         {payments.isError && (
           <ErrorNote

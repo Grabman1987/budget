@@ -7,7 +7,7 @@ import {
   createRoute,
   createRouter,
 } from '@tanstack/react-router';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { EMPTY_PROFILE } from '@budget/domain';
 import { ToastProvider } from '@budget/ui';
@@ -51,5 +51,16 @@ it('offers search in the phone header and only booking capture below the page', 
   const capture = screen.getByRole('navigation', { name: 'Schnellerfassung' });
   expect(within(capture).getByRole('link', { name: 'Buchung erfassen' })).toBeTruthy();
   expect(within(capture).queryByRole('button')).toBeNull();
+  const fab = within(capture).getByRole('link', { name: 'Buchung erfassen' });
+  act(() => {
+    vi.stubGlobal('scrollY', 200);
+    window.dispatchEvent(new Event('scroll'));
+  });
+  expect(fab.hidden).toBe(true);
+  act(() => {
+    vi.stubGlobal('scrollY', 160);
+    window.dispatchEvent(new Event('scroll'));
+  });
+  expect(fab.hidden).toBe(false);
   client.clear();
 });

@@ -74,7 +74,11 @@ for (const theme of ['light', 'dark'] as const) {
     });
     expect(metadata.meta).toBe(metadata.stronger);
     if (info.project.name === 'desktop') await page.keyboard.press('n');
-    else await page.getByRole('link', { name: 'Buchung erfassen', exact: true }).click();
+    else {
+      // Hovering scrolled the row into view; the phone FAB returns on scroll up (#468).
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.getByRole('link', { name: 'Buchung erfassen', exact: true }).click();
+    }
     const form = page.getByRole('dialog');
     await expect(form).toBeVisible();
     expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(

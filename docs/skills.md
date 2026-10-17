@@ -47,6 +47,7 @@ All four existing local profiles are relevant, with bounded use:
 | Task | Profiles to read | Evidence required |
 | --- | --- | --- |
 | Progress and task reporting | budget-caveman | Concrete status, PR links and unresolved blockers |
+| NAV3 FAB/footer/focus/back paths (#468, part B2) | budget-caveman, budget-impeccable, budget-verified-delivery, budget-ponytail; full Ponytail, TDD, systematic-debugging and verification-before-completion | Synthetic scroll/theme/focus units, desktop/390/WebKit, light/dark Axe, contextual returns and last-amount bounding boxes. Adapter/browser review; no local Impeccable engine and no Windows baseline regeneration. |
 | NAV2 header/search/offline status (#468, part B1) | budget-caveman, budget-impeccable, budget-verified-delivery, budget-ponytail; full Ponytail, TDD and verification-before-completion | Existing query/queue reuse, synthetic header regressions, desktop/390/WebKit, light/dark Axe and no Windows baseline regeneration. No local Impeccable engine was available; review uses the adapter and browser evidence. |
 | A03 overview and later native FX detail UI | budget-impeccable, budget-verified-delivery | Existing prototype, desktop/mobile checks, unchanged baselines |
 | A04 persisted migration reconciliation | budget-security-review, budget-verified-delivery | Independent account/month cents, structural account/currency differences, rollback and undo |
