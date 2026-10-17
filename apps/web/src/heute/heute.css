@@ -17,6 +17,14 @@
       grid-row: 2;
       border-top: 1px solid var(--line-2);
     }
+    /* Both right cells are one line each (label beside value), so the head keeps its height. */
+    .titleblock-heute .tb-field {
+      grid-auto-flow: column;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding-block: 4px;
+    }
   }
   .heute {
     display: grid;

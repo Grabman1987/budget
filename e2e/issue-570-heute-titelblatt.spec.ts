@@ -40,6 +40,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
         expect(sw!.x).toBeGreaterThanOrEqual(title!.x + title!.width - 1);
         expect(Math.abs(st!.x - sw!.x)).toBeLessThan(2);
         expect(st!.y).toBeGreaterThanOrEqual(sw!.y + sw!.height - 1);
+        // The head keeps its former height (~85 px) so the Zu-tun list stays on the first screen.
+        expect((await head.boundingBox())!.height).toBeLessThanOrEqual(88);
       } else {
         // Phone: touch targets of the month switch and the period switch.
         for (const target of [
