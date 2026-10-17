@@ -112,6 +112,8 @@ sandbox (os.userInfo fails): that is expected. Run what works (typecheck, lint, 
 write the new e2e spec anyway, leave it uncommitted, and say in the PR body which local checks could not run; the
 PR's CI runs the e2e suite and gates the merge.
 
+$(gh issue view "$n" 2>&1)
+
 $(gh issue view "$n" --comments 2>&1)"
       codex exec -s workspace-write -c sandbox_workspace_write.network_access=true \
         --add-dir "$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir)" -C "$wt" --json -o "$log" "$prompt" >"$LOGDIR/issue-$n.codex.jsonl" 2>&1 </dev/null
