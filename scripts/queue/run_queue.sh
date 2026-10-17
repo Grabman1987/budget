@@ -72,7 +72,10 @@ $tail_txt
 \`\`\`"
   fi
   gl issue edit "$n" --remove-label in-progress
-  git -C "$ROOT" worktree remove --force "$wt" 2>/dev/null
+  # keep uncommitted work of a failed attempt for diagnosis before the worktree goes
+  [ -z "$pr" ] && git -C "$wt" add -A 2>/dev/null &&
+    git -C "$wt" diff --cached -- . ':!node_modules' >"$LOGDIR/issue-$n.attempt-$k.diff" 2>/dev/null
+  git -C "$ROOT" worktree remove --force "$wt" 2>/dev/null; rm -rf "$wt"
   [ -z "$pr" ] && git -C "$ROOT" branch -D "$branch" >/dev/null 2>&1
   return 0
 }
@@ -87,7 +90,7 @@ run_job() {
     [ -n "$prev" ] && extra="Previous attempt failed. Tail of its log (fix the cause, do not repeat it):
 $(tail -c 3000 "$prev" | redact)"
   fi
-  git -C "$ROOT" worktree remove --force "$wt" 2>/dev/null
+  git -C "$ROOT" worktree remove --force "$wt" 2>/dev/null; rm -rf "$wt"
   git -C "$ROOT" fetch -q origin main
   if git -C "$ROOT" worktree add -q -B "$branch" "$wt" origin/main; then
     prompt=$(cat "$TEMPLATE")
@@ -103,7 +106,11 @@ CODEX SANDBOX RULES (override steps 1, 6 and 7 above): you have no GitHub access
 git push or git fetch. The issue with its comments is below. Commit your work on the current branch
 (Conventional Commits). Your final message: line 1 = the PR title (Conventional Commits), then the PR
 body from .github/pull_request_template.md with \"Refs #$n\". If a human decision is needed, commit
-nothing and start the final message with \"NEEDS-HUMAN:\" and the concrete question.
+nothing and start the final message with \"NEEDS-HUMAN:\" and the concrete question – only for a
+product or scope decision, never for an environment problem. Playwright browsers cannot start in this
+sandbox (os.userInfo fails): that is expected. Run what works (typecheck, lint, unit tests, build),
+write the new e2e spec anyway, commit, and say in the PR body which local checks could not run; the
+PR's CI runs the e2e suite and gates the merge.
 
 $(gh issue view "$n" --comments 2>&1)"
       codex exec -s workspace-write -c sandbox_workspace_write.network_access=true \
