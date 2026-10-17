@@ -10,6 +10,10 @@ on:
       branch:
         description: Branch whose baselines to update (never main)
         required: true
+      specs:
+        description: Space-separated spec paths (e.g. e2e/shell.spec.ts); empty = every spec that compares screenshots
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -22,7 +26,7 @@ jobs:
   update:
     if: inputs.branch != 'main'
     runs-on: ubuntu-latest
-    # A type-scale change regenerates nearly every baseline; the full suite needs more than 45 min then.
+    # A type-scale change regenerates nearly every baseline; give it room.
     timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -37,7 +41,15 @@ jobs:
         run: npx playwright install --with-deps chromium webkit
       # Non-screenshot failures are reported by the normal CI run on the PR, not here.
       - name: Regenerate changed screenshots
-        run: npm run build:e2e && (npx playwright test --update-snapshots=changed || true)
+        env:
+          SPECS: ${{ inputs.specs }}
+        run: |
+          npm run build:e2e
+          read -r -a specs <<< "$SPECS"
+          if [ "${#specs[@]}" -eq 0 ]; then
+            mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
+          fi
+          npx playwright test --update-snapshots=changed "${specs[@]}" || true
       - name: Commit the new baselines
         env:
           BRANCH: ${{ inputs.branch }}
