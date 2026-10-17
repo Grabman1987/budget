@@ -42,7 +42,7 @@ import {
 import { LiquidityChart } from './liquidity-chart';
 import { expectedQuery, skipOccurrence, type ExpectedPayment } from '../expected/api';
 import './reports-future.css';
-import { useLiquiditySelection } from './liquidity-selection';
+import { salaryDay, upcomingEvents, useLiquiditySelection } from './liquidity-selection';
 
 const HORIZON_OPTIONS: ReadonlyArray<{ value: LiquidityHorizon; label: string }> = [
   { value: '90d', label: '90 Tage' },
@@ -76,6 +76,9 @@ const STATUS_TEXT: Record<PlannedEventView['status'], string> = {
   disabled: 'ausgeschaltet',
   unknown_account: 'Konto nicht mehr vorhanden',
 };
+/** Income type of a salary payment: `INCOME_TYPES.salary.id` in `packages/db/src/schema/budget.ts`. */
+const SALARY_INCOME_TYPE = 'income-salary';
+const NEXT_EVENTS = 10;
 const monthLong = (month: string) => `${monthName(`${month}-01`)} ${month.slice(0, 4)}`;
 
 export function LiquidityReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
@@ -161,6 +164,10 @@ function ForecastCard({
 }) {
   useAmountPrivacy();
   const { verdict, low, lowBuffer, lowPlain } = report;
+  const payments = useQuery(expectedQuery());
+  const salaryIds = new Set(
+    (payments.data ?? []).filter((p) => p.incomeTypeId === SALARY_INCOME_TYPE).map((p) => p.id),
+  );
   const Icon =
     verdict.status === 'ok'
       ? CheckCircle2
@@ -286,7 +293,7 @@ function ForecastCard({
           </small>
         </div>
       </div>
-      <LiquidityChart report={report} />
+      <LiquidityChart report={report} salaryDay={salaryDay(report, salaryIds)} />
       <ul className="rf-legend" aria-label="Legende" data-testid="liq-legend">
         <li>
           <svg viewBox="0 0 26 8" aria-hidden="true">
@@ -305,16 +312,17 @@ function ForecastCard({
           ohne geplante Ereignisse
         </li>
         <li>
-          <svg viewBox="0 0 12 10" aria-hidden="true">
-            <path className="kote" d="M1 1h10L6 9Z" />
+          <svg viewBox="0 0 12 12" aria-hidden="true">
+            <circle className="lq-low-dot" cx="6" cy="6" r="4.5" />
           </svg>
-          Tiefpunkt
+          Tiefststand
         </li>
         <li>
           <i className="rf-sq rf-sq-event" aria-hidden="true" />
           geplantes Ereignis
         </li>
       </ul>
+      <NextEvents report={report} />
       <p className="vnote">
         Kontostand der Budget-Konten, wiederkehrende Zahlungen und Einnahmen an ihren
         Fälligkeitstagen, variable Kategorien nach Plan gleichmäßig über den Monat. Ein
@@ -335,6 +343,36 @@ function ForecastCard({
         ))}
       </div>
     </section>
+  );
+}
+
+/** The next booking events of the chart as a numbered list, same rows and order as the movements. */
+function NextEvents({ report }: { report: LiquidityReport }) {
+  useAmountPrivacy();
+  const rows = upcomingEvents(report, NEXT_EVENTS);
+  return (
+    <div className="lq-next" data-testid="liq-next-events">
+      <h3 id="liq-next">Nächste Buchungsereignisse</h3>
+      {rows.length === 0 ? (
+        <p className="muted">Im Prognosezeitraum stehen keine größeren Buchungen an.</p>
+      ) : (
+        <ol aria-labelledby="liq-next">
+          {rows.map((r, i) => (
+            <li key={`${r.day}-${i}`} data-testid="liq-next-event" data-cents={r.cents}>
+              <span className="tech lq-no">{String(i + 1).padStart(2, '0')}</span>
+              <span className="lq-what">
+                {r.label}
+                <small>
+                  {longDay(r.day)}
+                  {r.planned && ' · geplantes Ereignis'}
+                </small>
+              </span>
+              <strong className="n">{eur(r.cents, { sign: true })}</strong>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
   );
 }
 

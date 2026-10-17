@@ -1,5 +1,14 @@
+import { useState } from 'react';
 import { chartPoints } from '../charts/tooltip-data';
-import { useAmountPrivacy, ChartSvg, Graticule, Line, ElevationMark, type Point } from '@budget/ui';
+import {
+  useAmountPrivacy,
+  ChartSvg,
+  Graticule,
+  Line,
+  ElevationMark,
+  Switch,
+  type Point,
+} from '@budget/ui';
 import { addMonths, MAX_FREEDOM_MONTHS, type FreedomProjection } from '@budget/domain';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur } from '../ledger/format';
@@ -17,6 +26,7 @@ export function FreedomChart({
   startMonth: string;
 }) {
   useAmountPrivacy();
+  const [asTable, setAsTable] = useState(false);
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const H = 260,
     L = 56,
@@ -34,7 +44,18 @@ export function FreedomChart({
   const first = points[0];
   return (
     <div ref={ref} className="freedom-chart">
-      {width > 0 && (
+      <div className="freedom-table-switch">
+        <label id="freedom-table-label" htmlFor="freedom-table-switch">
+          Prognosewerte als Tabelle
+        </label>
+        <Switch
+          id="freedom-table-switch"
+          labelledBy="freedom-table-label"
+          checked={asTable}
+          onChange={setAsTable}
+        />
+      </div>
+      {!asTable && width > 0 && (
         <ChartSvg
           width={width}
           height={H}
@@ -77,9 +98,24 @@ export function FreedomChart({
           </text>
         </ChartSvg>
       )}
-      <details className="freedom-data">
-        <summary>Prognosewerte als Tabelle</summary>
-        <table className="kv-table">
+      {!asTable && (
+        <div className="legend" aria-hidden="true">
+          <span>
+            <svg viewBox="0 0 26 8">
+              <path className="l-forecast" d="M0 4h26" />
+            </svg>
+            Prognose ab heute
+          </span>
+          <span>
+            <svg viewBox="0 0 26 8">
+              <path className="l-goal" d="M0 4h26" />
+            </svg>
+            Ziel {eur(target)}
+          </span>
+        </div>
+      )}
+      {asTable && (
+        <table className="kv-table" data-testid="freedom-table">
           <caption>Ungespeicherte Prognose · keine Garantie</caption>
           <thead>
             <tr>
@@ -96,7 +132,7 @@ export function FreedomChart({
             ))}
           </tbody>
         </table>
-      </details>
+      )}
     </div>
   );
 }

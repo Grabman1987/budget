@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   checkRuns,
   checkScope,
+  loopDelay,
   mergeGate,
   parseNameStatus,
   parsePorcelain,
@@ -227,6 +228,10 @@ describe('protected paths (denylist on top of any scope)', () => {
     'packages/db/drizzle/0001_init.sql',
     'playwright.config.ts',
     'vitest.config.ts',
+    'package.json',
+    'package-lock.json',
+    'vitest.setup.ts',
+    'eslint.config.js',
     'e2e/plan/plan.spec.ts-snapshots/a.png',
     'e2e/x-snapshots/b/c.png',
   ];
@@ -245,9 +250,87 @@ describe('protected paths (denylist on top of any scope)', () => {
     const paths = [
       'src/a.ts',
       'docs/Dockerfile.md',
-      'e2e/plan.spec.ts',
+      'e2e/plan.specs.ts', // was e2e/plan.spec.ts: a real spec is now protected (existing-test rule)
       'packages/db/src/schema.ts',
     ];
     expect(checkScope([{ status: 'M', paths }], everything)).toEqual({ ok: true, outside: [] });
+  });
+});
+
+describe('loopDelay (loop.sh pacing)', () => {
+  it('uses the base interval while there is activity or only a few idle rounds', () => {
+    expect(loopDelay({ base: 60, idle: 0, errors: 0 })).toBe(60);
+    expect(loopDelay({ base: 60, idle: 4, errors: 0 })).toBe(60);
+  });
+  it('backs off to 5 minutes after the idle threshold', () => {
+    expect(loopDelay({ base: 60, idle: 5, errors: 0 })).toBe(300);
+    expect(loopDelay({ base: 60, idle: 50, errors: 0 })).toBe(300);
+  });
+  it('doubles per consecutive error round and caps at 10 minutes', () => {
+    const d = (errors) => loopDelay({ base: 60, idle: 0, errors });
+    expect([1, 2, 3, 4, 5, 500].map(d)).toEqual([120, 240, 480, 600, 600, 600]);
+  });
+  it('errors win over idle, and a larger base is never shortened', () => {
+    expect(loopDelay({ base: 60, idle: 9, errors: 1 })).toBe(120);
+    expect(loopDelay({ base: 400, idle: 9, errors: 0 })).toBe(400);
+    expect(loopDelay({ base: 400, idle: 0, errors: 3 })).toBe(600);
+  });
+});
+
+describe('existing test files are protected (orchestrator review, never automerge)', () => {
+  const everything = ['**'];
+  const ns = (...parts) => parseNameStatus(parts.join('\0') + '\0');
+  it.each([
+    ['M', 'apps/web/src/plan/plan.test.ts'],
+    ['D', 'scripts/x/policy.test.mjs'],
+    ['M', 'e2e/plan/plan.spec.ts'],
+    ['D', 'e2e/plan/plan.spec.ts'],
+    ['M', 'a.test.ts'],
+  ])('blocks %s of the existing %s even if the scope allows it', (status, path) => {
+    const r = checkScope(ns(status, path), everything);
+    expect(r).toMatchObject({ ok: false, outside: [path] });
+  });
+  it('blocks every porcelain state that touches an existing test file', () => {
+    for (const st of [' M', 'M ', ' D', 'MM', 'D ']) {
+      const r = checkScope(parsePorcelain(porcelain(`${st} src/a.test.ts`)), everything);
+      expect(r.ok, st).toBe(false);
+    }
+  });
+  it('blocks a rename of an existing test file, in both name-status and porcelain order', () => {
+    expect(checkScope(ns('R100', 'src/old.test.ts', 'src/new.ts'), everything).ok).toBe(false);
+    expect(
+      checkScope(parsePorcelain(porcelain('R  src/new.ts', 'src/old.test.ts')), everything).ok,
+    ).toBe(false);
+  });
+  it('still allows adding new test files and changing non-test files', () => {
+    expect(checkScope(ns('A', 'src/new.test.ts'), everything).ok).toBe(true);
+    expect(checkScope(ns('A', 'e2e/new.spec.ts'), everything).ok).toBe(true);
+    expect(
+      checkScope(
+        parsePorcelain(porcelain('?? src/new.test.ts', 'A  e2e/n.spec.ts', 'AM src/m.test.ts')),
+        everything,
+      ).ok,
+    ).toBe(true);
+    expect(checkScope(ns('M', 'src/a.ts', 'M', 'docs/testing.md'), everything).ok).toBe(true);
+  });
+});
+
+describe('loopDelay input validation', () => {
+  it('falls back to 600 s for a missing, non-numeric or too small base', () => {
+    for (const base of [NaN, undefined, 'abc', 0, 4, -60, 1.5]) {
+      expect(loopDelay({ base, idle: 0, errors: 0 }), String(base)).toBe(600);
+    }
+    expect(loopDelay({ base: 5, idle: 0, errors: 0 })).toBe(5);
+  });
+  it('never returns anything but an integer of at least 5', () => {
+    for (const [idle, errors] of [
+      [NaN, 0],
+      [0, NaN],
+      [undefined, undefined],
+      [-3, -1],
+    ]) {
+      const d = loopDelay({ base: 60, idle, errors });
+      expect(Number.isInteger(d) && d >= 5, `${idle}/${errors} -> ${d}`).toBe(true);
+    }
   });
 });
