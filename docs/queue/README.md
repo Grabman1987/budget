@@ -3,7 +3,7 @@
 Small GitHub issues are implemented by agents (Claude Code or Codex) in isolated worktrees: one
 issue = one fresh session = one PR. State lives in labels and PRs, so any run can be restarted.
 Tooling: `scripts/queue/` (`labels.sh`, `run_queue.sh`, `automerge.sh`, `live.sh`, `loop.sh`,
-`board.sh`, `task-prompt.md`). Issue form: `.github/ISSUE_TEMPLATE/agent-task.yml`.
+`board.sh`, `gate.sh`, `policy.mjs`, `scope-lib.sh`, `task-prompt.md`). Issue form: `.github/ISSUE_TEMPLATE/agent-task.yml`.
 
 ## Labels
 
@@ -46,7 +46,7 @@ The runner is non-blocking: it starts detached jobs (`nohup`), records `logs/que
 
 ## Unattended loop
 
-`loop.sh` repeats `live.sh`, `automerge.sh`, `run_queue.sh`, then sleeps (`--interval`, default 300 s;
+`loop.sh` repeats `live.sh`, `gate.sh` + `automerge.sh`, `run_queue.sh`, then sleeps (`--interval`, default 300 s;
 `--once`, `--max-rounds N`, `--dry-run`, `--only-label`, `--engine`, `--model`, `--max-parallel` are passed through).
 
 - Start: `nohup bash scripts/queue/loop.sh > /dev/null 2>&1 &` (refuses to start if `logs/queue/loop.pid` holds a live pid).
@@ -63,7 +63,7 @@ The runner is non-blocking: it starts detached jobs (`nohup`), records `logs/que
 
 | Case           | Rule                                                                                                                      |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `risk:low`     | `automerge.sh`: `check` (aggregates unit, e2e, visual), `check-windows`, `docker`, `restore-test` green (+ `test-integrity`, `coverage` if present), branch current, squash merge |
+| `risk:low`     | `automerge.sh` (after the merge gate, head-bound, in scope): `check` (aggregates unit, e2e, visual), `check-windows`, `docker`, `restore-test` green (+ `test-integrity`, `coverage` if present), branch current, squash merge |
 | `risk:high`    | Independent review agent (Opus subagent or Codex), then the orchestrator merges manually                                  |
 | Test gate red  | Only with `tests-change-approved`, set by the owner                                                                       |
 | Merge conflict | The implementing agent rebases                                                                                            |
@@ -72,6 +72,26 @@ The runner is non-blocking: it starts detached jobs (`nohup`), records `logs/que
 
 GitHub "Allow auto-merge" is off, and merges made by `GITHUB_TOKEN` would not trigger the main CI
 that deploys, so merges run locally under the owner's `gh` login.
+
+## Merge gate, head binding, file scope
+
+Decision logic lives in `scripts/queue/policy.mjs` (pure functions, `policy.test.mjs`); the shell scripts only gather facts (`queue-glue.test.mjs` runs them against stub `gh`/`curl` and throw-away git repos).
+
+- **Merge gate** (`gate.sh`, called by `loop.sh` before `automerge.sh`, and again by `automerge.sh` itself): passes only if the latest `ci.yml` and `deploy.yml` runs for the exact `origin/main` head are completed+success and `/health` is `ok` with `revision` = that head (or containing it). Pending, missing, failed or unreadable state blocks (fail closed); `loop.log` shows `gate: BLOCK: <reason>`. On success it prints `ok <main head sha>`.
+- **Head binding**: `automerge.sh` works on exactly that main head H and on each PR's `headRefOid` (read once). The required checks must be green for that SHA (check-runs API, latest run per name), the branch must contain H (a PR that is behind is updated via `gh api -X PUT .../update-branch -f expected_head_sha=<sha>` and skipped this round), and the merge is `--match-head-commit <sha>`. `origin/main` must still be H after the fetch and again (`git ls-remote`) right before `gh pr merge`. A small window remains between that check and GitHub executing the merge. At most one merge per run; the next one waits until the gate sees that merge live. `live.sh` never closes on errors.
+- **File scope**: an issue lists the files it may touch in a fenced `queue-scope` block in its body, one glob per line (`**` crosses directories, `*` does not, a trailing `/` means the whole directory):
+
+      ```queue-scope
+      apps/web/src/plan/**
+      docs/queue/README.md
+      ```
+
+  The runner writes the block to `logs/queue/scope/issue-N.txt` BEFORE it starts a job (outside the worktree, write-once; delete the file to re-read an edited issue). An issue without a block is not started (one comment, `skip (no queue-scope block)`). Commit, push and automerge read only that file, never the live issue body; a missing snapshot means no commit and no merge.
+- **Protected paths**: independent of any scope, `.github/**`, `scripts/queue/**`, `scripts/ci/**`, `.claude/**`, `.agents/**`, `AGENTS.md`, `CLAUDE.md`, `fly.toml`, `Dockerfile`, `docker-entrypoint.sh`, `litestream.yml`, `packages/db/drizzle/**`, `playwright.config.ts`, `vitest.config.ts` and `e2e/**/*-snapshots/**` always count as outside. Such an issue goes through the orchestrator, not automerge.
+- **Check**: Codex path (`publish_in_scope`), before the commit and again before the push: commits ahead of `origin/main` (`git diff --name-status -M -z origin/main...HEAD`) and the working tree (`git status --porcelain=v1 -z --untracked-files=all`); automerge: `git diff --name-status -M -z <H>...<sha>`. Added, deleted, untracked and both sides of renames must match. Only the checked paths are staged (`git add --pathspec-from-file`, never `-A`).
+- **Violation**: no commit/push or merge, label `needs-human` on issue (and PR), comment listing the offending paths. Worktree and work are kept; a worktree with uncommitted work is never deleted (a retry moves it to `wt/issue-N-kept-<time>`).
+- **Agent worktrees**: the runner's git runs there with `core.hooksPath` pointing at an empty dir and `core.fsmonitor=false`, and only after the worktree's `.git` file is checked to be exactly the `gitdir:` line git wrote; otherwise it stops, labels `needs-human` and keeps the worktree.
+- **Residual risk**: the Claude engine runs unsandboxed under the owner's `gh` login and can run code through `npm run *`. It could edit labels or the scope snapshot; for it the scope is enforced only at automerge (no pre-push check), and the protected-path list and the review of `risk:high` PRs are the backstop.
 
 ## Model routing
 
@@ -105,9 +125,9 @@ CLI `codex exec` (v0.160, logged in via ChatGPT, model from `~/.codex/config.tom
 `AGENTS.md`, which points to CLAUDE.md. Codex never merges and passes the same gates. Branch
 `codex/issue-N`, log `logs/queue/issue-N.codex.txt`.
 
-Codex runs sandboxed (`-s workspace-write`, network on, `--add-dir` for the shared `.git`). On
-Windows that sandbox cannot read the gh/git credentials, cannot write git metadata (`index.lock`)
-and cannot start Playwright browsers (`os.userInfo`). So the runner puts the issue body and
+Codex runs sandboxed (`-s workspace-write`, network on, writable only in its worktree: no `--add-dir`, so
+it cannot touch the shared `.git`). On Windows that sandbox cannot read the gh/git credentials, cannot
+write git metadata (`index.lock`) and cannot start Playwright browsers (`os.userInfo`). So the runner puts the issue body and
 comments into the prompt, Codex leaves its changes uncommitted, and the runner commits them with
 Codex's title line, pushes and opens the PR. E2E tests run only in the PR's CI, which gates the
 merge. A failed attempt's uncommitted work is kept as `logs/queue/issue-N.attempt-K.diff`.
