@@ -1,5 +1,5 @@
 import { useRouterState } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /** Downward travel before the FAB hides, so small or programmatic scrolls keep it in place. */
 const HIDE_AFTER_PX = 48;
@@ -13,17 +13,24 @@ export function useFabVisible(): boolean {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   // Keyed by path so a new page renders the FAB at once, without a state reset in the effect.
   const [hiddenOn, setHiddenOn] = useState<string | null>(null);
+  const lastY = useRef(0);
   useEffect(() => {
     let previous = Math.max(0, window.scrollY);
+    // A new page keeps the previous page's offset: while it loads the browser clamps the position
+    // and puts it back. Only travel beyond the offset the page was entered at counts, until the
+    // reader reaches the top.
+    let floor = Math.max(previous, lastY.current);
     let travelled = 0;
     const onScroll = () => {
       // Clamp rubber-band overscroll at the top; stationary events keep the current state.
       const next = Math.max(0, window.scrollY);
+      lastY.current = next;
+      if (next === 0) floor = 0;
       if (next < previous || next === 0) {
         travelled = 0;
         setHiddenOn(null);
-      } else if (next > previous) {
-        travelled += next - previous;
+      } else if (next > Math.max(previous, floor)) {
+        travelled += next - Math.max(previous, floor);
         if (travelled >= HIDE_AFTER_PX) setHiddenOn(pathname);
       }
       previous = next;

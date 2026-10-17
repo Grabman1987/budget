@@ -59,3 +59,19 @@ it('stays hidden at the page end and shows again after a route change', () => {
   rerender();
   expect(result.current).toBe(true);
 });
+
+it('ignores the old offset a new page is clamped to and put back at while it loads', () => {
+  vi.stubGlobal('scrollY', 0);
+  const { result, rerender } = renderHook(() => useFabVisible());
+  scroll(30);
+  scroll(475);
+  expect(result.current).toBe(false);
+  pathname = '/konten/acc-giro';
+  rerender();
+  expect(result.current).toBe(true);
+  scroll(400);
+  scroll(475);
+  expect(result.current).toBe(true);
+  scroll(560);
+  expect(result.current).toBe(false);
+});
