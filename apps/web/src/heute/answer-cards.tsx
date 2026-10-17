@@ -64,7 +64,7 @@ export function AnswerCards({
           </p>
         </section>
         <section className="heute-answer" aria-labelledby="answer-month-title">
-          <h2 id="answer-month-title">Dieser Monat</h2>
+          <h2 id="answer-month-title">Monatsergebnis</h2>
           <AppLink to="/reports/onepager" search={{ monat: data.stand.today.slice(0, 7) }}>
             <strong
               className={`heute-answer-value${month.savedCents <= 0 ? ' is-nonpositive' : ''}`}
