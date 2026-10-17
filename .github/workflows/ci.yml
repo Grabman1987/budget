@@ -15,10 +15,43 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Push to main only: when this exact tree already passed the full suite as a pull request (same
+  # tree, PR head contains the previous main, check/check-windows/docker/restore-test green in this
+  # workflow), the heavy jobs below are skipped and the aggregates report success, so deploy.yml
+  # proceeds. Anything missing or unreadable means reuse=false, i.e. the full suite. Pull request
+  # runs skip this job and are unaffected. Logic and tests: scripts/ci/reuse-validated-tree.mjs.
+  reuse:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+      actions: read
+    outputs:
+      reuse: ${{ steps.decide.outputs.reuse }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # A crash must not fail the run: the output stays empty and the full suite runs.
+      - name: Decide
+        id: decide
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: node scripts/ci/reuse-validated-tree.mjs
+
   # `check`, `check-windows`, `docker` and `restore-test` are the required status checks (branch
   # protection, merge script): keep their names. `check` is the aggregate of `static`, `unit`, `e2e` and `visual`.
   # Typecheck and lint (OS-independent) in one job, unit tests sharded in the next one.
   static:
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -34,6 +67,8 @@ jobs:
       - run: npm run lint
 
   unit:
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -64,6 +99,8 @@ jobs:
   # skipped here (--ignore-snapshots, every other assertion runs): baselines are checked by the
   # separate `visual` job (also part of `check`), so shards only prove behaviour.
   e2e:
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -107,22 +144,28 @@ jobs:
 
   # Required status check: green only if static, unit, e2e and visual succeeded.
   check:
-    needs: [static, unit, e2e, visual]
+    needs: [reuse, static, unit, e2e, visual]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Require static, unit, e2e and visual
         env:
+          REUSE: ${{ needs.reuse.outputs.reuse }}
           RESULTS: ${{ needs.static.result }} ${{ needs.unit.result }} ${{ needs.e2e.result }} ${{ needs.visual.result }}
         run: |
-          echo "static / unit / e2e / visual: $RESULTS"
-          [ "$RESULTS" = "success success success success" ]
+          echo "reuse: ${REUSE:-false}; static / unit / e2e / visual: $RESULTS"
+          # A reused tree skips all four jobs on purpose (see the `reuse` job).
+          expected="success success success success"
+          [ "$REUSE" = "true" ] && expected="skipped skipped skipped skipped"
+          [ "$RESULTS" = "$expected" ]
 
   # The specs that compare screenshots (the only ones with baselines), without --ignore-snapshots.
   # Blocking via `check`. A PR that changes the UI on purpose commits reviewed Linux baselines first
   # (manual workflow update-snapshots.yml).
   visual:
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -163,6 +206,8 @@ jobs:
   # unit tests must pass there, including the path handling of the database package. Typecheck and
   # lint are OS-independent (.gitattributes pins eol=lf) and already run on ubuntu (`static`).
   windows-unit:
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
     runs-on: windows-latest
     timeout-minutes: 20
     strategy:
@@ -183,19 +228,24 @@ jobs:
 
   # Required status check: green only if every Windows shard succeeded.
   check-windows:
-    needs: [windows-unit]
+    needs: [reuse, windows-unit]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Require every Windows shard
         env:
+          REUSE: ${{ needs.reuse.outputs.reuse }}
           RESULT: ${{ needs.windows-unit.result }}
         run: |
-          echo "windows-unit: $RESULT"
-          [ "$RESULT" = "success" ]
+          echo "reuse: ${REUSE:-false}; windows-unit: $RESULT"
+          expected=success
+          [ "$REUSE" = "true" ] && expected=skipped
+          [ "$RESULT" = "$expected" ]
 
   docker:
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -222,6 +272,8 @@ jobs:
           exit 1
 
   restore-test:
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
