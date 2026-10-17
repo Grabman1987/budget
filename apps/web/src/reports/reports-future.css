@@ -116,6 +116,54 @@
 .rf-chart-lg {
   min-height: 320px;
 }
+.lq-low-dot {
+  fill: var(--surface);
+  stroke: var(--line);
+  stroke-width: var(--stroke-measure);
+}
+.lq-low.is-alert .lq-low-dot {
+  stroke: var(--red);
+}
+.lq-low.is-alert text {
+  fill: var(--red);
+}
+.lq-halo {
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: calc(var(--stroke-active) * 2);
+  stroke-linejoin: round;
+}
+.lq-next h3 {
+  margin: 16px 0 4px;
+  font-size: var(--fs-measure);
+  font-weight: 600;
+}
+.lq-next ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lq-next li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: var(--stroke-hairline) solid var(--rule);
+  font-variant-numeric: tabular-nums;
+}
+.lq-next .lq-no {
+  color: var(--ink-3);
+}
+.lq-next .lq-what {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lq-next .lq-what small {
+  display: block;
+  font-size: var(--fs-chart-label);
+  color: var(--ink-2);
+}
 .ev-mark {
   fill: var(--ink);
   stroke: var(--surface);
@@ -177,6 +225,7 @@
 
 /* Tables */
 .rf-scroll {
+  position: relative; /* keeps absolutely placed .sr-only cells inside the scroll area */
   overflow-x: auto;
   min-width: 0;
   max-width: 100%;
