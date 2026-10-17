@@ -105,6 +105,13 @@ CLI `codex exec` (v0.160, logged in via ChatGPT, model from `~/.codex/config.tom
 `AGENTS.md`, which points to CLAUDE.md. Codex never merges and passes the same gates. Branch
 `codex/issue-N`, log `logs/queue/issue-N.codex.txt`.
 
+Codex runs sandboxed (`-s workspace-write`, network on, `--add-dir` for the shared `.git`). On
+Windows that sandbox cannot read the gh/git credentials, cannot write git metadata (`index.lock`)
+and cannot start Playwright browsers (`os.userInfo`). So the runner puts the issue body and
+comments into the prompt, Codex leaves its changes uncommitted, and the runner commits them with
+Codex's title line, pushes and opens the PR. E2E tests run only in the PR's CI, which gates the
+merge. A failed attempt's uncommitted work is kept as `logs/queue/issue-N.attempt-K.diff`.
+
 ## Ponytail and CLAUDE.md
 
 Core rules: [ponytail-summary.md](ponytail-summary.md). Conflict: Ponytail's "one small check, no
@@ -119,6 +126,12 @@ CLAUDE.md ("write tests first" for calculations). CLAUDE.md and the guardrails w
   enable "Allow auto-merge" and add a fine-grained token so merges trigger CI.
 - Failed attempts retry automatically up to attempt 3; a broken environment (for example a
   logged-out CLI) burns them quickly.
+- The headless `claude` CLI needs its own login (`claude auth login`, owner only). Until then the
+  loop runs with `--engine codex`.
+- The loop is a local process: it runs only while the owner's PC is on, awake and logged in.
+  Nothing runs in the cloud; after a reboot start it again (reap cleans up dead jobs).
+- "Closed" is not "Live": `live.sh` closes an issue and sets the board to Live only after the
+  merge commit is contained in the `/health` revision. Owner acceptance stays separate.
 
 ## Restart and troubleshooting
 

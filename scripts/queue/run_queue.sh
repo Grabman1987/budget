@@ -103,14 +103,16 @@ $(tail -c 3000 "$prev" | redact)"
       prompt="$prompt
 
 CODEX SANDBOX RULES (override steps 1, 6 and 7 above): you have no GitHub access – never run gh,
-git push or git fetch. The issue with its comments is below. Commit your work on the current branch
-(Conventional Commits). Your final message: line 1 = the PR title (Conventional Commits), then the PR
+git push or git fetch, git add or git commit (the sandbox cannot write git metadata). The issue with its comments
+is below. Leave your changes uncommitted; the runner commits them with your title line. Your final message: line 1 = the PR title (Conventional Commits), then the PR
 body from .github/pull_request_template.md with \"Refs #$n\". If a human decision is needed, commit
 nothing and start the final message with \"NEEDS-HUMAN:\" and the concrete question – only for a
 product or scope decision, never for an environment problem. Playwright browsers cannot start in this
 sandbox (os.userInfo fails): that is expected. Run what works (typecheck, lint, unit tests, build),
-write the new e2e spec anyway, commit, and say in the PR body which local checks could not run; the
+write the new e2e spec anyway, leave it uncommitted, and say in the PR body which local checks could not run; the
 PR's CI runs the e2e suite and gates the merge.
+
+$(gh issue view "$n" 2>&1)
 
 $(gh issue view "$n" --comments 2>&1)"
       codex exec -s workspace-write -c sandbox_workspace_write.network_access=true \
@@ -118,7 +120,11 @@ $(gh issue view "$n" --comments 2>&1)"
       if grep -q '^NEEDS-HUMAN:' "$log" 2>/dev/null; then
         gl issue comment "$n" --body-file "$log"
         gl issue edit "$n" --add-label needs-human
-      elif [ -n "$(git -C "$wt" log --oneline origin/main..HEAD)" ]; then
+      else
+        [ -n "$(git -C "$wt" status --porcelain)" ] && git -C "$wt" add -A &&
+          git -C "$wt" commit -q -m "$(head -n1 "$log")" -m "Refs #$n"
+      fi
+      if ! grep -q '^NEEDS-HUMAN:' "$log" 2>/dev/null && [ -n "$(git -C "$wt" log --oneline origin/main..HEAD)" ]; then
         labels=$(gh issue view "$n" --json labels --jq '[.labels[].name | select(test("^(risk|area):"))] | join(",")')
         git -C "$wt" push -q -u origin "$branch" &&
           tail -n +2 "$log" | gh pr create --head "$branch" --title "$(head -n1 "$log")" --body-file - \
