@@ -66,7 +66,14 @@ test('native detail, dated EUR history and reconciliation undo', async ({
   const expense = page.locator('.kx-amount').filter({ hasText: '−0,51 €' });
   await expect(expense).toContainText('−USD');
   await expect(expense).toContainText('25.09.2026');
+  await page.getByTestId('account-chart-toggle').click();
   await expect(page.getByTestId('balance-chart')).toHaveAttribute('aria-label', /USD/);
+  await expect(page.getByTestId('balance-chart-eur')).toHaveCount(0);
+  await page
+    .getByRole('group', { name: 'Saldoverlauf Währung' })
+    .getByRole('button', { name: 'EUR', exact: true })
+    .click();
+  await expect(page.getByTestId('balance-chart')).toHaveCount(0);
   await expect(page.getByTestId('balance-chart-eur')).toHaveAttribute('aria-label', /EUR/);
   const history = page.getByText('EUR-Bewertung · Tageswerte und Kurse', { exact: true });
   await history.focus();
@@ -145,6 +152,11 @@ test('missing FX stays explicit while the native check remains available', async
   await expect(page.getByTestId('account-balance')).toHaveText('Kurs fehlt');
   await expect(page.locator('.kx-amount')).toContainText('CHF');
   await expect(page.locator('.kx-amount')).toContainText('EUR: Kurs fehlt');
+  await page.getByTestId('account-chart-toggle').click();
+  await page
+    .getByRole('group', { name: 'Saldoverlauf Währung' })
+    .getByRole('button', { name: 'EUR', exact: true })
+    .click();
   await expect(page.getByTestId('balance-chart-eur')).toHaveCount(0);
   await expect(page.getByText('EUR-Bewertung: Kurs fehlt', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Kontostand prüfen', exact: true }).click();

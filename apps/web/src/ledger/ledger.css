@@ -456,7 +456,38 @@
   color: var(--ink-3);
 }
 .kchart-box {
-  min-height: 250px;
+  min-height: 140px;
+}
+.kchart {
+  margin-block: 8px;
+}
+.kchart-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.kchart-head .seg {
+  margin-left: auto;
+}
+.kchart-head .seg button {
+  min-height: var(--touch);
+}
+.kchart-head .pill {
+  justify-content: center;
+}
+.kchart-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--touch);
+  padding: 0 8px 0 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
 }
 .kchart-box .chart {
   display: block;
@@ -1038,7 +1069,7 @@
     font-size: var(--fs-figure);
   }
   .kchart-box {
-    min-height: 200px;
+    min-height: 140px;
   }
   .grp-sub {
     display: block;
@@ -1706,8 +1737,7 @@
   color: var(--ink-3);
   cursor: pointer;
 }
-.kdate-status,
-.kchart-range {
+.kdate-status {
   display: flex;
   align-items: end;
   gap: 12px;
@@ -1730,25 +1760,6 @@
 .kdate-status .seg button {
   min-height: 44px;
 }
-.kchart-range {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 160px);
-  margin-block: 16px;
-}
-.kchart-range .report-quick {
-  display: contents;
-}
-.kchart-range .report-quick select {
-  min-width: 0;
-  width: 100%;
-}
-.kchart-range .report-custom {
-  grid-column: 1 / -1;
-}
-.kchart-range .seg button {
-  min-height: 44px;
-}
-
 /* Booking suggestions open above the payee: no overlap or blur reflow at Bezahlt von. */
 .bk-payee .combo-list {
   top: auto;
