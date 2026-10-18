@@ -409,8 +409,8 @@ test('the dialog is a centred card on the desktop and a sheet on the phone with 
     expect(box!.width).toBeGreaterThanOrEqual(viewport.width - 1);
     expect(box!.y + box!.height).toBeGreaterThanOrEqual(viewport.height - 1);
   } else {
-    // Centred modal card of 540 px, with a gap to every edge.
-    expect(Math.round(box!.width)).toBe(540);
+    // #583: centred wide two-column card of 960 px, with a gap to every edge.
+    expect(Math.round(box!.width)).toBe(960);
     expect(Math.abs(box!.x + box!.width / 2 - viewport.width / 2)).toBeLessThan(2);
     expect(box!.y).toBeGreaterThan(8);
     expect(box!.x + box!.width).toBeLessThan(viewport.width);
