@@ -95,7 +95,7 @@ test('"Verteilen ▾" actions book like the quick-assign calls and each undo res
 
   await page.getByRole('checkbox', { name: 'Testhistorie auswählen' }).uncheck();
   await page.getByRole('checkbox', { name: 'Testziel auswählen' }).check();
-  await run('Ziele');
+  await run('Ziel');
   await expect(assigned('Testziel')).toHaveText(shown('400,01 €'));
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(assigned('Testziel')).toHaveText(shown('≈ 400,01 €'));
@@ -117,4 +117,80 @@ test('"Verteilen ▾" actions book like the quick-assign calls and each undo res
   await expect(item('Wasserfall-Assistent')).toHaveAttribute('aria-disabled', 'true');
   await expect(item('Wasserfall-Assistent')).toHaveAccessibleDescription('Nichts zu verteilen');
   expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+});
+
+/**
+ * "Überzogene decken" in "Verteilen ▾" is the existing `coverAll` call: one undo group. Literal
+ * figures derived by hand from the seed: Giro 1.000,00 €, Café assigned 100,00 € (its own money is
+ * not the source: free money 900,00 € is larger and covers first), Lebensmittel spent 50,00 € with
+ * nothing assigned. Cash 950,00 € - available (-50,00 + 100,00) = Zu verteilen 900,00 €.
+ */
+test('"Überzogene decken" covers from the named source and its undo restores the overspending', async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  test.setTimeout(90_000);
+  const send = async (method: 'POST' | 'PUT' | 'PATCH', path: string, data: unknown) => {
+    const res = await request.fetch(`/api${path}`, { method, data, headers: { origin: baseURL! } });
+    expect(res.ok(), await res.text()).toBe(true);
+    return res.json();
+  };
+  const { account } = await send('POST', '/accounts', {
+    name: 'Testgeld',
+    type: 'checking',
+    openingDate: '2026-10-01',
+    openingBalanceCents: 100_000,
+  });
+  // Same explicit fixture as plan.spec.ts: the cover cap can never be 0 here.
+  await send('PATCH', `/accounts/${account.id}`, { overdraftLimitCents: 10_000_000 });
+  const { group } = await send('POST', '/categories/groups', { name: 'Testdecken' });
+  const make = async (name: string) =>
+    (
+      await send('POST', '/categories', {
+        name,
+        groupId: group.id,
+        class: 'need',
+        kind: 'variable',
+        stage: 2,
+      })
+    ).category;
+  const food = await make('Testessen');
+  const cafe = await make('Testcafe');
+  await send('POST', '/bookings', {
+    type: 'booking',
+    accountId: account.id,
+    date: '2026-10-02',
+    categoryId: food.id,
+    amountCents: -5_000,
+  });
+  await send('PUT', '/budget/2026-10/assigned', {
+    items: [{ categoryId: cafe.id, assignedCents: 10_000 }],
+  });
+
+  await page.goto('/plan/monat?monat=2026-10');
+  const row = (name: string) => page.locator('tr.prow', { hasText: name });
+  const toast = page.locator('.toast.is-open');
+  const tba = page.getByTestId('to-be-assigned');
+  await expect(row('Testessen').locator('.col-avail')).toHaveText('−50,00 €');
+  await expect(row('Testcafe').locator('.col-avail')).toHaveText('100,00 €');
+  await expect(tba).toHaveText('900,00 €');
+
+  await page.locator('.plan-menu summary', { hasText: 'Verteilen' }).click();
+  const cover = page
+    .locator('.plan-menu-panel')
+    .getByRole('button', { name: 'Überzogene decken', exact: true });
+  await expect(cover).toHaveAccessibleDescription('1 überzogen · aus verfügbaren Envelopes');
+  await cover.click();
+  await expect(toast).toContainText('1 gedeckt, 0 offen · 0,00 € fehlen');
+  await expect(row('Testessen').locator('.col-avail')).toHaveText('0,00 €');
+  await expect(row('Testessen')).not.toHaveClass(/is-over/);
+  await expect(row('Testcafe').locator('.col-avail')).toHaveText('100,00 €');
+  await expect(tba).toHaveText('850,00 €');
+
+  await toast.getByRole('button', { name: 'Rückgängig' }).click();
+  await expect(row('Testessen').locator('.col-avail')).toHaveText('−50,00 €');
+  await expect(row('Testessen')).toHaveClass(/is-over/);
+  await expect(row('Testcafe').locator('.col-avail')).toHaveText('100,00 €');
+  await expect(tba).toHaveText('900,00 €');
 });

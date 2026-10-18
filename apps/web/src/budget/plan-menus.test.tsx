@@ -184,7 +184,7 @@ it('replaces "Schnell zuweisen", the "Ansicht" select and the ⋯ menu by two na
     menu('Verteilen')
       .getAllByRole('button')
       .map((b) => b.textContent),
-  ).toEqual(['Leere füllen', 'Wie letzter Monat', 'Ø 3 Monate', 'Ziele', 'Wasserfall-Assistent']);
+  ).toEqual(['Leere füllen', 'Wie letzter Monat', 'Ø 3 Monate', 'Ziel', 'Wasserfall-Assistent']);
 });
 
 it('"Leere füllen" and the selection actions use the existing quick-assign call', async () => {
@@ -218,7 +218,7 @@ it('"Leere füllen" and the selection actions use the existing quick-assign call
   const expected = [
     ['Wie letzter Monat', 'last-month'],
     ['Ø 3 Monate', 'average'],
-    ['Ziele', 'target'],
+    ['Ziel', 'target'],
   ] as const;
   for (const [i, [label, mode]] of expected.entries()) {
     fireEvent.click(menu('Verteilen').getByRole('button', { name: label }));
@@ -310,6 +310,20 @@ it('opens with the arrow keys, walks the items and closes with Esc back on the s
   fireEvent.keyDown(items[0]!, { key: 'Escape' });
   expect(details.open).toBe(false);
   expect(document.activeElement).toBe(summary);
+});
+
+it('closes when the focus leaves the menu, but not while it moves inside', async () => {
+  renderPlan(10_000);
+  await screen.findByTestId('to-be-assigned');
+  const summary = summaryOf('Verteilen');
+  const details = summary.closest('details')!;
+  fireEvent.click(summary);
+  details.open = true;
+  const items = [...details.querySelectorAll<HTMLElement>('.plan-menu-panel button')];
+  fireEvent.focusOut(items[0]!, { relatedTarget: items[1]! });
+  expect(details.open).toBe(true);
+  fireEvent.focusOut(items[1]!, { relatedTarget: summaryOf('Optionen') });
+  expect(details.open).toBe(false);
 });
 
 it('"Optionen ▾" holds Ansicht (default Gruppen, no "Nur Überzogene"), Monate, collapse and Monatsabschluss', async () => {

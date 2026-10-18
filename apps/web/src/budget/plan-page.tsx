@@ -489,9 +489,7 @@ function PlanBody({
               emptyIds={orderedRows
                 .filter((r) => r.assignedCents === 0 && (r.quickAssign?.ghostCents ?? 0) > 0)
                 .map((r) => r.id)}
-              selectedIds={orderedRows
-                .filter((r) => selected.has(r.id) && r.quickAssign)
-                .map((r) => r.id)}
+              selectedIds={orderedRows.filter((r) => selected.has(r.id)).map((r) => r.id)}
               distributeBlock={distributeBlock}
               onDistribute={startDistribute}
               cover={

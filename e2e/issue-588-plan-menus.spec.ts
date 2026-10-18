@@ -11,6 +11,11 @@ import { expect, sampleTest as test } from './sample';
 const EVIDENCE = 'docs/evidence/issue-588-plan-menus';
 const menuSummary = (page: Page, name: string) =>
   page.locator('.plan-menu summary', { hasText: name });
+/** The panel of one menu only (both panels exist in the DOM). */
+const menuPanel = (page: Page, name: string) =>
+  page
+    .locator('details.plan-menu', { has: page.locator('summary', { hasText: name }) })
+    .locator('.plan-menu-panel');
 
 test('the old controls are gone; both menus are keyboard operable and named', async ({
   page,
@@ -72,7 +77,7 @@ test('the old controls are gone; both menus are keyboard operable and named', as
     page.getByRole('link', { name: 'Monatsabschluss starten oder fortsetzen' }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Zeit', exact: true }).click();
-  await expect(page.locator('.plan-menu-panel')).toBeHidden();
+  await expect(menuPanel(page, 'Optionen')).toBeHidden();
   await expect(optionen).toBeFocused();
   await optionen.click();
   await expect(page.getByRole('button', { name: 'Zeit', exact: true })).toHaveAttribute(
@@ -86,10 +91,14 @@ test('"Alle einklappen" and the month span work from "Optionen ▾"', async ({ p
   const optionen = menuSummary(page, 'Optionen');
   await expect(page.locator('tr.pgroup').first()).toBeVisible();
   await optionen.click();
-  await page.getByRole('button', { name: 'Alle einklappen', exact: true }).click();
+  await menuPanel(page, 'Optionen')
+    .getByRole('button', { name: 'Alle einklappen', exact: true })
+    .click();
   await expect(page.locator('tr.pgroup:not(.is-collapsed)')).toHaveCount(0);
   await optionen.click();
-  await page.getByRole('button', { name: 'Alle ausklappen', exact: true }).click();
+  await menuPanel(page, 'Optionen')
+    .getByRole('button', { name: 'Alle ausklappen', exact: true })
+    .click();
   await expect(page.locator('tr.pgroup.is-collapsed')).toHaveCount(0);
   if (isMobile) return;
   await optionen.click();
@@ -102,18 +111,6 @@ test('"Alle einklappen" and the month span work from "Optionen ▾"', async ({ p
   );
   await page.getByRole('button', { name: '1 Monat', exact: true }).click();
   await expect(page.locator('.plan-grid.is-wide')).toHaveCount(0);
-});
-
-test('"Überzogene decken" is offered while rows are overspent, with the cover source named', async ({
-  page,
-}) => {
-  await page.goto('/plan/monat?monat=2026-09');
-  const overspent = await page.locator('tr.prow.is-over').count();
-  expect(overspent).toBeGreaterThan(0);
-  await menuSummary(page, 'Verteilen').click();
-  const cover = page.getByRole('button', { name: 'Überzogene decken', exact: true });
-  await expect(cover).toBeVisible();
-  await expect(cover).toHaveAccessibleDescription(new RegExp(`^${overspent} überzogen · aus `));
 });
 
 for (const scheme of ['light', 'dark'] as const) {

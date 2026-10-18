@@ -69,10 +69,17 @@ function PlanMenu({
       const target = event.target instanceof Element ? event.target.closest(ITEMS) : null;
       if (target && !target.hasAttribute('aria-disabled') && details.open) close();
     };
+    // Focus leaving the menu (Tab away, click elsewhere) closes it; Esc keeps returning to the summary.
+    const onFocusOut = (event: FocusEvent) => {
+      const next = event.relatedTarget;
+      if (details.open && next instanceof Node && !details.contains(next)) details.open = false;
+    };
     details.addEventListener('keydown', onKeyDown);
+    details.addEventListener('focusout', onFocusOut);
     details.addEventListener('click', onClick);
     return () => {
       details.removeEventListener('keydown', onKeyDown);
+      details.removeEventListener('focusout', onFocusOut);
       details.removeEventListener('click', onClick);
     };
   }, []);
@@ -132,7 +139,7 @@ const SELECT_FIRST = 'Erst Kategorien in der Liste auswählen';
 const QUICK: ReadonlyArray<readonly [QuickAssignMode, string]> = [
   ['last-month', 'Wie letzter Monat'],
   ['average', 'Ø 3 Monate'],
-  ['target', 'Ziele'],
+  ['target', 'Ziel'],
 ];
 
 export interface CoverAction {
