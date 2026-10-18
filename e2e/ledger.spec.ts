@@ -35,6 +35,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
 
   await openAccount(page, giro);
   await expect(balance(page)).toHaveText('1.000,00 €');
+  await page.getByTestId('account-chart-toggle').click();
   await expect(page.getByTestId('balance-chart')).toBeVisible();
 
   // A plain expense with category.

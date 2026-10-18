@@ -130,6 +130,7 @@ function AccountBody({ account }: { account: AccountRow }) {
   const month = monthOf(today);
   const [period, setPeriod] = useState<ChartPeriod>('3M');
   const [chartOpen, setChartOpen] = useStoredFlag(CHART_OPEN_KEY);
+  const [fxView, setFxView] = useState<'native' | 'eur'>('native');
   const settings = useQuery(displaySettingsQuery());
   // Presets are rolling and end today.
   const rollingFrom = `${addMonths(month, period === '3M' ? -3 : -12)}-${today.slice(8)}`;
@@ -322,10 +323,21 @@ function AccountBody({ account }: { account: AccountRow }) {
             )}
             Saldoverlauf
           </button>
-          {previewDays > 0 && (
+          {previewDays > 0 && (series.data?.previewPoints?.length ?? 0) > 0 && (
             <span className="pill" data-testid="account-chart-chip">
               {liquidity ? 'Liquiditätsprognose' : `Prognose ${previewDays} Tage`}
             </span>
+          )}
+          {chartOpen && account.currency !== 'EUR' && (
+            <Segmented
+              label="Saldoverlauf Währung"
+              value={fxView}
+              onChange={setFxView}
+              options={[
+                { value: 'native', label: `Kontowährung · ${account.currency}` },
+                { value: 'eur', label: 'EUR' },
+              ]}
+            />
           )}
           {chartOpen && (
             <Segmented
@@ -340,6 +352,14 @@ function AccountBody({ account }: { account: AccountRow }) {
             />
           )}
         </div>
+        {chartOpen && series.isPending && <LoadingNote what="Saldoverlauf" />}
+        {series.isError && (
+          <ErrorNote
+            what="Saldoverlauf"
+            error={series.error}
+            onRetry={() => void series.refetch()}
+          />
+        )}
         {series.data && (
           <>
             {series.data.previewCoverage && (
@@ -366,87 +386,78 @@ function AccountBody({ account }: { account: AccountRow }) {
             )}
           </>
         )}
-        {chartOpen && (
-          <div id="account-chart-body" data-testid="account-chart-body">
-            {series.isPending && <LoadingNote what="Saldoverlauf" />}
-            {series.isError && (
-              <ErrorNote
-                what="Saldoverlauf"
-                error={series.error}
-                onRetry={() => void series.refetch()}
+        <div id="account-chart-body" data-testid="account-chart-body" hidden={!chartOpen}>
+          {chartOpen && series.data && (
+            <>
+              <BalanceChart
+                points={series.data.points}
+                windowLabel={period}
+                previewPoints={series.data.previewPoints ?? []}
+                limitCents={limit}
+                limitLabel={limitLabel}
+                currency={account.currency}
+                view={fxView}
               />
-            )}
-            {series.data && (
-              <>
-                <BalanceChart
-                  points={series.data.points}
-                  windowLabel={period}
-                  previewPoints={series.data.previewPoints ?? []}
-                  limitCents={limit}
-                  limitLabel={limitLabel}
-                  currency={account.currency}
-                />
-                {account.currency !== 'EUR' && (
-                  <details className="kfx-history">
-                    <summary>EUR-Bewertung · Tageswerte und Kurse</summary>
-                    <p className="kmeta">
-                      Cash-Saldo am jeweiligen Tag; Wertpapiere sind hier nicht enthalten.
-                    </p>
-                    <table className="ktable">
-                      <caption className="sr-only">Saldoverlauf mit EUR-Bewertung</caption>
-                      <thead>
-                        <tr>
-                          <th scope="col">Datum</th>
-                          <th scope="col">Saldo · {account.currency} / EUR</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {series.data.points.map((p) => (
-                          <tr key={p.date}>
-                            <td>{longDay(p.date)}</td>
-                            <td>{valuedCurrency(p.balanceCents, account.currency, p.valuation)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </details>
-                )}
-                {(series.data.unavailableCurrencies?.length ?? 0) > 0 && (
-                  <p role="status">
-                    Vorschau nicht verfügbar: Wechselkurs fehlt (
-                    {series.data.unavailableCurrencies?.join(', ')}).
+              {account.currency !== 'EUR' && (
+                <details className="kfx-history">
+                  <summary>EUR-Bewertung · Tageswerte und Kurse</summary>
+                  <p className="kmeta">
+                    Cash-Saldo am jeweiligen Tag; Wertpapiere sind hier nicht enthalten.
                   </p>
-                )}
-                <div className="legend" aria-hidden="true">
+                  <table className="ktable">
+                    <caption className="sr-only">Saldoverlauf mit EUR-Bewertung</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Datum</th>
+                        <th scope="col">Saldo · {account.currency} / EUR</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {series.data.points.map((p) => (
+                        <tr key={p.date}>
+                          <td>{longDay(p.date)}</td>
+                          <td>{valuedCurrency(p.balanceCents, account.currency, p.valuation)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </details>
+              )}
+              {(series.data.unavailableCurrencies?.length ?? 0) > 0 && (
+                <p role="status">
+                  Vorschau nicht verfügbar: Wechselkurs fehlt (
+                  {series.data.unavailableCurrencies?.join(', ')}).
+                </p>
+              )}
+              <div className="legend" aria-hidden="true">
+                <span>
+                  <svg viewBox="0 0 26 8">
+                    <path className="l-actual" d="M0 4h26" />
+                  </svg>
+                  Cash-Saldo · {account.currency}
+                </span>
+                {(series.data.previewPoints?.length ?? 0) > 1 && (
                   <span>
                     <svg viewBox="0 0 26 8">
-                      <path className="l-actual" d="M0 4h26" />
+                      <path className="l-forecast" d="M0 4h26" />
                     </svg>
-                    Cash-Saldo · {account.currency}
+                    {liquidity
+                      ? `Liquiditätsvorschau · bis ${longDay(series.data.previewCoverage?.endDay ?? today)}`
+                      : `Vorschau · ${previewDays} Tage`}
                   </span>
-                  {(series.data.previewPoints?.length ?? 0) > 1 && (
-                    <span>
-                      <svg viewBox="0 0 26 8">
-                        <path className="l-forecast" d="M0 4h26" />
-                      </svg>
-                      {liquidity
-                        ? `Liquiditätsvorschau · bis ${longDay(series.data.previewCoverage?.endDay ?? today)}`
-                        : `Vorschau · ${previewDays} Tage`}
-                    </span>
-                  )}
-                  {limit !== null && (
-                    <span>
-                      <svg viewBox="0 0 26 8">
-                        <path className="l-plan" d="M0 4h26" />
-                      </svg>
-                      {limitLabel} · {valuedCurrency(-limit, account.currency)}
-                    </span>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        )}
+                )}
+                {limit !== null && (
+                  <span>
+                    <svg viewBox="0 0 26 8">
+                      <path className="l-plan" d="M0 4h26" />
+                    </svg>
+                    {limitLabel} · {valuedCurrency(-limit, account.currency)}
+                  </span>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </section>
       <AccountRegister account={account} />
       <BookingPanel state={panel} onClose={() => setPanel(null)} />

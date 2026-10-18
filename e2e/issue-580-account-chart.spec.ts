@@ -36,6 +36,7 @@ test('account history chart is collapsed by default, compact and remembered', as
   // First visit: collapsed, no chart, no time control, the first booking is reachable.
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await expect(chart).toHaveCount(0);
+  await expect(page.locator('#account-chart-body')).toBeHidden();
   await expect(page.getByRole('group', { name: 'Saldoverlauf Zeitraum' })).toHaveCount(0);
   await expect(page.locator(`[data-booking="${id}"]`)).toBeVisible();
   expect((await toggle.boundingBox())!.height).toBeGreaterThanOrEqual(44);

@@ -73,34 +73,25 @@ test('booking cells, cash capture, repetition and account preview on desktop and
     rhythm: 'weekly',
     startDate: '2026-10-09',
   });
+  await expect(page.getByTestId('balance-chart')).toHaveCount(0);
+  await page.getByTestId('account-chart-toggle').click();
   const chart = page.getByTestId('balance-chart').first();
   await expect(chart.locator('.l-forecast')).toBeVisible();
   await expect(chart.getByText(/Dispolimit/)).toBeVisible();
   await chart.getByRole('slider').focus();
   await chart.getByRole('slider').press('Home');
   await expect(chart.locator('.kchart-tooltip')).toBeVisible();
-  for (const label of ['6M', '12M', 'Alles', '3M']) {
+  for (const label of ['3M', '12M', 'Alles', '3M']) {
     await page
       .getByRole('group', { name: 'Saldoverlauf Zeitraum' })
       .getByRole('button', { name: label, exact: true })
       .click();
     await expect(chart).toBeVisible();
   }
-  const selector = page.getByLabel('Zeitraum-Schnellauswahl');
-  const presetBox = await page.getByRole('group', { name: 'Saldoverlauf Zeitraum' }).boundingBox();
-  const customBox = await selector.boundingBox();
-  expect(
-    Math.abs(presetBox!.y + presetBox!.height - customBox!.y - customBox!.height),
-  ).toBeLessThan(1);
-  await selector.selectOption('custom');
-  await page.getByLabel('Von', { exact: true }).fill('2026-07');
-  await page.getByLabel('Bis', { exact: true }).fill('2026-09');
-  await page.getByRole('button', { name: 'Anwenden', exact: true }).click();
-  await expect(chart.locator('.l-forecast')).toHaveCount(0);
-  await page
-    .getByRole('group', { name: 'Saldoverlauf Zeitraum' })
-    .getByRole('button', { name: '3M', exact: true })
-    .click();
+  await expect(
+    page.getByRole('group', { name: 'Saldoverlauf Zeitraum' }).getByRole('button'),
+  ).toHaveText(['3M', '12M', 'Alles']);
+  await expect(page.getByLabel('Zeitraum-Schnellauswahl')).toHaveCount(0);
   await expect(chart.locator('.l-forecast')).toBeVisible();
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => {
@@ -163,6 +154,8 @@ test('booking cells, cash capture, repetition and account preview on desktop and
     .poll(async () => (await (await request.get('/api/display-settings')).json()).futurePreviewDays)
     .toBe(0);
   await page.goto(`/konten/${account.id}`);
+  // The disclosure state chosen earlier in this test is remembered across navigation.
+  await expect(page.getByTestId('account-chart-toggle')).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByTestId('balance-chart').first()).toBeVisible();
   await expect(page.locator('.l-forecast')).toHaveCount(0);
   await page.goto('/konten/buchungen');

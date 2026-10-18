@@ -11,6 +11,7 @@ import {
   type Point,
   type XTick,
 } from '@budget/ui';
+import { lowPoint as forecastLowPoint, type ForecastDay } from '@budget/domain';
 import { scaleLinear } from 'd3-scale';
 import { useElementWidth } from '../charts/use-element-width';
 import { nativeCurrency, valuedCurrency, monthStartLabel, longDay } from './format';
@@ -27,22 +28,44 @@ export function monthTicks(points: ReadonlyArray<SeriesPoint>): { index: number;
   return out;
 }
 
-/**
- * Index of the lowest balance when it is a real dip inside the window, else -1.
- * With a forecast (`forecastStart` before the last index) the last forecast day counts as well:
- * a forecast that ends at its minimum has its Tiefpunkt there.
- */
-export function lowPointIndex(
-  points: ReadonlyArray<SeriesPoint>,
-  forecastStart = points.length,
-): number {
+/** Index of the lowest balance when it is a real dip inside the window, else -1. */
+export function lowPointIndex(points: ReadonlyArray<SeriesPoint>): number {
   if (points.length < 3) return -1;
   let low = 0;
   points.forEach((p, i) => {
     if (p.balanceCents < (points[low] as SeriesPoint).balanceCents) low = i;
   });
-  const lastAllowed = forecastStart < points.length - 1 ? points.length - 1 : points.length - 2;
-  return low <= 0 || low > lastAllowed ? -1 : low;
+  return low <= 0 || low >= points.length - 1 ? -1 : low;
+}
+
+/**
+ * Index (into `points`) of the Kontoprognose low point: the domain rule `lowPoint` over the forecast days only
+ * (today included), the earliest on a tie. -1 without a forecast.
+ */
+export function forecastLowIndex(
+  points: ReadonlyArray<SeriesPoint>,
+  forecastStart: number,
+): number {
+  if (forecastStart >= points.length - 1) return -1;
+  const days: ForecastDay[] = points.slice(forecastStart).map((p, index) => ({
+    day: p.date,
+    index,
+    balanceCents: p.balanceCents,
+    variableCents: 0,
+    items: [],
+  }));
+  const low = forecastLowPoint(days, Number.POSITIVE_INFINITY);
+  return low ? forecastStart + low.index : -1;
+}
+
+/** 4 to 5 Y ticks without the zero line (drawn separately); evenly spaced when no nice step fits. */
+export function yTicksFor(y0: number, y1: number): number[] {
+  const scale = scaleLinear().domain([y0, y1]);
+  for (let count = 3; count <= 10; count++) {
+    const ticks = scale.ticks(count).filter((v) => v !== 0);
+    if (ticks.length >= 4 && ticks.length <= 5) return ticks;
+  }
+  return [0.2, 0.4, 0.6, 0.8].map((f) => Math.round(y0 + (y1 - y0) * f));
 }
 
 /** Height of the compact account-history drawing (owner decision 18.10.2026: at most about 140 px). */
@@ -60,6 +83,7 @@ export function BalanceChart({
   previewPoints = [],
   limitCents = null,
   limitLabel = 'Kreditrahmen',
+  view = 'native',
 }: {
   points: ReadonlyArray<SeriesPoint>;
   windowLabel: string;
@@ -67,6 +91,8 @@ export function BalanceChart({
   previewPoints?: ReadonlyArray<SeriesPoint>;
   limitCents?: number | null;
   limitLabel?: string;
+  /** Foreign-currency accounts show one drawing at a time: Kontowährung or EUR valuation. */
+  view?: 'native' | 'eur';
 }) {
   useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
@@ -77,41 +103,33 @@ export function BalanceChart({
   const forecastStart = previewPoints.length
     ? combined.findIndex((p) => p.date === previewPoints[0]!.date)
     : combined.length;
+  const eur = currency !== 'EUR' && view === 'eur';
+  const ready = width > 0 && points.length > 1;
   return (
     <div ref={ref} className="kchart-box">
-      {width > 0 && points.length > 1 && (
+      {ready && (
         <Drawing
           points={combined}
           forecastStart={forecastStart}
-          limitCents={limitCents}
+          limitCents={eur ? null : limitCents}
           limitLabel={limitLabel}
           width={width}
           height={height}
           windowLabel={windowLabel}
-          currency={currency}
+          currency={eur ? 'EUR' : currency}
+          eurMode={eur}
         />
       )}
-      {currency !== 'EUR' && width > 0 && points.length > 1 && (
+      {currency !== 'EUR' && ready && (
         <>
           <p className="kmeta">
-            Cash-Saldo · {currency}; darunter EUR-Bewertung zum jeweiligen Tag
+            {eur ? 'EUR-Bewertung des Cash-Saldos zum jeweiligen Tag' : `Cash-Saldo · ${currency}`}
           </p>
-          {points.some((p) => p.valuation?.eurCents == null) && (
+          {eur && points.some((p) => p.valuation?.eurCents == null) && (
             <p className="kmeta">
               Kurs fehlt · EUR-Verlauf hat Lücken. Tageswerte und Kurse stehen unter dem Diagramm.
             </p>
           )}
-          <Drawing
-            points={combined}
-            forecastStart={forecastStart}
-            limitCents={limitCents}
-            limitLabel={limitLabel}
-            width={width}
-            height={height}
-            windowLabel={windowLabel}
-            currency="EUR"
-            eurMode
-          />
         </>
       )}
     </div>
@@ -183,12 +201,9 @@ function Drawing({
       x: x(t.index) + 4,
       label: `${monthStartLabel(t.day)}${points.length > 365 ? ` ${t.day.slice(0, 4)}` : ''}`,
     }));
-  const grid = y
-    .ticks(4)
-    .filter((v) => v !== 0)
-    .map((v) => ({ y: y(v), label: axisNumber.format(v / 100) }));
+  const grid = yTicksFor(y0, y1).map((v) => ({ y: y(v), label: axisNumber.format(v / 100) }));
   const hasForecast = forecastStart < points.length - 1;
-  const low = eurMode ? -1 : lowPointIndex(points, forecastStart);
+  const low = eurMode ? -1 : forecastLowIndex(points, forecastStart);
   const lowPoint = low >= 0 ? (points[low] as SeriesPoint) : undefined;
   const lowDir = lowPoint && y(lowPoint.balanceCents) - 15 < top + 8 ? 1 : -1;
   const summary =
