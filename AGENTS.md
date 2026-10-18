@@ -19,6 +19,6 @@ The owner also requested original Ponytail, Impeccable, UI UX Pro Max, Hallmark 
 
 ## Autonomous queue
 
-Codex and other agents running issues from the queue follow `CLAUDE.md`, including its "Autonomous queue rules" section, and [`docs/queue/README.md`](docs/queue/README.md).
+Codex and other agents working on queue issues follow `CLAUDE.md`, including its "Autonomous queue rules" section, and [`docs/queue/README.md`](docs/queue/README.md).
 There is no second rule source: if this file and `CLAUDE.md` differ, `CLAUDE.md` wins.
-Work on `codex/issue-N`, open a PR, never merge, and stop with `needs-human` when blocked.
+Work on your own branch, open a PR with `Refs #N`, never merge, never edit existing tests (list the changes you need in the PR), and stop with `needs-human` when blocked.

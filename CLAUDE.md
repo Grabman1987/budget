@@ -48,21 +48,18 @@ Local profiles and selection rationale: [`docs/skills.md`](docs/skills.md). Load
 
 ## Autonomous queue rules
 
-Pipeline, labels, merge policy and model routing: [`docs/queue/README.md`](docs/queue/README.md). One issue = one fresh session = one PR; at most one running issue per `area:*` label.
+Process, roles, lanes, risk classes, test-change policy, baselines, merging and closing: [`docs/queue/README.md`](docs/queue/README.md). One issue = one worktree = one PR; Sonnet agents implement and never merge, the Opus orchestrator reviews and merges. The unattended loop (`loop.sh`, `automerge.sh`, `run_queue.sh`, `live.sh`) is not in use; restart only with owner approval.
 
 Hard guardrails (no exceptions without the owner):
 
 - No force-push or history rewrite on `main`; never weaken branch protection or the ruleset.
 - No destructive production data operations. Migrations must be reversible and tested on a copy first, otherwise label `needs-human`.
 - No secrets in code, logs, issues or PRs. No changes to secrets, deploy credentials or Fly settings without owner approval.
-- No weakening, skipping or deleting tests, tolerances or coverage without the `tests-change-approved` label.
+- Implementing agents never edit existing tests; the orchestrator applies existing-test changes only under the owner's test-change policy ([`docs/queue/README.md`](docs/queue/README.md)). Weakening, skipping or deleting tests, tolerances or coverage needs explicit owner approval.
 - No change to calculation rules (returns, portfolio logic, booking semantics) without documented approval; display-only changes are fine.
 - No financial advice content.
 - Do not interfere with other running work (worktrees, branches, PRs, issues you did not start).
 - Suspected data loss or security problem: stop and open an `incident` issue.
+- Issues close only when every acceptance criterion is verified and the merge is live (`queue:complete`); PRs say `Refs #N`, never `Closes`.
 
-Model routing: Opus orchestrates and decides `risk:high` merges; Sonnet implements; Explore/Haiku searches; Codex for second opinion and spare capacity.
-
-Token rules: grep or read line ranges instead of whole files; `gh` with `--json`/`--jq`/`--limit`; no polling; subagent reports at most 10 lines; write a handoff file at about 60 % context.
-
-Use the Ponytail skill for coding ([`docs/queue/ponytail-summary.md`](docs/queue/ponytail-summary.md)); this file wins on conflict, and every acceptance criterion gets a test.
+Use the Ponytail skill for coding ([`docs/queue/ponytail-summary.md`](docs/queue/ponytail-summary.md)); this file wins on conflict, and every acceptance criterion gets a test. Token rules: grep or line ranges, `gh` with `--json`/`--jq`/`--limit`, no polling, agent reports at most 10 lines.
