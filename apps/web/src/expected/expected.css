@@ -353,7 +353,7 @@ h4.xp-sub {
   .xp-table.xp-next tr.prow {
     grid-template-columns: 34px auto minmax(0, 1fr) auto;
     row-gap: 2px;
-    padding: 6px 0;
+    padding-block: 6px;
   }
   .xp-table.xp-next .col-name {
     grid-column: 2 / 4;

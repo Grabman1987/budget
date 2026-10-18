@@ -207,6 +207,16 @@ test('phone: rows have two lines, targets are 44 px, no horizontal page scroll',
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
+  // The first row is an overdue (alert) row: it keeps the 16 px gutter, amount and status are whole.
+  const viewport = page.viewportSize()!.width;
+  const first = page.locator('table.xp-next tr.prow').first();
+  for (const part of ['.col-num', '.col-state']) {
+    const box = (await first.locator(part).boundingBox())!;
+    expect(box.x, part).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width, part).toBeLessThanOrEqual(viewport - 16);
+  }
+  const strip = (await first.locator('.xp-status').boundingBox())!;
+  expect(strip.x + strip.width).toBeLessThanOrEqual(viewport - 16);
   const lines = await page.locator('table.xp-next tr.prow').evaluateAll((trs) =>
     trs.map((tr) => {
       const centers = ['.col-name', '.col-num', '.col-due', '.col-cat', '.col-state']
