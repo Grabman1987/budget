@@ -1,6 +1,6 @@
 import { readInbox, readInboxCount, resolveInboxItem, type Db } from '@budget/db';
 import { Hono } from 'hono';
-import { inboxCause, inboxMatchesPeriod } from '@budget/domain';
+import { inboxCause, inboxMatchesPeriod, inboxSegment, type InboxSegment } from '@budget/domain';
 import { z } from 'zod';
 import { ACTOR, readBody, readQuery } from './http';
 
@@ -13,17 +13,31 @@ const page = z.object({
   fromDate: z.iso.date().optional(),
   readSource: z.string().min(1).max(100).optional(),
   title: z.string().min(1).max(300).optional(),
+  /** Konten › Prüfen: one part of the queue, without overspent categories. */
+  segment: z.enum(['auto', 'umsaetze', 'aufgaben']).optional(),
 });
 
 /** Actual queue behind the common session/origin guard; stored acknowledgement has one undo group. */
 export function inboxRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   app.get('/', (c) => {
-    const { limit, offset, period, bankSource, dateSort, fromDate, readSource, title } = readQuery(
-      c,
-      page,
-    );
-    const inbox = readInbox(db, today(), bankSource, readSource);
+    const { limit, offset, period, bankSource, dateSort, fromDate, readSource, title, segment } =
+      readQuery(c, page);
+    const inbox = readInbox(db, today(), bankSource, readSource, {
+      excludeOverspent: segment !== undefined,
+    });
+    // Unlinked receipts count as tasks but are not entries; the header pill is the sum of both parts.
+    const segments = { umsaetze: 0, aufgaben: inbox.count - inbox.entries.length };
+    for (const entry of inbox.entries) segments[inboxSegment(entry)] += 1;
+    const shown: InboxSegment | undefined =
+      segment === undefined
+        ? undefined
+        : segment === 'auto'
+          ? segments.umsaetze > 0 || segments.aufgaben === 0
+            ? 'umsaetze'
+            : 'aufgaben'
+          : segment;
+    const segmentFields = shown ? { segment: shown, segments } : {};
     const countsByTitle: Record<string, number> = {};
     if (readSource)
       for (const entry of inbox.entries) {
@@ -38,6 +52,7 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
           : entry.date;
     const filtered = inbox.entries.filter(
       (entry) =>
+        (!shown || inboxSegment(entry) === shown) &&
         inboxMatchesPeriod({ ...entry, date: date(entry) }, period, inbox.asOf) &&
         (!fromDate || date(entry) >= fromDate) &&
         (!title || (entry.type === 'stored' && entry.title === title)),
@@ -60,7 +75,8 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
           a.id.localeCompare(b.id),
       );
     // Without `limit` the whole queue, as before; `count` always is the full number of tasks.
-    if (limit === undefined) return c.json({ ...inbox, entries: filtered, overspentSummary });
+    if (limit === undefined)
+      return c.json({ ...inbox, entries: filtered, overspentSummary, ...segmentFields });
     const start = offset ?? 0;
     const entries = filtered.slice(start, start + limit);
     const next = start + entries.length < filtered.length ? start + entries.length : null;
@@ -75,6 +91,7 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
       ...inbox,
       entries,
       overspentSummary,
+      ...segmentFields,
       totalEntries: filtered.length,
       countsByKind,
       countsByCause,
@@ -84,7 +101,8 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
       ...(readSource ? { countsByTitle } : {}),
     });
   });
-  app.get('/count', (c) => c.json(readInboxCount(db, today())));
+  // The header pill is the Prüfen total (Umsätze + Aufgaben); overspent categories live in Heute/Plan.
+  app.get('/count', (c) => c.json(readInboxCount(db, today(), { excludeOverspent: true })));
   app.get('/:id', (c) => {
     const id = z.string().min(1).max(100).parse(c.req.param('id'));
     const inbox = readInbox(db, today());

@@ -109,6 +109,112 @@ export function weekGroups(
   return [...(overdue ? [overdue] : []), ...groups.values()];
 }
 
+/** Default horizon of the payments list and the switch to the longer one, in days. */
+export const HORIZONS = [35, 90] as const;
+export type Horizon = (typeof HORIZONS)[number];
+
+export type PaymentGroupKey = 'overdue' | 'this-week' | 'next-week' | 'later';
+
+export interface PaymentWeek {
+  key: string;
+  title: string;
+  sub: string;
+  rows: Occurrence[];
+  sumCents: number;
+  leftOut: number;
+}
+
+export interface PaymentGroup {
+  key: PaymentGroupKey;
+  title: string;
+  sub: string;
+  rows: Occurrence[];
+  /** Signed EUR sum of the shown rows that have a rate. */
+  sumCents: number;
+  /** Rows in a foreign currency without a known rate are not in the sum. */
+  leftOut: number;
+  /** Only "Später": its rows by week, each week with its own sum. */
+  weeks: PaymentWeek[];
+}
+
+/** Still waiting for its booking: neither arrived nor dropped. */
+const isOpen = (row: Pick<Occurrence, 'status'>) =>
+  row.status !== 'received' && row.status !== 'skipped';
+
+/**
+ * The four groups of the payments list: Überfällig (earlier than today and still open, whatever
+ * the week) · Diese Woche · Nächste Woche · Später (weekly sections), each with the sum of its shown
+ * rows. Rows beyond `today + horizonDays` are left out; earlier ones that arrived or were dropped
+ * show only in the current week. Empty groups are omitted.
+ */
+export function paymentGroups(
+  rows: ReadonlyArray<Occurrence>,
+  today: string,
+  rates: Record<string, number>,
+  horizonDays: number = HORIZONS[0],
+): PaymentGroup[] {
+  const thisWeek = weekMonday(today);
+  const last = addDays(today, horizonDays);
+  const heads: Record<PaymentGroupKey, { title: string; sub: string }> = {
+    overdue: { title: 'Überfällig', sub: 'noch offen' },
+    'this-week': { title: 'Diese Woche', sub: weekRange(thisWeek) },
+    'next-week': { title: 'Nächste Woche', sub: weekRange(addDays(thisWeek, 7)) },
+    later: { title: 'Später', sub: `bis ${shortDay(last)}` },
+  };
+  const groups = new Map<PaymentGroupKey, PaymentGroup>();
+  const tally = (
+    target: { rows: Occurrence[]; sumCents: number; leftOut: number },
+    row: Occurrence,
+  ) => {
+    target.rows.push(row);
+    const value = eurOf(row.amountCents, row.currency, rates);
+    if (value === null) target.leftOut += 1;
+    else target.sumCents += value;
+  };
+  const sorted = [...rows].sort(
+    (a, b) => a.dueDate.localeCompare(b.dueDate) || a.name.localeCompare(b.name, 'de'),
+  );
+  for (const row of sorted) {
+    if (row.dueDate > last) continue;
+    const monday = weekMonday(row.dueDate);
+    let key: PaymentGroupKey;
+    if (row.dueDate < today && isOpen(row)) key = 'overdue';
+    else if (monday < thisWeek) continue;
+    else if (monday === thisWeek) key = 'this-week';
+    else if (monday === addDays(thisWeek, 7)) key = 'next-week';
+    else key = 'later';
+    const group = groups.get(key) ?? {
+      key,
+      ...heads[key],
+      rows: [],
+      sumCents: 0,
+      leftOut: 0,
+      weeks: [],
+    };
+    tally(group, row);
+    if (key === 'later') {
+      let week = group.weeks.find((w) => w.key === monday);
+      if (!week) {
+        const weeks = daysBetween(thisWeek, monday) / 7;
+        week = {
+          key: monday,
+          title: `In ${weeks} Wochen`,
+          sub: weekRange(monday),
+          rows: [],
+          sumCents: 0,
+          leftOut: 0,
+        };
+        group.weeks.push(week);
+      }
+      tally(week, row);
+    }
+    groups.set(key, group);
+  }
+  return (['overdue', 'this-week', 'next-week', 'later'] as const).flatMap(
+    (key) => groups.get(key) ?? [],
+  );
+}
+
 /** `monatlich am 15.`, `jährlich am 12.04.`, `vierteljährlich ab Jänner, am letzten Werktag` */
 export function cadenceText(
   p: Pick<ExpectedPayment, 'rhythm' | 'dueDay' | 'dueMonth' | 'dateShift'> &

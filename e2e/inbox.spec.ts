@@ -144,6 +144,12 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
       fullPage: true,
     });
   }
+  // Since #561 the page opens on "Umsätze"; the stored warning belongs to "Aufgaben".
+  const aufgaben = page
+    .getByRole('group', { name: 'Teil von Prüfen' })
+    .getByRole('button', { name: /^Aufgaben · \d+$/ });
+  await aufgaben.click();
+  await expect(aufgaben).toHaveAttribute('aria-pressed', 'true');
   const resolve = warning.getByRole('button', { name: 'Als erledigt markieren' });
   await expect(resolve).toHaveClass(/btn-ghost/);
   await expect(resolve).not.toHaveClass(/btn-alert/);
@@ -153,10 +159,42 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
   await expect(warning).toBeVisible();
   await page.locator('.toast.is-open').getByRole('button', { name: 'Wiederholen' }).click();
   await expect(warning).toHaveCount(0);
-  await page.goto('/konten');
-  await inboxTrigger.click();
-  await expect(page).toHaveURL(/\/konten\/pruefen/);
-  await expect(page.getByRole('dialog', { name: 'Posteingang', exact: true })).toHaveCount(0);
+  // #664: the booking and the warning above are done, so the queue may legitimately be empty here.
+  // Own synthetic pending task, so the "N zu prüfen" / "Prüfen · N" link exists in every shard layout.
+  const pendingId = `inbox-pending-${info.project.name}-${info.retry}`;
+  const pending = openDatabase(DB_MAIN);
+  try {
+    insertTracked(
+      pending.db,
+      inboxItem,
+      {
+        id: pendingId,
+        kind: 'stale_value',
+        title: `Offene Quelle ${tag}`,
+        detail: 'Synthetische offene Aufgabe für den Prüfen-Zähler.',
+        refType: 'fx',
+        refId: 'synthetic-fx-pending',
+      },
+      { actor: 'e2e' },
+    );
+  } finally {
+    pending.close();
+  }
+  try {
+    await page.goto('/konten');
+    await expect(inboxTrigger).toHaveText(
+      info.project.name === 'mobile' ? /^[1-9]\d* zu prüfen$/ : /^Prüfen · [1-9]\d*$/,
+    );
+    await inboxTrigger.click();
+    await expect(page).toHaveURL(/\/konten\/pruefen/);
+    await expect(page.getByRole('dialog', { name: 'Posteingang', exact: true })).toHaveCount(0);
+  } finally {
+    const cleaned = await request.post(`${MAIN_URL}/api/inbox/${pendingId}/resolve`, {
+      headers: { origin: MAIN_URL },
+      data: {},
+    });
+    expect(cleaned.ok()).toBeTruthy();
+  }
   // Own synthetic fixtures only; no shared ledger assumptions or real data.
   const deleted = await request.delete(`${MAIN_URL}/api/bookings/${booking.id}`, {
     headers: { origin: MAIN_URL },

@@ -224,3 +224,25 @@
 .source-inbox-detail ul {
   padding-left: 20px;
 }
+.inbox-type {
+  display: block;
+  width: 24px;
+  height: 24px;
+  color: var(--line);
+}
+.rev-row.is-urgent .inbox-type {
+  color: var(--red);
+}
+.bank-inbox-row .rev-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.inbox-segments {
+  grid-column: 1 / -1;
+  margin-bottom: 16px;
+}
+.inbox-segments button {
+  min-height: 44px;
+}
