@@ -1,169 +1,93 @@
-# Autonomous queue
+# Delivery process
 
-Small GitHub issues are implemented by agents (Claude Code or Codex) in isolated worktrees: one
-issue = one fresh session = one PR. State lives in labels and PRs, so any run can be restarted.
-Tooling: `scripts/queue/` (`labels.sh`, `run_queue.sh`, `automerge.sh`, `live.sh`, `loop.sh`,
-`board.sh`, `gate.sh`, `policy.mjs`, `scope-lib.sh`, `task-prompt.md`). Issue form: `.github/ISSUE_TEMPLATE/agent-task.yml`.
+How work reaches `main` and production today (state 2026-10-18). Measured numbers:
+[delivery-audit-2026-10-17.md](delivery-audit-2026-10-17.md), CI layout: [ci-speed.md](ci-speed.md).
+`CLAUDE.md` holds the hard guardrails and wins on any conflict.
+
+## Process
+
+1. The owner or the orchestrator writes a small issue (acceptance criteria, `risk:*`, `area:*`, file scope).
+2. The orchestrator (Opus, interactive session) dispatches implementation to a Sonnet agent in its own worktree and branch.
+3. The agent implements, runs targeted checks, opens a PR with `Refs #N` and stops. It never merges.
+4. CI runs on the PR. The orchestrator checks scope, reviews as the risk class requires (below) and merges with `scripts/queue/merge-pr.sh <pr>`.
+5. The issue closes only when the merge is live and every acceptance criterion is verified (closing rules).
+
+## Roles and lanes
+
+| Who                  | Does                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------- |
+| Orchestrator (Opus)  | Triage, dispatch, scope check, test-change decisions, merges, sets `queue:complete`   |
+| Implementer (Sonnet) | One issue, one PR; no merge, no `queue:complete`, no `tests-change-approved`          |
+| Search, log reading  | Small models (Explore/Haiku) or plain `gh`/shell                                      |
+| Independent reviewer | Opus subagent or Codex, never the implementer; gets the diff, not the conclusion      |
+
+- At most 2 feature lanes at once: **A** UI, Plan, Konten; **B** finance, data, API. Plus 1 infra slot **C** (CI, scripts, docs).
+- One writer per critical area at a time: `router.tsx`, shared components in `packages/ui`, ledger, migrations. Queue the second issue instead of running it in parallel.
+
+## Risk classes
+
+| Class    | Examples                                                       | Needs                                                                    |
+| -------- | -------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| LOW      | UI copy/layout, docs, no existing test touched                 | Green CI and the orchestrator's scope check. No separate long review.    |
+| MEDIUM   | Existing tests or baselines change, shared components          | LOW plus independent review of the test and baseline changes             |
+| HIGH     | Money, ledger, DB, auth, migrations, CI, deploy, queue scripts | Label `risk:high`, independent Opus review of the whole diff             |
+| CRITICAL | Calculation rules, production data, secrets, branch protection | Documented owner approval first; migrations reversible, tested on a copy |
+
+Unsure means one class higher. Independent review is mandatory for every change to existing tests and for `risk:high`.
+
+## Test-change policy
+
+Owner decision (Fabian, 2026-10-17): "Test changes for already decided UI changes are allowed if each change traces to a documented owner decision and is justified per test file in the PR; old expectations on text/structure/interaction may be replaced by matching checks of the new behaviour with coverage kept; an independent Opus review checks them before merge. Not covered: looser tolerances, skip, disabled rules, lower coverage, removed checks without equivalent replacement. Changes to finance, security, locking and undo rules stay separately subject to owner approval."
+
+- Implementing agents never edit existing tests (`*.test.*`, `e2e/**/*.spec.ts`, tolerances, lint or coverage config). They add tests for new criteria and list the existing-test changes they need in the PR.
+- The orchestrator applies a listed change only under the decision above: per-file justification table (file, change, decision cited), independent review, label `tests-change-approved`.
+- The orchestrator sets `tests-change-approved` only for issues the owner approved in chat; the PR quotes that approval.
+- Tests guarding finance, security, locking or undo always need the owner's explicit approval for that specific change.
+- Not covered by the decision (explicit owner approval for that PR): looser tolerances, `skip`/`only`, disabled lint rules, lower coverage, removed checks without an equivalent replacement.
+- Isolation or root-cause fixes that make a test stricter follow the same review and table.
+- Obsolete test with no matching decision: `needs-human`, reason in a comment.
+
+## Screenshot baselines
+
+Intended UI changes regenerate only the affected specs on the PR branch: run `update-snapshots.yml` with the `specs` input (for example `e2e/shell.spec.ts`). The orchestrator opens the new PNGs and judges them before the merge. The bot's push does not start CI, so push an empty commit afterwards. Never regenerate all baselines to get green.
+
+## Merging
+
+`scripts/queue/merge-pr.sh <pr>` (orchestrator, local `gh` login):
+
+1. Waits until `main` is green, deployed and live (`/health` revision equals the main head).
+2. Updates the PR branch once if it is behind.
+3. Waits for CI on the exact PR head, then re-checks the gate and the main head.
+4. Merges `--squash --match-head-commit`, then waits until the merge commit is live.
+
+One merge per live revision: the next merge starts only after the previous one is live. Main CI reuses the validated identical PR tree (PR #657): merge to live took about 2.5 min instead of 11 min. Exit codes: 0 live, 1 stopped before the merge, 2 main CI failed after the merge, 3 not live after 45 min.
+
+## Closing rules
+
+- Close an issue only when every acceptance criterion is verified (including `webkit-iphone` where the issue names it) and the merge is live. The orchestrator then sets `queue:complete` on the PR.
+- Partial delivery: comment "live in <rev>, open items" and leave the issue open.
+- Epics and parents never close because their children closed.
+- PRs say `Refs #N`, never `Closes`: closing means live, not merged.
 
 ## Labels
 
-| Label                                                                                       | Meaning                                                |
-| ------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| `ready`                                                                                     | Specified; the runner may pick it up                   |
-| `needs-human`                                                                               | Agent stopped; owner decision or action required       |
-| `blocked`                                                                                   | Waiting on another issue or external input             |
-| `epic`                                                                                      | Too big for one PR; split into child issues            |
-| `in-progress`                                                                               | A job is running (set by the runner)                   |
-| `agent-failed`                                                                              | Last job ended without a PR; retried while attempt < 3 |
-| `attempt:1` `attempt:2` `attempt:3`                                                         | Escalation ladder position                             |
-| `tests-change-approved`                                                                     | Owner allows changing existing tests or tolerances     |
-| `ui-change`                                                                                 | Visible UI change; visual baselines may update         |
-| `flaky-test`                                                                                | Test failed, then passed on re-run                     |
-| `incident`                                                                                  | Suspected data loss or security problem                |
-| `visual-baselines`                                                                          | Snapshot baselines updated                             |
-| `risk:low` / `risk:high`                                                                    | Merge policy (below)                                   |
-| `area:ledger` `area:ui` `area:nav` `area:portfolio` `area:plan` `area:reports` `area:accounts` `area:settings` `area:infra` `area:docs` | Area lock: one running issue per area |
-| `size:S` / `size:M` / `size:L`                                                              | Max turns 25 / 40 / must be split                      |
+`ready`, `needs-human`, `blocked`, `epic`, `in-progress`, `ui-change`, `incident`, `flaky-test`, `risk:low|high`, `area:*`, `size:S|M|L`, `tests-change-approved` (orchestrator, per policy), `queue:complete` (orchestrator, after live). Create the set with `bash scripts/queue/labels.sh`.
 
-Create them once with `bash scripts/queue/labels.sh` (idempotent).
+## Unattended loop: not in use
 
-## Flow
+`loop.sh`, `automerge.sh`, `run_queue.sh` and `live.sh` (with `gate.sh`, `policy.mjs`, `scope-lib.sh`, `board.sh`) are **not in use; restart only with owner approval.** The owner made STOP files binding, and an unexplained STOP on 2026-10-17 16:36 is unresolved. Do not start, schedule or call them from CI. The protected-path list in `policy.mjs` (`.github/**`, `scripts/queue/**`, `scripts/ci/**`, `.claude/**`, `.agents/**`, `AGENTS.md`, `CLAUDE.md`, deploy files, migrations, test and lint configs, lockfiles, snapshot directories) still tells the orchestrator what to review by hand.
 
-1. Issue created from the agent-task form, triaged by the orchestrator (area, risk, size), labelled `ready`.
-2. `bash scripts/queue/run_queue.sh` picks ready issues (S before M, then by number), at most one
-   per area and `--max-parallel` at once; it skips issues with an open `agent/issue-N` or `codex/issue-N` PR.
-3. Job: worktree `<repo-parent>/wt/issue-N` from fresh `origin/main`; the agent implements, runs
-   `npm run check` and `npm run build`, opens the PR. Board status: In Arbeit, then CI / Review
-   (PR) or Wartet auf Fabian (`needs-human`).
-4. Merge: `risk:low` via `automerge.sh`, `risk:high` via review and manual merge.
-5. The merge to `main` triggers CI and deploy. Once the merge commit is contained in the deployed `/health` revision,
-   `live.sh` closes the PR's own issue (comment "Live in <rev>", board Live) only if the merged PR has the label
-   `queue:complete`, set by the orchestrator after every acceptance criterion is verified (its label event must be later than `mergedAt`). Otherwise it comments once
-   per PR ("open items remain, issue stays open") and sets the board to CI / Review. Parents and epics (`Part of #N`) are never closed.
-   PRs say `Refs #N`, never `Closes`: closing means live, not merged.
+## Cost rules
 
-Options: `run_queue.sh [--engine claude|codex] [--model sonnet] [--max-parallel 3] [--issue N] [--only-label L] [--dry-run]`.
-`--issue N` still requires the `ready` label. `--only-label L` considers only issues that also carry `L` (pilot: `queue:pilot`).
-The runner is non-blocking: it starts detached jobs (`nohup`), records `logs/queue/jobs/issue-N.pid` and returns.
+grep or line ranges instead of whole files; `gh` with `--json`/`--jq`/`--limit`; no polling loops; agent reports at most 10 lines; a handoff file at about 60 % context. Ponytail for code ([ponytail-summary.md](ponytail-summary.md)); "a test per acceptance criterion" wins over its "one small check".
 
-## Unattended loop
+## Troubleshooting
 
-`loop.sh` repeats `live.sh`, `gate.sh` + `automerge.sh`, `run_queue.sh`, then sleeps (`--interval`, default 60 s; 5 idle rounds in a row back off to 5 min, gh/network error rounds double the delay up to 10 min, activity resets it;
-`--once`, `--max-rounds N`, `--dry-run`, `--only-label`, `--engine`, `--model`, `--max-parallel` are passed through).
-
-- Start: `nohup bash scripts/queue/loop.sh > /dev/null 2>&1 &` (refuses to start if `logs/queue/loop.pid` holds a live pid).
-- Stop: `touch logs/queue/STOP` (checked every round and every 5 s while sleeping; always binding). It is removed when honoured, after logging its mtime, size and first line (an optional reason).
-- Logs: `logs/queue/loop.log` (timestamped one-liners), `issue-N.json`/`.codex.txt`, `runner-N.out`.
-- `live.sh` exit 2 (latest main CI or deploy failed) prints a STOP line: the loop keeps live/automerge going but starts no new work.
-- Reap: at the start of every `run_queue.sh`, a job whose pid in `jobs/issue-N.pid` is gone (crash, reboot) is finished
-  as if it had ended: PR found -> CI / Review; `needs-human` -> Wartet auf Fabian; otherwise `agent-failed` (attempt < 3,
-  retried) or `needs-human` (attempt 3), with a comment. `in-progress` and the worktree are cleaned up.
-- Stale `in-progress` label without a pid file (set by hand or lost files) is never touched automatically; remove it manually.
-- Limitation: it runs only while this Windows PC is awake and logged in; nothing runs in the cloud.
-
-## Merge policy
-
-| Case           | Rule                                                                                                                      |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `risk:low`     | `automerge.sh` (after the merge gate, head-bound, in scope): `check` (aggregates unit, e2e, visual), `check-windows`, `docker`, `restore-test` green (+ `test-integrity`, `coverage` if present), branch current, squash merge |
-| `risk:high`    | Independent review agent (Opus subagent or Codex), then the orchestrator merges manually                                  |
-| Test gate red  | Only with `tests-change-approved`, set by the owner                                                                       |
-| Merge conflict | The implementing agent rebases                                                                                            |
-| Flaky test     | One re-run; if it passes, open a `flaky-test` issue                                                                       |
-| Behind `main`  | PRs are handled oldest first; `automerge.sh` runs `gh pr update-branch` for the first PR in line only and waits for the new CI; if that fails (conflict) the PR gets `needs-human` and the next one is tried |
-
-GitHub "Allow auto-merge" is off, and merges made by `GITHUB_TOKEN` would not trigger the main CI
-that deploys, so merges run locally under the owner's `gh` login.
-
-## Merge gate, head binding, file scope
-
-Decision logic lives in `scripts/queue/policy.mjs` (pure functions, `policy.test.mjs`); the shell scripts only gather facts (`queue-glue.test.mjs` runs them against stub `gh`/`curl` and throw-away git repos).
-
-- **Merge gate** (`gate.sh`, called by `loop.sh` before `automerge.sh`, and again by `automerge.sh` itself): passes only if the latest `ci.yml` and `deploy.yml` runs for the exact `origin/main` head are completed+success and `/health` is `ok` with `revision` = that head (or containing it). Pending, missing, failed or unreadable state blocks (fail closed); `loop.log` shows `gate: BLOCK: <reason>`. On success it prints `ok <main head sha>`.
-- **Head binding**: `automerge.sh` works on exactly that main head H and on each PR's `headRefOid` (read once). The required checks must be green for that SHA (check-runs API, latest run per name), the branch must contain H (a PR that is behind is updated via `gh api -X PUT .../update-branch -f expected_head_sha=<sha>` and skipped this round), and the merge is `--match-head-commit <sha>`. `origin/main` must still be H after the fetch and again (`git ls-remote`) right before `gh pr merge`. A small window remains between that check and GitHub executing the merge. At most one merge per run; the next one waits until the gate sees that merge live. `live.sh` never closes on errors.
-- **File scope**: an issue lists the files it may touch in a fenced `queue-scope` block in its body, one glob per line (`**` crosses directories, `*` does not, a trailing `/` means the whole directory):
-
-      ```queue-scope
-      apps/web/src/plan/**
-      docs/queue/README.md
-      ```
-
-  The runner writes the block to `logs/queue/scope/issue-N.txt` BEFORE it starts a job (outside the worktree, write-once; delete the file to re-read an edited issue). An issue without a block is not started (one comment, `skip (no queue-scope block)`). Commit, push and automerge read only that file, never the live issue body; a missing snapshot means no commit and no merge.
-- **Protected paths**: independent of any scope, `.github/**`, `scripts/queue/**`, `scripts/ci/**`, `.claude/**`, `.agents/**`, `AGENTS.md`, `CLAUDE.md`, `fly.toml`, `Dockerfile`, `docker-entrypoint.sh`, `litestream.yml`, `packages/db/drizzle/**`, `playwright.config.ts`, `vitest.config.ts`, `package.json`, `package-lock.json`, `vitest.setup.ts`, `eslint.config.js` and `e2e/**/*-snapshots/**` always count as outside. Such an issue goes through the orchestrator, not automerge.
-- **Worktree git and gate input**: runner git calls in job worktrees pass explicit `--git-dir`/`--work-tree`, so a swapped `.git` file cannot redirect them. An empty `gh` answer in `gate.sh` becomes `null` (the policy names the real reason, e.g. "deploy run missing"; still BLOCK).
-- **Test changes** (`task-prompt.md`): already-decided UI changes may get matching new expectations, each traced to a documented owner decision and justified per test file in the PR, labelled `risk:high` (independent review). Existing test files (`*.test.*`, `e2e/**/*.spec.ts`) changed or deleted always count as protected in `checkScope` (never automerge). Never looser tolerances, skips, disabled rules, lower coverage or removed checks without an equivalent; finance, security, locking and undo rules need `tests-change-approved`.
-- **Check**: Codex path (`publish_in_scope`), before the commit and again before the push: commits ahead of `origin/main` (`git diff --name-status -M -z origin/main...HEAD`) and the working tree (`git status --porcelain=v1 -z --untracked-files=all`); automerge: `git diff --name-status -M -z <H>...<sha>`. Added, deleted, untracked and both sides of renames must match. Only the checked paths are staged (`git add --pathspec-from-file`, never `-A`).
-- **Violation**: no commit/push or merge, label `needs-human` on issue (and PR), comment listing the offending paths. Worktree and work are kept; a worktree with uncommitted work is never deleted (a retry moves it to `wt/issue-N-kept-<time>`).
-- **Agent worktrees**: the runner's git runs there with `core.hooksPath` pointing at an empty dir and `core.fsmonitor=false`, and only after the worktree's `.git` file is checked to be exactly the `gitdir:` line git wrote; otherwise it stops, labels `needs-human` and keeps the worktree.
-- **Residual risk**: the Claude engine runs unsandboxed under the owner's `gh` login and can run code through `npm run *`. It could edit labels or the scope snapshot; for it the scope is enforced only at automerge (no pre-push check), and the protected-path list and the review of `risk:high` PRs are the backstop.
-
-## Model routing
-
-| Work                                                    | Model                                              |
-| ------------------------------------------------------- | -------------------------------------------------- |
-| Orchestrator: triage, epic split, `risk:high` decisions | Opus                                               |
-| Implementation `risk:low` S/M                           | Sonnet                                             |
-| Implementation `risk:high`                              | Sonnet + independent review by Opus subagent/Codex |
-| Search, log reading                                     | Explore agent (Haiku)                              |
-| Mechanical work                                         | Plain `gh`/shell scripts, no model                 |
-| Second opinion, parallel capacity                       | Codex                                              |
-
-## Escalation ladder
-
-Attempt 1: Claude Sonnet. Attempt 2: Claude Sonnet with the attempt-1 log tail as `{{EXTRA}}`.
-Attempt 3: Codex. A failure at attempt 3 sets `needs-human` with a comment; for `risk:high` the
-orchestrator may choose one Opus attempt. A failed attempt gets `agent-failed` plus a comment with the
-last log lines (token-like strings redacted); the next runner invocation retries it.
-
-## Token rules
-
-- No whole-file reads: grep or read line ranges. Write large outputs to disk and grep them.
-- `gh` always with `--json`, `--jq`, `--limit`. Never loop `gh project item-list` (rate limit).
-- No polling: use background waits. Subagent reports at most 10 lines.
-- Fresh session per issue; write a handoff file at about 60 % context.
-- `--max-turns`: S 25, M 40; L is split instead of run.
-
-## Codex
-
-CLI `codex exec` (v0.160, logged in via ChatGPT, model from `~/.codex/config.toml`) reads
-`AGENTS.md`, which points to CLAUDE.md. Codex never merges and passes the same gates. Branch
-`codex/issue-N`, log `logs/queue/issue-N.codex.txt`.
-
-Codex runs sandboxed (`-s workspace-write`, network on, writable only in its worktree: no `--add-dir`, so
-it cannot touch the shared `.git`). On Windows that sandbox cannot read the gh/git credentials, cannot
-write git metadata (`index.lock`) and cannot start Playwright browsers (`os.userInfo`). So the runner puts the issue body and
-comments into the prompt, Codex leaves its changes uncommitted, and the runner commits them with
-Codex's title line, pushes and opens the PR. E2E tests run only in the PR's CI, which gates the
-merge. A failed attempt's uncommitted work is kept as `logs/queue/issue-N.attempt-K.diff`.
-
-## Ponytail and CLAUDE.md
-
-Core rules: [ponytail-summary.md](ponytail-summary.md). Conflict: Ponytail's "one small check, no
-per-function suites" is overridden by the queue rule "a test for every acceptance criterion" and by
-CLAUDE.md ("write tests first" for calculations). CLAUDE.md and the guardrails win.
-
-## Known limitations
-
-- All agents act under the owner's GitHub account, so who set `tests-change-approved` cannot be
-  enforced technically. It is a rule by instruction; label events are auditable in the issue timeline.
-- Repo settings, the ruleset and secrets are owner-only. For server-side auto-merge the owner would
-  enable "Allow auto-merge" and add a fine-grained token so merges trigger CI.
-- Failed attempts retry automatically up to attempt 3; a broken environment (for example a
-  logged-out CLI) burns them quickly.
-- The headless `claude` CLI needs its own login (`claude auth login`, owner only). Until then the
-  loop runs with `--engine codex`.
-- The loop is a local process: it runs only while the owner's PC is on, awake and logged in.
-  Nothing runs in the cloud; after a reboot start it again (reap cleans up dead jobs).
-- "Closed" is not "Live": `live.sh` closes an issue and sets the board to Live only after the
-  merge commit is contained in the `/health` revision. Owner acceptance stays separate.
-
-## Restart and troubleshooting
-
-State is in labels and PRs; run the runner again.
-
-- Issue stuck `in-progress` after a crash: remove the label and `git worktree remove --force <repo-parent>/wt/issue-N`.
-- Nothing starts: check `--dry-run` output (area lock, `in-progress` count against `--max-parallel`, open PR on `agent/issue-N`).
-- Missing-label errors: run `labels.sh`.
-- Board warnings: run `gh auth refresh -s project`.
-- Logs: `logs/queue/` (git-ignored).
-- Merged but issue still open: `live.sh` waits for the deploy; check `/health` revision and the deploy workflow.
+- `gate: main not live/green yet` for long: check the last `ci.yml` and `deploy.yml` runs on `main` and the `/health` revision. A red main blocks all merges until fixed.
+- `CI red <sha> run <id>`: read the listed specs, fix on the branch, push, run the script again.
+- `main moved, stop`: another merge landed; run the script again.
+- `MAIN CI FAILED on merge`: stop all merges, fix forward or revert, tell the owner.
+- No CI on the head after a bot push (baselines): push an empty commit.
+- "cannot lock ref" or transient `gh` errors: the script retries three times; if it persists, look for a parallel `git` process in the same checkout.
+- Leftover worktree of a crashed agent: `git worktree remove --force <path>`, then delete the branch.
+- Limitation: all agents act under the owner's GitHub login, so `tests-change-approved` cannot be restricted technically. It is a rule by instruction; the label event is auditable in the timeline.
