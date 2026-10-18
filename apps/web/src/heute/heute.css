@@ -135,6 +135,52 @@
     margin: 8px 0 0;
     font-size: var(--fs-meta);
   }
+  /* Kennzahlen (#571): label, value, bar and one context line; the explanation sits behind ⓘ. */
+  .heute-kennzahl {
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 8px;
+  }
+  .heute-kennzahl > :not(h2, .heute-info) {
+    grid-column: 1 / -1;
+  }
+  .heute-kennzahl .heute-answer-value {
+    font-family: var(--font-ui);
+  }
+  /* The three values share one line height, whether they are a link, a button or plain. */
+  .heute-kennzahl > a,
+  .heute-kennzahl > .heute-answer-value {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .heute-info {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .heute-info:hover {
+    color: var(--ink);
+  }
+  .heute-info:focus-visible {
+    outline: 2px solid var(--line);
+    outline-offset: 2px;
+  }
+  .heute-answer .heute-kennzahl-line {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .heute-phone-only {
+    display: none;
+  }
   .heute-lead > .heute-daily-budget {
     position: relative;
     inset: auto;
@@ -163,6 +209,48 @@
       min-height: 44px;
       display: flex;
       align-items: center;
+    }
+    /* Phone: a compact list, name left, amount right, ⓘ for the rest. */
+    .heute-kennzahl {
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      padding: 0 8px 0 12px;
+    }
+    .heute-kennzahl
+      > :not(
+        h2,
+        .heute-info,
+        .heute-answer-value,
+        a,
+        .heute-kennzahl-note,
+        .heute-kennzahl-missing,
+        .rev-empty
+      ) {
+      display: none;
+    }
+    .heute-kennzahl > a {
+      grid-column: auto;
+      min-height: 44px;
+    }
+    .heute-kennzahl .heute-info {
+      width: 44px;
+      height: 44px;
+    }
+    .heute-kennzahl > .heute-answer-value,
+    .heute-kennzahl > a {
+      order: 3;
+    }
+    .heute-kennzahl > .heute-info {
+      order: 2;
+    }
+    .heute-kennzahl > .heute-kennzahl-note {
+      display: block;
+      grid-column: 1 / -1;
+      order: 4;
+      padding-bottom: 8px;
+    }
+    .heute-kennzahl .heute-phone-only {
+      display: inline;
     }
     .heute-answer-bar,
     .heute-answer p {
@@ -961,13 +1049,6 @@
   margin-inline-start: auto;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-}
-
-.heute-answer-note {
-  margin: 6px 0 0 8px;
-  font-size: var(--fs-meta);
-  line-height: 1.4;
-  color: var(--ink-2);
 }
 
 .heute-finance-check {

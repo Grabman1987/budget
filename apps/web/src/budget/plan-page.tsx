@@ -47,6 +47,7 @@ import { IncomeButton } from '../expected/income-panel';
 import { PlanInspector } from './plan-inspector';
 import { patchCategory } from './api';
 import {
+  availableInEnvelopes,
   barFor,
   spendingBar,
   CLASS_TEXT,
@@ -1027,7 +1028,7 @@ function MonthOverview({
   useAmountPrivacy();
   const s = data.summary;
   const activity = rows.reduce((a, r) => a + r.activityCents, 0);
-  const available = rows.reduce((a, r) => a + r.availableCents, 0);
+  const available = availableInEnvelopes(rows);
   const status = monthStatus(s, rows);
   return (
     <section className="insp-card card" aria-labelledby="overview-title">

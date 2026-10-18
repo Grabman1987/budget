@@ -409,7 +409,7 @@ sampleTest.describe('regression baselines of the shell (own screenshots)', () =>
     sampleTest(`light ${name}`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
       if (name === 'heute') await freezeHeuteVisual(page);
-      await page.goto(name === 'heute' ? '/?monat=2026-09' : path);
+      await page.goto(name === 'heute' ? '/?monat=2026-09&period=payday' : path);
       await expect(page.locator('main')).toBeVisible();
       if (name === 'heute') {
         await expectHeuteVisualReady(page);
@@ -423,7 +423,7 @@ sampleTest.describe('regression baselines of the shell (own screenshots)', () =>
   sampleTest('dark heute', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
     await freezeHeuteVisual(page);
-    await page.goto('/?monat=2026-09');
+    await page.goto('/?monat=2026-09&period=payday');
     await expect(page.locator('main')).toBeVisible();
     await expectHeuteVisualReady(page);
     await page.screenshot({ path: test.info().outputPath('heute-viewport-dark.png') });

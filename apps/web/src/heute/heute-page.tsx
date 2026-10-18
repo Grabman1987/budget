@@ -32,7 +32,8 @@ import { useStoredFlag } from '../shell/use-stored-flag';
 import { AttentionBar, FundingNotes } from './attention-bar';
 import { savingsProposalsQuery } from '../wealth/savings-api';
 import { sourceMoney } from '../wealth/trade-api';
-import { AnswerCards } from './answer-cards';
+import { Kennzahlen } from './kennzahlen';
+import { budgetQuery } from '../budget/budget-api';
 import { DailyBudgetLine } from './charts';
 import { VerdictLine } from '../reports/verdict-line';
 import { heuteVerdictFacts } from '../reports/verdict-facts';
@@ -89,6 +90,7 @@ function HeuteBody({ data }: { data: Heute }) {
   const check = 'unavailable' in data.financeCheck ? null : data.financeCheck;
   const phone = useIsPhone();
   const savings = useQuery(savingsProposalsQuery());
+  const budget = useQuery(budgetQuery(data.stand.month));
   const savingsRows: RevisionRow[] = (savings.data?.proposals ?? []).map((proposal, index) => ({
     id: proposal.id,
     letter: String.fromCharCode(65 + (index % 26)),
@@ -126,10 +128,11 @@ function HeuteBody({ data }: { data: Heute }) {
           </Button>
         </p>
       )}
-      <AnswerCards
+      <Kennzahlen
         data={data}
+        budget={budget}
         chainOpen={chainOpen}
-        onBudgetClick={() => setChainOpen((open) => !open)}
+        onLeadClick={() => setChainOpen((open) => !open)}
       />
       <VerdictLine facts={heuteFacts} />
       <AttentionBar

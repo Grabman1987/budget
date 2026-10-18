@@ -63,15 +63,17 @@ for (const colorScheme of ['light', 'dark'] as const) {
       });
     });
 
-    test('no circle numbers in section heads; Monatsergebnis replaces Dieser Monat', async ({
+    test('no circle numbers in section heads; the Kennzahlen replace Monatsergebnis and Dieser Monat', async ({
       page,
     }) => {
-      await page.goto('/');
+      await page.goto('/?period=payday');
       await expect(page.getByRole('heading', { name: 'Letzte Buchungen' })).toBeVisible();
       await expect(page.locator('.heute .circle-no')).toHaveCount(0);
-      await expect(
-        page.getByRole('heading', { name: 'Monatsergebnis', exact: true }),
-      ).toBeVisible();
+      for (const name of ['Zu verteilen', 'Frei bis Gehalt', 'Nettovermögen'])
+        await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Monatsergebnis', exact: true })).toHaveCount(
+        0,
+      );
       await expect(page.getByText('Dieser Monat', { exact: true })).toHaveCount(0);
     });
 

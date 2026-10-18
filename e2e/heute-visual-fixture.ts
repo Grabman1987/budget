@@ -17,7 +17,7 @@ export async function freezeHeuteVisual(page: Page) {
     ensureDefaultRules(db);
     refreshOccurrences(db, '2026-09-17');
     matchOccurrences(db, '2026-09-17');
-    body = JSON.stringify(heute(db, { today: '2026-09-17', period: 'month' }));
+    body = JSON.stringify(heute(db, { today: '2026-09-17', period: 'payday' }));
   } finally {
     close();
   }
@@ -35,7 +35,13 @@ export async function freezeHeuteVisual(page: Page) {
 }
 
 export async function expectHeuteVisualReady(page: Page) {
+  // #571: Frei bis Gehalt (the lead figure) is the middle Kennzahl in the mode Bis Gehalt.
   await expect(page.getByTestId('heute-lead-value')).toContainText('988,26');
+  await expect(page.getByTestId('heute-kennzahlen').getByRole('heading', { level: 2 })).toHaveText([
+    'Zu verteilen',
+    'Frei bis Gehalt',
+    'Nettovermögen',
+  ]);
   await expect(page.getByTestId('heute-balance-chart')).toBeVisible();
   await expect(
     page.getByRole('heading', { name: 'Nettovermögen · 12 Monate', exact: true }),
