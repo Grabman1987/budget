@@ -4,17 +4,14 @@ import { useAmountPrivacy, Button, Segmented, Select, Field, cx } from '@budget/
 import {
   addMonths,
   DEFAULT_FUTURE_PREVIEW_DAYS,
-  calendarRangeWindow,
-  isCalendarRange,
   lastDayOfMonth,
   monthOf,
-  type Period,
   type LiquidityHorizon,
   type LiquidityLeverId,
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearch, useNavigate } from '@tanstack/react-router';
-import { ChevronLeft, Plus } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ACCOUNT_PAGE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
@@ -34,7 +31,6 @@ import {
 import { ACCOUNT_TYPE_LABEL, accountValueEur, groupOf, valuationMissingText } from './labels';
 import { fetchSeries } from './api';
 import { displaySettingsQuery } from '../pages/future-preview-setting';
-import { PeriodQuickSelect } from '../reports/period-quick-select';
 import { accountsQuery, bookingsQuery } from './queries';
 import { AccountReview } from './account-review';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
@@ -42,6 +38,12 @@ import type { AccountRow } from './types';
 import { useLiquiditySelection } from '../reports/liquidity-selection';
 import { AppLink } from '../shell/app-link';
 import { DepotBody } from './depot-page';
+import { useStoredFlag } from '../shell/use-stored-flag';
+
+/** localStorage key of the account-history disclosure (absent = collapsed). */
+export const CHART_OPEN_KEY = 'budget.account.chart-open';
+
+type ChartPeriod = '3M' | '1J' | 'Alles';
 
 /** Route component of `/konten/$id`. */
 export function AccountRoute() {
@@ -126,23 +128,20 @@ function AccountBody({ account }: { account: AccountRow }) {
   const liquidity = canUseLiquidity && search.vorschau === 'liquiditaet';
   const today = useRegisterToday();
   const month = monthOf(today);
-  const [period, setPeriod] = useState<Period | '6M'>('3M');
+  const [period, setPeriod] = useState<ChartPeriod>('3M');
+  const [chartOpen, setChartOpen] = useStoredFlag(CHART_OPEN_KEY);
   const settings = useQuery(displaySettingsQuery());
-  const range = isCalendarRange(period)
-    ? calendarRangeWindow(period, today)
-    : {
-        from:
-          period === 'Alles'
-            ? account.openingDate
-            : `${addMonths(month, period === '3M' ? -3 : period === '1J' ? -12 : -6)}-${today.slice(8)}`,
-        to: today,
-      };
-  // Calendar-month ranges reuse the report picker; presets are rolling and end today.
-  if (!isCalendarRange(period) && period !== 'Alles')
-    range.from =
-      range.from > lastDayOfMonth(range.from.slice(0, 7))
-        ? lastDayOfMonth(range.from.slice(0, 7))
-        : range.from;
+  // Presets are rolling and end today.
+  const rollingFrom = `${addMonths(month, period === '3M' ? -3 : -12)}-${today.slice(8)}`;
+  const range = {
+    from:
+      period === 'Alles'
+        ? account.openingDate
+        : rollingFrom > lastDayOfMonth(rollingFrom.slice(0, 7))
+          ? lastDayOfMonth(rollingFrom.slice(0, 7))
+          : rollingFrom,
+    to: today,
+  };
   const previewDays =
     range.to === today ? (settings.data?.futurePreviewDays ?? DEFAULT_FUTURE_PREVIEW_DAYS) : 0;
   const series = useQuery({
@@ -296,119 +295,159 @@ function AccountBody({ account }: { account: AccountRow }) {
           Kontodeckung.
         </p>
       )}
-      <div className="kchart-range">
-        <Segmented
-          label="Saldoverlauf Zeitraum"
-          value={period}
-          onChange={setPeriod}
-          options={[
-            { value: '3M', label: '3M' },
-            { value: '6M', label: '6M' },
-            { value: '1J', label: '12M' },
-            { value: 'Alles', label: 'Alles' },
-          ]}
-        />
-        <PeriodQuickSelect
-          customOnly
-          period={period === '6M' ? `${addMonths(month, -6)}..${month}` : period}
-          onChange={setPeriod}
-          trend={false}
-        />
-      </div>
-      {series.isPending && <LoadingNote what="Saldoverlauf" />}
-      {series.isError && (
-        <ErrorNote what="Saldoverlauf" error={series.error} onRetry={() => void series.refetch()} />
-      )}
-      {series.data && (
-        <>
-          {series.data.previewCoverage && (
-            <>
-              <p className="kmeta" data-testid="account-preview-range">
-                {account.name} · Vorschau von {longDay(today)} bis{' '}
-                {longDay(series.data.previewCoverage.endDay)}
-              </p>
-              <p className="kmeta" data-testid="account-preview-coverage">
-                {series.data.previewCoverage.partial
-                  ? 'Teilprognose · fehlende Konto-Zuordnung:'
-                  : 'Kontoprognose · nur zugeordnete Beträge:'}{' '}
-                Variable Haushaltsausgaben ({eur(series.data.previewCoverage.variableMonthlyCents)}{' '}
-                pro Monat), {series.data.previewCoverage.unassignedEventCount}{' '}
-                {series.data.previewCoverage.unassignedEventCount === 1
-                  ? 'geplantes Ereignis'
-                  : 'geplante Ereignisse'}{' '}
-                und {series.data.previewCoverage.unassignedPaymentCount} wiederkehrende Zahlungen
-                ohne Konto sind ausgeschlossen. Keine Verteilung der Haushaltssumme und keine Zusage
-                sicherer Kontodeckung.
-              </p>
-            </>
-          )}
-          <BalanceChart
-            points={series.data.points}
-            windowLabel={period}
-            previewPoints={series.data.previewPoints ?? []}
-            limitCents={limit}
-            limitLabel={limitLabel}
-            currency={account.currency}
-          />
-          {account.currency !== 'EUR' && (
-            <details className="kfx-history">
-              <summary>EUR-Bewertung · Tageswerte und Kurse</summary>
-              <p className="kmeta">
-                Cash-Saldo am jeweiligen Tag; Wertpapiere sind hier nicht enthalten.
-              </p>
-              <table className="ktable">
-                <caption className="sr-only">Saldoverlauf mit EUR-Bewertung</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Datum</th>
-                    <th scope="col">Saldo · {account.currency} / EUR</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {series.data.points.map((p) => (
-                    <tr key={p.date}>
-                      <td>{longDay(p.date)}</td>
-                      <td>{valuedCurrency(p.balanceCents, account.currency, p.valuation)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </details>
-          )}
-          {(series.data.unavailableCurrencies?.length ?? 0) > 0 && (
-            <p role="status">
-              Vorschau nicht verfügbar: Wechselkurs fehlt (
-              {series.data.unavailableCurrencies?.join(', ')}).
-            </p>
-          )}
-          <div className="legend" aria-hidden="true">
-            <span>
-              <svg viewBox="0 0 26 8">
-                <path className="l-actual" d="M0 4h26" />
-              </svg>
-              Cash-Saldo · {account.currency}
-            </span>
-            {(series.data.previewPoints?.length ?? 0) > 1 && (
-              <span>
-                <svg viewBox="0 0 26 8">
-                  <path className="l-forecast" d="M0 4h26" />
-                </svg>
-                {liquidity
-                  ? `Liquiditätsvorschau · bis ${longDay(series.data.previewCoverage?.endDay ?? today)}`
-                  : `Vorschau · ${previewDays} Tage`}
-              </span>
+      <section className="kchart" aria-label="Saldoverlauf">
+        <div className="kchart-head">
+          <button
+            type="button"
+            className="kchart-toggle"
+            aria-expanded={chartOpen}
+            aria-controls="account-chart-body"
+            data-testid="account-chart-toggle"
+            onClick={() => setChartOpen(!chartOpen)}
+          >
+            {chartOpen ? (
+              <ChevronDown
+                className="icon icon-sm"
+                size={16}
+                strokeWidth={1.75}
+                aria-hidden="true"
+              />
+            ) : (
+              <ChevronRight
+                className="icon icon-sm"
+                size={16}
+                strokeWidth={1.75}
+                aria-hidden="true"
+              />
             )}
-            {limit !== null && (
-              <span>
-                <svg viewBox="0 0 26 8">
-                  <path className="l-plan" d="M0 4h26" />
-                </svg>
-                {limitLabel} · {valuedCurrency(-limit, account.currency)}
-              </span>
+            Saldoverlauf
+          </button>
+          {previewDays > 0 && (
+            <span className="pill" data-testid="account-chart-chip">
+              {liquidity ? 'Liquiditätsprognose' : `Prognose ${previewDays} Tage`}
+            </span>
+          )}
+          {chartOpen && (
+            <Segmented
+              label="Saldoverlauf Zeitraum"
+              value={period}
+              onChange={setPeriod}
+              options={[
+                { value: '3M', label: '3M' },
+                { value: '1J', label: '12M' },
+                { value: 'Alles', label: 'Alles' },
+              ]}
+            />
+          )}
+        </div>
+        {series.data && (
+          <>
+            {series.data.previewCoverage && (
+              <>
+                <p className="kmeta" data-testid="account-preview-range">
+                  {account.name} · Vorschau von {longDay(today)} bis{' '}
+                  {longDay(series.data.previewCoverage.endDay)}
+                </p>
+                <p className="kmeta" data-testid="account-preview-coverage">
+                  {series.data.previewCoverage.partial
+                    ? 'Teilprognose · fehlende Konto-Zuordnung:'
+                    : 'Kontoprognose · nur zugeordnete Beträge:'}{' '}
+                  Variable Haushaltsausgaben (
+                  {eur(series.data.previewCoverage.variableMonthlyCents)} pro Monat),{' '}
+                  {series.data.previewCoverage.unassignedEventCount}{' '}
+                  {series.data.previewCoverage.unassignedEventCount === 1
+                    ? 'geplantes Ereignis'
+                    : 'geplante Ereignisse'}{' '}
+                  und {series.data.previewCoverage.unassignedPaymentCount} wiederkehrende Zahlungen
+                  ohne Konto sind ausgeschlossen. Keine Verteilung der Haushaltssumme und keine
+                  Zusage sicherer Kontodeckung.
+                </p>
+              </>
+            )}
+          </>
+        )}
+        {chartOpen && (
+          <div id="account-chart-body" data-testid="account-chart-body">
+            {series.isPending && <LoadingNote what="Saldoverlauf" />}
+            {series.isError && (
+              <ErrorNote
+                what="Saldoverlauf"
+                error={series.error}
+                onRetry={() => void series.refetch()}
+              />
+            )}
+            {series.data && (
+              <>
+                <BalanceChart
+                  points={series.data.points}
+                  windowLabel={period}
+                  previewPoints={series.data.previewPoints ?? []}
+                  limitCents={limit}
+                  limitLabel={limitLabel}
+                  currency={account.currency}
+                />
+                {account.currency !== 'EUR' && (
+                  <details className="kfx-history">
+                    <summary>EUR-Bewertung · Tageswerte und Kurse</summary>
+                    <p className="kmeta">
+                      Cash-Saldo am jeweiligen Tag; Wertpapiere sind hier nicht enthalten.
+                    </p>
+                    <table className="ktable">
+                      <caption className="sr-only">Saldoverlauf mit EUR-Bewertung</caption>
+                      <thead>
+                        <tr>
+                          <th scope="col">Datum</th>
+                          <th scope="col">Saldo · {account.currency} / EUR</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {series.data.points.map((p) => (
+                          <tr key={p.date}>
+                            <td>{longDay(p.date)}</td>
+                            <td>{valuedCurrency(p.balanceCents, account.currency, p.valuation)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </details>
+                )}
+                {(series.data.unavailableCurrencies?.length ?? 0) > 0 && (
+                  <p role="status">
+                    Vorschau nicht verfügbar: Wechselkurs fehlt (
+                    {series.data.unavailableCurrencies?.join(', ')}).
+                  </p>
+                )}
+                <div className="legend" aria-hidden="true">
+                  <span>
+                    <svg viewBox="0 0 26 8">
+                      <path className="l-actual" d="M0 4h26" />
+                    </svg>
+                    Cash-Saldo · {account.currency}
+                  </span>
+                  {(series.data.previewPoints?.length ?? 0) > 1 && (
+                    <span>
+                      <svg viewBox="0 0 26 8">
+                        <path className="l-forecast" d="M0 4h26" />
+                      </svg>
+                      {liquidity
+                        ? `Liquiditätsvorschau · bis ${longDay(series.data.previewCoverage?.endDay ?? today)}`
+                        : `Vorschau · ${previewDays} Tage`}
+                    </span>
+                  )}
+                  {limit !== null && (
+                    <span>
+                      <svg viewBox="0 0 26 8">
+                        <path className="l-plan" d="M0 4h26" />
+                      </svg>
+                      {limitLabel} · {valuedCurrency(-limit, account.currency)}
+                    </span>
+                  )}
+                </div>
+              </>
             )}
           </div>
-        </>
-      )}
+        )}
+      </section>
       <AccountRegister account={account} />
       <BookingPanel state={panel} onClose={() => setPanel(null)} />
     </>

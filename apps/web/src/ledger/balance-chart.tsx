@@ -7,19 +7,13 @@ import {
   Line,
   StepLine,
   XTicks,
-  useIsPhone,
+  TodayLine,
   type Point,
   type XTick,
 } from '@budget/ui';
 import { scaleLinear } from 'd3-scale';
 import { useElementWidth } from '../charts/use-element-width';
-import {
-  nativeCurrency,
-  nativeCurrencyWhole,
-  valuedCurrency,
-  monthStartLabel,
-  longDay,
-} from './format';
+import { nativeCurrency, valuedCurrency, monthStartLabel, longDay } from './format';
 import type { SeriesPoint } from './types';
 
 const axisNumber = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 });
@@ -33,15 +27,26 @@ export function monthTicks(points: ReadonlyArray<SeriesPoint>): { index: number;
   return out;
 }
 
-/** Index of the lowest balance when it is a real dip inside the window, else -1. */
-export function lowPointIndex(points: ReadonlyArray<SeriesPoint>): number {
+/**
+ * Index of the lowest balance when it is a real dip inside the window, else -1.
+ * With a forecast (`forecastStart` before the last index) the last forecast day counts as well:
+ * a forecast that ends at its minimum has its Tiefpunkt there.
+ */
+export function lowPointIndex(
+  points: ReadonlyArray<SeriesPoint>,
+  forecastStart = points.length,
+): number {
   if (points.length < 3) return -1;
   let low = 0;
   points.forEach((p, i) => {
     if (p.balanceCents < (points[low] as SeriesPoint).balanceCents) low = i;
   });
-  return low <= 0 || low >= points.length - 1 ? -1 : low;
+  const lastAllowed = forecastStart < points.length - 1 ? points.length - 1 : points.length - 2;
+  return low <= 0 || low > lastAllowed ? -1 : low;
 }
+
+/** Height of the compact account-history drawing (owner decision 18.10.2026: at most about 140 px). */
+export const CHART_HEIGHT = 140;
 
 /**
  * Balance line of one account (Saldoverlauf): step line drawn like a plotter, forecast dashed, optional credit limit,
@@ -65,8 +70,7 @@ export function BalanceChart({
 }) {
   useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
-  const phone = useIsPhone();
-  const height = phone ? 200 : 250;
+  const height = CHART_HEIGHT;
   const combined = previewPoints.length
     ? [...points.filter((p) => p.date < previewPoints[0]!.date), ...previewPoints]
     : points;
@@ -144,7 +148,7 @@ function Drawing({
   const limit = !eurMode && limitCents !== null ? -limitCents : null;
   const lo = Math.min(...known, ...(limit === null ? [] : [limit]));
   const hi = Math.max(...known, ...(limit === null ? [] : [limit]));
-  const pad = (hi - lo) * 0.12 || 10_000;
+  const pad = (hi - lo) * 0.08 || 10_000;
   const y0 = lo - pad;
   const y1 = hi + pad;
   const left = 56;
@@ -180,11 +184,13 @@ function Drawing({
       label: `${monthStartLabel(t.day)}${points.length > 365 ? ` ${t.day.slice(0, 4)}` : ''}`,
     }));
   const grid = y
-    .ticks(3)
+    .ticks(4)
     .filter((v) => v !== 0)
     .map((v) => ({ y: y(v), label: axisNumber.format(v / 100) }));
-  const low = eurMode ? -1 : lowPointIndex(points.slice(0, forecastStart + 1));
+  const hasForecast = forecastStart < points.length - 1;
+  const low = eurMode ? -1 : lowPointIndex(points, forecastStart);
   const lowPoint = low >= 0 ? (points[low] as SeriesPoint) : undefined;
+  const lowDir = lowPoint && y(lowPoint.balanceCents) - 15 < top + 8 ? 1 : -1;
   const summary =
     `Saldoverlauf ${windowLabel} · ${currency}: von ${values[0] == null ? 'Kurs fehlt' : nativeCurrency(values[0], currency)} auf ${lastValue == null ? 'Kurs fehlt' : nativeCurrency(lastValue, currency)}` +
     (lowPoint
@@ -217,7 +223,16 @@ function Drawing({
           </text>
         </>
       )}
+      {y0 < 0 && y1 > 0 && <AxisLine x1={left} x2={width - right} y={y(0)} />}
       <AxisLine x1={left} x2={width - right} y={bottom} />
+      {hasForecast && (
+        <g data-testid="balance-chart-today">
+          <TodayLine x={x(forecastStart)} y1={top} y2={bottom} />
+          <text x={x(forecastStart) - 4} y={top + 8} textAnchor="end" className="svg-label">
+            Heute
+          </text>
+        </g>
+      )}
       <XTicks y={height - 6} ticks={ticks} />
       {ticks.map((t) => (
         <line key={t.x} x1={t.x - 4} x2={t.x - 4} y1={bottom} y2={bottom + 4} className="axis" />
@@ -234,16 +249,18 @@ function Drawing({
       ))}
       {last && <circle cx={last[0]} cy={last[1]} r={4} className="dot-actual" />}
       {lowPoint && (
-        <g className="fade-in">
+        <g className="fade-in" data-testid="balance-chart-low">
+          {/* Marker above the point; below it when the point sits so high that the label would leave the plot. */}
           <path
-            d={`M${x(low) - 6},${y(lowPoint.balanceCents) + 13} L${x(low) + 6},${y(lowPoint.balanceCents) + 13} L${x(low)},${y(lowPoint.balanceCents) + 2} Z`}
+            d={`M${x(low) - 5},${y(lowPoint.balanceCents) + lowDir * 11} L${x(low) + 5},${y(lowPoint.balanceCents) + lowDir * 11} L${x(low)},${y(lowPoint.balanceCents) + lowDir * 3} Z`}
             className="kote"
           />
           <text
-            x={x(low) + 10}
-            y={y(lowPoint.balanceCents) + 22}
+            x={Math.max(left + 70, Math.min(x(low), width - right - 70))}
+            y={y(lowPoint.balanceCents) + (lowDir === -1 ? -15 : 22)}
+            textAnchor="middle"
             className="svg-label-strong"
-          >{`Tiefpunkt ${nativeCurrencyWhole(lowPoint.balanceCents, currency)}`}</text>
+          >{`Tiefpunkt ${nativeCurrency(lowPoint.balanceCents, currency)}`}</text>
         </g>
       )}
       <rect
