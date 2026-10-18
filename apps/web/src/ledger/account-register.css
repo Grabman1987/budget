@@ -175,6 +175,19 @@
     min-height: var(--touch);
     margin: 0;
   }
+  /* Fixed cell heights keep every phone row at one touch target, whatever the content does. */
+  .ktx-account tr[data-booking]:not(.is-upcoming) :is(.kx-flag, .kx-payee, .kx-status),
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-amount:not(:has(.kfx-money)) {
+    height: var(--touch);
+  }
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-payee {
+    overflow: hidden;
+  }
+  /* A flex cell has no line-box strut below its inline button. */
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-status {
+    display: flex;
+    justify-content: flex-end;
+  }
   /*
    * Payee cell: line one is the name (the button, which covers the whole cell for a 44 px tap
    * target), line two is date, category and note outside the button so the row keeps reading them.
@@ -231,6 +244,7 @@
     flex: 1 1 var(--space-xl);
     min-width: var(--space-xl);
     margin: 0;
+    color: inherit;
     overflow: hidden;
     text-overflow: ellipsis;
   }

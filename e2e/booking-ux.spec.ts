@@ -54,6 +54,11 @@ test('booking cells, cash capture, repetition and account preview on desktop and
     await row.getByRole('button', { name: /bearbeiten/ }).click();
     await edit.getByLabel('Datum', { exact: true }).fill('02.10.2026');
     await edit.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+    // A changed field asks before the dialog closes.
+    await edit
+      .getByRole('alertdialog', { name: 'Eingaben verwerfen?' })
+      .getByRole('button', { name: 'Verwerfen', exact: true })
+      .click();
     await expect(edit).toBeHidden();
     expect((await (await request.get('/api/bookings/' + id)).json()).booking.date).toBe(
       '2026-10-01',
