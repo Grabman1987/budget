@@ -52,10 +52,12 @@ export function useCollapsibleSections(slug: string) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `icon-btn section-toggle${bare ? ' section-toggle-bare' : ''}`;
-        // A generic name, the title as description: a name containing the title would also match
-        // existing tests that look for a button by part of it (e.g. the year button "2026").
+        // The name is the generic action followed by the section title, so voice control and
+        // screen readers can tell the toggles apart (#647). Visible text is unchanged (icon only).
+        button.id = `${heading.id}-toggle`;
         button.setAttribute('aria-label', 'Abschnitt ein- oder ausklappen');
-        button.setAttribute('aria-describedby', heading.id);
+        button.setAttribute('aria-labelledby', `${button.id} ${heading.id}`);
+        button.setAttribute('aria-describedby', heading.id); // kept from #640 (duplicate announcement accepted)
         const show = (open: boolean) => {
           button.setAttribute('aria-expanded', String(open));
           if (open) section.removeAttribute('data-collapsed');
