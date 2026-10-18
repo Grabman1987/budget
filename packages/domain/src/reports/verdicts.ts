@@ -393,7 +393,8 @@ function runningMonthText(facts: VerdictFacts, hidden: boolean): string | null {
     const when = pending.from === pending.through ? `am ${through}` : `vom ${from} bis ${through}`;
     const number =
       pending.count === 1 ? 'einer erwarteten Einnahme' : `${pending.count} erwarteten Einnahmen`;
-    text += ` ${expected} aus ${number} ${when}.`;
+    // `when` ends in a short date, which already carries its closing period.
+    text += ` ${expected} aus ${number} ${when}`;
   }
   if (facts.estimated) text += ' · vorläufig';
   return text;

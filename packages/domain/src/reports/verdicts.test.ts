@@ -419,3 +419,24 @@ describe('report verdicts', () => {
     expect(result.templateId).toMatch(/^summary-/);
   });
 });
+
+describe('running-month verdict sentence', () => {
+  const running = (pendingIncome: NonNullable<VerdictFacts['monthProgress']>['pendingIncome']) =>
+    api.reportVerdict(
+      facts({
+        reportId: 'heute',
+        partial: true,
+        monthProgress: { asOf: '2025-09-10', pendingIncome },
+      }),
+    ).text;
+  it('ends a single expected income date with exactly one period', () => {
+    expect(running({ count: 1, cents: 250000, from: '2025-09-30', through: '2025-09-30' })).toBe(
+      'Zwischenstand bis 10.09.: gebuchtes Monatsergebnis 1.120 €. 2.500 € aus einer erwarteten Einnahme am 30.09.',
+    );
+  });
+  it('ends an expected income date range with exactly one period', () => {
+    expect(running({ count: 2, cents: 250000, from: '2025-09-15', through: '2025-09-30' })).toBe(
+      'Zwischenstand bis 10.09.: gebuchtes Monatsergebnis 1.120 €. 2.500 € aus 2 erwarteten Einnahmen vom 15.09. bis 30.09.',
+    );
+  });
+});
