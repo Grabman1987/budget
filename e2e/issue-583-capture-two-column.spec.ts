@@ -50,7 +50,7 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
       openingDate: '2026-01-01',
       openingBalanceCents: 100000,
     });
-    const { contact } = await post('/contacts', { name: `Kontakt Muster ${tag}` });
+    const { contact } = await post('/contacts', { name: `Kontakt Zweispalt ${tag}` });
     const dialog = await openNew(page, account.id);
     const amount = dialog.getByLabel('Betrag', { exact: true });
     await amount.fill('120');
