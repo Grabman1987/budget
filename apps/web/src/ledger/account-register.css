@@ -122,6 +122,7 @@
 }
 @media (min-width: 768px) and (pointer: fine) {
   .ktx-account td,
+  .ktx-account tr[data-booking]:not(.is-upcoming) td,
   .ktx-account .kcell-edit,
   .ktx-account .kname-btn,
   .ktx-account .kcat-btn,
