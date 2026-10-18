@@ -1,6 +1,6 @@
 import { ReportPeriodControl } from './period-quick-select';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
-import { cents } from '@budget/domain';
+import { cents, todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { eur, eurParts, eurWhole, longDay, monthName } from '../ledger/format';
@@ -66,6 +66,7 @@ export function CashflowReportPage({ report, meta }: { report: ReportEntry; meta
               options={PERIOD_OPTIONS}
               value={period}
               onChange={setPeriod}
+              ytdYear={(data?.asOf ?? todayInVienna()).slice(0, 4)}
               className="seg-period"
             />
           ),
@@ -156,8 +157,10 @@ function Body({ data }: { data: CashflowReport }) {
         <p className="vnote">
           Einnahmen sind das Haushaltseinkommen der Budget-Konten ohne Umbuchungen, Erstattungen und
           Rückzahlungen von Kontakten. Umbuchungen und Zukunft (ETF, Notgroschen, Sondertilgung)
-          zählen nicht als Ausgabe; sie sind Teil des Nettocashflows. Der laufende Monat ist nicht
-          enthalten
+          zählen nicht als Ausgabe; sie sind Teil des Nettocashflows. Der laufende Monat ist
+          {data.windowMonths.at(-1) === data.asOf.slice(0, 7)
+            ? ` bis ${longDay(data.asOf)} enthalten`
+            : ' nicht enthalten'}
           {data.months.length > t.months ? '; das Diagramm zeigt mindestens sechs Monate' : ''}.
         </p>
       </section>

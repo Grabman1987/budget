@@ -12,8 +12,14 @@ const query = z.object({ period: reportPeriodSchema.default('1J') });
  */
 export function cashflowRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
-  app.get('/', (c) =>
-    c.json(cashflowReport(db, today(), checkedReportPeriod(readQuery(c, query).period, today()))),
-  );
+  app.get('/', (c) => {
+    const asOf = today();
+    const period = checkedReportPeriod(readQuery(c, query).period, asOf);
+    // January has no completed month this year: use the existing to-date calendar range.
+    const month = asOf.slice(0, 7);
+    const window =
+      period === 'YTD' && month.endsWith('-01') ? (`${month}..${month}` as const) : period;
+    return c.json({ ...cashflowReport(db, asOf, window), period });
+  });
   return app;
 }
