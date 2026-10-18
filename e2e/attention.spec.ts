@@ -12,7 +12,16 @@ test('attention links and the unclassified row are usable at both viewport sizes
   await page.screenshot({ path: info.outputPath('attention-strip.png') });
   await page.goto('/plan/monat?monat=2026-09&ansicht=triage');
   await expect(page).toHaveURL(/ansicht=triage/);
-  await expect(page.getByLabel('Ansicht', { exact: true })).toHaveValue('triage');
+  // #588: the Ansicht select is gone and "Nur Überzogene" is no menu entry; the URL opens the
+  // triage view, shown as its own "Überzogen" group while no Optionen view is marked.
+  await expect(
+    page.locator('tr.pgroup', { hasText: 'Überzogen' }).locator('.grp-title'),
+  ).toHaveText('Überzogen');
+  await page.locator('.plan-menu summary', { hasText: 'Optionen' }).click();
+  await expect(
+    page.getByRole('group', { name: 'Ansicht', exact: true }).locator('[aria-pressed="true"]'),
+  ).toHaveCount(0);
+  await page.locator('.plan-menu summary', { hasText: 'Optionen' }).click();
   await expect(
     page.locator('.plan-topbar summary').filter({ hasText: 'ohne Kategorie' }),
   ).toBeVisible();

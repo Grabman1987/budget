@@ -121,8 +121,14 @@ test.describe('Plan › Monat with several months', () => {
     test.skip(info.project.name === 'mobile', 'the phone always shows one month');
     await page.goto('/plan/monat?monat=2026-09');
     await expect(page.locator('.ptable-multi')).toHaveCount(0);
+    // #588: the month span lives in Optionen ▾, which closes after every choice.
+    const optionen = page.locator('.plan-menu summary', { hasText: 'Optionen' });
     const span = page.getByRole('group', { name: 'Anzahl Monate' });
-    await span.getByRole('button', { name: '2 Monate' }).click();
+    const pick = async (name: string) => {
+      await optionen.click();
+      await span.getByRole('button', { name, exact: true }).click();
+    };
+    await pick('2 Monate');
     const table = page.locator('.ptable-multi');
     await expect(table.locator('thead th.pm-head')).toHaveText([/September 2026/, /Oktober 2026/]);
     // The title carries the month window; every month head carries its own Zu verteilen.
@@ -134,18 +140,21 @@ test.describe('Plan › Monat with several months', () => {
     await expect(page).toHaveURL(/monat=2026-10/);
     await expect(table.locator('thead th.pm-head')).toHaveText([/Oktober 2026/, /November 2026/]);
 
-    await span.getByRole('button', { name: '3 Monate' }).click();
+    await pick('3 Monate');
     await expect(table.locator('thead th.pm-head')).toHaveCount(3);
     await page.reload();
     await expect(page.locator('.ptable-multi thead th.pm-head')).toHaveCount(3);
+    await optionen.click();
     await expect(span.getByRole('button', { name: '3 Monate' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
+    await page.keyboard.press('Escape');
 
-    await span.getByRole('button', { name: '1 Monat' }).click();
+    await pick('1 Monat');
     await expect(page.locator('.ptable-multi')).toHaveCount(0);
-    await expect(page.getByLabel('Ansicht', { exact: true })).toBeVisible();
+    await optionen.click();
+    await expect(page.getByRole('group', { name: 'Ansicht', exact: true })).toBeVisible();
   });
 
   test('the phone keeps one month whatever was chosen', async ({ page }, info) => {
@@ -154,8 +163,10 @@ test.describe('Plan › Monat with several months', () => {
     await page.goto('/plan/monat?monat=2026-09');
     await expect(page.getByRole('heading', { name: 'September 2026', exact: true })).toBeVisible();
     await expect(page.locator('.ptable-multi')).toHaveCount(0);
+    // Open the menu first: a closed menu would hide the group and make the count trivially 0.
+    await page.locator('.plan-menu summary', { hasText: 'Optionen' }).click();
     await expect(page.getByRole('group', { name: 'Anzahl Monate' })).toHaveCount(0);
-    await expect(page.getByLabel('Ansicht', { exact: true })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Ansicht', exact: true })).toBeVisible();
   });
 });
 
