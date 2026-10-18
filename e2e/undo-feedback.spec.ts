@@ -1,6 +1,7 @@
 import { inboxItem, insertTracked, openDatabase, updateTracked } from '@budget/db';
 import { expect, test } from '@playwright/test';
 import { DB_MAIN } from '../playwright.config';
+import { openPruefenPart } from './pruefen-part';
 
 test('shared redo refusal stays visible in the original toast and preserves source state', async ({
   page,
@@ -14,6 +15,7 @@ test('shared redo refusal stays visible in the original toast and preserves sour
     close();
   }
   await page.goto('/konten/posteingang');
+  await openPruefenPart(page, 'Aufgaben');
   const row = page.getByTestId('inbox-row').filter({ hasText: title });
   await row.getByRole('button', { name: 'Als erledigt markieren' }).click();
   await expect(row).toHaveCount(0);

@@ -341,7 +341,9 @@ describe('inbox API', () => {
       });
       expect(historicalPage.body.overspentSummary).toBeUndefined();
       expect(inbox.body.count).toBe(expectedIds.length);
-      expect(badge.body.count).toBe(expectedIds.length);
+      // Header pill = Umsätze + Aufgaben (#561): overspent envelopes are not part of it; this fixture
+      // holds no other open item, so the literal expected value is 0.
+      expect(badge.body.count).toBe(0);
       expect(today.body.attention.inboxCount).toBe(expectedIds.length);
     };
     await assertConsumers(['essen', 'reise']);

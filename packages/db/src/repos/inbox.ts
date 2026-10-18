@@ -68,6 +68,9 @@ export interface InboxEnvelope {
   urgent: true;
 }
 export type InboxEntry = InboxBooking | InboxStored | InboxEnvelope | SavingsExecutionProposal;
+export interface InboxOptions {
+  excludeOverspent?: boolean;
+}
 
 /** Shared predicates keep task list and lightweight badge count in agreement. */
 const unclassifiedWhere = (today: string) =>
@@ -149,7 +152,14 @@ function uncategorizedBookings(db: Executor, today: string): InboxBooking[] {
 }
 
 /** Legacy classification/overspending summaries are replaced by live ledger work. */
-export function readInbox(db: Executor, today: string, bankSource?: string, readSource?: string) {
+export function readInbox(
+  db: Executor,
+  today: string,
+  bankSource?: string,
+  readSource?: string,
+  /** Konten › Prüfen leaves overspent categories to Heute and Plan. */
+  options: InboxOptions = {},
+) {
   return runInTransaction(db, (tx) => {
     const bookings = uncategorizedBookings(tx, today);
     const mappings = readSourceMappings(tx);
@@ -198,7 +208,7 @@ export function readInbox(db: Executor, today: string, bankSource?: string, read
     let entries: InboxEntry[] = readSource
       ? stored
       : [
-          ...envelopeTasks(tx, today),
+          ...(options.excludeOverspent ? [] : envelopeTasks(tx, today)),
           ...bookings,
           ...savingsExecutionProposals(tx, today),
           ...stored,
@@ -265,7 +275,7 @@ export function filterBankSourceInbox(db: Executor, entries: InboxEntry[], sourc
 }
 
 /** Booking/stored counts use SQL; derived tasks share the queue's read-only projections. */
-export function readInboxCount(db: Executor, today: string) {
+export function readInboxCount(db: Executor, today: string, options: InboxOptions = {}) {
   return runInTransaction(db, (tx) => {
     const bookings = tx
       .select({ count: countDistinct(booking.id) })
@@ -278,7 +288,7 @@ export function readInboxCount(db: Executor, today: string) {
     return {
       asOf: today,
       count:
-        envelopeTasks(tx, today).length +
+        (options.excludeOverspent ? 0 : envelopeTasks(tx, today).length) +
         bookings +
         stored +
         listReceipts(tx).length +

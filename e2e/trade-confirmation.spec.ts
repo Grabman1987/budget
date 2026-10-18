@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext, type TestInfo } from '@playwright/test';
+import { openPruefenPart } from './pruefen-part';
 import { MAIN_URL } from '../playwright.config';
 
 test.use({ reducedMotion: 'reduce' });
@@ -43,6 +44,7 @@ test('monthly confirmation rejects a stale proposal, then confirms and undoes wi
   test.setTimeout(90000);
   const data = await fixture(request, info);
   await page.goto('/konten/posteingang');
+  await openPruefenPart(page, 'Aufgaben');
   const row = page.getByTestId('inbox-row').filter({ hasText: data.name });
   const opener = row.getByRole('button', { name: 'Ausführung prüfen', exact: true });
   await expect(opener).toBeVisible();
