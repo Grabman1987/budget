@@ -60,7 +60,7 @@ describe('clearDeviceFinancialData (#557)', () => {
     expect(localStorage.getItem('budget-capture-memory')).toBeNull();
   });
 
-  it('clears the cached form choices but nothing else in IndexedDB', async () => {
+  it('asks the store to clear only the cached form choices (queue survival: see e2e/issue-557)', async () => {
     await clearDeviceFinancialData();
     expect(clearChoices).toHaveBeenCalledTimes(1);
   });

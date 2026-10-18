@@ -117,9 +117,14 @@ export function SecurityPanel({ onLoggedOut }: SecurityPanelProps) {
 
   const signOut = () =>
     run(async () => {
-      await logout();
-      queryClient.clear();
-      await clearDeviceFinancialData();
+      try {
+        await logout();
+      } finally {
+        // Also when the server could not be reached: the data must not stay on a device the user
+        // meant to sign out of. The error stays visible; the hand-over happens only on success.
+        queryClient.clear();
+        await clearDeviceFinancialData();
+      }
       onLoggedOut();
     });
 

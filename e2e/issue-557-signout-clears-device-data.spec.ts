@@ -7,7 +7,30 @@ import { MAIN_URL } from '../playwright.config';
 test.use({ serviceWorkers: 'allow' });
 test.setTimeout(90_000);
 
+/** Every localStorage key that may remain after sign-out: UI preferences only, no ledger data. */
+const PREFERENCE_KEYS = [
+  'budget-theme',
+  'budget-amounts-hidden',
+  'budget-sidebar-collapsed',
+  'budget-sidebar-width',
+  'budget-storage-persistence-requested',
+  'budget-liquidity-selection',
+  'budget-balance-month',
+  'budget.plan.months',
+  'budget.account.chart-open',
+];
+/** Preference families whose key carries a page, group or viewport suffix. */
+const PREFERENCE_PREFIXES = [
+  'budget-acct-tree-',
+  'budget-heute-more-',
+  'budget.register.upcoming.',
+  'budget.report-sections.',
+];
+
 type Snapshot = {
+  keys: string[];
+  stores: string[];
+  queued: number;
   memory: string | null;
   theme: string | null;
   choices: number;
@@ -16,6 +39,19 @@ type Snapshot = {
 
 async function snapshot(page: Page): Promise<Snapshot> {
   return page.evaluate(async () => {
+    const database = () =>
+      new Promise<IDBDatabase>((resolve, reject) => {
+        const open = indexedDB.open('budget-capture', 1);
+        open.onupgradeneeded = () => {
+          open.result.createObjectStore('bookings', { keyPath: 'id' });
+          open.result.createObjectStore('choices');
+        };
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => resolve(open.result);
+      });
+    const db = await database();
+    const stores = [...db.objectStoreNames].sort();
+    db.close();
     const count = (store: string) =>
       new Promise<number>((resolve, reject) => {
         const open = indexedDB.open('budget-capture', 1);
@@ -35,6 +71,9 @@ async function snapshot(page: Page): Promise<Snapshot> {
         };
       });
     return {
+      keys: Object.keys(localStorage).sort(),
+      stores,
+      queued: await count('bookings'),
       memory: localStorage.getItem('budget-capture-memory'),
       theme: localStorage.getItem('budget-theme'),
       choices: await count('choices'),
@@ -101,6 +140,17 @@ test('sign-out deletes cached choices, capture memory and data caches; shell and
   // The offline shell and non-financial preferences survive.
   expect(after.caches.some((name) => name.startsWith('budget-shell-'))).toBe(true);
   expect(after.theme).toBe('dark');
+  // Only preference keys remain in localStorage (explicit allow-list, no ledger data).
+  expect(
+    after.keys.filter(
+      (key) =>
+        !PREFERENCE_KEYS.includes(key) &&
+        !PREFERENCE_PREFIXES.some((prefix) => key.startsWith(prefix)),
+    ),
+  ).toEqual([]);
+  // The offline queue's store is intact and its content unchanged by sign-out.
+  expect(after.stores).toEqual(['bookings', 'choices']);
+  expect(after.queued).toBe(before.queued);
 
   // The next session fetches fresh data and refills the choices from the server.
   await page.goto(`/konten/${account.id}?panel=buchung`);
