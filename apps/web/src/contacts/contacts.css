@@ -47,16 +47,6 @@
 .contacts-page .spacer {
   flex: 1;
 }
-.contacts-history {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-}
-.contacts-history input {
-  width: 20px;
-  height: 20px;
-}
 .contacts-table {
   width: 100%;
   border-collapse: collapse;
@@ -132,4 +122,75 @@
 .contacts-table td:first-child .btn {
   white-space: normal;
   text-align: left;
+}
+
+/* Balance in words: teal = the contact owes you, orange = you owe the contact. */
+.contacts-balance.is-plus,
+.contact-balance-link.is-plus {
+  color: var(--plus-ink);
+}
+.contacts-balance.is-minus,
+.contact-balance-link.is-minus {
+  color: var(--minus-ink);
+}
+.contacts-balance.is-zero,
+.contact-balance-link.is-zero {
+  color: var(--ink-2);
+}
+.contacts-balance .contacts-balance-amount {
+  font-size: inherit;
+  font-weight: inherit;
+}
+.contacts-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.contacts-note {
+  color: var(--ink-2);
+  font-size: var(--fs-table);
+}
+.contact-info {
+  min-width: var(--touch);
+  min-height: var(--touch);
+}
+.contact-menu {
+  position: relative;
+  display: inline-block;
+}
+.contact-menu-btn {
+  min-width: var(--touch);
+  min-height: var(--touch);
+}
+.contact-menu-list {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 220px;
+  display: grid;
+  padding: 4px;
+  background: var(--raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+}
+.contact-menu-item {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  text-align: left;
+  font-size: var(--fs-table);
+  color: var(--ink);
+}
+.contact-menu-item:hover,
+.contact-menu-item:focus-visible {
+  background: var(--tint-2);
+}
+.contacts-actions-cell {
+  width: var(--touch);
+  text-align: right;
 }
