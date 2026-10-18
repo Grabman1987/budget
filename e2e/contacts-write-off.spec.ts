@@ -55,7 +55,8 @@ test('contacts: cashless credit adoption from list and partial debt forgiveness 
   const row = page
     .getByRole('row')
     .filter({ has: page.getByRole('link', { name: credit.name, exact: true }) });
-  await row.getByRole('button', { name: 'Ausgleichen', exact: true }).click();
+  await row.getByRole('button', { name: `Weitere Aktionen: ${credit.name}`, exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Ausgleichen ohne Geldbewegung', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Kontakt ausgleichen', exact: true });
   await expect(dialog.getByLabel('Betrag', { exact: true })).toHaveValue('427,65');
   await expect(dialog.getByLabel('Einnahmenart')).toHaveValue('income-other');
@@ -96,7 +97,10 @@ test('contacts: cashless credit adoption from list and partial debt forgiveness 
   expect((await read(`/contacts/${credit.id}`)).balanceCents).toBe(-42765);
   await page.getByRole('link', { name: debt.name, exact: true }).click();
   const detail = page.getByRole('region', { name: 'Kontaktkontoauszug' });
-  await detail.getByRole('button', { name: 'Ausgleichen', exact: true }).click();
+  await detail.getByRole('button', { name: `Weitere Aktionen: ${debt.name}`, exact: true }).click();
+  await detail
+    .getByRole('menuitem', { name: 'Ausgleichen ohne Geldbewegung', exact: true })
+    .click();
   await expect(dialog.getByRole('button', { name: 'Ausgleich speichern' })).toBeDisabled();
   await dialog.getByLabel('Betrag', { exact: true }).fill('23');
   await dialog.getByLabel('Kategorie', { exact: true }).selectOption(gifts.id);

@@ -115,7 +115,7 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
   await panel.getByLabel('Rückzahlung', { exact: true }).fill('80');
   await expect(panel).toContainText('Guthaben aus dieser Rückzahlung: 20,00 €');
   await panel.getByRole('button', { name: 'Rückzahlung speichern' }).click();
-  await expect(panel.locator('.contacts-balance')).toContainText('−20,00 €');
+  await expect(panel.locator('.contacts-balance')).toHaveText('Du schuldest 20,00 €');
   await expect(panel).toContainText('Guthaben: 20,00 €');
   // The undo toast closes after 6 s of real time; the axe runs and screenshots below can take
   // longer on a slow runner. The toast keeps open while the pointer is over it (documented
@@ -151,7 +151,11 @@ test('contact statement: edited allocation, excess credit, undo and retained bal
   await expect(panel).toBeHidden();
   await expect(page).not.toHaveURL(/kontakt=/);
   await expect(page.getByRole('link', { name: tag, exact: true })).toHaveCount(0);
-  await page.getByLabel('Auch ausgeglichene Kontakte').check();
+  const showAll = page
+    .getByRole('group', { name: 'Kontakte anzeigen' })
+    .getByRole('button', { name: 'Alle' });
+  await showAll.click();
+  await expect(showAll).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('link', { name: tag, exact: true }).click();
   await expect(panel.locator('.contacts-balance')).toContainText('0,00 €');
   await expect(panel).toContainText('Verlauf');

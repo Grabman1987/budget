@@ -77,7 +77,7 @@ test('fixed EUR report preserves credit, running history, source links and recei
   });
   await page.goto(`/reports/kontakte?kontakt=${data.contact.id}`);
   const sheet = page.getByRole('region', { name: `Kontoblatt ${data.contact.name}`, exact: true });
-  await expect(sheet).toContainText('−20,00 €');
+  await expect(sheet).toContainText('Du schuldest 20,00 €');
   await expect(sheet).toContainText('Guthaben des Kontakts: 20,00 €');
   await expect(sheet).toContainText('vorgemerkt · EUR');
   await expect(sheet.getByRole('table').getByRole('row')).toHaveCount(3);
