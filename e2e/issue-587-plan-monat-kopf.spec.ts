@@ -173,6 +173,7 @@ test('"Zu verteilen" is the largest figure of the Plan head, in the DS2 display 
       .filter((el) => !el.closest('h1'))
       .map(px);
     return {
+      compared: others.length,
       hero: px(hero),
       display: parseFloat(
         getComputedStyle(document.documentElement).getPropertyValue('--fs-display'),
@@ -180,6 +181,8 @@ test('"Zu verteilen" is the largest figure of the Plan head, in the DS2 display 
       largestOther: Math.max(...others),
     };
   });
+  // The comparison must not be empty (Math.max() of nothing is −Infinity).
+  expect(sizes.compared).toBeGreaterThan(0);
   expect(sizes.hero).toBe(sizes.display);
   expect(sizes.hero).toBeGreaterThan(sizes.largestOther);
 });

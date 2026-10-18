@@ -109,6 +109,7 @@ test('phone status or Heute action opens real triage cover and undo on an isolat
   await expect(status).toHaveCount(0);
   // The triage view lists only overspent rows: the covered target leaves the marked rows.
   await expect(page.locator('tr.prow.is-over', { hasText: 'Testziel' })).toHaveCount(0);
+  await expect(targetRow).toHaveCount(0);
   await expect(page.locator('tr.prow.is-over')).toHaveCount(0);
   expect(await balances()).toEqual({ source: 3000, target: 0 });
 
