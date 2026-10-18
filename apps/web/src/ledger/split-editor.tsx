@@ -281,7 +281,7 @@ export function SplitEditor({
                     onClick={() => choose(line, c.id)}
                   >
                     {c.cls && <ClassSwatch kind={c.cls} />}
-                    {c.name}
+                    <span className="bk-chip-name">{c.name}</span>
                   </button>
                 ))}
               </div>
