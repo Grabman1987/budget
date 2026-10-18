@@ -1355,7 +1355,7 @@ function EnvelopeRow({
           aria-pressed={selected}
           onClick={onInspect}
         >
-          <CategoryIcon icon={r.icon} />
+          <CategoryIcon icon={r.icon} name={r.name} />
           <span className="category-name">{r.name}</span>
         </button>
         <span

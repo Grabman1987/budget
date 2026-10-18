@@ -79,7 +79,7 @@ export function CategoryDetailPage() {
         {category && (
           <section className="card insp-card" aria-labelledby="category-detail-title">
             <h2 id="category-detail-title" ref={heading} tabIndex={-1}>
-              <CategoryIcon icon={category.icon} /> {category.name}
+              <CategoryIcon icon={category.icon} name={category.name} /> {category.name}
             </h2>
             <dl className="kv-list">
               <div className="kv">

@@ -359,7 +359,7 @@ function GroupRows(props: {
                 state={{ planPanelDetailOpenedInApp: true }}
               >
                 <span className="kname-s">
-                  <CategoryIcon icon={c.icon} /> {c.name}
+                  <CategoryIcon icon={c.icon} name={c.name} /> {c.name}
                 </span>
               </AppLink>
               <span className="kmeta">

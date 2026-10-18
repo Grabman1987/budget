@@ -147,7 +147,7 @@ export function MultiTable({
                           onClick={() => onOpen(r.id, months[0]!)}
                         >
                           {r.cls ? <ClassSwatch kind={r.cls} /> : <ClassSwatch kind="bound" />}
-                          <CategoryIcon icon={r.icon} />
+                          <CategoryIcon icon={r.icon} name={r.name} />
                           {r.name}
                         </button>
                       </td>

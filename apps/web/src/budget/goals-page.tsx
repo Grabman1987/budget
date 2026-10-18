@@ -267,7 +267,7 @@ function GoalRow({
         {category ? (
           <span className="goal-cat">
             <ClassSwatch kind={cls ?? 'bound'} />
-            <CategoryIcon icon={category.icon} />
+            <CategoryIcon icon={category.icon} name={category.name} />
             {category.name}
             {cls && <span className="env-class">{CLASS_TEXT[cls]}</span>}
           </span>
