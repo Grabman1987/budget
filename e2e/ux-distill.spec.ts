@@ -151,11 +151,11 @@ isolatedTest(
         amountCents,
       });
     await page.goto(`/plan/monat?monat=${month}`);
-    // The cover controls live in the "überzogen" chip's popover of the top bar; a click outside
-    // (the toast's undo) closes it again.
+    // #587: the cover controls live in the Zu verteilen disclosure of the top bar; a click
+    // outside (the toast's undo) closes it again.
     const openCover = async () => {
-      const chip = page.locator('.plan-topbar summary').filter({ hasText: /^\d+ überzogen$/ });
-      if (!(await page.locator('#cover-all-source').isVisible())) await chip.click();
+      const disclosure = page.locator('.plan-tba');
+      if (!(await page.locator('#cover-all-source').isVisible())) await disclosure.click();
     };
     await openCover();
     await page.getByLabel('Quelle für alle Überziehungen').selectOption(source.id);

@@ -2,6 +2,7 @@
 import { expect, test } from '@playwright/test';
 import { PDF, PNG } from '../apps/server/src/receipts/testing';
 import { MAIN_URL } from '../playwright.config';
+import { openPruefenPart } from './pruefen-part';
 
 test('capture receipt first, link, attach PDF, remove and undo', async ({
   page,
@@ -31,6 +32,7 @@ test('capture receipt first, link, attach PDF, remove and undo', async ({
   const filename = `${tag}.png`,
     pdfname = `${tag}.pdf`;
   await page.goto('/konten/posteingang');
+  await openPruefenPart(page, 'Aufgaben');
   const unlinked = page.getByRole('region', { name: 'Beleg ohne Buchung' });
   await unlinked
     .getByLabel('Belegdatei auswählen')
@@ -44,6 +46,8 @@ test('capture receipt first, link, attach PDF, remove and undo', async ({
   ).toHaveCount(1);
   await captured.getByLabel('Buchung auswählen').selectOption(booking.id);
   await expect(captured).toHaveCount(0);
+  // The unbooked row is a bank movement (Umsätze), the receipt capture a task (Aufgaben).
+  await openPruefenPart(page, 'Umsätze');
   await page
     .getByTestId('inbox-row')
     .filter({ hasText: tag })

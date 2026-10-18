@@ -37,3 +37,17 @@ export function inboxCause(item: {
     reason ? null : item.detail,
   ]);
 }
+
+export type InboxSegment = 'umsaetze' | 'aufgaben';
+
+/**
+ * Konten › Prüfen splits its open work in two parts: bank movements to book (uncategorised
+ * bookings, bank-sync candidates) and every other task. Overspent categories are not part of
+ * Prüfen; they live in Heute and Plan.
+ */
+export function inboxSegment(item: { type: string; refType?: string | null }): InboxSegment {
+  return item.type === 'booking' ||
+    (item.type === 'stored' && item.refType === 'bank-sync-candidate')
+    ? 'umsaetze'
+    : 'aufgaben';
+}

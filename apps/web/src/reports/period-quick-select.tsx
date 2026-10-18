@@ -16,20 +16,25 @@ import { useEffect, useId, useRef, useState } from 'react';
 import './period-quick-select.css';
 
 /** The calendar months a period stands for; `undefined` for Alles. YTD is the calendar year of the last full month. */
-function windowOf(period: Period, today: string): [string, string] | undefined {
+function windowOf(period: Period, today: string, ytdYear?: string): [string, string] | undefined {
   if (isCalendarRange(period)) return period.split('..') as [string, string];
   const last = addMonths(today.slice(0, 7), -1);
   const lengths: Record<string, number> = { '1M': 1, '3M': 3, '1J': 12, '3J': 36 };
   const length = lengths[period];
   if (length) return [addMonths(last, 1 - length), last];
   // YTD runs to the last full month, so in January it shows the year before.
-  const year = last.slice(0, 4);
+  const year = ytdYear ?? last.slice(0, 4);
   return period === 'YTD' ? [`${year}-01`, `${year}-12`] : undefined;
 }
 
 /** One step back (-1) or forward (+1) by the length of the window; none into the future. */
-export function shiftPeriod(period: Period, step: -1 | 1, today: string): Period | undefined {
-  const window = windowOf(period, today);
+export function shiftPeriod(
+  period: Period,
+  step: -1 | 1,
+  today: string,
+  ytdYear?: string,
+): Period | undefined {
+  const window = windowOf(period, today, ytdYear);
   if (!window) return undefined;
   const months = monthsBetween(window[0], window[1]).length * step;
   const [from, to] = [addMonths(window[0], months), addMonths(window[1], months)];
@@ -43,6 +48,7 @@ export function shiftPeriod(period: Period, step: -1 | 1, today: string): Period
  */
 export function ReportPeriodControl({
   trend = true,
+  ytdYear,
   ...props
 }: {
   label: string;
@@ -51,13 +57,15 @@ export function ReportPeriodControl({
   onChange: (period: Period) => void;
   className?: string;
   trend?: boolean;
+  /** Override the last-full-month year for reports whose January YTD includes January. */
+  ytdYear?: string;
 }) {
   const today = todayInVienna();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
-  const previous = shiftPeriod(props.value, -1, today);
-  const next = shiftPeriod(props.value, 1, today);
+  const previous = shiftPeriod(props.value, -1, today, ytdYear);
+  const next = shiftPeriod(props.value, 1, today, ytdYear);
   const close = () => {
     setOpen(false);
     toggle.current?.focus();
