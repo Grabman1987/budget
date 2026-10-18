@@ -1274,37 +1274,22 @@ dialog.sheet-bottom.is-full .sheet-grip {
   }
 }
 
-/* Inside a modal dialog the toast is part of the card, not an overlay (#672): the dialog becomes a
-   flex column, the host sits below the content, the content shrinks while a toast is open, and a
-   closed toast takes no height (the live region stays mounted, only its row collapses). So the
-   toast can never cover a button of the dialog, whatever the dialog size. */
-dialog.overlay[open] {
-  display: flex;
-  flex-direction: column;
-}
-dialog.overlay[open] > .overlay-inner {
-  flex: 1 1 auto;
-  min-height: 0;
-}
-.toast-host {
-  flex: none;
-}
-.toast-host .toast {
-  position: static;
+/* A toast over a form dialog must not cover its footer buttons: it docks in the bottom right
+   corner of the screen (desktop, beside the card) or at the top (phone, above the sheet). */
+dialog.is-bare .toast {
+  left: auto;
+  right: 24px;
+  bottom: 24px;
   translate: none;
-  max-width: none;
-  display: grid;
-  grid-template-rows: 0fr;
-  overflow: hidden;
-  transition: grid-template-rows 240ms var(--ease-out);
 }
-.toast-host .toast.is-open {
-  grid-template-rows: 1fr;
-}
-.toast-host .toast-body {
-  min-height: 0;
-  margin: 8px 12px 12px;
-  box-shadow: none;
+@media (max-width: 767px) {
+  dialog.is-bare .toast {
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    top: calc(12px + env(safe-area-inset-top));
+    translate: -50% 0;
+  }
 }
 
 @media (max-width: 767px) {

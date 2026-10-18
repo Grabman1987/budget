@@ -1,26 +1,13 @@
-import { expect, test, type Locator } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { again, balance, createAccount, openAccount, pickCategory, toast } from './ledger-helpers';
-
-type Box = { x: number; y: number; width: number; height: number };
-const intersects = (a: Box, b: Box) =>
-  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-const inside = (inner: Box, outer: Box) =>
-  inner.x >= outer.x - 0.5 &&
-  inner.y >= outer.y - 0.5 &&
-  inner.x + inner.width <= outer.x + outer.width + 0.5 &&
-  inner.y + inner.height <= outer.y + outer.height + 0.5;
-async function box(locator: Locator): Promise<Box> {
-  const b = await locator.boundingBox();
-  if (!b) throw new Error('element has no box');
-  return b;
-}
 
 /**
  * Issue #672: a toast must never cover the primary action of the dialog it is shown over. The
  * "Kontostand geprüft" toast is the widest one; it was still on screen when the booking dialog
  * opened and sat on its Speichern button. The click below is a plain `click()`: no waiting for
- * the toast to disappear and no forced click. Inside a dialog the toast is part of the card flow,
- * so its box also never intersects the boxes of the dialog's buttons and lies inside the card.
+ * the toast to disappear and no forced click. A toast stays in the layer it was raised in: the
+ * one raised on the page stays on the page (behind the dialog backdrop) and is not moved into the
+ * dialog that opens afterwards, so it can never cover the dialog's buttons.
  */
 test('a visible toast does not cover the Speichern button of an open dialog', async ({
   page,
@@ -48,7 +35,7 @@ test('a visible toast does not cover the Speichern button of an open dialog', as
   await check.getByRole('button', { name: /Festschreiben/ }).click();
   await expect(toast(page)).toContainText('Kontostand geprüft');
 
-  // The toast is still open (6 s) when the edit dialog opens and takes it over.
+  // The toast is still open (6 s) when the edit dialog opens; it must stay on the page.
   await page
     .getByRole('row', { name: new RegExp(payee) })
     .getByRole('button', { name: /Betrag ändern/ })
@@ -58,18 +45,9 @@ test('a visible toast does not cover the Speichern button of an open dialog', as
   await expect(toast(page)).toContainText('Kontostand geprüft');
   await edit.getByLabel('Betrag', { exact: true }).fill('21');
 
-  // Geometry: the open toast lies inside the dialog and overlaps none of its buttons.
-  const toastBox = await box(toast(page).locator('.toast-body'));
-  expect(inside(toastBox, await box(edit))).toBe(true);
-  const buttons = edit.locator('.bk-foot').getByRole('button');
-  const count = await buttons.count();
-  expect(count).toBeGreaterThan(0);
-  for (let i = 0; i < count; i += 1) {
-    expect(intersects(toastBox, await box(buttons.nth(i)))).toBe(false);
-  }
-  expect(
-    intersects(toastBox, await box(edit.getByRole('button', { name: 'Speichern', exact: true }))),
-  ).toBe(false);
+  // The open toast is not part of the dialog; the page toast is still there.
+  await expect(edit.locator('.toast.is-open')).toHaveCount(0);
+  await expect(toast(page)).toHaveCount(1);
 
   await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
   // The booking is checked, so Speichern answers with the release prompt: proof the click landed.

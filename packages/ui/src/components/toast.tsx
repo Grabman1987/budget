@@ -12,7 +12,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { cx } from './cx';
-import { useToastHost } from './toast-host';
+import { getToastHosts, resolveToastHost, useToastHosts } from './toast-host';
 import { maskMoneyText, useAmountPrivacy } from '../amount-privacy';
 
 export interface ToastOptions {
@@ -46,19 +46,24 @@ const DEFAULT_DURATION = 6000;
  *   it before the first message; only the visible body is inert and hidden when closed.
  * - The timer stops while the pointer is over the toast or focus is inside it and starts again
  *   with the full duration afterwards.
- * - While a modal panel or sheet is open the toast is rendered inside that dialog (see
- *   `toast-host.ts`), because everything outside a modal dialog is inert.
+ * - A toast stays in the layer it was raised in: raised inside a modal panel or sheet it is
+ *   rendered in that dialog (everything outside a modal dialog is inert); raised on the page it
+ *   stays on the page, even when a dialog opens over it. When its dialog closes it falls back to
+ *   the layer below (see `toast-host.ts`). While no toast is open the region sits in the
+ *   innermost layer, ready for the next message.
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
   useAmountPrivacy();
-  const [current, setCurrent] = useState<(ToastOptions & { seq: number }) | null>(null);
+  const [current, setCurrent] = useState<
+    (ToastOptions & { seq: number; layers: readonly HTMLElement[] }) | null
+  >(null);
   const [open, setOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const duration = useRef(DEFAULT_DURATION);
   const hovered = useRef(false);
   const focused = useRef(false);
   const seq = useRef(0);
-  const host = useToastHost();
+  const registered = useToastHosts();
 
   const dismiss = useCallback(() => {
     clearTimeout(timer.current);
@@ -76,7 +81,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (options: ToastOptions) => {
       duration.current = options.duration ?? DEFAULT_DURATION;
       seq.current += 1;
-      setCurrent({ ...options, seq: seq.current });
+      setCurrent({ ...options, seq: seq.current, layers: getToastHosts() });
       setOpen(true);
       if (hovered.current || focused.current) clearTimeout(timer.current);
       else start();
@@ -140,6 +145,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       </div>
     </div>
   );
+
+  const host =
+    open && current
+      ? resolveToastHost(current.layers, registered)
+      : (registered[registered.length - 1] ?? null);
 
   return (
     <ToastContext.Provider value={api}>
