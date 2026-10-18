@@ -102,6 +102,8 @@ test('inspector discloses month figures and reuses category writes, quick values
     path: `/api/budget/${month}/move`,
     body: { fromId: ids[0], toId: ids[1], amountCents: 1 },
   });
+  // The toast of the move must have replaced the one of "Ziel" before Rückgängig is clicked.
+  await expect(toast).toContainText('verschoben');
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(assigned).toHaveText(phone ? 'Zugewiesen 100,01 €' : '100,01 €');
   await toast.getByRole('button', { name: 'Wiederholen' }).focus();
@@ -159,7 +161,10 @@ test('inspector discloses month figures and reuses category writes, quick values
     path: `/api/budget/${month}/quick-assign`,
     body: { mode: 'target', categoryIds: ids },
   });
-  await page.getByLabel('Ansicht', { exact: true }).click();
+  // Any toolbar control outside the selection is an outside click: Optionen ▾ (opened, then closed).
+  const optionen = page.locator('.plan-menu summary', { hasText: 'Optionen' });
+  await optionen.click();
+  await optionen.click();
   await expect(inspector.locator('.inspector-section[open]')).toHaveCount(1);
   if (info.project.name === 'desktop') {
     const main = await page.locator('.plan-main').boundingBox();

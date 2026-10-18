@@ -12,6 +12,27 @@ const QUICK = [
 ] as const;
 const categories = (n: number) => `${n} ${n === 1 ? 'Kategorie' : 'Kategorien'}`;
 
+/**
+ * The one quick-assign call (server action, one undo group): every entry point (inspector, envelope
+ * panel, "Verteilen ▾" in the plan toolbar) goes through here, so the bookings are identical.
+ */
+export function useQuickAssign(month: string) {
+  const write = useBudgetWrite();
+  const [busy, setBusy] = useState(false);
+  const apply = async (mode: QuickAssignMode, ids: string[]) => {
+    setBusy(true);
+    await write(
+      () => quickAssign(month, mode, ids),
+      (res) =>
+        `${categories(res.changedCount)} ${mode === 'empty' ? 'befüllt' : 'zugewiesen'}${
+          res.openCount ? ` · ${eur(res.missingCents)} fehlen für ${categories(res.openCount)}` : ''
+        }`,
+    );
+    setBusy(false);
+  };
+  return { busy, apply };
+}
+
 /** One server action and one undo for every selection, in the current table order. */
 export function QuickAssignActions({
   month,
@@ -25,19 +46,10 @@ export function QuickAssignActions({
   inline?: boolean;
 }) {
   useAmountPrivacy();
-  const write = useBudgetWrite();
-  const [busy, setBusy] = useState(false);
-  const apply = async (mode: QuickAssignMode) => {
-    setBusy(true);
-    await write(
-      () => quickAssign(month, mode, mode === 'empty' ? emptyIds : selectedIds),
-      (res) =>
-        `${categories(res.changedCount)} ${mode === 'empty' ? 'befüllt' : 'zugewiesen'}${
-          res.openCount ? ` · ${eur(res.missingCents)} fehlen für ${categories(res.openCount)}` : ''
-        }`,
-    );
-    setBusy(false);
-  };
+  const quick = useQuickAssign(month);
+  const busy = quick.busy;
+  const apply = (mode: QuickAssignMode) =>
+    quick.apply(mode, mode === 'empty' ? emptyIds : selectedIds);
   const actions = (
     <div className={inline ? 'quick-assign-inline' : 'plan-popover-content'}>
       {!inline && (

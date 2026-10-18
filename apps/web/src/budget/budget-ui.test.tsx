@@ -357,7 +357,8 @@ it('selects a category into the inspector, keeps amount editing separate and cle
   expect(within(inspector).queryByLabelText('Zugewiesen')).toBeNull();
   await userEvent.keyboard('{Escape}');
   await userEvent.click(category);
-  await userEvent.click(screen.getByLabelText('Ansicht'));
+  // #588: Optionen ▾ replaces the Ansicht select; any toolbar control outside the selection is an outside click.
+  await userEvent.click(screen.getByText(/^Optionen/, { selector: 'summary' }));
   expect(within(inspector).getByText('Monatsüberblick', { selector: 'summary' })).toBeTruthy();
   await userEvent.click(category);
   await userEvent.click(screen.getByRole('button', { name: 'Unterfinanziert 0,00 €' }));
