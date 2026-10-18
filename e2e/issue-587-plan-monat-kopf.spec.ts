@@ -102,11 +102,54 @@ test('rows carry no position numbers and the first category row is in the first 
   expect(await bottom()).toBeLessThan(viewportHeight);
 });
 
+test('no Überzogen chip in the head: rows keep their marking, cover actions sit in the Zu verteilen disclosure', async ({
+  page,
+}) => {
+  await page.goto('/plan/monat?monat=2026-09');
+  const head = page.locator('.plan-topbar');
+  await expect(page.getByTestId('to-be-assigned')).toBeVisible();
+  // Single alarm place: no red count anywhere in the head, whatever the markup.
+  // (The count only appears inside the opened disclosure, not in the hero or the chip row.)
+  await expect(head.locator('.plan-hero, .plan-chip-scroll').getByText(/überzogen/)).toHaveCount(0);
+  await expect(head.locator('.plan-chip.is-over')).toHaveCount(0);
+  // Overspent categories stay visible and marked in the list.
+  const overspent = await page.locator('tr.prow.is-over').count();
+  expect(overspent).toBeGreaterThan(0);
+  // The cover actions are one click away in the disclosure (read-only: nothing is booked here).
+  await page.getByTestId('to-be-assigned').click();
+  const triage = page.locator('.triage');
+  await expect(triage).toContainText(`${overspent} Envelopes überzogen`);
+  await expect(page.getByLabel('Quelle für alle Überziehungen')).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Maßkette Zu verteilen' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(triage).toBeHidden();
+});
+
+test('"Zu verteilen" is the largest figure of the head and uses the display token', async ({
+  page,
+  isMobile,
+}) => {
+  await page.goto('/plan/monat?monat=2026-09');
+  const hero = page.getByTestId('to-be-assigned');
+  await expect(hero).toBeVisible();
+  // T2 display: 28 px on the desktop, 24 px on the phone.
+  await expect(hero).toHaveCSS('font-size', isMobile ? '24px' : '28px');
+  const largestOther = await page.evaluate(() => {
+    const sizes: number[] = [];
+    for (const el of document.querySelectorAll('.plan-topbar *, .titleblock *')) {
+      if (el.matches('[data-testid="to-be-assigned"]') || el.children.length > 0) continue;
+      if (!/\d.*€/.test(el.textContent ?? '')) continue;
+      sizes.push(parseFloat(getComputedStyle(el).fontSize));
+    }
+    return Math.max(0, ...sizes);
+  });
+  const heroSize = await hero.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  expect(largestOther).toBeGreaterThan(0);
+  expect(heroSize).toBeGreaterThan(largestOther);
+});
+
 for (const scheme of ['light', 'dark'] as const) {
-  test(`head is accessible and fits the viewport in ${scheme}`, async ({
-    page,
-    isMobile,
-  }, info) => {
+  test(`head is accessible and fits the viewport in ${scheme}`, async ({ page, isMobile }) => {
     await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
     await withToBeAssigned(page, 0);
     await page.goto('/plan/monat?monat=2026-09');
@@ -125,8 +168,8 @@ for (const scheme of ['light', 'dark'] as const) {
         for (const h of heights) expect(h, selector).toBeGreaterThanOrEqual(44);
       }
     }
-    if (info.project.name === 'desktop') {
-      await page.screenshot({ path: `${EVIDENCE}/plan-head-${scheme}.png` });
-    }
+    await page.screenshot({
+      path: `${EVIDENCE}/plan-head-${scheme}${isMobile ? '-phone' : ''}.png`,
+    });
   });
 }

@@ -94,7 +94,10 @@ test('phone status or Heute action opens real triage cover and undo on an isolat
   expect(url.pathname).toBe('/plan/monat');
   expect(url.searchParams.get('monat')).toBe(month);
   expect(url.searchParams.get('ansicht')).toBe('triage');
-  await page.locator('.plan-topbar summary').filter({ hasText: '1 überzogen' }).click();
+  await expect(page.locator('.plan-topbar summary').filter({ hasText: 'überzogen' })).toHaveCount(
+    0,
+  );
+  await page.locator('.plan-topbar .plan-tba').click();
   await expect(page.locator('.triage')).toContainText('1 Envelopes überzogen');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const sourceSelect = page.getByLabel('Quelle für alle Überziehungen');
@@ -102,9 +105,8 @@ test('phone status or Heute action opens real triage cover and undo on an isolat
   await page.getByRole('button', { name: 'Alle aus Testquelle decken' }).click();
   await expect(page.locator('.toast.is-open')).toContainText('1 gedeckt, 0 offen');
   await expect(status).toHaveCount(0);
-  await expect(page.locator('.plan-topbar summary').filter({ hasText: '1 überzogen' })).toHaveCount(
-    0,
-  );
+  await expect(page.locator('.triage')).toHaveCount(0);
+  await expect(page.locator('tr.prow.is-over')).toHaveCount(0);
   expect(await balances()).toEqual({ source: 3000, target: 0 });
 
   for (const theme of ['light', 'dark'] as const) {
@@ -122,7 +124,8 @@ test('phone status or Heute action opens real triage cover and undo on an isolat
   await expect(page.locator('.toast.is-open')).toContainText('Rückgängig gemacht');
   expect(await balances()).toEqual({ source: 8000, target: -5000 });
   if (phone) await expect(status).toBeVisible();
-  await expect(
-    page.locator('.plan-topbar summary').filter({ hasText: '1 überzogen' }),
-  ).toBeVisible();
+  await expect(page.locator('tr.prow.is-over')).toHaveCount(1);
+  const hero = page.locator('.plan-topbar .plan-tba');
+  if (!(await hero.evaluate((e) => e.parentElement!.hasAttribute('open')))) await hero.click();
+  await expect(page.locator('.triage')).toContainText('1 Envelopes überzogen');
 });

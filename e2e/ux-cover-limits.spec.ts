@@ -79,10 +79,7 @@ test('cover limits protect commitments, explain missing money and show credit se
   await expect(money.locator('summary')).toContainText('davon Dispo/Kreditrahmen genutzt −30,00 €');
   await money.locator('summary').click();
   await expect(money).toContainText('Rahmen 60,00 €');
-  await page
-    .locator('.plan-topbar summary')
-    .filter({ hasText: /^\d+ überzogen$/ })
-    .click();
+  await page.locator('.plan-topbar .plan-tba').click();
   const select = page.getByLabel('Quelle für alle Überziehungen');
   await expect(select.locator('option', { hasText: 'Testgesundheit' })).toContainText(
     'fest verplant 20,00 € · frei 40,00 €',

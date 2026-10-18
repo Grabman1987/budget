@@ -1519,6 +1519,64 @@
   outline: 2px solid var(--line);
   outline-offset: 2px;
 }
+.plan .plan-hero {
+  flex: 0 0 100%;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+/* Desktop: one row. Unterfinanziert and ohne Kategorie left, the lead figure centred between the
+   groups (auto margins), the actions right. DOM order stays hero first for the tab sequence. */
+@media (min-width: 768px) {
+  .plan .plan-topbar {
+    flex-wrap: wrap;
+  }
+  .plan .plan-topbar > .plan-chip-scroll {
+    display: contents;
+  }
+  .plan .plan-topbar > .plan-hero {
+    flex: 0 1 auto;
+    order: 3;
+    margin-inline: auto;
+  }
+  .plan .plan-chip-scroll > :nth-child(1) {
+    order: 1;
+  }
+  .plan .plan-chip-scroll > :nth-child(2) {
+    order: 2;
+  }
+  .plan .plan-chip-scroll > :nth-child(n + 3) {
+    order: 4;
+  }
+  .plan .plan-chip-scroll > .plan-more {
+    order: 5;
+  }
+}
+/* The lead figure of the Plan head: small label over the amount at the display token. */
+.plan .plan-hero .plan-tba {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 16px;
+  min-height: 52px;
+  font-size: var(--fs-label);
+}
+.plan .plan-tba-label {
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  font-weight: 600;
+  line-height: var(--lh-label);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.plan .plan-hero .plan-tba strong {
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
 .plan .plan-tba.is-positive {
   background: var(--good-soft);
   color: var(--on-good-soft);
@@ -2292,5 +2350,30 @@
   .plan .ptable-zero .spending-bar {
     grid-column: 1 / -1;
     grid-row: 3;
+  }
+}
+
+/* Phone: the sticky head stays one row (at most 56 px): the lead figure first, the chips scroll. */
+@media (max-width: 767px) {
+  .plan .plan-topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+  .plan .plan-topbar > .plan-hero {
+    flex: 0 0 auto;
+  }
+  .plan .plan-hero .plan-tba {
+    min-height: 44px;
+    padding: 0 12px;
+  }
+  .plan .plan-hero .plan-tba strong {
+    line-height: 1.15;
+  }
+  .plan .plan-topbar > .plan-chip-scroll {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
   }
 }

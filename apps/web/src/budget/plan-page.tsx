@@ -857,7 +857,10 @@ function PlanBody({
   );
 }
 
-/** Sticky month controls; native disclosures keep the derivation and cover actions nearby. */
+/**
+ * Sticky month head: "Zu verteilen" is the lead figure; its disclosure holds the derivation and,
+ * while anything is overspent or the figure is negative, the cover actions.
+ */
 function PlanTopBar({
   data,
   month,
@@ -944,7 +947,7 @@ function PlanTopBar({
   ];
   return (
     <section className="plan-topbar" aria-label="Monat planen">
-      <div className="plan-chip-scroll">
+      <div className="plan-hero">
         <details
           className="plan-popover"
           onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-0')}
@@ -953,23 +956,14 @@ function PlanTopBar({
             aria-controls="plan-chip-panel-0"
             className={cx('plan-tba', tba > 0 && 'is-positive', tba < 0 && 'is-negative')}
           >
-            Zu verteilen{' '}
+            <span className="plan-tba-label">Zu verteilen</span>
             <strong data-testid="to-be-assigned" aria-live="polite">
               {eur(tba)}
             </strong>
           </summary>
         </details>
-        <details
-          className="plan-popover"
-          onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-1')}
-        >
-          <summary
-            aria-controls="plan-chip-panel-1"
-            className={cx('plan-chip', urgent > 0 && 'is-over')}
-          >
-            {urgent} überzogen
-          </summary>
-        </details>
+      </div>
+      <div className="plan-chip-scroll">
         <button
           type="button"
           className="plan-chip"
@@ -1033,14 +1027,7 @@ function PlanTopBar({
         aria-label="Herleitung Zu verteilen"
       >
         <DimensionChain terms={terms} precision="cent" label="Maßkette Zu verteilen" />
-        {tba < 0 && urgent === 0 && coverControls}
-      </div>
-      <div
-        className="plan-popover-content"
-        id="plan-chip-panel-1"
-        hidden={active !== 'plan-chip-panel-1'}
-      >
-        {urgent ? coverControls : 'Nichts ist überzogen.'}
+        {(tba < 0 || urgent > 0) && coverControls}
       </div>
       <div
         className="plan-popover-content"

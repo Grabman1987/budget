@@ -24,8 +24,13 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.goto('/plan/monat?monat=2026-09');
       await expect(page.locator('.plan .plan-topbar')).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
-      // Plan chips are compact controls (T7), one step below body text.
+      // "Zu verteilen" is the lead figure of the Plan head: the DS2 display token (T2).
       await expect(page.getByTestId('to-be-assigned')).toHaveCSS(
+        'font-size',
+        isMobile ? '24px' : '28px',
+      );
+      // Plan chips stay compact controls (T7), one step below body text.
+      await expect(page.locator('.plan-chip-scroll .plan-chip').first()).toHaveCSS(
         'font-size',
         isMobile ? '15px' : '14px',
       );

@@ -231,10 +231,13 @@ isolatedTest(
       'title',
       /neue Kartenschuld 30,00 €/,
     );
-    await page.locator('.plan-topbar summary').filter({ hasText: '2 überzogen' }).click();
-    await expect(page.locator('.triage')).toContainText('Envelopes überzogen');
+    await expect(page.locator('.plan-topbar summary').filter({ hasText: 'überzogen' })).toHaveCount(
+      0,
+    );
+    await page.locator('.plan-topbar .plan-tba').click();
+    await expect(page.locator('.triage')).toContainText('2 Envelopes überzogen');
     await expect(page.locator('.triage')).not.toContainText(food);
-    await page.locator('.plan-topbar summary').filter({ hasText: '2 überzogen' }).click();
+    await page.locator('.plan-topbar .plan-tba').click();
 
     // Assign inline with the arithmetic field.
     if (testInfo.project.name === 'mobile') {
