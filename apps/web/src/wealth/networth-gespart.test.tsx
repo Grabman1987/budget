@@ -17,7 +17,7 @@ const view = {
   ],
   bars: {
     unit: 'month',
-    buckets: [{ from: '2026-01-02', to: '2026-01-03', ownCents: -30_000, marketCents: 10_000 }],
+    buckets: [{ from: '2026-01-01', to: '2026-01-03', ownCents: -30_000, marketCents: 10_000 }],
   },
 } as unknown as NetWorthView;
 
