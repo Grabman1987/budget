@@ -17,7 +17,8 @@ beforeEach(() => {
 });
 afterEach(() => opened.close());
 const get = async (path: string) => (await app.request(path)).json() as Promise<any>;
-const store = (id: string, kind: string, refType: string | null) =>
+type Kind = typeof schema.inboxItem.$inferInsert.kind;
+const store = (id: string, kind: Kind, refType: string | null) =>
   opened.db
     .insert(schema.inboxItem)
     .values({ id, kind, title: `Aufgabe ${id}`, refType, createdAt: '2026-09-17T12:00:00Z' })

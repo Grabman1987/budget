@@ -1,8 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
-import { inboxItem, insertTracked, openDatabase } from '@budget/db';
 import type { InboxView } from '../apps/web/src/inbox/api';
-import { DB_SAMPLE } from '../playwright.config';
-import { SAMPLE_URL, expect as baseExpect, sampleTest as test } from './sample';
+import { expect as baseExpect, sampleTest as test } from './sample';
 
 const expect = baseExpect.configure({ timeout: 60_000 });
 test.describe.configure({ timeout: 150_000 });
@@ -18,51 +16,15 @@ const pages = [
   ['pruefen', '/konten/pruefen', '[role="group"][aria-label="Teil von Prüfen"]'],
 ] as const;
 
-// Prüfen must be scanned populated: the sample may hold no open task, so the test seeds its own
-// synthetic one and always resolves it again, also when the test fails.
-let seededTask: string | undefined;
-
 for (const theme of ['light', 'dark'] as const) {
   test.describe(theme, () => {
     test.use({ colorScheme: theme });
-    test.afterEach(async ({ request }) => {
-      if (!seededTask) return;
-      const id = seededTask;
-      seededTask = undefined;
-      const response = await request.post(`/api/inbox/${id}/resolve`, {
-        headers: { origin: SAMPLE_URL },
-        data: {},
-      });
-      expect(response.ok()).toBe(true);
-    });
-
     for (const [name, path, ready] of pages) {
       test(`${name}: zero Axe violations at every impact level`, async ({
         page,
         request,
         isMobile,
       }, info) => {
-        if (name === 'pruefen') {
-          seededTask = `a11y-pruefen-${theme}-${info.project.name}-${info.retry}`;
-          const sample = openDatabase(DB_SAMPLE);
-          try {
-            insertTracked(
-              sample.db,
-              inboxItem,
-              {
-                id: seededTask,
-                kind: 'stale_value',
-                title: 'Synthetische offene Quelle',
-                detail: 'Synthetische offene Aufgabe für den Axe-Scan.',
-                refType: 'fx',
-                refId: 'synthetic-fx-a11y',
-              },
-              { actor: 'e2e' },
-            );
-          } finally {
-            sample.close();
-          }
-        }
         await page.goto(path);
         await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
         // Wait for populated content, so a passing scan cannot just cover a loading/empty page.
@@ -78,7 +40,8 @@ for (const theme of ['light', 'dark'] as const) {
           const inbox: InboxView = await response.json();
           const counts = inbox.segments!;
           const shown = inbox.segment!;
-          // Axe must scan a populated part, never an empty Prüfen state.
+          // Axe must scan a populated part, never an empty Prüfen state. The sample seed holds four open
+          // non-overspent items (header-q5.spec asserts "Prüfen · 4"), so the shown part has rows.
           expect(counts[shown]).toBeGreaterThan(0);
           await expect(page.getByTestId('inbox-row').first()).toBeVisible();
           // The segment control has accessible names with the server counters and exactly one pressed part.

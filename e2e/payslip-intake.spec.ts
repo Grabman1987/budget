@@ -5,6 +5,7 @@ import { test } from './isolated-ledger';
 import { syntheticPayslipPdf } from '../apps/server/src/payslips/testing';
 import { inspectReport } from './spending-helpers';
 import { toast } from './ledger-helpers';
+import { openPruefenPart } from './pruefen-part';
 
 test.describe.configure({ timeout: 120000 });
 
@@ -103,13 +104,18 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   await expect(page.getByTestId('inbox-row')).toHaveCount(0);
   await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await page.goto('/konten/posteingang');
+  await openPruefenPart(page, 'Aufgaben');
   const row = page.getByTestId('inbox-row').filter({ hasText: 'Gehaltszettel 09/2026 erkannt' });
   await row.getByText('Gehaltszettel prüfen', { exact: true }).click();
   const inboxReview = page.getByRole('dialog', { name: 'Gehaltszettel prüfen' });
   await expect(inboxReview).toContainText('innerhalb 1 Cent');
   await inboxReview.getByRole('button', { name: 'Ablehnen', exact: true }).click();
   await expect(row).toHaveCount(0);
+  // The payslip upload no longer sits inside Prüfen (#561); it stays reachable from the Gehaltszettel report.
+  await page.goto('/reports/gehalt?monat=2026-09');
+  await page.getByRole('button', { name: 'Gehaltszettel hochladen', exact: true }).click();
   await page
+    .getByRole('dialog', { name: 'Gehaltszettel hochladen' })
     .getByLabel('Gehaltszettel-PDF auswählen')
     .setInputFiles({ name: 'renamed.pdf', mimeType: 'application/pdf', buffer: bytes });
   await expect(page.getByRole('status').filter({ hasText: 'bereits aufgenommen' })).toBeVisible();
