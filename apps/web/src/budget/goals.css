@@ -145,3 +145,7 @@
     min-height: 44px;
   }
 }
+.plan.goals .goal-cat .cat-icon {
+  min-width: 0;
+  margin-inline-end: 0.25em;
+}
