@@ -1520,9 +1520,27 @@
   outline-offset: 2px;
 }
 .plan .plan-tba.is-positive {
-  background: var(--good);
-  color: var(--on-good);
+  background: var(--good-soft);
+  color: var(--on-good-soft);
   border-color: var(--good);
+}
+.plan .plan-tba.is-negative {
+  background: var(--red-soft);
+  color: var(--red);
+  border-color: var(--red);
+}
+.plan .plan-hint {
+  font-size: var(--fs-table);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.plan .plan-hint.is-negative {
+  color: var(--red);
+}
+.plan .plan-close {
+  flex: none;
+  margin-left: auto;
+  border: 1px solid var(--rule-strong);
 }
 .plan .plan-chip.is-over {
   color: var(--red);
@@ -1681,7 +1699,8 @@
   }
   .plan .plan-topbar summary,
   .plan .plan-chip,
-  .plan .plan-topbar > .btn {
+  .plan .plan-topbar > .btn,
+  .plan .plan-close {
     min-height: 44px;
   }
   .plan .ptoolbar {

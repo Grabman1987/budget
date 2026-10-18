@@ -528,6 +528,13 @@ function PlanBody({
                 </>
               )}
             </div>
+            <AppLink
+              className="btn btn-ghost btn-sm plan-close"
+              to={`/monatsabschluss/${month}`}
+              search={{}}
+            >
+              Monat abschließen
+            </AppLink>
             {!phone && (
               <div className="pm-span" role="group" aria-label="Anzahl Monate">
                 <span className="pm-span-label" aria-hidden="true">
@@ -914,6 +921,15 @@ function PlanTopBar({
   useAmountPrivacy();
   const s = data.summary;
   const tba = s.toBeAssignedCents;
+  // The disabled "Geld verteilen" says why, in words next to it.
+  const distributeBlock =
+    tba < 0
+      ? 'Zu viel zugewiesen'
+      : tba === 0
+        ? 'Nichts zu verteilen'
+        : distribute
+          ? 'Verteilung läuft'
+          : null;
   const terms: DimensionChainTerm[] = [
     { label: 'Übertrag', value: cents(s.carryInCents) },
     { label: 'Einnahmen', value: cents(s.incomeCents), op: '+', onSelect: onIncome },
@@ -935,7 +951,7 @@ function PlanTopBar({
         >
           <summary
             aria-controls="plan-chip-panel-0"
-            className={cx('plan-tba', tba > 0 && 'is-positive')}
+            className={cx('plan-tba', tba > 0 && 'is-positive', tba < 0 && 'is-negative')}
           >
             Zu verteilen{' '}
             <strong data-testid="to-be-assigned" aria-live="polite">
@@ -980,9 +996,23 @@ function PlanTopBar({
             {s.unclassified?.count ?? 0} ohne Kategorie
           </summary>
         </details>
-        <Button size="sm" disabled={tba <= 0 || distribute} onClick={onDistribute}>
+        <Button
+          size="sm"
+          disabled={Boolean(distributeBlock)}
+          aria-describedby={distributeBlock ? 'plan-distribute-hint' : undefined}
+          onClick={onDistribute}
+        >
           Geld verteilen
         </Button>
+        {distributeBlock && (
+          <span
+            id="plan-distribute-hint"
+            className={cx('plan-hint', tba < 0 && 'is-negative')}
+            data-testid="distribute-hint"
+          >
+            {distributeBlock}
+          </span>
+        )}
         <details
           className="plan-popover plan-more"
           onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-3')}
