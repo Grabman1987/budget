@@ -448,7 +448,7 @@ function AccountBody({ account }: { account: AccountRow }) {
                   <svg viewBox="0 0 26 8">
                     <path className="l-actual" d="M0 4h26" />
                   </svg>
-                  Cash-Saldo · {account.currency}
+                  Cash-Saldo · {fxView === 'eur' ? 'EUR' : account.currency}
                 </span>
                 {(series.data.previewPoints?.length ?? 0) > 1 && (
                   <span>

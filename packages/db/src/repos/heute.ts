@@ -746,7 +746,9 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     financeCheck: check,
     netWorth,
     attention: {
-      inboxCount: readInboxCount(db, today).count,
+      // Same rule as the header pill and `/inbox/count`: overspent envelopes are counted in
+      // `nextSteps` (own "N überzogen" row), not here.
+      inboxCount: readInboxCount(db, today, { excludeOverspent: true }).count,
       pendingCount: queryBookings(db, { status: 'pending', to: addDays(today, -7), limit: 1 })
         .total,
       pendingBefore: addDays(today, -7),

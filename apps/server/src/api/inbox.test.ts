@@ -344,7 +344,9 @@ describe('inbox API', () => {
       // Header pill = Umsätze + Aufgaben (#561): overspent envelopes are not part of it; this fixture
       // holds no other open item, so the literal expected value is 0.
       expect(badge.body.count).toBe(0);
-      expect(today.body.attention.inboxCount).toBe(expectedIds.length);
+      // Heute "zu prüfen" = Prüfen pill (#666): overspent envelopes keep their own Zu-tun row above.
+      expect(today.body.attention.inboxCount).toBe(0);
+      expect(today.body.attention.inboxCount).toBe(badge.body.count);
     };
     await assertConsumers(['essen', 'reise']);
     const derived = (await call('GET', '/inbox')).body.entries[0];
