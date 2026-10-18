@@ -66,8 +66,11 @@
 }
 .ktx-account td {
   padding: 0 var(--space-sm);
-  height: var(--touch);
   min-width: 0;
+}
+/* Booked rows only: Kommend and scheduled rows keep their own layout. */
+.ktx-account tr[data-booking]:not(.is-upcoming) td {
+  height: var(--touch);
 }
 .ktx-account .kc-date,
 .ktx-account .kcat {
@@ -255,8 +258,7 @@
     min-width: var(--touch);
     padding-top: var(--space-xs);
     width: 100%;
-    white-space: normal;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
   }
   .ktx-account tr[data-booking]:not(.is-upcoming) .kstatus-btn {
     align-items: flex-end;
