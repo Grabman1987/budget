@@ -69,6 +69,18 @@ it('shows the balance in words and role colour per sign, without a minus sign', 
   expect(screen.getByRole('table').textContent).not.toContain('−');
 });
 
+it('masks the amount but keeps the words under privacy mode', async () => {
+  setAmountsHidden(true);
+  stubContacts(MIXED);
+  render(wrap(<ContactsPage />));
+  const plus = await screen.findByRole('link', { name: /Saldo Kontakt Plus/ }, { timeout: 10000 });
+  expect(plus.getAttribute('aria-label')).toBe('Schuldet dir ••• €, Saldo Kontakt Plus');
+  expect(plus.textContent).toBe('Schuldet dir ••• €');
+  const minus = screen.getByRole('link', { name: /Saldo Kontakt Minus/ });
+  expect(minus.getAttribute('aria-label')).toBe('Du schuldest ••• €, Saldo Kontakt Minus');
+  expect(minus.textContent).toBe('Du schuldest ••• €');
+});
+
 it('opens the same detail from the balance as from the name', async () => {
   stubContacts(MIXED);
   render(wrap(<ContactsPage />));
