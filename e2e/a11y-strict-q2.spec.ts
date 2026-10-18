@@ -1,6 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { InboxView } from '../apps/web/src/inbox/api';
-import { eur } from '../apps/web/src/ledger/format';
 import { expect as baseExpect, sampleTest as test } from './sample';
 
 const expect = baseExpect.configure({ timeout: 60_000 });
@@ -14,13 +13,12 @@ const pages = [
   ['vergleich', '/reports/vergleich', '[data-testid="vg-consumption"]'],
   ['projekte', '/reports/projekte', '.pp-project .pp-chart'],
   ['gesamtuebersicht', '/reports/gesamtuebersicht', '[data-testid="whole-chart"]'],
-  ['pruefen', '/konten/pruefen', '[data-testid="inbox-overspent-summary"]'],
+  ['pruefen', '/konten/pruefen', '[role="group"][aria-label="Teil von Prüfen"]'],
 ] as const;
 
 for (const theme of ['light', 'dark'] as const) {
   test.describe(theme, () => {
     test.use({ colorScheme: theme });
-
     for (const [name, path, ready] of pages) {
       test(`${name}: zero Axe violations at every impact level`, async ({
         page,
@@ -37,23 +35,34 @@ for (const theme of ['light', 'dark'] as const) {
         }, theme);
 
         if (name === 'pruefen') {
-          const response = await request.get('/api/inbox');
+          const response = await request.get('/api/inbox?segment=auto');
           expect(response.ok()).toBe(true);
           const inbox: InboxView = await response.json();
-          const envelopes = inbox.entries.filter((entry) => entry.type === 'envelope');
-          expect(envelopes.length).toBeGreaterThan(1);
-          const deficitCents = envelopes.reduce((sum, entry) => sum + entry.deficitCents, 0);
-          expect(Number.isSafeInteger(deficitCents)).toBe(true);
-          const summary = page.getByTestId('inbox-overspent-summary');
-          await expect(summary).toHaveCount(1);
-          await expect(summary).toContainText(`${envelopes.length} Kategorien überzogen`);
-          await expect(summary).toContainText(eur(deficitCents));
+          const counts = inbox.segments!;
+          const shown = inbox.segment!;
+          // Axe must scan a populated part, never an empty Prüfen state. The sample seed holds four open
+          // non-overspent items (header-q5.spec asserts "Prüfen · 4"), so the shown part has rows.
+          expect(counts[shown]).toBeGreaterThan(0);
+          await expect(page.getByTestId('inbox-row').first()).toBeVisible();
+          // The segment control has accessible names with the server counters and exactly one pressed part.
+          const group = page.getByRole('group', { name: 'Teil von Prüfen' });
+          const umsaetze = group.getByRole('button', {
+            name: `Umsätze · ${counts.umsaetze}`,
+            exact: true,
+          });
+          const aufgaben = group.getByRole('button', {
+            name: `Aufgaben · ${counts.aufgaben}`,
+            exact: true,
+          });
+          await expect(group.getByRole('button')).toHaveCount(2);
+          await expect(umsaetze).toHaveAttribute('aria-pressed', String(shown === 'umsaetze'));
+          await expect(aufgaben).toHaveAttribute('aria-pressed', String(shown === 'aufgaben'));
+          // Overspent categories are no part of Prüfen any more (they live in Heute and Plan).
+          expect(inbox.entries.filter((entry) => entry.type === 'envelope')).toEqual([]);
+          await expect(page.getByTestId('inbox-overspent-summary')).toHaveCount(0);
           await expect(
             page.getByTestId('inbox-row').filter({ hasText: 'ist überzogen' }),
           ).toHaveCount(0);
-          await expect(
-            summary.getByRole('link', { name: 'Im Plan decken', exact: true }),
-          ).toHaveAttribute('href', /\/plan\/monat\?monat=2026-09&ansicht=triage/);
         }
 
         const axe = await new AxeBuilder({ page }).analyze();
