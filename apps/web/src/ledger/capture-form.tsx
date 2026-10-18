@@ -54,7 +54,8 @@ import { SplitEditor, captureLines } from './split-editor';
 import { AccountOptions } from './account-options';
 
 import { ReceiptSection } from '../receipts/receipt-section';
-import { CAPTURE_SHORTCUT_HINT, errorText } from './labels';
+import { CAPTURE_SHORTCUT_HINT, FLAG_LABEL, errorText } from './labels';
+import { BOOKING_FLAGS, type BookingFlag } from './types';
 import { useLedgerWrites } from './mutations';
 import { accountsQuery, lookupsQuery, payeesQuery } from './queries';
 import {
@@ -165,7 +166,7 @@ export function CaptureForm({
   const [busy, setBusy] = useState(false);
   // Guards save() itself: held or repeated Ctrl+Enter must not send the booking twice.
   const saving = useRef(false);
-  const [moreOpen, setMoreOpen] = useState(Boolean(editing || draft.projectId));
+  const [moreOpen, setMoreOpen] = useState(Boolean(draft.projectId || draft.flag));
   // The category the last chosen payee's default filled in; only that one is replaced by the next.
   const appliedByPayee = useRef<string | null>(null);
   // The payee "Speichern und neu" carried over: context, so it does not make the form dirty.
@@ -515,7 +516,7 @@ export function CaptureForm({
   ]
     .map((id) => pickable.find((c) => c.id === id))
     .filter((c): c is NonNullable<typeof c> => Boolean(c))
-    .slice(0, 4);
+    .slice(0, 3);
 
   const pickCategory = (id: string) => set('categoryId', id === NONE ? '' : id);
 
@@ -533,7 +534,9 @@ export function CaptureForm({
     : !editing && !queued && !statusChosen && !(state.mode === 'create' && state.prefill?.status)
       ? 'pending'
       : draft.status;
-  const moreSummary = draft.projectId ? 'Projekt' : '';
+  const moreSummary = [draft.projectId && 'Projekt', draft.flag && 'Markierung']
+    .filter(Boolean)
+    .join(', ');
   const statusControl =
     locked && !unlock ? (
       <span className="status">geprüft</span>
@@ -632,7 +635,7 @@ export function CaptureForm({
           if (form?.closest('dialog')?.open) amount.focus();
         }
       }}
-      className="bkform"
+      className={`bkform${isTransfer ? '' : ' bk-split-cols'}`}
       onSubmit={(e) => {
         e.preventDefault();
         void save(false);
@@ -693,140 +696,190 @@ export function CaptureForm({
             </label>
           </div>
         )}
-        <AmountInput
-          label="Betrag"
-          showOperators={false}
-          value={draft.amount}
-          onChange={(v) => set('amount', v)}
-          sign={isTransfer ? null : draft.kind === 'income' ? '+' : '−'}
-          error={errors.amount}
-        />
-        {!isTransfer && (
-          <div className="bk-payee">
-            <Combobox
-              label={draft.kind === 'income' ? 'Von (Zahler)' : 'Empfänger'}
-              value={draft.payee}
-              placeholder="Suchen oder neu anlegen"
-              pickSingle
-              onChange={(text) => {
-                accountRequest.current++;
-                set('payee', text);
-              }}
-              onSelect={(o) => {
-                set('payee', o.label);
-                applyPayeeDefault(o.label, true);
-              }}
-              onFocusChange={(focused) => !focused && applyPayeeDefault(draft.payee)}
-              options={(payees.data?.payees ?? [])
-                .filter((p) => !p.systemKind)
-                .sort((a, b) => (b.lastBookingDate ?? '').localeCompare(a.lastBookingDate ?? ''))
-                .map((p) => ({
-                  id: p.id,
-                  label: p.name,
-                  hint: all.find((c) => c.id === p.defaultCategoryId)?.name,
-                }))}
+        <div className="bk-cols">
+          <div className="bk-col-head">
+            <AmountInput
+              label="Betrag"
+              showOperators={false}
+              value={draft.amount}
+              onChange={(v) => set('amount', v)}
+              sign={isTransfer ? null : draft.kind === 'income' ? '+' : '−'}
+              error={errors.amount}
             />
-          </div>
-        )}
-        <div className="bk-context">
-          <div className="bk-context-fields">
-            <div
-              className={isTransfer ? 'kform-pair' : 'bk-account-row'}
-              {...(isTransfer ? {} : { 'data-enter-skip': true })}
-            >
-              <Field
-                label={
-                  isTransfer ? 'Von Konto' : draft.kind === 'expense' ? 'Bezahlt von' : 'Konto'
-                }
-                error={errors.account}
-              >
-                {({ id, describedBy, invalid }) => (
-                  <Select
-                    id={id}
-                    value={accountId}
-                    disabled={legOfTransfer}
-                    aria-invalid={invalid}
-                    aria-describedby={describedBy}
-                    onChange={(e) => {
-                      accountRequest.current++;
-                      set('accountId', e.target.value);
-                    }}
+            {!isTransfer && (
+              <div className="bk-payee">
+                <Combobox
+                  label={draft.kind === 'income' ? 'Von (Zahler)' : 'Empfänger'}
+                  value={draft.payee}
+                  placeholder="Suchen oder neu anlegen"
+                  pickSingle
+                  onChange={(text) => {
+                    accountRequest.current++;
+                    set('payee', text);
+                  }}
+                  onSelect={(o) => {
+                    set('payee', o.label);
+                    applyPayeeDefault(o.label, true);
+                  }}
+                  onFocusChange={(focused) => !focused && applyPayeeDefault(draft.payee)}
+                  options={(payees.data?.payees ?? [])
+                    .filter((p) => !p.systemKind)
+                    .sort((a, b) =>
+                      (b.lastBookingDate ?? '').localeCompare(a.lastBookingDate ?? ''),
+                    )
+                    .map((p) => ({
+                      id: p.id,
+                      label: p.name,
+                      hint: all.find((c) => c.id === p.defaultCategoryId)?.name,
+                    }))}
+                />
+              </div>
+            )}
+            <div className="bk-context">
+              <div className="bk-context-fields">
+                <div
+                  className={isTransfer ? 'kform-pair' : 'bk-account-row'}
+                  {...(isTransfer ? {} : { 'data-enter-skip': true })}
+                >
+                  <Field
+                    label={
+                      isTransfer ? 'Von Konto' : draft.kind === 'expense' ? 'Bezahlt von' : 'Konto'
+                    }
+                    error={errors.account}
                   >
-                    <AccountOptions accounts={open} />
-                  </Select>
-                )}
-              </Field>
-              {isTransfer ? (
-                <Field label="Nach Konto" error={errors.toAccount}>
-                  {({ id, describedBy, invalid }) => (
-                    <Select
-                      id={id}
-                      value={draft.toAccountId}
-                      disabled={legOfTransfer}
-                      aria-invalid={invalid}
-                      aria-describedby={describedBy}
-                      onChange={(e) => set('toAccountId', e.target.value)}
-                    >
-                      <option value="">Konto wählen</option>
-                      <AccountOptions accounts={open} exclude={accountId} />
-                    </Select>
+                    {({ id, describedBy, invalid }) => (
+                      <Select
+                        id={id}
+                        value={accountId}
+                        disabled={legOfTransfer}
+                        aria-invalid={invalid}
+                        aria-describedby={describedBy}
+                        onChange={(e) => {
+                          accountRequest.current++;
+                          set('accountId', e.target.value);
+                        }}
+                      >
+                        <AccountOptions accounts={open} />
+                      </Select>
+                    )}
+                  </Field>
+                  {isTransfer ? (
+                    <Field label="Nach Konto" error={errors.toAccount}>
+                      {({ id, describedBy, invalid }) => (
+                        <Select
+                          id={id}
+                          value={draft.toAccountId}
+                          disabled={legOfTransfer}
+                          aria-invalid={invalid}
+                          aria-describedby={describedBy}
+                          onChange={(e) => set('toAccountId', e.target.value)}
+                        >
+                          <option value="">Konto wählen</option>
+                          <AccountOptions accounts={open} exclude={accountId} />
+                        </Select>
+                      )}
+                    </Field>
+                  ) : (
+                    statusControl
                   )}
-                </Field>
-              ) : (
-                statusControl
-              )}
+                </div>
+                {isTransfer && statusControl}
+                {dateAndRepeat}
+              </div>
             </div>
-            {isTransfer && statusControl}
-            {dateAndRepeat}
           </div>
-        </div>
-        {isTransfer && showCategory && (
-          <CategoryCombobox
-            label="Kategorie"
-            categories={pickable}
-            leading={leading}
-            selectedName={categoryName}
-            error={errors.category}
-            onSelect={pickCategory}
-          />
-        )}
-        {!isTransfer && lineEditor}
-        <Field label="Notiz">
-          {({ id }) => (
-            <textarea
-              ref={noteRef}
-              id={id}
-              className="input bk-note"
-              rows={1}
-              value={draft.memo}
-              placeholder="Optional"
-              autoComplete="off"
-              onChange={(e) => set('memo', e.target.value)}
-            />
-          )}
-        </Field>
-        <details
-          className="kmore"
-          open={moreOpen}
-          onToggle={(e) => setMoreOpen(e.currentTarget.open)}
-        >
-          <summary>
-            Mehr{moreSummary && <span className="bk-more-summary"> · {moreSummary}</span>}
-          </summary>
-          <div className="kform">
-            {((lookups.data?.projects ?? offlineChoices?.projects)?.length ?? 0) > 0 && (
-              <Field label="Projekt">
+          <div className="bk-col-lines">
+            {isTransfer && showCategory && (
+              <CategoryCombobox
+                label="Kategorie"
+                categories={pickable}
+                leading={leading}
+                selectedName={categoryName}
+                error={errors.category}
+                onSelect={pickCategory}
+              />
+            )}
+            {!isTransfer && lineEditor}
+          </div>
+          <div className="bk-col-memo">
+            <Field label="Notiz">
+              {({ id }) => (
+                <textarea
+                  ref={noteRef}
+                  id={id}
+                  className="input bk-note"
+                  rows={1}
+                  value={draft.memo}
+                  placeholder="Optional"
+                  autoComplete="off"
+                  onChange={(e) => set('memo', e.target.value)}
+                />
+              )}
+            </Field>
+            <details
+              className="kmore"
+              open={moreOpen}
+              onToggle={(e) => setMoreOpen(e.currentTarget.open)}
+            >
+              <summary>
+                Mehr{moreSummary && <span className="bk-more-summary"> · {moreSummary}</span>}
+                <span aria-hidden="true" className="kmore-caret">
+                  {' '}
+                  ▾
+                </span>
+              </summary>
+              <div className="kform">
+                {!isTransfer && (
+                  <Field label="Markierung">
+                    {({ id }) => (
+                      <Select
+                        id={id}
+                        value={draft.flag}
+                        onChange={(e) => set('flag', e.target.value as BookingFlag | '')}
+                      >
+                        <option value="">keine</option>
+                        {BOOKING_FLAGS.map((f) => (
+                          <option key={f} value={f}>
+                            {FLAG_LABEL[f]}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                )}
+                {((lookups.data?.projects ?? offlineChoices?.projects)?.length ?? 0) > 0 && (
+                  <Field label="Projekt">
+                    {({ id }) => (
+                      <Select
+                        id={id}
+                        value={draft.projectId}
+                        onChange={(e) => set('projectId', e.target.value)}
+                      >
+                        <option value="">kein Projekt</option>
+                        {(lookups.data?.projects ?? offlineChoices?.projects ?? []).map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                            {p.archivedAt ? ' · archiviert' : ''}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                )}
+              </div>
+            </details>
+            {draft.kind === 'income' && (
+              <Field label="Einnahmeart">
                 {({ id }) => (
                   <Select
                     id={id}
-                    value={draft.projectId}
-                    onChange={(e) => set('projectId', e.target.value)}
+                    value={draft.incomeTypeId}
+                    onChange={(e) => set('incomeTypeId', e.target.value)}
                   >
-                    <option value="">kein Projekt</option>
-                    {(lookups.data?.projects ?? offlineChoices?.projects ?? []).map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                        {p.archivedAt ? ' · archiviert' : ''}
+                    <option value="">keine Angabe</option>
+                    {(lookups.data?.incomeTypes ?? offlineChoices?.incomeTypes ?? []).map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
                       </option>
                     ))}
                   </Select>
@@ -834,25 +887,7 @@ export function CaptureForm({
               </Field>
             )}
           </div>
-        </details>
-        {draft.kind === 'income' && (
-          <Field label="Einnahmeart">
-            {({ id }) => (
-              <Select
-                id={id}
-                value={draft.incomeTypeId}
-                onChange={(e) => set('incomeTypeId', e.target.value)}
-              >
-                <option value="">keine Angabe</option>
-                {(lookups.data?.incomeTypes ?? offlineChoices?.incomeTypes ?? []).map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
-        )}
+        </div>
 
         {errors.form && (
           <p className="field-error" role="alert">

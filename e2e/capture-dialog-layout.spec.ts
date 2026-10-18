@@ -270,7 +270,8 @@ for (const scenario of ['category', 'outlay', 'percent', 'amount', 'several'] as
     else await choose(dialog, 'Kategorie', 'Essen', /^Essen/);
     if (scenario === 'category') {
       const rail = dialog.getByRole('group', { name: 'Vorschläge' });
-      await expect(rail.getByRole('button')).toHaveCount(4);
+      // #583: at most three suggestions in the rail.
+      await expect(rail.getByRole('button')).toHaveCount(3);
       await expect(rail).toHaveCSS('overflow-x', 'auto');
       const railBox = (await rail.boundingBox())!;
       expect(railBox.x).toBeGreaterThanOrEqual(0);
