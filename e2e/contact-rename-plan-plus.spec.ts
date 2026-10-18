@@ -85,7 +85,7 @@ test('Plan month creates an empty group and categories through the existing form
   await page.locator('.plan-menu summary', { hasText: 'Optionen' }).click();
   await page
     .getByRole('group', { name: 'Ansicht', exact: true })
-    .getByRole('button', { name: /^Gruppen( ✓)?$/ })
+    .getByRole('button', { name: 'Gruppen', exact: true })
     .click();
   const plus = page.getByRole('button', { name: `Kategorie in ${group} anlegen`, exact: true });
   await expect(plus).toBeVisible();

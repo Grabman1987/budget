@@ -80,7 +80,7 @@ test('the old controls are gone; both menus are keyboard operable and named', as
   await expect(menuPanel(page, 'Optionen')).toBeHidden();
   await expect(optionen).toBeFocused();
   await optionen.click();
-  await expect(page.getByRole('button', { name: /^Zeit( ✓)?$/ })).toHaveAttribute(
+  await expect(page.getByRole('button', { name: 'Zeit', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
@@ -105,7 +105,7 @@ test('"Alle einklappen" and the month span work from "Optionen ▾"', async ({ p
   await page.getByRole('button', { name: '2 Monate', exact: true }).click();
   await expect(page.locator('.plan-grid.is-wide')).toBeVisible();
   await optionen.click();
-  await expect(page.getByRole('button', { name: /^2 Monate( ✓)?$/ })).toHaveAttribute(
+  await expect(page.getByRole('button', { name: '2 Monate', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );

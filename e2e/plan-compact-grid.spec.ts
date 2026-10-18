@@ -163,9 +163,7 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     .locator('details.plan-menu')
     .filter({ has: page.locator('summary', { hasText: 'Optionen' }) });
   const inOptionen = (name: string) =>
-    optionenMenu
-      .locator('.plan-menu-panel')
-      .getByRole('button', { name: new RegExp(`^${name}( ✓)?$`) });
+    optionenMenu.locator('.plan-menu-panel').getByRole('button', { name, exact: true });
   const triageUrl = new URL(page.url());
   triageUrl.searchParams.set('ansicht', 'triage');
   await page.goto(triageUrl.toString());
