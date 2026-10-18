@@ -1,0 +1,218 @@
+/* Account register only; Alle Buchungen retains its own density and phone layout. */
+.kacct-register .kacct-kpis {
+  align-items: center;
+  gap: var(--space-sm) var(--space-xl);
+  margin-block: var(--space-sm);
+}
+.kacct-kpis .kacct-saldo strong {
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+}
+.kacct-kpis .kacct-pending strong {
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
+}
+.kacct-register .kacct-review-badge {
+  border: var(--stroke-hairline) solid var(--rule-strong);
+  border-radius: var(--radius-pill);
+  min-height: var(--touch);
+  height: auto;
+}
+.kacct-source summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: var(--touch);
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.kacct-source[open] {
+  flex-basis: 100%;
+}
+.kacct-register .kh {
+  margin-top: var(--space-md);
+}
+.kaccount-table-card {
+  min-width: 0;
+  border: var(--stroke-hairline) solid var(--rule);
+  border-radius: var(--radius-sheet);
+  background: var(--surface);
+}
+.ktx-account {
+  table-layout: fixed;
+  font-size: var(--fs-table);
+  line-height: var(--lh-table);
+}
+.ktx-account .kcol-flag {
+  width: var(--space-gutter);
+}
+.ktx-account .kcol-date {
+  width: 10%;
+}
+.ktx-account .kcol-note {
+  width: 12%;
+}
+.ktx-account .kcol-category {
+  width: 18%;
+}
+.ktx-account .kcol-money {
+  width: 15%;
+}
+.ktx-account .kcol-select,
+.ktx-account .kcol-status {
+  width: var(--touch);
+}
+.ktx-account td {
+  padding: 0 var(--space-sm);
+  height: var(--touch);
+  min-width: 0;
+}
+.ktx-account .kc-date,
+.ktx-account .kcat {
+  font-size: inherit;
+  letter-spacing: normal;
+}
+.ktx-account .kname-btn,
+.ktx-account .kcat-btn {
+  width: 100%;
+  min-height: var(--touch);
+}
+.ktx-account .kname-s,
+.ktx-account .kcat,
+.ktx-account .kx-note span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.ktx-account .kcat-btn .kcat {
+  flex: 1;
+}
+.ktx-account .kcat-edit {
+  flex: none;
+}
+.ktx-account .kc-status {
+  padding: 0;
+}
+.ktx-account .kinline {
+  min-width: 0;
+}
+.ktx-account .kx-run > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ktx-account .kcell-edit:hover,
+.ktx-account .kcell-edit:focus-visible,
+.ktx-account .kcat-btn:hover,
+.ktx-account .kcat-btn:focus-visible {
+  background: var(--tint);
+  outline: var(--stroke-hairline) solid var(--rule-strong);
+  outline-offset: calc(-1 * var(--stroke-hairline));
+}
+.kaccount-mobile-meta,
+.ktx-account .kaccount-day {
+  display: none;
+}
+@media (min-width: 768px) and (pointer: fine) {
+  .ktx-account td,
+  .ktx-account .kcell-edit,
+  .ktx-account .kname-btn,
+  .ktx-account .kcat-btn,
+  .ktx-account .kstatus-btn,
+  .ktx-account .kinline .input,
+  .ktx-account .select-sm {
+    min-height: calc(var(--touch) - var(--space-sm));
+    height: calc(var(--touch) - var(--space-sm));
+  }
+}
+@media (pointer: coarse) {
+  .ktx-account .kcol-flag {
+    width: var(--touch);
+  }
+  .ktx-account .kflagpick.in-list .kflagbtn {
+    min-width: var(--touch);
+    min-height: var(--touch);
+    margin: 0;
+  }
+}
+@media (max-width: 767px) {
+  .kacct-register .kacct-actions .btn {
+    width: auto;
+  }
+  .kacct-register .kback {
+    margin-bottom: var(--space-xs);
+  }
+  .ktx-account colgroup {
+    display: none;
+  }
+  .ktx-account tr[data-booking]:not(.is-upcoming) {
+    grid-template-columns: minmax(0, 1fr) minmax(var(--touch), 35%) var(--touch);
+    grid-template-areas: 'payee amount status';
+    align-items: stretch;
+    gap: 0 var(--space-xs);
+    padding: 0 var(--space-sm);
+  }
+  .ktx-account tr[data-booking]:not(.is-upcoming) td {
+    padding: 0;
+    height: auto;
+  }
+  .ktx-account tr[data-booking]:not(.is-upcoming) :is(.kx-date, .kx-cat, .kx-run, .kx-flag) {
+    display: none;
+  }
+  .ktx-account .kx-mobile-note {
+    display: none;
+  }
+  .ktx-account .kaccount-mobile-meta {
+    display: flex;
+    align-items: center;
+    color: var(--ink-2);
+    font-size: var(--fs-meta);
+    line-height: var(--lh-meta);
+    font-weight: 400;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .ktx-account .kaccount-mobile-meta > span:first-child {
+    flex: none;
+  }
+  .ktx-account .kaccount-mobile-meta .kcat {
+    margin-left: var(--space-xs);
+    font-size: inherit;
+  }
+  .ktx-account .kx-payee .kname-btn {
+    min-width: var(--touch);
+    text-align: left;
+  }
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-amount .kcell-edit {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+    min-width: var(--touch);
+    padding-top: var(--space-xs);
+    width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kstatus-btn {
+    align-items: flex-end;
+    padding-bottom: var(--space-xs);
+  }
+  .ktx-account .kaccount-day {
+    display: block;
+    padding: 0 var(--space-sm);
+    background: var(--surface-2);
+  }
+  .kaccount-day th {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    padding-block: var(--space-xs);
+    font-size: var(--fs-meta);
+    line-height: var(--lh-meta);
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+}

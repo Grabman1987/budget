@@ -38,8 +38,8 @@ const canEditCategory = (b: ListedBooking) =>
 
 /**
  * Booking table shared by Einzelkonto and Alle Buchungen: the payee opens the booking, the
- * category is changed in place, new and changed rows flash once. On the phone every row becomes
- * a small card of the same cells.
+ * category is changed in place, new and changed rows flash once. Account history uses compact
+ * two-line phone rows; Alle Buchungen retains its existing layout.
  */
 export function BookingTable({
   items,
@@ -102,7 +102,7 @@ export function BookingTable({
   );
 
   const entries = upcoming ? upcomingEntries(upcoming) : [];
-  const groups = all ? groupByDay(items) : [{ day: '', items: [...items], sum: 0 }];
+  const groups = groupByDay(items);
   return (
     <>
       {selection && (
@@ -116,8 +116,21 @@ export function BookingTable({
           Alle sichtbaren auswählen
         </label>
       )}
-      <table className={cx('ktable ktx', all && 'ktx-all')}>
+      <table className={cx('ktable ktx', all ? 'ktx-all' : 'ktx-account')}>
         <caption className="sr-only">{caption}</caption>
+        {!all && (
+          <colgroup>
+            {selection && <col className="kcol-select" />}
+            <col className="kcol-flag" />
+            <col className="kcol-date" />
+            <col />
+            <col className="kcol-note" />
+            <col className="kcol-category" />
+            <col className="kcol-money" />
+            <col className="kcol-money" />
+            <col className="kcol-status" />
+          </colgroup>
+        )}
         <thead>
           <tr>
             {selection && (
@@ -230,6 +243,23 @@ export function BookingTable({
                   </td>
                 </tr>
               )}
+              {!all && (
+                <tr className="kaccount-day" data-day={group.day}>
+                  <th scope="rowgroup" colSpan={columns}>
+                    <span>{dayHeading(group.day)}</span>
+                    <span>
+                      Saldo{' '}
+                      {group.items[0]?.balanceAfterCents == null
+                        ? '–'
+                        : valuedCurrency(
+                            group.items[0].balanceAfterCents,
+                            group.items[0].currency,
+                            group.items[0].balanceValuation,
+                          )}
+                    </span>
+                  </th>
+                </tr>
+              )}
               {group.items.map((b) => (
                 <Row
                   key={b.id}
@@ -256,15 +286,14 @@ export function BookingTable({
 }
 
 function groupByDay(items: ReadonlyArray<ListedBooking>) {
-  const groups: { day: string; items: ListedBooking[]; sum: number }[] = [];
+  const groups: { day: string; items: ListedBooking[] }[] = [];
   for (const b of items) {
     let group = groups[groups.length - 1];
     if (!group || group.day !== b.date) {
-      group = { day: b.date, items: [], sum: 0 };
+      group = { day: b.date, items: [] };
       groups.push(group);
     }
     group.items.push(b);
-    group.sum += b.amountCents;
   }
   return groups;
 }
@@ -357,6 +386,13 @@ function Row({
             booking={b}
             {...(variant === 'account' ? { noteClassName: 'kx-mobile-note' } : {})}
           />
+          {variant === 'account' && !upcomingToday && (
+            <span className="kaccount-mobile-meta">
+              <span>{shortDay(b.date)}</span>
+              <span aria-hidden="true"> · </span>
+              <CategoryCell booking={b} classes={classes} />
+            </span>
+          )}
         </button>
       </td>
       {variant === 'account' && (
@@ -443,7 +479,9 @@ function Row({
           <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
             {upcomingToday
               ? projectedBalance == null
-                ? 'Saldo offen'
+                ? variant === 'account'
+                  ? '–'
+                  : 'Saldo offen'
                 : nativeCurrency(projectedBalance, b.currency)
               : b.balanceAfterCents === null
                 ? ''

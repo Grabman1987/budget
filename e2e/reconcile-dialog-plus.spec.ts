@@ -61,7 +61,7 @@ test('takes an undated bank balance, captures the missing booking and locks only
     staged.close();
   }
   await page.goto(`/konten/${account.id}`);
-  await page.getByRole('button', { name: 'Kontostand prüfen', exact: true }).click();
+  await page.getByRole('button', { name: /Kontostand prüfen$/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Kontostand prüfen · Giro Muster', exact: true });
   await dialog.getByRole('button', { name: /Bankstand übernehmen/ }).click();
   await expect(dialog.getByLabel('Stichtag')).toHaveValue('01.10.2026');
@@ -141,7 +141,7 @@ test('custom adjustment date/category creates one reviewed booking and supports 
     groupId: group.id,
   });
   await page.goto(`/konten/${account.id}`);
-  await page.getByRole('button', { name: 'Kontostand prüfen', exact: true }).click();
+  await page.getByRole('button', { name: /Kontostand prüfen$/ }).click();
   const dialog = page.getByRole('dialog', { name: /Kontostand prüfen/ });
   await dialog.getByLabel('Stichtag').fill('01.10.2026');
   await dialog.getByLabel('Saldo laut Bank', { exact: true }).fill('99');

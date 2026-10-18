@@ -19,19 +19,11 @@ import { BalanceChart } from './balance-chart';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { AccountRegister } from './account-register';
 import { useRegisterToday } from './upcoming-register';
-import {
-  eur,
-  longDay,
-  monthName,
-  nativeCurrency,
-  valuedCurrency,
-  valuedCurrencyParts,
-  valuedMovement,
-} from './format';
+import { eur, longDay, nativeCurrency, valuedCurrency, valuedCurrencyParts } from './format';
 import { ACCOUNT_TYPE_LABEL, accountValueEur, groupOf, valuationMissingText } from './labels';
 import { fetchSeries } from './api';
 import { displaySettingsQuery } from '../pages/future-preview-setting';
-import { accountsQuery, bookingsQuery } from './queries';
+import { accountsQuery } from './queries';
 import { AccountReview } from './account-review';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
@@ -167,14 +159,6 @@ function AccountBody({ account }: { account: AccountRow }) {
   });
   const limit = account.overdraftLimitCents ?? account.creditLimitCents;
   const limitLabel = account.overdraftLimitCents !== null ? 'Dispolimit' : 'Kreditrahmen';
-  // The month figure remains independent of the history's loaded pages.
-  const movement = useQuery(
-    bookingsQuery(
-      { accountId: account.id, from: `${month}-01`, to: lastDayOfMonth(month) },
-      undefined,
-      1,
-    ),
-  );
   const [panel, setPanel] = useState<BookingPanelState>(null);
   const manual = account.type === 'p2p' || account.type === 'other_asset';
   const value = accountValueEur(account);
@@ -185,7 +169,7 @@ function AccountBody({ account }: { account: AccountRow }) {
   );
 
   return (
-    <>
+    <div className="kacct-register">
       <div className="kacct-head">
         <div>
           <h2 ref={heading} tabIndex={-1}>
@@ -197,7 +181,6 @@ function AccountBody({ account }: { account: AccountRow }) {
           </p>
         </div>
         <div className="kacct-actions">
-          <AccountReview account={account} />
           {!account.closedAt && (
             <Button onClick={() => setPanel({ mode: 'create', accountId: account.id })}>
               <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
@@ -214,8 +197,8 @@ function AccountBody({ account }: { account: AccountRow }) {
           {account.lastValuedOn ? longDay(account.lastValuedOn) : 'noch nicht erfasst'}
         </p>
       )}
-      <div className="kfigs">
-        <div className="fig">
+      <div className="kfigs kacct-kpis">
+        <div className="fig kacct-saldo">
           <small>{account.currency === 'EUR' ? 'Saldo' : `Kontowert · EUR`}</small>
           <strong
             className={cx(value !== null && value < 0 && 'neg')}
@@ -231,26 +214,29 @@ function AccountBody({ account }: { account: AccountRow }) {
           )}
           {value === null && <p className="kmeta">{valuationMissingText(account)}</p>}
         </div>
-        <div className="fig">
+        <div className="fig kacct-pending">
           <small>davon vorgemerkt</small>
           <strong className="muted">{pending.amount}</strong>
           {pending.rate && <p className="kmeta">{pending.rate}</p>}
         </div>
-        <div className="fig">
-          <small>{monthName(today)}</small>
-          <strong className="muted">
-            {movement.data
-              ? valuedMovement(movement.data.sumCents, account.currency, movement.data.sumEurCents)
-              : '–'}
-          </strong>
-          {account.currency !== 'EUR' && (
-            <p className="kmeta">Bewegung · EUR je Buchungstag, Kurse in der Tabelle</p>
-          )}
-        </div>
-        <AccountFreshness
-          lastReconciledOn={account.lastReconciledOn}
-          bankBalance={account.closedAt ? undefined : account.bankBalance}
-        />
+        <AccountReview account={account} compact />
+        {account.closedAt && (
+          <span className="pill">
+            {account.lastReconciledOn
+              ? `Geprüft ${longDay(account.lastReconciledOn)}`
+              : 'Nie geprüft'}
+          </span>
+        )}
+        <details className="kacct-source">
+          <summary>
+            Datenstand
+            <ChevronDown size={14} aria-hidden="true" />
+          </summary>
+          <AccountFreshness
+            lastReconciledOn={account.lastReconciledOn}
+            bankBalance={account.closedAt ? undefined : account.bankBalance}
+          />
+        </details>
       </div>
       <BankBalance account={account} />
       {search.faellig && (
@@ -461,6 +447,6 @@ function AccountBody({ account }: { account: AccountRow }) {
       </section>
       <AccountRegister account={account} />
       <BookingPanel state={panel} onClose={() => setPanel(null)} />
-    </>
+    </div>
   );
 }

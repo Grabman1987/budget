@@ -9,15 +9,25 @@ import { ManualValue } from './manual-value';
 import { ReconcilePanel } from './reconcile-panel';
 import { useRegisterToday } from './upcoming-register';
 import type { AccountRow } from './types';
+import { shortDay } from './format';
 
 /** Shared owner-check actions and dialogs for cash, manual-value and depot headers. */
-export function AccountReview({ account }: { account: AccountRow }) {
+export function AccountReview({
+  account,
+  compact = false,
+}: {
+  account: AccountRow;
+  compact?: boolean;
+}) {
   const search = useSearch({ strict: false }) as { pruefen?: 'reconcile' | 'value' };
   const navigate = useNavigate();
   const month = monthOf(useRegisterToday());
   const manual = account.type === 'p2p' || account.type === 'other_asset';
   const [checking, setChecking] = useState(false);
   const [updatingValue, setUpdatingValue] = useState(false);
+  const badgeLabel = account.lastReconciledOn
+    ? `Geprüft ${shortDay(account.lastReconciledOn)}`
+    : 'Nie geprüft – jetzt prüfen';
   const closeCheck = () => {
     setChecking(false);
     setUpdatingValue(false);
@@ -27,9 +37,15 @@ export function AccountReview({ account }: { account: AccountRow }) {
   return (
     <>
       {canReconcile(account) && (
-        <Button variant="ghost" onClick={() => setChecking(true)}>
+        <Button
+          variant="ghost"
+          className={compact ? 'kacct-review-badge' : undefined}
+          aria-label={compact ? `${badgeLabel} · Kontostand prüfen` : undefined}
+          data-testid={compact ? 'account-review-badge' : undefined}
+          onClick={() => setChecking(true)}
+        >
           <CheckCircle2 size={16} strokeWidth={1.75} aria-hidden="true" />
-          Kontostand prüfen
+          {compact ? badgeLabel : 'Kontostand prüfen'}
         </Button>
       )}
       {manual && !account.closedAt && (

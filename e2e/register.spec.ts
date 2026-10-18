@@ -81,7 +81,8 @@ test('scrolls account and all bookings through six months, with complete search 
     if (!url.endsWith('/buchungen')) {
       await expect(page.locator('[data-booking="history-179"] .kx-run')).toContainText('820,00');
       await expect(page.locator('[data-booking="history-000"] .kx-run')).toContainText('999,00');
-      await expect(page.getByText('−30,00 €', { exact: true })).toBeVisible();
+      // Opening 1.000,00 minus the 152 past bookings of 1,00 each (history-000 … history-151).
+      await expect(page.locator('.kacct-saldo strong')).toHaveText('848,00 €');
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
