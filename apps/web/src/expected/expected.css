@@ -104,6 +104,15 @@
   font-size: var(--fs-chart-label);
   color: var(--ink-3);
 }
+/* Group and week heads stay in view while their rows scroll (one tbody per group). */
+.xp-next .pgroup td {
+  position: sticky;
+  top: 64px;
+  z-index: 2;
+}
+.xp-next .pgroup.is-week td {
+  background: var(--ground);
+}
 .xp .prow.is-alert td {
   background: var(--red-soft);
 }
@@ -340,24 +349,64 @@ h4.xp-sub {
     text-align: right;
     font-size: var(--fs-table);
   }
-  .xp-next .col-num {
-    grid-column: 3;
+  /* Two lines per row: name and amount, then due date, category and status. */
+  .xp-table.xp-next tr.prow {
+    grid-template-columns: 34px auto minmax(0, 1fr) auto;
+    row-gap: 2px;
+    padding: 6px 0;
+  }
+  .xp-table.xp-next .col-name {
+    grid-column: 2 / 4;
     grid-row: 1;
   }
-  .xp-next .col-due {
+  .xp-table.xp-next .col-num {
+    grid-column: 4;
+    grid-row: 1;
+    align-self: center;
+  }
+  .xp-table.xp-next .col-due {
     grid-column: 2;
     grid-row: 2;
+    align-self: center;
     font-size: var(--fs-body);
     color: var(--ink-2);
   }
-  .xp-next .col-state {
-    grid-column: 3;
+  .xp-table.xp-next .col-state {
+    grid-column: 4;
     grid-row: 2;
+    align-self: center;
     text-align: right;
   }
-  .xp-next .col-cat {
-    grid-column: 2 / -1;
-    grid-row: 3;
+  .xp-table.xp-next .col-cat {
+    grid-column: 3;
+    grid-row: 2;
+    align-self: center;
+    min-width: 0;
+  }
+  .xp-table.xp-next .col-cat .xp-chip {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .xp-table.xp-next .col-cat .xp-chip > * {
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  .xp-table.xp-next .xp-name {
+    width: 100%;
+    min-height: 44px;
+  }
+  .xp-table.xp-next .xp-name .xp-sub {
+    display: none;
+  }
+  .xp-table.xp-next .col-due::before,
+  .xp-table.xp-next .col-num::before {
+    display: none;
+  }
+  .xp .grp-toggle {
+    min-height: 44px;
   }
   .xp-contracts tr {
     grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr);
@@ -382,8 +431,8 @@ h4.xp-sub {
   .xp-contracts .col-due {
     margin-top: 4px;
   }
-  .xp-table.ptable .col-due::before,
-  .xp-table.ptable .col-num::before {
+  .xp-contracts .col-due::before,
+  .xp-contracts .col-num::before {
     content: attr(data-label);
     display: block;
     font-family: var(--font-tech);
@@ -392,6 +441,17 @@ h4.xp-sub {
     text-transform: uppercase;
     color: var(--ink-3);
     font-weight: 500;
+  }
+  .xp-next tbody > tr.pgroup {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .xp-next .pgroup td {
+    position: static;
+  }
+  .xp-next tr.pgroup.is-week {
+    background: var(--ground);
   }
   .xp-table.ptable tr.pgroup {
     background: var(--ground-2);

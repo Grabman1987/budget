@@ -34,9 +34,12 @@ import {
   isContract,
   money,
   needsAction,
-  weekGroups,
+  paymentGroups,
+  HORIZONS,
   type ContractGroup,
-  type WeekGroup,
+  type Horizon,
+  type PaymentGroup,
+  type PaymentWeek,
 } from './expected-model';
 import { IncomeButton } from './income-panel';
 import { draftFromBooking } from './payment-draft';
@@ -47,7 +50,7 @@ type View = 'next' | 'contracts' | 'all';
 type KindFilter = 'all' | 'inflow' | 'outflow';
 
 const VIEWS = [
-  { value: 'next', label: 'Nächste 90 Tage' },
+  { value: 'next', label: 'Anstehend' },
   { value: 'contracts', label: 'Verträge und Abos' },
   { value: 'all', label: 'Alle' },
 ] as const;
@@ -56,10 +59,16 @@ const KINDS = [
   { value: 'inflow', label: 'Einnahmen' },
   { value: 'outflow', label: 'Ausgaben' },
 ] as const;
-const HORIZON_DAYS = 90;
+const HORIZON_OPTIONS = [
+  { value: '35', label: '35 Tage' },
+  { value: '90', label: '90 Tage' },
+] as const;
+/** The list always loads the longer horizon, so the switch only filters and never refetches. */
+const LOAD_DAYS = HORIZONS[1];
 
 /**
- * Plan › Erwartet: what is about to be paid or received. The next 90 days by week, the parts list
+ * Plan › Erwartet (nav: Zahlungen): what is about to be paid or received. The next 35 days (90 on
+ * request) in four groups with their sums, the parts list
  * of contracts and subscriptions (monthly equivalent and yearly sum). Payment details have
  * their own URL; only input opens a dialog. Figures come from `/api/expected`.
  */
@@ -70,6 +79,7 @@ export function ExpectedPage() {
   const saved = useLocation({ select: (location) => location.state });
   const [view, setView] = useState<View>(saved.expectedView ?? 'next');
   const [kind, setKind] = useState<KindFilter>(saved.expectedKind ?? 'all');
+  const [horizon, setHorizon] = useState<Horizon>(saved.expectedHorizon ?? HORIZONS[0]);
   const [panel, setPanel] = useState<PaymentPanelState>(null);
 
   // Plan the occurrences and match bookings once when the page opens (idempotent; the P4 worker
@@ -83,7 +93,7 @@ export function ExpectedPage() {
   const ready = !refresh.isPending;
 
   const from = addDays(today, -31);
-  const to = addDays(today, HORIZON_DAYS);
+  const to = addDays(today, LOAD_DAYS);
   const payments = useQuery({ ...expectedQuery(), enabled: ready });
   const occurrences = useQuery({
     ...occurrencesQuery(from, to),
@@ -100,14 +110,15 @@ export function ExpectedPage() {
   // "Als wiederkehrende Zahlung anlegen" on a booking brings the booking along in the history state.
   const fromBooking = useLocation({ select: (l) => l.state.expectedFrom });
   const navigate = useNavigate();
-  const remember = (nextView: View, nextKind: KindFilter) => {
+  const remember = (nextView: View, nextKind: KindFilter, nextHorizon: Horizon = horizon) => {
     setView(nextView);
     setKind(nextKind);
+    setHorizon(nextHorizon);
     void navigate({
       to: '.',
       search: ((previous: object) => previous) as never,
       replace: true,
-      state: { expectedView: nextView, expectedKind: nextKind },
+      state: { expectedView: nextView, expectedKind: nextKind, expectedHorizon: nextHorizon },
     });
   };
   const detailSearch = { monat: month, ansicht: view, art: kind };
@@ -155,6 +166,14 @@ export function ExpectedPage() {
               onChange={(next) => remember(view, next)}
             />
           )}
+          {view === 'next' && (
+            <Segmented
+              label="Zeitraum"
+              options={HORIZON_OPTIONS}
+              value={String(horizon) as '35' | '90'}
+              onChange={(next) => remember(view, kind, next === '90' ? 90 : 35)}
+            />
+          )}
           <span className="xp-spacer" />
           <Button size="sm" variant="ghost" onClick={() => setPanel({ mode: 'create' })}>
             <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
@@ -177,6 +196,7 @@ export function ExpectedPage() {
             rows={occurrences.data}
             today={today}
             kind={kind}
+            horizon={horizon}
             rates={rates}
             onOpen={openPayment}
             onCreate={() => setPanel({ mode: 'create' })}
@@ -206,7 +226,7 @@ export function ExpectedPage() {
   );
 }
 
-// ---------- Nächste 90 Tage ----------
+// ---------- Anstehend (35 / 90 Tage) ----------
 
 function useCollapsed() {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
@@ -224,6 +244,7 @@ function NextDays({
   rows,
   today,
   kind,
+  horizon,
   rates,
   onOpen,
   onCreate,
@@ -231,6 +252,7 @@ function NextDays({
   rows: Occurrence[];
   today: string;
   kind: KindFilter;
+  horizon: Horizon;
   rates: Record<string, number>;
   onOpen: (paymentId: string) => void;
   onCreate: () => void;
@@ -239,12 +261,13 @@ function NextDays({
   const [collapsed, toggle] = useCollapsed();
   const groups = useMemo(
     () =>
-      weekGroups(
+      paymentGroups(
         rows.filter((r) => kind === 'all' || r.kind === kind),
         today,
         rates,
+        horizon,
       ),
-    [rows, today, kind, rates],
+    [rows, today, kind, rates, horizon],
   );
   if (groups.length === 0)
     return (
@@ -255,7 +278,7 @@ function NextDays({
           </Button>
         }
       >
-        In den nächsten 90 Tagen ist nichts fällig.
+        In den nächsten {horizon} Tagen ist nichts fällig.
       </EmptyNote>
     );
   const sum = groups.reduce((a, g) => a + g.sumCents, 0);
@@ -263,7 +286,7 @@ function NextDays({
     <section aria-labelledby="xp-next">
       <SectionHead
         id="xp-next"
-        title="Nächste 90 Tage"
+        title="Wiederkehrende Zahlungen"
         aside={
           <span className="xp-aside">
             {groups.reduce((a, g) => a + g.rows.length, 0)} Fälligkeiten ·{' '}
@@ -273,7 +296,7 @@ function NextDays({
       />
       <table className="ptable xp-table xp-next">
         <caption className="sr-only">
-          Fällige und wiederkehrende Zahlungen der nächsten 90 Tage, nach Woche
+          Fällige und wiederkehrende Zahlungen der nächsten {horizon} Tage in Gruppen mit Summe
         </caption>
         <thead>
           <tr>
@@ -297,26 +320,72 @@ function NextDays({
             </th>
           </tr>
         </thead>
-        <tbody>
-          {groups.map((g, gi) => (
-            <WeekRows
-              key={g.key}
-              group={g}
-              no={gi + 1}
-              today={today}
-              rates={rates}
-              collapsed={collapsed.has(g.key)}
-              onToggle={() => toggle(g.key)}
-              onOpen={onOpen}
-            />
-          ))}
-        </tbody>
+        {groups.map((g, gi) => (
+          <GroupRows
+            key={g.key}
+            group={g}
+            no={gi + 1}
+            today={today}
+            rates={rates}
+            collapsed={collapsed}
+            onToggle={toggle}
+            onOpen={onOpen}
+          />
+        ))}
       </table>
     </section>
   );
 }
 
-function WeekRows({
+interface HeadProps {
+  no?: number;
+  title: string;
+  sub: string;
+  sumCents: number;
+  leftOut: number;
+  collapsed: boolean;
+  onToggle: () => void;
+  testId: string;
+  /** A week inside "Später": its own sticky head, no circle number. */
+  week?: boolean;
+}
+
+function HeadRow({
+  no,
+  title,
+  sub,
+  sumCents,
+  leftOut,
+  collapsed,
+  onToggle,
+  testId,
+  week,
+}: HeadProps) {
+  useAmountPrivacy();
+  return (
+    <tr
+      className={cx('pgroup', week && 'is-week', collapsed && 'is-collapsed')}
+      data-testid={testId}
+    >
+      <td className="col-pos">{no !== undefined && <CircleNumber n={no} size="sm" />}</td>
+      <td className="col-name" colSpan={3}>
+        <button type="button" className="grp-toggle" aria-expanded={!collapsed} onClick={onToggle}>
+          <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
+          <span className="grp-title">{title}</span>
+          <span className="grp-sub">{sub}</span>
+        </button>
+      </td>
+      <td className="col-num" data-label="Summe">
+        {eur(sumCents, { sign: true })}
+        {leftOut > 0 && <span className="xp-sub"> ohne Fremdwährung</span>}
+      </td>
+      <td className="col-state" />
+    </tr>
+  );
+}
+
+/** One group is one `tbody`, so its head sticks only while the group is in view. */
+function GroupRows({
   group: g,
   no,
   today,
@@ -325,80 +394,132 @@ function WeekRows({
   onToggle,
   onOpen,
 }: {
-  group: WeekGroup;
+  group: PaymentGroup;
   no: number;
   today: string;
   rates: Record<string, number>;
-  collapsed: boolean;
-  onToggle: () => void;
+  collapsed: ReadonlySet<string>;
+  onToggle: (key: string) => void;
+  onOpen: (paymentId: string) => void;
+}) {
+  const closed = collapsed.has(g.key);
+  const head = (
+    <HeadRow
+      no={no}
+      title={g.title}
+      sub={g.sub}
+      sumCents={g.sumCents}
+      leftOut={g.leftOut}
+      collapsed={closed}
+      onToggle={() => onToggle(g.key)}
+      testId={`group-${g.key}`}
+    />
+  );
+  if (g.key !== 'later')
+    return (
+      <tbody data-group={g.key}>
+        {head}
+        {!closed && (
+          <Rows rows={g.rows} no={no} start={0} today={today} rates={rates} onOpen={onOpen} />
+        )}
+      </tbody>
+    );
+  let start = 0;
+  return (
+    <>
+      <tbody data-group={g.key}>{head}</tbody>
+      {!closed &&
+        g.weeks.map((w: PaymentWeek) => {
+          const offset = start;
+          start += w.rows.length;
+          const weekClosed = collapsed.has(w.key);
+          return (
+            <tbody key={w.key} data-group="later-week">
+              <HeadRow
+                week
+                title={w.title}
+                sub={w.sub}
+                sumCents={w.sumCents}
+                leftOut={w.leftOut}
+                collapsed={weekClosed}
+                onToggle={() => onToggle(w.key)}
+                testId={`week-${w.key}`}
+              />
+              {!weekClosed && (
+                <Rows
+                  rows={w.rows}
+                  no={no}
+                  start={offset}
+                  today={today}
+                  rates={rates}
+                  onOpen={onOpen}
+                />
+              )}
+            </tbody>
+          );
+        })}
+    </>
+  );
+}
+
+function Rows({
+  rows,
+  no,
+  start,
+  today,
+  rates,
+  onOpen,
+}: {
+  rows: Occurrence[];
+  no: number;
+  start: number;
+  today: string;
+  rates: Record<string, number>;
   onOpen: (paymentId: string) => void;
 }) {
   useAmountPrivacy();
   return (
     <>
-      <tr className={cx('pgroup', collapsed && 'is-collapsed')} data-testid={`week-${g.key}`}>
-        <td className="col-pos">
-          <CircleNumber n={no} size="sm" />
-        </td>
-        <td className="col-name" colSpan={3}>
-          <button
-            type="button"
-            className="grp-toggle"
-            aria-expanded={!collapsed}
-            onClick={onToggle}
-          >
-            <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
-            <span className="grp-title">{g.title}</span>
-            <span className="grp-sub">{g.sub}</span>
-          </button>
-        </td>
-        <td className="col-num" data-label="Summe">
-          {eur(g.sumCents, { sign: true })}
-          {g.leftOut > 0 && <span className="xp-sub"> ohne Fremdwährung</span>}
-        </td>
-        <td className="col-state" />
-      </tr>
-      {!collapsed &&
-        g.rows.map((o, i) => {
-          const alert = needsAction(o, today);
-          const eurValue = o.currency === 'EUR' ? null : eurOf(o.amountCents, o.currency, rates);
-          const counterparty = o.payeeName ?? o.contactName;
-          return (
-            <tr key={o.occurrenceId} className={cx('prow is-clickable', alert && 'is-alert')}>
-              <td className="col-pos pos">
-                {no}.{i + 1}
-              </td>
-              <td className="col-name">
-                <button
-                  type="button"
-                  className="prow-btn xp-name"
-                  onClick={() => onOpen(o.paymentId)}
-                >
-                  <strong>{o.name}</strong>
-                  <span className="xp-sub">
-                    {[counterparty, o.accountName].filter(Boolean).join(' · ')}
-                  </span>
-                </button>
-              </td>
-              <td className="col-due" data-label="Fällig">
-                {dayHeading(o.dueDate)}
-                <span className="sr-only"> {longDay(o.dueDate)}</span>
-              </td>
-              <td className="col-cat" data-label="Kategorie">
-                <Chip occurrence={o} />
-              </td>
-              <td className="col-num" data-label="Betrag">
-                {money(o.amountCents, o.currency, o.kind === 'inflow')}
-                {eurValue !== null && (
-                  <span className="xp-sub">≈ {eur(eurValue, { sign: o.kind === 'inflow' })}</span>
-                )}
-              </td>
-              <td className="col-state">
-                <StatusStamp status={o.status} alert={alert} />
-              </td>
-            </tr>
-          );
-        })}
+      {rows.map((o, i) => {
+        const alert = needsAction(o, today);
+        const eurValue = o.currency === 'EUR' ? null : eurOf(o.amountCents, o.currency, rates);
+        const counterparty = o.payeeName ?? o.contactName;
+        return (
+          <tr key={o.occurrenceId} className={cx('prow is-clickable', alert && 'is-alert')}>
+            <td className="col-pos pos">
+              {no}.{start + i + 1}
+            </td>
+            <td className="col-name">
+              <button
+                type="button"
+                className="prow-btn xp-name"
+                onClick={() => onOpen(o.paymentId)}
+              >
+                <strong>{o.name}</strong>
+                <span className="xp-sub">
+                  {[counterparty, o.accountName].filter(Boolean).join(' · ')}
+                </span>
+              </button>
+            </td>
+            <td className="col-due" data-label="Fällig">
+              {dayHeading(o.dueDate)}
+              <span className="sr-only"> {longDay(o.dueDate)}</span>
+            </td>
+            <td className="col-cat" data-label="Kategorie">
+              <Chip occurrence={o} />
+            </td>
+            <td className="col-num" data-label="Betrag">
+              {money(o.amountCents, o.currency, o.kind === 'inflow')}
+              {eurValue !== null && (
+                <span className="xp-sub">≈ {eur(eurValue, { sign: o.kind === 'inflow' })}</span>
+              )}
+            </td>
+            <td className="col-state">
+              <StatusStamp status={o.status} alert={alert} />
+            </td>
+          </tr>
+        );
+      })}
     </>
   );
 }
