@@ -24,6 +24,7 @@ import { PASSKEYS_KEY } from '../auth/status-query';
 import { authErrorMessage, registerPasskey, withStepUp } from '../auth/webauthn';
 import { SECURITY_META } from '../nav/pages';
 import { PageFrame } from './placeholder-page';
+import { clearDeviceFinancialData } from '../pwa/local-data';
 import { StorageStatus } from '../pwa/storage-status';
 
 const RECOVERY_CODE_COUNT = 10;
@@ -118,6 +119,7 @@ export function SecurityPanel({ onLoggedOut }: SecurityPanelProps) {
     run(async () => {
       await logout();
       queryClient.clear();
+      await clearDeviceFinancialData();
       onLoggedOut();
     });
 

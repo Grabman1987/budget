@@ -108,6 +108,8 @@ export const readChoices = () =>
   access<CaptureChoices | undefined>('choices', 'readonly', (s) => s.get('capture'));
 export const saveChoices = (choices: CaptureChoices) =>
   access('choices', 'readwrite', (s) => s.put(choices, 'capture'));
+/** Sign-out: drops the cached form choices only; unsent bookings stay queued. */
+export const clearChoices = () => access('choices', 'readwrite', (s) => s.clear());
 
 // All tab writers share a lock. The fallback still serializes one page; API keys guard delivery.
 let pending: Promise<unknown> = Promise.resolve();
