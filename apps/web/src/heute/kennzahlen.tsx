@@ -5,6 +5,7 @@ import { useState, type ReactNode } from 'react';
 import { availableInEnvelopes, planRows } from '../budget/plan-model';
 import type { BudgetMonthView } from '../budget/budget-api';
 import { eur, eurWhole, longDay, shortDay } from '../ledger/format';
+import { monthLabel } from '../nav/month';
 import { ErrorNote } from '../ledger/states';
 import { AppLink } from '../shell/app-link';
 import type { Heute } from './api';
@@ -59,8 +60,15 @@ export function Kennzahlen({
           }
           line={summary && `Zugewiesen ${eurWhole(summary.assignedCents)}`}
           note={
-            summary &&
-            `Geld, das noch keinem Envelope zugewiesen ist: Übertrag ${eur(summary.carryInCents)} + Einnahmen ${eur(summary.incomeCents)} − Ungedeckt ${eur(summary.uncoveredCents)} − Zugewiesen ${eur(summary.assignedCents)} − Gehalten ${eur(summary.heldCents)}. Dieselbe Zahl wie im Plan.`
+            summary && (
+              <>
+                {`Geld, das noch keinem Envelope zugewiesen ist: Übertrag ${eur(summary.carryInCents)} + Einnahmen ${eur(summary.incomeCents)} − Ungedeckt ${eur(summary.uncoveredCents)} − Zugewiesen ${eur(summary.assignedCents)} − Gehalten ${eur(summary.heldCents)}. Dieselbe Zahl wie im Plan. `}
+                {`Haushaltseinnahmen ${eur(data.monthResult.earnedCents)} im ${monthLabel(householdMonth)} nach Buchungsdatum. Mit „Für nächsten Monat“ zählt der Zufluss im Plan erst im Folgemonat. `}
+                <AppLink to="/plan/monat/einnahmen" search={{ monat: householdMonth }}>
+                  Planmonat {monthLabel(householdMonth)} ansehen
+                </AppLink>
+              </>
+            )
           }
         />
         {payday ? (
@@ -197,7 +205,7 @@ function Kennzahl({
   state?: UseQueryResult<unknown>;
   bar?: BarSpec | undefined;
   line?: string | undefined;
-  note?: string | undefined;
+  note?: ReactNode | undefined;
   missing?: ReactNode | undefined;
 }) {
   const [info, setInfo] = useState(false);

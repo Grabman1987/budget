@@ -20,6 +20,7 @@ const heute = {
     payday: { day: '2026-09-30', daysToPayday: 4 },
   },
   lead: { freeCents: 68_001 },
+  monthResult: { earnedCents: 350_001, consumptionCents: 232_000, savedCents: 118_001 },
   budgetAnswer: {
     spentCents: 232_000,
     plannedCents: 300_000,
@@ -131,6 +132,11 @@ it('opens the derivation behind the info button', () => {
   expect(info.getAttribute('aria-expanded')).toBe('true');
   const note = document.getElementById(info.getAttribute('aria-controls')!)!;
   expect(within(note).getByText(/Dieselbe Zahl wie im Plan/)).toBeTruthy();
+  // The explanation of the former Monatsergebnis card stays reachable here.
+  expect(
+    within(note).getByText(/Haushaltseinnahmen 3\.500,01 € im September 2026 nach Buchungsdatum/),
+  ).toBeTruthy();
+  expect(within(note).getByRole('link', { name: 'Planmonat September 2026 ansehen' })).toBeTruthy();
 });
 
 it('keeps a failed budget in its own tile and the other figures visible', () => {
