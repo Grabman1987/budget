@@ -83,7 +83,10 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   await expect(row.getByRole('button', { name: 'vorgemerkt', exact: true })).toBeVisible();
   await row.getByRole('button', { name: 'vorgemerkt', exact: true }).click();
   await expect(row.getByRole('button', { name: 'bestätigt', exact: true })).toBeVisible();
-  await row.locator('.kc-num').last().click();
+  // Desktop opens the booking from the read-only balance cell; the phone row has no per-row
+  // balance (day balance sits in the day row, #581), so the phone opens it from the row itself.
+  if (info.project.name === 'desktop') await row.locator('.kc-num').last().click();
+  else await row.getByRole('button', { name: /bearbeiten/ }).click();
   let panel = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
   await expect(panel).toBeVisible();
   await expect(panel.getByLabel('Budgetmonat')).toHaveCount(0);
