@@ -38,8 +38,8 @@ const canEditCategory = (b: ListedBooking) =>
 
 /**
  * Booking table shared by Einzelkonto and Alle Buchungen: the payee opens the booking, the
- * category is changed in place, new and changed rows flash once. On the phone every row becomes
- * a small card of the same cells.
+ * category is changed in place, new and changed rows flash once. Account history uses compact
+ * two-line phone rows; Alle Buchungen retains its existing layout.
  */
 export function BookingTable({
   items,
@@ -102,7 +102,65 @@ export function BookingTable({
   );
 
   const entries = upcoming ? upcomingEntries(upcoming) : [];
-  const groups = all ? groupByDay(items) : [{ day: '', items: [...items], sum: 0 }];
+  const groups = groupByDay(items);
+  const groupRows = (group: (typeof groups)[number]) => (
+    <>
+      {all && (
+        <tr className="kday">
+          <td colSpan={columns}>
+            <span className="tech">{dayHeading(group.day)}</span>
+            <span className="kday-sum">
+              {[...new Set(group.items.map((b) => b.currency))]
+                .map((currency) =>
+                  nativeCurrency(
+                    group.items
+                      .filter((b) => b.currency === currency)
+                      .reduce((sum, b) => sum + b.amountCents, 0),
+                    currency,
+                    true,
+                  ),
+                )
+                .join(' · ')}
+            </span>
+          </td>
+        </tr>
+      )}
+      {!all && (
+        <tr className="kaccount-day" data-day={group.day}>
+          <th scope="rowgroup" colSpan={columns}>
+            <span>{dayHeading(group.day)}</span>
+            <span>
+              Saldo{' '}
+              {group.items[0]?.balanceAfterCents == null
+                ? '–'
+                : valuedCurrency(
+                    group.items[0].balanceAfterCents,
+                    group.items[0].currency,
+                    group.items[0].balanceValuation,
+                  )}
+            </span>
+          </th>
+        </tr>
+      )}
+      {group.items.map((b) => (
+        <Row
+          key={b.id}
+          booking={b}
+          variant={variant}
+          classes={classes}
+          runColumn={runColumn}
+          {...(selection ? { selection } : {})}
+          onOpen={onOpen}
+          categories={lookups.data?.categories ?? []}
+          groups={lookups.data?.groups ?? []}
+          onCategory={setCategory}
+          onFlag={setFlag}
+          onPatch={(patch) => writes.patch.mutateAsync({ id: b.id, patch })}
+          busy={writes.patch.isPending}
+        />
+      ))}
+    </>
+  );
   return (
     <>
       {selection && (
@@ -116,8 +174,21 @@ export function BookingTable({
           Alle sichtbaren auswählen
         </label>
       )}
-      <table className={cx('ktable ktx', all && 'ktx-all')}>
+      <table className={cx('ktable ktx', all ? 'ktx-all' : 'ktx-account')}>
         <caption className="sr-only">{caption}</caption>
+        {!all && (
+          <colgroup>
+            {selection && <col className="kcol-select" />}
+            <col className="kcol-flag" />
+            <col className="kcol-date" />
+            <col />
+            <col className="kcol-note" />
+            <col className="kcol-category" />
+            <col className="kcol-money" />
+            <col className="kcol-money" />
+            <col className="kcol-status" />
+          </colgroup>
+        )}
         <thead>
           <tr>
             {selection && (
@@ -207,64 +278,30 @@ export function BookingTable({
             )}
           </>
         )}
-        <tbody>
-          {groups.map((group) => (
-            <Fragment key={group.day || 'all'}>
-              {all && (
-                <tr className="kday">
-                  <td colSpan={columns}>
-                    <span className="tech">{dayHeading(group.day)}</span>
-                    <span className="kday-sum">
-                      {[...new Set(group.items.map((b) => b.currency))]
-                        .map((currency) =>
-                          nativeCurrency(
-                            group.items
-                              .filter((b) => b.currency === currency)
-                              .reduce((sum, b) => sum + b.amountCents, 0),
-                            currency,
-                            true,
-                          ),
-                        )
-                        .join(' · ')}
-                    </span>
-                  </td>
-                </tr>
-              )}
-              {group.items.map((b) => (
-                <Row
-                  key={b.id}
-                  booking={b}
-                  variant={variant}
-                  classes={classes}
-                  runColumn={runColumn}
-                  {...(selection ? { selection } : {})}
-                  onOpen={onOpen}
-                  categories={lookups.data?.categories ?? []}
-                  groups={lookups.data?.groups ?? []}
-                  onCategory={setCategory}
-                  onFlag={setFlag}
-                  onPatch={(patch) => writes.patch.mutateAsync({ id: b.id, patch })}
-                  busy={writes.patch.isPending}
-                />
-              ))}
-            </Fragment>
-          ))}
-        </tbody>
+        {all ? (
+          <tbody>
+            {groups.map((group) => (
+              <Fragment key={group.day || 'all'}>{groupRows(group)}</Fragment>
+            ))}
+          </tbody>
+        ) : (
+          // One body per day: the rowgroup heading below then owns exactly its day's rows.
+          groups.map((group) => <tbody key={group.day}>{groupRows(group)}</tbody>)
+        )}
       </table>
     </>
   );
 }
 
 function groupByDay(items: ReadonlyArray<ListedBooking>) {
-  const groups: { day: string; items: ListedBooking[]; sum: number }[] = [];
+  const groups: { day: string; items: ListedBooking[] }[] = [];
   for (const b of items) {
     let group = groups[groups.length - 1];
     if (!group || group.day !== b.date) {
-      group = { day: b.date, items: [], sum: 0 };
+      group = { day: b.date, items: [] };
       groups.push(group);
     }
     group.items.push(b);
-    group.sum += b.amountCents;
   }
   return groups;
 }
@@ -355,9 +392,28 @@ function Row({
         >
           <PayeeCell
             booking={b}
-            {...(variant === 'account' ? { noteClassName: 'kx-mobile-note' } : {})}
+            {...(variant === 'account'
+              ? upcomingToday
+                ? { noteClassName: 'kx-mobile-note' }
+                : { hideNote: true }
+              : {})}
           />
         </button>
+        {variant === 'account' && !upcomingToday && (
+          // Outside the labelled button so the row still reads its category and note; the button
+          // covers it on the phone, so a tap anywhere in the cell opens the booking.
+          <span className="kaccount-mobile-meta">
+            <span>{shortDay(b.date)}</span>
+            <span aria-hidden="true"> · </span>
+            <CategoryCell booking={b} classes={classes} />
+            {b.memo && (
+              <>
+                <span aria-hidden="true"> · </span>
+                <span className="kmeta kx-mobile-note">{b.memo}</span>
+              </>
+            )}
+          </span>
+        )}
       </td>
       {variant === 'account' && (
         <td className="kx-note">
@@ -443,7 +499,9 @@ function Row({
           <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
             {upcomingToday
               ? projectedBalance == null
-                ? 'Saldo offen'
+                ? variant === 'account'
+                  ? '–'
+                  : 'Saldo offen'
                 : nativeCurrency(projectedBalance, b.currency)
               : b.balanceAfterCents === null
                 ? ''

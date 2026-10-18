@@ -91,11 +91,21 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await expect(balance(page)).toHaveText('100,00 €');
   await expect(page.getByRole('row', { name: /Umbuchung von/ })).toBeVisible();
 
-  // Edit in place: change the category of the first expense without opening it.
+  // Desktop edits the category in place without opening the booking; the phone row is two-line
+  // without inline cells (owner decision 16.10., #581), so the phone changes it in the dialog.
   await openAccount(page, giro);
   const row = page.getByRole('row', { name: new RegExp(shop) });
-  await row.getByRole('button', { name: /Kategorie ändern/ }).click();
-  await page.getByLabel(/Kategorie für/).selectOption({ label: 'Miete' });
+  if (testInfo.project.name === 'desktop') {
+    await row.getByRole('button', { name: /Kategorie ändern/ }).click();
+    await page.getByLabel(/Kategorie für/).selectOption({ label: 'Miete' });
+  } else {
+    await expect(row.getByRole('button', { name: /Kategorie ändern/ })).toBeHidden();
+    await row.getByRole('button', { name: /bearbeiten/ }).click();
+    const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+    await pickCategory(edit, 'Miete');
+    await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await expect(edit).toBeHidden();
+  }
   await expect(row).toContainText('Miete');
   await expect(toast(page)).toContainText('Buchung geändert');
 

@@ -61,7 +61,13 @@ test('checks off-budget accounts, updates manual values with undo and prepares t
   await review('overview');
   for (const account of accounts.slice(0, 4)) {
     await page.goto(`/konten/${account.id}`);
-    const button = page.getByRole('button', { name: 'Kontostand prüfen', exact: true });
+    // Cash pages carry the compact badge named after the check date; depot pages keep the plain button.
+    const checkedOn: Record<string, string> = { checking: '06.09.', loan: '07.09.' };
+    const checked = checkedOn[account.type];
+    const button = page.getByRole('button', {
+      name: checked ? `Geprüft ${checked} · Kontostand prüfen` : 'Kontostand prüfen',
+      exact: true,
+    });
     await expect(button).toBeVisible();
     if (info.project.name === 'mobile')
       expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);

@@ -90,7 +90,9 @@ test('native detail, dated EUR history and reconciliation undo', async ({
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await page.screenshot({ path: join(info.outputDir, `fx-detail-${theme}.png`), fullPage: true });
   }
-  await page.getByRole('button', { name: 'Kontostand prüfen', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Nie geprüft – jetzt prüfen · Kontostand prüfen', exact: true })
+    .click();
   const panel = page.getByRole('dialog', {
     name: 'Kontostand prüfen · Synthetic USD',
     exact: true,
@@ -159,7 +161,9 @@ test('missing FX stays explicit while the native check remains available', async
     .click();
   await expect(page.getByTestId('balance-chart-eur')).toHaveCount(0);
   await expect(page.getByText('EUR-Bewertung: Kurs fehlt', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Kontostand prüfen', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Nie geprüft – jetzt prüfen · Kontostand prüfen', exact: true })
+    .click();
   const panel = page.getByRole('dialog', {
     name: 'Kontostand prüfen · Synthetic CHF',
     exact: true,

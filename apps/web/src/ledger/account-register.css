@@ -1,0 +1,283 @@
+/* Account register only; Alle Buchungen retains its own density and phone layout. */
+.kacct-register .kacct-kpis {
+  align-items: center;
+  gap: var(--space-sm) var(--space-xl);
+  margin-block: var(--space-sm);
+}
+.kacct-kpis .kacct-saldo strong {
+  font-size: var(--fs-figure);
+  line-height: var(--lh-figure);
+}
+.kacct-kpis .kacct-pending strong,
+.kacct-kpis .kacct-month strong {
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
+}
+.kacct-register .kacct-review-badge {
+  border: var(--stroke-hairline) solid var(--rule-strong);
+  border-radius: var(--radius-pill);
+  min-height: var(--touch);
+  height: auto;
+}
+.kacct-source summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: var(--touch);
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.kacct-source[open] {
+  flex-basis: 100%;
+}
+.kacct-register .kh {
+  margin-top: var(--space-md);
+}
+.kaccount-table-card {
+  min-width: 0;
+  border: var(--stroke-hairline) solid var(--rule);
+  border-radius: var(--radius-sheet);
+  background: var(--surface);
+}
+.ktx-account {
+  table-layout: fixed;
+  font-size: var(--fs-table);
+  line-height: var(--lh-table);
+}
+.ktx-account .kcol-flag {
+  width: var(--space-gutter);
+}
+.ktx-account .kcol-date {
+  width: 10%;
+}
+.ktx-account .kcol-note {
+  width: 12%;
+}
+.ktx-account .kcol-category {
+  width: 18%;
+}
+.ktx-account .kcol-money {
+  width: 15%;
+}
+.ktx-account .kcol-select,
+.ktx-account .kcol-status {
+  width: var(--touch);
+}
+.ktx-account td {
+  padding: 0 var(--space-sm);
+  min-width: 0;
+}
+/* Booked rows only: Kommend and scheduled rows keep their own layout. */
+.ktx-account tr[data-booking]:not(.is-upcoming) td {
+  height: var(--touch);
+}
+.ktx-account .kc-date,
+.ktx-account .kcat {
+  font-size: inherit;
+  letter-spacing: normal;
+}
+.ktx-account .kname-btn,
+.ktx-account .kcat-btn {
+  width: 100%;
+  min-height: var(--touch);
+}
+.ktx-account .kname-s,
+.ktx-account .kcat,
+.ktx-account .kx-note span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.ktx-account .kcat-btn .kcat {
+  flex: 1;
+}
+.ktx-account .kcat-edit {
+  flex: none;
+}
+.ktx-account .kc-status {
+  padding: 0;
+}
+.ktx-account .kinline {
+  min-width: 0;
+}
+.ktx-account .kx-run > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ktx-account .kcell-edit:hover,
+.ktx-account .kcell-edit:focus-visible,
+.ktx-account .kcat-btn:hover,
+.ktx-account .kcat-btn:focus-visible {
+  background: var(--tint);
+  outline: var(--stroke-hairline) solid var(--rule-strong);
+  outline-offset: calc(-1 * var(--stroke-hairline));
+}
+.kaccount-mobile-meta,
+.ktx-account .kaccount-day {
+  display: none;
+}
+@media (min-width: 768px) and (pointer: fine) {
+  .ktx-account td,
+  .ktx-account tr[data-booking]:not(.is-upcoming) td,
+  .ktx-account .kcell-edit,
+  .ktx-account .kname-btn,
+  .ktx-account .kcat-btn,
+  .ktx-account .kstatus-btn,
+  .ktx-account .kinline .input,
+  .ktx-account .select-sm {
+    min-height: calc(var(--touch) - var(--space-sm));
+    height: calc(var(--touch) - var(--space-sm));
+  }
+}
+@media (pointer: coarse) {
+  .ktx-account .kcol-flag {
+    width: var(--touch);
+  }
+  .ktx-account .kflagpick.in-list .kflagbtn {
+    min-width: var(--touch);
+    min-height: var(--touch);
+    margin: 0;
+  }
+}
+@media (max-width: 767px) {
+  .kacct-register .kacct-actions .btn {
+    width: auto;
+  }
+  .kacct-register .kback {
+    margin-bottom: var(--space-xs);
+  }
+  .ktx-account colgroup {
+    display: none;
+  }
+  /* The extra .ktx class outranks the stacked foreign-currency grid of ledger.css. */
+  .kacct-register .ktx.ktx-account tr[data-booking]:not(.is-upcoming) {
+    grid-template-columns: var(--touch) minmax(0, 1fr) minmax(var(--touch), 35%) var(--touch);
+    grid-template-areas: 'flag payee amount status';
+    align-items: stretch;
+    gap: 0 var(--space-xs);
+    padding: 0 var(--space-sm) 0 0;
+  }
+  .ktx-account tr[data-booking]:not(.is-upcoming) td {
+    padding: 0;
+    height: auto;
+  }
+  .ktx-account tr[data-booking]:not(.is-upcoming) :is(.kx-date, .kx-cat, .kx-run) {
+    display: none;
+  }
+  /* The flag stays editable in the table: a full touch target in the first column. */
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-flag {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ktx-account .kflagpick.in-list .kflagbtn {
+    min-width: var(--touch);
+    min-height: var(--touch);
+    margin: 0;
+  }
+  /* Fixed cell heights keep every phone row at one touch target, whatever the content does. */
+  .ktx-account tr[data-booking]:not(.is-upcoming) :is(.kx-flag, .kx-payee, .kx-status),
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-amount:not(:has(.kfx-money)) {
+    height: var(--touch);
+  }
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-payee {
+    overflow: hidden;
+  }
+  /* A flex cell has no line-box strut below its inline button. */
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-status {
+    display: flex;
+    justify-content: flex-end;
+  }
+  /*
+   * Payee cell: line one is the name (the button, which covers the whole cell for a 44 px tap
+   * target), line two is date, category and note outside the button so the row keeps reading them.
+   */
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-payee {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: var(--touch);
+    padding-top: var(--space-xs);
+  }
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-payee::before {
+    content: '';
+    flex: none;
+    height: var(--lh-table);
+  }
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-payee .kname-btn {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-start;
+    height: 100%;
+    min-width: var(--touch);
+    padding: var(--space-xs) 0 0;
+    line-height: var(--lh-table);
+    text-align: left;
+  }
+  .ktx-account .kx-payee .kname-s {
+    flex: 1;
+    min-width: 0;
+  }
+  .ktx-account .kaccount-mobile-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    min-width: 0;
+    color: var(--ink-2);
+    font-size: var(--fs-meta);
+    line-height: var(--lh-meta);
+    font-weight: 400;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .ktx-account .kaccount-mobile-meta > span {
+    flex: none;
+  }
+  .ktx-account .kaccount-mobile-meta .kcat {
+    flex: 0 1 auto;
+    min-width: 0;
+    font-size: inherit;
+  }
+  .ktx-account .kaccount-mobile-meta .kx-mobile-note {
+    display: block;
+    flex: 1 1 var(--space-xl);
+    min-width: var(--space-xl);
+    margin: 0;
+    color: inherit;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-amount .kcell-edit {
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+    min-width: var(--touch);
+    padding-top: var(--space-xs);
+    width: 100%;
+    white-space: nowrap;
+  }
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kstatus-btn {
+    align-items: flex-end;
+    padding-bottom: var(--space-xs);
+  }
+  .ktx-account .kaccount-day {
+    display: block;
+    padding: 0 var(--space-sm);
+    background: var(--surface-2);
+  }
+  .kaccount-day th {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    padding-block: var(--space-xs);
+    font-size: var(--fs-meta);
+    line-height: var(--lh-meta);
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+}

@@ -1,4 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
+import './account-register.css';
 import { useState } from 'react';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { BookingTable } from './booking-table';
@@ -47,14 +48,16 @@ export function AccountRegister({
         </EmptyNote>
       )}
       {(items.length > 0 || (upcoming.model?.count ?? 0) > 0) && (
-        <BookingTable
-          items={items}
-          caption="Buchungen mit laufendem Saldo"
-          variant="account"
-          upcoming={upcoming.model}
-          showTodayBalance={showTodayBalance}
-          onOpen={(booking) => setPanel({ mode: 'edit', booking })}
-        />
+        <div className="kaccount-table-card">
+          <BookingTable
+            items={items}
+            caption="Buchungen mit laufendem Saldo"
+            variant="account"
+            upcoming={upcoming.model}
+            showTodayBalance={showTodayBalance}
+            onOpen={(booking) => setPanel({ mode: 'edit', booking })}
+          />
+        </div>
       )}
       {list.hasNextPage && (
         <LoadOlder fetching={list.isFetching} failed={list.isError} load={list.fetchNextPage} />
