@@ -1962,9 +1962,17 @@
   min-width: 0;
 }
 .bk-suggestions .chip {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
   padding-inline: 8px;
   font-size: var(--fs-label);
+}
+/* Up to three suggestions share one line; a long name is cut, never wrapped or scrolled. */
+.bk-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .bk-share {
   display: grid;
@@ -2038,5 +2046,80 @@
   }
   .bk-body .amount-box {
     padding-block: 0;
+  }
+}
+
+/* Two-column capture card on desktop (#583): head left, booking lines right, Notiz and "Mehr ▾"
+   under the head. The wrappers vanish on the phone, where the sheet keeps one column in the same
+   order. A transfer has no lines and keeps the narrow card. */
+.bk-cols,
+.bk-col-head,
+.bk-col-lines,
+.bk-col-memo {
+  display: contents;
+}
+.bkform .kmore > summary {
+  list-style: none;
+}
+.bkform .kmore > summary::-webkit-details-marker {
+  display: none;
+}
+.kmore[open] > summary .kmore-caret {
+  display: inline-block;
+  transform: rotate(180deg);
+}
+@media (min-width: 768px) {
+  dialog.overlay.modal:has(.bk-split-cols) {
+    width: min(960px, calc(100vw - 32px));
+  }
+  .bk-split-cols .bk-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas: 'head lines' 'memo lines';
+    gap: 14px 28px;
+    align-items: start;
+    min-width: 0;
+  }
+  .bk-split-cols .bk-col-head,
+  .bk-split-cols .bk-col-lines,
+  .bk-split-cols .bk-col-memo {
+    display: grid;
+    gap: 14px;
+    align-content: start;
+    min-width: 0;
+  }
+  .bk-split-cols .bk-col-head {
+    grid-area: head;
+  }
+  .bk-split-cols .bk-col-lines {
+    grid-area: lines;
+  }
+  .bk-split-cols .bk-col-memo {
+    grid-area: memo;
+  }
+  /* Lines: Betrag, Kategorie and Teilen share one row, so two lines fit without scrolling. */
+  .bk-split-cols .bk-body {
+    padding-top: 12px;
+    gap: 8px;
+  }
+  .bk-split-cols .bk-body .khint {
+    margin-top: 0;
+  }
+  .bk-split-cols .bk-line-fields.is-multiple {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) auto;
+  }
+  .bk-split-cols .bk-line-fields.is-multiple > .amount {
+    grid-column: auto;
+  }
+  .bk-split-cols .bk-lines .amount-box {
+    min-height: 44px;
+    padding-block: 0;
+  }
+  .bk-split-cols .bk-lines .amount-input {
+    font-size: var(--fs-headline);
+  }
+  .bk-split-cols .bk-share {
+    align-items: end;
   }
 }
