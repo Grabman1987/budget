@@ -40,8 +40,8 @@ for (const theme of ['light', 'dark'] as const) {
           const inbox: InboxView = await response.json();
           const counts = inbox.segments!;
           const shown = inbox.segment!;
-          // Axe must scan a populated part, never an empty Prüfen state. The sample seed holds four open
-          // non-overspent items (header-q5.spec asserts "Prüfen · 4"), so the shown part has rows.
+          // Axe must scan a populated part, never an empty Prüfen state. The sample seed (served by the real API,
+          // not the mocked count in header-q5.spec) holds four open non-overspent items, so the shown part has rows.
           expect(counts[shown]).toBeGreaterThan(0);
           await expect(page.getByTestId('inbox-row').first()).toBeVisible();
           // The segment control has accessible names with the server counters and exactly one pressed part.
