@@ -10,7 +10,9 @@ test('Today keeps payday first, unknown counts explicit and additional steps con
   page,
 }, info) => {
   test.setTimeout(120_000);
-  const data: Heute = await (await page.request.get('/api/heute?month=2026-09')).json();
+  const data: Heute = await (
+    await page.request.get('/api/heute?month=2026-09&period=payday')
+  ).json();
   data.financeCheck = {
     counts: { ok: 0, warn: 1, bad: 2, notEvaluated: 3, total: 6 },
     keyRules: [],
@@ -49,11 +51,15 @@ test('Today keeps payday first, unknown counts explicit and additional steps con
   await page.route('**/api/savings-plans/execution-proposals*', (route) =>
     route.fulfill({ json: { proposals: [] } }),
   );
-  await page.goto('/?monat=2026-09');
-  const first = page.locator('.heute-answer').first();
-  await expect(first.getByRole('heading', { name: 'Frei bis Gehalt', exact: true })).toBeVisible();
-  await expect(first).toContainText('Bis 15.10. · noch 28 Tage');
-  await expect(first).toContainText('Nächster erwarteter Geldeingang: 30.09. · 3.812,00 €');
+  await page.goto('/?monat=2026-09&period=payday');
+  // #571: Zu verteilen leads; Frei bis Gehalt is the middle Kennzahl in the mode Bis Gehalt.
+  const first = page.locator('.heute-kennzahl').first();
+  await expect(first.getByRole('heading', { name: 'Zu verteilen', exact: true })).toBeVisible();
+  const payday = page.locator('.heute-kennzahl').nth(1);
+  await expect(payday.getByRole('heading', { name: 'Frei bis Gehalt', exact: true })).toBeVisible();
+  await expect(payday).toContainText('Bis 15.10. · noch 28 Tage');
+  // The next salary stays marked on the forecast (the amount sentence left the cards).
+  await expect(page.locator('.heute-salary-mark').first()).toBeAttached();
   const more = page.getByRole('button', { name: /Mehr zum Monat/ });
   if ((await more.getAttribute('aria-expanded')) === 'false') await more.click();
   await expect(page.getByRole('heading', { name: 'Nächste Schritte' })).toHaveCount(0);

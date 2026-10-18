@@ -2,35 +2,48 @@ import AxeBuilder from '@axe-core/playwright';
 import { mkdirSync } from 'node:fs';
 import { sampleTest as test, expect } from './sample';
 import type { Heute } from '../apps/web/src/heute/api';
+import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 import { eur } from '../apps/web/src/ledger/format';
 
-test('three answer cards use source cents, fit the phone and link to the current source views', async ({
+test('three Kennzahlen use source cents, fit the phone and link to the current source views', async ({
   page,
 }, info) => {
   test.setTimeout(60_000);
   await page.goto('/?monat=2026-08');
   const data: Heute = await (await page.request.get('/api/heute?month=2026-08')).json();
-  const cards = page.locator('.heute-answer');
+  const budget: BudgetMonthView = await (await page.request.get('/api/budget/2026-08')).json();
+  const cards = page.locator('.heute-kennzahl');
   await expect(cards).toHaveCount(3);
-  await expect(page.getByTestId('heute-lead-value')).toHaveCount(1);
+  await expect(page.getByTestId('heute-kennzahlen').getByRole('heading', { level: 2 })).toHaveText([
+    'Zu verteilen',
+    'Verfügbar im Budget',
+    'Nettovermögen',
+  ]);
+  // The lead figure belongs to Bis Gehalt, which only exists in the current month.
+  await expect(page.getByTestId('heute-lead-value')).toHaveCount(0);
   if ('unavailable' in data.netWorth) throw new Error('Synthetic valuation unavailable');
   await expect(cards.nth(2).locator('.heute-answer-value')).toHaveText(
     eur(data.netWorth.totalCents),
   );
-  await expect(cards.nth(1).locator('.heute-answer-value')).toHaveText(
-    eur(data.monthResult.savedCents),
+  await expect(cards.nth(0).locator('.heute-answer-value')).toHaveText(
+    eur(budget.summary.toBeAssignedCents),
   );
-  await expect(cards.nth(0).locator('.heute-answer-value')).toHaveText(eur(data.lead.freeCents));
-  await expect(cards.nth(1)).toContainText(
+  await expect(cards.nth(1).locator('.heute-answer-value')).toHaveText(/^[−-]?[\d.]+,\d{2} €$/);
+  // The Haushaltseinnahmen of the former Monatsergebnis card sit in the derivation of Zu verteilen.
+  const derivation = cards.nth(0).getByRole('button', { name: 'Herleitung Zu verteilen' });
+  await derivation.click();
+  await expect(cards.nth(0)).toContainText(
     `Haushaltseinnahmen ${eur(data.monthResult.earnedCents)}`,
   );
-  await expect(cards.nth(0)).toContainText(
-    `Tag ${data.budgetAnswer.day} von ${data.budgetAnswer.daysInMonth}`,
+  await derivation.click();
+  const bar = cards.nth(1).locator('.heute-answer-bar');
+  await expect(bar).toHaveAttribute(
+    'aria-label',
+    new RegExp(`Tag ${data.budgetAnswer.day} von ${data.budgetAnswer.daysInMonth}$`),
   );
   // CSSOM serializes percentages to fewer decimals than JavaScript.
   expect(
-    await cards
-      .nth(0)
+    await bar
       .locator('.heute-answer-marker')
       .evaluate((node) => parseFloat((node as HTMLElement).style.left)),
   ).toBeCloseTo((data.budgetAnswer.day / data.budgetAnswer.daysInMonth) * 100, 3);
@@ -41,8 +54,23 @@ test('three answer cards use source cents, fit the phone and link to the current
     );
   else await expect(page.locator('.heute-nearest-goal')).toHaveCount(0);
   await expect(page.getByTestId('heute-month-note')).toBeVisible();
-  await page.goto('/?monat=2026-09');
+  // Current month in Bis Gehalt: the middle Kennzahl is the lead figure of the API.
+  const payday: Heute = await (
+    await page.request.get('/api/heute?month=2026-09&period=payday')
+  ).json();
+  await page.goto('/?monat=2026-09&period=payday');
   await expect(cards).toHaveCount(3);
+  await expect(page.getByTestId('heute-kennzahlen').getByRole('heading', { level: 2 })).toHaveText([
+    'Zu verteilen',
+    'Frei bis Gehalt',
+    'Nettovermögen',
+  ]);
+  await expect(page.getByTestId('heute-lead-value')).toHaveCount(1);
+  await expect(cards.nth(1).locator('.heute-answer-value')).toHaveText(eur(payday.lead.freeCents));
+  await expect(cards.nth(1).locator('.heute-answer-bar')).toHaveAttribute(
+    'aria-label',
+    new RegExp(`Tag ${payday.budgetAnswer.day} von ${payday.budgetAnswer.daysInMonth}$`),
+  );
   await expect(page.getByTestId('heute-balance-chart')).toBeVisible();
   const dir = 'docs/evidence/heute-hints-1009/cards';
   mkdirSync(dir, { recursive: true });
@@ -56,23 +84,8 @@ test('three answer cards use source cents, fit the phone and link to the current
       }),
     );
     if (info.project.name === 'mobile') {
-      const incomeExplanation = cards.nth(1).locator('p', {
-        hasText: 'Haushaltseinnahmen im September 2026 nach Buchungsdatum.',
-      });
-      await expect(incomeExplanation).toBeVisible();
-      const explanationBox = await incomeExplanation.boundingBox();
-      expect(explanationBox).not.toBeNull();
-      // Keep the compact card budget, allowing only the newly visible explanation and grid gap.
-      const paydayLines = await cards
-        .nth(0)
-        .locator('p')
-        .filter({ hasText: /Bis .*noch|Geldeingang/ })
-        .evaluateAll((nodes) =>
-          nodes.reduce((sum, node) => sum + node.getBoundingClientRect().height + 4, 0),
-        );
-      expect(boxes[0]!.height - paydayLines).toBeLessThanOrEqual(120);
-      expect(boxes[1]!.height - explanationBox!.height - 4).toBeLessThanOrEqual(120);
-      expect(boxes[2]!.height).toBeLessThanOrEqual(120);
+      // The phone shows a compact list: every Kennzahl stays within the former card budget.
+      for (const box of boxes) expect(box.height).toBeLessThanOrEqual(120);
       expect(boxes[1]!.y).toBeGreaterThanOrEqual(boxes[0]!.y + boxes[0]!.height);
       expect(boxes[2]!.y).toBeGreaterThanOrEqual(boxes[1]!.y + boxes[1]!.height);
     } else expect(boxes.map((box) => box.y)).toEqual([boxes[0]!.y, boxes[0]!.y, boxes[0]!.y]);
@@ -87,20 +100,20 @@ test('three answer cards use source cents, fit the phone and link to the current
       animations: 'disabled',
     });
   }
-  await cards.nth(0).getByRole('button').click();
+  await page.getByTestId('heute-lead-value').click();
   await expect(page.locator('#heute-lead-chain')).toBeVisible();
   await cards
-    .nth(1)
+    .nth(0)
     .locator('a', { has: page.locator('.heute-answer-value') })
     .click();
-  await expect(page).toHaveURL(/\/reports\/onepager\?monat=2026-09/);
-  await expect(page.getByRole('heading', { name: 'Monats-One-Pager', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-09/);
+  await expect(page.getByTestId('to-be-assigned')).toBeVisible();
 });
 
-test('explains plan-rest beside negative payday room on phone and desktop in both themes', async ({
+test('explains plan-rest behind the derivation of the negative payday room on phone and desktop in both themes', async ({
   page,
 }, info) => {
-  const response = await page.request.get('/api/heute?month=2026-09');
+  const response = await page.request.get('/api/heute?month=2026-09&period=payday');
   expect(response.ok()).toBe(true);
   const data: Heute = await response.json();
   data.lead.freeCents = -10_000;
@@ -120,25 +133,39 @@ test('explains plan-rest beside negative payday room on phone and desktop in bot
     { label: 'offen bis Gehalt', value: 50_000, op: '-' },
     { label: 'frei verfügbar', value: -10_000, op: '=', result: true },
   ];
+  // Same figures in both modes: Bis Gehalt shows the lead, Monat the envelope sum.
   await page.route('**/api/heute?**', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) }),
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        route.request().url().includes('period=month')
+          ? { ...data, stand: { ...data.stand, period: 'month' } }
+          : data,
+      ),
+    }),
   );
-  await page.goto('/?monat=2026-09');
-  const budget = page.locator('.heute-answer').nth(0);
-  await expect(budget.getByRole('heading', { name: 'Frei bis Gehalt' })).toBeVisible();
-  await expect(page.getByTestId('heute-lead-value')).toHaveText('−100,00 €');
-  await expect(budget).toContainText(
+  await page.goto('/?monat=2026-09&period=month');
+  const month = page.locator('.heute-kennzahl').nth(1);
+  await expect(month.getByRole('heading', { name: 'Verfügbar im Budget' })).toBeVisible();
+  await month.getByRole('button', { name: 'Herleitung Verfügbar im Budget' }).click();
+  await expect(month).toContainText(
     'Ausgabenplan: 600,00 € ausgegeben von 1.000,00 € · Plan-Rest 400,00 €',
   );
-  await expect(page.getByTestId('heute-lead-value')).toHaveAttribute(
-    'aria-describedby',
-    'heute-plan-rest-note',
+  await page.goto('/?monat=2026-09&period=payday');
+  const budget = page.locator('.heute-kennzahl').nth(1);
+  await expect(budget.getByRole('heading', { name: 'Frei bis Gehalt' })).toBeVisible();
+  await expect(page.getByTestId('heute-lead-value')).toHaveText('−100,00 €');
+  const derivation = budget.getByRole('button', { name: 'Herleitung Frei bis Gehalt' });
+  await expect(derivation).toHaveAttribute('aria-expanded', 'false');
+  await derivation.click();
+  await expect(derivation).toHaveAttribute('aria-expanded', 'true');
+  const note = page.locator('#kennzahl-frei-bis-gehalt-note');
+  await expect(note).toBeVisible();
+  await expect(note).toContainText('Ausgabenplan: 600,00 € ausgegeben von 1.000,00 €');
+  await expect(note).toContainText(
+    'Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind',
   );
-  await expect(page.getByTestId('heute-plan-rest-note')).toContainText('kein Kontoguthaben');
-  await expect(page.getByTestId('heute-plan-rest-note')).toContainText(
-    'verfügbares Bedarf-/Wunschbudget minus offene Rechnungen',
-  );
-  await expect(page.getByTestId('heute-plan-rest-note')).toBeVisible();
   await page.getByTestId('heute-lead-value').click();
   await expect(page.locator('#heute-lead-chain')).toContainText('offen bis Gehalt');
   await expect(page.locator('#heute-lead-chain')).toContainText('−100');
@@ -147,7 +174,7 @@ test('explains plan-rest beside negative payday room on phone and desktop in bot
   mkdirSync(dir, { recursive: true });
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
-    await expect(page.getByTestId('heute-plan-rest-note')).toBeVisible();
+    await expect(note).toBeVisible();
     const path = `${dir}/${info.project.name}-${theme}.png`;
     await page.screenshot({ path, fullPage: false, animations: 'disabled' });
     await info.attach(`Plan-Rest ${info.project.name} ${theme}`, {

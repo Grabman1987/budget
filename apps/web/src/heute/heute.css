@@ -1043,13 +1043,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.heute-answer-note {
-  margin: 6px 0 0 8px;
-  font-size: var(--fs-meta);
-  line-height: 1.4;
-  color: var(--ink-2);
-}
-
 .heute-finance-check {
   padding: 16px;
   border: 1px solid var(--card-border);

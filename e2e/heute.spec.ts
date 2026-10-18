@@ -181,9 +181,13 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   await expect(page.getByRole('heading', { name: 'September 2026', exact: true })).toBeVisible({
     timeout: 30_000,
   });
-  await expect(page.getByTestId('heute-lead-value')).toBeVisible();
-  await expect(page.getByTestId('heute-lead-value')).toContainText('988');
-  await expect(page.getByTestId('heute-lead-value')).toContainText(',26 €');
+  // #571: Monat shows Zu verteilen / Verfügbar im Budget / Nettovermögen; the lead figure belongs to Bis Gehalt.
+  await expect(page.getByTestId('heute-kennzahlen').getByRole('heading', { level: 2 })).toHaveText([
+    'Zu verteilen',
+    'Verfügbar im Budget',
+    'Nettovermögen',
+  ]);
+  await expect(page.getByTestId('heute-lead-value')).toHaveCount(0);
   await expect(page.getByTestId('heute-pace-chart')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('heute-pace-chart')).toBeVisible();
   await expect(page.getByTestId('heute-networth-chart')).toBeVisible({ timeout: 15_000 });
@@ -200,6 +204,14 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
     'true',
   );
 
+  await expect(page.getByTestId('heute-kennzahlen').getByRole('heading', { level: 2 })).toHaveText([
+    'Zu verteilen',
+    'Frei bis Gehalt',
+    'Nettovermögen',
+  ]);
+  await expect(page.getByTestId('heute-lead-value')).toBeVisible();
+  await expect(page.getByTestId('heute-lead-value')).toContainText('988');
+  await expect(page.getByTestId('heute-lead-value')).toContainText(',26 €');
   await page.getByTestId('heute-lead-value').click();
   await expect(
     page.getByRole('button', { name: 'Herleitung ausblenden', exact: true }),
@@ -431,7 +443,7 @@ test('source-view links open the corresponding live pages', async ({ page }) => 
 test('negative lead uses the action colour and attention precedes the month fold', async ({
   page,
 }, info) => {
-  const response = await page.request.get('/api/heute?period=month&month=2026-09');
+  const response = await page.request.get('/api/heute?period=payday&month=2026-09');
   const data: Heute = await response.json();
   await page.route('**/api/heute?*', (route) =>
     route.fulfill({
@@ -444,7 +456,7 @@ test('negative lead uses the action colour and attention precedes the month fold
   );
   for (const colorScheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme });
-    await page.goto('/?monat=2026-09');
+    await page.goto('/?monat=2026-09&period=payday');
     const figure = page.getByTestId('heute-lead-value');
     await expect(figure).toContainText('−123');
     await expect(figure).toContainText(',45 €');

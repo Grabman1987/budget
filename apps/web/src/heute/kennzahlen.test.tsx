@@ -164,3 +164,18 @@ it('says why the net worth is missing without inventing a number', () => {
   expect(screen.getByText('Ein Wertpapierkurs fehlt.')).toBeTruthy();
   expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
 });
+
+it('labels the current figures for another month and shows the nearest goal only when there is one', () => {
+  const away = {
+    ...heute,
+    stand: { ...heute.stand, month: '2026-08' },
+    nearestGoal: { name: 'Reise', savedCents: 120_001, remainingCents: 80_000 },
+  } as unknown as Heute;
+  const { unmount } = render(<Kennzahlen data={away} budget={query()} onLeadClick={() => {}} />);
+  expect(screen.getByText('Stand heute · 26.09.2026')).toBeTruthy();
+  expect(screen.getByText('Reise · gespart 1.200,01 € · fehlt 800,00 €')).toBeTruthy();
+  unmount();
+  render(<Kennzahlen data={heute} budget={query()} onLeadClick={() => {}} />);
+  expect(screen.queryByText(/Stand heute/)).toBeNull();
+  expect(screen.queryByText(/gespart/)).toBeNull();
+});
