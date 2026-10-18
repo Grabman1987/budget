@@ -106,7 +106,7 @@ test.describe('1.5 Jahresansicht', () => {
     await open(page, '/reports/jahresansicht');
     await expect(page.getByRole('heading', { level: 2, name: '2026 · 8 Monate' })).toBeVisible();
     await expect(page.locator('.titleblock')).toContainText('Okt 23 bis Aug 26');
-    await expect(page.getByRole('button', { name: '2026' })).toHaveAttribute(
+    await expect(page.getByRole('button', { name: '2026', exact: true })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
@@ -170,16 +170,16 @@ test.describe('1.5 Jahresansicht', () => {
 
   test('switches the year and compares only months that exist in both years', async ({ page }) => {
     await open(page, '/reports/jahresansicht');
-    await page.getByRole('button', { name: '2025' }).click();
+    await page.getByRole('button', { name: '2025', exact: true }).click();
     await expect(page.getByRole('heading', { level: 2, name: '2025' })).toBeVisible();
     await expect(page.getByTestId('year-compare')).toContainText('ganzes Jahr');
     await expect(page.getByRole('columnheader', { name: '2024', exact: true })).toBeVisible();
 
-    await page.getByRole('button', { name: '2024' }).click();
+    await page.getByRole('button', { name: '2024', exact: true }).click();
     await expect(page.getByTestId('year-compare')).toContainText('Okt–Dez verglichen');
     await expect(page.getByRole('columnheader', { name: '2023*' })).toBeVisible();
 
-    await page.getByRole('button', { name: '2023' }).click();
+    await page.getByRole('button', { name: '2023', exact: true }).click();
     await expect(page.getByRole('heading', { level: 2, name: '2023 · 3 Monate' })).toBeVisible();
     await expect(page.getByText('Für 2022 liegen keine Monate zum Vergleich vor.')).toBeVisible();
     // months without data stay empty
