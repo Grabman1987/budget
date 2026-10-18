@@ -33,11 +33,17 @@ gate_ok() { # main CI + deploy success for main head and live == main head
   echo "$h"
 }
 until main=$(gate_ok); do log "gate: main not live/green yet"; sleep 60; done
-head=$(retry gh pr view "$pr" --json headRefOid -q .headRefOid) || exit 1
-if ! retry git fetch -q origin "pull/$pr/head" || ! git merge-base --is-ancestor "$main" "$head"; then
+is_sha() { [[ "$1" =~ ^[0-9a-f]{40}$ ]]; }
+pr_head() { retry gh pr view "$pr" --json headRefOid -q .headRefOid; }
+head=$(pr_head) && is_sha "$head" || { log "cannot read PR head, stop"; exit 1; }
+retry git fetch -q origin "pull/$pr/head" || { log "cannot fetch PR head, stop"; exit 1; }
+if ! git merge-base --is-ancestor "$main" "$head"; then
   log "behind main, updating once"
   gh api -X PUT "repos/Grabman1987/budget/pulls/$pr/update-branch" -f expected_head_sha="$head" >/dev/null || { log "update-branch failed"; exit 1; }
-  sleep 15; head=$(gh pr view "$pr" --json headRefOid -q .headRefOid)
+  sleep 15; head=$(pr_head)
+  is_sha "$head" || { log "no valid PR head after update, stop"; exit 1; }
+  retry git fetch -q origin "pull/$pr/head" || { log "cannot fetch updated head, stop"; exit 1; }
+  git merge-base --is-ancestor "$main" "$head" || { log "updated head does not contain main ${main:0:8}, stop"; exit 1; }
 fi
 wait_ci "$head" || exit 1
 main=$(gate_ok) || { log "gate closed after CI, stop"; exit 1; }

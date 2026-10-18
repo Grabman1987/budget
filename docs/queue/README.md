@@ -37,9 +37,13 @@ Unsure means one class higher. Independent review is mandatory for every change 
 
 ## Test-change policy
 
-- Agents never edit existing tests (`*.test.*`, `e2e/**/*.spec.ts`, tolerances, lint or coverage config). They add tests for new criteria and list the existing-test changes they need in the PR.
-- The orchestrator applies a listed change only if it is covered by the owner's documented test-change policy. The PR carries a per-file justification table (file, change, decision cited), the label `tests-change-approved` and an independent review.
-- Never allowed under this policy: looser tolerances, `skip`/`only`, disabled lint rules, lower coverage, removed checks without an equivalent replacement. Those need the owner's explicit approval for that PR.
+Owner decision (Fabian, 2026-10-17): "Test changes for already decided UI changes are allowed if each change traces to a documented owner decision and is justified per test file in the PR; old expectations on text/structure/interaction may be replaced by matching checks of the new behaviour with coverage kept; an independent Opus review checks them before merge. Not covered: looser tolerances, skip, disabled rules, lower coverage, removed checks without equivalent replacement. Changes to finance, security, locking and undo rules stay separately subject to owner approval."
+
+- Implementing agents never edit existing tests (`*.test.*`, `e2e/**/*.spec.ts`, tolerances, lint or coverage config). They add tests for new criteria and list the existing-test changes they need in the PR.
+- The orchestrator applies a listed change only under the decision above: per-file justification table (file, change, decision cited), independent review, label `tests-change-approved`.
+- The orchestrator sets `tests-change-approved` only for issues the owner approved in chat; the PR quotes that approval.
+- Tests guarding finance, security, locking or undo always need the owner's explicit approval for that specific change.
+- Not covered by the decision (explicit owner approval for that PR): looser tolerances, `skip`/`only`, disabled lint rules, lower coverage, removed checks without an equivalent replacement.
 - Isolation or root-cause fixes that make a test stricter follow the same review and table.
 - Obsolete test with no matching decision: `needs-human`, reason in a comment.
 

@@ -55,7 +55,7 @@ Hard guardrails (no exceptions without the owner):
 - No force-push or history rewrite on `main`; never weaken branch protection or the ruleset.
 - No destructive production data operations. Migrations must be reversible and tested on a copy first, otherwise label `needs-human`.
 - No secrets in code, logs, issues or PRs. No changes to secrets, deploy credentials or Fly settings without owner approval.
-- Agents never edit existing tests. Weakening, skipping or deleting tests, tolerances or coverage needs explicit owner approval; changes covered by the owner's documented test-change policy need the per-file table, the label `tests-change-approved` and independent review.
+- Implementing agents never edit existing tests; the orchestrator applies existing-test changes only under the owner's test-change policy ([`docs/queue/README.md`](docs/queue/README.md)). Weakening, skipping or deleting tests, tolerances or coverage needs explicit owner approval.
 - No change to calculation rules (returns, portfolio logic, booking semantics) without documented approval; display-only changes are fine.
 - No financial advice content.
 - Do not interfere with other running work (worktrees, branches, PRs, issues you did not start).
