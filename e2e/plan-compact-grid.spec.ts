@@ -159,9 +159,13 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   // #588: "Ansicht" moved into Optionen ▾; "Nur Überzogene" is no longer a menu entry, the
   // link from Heute (?ansicht=triage) still opens the same view with the same two rows.
   const optionen = page.locator('.plan-menu summary', { hasText: 'Optionen' });
-  const optionenMenu = page.locator('details.plan-menu', { has: optionen });
+  const optionenMenu = page
+    .locator('details.plan-menu')
+    .filter({ has: page.locator('summary', { hasText: 'Optionen' }) });
   const inOptionen = (name: string) =>
-    optionenMenu.locator('.plan-menu-panel').getByRole('button', { name, exact: true });
+    optionenMenu
+      .locator('.plan-menu-panel')
+      .getByRole('button', { name: new RegExp(`^${name}( ✓)?$`) });
   const triageUrl = new URL(page.url());
   triageUrl.searchParams.set('ansicht', 'triage');
   await page.goto(triageUrl.toString());

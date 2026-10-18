@@ -126,7 +126,7 @@ test.describe('Plan › Monat with several months', () => {
     const span = page.getByRole('group', { name: 'Anzahl Monate' });
     const pick = async (name: string) => {
       await optionen.click();
-      await span.getByRole('button', { name, exact: true }).click();
+      await span.getByRole('button', { name: new RegExp(`^${name}( ✓)?$`) }).click();
     };
     await pick('2 Monate');
     const table = page.locator('.ptable-multi');
