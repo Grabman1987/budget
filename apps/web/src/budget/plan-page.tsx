@@ -31,16 +31,10 @@ import { monthLabel, shiftMonth } from '../nav/month';
 import { useMonth } from '../shell/use-month';
 import { AppLink } from '../shell/app-link';
 import { lastDayOfMonth } from '@budget/domain';
-import {
-  MONTH_SPANS,
-  setMonthSpan,
-  useIsPhone,
-  useMonthSpan,
-  useStoredMonthSpan,
-} from './month-span';
+import { setMonthSpan, useIsPhone, useMonthSpan } from './month-span';
 import { MultiTable } from './plan-multi';
 import { AssignCell, assignGhost, ghostSource } from './assign-cell';
-import { QuickAssignActions } from './quick-assign-actions';
+import { OptionenMenu, VerteilenMenu } from './plan-menus';
 import {
   assign,
   coverAll,
@@ -81,13 +75,6 @@ import { CategoryPanel, type PanelState } from './category-panel';
 /** `05.10.` of `2026-10-05`. */
 const dayMonth = (day: string) => `${day.slice(8, 10)}.${day.slice(5, 7)}.`;
 
-const VIEWS = [
-  { value: 'group', label: 'Gruppen' },
-  { value: 'stage', label: 'Wasserfall' },
-  { value: 'time', label: 'Zeit' },
-  { value: 'class', label: 'Klassen' },
-  { value: 'triage', label: 'Nur Überzogene' },
-] as const;
 const RAIL_LABEL = {
   stage: 'Wasserfall-Stufen',
   time: 'Fälligkeiten',
@@ -176,7 +163,6 @@ function PlanBody({
   const search = useSearch({ strict: false }) as { ansicht?: 'triage'; kategorie?: string };
   const [view, setView] = useState<PlanView>(search.ansicht ?? 'group');
   const phone = useIsPhone();
-  const storedSpan = useStoredMonthSpan();
   const [distribute, setDistribute] = useState(false);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [editing, setEditing] = useState<string | null>(null);
@@ -228,7 +214,7 @@ function PlanBody({
         event.target instanceof Element &&
         event.target.isConnected &&
         !event.target.closest(
-          '.plan-inspector, .prow, .plan-select, dialog, .toast, .quick-assign-actions',
+          '.plan-inspector, .prow, .plan-select, dialog, .toast, .quick-assign-actions, .plan-menu-verteilen',
         )
       )
         clearSelection();
@@ -317,6 +303,19 @@ function PlanBody({
     });
   };
   const tba = s.toBeAssignedCents;
+  // The disabled "Geld verteilen" / "Wasserfall-Assistent" say why, in words next to them.
+  const distributeBlock =
+    tba < 0
+      ? 'Zu viel zugewiesen'
+      : tba === 0
+        ? 'Nichts zu verteilen'
+        : distribute
+          ? 'Verteilung läuft'
+          : null;
+  const startDistribute = () => {
+    setDistribute(true);
+    setView('stage');
+  };
   const sug = distribute ? suggestions(rows, tba) : {};
   const urgent = overspentEnvelopes({ envelopes: rows });
 
@@ -410,12 +409,9 @@ function PlanBody({
           data={data}
           month={month}
           unfunded={groupStatus(rows).need}
-          distribute={distribute}
+          distributeBlock={distributeBlock}
           onIncome={onIncome}
-          onDistribute={() => {
-            setDistribute(true);
-            setView('stage');
-          }}
+          onDistribute={startDistribute}
           coverControls={
             (urgent.length > 0 || tba < 0) && (
               <section className="triage" aria-labelledby="triage-title">
@@ -487,30 +483,39 @@ function PlanBody({
             Envelopes im Monat
           </h2>
           <div className="ptoolbar">
-            {!multi && (
-              <QuickAssignActions
-                month={month}
-                emptyIds={orderedRows
-                  .filter((r) => r.assignedCents === 0 && (r.quickAssign?.ghostCents ?? 0) > 0)
-                  .map((r) => r.id)}
-                selectedIds={[]}
-              />
-            )}
-            <label className="plan-view">
-              <span>Ansicht</span>
-              <Select
-                aria-label="Ansicht"
-                value={shownView}
-                disabled={multi}
-                onChange={(event) => setView(event.target.value as PlanView)}
-              >
-                {VIEWS.map((v) => (
-                  <option key={v.value} value={v.value}>
-                    {v.label}
-                  </option>
-                ))}
-              </Select>
-            </label>
+            <VerteilenMenu
+              month={month}
+              multi={multi}
+              emptyIds={orderedRows
+                .filter((r) => r.assignedCents === 0 && (r.quickAssign?.ghostCents ?? 0) > 0)
+                .map((r) => r.id)}
+              selectedIds={orderedRows.filter((r) => selected.has(r.id)).map((r) => r.id)}
+              distributeBlock={distributeBlock}
+              onDistribute={startDistribute}
+              cover={
+                urgent.length > 0
+                  ? {
+                      count: urgent.length,
+                      reason:
+                        !coverPool.length && tba <= 0 ? 'Kein freies Geld zum Decken' : undefined,
+                      covering,
+                      sourceLabel: coverLabel,
+                      onCover: () => void coverMonth(),
+                    }
+                  : null
+              }
+            />
+            <OptionenMenu
+              month={month}
+              view={shownView}
+              multi={multi}
+              phone={phone}
+              collapsed={collapsed.size > 0}
+              onView={setView}
+              onToggleAll={() =>
+                setCollapsed(collapsed.size ? new Set() : new Set(groups.map((g) => g.key)))
+              }
+            />
             <span className="spacer" />
             <div className="dist-actions">
               {distribute && (
@@ -534,26 +539,6 @@ function PlanBody({
             >
               Monat abschließen
             </AppLink>
-            {!phone && (
-              <div className="pm-span" role="group" aria-label="Anzahl Monate">
-                <span className="pm-span-label" aria-hidden="true">
-                  Monate
-                </span>
-                <div className="seg">
-                  {MONTH_SPANS.map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      aria-pressed={storedSpan === n}
-                      aria-label={n === 1 ? '1 Monat' : `${n} Monate`}
-                      onClick={() => setMonthSpan(n)}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
           {multi && (
             <div className="plan-grid-head">
@@ -861,7 +846,7 @@ function PlanTopBar({
   data,
   month,
   unfunded,
-  distribute,
+  distributeBlock,
   onIncome,
   onDistribute,
   coverControls,
@@ -869,7 +854,7 @@ function PlanTopBar({
   data: BudgetMonthView;
   month: string;
   unfunded: number;
-  distribute: boolean;
+  distributeBlock: string | null;
   onIncome: () => void;
   onDistribute: () => void;
   coverControls: React.ReactNode;
@@ -918,15 +903,6 @@ function PlanTopBar({
   useAmountPrivacy();
   const s = data.summary;
   const tba = s.toBeAssignedCents;
-  // The disabled "Geld verteilen" says why, in words next to it.
-  const distributeBlock =
-    tba < 0
-      ? 'Zu viel zugewiesen'
-      : tba === 0
-        ? 'Nichts zu verteilen'
-        : distribute
-          ? 'Verteilung läuft'
-          : null;
   const terms: DimensionChainTerm[] = [
     { label: 'Übertrag', value: cents(s.carryInCents) },
     { label: 'Einnahmen', value: cents(s.incomeCents), op: '+', onSelect: onIncome },
@@ -999,18 +975,6 @@ function PlanTopBar({
             {distributeBlock}
           </span>
         )}
-        <details
-          className="plan-popover plan-more"
-          onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-3')}
-        >
-          <summary
-            aria-controls="plan-chip-panel-3"
-            className="plan-chip"
-            aria-label="Weitere Monatsaktionen"
-          >
-            ⋯
-          </summary>
-        </details>
       </div>
       <div
         className="plan-popover-content"
@@ -1020,7 +984,7 @@ function PlanTopBar({
       >
         <DimensionChain terms={terms} precision="cent" label="Maßkette Zu verteilen" />
         {/* Owner decision 18.10.2026: no overspending chip in the head; the cover actions live
-            here (until #588/#589), the overspent rows stay marked in the list. */}
+            here and in "Verteilen ▾" ("Überzogene decken"), the overspent rows stay marked in the list. */}
         {coverControls}
       </div>
       <div
@@ -1043,15 +1007,6 @@ function PlanTopBar({
           search={{ status: 'pending', von: `${month}-01`, bis: lastDayOfMonth(month) }}
         >
           Unbestätigte öffnen
-        </AppLink>
-      </div>
-      <div
-        className="plan-popover-content"
-        id="plan-chip-panel-3"
-        hidden={active !== 'plan-chip-panel-3'}
-      >
-        <AppLink to={`/monatsabschluss/${month}`} search={{}}>
-          Monatsabschluss starten oder fortsetzen
         </AppLink>
       </div>
     </section>

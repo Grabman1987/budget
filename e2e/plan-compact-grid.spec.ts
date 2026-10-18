@@ -156,11 +156,23 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   await page.keyboard.press('c');
   await expect(categoryDialog).toBeVisible();
   await categoryDialog.getByRole('button', { name: 'Schließen', exact: true }).click();
-  await page.getByLabel('Ansicht', { exact: true }).selectOption('triage');
+  // #588: "Ansicht" moved into Optionen ▾; "Nur Überzogene" is no longer a menu entry, the
+  // link from Heute (?ansicht=triage) still opens the same view with the same two rows.
+  const optionen = page.locator('.plan-menu summary', { hasText: 'Optionen' });
+  const optionenMenu = page
+    .locator('details.plan-menu')
+    .filter({ has: page.locator('summary', { hasText: 'Optionen' }) });
+  const inOptionen = (name: string) =>
+    optionenMenu.locator('.plan-menu-panel').getByRole('button', { name, exact: true });
+  const triageUrl = new URL(page.url());
+  triageUrl.searchParams.set('ansicht', 'triage');
+  await page.goto(triageUrl.toString());
   await expect(page.locator('.ptable .prow:not(.is-empty)')).toHaveCount(2);
-  await page.getByLabel('Ansicht', { exact: true }).selectOption('group');
+  await optionen.click();
+  await inOptionen('Gruppen').click();
   if (desktop) {
-    await page.getByRole('button', { name: '2 Monate', exact: true }).click();
+    await optionen.click();
+    await inOptionen('2 Monate').click();
     await expect(page.locator('.ptable-multi .prow')).toHaveCount(18);
     await expect(page.getByTestId('tba-2026-11')).toBeVisible();
     await page
@@ -168,19 +180,16 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
       .filter({ hasText: 'Wasserfall-Stufen' })
       .click();
     await page.locator('.rail-btn').filter({ hasText: 'Laufender Monat' }).click();
-    await expect(page.getByRole('button', { name: '1 Monat', exact: true })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    await optionen.click();
+    await expect(inOptionen('1 Monat')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.ptable-multi')).toHaveCount(0);
-    await page.getByLabel('Ansicht', { exact: true }).selectOption('group');
+    await inOptionen('Gruppen').click();
   }
-  const more = page.locator('.plan-more summary');
-  await more.click();
+  await optionen.click();
   await page.getByRole('link', { name: 'Monatsabschluss starten oder fortsetzen' }).focus();
   await page.keyboard.press('Escape');
-  await expect(more).toBeFocused();
-  await expect(page.locator('.plan-more')).not.toHaveAttribute('open');
+  await expect(optionen).toBeFocused();
+  await expect(optionenMenu).not.toHaveAttribute('open');
   await page.locator('.plan-chip-scroll').evaluate((element) => {
     element.scrollLeft = 0;
   });

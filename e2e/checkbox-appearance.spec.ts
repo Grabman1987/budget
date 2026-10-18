@@ -112,8 +112,13 @@ test.describe('select appearance', () => {
       hasTouch,
     }) => {
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+      // #588: the toolbar select is gone; the category dialog (key C) holds a plain select.
       await page.goto('/plan/monat');
-      const select = page.locator('.plan-view select').first();
+      await page.locator('body').click({ position: { x: 2, y: 2 } });
+      await page.keyboard.press('c');
+      const select = page
+        .getByRole('dialog', { name: 'Kategorie anlegen' })
+        .getByLabel('Gruppe', { exact: true });
       await expect(select).toBeVisible();
       const style = await select.evaluate((el) => {
         const probe = document.createElement('div');

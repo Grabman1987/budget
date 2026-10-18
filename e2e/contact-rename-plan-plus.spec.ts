@@ -82,7 +82,11 @@ test('Plan month creates an empty group and categories through the existing form
   await groupDialog.getByLabel('Name', { exact: true }).fill(group);
   await groupDialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(toast(page)).toContainText(`Gruppe „${group}“ angelegt`);
-  await page.getByLabel('Ansicht', { exact: true }).selectOption('group');
+  await page.locator('.plan-menu summary', { hasText: 'Optionen' }).click();
+  await page
+    .getByRole('group', { name: 'Ansicht', exact: true })
+    .getByRole('button', { name: 'Gruppen', exact: true })
+    .click();
   const plus = page.getByRole('button', { name: `Kategorie in ${group} anlegen`, exact: true });
   await expect(plus).toBeVisible();
   const box = await plus.boundingBox();

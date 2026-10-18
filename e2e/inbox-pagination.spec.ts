@@ -218,7 +218,7 @@ test('month close filters the complete inbox beyond the global first page', asyn
     const url = new URL(response.url());
     return response.ok() && url.pathname === '/api/inbox' && url.search === '';
   });
-  await page.getByLabel('Weitere Monatsaktionen').click();
+  await page.locator('.plan-menu summary', { hasText: 'Optionen' }).click();
   await page
     .getByRole('link', { name: 'Monatsabschluss starten oder fortsetzen', exact: true })
     .click();
