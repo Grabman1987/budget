@@ -50,7 +50,7 @@ export function compositionWidthPercent(valueCents: number, spanCents: number): 
   return spanCents > 0 ? (Math.abs(valueCents) / spanCents) * 100 : 0;
 }
 
-/** Maßkette of the window: Anfang + Eigenleistung + Markt = jetzt (a loss is subtracted). */
+/** Maßkette of the window: Anfang + Gespart + Markt = jetzt (a loss is subtracted). */
 export function chainTerms(window: Omit<NetWorthWindow, 'deltaCents'>, from: string): ChainTerm[] {
   const part = (label: string, value: number): ChainTerm => ({
     label,
@@ -59,7 +59,7 @@ export function chainTerms(window: Omit<NetWorthWindow, 'deltaCents'>, from: str
   });
   return [
     { label: `Anfang ${monthShort(from)} ${from.slice(0, 4)}`, value: cents(window.startCents) },
-    part('Eigenleistung', window.ownCents),
+    part('Gespart', window.ownCents),
     part('Markt', window.marketCents),
     { label: 'jetzt', value: cents(window.nowCents), op: '=', result: true },
   ];
