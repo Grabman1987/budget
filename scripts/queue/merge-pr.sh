@@ -9,7 +9,7 @@
 # 3 not live after 45 min. git fetch and gh reads are retried up to 3 times (e.g. "cannot lock ref").
 set -uo pipefail
 export PATH="$PATH:/c/Program Files/GitHub CLI" GH_REPO=Grabman1987/budget
-cd /c/Users/fabia/budget || exit 1
+cd "$(git -C "$(dirname "$0")" rev-parse --show-toplevel)" || exit 1
 pr=$1
 retry() { # up to 3 tries with a short sleep for transient git/gh errors
   local i; for i in 1 2 3; do "$@" && return 0; [ "$i" -lt 3 ] && sleep 5; done; return 1
