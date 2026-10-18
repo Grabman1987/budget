@@ -384,13 +384,9 @@ function PaginatedInboxBody({
   const firstPage = pages[0];
   const shown = search.teil ?? firstPage?.segment;
   const resolved = firstPage?.segment;
-  useEffect(() => {
-    if (!search.teil && !pinned && resolved) setPinned(resolved);
-  }, [search.teil, pinned, resolved]);
+  if (!search.teil && !pinned && resolved) setPinned(resolved);
   const segmentCounts =
-    !bankSource && firstPage?.segments && shown
-      ? { shown, counts: firstPage.segments }
-      : undefined;
+    !bankSource && firstPage?.segments && shown ? { shown, counts: firstPage.segments } : undefined;
   return (
     <>
       {segmentCounts && (
@@ -484,7 +480,9 @@ function PaginatedInboxBody({
         entries={entries}
         count={firstPage?.count}
         segmentCounts={segmentCounts}
-        readSourceSummaries={segmentCounts?.shown === 'umsaetze' ? undefined : firstPage?.readSourceSummaries}
+        readSourceSummaries={
+          segmentCounts?.shown === 'umsaetze' ? undefined : firstPage?.readSourceSummaries
+        }
         totalEntries={firstPage?.totalEntries}
         countsByKind={firstPage?.countsByKind}
         countsByCause={firstPage?.countsByCause}

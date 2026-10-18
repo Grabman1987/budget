@@ -45,11 +45,9 @@ export type InboxSegment = 'umsaetze' | 'aufgaben';
  * bookings, bank-sync candidates) and every other task. Overspent categories are not part of
  * Prüfen; they live in Heute and Plan.
  */
-export function inboxSegment(item: {
-  type: string;
-  refType?: string | null;
-}): InboxSegment {
-  return item.type === 'booking' || (item.type === 'stored' && item.refType === 'bank-sync-candidate')
+export function inboxSegment(item: { type: string; refType?: string | null }): InboxSegment {
+  return item.type === 'booking' ||
+    (item.type === 'stored' && item.refType === 'bank-sync-candidate')
     ? 'umsaetze'
     : 'aufgaben';
 }

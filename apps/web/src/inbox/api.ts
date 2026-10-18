@@ -132,7 +132,7 @@ export const inboxPagesQuery = (
     queryFn: ({ pageParam }) =>
       request<InboxPage>(
         'GET',
-        `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}${period === 'all' ? '' : `&period=${period}`}${bankSource ? `&bankSource=${encodeURIComponent(bankSource)}` : ''}${dateSort ? `&dateSort=${dateSort}` : ''}${fromDate ? `&fromDate=${encodeURIComponent(fromDate)}` : ''}${bankSource ? '' : `&segment=${pinned ?? segment}`}`,
+        `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}${period === 'all' ? '' : `&period=${period}`}${bankSource ? `&bankSource=${encodeURIComponent(bankSource)}` : ''}${dateSort ? `&dateSort=${dateSort}` : ''}${fromDate ? `&fromDate=${encodeURIComponent(fromDate)}` : ''}${bankSource ? '' : `&segment=${segment === 'auto' ? (pinned ?? segment) : segment}`}`,
       ),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.next ?? undefined,

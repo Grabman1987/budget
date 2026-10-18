@@ -75,7 +75,8 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
           a.id.localeCompare(b.id),
       );
     // Without `limit` the whole queue, as before; `count` always is the full number of tasks.
-    if (limit === undefined) return c.json({ ...inbox, entries: filtered, overspentSummary, ...segmentFields });
+    if (limit === undefined)
+      return c.json({ ...inbox, entries: filtered, overspentSummary, ...segmentFields });
     const start = offset ?? 0;
     const entries = filtered.slice(start, start + limit);
     const next = start + entries.length < filtered.length ? start + entries.length : null;
