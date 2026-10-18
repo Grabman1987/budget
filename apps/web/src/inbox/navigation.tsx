@@ -33,6 +33,9 @@ export function validateInboxSearch(search: Record<string, unknown>) {
     aufgaben: (search['aufgaben'] === 'current' || search['aufgaben'] === 'historical'
       ? search['aufgaben']
       : undefined) as Exclude<InboxPeriod, 'all'> | undefined,
+    teil: (search['teil'] === 'umsaetze' || search['teil'] === 'aufgaben'
+      ? search['teil']
+      : undefined) as 'umsaetze' | 'aufgaben' | undefined,
     gruppe:
       typeof search['gruppe'] === 'string' && search['gruppe'].length <= 100
         ? search['gruppe']
