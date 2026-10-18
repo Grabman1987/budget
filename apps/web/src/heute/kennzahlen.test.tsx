@@ -145,6 +145,26 @@ it('opens the derivation behind the info button', () => {
   expect(within(note).getByRole('link', { name: 'Planmonat September 2026 ansehen' })).toBeTruthy();
 });
 
+it('says so when no income is expected in the forecast period', () => {
+  render(
+    <Kennzahlen
+      data={
+        {
+          ...heute,
+          stand: { ...heute.stand, period: 'payday' },
+          balance: { salary: null },
+        } as unknown as Heute
+      }
+      budget={query()}
+      onLeadClick={() => {}}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Herleitung Frei bis Gehalt' }));
+  expect(document.getElementById('kennzahl-frei-bis-gehalt-note')?.textContent).toContain(
+    'Kein Geldeingang im Prognosezeitraum erwartet.',
+  );
+});
+
 it('keeps a failed budget in its own tile and the other figures visible', () => {
   render(
     <Kennzahlen

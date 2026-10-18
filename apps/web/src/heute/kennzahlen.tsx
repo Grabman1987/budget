@@ -55,7 +55,7 @@ export function Kennzahlen({
             summary && {
               value: summary.assignedCents,
               total: summary.carryInCents + summary.incomeCents,
-              label: `Zugewiesen ${eur(summary.assignedCents)} von Übertrag plus Einnahmen ${eur(summary.carryInCents + summary.incomeCents)}`,
+              label: `Zugewiesen ${eur(summary.assignedCents)} · Übertrag ${eur(summary.carryInCents)} · Einnahmen ${eur(summary.incomeCents)}`,
             }
           }
           line={summary && `Zugewiesen ${eurWhole(summary.assignedCents)}`}

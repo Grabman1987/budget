@@ -167,6 +167,10 @@ test('explains plan-rest behind the derivation of the negative payday room on ph
   await expect(derivation).toHaveAttribute('aria-expanded', 'true');
   const note = page.locator('#kennzahl-frei-bis-gehalt-note');
   await expect(note).toBeVisible();
+  await expect(page.getByTestId('heute-lead-value')).toHaveAttribute(
+    'aria-describedby',
+    'kennzahl-frei-bis-gehalt-note',
+  );
   await expect(note).toContainText('Ausgabenplan: 600,00 € ausgegeben von 1.000,00 €');
   await expect(note).toContainText(
     'Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind',
