@@ -32,11 +32,12 @@ test('compact account head, fixed desktop table and ten two-line phone bookings'
     openingDate: '2026-01-01',
     openingBalanceCents: 100000,
   });
+  // Five days with four bookings each: the phone density check must include the day heading rows.
   for (let i = 0; i < 20; i++)
     await post(request, baseURL!, '/bookings', {
       type: 'booking',
       accountId: account.id,
-      date: '2026-10-17',
+      date: `2026-10-${17 - (i % 5)}`,
       amountCents: -1234,
       payeeName: 'Laden Muster mit einem sehr langen Empfängernamen',
       status: 'confirmed',
@@ -97,7 +98,8 @@ test('compact account head, fixed desktop table and ten two-line phone bookings'
         expect(box.width).toBeGreaterThanOrEqual(44);
         expect(box.height).toBeGreaterThanOrEqual(44);
       }
-      await expect(page.locator('.kaccount-day')).toContainText('Saldo 753,20');
+      await expect(page.locator('.kaccount-day')).toHaveCount(5);
+      await expect(page.locator('.kaccount-day').first()).toContainText('Saldo 753,20');
       await page.screenshot({ path: info.outputPath(`register-${theme}.png`) });
       await page.evaluate(() => window.scrollTo(0, 0));
     }

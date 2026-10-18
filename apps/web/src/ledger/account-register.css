@@ -5,10 +5,11 @@
   margin-block: var(--space-sm);
 }
 .kacct-kpis .kacct-saldo strong {
-  font-size: var(--fs-display);
-  line-height: var(--lh-display);
+  font-size: var(--fs-figure);
+  line-height: var(--lh-figure);
 }
-.kacct-kpis .kacct-pending strong {
+.kacct-kpis .kacct-pending strong,
+.kacct-kpis .kacct-month strong {
   font-size: var(--fs-meta);
   line-height: var(--lh-meta);
 }
@@ -148,26 +149,68 @@
   .ktx-account colgroup {
     display: none;
   }
-  .ktx-account tr[data-booking]:not(.is-upcoming) {
-    grid-template-columns: minmax(0, 1fr) minmax(var(--touch), 35%) var(--touch);
-    grid-template-areas: 'payee amount status';
+  /* The extra .ktx class outranks the stacked foreign-currency grid of ledger.css. */
+  .kacct-register .ktx.ktx-account tr[data-booking]:not(.is-upcoming) {
+    grid-template-columns: var(--touch) minmax(0, 1fr) minmax(var(--touch), 35%) var(--touch);
+    grid-template-areas: 'flag payee amount status';
     align-items: stretch;
     gap: 0 var(--space-xs);
-    padding: 0 var(--space-sm);
+    padding: 0 var(--space-sm) 0 0;
   }
   .ktx-account tr[data-booking]:not(.is-upcoming) td {
     padding: 0;
     height: auto;
   }
-  .ktx-account tr[data-booking]:not(.is-upcoming) :is(.kx-date, .kx-cat, .kx-run, .kx-flag) {
+  .ktx-account tr[data-booking]:not(.is-upcoming) :is(.kx-date, .kx-cat, .kx-run) {
     display: none;
   }
-  .ktx-account .kx-mobile-note {
-    display: none;
+  /* The flag stays editable in the table: a full touch target in the first column. */
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-flag {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ktx-account .kflagpick.in-list .kflagbtn {
+    min-width: var(--touch);
+    min-height: var(--touch);
+    margin: 0;
+  }
+  /*
+   * Payee cell: line one is the name (the button, which covers the whole cell for a 44 px tap
+   * target), line two is date, category and note outside the button so the row keeps reading them.
+   */
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-payee {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: var(--touch);
+    padding-top: var(--space-xs);
+  }
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-payee::before {
+    content: '';
+    flex: none;
+    height: var(--lh-table);
+  }
+  .ktx-account tr[data-booking]:not(.is-upcoming) .kx-payee .kname-btn {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-start;
+    height: 100%;
+    min-width: var(--touch);
+    padding: var(--space-xs) 0 0;
+    line-height: var(--lh-table);
+    text-align: left;
+  }
+  .ktx-account .kx-payee .kname-s {
+    flex: 1;
+    min-width: 0;
   }
   .ktx-account .kaccount-mobile-meta {
     display: flex;
     align-items: center;
+    gap: var(--space-xs);
+    min-width: 0;
     color: var(--ink-2);
     font-size: var(--fs-meta);
     line-height: var(--lh-meta);
@@ -175,16 +218,21 @@
     overflow: hidden;
     white-space: nowrap;
   }
-  .ktx-account .kaccount-mobile-meta > span:first-child {
+  .ktx-account .kaccount-mobile-meta > span {
     flex: none;
   }
   .ktx-account .kaccount-mobile-meta .kcat {
-    margin-left: var(--space-xs);
+    flex: 0 1 auto;
+    min-width: 0;
     font-size: inherit;
   }
-  .ktx-account .kx-payee .kname-btn {
-    min-width: var(--touch);
-    text-align: left;
+  .ktx-account .kaccount-mobile-meta .kx-mobile-note {
+    display: block;
+    flex: 1 1 var(--space-xl);
+    min-width: var(--space-xl);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .ktx-account tr[data-booking]:not(.is-upcoming) .kx-amount .kcell-edit {
     display: flex;

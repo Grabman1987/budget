@@ -68,7 +68,10 @@ test('account forms cancel in their context; reconciliation writes only on confi
   page.on('request', (req) => {
     if (req.method() === 'POST' && req.url().includes('/reconcile')) writes++;
   });
-  const opener = page.getByRole('button', { name: /Kontostand prüfen$/ });
+  const opener = page.getByRole('button', {
+    name: 'Nie geprüft – jetzt prüfen · Kontostand prüfen',
+    exact: true,
+  });
   await expect(opener).toBeVisible();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await opener.click();

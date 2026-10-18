@@ -162,15 +162,18 @@ export function CategoryCell({
 export function PayeeCell({
   booking,
   noteClassName,
+  hideNote = false,
 }: {
   booking: ListedBooking;
   noteClassName?: string;
+  /** The account register shows the note in its own column and phone line instead. */
+  hideNote?: boolean;
 }) {
   const name = booking.payeeName ?? (booking.transferId ? 'Umbuchung' : 'Ohne Empfänger');
   return (
     <>
       <span className="kname-s">{name}</span>
-      {booking.memo && (
+      {booking.memo && !hideNote && (
         <span className={noteClassName ? `kmeta ${noteClassName}` : 'kmeta'}>{booking.memo}</span>
       )}
     </>

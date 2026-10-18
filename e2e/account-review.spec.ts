@@ -61,7 +61,13 @@ test('checks off-budget accounts, updates manual values with undo and prepares t
   await review('overview');
   for (const account of accounts.slice(0, 4)) {
     await page.goto(`/konten/${account.id}`);
-    const button = page.getByRole('button', { name: /Kontostand prüfen$/ });
+    // Cash pages carry the compact badge named after the check date; depot pages keep the plain button.
+    const checkedOn: Record<string, string> = { checking: '06.09.', loan: '07.09.' };
+    const checked = checkedOn[account.type];
+    const button = page.getByRole('button', {
+      name: checked ? `Geprüft ${checked} · Kontostand prüfen` : 'Kontostand prüfen',
+      exact: true,
+    });
     await expect(button).toBeVisible();
     if (info.project.name === 'mobile')
       expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
@@ -112,7 +118,7 @@ test('checks off-budget accounts, updates manual values with undo and prepares t
   const checking = page
     .locator('.close-row')
     .filter({ has: page.getByRole('heading', { name: 'Muster checking', exact: true }) });
-  await checking.getByRole('button', { name: /Kontostand prüfen$/ }).click();
+  await checking.getByRole('button', { name: 'Kontostand prüfen', exact: true }).click();
   await expect(checking.getByLabel('Stichtag')).toHaveValue('11.10.2026');
   await expect(checking.getByText('Stichtag liegt in der Zukunft.')).toHaveCount(0);
   await checking.getByRole('button', { name: 'Einklappen', exact: true }).click();

@@ -19,11 +19,20 @@ import { BalanceChart } from './balance-chart';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { AccountRegister } from './account-register';
 import { useRegisterToday } from './upcoming-register';
-import { eur, longDay, nativeCurrency, valuedCurrency, valuedCurrencyParts } from './format';
+import {
+  eur,
+  longDay,
+  monthName,
+  nativeCurrency,
+  shortDay,
+  valuedCurrency,
+  valuedCurrencyParts,
+  valuedMovement,
+} from './format';
 import { ACCOUNT_TYPE_LABEL, accountValueEur, groupOf, valuationMissingText } from './labels';
 import { fetchSeries } from './api';
 import { displaySettingsQuery } from '../pages/future-preview-setting';
-import { accountsQuery } from './queries';
+import { accountsQuery, bookingsQuery } from './queries';
 import { AccountReview } from './account-review';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
@@ -159,6 +168,14 @@ function AccountBody({ account }: { account: AccountRow }) {
   });
   const limit = account.overdraftLimitCents ?? account.creditLimitCents;
   const limitLabel = account.overdraftLimitCents !== null ? 'Dispolimit' : 'Kreditrahmen';
+  // The month figure remains independent of the history's loaded pages.
+  const movement = useQuery(
+    bookingsQuery(
+      { accountId: account.id, from: `${month}-01`, to: lastDayOfMonth(month) },
+      undefined,
+      1,
+    ),
+  );
   const [panel, setPanel] = useState<BookingPanelState>(null);
   const manual = account.type === 'p2p' || account.type === 'other_asset';
   const value = accountValueEur(account);
@@ -219,11 +236,22 @@ function AccountBody({ account }: { account: AccountRow }) {
           <strong className="muted">{pending.amount}</strong>
           {pending.rate && <p className="kmeta">{pending.rate}</p>}
         </div>
+        <div className="fig kacct-month">
+          <small>{monthName(today)}</small>
+          <strong className="muted">
+            {movement.data
+              ? valuedMovement(movement.data.sumCents, account.currency, movement.data.sumEurCents)
+              : '–'}
+          </strong>
+          {account.currency !== 'EUR' && (
+            <p className="kmeta">Bewegung · EUR je Buchungstag, Kurse in der Tabelle</p>
+          )}
+        </div>
         <AccountReview account={account} compact />
         {account.closedAt && (
           <span className="pill">
             {account.lastReconciledOn
-              ? `Geprüft ${longDay(account.lastReconciledOn)}`
+              ? `Geprüft ${shortDay(account.lastReconciledOn)}`
               : 'Nie geprüft'}
           </span>
         )}
