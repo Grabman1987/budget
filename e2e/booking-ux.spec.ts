@@ -35,14 +35,37 @@ test('booking cells, cash capture, repetition and account preview on desktop and
   await expect(row.locator('.kflagbtn:not(.has-flag)')).toBeVisible();
   await page.mouse.move(0, 0);
   await expect(row.locator('.kflagbtn:not(.has-flag)')).toHaveCSS('opacity', '0.4');
-  await row.getByRole('button', { name: /Datum ändern/ }).click();
-  await row.getByLabel('Datum bearbeiten').fill('2026-10-02');
-  await row.getByLabel('Datum bearbeiten').press('Escape');
-  expect((await (await request.get('/api/bookings/' + id)).json()).booking.date).toBe('2026-10-01');
-  await row.getByRole('button', { name: /Datum ändern/ }).click();
-  await row.getByLabel('Datum bearbeiten').fill('2026-10-02');
-  await row.getByLabel('Datum bearbeiten').press('Enter');
-  await expect(row.getByLabel('Datum bearbeiten')).toHaveCount(0);
+  if (info.project.name === 'desktop') {
+    await row.getByRole('button', { name: /Datum ändern/ }).click();
+    await row.getByLabel('Datum bearbeiten').fill('2026-10-02');
+    await row.getByLabel('Datum bearbeiten').press('Escape');
+    expect((await (await request.get('/api/bookings/' + id)).json()).booking.date).toBe(
+      '2026-10-01',
+    );
+    await row.getByRole('button', { name: /Datum ändern/ }).click();
+    await row.getByLabel('Datum bearbeiten').fill('2026-10-02');
+    await row.getByLabel('Datum bearbeiten').press('Enter');
+    await expect(row.getByLabel('Datum bearbeiten')).toHaveCount(0);
+  } else {
+    // Phone rows are two-line without an inline date cell (owner decision 16.10., #581): cancel
+    // and save the same date change in the booking dialog.
+    await expect(row.getByRole('button', { name: /Datum ändern/ })).toBeHidden();
+    const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+    await row.getByRole('button', { name: /bearbeiten/ }).click();
+    await edit.getByLabel('Datum', { exact: true }).fill('02.10.2026');
+    await edit.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+    await expect(edit).toBeHidden();
+    expect((await (await request.get('/api/bookings/' + id)).json()).booking.date).toBe(
+      '2026-10-01',
+    );
+    await row.getByRole('button', { name: /bearbeiten/ }).click();
+    await edit.getByLabel('Datum', { exact: true }).fill('02.10.2026');
+    await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await expect(edit).toBeHidden();
+  }
+  await expect
+    .poll(async () => (await (await request.get('/api/bookings/' + id)).json()).booking.date)
+    .toBe('2026-10-02');
   await row.getByRole('button', { name: /Betrag ändern/ }).click();
   await row.getByLabel('Betrag bearbeiten').fill('0');
   await row.getByLabel('Betrag bearbeiten').press('Enter');
