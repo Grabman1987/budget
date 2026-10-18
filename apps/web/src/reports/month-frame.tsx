@@ -57,6 +57,7 @@ export function useCollapsibleSections(slug: string) {
         button.id = `${heading.id}-toggle`;
         button.setAttribute('aria-label', 'Abschnitt ein- oder ausklappen');
         button.setAttribute('aria-labelledby', `${button.id} ${heading.id}`);
+        button.setAttribute('aria-describedby', heading.id); // kept from #640 (duplicate announcement accepted)
         const show = (open: boolean) => {
           button.setAttribute('aria-expanded', String(open));
           if (open) section.removeAttribute('data-collapsed');

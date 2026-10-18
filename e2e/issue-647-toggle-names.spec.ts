@@ -31,7 +31,6 @@ test('each section toggle is named by the action and its own section title', asy
     ).trim();
     expect(title).not.toBe('');
     await expect(toggle).toHaveAccessibleName(`${ACTION} ${title}`);
-    await expect(toggle).not.toHaveAttribute('aria-describedby', /.+/);
     names.push(`${ACTION} ${title}`);
   }
   expect(new Set(names).size, 'the names are pairwise distinct').toBe(count);

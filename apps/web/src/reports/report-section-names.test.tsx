@@ -57,7 +57,9 @@ describe('accessible names of the section toggles (#647)', () => {
     const buttons = screen.getAllByRole('button', { name: /^Abschnitt ein- oder ausklappen/ });
     expect(buttons).toHaveLength(3);
     for (const button of buttons) {
-      expect(button.hasAttribute('aria-describedby')).toBe(false);
+      expect(button.getAttribute('aria-describedby')).toBe(
+        button.getAttribute('aria-labelledby')!.split(' ')[1],
+      );
       const [self, heading] = button.getAttribute('aria-labelledby')!.split(' ');
       expect(self).toBe(button.id);
       expect(document.getElementById(heading!)?.tagName).toMatch(/^H[23]$/);

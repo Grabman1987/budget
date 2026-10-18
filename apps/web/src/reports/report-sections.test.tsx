@@ -74,7 +74,7 @@ const monthFrame = (slug = 'einnahmen') => (
   </MonthReportFrame>
 );
 
-const toggles = () => screen.getAllByRole('button', { name: 'Abschnitt ein- oder ausklappen' });
+const toggles = () => screen.getAllByRole('button', { name: /^Abschnitt ein- oder ausklappen/ });
 
 const KEY = 'budget.report-sections./reports/x';
 beforeEach(() => {
