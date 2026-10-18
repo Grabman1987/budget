@@ -94,10 +94,8 @@ test.describe('Heute month switch', () => {
     // The header search field opens in a dialog. The month
     // keys' guard for fields is shared with Plan › Monat, whose cover select is a real field.
     await page.goto('/plan/monat?monat=2026-09');
-    await page
-      .locator('.plan-topbar summary')
-      .filter({ hasText: /^\d+ überzogen$/ })
-      .click();
+    // #587: the cover select opens from the Zu verteilen disclosure.
+    await page.locator('.plan-tba').click();
     await page.locator('#cover-all-source').focus();
     await page.keyboard.press('ArrowLeft');
     await expect(page).toHaveURL(/monat=2026-09/);

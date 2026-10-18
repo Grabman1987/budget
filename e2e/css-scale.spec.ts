@@ -24,10 +24,14 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.goto('/plan/monat?monat=2026-09');
       await expect(page.locator('.plan .plan-topbar')).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
-      // Plan chips are compact controls (T7), one step below body text.
+      // #587: Zu verteilen is the lead figure of the Plan head: T2 display (28/32, phone 24/28).
       await expect(page.getByTestId('to-be-assigned')).toHaveCSS(
         'font-size',
-        isMobile ? '15px' : '14px',
+        isMobile ? '24px' : '28px',
+      );
+      await expect(page.getByTestId('to-be-assigned')).toHaveCSS(
+        'line-height',
+        isMobile ? '28px' : '32px',
       );
       await expect(page.locator('.plan-topbar .plan-chip-scroll > .btn')).toHaveCSS(
         'border-top-left-radius',

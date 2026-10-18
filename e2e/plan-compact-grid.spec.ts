@@ -89,11 +89,13 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   await expect(page.locator('.pgroup').first().locator('.col-assign')).toHaveText('45,09 €');
   await expect(page.locator('.pgroup').first().locator('.col-act')).toHaveText('−14,05 €');
   await expect(page.locator('.pgroup').first().locator('.col-avail')).toHaveText('31,04 €');
-  await expect(
-    page.locator('.plan-topbar summary').filter({ hasText: '2 überzogen' }),
-  ).toBeVisible();
+  // #587: no overspending chip in the head; the two overspent rows carry the marking and the
+  // Zu verteilen disclosure names the same count with its cover actions.
+  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
+  await expect(page.locator('tr.prow.is-over')).toHaveCount(2);
   await page.locator('.plan-tba').click();
   await expect(page.getByRole('group', { name: 'Maßkette Zu verteilen' })).toBeVisible();
+  await expect(page.locator('.triage')).toContainText('2 Envelopes überzogen');
   await page.keyboard.press('Escape');
   expect(
     await page.locator('.plan-tba').evaluate((e) => e.parentElement!.hasAttribute('open')),

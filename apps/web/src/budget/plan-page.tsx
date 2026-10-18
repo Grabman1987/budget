@@ -409,7 +409,6 @@ function PlanBody({
         <PlanTopBar
           data={data}
           month={month}
-          urgent={urgent.length}
           unfunded={groupStatus(rows).need}
           distribute={distribute}
           onIncome={onIncome}
@@ -861,7 +860,6 @@ function PlanBody({
 function PlanTopBar({
   data,
   month,
-  urgent,
   unfunded,
   distribute,
   onIncome,
@@ -870,7 +868,6 @@ function PlanTopBar({
 }: {
   data: BudgetMonthView;
   month: string;
-  urgent: number;
   unfunded: number;
   distribute: boolean;
   onIncome: () => void;
@@ -953,21 +950,10 @@ function PlanTopBar({
             aria-controls="plan-chip-panel-0"
             className={cx('plan-tba', tba > 0 && 'is-positive', tba < 0 && 'is-negative')}
           >
-            Zu verteilen{' '}
+            <span className="plan-tba-label">Zu verteilen</span>
             <strong data-testid="to-be-assigned" aria-live="polite">
               {eur(tba)}
             </strong>
-          </summary>
-        </details>
-        <details
-          className="plan-popover"
-          onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-1')}
-        >
-          <summary
-            aria-controls="plan-chip-panel-1"
-            className={cx('plan-chip', urgent > 0 && 'is-over')}
-          >
-            {urgent} überzogen
           </summary>
         </details>
         <button
@@ -1033,14 +1019,9 @@ function PlanTopBar({
         aria-label="Herleitung Zu verteilen"
       >
         <DimensionChain terms={terms} precision="cent" label="Maßkette Zu verteilen" />
-        {tba < 0 && urgent === 0 && coverControls}
-      </div>
-      <div
-        className="plan-popover-content"
-        id="plan-chip-panel-1"
-        hidden={active !== 'plan-chip-panel-1'}
-      >
-        {urgent ? coverControls : 'Nichts ist überzogen.'}
+        {/* Owner decision 18.10.2026: no overspending chip in the head; the cover actions live
+            here (until #588/#589), the overspent rows stay marked in the list. */}
+        {coverControls}
       </div>
       <div
         className="plan-popover-content"

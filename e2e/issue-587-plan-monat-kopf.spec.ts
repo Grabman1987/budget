@@ -130,3 +130,59 @@ for (const scheme of ['light', 'dark'] as const) {
     }
   });
 }
+
+test('no overspending chip in the head; the cover actions open from the Zu verteilen disclosure', async ({
+  page,
+}) => {
+  await page.goto('/plan/monat?monat=2026-09');
+  const overspent = page.locator('tr.prow.is-over');
+  await expect(overspent.first()).toBeVisible();
+  const count = await overspent.count();
+  expect(count).toBeGreaterThan(0);
+  // Owner decision 18.10.2026: one alarm place, the rows; the head carries no red count.
+  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
+  await expect(page.locator('.plan-chip-scroll .is-over')).toHaveCount(0);
+  await expect(page.locator('#cover-all-source')).toBeHidden();
+  await page.locator('.plan-tba').click();
+  await expect(page.getByRole('group', { name: 'Maßkette Zu verteilen' })).toBeVisible();
+  await expect(page.locator('.triage')).toContainText(`${count} Envelopes überzogen`);
+  await expect(page.getByLabel('Quelle für alle Überziehungen')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Alle aus .* decken$/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#cover-all-source')).toBeHidden();
+});
+
+test('"Zu verteilen" is the largest figure of the Plan head, in the DS2 display size', async ({
+  page,
+}) => {
+  await page.goto('/plan/monat?monat=2026-09');
+  await expect(page.getByTestId('to-be-assigned')).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  const sizes = await page.evaluate(() => {
+    const px = (el: Element) => parseFloat(getComputedStyle(el).fontSize);
+    const hero = document.querySelector('[data-testid="to-be-assigned"]')!;
+    // Every other amount in the head: title-block values and the chips of the top bar.
+    const others = Array.from(
+      document.querySelectorAll(
+        '.titleblock *, .plan-topbar *:not([data-testid="to-be-assigned"])',
+      ),
+    )
+      .filter((el) => el.children.length === 0 && /\d/.test(el.textContent ?? ''))
+      .filter((el) => !el.closest('.plan-popover-content'))
+      // The month name in the title (h1) is the page title, not a figure.
+      .filter((el) => !el.closest('h1'))
+      .map(px);
+    return {
+      compared: others.length,
+      hero: px(hero),
+      display: parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--fs-display'),
+      ),
+      largestOther: Math.max(...others),
+    };
+  });
+  // The comparison must not be empty (Math.max() of nothing is −Infinity).
+  expect(sizes.compared).toBeGreaterThan(0);
+  expect(sizes.hero).toBe(sizes.display);
+  expect(sizes.hero).toBeGreaterThan(sizes.largestOther);
+});
