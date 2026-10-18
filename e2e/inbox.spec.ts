@@ -180,18 +180,21 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
   } finally {
     pending.close();
   }
-  await page.goto('/konten');
-  await expect(inboxTrigger).toHaveText(
-    info.project.name === 'mobile' ? /^[1-9]\d* zu prüfen$/ : /^Prüfen · [1-9]\d*$/,
-  );
-  await inboxTrigger.click();
-  await expect(page).toHaveURL(/\/konten\/pruefen/);
-  await expect(page.getByRole('dialog', { name: 'Posteingang', exact: true })).toHaveCount(0);
-  const cleaned = await request.post(`${MAIN_URL}/api/inbox/${pendingId}/resolve`, {
-    headers: { origin: MAIN_URL },
-    data: {},
-  });
-  expect(cleaned.ok()).toBeTruthy();
+  try {
+    await page.goto('/konten');
+    await expect(inboxTrigger).toHaveText(
+      info.project.name === 'mobile' ? /^[1-9]\d* zu prüfen$/ : /^Prüfen · [1-9]\d*$/,
+    );
+    await inboxTrigger.click();
+    await expect(page).toHaveURL(/\/konten\/pruefen/);
+    await expect(page.getByRole('dialog', { name: 'Posteingang', exact: true })).toHaveCount(0);
+  } finally {
+    const cleaned = await request.post(`${MAIN_URL}/api/inbox/${pendingId}/resolve`, {
+      headers: { origin: MAIN_URL },
+      data: {},
+    });
+    expect(cleaned.ok()).toBeTruthy();
+  }
   // Own synthetic fixtures only; no shared ledger assumptions or real data.
   const deleted = await request.delete(`${MAIN_URL}/api/bookings/${booking.id}`, {
     headers: { origin: MAIN_URL },
