@@ -56,6 +56,10 @@ export interface PlanGroup {
 
 export const CLASS_TEXT = { need: 'Bedarf', want: 'Wunsch', future: 'Zukunft' } as const;
 
+/** What is left in the envelopes of the month: the one sum Plan (inspector) and Heute both show. */
+export const availableInEnvelopes = (rows: ReadonlyArray<{ availableCents: number }>) =>
+  rows.reduce((sum, r) => sum + r.availableCents, 0);
+
 /** Rows in list order; hidden categories only while they still hold or move money. */
 export function planRows(view: BudgetMonthView): PlanRow[] {
   const byId = new Map(view.summary.envelopes.map((e) => [e.categoryId, e]));

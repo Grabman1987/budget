@@ -91,14 +91,18 @@ test('ghosts, selected quick assignment and capped empty-fill share grouped undo
   await expect(assigned('Testziel')).toHaveText(shown('400,01 €'));
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(assigned('Testziel')).toHaveText(shown('≈ 400,01 €'));
-  await page.locator('.quick-assign-actions summary').click();
-  await page.getByRole('button', { name: 'Leere füllen', exact: true }).click();
+  await page.locator('.plan-menu summary', { hasText: 'Verteilen' }).click();
+  await page
+    .locator('.plan-menu-panel')
+    .getByRole('button', { name: 'Leere füllen', exact: true })
+    .click();
   await expect(toast).toContainText('2 Kategorien befüllt · 180,10 € fehlen für 1 Kategorie');
   await expect(assigned('Testziel')).toHaveText(shown('400,01 €'));
   await expect(assigned('Testhistorie')).toHaveText(shown('9,92 €'));
   await expect(page.getByTestId('to-be-assigned')).toHaveText('0,00 €');
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
-  await page.locator('.quick-assign-actions summary').click();
+  // The menu closes by itself after an action (the popover used to stay open until toggled).
+  await expect(page.locator('.plan-menu-verteilen .plan-menu-panel')).toBeHidden();
   await expect(assigned('Testziel')).toHaveText(shown('≈ 400,01 €'));
   await expect(assigned('Testhistorie')).toHaveText(shown('≈ 190,02 €'));
   await toast.getByRole('button', { name: 'Wiederholen' }).click();

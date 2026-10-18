@@ -104,7 +104,7 @@ test('empty tasks and due dates disappear while missing rule inputs remain expli
   };
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: data }));
   await page.goto('/?monat=2026-09');
-  await expect(page.getByTestId('heute-lead-value')).toBeVisible();
+  await expect(page.locator('[data-kennzahl="verfuegbar"]')).toBeVisible();
   await expect(page.getByRole('region', { name: 'Zu tun' })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Fällig 14 Tage' })).toHaveCount(0);
   await expect(page.locator('.heute-finance-check')).toContainText('3 nicht auswertbar');
