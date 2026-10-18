@@ -159,6 +159,7 @@ test('Today and Plan explain a real booking-month shift beside October expected 
 
   await page.goto('/?monat=2026-10');
   // The shortcut is registered by the mounted shell: wait for the rendered cards first.
+  await todayCards.getByRole('button', { name: 'Herleitung Zu verteilen' }).click();
   await expect(todayCards).toContainText('Haushaltseinnahmen 0,00 €');
   await page.keyboard.press('Control+Shift+H');
   if (!isMobile) {

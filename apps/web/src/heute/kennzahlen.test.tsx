@@ -34,6 +34,7 @@ const heute = {
     liabilitiesCents: 49_000_000,
     monthChange: { deltaCents: 112_001, investmentsInCents: 80_001, marketCents: 32_000 },
   },
+  balance: { salary: { day: '2026-09-30', cents: 381_200 } },
   nearestGoal: null,
 } as unknown as Heute;
 
@@ -108,6 +109,11 @@ it('replaces the middle figure by Frei bis Gehalt in the mode Bis Gehalt', () =>
   fireEvent.click(lead);
   expect(onLeadClick).toHaveBeenCalledOnce();
   expect(screen.getByText('Bis 30.09. · noch 4 Tage')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Herleitung Frei bis Gehalt' }));
+  const note = document.getElementById('kennzahl-frei-bis-gehalt-note')!;
+  expect(note.textContent).toContain('Plan-Rest 680,00 €');
+  expect(note.textContent).toContain('kein Kontoguthaben');
+  expect(note.textContent).toContain('Nächster erwarteter Geldeingang: 30.09. · 3.812,00 €');
 });
 
 it('marks only negative money as an alert', () => {

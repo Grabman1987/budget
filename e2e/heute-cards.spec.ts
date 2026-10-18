@@ -28,7 +28,12 @@ test('three Kennzahlen use source cents, fit the phone and link to the current s
   await expect(cards.nth(0).locator('.heute-answer-value')).toHaveText(
     eur(budget.summary.toBeAssignedCents),
   );
-  await expect(cards.nth(1).locator('.heute-answer-value')).toHaveText(/^[−-]?[\d.]+,\d{2} €$/);
+  // Verfügbar im Budget is the sum of the envelope amounts that the Plan inspector shows.
+  const availableCents = budget.summary.envelopes.reduce(
+    (sum, envelope) => sum + envelope.availableCents,
+    0,
+  );
+  await expect(cards.nth(1).locator('.heute-answer-value')).toHaveText(eur(availableCents));
   // The Haushaltseinnahmen of the former Monatsergebnis card sit in the derivation of Zu verteilen.
   const derivation = cards.nth(0).getByRole('button', { name: 'Herleitung Zu verteilen' });
   await derivation.click();
@@ -166,6 +171,8 @@ test('explains plan-rest behind the derivation of the negative payday room on ph
   await expect(note).toContainText(
     'Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind',
   );
+  await expect(note).toContainText('Plan-Rest 400,00 €');
+  await expect(note).toContainText('kein Kontoguthaben');
   await page.getByTestId('heute-lead-value').click();
   await expect(page.locator('#heute-lead-chain')).toContainText('offen bis Gehalt');
   await expect(page.locator('#heute-lead-chain')).toContainText('−100');

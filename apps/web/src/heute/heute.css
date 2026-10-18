@@ -217,7 +217,15 @@
       padding: 0 8px 0 12px;
     }
     .heute-kennzahl
-      > :not(h2, .heute-info, .heute-answer-value, a, .heute-kennzahl-note, .rev-empty) {
+      > :not(
+        h2,
+        .heute-info,
+        .heute-answer-value,
+        a,
+        .heute-kennzahl-note,
+        .heute-kennzahl-missing,
+        .rev-empty
+      ) {
       display: none;
     }
     .heute-kennzahl > a {

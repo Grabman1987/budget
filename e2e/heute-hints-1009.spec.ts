@@ -58,8 +58,10 @@ test('Today keeps payday first, unknown counts explicit and additional steps con
   const payday = page.locator('.heute-kennzahl').nth(1);
   await expect(payday.getByRole('heading', { name: 'Frei bis Gehalt', exact: true })).toBeVisible();
   await expect(payday).toContainText('Bis 15.10. · noch 28 Tage');
-  // The next salary stays marked on the forecast (the amount sentence left the cards).
+  // The next salary stays marked on the forecast and named in the derivation of Frei bis Gehalt.
   await expect(page.locator('.heute-salary-mark').first()).toBeAttached();
+  await payday.getByRole('button', { name: 'Herleitung Frei bis Gehalt' }).click();
+  await expect(payday).toContainText('Nächster erwarteter Geldeingang: 30.09. · 3.812,00 €');
   const more = page.getByRole('button', { name: /Mehr zum Monat/ });
   if ((await more.getAttribute('aria-expanded')) === 'false') await more.click();
   await expect(page.getByRole('heading', { name: 'Nächste Schritte' })).toHaveCount(0);

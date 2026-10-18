@@ -105,6 +105,21 @@ test('the derivation sits behind the info button', async ({ page }) => {
   await expect(page.getByText(/Dieselbe Zahl wie im Plan/)).toHaveCount(0);
 });
 
+test('phone list: the three Kennzahlen (the section "Monat im Blick") end inside the first 390×844 screen', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await expect(value(page, 'nettovermoegen')).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  const tiles = page.getByTestId('heute-kennzahlen').locator('.heute-kennzahl');
+  await expect(tiles).toHaveCount(3);
+  const bottoms = await tiles.evaluateAll((els) =>
+    els.map((e) => e.getBoundingClientRect().bottom),
+  );
+  expect(Math.max(...bottoms), 'the last Kennzahl ends below 844 px').toBeLessThanOrEqual(844);
+});
+
 for (const colorScheme of ['light', 'dark'] as const) {
   test.describe(colorScheme, () => {
     test.use({ colorScheme });

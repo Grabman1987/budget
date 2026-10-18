@@ -89,7 +89,11 @@ export function Kennzahlen({
               marker: plan.day / plan.daysInMonth,
             }}
             line={`Bis ${shortDay(data.stand.payday.day)} · noch ${data.stand.payday.daysToPayday} Tage`}
-            note={`Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind. Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)}.`}
+            note={`Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind. Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Plan-Rest ${eur(plan.remainingCents)}. Plan-Rest: geplante Monatsausgaben minus bisher ausgegeben, kein Kontoguthaben. ${
+              data.balance.salary
+                ? `Nächster erwarteter Geldeingang: ${shortDay(data.balance.salary.day)} · ${eur(data.balance.salary.cents)}`
+                : 'Kein Geldeingang im Prognosezeitraum erwartet.'
+            }`}
           />
         ) : (
           <Kennzahl
@@ -122,7 +126,9 @@ export function Kennzahlen({
           href={net ? { to: '/vermoegen/nettovermoegen', search: { zeitraum: '1J' } } : undefined}
           missing={
             net ? undefined : (
-              <p>{'unavailable' in data.netWorth && data.netWorth.unavailable.message}</p>
+              <p className="heute-kennzahl-missing">
+                {'unavailable' in data.netWorth && data.netWorth.unavailable.message}
+              </p>
             )
           }
           bar={
@@ -147,7 +153,7 @@ export function Kennzahlen({
               ? `Vermögen ${eur(net.assetsCents)} − Schulden ${eur(net.liabilitiesCents)}.${
                   change
                     ? ` Δ Monat ${eur(change.deltaCents, { sign: true })}: Einzahlung ${eur(change.investmentsInCents, { sign: true })} · Markt ${eur(change.marketCents, { sign: true })}.`
-                    : ''
+                    : ` ${'unavailable' in net.monthChange ? net.monthChange.unavailable.message : ''}`
                 }`
               : undefined
           }
@@ -212,6 +218,7 @@ function Kennzahl({
   const titleId = `kennzahl-${id}-title`;
   const noteId = `kennzahl-${id}-note`;
   const className = `heute-answer-value${alert ? ' heute-alert' : ''}${nonpositive ? ' is-nonpositive' : ''}`;
+  const describedBy = info && note ? noteId : undefined;
   const text = eur(value);
   let figure: ReactNode;
   if (state?.isError) {
@@ -235,6 +242,7 @@ function Kennzahl({
         aria-expanded={expanded}
         aria-controls={controls}
         aria-label={ariaLabel}
+        aria-describedby={describedBy}
       >
         {text}
       </button>
@@ -242,14 +250,24 @@ function Kennzahl({
   } else if (href) {
     figure = (
       <AppLink to={href.to} search={href.search}>
-        <strong className={className} data-testid="kennzahl-value" data-kennzahl={id}>
+        <strong
+          className={className}
+          data-testid="kennzahl-value"
+          data-kennzahl={id}
+          aria-describedby={describedBy}
+        >
           {text}
         </strong>
       </AppLink>
     );
   } else {
     figure = (
-      <strong className={className} data-testid="kennzahl-value" data-kennzahl={id}>
+      <strong
+        className={className}
+        data-testid="kennzahl-value"
+        data-kennzahl={id}
+        aria-describedby={describedBy}
+      >
         {text}
       </strong>
     );
