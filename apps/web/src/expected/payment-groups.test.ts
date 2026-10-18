@@ -58,7 +58,12 @@ describe('paymentGroups', () => {
       ['next-week', 'Nächste Woche', ['Montag', 'Strom']],
       ['later', 'Später', ['Gehalt', 'Letzter Tag']],
     ]);
-    expect(groups.map((g) => g.sub)).toEqual(['noch offen', '14.–20.09.', '21.–27.09.', 'bis 22.10.']);
+    expect(groups.map((g) => g.sub)).toEqual([
+      'noch offen',
+      '14.–20.09.',
+      '21.–27.09.',
+      'bis 22.10.',
+    ]);
     expect(paymentGroups([ROWS[5]!], TODAY, {}).map((g) => g.key)).toEqual(['this-week']);
   });
 
@@ -112,7 +117,12 @@ describe('paymentGroups', () => {
   });
 
   it('leaves a foreign amount without a rate out of the sum and counts it', () => {
-    const foreign = occ({ name: 'Fremd', dueDate: '2026-09-18', currency: 'USD', amountCents: -2_000 });
+    const foreign = occ({
+      name: 'Fremd',
+      dueDate: '2026-09-18',
+      currency: 'USD',
+      amountCents: -2_000,
+    });
     const [open] = paymentGroups([foreign], TODAY, {});
     expect(open).toMatchObject({ key: 'this-week', sumCents: 0, leftOut: 1 });
     const [rated] = paymentGroups([foreign], TODAY, { USD: 850_000 });

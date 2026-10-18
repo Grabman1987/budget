@@ -494,3 +494,29 @@ h4.xp-sub {
     font-size: var(--fs-dimension);
   }
 }
+
+/* Desktop: one line per payment (name and counterparty side by side) and slim group heads, so the
+   35-day list fits the screen plus one scroll page. */
+@media (min-width: 768px) {
+  .xp-table.xp-next td {
+    padding-block: 5px;
+  }
+  .xp-table.xp-next td.col-name,
+  .xp-table.xp-next td.col-pos {
+    vertical-align: middle;
+  }
+  .xp-table.xp-next .xp-name {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .xp-table.xp-next .xp-name .xp-sub {
+    display: inline;
+  }
+  .xp-table.xp-next .pgroup td {
+    padding-block: 2px;
+  }
+  .xp-table.xp-next .grp-toggle {
+    min-height: 32px;
+  }
+}

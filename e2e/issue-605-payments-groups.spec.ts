@@ -43,36 +43,40 @@ interface Shown {
 
 /** Every shown row with its group, read from the DOM. */
 async function rowsOf(page: Page): Promise<Shown[]> {
-  return page.locator('table.xp-next tbody').evaluateAll((bodies) =>
-    bodies.flatMap((body) =>
-      Array.from(body.querySelectorAll('tr.prow')).map((tr) => ({
-        group: (body as HTMLElement).dataset['group'] ?? '',
-        name: tr.querySelector('strong')?.textContent ?? '',
-        due: tr.querySelector('.col-due')?.textContent ?? '',
-        amount: tr.querySelector('.col-num')?.textContent ?? '',
-        alert: tr.classList.contains('is-alert'),
+  return page
+    .locator('table.xp-next tbody')
+    .evaluateAll((bodies) =>
+      bodies.flatMap((body) =>
+        Array.from(body.querySelectorAll('tr.prow')).map((tr) => ({
+          group: (body as HTMLElement).dataset['group'] ?? '',
+          name: tr.querySelector('strong')?.textContent ?? '',
+          due: tr.querySelector('.col-due')?.textContent ?? '',
+          amount: tr.querySelector('.col-num')?.textContent ?? '',
+          alert: tr.classList.contains('is-alert'),
+        })),
+      ),
+    )
+    .then((rows) =>
+      rows.map((r) => ({
+        group: r.group,
+        name: r.name,
+        md: monthDay(r.due),
+        cents: centsOf(r.amount),
+        alert: r.alert,
       })),
-    ),
-  ).then((rows) =>
-    rows.map((r) => ({
-      group: r.group,
-      name: r.name,
-      md: monthDay(r.due),
-      cents: centsOf(r.amount),
-      alert: r.alert,
-    })),
-  );
+    );
 }
 
-const headSum = async (head: Locator) => centsOf((await head.locator('td.col-num').innerText()) ?? '');
+const headSum = async (head: Locator) =>
+  centsOf((await head.locator('td.col-num').innerText()) ?? '');
 
 test('four groups in order, each sum equals the sum of its shown rows in cents', async ({
   page,
 }) => {
   await open(page);
-  const groups = await page.locator('table.xp-next tbody[data-group]').evaluateAll((bodies) =>
-    bodies.map((b) => (b as HTMLElement).dataset['group']),
-  );
+  const groups = await page
+    .locator('table.xp-next tbody[data-group]')
+    .evaluateAll((bodies) => bodies.map((b) => (b as HTMLElement).dataset['group']));
   const keys = [...new Set(groups.map((g) => (g === 'later-week' ? 'later' : g)))];
   expect(keys.length).toBeGreaterThanOrEqual(3);
   expect(keys).toEqual(GROUP_ORDER.filter((k) => keys.includes(k)));
@@ -84,7 +88,9 @@ test('four groups in order, each sum equals the sum of its shown rows in cents',
   for (const key of GROUP_ORDER) {
     const head = page.getByTestId(`group-${key}`);
     if ((await head.count()) === 0) continue;
-    const shown = rows.filter((r) => (key === 'later' ? r.group === 'later-week' : r.group === key));
+    const shown = rows.filter((r) =>
+      key === 'later' ? r.group === 'later-week' : r.group === key,
+    );
     const expected = shown.reduce((sum, r) => sum + (r.cents ?? 0), 0);
     expect(await headSum(head), `${key} sum`).toBe(expected);
   }
@@ -114,7 +120,10 @@ test('the 35-day list ends on 22.10.; 90 days extends it without changing the fi
   page,
 }) => {
   await open(page);
-  await expect(page.getByRole('button', { name: '35 Tage' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '35 Tage' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   const short = await rowsOf(page);
   expect(short.length).toBeGreaterThan(3);
   for (const r of short.filter((r) => r.group !== 'overdue'))
@@ -129,7 +138,10 @@ test('the 35-day list ends on 22.10.; 90 days extends it without changing the fi
   const firstSums = await sums();
 
   await page.getByRole('button', { name: '90 Tage' }).click();
-  await expect(page.getByRole('button', { name: '90 Tage' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '90 Tage' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   const long = await rowsOf(page);
   expect(long.length).toBeGreaterThan(short.length);
   // The first 35 days are the same rows in the same order.
@@ -162,7 +174,9 @@ test('the group head sticks while its rows scroll', async ({ page, isMobile }) =
   await page.getByRole('button', { name: '90 Tage' }).click();
   // The week with the most rows.
   const weeks = page.locator('table.xp-next tbody').filter({ has: page.locator('tr.prow') });
-  const counts = await weeks.evaluateAll((bodies) => bodies.map((b) => b.querySelectorAll('tr.prow').length));
+  const counts = await weeks.evaluateAll((bodies) =>
+    bodies.map((b) => b.querySelectorAll('tr.prow').length),
+  );
   const best = counts.indexOf(Math.max(...counts));
   const body = weeks.nth(best);
   const head = body.locator('tr.pgroup');
@@ -173,7 +187,7 @@ test('the group head sticks while its rows scroll', async ({ page, isMobile }) =
   const second = body.locator('tr.prow').nth(Math.min(1, Math.max(counts[best]! - 1, 0)));
   await second.evaluate((el) => {
     const top = el.getBoundingClientRect().top + window.scrollY;
-    window.scrollTo(0, top - 140);
+    window.scrollTo(0, top - 90);
   });
   await expect
     .poll(async () => (await headCell.boundingBox())?.y ?? -999, { timeout: 5_000 })
@@ -195,14 +209,18 @@ test('phone: rows have two lines, targets are 44 px, no horizontal page scroll',
   );
   const lines = await page.locator('table.xp-next tr.prow').evaluateAll((trs) =>
     trs.map((tr) => {
-      const tops = ['.col-name', '.col-num', '.col-due', '.col-cat', '.col-state']
+      const centers = ['.col-name', '.col-num', '.col-due', '.col-cat', '.col-state']
         .map((sel) => tr.querySelector(sel))
         .filter((el): el is Element => el !== null)
         .map((el) => {
           const inner = el.querySelector('strong, .xp-chip, .xp-status') ?? el;
-          return Math.round(inner.getBoundingClientRect().top / 6);
-        });
-      return { lines: new Set(tops).size, height: tr.getBoundingClientRect().height };
+          const box = inner.getBoundingClientRect();
+          return box.top + box.height / 2;
+        })
+        .sort((x, y) => x - y);
+      // A new line starts where the centres are further apart than half a text line.
+      const lines = centers.filter((c, i) => i === 0 || c - centers[i - 1]! > 12).length;
+      return { lines, height: tr.getBoundingClientRect().height };
     }),
   );
   expect(lines.length).toBeGreaterThan(5);
@@ -234,7 +252,10 @@ for (const scheme of ['light', 'dark'] as const) {
           .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
           .analyze();
         expect(
-          result.violations.map((v) => ({ rule: v.id, nodes: v.nodes.map((n) => n.target.join(' ')) })),
+          result.violations.map((v) => ({
+            rule: v.id,
+            nodes: v.nodes.map((n) => n.target.join(' ')),
+          })),
         ).toEqual([]);
         expect(
           await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
