@@ -43,7 +43,7 @@ it('answers three questions with exact money, source links, proportional bars an
   const { container } = render(<AnswerCards data={data} onBudgetClick={() => {}} />);
   expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
     'Frei bis Gehalt',
-    'Dieser Monat',
+    'Monatsergebnis',
     'Nettovermögen',
   ]);
   expect(screen.getByText('Bis 30.09. · noch 4 Tage')).toBeTruthy();
