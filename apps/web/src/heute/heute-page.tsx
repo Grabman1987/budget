@@ -325,7 +325,6 @@ function HeuteBody({ data }: { data: Heute }) {
           <section className="heute-section" aria-labelledby="heute-pinned-title">
             <SectionHead
               id="heute-pinned-title"
-              detail={1}
               title="Angepinnte Envelopes"
               aside={
                 <AppLink to="/plan/monat" search={{ monat: data.stand.month }}>
@@ -400,7 +399,6 @@ function HeuteBody({ data }: { data: Heute }) {
           <section className="heute-section heute-net-worth" aria-labelledby="heute-net-title">
             <SectionHead
               id="heute-net-title"
-              detail={4}
               title="Vermögensaufteilung"
               aside={
                 <AppLink to="/vermoegen/nettovermoegen">
@@ -492,7 +490,6 @@ function HeuteBody({ data }: { data: Heute }) {
           <section className="heute-section" aria-labelledby="heute-bookings-title">
             <SectionHead
               id="heute-bookings-title"
-              detail={5}
               title="Letzte Buchungen"
               aside={
                 <AppLink to="/konten/buchungen">

@@ -207,7 +207,7 @@ export function AreaHead({
       compactOnMobile
       titleOnMobile={titleOnMobile}
       {...(meta.area === 'heute'
-        ? { className: 'titleblock-stack' }
+        ? { className: 'titleblock-stack titleblock-heute' }
         : meta.area === 'reports' && reportId
           ? { className: 'titleblock-report' }
           : {})}

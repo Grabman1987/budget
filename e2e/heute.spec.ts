@@ -221,7 +221,8 @@ test('Heute uses live API data and period, expands the lead chain, and links to 
   );
   const forecastStart = Number(forecastPath?.match(/^M([\d.]+)/)?.[1]);
   expect(Math.abs(forecastStart - todayX)).toBeLessThan(0.01);
-  await expect(page.locator('.heute-detail-grid .circle-no')).toHaveText(['1', '4', '5']);
+  // #570: the section heads carry no circle numbers any more.
+  await expect(page.locator('.heute-detail-grid .circle-no')).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Finanz-Check', exact: true })).toBeVisible();
   const nonAcuteStates = await page
     .locator('.heute-state.is-bad, .heute-state.is-warn')
