@@ -118,7 +118,7 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
     .getByRole('dialog', { name: 'Gehaltszettel hochladen' })
     .getByLabel('Gehaltszettel-PDF auswählen')
     .setInputFiles({ name: 'renamed.pdf', mimeType: 'application/pdf', buffer: bytes });
-  await expect(page.getByRole('status').filter({ hasText: 'bereits aufgenommen' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Duplikat erkannt' })).toBeVisible();
   expect(
     (await request.get('/api/payslips?month=2026-09').then((r) => r.json())).captured,
   ).toHaveLength(0);
