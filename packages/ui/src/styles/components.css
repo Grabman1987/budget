@@ -1125,11 +1125,10 @@ dialog.sheet-bottom:not(.is-full) .overlay-inner {
    Scrim fades in 200 ms, the card fades 200 ms and rises 240 ms. Overflow stays visible so a
    suggestion list may reach past the card. */
 dialog.overlay.modal {
-  --form-card: 540px;
   position: fixed;
   inset: 0;
   margin: auto;
-  width: var(--form-card);
+  width: 540px;
   max-width: calc(100vw - 32px);
   height: fit-content;
   max-height: calc(100dvh - 48px);
@@ -1275,27 +1274,37 @@ dialog.sheet-bottom.is-full .sheet-grip {
   }
 }
 
-/* A toast over a form dialog must never cover its footer buttons (#672). On a wide screen it docks
-   in the bottom right corner and is only as wide as the free space beside the centred card (half
-   the screen minus half the card, minus the dock offset and a gap), so a long message wraps
-   instead of reaching under the card. Where that space gets too small (below 1100 px, and on the
-   phone sheet) it docks at the top instead, away from the footer. */
-dialog.is-bare .toast {
-  left: auto;
-  right: 24px;
-  bottom: 24px;
-  translate: none;
-  max-width: calc((100vw - var(--form-card)) / 2 - 24px - 16px);
+/* Inside a modal dialog the toast is part of the card, not an overlay (#672): the dialog becomes a
+   flex column, the host sits below the content, the content shrinks while a toast is open, and a
+   closed toast takes no height (the live region stays mounted, only its row collapses). So the
+   toast can never cover a button of the dialog, whatever the dialog size. */
+dialog.overlay[open] {
+  display: flex;
+  flex-direction: column;
 }
-@media (max-width: 1099px) {
-  dialog.is-bare .toast {
-    left: 50%;
-    right: auto;
-    bottom: auto;
-    top: calc(12px + env(safe-area-inset-top));
-    translate: -50% 0;
-    max-width: calc(100vw - 32px);
-  }
+dialog.overlay[open] > .overlay-inner {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.toast-host {
+  flex: none;
+}
+.toast-host .toast {
+  position: static;
+  translate: none;
+  max-width: none;
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  transition: grid-template-rows 240ms var(--ease-out);
+}
+.toast-host .toast.is-open {
+  grid-template-rows: 1fr;
+}
+.toast-host .toast-body {
+  min-height: 0;
+  margin: 8px 12px 12px;
+  box-shadow: none;
 }
 
 @media (max-width: 767px) {
