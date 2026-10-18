@@ -1519,6 +1519,27 @@
   outline: 2px solid var(--line);
   outline-offset: 2px;
 }
+/* "Zu verteilen" is the lead figure of the Plan head (owner decision 18.10.2026): T2 display,
+   the largest figure here; the label in T9 lettering. Green above 0, red only below. */
+.plan .plan-popover summary.plan-tba {
+  gap: 10px;
+  padding: 2px 14px;
+}
+.plan .plan-tba-label {
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.plan .plan-tba strong {
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
 .plan .plan-tba.is-positive {
   background: var(--good-soft);
   color: var(--on-good-soft);
@@ -1541,10 +1562,6 @@
   flex: none;
   margin-left: auto;
   border: 1px solid var(--rule-strong);
-}
-.plan .plan-chip.is-over {
-  color: var(--red);
-  border-color: var(--red);
 }
 .plan .plan-popover-content {
   position: absolute;

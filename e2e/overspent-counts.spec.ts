@@ -58,14 +58,14 @@ test('one synthetic month has the same overspent count in Heute, Plan, inbox and
   expect(triageUrl.searchParams.get('monat')).toBe('2026-09');
   expect(triageUrl.searchParams.get('ansicht')).toBe('triage');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(
-    page.locator('.plan-topbar summary').filter({ hasText: `${count} überzogen` }),
-  ).toBeVisible();
+  // #587: the count lives in the rows and in the Zu verteilen disclosure, not in a head chip.
+  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
+  await expect(page.locator('tr.prow.is-over')).toHaveCount(count);
 
   await page.goto('/plan/monat?monat=2026-09&ansicht=triage');
-  await expect(
-    page.locator('.plan-topbar summary').filter({ hasText: `${count} überzogen` }),
-  ).toBeVisible();
+  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
+  await page.locator('.plan-tba').click();
+  await expect(page.locator('.triage')).toContainText(`${count} Envelopes überzogen`);
   await expect(page.locator('tr.prow.is-over')).toHaveCount(count);
   await page.screenshot({ path: info.outputPath('plan.png'), fullPage: true });
 
