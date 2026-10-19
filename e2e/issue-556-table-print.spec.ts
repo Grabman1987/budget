@@ -68,18 +68,33 @@ for (const report of reports) {
       tables.map((table) => {
         const rect = table.getBoundingClientRect();
         const cells = Array.from(table.querySelectorAll('th, td'));
+        const overflowingCells = cells.flatMap((cell) => {
+          const box = cell.getBoundingClientRect();
+          if (
+            box.left >= rect.left - 1 &&
+            box.right <= rect.right + 1 &&
+            cell.scrollWidth <= cell.clientWidth + 1
+          ) {
+            return [];
+          }
+          const style = getComputedStyle(cell);
+          return [
+            {
+              text: cell.textContent,
+              width: box.width,
+              scroll: cell.scrollWidth,
+              client: cell.clientWidth,
+              whiteSpace: style.whiteSpace,
+              fontSize: style.fontSize,
+            },
+          ];
+        });
         return {
           width: rect.width,
           scroll: table.scrollWidth,
           client: table.clientWidth,
-          cellsFit: cells.every((cell) => {
-            const box = cell.getBoundingClientRect();
-            return (
-              box.left >= rect.left - 1 &&
-              box.right <= rect.right + 1 &&
-              cell.scrollWidth <= cell.clientWidth + 1
-            );
-          }),
+          cellsFit: overflowingCells.length === 0,
+          overflowingCells: overflowingCells.slice(0, 10),
         };
       }),
     );

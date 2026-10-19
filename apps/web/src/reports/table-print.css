@@ -94,4 +94,8 @@
     min-width: 0;
     min-height: 0;
   }
+  .report-table-print .rtable .dl {
+    display: inline;
+    white-space: normal;
+  }
 }
