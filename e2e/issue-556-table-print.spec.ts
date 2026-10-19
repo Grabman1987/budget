@@ -202,6 +202,25 @@ for (const report of reports) {
         expect(Math.abs(Number(dimensions[1]) - 841.89)).toBeLessThan(1);
         expect(Math.abs(Number(dimensions[2]) - 595.28)).toBeLessThan(1);
       }
+      // A named-page transition must not append an empty terminal page, even
+      // when that extra page happens to inherit the same landscape dimensions.
+      const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
+      const loadingTask = getDocument({ data: new Uint8Array(pdf) });
+      const pdfDocument = await loadingTask.promise;
+      try {
+        expect(pdfDocument.numPages).toBe(pages.length);
+        for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber++) {
+          const pdfPage = await pdfDocument.getPage(pageNumber);
+          const content = await pdfPage.getTextContent();
+          const text = content.items
+            .flatMap((item) => ('str' in item ? [item.str] : []))
+            .join('')
+            .trim();
+          expect(text, `${report}: PDF page ${pageNumber} must contain report text`).not.toBe('');
+        }
+      } finally {
+        await loadingTask.destroy();
+      }
     }
     await page.emulateMedia({ media: 'screen' });
     await expect(content).not.toBeVisible();

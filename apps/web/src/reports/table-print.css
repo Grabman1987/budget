@@ -6,6 +6,7 @@
 
 @media print {
   body:has(.report-table-print) {
+    page: report-table;
     background: var(--surface);
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
