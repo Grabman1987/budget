@@ -8,6 +8,7 @@ import { useCollapsibleSections } from './month-frame';
 import { monthShort } from './table-format';
 import { reportTablesQuery, type ReportTables } from './table-reports-api';
 import './table-reports.css';
+import './table-print.css';
 import { tableVerdictFacts } from './verdict-facts';
 import { reportPeriodMonths, type Period } from '@budget/domain';
 
@@ -79,7 +80,7 @@ export function TableReportFrame({
       reportDataBasis={basis}
       {...(extraFields ? { extraFields } : {})}
     >
-      <div ref={sectionsRef} className={`kview table-report ${className}`}>
+      <div ref={sectionsRef} className={`kview table-report report-table-print ${className}`}>
         {query.isPending && <LoadingNote what="Monatsdaten" />}
         {query.isError && (
           <ErrorNote what="Monatsdaten" error={query.error} onRetry={() => void query.refetch()} />

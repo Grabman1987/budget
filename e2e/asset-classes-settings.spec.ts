@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { sampleTest, SAMPLE_URL } from './sample';
+import { again } from './ledger-helpers';
 
 // These complete owner flows include both themes, repeated Axe scans and WebKit rotation.
 test.setTimeout(90_000);
@@ -8,7 +9,7 @@ test.setTimeout(90_000);
 test('groups can be created, renamed and selected; a P2P account keeps its assigned class', async ({
   page,
 }, info) => {
-  const suffix = info.project.name;
+  const suffix = info.project.name + again(info);
   const groupName = `Gruppe G ${suffix}`,
     className = `Klasse C ${suffix}`,
     accountName = `Plattform P ${suffix}`;
@@ -24,6 +25,8 @@ test('groups can be created, renamed and selected; a P2P account keeps its assig
     .click();
   await dialog.getByLabel('Name der Gruppe').fill(groupName + ' neu');
   await dialog.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(page).toHaveURL(/\/einstellungen\/anlageklassen$/);
   const headers = { Origin: new URL(page.url()).origin };
   const res = await page.request.post('/api/asset-classes', { headers, data: { name: className } });
   expect(res.status()).toBe(201);

@@ -1,0 +1,239 @@
+{
+  "captureManifestSha256": "ae015506581e2ce302ab8223c095786ea4f220e37b5898f8b1e0cb095668de7a",
+  "captureSpecSha256": "2c19ddde6fce94dd4a5d13781ed130d12be94919c75c1ad588afeb0fa0541b67",
+  "stats": {
+    "startTime": "2026-10-19T16:00:26.116Z",
+    "duration": 34305.519,
+    "expected": 5,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "priorCombinedStats": {
+    "startTime": "2026-10-19T15:47:01.333Z",
+    "duration": 50017.369,
+    "expected": 8,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "profiles": [
+    {
+      "profile": "phone-390",
+      "attachment": "explorer-csv-browser-profile.json",
+      "value": {
+        "engine": "webkit",
+        "version": "27.2",
+        "width": 390,
+        "coarsePointer": true,
+        "touchPoints": 0,
+        "pixelRatio": 3
+      },
+      "testStatus": "passed"
+    },
+    {
+      "profile": "desktop-1440",
+      "attachment": "explorer-csv-browser-profile.json",
+      "value": {
+        "engine": "webkit",
+        "version": "27.2",
+        "width": 1440,
+        "coarsePointer": false,
+        "touchPoints": 0,
+        "pixelRatio": 1
+      },
+      "testStatus": "passed"
+    }
+  ],
+  "focus": [
+    {
+      "profile": "phone-390",
+      "attachment": "explorer-focus-initial-before-click.json",
+      "value": {
+        "tag": "BODY",
+        "id": "",
+        "text": "Zum Inhalt springenBudgetPlanlisteHeutePlanKontenVerm\u00f6genReportsKontenBudget-Konten\u221211 \u20acSynthetic checking\u221211 \u20acKonto anl",
+        "scrollY": 0,
+        "skipLink": {
+          "focused": false,
+          "top": -76,
+          "bottom": -32,
+          "transform": "matrix(1, 0, 0, 1, 0, -88)"
+        }
+      },
+      "testStatus": "passed"
+    },
+    {
+      "profile": "phone-390",
+      "attachment": "explorer-focus-initial-after-download.json",
+      "value": {
+        "tag": "BODY",
+        "id": "",
+        "text": "Zum Inhalt springenBudgetPlanlisteHeutePlanKontenVerm\u00f6genReportsKontenBudget-Konten\u221211 \u20acSynthetic checking\u221211 \u20acKonto anl",
+        "scrollY": 908,
+        "skipLink": {
+          "focused": false,
+          "top": -76,
+          "bottom": -32,
+          "transform": "matrix(1, 0, 0, 1, 0, -88)"
+        }
+      },
+      "testStatus": "passed"
+    },
+    {
+      "profile": "phone-390",
+      "attachment": "explorer-focus-before-light-png.json",
+      "value": {
+        "tag": "BODY",
+        "id": "",
+        "text": "Zum Inhalt springenBudgetPlanlisteHeutePlanKontenVerm\u00f6genReportsKontenBudget-Konten\u221211 \u20acSynthetic checking\u221211 \u20acKonto anl",
+        "scrollY": 0,
+        "skipLink": {
+          "focused": false,
+          "top": -76,
+          "bottom": -32,
+          "transform": "matrix(1, 0, 0, 1, 0, -88)"
+        }
+      },
+      "testStatus": "passed"
+    },
+    {
+      "profile": "phone-390",
+      "attachment": "explorer-focus-before-dark-png.json",
+      "value": {
+        "tag": "BODY",
+        "id": "",
+        "text": "Zum Inhalt springenBudgetPlanlisteHeutePlanKontenVerm\u00f6genReportsKontenBudget-Konten\u221211 \u20acSynthetic checking\u221211 \u20acKonto anl",
+        "scrollY": 0,
+        "skipLink": {
+          "focused": false,
+          "top": -76,
+          "bottom": -32,
+          "transform": "matrix(1, 0, 0, 1, 0, -88)"
+        }
+      },
+      "testStatus": "passed"
+    },
+    {
+      "profile": "phone-390",
+      "attachment": "explorer-focus-retry-before-click.json",
+      "value": {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "Auswertung neu laden",
+        "scrollY": 1295,
+        "skipLink": {
+          "focused": false,
+          "top": -76,
+          "bottom": -32,
+          "transform": "matrix(1, 0, 0, 1, 0, -88)"
+        }
+      },
+      "testStatus": "passed"
+    },
+    {
+      "profile": "phone-390",
+      "attachment": "explorer-focus-retry-after-download.json",
+      "value": {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "CSV exportieren",
+        "scrollY": 908,
+        "skipLink": {
+          "focused": false,
+          "top": -76,
+          "bottom": -32,
+          "transform": "matrix(1, 0, 0, 1, 0, -88)"
+        }
+      },
+      "testStatus": "passed"
+    },
+    {
+      "profile": "desktop-1440",
+      "attachment": "explorer-focus-initial-before-click.json",
+      "value": {
+        "tag": "BODY",
+        "id": "",
+        "text": "Zum Inhalt springenBudgetPlanlisteHeutePlanKontenVerm\u00f6genReportsKontenBudget-Konten\u221211 \u20acSynthetic checking\u221211 \u20acKonto anl",
+        "scrollY": 0,
+        "skipLink": {
+          "focused": false,
+          "top": -72,
+          "bottom": -30.25,
+          "transform": "matrix(1, 0, 0, 1, 0, -83.5)"
+        }
+      },
+      "testStatus": "passed"
+    },
+    {
+      "profile": "desktop-1440",
+      "attachment": "explorer-focus-initial-after-download.json",
+      "value": {
+        "tag": "BODY",
+        "id": "",
+        "text": "Zum Inhalt springenBudgetPlanlisteHeutePlanKontenVerm\u00f6genReportsKontenBudget-Konten\u221211 \u20acSynthetic checking\u221211 \u20acKonto anl",
+        "scrollY": 0,
+        "skipLink": {
+          "focused": false,
+          "top": -72,
+          "bottom": -30.25,
+          "transform": "matrix(1, 0, 0, 1, 0, -83.5)"
+        }
+      },
+      "testStatus": "passed"
+    },
+    {
+      "profile": "desktop-1440",
+      "attachment": "explorer-focus-before-light-png.json",
+      "value": {
+        "tag": "BODY",
+        "id": "",
+        "text": "Zum Inhalt springenBudgetPlanlisteHeutePlanKontenVerm\u00f6genReportsKontenBudget-Konten\u221211 \u20acSynthetic checking\u221211 \u20acKonto anl",
+        "scrollY": 0,
+        "skipLink": {
+          "focused": false,
+          "top": -72,
+          "bottom": -30.25,
+          "transform": "matrix(1, 0, 0, 1, 0, -83.5)"
+        }
+      },
+      "testStatus": "passed"
+    },
+    {
+      "profile": "desktop-1440",
+      "attachment": "explorer-focus-before-dark-png.json",
+      "value": {
+        "tag": "BODY",
+        "id": "",
+        "text": "Zum Inhalt springenBudgetPlanlisteHeutePlanKontenVerm\u00f6genReportsKontenBudget-Konten\u221211 \u20acSynthetic checking\u221211 \u20acKonto anl",
+        "scrollY": 0,
+        "skipLink": {
+          "focused": false,
+          "top": -72,
+          "bottom": -30.25,
+          "transform": "matrix(1, 0, 0, 1, 0, -83.5)"
+        }
+      },
+      "testStatus": "passed"
+    }
+  ],
+  "images": {
+    "explorer-csv-phone-webkit-390-light.png": "67a9f576939ab3cc989b3db139ab81cd58d67bcf1b62781d711b3709e9b888d5",
+    "explorer-csv-phone-webkit-390-dark.png": "2d9c5880738f16d21a0d5d460df961e7ffbb562d88421c9efbe6beb1209aeb1a",
+    "explorer-csv-desktop-webkit-1440-light.png": "7e2f96e05070d79dcd468cafd611c0424a8abf57811db2498260626318bf10bc",
+    "explorer-csv-desktop-webkit-1440-dark.png": "053dd0e7542ab4f27dc78453bc3a222ee778ddeb360046a5a000062448031466"
+  },
+  "initialNative": {
+    "stats": {
+      "startTime": "2026-10-19T15:36:51.344Z",
+      "duration": 55218.627,
+      "expected": 7,
+      "skipped": 0,
+      "unexpected": 1,
+      "flaky": 0
+    },
+    "failure": "NEW synthetic race fixture lacked required type:booking discriminator; expected201, received400. Exactly that field corrected; initialfailure retained separately."
+  },
+  "priorCombinedCaptureManifestSha256": "962ed6cc4c0b2c1c71bc9c0f0294c593dbfed3230b94f4ecb2ef6af13b653c59",
+  "captureObservation": "Genuine scrolltop0 captures show no skiplink overlay. AllprePNG activeBODY, skiplinkunfocused and boundingbottomnegative. Supports capture-position explanation without asserting browserinternals caused earlier painting. NoCSS/focus/product/hidingchange."
+}
