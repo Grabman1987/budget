@@ -684,6 +684,7 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] User-invoked PR shipping/operator skills and read-only migration/money reviewers; see [Claude Code setup](claude-code.md).
 - [x] Windows full check (291 files, 2,808 tests) and build; local run used two workers and a 30-second test timeout without changing repository defaults. Delivery uses a separate git directory/bundle because the worktree commit could not create index.lock.
 - [x] Linux/Windows CI; owner acceptance in the next Claude session.
+- [ ] #649: reuse the pinned local Prettier API without npm/CLI startup; deterministic startup-failure, config, ignore and privacy regressions added. Exact-head Windows CI and independent hook review remain required.
 
 ### Owner directive PR3 — Allocation quality and scope (2026-10-04)
 
