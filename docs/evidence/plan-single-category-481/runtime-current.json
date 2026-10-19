@@ -1,0 +1,431 @@
+{
+  "runtimeWorkingTreeHead": "b29a0a80962559be1018bb2434e5c57f2400bbfa",
+  "historicalMain": "f3aafd78e2832bbe3110dde436ecfb5eaebafa80",
+  "commonDependency": "5be538a0712394bd81058f7f6de28120c99e5598",
+  "syntheticLocalOnly": true,
+  "checks": {
+    "e2eBuildExit": 0,
+    "nativeExit": 0,
+    "nativeResult": "13 passed,2.8min,0skip/flaky",
+    "ageRequired": true,
+    "vitestMaxWorkers": 2,
+    "unitFilesPassed": 505,
+    "unitTestsPassed": 4491,
+    "unitSeconds": 381.57,
+    "checkExit": 0,
+    "normalProductionBuildExit": 0,
+    "all26PrepostHashesUnchanged": true
+  },
+  "phoneMeasurement": {
+    "groups": 19,
+    "categories": 36,
+    "singles": 11,
+    "combinedGroups": 19,
+    "oldRows": 55,
+    "newRows": 36,
+    "reductionPercent": 34.54545454545455,
+    "browserVersion": "27.2",
+    "viewport": {
+      "width": 390,
+      "height": 664
+    },
+    "physicalTableHeightPx": 3842.25
+  },
+  "desktopMeasurements": [
+    {
+      "engine": "webkit",
+      "browserVersion": "27.2",
+      "theme": "light",
+      "configuredDesktopFlags": {
+        "isMobile": false,
+        "hasTouch": false
+      },
+      "oldRows": 55,
+      "newRows": 36,
+      "reductionPercent": 34.54545454545455,
+      "tableHeight": 1746.625,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "observedTouchPoints": 0,
+      "observedCoarsePointer": false,
+      "documentWidth": 1440,
+      "fontsStatus": "loaded"
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "27.2",
+      "theme": "dark",
+      "configuredDesktopFlags": {
+        "isMobile": false,
+        "hasTouch": false
+      },
+      "oldRows": 55,
+      "newRows": 36,
+      "reductionPercent": 34.54545454545455,
+      "tableHeight": 1746.625,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "observedTouchPoints": 0,
+      "observedCoarsePointer": false,
+      "documentWidth": 1440,
+      "fontsStatus": "loaded"
+    }
+  ],
+  "parentContrast": [
+    {
+      "theme": "light",
+      "allEightIndices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "groups": [
+        {
+          "group": "grp-grp-wohnen",
+          "ink": "rgb(11, 27, 51)",
+          "minimumMeasuredRatio": 16.194976611718243,
+          "axeColorContrast": {
+            "passed": false,
+            "incomplete": 1,
+            "incompleteReasonKeys": [
+              "pseudoContent"
+            ]
+          }
+        },
+        {
+          "group": "grp-grp-kredite",
+          "ink": "rgb(11, 27, 51)",
+          "minimumMeasuredRatio": 16.194976611718243,
+          "axeColorContrast": {
+            "passed": false,
+            "incomplete": 1,
+            "incompleteReasonKeys": [
+              "pseudoContent"
+            ]
+          }
+        },
+        {
+          "group": "grp-grp-versicherungen",
+          "ink": "rgb(11, 27, 51)",
+          "minimumMeasuredRatio": 16.194976611718243,
+          "axeColorContrast": {
+            "passed": false,
+            "incomplete": 1,
+            "incompleteReasonKeys": [
+              "pseudoContent"
+            ]
+          }
+        },
+        {
+          "group": "grp-grp-abos",
+          "ink": "rgb(11, 27, 51)",
+          "minimumMeasuredRatio": 16.194976611718243,
+          "axeColorContrast": {
+            "passed": false,
+            "incomplete": 1,
+            "incompleteReasonKeys": [
+              "pseudoContent"
+            ]
+          }
+        },
+        {
+          "group": "grp-grp-freizeit",
+          "ink": "rgb(11, 27, 51)",
+          "minimumMeasuredRatio": 17.22997841660292,
+          "axeColorContrast": {
+            "passed": false,
+            "incomplete": 1,
+            "incompleteReasonKeys": [
+              "pseudoContent"
+            ]
+          }
+        },
+        {
+          "group": "grp-grp-mobilitaet",
+          "ink": "rgb(11, 27, 51)",
+          "minimumMeasuredRatio": 16.194976611718243,
+          "axeColorContrast": {
+            "passed": false,
+            "incomplete": 1,
+            "incompleteReasonKeys": [
+              "pseudoContent"
+            ]
+          }
+        },
+        {
+          "group": "grp-grp-genuss",
+          "ink": "rgb(11, 27, 51)",
+          "minimumMeasuredRatio": 17.22997841660292,
+          "axeColorContrast": {
+            "passed": false,
+            "incomplete": 1,
+            "incompleteReasonKeys": [
+              "pseudoContent"
+            ]
+          }
+        },
+        {
+          "group": "grp-grp-geschenke",
+          "ink": "rgb(11, 27, 51)",
+          "minimumMeasuredRatio": 16.194976611718243,
+          "axeColorContrast": {
+            "passed": false,
+            "incomplete": 1,
+            "incompleteReasonKeys": [
+              "pseudoContent"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "allEightIndices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "groups": [
+        {
+          "group": "grp-grp-wohnen",
+          "ink": "rgb(238, 246, 252)",
+          "minimumMeasuredRatio": 11.426145555993298,
+          "axeColorContrast": {
+            "passed": false,
+            "incomplete": 1,
+            "incompleteReasonKeys": [
+              "pseudoContent"
+            ]
+          }
+        },
+        {
+          "group": "grp-grp-kredite",
+          "ink": "rgb(238, 246, 252)",
+          "minimumMeasuredRatio": 11.426145555993298,
+          "axeColorContrast": {
+            "passed": false,
+            "incomplete": 1,
+            "incompleteReasonKeys": [
+              "pseudoContent"
+            ]
+          }
+        },
+        {
+          "group": "grp-grp-versicherungen",
+          "ink": "rgb(238, 246, 252)",
+          "minimumMeasuredRatio": 11.426145555993298,
+          "axeColorContrast": {
+            "passed": false,
+            "incomplete": 1,
+            "incompleteReasonKeys": [
+              "pseudoContent"
+            ]
+          }
+        },
+        {
+          "group": "grp-grp-abos",
+          "ink": "rgb(238, 246, 252)",
+          "minimumMeasuredRatio": 11.426145555993298,
+          "axeColorContrast": {
+            "passed": false,
+            "incomplete": 1,
+            "incompleteReasonKeys": [
+              "pseudoContent"
+            ]
+          }
+        },
+        {
+          "group": "grp-grp-freizeit",
+          "ink": "rgb(238, 246, 252)",
+          "minimumMeasuredRatio": 10.592548771062878,
+          "axeColorContrast": {
+            "passed": false,
+            "incomplete": 1,
+            "incompleteReasonKeys": [
+              "pseudoContent"
+            ]
+          }
+        },
+        {
+          "group": "grp-grp-mobilitaet",
+          "ink": "rgb(238, 246, 252)",
+          "minimumMeasuredRatio": 11.426145555993298,
+          "axeColorContrast": {
+            "passed": false,
+            "incomplete": 1,
+            "incompleteReasonKeys": [
+              "pseudoContent"
+            ]
+          }
+        },
+        {
+          "group": "grp-grp-genuss",
+          "ink": "rgb(238, 246, 252)",
+          "minimumMeasuredRatio": 10.592548771062878,
+          "axeColorContrast": {
+            "passed": false,
+            "incomplete": 1,
+            "incompleteReasonKeys": [
+              "pseudoContent"
+            ]
+          }
+        },
+        {
+          "group": "grp-grp-geschenke",
+          "ink": "rgb(238, 246, 252)",
+          "minimumMeasuredRatio": 11.426145555993298,
+          "axeColorContrast": {
+            "passed": false,
+            "incomplete": 1,
+            "incompleteReasonKeys": [
+              "pseudoContent"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "exactFixtureRoleGeometry": [
+    {
+      "profile": "true-desktop-webkit-1440",
+      "browserVersion": "27.2",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "documentWidth": 1440,
+      "fonts": "loaded",
+      "beforeGrid": 92,
+      "visibleCategoryRows": 17,
+      "bands": [
+        {
+          "categoryUnionHeight": 39.140625,
+          "parentUnionHeight": 32,
+          "wholeBandHeight": 48.390625
+        },
+        {
+          "categoryUnionHeight": 39.140625,
+          "parentUnionHeight": 32,
+          "wholeBandHeight": 48.390625
+        }
+      ]
+    },
+    {
+      "profile": "canonical-iphone-webkit",
+      "browserVersion": "27.2",
+      "viewport": {
+        "width": 390,
+        "height": 664
+      },
+      "documentWidth": 390,
+      "fonts": "loaded",
+      "beforeGrid": 168,
+      "visibleCategoryRows": 1,
+      "bands": [
+        {
+          "categoryUnionHeight": 70,
+          "parentUnionHeight": 72.78125,
+          "wholeBandHeight": 149.78125
+        },
+        {
+          "categoryUnionHeight": 70.5,
+          "parentUnionHeight": 72.78125,
+          "wholeBandHeight": 150.78125
+        }
+      ]
+    },
+    {
+      "profile": "historical-height-comparison-390x844",
+      "browserVersion": "27.2",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "documentWidth": 390,
+      "fonts": "loaded",
+      "beforeGrid": 168,
+      "visibleCategoryRows": 3,
+      "bands": [
+        {
+          "categoryUnionHeight": 70,
+          "parentUnionHeight": 72.78125,
+          "wholeBandHeight": 149.78125
+        },
+        {
+          "categoryUnionHeight": 70.5,
+          "parentUnionHeight": 72.78125,
+          "wholeBandHeight": 150.78125
+        }
+      ]
+    }
+  ],
+  "existingTestHashes": {
+    "apps/web/src/budget/budget-ui.test.tsx": "c67c3adf13eabd8ee452e56c8bc312ec36fd0bc771673289cd6c1d629715a854",
+    "e2e/plan-detail-pages.spec.ts": "a0703c630c55f04477c1379e3b671c11d829a5439ed4fd9ba4cbfa9fa5c0d2a6",
+    "e2e/issue-588-plan-menus.spec.ts": "ad4fd03f4b1f87e5b63efd12bcfca453e4fcb50e66724ce027c9b4e5c84581f2",
+    "e2e/plan-compact-grid.spec.ts": "516d16705a13e0a63d8891d7337f82a3f25c561a778ddc8ab0f5967174af4e41",
+    "e2e/plan.spec.ts": "248319957b33b3a8e687b98391f11cd9206d6bfbfeba7a4fad0c229abad9463a",
+    "e2e/ux-distill.spec.ts": "588a8040a758f30e378966962b12e11357070ebd93239a7fd451a7653fea9955",
+    "e2e/ux-cover-limits.spec.ts": "51424704cd46b26a7b82c0e74bd53e5b0ad2777c4da3ba590bb125b52d75b3d8",
+    "e2e/issue-588-plan-menus-undo.spec.ts": "f51538b5f89a4327d209c248698f1d2765b7d87fb74fc4d3129fb1ded0c51741",
+    "e2e/month-nav.spec.ts": "2bb3ec1c0a5a6e1bd4669e28bbc93522113e9685f83c59bf6635bd31c2148d13"
+  },
+  "images": [
+    {
+      "file": "webkit-desktop-light.png",
+      "sha256": "6d9f1796a0637636688bb541b5aa5707cf5b654e33e6df37dd1104004e95e8e4",
+      "pixelSize": [
+        4320,
+        6261
+      ],
+      "capture": "full-page WebKit screenshot"
+    },
+    {
+      "file": "webkit-desktop-dark.png",
+      "sha256": "86209938d278970e056948ee36824b418d689cd0977f039e915cc717df6d95a3",
+      "pixelSize": [
+        4320,
+        6261
+      ],
+      "capture": "full-page WebKit screenshot"
+    },
+    {
+      "file": "webkit-iphone-light.png",
+      "sha256": "a92e9e8db54d5ddbb2bb53385117b316fd72b2ab4d646b3d3f107397391eeb4b",
+      "pixelSize": [
+        1170,
+        15258
+      ],
+      "capture": "full-page WebKit screenshot"
+    },
+    {
+      "file": "webkit-iphone-dark.png",
+      "sha256": "1825e49c77f9b4a2a19e042dffea8db13f0616379ac7030a3600c63daed7e72b",
+      "pixelSize": [
+        1170,
+        15258
+      ],
+      "capture": "full-page WebKit screenshot"
+    }
+  ],
+  "limits": [
+    "WebKit engine evidence does not substitute for exact-head Chromium CI.",
+    "Logical row reduction is separate from physical pixel heights; no physical30%claim.",
+    "Fixed navigation/FAB appears in full-page screenshots; no every-point unobscured hit-test claim.",
+    "Axe pseudo-background incompletes retain fail-closed exact known-reason checks plus actual opaque WCAG>=4.5; no old test waived."
+  ]
+}
