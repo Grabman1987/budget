@@ -12,6 +12,7 @@ for (const report of reports) {
     await page.goto(`/reports/${report}`);
     const body = page.locator('.report-table-print');
     await expect(body.locator('table.rtable').first()).toBeVisible();
+    if (report === 'jahresansicht') await expect(body.locator('.seg-depth')).toBeVisible();
     const toggle = body.locator('.section-toggle').first();
     await expect(toggle).toBeVisible();
     const section = toggle.locator('xpath=ancestor::section[1]');
@@ -53,6 +54,7 @@ for (const report of reports) {
     await expect(page.locator('.sidebar')).not.toBeVisible();
     await expect(page.locator('.topbar')).not.toBeVisible();
     await expect(page.locator('.registers').first()).not.toBeVisible();
+    await expect(body.locator('.seg-depth')).not.toBeVisible();
     // Print media can settle incrementally after screen-mode accessibility analysis.
     // Require the actual paper/foreground palette before measuring its contrast.
     await expect
@@ -161,6 +163,7 @@ for (const report of reports) {
     await page.emulateMedia({ media: 'screen' });
     await expect(content).not.toBeVisible();
     await expect(section).toHaveAttribute('data-collapsed', 'true');
+    if (report === 'jahresansicht') await expect(body.locator('.seg-depth')).toBeVisible();
   });
 }
 
