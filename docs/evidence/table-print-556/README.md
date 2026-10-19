@@ -73,9 +73,16 @@ does not change the DOM collapse flags or the user's remembered selection.
   `.tr-card` and `.titleblock` had no active print-specific background declaration,
   retained the dark painted surface despite `--surface: #fff`, and produced real
   contrast failures. The new print rule explicitly reapplies `background:
-  var(--surface)` to exactly those normal containers. It changes no text, muted,
-  delta, heat or semantic role. Its actual canonical browser result is pending;
-  the declaration alone does not establish a fix.
+  var(--surface)` to exactly those normal containers. Its genuine canonical
+  WebKit run at `04aa97c4` passed the three normal setup cases and portrait case,
+  but all three table cases still failed strict print Axe: surfaces were now
+  white, while 480 failing ordinary foreground entries retained pale `#eef6fc`.
+  Independent source/CSSOM review confirmed those ordinary values have no own
+  foreground declaration and inherit from body; muted/percentage/delta roles
+  were not the failing foreground entries. The same two normal containers now
+  explicitly reapply `color: var(--ink)` as well. No descendant, muted, delta,
+  heat or semantic selector is reset. Actual canonical rerun is pending; these
+  declarations alone do not establish a fix.
 
   An unproven explicit-shell-color workaround was removed; semantic colors remain
   unchanged. No arbitrary sleep, contrast waiver, reload, fixture alteration or

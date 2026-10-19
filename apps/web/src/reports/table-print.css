@@ -51,11 +51,12 @@
     display: block;
     margin: 0;
   }
-  /* Reapply the normal surface role on the actual printed containers. This also
-     makes dark-screen → print changes invalidate their painted backgrounds. */
+  /* Reapply the normal surface/ink roles on the actual printed containers so
+     dark-screen → print also invalidates their painted and inherited values. */
   body:has(.report-table-print) .titleblock,
   .report-table-print .tr-card {
     background: var(--surface);
+    color: var(--ink);
   }
   .report-table-print .tr-card {
     padding: 8px 0;
