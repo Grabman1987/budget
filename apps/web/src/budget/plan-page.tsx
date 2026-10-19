@@ -20,7 +20,7 @@ import {
   ChevronDown,
   Info,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { expectedQuery } from '../expected/api';
 import { PLAN_MONAT } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
@@ -627,10 +627,57 @@ function PlanBody({
                 <tbody>
                   {groups.map((g, index) => {
                     const st = groupStatus(g.rows);
-                    const band = shownView === 'group' && g.rows.length === 1;
-                    const isCollapsed = !band && collapsed.has(g.key);
+                    const singleBand = shownView === 'group' && g.rows.length === 1;
+                    const isCollapsed = !singleBand && collapsed.has(g.key);
+                    const band = shownView === 'group' && g.rows.length > 0 && !isCollapsed;
                     const sugSum = g.rows.reduce((a, r) => a + (sug[r.id] ?? 0), 0);
                     const toggle = () => toggleGroup(g.key);
+                    const groupHeading = (
+                      <div className="group-heading">
+                        <PlanSelection
+                          label={`${shownView === 'group' && g.rows.length > 1 ? 'Gruppe ' : ''}${g.title} auswählen`}
+                          rows={g.rows}
+                          selected={selected}
+                          onChange={() => selectRows(g.rows)}
+                        />
+                        <button
+                          type="button"
+                          className="grp-toggle"
+                          aria-label={
+                            shownView === 'group' && g.rows.length > 1
+                              ? `Gruppe ${g.title}`
+                              : undefined
+                          }
+                          aria-expanded={!isCollapsed}
+                          title={`${g.sub ?? g.title} · ${statusText(g, st)}`}
+                          onClick={toggle}
+                        >
+                          <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
+                          <span className="grp-text">
+                            <span className="grp-title">{g.title}</span>
+                          </span>
+                        </button>
+                        {shownView === 'group' && (
+                          <Button
+                            variant="ghost"
+                            className="plan-add"
+                            aria-label={`Kategorie in ${g.title} anlegen`}
+                            onClick={() => setCategoryForm({ mode: 'edit', groupId: g.key })}
+                          >
+                            +
+                          </Button>
+                        )}
+                        {distribute && sugSum > 0 && (
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            onClick={() => take(g.rows.map((r) => r.id))}
+                          >
+                            {g.stage ? 'Stufe füllen' : 'Übernehmen'} · {eur(sugSum)}
+                          </Button>
+                        )}
+                      </div>
+                    );
                     return [
                       ...(index
                         ? [
@@ -645,47 +692,7 @@ function PlanBody({
                           className={cx('pgroup', isCollapsed && 'is-collapsed')}
                           id={`grp-${g.key}`}
                         >
-                          <td className="col-name">
-                            <div className="group-heading">
-                              <PlanSelection
-                                label={`${g.title} auswählen`}
-                                rows={g.rows}
-                                selected={selected}
-                                onChange={() => selectRows(g.rows)}
-                              />
-                              <button
-                                type="button"
-                                className="grp-toggle"
-                                aria-expanded={!isCollapsed}
-                                title={`${g.sub ?? g.title} · ${statusText(g, st)}`}
-                                onClick={toggle}
-                              >
-                                <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
-                                <span className="grp-text">
-                                  <span className="grp-title">{g.title}</span>
-                                </span>
-                              </button>
-                              {shownView === 'group' && (
-                                <Button
-                                  variant="ghost"
-                                  className="plan-add"
-                                  aria-label={`Kategorie in ${g.title} anlegen`}
-                                  onClick={() => setCategoryForm({ mode: 'edit', groupId: g.key })}
-                                >
-                                  +
-                                </Button>
-                              )}
-                              {distribute && sugSum > 0 && (
-                                <Button
-                                  size="xs"
-                                  variant="ghost"
-                                  onClick={() => take(g.rows.map((r) => r.id))}
-                                >
-                                  {g.stage ? 'Stufe füllen' : 'Übernehmen'} · {eur(sugSum)}
-                                </Button>
-                              )}
-                            </div>
-                          </td>
+                          <td className="col-name">{groupHeading}</td>
                           <td className="col-num col-assign" data-label="Zugewiesen">
                             {eur(st.assigned)}
                           </td>
@@ -711,11 +718,15 @@ function PlanBody({
                         : []),
                       ...(isCollapsed
                         ? []
-                        : g.rows.map((r) => (
+                        : g.rows.map((r, rowIndex) => (
                             <EnvelopeRow
                               key={r.id}
                               row={r}
-                              band={band ? g : undefined}
+                              band={band && rowIndex === 0 ? g : undefined}
+                              bandHeading={
+                                band && rowIndex === 0 && !singleBand ? groupHeading : undefined
+                              }
+                              bandSummary={band && rowIndex === 0 && !singleBand ? st : undefined}
                               onAdd={() => setCategoryForm({ mode: 'edit', groupId: g.key })}
                               ctx={ctx}
                               suggestion={distribute ? sug[r.id] : undefined}
@@ -1280,9 +1291,39 @@ function PlanSelection({
   );
 }
 
+function BandValue({
+  combined,
+  kind,
+  children,
+}: {
+  combined: boolean;
+  kind: 'assigned' | 'activity' | 'available';
+  children: ReactNode;
+}) {
+  return combined ? <div className={`band-category-${kind}`}>{children}</div> : children;
+}
+
+function BandTotal({ group, metric, value }: { group: string; metric: string; value: number }) {
+  return (
+    <span
+      className="band-total"
+      data-label={metric}
+      title={`Gruppe ${group} · ${metric}: ${eur(value)}`}
+    >
+      <span className="band-total-kind">Gruppe </span>
+      <span className="sr-only">
+        {group} · {metric}:{' '}
+      </span>
+      {eur(value)}
+    </span>
+  );
+}
+
 function EnvelopeRow({
   row: r,
   band,
+  bandHeading,
+  bandSummary,
   onAdd,
   ctx,
   suggestion,
@@ -1298,6 +1339,8 @@ function EnvelopeRow({
 }: {
   row: PlanRow;
   band: PlanGroup | undefined;
+  bandHeading: ReactNode | undefined;
+  bandSummary: ReturnType<typeof groupStatus> | undefined;
   onAdd: () => void;
   ctx: PlanContext;
   suggestion: number | undefined;
@@ -1335,6 +1378,7 @@ function EnvelopeRow({
       className={cx(
         'prow',
         band && 'pgroup psingle',
+        bandHeading && 'pmulti',
         over && 'is-over',
         credit && 'is-credit',
         selected && 'is-selected',
@@ -1350,6 +1394,14 @@ function EnvelopeRow({
       }}
     >
       <td className="col-name">
+        {bandHeading && <div className="band-parent">{bandHeading}</div>}
+        {bandSummary && (
+          <div className="band-parent-totals">
+            <BandTotal group={band!.title} metric="Zugewiesen" value={bandSummary.assigned} />
+            <BandTotal group={band!.title} metric="Aktivität" value={bandSummary.activity} />
+            <BandTotal group={band!.title} metric="Verfügbar" value={bandSummary.available} />
+          </div>
+        )}
         <label className="plan-select">
           <input
             type="checkbox"
@@ -1374,17 +1426,19 @@ function EnvelopeRow({
           aria-pressed={selected}
           onClick={onInspect}
         >
-          {band ? (
+          {band && !bandHeading ? (
             <span className="band-number" aria-hidden="true">
               {band.no.padStart(2, '0')}
             </span>
           ) : (
             <CategoryIcon icon={r.icon} name={r.name} />
           )}
-          <span className="category-name">{band ? band.title : r.name}</span>
-          {band && band.title !== r.name && <span className="sr-only"> · {r.name}</span>}
+          <span className="category-name">{band && !bandHeading ? band.title : r.name}</span>
+          {band && !bandHeading && band.title !== r.name && (
+            <span className="sr-only"> · {r.name}</span>
+          )}
         </button>
-        {band && (
+        {band && !bandHeading && (
           <Button
             variant="ghost"
             className="plan-add"
@@ -1408,62 +1462,80 @@ function EnvelopeRow({
         </span>
       </td>
       <td className="col-num col-assign" data-label="Zugewiesen">
-        {phone ? (
-          <span className="phone-assigned" title={assignment ? ghostSource(assignment) : undefined}>
-            Zugewiesen {assignment ? `≈ ${eur(assignment.ghostCents)}` : eur(r.assignedCents)}
-          </span>
-        ) : (
-          <>
-            <AssignCell
-              row={r}
-              tba={tba}
-              editing={editing}
-              monthKey={ctx.month}
-              onEdit={onEdit}
-              onCommit={onCommit}
-            />
-          </>
+        {bandSummary && (
+          <BandTotal group={band!.title} metric="Zugewiesen" value={bandSummary.assigned} />
         )}
-        {!phone && ghost}
+        <BandValue combined={!!bandHeading} kind="assigned">
+          {phone ? (
+            <span
+              className="phone-assigned"
+              title={assignment ? ghostSource(assignment) : undefined}
+            >
+              Zugewiesen {assignment ? `≈ ${eur(assignment.ghostCents)}` : eur(r.assignedCents)}
+            </span>
+          ) : (
+            <>
+              <AssignCell
+                row={r}
+                tba={tba}
+                editing={editing}
+                monthKey={ctx.month}
+                onEdit={onEdit}
+                onCommit={onCommit}
+              />
+            </>
+          )}
+          {!phone && ghost}
+        </BandValue>
       </td>
       <td className="col-num col-act" data-label="Aktivität">
-        {r.activityCents ? eur(r.activityCents) : <span className="muted">{eur(0)}</span>}
+        {bandSummary && (
+          <BandTotal group={band!.title} metric="Aktivität" value={bandSummary.activity} />
+        )}
+        <BandValue combined={!!bandHeading} kind="activity">
+          {r.activityCents ? eur(r.activityCents) : <span className="muted">{eur(0)}</span>}
+        </BandValue>
       </td>
       <td className="col-num col-avail" data-label="Verfügbar">
-        {phone && ghost}
-        {phone ? (
-          <button
-            type="button"
-            onClick={over ? onCover : onInspect}
-            aria-label={over ? `${r.name} decken` : `Zugewiesen für ${r.name} ändern`}
-            className={cx(
-              'plan-available pill',
-              over ? 'is-bad' : r.availableCents > 0 && 'is-good',
-            )}
-          >
-            {eur(r.availableCents)}
-            {over && <ArrowRightLeft size={16} aria-hidden="true" />}
-          </button>
-        ) : (
-          <>
-            <span
-              className={cx('pill', over ? 'is-bad' : r.availableCents > 0 && 'is-good')}
-              title={credit ? 'neue Kartenschuld' : undefined}
+        {bandSummary && (
+          <BandTotal group={band!.title} metric="Verfügbar" value={bandSummary.available} />
+        )}
+        <BandValue combined={!!bandHeading} kind="available">
+          {phone && ghost}
+          {phone ? (
+            <button
+              type="button"
+              onClick={over ? onCover : onInspect}
+              aria-label={over ? `${r.name} decken` : `Zugewiesen für ${r.name} ändern`}
+              className={cx(
+                'plan-available pill',
+                over ? 'is-bad' : r.availableCents > 0 && 'is-good',
+              )}
             >
               {eur(r.availableCents)}
-            </span>
-            {over && (
-              <button
-                type="button"
-                className="cover-row"
-                aria-label={`${r.name} decken`}
-                onClick={onCover}
+              {over && <ArrowRightLeft size={16} aria-hidden="true" />}
+            </button>
+          ) : (
+            <>
+              <span
+                className={cx('pill', over ? 'is-bad' : r.availableCents > 0 && 'is-good')}
+                title={credit ? 'neue Kartenschuld' : undefined}
               >
-                <ArrowRightLeft size={16} aria-hidden="true" />
-              </button>
-            )}
-          </>
-        )}
+                {eur(r.availableCents)}
+              </span>
+              {over && (
+                <button
+                  type="button"
+                  className="cover-row"
+                  aria-label={`${r.name} decken`}
+                  onClick={onCover}
+                >
+                  <ArrowRightLeft size={16} aria-hidden="true" />
+                </button>
+              )}
+            </>
+          )}
+        </BandValue>
       </td>
     </tr>
   );

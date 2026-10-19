@@ -4,11 +4,11 @@
 
 - [x] Decision 7A: one band per single visible category in the single-month Groups view, with existing category amounts/status/bar, selection, inspector and inline +; a second category restores the group.
 - [x] Reuse existing assignment/quick-assignment/move/cover and undo callbacks; no domain, API, DB or financial write changes.
-- [x] Add browser coverage and measure the owner-confirmed audit reference: 74 → 44 content rows (40.54%; today's main 55 → 44, 20%). [Evidence](evidence/plan-single-category-481/README.md).
-- [x] Final desktop/390 serial browser run: 19/19; compact-grid/inspector 4/4 separately; light/dark Axe, 44px phone targets and no horizontal overflow.
-- [ ] Green aggregate gate: all typecheck/lint/format passed; 4,381 unit tests passed and one old accessible-name selector failed. Required existing-test update is listed for Opus; existing tests are unchanged.
-- [ ] Exact Playwright browser and WebKit iPhone acceptance, dark iPhone evidence; browser download blocked by the environment's HTTP 403 for cdn.playwright.dev.
-- [ ] Opus review, CI and integration; issue remains open, no merge or queue loop.
+- [ ] Meet the owner's 2026-10-19 comparison against current main's 55 rows. The earlier 44-row implementation reduces this by only 20%; the historical 74-row audit cannot establish acceptance. The owner approved combining multi-category group heads with their first category, targeting 36 logical rows (34.55% fewer), with group totals, collapse, selection and + preserved. Report physical table height separately. [Evidence](evidence/plan-single-category-481/README.md).
+- [x] Earlier source `d309fa89` passed canonical desktop/mobile/WebKit CI and a genuine local WebKit iPhone-profile run (9/9 including setup); its dark iPhone-profile image was committed and independently opened at `4f24ed21`. These are historical results, not validation of the expanded layout.
+- [ ] Complete the expanded layout's full check/build, canonical browser checks, keyboard/C/G, light/dark Axe, 44px phone targets and 390px overflow checks. The earlier accessible-name/menu/detail adaptations were applied by the coordinator and independently reviewed; any further existing-test change requires the same policy.
+- [ ] Replace evidence with the expanded layout's actual desktop-light/iPhone-dark captures and current-main measurements. Real local WebKit is available in the verified Ubuntu container; pinned Chromium coverage comes from GitHub CI while its host download remains blocked.
+- [ ] Independent Codex whole-diff review, exact-head CI and serial integration/live verification under the owner's 2026-10-19 authorization. The issue remains open; old queue loops stay disabled.
 
 ### WP-001 — CASE-001 reference assurance, first bounded slice (#509, 2026-10-17)
 

@@ -3,40 +3,47 @@ import { expect } from '@playwright/test';
 import { sampleTest } from './sample';
 import { test } from './isolated-ledger';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 
 sampleTest(
-  'sample ledger: single-category bands, measured reduction and visual/accessibility evidence',
-  async ({ page }, info) => {
+  'sample ledger: group-first-category bands, current-baseline reduction and visual/accessibility evidence',
+  async ({ page, browser }, info) => {
     sampleTest.setTimeout(90_000);
     await page.goto('/plan/monat?monat=2026-09');
     const response = await page.request.get('/api/budget/2026-09');
     expect(response.ok()).toBe(true);
-    const data = await response.json();
+    const data = (await response.json()) as BudgetMonthView;
     const visible = data.categories.filter((c: { hiddenAt: string | null }) => !c.hiddenAt);
     const singles = data.groups.filter(
       (g: { id: string }) =>
         visible.filter((c: { groupId: string }) => c.groupId === g.id).length === 1,
     );
+    const bandGroups = data.groups.filter((g) => visible.some((c) => c.groupId === g.id));
+    const multiple = bandGroups.filter((g) => !singles.includes(g));
     const table = page.locator('.ptable-zero');
-    await expect(table.locator('.psingle')).toHaveCount(singles.length);
+    await expect(table.locator('.psingle')).toHaveCount(bandGroups.length);
+    await expect(table.locator('.pmulti')).toHaveCount(multiple.length);
     await expect(table.locator('.prow:not(.is-empty)')).toHaveCount(visible.length);
     expect(singles).toHaveLength(11);
     const oldRows = data.groups.length + visible.length;
-    const newRows = oldRows - singles.length;
+    const newRows = oldRows - bandGroups.length;
     await expect(table.locator('tbody > tr:not(.pgroup-gap)')).toHaveCount(newRows);
     const measurements = {
       groups: data.groups.length,
       categories: visible.length,
       singles: singles.length,
+      combinedGroups: bandGroups.length,
       oldRows,
       newRows,
-      reductionPercent: (100 * singles.length) / oldRows,
-      auditRowsWithAddControls: oldRows + data.groups.length,
-      auditReductionPercent:
-        (100 * (singles.length + data.groups.length)) / (oldRows + data.groups.length),
+      reductionPercent: (100 * (oldRows - newRows)) / oldRows,
+      browserVersion: browser.version(),
+      viewport: page.viewportSize(),
+      physicalTableHeightPx: (await table.boundingBox())!.height,
     };
     mkdirSync('docs/evidence/plan-single-category-481', { recursive: true });
-    expect(measurements.auditReductionPercent).toBeGreaterThanOrEqual(30);
+    expect(oldRows).toBe(55);
+    expect(newRows).toBe(36);
+    expect(measurements.reductionPercent).toBeGreaterThanOrEqual(30);
     writeFileSync(
       `docs/evidence/plan-single-category-481/${info.project.name}-rows.json`,
       JSON.stringify(measurements, null, 2) + '\n',
@@ -60,6 +67,31 @@ sampleTest(
       await expect(
         band.getByRole('button', { name: `Kategorie in ${group.name} anlegen`, exact: true }),
       ).toHaveCount(1);
+    }
+    for (const group of multiple) {
+      const band = page.locator(`[id="grp-${group.id}"]`);
+      await expect(band.locator('.grp-toggle')).toHaveAccessibleName(`Gruppe ${group.name}`);
+      const categories = visible.filter((category) => category.groupId === group.id);
+      const summaries = data.summary.envelopes.filter((value) =>
+        categories.some((category) => category.id === value.categoryId),
+      );
+      const totals = band.locator(
+        info.project.name === 'desktop'
+          ? '.col-num > .band-total'
+          : '.band-parent-totals .band-total',
+      );
+      await expect(totals).toHaveCount(3);
+      const expected = ['assignedCents', 'activityCents', 'availableCents'] as const;
+      for (const [index, key] of expected.entries()) {
+        const value = summaries.reduce((sum, row) => sum + row[key], 0);
+        await expect(totals.nth(index)).toContainText(
+          new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR' })
+            .format(value / 100)
+            .replace('-', '−'),
+        );
+      }
+      await expect(band.locator('.pname')).toHaveCount(1);
+      await expect(band.locator('.spending-status')).not.toBeEmpty();
     }
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => {
@@ -234,10 +266,57 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   await dialog.getByLabel('Name', { exact: true }).fill('Zweiter Musterposten');
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).not.toBeVisible();
-  await expect(band).not.toHaveClass(/psingle/);
+  await expect(band).toHaveClass(/psingle/);
+  await expect(band).toHaveClass(/pmulti/);
   await expect(band.locator('.grp-toggle')).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('.prow', { hasText: 'Zweiter Musterposten' })).toHaveCount(1);
   await expect(page.locator('.prow', { hasText: 'Musterposten' })).toHaveCount(2);
+  const expandedData = (await (
+    await page.request.get(`/api/budget/${month}`)
+  ).json()) as BudgetMonthView;
+  const sibling = expandedData.categories.find((value) => value.name === 'Zweiter Musterposten')!;
+  await send('PUT', `/budget/${month}/assigned`, {
+    items: [{ categoryId: sibling.id, assignedCents: 29 }],
+  });
+  await send('POST', '/bookings', {
+    type: 'booking',
+    accountId: account.id,
+    categoryId: sibling.id,
+    date: `${month}-03`,
+    amountCents: -7,
+  });
+  await page.reload();
+  const totals = band.locator(
+    info.project.name === 'desktop' ? '.col-num > .band-total' : '.band-parent-totals .band-total',
+  );
+  await expect(totals.nth(0)).toContainText('100,30 €');
+  await expect(totals.nth(1)).toContainText('−100,09 €');
+  await expect(totals.nth(2)).toContainText('0,21 €');
+  await expect(band.locator('.band-category-assigned')).toContainText('100,01 €');
+  await expect(band.locator('.band-category-available')).toContainText('−0,01 €');
+  const groupSelection = band.getByRole('checkbox', {
+    name: 'Gruppe Musterband auswählen',
+    exact: true,
+  });
+  await groupSelection.check();
+  await expect(
+    page.getByRole('checkbox', { name: 'Musterposten auswählen', exact: true }),
+  ).toBeChecked();
+  await expect(
+    page.getByRole('checkbox', { name: 'Zweiter Musterposten auswählen', exact: true }),
+  ).toBeChecked();
+  await band.locator('.grp-toggle').click();
+  await expect(band.locator('.grp-toggle')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator(`.ptable-zero [data-category-id="${category.id}"]`)).not.toBeVisible();
+  await expect(
+    page.getByRole('checkbox', { name: 'Zweiter Musterposten auswählen', exact: true }),
+  ).not.toBeVisible();
+  await expect(groupSelection).toBeChecked();
+  await band.locator('.grp-toggle').click();
+  await expect(groupSelection).toBeChecked();
+  await expect(
+    page.getByRole('checkbox', { name: 'Zweiter Musterposten auswählen', exact: true }),
+  ).toBeChecked();
   if (info.project.name === 'desktop') {
     const options = page
       .locator('details.plan-menu')

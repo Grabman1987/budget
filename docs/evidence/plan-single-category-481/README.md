@@ -1,103 +1,83 @@
-# Plan single-category bands — issue #481
+# Plan group/category bands — #481
 
-Scope: presentation in Plan › Monat, single-month Groups view. Based on
-`e14932de` and owner decision 7A. Codex implements this pilot; Opus retains
-required reviews and integration. No merge or queue loop was started.
+Scope: presentation in Plan › Monat, single-month Groups view. The starting
+feature head is `4f24ed21`; current-main comparison is `e14932de`.
 
-A band reuses `EnvelopeRow`, `AssignCell`, the inspector and existing mutation
-callbacks. Group number/name, category figures, available pill, status/bar,
-checkbox and + share one row. + opens the existing category form. A second
-visible category restores a normal group. Alternative and multiple-month
-layouts remain separate; collapse-all excludes bands only in the single-month
-Groups view. A distinct category name remains in the button's accessible name.
+Owner decisions relayed by the coordinator on 2026-10-19 explicitly require
+comparison against the **current 55 content rows**, rather than the historical
+74-row audit. The original 11 single-category bands produce 44 rows and fail
+that 30% criterion. The owner approved combining the other expanded group heads
+with their first category too, targeting **36 / 55 rows, a 34.55% reduction**.
+Collapse, selection, creation controls and every category must remain available.
+Independent Codex whole-diff reviews and serial gated integration are authorized;
+this implementer does not merge, deploy, close issues or start queue loops.
 
-## Verified cloud results (2026-10-19)
+## Shared band behavior
 
-The coordinator repaired the obsolete inspector selector (`f484767e`), then
-fixed a real desktop overlap and reviewed the collapse/detail test adaptations
-(`d309fa89`). Existing financial and geometry assertions were retained.
+- Existing single-category bands retain their category selection, inspector,
+  status/bar, assignment, available pill and creation control.
+- Expanded groups with several categories share a compact band with their first
+  category. Desktop places the parent controls and category name/status beside
+  each other. Group totals are explicitly labelled **Gruppe** above the first
+  category's own values. Phone layout labels all three parent totals separately
+  and retains distinct 44px parent/category controls.
+- The group checkbox selects every category; the category checkbox selects just
+  its category. Parent checkbox/button names explicitly identify the group,
+  including when group and first-category names happen to be identical.
+- Collapsing a multiple-category group retains its original parent-only summary
+  and hides every category; reopening retains selection. The existing collapse
+  exception for a single-category band remains unchanged.
+- All amounts reuse existing `groupStatus`, `EnvelopeRow`, `AssignCell`, inspector
+  and mutation callbacks. No financial formula, API or persisted data changes.
+  Non-Groups and multiple-month layouts retain their existing structures.
 
-- Exact-head GitHub CI [39240826745](https://github.com/Grabman1987/budget/actions/runs/39240826745)
-  **passed** at `d309fa89b4936645e8e9cf7b36a5cdb95345bad8`, including all 12
-  canonical Chromium/WebKit E2E shards, visual checks, both Windows unit shards,
-  static checks, Linux unit tests, Docker and encrypted restore.
-- The coordinator independently ran the unchanged repository Playwright config
-  and real `webkit-iphone` project against synthetic local servers in an
-  isolated Ubuntu 24.04 Docker container: **9/9 passed** (three API setup cases,
-  two single-band cases, four menu cases). This includes light/dark Axe,
-  44px phone controls, row counts, no sideways scroll, selection, keyboard,
-  mutation/undo and the transition to two categories.
-- The actual WebKit 27.2 dark iPhone capture is `webkit-iphone-dark.png`;
-  measured rows are in `webkit-iphone-rows.json`. The coordinator opened the
-  image for visual inspection. This replaces the earlier missing-iPhone-image
-  blocker; it is not an image from Chromium emulation.
-- Node 22.23.3 / npm 10.9.9 / pinned Playwright 1.64.1. Ubuntu's actual system
-  dependencies were installed inside Docker with `playwright install-deps
-  chromium webkit`, then the official pinned Ubuntu WebKit was downloaded.
-  No host dependency check was disabled and no browser configuration changed.
-- Chromium remains unavailable in this managed host because its CDN redirects
-  to denied `storage.googleapis.com`. Its exact-browser acceptance above comes
-  from the canonical GitHub runner, not a substituted system executable.
-- The existing inspector unit file passed **18/18** after its one-literal
-  selector adjustment. Separate reviewers checked that adjustment and the
-  collapse/detail/desktop-track changes. Named Opus review and integration
-  remain separate pending gates.
+## Measurements and checks
 
-## Historical diagnostic runs
+The new browser regression counts **all** 36 visible categories and all 19
+combined expanded groups. Its acceptance assertion uses 55 → 36 directly;
+there is no historical-audit substitute. Generated JSON additionally records
+browser version, viewport and actual table height in pixels. Logical row
+reduction does **not** imply a 30% physical-height reduction; actual pixel
+measurements and captures must be reviewed separately.
 
-The implementation initially used system Chromium 154 for diagnostic desktop
-and phone runs. Those results are superseded for browser acceptance by the
-canonical exact-head CI and genuine WebKit run above. Earlier host-only WebKit
-launches failed on missing libraries; the Docker result does not assert that
-the host itself now has those packages. The official pinned Playwright Docker
-image download also failed with HTTP403; the successful container instead uses
-a digest-pinned Ubuntu base and the project's own browser installer.
+The synthetic interaction case retains keyboard/creation shortcuts, cent-exact
+writes, refusal guards, cover and undo. It additionally exercises the transition
+from one to two categories, deliberately different group/category amounts,
+parent selection, collapse and reopening. Group assigned/activity/available
+figures of 100.30 / −100.09 / 0.21 euros are distinct from the first category's
+100.01 assigned / −0.01 available euros; tests compare their proper contexts.
+Both themes still require Axe, no page overflow and phone touch geometry.
 
-## Reduction reference
+Expanded-source typecheck/lint/build, native browser results, physical geometry,
+independent review and exact-head CI are recorded as they complete. The current
+expanded implementation is not accepted merely because an earlier feature
+revision passed. Required desktop/mobile/WebKit, final evidence review, serial
+integration and live verification remain open; #481 stays open.
 
-The synthetic sample contains 19 groups, 36 visible categories and 11
-single-category groups. Both references are reported explicitly; no new owner
-approval of a comparison baseline is claimed here.
+## Historical verification of the earlier 44-row version
 
-| Content rows (excluding gaps and the table head) | Count |
-| --- | ---: |
-| Audit: group headers + category rows + per-group add rows | 74 |
-| Current main after Z1: group headers + category rows | 55 |
-| This change: normal groups/children + single bands | 44 |
+The coordinator preserved and independently reviewed the obsolete inspector
+selector, collapse/menu and decorative-number detail-selector adaptations.
+Those existing-main test changes remain in the branch; this implementer has not
+modified them. Canonical CI
+[39240826745](https://github.com/Grabman1987/budget/actions/runs/39240826745)
+passed at `d309fa89`, including all canonical browser shards and other required
+checks. The coordinator separately ran the real project WebKit/iPhone cases:
+9/9 passed at the corrected earlier source. Those are historical results for
+the 44-row version, not acceptance of this expanded source.
 
-Reduction against the audit is **40.54%**; the additional reduction against
-current main is **20%**. No category or financial amount is removed. The old
-structure is documented in the issue's `desktop-light-006-plan-monat.jpg`;
-`row-7.png` defines the selected band alternative. The audit commit
-`8450b6b4c3bc73cac65e413533190b00fa6c5875`, `plan-page.tsx:679`,
-also confirms one `plan-add-row` per expanded group. New E2E assertions count all
-44 content rows, all 36 category representations, all 11 bands, and the ≥30%
-audit reduction. JSON measurements are generated beside the screenshots.
-
-## Open acceptance and integration gates
-
-The original issue requires a sample table at least 30% shorter but does not
-explicitly choose audit-state versus current-main row counts. The implementation
-passes 30% against the documented audit structure; its additional reduction
-against current main is only 20%. Do not treat those percentages as equivalent
-or mark this acceptance criterion complete without resolving the reference.
-
-The required named Opus scope/test-change review, applicable test-change label,
-serial integration and live verification remain pending. This evidence commit
-does not merge or deploy the feature and does not close the issue.
+The managed Ubuntu container supplies the genuine pinned WebKit runtime using
+the unchanged Playwright configuration. Direct host Chromium downloads remain
+blocked by the enforced CDN redirect policy; canonical Chromium acceptance
+comes from GitHub CI. No system browser replaces another required engine.
 
 ## Reproduction
 
-Build with `npm run build:e2e`. With the project's pinned browser and actual
-system dependencies installed, the coordinator's unchanged canonical command was:
-
 ```sh
-npx playwright test e2e/issue-481-single-category-band.spec.ts e2e/issue-588-plan-menus.spec.ts --project=webkit-iphone
+npm run build:e2e
+npx playwright test e2e/issue-481-single-category-band.spec.ts e2e/issue-588-plan-menus.spec.ts --project=desktop --project=mobile --project=webkit-iphone --workers=1
 ```
 
-The normal repository setup bootstraps synthetic disposable databases through
-its API-only setup projects; it does not require a Chromium launch for this
-WebKit project. No private database, financial data, provider or credentials
-were used. The standalone browser smoke also launched real WebKit 27.2 and
-rendered a synthetic page. Rootless host launch failures and the still-blocked
-Chromium download are retained in the environment's external setup logs.
+The normal API-only setup uses synthetic disposable databases. No real financial
+data, production access or secrets are used. No existing-main test, tolerance,
+baseline, configuration, manifest or repository rule was changed by this work.
