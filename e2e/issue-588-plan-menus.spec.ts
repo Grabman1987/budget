@@ -89,17 +89,30 @@ test('the old controls are gone; both menus are keyboard operable and named', as
 test('"Alle einklappen" and the month span work from "Optionen ▾"', async ({ page, isMobile }) => {
   await page.goto('/plan/monat?monat=2026-09');
   const optionen = menuSummary(page, 'Optionen');
-  await expect(page.locator('tr.pgroup').first()).toBeVisible();
+  const normalGroups = page.locator('tr.pgroup:not(.psingle)');
+  const bands = page.locator('tr.psingle');
+  const children = page.locator('tr.prow:not(.psingle):not(.is-empty)');
+  await expect(normalGroups.first()).toBeVisible();
+  await expect(bands).toHaveCount(11);
+  const childCount = await children.count();
+  expect(childCount).toBeGreaterThan(0);
   await optionen.click();
   await menuPanel(page, 'Optionen')
     .getByRole('button', { name: 'Alle einklappen', exact: true })
     .click();
-  await expect(page.locator('tr.pgroup:not(.is-collapsed)')).toHaveCount(0);
+  await expect(page.locator('tr.pgroup:not(.psingle):not(.is-collapsed)')).toHaveCount(0);
+  await expect(children).toHaveCount(0);
+  await expect(bands).toHaveCount(11);
+  for (const band of await bands.all()) {
+    await expect(band).toBeVisible();
+    await expect(band).not.toHaveClass(/is-collapsed/);
+  }
   await optionen.click();
   await menuPanel(page, 'Optionen')
     .getByRole('button', { name: 'Alle ausklappen', exact: true })
     .click();
-  await expect(page.locator('tr.pgroup.is-collapsed')).toHaveCount(0);
+  await expect(page.locator('tr.pgroup:not(.psingle).is-collapsed')).toHaveCount(0);
+  await expect(children).toHaveCount(childCount);
   if (isMobile) return;
   await optionen.click();
   await page.getByRole('button', { name: '2 Monate', exact: true }).click();

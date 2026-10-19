@@ -2390,7 +2390,7 @@
 }
 .plan .ptable-zero .psingle .col-name {
   grid-template-columns: 24px minmax(0, 1fr) 28px;
-  grid-template-rows: 24px 18px 4px;
+  grid-template-rows: 28px 18px 4px;
 }
 .plan .ptable-zero .psingle .plan-select {
   grid-row: 1 / -1;
