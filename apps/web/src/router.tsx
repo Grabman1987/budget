@@ -14,7 +14,8 @@ import {
   type LiquidityHorizon,
 } from '@budget/domain';
 import type { HeutePeriod } from './heute/api';
-import { authStatusQuery, queryClient } from './auth/status-query';
+import { AUTH_STATUS_KEY, authStatusQuery, queryClient } from './auth/status-query';
+import { clearDeviceFinancialData } from './pwa/local-data';
 import { validateBookingsSearch } from './ledger/bookings-search';
 import { validateInboxSearch } from './inbox/navigation';
 import { accountsQuery } from './ledger/queries';
@@ -119,8 +120,12 @@ const shellRoute = createRoute({
   beforeLoad: async ({ location }) => {
     const status = await queryClient.fetchQuery(authStatusQuery);
     if (status.setupRequired) throw redirect({ to: '/setup' });
-    if (!status.authenticated)
+    if (!status.authenticated) {
+      // Session ended (expiry, sign-out in another tab): nothing financial may stay on the device.
+      queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== AUTH_STATUS_KEY[0] });
+      void clearDeviceFinancialData();
       throw redirect({ to: '/login', search: { weiter: captureContinuation(location.href) } });
+    }
   },
   component: AppShell,
 });
