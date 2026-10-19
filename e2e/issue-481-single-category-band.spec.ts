@@ -91,13 +91,14 @@ async function expectOnscreenParentInk(page: Page) {
     };
     // Axe cannot resolve the background behind .main's pseudo element here.
     // Record that real limitation; unknown incomplete reasons still fail closed.
-    if (!coverage.passed) {
+    if (coverage.incomplete > 0) {
       expect(reasons.length, id!).toBeGreaterThan(0);
       expect(
         reasons.every((reason) => reason.key === 'pseudoContent'),
         id!,
       ).toBe(true);
     }
+    expect(coverage.passed || reasons.length > 0, id!).toBe(true);
     const contrast = await toggle.evaluate((button) => {
       const channels = (value: string) => {
         const match = value.match(
