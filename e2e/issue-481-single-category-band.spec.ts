@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, type Page } from '@playwright/test';
+import { expect, type Browser, type Page } from '@playwright/test';
 import { sampleTest, SAMPLE_NOW, SAMPLE_URL } from './sample';
 import { STORAGE_STATE_SAMPLE } from '../playwright.config';
 import { test } from './isolated-ledger';
@@ -521,32 +521,63 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   }
 });
 
-// Use an actual desktop context even when this regression runs in the iPhone engine project.
+// Each independent desktop concern keeps the default 30s budget.
+async function withDesktopSample(browser: Browser, run: (desktop: Page) => Promise<void>) {
+  const context = await browser.newContext({
+    baseURL: SAMPLE_URL,
+    storageState: STORAGE_STATE_SAMPLE,
+    viewport: { width: 1440, height: 900 },
+    isMobile: false,
+    hasTouch: false,
+    colorScheme: 'light',
+    reducedMotion: 'reduce',
+    serviceWorkers: 'block',
+  });
+  try {
+    const desktop = await context.newPage();
+    await desktop.clock.setFixedTime(new Date(SAMPLE_NOW));
+    await desktop.goto('/plan/monat?monat=2026-09');
+    await expect(desktop.locator('.ptable-zero .pmulti')).toHaveCount(8);
+    await desktop.evaluate(() => document.fonts.ready);
+    await run(desktop);
+  } finally {
+    await context.close();
+  }
+}
+
+// Use actual desktop contexts even in the iPhone engine project.
 for (const theme of ['light', 'dark'] as const) {
+  sampleTest(`desktop ${theme} parent ink stays readable on screen`, async ({ browser }, info) => {
+    await withDesktopSample(browser, async (desktop) => {
+      await desktop.evaluate((value) => {
+        document.documentElement.dataset['theme'] = value;
+      }, theme);
+      const parentInk = await expectOnscreenParentInk(desktop);
+      writeFileSync(
+        info.outputPath(`desktop-${theme}-parent-ink.json`),
+        JSON.stringify(
+          {
+            engine: browser.browserType().name(),
+            browserVersion: browser.version(),
+            theme,
+            configuredDesktopFlags: { isMobile: false, hasTouch: false },
+            parentInk,
+          },
+          null,
+          2,
+        ) + '\n',
+      );
+    });
+  });
+
   sampleTest(
     `desktop ${theme} group labels stay inside their controls at 1440 pixels`,
     async ({ browser }, info) => {
-      const context = await browser.newContext({
-        baseURL: SAMPLE_URL,
-        storageState: STORAGE_STATE_SAMPLE,
-        viewport: { width: 1440, height: 900 },
-        isMobile: false,
-        hasTouch: false,
-        colorScheme: 'light',
-        reducedMotion: 'reduce',
-        serviceWorkers: 'block',
-      });
-      try {
-        const desktop = await context.newPage();
-        await desktop.clock.setFixedTime(new Date(SAMPLE_NOW));
-        await desktop.goto('/plan/monat?monat=2026-09');
-        await expect(desktop.locator('.ptable-zero .pmulti')).toHaveCount(8);
-        await desktop.evaluate(() => document.fonts.ready);
+      await withDesktopSample(browser, async (desktop) => {
         await desktop.evaluate((value) => {
           document.documentElement.dataset['theme'] = value;
         }, theme);
         await expectCompactBandContents(desktop, false);
-        const parentInk = await expectOnscreenParentInk(desktop);
         const bands = desktop.locator('.ptable-zero .pmulti');
         let truncatedLabels = 0;
         for (let index = 0; index < (await bands.count()); index++) {
@@ -624,16 +655,13 @@ for (const theme of ['light', 'dark'] as const) {
               oldRows: 55,
               newRows: 36,
               reductionPercent: (100 * (55 - 36)) / 55,
-              parentInk,
               ...measurements,
             },
             null,
             2,
           ) + '\n',
         );
-      } finally {
-        await context.close();
-      }
+      });
     },
   );
 }
