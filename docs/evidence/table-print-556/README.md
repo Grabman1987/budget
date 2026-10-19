@@ -69,7 +69,13 @@ does not change the DOM collapse flags or the user's remembered selection.
   remain unchanged. This oracle correction is not a product fix: corrected
   actual-app probes still report real contrast failures, including ordinary
   dimension-chain values over stale dark card backgrounds. The exact affected
-  container rules are being diagnosed before changing product CSS.
+  container rules were independently diagnosed from matching source/CSSOM rules:
+  `.tr-card` and `.titleblock` had no active print-specific background declaration,
+  retained the dark painted surface despite `--surface: #fff`, and produced real
+  contrast failures. The new print rule explicitly reapplies `background:
+  var(--surface)` to exactly those normal containers. It changes no text, muted,
+  delta, heat or semantic role. Its actual canonical browser result is pending;
+  the declaration alone does not establish a fix.
 
   An unproven explicit-shell-color workaround was removed; semantic colors remain
   unchanged. No arbitrary sleep, contrast waiver, reload, fixture alteration or

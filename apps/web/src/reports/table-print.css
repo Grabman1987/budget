@@ -51,6 +51,12 @@
     display: block;
     margin: 0;
   }
+  /* Reapply the normal surface role on the actual printed containers. This also
+     makes dark-screen → print changes invalidate their painted backgrounds. */
+  body:has(.report-table-print) .titleblock,
+  .report-table-print .tr-card {
+    background: var(--surface);
+  }
   .report-table-print .tr-card {
     padding: 8px 0;
     border: 0;
