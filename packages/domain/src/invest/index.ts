@@ -8,3 +8,4 @@ export * from './trade-rules';
 export * from './depot-compare';
 export * from './costs-taxes';
 export * from './performance-report';
+export * from './benchmark-quotes';
