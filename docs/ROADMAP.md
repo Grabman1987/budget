@@ -2,13 +2,14 @@
 
 ### Plan single-category bands — #481 (2026-10-19)
 
-- [x] Decision 7A: one band per single visible category in the single-month Groups view, with existing category amounts/status/bar, selection, inspector and inline +; a second category restores the group.
-- [x] Reuse existing assignment/quick-assignment/move/cover and undo callbacks; no domain, API, DB or financial write changes.
-- [ ] Meet the owner's 2026-10-19 comparison against current main's 55 rows. The earlier 44-row implementation reduces this by only 20%; the historical 74-row audit cannot establish acceptance. The owner approved combining multi-category group heads with their first category, targeting 36 logical rows (34.55% fewer), with group totals, collapse, selection and + preserved. Report physical table height separately. [Evidence](evidence/plan-single-category-481/README.md).
-- [x] Earlier source `d309fa89` passed canonical desktop/mobile/WebKit CI and a genuine local WebKit iPhone-profile run (9/9 including setup); its dark iPhone-profile image was committed and independently opened at `4f24ed21`. These are historical results, not validation of the expanded layout.
-- [ ] Complete the expanded layout's full check/build, canonical browser checks, keyboard/C/G, light/dark Axe, 44px phone targets and 390px overflow checks. The earlier accessible-name/menu/detail adaptations were applied by the coordinator and independently reviewed; any further existing-test change requires the same policy.
-- [ ] Replace evidence with the expanded layout's actual desktop-light/iPhone-dark captures and current-main measurements. Real local WebKit is available in the verified Ubuntu container; pinned Chromium coverage comes from GitHub CI while its host download remains blocked.
-- [ ] Independent Codex whole-diff review, exact-head CI and serial integration/live verification under the owner's 2026-10-19 authorization. The issue remains open; old queue loops stay disabled.
+- [x] Owner decision 7A combines single-category groups and multi-category group heads with their first category in the single-month Groups view. Group totals and category figures remain distinct; collapse, selection, inspector and inline + remain available.
+- [x] Reuse existing assignment, quick-assignment, move, cover and undo callbacks; no domain, API, DB or financial write changes.
+- [x] Current synthetic sample: 55 → 36 logical content rows, 34.55% fewer against the owner-approved 55-row main baseline; all 36 categories and 19 group contexts remain. Physical table heights are separately 1746.625px at 1440×900 and 3842.25px at 390×664, without a physical-height percentage claim.
+- [x] Frozen b29 working tree (historical main f3aafd78 plus common5be538 and the coordinator's named test adaptations): fresh E2E build and canonical WebKit13/13 passed; age-required two-worker full check passed 505 files /4491 tests, followed by a normal production build. All26 hashes, HEAD and coordinator-owned dirty state stayed exact.
+- [x] Four current actual desktop/phone light/dark images and safe runtime proof are recorded in [the evidence](evidence/plan-single-category-481/README.md), opened by the coordinator and independent reviewers. Strict existing role limits, 44px phone targets, both-theme accessibility and all native financial/keyboard/undo checks passed locally; fixed-navigation/FAB hit-test limits remain explicit.
+- [x] All nine existing-test adaptations were applied only by the coordinator under the named owner decisions and independently reviewed with retained financial assertions and original size budgets. Independent Codex whole-diff and geometry-policy reviews are clear under [the owner's model authorization](https://github.com/Grabman1987/budget/issues/694).
+- [ ] Complete exact-head Chromium desktop/mobile CI and remaining affected-caller compatibility after the current main refresh; historical aggregate results are not a new merged-head runtime claim.
+- [ ] Complete serial integration and deployed-revision verification. #481 remains open until every acceptance criterion is live; old queue loops remain disabled.
 
 ### #627 — CSV of the validated current Explorer table (2026-10-19)
 
