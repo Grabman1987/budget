@@ -196,18 +196,14 @@ function Body({ data }: { data: BudgetAdherenceReport }) {
                         <span>{x.name}</span>
                       </AppLink>
                       <ChartValue
-                        label="Ist und Plan"
+                        label={`Ist ${eur(x.istCents)} von Plan ${eur(x.planCents)}`}
                         date={data.month}
                         series={[
                           { name: 'Ist', value: eur(x.istCents), color: `var(--${x.class})` },
                           { name: 'Plan', value: eur(x.planCents), color: 'var(--line-2)' },
                         ]}
                       >
-                        <span
-                          className="sr-bl-track"
-                          role="img"
-                          aria-label={`Ist ${eur(x.istCents)} von Plan ${eur(x.planCents)}`}
-                        >
+                        <span className="sr-bl-track">
                           <i
                             className={`sr-bl-ist sw-${x.class}`}
                             style={{ width: `${(Math.max(0, x.istCents) / max) * 100}%` }}

@@ -13,7 +13,8 @@ redesign charts or change their calculation, geometry or source values.
   leaving their links, native tables and controls accessible.
 - Geometric primitives (lines, bars, axes, bands and marks) remain parts of the
   enclosing chart image, not separate flattened images. The public-container
-  inventory test requires a matching contract case for a new `Chart*` export.
+  inventory test classifies all uppercase public exports against an explicit
+  primitive/context list; any other new container needs a matching contract case.
 - The optional `table` prop is forwarded by all three containers. The disclosure
   is outside the chart's pointer/arrow-key handler; native disclosure controls
   and horizontal table scrolling keep their own keyboard behavior.
@@ -25,12 +26,18 @@ redesign charts or change their calculation, geometry or source values.
   series reuse the existing `chartPoints` values. Other reports can opt in;
   their native tables and existing disclosure designs are retained. This
   bounded change does not claim a full report-wide table migration.
+- A production-JSX inventory found native image descendants in three report
+  bars (Ausgabenanalyse, Budgettreue, Sparziele). Their existing data-rich names
+  move to the shared wrapper while their visual child nodes become neutral.
+  This preserves those names and prevents two images announcing the same bar;
+  a production-source regression guard checks the duplication shape.
 
 ## Verification
 
 - Node 22.23.3, npm 10.9.9; `npm ci` passed.
 - Focused unit run: `packages/ui/src/charts/accessibility.test.tsx`,
-  `frame.test.tsx`, `plot-motion.test.tsx`: **3 files, 19 tests passed**.
+  `frame.test.tsx`, `plot-motion.test.tsx`, and the production-caller duplication
+  guard: **4 files, 22 tests passed**.
   New cases cover the public contract, native SVG/HTML links and table roles,
   exact ordered values, privacy, stale-data replacement, opt-in and empty data.
 - `npm run typecheck -w @budget/ui`, focused ESLint and the CSS scale check passed.
@@ -45,6 +52,9 @@ redesign charts or change their calculation, geometry or source values.
   No alternate browser, skipped check or relaxed tolerance substitutes for these.
 - Full check, production/E2E build completion, independent review and PR CI are
   recorded separately in the PR as their actual results become available.
+  The first full check was stopped during typechecking when review reproduced
+  duplicate image summaries in the pre-fix report callers. It is not a passed
+  check; the corrected frozen source receives a fresh serialized full check.
 
 ## Required browser acceptance
 

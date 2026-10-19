@@ -2,6 +2,39 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, sampleTest as test } from './sample';
 import { eur } from '../apps/web/src/ledger/format';
 
+test('existing report bars retain one data-rich image summary per shared chart', async ({
+  page,
+}) => {
+  test.slow();
+  for (const path of [
+    '/reports/ausgaben',
+    '/reports/budgettreue?monat=2026-08',
+    '/reports/sparziele',
+  ]) {
+    await page.goto(path);
+    const charts = page.locator('.chart-interactive');
+    await expect(charts.first()).toBeVisible();
+    const imageCounts = await charts.evaluateAll((containers) =>
+      containers.map(
+        (container) =>
+          Array.from(container.querySelectorAll('[role="img"]')).filter(
+            (image) => image.closest('.chart-interactive') === container,
+          ).length,
+      ),
+    );
+    expect(imageCounts.every((count) => count === 1)).toBe(true);
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((value) => {
+        document.documentElement.dataset['theme'] = value;
+      }, theme);
+      expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+    }
+  }
+});
+
 test('chart summary and exact-value alternative retain keyboard access in both themes', async ({
   page,
 }, info) => {

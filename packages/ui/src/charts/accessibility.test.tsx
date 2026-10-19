@@ -58,11 +58,29 @@ describe('public chart accessibility contract', () => {
   };
 
   it('requires a named contract test when another public chart container is exported', () => {
+    // Marks are composed inside an image; the context is not a drawing container.
+    const primitives = [
+      'AxisLine',
+      'Band',
+      'BarsAroundZero',
+      'ClassPatterns',
+      'DimensionLine',
+      'ElevationMark',
+      'Graticule',
+      'Line',
+      'LineLegend',
+      'SlashTick',
+      'StepLine',
+      'TodayLine',
+      'TrendLine',
+      'XTicks',
+      'ReportTrendContext',
+    ];
     expect(
       Object.keys(charts)
-        .filter((name) => name.startsWith('Chart'))
+        .filter((name) => /^[A-Z]/.test(name))
         .sort(),
-    ).toEqual(Object.keys(examples).sort());
+    ).toEqual([...Object.keys(examples), ...primitives].sort());
     expectTypeOf<ChartSvgProps['label']>().toEqualTypeOf<string>();
     expectTypeOf<Parameters<typeof ChartValues>[0]['label']>().toEqualTypeOf<string>();
     expectTypeOf<Parameters<typeof ChartValue>[0]['label']>().toEqualTypeOf<string>();
@@ -115,6 +133,21 @@ describe('public chart accessibility contract', () => {
       </ChartSvg>,
     );
     expect(screen.getAllByRole('img')).toHaveLength(1);
+  });
+
+  it('exposes a data-rich HTML bar summary once while its drawing remains neutral', () => {
+    const statement = 'Bedarf 50 %, Wunsch 30 %, Zukunft 20 %';
+    render(
+      <ChartValue label={statement} date="2026-10" series={points[0]!.series}>
+        <div className="sr-seg">
+          <span />
+          <span />
+          <span />
+        </div>
+      </ChartValue>,
+    );
+    expect(screen.getAllByRole('img')).toHaveLength(1);
+    expect(screen.getByRole('img', { name: statement })).toBeTruthy();
   });
 });
 
