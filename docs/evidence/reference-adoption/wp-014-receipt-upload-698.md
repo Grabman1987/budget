@@ -92,6 +92,16 @@ npm run typecheck -w @budget/server
 
 Targeted run passed 3 files / 30 tests (24 new and 6 unchanged receipt cases).
 Existing database/server TypeScript configurations and scoped ESLint passed.
-Independent whole-diff security/migration review, full age-required check, build,
-exact-head CI and deployed verification remain pending.
+Independent HIGH whole-eight-file Codex security/migration review at
+`c6672ceb086b386cff5c242893c5cc20c15d8e6a` was **CLEAR**. Its own 30/30
+rerun passed, as did separate persistent-database close/reopen/new-app replay
+and competing same-key PNG/PDF probes (201/409, one physical action). All eight
+frozen hashes remained unchanged.
+
+At that unchanged head, serialized
+`BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check` passed
+**489 files / 4443 tests** and `npm run build` passed. All eight hashes were
+verified unchanged again after both processes exited, with a clean worktree.
+This final delta records results only; product/schema/test sources remain frozen.
+Exact-head CI and deployed verification remain pending.
 Parent #559 stays open for the actual device queue/UI and complete live criteria.
