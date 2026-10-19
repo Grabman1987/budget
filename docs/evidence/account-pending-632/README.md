@@ -55,6 +55,24 @@ Actual final evidence:
 - [Dark register viewport](account-pending-dark.png)
 - [Safe actual result JSON](account-pending-632-proof.json)
 
+## Required full check and production build
+
+After the normal merge of live main
+`4752a6a36d8482750b2103c9042c8dc5c78daa0c`, the clean candidate
+`8918df7cbbfcae2652c5c28a386d1e023f40b828` passed
+`BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check`: workspace typechecks,
+lint and formatting passed; **514 files / 4,552 tests passed in 407.19 s**. The normal
+`npm run build` then passed. Check, production build, source guard and actual
+runner process each exited 0. Node 22.23.3 and age 1.2.1 were used; the exclusive
+host lock stayed held through both stages and was released afterward.
+
+All 3,307 tracked source/protected hashes, including the five owned files, HEAD
+and clean status matched before and after. The existing panel unused-eslint-disable
+warning, JSDOM `scrollTo` notices and build-size notices remain in the logs; no
+rule, test or assertion was suppressed. These results precede this documentation-only
+update. Exact-head CI, desktop/Chromium browser evidence and serial live delivery
+remain separate gates.
+
 ## Capture diagnosis and limits
 
 Initial full-page photographs showed duplicated skip-link paint despite passing
@@ -77,8 +95,10 @@ authentication assurance. No real data, production access or credentials are use
 ## Remaining gates
 
 Local browser proof is **phone WebKit only**. Canonical desktop1440 and Chromium
-mobile390 execution, full check and production build at the frozen latest candidate,
-exact-head CI, controlled integration/live verification and all issue acceptance
-criteria remain required. No local desktop/Chromium, completed acceptance, PR,
-merge, deployment or issue closure follows from these results. Existing tests,
-product source, rules, configuration, manifests and lockfiles are unchanged.
+mobile390 execution, exact-head CI, controlled integration/live verification and
+all issue acceptance criteria remain required. The full check and production build
+above belong to frozen `8918df7c`, before the documentation-only result update; they do
+not substitute for those remaining gates. No local desktop/Chromium, completed
+acceptance, PR, merge, deployment or issue closure follows from these results.
+Existing tests, product source, rules, configuration, manifests and lockfiles are
+unchanged.
