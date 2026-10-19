@@ -53,6 +53,26 @@ for (const report of reports) {
     await expect(page.locator('.sidebar')).not.toBeVisible();
     await expect(page.locator('.topbar')).not.toBeVisible();
     await expect(page.locator('.registers').first()).not.toBeVisible();
+    // Print media can settle incrementally after screen-mode accessibility analysis.
+    // Require the actual paper/foreground palette before measuring its contrast.
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const root = getComputedStyle(document.documentElement);
+          const rgb = (token: string) => {
+            const hex = root.getPropertyValue(token).trim().slice(1);
+            return `rgb(${[0, 2, 4].map((offset) => parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
+          };
+          const ink = rgb('--ink');
+          return {
+            paper: getComputedStyle(document.body).backgroundColor === rgb('--surface'),
+            body: getComputedStyle(document.body).color === ink,
+            heading: getComputedStyle(document.querySelector('h1')!).color === ink,
+            value: getComputedStyle(document.querySelector('.rtable td')!).color === ink,
+          };
+        }),
+      )
+      .toEqual({ paper: true, body: true, heading: true, value: true });
     const printInk = await page.evaluate(() => ({
       token: getComputedStyle(document.documentElement).getPropertyValue('--ink'),
       body: getComputedStyle(document.body).color,

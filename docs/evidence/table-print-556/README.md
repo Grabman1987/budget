@@ -53,9 +53,14 @@ does not change the DOM collapse flags or the user's remembered selection.
   The next run passed all seven cases, but screenshot review found inherited
   dark-theme text remaining pale on white print paper. A new print-mode Axe
   regression reproduced 1.09:1 contrast, even though the root ink token and body
-  color already had the light values. The shared print shell now explicitly
-  uses the existing `--ink` token so inherited titles and table values use the
-  print palette too; explicit semantic delta colors remain intact.
+  color already had the light values. Independent offline probes with the actual
+  built stylesheets reproduced the problem only after screen-mode Axe analysis
+  and resolved it by allowing print rendering to settle. The new test therefore
+  waits for actual body/heading/normal-cell ink and paper background to match the
+  resolved light print tokens before retaining the strict print-mode Axe check.
+  An unproven explicit-shell-color workaround was removed; semantic colors remain
+  unchanged. No arbitrary sleep, contrast waiver or browser configuration change
+  substitutes for this readiness assertion and final image review.
   The final browser run and screenshots/PDF artifacts remain pending.
   WebKit's print emulation cannot establish physical PDF orientation; only
   actual Chromium PDFs prove the specified A4 landscape/portrait dimensions.
