@@ -66,3 +66,4 @@ export {
 } from './allocation-report';
 
 export { freedomMonths } from './freedom';
+export * from './freedom-goal';
