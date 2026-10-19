@@ -1,5 +1,11 @@
 # Roadmap
 
+### #677 — first-booking register refresh (2026-10-19)
+
+- [x] Cancel pre-write booking reads before scheduling ledger invalidation so a pending initial empty response cannot satisfy the refresh after the first capture.
+- [x] Deterministic register regression covers out-of-order empty/fresh responses, nonblocking save completion and undo; existing nonblocking edit and cache tests remain unchanged and pass.
+- [ ] Exact-head CI, `ledger.spec.ts:217` with `--repeat-each=5`, controlled integration and live verification remain required. Do not close #677 from unit evidence alone.
+
 ### WP-001 — CASE-001 reference assurance, first bounded slice (#509, 2026-10-17)
 
 - [x] Inventory existing CASE-001–007 domain/repository tests; document coverage, boundary and missing API proof in `docs/evidence/reference-adoption/wp-001-case-audit-2026-10-17.md`.
@@ -678,6 +684,7 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] User-invoked PR shipping/operator skills and read-only migration/money reviewers; see [Claude Code setup](claude-code.md).
 - [x] Windows full check (291 files, 2,808 tests) and build; local run used two workers and a 30-second test timeout without changing repository defaults. Delivery uses a separate git directory/bundle because the worktree commit could not create index.lock.
 - [x] Linux/Windows CI; owner acceptance in the next Claude session.
+- [ ] #649: reuse the pinned local Prettier API without npm/CLI startup; deterministic startup-failure, config, ignore and privacy regressions added. Exact-head Windows CI and independent hook review remain required.
 
 ### Owner directive PR3 — Allocation quality and scope (2026-10-04)
 
