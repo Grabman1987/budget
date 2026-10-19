@@ -520,26 +520,26 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
 });
 
 // Use an actual desktop context even when this regression runs in the iPhone engine project.
-sampleTest(
-  'desktop group labels stay inside their controls at 1440 pixels',
-  async ({ browser }, info) => {
-    const context = await browser.newContext({
-      baseURL: SAMPLE_URL,
-      storageState: STORAGE_STATE_SAMPLE,
-      viewport: { width: 1440, height: 900 },
-      isMobile: false,
-      hasTouch: false,
-      colorScheme: 'light',
-      reducedMotion: 'reduce',
-      serviceWorkers: 'block',
-    });
-    try {
-      const desktop = await context.newPage();
-      await desktop.clock.setFixedTime(new Date(SAMPLE_NOW));
-      await desktop.goto('/plan/monat?monat=2026-09');
-      await expect(desktop.locator('.ptable-zero .pmulti')).toHaveCount(8);
-      await desktop.evaluate(() => document.fonts.ready);
-      for (const theme of ['light', 'dark']) {
+for (const theme of ['light', 'dark'] as const) {
+  sampleTest(
+    `desktop ${theme} group labels stay inside their controls at 1440 pixels`,
+    async ({ browser }, info) => {
+      const context = await browser.newContext({
+        baseURL: SAMPLE_URL,
+        storageState: STORAGE_STATE_SAMPLE,
+        viewport: { width: 1440, height: 900 },
+        isMobile: false,
+        hasTouch: false,
+        colorScheme: 'light',
+        reducedMotion: 'reduce',
+        serviceWorkers: 'block',
+      });
+      try {
+        const desktop = await context.newPage();
+        await desktop.clock.setFixedTime(new Date(SAMPLE_NOW));
+        await desktop.goto('/plan/monat?monat=2026-09');
+        await expect(desktop.locator('.ptable-zero .pmulti')).toHaveCount(8);
+        await desktop.evaluate(() => document.fonts.ready);
         await desktop.evaluate((value) => {
           document.documentElement.dataset['theme'] = value;
         }, theme);
@@ -629,9 +629,9 @@ sampleTest(
             2,
           ) + '\n',
         );
+      } finally {
+        await context.close();
       }
-    } finally {
-      await context.close();
-    }
-  },
-);
+    },
+  );
+}
