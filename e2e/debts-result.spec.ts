@@ -65,7 +65,8 @@ test('stored terms show results first, live extra repayment and principal progre
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Schuldenfrei am 30.11.2026' })).toBeVisible();
   await expect(page.getByLabel('+ Sondertilgung/Monat (EUR)')).toHaveValue('0');
-  // A missing card installment must suppress the household payoff date, not assume full repayment.
+  // A card without terms is laufend ausgeglichen (#610): it counts as debt but does not hold back
+  // the payoff date of the modelled loan.
   expect(
     (
       await request.post(`${origin}/api/accounts`, {
@@ -82,8 +83,9 @@ test('stored terms show results first, live extra repayment and principal progre
     ).ok(),
   ).toBe(true);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Tilgungsplan' })).toBeVisible();
-  await expect(page.locator('.debt-overview')).toContainText('Konditionen fehlen');
+  await expect(page.getByRole('heading', { name: 'Schuldenfrei am 30.11.2026' })).toBeVisible();
+  await expect(page.locator('.debt-overview')).toContainText('laufend ausgeglichen');
+  await expect(page.locator('.debt-overview')).not.toContainText('Konditionen fehlen');
   await page.getByText('Konditionen anpassen', { exact: true }).click();
   await page.getByLabel('Monatsrate (EUR) – Karte Beispiel').fill('10');
   await expect(page.getByRole('heading', { name: 'Schuldenfrei am 31.12.2026' })).toBeVisible();
