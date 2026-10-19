@@ -54,6 +54,11 @@ Only disposable local synthetic databases/auth were used. No production data or 
 This is a real controlled WebKit diagnostic, not canonical Chromium CI acceptance or
 proof of the precise historical CI timing; its trace artifact could not be retrieved.
 
-Independent whole-diff review is CLEAR. Formatting and diff checks pass. Repository-wide
-validation and final exact-head canonical CI/serial integration/live verification remain
-required; no issue closure is claimed from the diagnostic.
+Independent whole-diff review is CLEAR. At immutable current-main candidate
+`5377807469d061173502b36364db68f90aa3d617`, the age-required full check passed all
+501 files / 4,477 tests (two workers), and the normal production build passed;
+both exited 0. Both frozen file hashes and the candidate commit stayed unchanged.
+Logs: `702-full-check.log` and `702-full-production-build.log` in the coordinator's
+external validation log directory. Only this results paragraph changed afterward.
+Final exact-head canonical CI, serial integration and live verification remain
+required; no issue closure is claimed from the controlled diagnostic or local check.
