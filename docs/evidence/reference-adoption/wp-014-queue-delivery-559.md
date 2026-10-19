@@ -1,6 +1,6 @@
-# #559 — existing booking-delivery assurance slice
+# #697 — existing booking-delivery assurance slice (parent #559)
 
-This is a test-only slice over the existing booking queue. No product write, schema, test/configuration rule, existing test or financial calculation changes. **It does not implement offline physical receipt files and does not complete #559.** The owner explicitly requested a separate offline-file retry on 2026-10-19; that additional work remains open.
+Refs [#697](https://github.com/Grabman1987/budget/issues/697), a bounded test-only child of [#559](https://github.com/Grabman1987/budget/issues/559). This is a test-only slice over the existing booking queue. No product write, schema, test/configuration rule, existing test or financial calculation changes. **It does not implement offline physical receipt files and does not complete #559.** The owner explicitly requested a separate offline-file retry on 2026-10-19; that additional work remains open.
 
 ## Terms and existing boundary
 
@@ -20,7 +20,7 @@ Every successful write in these cases is undone and redone through the unchanged
 
 ## Validation
 
-Focused validation passed **5 files / 87 tests**, including all three new failure/undo cases and the four unchanged suites listed below. Both existing web/server TypeScript configurations, targeted ESLint and formatting/diff checks passed. Independent review and the serialized repository-wide age check/build remain pending after source freeze. No full-suite or release claim is made from focused totals.
+Focused validation passed **5 files / 87 tests**, including all three new failure/undo cases and the four unchanged suites listed below. Both existing web/server TypeScript configurations, targeted ESLint and formatting/diff checks passed. Independent Codex whole-diff review of frozen `ffd66f4258a277d5c34dd2fc450bcb3e819c60c0` was **CLEAR**; its separate rerun of all three new integration cases passed and both frozen-file hashes remained unchanged. The review confirms this is only the booking-delivery assurance slice, not physical-file acceptance. The serialized repository-wide age check/build remain pending after this evidence-only child-issue clarification; the reviewed test source is unchanged. No full-suite or release claim is made from focused totals.
 
 ```sh
 npx vitest run apps/web/src/pwa/queue-delivery-proof.test.ts apps/web/src/pwa/queue.test.ts apps/server/src/api/api.test.ts apps/server/src/api/booking-ux.test.ts apps/server/src/api/receipts.test.ts --maxWorkers=1
