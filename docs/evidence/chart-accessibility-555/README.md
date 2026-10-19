@@ -31,13 +31,19 @@ redesign charts or change their calculation, geometry or source values.
   move to the shared wrapper while their visual child nodes become neutral.
   This preserves those names and prevents two images announcing the same bar;
   a production-source regression guard checks the duplication shape.
+- Real WebKit testing then found a fourth, cross-component case: Budgettreue's
+  allocation rows contain the shared `AllocationBar`, whose own image summary
+  also duplicated the new wrapper summary. A default-off decorative option
+  lets only that wrapped consumer reuse its existing month/share statement on
+  the wrapper. Standalone Plan, month-close and One-Pager bars keep their image
+  semantics. A real imported-component regression covers both usages.
 
 ## Verification
 
 - Node 22.23.3, npm 10.9.9; `npm ci` passed.
 - Focused unit run: `packages/ui/src/charts/accessibility.test.tsx`,
   `frame.test.tsx`, `plot-motion.test.tsx`, and the production-caller duplication
-  guard: **4 files, 22 tests passed**.
+  guard and allocation component composition: **5 files, 24 tests passed**.
   New cases cover the public contract, native SVG/HTML links and table roles,
   exact ordered values, privacy, stale-data replacement, opt-in and empty data.
 - `npm run typecheck -w @budget/ui`, focused ESLint and the CSS scale check passed.
@@ -50,6 +56,11 @@ redesign charts or change their calculation, geometry or source values.
   `libgtk-4.so.1`, `libgraphene-1.0.so.0`, `libharfbuzz-icu.so.0`,
   `libmanette-0.2.so.0`, `libhyphen.so.0`, `libGLESv2.so.2`.
   No alternate browser, skipped check or relaxed tolerance substitutes for these.
+- The managed same-host Ubuntu container subsequently ran the genuine project
+  WebKit/iPhone suite: 4/5 cases passed, including exact table values, both
+  themes and Axe on the pilot. The multi-report case exposed the imported
+  allocation-bar duplication above. This is a real source defect, not a waived
+  assertion. Corrected-source browser verification remains required.
 - Full check, production/E2E build completion, independent review and PR CI are
   recorded separately in the PR as their actual results become available.
   The first full check was stopped during typechecking when review reproduced

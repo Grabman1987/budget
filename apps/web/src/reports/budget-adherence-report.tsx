@@ -370,11 +370,14 @@ function Allocation({ row, current }: { row: AllocationRow; current: boolean }) 
   useAmountPrivacy();
   const { need, want, future, rest } = row.shares;
   const hasIncome = row.incomeCents > 0;
+  const label = hasIncome
+    ? `${monthShort(row.month)}: Bedarf ${need} %, Wunsch ${want} %, Zukunft ${future} %, Rest ${rest} % der Einnahmen`
+    : `${monthShort(row.month)}: Ohne Einnahmen keine prozentuale Verteilung.`;
   return (
     <div className={`sr-523-row${current ? ' is-cur' : ''}`} role="listitem">
       <span className="sr-523-month">{monthShort(row.month)}</span>
       <ChartValue
-        label="Verteilung 50/30/20"
+        label={label}
         date={row.month}
         series={[
           {
@@ -399,10 +402,7 @@ function Allocation({ row, current }: { row: AllocationRow; current: boolean }) 
           },
         ]}
       >
-        <AllocationBar
-          data={row}
-          label={`${monthShort(row.month)}: Bedarf ${need} %, Wunsch ${want} %, Zukunft ${future} %, Rest ${rest} % der Einnahmen`}
-        />
+        <AllocationBar data={row} label={label} decorative />
       </ChartValue>
       <span className="sr-523-num">
         {hasIncome ? (
