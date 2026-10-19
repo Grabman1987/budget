@@ -4,6 +4,31 @@ Scope: one shared print class/stylesheet attached by `TableReportFrame`, based
 on `e14932de`. The #552 report-frame prerequisite is live. No financial data,
 report calculations, persisted preferences or per-report layouts are changed.
 
+
+## Verified native print result
+
+At source `f89a8bcae732cb3bece12dd6ad1d70c735c6d9fd`, the genuine pinned
+WebKit 27.2 canonical run completed **7/7 passed, exit 0** (three setup cases,
+Jahresansicht, Kategorieübersicht, Sparquote, and the separate portrait-route
+case; 59.2 seconds). All three reports passed unchanged complete-column/paper
+bounds, strict print Axe, the new one-line numeric-token Range check, remembered
+collapse-state preservation and screen light/dark checks. The visible report
+heading and normal/semantic colors printed correctly. The run used the ordinary
+application CSP and canonical browser configuration with synthetic local data.
+
+The actual images below were opened and inspected. Jahresansicht now shows
+`44.222` intact; no additional clipped column or broken numeric token was found.
+
+- [Jahresansicht — actual WebKit print](jahresansicht-print.png)
+- [Kategorieübersicht — actual WebKit print](kategorien-print.png)
+- [Sparquote — actual WebKit print](sparquote-print.png)
+
+These are print-media screenshots, not PDFs. Actual Chromium landscape/portrait
+PDF geometry, Chromium desktop/mobile canonical checks, the final full suite and
+production build remain required. This successful native run does not establish
+all acceptance criteria or live readiness. The preceding source review is clear;
+final artifact/result review remains separate.
+
 The named `report-table` page uses A4 landscape and 10 mm margins. It applies
 only to a sheet containing `.report-table-print`; the existing One-Pager and
 Jahresreport keep their unnamed A4 portrait page rules. Report title and data
@@ -81,8 +106,8 @@ does not change the DOM collapse flags or the user's remembered selection.
   foreground declaration and inherit from body; muted/percentage/delta roles
   were not the failing foreground entries. The same two normal containers now
   explicitly reapply `color: var(--ink)` as well. No descendant, muted, delta,
-  heat or semantic selector is reset. Actual canonical rerun is pending; these
-  declarations alone do not establish a fix. At `2dc77a70`, genuine canonical
+  heat or semantic selector is reset. Those declarations alone did not establish
+  a fix. At `2dc77a70`, genuine canonical
   WebKit then passed 6/7 cases: Jahresansicht and Sparquote passed strict print
   Axe and unchanged geometry, while Kategorieübersicht still had 43 ordinary
   inherited foreground failures (10 plain trend-table headings and 33 totals).
@@ -99,13 +124,14 @@ does not change the DOM collapse flags or the user's remembered selection.
   the unchanged paper/cell bounds must still prove feasibility on all reports.
   A new strict DOM Range regression requires every visible numeric token in the
   printed tables to occupy exactly one line, while retaining all complete-column
-  and no-overflow assertions. Exact-head native proof is pending; neither this
-  candidate nor a previous partial pass is claimed as complete readiness.
+  and no-overflow assertions. The final `f89a8bca` native run then passed all
+  seven cases and actual image review, as recorded above; complete readiness
+  still requires the open Chromium/PDF and aggregate gates.
 
   An unproven explicit-shell-color workaround was removed; semantic colors remain
   unchanged. No arbitrary sleep, contrast waiver, reload, fixture alteration or
   browser configuration change substitutes for final strict checks/image review.
-  Final browser/PDF artifacts, full suite and production build remain pending.
+  Final Chromium/PDF artifacts, full suite and production build remain pending.
   WebKit's print emulation cannot establish physical PDF orientation; only
   actual Chromium PDFs prove the specified A4 landscape/portrait dimensions.
   No substitute engine or relaxed geometric tolerance proves readiness.
