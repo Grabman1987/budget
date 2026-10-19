@@ -2,15 +2,13 @@
 
 ### Plan single-category bands — #481 (2026-10-19)
 
-- [x] Owner decision 7A combines single-category groups and multi-category group heads with their first category in the single-month Groups view. Group totals and category figures remain distinct; collapse, selection, inspector and inline + remain available.
-- [x] Reuse existing assignment, quick-assignment, move, cover and undo callbacks; no domain, API, DB or financial write changes.
-- [x] Current synthetic sample: 55 → 36 logical content rows, 34.55% fewer against the owner-approved 55-row main baseline; all 36 categories and 19 group contexts remain. Physical table heights are separately 1746.625px at 1440×900 and 3842.25px at 390×664, without a physical-height percentage claim.
-- [x] Frozen b29 working tree (historical main f3aafd78 plus common5be538 and the coordinator's named test adaptations): fresh E2E build and canonical WebKit13/13 passed; age-required two-worker full check passed 505 files /4491 tests, followed by a normal production build. All26 hashes, HEAD and coordinator-owned dirty state stayed exact.
-- [x] Four current actual desktop/phone light/dark images and safe runtime proof are recorded in [the evidence](evidence/plan-single-category-481/README.md), opened by the coordinator and independent reviewers. Strict existing role limits, 44px phone targets, both-theme accessibility and all native financial/keyboard/undo checks passed locally; fixed-navigation/FAB hit-test limits remain explicit.
-- [x] All nine existing-test adaptations were applied only by the coordinator under the named owner decisions and independently reviewed with retained financial assertions and original size budgets. Independent Codex whole-diff and geometry-policy reviews are clear under [the owner's model authorization](https://github.com/Grabman1987/budget/issues/694).
-- [ ] Complete exact-head Chromium desktop/mobile CI and remaining affected-caller compatibility after the current main refresh; historical aggregate results are not a new merged-head runtime claim.
+- [x] Owner decision 7A combines single-category groups and multi-category group heads with their first category in the single-month Groups view. Group totals and category figures remain distinct; collapse/focus, selection, inspector and inline + remain available. Existing cent calculations, APIs and write/undo callbacks are unchanged.
+- [x] Current synthetic sample: 55 → 36 logical content rows, 34.55% fewer against the owner-approved 55-row main baseline; all 36 categories and 19 group contexts remain. Actual physical table heights 1746.625px at 1440×900 and 3842.25px at 390×664 are separate, with no physical-height percentage claim.
+- [x] Actual frozen `218679c8`: fresh E2E build and canonical WebKit 15/15 pass, including retained 768/1180/1439 regressions, strict seven-width/two-theme page/role bounds and genuine existing right-edge scrolling/focus. Four current desktop/phone light/dark images and safe proof are [recorded and independently reviewed](evidence/plan-single-category-481/README.md); known fixed-navigation/FAB hit-test limits remain explicit.
+- [x] Final clean normal-main merge `908e090c` includes verified live `bf11eebd`. Required-age two-worker check passes 519 files / 4573 tests, then normal production build passes; all 29 frozen plus 3337 tracked-file hashes, HEAD and clean status remain exact. Own product/test bytes remain exact `218679c8` through the mechanical main refresh; native evidence is qualified to its actual runtime head.
+- [x] All nine existing-test adaptations were applied only by the coordinator under named owner decisions and independently reviewed, retaining financial oracles and original size budgets. Independent Codex whole-diff, geometry-policy, runtime/visual and mechanical-merge reviews are clear under [owner model authorization #694](https://github.com/Grabman1987/budget/issues/694).
+- [ ] Complete exact-head Chromium desktop/mobile CI, affected-caller compatibility and final coordinator delivery review; local source/full evidence is not a remote-CI claim.
 - [ ] Complete serial integration and deployed-revision verification. #481 remains open until every acceptance criterion is live; old queue loops remain disabled.
-
 
 ### #632 — pending and confirmed account-register proof (2026-10-19)
 
