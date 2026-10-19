@@ -20,6 +20,7 @@ export * from './profile';
 export * from './reports/month';
 export * from './reports/planning-accuracy';
 export * from './overview';
+export * from './overview/explorer-saved-views';
 export * from './spending';
 export * from './report-tables';
 export * from './reports/payroll-projects';
