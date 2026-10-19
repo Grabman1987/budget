@@ -12,6 +12,7 @@ import {
   EXPLORER_COLS,
   EXPLORER_DIMS,
   EXPLORER_MEASURES,
+  explorerCsv,
   overviewRefMonth,
   type CompareMode,
   type ExplorerQuery,
@@ -61,6 +62,20 @@ export function overviewReportRoutes(db: Db, today: () => string): Hono {
     const query = readQuery(c, explorerQuery) as ExplorerQuery;
     checkedReportPeriod(query.period, today());
     return c.json(explorerReport(db, query, today()));
+  });
+
+  app.get('/explorer.csv', (c) => {
+    const query = readQuery(c, explorerQuery.strict()) as ExplorerQuery;
+    const day = today();
+    checkedReportPeriod(query.period, day);
+    const { result } = explorerReport(db, query, day);
+    const first = result.months[0] ?? 'empty';
+    const last = result.months.at(-1) ?? 'empty';
+    return c.body(explorerCsv(result), 200, {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="explorer-${first}-${last}.csv"`,
+      'Cache-Control': 'no-store',
+    });
   });
 
   return app;
