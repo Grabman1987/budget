@@ -89,6 +89,8 @@ test('chart summary and exact-value alternative retain keyboard access in both t
     }
     await toggle.scrollIntoViewIfNeeded();
     await page.screenshot({ path: info.outputPath(`chart-table-${theme}.png`), fullPage: true });
+    await expect(disclosure).toHaveAttribute('open', '');
+    await expect(table).toBeVisible();
   }
   await toggle.focus();
   await page.keyboard.press('Enter');

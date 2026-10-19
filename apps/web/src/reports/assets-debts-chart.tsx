@@ -42,7 +42,8 @@ export function AssetsDebtsChart({
   onSelect: (month: string) => void;
 }) {
   useAmountPrivacy();
-  const [ref, width] = useElementWidth<HTMLDivElement>();
+  // Temporary zero measurements must not unmount the native table disclosure.
+  const [ref, width] = useElementWidth<HTMLDivElement>({ retainPositive: true });
   return (
     <div ref={ref} className="rf-chart rf-chart-lg">
       {width > 0 && history.months.length > 0 && (

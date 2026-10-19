@@ -44,15 +44,24 @@ redesign charts or change their calculation, geometry or source values.
   undecorated imported allocation children as well as literal image elements.
   Real imported-component unit coverage and the canonical One-Pager browser path
   cover the two composition modes and the original data-rich statement.
+- The pilot retains its last positive content width through transient zero
+  ResizeObserver notifications. A zero measurement previously unmounted the
+  drawing and its native disclosure, silently losing the user's open state.
+  Only this consumer opts in; other width-hook consumers still observe zero.
+  Initial zero width still waits for a real positive measurement before drawing.
 
 ## Verification
 
 - Node 22.23.3, npm 10.9.9; `npm ci` passed.
 - Focused unit run: `packages/ui/src/charts/accessibility.test.tsx`,
   `frame.test.tsx`, `plot-motion.test.tsx`, and the production-caller duplication
-  guard and allocation component composition: **5 files, 25 tests passed**.
+  guard, allocation composition and actual measured pilot:
+  **6 files, 28 tests passed**.
   New cases cover the public contract, native SVG/HTML links and table roles,
-  exact ordered values, privacy, stale-data replacement, opt-in and empty data.
+  exact ordered values, privacy, stale-data replacement, opt-in and empty data,
+  plus initial zero width and the same open native disclosure across positive /
+  zero / positive desktop and phone measurements. The new ResizeObserver
+  regression first failed against the pre-fix source with the disclosure removed.
 - `npm run typecheck -w @budget/ui`, focused ESLint and the CSS scale check passed.
 - JSDOM does not implement closed-disclosure visibility or summary's native
   Enter action. Unit cases inspect native `open` state with pointer activation;
@@ -69,16 +78,23 @@ redesign charts or change their calculation, geometry or source values.
   allocation-bar duplication above. This is a real source defect, not a waived
   assertion. The first allocation fix passed all five WebKit cases, but its
   three-report coverage omitted One-Pager; review found that remaining caller.
-  The extended four-report browser case must pass on the final corrected source.
-- Full check, production/E2E build completion, independent review and PR CI are
-  recorded separately in the PR as their actual results become available.
+  The extended four-report browser case passed all five WebKit cases at `83d9fd9c`.
+- At `83d9fd9c`, the required age-enabled full check passed **484 files / 4,399
+  tests** and both production and E2E builds passed. Canonical desktop CI then
+  exposed lost disclosure state during full-page capture: its final Enter
+  correctly reopened an already reset, closed disclosure. Independent diagnostics
+  measured the transient zero width above. The new browser case now explicitly
+  requires the table to remain open and visible after **each** theme screenshot,
+  while retaining the original final Enter-close/focus assertions. Corrected-source
+  browser checks, independent review, aggregate validation and CI remain required.
   The first full check was stopped during typechecking when review reproduced
   duplicate image summaries in the pre-fix report callers. It is not a passed
   check; the corrected frozen source receives a fresh serialized full check.
 
 ## Required browser acceptance
 
-After the genuine project browsers and system libraries are available:
+The managed Ubuntu container provides the genuine WebKit runtime. Desktop and
+mobile Chromium acceptance still uses the project's canonical CI:
 
 ```bash
 npm run build:e2e
@@ -86,7 +102,7 @@ npx playwright test e2e/issue-555-chart-accessibility.spec.ts --project=desktop 
 ```
 
 The case records synthetic report captures in its Playwright artifact directory.
-No desktop, phone, iPhone or Axe success is claimed from the current failed
-launch probes. Required report/browser acceptance, approved evidence images,
+No browser success is inferred from the failed direct host launch probes.
+Required final-source report/browser acceptance, approved evidence images,
 independent review, CI and live verification remain open; #555 stays open.
 No existing test, configuration, manifest, lockfile or screenshot baseline changed.

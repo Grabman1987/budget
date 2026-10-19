@@ -1,18 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 
-/** Track the content width of an element; 0 until first measured. */
-export function useElementWidth<T extends HTMLElement>() {
+/** Track content width; optionally retain a mounted drawing through transient zero measurements. */
+export function useElementWidth<T extends HTMLElement>({ retainPositive = false } = {}) {
   const ref = useRef<T>(null);
   const [width, setWidth] = useState(0);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    setWidth(Math.floor(el.getBoundingClientRect().width));
+    const measure = (value: number) => {
+      const next = Math.floor(value);
+      setWidth((previous) => (retainPositive && next <= 0 ? previous : next));
+    };
+    measure(el.getBoundingClientRect().width);
     const observer = new ResizeObserver(([entry]) => {
-      if (entry) setWidth(Math.floor(entry.contentRect.width));
+      if (entry) measure(entry.contentRect.width);
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [retainPositive]);
   return [ref, width] as const;
 }
