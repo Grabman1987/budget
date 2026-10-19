@@ -24,14 +24,22 @@ import { eur } from '../ledger/format';
 import type { AccountGroupId } from '../ledger/labels';
 import { overviewModel, type GroupView } from '../ledger/overview-model';
 import { accountsQuery } from '../ledger/queries';
-import { sumTreeValues, treeValues, type TreeValue } from '../ledger/tree-values';
+import { treeValues, type TreeValue } from '../ledger/tree-values';
 import type { AccountType } from '../ledger/types';
 import { portfolioPositionsQuery } from '../wealth/portfolio-api';
 import { AppLink } from './app-link';
 import { useStoredFlag } from './use-stored-flag';
 
+const NO_VALUE: TreeValue = {
+  cents: null,
+  approx: false,
+  sumCents: null,
+  includedCashCents: null,
+  cashCents: null,
+};
+
 /** Euro amount without cents for the narrow sidebar; a missing rate stays visible as a dash. */
-const short = ({ cents, approx }: TreeValue) =>
+const short = ({ cents, approx }: { cents: number | null; approx: boolean }) =>
   cents === null
     ? '–'
     : `${approx ? '≈ ' : ''}${eur(Math.round(cents / 100) * 100).replace(/,00(?=\s?€)/, '')}`;
@@ -60,7 +68,9 @@ const TYPE_ICON: Record<AccountType, LucideIcon> = {
  * Account hierarchy under the Planliste: the overview's groups in YNAB's order (Budget-Konten,
  * Kreditkarten, Kredite, Investments) with their sums, each open account linking to its sheet.
  * A depot shows its Depotwert (the figure of its depot page, "≈" when a position has no price);
- * the group sum adds the shown figures. Negative balances use red ink. Groups fold away; the choice is remembered per group.
+ * the depot's own cash is added to its linked Verrechnungskonto (or shown as a "Cash" line under the
+ * depot when there is none) and counted in the group sums, as in Konten › Übersicht (tree-values.ts).
+ * Negative balances use red ink. Groups fold away; the choice is remembered per group.
  *
  * The pencil (on hover or focus of a group head or account) switches the whole tree to edit mode:
  * accounts get a grip and ↑ / ↓ buttons to change their order within their group, "Fertig" ends it.
@@ -73,8 +83,8 @@ export function AccountTree() {
   const [editing, setEditing] = useState(false);
   const [creating, setCreating] = useState(false);
   const positions = useQuery(portfolioPositionsQuery());
-  const { groups } = overviewModel(ordered.accounts ?? []);
   const values = treeValues(ordered.accounts ?? [], positions.data);
+  const { groups } = overviewModel(ordered.accounts ?? [], values);
   return (
     <>
       <nav className="acct-tree" aria-labelledby="acct-tree-label">
@@ -168,7 +178,7 @@ function AccountGroupBlock({
   const ids = view.accounts.map((a) => a.id);
   const names = new Map(view.accounts.map((a) => [a.id, a.name]));
   const reorder = useReorder(ids, onReorder, (id) => names.get(id) ?? '');
-  const sum = sumTreeValues(view.accounts, values);
+  const sum = { cents: view.sumCents, approx: view.sumApprox };
   const GroupIcon = GROUP_ICON[groupId];
   return (
     <section className={cx('acct-group', folded && 'is-folded', editing && 'is-editing')}>
@@ -198,7 +208,7 @@ function AccountGroupBlock({
       </div>
       <ul id={listId} hidden={folded}>
         {view.accounts.map((a) => {
-          const value = values.get(a.id) ?? { cents: null, approx: false };
+          const value = values.get(a.id) ?? NO_VALUE;
           const TypeIcon = TYPE_ICON[a.type];
           const row = reorder.rowProps(a.id);
           return (
@@ -231,6 +241,14 @@ function AccountGroupBlock({
                       {short(value)}
                     </span>
                   </Link>
+                  {value.cashCents !== null && (
+                    <span
+                      className={cx('acct-cash', value.cashCents < 0 && 'is-neg')}
+                      data-testid="acct-cash"
+                    >
+                      Cash {short({ cents: value.cashCents, approx: false })}
+                    </span>
+                  )}
                   <PencilButton
                     label={`Reihenfolge ändern, ${a.name}`}
                     className="acct-pencil-row"

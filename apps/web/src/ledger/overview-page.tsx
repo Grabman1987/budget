@@ -37,6 +37,8 @@ import {
 } from './overview-model';
 import { accountsQuery, LEDGER_KEY, seriesBatchQuery } from './queries';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
+import { treeValues, type TreeValue } from './tree-values';
+import { portfolioPositionsQuery } from '../wealth/portfolio-api';
 import { ValuationHint } from './valuation-hint';
 import type { AccountRow, SeriesPoint } from './types';
 
@@ -51,7 +53,12 @@ export function OverviewPage() {
   const [creating, setCreating] = useState(false);
   const [ordering, setOrdering] = useState(false);
   const ordered = useOrderedAccounts(accounts.data?.accounts);
-  const model = ordered.accounts ? overviewModel(ordered.accounts) : undefined;
+  const positions = useQuery(portfolioPositionsQuery());
+  // Depots show their Depotwert, their cash sits on the Verrechnungskonto (same figures as the
+  // sidebar tree); until the positions are loaded the shared EUR value per account is shown.
+  const values =
+    ordered.accounts && positions.data ? treeValues(ordered.accounts, positions.data) : undefined;
+  const model = ordered.accounts ? overviewModel(ordered.accounts, values) : undefined;
 
   return (
     <PageFrame meta={META}>
@@ -100,7 +107,12 @@ export function OverviewPage() {
               asOf={accounts.data?.asOf ?? todayInVienna()}
             />
             <ValuationHint incomplete={accounts.data?.incomplete} />
-            <AccountsTable model={model} ordering={ordering} onReorder={ordered.save} />
+            <AccountsTable
+              model={model}
+              values={values}
+              ordering={ordering}
+              onReorder={ordered.save}
+            />
           </>
         )}
       </div>
@@ -212,10 +224,12 @@ function NetWorth({
 
 function AccountsTable({
   model,
+  values,
   ordering,
   onReorder,
 }: {
   model: ReturnType<typeof overviewModel>;
+  values: ReadonlyMap<string, TreeValue> | undefined;
   ordering: boolean;
   onReorder: (groupId: AccountGroupId, ids: string[]) => void;
 }) {
@@ -264,6 +278,7 @@ function AccountsTable({
             <GroupRows
               key={g.group.id}
               view={g}
+              values={values}
               index={gi + 1}
               series={byId}
               ordering={ordering}
@@ -298,12 +313,14 @@ function AccountsTable({
 
 function GroupRows({
   view,
+  values,
   index,
   series,
   ordering,
   onReorder,
 }: {
   view: GroupView;
+  values: ReadonlyMap<string, TreeValue> | undefined;
   index: number;
   series: Map<string, SeriesPoint[]>;
   ordering: boolean;
@@ -328,14 +345,19 @@ function GroupRows({
           {ordering && reorder.status}
         </td>
         <td className="kc-line" />
-        <td className="kc-num">{view.sumCents === null ? 'Kurs fehlt' : eur(view.sumCents)}</td>
+        <td className="kc-num">
+          {view.sumCents === null
+            ? 'Kurs fehlt'
+            : `${view.sumApprox ? '≈ ' : ''}${eur(view.sumCents)}`}
+        </td>
         {ordering && <td className="kc-order" />}
       </tr>
       {view.accounts.map((a, i) => {
         const points = series.get(a.id);
         const delta = points ? seriesChange(points) : null;
         const util = utilisation(a);
-        const value = accountValueEur(a);
+        const shown = values?.get(a.id);
+        const value = shown ? shown.cents : accountValueEur(a);
         const check = accountCheck(a, todayInVienna());
         const row = reorder.rowProps(a.id);
         return (
@@ -362,6 +384,16 @@ function GroupRows({
                 )}
                 {check.text}
               </span>
+              {shown?.cashCents != null && (
+                <span className="kmeta" data-testid="depot-own-cash">
+                  Cash im Depot {eur(shown.cashCents)}
+                </span>
+              )}
+              {shown?.includedCashCents != null && (
+                <span className="kmeta" data-testid="included-depot-cash">
+                  inkl. Cash im Depot {eur(shown.includedCashCents)}
+                </span>
+              )}
               <BankBalance account={a} />
               {util !== null && a.creditLimitCents !== null && (
                 <span className="kutil">
@@ -405,7 +437,9 @@ function GroupRows({
               )}
             </td>
             <td className={cx('kc-num', value !== null && value < 0 && 'is-neg')}>
-              {value === null ? valuationMissingText(a) : eur(value)}
+              {value === null
+                ? valuationMissingText(a)
+                : `${shown?.approx ? '≈ ' : ''}${eur(value)}`}
             </td>
             {ordering && <td className="kc-order">{reorder.controls(a.id)}</td>}
           </tr>

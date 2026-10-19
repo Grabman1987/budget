@@ -13,7 +13,7 @@ async function post(request: APIRequestContext, origin: string, path: string, da
 async function fits(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 }
-/** "≈ 24,68 €" / "−1.234,50 €" to cents; read from the rendered depot page. */
+/** "≈ 24,68 €" / "−1.234,50 €" to cents; read from a rendered page. */
 function cents(text: string): number {
   const match = /([−-])?\s*(\d{1,3}(?:\.\d{3})*|\d+),(\d{2})/.exec(text.replace('≈', ''));
   expect(match, text).not.toBeNull();
@@ -24,15 +24,19 @@ function cents(text: string): number {
 const wholeEuro = (value: number) => Math.round(value / 100);
 const sidebarRow = (page: Page, name: string): Locator =>
   page.locator('.acct-tree .acct-item', { hasText: name });
-const groupSum = (page: Page, group: string): Locator =>
+const treeSum = (page: Page, group: string): Locator =>
   page
     .locator(`#acct-tree-${group}`)
     .locator('xpath=ancestor::section')
     .locator('.acct-group-bar > .acct-amount');
+const overviewSum = (page: Page, group: string): Locator =>
+  page.locator(`tr.kgroup#kg-${group} td.kc-num`);
+const overviewRow = (page: Page, name: string): Locator =>
+  page.locator('tr.krow', { hasText: name });
 
 // Same ledger as the depot template: own depot cash -26,90 (buy 24,68, fee 0,99, booking 1,23)
 // and positions worth 24,68, so cash plus positions would read -2,22 and show "−2 €".
-async function seed(request: APIRequestContext, origin: string) {
+async function seed(request: APIRequestContext, origin: string, link = true) {
   const cash = (
     await post(request, origin, '/accounts', {
       name: 'Testverrechnung',
@@ -46,7 +50,7 @@ async function seed(request: APIRequestContext, origin: string) {
       name: 'Testdepot',
       type: 'brokerage',
       openingDate: '2026-01-01',
-      referenceAccountId: cash.id,
+      ...(link ? { referenceAccountId: cash.id } : {}),
     })
   ).account;
   const security = (
@@ -86,7 +90,7 @@ async function seed(request: APIRequestContext, origin: string) {
 }
 
 for (const theme of ['light', 'dark'] as const) {
-  test(`sidebar shows the Depotwert of the depot page, the Verrechnungskonto its cash (${theme})`, async ({
+  test(`depot value in tree, overview and depot page; its cash on the Verrechnungskonto (${theme})`, async ({
     page,
     request,
     isolatedLedger,
@@ -99,33 +103,80 @@ for (const theme of ['light', 'dark'] as const) {
     const value = page.getByTestId('depot-value');
     await expect(value).toHaveText(/24,68/);
     await expect(page.getByTestId('depot-cash')).toHaveText('Bargeld im Depotkonto: −26,90 €');
+    const pageCents = cents((await value.textContent())!);
+    expect(pageCents).toBe(2468);
     await fits(page);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 
-    if (isMobile) {
-      // The account tree lives in the desktop sidebar; the phone has the tab bar only.
+    if (!isMobile) {
+      // The tree is the desktop sidebar (the phone has the tab bar only), whole euros.
+      const depotAmount = sidebarRow(page, 'Testdepot').locator('.acct-amount');
+      await expect(depotAmount).toHaveText('25 €');
+      await expect(depotAmount).not.toHaveClass(/is-neg/);
+      expect(wholeEuro(pageCents)).toBe(25);
+      await expect(page.getByTestId('acct-cash')).toHaveCount(0);
+      // 118,45 settlement cash - 26,90 depot cash = 91,55.
+      await expect(sidebarRow(page, 'Testverrechnung').locator('.acct-amount')).toHaveText('92 €');
+      await expect(treeSum(page, 'budget')).toHaveText('92 €');
+      await expect(treeSum(page, 'investments')).toHaveText('25 €');
+    } else {
       await expect(page.locator('.acct-tree')).toBeHidden();
-      return;
     }
-    // Literal, independent of the implementation: 24,68 of positions, rounded to the euro.
-    const depotAmount = sidebarRow(page, 'Testdepot').locator('.acct-amount');
-    await expect(depotAmount).toHaveText('25 €');
-    await expect(depotAmount).not.toHaveClass(/is-neg/);
-    // Same number as the page for the same date (the page in cents, the sidebar in whole euros).
-    expect(wholeEuro(cents((await value.textContent())!))).toBe(25);
-    // The settlement account keeps its cash balance: 123,45 opening minus 5,00.
-    await expect(sidebarRow(page, 'Testverrechnung').locator('.acct-amount')).toHaveText('118 €');
-    // The Investments sum adds the shown figure (the depot's own cash is not part of it).
-    await expect(groupSum(page, 'investments')).toHaveText('25 €');
 
-    // The Verrechnungskonto page shows the same sidebar numbers.
+    // Konten › Übersicht: the same figures in cents; Nettovermögen 116,23 is unchanged.
+    await page.goto('/konten');
+    await expect(overviewRow(page, 'Testdepot').locator('td.kc-num')).toHaveText('24,68 €');
+    expect(cents((await overviewRow(page, 'Testdepot').locator('td.kc-num').textContent())!)).toBe(
+      pageCents,
+    );
+    await expect(overviewRow(page, 'Testverrechnung').locator('td.kc-num')).toHaveText('91,55 €');
+    await expect(page.getByTestId('included-depot-cash')).toContainText('−26,90 €');
+    await expect(overviewSum(page, 'investments')).toHaveText('24,68 €');
+    await expect(overviewSum(page, 'budget')).toHaveText('91,55 €');
+    await expect(page.getByTestId('net-worth')).toContainText('116,23');
+    await fits(page);
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    if (isMobile) return;
+
+    // Tree group sum = overview group sum (whole euros vs cents), on every page.
+    for (const group of ['budget', 'investments']) {
+      const overview = cents((await overviewSum(page, group).textContent())!);
+      await expect(treeSum(page, group)).toHaveText(`${wholeEuro(overview)} €`);
+    }
     await page.goto(`/konten/${cash.id}`);
     await expect(sidebarRow(page, 'Testdepot').locator('.acct-amount')).toHaveText('25 €');
     expect((await new AxeBuilder({ page }).include('.acct-tree').analyze()).violations).toEqual([]);
   });
 }
 
-test('a partly unpriced depot shows ≈ in the sidebar like on its page, an unpriced one a dash', async ({
+test('without a Verrechnungskonto the depot cash stays with the depot as a Cash line', async ({
+  page,
+  request,
+  isolatedLedger,
+  isMobile,
+}) => {
+  const origin = isolatedLedger.origin;
+  const { depot } = await seed(request, origin, false);
+  await page.goto('/konten');
+  await expect(overviewRow(page, 'Testdepot').locator('td.kc-num')).toHaveText('24,68 €');
+  await expect(page.getByTestId('depot-own-cash')).toContainText('−26,90 €');
+  await expect(overviewRow(page, 'Testverrechnung').locator('td.kc-num')).toHaveText('118,45 €');
+  // The Investments sum keeps the depot cash: 24,68 - 26,90 = -2,22.
+  await expect(overviewSum(page, 'investments')).toHaveText('−2,22 €');
+  await expect(page.getByTestId('net-worth')).toContainText('116,23');
+  await fits(page);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  if (isMobile) return;
+  await expect(sidebarRow(page, 'Testdepot').locator('.acct-amount')).toHaveText('25 €');
+  await expect(page.getByTestId('acct-cash')).toHaveText('Cash −27 €');
+  await expect(treeSum(page, 'investments')).toHaveText('−2 €');
+  await expect(sidebarRow(page, 'Testverrechnung').locator('.acct-amount')).toHaveText('118 €');
+  await page.goto(`/konten/${depot.id}`);
+  await expect(page.getByTestId('depot-value')).toHaveText(/24,68/);
+  expect((await new AxeBuilder({ page }).include('.acct-tree').analyze()).violations).toEqual([]);
+});
+
+test('a partly unpriced depot shows ≈ in tree and overview like on its page, an unpriced one a dash', async ({
   page,
   request,
   isolatedLedger,
@@ -171,6 +222,10 @@ test('a partly unpriced depot shows ≈ in the sidebar like on its page, an unpr
   await expect(page.getByTestId('depot-value')).toHaveText(/^≈ .*24,68/);
   await fits(page);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.goto('/konten');
+  await expect(overviewRow(page, 'Testdepot').locator('td.kc-num')).toHaveText('≈ 24,68 €');
+  await expect(overviewRow(page, 'Testkrypto').locator('td.kc-num')).not.toHaveText(/\d,\d\d €/);
+  await fits(page);
   if (isMobile) return;
   await expect(sidebarRow(page, 'Testdepot').locator('.acct-amount')).toHaveText('≈ 25 €');
   // No position of the crypto account has a price: the page says "Unvollständig", the tree a dash.
@@ -179,5 +234,5 @@ test('a partly unpriced depot shows ≈ in the sidebar like on its page, an unpr
   await expect(page.getByTestId('depot-value')).toHaveText('≈ Unvollständig');
   await expect(sidebarRow(page, 'Testkrypto').locator('.acct-amount')).toHaveText('–');
   // One unknown figure makes the Investments sum unknown instead of a wrong number.
-  await expect(groupSum(page, 'investments')).toHaveText('–');
+  await expect(treeSum(page, 'investments')).toHaveText('–');
 });
