@@ -58,14 +58,15 @@ test('Explorer pivots the booking splits and drills down to the bookings', async
   await inspectReport(page, info, 'explorer-empfaenger');
 });
 
-test('Explorer saves, restores and deletes a view in this browser', async ({ page }) => {
+test('Explorer saves, restores and deletes a view in this browser', async ({ page }, info) => {
+  const viewName = `Mein Schnitt ${info.project.name}-${info.retry}`;
   await page.goto('/reports/explorer');
   await expect(page.getByTestId('ex-table')).toBeVisible();
   await page.getByLabel('Spalten').selectOption('jahr');
   await page.getByLabel('Kennzahl').selectOption('avg');
-  await page.getByLabel('Ansicht speichern').fill('Mein Schnitt');
+  await page.getByLabel('Ansicht speichern').fill(viewName);
   await page.getByRole('button', { name: 'Speichern' }).click();
-  const chip = page.getByRole('button', { name: 'Mein Schnitt', exact: true });
+  const chip = page.getByRole('button', { name: viewName, exact: true });
   await expect(chip).toHaveAttribute('aria-pressed', 'true');
 
   // Another view is chosen, the saved one comes back with all five choices.
@@ -78,11 +79,11 @@ test('Explorer saves, restores and deletes a view in this browser', async ({ pag
   // It survives a reload and can be deleted.
   await page.reload();
   await expect(chip).toBeVisible();
-  await page.getByRole('button', { name: 'Ansicht Mein Schnitt löschen' }).click();
+  await page.getByRole('button', { name: `Ansicht ${viewName} löschen` }).click();
   await expect(chip).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole('button', { name: 'Gruppen je Monat' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Mein Schnitt', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: viewName, exact: true })).toHaveCount(0);
 });
 
 test('Explorer asks for a name before it saves', async ({ page }) => {

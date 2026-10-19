@@ -21,28 +21,22 @@ import {
   type ExplorerColumn,
   type ExplorerQuery,
   type ExplorerResult,
+  type PersistedExplorerView,
 } from '@budget/domain';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Bookmark, X } from 'lucide-react';
+import { Bookmark, Pencil, X } from 'lucide-react';
 import { useState, type CSSProperties, type FormEvent } from 'react';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
-import { loadViews, sameQuery, storeViews, withoutView, withView } from './explorer-views';
+import { sameQuery } from './explorer-views';
+import { useExplorerViews } from './use-explorer-views';
 import { explorerQuery } from './overview-api';
 import { euroCellText, monthLong, monthShortYear, wholeText } from './overview-format';
 import './overview-reports.css';
 import './explorer-report.css';
-
-const browserStorage = (): Storage | null => {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-};
 
 const label = <T extends ReadonlyArray<{ id: string; label: string }>>(list: T, id: string) =>
   list.find((x) => x.id === id)?.label ?? id;
@@ -73,13 +67,39 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
   useAmountPrivacy();
   const toast = useToast();
   const [query, setQuery] = useState<ExplorerQuery>(DEFAULT_EXPLORER_QUERY);
-  const [views, setViews] = useState(() => loadViews(browserStorage()));
+  const saved = useExplorerViews();
+  const views = saved.views;
   const [name, setName] = useState('');
+  const [editingId, setEditingId] = useState<string>();
+  const [replace, setReplace] = useState<PersistedExplorerView>();
   const result = useQuery({ ...explorerQuery(query), placeholderData: keepPreviousData });
   const data = result.data;
   const set = <K extends keyof ExplorerQuery>(key: K, value: ExplorerQuery[K]) =>
     setQuery((q) => ({ ...q, [key]: value }));
 
+  const persist = async (id?: string) => {
+    const clean = name.trim();
+    const response = await saved.write(
+      { kind: 'save', view: { name: clean, query }, ...(id ? { id } : {}) },
+      `Ansicht „${clean}“ gespeichert.`,
+    );
+    if (response) {
+      setName('');
+      setEditingId(undefined);
+      setReplace(undefined);
+    }
+  };
+  const remove = async (view: PersistedExplorerView) => {
+    const removed = await saved.write(
+      { kind: 'delete', id: view.id },
+      `Ansicht „${view.name}“ gelöscht.`,
+    );
+    if (removed && editingId === view.id) {
+      setEditingId(undefined);
+      setName('');
+      setReplace(undefined);
+    }
+  };
   const save = (event: FormEvent) => {
     event.preventDefault();
     const clean = name.trim();
@@ -87,20 +107,9 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
       toast.show({ message: 'Bitte einen Namen für die Ansicht eingeben.' });
       return;
     }
-    const next = withView(views, clean, query);
-    if (!storeViews(browserStorage(), next)) {
-      toast.show({ message: 'Die Ansicht konnte in diesem Browser nicht gespeichert werden.' });
-      return;
-    }
-    setViews(next);
-    setName('');
-    toast.show({ message: `Ansicht „${clean}“ gespeichert.` });
-  };
-  const remove = (viewName: string) => {
-    const next = withoutView(views, viewName);
-    storeViews(browserStorage(), next);
-    setViews(next);
-    toast.show({ message: `Ansicht „${viewName}“ gelöscht.` });
+    const existing = views.find((view) => view.name.toLowerCase() === clean.toLowerCase());
+    if (existing && existing.id !== editingId) setReplace(existing);
+    else void persist(editingId);
   };
 
   return (
@@ -130,6 +139,34 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
           <div className="tbd-head">
             <h2 id="ex-views">Gespeicherte Ansichten</h2>
           </div>
+          {saved.isPending && <LoadingNote what="Gespeicherte Ansichten" />}
+          {saved.isError && (
+            <ErrorNote
+              what="Gespeicherte Ansichten"
+              error={saved.error}
+              onRetry={() => void saved.refetch()}
+            />
+          )}
+          {saved.data?.unavailable && (
+            <p role="status">
+              Gespeicherte Ansichten sind nicht verfügbar. Die Daten bleiben erhalten; die Vorlagen
+              und Filter kannst du weiter verwenden.
+            </p>
+          )}
+          {saved.migrationError && (
+            <p role="status">
+              {saved.migrationError}{' '}
+              <Button variant="ghost" onClick={saved.retryMigration}>
+                Erneut versuchen
+              </Button>
+            </p>
+          )}
+          {saved.unavailableLocalCount > 0 && (
+            <p role="status">
+              {saved.unavailableLocalCount} lokale Ansichten sind nicht verfügbar. Ihre
+              ursprünglichen Daten bleiben in diesem Browser erhalten.
+            </p>
+          )}
           <div className="ex-chips" role="group" aria-label="Gespeicherte Ansichten">
             {EXPLORER_PRESETS.map((preset) => (
               <button
@@ -144,7 +181,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
               </button>
             ))}
             {views.map((view) => (
-              <span className="ex-chip-pair" key={view.name}>
+              <span className="ex-chip-pair" key={view.id}>
                 <button
                   type="button"
                   className="ex-chip"
@@ -157,8 +194,23 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
                 <button
                   type="button"
                   className="ex-chip-x"
+                  aria-label={`Ansicht ${view.name} bearbeiten`}
+                  disabled={saved.busy}
+                  onClick={() => {
+                    setEditingId(view.id);
+                    setName(view.name);
+                    setQuery(view.query);
+                    setReplace(undefined);
+                  }}
+                >
+                  <Pencil size={13} strokeWidth={1.75} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="ex-chip-x"
                   aria-label={`Ansicht ${view.name} löschen`}
-                  onClick={() => remove(view.name)}
+                  disabled={saved.busy}
+                  onClick={() => void remove(view)}
                 >
                   <X size={13} strokeWidth={1.75} aria-hidden="true" />
                 </button>
@@ -261,14 +313,46 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
                 />
               )}
             </Field>
-            <Button type="submit" variant="ghost" size="sm">
+            <Button
+              type="submit"
+              variant="ghost"
+              size="sm"
+              disabled={!saved.data || saved.data.unavailable || saved.busy}
+            >
               <Bookmark size={15} strokeWidth={1.75} aria-hidden="true" />
               Speichern
             </Button>
+            {editingId && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setEditingId(undefined);
+                  setName('');
+                  setReplace(undefined);
+                }}
+              >
+                Bearbeiten abbrechen
+              </Button>
+            )}
           </form>
+          {replace && (
+            <div role="alert">
+              Die Ansicht „{replace.name}“ ersetzen?{' '}
+              <Button
+                variant="ghost"
+                onClick={() => void persist(replace.id)}
+                disabled={saved.busy}
+              >
+                Ersetzen
+              </Button>
+              <Button variant="ghost" onClick={() => setReplace(undefined)}>
+                Abbrechen
+              </Button>
+            </div>
+          )}
           <p className="ov-note">
-            Gespeicherte Ansichten liegen in diesem Browser; auf anderen Geräten sind sie nicht
-            sichtbar.
+            Gespeicherte Ansichten sind nach dem Neuladen auch auf deinen anderen Geräten verfügbar.
+            Höchstens 20 Ansichten; je Name höchstens 40 Zeichen.
           </p>
         </section>
 

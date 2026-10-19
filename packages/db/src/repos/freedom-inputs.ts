@@ -1,4 +1,47 @@
 import { addMonths, freedomAnnualSpendCents, freedomSumCents, monthsBetween } from '@budget/domain';
+import { isNull } from 'drizzle-orm';
+import { account } from '../schema';
+import { allocationInputsAsOf } from './allocation-inputs';
+import type { Executor } from './types';
+
+/** The current Anlagebasis selection applies to every dated valuation, including history. */
+export function freedomInvestmentBasis(db: Executor, asOf: string) {
+  const basis = allocationInputsAsOf(db, asOf);
+  const selected = new Set(basis.universe.accountIds);
+  const accounts = db
+    .select()
+    .from(account)
+    .where(isNull(account.deletedAt))
+    .all()
+    .filter((row) => selected.has(row.id) && row.openingDate <= asOf)
+    .map((row) => {
+      const unavailable = basis.unavailable.filter((position) => position.accountId === row.id);
+      return {
+        id: row.id,
+        name: row.name,
+        valueCents: unavailable.length
+          ? null
+          : freedomSumCents(
+              basis.positions
+                .filter((position) => position.accountId === row.id)
+                .map((position) => position.valueCents),
+            ),
+        missingPrice: unavailable.some((position) => position.reason === 'missing_price'),
+        missingFxCurrencies: [
+          ...new Set(
+            unavailable.flatMap((position) =>
+              position.reason === 'missing_fx' && position.currency ? [position.currency] : [],
+            ),
+          ),
+        ],
+      };
+    });
+  return {
+    investedCents:
+      basis.valueCents !== null && Number.isSafeInteger(basis.valueCents) ? basis.valueCents : null,
+    accounts,
+  };
+}
 
 /** The existing R16 sources, shared with the forecast page. Refunds stay netted. */
 export function freedomExpenseMonths(
@@ -35,7 +78,7 @@ export function freedomExpenses(
   );
 }
 
-/** Cash plus holdings in investment-role accounts; exactly the existing R16 selection. */
+/** Legacy role-based helper retained for compatibility; live consumers use the Anlagebasis. */
 export function freedomInvestmentAccounts<T extends { role: string; openingDate: string }>(
   accounts: ReadonlyArray<T>,
   day: string,

@@ -311,6 +311,7 @@ export function FreedomContent({ view }: { view: FreedomView }) {
           <h2 id="freedom-way">Weg zum Ziel</h2>
           <span className="aside">Prognose ab heute · keine Garantie</span>
         </div>
+        <p className="vnote">Kontenauswahl Stand heute · gilt auch für historische Bewertungen.</p>
         {projection && view.targetCents !== null ? (
           <FreedomChart
             projection={projection}
@@ -370,7 +371,7 @@ export function FreedomContent({ view }: { view: FreedomView }) {
       >
         <div className="head">
           <h2 id="freedom-account-title">Investiert: Quellkonten</h2>
-          <span className="aside">Kontoguthaben plus Bestände · in Euro</span>
+          <span className="aside">Ausgewählte Anlagebasis · in Euro</span>
         </div>
         {view.accounts.length ? (
           <table className="kv-table">

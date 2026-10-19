@@ -446,3 +446,42 @@ svg.chart {
 .chart-legend li {
   white-space: nowrap;
 }
+
+.chart-data-table {
+  min-width: 0;
+  font-size: var(--fs-table);
+}
+.chart-data-table > summary {
+  display: flex;
+  gap: 8px;
+  min-height: var(--touch);
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+.chart-data-table > summary::-webkit-details-marker {
+  display: none;
+}
+.chart-data-table[open] > summary > svg {
+  transform: rotate(90deg);
+}
+.chart-data-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.chart-data-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.chart-data-scroll th,
+.chart-data-scroll td {
+  padding: 8px;
+  border-bottom: var(--stroke-hairline) solid var(--rule);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.chart-data-scroll .chart-data-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
