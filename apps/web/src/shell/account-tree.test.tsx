@@ -21,7 +21,23 @@ const accounts = [
 let shownAccounts = accounts;
 vi.mock('@tanstack/react-query', async (original) => ({
   ...(await original<typeof ReactQuery>()),
-  useQuery: () => ({ data: { accounts: shownAccounts } }),
+  // The tree reads accounts and, for depots, the portfolio positions (#582): the depot is worth
+  // exactly its 400 € position, so it keeps no own cash.
+  useQuery: (o: { queryKey: readonly unknown[] }) => ({
+    data: o.queryKey.includes('portfolio-positions')
+      ? {
+          asOf: '2026-10-18',
+          positions: [
+            {
+              securityId: 's',
+              name: 'Testwert',
+              quote: null,
+              accounts: [{ accountId: 'depot', valueCents: 40000, valueStatus: 'known' }],
+            },
+          ],
+        }
+      : { accounts: shownAccounts },
+  }),
 }));
 vi.mock('@tanstack/react-router', () => ({
   useParams: () => ({ id: 'giro' }),

@@ -3,6 +3,7 @@ import { accountValueEur, type AccountGroup } from './labels';
 import type { AccountRow, SeriesPoint } from './types';
 import { daysBetween } from '@budget/domain';
 import { longDay } from './format';
+import { sumTreeValues, type TreeValue } from './tree-values';
 
 /** Stored owner checks are independent of provider observation/retrieval dates. */
 export function accountCheck(account: AccountRow, today: string) {
@@ -19,6 +20,8 @@ export interface GroupView {
   accounts: AccountRow[];
   /** Sum of the account values (debts are negative). */
   sumCents: number | null;
+  /** True when a part of the sum is incomplete (a depot position without price): shown as "≈". */
+  sumApprox: boolean;
 }
 
 const sumEur = (accounts: ReadonlyArray<AccountRow>): number | null =>
@@ -30,13 +33,21 @@ const sumEur = (accounts: ReadonlyArray<AccountRow>): number | null =>
  * Open accounts by group (YNAB order, the owner's sort order inside); net worth also includes
  * closed accounts with residual balances.
  */
-export function overviewModel(accounts: ReadonlyArray<AccountRow>) {
+export function overviewModel(
+  accounts: ReadonlyArray<AccountRow>,
+  /** Tree figures (Depotwert, depot cash moved to the Verrechnungskonto); without them the shared EUR value. */
+  values?: ReadonlyMap<string, TreeValue>,
+) {
   const open = accounts.filter((a) => !a.closedAt);
   const closed = accounts.filter((a) => a.closedAt).sort(bySortOrder);
   const groups: GroupView[] = groupAccounts(open).map(({ group, accounts: members }) => ({
     group,
     accounts: members,
-    sumCents: sumEur(members),
+    ...(values
+      ? (({ cents, approx }) => ({ sumCents: cents, sumApprox: approx }))(
+          sumTreeValues(members, values),
+        )
+      : { sumCents: sumEur(members), sumApprox: false }),
   }));
   return {
     groups,

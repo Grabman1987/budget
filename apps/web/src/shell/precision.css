@@ -398,6 +398,16 @@ button {
   color: var(--ink);
   font-weight: 600;
 }
+.acct-cash {
+  display: block;
+  padding: 0 10px 4px 50px;
+  font-size: var(--fs-label);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+.acct-cash.is-neg {
+  color: var(--red);
+}
 .acct-name {
   overflow: hidden;
   text-overflow: ellipsis;
