@@ -1,0 +1,117 @@
+/* Named pages keep the existing One-Pager/year-report portrait sheets independent. */
+@page report-table {
+  size: A4 landscape;
+  margin: 10mm;
+}
+
+@media print {
+  body:has(.report-table-print) {
+    page: report-table;
+    background: var(--surface);
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  body:has(.report-table-print)
+    :is(
+      .sidebar,
+      .topbar,
+      .m-head,
+      .tabbar,
+      .fab,
+      .global-search-trigger,
+      .skip-link,
+      .registers,
+      .toast-region,
+      .report-navigation,
+      .report-quick,
+      .rtools,
+      .seg-depth,
+      .table-scroll-hint,
+      .chart-tooltip
+    ),
+  body:has(.report-table-print) .titleblock .tb-field:has(button, select, input) {
+    display: none !important;
+  }
+  body:has(.report-table-print) :is(.app, .main, .sheet) {
+    display: block;
+    min-height: 0;
+    max-width: none;
+    width: auto;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    background: var(--surface);
+  }
+  body:has(.report-table-print) .main::before {
+    display: none;
+  }
+  .sheet:has(.report-table-print) {
+    page: report-table;
+  }
+  .report-table-print {
+    display: block;
+    margin: 0;
+  }
+  /* Reapply the normal surface/ink roles on the actual printed containers so
+     dark-screen → print also invalidates their painted and inherited values. */
+  body:has(.report-table-print) .titleblock,
+  .report-table-print .tr-card {
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .report-table-print .tr-card {
+    padding: 8px 0;
+    border: 0;
+    box-shadow: none;
+  }
+  .report-table-print .tr-pair {
+    display: block;
+  }
+  .report-table-print :is(h2, h3) {
+    break-after: avoid;
+  }
+  .report-table-print .rscroll {
+    overflow: visible;
+    max-width: none;
+  }
+  .report-table-print .rtable {
+    table-layout: auto;
+    width: 100%;
+    color: var(--ink);
+  }
+  .report-table-print .rtable thead {
+    display: table-header-group;
+  }
+  .report-table-print .rtable tr {
+    break-inside: avoid;
+  }
+  /* Beat the screen-only .table-report .rtable .n nowrap and header/cell padding. */
+  .table-report.report-table-print .rtable :is(th, td) {
+    padding: 4px;
+    min-width: 0;
+    font-size: var(--fs-table);
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  /* Numeric financial tokens remain intact; column widths follow their contents.
+     Delta markers below retain their own natural wrapping between tokens. */
+  .table-report.report-table-print .rtable td.n {
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+  .report-table-print .rtable .rg-first {
+    width: 20%;
+    min-width: 0;
+    position: static;
+    box-shadow: none;
+  }
+  .report-table-print .rtable :is(button, a) {
+    display: inline;
+    min-width: 0;
+    min-height: 0;
+  }
+  .report-table-print .rtable .dl {
+    display: inline;
+    white-space: normal;
+  }
+}
