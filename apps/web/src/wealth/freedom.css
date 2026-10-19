@@ -161,3 +161,41 @@
 .freedom-view .freedom-table-switch label {
   flex: 1;
 }
+.freedom-personal-goal {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: var(--stroke-hairline) solid var(--rule);
+}
+.freedom-personal-goal fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.freedom-personal-goal h3 {
+  font-size: var(--fs-body);
+  margin: 0 0 var(--space-sm);
+}
+.freedom-goal-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+.freedom-goal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+.freedom-goal-actions .btn {
+  min-height: var(--touch);
+}
+.freedom-goal-date {
+  stroke: var(--line-2);
+  stroke-width: var(--stroke-hairline);
+  stroke-dasharray: 4 4;
+}
+@media (max-width: 767px) {
+  .freedom-goal-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
