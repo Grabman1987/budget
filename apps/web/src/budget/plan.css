@@ -1196,6 +1196,7 @@
   color: var(--ink-3);
 }
 .plan .pmulti-scroll {
+  position: relative;
   overflow-x: auto;
 }
 .plan .ptable-multi {
