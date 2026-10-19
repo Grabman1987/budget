@@ -13,20 +13,21 @@ export function ContactActionsMenu({ name, onSettle }: { name: string; onSettle:
     const onDown = (e: PointerEvent) => {
       if (!wrap.current?.contains(e.target as Node)) setOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !wrap.current?.contains(document.activeElement)) return;
+      e.stopPropagation();
+      setOpen(false);
+      trigger.current?.focus();
+    };
     document.addEventListener('pointerdown', onDown);
-    return () => document.removeEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [open]);
   return (
-    <div
-      className="contact-menu"
-      ref={wrap}
-      onKeyDown={(e) => {
-        if (e.key !== 'Escape' || !open) return;
-        e.stopPropagation();
-        setOpen(false);
-        trigger.current?.focus();
-      }}
-    >
+    <div className="contact-menu" ref={wrap}>
       <button
         ref={trigger}
         type="button"
