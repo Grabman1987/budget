@@ -70,7 +70,11 @@ async function inspectFreedom(page: Page, info: TestInfo) {
   await expect(sources).not.toContainText('70,00');
   await expect(sources).not.toContainText('20,00');
   await expect(sources).toContainText('•••');
-  await expect(section.getByText(/Kontenauswahl Stand heute/)).toBeVisible();
+  await expect(
+    section.getByText('Kontenauswahl Stand heute · gilt auch für historische Bewertungen.', {
+      exact: true,
+    }),
+  ).toBeVisible();
 }
 
 test('Freiheit explains the shared current account selection beside its curve and preserves privacy', async ({
