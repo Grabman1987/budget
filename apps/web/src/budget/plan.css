@@ -2526,7 +2526,7 @@
 @media (min-width: 768px) and (max-width: 1439px) {
   .plan .ptable-zero .pmulti .col-name {
     grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: 28px 28px 4px;
+    grid-template-rows: 28px 24px 4px;
   }
   .plan .pmulti .band-parent {
     grid-column: 1 / -1;

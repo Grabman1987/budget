@@ -596,7 +596,7 @@ function PlanBody({
               <LoadingNote what="Folgemonate" />
             )
           ) : (
-            <>
+            <div className="pmulti-scroll">
               <table className={cx('ptable ptable-zero', distribute && 'is-distributing')}>
                 <caption className="sr-only">
                   Envelopes mit Zugewiesen, Aktivität und Verfügbar
@@ -773,7 +773,7 @@ function PlanBody({
                   })}
                 </tbody>
               </table>
-            </>
+            </div>
           )}
         </section>
       </div>
