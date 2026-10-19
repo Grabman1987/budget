@@ -326,18 +326,14 @@ function GoalBar({ goal, month }: { goal: GoalView; month: string }) {
   const bar = goalBar(goal);
   return (
     <ChartValue
-      label="Sparziel"
+      label={`${eur(goal.savedCents)} von ${eur(goal.targetCents)}; Marke ist Zielbetrag`}
       date={month}
       series={[
         { name: 'Gespart', value: eur(goal.savedCents), color: 'var(--line)' },
         { name: 'Ziel', value: eur(goal.targetCents), color: 'var(--line-2)' },
       ]}
     >
-      <div
-        className="goal-report-bar"
-        role="img"
-        aria-label={`${eur(goal.savedCents)} von ${eur(goal.targetCents)}; Marke ist Zielbetrag`}
-      >
+      <div className="goal-report-bar">
         <i style={{ width: `${bar.fill * 100}%` }} />
         <span style={{ left: `${bar.tick * 100}%` }} />
       </div>
