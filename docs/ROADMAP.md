@@ -1,5 +1,12 @@
 # Roadmap
 
+### #625 — four fixed Explorer report templates (2026-10-19)
+
+- [x] Add Heatmap Ausgaben, Jahresansicht, Gesamttabelle and Kategorie im Verlauf beside saved views, reusing canonical aggregation, the shared report period/header and per-row heat. Monetary cell drilldown preserves exact classified source shares, booking identity and reloadable selection; existing saved-query/custom CSV behavior remains available.
+- [x] Independently reviewed literal domain/API/UI proofs pass five files / 24 focused tests; affected Web types and changed-test lint/format pass. The sole existing #627 test adaptation is coordinator-authored router setup only, with all four original test bodies and financial/race/CSV oracles unchanged.
+- [x] Actual clean runtime `90da8fa9`, including verified live Main `3427d925`: fresh E2E build passes; genuine WebKit retry passes 12/12 (nine feature plus three setup), both themes at configured phone 390×664 and true desktop 1440×900. All 14 owned / 3,379 tracked / 12 protected source hashes and all 167 reused compiled files remain exact. Initial pre-collection ENOSPC and the separately verified storage repair are preserved; [16 original images and safe profile proof](evidence/explorer-templates-625/README.md) qualify touch, fixed-navigation and full-page capture limits.
+- [ ] Complete the required-age full check and separate normal production build, final evidence review, exact-head canonical Chromium CI and coordinator integration/public-live verification. Keep #625 open; legacy-report removal #487 and generic chart switching #626 remain separate.
+
 ### #509 — complete public reference-case assurance (2026-10-19)
 
 - [x] Complete the public CASE-001–007 inventory with independent literal cents/raw units across domain, real repositories and API: cash/card carry, full/partial card reserves, signed splits, transfer-scope classification and existing purchase/dividend conventions. The retained eight comparison cases and all existing tests remain unchanged; production formulas and write policy are untouched.
