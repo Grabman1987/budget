@@ -10,7 +10,14 @@ export interface DebtOverviewAccount {
   installmentCents: number | null;
   monthlyFeeCents: number | null;
   originalAmountCents: number | null;
+  /**
+   * Credit cards are settled on a running basis (owner decision 16.10.2026): without full terms
+   * they get no repayment plan and no "terms missing" task. Terms entered anyway are still modelled.
+   */
+  settledMonthly?: boolean;
 }
+
+export type DebtOverviewStatus = 'ready' | 'missing_terms' | 'invalid_terms' | 'settled_monthly';
 
 /** Constant-condition preview. A month-end is a model convention, not a contractual due day. */
 export function debtOverview(
@@ -22,7 +29,7 @@ export function debtOverview(
   if (!Number.isSafeInteger(extraCents) || extraCents < 0) throw new RangeError('Invalid extra');
   const rows = accounts.map((account) => {
     let plan: PayoffPlan | null = null;
-    let status: 'ready' | 'missing_terms' | 'invalid_terms' = 'missing_terms';
+    let status: DebtOverviewStatus = account.settledMonthly ? 'settled_monthly' : 'missing_terms';
     if (
       account.interestRateBp !== null &&
       account.installmentCents !== null &&
@@ -57,7 +64,9 @@ export function debtOverview(
     }
     return { id: account.id, plan, status };
   });
-  const complete = accounts.length > 0 && rows.every((r) => r.plan !== null);
+  const planned = rows.filter((r) => r.plan !== null);
+  const complete =
+    planned.length > 0 && rows.every((r) => r.plan !== null || r.status === 'settled_monthly');
   const oneCurrency = new Set(accounts.map((a) => a.currency)).size === 1;
   const sum = (values: number[]) => {
     if (values.some((v) => !Number.isSafeInteger(v) || v < 0)) return null;
@@ -74,7 +83,7 @@ export function debtOverview(
     ? sum(accounts.map((a) => a.originalAmountCents!))
     : null;
   const month = complete
-    ? rows
+    ? planned
         .map((r) => r.plan!.withExtra.payoffMonth ?? startMonth)
         .sort()
         .at(-1)!
@@ -84,9 +93,15 @@ export function debtOverview(
     currency: oneCurrency ? accounts[0]!.currency : null,
     payoffDate: month ? lastDayOfMonth(month) : null,
     interestCents:
-      complete && oneCurrency ? sum(rows.map((r) => r.plan!.withExtra.totalInterestCents)) : null,
+      complete && oneCurrency
+        ? sum(planned.map((r) => r.plan!.withExtra.totalInterestCents))
+        : null,
     interestSavedCents:
-      complete && oneCurrency ? sum(rows.map((r) => r.plan!.interestSavedCents)) : null,
+      complete && oneCurrency ? sum(planned.map((r) => r.plan!.interestSavedCents)) : null,
+    /** Sum of all negative balances, cards included (the debt share of the net worth); one currency only. */
+    remainingCents: oneCurrency ? remainingCents : null,
+    /** True while an account that must be modelled (not a card on a running basis) lacks usable terms. */
+    termsOpen: rows.some((r) => r.status === 'missing_terms' || r.status === 'invalid_terms'),
     progress:
       oneCurrency && originalCents !== null && originalCents > 0 && remainingCents !== null
         ? { originalCents, remainingCents, paidCents: originalCents - remainingCents }

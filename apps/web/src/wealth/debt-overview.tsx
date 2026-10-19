@@ -55,6 +55,7 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
       interestRateBp: amount(terms[i]!.rate),
       installmentCents: amount(terms[i]!.payment),
       monthlyFeeCents: amount(terms[i]!.fee),
+      settledMonthly: a.type === 'credit_card',
     })),
     asOf.slice(0, 7),
     selected,
@@ -82,7 +83,7 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
             Noch zu zahlende Zinsen <strong>{valid ? money(overview.interestCents) : '—'}</strong>
           </p>
         )}
-        {accounts.length > 0 && !overview.payoffDate && (
+        {overview.termsOpen && !overview.payoffDate && (
           <p className="vnote">
             <a
               href="#debt-adjustments"
@@ -118,6 +119,12 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
                 <AppLink to="/einstellungen/konten">Konditionen pflegen</AppLink>
               </p>
             )
+          )}
+          {overview.rows.some((r) => r.status === 'settled_monthly') && (
+            <p className="vnote">
+              Kreditkarten werden laufend ausgeglichen: Ohne eigene Konditionen gehen sie nicht in
+              das Datum und die Zinsen ein, ihre Restschuld zählt aber zur Summe.
+            </p>
           )}
           <p className="vnote">
             Modell ab {longDay(asOf)} · Datum = Monatsende der letzten Modellzahlung.
@@ -289,9 +296,11 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
                       {plan?.payoffMonth ? longDay(lastDayOfMonth(plan.payoffMonth)) : '—'}
                       {!row.plan && (
                         <small>
-                          {row.status === 'missing_terms'
-                            ? 'Konditionen fehlen'
-                            : 'Rate muss Zinsen und Gebühren decken; Rechengrenzen prüfen'}
+                          {row.status === 'settled_monthly'
+                            ? 'laufend ausgeglichen'
+                            : row.status === 'missing_terms'
+                              ? 'Konditionen fehlen'
+                              : 'Rate muss Zinsen und Gebühren decken; Rechengrenzen prüfen'}
                         </small>
                       )}
                     </td>
