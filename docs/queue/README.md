@@ -1,25 +1,25 @@
 # Delivery process
 
-How work reaches `main` and production today (state 2026-10-18). Measured numbers:
+How work reaches `main` and production today (state 2026-10-19). Measured numbers:
 [delivery-audit-2026-10-17.md](delivery-audit-2026-10-17.md), CI layout: [ci-speed.md](ci-speed.md).
 `CLAUDE.md` holds the hard guardrails and wins on any conflict.
 
 ## Process
 
 1. The owner or the orchestrator writes a small issue (acceptance criteria, `risk:*`, `area:*`, file scope).
-2. The orchestrator (Opus, interactive session) dispatches implementation to a Sonnet agent in its own worktree and branch.
+2. The orchestrator (Opus or Codex, interactive session) dispatches implementation to an agent in its own worktree and branch.
 3. The agent implements, runs targeted checks, opens a PR with `Refs #N` and stops. It never merges.
 4. CI runs on the PR. The orchestrator checks scope, reviews as the risk class requires (below) and merges with `scripts/queue/merge-pr.sh <pr>`.
 5. The issue closes only when the merge is live and every acceptance criterion is verified (closing rules).
 
 ## Roles and lanes
 
-| Who                  | Does                                                                                  |
-| -------------------- | ------------------------------------------------------------------------------------- |
-| Orchestrator (Opus)  | Triage, dispatch, scope check, test-change decisions, merges, sets `queue:complete`   |
-| Implementer (Sonnet) | One issue, one PR; no merge, no `queue:complete`, no `tests-change-approved`          |
-| Search, log reading  | Small models (Explore/Haiku) or plain `gh`/shell                                      |
-| Independent reviewer | Opus subagent or Codex, never the implementer; gets the diff, not the conclusion      |
+| Who                          | Does                                                                                                                 |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Orchestrator (Opus or Codex) | Triage, dispatch, scope check, test-change decisions, merges, sets `queue:complete`                                  |
+| Implementer                  | One issue, one PR; no merge, no `queue:complete`, no `tests-change-approved`                                         |
+| Search, log reading          | Small models (Explore/Haiku) or plain `gh`/shell                                                                     |
+| Independent reviewer         | Independent Opus or Codex agent, never the implementer; reviews the same full diff, not the implementer's conclusion |
 
 - At most 2 feature lanes at once: **A** UI, Plan, Konten; **B** finance, data, API. Plus 1 infra slot **C** (CI, scripts, docs).
 - One writer per critical area at a time: `router.tsx`, shared components in `packages/ui`, ledger, migrations. Queue the second issue instead of running it in parallel.
@@ -30,7 +30,7 @@ How work reaches `main` and production today (state 2026-10-18). Measured number
 | -------- | -------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | LOW      | UI copy/layout, docs, no existing test touched                 | Green CI and the orchestrator's scope check. No separate long review.    |
 | MEDIUM   | Existing tests or baselines change, shared components          | LOW plus independent review of the test and baseline changes             |
-| HIGH     | Money, ledger, DB, auth, migrations, CI, deploy, queue scripts | Label `risk:high`, independent Opus review of the whole diff             |
+| HIGH     | Money, ledger, DB, auth, migrations, CI, deploy, queue scripts | Label `risk:high`, independent Opus or Codex review of the whole diff    |
 | CRITICAL | Calculation rules, production data, secrets, branch protection | Documented owner approval first; migrations reversible, tested on a copy |
 
 Unsure means one class higher. Independent review is mandatory for every change to existing tests and for `risk:high`.
@@ -38,6 +38,8 @@ Unsure means one class higher. Independent review is mandatory for every change 
 ## Test-change policy
 
 Owner decision (Fabian, 2026-10-17): "Test changes for already decided UI changes are allowed if each change traces to a documented owner decision and is justified per test file in the PR; old expectations on text/structure/interaction may be replaced by matching checks of the new behaviour with coverage kept; an independent Opus review checks them before merge. Not covered: looser tolerances, skip, disabled rules, lower coverage, removed checks without equivalent replacement. Changes to finance, security, locking and undo rules stay separately subject to owner approval."
+
+Owner model/integration authorization (2026-10-19, [#694](https://github.com/Grabman1987/budget/issues/694)): "Ja, Codex-Reviews und reguläre Integration erlauben". An independent Codex reviewer may replace the named Opus reviewer with the same full-diff scope, including existing-test/baseline and high-risk changes; the reviewer must never be the implementer. This supersedes the named-model restriction in the historical decision above, preserving all its test-change conditions. The owner also authorizes subsequent serial merges through the existing required CI and main/live gates, including regular deployment by the orchestrator. Implementers still never merge. Role separation, required checks, branch protection and closing criteria remain binding; this authorization does not enable the old queue loops or release binding STOP files.
 
 - Implementing agents never edit existing tests (`*.test.*`, `e2e/**/*.spec.ts`, tolerances, lint or coverage config). They add tests for new criteria and list the existing-test changes they need in the PR.
 - The orchestrator applies a listed change only under the decision above: per-file justification table (file, change, decision cited), independent review, label `tests-change-approved`.
