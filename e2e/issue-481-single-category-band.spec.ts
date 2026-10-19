@@ -58,7 +58,9 @@ async function expectOnscreenParentInk(page: Page) {
   for (let index = 0; index < (await bands.count()); index++) {
     const band = bands.nth(index);
     const toggle = band.locator('.grp-toggle');
-    await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+    await toggle.evaluate((element) =>
+      element.scrollIntoView({ behavior: 'instant', block: 'center' }),
+    );
     await expect(toggle).toBeInViewport({ ratio: 1 });
     const ink = await page.evaluate(() => {
       const value = getComputedStyle(document.documentElement)
@@ -161,7 +163,7 @@ async function expectOnscreenParentInk(page: Page) {
 async function resetCaptureScroll(page: Page) {
   await page.evaluate(() => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   });
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
 }
