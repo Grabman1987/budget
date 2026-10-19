@@ -102,7 +102,8 @@ test('cover limits protect commitments, explain missing money and show credit se
   await page.getByRole('button', { name: 'Alle aus Testgesundheit decken' }).click();
   await expect(page.locator('.toast.is-open')).toContainText('0 gedeckt, 1 offen · 10,00 € fehlen');
   await expect(select.locator('option', { hasText: 'Testgesundheit' })).toHaveCount(0);
-  const value = (name: string) => page.locator('tr.prow', { hasText: name }).locator('.col-avail');
+  const value = (name: string) =>
+    page.locator('tr.prow', { hasText: name }).locator('.col-avail .pill');
   await expect(value('Testgesundheit')).toHaveText('20,00 €');
   await expect(value('Testalltag')).toHaveText('−10,00 €');
   await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();

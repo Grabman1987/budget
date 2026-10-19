@@ -16,7 +16,7 @@ const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Vienna' }).fo
 const month = today.slice(0, 7);
 const toast = (page: Page) => page.locator('.toast.is-open');
 const row = (page: Page, name: string) => page.locator('tr.prow', { hasText: name });
-const available = (page: Page, name: string) => row(page, name).locator('.col-avail');
+const available = (page: Page, name: string) => row(page, name).locator('.col-avail .pill');
 
 async function postTo(
   request: APIRequestContext,

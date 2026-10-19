@@ -1,6 +1,61 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { test } from './isolated-ledger';
+
+// #481: shared bands retain both original category and parent compactness budgets.
+async function compactDimensions(page: Page) {
+  return page.locator('.plan').evaluate((plan) => {
+    const rows = Array.from(plan.querySelectorAll('.ptable .prow'));
+    const bands = rows.filter((row) => row.matches('.pmulti'));
+    const bounds = (row: Element, selector: string) =>
+      Array.from(row.querySelectorAll(selector), (element) =>
+        element.getBoundingClientRect(),
+      ).filter((box) => box.width > 0 && box.height > 0);
+    const unionHeight = (boxes: DOMRect[]) =>
+      Math.max(...boxes.map((box) => box.bottom)) - Math.min(...boxes.map((box) => box.top));
+    const categories = bands.map((row) =>
+      bounds(
+        row,
+        '.col-name > .plan-select, .pname, .spending-status, .spending-bar, .band-category-assigned, .band-category-activity, .band-category-available',
+      ),
+    );
+    const parents = bands.map((row) => bounds(row, '.band-parent .group-heading, .band-total'));
+    const categoryHeights = bands.map((row, i) =>
+      unionHeight([
+        ...categories[i],
+        ...bounds(
+          row,
+          '.band-category-assigned :is(button, input, label), .band-category-available :is(button, input, label), .spending-bar .pbar-tick',
+        ),
+      ]),
+    );
+    const parentHeights = bands.map((row, i) =>
+      unionHeight([...parents[i], ...bounds(row, '.band-parent :is(button, input, label)')]),
+    );
+    return {
+      beforeGrid:
+        plan.querySelector('.ptable')!.getBoundingClientRect().top -
+        plan.getBoundingClientRect().top,
+      heights: rows.map((row) =>
+        row.matches('.pmulti')
+          ? categoryHeights[bands.indexOf(row)]
+          : row.getBoundingClientRect().height,
+      ),
+      groups: [
+        ...Array.from(
+          plan.querySelectorAll('.ptable .pgroup:not(.pmulti)'),
+          (row) => row.getBoundingClientRect().height,
+        ),
+        ...parentHeights,
+      ],
+      visible: rows.filter((row) => row.getBoundingClientRect().bottom <= window.innerHeight)
+        .length,
+      categoryCounts: categories.map((boxes) => boxes.length),
+      parentCounts: parents.map((boxes) => boxes.length),
+      bandHeights: bands.map((row) => row.getBoundingClientRect().height),
+    };
+  });
+}
 
 test('compact groups retain cent totals, add controls, keyboard and multiple months', async ({
   page,
@@ -76,9 +131,24 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     'Komplett ausgegeben · fehlt 5,00 € bis Ziel',
   );
   await page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }).check();
-  await expect(page.locator('.prow input:checked')).toHaveCount(18);
-  await page.getByRole('checkbox', { name: 'Mustergruppe 1 auswählen', exact: true }).uncheck();
-  await expect(page.locator('.prow input:checked')).toHaveCount(9);
+  const selectedCategories = page.locator(
+    '.ptable tbody > tr.prow > td.col-name > label.plan-select > input[type="checkbox"]:checked',
+  );
+  const firstParent = page.getByRole('checkbox', {
+    name: 'Gruppe Mustergruppe 1 auswählen',
+    exact: true,
+  });
+  const secondParent = page.getByRole('checkbox', {
+    name: 'Gruppe Mustergruppe 2 auswählen',
+    exact: true,
+  });
+  await expect(selectedCategories).toHaveCount(18);
+  await expect(firstParent).toBeChecked();
+  await expect(secondParent).toBeChecked();
+  await firstParent.uncheck();
+  await expect(selectedCategories).toHaveCount(9);
+  await expect(firstParent).not.toBeChecked();
+  await expect(secondParent).toBeChecked();
   await expect(
     page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }),
   ).toHaveJSProperty('indeterminate', true);
@@ -86,9 +156,22 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   await page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }).uncheck();
   await expect(page.getByTestId('to-be-assigned')).toHaveText('1.909,82 €');
   await expect(page.getByText('Unterfinanziert 90,00 €', { exact: true })).toBeVisible();
-  await expect(page.locator('.pgroup').first().locator('.col-assign')).toHaveText('45,09 €');
-  await expect(page.locator('.pgroup').first().locator('.col-act')).toHaveText('−14,05 €');
-  await expect(page.locator('.pgroup').first().locator('.col-avail')).toHaveText('31,04 €');
+  const firstBand = page.locator('.ptable tbody > tr.pmulti').first();
+  for (const [metric, value] of [
+    ['Zugewiesen', '45,09 €'],
+    ['Aktivität', '−14,05 €'],
+    ['Verfügbar', '31,04 €'],
+  ] as const) {
+    const total = firstBand.locator(`.band-total[data-label="${metric}"]:visible`);
+    await expect(total).toHaveCount(1);
+    await expect(total).toHaveAttribute('title', `Gruppe Mustergruppe 1 · ${metric}: ${value}`);
+    await expect(total).toHaveText(`Gruppe Mustergruppe 1 · ${metric}: ${value}`);
+  }
+  await expect(firstBand.locator('.band-category-assigned')).toHaveText(
+    page.viewportSize()!.width < 768 ? 'Zugewiesen 5,01 €' : '5,01 €',
+  );
+  await expect(firstBand.locator('.band-category-activity')).toHaveText('−7,03 €');
+  await expect(firstBand.locator('.band-category-available')).toHaveText('−2,02 €');
   // #587: no overspending chip in the head; the two overspent rows carry the marking and the
   // Zu verteilen disclosure names the same count with its cover actions.
   await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
@@ -104,19 +187,12 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   await expect(page.locator('.inspector-section[open]')).toHaveCount(1);
   const desktop = info.project.name === 'desktop';
   if (desktop) {
-    const dimensions = await page.locator('.plan').evaluate((plan) => {
-      const rows = Array.from(plan.querySelectorAll('.prow')).map((r) => r.getBoundingClientRect());
-      return {
-        beforeGrid:
-          plan.querySelector('.ptable')!.getBoundingClientRect().top -
-          plan.getBoundingClientRect().top,
-        heights: rows.map((r) => r.height),
-        visible: rows.filter((r) => r.bottom <= window.innerHeight).length,
-        groups: Array.from(plan.querySelectorAll('.pgroup')).map(
-          (r) => r.getBoundingClientRect().height,
-        ),
-      };
-    });
+    const dimensions = await compactDimensions(page);
+    expect(dimensions.heights).toHaveLength(18);
+    expect(dimensions.groups).toHaveLength(2);
+    expect(dimensions.categoryCounts).toEqual([7, 7]);
+    expect(dimensions.parentCounts).toEqual([4, 4]);
+    expect(Math.max(...dimensions.bandHeights)).toBeLessThanOrEqual(76);
     await info.attach('compact-grid-dimensions', {
       body: JSON.stringify(dimensions),
       contentType: 'application/json',
@@ -127,7 +203,7 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     expect(Math.max(...dimensions.groups)).toBeLessThanOrEqual(36);
     expect(dimensions.visible).toBeGreaterThanOrEqual(14);
   }
-  const firstGroup = page.getByRole('button', { name: 'Mustergruppe 1', exact: true });
+  const firstGroup = page.getByRole('button', { name: 'Gruppe Mustergruppe 1', exact: true });
   await firstGroup.focus();
   await page.keyboard.press('Enter');
   await expect(firstGroup).toHaveAttribute('aria-expanded', 'false');
@@ -199,10 +275,14 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
       page.viewportSize()!.width,
     );
     if (!desktop) {
-      const rows = await page
-        .locator('.ptable .prow')
-        .evaluateAll((elements) => elements.map((e) => e.getBoundingClientRect().height));
-      expect(Math.max(...rows)).toBeLessThanOrEqual(76);
+      const dimensions = await compactDimensions(page);
+      expect(dimensions.heights).toHaveLength(18);
+      expect(dimensions.groups).toHaveLength(2);
+      expect(dimensions.categoryCounts).toEqual([6, 6]);
+      expect(dimensions.parentCounts).toEqual([4, 4]);
+      expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(76);
+      expect(Math.max(...dimensions.groups)).toBeLessThanOrEqual(76);
+      expect(Math.max(...dimensions.bandHeights)).toBeLessThanOrEqual(152);
       const bar = page.locator('.plan-topbar');
       expect((await bar.boundingBox())!.height).toBeLessThanOrEqual(56);
       await page.locator('.ptoolbar').scrollIntoViewIfNeeded();
