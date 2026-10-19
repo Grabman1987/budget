@@ -1425,3 +1425,14 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [x] Display contiguous actual segments and the unchanged separate forecast, exact dates/values, keyboard/touch inspection, privacy and the existing forecast-table switch.
 - [x] Independent financial/source and coordinator-owned #618 test-delta review; all nine canonical WebKit cases, 390/1440 light/dark and strict native touch evidence passed. Age-required full check passed 491 files / 4,415 tests; production build passed with all twenty frozen hashes unchanged. [Evidence](evidence/reference-adoption/wp-011-freedom-history-616.md).
 - [ ] Exact-head Chromium/Windows CI, #615 parent integration and serial deployment/live revision. No issue closure or live acceptance from local evidence.
+
+
+## Personal freedom goal (#617) — local validation, 2026-10-19
+
+- [x] Private versioned goal-year setting, complete-DOB calendar-year age conversion, audit-head goal/DOB CAS before no-op, atomic undo/redo and ABA/rollback protection; malformed/future values remain unavailable without overwriting their bytes.
+- [x] Persist year/age, reload and clear with grouped undo; preserve dirty drafts through background refresh/conflicts and fence pending reload mode changes. Reuse unchanged January/minimum-cent formulas, canonical selected investment basis and local unsaved return assumption; no raw DOB output or invented forecast/history samples.
+- [x] Display the current required monthly saving and January deadline with existing amount privacy, actual light/dark WebKit 390/explicit1440 layout, strict paint proof, Axe, 44-pixel controls and no horizontal overflow. Five current native cases passed; four unchanged #618 cases passed separately on identical production bytes. Phone full-page fixed-navigation capture and Chromium coverage limits remain documented.
+- [x] Independent whole financial/migration/security and runtime/image reviews; focused types/lint and five new unit files (21 tests) passed before mechanical main refreshes. Required age-enabled full check at `4ffca1a9`: 519 test files / 4573 tests passed, followed by normal production build exit 0; all 24 owned files, 12 protected files, HEAD and status unchanged.
+- [ ] Final documentation-delta review, exact-head required CI including Chromium/Windows, serial integration and exact deployed health/live acceptance. No #617 completion or parent #528 acceptance is claimed before those gates.
+
+Evidence: [personal goal validation](evidence/reference-adoption/wp-personal-goal-617.md).
