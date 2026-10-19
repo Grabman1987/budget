@@ -1127,6 +1127,8 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [ ] Required CI and owner visual acceptance; pre-existing loan-dialog trigger-focus restoration remains a separate gap.
 
 ### P5.8 — Freiheitszahl: forecast from today
+- [x] #615: current #507 Anlagebasis shared by Freiheit and R16, applied to dated history with the visible current-selection note; literal scope-save/undo, missing valuation and read-only preview regressions ([evidence](evidence/reference-adoption/wp-010-freedom-universe-615.md)).
+- [ ] #615 required CI/live acceptance; historical Ist chart (#616) and persisted personal goal/assumptions (#617) remain separate.
 - [x] Connected current R16 expense/investment sources and configurable multiple; explicit unknown quote/FX and short-history annualisation, original lead/chain/quarter progress and source navigation.
 - [x] Explicit unsaved saving assumption and 5 % real-return default; shared monthly projection with +100 EUR comparison, bounded numeric errors, desktop/mobile light/dark and accessible values.
 - [ ] Historical Soll-Pfad, chosen goal year and persisted assumptions await separate owner decisions; the complete freedom workflow and private acceptance remain open.

@@ -1,6 +1,7 @@
 import {
   allocationQuality,
   defaultAllocationIncluded,
+  freedomSumCents,
   grossExposureCents,
   type WealthPosition,
 } from '@budget/domain';
@@ -194,7 +195,7 @@ export function allocationInputsAsOf(db: Executor, asOf: string) {
     valueCents:
       quality.valuationQuality === 'incomplete'
         ? null
-        : positions.reduce((sum, p) => sum + p.valueCents, 0),
+        : freedomSumCents(positions.map((position) => position.valueCents)),
     universe: { accountIds: [...accounts.keys()], securityIds: [...securities.keys()] },
   };
 }
