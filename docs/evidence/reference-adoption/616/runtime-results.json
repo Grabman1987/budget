@@ -1,0 +1,117 @@
+{
+  "parent615": "1f8fad2aa2c7a5471d731484d2d19753db8c31be",
+  "sourceSha256": {
+    "apps/server/src/api/freedom-history-616.test.ts": "97d3dfc6eb9a7a687bfef70e656b41d1f5ebd1513a7eacaaddcb104c1199116c",
+    "apps/server/src/api/wealth.ts": "e456e49544253f083797e7df7ad26b48ded15bae0ad80b21caab1b25c02dd065",
+    "apps/web/src/wealth/freedom-api.ts": "fae922cdd4430b4bb61d4d1dee3dd8ca926f07195f1efc20e3abc4359c3c7d85",
+    "apps/web/src/wealth/freedom-chart.tsx": "0ea529675e3c8067b2c4be8ce442c88c9a2c13365855261c178dc68605bb6d7d",
+    "apps/web/src/wealth/freedom-history-616.test.tsx": "e57b9559a15d4074d9b722d7b8c4d6a169670604df9d86f538beb0c531bf003e",
+    "apps/web/src/wealth/freedom-history-model-616.test.ts": "acd58f04795cf67a188f1a4fbb35cd97c03ae694f77e2e749a5460996b840e97",
+    "apps/web/src/wealth/freedom-history-model.ts": "6afc1e88298d09f864cca190c11c5e1f28d16c4a21a729df7e06a07f0581f7ca",
+    "apps/web/src/wealth/freedom-page.tsx": "2d7ef9dd101bdf39d6f505cd8d018726925fbc6316eb7e2cf34fc8ed05cf5470",
+    "e2e/issue-616-freedom-history.spec.ts": "e126d176a799575b4ea343049670500772551a214a8d91fdff32da631f6981b7",
+    "e2e/issue-618-freedom-info-switch.spec.ts": "0fd42a4dc17e204471b511d51c32103b8a2fb88f46c9b49fc844f0c2ce38bef7",
+    "packages/db/src/repos/freedom-history-616.test.ts": "9785a979869a66e1a08f1d533961224faa4b9da2d64e1fe858985dbd2331b0c7",
+    "packages/db/src/repos/freedom-history.ts": "4c53c8574716b8f68141b42175643eaab9785fae54011cae3191a3976b1f1d14",
+    "packages/db/src/repos/index.ts": "e4f022db1fe76c9e7fa6fb6db91926107b697746f96656e71a96b60e3f1df824"
+  },
+  "statistics": {
+    "startTime": "2026-10-19T14:13:36.470Z",
+    "duration": 52980.079000000005,
+    "expected": 9,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "results": [
+    {
+      "title": "register the first passkey and store the session",
+      "project": "setup",
+      "status": "passed",
+      "duration": 91
+    },
+    {
+      "title": "seed categories for the ledger tests",
+      "project": "setup",
+      "status": "passed",
+      "duration": 83
+    },
+    {
+      "title": "register the first passkey on the sample server",
+      "project": "setup-sample",
+      "status": "passed",
+      "duration": 80
+    },
+    {
+      "title": "dated actual values, visible gaps, keyboard/touch and privacy use the canonical browser profile",
+      "project": "webkit-iphone",
+      "status": "passed",
+      "duration": 10838,
+      "runtime": {
+        "engine": "webkit",
+        "version": "27.2",
+        "configuredHasTouch": true,
+        "width": 390,
+        "coarsePointer": true,
+        "touchPoints": 0,
+        "pixelRatio": 3
+      }
+    },
+    {
+      "title": "actual history and forecast fit an explicit 1440px desktop context",
+      "project": "webkit-iphone",
+      "status": "passed",
+      "duration": 7969,
+      "runtime": {
+        "engine": "webkit",
+        "version": "27.2",
+        "configuredHasTouch": false,
+        "width": 1440,
+        "coarsePointer": false,
+        "touchPoints": 0,
+        "pixelRatio": 1
+      }
+    },
+    {
+      "title": "one title, one back route and the explanations behind \u24d8 by keyboard",
+      "project": "webkit-iphone",
+      "status": "passed",
+      "duration": 3814
+    },
+    {
+      "title": "the switch shows the same forecast numbers as chart and as table",
+      "project": "webkit-iphone",
+      "status": "passed",
+      "duration": 4172
+    },
+    {
+      "title": "light: no Axe violations, no horizontal scroll, 44 px touch targets",
+      "project": "webkit-iphone",
+      "status": "passed",
+      "duration": 4786
+    },
+    {
+      "title": "dark: no Axe violations, no horizontal scroll, 44 px touch targets",
+      "project": "webkit-iphone",
+      "status": "passed",
+      "duration": 4722
+    }
+  ],
+  "touchEvidence": "Canonical case uses configuredHasTouch and requires native pointerdown.pointerType=touch after a Playwright touchscreen tap. navigator.maxTouchPoints reports0 on this runtime; earlier hover-selected runs are not touch evidence.",
+  "aggregate": {
+    "filesPassed": 491,
+    "testsPassed": 4415,
+    "checkExit": 0,
+    "buildExit": 0,
+    "ageRequired": true,
+    "maxWorkers": 2,
+    "prePostFrozenFiles": 20,
+    "changed": [],
+    "finishedAt": "2026-10-19T14:25:03.538415+00:00"
+  },
+  "limitations": [
+    "Actual Linux WebKit only; explicit1440 desktop layout is not Chromium acceptance",
+    "Exact-head Chromium1440/mobile390 and Windows CI remain required",
+    "Parent integration, coordinator PR release and serial live revision remain unverified"
+  ]
+}

@@ -1418,3 +1418,10 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [x] Round-2 money review: benchmark boundaries follow daily funded stretches (including within-month gaps), resume from the last daily level, preserve missing bases and classify signed opening transfers consistently. Added gross-flow/start-boundary and actual depot-cash/selected-benchmark regressions. [Evidence](evidence/portfolio-chart/README.md).
 - [ ] Round-2 publication: `git add` blocked by `index.lock: Permission denied`; changes left uncommitted without a workaround.
 - [ ] Required PR CI and the remaining #525 packages; private PP reconciliation remains Gate 3.
+
+### #616 — actual Anlagebasis history (2026-10-19)
+
+- [x] Reuse #615's current selected universe retrospectively for exact calendar month ends since October2023, with explicit pre-ledger coverage and missing valuation gaps; preserve the shared current resolver and financial formulas.
+- [x] Display contiguous actual segments and the unchanged separate forecast, exact dates/values, keyboard/touch inspection, privacy and the existing forecast-table switch.
+- [x] Independent financial/source and coordinator-owned #618 test-delta review; all nine canonical WebKit cases, 390/1440 light/dark and strict native touch evidence passed. Age-required full check passed 491 files / 4,415 tests; production build passed with all twenty frozen hashes unchanged. [Evidence](evidence/reference-adoption/wp-011-freedom-history-616.md).
+- [ ] Exact-head Chromium/Windows CI, #615 parent integration and serial deployment/live revision. No issue closure or live acceptance from local evidence.
