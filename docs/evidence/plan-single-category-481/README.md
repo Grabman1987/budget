@@ -93,8 +93,21 @@ was **1844.71875 px**, separately from 34.55% logical-row reduction. This is not
 canonical Chromium acceptance. Implementer, reviewer and coordinator opened the
 fresh desktop and phone captures; the parent text no longer overlaps controls.
 
-The new final-source age-required aggregate/build (after the CSS fix) and exact-head
-canonical Chromium desktop/mobile CI remain pending. The earlier feature's green CI does
+At final evidence head `4e4bdf12` (product/test source still `f922dfba`),
+`BUDGET_REQUIRE_AGE=1 npm run check` passed all workspace type/lint/format checks
+and **481 files / 4382 tests**; the following production build passed. Both exited
+0 under the shared full-check lock with two test workers.
+
+A broader unchanged canonical compatibility run then exposed an additional open
+gate: `e2e/plan-compact-grid.spec.ts:79` expects 18 checked inputs inside `.prow`,
+but now finds 20 because two parent-group checkboxes share those category rows.
+Its three standard setup cases passed; the actual scenario failed at that first
+assertion. No existing test, timeout, bound or coverage was changed. The later
+existing group-name, whole-cell-total and per-row-height assumptions are static
+compatibility concerns and were not reached in that run. They require
+coordinator-owned equivalent checks under the documented decision; height limits
+must not simply be raised. This scenario and exact-head canonical Chromium
+CI remain open despite the successful 14-case source-focused native run. The earlier feature's green CI does
 not accept this expanded source. Final integration and live verification remain
 required; #481 stays open.
 
