@@ -50,6 +50,12 @@ does not change the DOM collapse flags or the user's remembered selection.
   allows the complete delta and percentage to wrap too. Numbers and column counts
   remain complete, with existing type sizes. Strict geometry and tolerances are
   unchanged, with offending-cell diagnostics added to failures.
+  The next run passed all seven cases, but screenshot review found inherited
+  dark-theme text remaining pale on white print paper. A new print-mode Axe
+  regression reproduced 1.09:1 contrast, even though the root ink token and body
+  color already had the light values. The shared print shell now explicitly
+  uses the existing `--ink` token so inherited titles and table values use the
+  print palette too; explicit semantic delta colors remain intact.
   The final browser run and screenshots/PDF artifacts remain pending.
   WebKit's print emulation cannot establish physical PDF orientation; only
   actual Chromium PDFs prove the specified A4 landscape/portrait dimensions.

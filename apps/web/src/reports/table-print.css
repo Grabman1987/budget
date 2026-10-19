@@ -39,6 +39,7 @@
     padding: 0;
     overflow: visible;
     background: var(--surface);
+    color: var(--ink);
   }
   body:has(.report-table-print) .main::before {
     display: none;

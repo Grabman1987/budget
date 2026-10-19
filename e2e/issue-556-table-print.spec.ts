@@ -53,6 +53,16 @@ for (const report of reports) {
     await expect(page.locator('.sidebar')).not.toBeVisible();
     await expect(page.locator('.topbar')).not.toBeVisible();
     await expect(page.locator('.registers').first()).not.toBeVisible();
+    const printInk = await page.evaluate(() => ({
+      token: getComputedStyle(document.documentElement).getPropertyValue('--ink'),
+      body: getComputedStyle(document.body).color,
+      heading: getComputedStyle(document.querySelector('h1')!).color,
+      cell: getComputedStyle(document.querySelector('.rtable td')!).color,
+    }));
+    expect(
+      (await new AxeBuilder({ page }).include('main').analyze()).violations,
+      JSON.stringify(printInk),
+    ).toEqual([]);
     // WebKit parses named @page rules but exposes an empty computed `page` value.
     // Check the actual printed columns/bounds here; Chromium's PDF below checks paper size.
     expect(
