@@ -88,6 +88,7 @@ for (const report of reports) {
       bounds.every(
         (table) => table.width <= 1047 && table.scroll <= table.client + 1 && table.cellsFit,
       ),
+      JSON.stringify(bounds),
     ).toBe(true);
     expect(
       await page.evaluate(() =>

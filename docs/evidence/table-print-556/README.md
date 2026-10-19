@@ -40,7 +40,13 @@ does not change the DOM collapse flags or the user's remembered selection.
   true, yet returned an empty computed value. That does not establish a paper
   layout defect. The new test now checks actual headers, visibility and bounds;
   no product rule was changed in response to that instrumentation failure.
-  The corrected browser run and screenshots/PDF artifacts remain pending.
+  The corrected run then found actual Jahresansicht overflow: a 943 px table
+  had 985 px scroll width. The screen numeric-cell `white-space: nowrap` and
+  padding selectors were more specific than the print reset. The print cell
+  selector now overrides those screen rules only within the shared print class;
+  numbers and column counts remain complete, with normal wrapping and existing
+  type sizes. The strict geometric assertions and their tolerances are unchanged.
+  The final browser run and screenshots/PDF artifacts remain pending.
   WebKit's print emulation cannot establish physical PDF orientation; only
   actual Chromium PDFs prove the specified A4 landscape/portrait dimensions.
   No substitute engine or relaxed geometric tolerance proves readiness.

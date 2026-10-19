@@ -75,7 +75,8 @@
   .report-table-print .rtable tr {
     break-inside: avoid;
   }
-  .report-table-print .rtable :is(th, td) {
+  /* Beat the screen-only .table-report .rtable .n nowrap and header/cell padding. */
+  .table-report.report-table-print .rtable :is(th, td) {
     padding: 4px;
     min-width: 0;
     font-size: var(--fs-table);
