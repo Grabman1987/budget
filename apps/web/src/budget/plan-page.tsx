@@ -1378,7 +1378,7 @@ function EnvelopeRow({
       className={cx(
         'prow',
         band && 'pgroup psingle',
-        bandHeading && 'pmulti',
+        !!bandHeading && 'pmulti',
         over && 'is-over',
         credit && 'is-credit',
         selected && 'is-selected',
