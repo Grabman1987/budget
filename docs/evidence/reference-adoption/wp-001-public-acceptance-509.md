@@ -1,8 +1,9 @@
 # WP-001 / #509 — public synthetic acceptance inventory
 
-Status: **26 new focused unit tests, workspace typechecks/lint and the bounded
-native WebKit walkthrough passed; fresh aggregate check, production build,
-canonical Chromium CI and live acceptance remain pending**. The completion
+Status: **26 new focused unit tests, workspace typechecks/lint, the bounded
+native WebKit walkthrough, the fresh age-required aggregate check and normal
+production build passed. Canonical Chromium CI and live acceptance remain
+pending**. The completion
 starts at `1d0db53607e2e88aa6772ee330c21587f02b8351`, preserving the four previously
 reviewed CASE-001/002 test files and their evidence. Historical green results for
 that earlier slice do not validate these new tests. No product calculation,
@@ -80,7 +81,7 @@ hit-test evidence.
 
 On 2026-10-19, pinned Node **22.23.3** ran only the three NEW unit suites with
 `npx --no-install vitest run` and `--maxWorkers=1`: **3 files, 26 tests passed,
-6.20s, exit0**. `npm run typecheck` then `npm run lint` both exited0. CSS scale,
+6.20s, exit0**. `npm run typecheck` then `npm run lint` both exited 0. CSS scale,
 ESLint and Prettier passed; the existing `packages/ui/src/components/panel.tsx:208`
 unused-disable warning remains. These commands tested
 `1d0db53607e2e88aa6772ee330c21587f02b8351` plus the reviewed completion source
@@ -92,7 +93,7 @@ The completion was checkpointed at `78c2a0ec3cd412a1a591943f69919f9842bc346a`,
 then normally merged with live Main932 to clean
 `3eab6946e25ce87e4e7c18211772f61118f080ed`. Independent review verified all ten
 owned blobs unchanged and every inherited Main blob/mode exact. At that exact
-merged head, `npm run build:e2e` exited0, then the unmodified canonical Playwright
+merged head, `npm run build:e2e` exited 0, then the unmodified canonical Playwright
 configuration ran **only** `e2e/issue-509-reference-assurance.spec.ts` with
 `--project=webkit-iphone --workers=1`: **5/5 passed in43.8s**, comprising three
 setup cases and the desktop walkthrough16.2s and phone walkthrough13.1s. These
@@ -121,20 +122,36 @@ CSS hiding, focus mutation or product fix is claimed. No exact browser raster
 mechanism is inferred.
 
 The earlier CASE-001/002 aggregate result remains historical: it predates these
-26 new tests and the new browser source. A fresh age-required aggregate check,
-normal production build, final-head canonical Chromium CI, controlled integration
-and exact public-live checks are still required. The E2E build is not a claim
-that the separate normal production build or aggregate check has run.
+26 new tests and the new browser source. After the evidence-only checkpoint
+`a7f749512b7a2825b5a68f0245b1681efc18d060`, normal live Main713
+`bf11eebd1b14bbadbd5186be98fab3a0316c632e` was merged to clean candidate
+`aa98c7ae8d7e3a634471688785b1e97e2a558e2d`. All sixteen owned files remained
+byte-exact; every inherited Main blob/mode was exact. This mechanical merge is
+not a claim of a new browser run.
+
+At that immutable candidate, pinned Node **22.23.3** and **age 1.2.1** ran
+`BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check`: **526 test files /
+4,607 tests passed**; the Vitest portion took **407.16s**. The actual check exit
+was 0, then the separate normal **`npm run build` exited 0**, as did the wrapper.
+All sixteen owned files, all 3,340 tracked hashes, HEAD and clean status matched
+before/after both commands. No file was edited during the run. The existing
+panel.tsx:208 unused-disable warning, JSDOM `scrollTo` notices and build-size
+notices remain visible; no assertion, retry, rule or test was suppressed.
+
+The following public status/roadmap update changes documentation only; its later
+commit bytes were not rerun. Final-head canonical Chromium CI, controlled
+integration and exact public-live checks are still required. The earlier E2E
+build and the separate normal production build are recorded independently.
 
 ## Delivery and private boundaries
 
 Independent whole-financial-diff review preceded the focused tests and actual
 desktop/phone browser evidence; the normal Main merge and bounded actual images
 also received independent review. The coordinator-granted fresh age-required
-full check and production build remain pending. Exact revision, actual
-commands/counts/exits and unchanged file hashes are recorded above for completed
-steps. A failing financial
-assertion must be reported before any production fix; none is authorized here.
+full check and normal production build passed at the frozen revision above.
+Exact revisions, actual commands/counts/exits and unchanged file hashes are
+recorded for completed steps. A failing financial assertion must be reported
+before any production fix; none is authorized here.
 Required exact-head CI and controlled merge/deployment/public-live verification
 remain open. #509 cannot close while public acceptance remains unverified.
 

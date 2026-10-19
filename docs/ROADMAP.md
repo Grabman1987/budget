@@ -1,5 +1,13 @@
 # Roadmap
 
+### #509 — complete public reference-case assurance (2026-10-19)
+
+- [x] Complete the public CASE-001–007 inventory with independent literal cents/raw units across domain, real repositories and API: cash/card carry, full/partial card reserves, signed splits, transfer-scope classification and existing purchase/dividend conventions. The retained eight comparison cases and all existing tests remain unchanged; production formulas and write policy are untouched.
+- [x] Prove actual second-transfer-INSERT rollback after the first leg was reached, both-leg grouped undo with append-only audit identity, linked trade settlement undo/redo, dated pending exclusion and reconciliation locks. Reuse existing missing-debt-term proofs rather than inventing calculations ([public matrix](evidence/reference-adoption/wp-001-public-acceptance-509.md)).
+- [x] Three new suites pass 26 focused cases; all workspace types and lint pass. Actual native WebKit passes 5/5, including three setup cases plus desktop 1440 and phone 390 walkthroughs of drilldown, privacy, invalid-split blocking and grouped undo. Both themes pass strict Axe/overflow; four exact original PNGs and two safe profile proofs are independently reviewed with explicit toast/navigation capture limits.
+- [x] At frozen `aa98c7ae`, based on live Main713 `bf11eebd`, `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check` passes 526 files / 4,607 tests (Vitest 407.16s) and the separate normal production build passes. All 16 owned and all 3,340 tracked hashes, HEAD and clean status stay exact; this result precedes the following documentation-only update.
+- [ ] Final delivery-delta review, exact-head canonical Chromium CI, controlled integration/deployment and public-live verification. Keep #509 open until all public acceptance gates pass; #690 remains open until the combined delivery is live. Private holdings/returns/month-end #355/#356/#357 stay separate and open; no Gate3/Gate4 or owner acceptance is claimed.
+
 ### #632 — pending and confirmed account-register proof (2026-10-19)
 
 - [x] Audit the existing account register, then add only a dedicated isolated-ledger regression: one pending and one confirmed booking in A, plus a pending B sentinel. Literal balances are 98,199 and 49,110 cents; no product calculation or status rule changes.
