@@ -1,8 +1,9 @@
 # Account review rules — #578
 
-Status: source candidate only. No dependency installation, typecheck, unit test, browser run,
-aggregate check, or production build has yet been executed for this candidate. Independent
-whole-diff review and the coordinator's execution slot are required before first validation.
+Status: focused and native validation passed; required aggregate validation, normal production
+build, exact-head CI and live delivery remain pending. Independent whole financial/source review,
+coordinator-owned existing-test review, mechanical Main inheritance review and actual image/runtime
+review are clear. No complete delivery or all-engine acceptance is claimed.
 
 ## Read contract
 
@@ -47,26 +48,77 @@ rules. Profile wording explains the fixed rules; the separate future-preview edi
 original storage and undo behavior. No general account-list layout or #566 inbox grouping change
 is included. The due ink reuses the existing orange `--minus-ink` token.
 
-## Validation prepared, not executed
+## Executed validation
 
-- New pure fixed-date tests cover group mapping, day 14/15, calendar-month clamping, quiet accounts,
+With Node 22.23.3, `npm ci` completed successfully without changing manifests or the lockfile.
+At the pre-merge source freeze `e7fe2b81`, workspace typecheck and lint exited 0, followed by
+exactly six unit files with one worker: **74/74 tests passed in 17.27 seconds**. The selection
+contained the four new #578 domain/DB/API/UI files and the two coordinator-adapted existing
+server Heute and integrated account-review UI files. All source, protected-file, HEAD and status
+guards passed. Lint retained one existing unused-disable warning in `panel.tsx:208`.
+
+The exact 22-file candidate was checkpointed at `779ff0a3`, then normally merged with verified
+live Main `6a2c9c11` to `b6a03490`. All 22 owned blobs/modes remained exact; all inherited Main
+content remained exact. The 74-test result above is explicitly pre-merge, not a new full check
+of the merged tree.
+
+At clean `b6a03490`, a fresh `npm run build:e2e` exited 0. The official pinned WebKit helper ran
+the unchanged canonical `webkit-iphone` project with one worker and only
+`e2e/issue-578-account-review.spec.ts`: **5/5 passed in 71.090 seconds**, comprising the two new
+scenarios and three setup cases. No retries, flaky cases, skipped cases or reporter errors.
+The native wrapper, archive, post-source guards and lock-release checks all exited 0; all 22
+owned files, 3,345 tracked files, 14 protected files, HEAD and clean status remained exact.
+The compiled output contained 169 hashed files. Existing build chunk-size warnings were retained.
+
+Initial fixture errors and failed runs remain in the external validation archive. The final
+repairs were narrowly reviewed: required matching splits in the coordinator-owned ±1 fixture,
+the new test's actual nested reconciliation response, and waiting for the existing preview
+input to become enabled. No monetary, status, undo, accessibility or geometry oracle was relaxed.
+
+### Coverage verified
+
+- Pure fixed-date tests cover group mapping, day 14/15, calendar-month clamping, quiet accounts,
   opening/empty/closed cases, and separately supplied backdated/same-day activity evidence.
-- New real SQLite tests exercise equal-clock create/restore, live deletion/redo, original and older
+- Real SQLite tests exercise equal-clock create/restore, live deletion/redo, original and older
   reconciliation undo/redo, own adjustment/stamp exclusion, unrelated financial-edit undo,
   same-row valuation save/undo/redo, pre-created future maturity, and unchanged money/audit bytes.
-- New API tests compare due IDs from all three read routes, literal balances and manual values,
+- API tests compare due IDs from all three read routes, literal balances and manual values,
   real check/value/undo routes, the preserved legacy setting, and read-only storage snapshots.
-- New UI tests pin authoritative DTO display, exactly one Heute source row and existing action
+- UI tests pin authoritative DTO display, exactly one Heute source row and existing action
   destinations, fixed-rule wording, and the independent future-preview editor with undo.
-- New isolated-ledger browser scenarios are prepared for real completion/undo, literal values,
+- Isolated-ledger browser scenarios passed real completion/undo, literal values,
   due badge/count parity, quiet/empty accounts, actual theme controls, Axe, forty-four-pixel
   affected actions, overflow, and phone/desktop captures. Real WebKit desktop layout is explicitly
   separate from Chromium desktop/mobile acceptance; no engine substitution is claimed.
 
-Existing tests remain unchanged in this author worktree. Known obsolete 35-day/custom-override
-fixtures and selectors are listed separately for coordinator-owned adaptation under #467/#578;
-their money, lock, dialog, undo, accessibility, and strict financial assertions must be retained.
+### Exact images and profile limits
 
-Pending: independent whole financial review, first execution, any approved existing-test
-adaptations, actual Chromium mobile and WebKit evidence, aggregate age-required check, production
-build, exact-head CI, reviewed PR, serial integration, and exact deployed revision verification.
+The eight original full-page images in [account-review-578](account-review-578/) were opened by
+the author, coordinator and independent reviewer. Their copied bytes are exact native outputs;
+[runtime-profiles.json](account-review-578/runtime-profiles.json) is the exact 1,486-byte safe
+runtime attachment extract, without DB, session/authentication, trace, HTML or full-report data.
+
+The actual canonical phone viewport was **390 × 664**, coarse pointer, DPR 3, and observed
+`navigator.maxTouchPoints: 0`; it was not 390 × 844. The additional real WebKit desktop context
+was **1440 × 900**, fine pointer, no touch, DPR 1. Both light and dark profiles were checked.
+The engine is recorded separately from the project label: the desktop context also belongs to
+the `webkit-iphone` project. Main workflow actions use Playwright `click`; only the phone theme
+helper uses Playwright `tap`. No observed trusted touch-pointer or hardware-touch assurance is
+claimed from these commands or metadata. Reminder links and Heute's Prüfen action passed strict
+44-pixel checks; this is not an assurance that every action was simultaneously unobscured and hit-tested.
+
+Phone full-page captures retain the fixed navigation/FAB overlay at the viewport boundary,
+obscuring part of the first overview name and third reminder area in the composed photograph.
+This limitation is explicit; no layout fix, screenshot baseline refresh or additional capture
+rerun was made. The actual due states, four deadlines and quiet checked account remain readable.
+
+Root alone adapted exactly four existing test files under the #467/#578 owner decision, with
+independent delta review. The zero-net pending ±1 activity fixtures preserve the original
+0/900/12501/15002 values, and actual legacy setting save/undo is retained. The two existing unit
+files passed in the six-file run. **Existing `e2e/account-review.spec.ts` and
+`e2e/account-reminders.spec.ts` are excluded by the canonical WebKit match and were not run or
+claimed as WebKit coverage**; their exact Chromium desktop/mobile CI acceptance remains pending.
+
+Pending: required age-enabled aggregate check, normal production build, actual Chromium
+desktop/mobile acceptance, exact-head CI, reviewed PR, serial integration and exact deployed
+revision verification. Parent #467 and #566 are not completed by this evidence.
