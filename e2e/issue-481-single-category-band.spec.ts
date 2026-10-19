@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
-import { sampleTest } from './sample';
+import { sampleTest, SAMPLE_NOW, SAMPLE_URL } from './sample';
+import { STORAGE_STATE_SAMPLE } from '../playwright.config';
 import { test } from './isolated-ledger';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { cents, formatEuro } from '@budget/domain';
@@ -350,3 +351,75 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
     await expect(page.locator('.ptable-multi .prow')).toHaveCount(0);
   }
 });
+
+// Use an actual desktop context even when this regression runs in the iPhone engine project.
+sampleTest(
+  'desktop group labels stay inside their controls at 1440 pixels',
+  async ({ browser }) => {
+    const context = await browser.newContext({
+      baseURL: SAMPLE_URL,
+      storageState: STORAGE_STATE_SAMPLE,
+      viewport: { width: 1440, height: 900 },
+      isMobile: false,
+      hasTouch: false,
+      colorScheme: 'light',
+      reducedMotion: 'reduce',
+      serviceWorkers: 'block',
+    });
+    try {
+      const desktop = await context.newPage();
+      await desktop.clock.setFixedTime(new Date(SAMPLE_NOW));
+      await desktop.goto('/plan/monat?monat=2026-09');
+      await expect(desktop.locator('.ptable-zero .pmulti')).toHaveCount(8);
+      await desktop.evaluate(() => document.fonts.ready);
+      const bands = desktop.locator('.ptable-zero .pmulti');
+      let truncatedLabels = 0;
+      for (let index = 0; index < (await bands.count()); index++) {
+        const band = bands.nth(index);
+        const title = (await band.locator('.grp-title').textContent())!;
+        await expect(band.locator('.grp-toggle')).toHaveAccessibleName(`Gruppe ${title}`);
+        const geometry = await band.evaluate((row) => {
+          const title = row.querySelector<HTMLElement>('.grp-title')!;
+          const toggle = row.querySelector<HTMLElement>('.grp-toggle')!;
+          const add = row.querySelector<HTMLElement>('.band-parent .plan-add')!;
+          const selection = row.querySelector<HTMLElement>('.col-name > .plan-select')!;
+          const rect = title.getBoundingClientRect();
+          const text = document.createRange();
+          text.selectNodeContents(title);
+          const fullText = text.getBoundingClientRect();
+          const style = getComputedStyle(title);
+          return {
+            labelLeft: rect.left,
+            labelRight: rect.right,
+            labelWidth: rect.width,
+            textRight: fullText.right,
+            toggleRight: toggle.getBoundingClientRect().right,
+            addLeft: add.getBoundingClientRect().left,
+            addRight: add.getBoundingClientRect().right,
+            selectionLeft: selection.getBoundingClientRect().left,
+            clipsText: ['hidden', 'clip'].includes(style.overflowX),
+            textOverflow: style.textOverflow,
+          };
+        });
+        expect(geometry.labelWidth, title).toBeGreaterThan(0);
+        expect(geometry.labelRight, title).toBeLessThanOrEqual(geometry.toggleRight);
+        expect(geometry.toggleRight, title).toBeLessThanOrEqual(geometry.addLeft);
+        expect(geometry.addRight, title).toBeLessThanOrEqual(geometry.selectionLeft);
+        if (geometry.textRight > geometry.labelRight) {
+          truncatedLabels++;
+          expect(geometry.clipsText, title).toBe(true);
+          expect(geometry.textOverflow, title).toBe('ellipsis');
+        }
+        const paintedRight = geometry.clipsText
+          ? Math.min(geometry.textRight, geometry.labelRight)
+          : geometry.textRight;
+        expect(paintedRight, title).toBeLessThanOrEqual(geometry.addLeft);
+        expect(paintedRight, title).toBeLessThanOrEqual(geometry.selectionLeft);
+      }
+      // The sample includes long labels such as Versicherungen, so the guard is exercised.
+      expect(truncatedLabels).toBeGreaterThan(0);
+    } finally {
+      await context.close();
+    }
+  },
+);

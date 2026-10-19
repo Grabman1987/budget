@@ -73,8 +73,18 @@ coordinator inspected the actual dark capture with no new actionable finding.
 Existing desktop/mobile PNGs and JSON still describe the historical 44-row
 version and must not be used as evidence for this expanded source.
 
-The age-required full aggregate, production build and exact-head canonical
-Chromium desktop/mobile CI remain pending. The earlier feature's green CI does
+The age-required full aggregate at evidence head `c7eb3f88` passed **481 files /
+4382 tests**, plus all workspace type/lint/format checks; production build passed.
+A separate actual Desktop Safari 1440 × 900 diagnostic capture (isMobile false,
+hasTouch false, WebKit 27.2) passed Axe/no-overflow with a table height of
+1844.71875 px. It is not canonical Chromium acceptance. Image review then found
+long parent titles painting over adjacent controls: Versicherungen extended
+1.92 px into the category checkbox and overlapped the add control. A bounded
+print-independent parent-title ellipsis/clip guard now confines that text to its
+own button while preserving the full accessible group name. A new genuine desktop
+context regression measures label/toggle/add/checkbox rectangles and clipped text
+paint extents at 1440 px. Its exact-head native proof, new aggregate/build and
+canonical Chromium desktop/mobile CI remain pending. The earlier feature's green CI does
 not accept this expanded source. Final integration and live verification remain
 required; #481 stays open.
 

@@ -2461,6 +2461,11 @@
 .plan .pmulti .band-parent .grp-toggle {
   flex: 1 1 auto;
 }
+.plan .pmulti .band-parent .grp-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .plan .ptable-zero .pmulti .col-name > .plan-select {
   grid-column: 2;
   grid-row: 1 / 3;
