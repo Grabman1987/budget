@@ -133,10 +133,10 @@ describe('625 template/custom transitions retain627 exact CSV semantics', () => 
     );
     vi.stubGlobal('fetch', fetch);
     const { objectURL } = mount();
-    fireEvent.click(await screen.findByRole('button', { name: 'CSV exportieren', exact: true }));
+    fireEvent.click(await screen.findByRole('button', { name: 'CSV exportieren' }));
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
     expect(String(fetch.mock.calls[0]?.[0])).toContain('/api/overview/explorer.csv?');
-    fireEvent.click(screen.getByRole('button', { name: 'Heatmap Ausgaben', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Heatmap Ausgaben' }));
     await screen.findByTestId('template-heatmap');
     resolve(response());
     await screen.findByText(EXPLORER_CSV_CHANGED_MESSAGE, { exact: false });
@@ -151,11 +151,11 @@ describe('625 template/custom transitions retain627 exact CSV semantics', () => 
       vi.fn(async () => response()),
     );
     const { objectURL, revoke, filenames } = mount();
-    await screen.findByRole('button', { name: 'CSV exportieren', exact: true });
-    fireEvent.click(screen.getByRole('button', { name: 'Gesamttabelle', exact: true }));
+    await screen.findByRole('button', { name: 'CSV exportieren' });
+    fireEvent.click(screen.getByRole('button', { name: 'Gesamttabelle' }));
     await screen.findByTestId('template-total');
     fireEvent.click(screen.getByRole('button', { name: 'Eigene Auswertung' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'CSV exportieren', exact: true }));
+    fireEvent.click(await screen.findByRole('button', { name: 'CSV exportieren' }));
     await waitFor(() => expect(objectURL).toHaveBeenCalledTimes(1));
     expect(filenames).toEqual(['explorer-2024-01-2024-02.csv']);
     await waitFor(() => expect(revoke).toHaveBeenCalledWith('blob:synthetic-625'));
