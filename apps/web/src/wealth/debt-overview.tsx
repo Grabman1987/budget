@@ -55,7 +55,7 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
       interestRateBp: amount(terms[i]!.rate),
       installmentCents: amount(terms[i]!.payment),
       monthlyFeeCents: amount(terms[i]!.fee),
-      settledMonthly: a.type === 'credit_card',
+      settledMonthly: a.type !== 'loan',
     })),
     asOf.slice(0, 7),
     selected,
@@ -122,8 +122,9 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
           )}
           {overview.rows.some((r) => r.status === 'settled_monthly') && (
             <p className="vnote">
-              Kreditkarten werden laufend ausgeglichen: Ohne eigene Konditionen gehen sie nicht in
-              das Datum und die Zinsen ein, ihre Restschuld zählt aber zur Summe.
+              Kreditkarten und überzogene Konten werden laufend ausgeglichen: Ohne eigene
+              Konditionen gehen sie nicht in das Datum und die Zinsen ein, ihre Restschuld zählt
+              aber zur Summe.
             </p>
           )}
           <p className="vnote">

@@ -92,4 +92,20 @@ describe('credit cards in the debt overview', () => {
   it('does not add up cents of different currencies', () => {
     expect(debtOverview([loan, { ...card, currency: 'USD' }], '2026-10').remainingCents).toBeNull();
   });
+
+  it('treats an overdrawn giro like a card: no plan, no open terms, counted in the Restschuld', () => {
+    // Giro -150,25 next to the loan -100,00: Restschuld 250,25; the date and interest stay the loan's.
+    const giro = { ...card, id: 'giro', balanceCents: -15_025 };
+    const result = debtOverview([loan, giro], '2026-10');
+    expect(result.rows[1]).toMatchObject({ plan: null, status: 'settled_monthly' });
+    expect(result.termsOpen).toBe(false);
+    expect(result.remainingCents).toBe(25_025);
+    expect(result.payoffDate).toBe('2026-11-30');
+    expect(result.interestCents).toBe(141);
+    expect(debtOverview([giro], '2026-10')).toMatchObject({
+      payoffDate: null,
+      termsOpen: false,
+      remainingCents: 15_025,
+    });
+  });
 });

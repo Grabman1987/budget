@@ -11,8 +11,8 @@ export interface DebtOverviewAccount {
   monthlyFeeCents: number | null;
   originalAmountCents: number | null;
   /**
-   * Credit cards are settled on a running basis (owner decision 16.10.2026): without full terms
-   * they get no repayment plan and no "terms missing" task. Terms entered anyway are still modelled.
+   * Every non-loan debt (credit card, overdrawn giro) is settled on a running basis (owner decision
+   * 16.10.2026): without full terms it gets no repayment plan and no "terms missing" task. Terms entered anyway are still modelled.
    */
   settledMonthly?: boolean;
 }
