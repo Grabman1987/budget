@@ -1,17 +1,20 @@
 import { bySortOrder, groupAccounts } from './account-groups';
 import { accountValueEur, type AccountGroup } from './labels';
 import type { AccountRow, SeriesPoint } from './types';
-import { daysBetween } from '@budget/domain';
 import { longDay } from './format';
 import { sumTreeValues, type TreeValue } from './tree-values';
 
 /** Stored owner checks are independent of provider observation/retrieval dates. */
-export function accountCheck(account: AccountRow, today: string) {
+export function accountCheck(account: AccountRow) {
+  const review = account.reviewStatus;
+  if (!review) return { text: 'Prüfstatus nicht verfügbar', stale: false, state: 'unavailable' };
   const manual = account.type === 'p2p' || account.type === 'other_asset';
-  const date = manual ? account.lastValuedOn : account.lastReconciledOn;
+  const date = review.checkedOn;
+  const checked = date ? `${manual ? 'Wert vom' : 'geprüft am'} ${longDay(date)}` : 'nie geprüft';
   return {
-    text: date ? `${manual ? 'Wert vom' : 'geprüft am'} ${longDay(date)}` : 'nie geprüft',
-    stale: Boolean(date && daysBetween(date, today) >= 35),
+    text: review.state === 'due' ? `Fällig · ${checked}` : checked,
+    stale: review.state === 'due',
+    state: review.state,
   };
 }
 

@@ -1,4 +1,4 @@
-import { validFuturePreviewDays, validAccountReminderDays } from '@budget/domain';
+import { validFuturePreviewDays } from '@budget/domain';
 import { Button, Field, SectionHead, TextInput, useToast } from '@budget/ui';
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -17,23 +17,39 @@ export const displaySettingsQuery = () =>
       ),
   });
 export function FuturePreviewSetting({ reminder = false }: { reminder?: boolean }) {
-  const key = reminder ? 'accountReminderDays' : 'futurePreviewDays';
-  const titleId = reminder ? 'reminder-title' : 'preview-title';
-  const label = reminder ? 'Kontoprüfung erinnern nach (Tagen)' : 'Zukunftsvorschau (Tage)';
-  const min = reminder ? 1 : 0;
+  return reminder ? (
+    <section className="profile-settings" aria-labelledby="reminder-title">
+      <SectionHead id="reminder-title" title="Kontoprüfung · Erinnerung" />
+      <p>
+        Budget-Konten und Kreditkarten: nach 14 Tagen. Kredite und Investments: nach einem
+        Kalendermonat.
+      </p>
+      <p>
+        Ohne neue Buchungen seit der Prüfung bleibt ein Konto geprüft. Bei P2P und sonstigen
+        Vermögenswerten zählt die letzte Bewertung.
+      </p>
+      <p>
+        Nie geprüfte Konten werden ab Eröffnung beurteilt. Geschlossene Konten und Konten ohne
+        Buchungen werden nicht angemahnt.
+      </p>
+      <p>Für Forderungen bleibt der bisherige Erinnerungsabstand bestehen.</p>
+    </section>
+  ) : (
+    <FuturePreviewEditor />
+  );
+}
+
+function FuturePreviewEditor() {
   const query = useQuery(displaySettingsQuery());
   const qc = useQueryClient();
   const toast = useToast();
   const [draft, setDraft] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  const value = draft ?? String(query.data?.[key] ?? '');
+  const value = draft ?? String(query.data?.futurePreviewDays ?? '');
   return (
-    <section className="profile-settings" aria-labelledby={titleId}>
-      <SectionHead
-        id={titleId}
-        title={reminder ? 'Kontoprüfung · Erinnerung' : 'Darstellung · Kontovorschau'}
-      />
+    <section className="profile-settings" aria-labelledby="preview-title">
+      <SectionHead id="preview-title" title="Darstellung · Kontovorschau" />
       {query.isError ? (
         <p role="alert">
           {errorText(query.error)}{' '}
@@ -47,22 +63,19 @@ export function FuturePreviewSetting({ reminder = false }: { reminder?: boolean 
           onSubmit={(e) => {
             e.preventDefault();
             const days = Number(value);
-            if (
-              !/^\d+$/.test(value) ||
-              !(reminder ? validAccountReminderDays(days) : validFuturePreviewDays(days))
-            )
-              return setError('Bitte eine ganze Zahl von ' + min + ' bis 365 eintragen.');
+            if (!/^\d+$/.test(value) || !validFuturePreviewDays(days))
+              return setError('Bitte eine ganze Zahl von 0 bis 365 eintragen.');
             setBusy(true);
-            void request<{ groupId: string }>('PATCH', '/api/display-settings', { [key]: days })
+            void request<{ groupId: string }>('PATCH', '/api/display-settings', {
+              futurePreviewDays: days,
+            })
               .then((result) => {
                 void qc.invalidateQueries({ queryKey: displaySettingsQuery().queryKey });
                 void qc.invalidateQueries({ queryKey: LEDGER_KEY });
                 setDraft(undefined);
                 setError(undefined);
                 toast.show({
-                  message: reminder
-                    ? 'Kontoprüfung-Erinnerung gespeichert.'
-                    : 'Kontovorschau gespeichert.',
+                  message: 'Kontovorschau gespeichert.',
                   actionLabel: 'Rückgängig',
                   onAction: () =>
                     void undoGroup(result.groupId)
@@ -80,19 +93,15 @@ export function FuturePreviewSetting({ reminder = false }: { reminder?: boolean 
           }}
         >
           <Field
-            label={label}
+            label="Zukunftsvorschau (Tage)"
             error={error}
-            hint={
-              reminder
-                ? '1–365 Tage; Standard 35. Nur offene Konten mit Buchungen. Nie geprüfte Konten zählen ab Eröffnung; P2P und sonstige Vermögenswerte ab der letzten Bewertung.'
-                : '0–365 Tage; Standard 35. 0 blendet die Vorschau im Saldoverlauf aus.'
-            }
+            hint="0–365 Tage; Standard 35. 0 blendet die Vorschau im Saldoverlauf aus."
           >
             {({ id, invalid, describedBy }) => (
               <TextInput
                 id={id}
                 type="number"
-                min={min}
+                min={0}
                 max={365}
                 step={1}
                 value={value}

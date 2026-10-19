@@ -1462,3 +1462,14 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [ ] Final documentation-delta review, exact-head required CI including Chromium/Windows, serial integration and exact deployed health/live acceptance. No #617 completion or parent #528 acceptance is claimed before those gates.
 
 Evidence: [personal goal validation](evidence/reference-adoption/wp-personal-goal-617.md).
+
+
+## #578 — Account review deadlines and one Heute source
+
+Owner decision: [#467, 16 October](https://github.com/Grabman1987/budget/issues/467#issuecomment-6209941680); task [#578](https://github.com/Grabman1987/budget/issues/578). Budget accounts and credit cards use an inclusive fourteen-day deadline; loans and supported Investments use a clamped calendar month. Quiet actually checked accounts stay checked. A shared batched read-only model drives overview due badges, reminder details and Heute's one account source/count; real audit chronology covers same-day/backdated creation/restoration and preserves original check undo/redo boundaries. Legacy unsupported receivable hints/settings remain; no money, booking/check/lock, schema or undo writer changes. General account-list layout and #566 inbox grouping are outside this change.
+
+Local evidence: pre-merge Node 22 typecheck/lint exit 0 and six focused files **74/74 PASS** (17.27s); fresh E2E build exit 0 at `b6a03490`, followed by canonical real WebKit **5/5 PASS** (two new scenarios + three setup, 71.090s), both themes at actual 390 × 664 and a separate true 1440 × 900 desktop layout context. Independent whole financial/source, Root-owned four-existing-test delta, mechanical Main inheritance and actual eight-image/runtime reviews are clear. Runtime reports observed phone `maxTouchPoints: 0`; no native-touch or unobscured-hit guarantee. Fixed-nav/FAB full-page photo occlusion is explicitly qualified. See [evidence](evidence/account-review-578.md).
+
+**Required aggregate completed:** at frozen `2342ffc7`, Node 22.23.3 / age 1.2.1, `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check` passed **530 test files / 4,656 tests** (387.00s), followed by normal `npm run build` exit 0. All 32 owned / 3,370 tracked / 14 protected files, the four Root-owned existing tests, HEAD and clean status stayed exact; wrapper, postguard and lock-release checks exited 0. Existing lint/JSDOM/chunk-size warnings remain documented. Final changes are results-only in this block and the evidence document; all thirty other owned blobs remain exact.
+
+**Pending:** exact-head Chromium desktop/mobile CI (including the two old E2E specs not selected by WebKit), reviewed PR, serial integration and exact live revision. No completion of #467/#566 or deployed #578 behavior is claimed.

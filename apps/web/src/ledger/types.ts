@@ -1,4 +1,4 @@
-import type { CashValuation } from '@budget/domain';
+import type { AccountReviewStatus, CashValuation } from '@budget/domain';
 
 /** Shapes of the ledger API (`docs/api-ledger.md`); amounts are integer cents, days `YYYY-MM-DD`. */
 import type { WithValuationNotes } from './valuation-hint';
@@ -27,6 +27,8 @@ export const BOOKING_FLAGS = ['red', 'orange', 'yellow', 'green', 'blue', 'purpl
 export type BookingFlag = (typeof BOOKING_FLAGS)[number];
 
 export interface AccountRow {
+  /** Present in current account reads; missing older cached data is not proof of a quiet account. */
+  reviewStatus?: AccountReviewStatus;
   allocationScope?: 'default' | 'included' | 'excluded';
   allocationAssetClassId?: string | null;
   id: string;
