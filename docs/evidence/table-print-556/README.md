@@ -26,16 +26,24 @@ does not change the DOM collapse flags or the user's remembered selection.
   results are recorded separately once actually completed.
 - New canonical browser coverage checks Jahresansicht, Kategorieübersicht and
   Sparquote in both themes: Axe, phone overflow/touch targets, a deliberately
-  collapsed section restored in print, hidden navigation, named-page selection,
+  collapsed section restored in print, hidden navigation, unchanged table headers,
   every table cell within its table and all columns within the paper width.
 - Desktop Chromium additionally writes actual PDFs and checks their MediaBox
   dimensions for A4 landscape. WebKit runs the same print-media/DOM checks;
   it does not support Playwright PDF generation. A separate regression checks
   that the One-Pager/Jahresreport remain outside the shared page and retain
   portrait PDF dimensions on desktop Chromium.
-- Browser execution and screenshots/PDF artifacts remain pending. Existing
-  failed direct runtime launch probes are not successful browser acceptance.
-  No substitute engine, skipped assertion or relaxed tolerance proves readiness.
+- An initial genuine WebKit/iPhone run passed the portrait-route case and
+  reached the three table cases' print-media assertions, then failed on the
+  new test's computed `page` instrumentation. An isolated WebKit 27.2 probe
+  parsed the named rule and reported `CSS.supports('page', 'report-table')`
+  true, yet returned an empty computed value. That does not establish a paper
+  layout defect. The new test now checks actual headers, visibility and bounds;
+  no product rule was changed in response to that instrumentation failure.
+  The corrected browser run and screenshots/PDF artifacts remain pending.
+  WebKit's print emulation cannot establish physical PDF orientation; only
+  actual Chromium PDFs prove the specified A4 landscape/portrait dimensions.
+  No substitute engine or relaxed geometric tolerance proves readiness.
 - Existing tests, print sheets, configuration, manifests, lockfiles and
   screenshot baselines are unchanged. No merge, deployment or completion is
   claimed; #556 remains open until all acceptance and live checks pass.

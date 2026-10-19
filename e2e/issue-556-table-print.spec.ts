@@ -38,6 +38,13 @@ for (const report of reports) {
     const remembered = await page.evaluate(() =>
       localStorage.getItem(`budget.report-sections.${location.pathname}`),
     );
+    const screenColumns = await body
+      .locator('table.rtable')
+      .evaluateAll((tables) =>
+        tables.map((table) =>
+          Array.from(table.querySelectorAll('thead th'), (cell) => cell.textContent),
+        ),
+      );
     // A4 landscape minus the declared 10 mm margins, in CSS pixels at 96 dpi.
     await page.setViewportSize({ width: 1047, height: 718 });
     await page.emulateMedia({ media: 'print' });
@@ -46,9 +53,17 @@ for (const report of reports) {
     await expect(page.locator('.sidebar')).not.toBeVisible();
     await expect(page.locator('.topbar')).not.toBeVisible();
     await expect(page.locator('.registers').first()).not.toBeVisible();
-    expect(await page.locator('.sheet').evaluate((element) => getComputedStyle(element).page)).toBe(
-      'report-table',
-    );
+    // WebKit parses named @page rules but exposes an empty computed `page` value.
+    // Check the actual printed columns/bounds here; Chromium's PDF below checks paper size.
+    expect(
+      await body
+        .locator('table.rtable')
+        .evaluateAll((tables) =>
+          tables.map((table) =>
+            Array.from(table.querySelectorAll('thead th'), (cell) => cell.textContent),
+          ),
+        ),
+    ).toEqual(screenColumns);
     const bounds = await body.locator('table.rtable').evaluateAll((tables) =>
       tables.map((table) => {
         const rect = table.getBoundingClientRect();
@@ -116,9 +131,7 @@ test('the specialized One-Pager and Jahresreport keep their portrait page contra
     await expect(page.locator(sheet!).first()).toBeVisible();
     await expect(page.locator('.report-table-print')).toHaveCount(0);
     await page.emulateMedia({ media: 'print' });
-    expect(
-      await page.locator('.sheet').evaluate((element) => getComputedStyle(element).page),
-    ).not.toBe('report-table');
+    await expect(page.locator(sheet!).first()).toBeVisible();
     if (browserName === 'chromium' && info.project.name === 'desktop') {
       const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
       const pages = Array.from(
