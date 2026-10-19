@@ -314,3 +314,145 @@ describe('625 fixed templates beside retained custom views', () => {
     expect(screen.getByRole('button', { name: /Erneut/ })).toBeDefined();
   });
 });
+
+/** Immediate-staleness stress only (production defaults20s): real-router same-figure reads. */
+function mountReturningTemplate() {
+  const pending: ((response: Response) => void)[] = [];
+  const calls: { method: string; path: string }[] = [];
+  vi.stubGlobal(
+    'fetch',
+    vi.fn<typeof globalThis.fetch>((input, init) => {
+      const url = new URL(String(input), 'http://localhost');
+      calls.push({ method: init?.method ?? 'GET', path: url.pathname });
+      if (url.pathname !== '/api/report-tables/income-expense')
+        throw new Error(`Unexpected lifecycle fixture request: ${url.pathname}`);
+      return new Promise<Response>((resolve) => pending.push(resolve));
+    }),
+  );
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 0, gcTime: Infinity } },
+  });
+  clients.push(client);
+  client.setQueryData(explorerTemplateQuery.queryKey, facts);
+  const root = createRootRoute();
+  const report: ReportEntry = {
+    id: 'explorer',
+    pos: '5.3',
+    name: 'Explorer',
+    question: 'Eigene Frage',
+    form: 'Pivot',
+    controls: [],
+  };
+  const explorer = createRoute({
+    getParentRoute: () => root,
+    path: '/reports/explorer',
+    validateSearch: (value: Record<string, unknown>) => ({
+      ...validateReportSearch(value),
+      zeitraum: value['zeitraum'],
+    }),
+    component: () => <ExplorerReportPage report={report} meta={{} as PageMeta} />,
+  });
+  const bookings = createRoute({
+    getParentRoute: () => root,
+    path: '/konten/buchungen',
+    validateSearch: (value: Record<string, unknown>) => ({ buchung: value['buchung'] }),
+    component: () => <p data-testid="lifecycle-raw-booking">Raw source booking −20,02 €</p>,
+  });
+  const router = createRouter({
+    routeTree: root.addChildren([explorer, bookings]),
+    history: createMemoryHistory({
+      initialEntries: ['/reports/explorer?vorlage=heatmap&zeitraum=1J&kategorien=%5B%22food%22%5D'],
+    }),
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <ToastProvider>
+        <RouterProvider router={router} />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  const resolve = async (index: number) => {
+    const done = pending[index];
+    if (!done) throw new Error(`Expected pending canonical read ${index}`);
+    await act(async () =>
+      done(
+        new Response(JSON.stringify(facts), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+  };
+  return { router, client, calls, pending, resolve };
+}
+
+describe('625 source booking → history back → close under immediate-staleness stress', () => {
+  it.each(['already-resolved', 'pending-return-observed'] as const)(
+    'clears only selected cell and returns focus with %s refetch',
+    async (phase) => {
+      const { router, client, calls, pending, resolve } = mountReturningTemplate();
+      await waitFor(() => expect(pending).toHaveLength(1));
+      await resolve(0);
+      await screen.findByTestId('template-heatmap');
+      expect(client.getDefaultOptions().queries?.staleTime).toBe(0);
+      const cell = () =>
+        screen.getByRole('button', { name: /Lebensmittel · Februar 2024 · 20,01 €/ });
+      fireEvent.click(cell());
+      const sources = await screen.findByTestId('template-sources');
+      expect(sources.textContent).toContain('Gewählte Zelle: 20,01 €');
+      expect(sources.textContent).toContain('Summe der zugeordneten Anteile: 20,01 €');
+      expect(sources.textContent).toContain('20,02 €');
+      expect(sources.textContent).toContain('−0,01 €');
+      const links = within(sources).getAllByRole('link');
+      expect(links.map((link) => link.getAttribute('href'))).toEqual([
+        '/konten/buchungen?buchung=out',
+        '/konten/buchungen?buchung=refund',
+      ]);
+      fireEvent.click(links[0]!);
+      await screen.findByTestId('lifecycle-raw-booking');
+      expect(router.state.location.search).toMatchObject({ buchung: 'out' });
+      await act(async () => router.history.back());
+      await waitFor(() => expect(pending).toHaveLength(2));
+      expect(router.state.location.search).toMatchObject({
+        vorlage: 'heatmap',
+        zeitraum: '1J',
+        kategorien: ['food'],
+        zelle: 'cat:food',
+        spalte: '2024-02',
+      });
+      if (phase === 'pending-return-observed') {
+        // Existing stale-scope protection intentionally hides the entire template while fetching.
+        // Observe that lifecycle without turning it into a new close-while-pending requirement.
+        expect(client.getQueryState(explorerTemplateQuery.queryKey)?.fetchStatus).toBe('fetching');
+        expect(screen.queryByTestId('template-heatmap')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Buchungen schließen' })).toBeNull();
+        console.info('625-unit-pending-return', {
+          phase,
+          sourcePresent: false,
+          fetchStatus: 'fetching',
+        });
+      }
+      await resolve(1);
+      await screen.findByTestId('template-sources');
+      const close = screen.getByRole('button', { name: 'Buchungen schließen' });
+      fireEvent.click(close);
+      await waitFor(() => {
+        expect(router.state.location.search.zelle).toBeUndefined();
+        expect(router.state.location.search.spalte).toBeUndefined();
+      });
+      await screen.findByTestId('template-heatmap');
+      await waitFor(() => expect(screen.queryByTestId('template-sources')).toBeNull());
+      expect(router.state.location.search).toMatchObject({
+        vorlage: 'heatmap',
+        zeitraum: '1J',
+        kategorien: ['food'],
+      });
+      await waitFor(() => expect(document.activeElement).toBe(cell()));
+      expect(
+        calls.every(
+          (call) => call.method === 'GET' && call.path === '/api/report-tables/income-expense',
+        ),
+      ).toBe(true);
+    },
+  );
+});

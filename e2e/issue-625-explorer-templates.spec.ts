@@ -105,6 +105,7 @@ async function inspect(
   id: (typeof templates)[number][0],
   ids: ReturnType<typeof seed>,
 ) {
+  const closeObservation = await observe625Close(page);
   await page.addInitScript(() => localStorage.setItem('budget-theme', 'light'));
   await page.goto(
     `/reports/explorer?vorlage=${id}&zeitraum=${id === 'total' ? '3J' : id === 'year' ? 'YTD' : '1J'}&kategorien=%5B%22food%22%5D`,
@@ -157,8 +158,24 @@ async function inspect(
   await expect(page.locator(`[data-booking="${ids.out}"]`)).toContainText('−20,02');
   await page.goBack();
   await expect(page.getByTestId('template-sources')).toBeVisible();
-  await page.getByRole('button', { name: 'Buchungen schließen' }).click();
-  await expect(detail).toHaveCount(0);
+  try {
+    await page.getByRole('button', { name: 'Buchungen schließen' }).click();
+    await expect(detail).toHaveCount(0);
+  } finally {
+    try {
+      const evidence = { events: closeObservation, final: await safe625Location(page) };
+      const path = info.outputPath('625-safe-close-chronology.json');
+      await writeFile(path, JSON.stringify(evidence, null, 2));
+      await info.attach('625-safe-close-chronology', { path, contentType: 'application/json' });
+      console.info('625-safe-close-chronology', JSON.stringify(evidence));
+    } catch (error) {
+      // Optional diagnosis must never replace the original click/assertion failure.
+      console.info(
+        '625-close-diagnostic-unavailable',
+        error instanceof Error ? error.name : 'UnknownError',
+      );
+    }
+  }
   const measurements = [];
   for (const value of ['dark', 'light'] as const) {
     await theme(page, value);
@@ -322,3 +339,142 @@ test('saved custom view and exact627 CSV survive fixed-template use with grouped
   await expect(view).toHaveCount(0);
   expect(financialFingerprint(isolatedLedger.databasePath)).toBe(before);
 });
+
+/** Passive CI diagnosis only: no navigation/fetch override, focus mutation or input synthesis. */
+async function safe625Location(page: Page) {
+  return page.evaluate(() => {
+    const search = new URLSearchParams(location.search);
+    return {
+      path: location.pathname,
+      selected: Object.fromEntries(
+        ['vorlage', 'zelle', 'spalte', 'zeitraum', 'kategorien'].map((key) => [
+          key,
+          search.get(key),
+        ]),
+      ),
+    };
+  });
+}
+async function observe625Close(page: Page) {
+  const events: Record<string, unknown>[] = [];
+  const push = (record: Record<string, unknown>) => {
+    if (events.length < 160) events.push({ observedAt: Date.now(), ...record });
+  };
+  page.on('console', (message) => {
+    const text = message.text();
+    const prefix = 'budget625-safe-close ';
+    if (text.startsWith(prefix)) {
+      try {
+        push({
+          channel: 'dom',
+          ...(JSON.parse(text.slice(prefix.length)) as Record<string, unknown>),
+        });
+      } catch {
+        push({ channel: 'diagnostic-json-invalid' });
+      }
+    }
+  });
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/report-tables/income-expense')
+      push({ channel: 'canonical-read-start', method: request.method() });
+  });
+  page.on('response', (response) => {
+    if (new URL(response.url()).pathname === '/api/report-tables/income-expense')
+      push({ channel: 'canonical-read-response', status: response.status() });
+  });
+  page.on('framenavigated', (frame) => {
+    if (frame !== page.mainFrame()) return;
+    const url = new URL(frame.url());
+    push({
+      channel: 'main-frame-navigation',
+      path: url.pathname,
+      selected: Object.fromEntries(
+        ['vorlage', 'zelle', 'spalte', 'zeitraum', 'kategorien'].map((key) => [
+          key,
+          url.searchParams.get(key),
+        ]),
+      ),
+    });
+  });
+  await page.addInitScript(() => {
+    let count = 0;
+    const target = (value: EventTarget | null) => {
+      const element = value instanceof Element ? value : null;
+      if (!element) return { kind: 'none' };
+      const cell = element.closest<HTMLElement>('.table-cell-open');
+      if (cell)
+        return {
+          kind: 'cell',
+          row: cell.closest('[data-template-row]')?.getAttribute('data-template-row'),
+          column: cell.dataset['templateColumn'],
+        };
+      if (element.closest('.ex-template-sources h3')) return { kind: 'source-heading' };
+      if (element.closest('.ex-template-sources a')) return { kind: 'source-link' };
+      const button = element.closest('button');
+      if (
+        button?.closest('.ex-template-sources') &&
+        button.textContent?.trim() === 'Buchungen schließen'
+      )
+        return { kind: 'close' };
+      return { kind: 'other', tag: element.tagName };
+    };
+    const emit = (event: string, extra: Record<string, unknown> = {}) => {
+      if (count++ >= 100) return;
+      const search = new URLSearchParams(location.search);
+      console.info(
+        'budget625-safe-close ' +
+          JSON.stringify({
+            event,
+            at: performance.now(),
+            path: location.pathname,
+            selected: Object.fromEntries(
+              ['vorlage', 'zelle', 'spalte', 'zeitraum', 'kategorien'].map((key) => [
+                key,
+                search.get(key),
+              ]),
+            ),
+            sourceCount: document.querySelectorAll('[data-testid="template-sources"]').length,
+            templateCount: document.querySelectorAll('.ex-template').length,
+            loading: [...document.querySelectorAll('.rev-empty[aria-busy="true"]')].some(
+              (element) => element.textContent?.includes('Vorlage'),
+            ),
+            active: target(document.activeElement),
+            ...extra,
+          }),
+      );
+    };
+    for (const name of ['pointerdown', 'pointerup', 'click', 'focusin', 'focusout']) {
+      document.addEventListener(
+        name,
+        (event) => {
+          const item = target(event.target);
+          if (item.kind !== 'other' && item.kind !== 'none')
+            emit(name, {
+              target: item,
+              trusted: event.isTrusted,
+              pointerType: 'pointerType' in event ? event.pointerType : null,
+            });
+        },
+        { passive: true, capture: true },
+      );
+    }
+    window.addEventListener('popstate', () => emit('popstate'), { passive: true });
+    let previous = '';
+    new MutationObserver(() => {
+      const signature = JSON.stringify([
+        document.querySelectorAll('[data-testid="template-sources"]').length,
+        document.querySelectorAll('.ex-template').length,
+        [...document.querySelectorAll('.rev-empty[aria-busy="true"]')].some((element) =>
+          element.textContent?.includes('Vorlage'),
+        ),
+        location.pathname,
+        location.search,
+      ]);
+      if (signature !== previous) {
+        previous = signature;
+        emit('mount-or-route');
+      }
+    }).observe(document, { childList: true, subtree: true });
+  });
+  return events;
+}
