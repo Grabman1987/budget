@@ -103,7 +103,7 @@ export const PAGES: ReadonlyArray<PageDef> = [
     area: 'vermoegen',
     register: 'nettovermoegen',
     fills: P5,
-    spec: 'Leitwert mit Maßkette Anfang + Eigenleistung + Markt, Zusammensetzung, Verlauf.',
+    spec: 'Leitwert mit Maßkette Anfang + Gespart + Markt, Zusammensetzung, Verlauf.',
   },
   {
     path: '/vermoegen/portfolio',
