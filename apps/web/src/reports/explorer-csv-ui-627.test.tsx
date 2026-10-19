@@ -3,6 +3,13 @@ import { DEFAULT_EXPLORER_QUERY, explorerCsv, type ExplorerQuery } from '@budget
 import type { ExplorerReport } from '@budget/db';
 import { ToastProvider } from '@budget/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,6 +17,7 @@ import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { ExplorerReportPage } from './explorer-report';
 import { explorerQuery } from './overview-api';
+import { validateReportSearch } from './report-search';
 
 vi.mock('../pages/placeholder-page', () => ({
   PageFrame: ({ children }: { children: ReactNode }) => <main>{children}</main>,
@@ -93,10 +101,21 @@ function mount() {
     form: 'Pivot',
     controls: [],
   };
+  const root = createRootRoute();
+  const route = createRoute({
+    getParentRoute: () => root,
+    path: '/reports/explorer',
+    validateSearch: validateReportSearch,
+    component: () => <ExplorerReportPage report={report} meta={{} as PageMeta} />,
+  });
+  const router = createRouter({
+    routeTree: root.addChildren([route]),
+    history: createMemoryHistory({ initialEntries: ['/reports/explorer'] }),
+  });
   render(
     <QueryClientProvider client={client}>
       <ToastProvider>
-        <ExplorerReportPage report={report} meta={{} as PageMeta} />
+        <RouterProvider router={router} />
       </ToastProvider>
     </QueryClientProvider>,
   );

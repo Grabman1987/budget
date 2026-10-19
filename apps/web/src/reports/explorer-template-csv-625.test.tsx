@@ -9,7 +9,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PageMeta } from '../nav/pages';
@@ -125,8 +125,8 @@ const response = () =>
 describe('625 template/custom transitions retain627 exact CSV semantics', () => {
   it('rejects an otherwise byte-identical custom CSV when the displayed table switches to a fixed template', async () => {
     let resolve!: (value: Response) => void;
-    const fetch = vi.fn(
-      (_input: RequestInfo | URL, _options?: RequestInit) =>
+    const fetch = vi.fn<typeof globalThis.fetch>(
+      () =>
         new Promise<Response>((done) => {
           resolve = done;
         }),
@@ -155,9 +155,27 @@ describe('625 template/custom transitions retain627 exact CSV semantics', () => 
     fireEvent.click(screen.getByRole('button', { name: 'Gesamttabelle' }));
     await screen.findByTestId('template-total');
     fireEvent.click(screen.getByRole('button', { name: 'Eigene Auswertung' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'CSV exportieren' }));
-    await waitFor(() => expect(objectURL).toHaveBeenCalledTimes(1));
-    expect(filenames).toEqual(['explorer-2024-01-2024-02.csv']);
-    await waitFor(() => expect(revoke).toHaveBeenCalledWith('blob:synthetic-625'));
+    const button = await screen.findByRole('button', { name: 'CSV exportieren' });
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      await act(async () => {
+        fireEvent.click(button);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(objectURL).toHaveBeenCalledTimes(1);
+      expect(filenames).toEqual(['explorer-2024-01-2024-02.csv']);
+      expect(revoke).not.toHaveBeenCalled();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(999);
+      });
+      expect(revoke).not.toHaveBeenCalled();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(revoke).toHaveBeenCalledTimes(1);
+      expect(revoke).toHaveBeenCalledWith('blob:synthetic-625');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

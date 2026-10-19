@@ -1,4 +1,4 @@
-import { createBooking, createTestDatabase } from '@budget/db';
+import { createBooking, createTestDatabase, getBooking } from '@budget/db';
 import {
   explorerTemplate,
   explorerTemplateSources,
@@ -65,9 +65,11 @@ function setup(denied = false) {
       denied ? context.json({ error: 'unauthenticated' }, 401) : next(),
     requireStepUp: async (context) => context.json({ error: 'step_up_required' }, 403),
   };
+  const sharedBooking = getBooking(opened.db, shared);
+  if (!sharedBooking) throw new Error('Synthetic split booking was not read back');
   return {
     opened,
-    shared,
+    shared: sharedBooking,
     app: createApp({ webDir, auth, ledger: { db: opened.db, today: () => '2024-03-05' } }),
   };
 }

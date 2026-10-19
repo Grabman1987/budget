@@ -197,10 +197,9 @@ describe('625 fixed templates beside retained custom views', () => {
         .getAllByRole('button')
         .map((button) => button.textContent),
     ).toEqual(['Heatmap Ausgaben', 'Jahresansicht', 'Gesamttabelle', 'Kategorie im Verlauf']);
-    expect(screen.getByRole('button', { name: 'Wunsch je Quartal' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    expect(
+      screen.getByRole('button', { name: 'Wunsch je Quartal' }).getAttribute('aria-pressed'),
+    ).toBe('true');
     expect(
       validateReportSearch({
         vorlage: 'category',
@@ -257,7 +256,9 @@ describe('625 fixed templates beside retained custom views', () => {
     expect(screen.queryByRole('button', { name: /15,01/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Jahresansicht' }));
     await screen.findByTestId('template-year');
-    expect(screen.getByRole('combobox', { name: 'Jahr' })).toHaveValue('2024');
+    expect((screen.getByRole('combobox', { name: 'Jahr' }) as HTMLSelectElement).value).toBe(
+      '2024',
+    );
   });
 
   it('restores a saved custom tuple and its validated CSV control without changing the saved schema', async () => {
@@ -268,7 +269,7 @@ describe('625 fixed templates beside retained custom views', () => {
     expect(screen.queryByRole('textbox', { name: 'Ansicht speichern' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Mein Filter' }));
     const csv = await screen.findByRole('button', { name: 'CSV exportieren' });
-    expect(csv).toBeEnabled();
+    expect(csv.matches(':enabled')).toBe(true);
     expect(screen.queryByTestId('template-heatmap')).toBeNull();
     expect(screen.getByTestId('ex-table').textContent).toContain('Eigene Kategorie');
     expect(saved.write).not.toHaveBeenCalled();

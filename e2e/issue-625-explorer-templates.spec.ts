@@ -49,7 +49,7 @@ function seed(path: string) {
     book('2026-08-06', -3000, [{ amountCents: -3000, categoryId: 'saving' }]);
     book('2026-09-02', 30003, [{ amountCents: 30003, incomeTypeId: 'income-salary' }]);
     book('2026-09-04', -700, [{ amountCents: -700, categoryId: 'food' }]);
-    return { out: out.id, refund: refund.id };
+    return { out, refund };
   } finally {
     opened.close();
   }
@@ -133,7 +133,7 @@ async function inspect(
     const chart = panel.locator('.chart-interactive').first();
     await chart.focus();
     for (let index = 0; index < 12; index++) await chart.press('ArrowRight');
-    await expect(page.getByRole('status')).toContainText('20,01 €');
+    await expect(page.locator('.chart-tooltip[role="status"]')).toContainText('20,01 €');
     await chart.evaluate((element) => (element as HTMLElement).blur());
   }
   await monthly.click();
