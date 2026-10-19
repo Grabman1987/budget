@@ -57,6 +57,12 @@ for (const report of reports) {
     await expect(body.locator('.seg-depth')).not.toBeVisible();
     // Print media can settle incrementally after screen-mode accessibility analysis.
     // Require the actual paper/foreground palette before measuring its contrast.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
     await expect
       .poll(() =>
         page.evaluate(() => {
