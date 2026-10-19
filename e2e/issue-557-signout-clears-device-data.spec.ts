@@ -85,6 +85,22 @@ async function snapshot(page: Page): Promise<Snapshot> {
 test('sign-out deletes cached choices, capture memory and data caches; shell and preferences stay', async ({
   page,
 }, info) => {
+  // page.route() is not reliable with an active service worker (WebKit let the real logout through
+  // and revoked the session shared by all specs), so the logout answer is faked inside the page.
+  await page.addInitScript(() => {
+    const original = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      const url = input instanceof Request ? input.url : String(input);
+      return url.endsWith('/api/auth/logout')
+        ? Promise.resolve(
+            new Response('{"ok":true}', {
+              status: 200,
+              headers: { 'content-type': 'application/json' },
+            }),
+          )
+        : original(input, init);
+    };
+  });
   const created = await page.request.post('/api/accounts', {
     headers: { origin: MAIN_URL },
     data: {
@@ -121,7 +137,6 @@ test('sign-out deletes cached choices, capture memory and data caches; shell and
   expect(before.caches.some((name) => name.startsWith('budget-shell-'))).toBe(true);
   expect(before.caches).toContain('api-responses-seed');
 
-  await page.route('**/api/auth/logout', (route) => route.fulfill({ json: { ok: true } }));
   await page.goto('/einstellungen/sicherheit');
   await page.getByRole('button', { name: 'Abmelden' }).click();
 
