@@ -128,3 +128,27 @@ the approved product contract take precedence over generic sample skins. No loca
 Impeccable engine was available; no engine detector result is claimed. The actual
 prototype and desktop reference image were inspected. No existing tests were changed
 by the implementer. No baselines, manifests or repository rules were changed.
+
+
+## Current-main compatibility check
+
+At normal merged head `061ee7e8`, canonical CI found that the old #615 test's
+broad note search matched both the original scope paragraph and the new historical
+table caption. The coordinator narrowed only that note locator to the complete
+original paragraph, with `exact: true`. Removing the formatted locator block
+restores every original test byte (SHA256 `5d984db5dc3cd3eac04b3e65ed48f6b96927106c5b2719da0dbe57aaa5a99b56`).
+All original monetary, privacy, interaction and timeout assertions remain unchanged.
+The independent existing-test review cleared the exact patch; no product source changed.
+
+| Existing test file | Coordinator-only adaptation | Authority and retained checks |
+| --- | --- | --- |
+| `e2e/issue-615-freedom-universe.spec.ts` | Select the original full scope note exactly, excluding the additional historical caption | Approved #616 historical curve composition and owner UI test-change policy; every other original test byte, financial value and privacy assertion unchanged. |
+| `e2e/issue-618-freedom-info-switch.spec.ts` | Advance seven lines past actual dates before the unchanged forecast loop | Approved #616 actual curve; original forecast values, actions and timeouts retained as documented above. |
+
+With that root-owned #615 patch, the current-main E2E build passed and genuine
+WebKit 27.2 passed all **11/11** selected cases in 1.0 minute: three unchanged
+setup cases, both existing #615 cases, both new #616 cases and all four original
+#618 cases. Log: `616-combined-parent-native.log` in the external coordinator log
+directory. The prior source/full-check evidence remains as dated above; this
+compatibility run does not claim a repeated unit/build aggregate. Final complete
+exact-head CI and serial live acceptance remain required.
