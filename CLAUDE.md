@@ -48,7 +48,9 @@ Local profiles and selection rationale: [`docs/skills.md`](docs/skills.md). Load
 
 ## Autonomous queue rules
 
-Process, roles, lanes, risk classes, test-change policy, baselines, merging and closing: [`docs/queue/README.md`](docs/queue/README.md). One issue = one worktree = one PR; Sonnet agents implement and never merge, the Opus orchestrator reviews and merges. The unattended loop (`loop.sh`, `automerge.sh`, `run_queue.sh`, `live.sh`) is not in use; restart only with owner approval.
+Process, roles, lanes, risk classes, test-change policy, baselines, merging and closing: [`docs/queue/README.md`](docs/queue/README.md). One issue = one worktree = one PR; implementing agents never merge. Owner authorization (2026-10-19, #694): an independent Codex reviewer may replace the named Opus reviewer with the same full-diff scope; an Opus or Codex orchestrator may perform subsequent serial integration, including regular deployment, through the existing required CI and live gates. Role separation, the existing-test policy, branch protection and closing criteria remain unchanged.
+
+The unattended loop (`loop.sh`, `automerge.sh`, `run_queue.sh`, `live.sh`) remains not in use; restart only with separate owner approval. The model/integration authorization does not enable these loops or release binding STOP files.
 
 Hard guardrails (no exceptions without the owner):
 
