@@ -96,7 +96,7 @@ describe('treeValues', () => {
   it('adds up the positions of one depot across securities and ignores other accounts', () => {
     const values = treeValues(
       [depot, settlement],
-      view([held('depot', 1000), held('other', 999_999)], [held('depot', 468)]),
+      view([held('depot', 2000), held('other', 999_999)], [held('depot', 468)]),
     );
     expect(values.get('depot')?.cents).toBe(2468);
     expect(values.get('cash')?.cents).toBe(9155);
