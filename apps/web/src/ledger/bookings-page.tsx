@@ -21,6 +21,7 @@ import { KONTEN_BUCHUNGEN_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
 import { BookingTable, type Selection } from './booking-table';
+import { BookingStatusChips } from './booking-status-chips';
 import { useRegisterToday, useUpcomingRegister } from './upcoming-register';
 import { CategoryCombobox } from './category-picker';
 import {
@@ -162,6 +163,7 @@ export function BookingsPage() {
             accounts={accounts.data?.accounts ?? []}
             lookups={lookups.data}
           />
+          <BookingStatusChips value={filter.status} onChange={(status) => setSearch({ status })} />
           {selected.size > 0 && (
             <div className="kbulk" role="group" aria-label="Auswahl bearbeiten">
               <strong>{selected.size} ausgewählt</strong>
