@@ -545,13 +545,13 @@ Je Konto: Quelle (Bank-Sync PSD2, API nur lesen, Datei-Import, manuell), Schalte
 
 ### Vermögen
 - **Register** Nettovermögen · Portfolio · Schulden · Freiheitszahl; Zeitraumschalter 1M · 3M · YTD · 1J · 3J · Alles im Schriftfeld (gilt für Nettovermögen und Portfolio).
-- **Nettovermögen:** Leitwert mit Maßkette Anfang + Eigenleistung + Markt = jetzt; daneben „Woraus es besteht“ als sortierte Balken (Schulden gestrichelt); Verlauf als Linie, darunter je Monat zwei Balken um Null: Eigenleistung (Tusche) und Markt (blasse Tusche).
+- **Nettovermögen:** Leitwert mit Maßkette Anfang + Gespart + Markt = jetzt; daneben „Woraus es besteht“ als sortierte Balken (Schulden gestrichelt); Verlauf als Linie, darunter je Monat zwei Balken um Null: Gespart (Tusche) und Markt (blasse Tusche).
 - **Portfolio:** Wert, TTWROR, IRR, Weltindex, Kosten, Ausschüttungen als Kennzahlenreihe; indexierte Linie gegen den Weltindex (Strichpunkt); **Aufteilung Soll/Ist** als Spur mit Toleranzband (getönt, gestrichelte Ränder), Soll-Marke als schwarzer Strich, Ist als Balken (Rotstift, wenn außerhalb des Bands); Rebalancing als Revisionstabelle; Positionen als Stückliste nach Anlageklasse; Plattform-Anteile.
 - **Schulden:** Restschuld mit Maßkette; Sondertilgung als Rechenfeld, das Schuldenfrei-Datum, Zinsen und Ersparnis sofort neu rechnet; Restschuld-Linie: bisher durchgezogen, Plan gestrichelt blass, Szenario gestrichelt Tusche, Höhenkoten am Schuldenfrei-Monat; Zins/Tilgung je Jahr; Kartenauslastung.
 - **Freiheitszahl:** Leitwert in Prozent mit Maßkette Investiert ÷ 25 Jahresausgaben; Fortschrittsbalken mit Vierteln; Annahmen (Sparrate, Rendite) als Auswahl; Prognoselinie gestrichelt bis zur Ziellinie mit Höhenkote „Ziel Jahr“.
 
 ### Reports (Zeichnungsverzeichnis)
-- **Ein Hauptbuch:** Alle 25 Reports lesen `reports-core.js` (Okt 2023 bis 17.09.2026). Nettovermögen entsteht aus dem Hauptbuch (Eigenleistung = Einnahmen − Konsum + reguläre Tilgung, Markt = Depot × Monatsrendite) und ist dieselbe Reihe wie auf Heute und Vermögen. Keine Zahl darf nur in einem Report existieren.
+- **Ein Hauptbuch:** Alle 25 Reports lesen `reports-core.js` (Okt 2023 bis 17.09.2026). Nettovermögen entsteht aus dem Hauptbuch (Gespart = Einnahmen − Konsum + reguläre Tilgung, Markt = Depot × Monatsrendite) und ist dieselbe Reihe wie auf Heute und Vermögen. Keine Zahl darf nur in einem Report existieren.
 - **Katalog als Stückliste:** Register Katalog · Monat und Einkommen · Ausgaben und Plan · Zukunft und Vermögen · Überblick; Baugruppen 1–4 mit Positionen 1.1 bis 4.5, Spalten Report · Frage · Diagrammform · Steuerung. Die ganze Zeile öffnet den Report.
 - **Report-Schriftfeld:** Rücksprung zur Baugruppe, Positionsmarke (`1.1`), Titel, Frage; daneben Stand und genau eine Steuerung: Monat (Auswahl mit Vor/Zurück), Jahr (Segment) oder Zeitraum (1M · 3M · YTD · 1J · 3J · Alles). Druckblätter bekommen zusätzlich „Drucken“. Unten „Vorige/Nächste Zeichnung“.
 - **Aufbau:** Leitwert + Maßkette, dann das eine Hauptdiagramm, dann die Tabelle, aus der jede Zahl stammt. Raster 7:5, breite Abschnitte über beide Spalten.

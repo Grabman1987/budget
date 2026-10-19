@@ -305,7 +305,7 @@ function NetWorth({ data }: { data: OnePagerData }) {
             label={`Nettovermögen der letzten ${nw.series.length} Monatsenden bis ${eur(nw.cents)}`}
           />
           <p className="ps-note">
-            Eigenleistung {signed(nw.ownCents)} · Markt {signed(nw.marketCents)}
+            Gespart {signed(nw.ownCents)} · Markt {signed(nw.marketCents)}
           </p>
         </>
       )}
