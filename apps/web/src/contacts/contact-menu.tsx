@@ -20,10 +20,10 @@ export function ContactActionsMenu({ name, onSettle }: { name: string; onSettle:
       trigger.current?.focus();
     };
     document.addEventListener('pointerdown', onDown);
-    document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
     return () => {
       document.removeEventListener('pointerdown', onDown);
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
     };
   }, [open]);
   return (
