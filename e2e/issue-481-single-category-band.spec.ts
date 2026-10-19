@@ -74,12 +74,85 @@ async function expectOnscreenParentInk(page: Page) {
     const id = await band.getAttribute('id');
     const axe = await new AxeBuilder({ page }).include(`[id="${id}"]`).analyze();
     expect(axe.violations, id!).toEqual([]);
-    // The on-screen band must actually undergo a contrast check, rather than be skipped.
-    expect(
-      axe.passes.some((rule) => rule.id === 'color-contrast'),
-      id!,
-    ).toBe(true);
-    results.push({ id, ink });
+    const incomplete = axe.incomplete.filter((rule) => rule.id === 'color-contrast');
+    const reasons = incomplete.flatMap((rule) =>
+      rule.nodes.flatMap((node) =>
+        [...node.any, ...node.all, ...node.none].map((check) => ({
+          message: check.message,
+          key: (check.data as { messageKey?: string } | null)?.messageKey,
+        })),
+      ),
+    );
+    const coverage = {
+      passed: axe.passes.some((rule) => rule.id === 'color-contrast'),
+      incomplete: incomplete.length,
+      inapplicable: axe.inapplicable.some((rule) => rule.id === 'color-contrast'),
+      reasons,
+    };
+    // Axe cannot resolve the background behind .main's pseudo element here.
+    // Record that real limitation; unknown incomplete reasons still fail closed.
+    if (!coverage.passed) {
+      expect(reasons.length, id!).toBeGreaterThan(0);
+      expect(
+        reasons.every((reason) => reason.key === 'pseudoContent'),
+        id!,
+      ).toBe(true);
+    }
+    const contrast = await toggle.evaluate((button) => {
+      const channels = (value: string) => {
+        const match = value.match(
+          /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/,
+        );
+        if (!match) throw new Error(`Unknown computed color: ${value}`);
+        const alpha = match[4] === undefined ? 1 : Number(match[4]);
+        if (alpha === 0) return null;
+        if (alpha !== 1) throw new Error(`Non-opaque computed color: ${value}`);
+        const rgb = match.slice(1, 4).map(Number);
+        if (rgb.some((value) => !Number.isFinite(value) || value < 0 || value > 255))
+          throw new Error(`Invalid computed color: ${value}`);
+        return rgb;
+      };
+      // WCAG relative luminance in sRGB; no rounded ratios or tolerance adjustment.
+      const luminance = (rgb: number[]) =>
+        rgb
+          .map((value) => {
+            const channel = value / 255;
+            return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+          })
+          .reduce((total, value, index) => total + value * [0.2126, 0.7152, 0.0722][index]!, 0);
+      return [button, button.querySelector('.grp-title')!, button.querySelector('svg')!].map(
+        (element) => {
+          const foreground = channels(getComputedStyle(element).color);
+          if (!foreground) throw new Error('Transparent parent foreground');
+          let background: number[] | null = null;
+          let backgroundCss = '';
+          for (
+            let ancestor: Element | null = element;
+            ancestor;
+            ancestor = ancestor.parentElement
+          ) {
+            const style = getComputedStyle(ancestor);
+            if (Number(style.opacity) !== 1)
+              throw new Error(`Non-opaque parent ancestor: ${ancestor.className}`);
+            backgroundCss = style.backgroundColor;
+            background = channels(backgroundCss);
+            if (background) break;
+          }
+          if (!background) throw new Error('No opaque painted ancestor for parent');
+          const a = luminance(foreground),
+            b = luminance(background);
+          return {
+            element: element.tagName,
+            foreground: getComputedStyle(element).color,
+            background: backgroundCss,
+            ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05),
+          };
+        },
+      );
+    });
+    for (const value of contrast)
+      expect(value.ratio, JSON.stringify({ id, ...value })).toBeGreaterThanOrEqual(4.5);
+    results.push({ id, ink, contrast, axeColorContrast: coverage });
   }
   return results;
 }
