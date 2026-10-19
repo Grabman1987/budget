@@ -22,14 +22,14 @@ describe('periodText', () => {
 });
 
 describe('chainTerms', () => {
-  it('Anfang + Eigenleistung + Markt = jetzt, a negative term is subtracted by its magnitude', () => {
+  it('Anfang + Gespart + Markt = jetzt, a negative term is subtracted by its magnitude', () => {
     const terms = chainTerms(
       { startCents: 7_000_000, ownCents: 1_500_000, marketCents: -200_000, nowCents: 8_300_000 },
       '2025-12-31',
     );
     expect(terms).toEqual([
       { label: 'Anfang Dez 2025', value: 7_000_000 },
-      { label: 'Eigenleistung', value: 1_500_000, op: '+' },
+      { label: 'Gespart', value: 1_500_000, op: '+' },
       { label: 'Markt', value: 200_000, op: '-' },
       { label: 'jetzt', value: 8_300_000, op: '=', result: true },
     ]);

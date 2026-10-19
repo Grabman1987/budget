@@ -89,7 +89,7 @@ function Course({ view }: { view: NetWorthView }) {
         </span>
         <span>
           <i className="lg-sq lg-own" />
-          Eigenleistung
+          Gespart
         </span>
         <span>
           <i className="lg-sq lg-mkt" />
@@ -101,8 +101,8 @@ function Course({ view }: { view: NetWorthView }) {
         label="Maßkette Nettovermögen im Zeitraum"
       />
       <p className="vnote">
-        Eigenleistung = was du eingezahlt hast (Einnahmen minus Ausgaben). Markt = alles andere:
-        Kurse, Zinsen, Bewertungen.
+        Gespart = was du eingezahlt hast (Einnahmen minus Ausgaben). Markt = alles andere: Kurse,
+        Zinsen, Bewertungen.
       </p>
     </section>
   );
