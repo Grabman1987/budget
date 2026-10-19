@@ -21,9 +21,9 @@ async function expectCompactBandContents(page: Page, phone: boolean) {
       const parent = boxes('.band-parent .group-heading, .band-total');
       // Financial controls can protrude beyond their inline wrapper's line box.
       const categoryControls = boxes(
-        '.band-category-assigned :is(button, input, label), .band-category-available :is(button, input, label)',
+        '.band-category-assigned :is(button, input, label), .band-category-available :is(button, input, label), .spending-bar .pbar-tick',
       );
-      const parentControls = boxes('.band-parent :is(button, label)');
+      const parentControls = boxes('.band-parent :is(button, input, label)');
       const height = (items: DOMRect[]) =>
         Math.max(...items.map((box) => box.bottom)) - Math.min(...items.map((box) => box.top));
       const name = row.querySelector('.pname')!.getBoundingClientRect();
