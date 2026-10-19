@@ -210,6 +210,15 @@ sampleTest(
       route.fulfill({ status: 503, json: { error: 'unavailable' } }),
     );
     await page.goto('/vermoegen/portfolio');
+    // Let the accounts render and their shared sidebar observer settle before releasing the
+    // synthetic failure; a late observer can otherwise remove the retry button by refetching.
+    await expect(page.locator('.acct-tree').getByText('Depot', { exact: true })).toBeAttached();
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
     await expect(page.getByRole('button', { name: 'Erneut versuchen' })).toBeVisible();
     await page.unrouteAll({ behavior: 'wait' });
     await page.getByRole('button', { name: 'Erneut versuchen' }).click();
