@@ -150,6 +150,36 @@ for (const report of reports) {
       ),
       JSON.stringify(bounds),
     ).toBe(true);
+    const numericTokens = await body.locator('table.rtable').evaluateAll((tables) => {
+      let checked = 0;
+      const broken: Array<{ token: string; cell: string | null; lines: number }> = [];
+      for (const table of tables) {
+        const walker = document.createTreeWalker(table, NodeFilter.SHOW_TEXT);
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+          const parent = node.parentElement;
+          if (!parent || parent.closest('.sr-only, [hidden]')) continue;
+          for (const match of (node.textContent ?? '').matchAll(/[+−-]?\d[\d.]*(?:,\d+)?/g)) {
+            const range = document.createRange();
+            range.setStart(node, match.index);
+            range.setEnd(node, match.index + match[0].length);
+            const rects = Array.from(range.getClientRects()).filter((rect) => rect.width > 0);
+            if (!rects.length) continue;
+            checked++;
+            const lines = new Set(rects.map((rect) => rect.top)).size;
+            if (lines > 1)
+              broken.push({
+                token: match[0],
+                cell: parent.closest('th, td')?.textContent ?? null,
+                lines,
+              });
+          }
+        }
+      }
+      return { checked, broken };
+    });
+    expect(numericTokens.checked).toBeGreaterThan(0);
+    expect(numericTokens.broken).toEqual([]);
     expect(
       await page.evaluate(() =>
         localStorage.getItem(`budget.report-sections.${location.pathname}`),

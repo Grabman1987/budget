@@ -82,7 +82,25 @@ does not change the DOM collapse flags or the user's remembered selection.
   were not the failing foreground entries. The same two normal containers now
   explicitly reapply `color: var(--ink)` as well. No descendant, muted, delta,
   heat or semantic selector is reset. Actual canonical rerun is pending; these
-  declarations alone do not establish a fix.
+  declarations alone do not establish a fix. At `2dc77a70`, genuine canonical
+  WebKit then passed 6/7 cases: Jahresansicht and Sparquote passed strict print
+  Axe and unchanged geometry, while Kategorieübersicht still had 43 ordinary
+  inherited foreground failures (10 plain trend-table headings and 33 totals).
+  The table root has no own normal-ink declaration; the shared print `.rtable`
+  now reapplies `color: var(--ink)` without changing any descendant role.
+
+  Actual passing Jahresansicht image review also caught misleading mid-number
+  line breaks (`44.22` / `2`) in fixed equal-width numeric columns. The shared
+  candidate now uses automatic table layout and keeps `td.n` numeric tokens
+  nowrap/normal word wrapping; the delta marker retains its own natural wrapping
+  between amount/unit/percentage tokens. No per-report layout, font-size, column
+  removal or overflow tolerance was added. Automatic layout can allocate space
+  according to each column's content instead of equal fixed numeric tracks;
+  the unchanged paper/cell bounds must still prove feasibility on all reports.
+  A new strict DOM Range regression requires every visible numeric token in the
+  printed tables to occupy exactly one line, while retaining all complete-column
+  and no-overflow assertions. Exact-head native proof is pending; neither this
+  candidate nor a previous partial pass is claimed as complete readiness.
 
   An unproven explicit-shell-color workaround was removed; semantic colors remain
   unchanged. No arbitrary sleep, contrast waiver, reload, fixture alteration or
