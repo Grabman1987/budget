@@ -138,7 +138,7 @@ function Body({ data }: { data: SpendingReport }) {
         {total > 0 ? (
           <>
             <ChartValue
-              label="Ausgaben nach Klassen"
+              label={`Bedarf ${data.classShares.need} %, Wunsch ${data.classShares.want} %, Zukunft ${data.classShares.future} %`}
               date={`${data.from} · ${data.to}`}
               series={[
                 ...parts.map((p) => ({
@@ -148,11 +148,7 @@ function Body({ data }: { data: SpendingReport }) {
                 })),
               ]}
             >
-              <div
-                className="sr-seg"
-                role="img"
-                aria-label={`Bedarf ${data.classShares.need} %, Wunsch ${data.classShares.want} %, Zukunft ${data.classShares.future} %`}
-              >
+              <div className="sr-seg">
                 {parts.map((p) => (
                   <span
                     key={p.id}

@@ -3,13 +3,14 @@ import { createPortal } from 'react-dom';
 import { usePlotMotion } from './use-plot-motion';
 import type { Point } from './types';
 import { useAmountPrivacy, maskMoneyText, privateAmount } from '../amount-privacy';
+import { ChartDataTable } from './data-table';
 
 export interface ChartSvgProps {
   /** Interactive drawings expose their links as a group instead of a flattened image. */
   role?: 'img' | 'group';
   width: number;
   height: number;
-  /** Accessible summary; every chart is one `role="img"` with a text alternative. */
+  /** Key statement of the plotted data, not just the chart type. Required for every chart. */
   label: string;
   children: ReactNode;
   testId?: string;
@@ -19,6 +20,8 @@ export interface ChartSvgProps {
   crosshair?: boolean;
   content?: ReactNode;
   tooltipNote?: string;
+  /** Optional alternative using the same exact values as keyboard/hover inspection. */
+  table?: boolean;
 }
 
 export interface ChartTooltipPoint {
@@ -51,6 +54,7 @@ export function ChartSvg({
   crosshair = true,
   content,
   tooltipNote,
+  table = false,
 }: ChartSvgProps) {
   useAmountPrivacy();
   const ref = useRef<HTMLDivElement>(null);
@@ -121,115 +125,130 @@ export function ChartSvg({
     show(nearest);
   };
   return (
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- This focusable group exposes chart data with arrow keys and pointer input.
-    <div
-      ref={ref}
-      className="chart-interactive"
-      role="group"
-      aria-label={maskMoneyText(label)}
-      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Arrow keys inspect the chart's data points.
-      tabIndex={points.length ? 0 : undefined}
-      aria-describedby={points.length ? `${id}-help${point ? ` ${id}-tooltip` : ''}` : undefined}
-      onFocus={(e) => {
-        if (e.target === e.currentTarget && points.length && index === null) show(0);
-      }}
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) hide();
-      }}
-      onPointerLeave={(e) => {
-        if (e.pointerType !== 'touch' && !pinned.current && document.activeElement !== ref.current)
-          hide();
-      }}
-      onPointerMove={(e) => {
-        if (e.pointerType !== 'touch' && !pinned.current) select(e);
-      }}
-      onPointerDown={(e) => {
-        select(e);
-        pinned.current = e.pointerType === 'touch';
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape' && point) {
-          e.stopPropagation();
-          e.preventDefault();
-          hide();
-        }
-        if (
-          (e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
-          !e.altKey &&
-          !e.ctrlKey &&
-          !e.metaKey &&
-          points.length
-        ) {
-          e.preventDefault();
-          e.stopPropagation();
-          show(
-            index === null
-              ? 0
-              : Math.max(0, Math.min(points.length - 1, index + (e.key === 'ArrowRight' ? 1 : -1))),
-          );
-        }
-      }}
-    >
-      {points.length > 0 && (
-        <span id={`${id}-help`} className="sr-only">
-          Werte mit Pfeil links und rechts erkunden, Escape blendet sie aus.
-        </span>
-      )}
-      {content ?? (
-        <svg
-          ref={svg}
-          className={`chart ${className}`}
-          viewBox={`0 0 ${width} ${height}`}
-          width={width}
-          height={height}
-          role={role}
-          aria-label={maskMoneyText(label)}
-          data-testid={testId}
-        >
-          {children}
-          {point && crosshair && (
-            <line
-              x1={point.x}
-              x2={point.x}
-              y1={8}
-              y2={height > 60 ? height - 24 : height - 2}
-              className="chart-crosshair"
-            />
-          )}
-        </svg>
-      )}
-      {point &&
-        createPortal(
-          <div
-            ref={(node) => {
-              tooltip.current = node;
-              if (node && index !== null) position(index, node.getBoundingClientRect().height);
-            }}
-            id={`${id}-tooltip`}
-            role="status"
-            aria-live="polite"
-            className="chart-tooltip"
-          >
-            {point.series.map((s, i) => (
-              <div className="chart-tooltip-row" key={i}>
-                <svg width="12" height="12" aria-hidden="true">
-                  <rect
-                    width="12"
-                    height="12"
-                    className={s.className}
-                    fill={s.color ?? 'var(--line)'}
-                  />
-                </svg>
-                <span>{s.name}</span>
-                <strong>{privateAmount(s.value)}</strong>
-              </div>
-            ))}
-            <div className="chart-tooltip-date">{chartDate(point.date)}</div>
-            {tooltipNote && <p className="chart-tooltip-note">{tooltipNote}</p>}
-          </div>,
-          document.body,
+    <>
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- This focusable group exposes chart data with arrow keys and pointer input. */}
+      <div
+        ref={ref}
+        className="chart-interactive"
+        role="group"
+        aria-label={maskMoneyText(label)}
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Arrow keys inspect the chart's data points.
+        tabIndex={points.length ? 0 : undefined}
+        aria-describedby={points.length ? `${id}-help${point ? ` ${id}-tooltip` : ''}` : undefined}
+        onFocus={(e) => {
+          if (e.target === e.currentTarget && points.length && index === null) show(0);
+        }}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) hide();
+        }}
+        onPointerLeave={(e) => {
+          if (
+            e.pointerType !== 'touch' &&
+            !pinned.current &&
+            document.activeElement !== ref.current
+          )
+            hide();
+        }}
+        onPointerMove={(e) => {
+          if (e.pointerType !== 'touch' && !pinned.current) select(e);
+        }}
+        onPointerDown={(e) => {
+          select(e);
+          pinned.current = e.pointerType === 'touch';
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && point) {
+            e.stopPropagation();
+            e.preventDefault();
+            hide();
+          }
+          if (
+            (e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
+            !e.altKey &&
+            !e.ctrlKey &&
+            !e.metaKey &&
+            points.length
+          ) {
+            e.preventDefault();
+            e.stopPropagation();
+            show(
+              index === null
+                ? 0
+                : Math.max(
+                    0,
+                    Math.min(points.length - 1, index + (e.key === 'ArrowRight' ? 1 : -1)),
+                  ),
+            );
+          }
+        }}
+      >
+        {points.length > 0 && (
+          <span id={`${id}-help`} className="sr-only">
+            Werte mit Pfeil links und rechts erkunden, Escape blendet sie aus.
+          </span>
         )}
-    </div>
+        {(content != null || role === 'group') && (
+          <span className="sr-only" role="img" aria-label={maskMoneyText(label)} />
+        )}
+        {content ?? (
+          <svg
+            ref={svg}
+            className={`chart ${className}`}
+            viewBox={`0 0 ${width} ${height}`}
+            width={width}
+            height={height}
+            role={role}
+            aria-label={maskMoneyText(label)}
+            data-testid={testId}
+          >
+            {children}
+            {point && crosshair && (
+              <line
+                x1={point.x}
+                x2={point.x}
+                y1={8}
+                y2={height > 60 ? height - 24 : height - 2}
+                className="chart-crosshair"
+              />
+            )}
+          </svg>
+        )}
+        {point &&
+          createPortal(
+            <div
+              ref={(node) => {
+                tooltip.current = node;
+                if (node && index !== null) position(index, node.getBoundingClientRect().height);
+              }}
+              id={`${id}-tooltip`}
+              role="status"
+              aria-live="polite"
+              className="chart-tooltip"
+            >
+              {point.series.map((s, i) => (
+                <div className="chart-tooltip-row" key={i}>
+                  <svg width="12" height="12" aria-hidden="true">
+                    <rect
+                      width="12"
+                      height="12"
+                      className={s.className}
+                      fill={s.color ?? 'var(--line)'}
+                    />
+                  </svg>
+                  <span>{s.name}</span>
+                  <strong>{privateAmount(s.value)}</strong>
+                </div>
+              ))}
+              <div className="chart-tooltip-date">{chartDate(point.date)}</div>
+              {tooltipNote && <p className="chart-tooltip-note">{tooltipNote}</p>}
+            </div>,
+            document.body,
+          )}
+      </div>
+      {table && points.some((p) => p.series.length > 0) && (
+        <ChartDataTable label={label} points={points} />
+      )}
+    </>
   );
 }
 
@@ -367,10 +386,12 @@ export function ChartValues({
   label,
   points,
   children,
+  table = false,
 }: {
   label: string;
   points: ReadonlyArray<ChartTooltipPoint>;
   children: ReactNode;
+  table?: boolean;
 }) {
   return (
     <ChartSvg
@@ -380,6 +401,7 @@ export function ChartValues({
       points={points}
       crosshair={false}
       content={children}
+      table={table}
     >
       {null}
     </ChartSvg>
@@ -390,14 +412,16 @@ export function ChartValue({
   date,
   series,
   children,
+  table = false,
 }: {
   label: string;
   date: string;
   series: ChartTooltipPoint['series'];
   children: ReactNode;
+  table?: boolean;
 }) {
   return (
-    <ChartValues label={label} points={[{ x: 50, date, series }]}>
+    <ChartValues label={label} points={[{ x: 50, date, series }]} table={table}>
       <div className="chart-value-target" data-chart-point={0}>
         {children}
       </div>

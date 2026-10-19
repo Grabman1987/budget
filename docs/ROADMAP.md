@@ -1,5 +1,17 @@
 # Roadmap
 
+### #615 — shared Freiheit / R16 investment basis (2026-10-19)
+
+- [x] Current and historical Freiheit, R16 and Allokation use the same selected Anlagebasis; the page explains retrospective current membership. Existing R16 formulas, source money, locks and undo remain unchanged.
+- [x] Independent HIGH whole-diff review and literal scope-save/undo regressions passed. At candidate `1f8fad2`, the age-required full check passed 487 files / 4,401 tests and the production build passed; actual phone/1440px desktop WebKit passed 5/5 selected tests with both-theme Axe and overflow checks ([evidence](evidence/reference-adoption/wp-010-freedom-universe-615.md)).
+- [ ] Exact-head remote CI, serial integration and live verification remain required. Historical Ist chart (#616), personal goals/assumptions (#617), parent and private acceptance gates remain separate.
+
+### #677 — first-booking register refresh (2026-10-19)
+
+- [x] Cancel pre-write booking reads before scheduling ledger invalidation so a pending initial empty response cannot satisfy the refresh after the first capture.
+- [x] Deterministic register regression covers out-of-order empty/fresh responses, nonblocking save completion and undo; existing nonblocking edit and cache tests remain unchanged and pass.
+- [ ] Exact-head CI, `ledger.spec.ts:217` with `--repeat-each=5`, controlled integration and live verification remain required. Do not close #677 from unit evidence alone.
+
 ### WP-001 — CASE-001 reference assurance, first bounded slice (#509, 2026-10-17)
 
 - [x] Inventory existing CASE-001–007 domain/repository tests; document coverage, boundary and missing API proof in `docs/evidence/reference-adoption/wp-001-case-audit-2026-10-17.md`.
@@ -678,6 +690,7 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] User-invoked PR shipping/operator skills and read-only migration/money reviewers; see [Claude Code setup](claude-code.md).
 - [x] Windows full check (291 files, 2,808 tests) and build; local run used two workers and a 30-second test timeout without changing repository defaults. Delivery uses a separate git directory/bundle because the worktree commit could not create index.lock.
 - [x] Linux/Windows CI; owner acceptance in the next Claude session.
+- [ ] #649: reuse the pinned local Prettier API without npm/CLI startup; deterministic startup-failure, config, ignore and privacy regressions added. Exact-head Windows CI and independent hook review remain required.
 
 ### Owner directive PR3 — Allocation quality and scope (2026-10-04)
 
@@ -1120,6 +1133,8 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [ ] Required CI and owner visual acceptance; pre-existing loan-dialog trigger-focus restoration remains a separate gap.
 
 ### P5.8 — Freiheitszahl: forecast from today
+- [x] #615: current #507 Anlagebasis shared by Freiheit and R16, applied to dated history with the visible current-selection note; literal scope-save/undo, missing valuation and read-only preview regressions ([evidence](evidence/reference-adoption/wp-010-freedom-universe-615.md)).
+- [ ] #615 required CI/live acceptance; historical Ist chart (#616) and persisted personal goal/assumptions (#617) remain separate.
 - [x] Connected current R16 expense/investment sources and configurable multiple; explicit unknown quote/FX and short-history annualisation, original lead/chain/quarter progress and source navigation.
 - [x] Explicit unsaved saving assumption and 5 % real-return default; shared monthly projection with +100 EUR comparison, bounded numeric errors, desktop/mobile light/dark and accessible values.
 - [ ] Historical Soll-Pfad, chosen goal year and persisted assumptions await separate owner decisions; the complete freedom workflow and private acceptance remain open.
