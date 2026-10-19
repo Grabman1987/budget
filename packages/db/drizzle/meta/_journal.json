@@ -309,6 +309,13 @@
       "when": 1791566889673,
       "tag": "0043_expected_interval_weeks",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1792414491231,
+      "tag": "0044_receipt_delivery",
+      "breakpoints": true
     }
   ]
 }

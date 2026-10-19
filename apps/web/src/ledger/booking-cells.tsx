@@ -97,9 +97,12 @@ export function useCategoryClasses(): Map<string, SwatchKind> {
 export function CategoryCell({
   booking,
   classes,
+  showClass = true,
 }: {
   booking: ListedBooking;
   classes: Map<string, SwatchKind>;
+  /** Registers omit class squares; category choices elsewhere retain their class identity. */
+  showClass?: boolean;
 }) {
   const accounts = useQuery(accountsQuery());
   const investment =
@@ -130,7 +133,7 @@ export function CategoryCell({
     // An inflow without a category is money to distribute, nothing missing.
     return (
       <span className="kcat">
-        <ClassSwatch kind="open" />
+        {showClass && <ClassSwatch kind="open" />}
         Zu verteilen
       </span>
     );
@@ -152,7 +155,7 @@ export function CategoryCell({
   const kind = classes.get(only.categoryId);
   return (
     <span className="kcat">
-      {kind && <ClassSwatch kind={kind} />}
+      {showClass && kind && <ClassSwatch kind={kind} />}
       {only.categoryName}
     </span>
   );

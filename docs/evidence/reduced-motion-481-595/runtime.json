@@ -1,0 +1,596 @@
+{
+  "sourceHead": "422d624958cdd59f090ea45951e6ac271a021ea7",
+  "baseHead": "f3aafd78e2832bbe3110dde436ecfb5eaebafa80",
+  "syntheticLocalDataOnly": true,
+  "actualBuildExit": 0,
+  "actualCanonicalExit": 0,
+  "canonicalResult": "5 passed, 44.8s; 3 setup + desktop 18.1s + phone 12.5s; no skipped/flaky tests",
+  "defaultCaseTimeoutMs": 30000,
+  "sourceFiles": {
+    "packages/ui/src/styles/base.css": "18efd62204e13d3ec7ad1036a3210761c0f169af2d224bfd4d3d2e8c0f4175ea",
+    "e2e/issue-481-reduced-motion-theme.spec.ts": "5c46dd12b15a3bd9d43f3818a891956910794a725e70b0e42034fc97cd5559c2"
+  },
+  "records": [
+    {
+      "profile": "phone",
+      "theme": "dark",
+      "engine": "webkit",
+      "browserVersion": "27.2",
+      "configured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true
+      },
+      "beforeCapture": {
+        "theme": "dark",
+        "storedTheme": "dark",
+        "expectedInk": "rgb(238, 246, 252)",
+        "expectedGround": "rgb(11, 49, 82)",
+        "bodyColor": "rgb(238, 246, 252)",
+        "rootColor": "rgb(238, 246, 252)",
+        "bodyBackground": "rgb(11, 49, 82)",
+        "normal": [
+          {
+            "selector": ".month-switch h1",
+            "color": "rgb(238, 246, 252)",
+            "textFill": "rgb(238, 246, 252)",
+            "ratio": 10.592548771062878,
+            "inViewport": true
+          },
+          {
+            "selector": "[data-testid=\"to-be-assigned\"]",
+            "color": "rgb(238, 246, 252)",
+            "textFill": "rgb(238, 246, 252)",
+            "ratio": 10.592548771062878,
+            "inViewport": true
+          },
+          {
+            "selector": ".m-title-text",
+            "color": "rgb(238, 246, 252)",
+            "textFill": "rgb(238, 246, 252)",
+            "ratio": 12.202276163047875,
+            "inViewport": true
+          }
+        ],
+        "semantic": [
+          {
+            "selector": ".ptable-zero .spending-status:not(.neg-alert)",
+            "expected": "rgb(143, 180, 209)",
+            "color": "rgb(143, 180, 209)",
+            "textFill": "rgb(143, 180, 209)"
+          },
+          {
+            "selector": ".ptable-zero .pill.is-good",
+            "expected": "rgb(168, 230, 192)",
+            "color": "rgb(168, 230, 192)",
+            "textFill": "rgb(168, 230, 192)"
+          },
+          {
+            "selector": ".ptable-zero .pill.is-bad",
+            "expected": "rgb(255, 139, 123)",
+            "color": "rgb(255, 139, 123)",
+            "textFill": "rgb(255, 139, 123)"
+          }
+        ],
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "scrollY": 0,
+        "documentWidth": 390
+      },
+      "afterCapture": {
+        "theme": "dark",
+        "storedTheme": "dark",
+        "expectedInk": "rgb(238, 246, 252)",
+        "expectedGround": "rgb(11, 49, 82)",
+        "bodyColor": "rgb(238, 246, 252)",
+        "rootColor": "rgb(238, 246, 252)",
+        "bodyBackground": "rgb(11, 49, 82)",
+        "normal": [
+          {
+            "selector": ".month-switch h1",
+            "color": "rgb(238, 246, 252)",
+            "textFill": "rgb(238, 246, 252)",
+            "ratio": 10.592548771062878,
+            "inViewport": true
+          },
+          {
+            "selector": "[data-testid=\"to-be-assigned\"]",
+            "color": "rgb(238, 246, 252)",
+            "textFill": "rgb(238, 246, 252)",
+            "ratio": 10.592548771062878,
+            "inViewport": true
+          },
+          {
+            "selector": ".m-title-text",
+            "color": "rgb(238, 246, 252)",
+            "textFill": "rgb(238, 246, 252)",
+            "ratio": 12.202276163047875,
+            "inViewport": true
+          }
+        ],
+        "semantic": [
+          {
+            "selector": ".ptable-zero .spending-status:not(.neg-alert)",
+            "expected": "rgb(143, 180, 209)",
+            "color": "rgb(143, 180, 209)",
+            "textFill": "rgb(143, 180, 209)"
+          },
+          {
+            "selector": ".ptable-zero .pill.is-good",
+            "expected": "rgb(168, 230, 192)",
+            "color": "rgb(168, 230, 192)",
+            "textFill": "rgb(168, 230, 192)"
+          },
+          {
+            "selector": ".ptable-zero .pill.is-bad",
+            "expected": "rgb(255, 139, 123)",
+            "color": "rgb(255, 139, 123)",
+            "textFill": "rgb(255, 139, 123)"
+          }
+        ],
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "scrollY": 0,
+        "documentWidth": 390
+      },
+      "image": {
+        "file": "phone-dark.png",
+        "sha256": "a19c7093280c53a29ba6f778bd8fea38790f82d511da14f861fddf99b8b8de29",
+        "pixelSize": [
+          1170,
+          1992
+        ]
+      }
+    },
+    {
+      "profile": "phone",
+      "theme": "light",
+      "engine": "webkit",
+      "browserVersion": "27.2",
+      "configured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true
+      },
+      "beforeCapture": {
+        "theme": "light",
+        "storedTheme": "light",
+        "expectedInk": "rgb(11, 27, 51)",
+        "expectedGround": "rgb(242, 245, 249)",
+        "bodyColor": "rgb(11, 27, 51)",
+        "rootColor": "rgb(11, 27, 51)",
+        "bodyBackground": "rgb(242, 245, 249)",
+        "normal": [
+          {
+            "selector": ".month-switch h1",
+            "color": "rgb(11, 27, 51)",
+            "textFill": "rgb(11, 27, 51)",
+            "ratio": 17.22997841660292,
+            "inViewport": true
+          },
+          {
+            "selector": "[data-testid=\"to-be-assigned\"]",
+            "color": "rgb(11, 27, 51)",
+            "textFill": "rgb(11, 27, 51)",
+            "ratio": 17.22997841660292,
+            "inViewport": true
+          },
+          {
+            "selector": ".m-title-text",
+            "color": "rgb(11, 27, 51)",
+            "textFill": "rgb(11, 27, 51)",
+            "ratio": 15.756669916063565,
+            "inViewport": true
+          }
+        ],
+        "semantic": [
+          {
+            "selector": ".ptable-zero .spending-status:not(.neg-alert)",
+            "expected": "rgb(77, 106, 137)",
+            "color": "rgb(77, 106, 137)",
+            "textFill": "rgb(77, 106, 137)"
+          },
+          {
+            "selector": ".ptable-zero .pill.is-good",
+            "expected": "rgb(27, 86, 50)",
+            "color": "rgb(27, 86, 50)",
+            "textFill": "rgb(27, 86, 50)"
+          },
+          {
+            "selector": ".ptable-zero .pill.is-bad",
+            "expected": "rgb(196, 42, 31)",
+            "color": "rgb(196, 42, 31)",
+            "textFill": "rgb(196, 42, 31)"
+          }
+        ],
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "scrollY": 0,
+        "documentWidth": 390
+      },
+      "afterCapture": {
+        "theme": "light",
+        "storedTheme": "light",
+        "expectedInk": "rgb(11, 27, 51)",
+        "expectedGround": "rgb(242, 245, 249)",
+        "bodyColor": "rgb(11, 27, 51)",
+        "rootColor": "rgb(11, 27, 51)",
+        "bodyBackground": "rgb(242, 245, 249)",
+        "normal": [
+          {
+            "selector": ".month-switch h1",
+            "color": "rgb(11, 27, 51)",
+            "textFill": "rgb(11, 27, 51)",
+            "ratio": 17.22997841660292,
+            "inViewport": true
+          },
+          {
+            "selector": "[data-testid=\"to-be-assigned\"]",
+            "color": "rgb(11, 27, 51)",
+            "textFill": "rgb(11, 27, 51)",
+            "ratio": 17.22997841660292,
+            "inViewport": true
+          },
+          {
+            "selector": ".m-title-text",
+            "color": "rgb(11, 27, 51)",
+            "textFill": "rgb(11, 27, 51)",
+            "ratio": 15.756669916063565,
+            "inViewport": true
+          }
+        ],
+        "semantic": [
+          {
+            "selector": ".ptable-zero .spending-status:not(.neg-alert)",
+            "expected": "rgb(77, 106, 137)",
+            "color": "rgb(77, 106, 137)",
+            "textFill": "rgb(77, 106, 137)"
+          },
+          {
+            "selector": ".ptable-zero .pill.is-good",
+            "expected": "rgb(27, 86, 50)",
+            "color": "rgb(27, 86, 50)",
+            "textFill": "rgb(27, 86, 50)"
+          },
+          {
+            "selector": ".ptable-zero .pill.is-bad",
+            "expected": "rgb(196, 42, 31)",
+            "color": "rgb(196, 42, 31)",
+            "textFill": "rgb(196, 42, 31)"
+          }
+        ],
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "scrollY": 0,
+        "documentWidth": 390
+      },
+      "image": {
+        "file": "phone-light.png",
+        "sha256": "f3f17a93b86046cf9edcc0c5317aaf087cd0cf97d2d2fb477e51bc5f15c3dac7",
+        "pixelSize": [
+          1170,
+          1992
+        ]
+      }
+    },
+    {
+      "profile": "desktop",
+      "theme": "dark",
+      "engine": "webkit",
+      "browserVersion": "27.2",
+      "configured": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "isMobile": false,
+        "hasTouch": false
+      },
+      "beforeCapture": {
+        "theme": "dark",
+        "storedTheme": "dark",
+        "expectedInk": "rgb(238, 246, 252)",
+        "expectedGround": "rgb(11, 49, 82)",
+        "bodyColor": "rgb(238, 246, 252)",
+        "rootColor": "rgb(238, 246, 252)",
+        "bodyBackground": "rgb(11, 49, 82)",
+        "normal": [
+          {
+            "selector": ".month-switch h1",
+            "color": "rgb(238, 246, 252)",
+            "textFill": "rgb(238, 246, 252)",
+            "ratio": 10.592548771062878,
+            "inViewport": true
+          },
+          {
+            "selector": ".ptable-zero .assign-btn:not(.is-ghost)",
+            "color": "rgb(238, 246, 252)",
+            "textFill": "rgb(238, 246, 252)",
+            "ratio": 10.592548771062878,
+            "inViewport": true
+          },
+          {
+            "selector": ".sidebar-foot .profile-text strong",
+            "color": "rgb(238, 246, 252)",
+            "textFill": "rgb(238, 246, 252)",
+            "ratio": 13.407418665212143,
+            "inViewport": true
+          },
+          {
+            "selector": ".insp-list dd",
+            "color": "rgb(238, 246, 252)",
+            "textFill": "rgb(238, 246, 252)",
+            "ratio": 10.592548771062878,
+            "inViewport": true
+          }
+        ],
+        "semantic": [
+          {
+            "selector": ".ptable-zero .spending-status:not(.neg-alert)",
+            "expected": "rgb(143, 180, 209)",
+            "color": "rgb(143, 180, 209)",
+            "textFill": "rgb(143, 180, 209)"
+          },
+          {
+            "selector": ".ptable-zero .pill.is-good",
+            "expected": "rgb(168, 230, 192)",
+            "color": "rgb(168, 230, 192)",
+            "textFill": "rgb(168, 230, 192)"
+          },
+          {
+            "selector": ".ptable-zero .pill.is-bad",
+            "expected": "rgb(255, 139, 123)",
+            "color": "rgb(255, 139, 123)",
+            "textFill": "rgb(255, 139, 123)"
+          }
+        ],
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "scrollY": 0,
+        "documentWidth": 1440
+      },
+      "afterCapture": {
+        "theme": "dark",
+        "storedTheme": "dark",
+        "expectedInk": "rgb(238, 246, 252)",
+        "expectedGround": "rgb(11, 49, 82)",
+        "bodyColor": "rgb(238, 246, 252)",
+        "rootColor": "rgb(238, 246, 252)",
+        "bodyBackground": "rgb(11, 49, 82)",
+        "normal": [
+          {
+            "selector": ".month-switch h1",
+            "color": "rgb(238, 246, 252)",
+            "textFill": "rgb(238, 246, 252)",
+            "ratio": 10.592548771062878,
+            "inViewport": true
+          },
+          {
+            "selector": ".ptable-zero .assign-btn:not(.is-ghost)",
+            "color": "rgb(238, 246, 252)",
+            "textFill": "rgb(238, 246, 252)",
+            "ratio": 10.592548771062878,
+            "inViewport": true
+          },
+          {
+            "selector": ".sidebar-foot .profile-text strong",
+            "color": "rgb(238, 246, 252)",
+            "textFill": "rgb(238, 246, 252)",
+            "ratio": 13.407418665212143,
+            "inViewport": true
+          },
+          {
+            "selector": ".insp-list dd",
+            "color": "rgb(238, 246, 252)",
+            "textFill": "rgb(238, 246, 252)",
+            "ratio": 10.592548771062878,
+            "inViewport": true
+          }
+        ],
+        "semantic": [
+          {
+            "selector": ".ptable-zero .spending-status:not(.neg-alert)",
+            "expected": "rgb(143, 180, 209)",
+            "color": "rgb(143, 180, 209)",
+            "textFill": "rgb(143, 180, 209)"
+          },
+          {
+            "selector": ".ptable-zero .pill.is-good",
+            "expected": "rgb(168, 230, 192)",
+            "color": "rgb(168, 230, 192)",
+            "textFill": "rgb(168, 230, 192)"
+          },
+          {
+            "selector": ".ptable-zero .pill.is-bad",
+            "expected": "rgb(255, 139, 123)",
+            "color": "rgb(255, 139, 123)",
+            "textFill": "rgb(255, 139, 123)"
+          }
+        ],
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "scrollY": 0,
+        "documentWidth": 1440
+      },
+      "image": {
+        "file": "desktop-dark.png",
+        "sha256": "3e71892d808b36dcb7f2c91ebf765242b9e07dad577eecef6c43fb284f0bc7e0",
+        "pixelSize": [
+          4320,
+          2700
+        ]
+      }
+    },
+    {
+      "profile": "desktop",
+      "theme": "light",
+      "engine": "webkit",
+      "browserVersion": "27.2",
+      "configured": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "isMobile": false,
+        "hasTouch": false
+      },
+      "beforeCapture": {
+        "theme": "light",
+        "storedTheme": "light",
+        "expectedInk": "rgb(11, 27, 51)",
+        "expectedGround": "rgb(242, 245, 249)",
+        "bodyColor": "rgb(11, 27, 51)",
+        "rootColor": "rgb(11, 27, 51)",
+        "bodyBackground": "rgb(242, 245, 249)",
+        "normal": [
+          {
+            "selector": ".month-switch h1",
+            "color": "rgb(11, 27, 51)",
+            "textFill": "rgb(11, 27, 51)",
+            "ratio": 17.22997841660292,
+            "inViewport": true
+          },
+          {
+            "selector": ".ptable-zero .assign-btn:not(.is-ghost)",
+            "color": "rgb(11, 27, 51)",
+            "textFill": "rgb(11, 27, 51)",
+            "ratio": 17.22997841660292,
+            "inViewport": true
+          },
+          {
+            "selector": ".sidebar-foot .profile-text strong",
+            "color": "rgb(11, 27, 51)",
+            "textFill": "rgb(11, 27, 51)",
+            "ratio": 15.454544764184512,
+            "inViewport": true
+          },
+          {
+            "selector": ".insp-list dd",
+            "color": "rgb(11, 27, 51)",
+            "textFill": "rgb(11, 27, 51)",
+            "ratio": 17.22997841660292,
+            "inViewport": true
+          }
+        ],
+        "semantic": [
+          {
+            "selector": ".ptable-zero .spending-status:not(.neg-alert)",
+            "expected": "rgb(77, 106, 137)",
+            "color": "rgb(77, 106, 137)",
+            "textFill": "rgb(77, 106, 137)"
+          },
+          {
+            "selector": ".ptable-zero .pill.is-good",
+            "expected": "rgb(27, 86, 50)",
+            "color": "rgb(27, 86, 50)",
+            "textFill": "rgb(27, 86, 50)"
+          },
+          {
+            "selector": ".ptable-zero .pill.is-bad",
+            "expected": "rgb(196, 42, 31)",
+            "color": "rgb(196, 42, 31)",
+            "textFill": "rgb(196, 42, 31)"
+          }
+        ],
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "scrollY": 0,
+        "documentWidth": 1440
+      },
+      "afterCapture": {
+        "theme": "light",
+        "storedTheme": "light",
+        "expectedInk": "rgb(11, 27, 51)",
+        "expectedGround": "rgb(242, 245, 249)",
+        "bodyColor": "rgb(11, 27, 51)",
+        "rootColor": "rgb(11, 27, 51)",
+        "bodyBackground": "rgb(242, 245, 249)",
+        "normal": [
+          {
+            "selector": ".month-switch h1",
+            "color": "rgb(11, 27, 51)",
+            "textFill": "rgb(11, 27, 51)",
+            "ratio": 17.22997841660292,
+            "inViewport": true
+          },
+          {
+            "selector": ".ptable-zero .assign-btn:not(.is-ghost)",
+            "color": "rgb(11, 27, 51)",
+            "textFill": "rgb(11, 27, 51)",
+            "ratio": 17.22997841660292,
+            "inViewport": true
+          },
+          {
+            "selector": ".sidebar-foot .profile-text strong",
+            "color": "rgb(11, 27, 51)",
+            "textFill": "rgb(11, 27, 51)",
+            "ratio": 15.454544764184512,
+            "inViewport": true
+          },
+          {
+            "selector": ".insp-list dd",
+            "color": "rgb(11, 27, 51)",
+            "textFill": "rgb(11, 27, 51)",
+            "ratio": 17.22997841660292,
+            "inViewport": true
+          }
+        ],
+        "semantic": [
+          {
+            "selector": ".ptable-zero .spending-status:not(.neg-alert)",
+            "expected": "rgb(77, 106, 137)",
+            "color": "rgb(77, 106, 137)",
+            "textFill": "rgb(77, 106, 137)"
+          },
+          {
+            "selector": ".ptable-zero .pill.is-good",
+            "expected": "rgb(27, 86, 50)",
+            "color": "rgb(27, 86, 50)",
+            "textFill": "rgb(27, 86, 50)"
+          },
+          {
+            "selector": ".ptable-zero .pill.is-bad",
+            "expected": "rgb(196, 42, 31)",
+            "color": "rgb(196, 42, 31)",
+            "textFill": "rgb(196, 42, 31)"
+          }
+        ],
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "scrollY": 0,
+        "documentWidth": 1440
+      },
+      "image": {
+        "file": "desktop-light.png",
+        "sha256": "b50bd74ca9e3725516be6fcfb42dc218d8cf8938ce72a37be794433c77e0eb18",
+        "pixelSize": [
+          4320,
+          2700
+        ]
+      }
+    }
+  ],
+  "limits": "Actual WebKit engine proof for two configured contexts; Chromium CI, combined595 full validation and deployed acceptance remain pending."
+}
