@@ -63,6 +63,8 @@ for (const report of reports) {
           requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
         ),
     );
+    // The first document h1 is the hidden mobile shell title, not the printed report.
+    await expect(page.locator('.titleblock .report-heading h1')).toBeVisible();
     const expectedPalette = await page.evaluate(() => {
       const root = getComputedStyle(document.documentElement);
       const rgb = (token: string) => {
@@ -73,24 +75,25 @@ for (const report of reports) {
         return `rgb(${[0, 2, 4].map((offset) => parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
       };
       const ink = rgb('--ink');
-      return { paper: rgb('--surface'), body: ink, heading: ink, value: ink };
+      return { paper: rgb('--surface'), body: ink, heading: ink };
     });
     await expect
       .poll(() =>
         page.evaluate(() => ({
           paper: getComputedStyle(document.body).backgroundColor,
           body: getComputedStyle(document.body).color,
-          heading: getComputedStyle(document.querySelector('h1')!).color,
-          value: getComputedStyle(document.querySelector('.rtable td')!).color,
+          heading: getComputedStyle(document.querySelector('.titleblock .report-heading h1')!)
+            .color,
         })),
       )
       .toEqual(expectedPalette);
     const printInk = await page.evaluate(() => ({
       token: getComputedStyle(document.documentElement).getPropertyValue('--ink'),
       body: getComputedStyle(document.body).color,
-      heading: getComputedStyle(document.querySelector('h1')!).color,
-      cell: getComputedStyle(document.querySelector('.rtable td')!).color,
+      heading: getComputedStyle(document.querySelector('.titleblock .report-heading h1')!).color,
     }));
+    // Cells can legitimately use muted/percentage/delta roles. Strict Axe covers
+    // all visible printed values instead of assuming a generic first td uses --ink.
     expect(
       (await new AxeBuilder({ page }).include('main').analyze()).violations,
       JSON.stringify(printInk),

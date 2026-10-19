@@ -50,18 +50,31 @@ does not change the DOM collapse flags or the user's remembered selection.
   allows the complete delta and percentage to wrap too. Numbers and column counts
   remain complete, with existing type sizes. Strict geometry and tolerances are
   unchanged, with offending-cell diagnostics added to failures.
-  The next run passed all seven cases, but screenshot review found inherited
-  dark-theme text remaining pale on white print paper. A new print-mode Axe
-  regression reproduced 1.09:1 contrast, even though the root ink token and body
-  color already had the light values. Independent offline probes with the actual
-  built stylesheets reproduced the problem only after screen-mode Axe analysis
-  and resolved it by allowing print rendering to settle. The new test therefore
-  waits for actual body/heading/normal-cell ink and paper background to match the
-  resolved light print tokens before retaining the strict print-mode Axe check.
+  The next run passed all seven cases, but screenshot review and new strict
+  print-mode Axe checks identified unresolved palette/contrast failures after
+  dark screen → print. Independent actual-app probes found light root tokens
+  with some stale dark surfaces/semantic colors. Neither pre-print Axe analysis
+  nor the fixed sample Date is necessary to trigger the defect; both controls
+  reproduced it. Reloading in print makes the palette correct, but is diagnostic
+  evidence only and is not an acceptance workaround.
+
+  The first new readiness oracle also had an independent instrumentation defect:
+  global `document.querySelector('h1')` selects the hidden mobile-shell heading,
+  which has no printed rectangle. The actual `.titleblock .report-heading h1`
+  is visible and can resolve correctly while that hidden title remains pale.
+  The new test now checks the actual visible report heading, body and paper;
+  it no longer assumes an arbitrary first table cell uses ordinary ink, because
+  missing/percentage/semantic cells legitimately have different roles. The full
+  strict print-mode Axe check and all column/value/overflow/geometry assertions
+  remain unchanged. This oracle correction is not a product fix: corrected
+  actual-app probes still report real contrast failures, including ordinary
+  dimension-chain values over stale dark card backgrounds. The exact affected
+  container rules are being diagnosed before changing product CSS.
+
   An unproven explicit-shell-color workaround was removed; semantic colors remain
-  unchanged. No arbitrary sleep, contrast waiver or browser configuration change
-  substitutes for this readiness assertion and final image review.
-  The final browser run and screenshots/PDF artifacts remain pending.
+  unchanged. No arbitrary sleep, contrast waiver, reload, fixture alteration or
+  browser configuration change substitutes for final strict checks/image review.
+  Final browser/PDF artifacts, full suite and production build remain pending.
   WebKit's print emulation cannot establish physical PDF orientation; only
   actual Chromium PDFs prove the specified A4 landscape/portrait dimensions.
   No substitute engine or relaxed geometric tolerance proves readiness.
