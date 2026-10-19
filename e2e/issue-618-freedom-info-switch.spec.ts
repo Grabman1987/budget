@@ -66,6 +66,13 @@ test('the switch shows the same forecast numbers as chart and as table', async (
   await expect(page.getByTestId('freedom-table')).toHaveCount(0);
   const tooltip = page.locator('.chart-tooltip[role="status"]');
   await chart.locator('..').focus();
+  const snapshot = (await (await page.request.get('/api/wealth/freedom')).json()) as {
+    asOf: string;
+    investedHistory?: { monthEnds: { date: string }[] };
+  };
+  for (const point of snapshot.investedHistory?.monthEnds ?? []) {
+    if (point.date < snapshot.asOf) await page.keyboard.press('ArrowRight');
+  }
   for (const [i, value] of values.entries()) {
     await expect(tooltip, `sample ${i}`).toContainText(value);
     await page.keyboard.press('ArrowRight');
