@@ -1,5 +1,6 @@
 import { inflationBasketRoutes } from './inflation-basket';
 import { displaySettingsRoutes } from './display-settings';
+import { explorerViewsRoutes } from './explorer-views';
 import { payrollRoutes, projectRoutes } from './payroll-projects';
 import { assignmentRoutes } from './assignment-rules';
 import { payslipIntakeRoutes } from './payslip-intake';
@@ -179,6 +180,7 @@ export function createLedgerApi({
   api.route('/savings-plans', savingsPlanRoutes(db, today));
   api.route('/portfolio', portfolioRoutes(db, today));
   api.route('/display-settings', displaySettingsRoutes(db));
+  api.route('/reports/saved-queries', explorerViewsRoutes(db));
   api.route('/profile', profileRoutes(db, today));
   api.route('/reports/month', monthReportRoutes(db, today));
   api.route('/reports/spending', spendingReportRoutes(db, today));
