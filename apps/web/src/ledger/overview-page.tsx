@@ -37,8 +37,7 @@ import {
 } from './overview-model';
 import { accountsQuery, LEDGER_KEY, seriesBatchQuery } from './queries';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
-import { treeValues, type TreeValue } from './tree-values';
-import { portfolioPositionsQuery } from '../wealth/portfolio-api';
+import { treePositionsQuery, treeValues, type TreeValue } from './tree-values';
 import { ValuationHint } from './valuation-hint';
 import type { AccountRow, SeriesPoint } from './types';
 
@@ -53,11 +52,14 @@ export function OverviewPage() {
   const [creating, setCreating] = useState(false);
   const [ordering, setOrdering] = useState(false);
   const ordered = useOrderedAccounts(accounts.data?.accounts);
-  const positions = useQuery(portfolioPositionsQuery());
+  const positions = useQuery(treePositionsQuery(ordered.accounts));
   // Depots show their Depotwert, their cash sits on the Verrechnungskonto (same figures as the
-  // sidebar tree); until the positions are loaded the shared EUR value per account is shown.
+  // sidebar tree); depots are unknown ("–") while the positions load. Only when they cannot be read
+  // the shared EUR value per account is shown.
   const values =
-    ordered.accounts && positions.data ? treeValues(ordered.accounts, positions.data) : undefined;
+    ordered.accounts && !positions.isError
+      ? treeValues(ordered.accounts, positions.data)
+      : undefined;
   const model = ordered.accounts ? overviewModel(ordered.accounts, values) : undefined;
 
   return (
@@ -110,6 +112,7 @@ export function OverviewPage() {
             <AccountsTable
               model={model}
               values={values}
+              loading={positions.isFetching && !positions.data}
               ordering={ordering}
               onReorder={ordered.save}
             />
@@ -147,7 +150,11 @@ function NetWorth({
     window.setTimeout(() => row.classList.remove('is-flash'), 900);
   };
   const terms: DimensionChainTerm[] = [];
-  if (model.netWorthCents !== null && model.closedValueCents !== null) {
+  if (
+    model.netWorthCents !== null &&
+    model.closedValueCents !== null &&
+    model.groups.every((g) => g.sumCents !== null)
+  ) {
     // Chain in the order of the groups: the first term stands as it is, the following ones add or
     // subtract by sign (Kreditkarten and Kredite are negative and so get a minus).
     for (const { group, sumCents } of model.groups) {
@@ -225,11 +232,14 @@ function NetWorth({
 function AccountsTable({
   model,
   values,
+  loading,
   ordering,
   onReorder,
 }: {
   model: ReturnType<typeof overviewModel>;
   values: ReadonlyMap<string, TreeValue> | undefined;
+  /** The positions are still loading: unknown figures show a dash. */
+  loading: boolean;
   ordering: boolean;
   onReorder: (groupId: AccountGroupId, ids: string[]) => void;
 }) {
@@ -279,6 +289,7 @@ function AccountsTable({
               key={g.group.id}
               view={g}
               values={values}
+              loading={loading}
               index={gi + 1}
               series={byId}
               ordering={ordering}
@@ -314,6 +325,7 @@ function AccountsTable({
 function GroupRows({
   view,
   values,
+  loading,
   index,
   series,
   ordering,
@@ -321,6 +333,7 @@ function GroupRows({
 }: {
   view: GroupView;
   values: ReadonlyMap<string, TreeValue> | undefined;
+  loading: boolean;
   index: number;
   series: Map<string, SeriesPoint[]>;
   ordering: boolean;
@@ -347,7 +360,9 @@ function GroupRows({
         <td className="kc-line" />
         <td className="kc-num">
           {view.sumCents === null
-            ? 'Kurs fehlt'
+            ? loading
+              ? '–'
+              : 'Kurs fehlt'
             : `${view.sumApprox ? '≈ ' : ''}${eur(view.sumCents)}`}
         </td>
         {ordering && <td className="kc-order" />}
@@ -385,12 +400,18 @@ function GroupRows({
                 {check.text}
               </span>
               {shown?.cashCents != null && (
-                <span className="kmeta" data-testid="depot-own-cash">
+                <span
+                  className={cx('kmeta', shown.cashCents < 0 && 'is-neg')}
+                  data-testid="depot-own-cash"
+                >
                   Cash im Depot {eur(shown.cashCents)}
                 </span>
               )}
               {shown?.includedCashCents != null && (
-                <span className="kmeta" data-testid="included-depot-cash">
+                <span
+                  className={cx('kmeta', shown.includedCashCents < 0 && 'is-neg')}
+                  data-testid="included-depot-cash"
+                >
                   inkl. Cash im Depot {eur(shown.includedCashCents)}
                 </span>
               )}
@@ -438,7 +459,9 @@ function GroupRows({
             </td>
             <td className={cx('kc-num', value !== null && value < 0 && 'is-neg')}>
               {value === null
-                ? valuationMissingText(a)
+                ? loading && !shown?.approx
+                  ? '–'
+                  : valuationMissingText(a)
                 : `${shown?.approx ? '≈ ' : ''}${eur(value)}`}
             </td>
             {ordering && <td className="kc-order">{reorder.controls(a.id)}</td>}

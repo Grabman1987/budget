@@ -1,7 +1,8 @@
+import type { AccountRow } from './types';
 import type { PortfolioPositionsView } from '@budget/db';
+import { portfolioPositionsQuery } from '../wealth/portfolio-api';
 import { depotHoldings } from './depot-model';
 import { accountValueEur } from './labels';
-import type { AccountRow } from './types';
 
 /** What the account tree and Konten › Übersicht show for one account, and what it adds to sums. */
 export interface TreeValue {
@@ -20,6 +21,18 @@ export interface TreeValue {
 /** Depots and crypto accounts open the depot page; their figure there is the Depotwert. */
 export const isDepotAccount = (account: Pick<AccountRow, 'type'>): boolean =>
   account.type === 'brokerage' || account.type === 'crypto';
+
+/**
+ * The positions as the tree and the overview read them: the same cached answer as the depot page,
+ * but kept for 5 minutes without a refetch on window focus (the sidebar asks on every page), and
+ * not requested at all while no open depot exists. Writes still invalidate the ledger family.
+ */
+export const treePositionsQuery = (accounts: ReadonlyArray<AccountRow> | undefined) => ({
+  ...portfolioPositionsQuery(),
+  staleTime: 300_000,
+  refetchOnWindowFocus: false as const,
+  enabled: Boolean(accounts?.some((a) => isDepotAccount(a) && !a.closedAt)),
+});
 
 const plain = (cents: number | null): TreeValue => ({
   cents,
@@ -40,6 +53,8 @@ const plain = (cents: number | null): TreeValue => ({
  * - Every other account keeps the shared EUR value.
  * Sums over all open accounts therefore stay equal to the net worth. While the positions are not
  * loaded (or unusable), depots and their settlement accounts are unknown, never cash plus positions.
+ * A depot with positions but no price at all is unknown ("≈ –"), while its cash is known: the
+ * Verrechnungskonto keeps showing its cash plus the depot cash.
  */
 export function treeValues(
   accounts: ReadonlyArray<AccountRow>,
@@ -58,12 +73,18 @@ export function treeValues(
       ? depotHoldings(positions!, depot.id)
       : undefined;
     const shown = held?.valueCents ?? null;
-    if (!held || shown === null || total === null) {
-      values.set(depot.id, { ...plain(shown), sumCents: null });
+    if (!held || total === null) {
+      // Positions not loaded, or a rate is missing: the split of the depot's cash is unknown.
+      values.set(depot.id, {
+        ...plain(shown),
+        approx: shown !== null && (held?.incomplete ?? false),
+        sumCents: null,
+      });
       if (linked) values.set(linked.id, plain(null));
       continue;
     }
-    const cash = total - shown;
+    // No valued position at all (`shown` null): the cash is the whole known value of the depot.
+    const cash = total - (shown ?? 0);
     const approx = held.incomplete;
     if (linked) {
       values.set(depot.id, { ...plain(shown), approx });
@@ -72,7 +93,7 @@ export function treeValues(
       values.set(depot.id, {
         cents: shown,
         approx,
-        sumCents: total,
+        sumCents: shown === null ? null : total,
         includedCashCents: null,
         cashCents: cash === 0 ? null : cash,
       });

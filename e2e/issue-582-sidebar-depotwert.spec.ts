@@ -228,11 +228,11 @@ test('a partly unpriced depot shows ≈ in tree and overview like on its page, a
   await fits(page);
   if (isMobile) return;
   await expect(sidebarRow(page, 'Testdepot').locator('.acct-amount')).toHaveText('≈ 25 €');
-  // No position of the crypto account has a price: the page says "Unvollständig", the tree a dash.
-  await expect(sidebarRow(page, 'Testkrypto').locator('.acct-amount')).toHaveText('–');
+  // No position of the crypto account has a price: the page says "Unvollständig", the tree "≈ –".
+  await expect(sidebarRow(page, 'Testkrypto').locator('.acct-amount')).toHaveText('≈ –');
   await page.goto(`/konten/${crypto.id}`);
   await expect(page.getByTestId('depot-value')).toHaveText('≈ Unvollständig');
-  await expect(sidebarRow(page, 'Testkrypto').locator('.acct-amount')).toHaveText('–');
+  await expect(sidebarRow(page, 'Testkrypto').locator('.acct-amount')).toHaveText('≈ –');
   // One unknown figure makes the Investments sum unknown instead of a wrong number.
   await expect(treeSum(page, 'investments')).toHaveText('–');
 });

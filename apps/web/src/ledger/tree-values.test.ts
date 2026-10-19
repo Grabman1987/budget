@@ -1,7 +1,7 @@
 import type { PortfolioPositionsView, PositionAccount } from '@budget/db';
 import { describe, expect, it } from 'vitest';
 import { overviewModel } from './overview-model';
-import { sumTreeValues, treeValues } from './tree-values';
+import { sumTreeValues, treePositionsQuery, treeValues } from './tree-values';
 import type { AccountRow } from './types';
 
 const row = (
@@ -112,10 +112,43 @@ describe('treeValues', () => {
     expect(estimated.get('depot')).toMatchObject({ cents: 2468, approx: true });
   });
 
-  it('is unknown, with its Verrechnungskonto, when no position has a value', () => {
-    const values = treeValues([depot, settlement], view([held('depot', null, 'missing_price')]));
-    expect(values.get('depot')).toMatchObject({ cents: null, sumCents: null, approx: false });
+  it('marks a depot with a missing rate ≈ and leaves its sums and Verrechnungskonto unknown', () => {
+    const noRate = row('depot', 'brokerage', null, { referenceAccountId: 'cash' });
+    const values = treeValues(
+      [noRate, settlement],
+      view([held('depot', 2468)], [held('depot', null, 'missing_fx')]),
+    );
+    expect(values.get('depot')).toMatchObject({ cents: 2468, approx: true, sumCents: null });
     expect(values.get('cash')).toMatchObject({ cents: null, sumCents: null });
+  });
+
+  it('keeps the Verrechnungskonto known when no position of the depot has a price', () => {
+    // Nothing is valued: the depot's 5,00 are all cash; 118,45 + 5,00 = 123,45 on the platform row.
+    const cashOnly = row('depot', 'brokerage', 500, { referenceAccountId: 'cash' });
+    const values = treeValues([cashOnly, settlement], view([held('depot', null, 'missing_price')]));
+    expect(values.get('depot')).toEqual({
+      cents: null,
+      approx: true,
+      sumCents: null,
+      includedCashCents: null,
+      cashCents: null,
+    });
+    expect(values.get('cash')).toMatchObject({
+      cents: 12345,
+      sumCents: 12345,
+      includedCashCents: 500,
+    });
+  });
+
+  it('without a Verrechnungskonto the unpriced depot keeps its cash line, its sums stay unknown', () => {
+    const loose = row('depot', 'brokerage', 500);
+    const values = treeValues([loose], view([held('depot', null, 'missing_price')]));
+    expect(values.get('depot')).toMatchObject({
+      cents: null,
+      approx: true,
+      sumCents: null,
+      cashCents: 500,
+    });
   });
 
   it('is unknown while the positions are not loaded, never cash plus positions', () => {
@@ -144,6 +177,19 @@ describe('treeValues', () => {
     expect(values.get('cash')?.cents).toBe(11845);
     expect(values.get('p2p')?.cents).toBe(30000);
     expect(values.get('miss')?.cents).toBeNull();
+  });
+});
+
+describe('treePositionsQuery', () => {
+  it('is cached for five minutes, not refetched on focus, and only asked with an open depot', () => {
+    const query = treePositionsQuery([depot, settlement]);
+    expect(query.staleTime).toBe(300_000);
+    expect(query.refetchOnWindowFocus).toBe(false);
+    expect(query.enabled).toBe(true);
+    expect(query.queryKey).toEqual(['ledger', 'portfolio-positions']);
+    expect(treePositionsQuery([settlement]).enabled).toBe(false);
+    expect(treePositionsQuery([{ ...depot, closedAt: '2026-01-01' }]).enabled).toBe(false);
+    expect(treePositionsQuery(undefined).enabled).toBe(false);
   });
 });
 

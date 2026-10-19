@@ -294,6 +294,10 @@
   font-weight: 500;
   color: var(--ink-3);
 }
+/* Negative depot cash lines use the same red as the sidebar tree (.acct-cash.is-neg). */
+.kmeta.is-neg {
+  color: var(--red);
+}
 .krow:hover td {
   background: var(--tint);
 }

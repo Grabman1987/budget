@@ -24,9 +24,8 @@ import { eur } from '../ledger/format';
 import type { AccountGroupId } from '../ledger/labels';
 import { overviewModel, type GroupView } from '../ledger/overview-model';
 import { accountsQuery } from '../ledger/queries';
-import { treeValues, type TreeValue } from '../ledger/tree-values';
+import { treePositionsQuery, treeValues, type TreeValue } from '../ledger/tree-values';
 import type { AccountType } from '../ledger/types';
-import { portfolioPositionsQuery } from '../wealth/portfolio-api';
 import { AppLink } from './app-link';
 import { useStoredFlag } from './use-stored-flag';
 
@@ -41,7 +40,7 @@ const NO_VALUE: TreeValue = {
 /** Euro amount without cents for the narrow sidebar; a missing rate stays visible as a dash. */
 const short = ({ cents, approx }: { cents: number | null; approx: boolean }) =>
   cents === null
-    ? '–'
+    ? `${approx ? '≈ ' : ''}–`
     : `${approx ? '≈ ' : ''}${eur(Math.round(cents / 100) * 100).replace(/,00(?=\s?€)/, '')}`;
 
 const GROUP_ICON: Record<AccountGroupId, LucideIcon> = {
@@ -82,7 +81,7 @@ export function AccountTree() {
   const ordered = useOrderedAccounts(accounts.data?.accounts);
   const [editing, setEditing] = useState(false);
   const [creating, setCreating] = useState(false);
-  const positions = useQuery(portfolioPositionsQuery());
+  const positions = useQuery(treePositionsQuery(ordered.accounts));
   const values = treeValues(ordered.accounts ?? [], positions.data);
   const { groups } = overviewModel(ordered.accounts ?? [], values);
   return (
