@@ -1,0 +1,11 @@
+# Reduced-motion theme inheritance — #481 / #595
+
+Candidate, not yet accepted. The only product change sets the existing universal reduced-motion `transition-duration` from `0.01ms` to `0s`, retaining its `!important`. Animation duration/count, scrolling, colors and semantic roles are unchanged. The unsuccessful app-root color declaration is not included.
+
+On unchanged main `e74c4ef5` (tree `917bf8df`), two fresh actual WebKit contexts used the same real theme button and synthetic local Plan55 fixture. With `no-preference`, normal and semantic dark colors became ready before any screenshot; ordinary text contrast was 10.59–13.41:1. With `reduce`, 3,233 native animations initially ran, including inherited-color CSS transitions; 55 remained after the bounded five-second readiness check. Relevant inherited-color transitions remained pending at current time zero with a `0.01ms` duration, and ordinary text contrast stayed 1.18–1.49:1. The existing universal duration had unintentionally enabled the default `transition-property: all` on otherwise unanimated descendants. No transition-end consumers were found. The control returned exit 1 (three setup passes, normal-motion pass, reduced-motion failure); it is a failure reproduction, not acceptance.
+
+A separate unchanged-main observer control failed both with and without explicit pre-capture style reads; that observation was not necessary for the defect. All earlier failed captures and their computed observations remain external diagnostic artifacts. They are not final visual evidence.
+
+The new regression uses the real desktop and native phone theme controls in both directions. It requires actual normal ink/background and distinct muted/good/bad roles before the first viewport capture, then rechecks text fill, opaque-background WCAG contrast, semantics, accessibility, overflow and native 44px controls after capture. It keeps the default 30-second case budget, synthetic local data and the existing browser configuration.
+
+Pending: independent whole-diff review; fresh candidate build; canonical desktop/phone WebKit proof and four actual images; combined #595 validation, required Chromium CI and deployed verification. No PR, merge, deployment or issue closure is claimed by this dependency branch.
