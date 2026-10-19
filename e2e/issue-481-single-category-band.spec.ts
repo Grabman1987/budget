@@ -1,11 +1,55 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { sampleTest, SAMPLE_NOW, SAMPLE_URL } from './sample';
 import { STORAGE_STATE_SAMPLE } from '../playwright.config';
 import { test } from './isolated-ledger';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { cents, formatEuro } from '@budget/domain';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
+
+/** Keep both original compact row roles bounded when they share one physical band. */
+async function expectCompactBandContents(page: Page, phone: boolean) {
+  const bands = await page.locator('.ptable-zero .pmulti').evaluateAll((rows) =>
+    rows.map((row) => {
+      const boxes = (selector: string) =>
+        Array.from(row.querySelectorAll(selector), (element) =>
+          element.getBoundingClientRect(),
+        ).filter((box) => box.width > 0 && box.height > 0);
+      const category = boxes(
+        '.col-name > .plan-select, .pname, .spending-status, .spending-bar, .band-category-assigned, .band-category-activity, .band-category-available',
+      );
+      const parent = boxes('.band-parent .group-heading, .band-total');
+      // Financial controls can protrude beyond their inline wrapper's line box.
+      const categoryControls = boxes(
+        '.band-category-assigned :is(button, input, label), .band-category-available :is(button, input, label)',
+      );
+      const parentControls = boxes('.band-parent :is(button, label)');
+      const height = (items: DOMRect[]) =>
+        Math.max(...items.map((box) => box.bottom)) - Math.min(...items.map((box) => box.top));
+      const name = row.querySelector('.pname')!.getBoundingClientRect();
+      const status = row.querySelector('.spending-status')!.getBoundingClientRect();
+      return {
+        id: row.id,
+        categoryCount: category.length,
+        parentCount: parent.length,
+        categoryHeight: height([...category, ...categoryControls]),
+        parentHeight: height([...parent, ...parentControls]),
+        wholeHeight: row.getBoundingClientRect().height,
+        nameRight: name.right,
+        statusLeft: status.left,
+      };
+    }),
+  );
+  expect(bands.length).toBeGreaterThan(0);
+  for (const band of bands) {
+    expect(band.categoryCount, band.id).toBe(phone ? 6 : 7);
+    expect(band.parentCount, band.id).toBe(4);
+    expect(band.categoryHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 40);
+    expect(band.parentHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 36);
+    expect(band.wholeHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 152 : 76);
+    if (!phone) expect(band.nameRight, band.id).toBeLessThanOrEqual(band.statusLeft);
+  }
+}
 
 sampleTest(
   'sample ledger: group-first-category bands, current-baseline reduction and visual/accessibility evidence',
@@ -26,6 +70,8 @@ sampleTest(
     await expect(table.locator('.psingle')).toHaveCount(bandGroups.length);
     await expect(table.locator('.pmulti')).toHaveCount(multiple.length);
     await expect(table.locator('.prow:not(.is-empty)')).toHaveCount(visible.length);
+    await page.evaluate(() => document.fonts.ready);
+    await expectCompactBandContents(page, page.viewportSize()!.width < 768);
     expect(singles).toHaveLength(11);
     const oldRows = data.groups.length + visible.length;
     const newRows = oldRows - bandGroups.length;
@@ -372,6 +418,7 @@ sampleTest(
       await desktop.goto('/plan/monat?monat=2026-09');
       await expect(desktop.locator('.ptable-zero .pmulti')).toHaveCount(8);
       await desktop.evaluate(() => document.fonts.ready);
+      await expectCompactBandContents(desktop, false);
       const bands = desktop.locator('.ptable-zero .pmulti');
       let truncatedLabels = 0;
       for (let index = 0; index < (await bands.count()); index++) {

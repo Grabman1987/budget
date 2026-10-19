@@ -2499,9 +2499,31 @@
 .plan .band-parent-totals {
   display: none;
 }
+@media (min-width: 768px) {
+  .plan .ptable-zero .pmulti .col-name {
+    grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) minmax(0, 1.3fr);
+    grid-template-rows: 28px 4px;
+  }
+  .plan .ptable-zero .pmulti .spending-status {
+    grid-column: 4;
+    grid-row: 1;
+    text-align: right;
+  }
+  .plan .ptable-zero .pmulti .spending-bar {
+    grid-row: 2;
+  }
+  .plan .ptable-zero .pmulti .col-num {
+    padding-inline: 8px;
+  }
+  .plan .pmulti .col-num > .band-total {
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+}
 @media (max-width: 767px) {
   .plan .ptable-zero .pmulti:not(.is-empty) {
     grid-template-rows: 44px auto 44px 20px 4px;
+    padding-bottom: 4px !important;
   }
   .plan .pmulti .band-parent {
     grid-column: 1 / -1;
