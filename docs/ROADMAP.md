@@ -1,5 +1,15 @@
 # Roadmap
 
+### Plan single-category bands — #481 (2026-10-19)
+
+- [x] Decision 7A: one band per single visible category in the single-month Groups view, with existing category amounts/status/bar, selection, inspector and inline +; a second category restores the group.
+- [x] Reuse existing assignment/quick-assignment/move/cover and undo callbacks; no domain, API, DB or financial write changes.
+- [x] Add browser coverage and measure the owner-confirmed audit reference: 74 → 44 content rows (40.54%; today's main 55 → 44, 20%). [Evidence](evidence/plan-single-category-481/README.md).
+- [x] Final desktop/390 serial browser run: 19/19; compact-grid/inspector 4/4 separately; light/dark Axe, 44px phone targets and no horizontal overflow.
+- [ ] Green aggregate gate: all typecheck/lint/format passed; 4,381 unit tests passed and one old accessible-name selector failed. Required existing-test update is listed for Opus; existing tests are unchanged.
+- [ ] Exact Playwright browser and WebKit iPhone acceptance, dark iPhone evidence; browser download blocked by the environment's HTTP 403 for cdn.playwright.dev.
+- [ ] Opus review, CI and integration; issue remains open, no merge or queue loop.
+
 ### WP-001 — CASE-001 reference assurance, first bounded slice (#509, 2026-10-17)
 
 - [x] Inventory existing CASE-001–007 domain/repository tests; document coverage, boundary and missing API proof in `docs/evidence/reference-adoption/wp-001-case-audit-2026-10-17.md`.

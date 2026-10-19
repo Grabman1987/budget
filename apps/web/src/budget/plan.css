@@ -2383,3 +2383,66 @@
     min-height: 44px;
   }
 }
+
+/* Decision 7A: one visible category shares its group's band and creation control. */
+.plan .ptable-zero .psingle td {
+  height: auto;
+}
+.plan .ptable-zero .psingle .col-name {
+  grid-template-columns: 24px minmax(0, 1fr) 28px;
+  grid-template-rows: 24px 18px 4px;
+}
+.plan .ptable-zero .psingle .plan-select {
+  grid-row: 1 / -1;
+}
+.plan .ptable-zero .psingle .pname {
+  grid-column: 2;
+  grid-row: 1;
+  font-family: var(--font-tech);
+  font-size: var(--fs-measure);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.plan .band-number {
+  flex-shrink: 0;
+}
+.plan .ptable-zero .psingle .plan-add {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 28px;
+  padding: 0;
+}
+.plan .ptable-zero .psingle .spending-status {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  text-align: left;
+}
+.plan .ptable-zero .psingle .spending-bar {
+  grid-row: 3;
+}
+@media (max-width: 767px) {
+  .plan .ptable-zero .psingle:not(.is-empty) {
+    grid-template-rows: 44px 44px 4px;
+  }
+  .plan .ptable-zero .psingle .col-name {
+    display: contents;
+  }
+  .plan .ptable-zero .psingle .plan-add {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .plan .ptable-zero .psingle .plan-select {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .plan .ptable-zero .psingle .spending-status {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .plan .ptable-zero .psingle .spending-bar {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+}

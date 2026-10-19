@@ -279,6 +279,9 @@ function PlanBody({
   const multi = months.length > 1 && !distribute;
   const shownView: PlanView = multi ? 'group' : view;
   const groups = planGroups(shownView, rows, data, ctx);
+  const collapsibleKeys = groups
+    .filter((g) => multi || shownView !== 'group' || g.rows.length !== 1)
+    .map((g) => g.key);
   const shownRows = groups.flatMap((g) => g.rows);
   const shownIds = new Set(shownRows.map((r) => r.id));
   const orderedRows = [...shownRows, ...rows.filter((r) => !shownIds.has(r.id))];
@@ -514,7 +517,7 @@ function PlanBody({
               collapsed={collapsed.size > 0}
               onView={setView}
               onToggleAll={() =>
-                setCollapsed(collapsed.size ? new Set() : new Set(groups.map((g) => g.key)))
+                setCollapsed(collapsed.size ? new Set() : new Set(collapsibleKeys))
               }
             />
             <span className="spacer" />
@@ -546,9 +549,7 @@ function PlanBody({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() =>
-                  setCollapsed(collapsed.size ? new Set() : new Set(groups.map((g) => g.key)))
-                }
+                onClick={() => setCollapsed(collapsed.size ? new Set() : new Set(collapsibleKeys))}
               >
                 {collapsed.size ? 'Alle ausklappen' : 'Alle einklappen'}
               </Button>
@@ -596,9 +597,7 @@ function PlanBody({
                           className="grp-toggle"
                           aria-label={collapsed.size ? 'Alle ausklappen' : 'Alle einklappen'}
                           onClick={() =>
-                            setCollapsed(
-                              collapsed.size ? new Set() : new Set(groups.map((g) => g.key)),
-                            )
+                            setCollapsed(collapsed.size ? new Set() : new Set(collapsibleKeys))
                           }
                         >
                           <ChevronDown size={16} aria-hidden="true" />
@@ -628,7 +627,8 @@ function PlanBody({
                 <tbody>
                   {groups.map((g, index) => {
                     const st = groupStatus(g.rows);
-                    const isCollapsed = collapsed.has(g.key);
+                    const band = shownView === 'group' && g.rows.length === 1;
+                    const isCollapsed = !band && collapsed.has(g.key);
                     const sugSum = g.rows.reduce((a, r) => a + (sug[r.id] ?? 0), 0);
                     const toggle = () => toggleGroup(g.key);
                     return [
@@ -639,62 +639,64 @@ function PlanBody({
                             </tr>,
                           ]
                         : []),
-                      <tr
-                        key={g.key}
-                        className={cx('pgroup', isCollapsed && 'is-collapsed')}
-                        id={`grp-${g.key}`}
-                      >
-                        <td className="col-name">
-                          <div className="group-heading">
-                            <PlanSelection
-                              label={`${g.title} auswählen`}
-                              rows={g.rows}
-                              selected={selected}
-                              onChange={() => selectRows(g.rows)}
-                            />
-                            <button
-                              type="button"
-                              className="grp-toggle"
-                              aria-expanded={!isCollapsed}
-                              title={`${g.sub ?? g.title} · ${statusText(g, st)}`}
-                              onClick={toggle}
-                            >
-                              <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
-                              <span className="grp-text">
-                                <span className="grp-title">{g.title}</span>
-                              </span>
-                            </button>
-                            {shownView === 'group' && (
-                              <Button
-                                variant="ghost"
-                                className="plan-add"
-                                aria-label={`Kategorie in ${g.title} anlegen`}
-                                onClick={() => setCategoryForm({ mode: 'edit', groupId: g.key })}
+                      !band && (
+                        <tr
+                          key={g.key}
+                          className={cx('pgroup', isCollapsed && 'is-collapsed')}
+                          id={`grp-${g.key}`}
+                        >
+                          <td className="col-name">
+                            <div className="group-heading">
+                              <PlanSelection
+                                label={`${g.title} auswählen`}
+                                rows={g.rows}
+                                selected={selected}
+                                onChange={() => selectRows(g.rows)}
+                              />
+                              <button
+                                type="button"
+                                className="grp-toggle"
+                                aria-expanded={!isCollapsed}
+                                title={`${g.sub ?? g.title} · ${statusText(g, st)}`}
+                                onClick={toggle}
                               >
-                                +
-                              </Button>
-                            )}
-                            {distribute && sugSum > 0 && (
-                              <Button
-                                size="xs"
-                                variant="ghost"
-                                onClick={() => take(g.rows.map((r) => r.id))}
-                              >
-                                {g.stage ? 'Stufe füllen' : 'Übernehmen'} · {eur(sugSum)}
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                        <td className="col-num col-assign" data-label="Zugewiesen">
-                          {eur(st.assigned)}
-                        </td>
-                        <td className="col-num col-act" data-label="Aktivität">
-                          {eur(st.activity)}
-                        </td>
-                        <td className="col-num col-avail" data-label="Verfügbar">
-                          {eur(st.available)}
-                        </td>
-                      </tr>,
+                                <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
+                                <span className="grp-text">
+                                  <span className="grp-title">{g.title}</span>
+                                </span>
+                              </button>
+                              {shownView === 'group' && (
+                                <Button
+                                  variant="ghost"
+                                  className="plan-add"
+                                  aria-label={`Kategorie in ${g.title} anlegen`}
+                                  onClick={() => setCategoryForm({ mode: 'edit', groupId: g.key })}
+                                >
+                                  +
+                                </Button>
+                              )}
+                              {distribute && sugSum > 0 && (
+                                <Button
+                                  size="xs"
+                                  variant="ghost"
+                                  onClick={() => take(g.rows.map((r) => r.id))}
+                                >
+                                  {g.stage ? 'Stufe füllen' : 'Übernehmen'} · {eur(sugSum)}
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                          <td className="col-num col-assign" data-label="Zugewiesen">
+                            {eur(st.assigned)}
+                          </td>
+                          <td className="col-num col-act" data-label="Aktivität">
+                            {eur(st.activity)}
+                          </td>
+                          <td className="col-num col-avail" data-label="Verfügbar">
+                            {eur(st.available)}
+                          </td>
+                        </tr>
+                      ),
                       ...(g.rows.length === 0 && !isCollapsed && (g.emptyNote ?? g.emptyText)
                         ? [
                             <tr key={`${g.key}-empty`} className="prow is-empty">
@@ -713,6 +715,8 @@ function PlanBody({
                             <EnvelopeRow
                               key={r.id}
                               row={r}
+                              band={band ? g : undefined}
+                              onAdd={() => setCategoryForm({ mode: 'edit', groupId: g.key })}
                               ctx={ctx}
                               suggestion={distribute ? sug[r.id] : undefined}
                               tba={tba}
@@ -1278,6 +1282,8 @@ function PlanSelection({
 
 function EnvelopeRow({
   row: r,
+  band,
+  onAdd,
   ctx,
   suggestion,
   tba,
@@ -1291,6 +1297,8 @@ function EnvelopeRow({
   onInspect,
 }: {
   row: PlanRow;
+  band: PlanGroup | undefined;
+  onAdd: () => void;
   ctx: PlanContext;
   suggestion: number | undefined;
   /** "Zu verteilen": the guard refuses raising the assignment beyond it. */
@@ -1323,14 +1331,25 @@ function EnvelopeRow({
     </button>
   );
   return (
-    <tr className={cx('prow', over && 'is-over', credit && 'is-credit', selected && 'is-selected')}>
-      <td
-        className="col-name"
-        onClick={(event) => {
-          if (!(event.target instanceof Element && event.target.closest('button, input, label')))
-            onInspect();
-        }}
-      >
+    <tr
+      className={cx(
+        'prow',
+        band && 'pgroup psingle',
+        over && 'is-over',
+        credit && 'is-credit',
+        selected && 'is-selected',
+      )}
+      id={band ? `grp-${band.key}` : undefined}
+      onClick={(event) => {
+        if (
+          event.target instanceof Element &&
+          (band || event.target.closest('.col-name')) &&
+          !event.target.closest('button, input, label')
+        )
+          onInspect();
+      }}
+    >
+      <td className="col-name">
         <label className="plan-select">
           <input
             type="checkbox"
@@ -1355,9 +1374,26 @@ function EnvelopeRow({
           aria-pressed={selected}
           onClick={onInspect}
         >
-          <CategoryIcon icon={r.icon} name={r.name} />
-          <span className="category-name">{r.name}</span>
+          {band ? (
+            <span className="band-number" aria-hidden="true">
+              {band.no.padStart(2, '0')}
+            </span>
+          ) : (
+            <CategoryIcon icon={r.icon} name={r.name} />
+          )}
+          <span className="category-name">{band ? band.title : r.name}</span>
+          {band && band.title !== r.name && <span className="sr-only"> · {r.name}</span>}
         </button>
+        {band && (
+          <Button
+            variant="ghost"
+            className="plan-add"
+            aria-label={`Kategorie in ${band.title} anlegen`}
+            onClick={onAdd}
+          >
+            +
+          </Button>
+        )}
         <span
           className={cx('spending-status', spending.over && 'neg-alert')}
           title={spending.status}
