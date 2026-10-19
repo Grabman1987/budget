@@ -1,5 +1,15 @@
 # Roadmap
 
+### Plan single-category bands — #481 (2026-10-19)
+
+- [x] Owner decision 7A combines single-category groups and multi-category group heads with their first category in the single-month Groups view. Group totals and category figures remain distinct; collapse/focus, selection, inspector and inline + remain available. Existing cent calculations, APIs and write/undo callbacks are unchanged.
+- [x] Current synthetic sample: 55 → 36 logical content rows, 34.55% fewer against the owner-approved 55-row main baseline; all 36 categories and 19 group contexts remain. Actual physical table heights 1746.625px at 1440×900 and 3842.25px at 390×664 are separate, with no physical-height percentage claim.
+- [x] Actual frozen `218679c8`: fresh E2E build and canonical WebKit 15/15 pass, including retained 768/1180/1439 regressions, strict seven-width/two-theme page/role bounds and genuine existing right-edge scrolling/focus. Four current desktop/phone light/dark images and safe proof are [recorded and independently reviewed](evidence/plan-single-category-481/README.md); known fixed-navigation/FAB hit-test limits remain explicit.
+- [x] Final clean normal-main merge `908e090c` includes verified live `bf11eebd`. Required-age two-worker check passes 519 files / 4573 tests, then normal production build passes; all 29 frozen plus 3337 tracked-file hashes, HEAD and clean status remain exact. Own product/test bytes remain exact `218679c8` through the mechanical main refresh; native evidence is qualified to its actual runtime head.
+- [x] All nine existing-test adaptations were applied only by the coordinator under named owner decisions and independently reviewed, retaining financial oracles and original size budgets. Independent Codex whole-diff, geometry-policy, runtime/visual and mechanical-merge reviews are clear under [owner model authorization #694](https://github.com/Grabman1987/budget/issues/694).
+- [ ] Complete exact-head Chromium desktop/mobile CI, affected-caller compatibility and final coordinator delivery review; local source/full evidence is not a remote-CI claim.
+- [ ] Complete serial integration and deployed-revision verification. #481 remains open until every acceptance criterion is live; old queue loops remain disabled.
+
 ### #632 — pending and confirmed account-register proof (2026-10-19)
 
 - [x] Audit the existing account register, then add only a dedicated isolated-ledger regression: one pending and one confirmed booking in A, plus a pending B sentinel. Literal balances are 98,199 and 49,110 cents; no product calculation or status rule changes.
@@ -1433,3 +1443,14 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [x] Display contiguous actual segments and the unchanged separate forecast, exact dates/values, keyboard/touch inspection, privacy and the existing forecast-table switch.
 - [x] Independent financial/source and coordinator-owned #618 test-delta review; all nine canonical WebKit cases, 390/1440 light/dark and strict native touch evidence passed. Age-required full check passed 491 files / 4,415 tests; production build passed with all twenty frozen hashes unchanged. [Evidence](evidence/reference-adoption/wp-011-freedom-history-616.md).
 - [ ] Exact-head Chromium/Windows CI, #615 parent integration and serial deployment/live revision. No issue closure or live acceptance from local evidence.
+
+
+## Personal freedom goal (#617) — local validation, 2026-10-19
+
+- [x] Private versioned goal-year setting, complete-DOB calendar-year age conversion, audit-head goal/DOB CAS before no-op, atomic undo/redo and ABA/rollback protection; malformed/future values remain unavailable without overwriting their bytes.
+- [x] Persist year/age, reload and clear with grouped undo; preserve dirty drafts through background refresh/conflicts and fence pending reload mode changes. Reuse unchanged January/minimum-cent formulas, canonical selected investment basis and local unsaved return assumption; no raw DOB output or invented forecast/history samples.
+- [x] Display the current required monthly saving and January deadline with existing amount privacy, actual light/dark WebKit 390/explicit1440 layout, strict paint proof, Axe, 44-pixel controls and no horizontal overflow. Five current native cases passed; four unchanged #618 cases passed separately on identical production bytes. Phone full-page fixed-navigation capture and Chromium coverage limits remain documented.
+- [x] Independent whole financial/migration/security and runtime/image reviews; focused types/lint and five new unit files (21 tests) passed before mechanical main refreshes. Required age-enabled full check at `4ffca1a9`: 519 test files / 4573 tests passed, followed by normal production build exit 0; all 24 owned files, 12 protected files, HEAD and status unchanged.
+- [ ] Final documentation-delta review, exact-head required CI including Chromium/Windows, serial integration and exact deployed health/live acceptance. No #617 completion or parent #528 acceptance is claimed before those gates.
+
+Evidence: [personal goal validation](evidence/reference-adoption/wp-personal-goal-617.md).
