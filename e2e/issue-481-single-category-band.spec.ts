@@ -52,10 +52,12 @@ async function expectCompactBandContents(page: Page, phone: boolean) {
 }
 
 /** Check actual on-screen inherited ink, which full-page Axe can miss off viewport. */
-async function expectOnscreenParentInk(page: Page) {
+async function expectOnscreenParentInk(page: Page, selectedIndices?: readonly number[]) {
   const bands = page.locator('.ptable-zero .pmulti');
   const results = [];
-  for (let index = 0; index < (await bands.count()); index++) {
+  const indices =
+    selectedIndices ?? Array.from({ length: await bands.count() }, (_, index) => index);
+  for (const index of indices) {
     const band = bands.nth(index);
     const toggle = band.locator('.grp-toggle');
     await toggle.evaluate((element) =>
@@ -546,29 +548,41 @@ async function withDesktopSample(browser: Browser, run: (desktop: Page) => Promi
 }
 
 // Use actual desktop contexts even in the iPhone engine project.
+const parentBatches = [
+  [0, 1, 2, 3],
+  [4, 5, 6, 7],
+] as const;
 for (const theme of ['light', 'dark'] as const) {
-  sampleTest(`desktop ${theme} parent ink stays readable on screen`, async ({ browser }, info) => {
-    await withDesktopSample(browser, async (desktop) => {
-      await desktop.evaluate((value) => {
-        document.documentElement.dataset['theme'] = value;
-      }, theme);
-      const parentInk = await expectOnscreenParentInk(desktop);
-      writeFileSync(
-        info.outputPath(`desktop-${theme}-parent-ink.json`),
-        JSON.stringify(
-          {
-            engine: browser.browserType().name(),
-            browserVersion: browser.version(),
-            theme,
-            configuredDesktopFlags: { isMobile: false, hasTouch: false },
-            parentInk,
-          },
-          null,
-          2,
-        ) + '\n',
-      );
-    });
-  });
+  for (const indices of parentBatches) {
+    sampleTest(
+      `desktop ${theme} parent ink stays readable on screen (${indices[0]}–${indices[3]})`,
+      async ({ browser }, info) => {
+        await withDesktopSample(browser, async (desktop) => {
+          await desktop.evaluate((value) => {
+            document.documentElement.dataset['theme'] = value;
+          }, theme);
+          expect(parentBatches.flat()).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+          const parentInk = await expectOnscreenParentInk(desktop, indices);
+          expect(parentInk).toHaveLength(4);
+          writeFileSync(
+            info.outputPath(`desktop-${theme}-parent-ink-${indices[0]}-${indices[3]}.json`),
+            JSON.stringify(
+              {
+                engine: browser.browserType().name(),
+                browserVersion: browser.version(),
+                theme,
+                configuredDesktopFlags: { isMobile: false, hasTouch: false },
+                selectedIndices: indices,
+                parentInk,
+              },
+              null,
+              2,
+            ) + '\n',
+          );
+        });
+      },
+    );
+  }
 
   sampleTest(
     `desktop ${theme} group labels stay inside their controls at 1440 pixels`,
