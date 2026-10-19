@@ -7,16 +7,8 @@ import {
   type PerformanceInput,
   type Window,
 } from './performance';
-
-export type BenchmarkGap = 'missing_price' | 'missing_fx' | 'not_selected';
-export interface ReportQuote {
-  date: string;
-  /** EUR price level, not stored money. Null means a stored quote lacks its historical FX. */
-  level: number | null;
-  reason: 'missing_fx' | null;
-  /** Exchange-traded instruments can use Friday's close; daily/manual sources cannot. */
-  weekendCarry?: boolean;
-}
+import { benchmarkQuoteResolver, type BenchmarkGap, type ReportQuote } from './benchmark-quotes';
+export type { BenchmarkGap, ReportQuote } from './benchmark-quotes';
 
 /** Report 4.4: one calendar partition of the existing daily TTWROR; no second return formula. */
 export function performanceReportSeries(
@@ -27,18 +19,7 @@ export function performanceReportSeries(
   const effective = windowPerformance(input, window);
   const { from, to } = effective;
   const bounds = monthBoundaries(from, to);
-  const ordered = [...(quotes ?? [])].sort((a, b) => a.date.localeCompare(b.date));
-  const quoteOn = (day: string) => ordered.findLast((q) => q.date <= day);
-  // Only a weekend can use Friday's close. No trading calendar is stored, so a missing
-  // weekday/holiday close is an explicit gap, not an assumption of an unchanged price.
-  const currentQuote = (day: string, quote: ReportQuote | undefined) => {
-    const weekday = new Date(`${day}T00:00:00Z`).getUTCDay();
-    const closeDay = addDays(
-      day,
-      quote?.weekendCarry !== false ? (weekday === 0 ? -2 : weekday === 6 ? -1 : 0) : 0,
-    );
-    return quote !== undefined && quote.date >= closeDay;
-  };
+  const quoteOn = benchmarkQuoteResolver(quotes ?? []);
   let portfolioLevel = 100;
   const dailySeries = input.series.filter((v) => v.date >= from && v.date <= to);
   const dailyRateByDate = new Map(
@@ -50,8 +31,7 @@ export function performanceReportSeries(
   const firstReturn = dailyRateByDate.keys().next().value;
   const baseDate = firstReturn ? addDays(firstReturn, -1) : from;
   const base = quoteOn(baseDate);
-  const baseLevel =
-    currentQuote(baseDate, base) && base?.level != null && base.level > 0 ? base.level : null;
+  const baseLevel = base.level !== null && base.level > 0 ? base.level : null;
   const dailyValues = dailySeries.map((valuation) => {
     const flows = input.flows.filter((f) => f.date === valuation.date && f.date > from);
     return {
@@ -95,20 +75,13 @@ export function performanceReportSeries(
       const start = addDays(valuation.date, -1);
       const quote = quoteOn(start);
       benchmarkBase =
-        currentQuote(start, quote) &&
-        quote?.level != null &&
-        quote.level > 0 &&
-        lastBenchmarkLevel > 0
+        quote.level !== null && quote.level > 0 && lastBenchmarkLevel > 0
           ? (100 * quote.level) / lastBenchmarkLevel
           : null;
     }
     const quote = quoteOn(valuation.date);
     const benchmark =
-      valued &&
-      benchmarkBase !== null &&
-      currentQuote(valuation.date, quote) &&
-      quote?.level != null &&
-      quote.level >= 0
+      valued && benchmarkBase !== null && quote.level !== null && quote.level >= 0
         ? (100 * quote.level) / benchmarkBase
         : null;
     dailyBenchmark.push({ date: valuation.date, benchmark });
@@ -137,12 +110,10 @@ export function performanceReportSeries(
         closing = quoteOn(part.to);
       // Only the funded return days enter the comparison; later quotes never backfill a base.
       const gap: BenchmarkGap | null =
-        opening?.reason === 'missing_fx' || closing?.reason === 'missing_fx'
+        opening.gap === 'missing_fx' || closing.gap === 'missing_fx'
           ? 'missing_fx'
-          : !currentQuote(part.from, opening) ||
-              !currentQuote(part.to, closing) ||
-              opening?.level == null ||
-              closing?.level == null ||
+          : opening.level === null ||
+              closing.level === null ||
               opening.level <= 0 ||
               closing.level < 0
             ? 'missing_price'
@@ -165,8 +136,8 @@ export function performanceReportSeries(
       rate,
       benchmarkRate,
       benchmarkGap,
-      startQuoteDate: a?.date ?? null,
-      endQuoteDate: b?.date ?? null,
+      startQuoteDate: a.quote?.date ?? null,
+      endQuoteDate: b.quote?.date ?? null,
     };
   });
   const compound = (values: (number | null)[]) =>
