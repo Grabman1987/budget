@@ -102,12 +102,26 @@ See [CSV export](../../export.md), [receipts](../../receipts.md),
 
 ## Validation and remaining gates
 
-The standalone command must be run explicitly. The normal Vitest include patterns
-do **not** discover this script, and this change does not edit CI configuration.
-The existing Linux CI backup suite requires age; Windows unit CI currently does
-not install it. Dedicated Linux CI integration of this stronger scripted proof
-remains a follow-up: a green ordinary `npm run check` or Windows CI alone does
-not establish that this script ran. No missing-age skip is introduced.
+The normal Vitest include patterns do **not** discover this standalone script.
+The additive [Recovery proof workflow](../../../.github/workflows/recovery-proof.yml)
+now runs it automatically on pull requests affecting its script, archive/receipt
+implementation, database/domain dependencies, package lock or Node version. The
+Linux job installs real age from Ubuntu's package repository and executes:
+
+```sh
+npx --no-install tsx scripts/recovery-proof.ts
+```
+
+The workflow uses pinned actions, read-only repository permissions and disposable
+synthetic keys/data. It uploads no artifacts and uses no stored secrets. The
+existing CI workflow and tests remain unchanged; Windows unit CI does not install
+age or execute this Linux job. A green ordinary `npm run check` or Windows CI
+alone does not establish that the new drill ran. No missing-age skip is introduced.
+
+At this document update, the workflow and its exact command have been reviewed
+and the real-age drill has passed locally and independently, but the added job
+has not yet run on the final PR head. The PR must record the actual automated
+Recovery proof result and exact head separately from earlier local/full-CI runs.
 
 The PR records the exact revision, actual command results and independent review.
 Live delivery, an owner-operated restore with private backups/keys, provider
