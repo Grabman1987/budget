@@ -7,6 +7,7 @@ import {
   addMonths,
   addDays,
   allocationStatus,
+  benchmarkQuotesInEur,
   clusterRisk,
   documentedCostOf,
   documentedRealizedGain,
@@ -28,7 +29,7 @@ import {
   toEurCents,
   type RateTable,
   type AllocationStatus,
-  type BenchmarkLevel,
+  type ReportQuote,
   type ClusterRisk,
   type IncomeSummary,
   type Period,
@@ -866,15 +867,16 @@ function portfolioSummaryInRange(db: Executor, options: PortfolioOptions): Portf
     const performanceInput = { series: valuations, flows, returnFlows, irrFlows };
 
     const benchmarkId = options.benchmarkSecurityId ?? lines[0]?.securityId;
-    let levels: BenchmarkLevel[] | undefined;
+    let levels: ReportQuote[] | undefined;
     const benchmarkSecurity = benchmarkId ? loaded.securities.get(benchmarkId) : undefined;
     if (benchmarkSecurity) {
-      levels = db
-        .select({ date: price.date, level: price.priceMicro })
+      const rows = db
+        .select()
         .from(price)
         .where(and(eq(price.securityId, benchmarkSecurity.id), lte(price.date, today)))
         .orderBy(asc(price.date))
         .all();
+      levels = benchmarkQuotesInEur(rows, rates, benchmarkSecurity.kind);
       if (levels.length > 0)
         benchmark = { securityId: benchmarkSecurity.id, name: benchmarkSecurity.name };
       else levels = undefined;
@@ -900,19 +902,7 @@ function portfolioSummaryInRange(db: Executor, options: PortfolioOptions): Portf
       const benchmarkKind = selected.securityId
         ? loaded.securities.get(selected.securityId)?.kind
         : undefined;
-      const weekendCarry = ['etf', 'fund', 'stock', 'bond'].includes(benchmarkKind ?? '');
-      const quotes = rows.map((p) => {
-        try {
-          const level =
-            p.currency === 'EUR'
-              ? p.priceMicro
-              : (p.priceMicro * 1_000_000) / fxOn(rates, p.currency, p.date);
-          return { date: p.date, level, reason: null, weekendCarry };
-        } catch (error) {
-          if (!(error instanceof ExchangeRateUnavailableError)) throw error;
-          return { date: p.date, level: null, reason: 'missing_fx' as const, weekendCarry };
-        }
-      });
+      const quotes = benchmarkQuotesInEur(rows, rates, benchmarkKind);
       const groups = [...loaded.classNames].map(([assetClassId, name]) => ({
         assetClassId: assetClassId as string | null,
         name,
