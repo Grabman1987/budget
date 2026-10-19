@@ -1473,3 +1473,14 @@ Local evidence: pre-merge Node 22 typecheck/lint exit 0 and six focused files **
 **Required aggregate completed:** at frozen `2342ffc7`, Node 22.23.3 / age 1.2.1, `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check` passed **530 test files / 4,656 tests** (387.00s), followed by normal `npm run build` exit 0. All 32 owned / 3,370 tracked / 14 protected files, the four Root-owned existing tests, HEAD and clean status stayed exact; wrapper, postguard and lock-release checks exited 0. Existing lint/JSDOM/chunk-size warnings remain documented. Final changes are results-only in this block and the evidence document; all thirty other owned blobs remain exact.
 
 **Pending:** exact-head Chromium desktop/mobile CI (including the two old E2E specs not selected by WebKit), reviewed PR, serial integration and exact live revision. No completion of #467/#566 or deployed #578 behavior is claimed.
+
+
+## #606 — Recorded payment history and future read projection
+
+- [x] Reproduce the real synthetic stale-detail false-empty path before product edits, distinguishing explicit refresh and the separate end-day28 boundary; historical production cause remains unverified.
+- [x] Show up to12 actually recorded past dues with signed Soll/Ist/deviation, explicit sparse/unknown-currency data and real booking links; default3 future dates reuse existing calendar/version rules, with bounded additional terms and no actions on nonpersistent previews. No GET write, schedule backfill, schema, matching, ledger or undo-policy change.
+- [x] Independent whole financial/read-side and Root-owned one-existing-test disclosure review. Actual31 focused tests passed before two independently inverse-reviewed erased type-only fixture fixes; db/server/web types0, then final ESLint9/Prettier12 checks0 in separate documented runs.
+- [x] Fresh E2E build0 and actual canonical WebKit6/6 PASS (NEW3+setup3),44.731628s, strict Axe/44px/privacy/keyboard/nooverflow in both themes. Exact original phone390×664/coarse/DPR3/rawTouch0 and trueWebKit1440 layout captures reviewed; click/keyboard is not trusted-touch proof and full-page fixednav photography limits remain explicit. Source12/3370tracked/22protected and compiled169 bytes unchanged during native run.
+- [ ] Required age-enabled aggregate and normal production build, final evidence/mechanical review, exact-head Chromium/Windows CI and old expected financial/visual compatibility, serial live revision. No full #606 or parent #482 acceptance is claimed yet.
+
+Evidence: [payment detail history](evidence/payment-history-606.md).

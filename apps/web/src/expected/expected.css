@@ -27,9 +27,6 @@
 .xp-detail-body [aria-labelledby='xp-versions'] .rev-act {
   display: none;
 }
-.xp-detail .xp-occ > li {
-  grid-template-areas: 'date amt' 'state state' 'book book' 'act act';
-}
 
 .xp {
   display: grid;
@@ -238,6 +235,30 @@ h4.xp-sub {
 }
 .xp-occ-book:empty {
   display: none;
+}
+.xp-occ-actual {
+  grid-area: actual;
+}
+.xp-occ-delta {
+  grid-area: delta;
+}
+.xp-occ-actual,
+.xp-occ-delta {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.xp-detail .xp-occ > li {
+  grid-template-areas: 'date amt' 'actual delta' 'state state' 'book book' 'act act';
+}
+.xp-occ-book a,
+.xp-more {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.xp-occ-book a {
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .xp-occ-act {
   grid-area: act;

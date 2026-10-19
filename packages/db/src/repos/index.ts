@@ -24,6 +24,7 @@ export * from './reconciliation';
 export * from './categories';
 export * from './budget';
 export * from './expected';
+export * from './expected-detail';
 export * from './market';
 export * from './goals';
 export * from './rule-inputs';

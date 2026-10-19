@@ -59,6 +59,30 @@ export interface ExpectedVersion {
   note: string | null;
 }
 
+export interface PaymentDetailRow {
+  occurrenceId: string | null;
+  dueDate: string;
+  source: 'stored' | 'preview';
+  status: OccurrenceStatus;
+  expectedAmountCents: number;
+  currency: string | null;
+  booking: { id: string; date: string; amountCents: number; currency: string } | null;
+  actualComparableCents: number | null;
+  deviationCents: number | null;
+  unavailableReason:
+    'missing_booking' | 'currency_mismatch' | 'missing_currency' | 'unsafe_difference' | null;
+}
+
+export interface PaymentDetail {
+  paymentId: string;
+  asOf: string;
+  history: PaymentDetailRow[];
+  sparseHistory: boolean;
+  hasEarlierRecorded: boolean;
+  future: PaymentDetailRow[];
+  hasFurtherFuture: boolean;
+}
+
 export interface Occurrence {
   occurrenceId: string;
   paymentId: string;
@@ -178,6 +202,12 @@ export const versionsQuery = (paymentId: string) =>
       request<{ versions: ExpectedVersion[] }>('GET', url(`/${enc(paymentId)}/versions`)).then(
         (r) => r.versions,
       ),
+  });
+
+export const paymentDetailQuery = (paymentId: string, asOf: string) =>
+  queryOptions({
+    queryKey: [...EXPECTED_KEY, 'detail', paymentId, asOf],
+    queryFn: () => request<PaymentDetail>('GET', url(`/${enc(paymentId)}/detail`)),
   });
 
 export const incomeQuery = (month: string) =>

@@ -1,0 +1,91 @@
+# Payment detail history — #606
+
+Status: implementation, focused verification and genuine WebKit checks passed locally. Independent financial/source, Root-owned existing-test delta and actual four-image/runtime reviews are clear. **Required age-enabled aggregate, normal production build, exact-head Chromium/Windows CI and serial live verification are pending.** Neither full issue acceptance nor the historical production cause is claimed.
+
+## Owner contract and boundaries
+
+[Owner decision, 16 October](https://github.com/Grabman1987/budget/issues/482#issuecomment-6209745639):
+
+> Detail-Verlauf **Soll gegen Ist**: letzte 12 Fälligkeiten mit zugeordneter Buchung, Betrag, Abweichung, Status; nächste 3 als erwartet.
+
+The owner also asks to fix the monthly-payment message “Keine Fälligkeiten im Zeitraum”. The [coordinator's concrete interpretation](https://github.com/Grabman1987/budget/issues/606#issuecomment-6277922134) makes history the last **up to twelve actually stored**, live past dues through the read date, across years. Past schedule shapes were not versioned; missing history stays explicitly sparse instead of being reconstructed from today's schedule.
+
+The next three dates use the existing recurrence, effective-version, month-end clamp and Austrian business-day rules. **Weitere Termine** discloses at most nine additional read-only terms. Stored linked, skipped and missed states remain authoritative. A nonpersistent preview has no occurrence identity or write actions. The additive authenticated `GET /api/expected/:id/detail` is `no-store`; it never refreshes, materialises, matches or writes. Existing stored-occurrence actions still use the unchanged handlers and FormDialogs.
+
+Expected cents retain the stored signed snapshot. Actual comparison uses a proven matching native/original currency. Missing or incomparable money stays unavailable, never zero or parity FX. Signed deviation is actual minus expected in safe integer cents; unsafe differences are explicitly unavailable. Existing status, matching tolerance, ranges, locks and write/undo policy are unchanged. The native booked amount/currency and link to its real booking remain explicit.
+
+Stored currency is not guessed from current versions or equal numeric cents. Conservative proof requires original occurrence CREATE identity, complete relevant version CREATE evidence, an applicable version-origin witness by audit insertion order, and consistent currency across retained live/deleted/undone version rows and audit evidence. Incomplete, malformed or conflicting evidence yields unknown currency and unavailable comparison; this may remain unknown after undo of a competing currency. There is no financial-history replayer. Only a nonpersistent preview uses today's effective version currency.
+
+No schema, migration, ledger, booking/check/audit/undo writer, general payment list #605, pause/end policy or price-change proposal was changed. Parent #482 remains separate.
+
+## Actual regression before product edits
+
+At base `3427d925bc7b9487db95bf6323f51a4375bc057d`, Node 22.23.3 `npm ci` exited 0 without tracked changes. The first API probe timed out at the existing five-second bound; its component stage did not run. Four independently reviewed NEW-test comparisons then changed from deep Buffer matching to exact native `Buffer.equals`, preserving entire bytes and timeouts. The initial timeout does not establish matcher overhead as its cause.
+
+The next actual API controls passed **2/2**, 312 ms test time (4.08 s total). A monthly payment created at synthetic 15 January 2024, due on day 20, was read at 17 September 2026. The list knew 20 September, but the old direct-detail SELECT and 35/90-day stored reads were empty without changing database bytes. An explicit POST refresh produced literal 20 September / 20 October and, within 90 days, 20 November, each −1234 cents. A separate control proved that a stored 30 September 2027 first due was excluded by the old detail's end-day 28; it was legitimately outside both short windows.
+
+After both controls passed, the real PaymentPanel failed at missing **20.10.2026**. Actual DOM showed monthly day 20, the real −12.34 EUR value/version, next-due hint 20 September and “Keine Fälligkeiten im Zeitraum.” This was not an import, provider or transport failure. Later November/September/empty-absence/fetch assertions were **not reached**. Wrapper exit 1 and postguard/lock-release exits 0 preserved all 3370 tracked files, the two new files, HEAD and exact status. This proves a disposable synthetic stale-detail path, **not the historical production cause**. Original source and raw failures remain in the external control archive.
+
+The final regression retains all three literal dates and false-empty absence, using only the legitimate new GET transport plus an explicit no-POST check. Real SQLite/API controls retain the original refresh comparison.
+
+## Six acceptance criteria and current evidence
+
+| #606 criterion                                                            | Actual evidence and remaining gate                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Monthly 35/90-day dues and initial RED                                    | Pre-edit API2 PASS and real October-missing component RED; final repository/API/RTL tests PASS including direct detail, literal September/October/November and no database-byte mutation. Historical production cause remains unverified.                                                                                         |
+| Exact signed difference, missing booking                                  | Literal repository/API/RTL tests PASS for −100/+100, one-cent −1, range +4000, original USD, missing/incomparable data, equal/different-cent backdated currency conflicts, deleted/undone/legacy provenance and unsafe differences. Native stored Soll −1234 / Ist −1334 / deviation −100 and booking link PASS.                  |
+| Next three respect the schedule                                           | Repository tests PASS for monthly/yearly/52-week, clamp/shift, stored skip/link/missed identities and current effective versions. Native default3, fourth-March 100000→120000→100000 actual UI version save/undo, and 31 December 2028 identity-free annual preview PASS.                                                         |
+| Desktop1440, Chromium390, WebKit phone; both themes/Axe0/44px/no overflow | Actual canonical WebKit three NEW scenarios plus three setups PASS; light/dark strict Axe, keyboard disclosure, privacy, 44px controls and no horizontal overflow PASS. True WebKit1440 layout and actual390×664 phone captured. Chromium desktop/mobile acceptance remains pending; WebKit desktop is not a Chromium substitute. |
+| Existing design tokens                                                    | Payment-scoped CSS reuses existing typography, line/color/spacing tokens; targeted ESLint/Prettier and independent actual four-image reviews passed. No global layout/token changes or blanket baseline refresh.                                                                                                                  |
+| Integer cents; existing money/write/lock/undo rules                       | Pure read model and whole financial review clear. Real repository/API byte-invariance and existing writer/undo controls PASS; original writers unchanged. Root's one existing-test disclosure click preserves every old money/undo assertion. Required aggregate/normal build and exact Chromium CI of old tests remain pending.  |
+
+## Focused checks: separate actual checkpoints
+
+All commands used Node **22.23.3**, synthetic local data and one Vitest worker. No assertion, financial oracle, tolerance, timeout, retry or rule was relaxed.
+
+| Actual checkpoint                          | Result                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Initial implementation source11 `969151c6` | Three files /31 tests collected: 30 PASS, one NEW RTL overbroad whole-row zero-absence assertion FAIL; it incorrectly matched legitimate Soll −10.00. Types/lint/format did not run.                                                                                                                                                                                                                                         |
+| Root-approved source12 `b20b3570`          | Same three NEW files **31/31 PASS**, 11.51s. Next, web typecheck failed TS2322 because a broad nullable fixture annotation made required version fields optional; lint/format did not run.                                                                                                                                                                                                                                   |
+| Type-only fixture `54c23c3f`               | db/server/web typecheck exit0. ESLint then failed only the NEW test's inline import type; format check did not run.                                                                                                                                                                                                                                                                                                          |
+| Final source12 `b2c712c3`                  | Static type-only namespace import fixes the lint rule; independently verified whole-file inverse preserves all runtime values/assertions. Prettier write on author-owned11 exited0 with **zero additional byte changes**, excluding the Root-owned old test. Actual ESLint9 and Prettier12 check then exited0; wrapper/postguard/lock release0. Units/types were not redundantly rerun after these erased type-only changes. |
+
+The three unit files contain repository20 + API5 + RTL6 tests. Guarded runs preserved all twelve frozen paths, 3370 tracked hashes, 22 protected files, original HEAD tree modes, HEAD and exact dirty status. Initial failures remain intact in the external archive; later green results do not erase them.
+
+## Genuine browser run and actual captures
+
+At unchanged HEAD `3427d925`, frozen source12 `b2c712c3`, the official pinned WebKit container first completed a reversible 1MiB storage probe and actual canonical `--list`: **six cases**, exactly NEW3 plus setup3. `npm run build:e2e` then exited0. The unchanged canonical configuration ran:
+
+```sh
+run-webkit.sh /workspace/cloud-payment-detail-606 test e2e/issue-606-payment-history.spec.ts --project=webkit-iphone --workers=1 --reporter=json
+```
+
+Actual result: **6/6 PASS**, 44.731628s, zero skipped/flaky/unexpected cases and no top-level errors. Build, native, archive, source postguard, compiled postguard, wrapper and lock-release checks all exited0. All source12/3370 tracked/22 protected files, HEAD/status/modes stayed exact; all **169 compiled artifacts** stayed byte-identical during native execution. This E2E build is not the pending normal production build.
+
+The two visual scenarios each exercised the real canonical phone plus an explicitly created 1440×900 WebKit context (`isMobile:false`, `hasTouch:false`, DPR1). Physical runtime JSON was written and attached; all four original images were opened by author, coordinator and independent reviewer. [Sanitized proof](payment-history-606/runtime-proof.json) contains actual four profiles, report/runner hashes, historical source12 and compiled169 hashes, exact copied-image provenance and limits. It omits auth state, databases, traces and full reports.
+
+| Capture              | Actual profile                                                           | Original PNG                                                     |
+| -------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| Phone light          | WebKit390×664 CSS viewport, coarse pointer, DPR3, raw `maxTouchPoints:0` | [Light](payment-history-606/webkit-phone390-light.png)           |
+| Phone dark           | Same real phone profile                                                  | [Dark](payment-history-606/webkit-phone390-dark.png)             |
+| Desktop layout light | WebKit1440×900, fine pointer, DPR1, raw `maxTouchPoints:0`               | [Light](payment-history-606/webkit-desktop-layout1440-light.png) |
+| Desktop layout dark  | Same explicitly nonmobile context                                        | [Dark](payment-history-606/webkit-desktop-layout1440-dark.png)   |
+
+**Limits:** the phone is actually390×664, not844. Actions use Playwright `.click()` and keyboard, not an observed trusted touch pointer; no native-tap claim follows from coarse profile metadata. Phone full-page photography places the fixed navigation across the old version header; it does not prove the whole long page simultaneously unobscured or hit-testable. WebKit1440 proves that layout in WebKit, not Chromium. No old `expected.spec.ts` or Heute spec was selected by the canonical WebKit match, no temporary copy/selection override/config change was used, and no existing screenshot was regenerated.
+
+## Root-owned existing-test policy
+
+Owner source and exact quote are above. The owner's per-file UI-test policy and explicit independent Codex review apply; author did not edit any old test or snapshot.
+
+| Existing file          | Root's exact change                                                                    | Preserved coverage / independent proof                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `e2e/expected.spec.ts` | Exactly one click on **Weitere Termine** after the version-test panel becomes visible. | Whole-file inverse restores original SHA256 `a551bb47b56d796ccba01754704e667cd8a41bad12ab9805c3497e38452bfbb8`. Current root SHA256 `9e0a10eab1f34d4cb7751b3f730e2fa5bfdcf4fc4686b41d3f5a4ba93d894c42`. Every January/February/March100000/120000-cent assertion, version row count3→2, save/toast/undo, link/missed action, fixture, timeout and tolerance remains. Independent actual delta HIGH clear. |
+
+The fixture starts on28 December2026: default3 means December/January/February. March remains the fourth and all original financial assertions still run after the explicit disclosure. The four old functional cases and two old visual cases remain actual canonical Chromium CI gates. Source inspection identifies only `expected-panel-light-desktop-linux.png` and `expected-panel-light-mobile-linux.png` as potentially changed panel captures; **no actual baseline diff has been observed yet** and no baseline refresh is inferred.
+
+## Remaining delivery gates
+
+- Current-main inheritance and independent mechanical/evidence review after the coordinator's serial live integration.
+- One required `BUDGET_REQUIRE_AGE=1` aggregate check and normal production build on the final frozen source; neither has run for #606 yet.
+- Exact-head required CI, including canonical Chromium desktop/mobile, old financial/visual tests and Windows; specific baseline changes only after actual evidence and coordinator review.
+- Reviewed PR, serial integration/deployment and exact live health revision. Parent #482 and other children remain open according to their own acceptance.
