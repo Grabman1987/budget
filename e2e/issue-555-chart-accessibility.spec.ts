@@ -10,6 +10,7 @@ test('existing report bars retain one data-rich image summary per shared chart',
     '/reports/ausgaben',
     '/reports/budgettreue?monat=2026-08',
     '/reports/sparziele',
+    '/reports/onepager?monat=2026-08',
   ]) {
     await page.goto(path);
     const charts = page.locator('.chart-interactive');
@@ -23,6 +24,11 @@ test('existing report bars retain one data-rich image summary per shared chart',
       ),
     );
     expect(imageCounts.every((count) => count === 1)).toBe(true);
+    if (path.startsWith('/reports/onepager')) {
+      await expect(page.getByTestId('onepager-split').getByRole('img')).toHaveAccessibleName(
+        'Bedarf 54 %, Wunsch 34 %, Zukunft 26 %, Aus Guthaben 14 % der Einnahmen.',
+      );
+    }
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => {
         document.documentElement.dataset['theme'] = value;

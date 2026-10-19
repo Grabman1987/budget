@@ -34,16 +34,23 @@ redesign charts or change their calculation, geometry or source values.
 - Real WebKit testing then found a fourth, cross-component case: Budgettreue's
   allocation rows contain the shared `AllocationBar`, whose own image summary
   also duplicated the new wrapper summary. A default-off decorative option
-  lets only that wrapped consumer reuse its existing month/share statement on
-  the wrapper. Standalone Plan, month-close and One-Pager bars keep their image
-  semantics. A real imported-component regression covers both usages.
+  lets wrapped consumers reuse their existing share statements on the wrapper.
+  A complete allocation-callsite inventory found One-Pager also uses the shared
+  wrapper; its existing `splitLabel(data)` moves to that wrapper and its child
+  becomes decorative too. Standalone Plan and month-close bars keep their image
+  semantics. All production `ChartValue` / `ChartValues` children were inspected:
+  their other imported children are table/scroll/link/term/swatch components,
+  rather than independently labelled drawings. The source guard now catches
+  undecorated imported allocation children as well as literal image elements.
+  Real imported-component unit coverage and the canonical One-Pager browser path
+  cover the two composition modes and the original data-rich statement.
 
 ## Verification
 
 - Node 22.23.3, npm 10.9.9; `npm ci` passed.
 - Focused unit run: `packages/ui/src/charts/accessibility.test.tsx`,
   `frame.test.tsx`, `plot-motion.test.tsx`, and the production-caller duplication
-  guard and allocation component composition: **5 files, 24 tests passed**.
+  guard and allocation component composition: **5 files, 25 tests passed**.
   New cases cover the public contract, native SVG/HTML links and table roles,
   exact ordered values, privacy, stale-data replacement, opt-in and empty data.
 - `npm run typecheck -w @budget/ui`, focused ESLint and the CSS scale check passed.
@@ -60,7 +67,9 @@ redesign charts or change their calculation, geometry or source values.
   WebKit/iPhone suite: 4/5 cases passed, including exact table values, both
   themes and Axe on the pilot. The multi-report case exposed the imported
   allocation-bar duplication above. This is a real source defect, not a waived
-  assertion. Corrected-source browser verification remains required.
+  assertion. The first allocation fix passed all five WebKit cases, but its
+  three-report coverage omitted One-Pager; review found that remaining caller.
+  The extended four-report browser case must pass on the final corrected source.
 - Full check, production/E2E build completion, independent review and PR CI are
   recorded separately in the PR as their actual results become available.
   The first full check was stopped during typechecking when review reproduced
