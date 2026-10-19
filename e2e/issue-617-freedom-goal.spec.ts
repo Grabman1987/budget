@@ -109,7 +109,65 @@ async function inspect(page: Page, info: TestInfo, label: string) {
   await expect(page.getByTestId('freedom-required-saving')).toContainText('4,55');
   const chart = page.getByTestId('freedom-chart');
   const marker = page.getByTestId('freedom-goal-date');
-  await expect(marker).toBeVisible();
+  await expect(chart).toBeVisible();
+  await expect(marker.locator('..')).toBeVisible();
+  // A vertical SVG line has a zero-width geometric box even with a painted stroke.
+  // Prove the stroke and its actual chart placement rather than accepting attachment alone.
+  const paint = await marker.evaluate((element) => {
+    const line = element as SVGLineElement;
+    const style = getComputedStyle(line);
+    const box = line.getBoundingClientRect();
+    const chartBox = line.ownerSVGElement!.getBoundingClientRect();
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 1;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = 'rgba(0, 0, 0, 0)';
+    context.fillStyle = style.stroke;
+    context.fillRect(0, 0, 1, 1);
+    let effectiveOpacity = 1;
+    for (let ancestor: Element | null = line; ancestor; ancestor = ancestor.parentElement)
+      effectiveOpacity *= Number(getComputedStyle(ancestor).opacity);
+    return {
+      display: style.display,
+      visibility: style.visibility,
+      opacity: Number(style.opacity),
+      effectiveOpacity,
+      stroke: style.stroke,
+      strokeOpacity: Number(style.strokeOpacity),
+      strokeAlpha: context.getImageData(0, 0, 1, 1).data[3],
+      strokeWidth: Number.parseFloat(style.strokeWidth),
+      hairline: Number.parseFloat(style.getPropertyValue('--stroke-hairline')),
+      x1: line.x1.baseVal.value,
+      x2: line.x2.baseVal.value,
+      y1: line.y1.baseVal.value,
+      y2: line.y2.baseVal.value,
+      height: box.height,
+      insideChart:
+        box.left >= chartBox.left &&
+        box.right <= chartBox.right &&
+        box.top >= chartBox.top &&
+        box.bottom <= chartBox.bottom,
+    };
+  });
+  await info.attach(`${label}-goal-stroke`, {
+    body: JSON.stringify(paint),
+    contentType: 'application/json',
+  });
+  expect(paint.display).not.toBe('none');
+  expect(paint.visibility).toBe('visible');
+  expect(paint.opacity).toBeGreaterThan(0);
+  expect(paint.effectiveOpacity).toBeGreaterThan(0);
+  expect(paint.stroke).not.toBe('none');
+  expect(paint.stroke).not.toBe('transparent');
+  expect(paint.strokeOpacity).toBeGreaterThan(0);
+  expect(paint.strokeAlpha).toBeGreaterThan(0);
+  expect(paint.strokeWidth).toBeGreaterThan(0);
+  expect(paint.strokeWidth).toBe(paint.hairline);
+  expect(paint.height).toBeGreaterThan(0);
+  expect(paint.x1).toBe(paint.x2);
+  expect(paint.y2).toBeGreaterThan(paint.y1);
+  expect(paint.insideChart).toBe(true);
+  await expect(chart).toHaveAttribute('aria-label', /Persönliches Ziel: Jänner 2025\./);
   const goalX = Number(await marker.getAttribute('x1'));
   const lastForecastX = await chart.locator('.l-forecast').evaluate((element) => {
     const path = element as SVGPathElement;
