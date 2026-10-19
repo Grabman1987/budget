@@ -5,6 +5,7 @@ import {
   FormDialog,
   Field,
   maskMoneyText,
+  Segmented,
   Select,
   TextInput,
   useToast,
@@ -21,8 +22,8 @@ import {
 } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate, useParams, useSearch } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
-import { Pencil } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { Info, Pencil } from 'lucide-react';
 import { request } from '../api/http';
 import { AccountOptions } from '../ledger/account-options';
 import { undoGroup } from '../ledger/api';
@@ -33,6 +34,8 @@ import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { PAGES } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
+import { contactBalanceLine, contactBalanceWords, receivableDelta } from './contact-balance';
+import { ContactActionsMenu } from './contact-menu';
 import './contacts.css';
 import '../ledger/ledger.css';
 interface ContactRow {
@@ -121,14 +124,15 @@ export function ContactsPage() {
       <div className="contacts-page">
         <p>Kontoblätter und Rückzahlungen werden derzeit in EUR geführt.</p>
         <div className="ptoolbar">
-          <label className="contacts-history">
-            <input
-              type="checkbox"
-              checked={history}
-              onChange={(e) => setHistory(e.target.checked)}
-            />
-            Auch ausgeglichene Kontakte
-          </label>
+          <Segmented
+            label="Kontakte anzeigen"
+            options={[
+              { value: 'open', label: 'Offen' },
+              { value: 'all', label: 'Alle', description: 'Auch ausgeglichene Kontakte' },
+            ]}
+            value={history ? 'all' : 'open'}
+            onChange={(value) => setHistory(value === 'all')}
+          />
           <span className="spacer" />
           <Button size="sm" onClick={() => setCreating(true)}>
             Neuer Kontakt
@@ -155,48 +159,46 @@ export function ContactsPage() {
                 <tr>
                   <th scope="col">Kontakt</th>
                   <th scope="col">Saldo</th>
-                  <th scope="col">Status</th>
+                  <th scope="col">
+                    <span className="sr-only">Aktionen</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {contacts.data.contacts.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <AppLink
-                        className="btn btn-ghost"
-                        to={`/konten/kontakte/${encodeURIComponent(c.id)}`}
-                        search={history ? { verlauf: 1 } : {}}
-                      >
-                        {c.name}
-                      </AppLink>
-                      <ContactRename contact={c} />
-                    </td>
-                    <td className="num">
-                      <AppLink
-                        className="contact-balance-link"
-                        aria-label={maskMoneyText(`${eur(c.balanceCents)}, Saldo ${c.name}`)}
-                        to={`/konten/kontakte/${encodeURIComponent(c.id)}`}
-                        search={history ? { verlauf: 1 } : {}}
-                      >
-                        {eur(c.balanceCents)}
-                      </AppLink>
-                    </td>
-                    <td>
-                      {c.balanceCents > 0
-                        ? 'Kontakt schuldet dir'
-                        : c.balanceCents < 0
-                          ? 'Guthaben des Kontakts'
-                          : 'Ausgeglichen'}
-                      {c.balanceCents !== 0 && (
-                        <div>
-                          <Button variant="ghost" onClick={() => setWriteOff(c)}>
-                            Ausgleichen
-                          </Button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {contacts.data.contacts.map((c) => {
+                  const balance = contactBalanceWords(c.balanceCents);
+                  return (
+                    <tr key={c.id}>
+                      <td>
+                        <AppLink
+                          className="btn btn-ghost"
+                          to={`/konten/kontakte/${encodeURIComponent(c.id)}`}
+                          search={history ? { verlauf: 1 } : {}}
+                        >
+                          {c.name}
+                        </AppLink>
+                        <ContactRename contact={c} />
+                      </td>
+                      <td className="num">
+                        <AppLink
+                          className={`contact-balance-link is-${balance.tone}`}
+                          aria-label={maskMoneyText(
+                            `${contactBalanceLine(c.balanceCents)}, Saldo ${c.name}`,
+                          )}
+                          to={`/konten/kontakte/${encodeURIComponent(c.id)}`}
+                          search={history ? { verlauf: 1 } : {}}
+                        >
+                          {contactBalanceLine(c.balanceCents)}
+                        </AppLink>
+                      </td>
+                      <td className="contacts-actions-cell">
+                        {c.balanceCents !== 0 && (
+                          <ContactActionsMenu name={c.name} onSettle={() => setWriteOff(c)} />
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           ))}
@@ -359,6 +361,9 @@ function ContactBody({ statement }: { statement: Statement }) {
   }, [statement.contact.id]);
   const [receipt, setReceipt] = useState(false);
   const [writeOff, setWriteOff] = useState(false);
+  const [info, setInfo] = useState(false);
+  const noteId = useId();
+  const balance = contactBalanceWords(statement.balanceCents);
   const currentMonth = statement.asOf.slice(0, 7);
   const closureIndex = statement.movements.findIndex(
     (movement) => movement.splitId === statement.closedThroughSplitId,
@@ -413,7 +418,7 @@ function ContactBody({ statement }: { statement: Statement }) {
             </small>
           )}
         </td>
-        <td className="num">{eur(m.amountCents)}</td>
+        <td className="num">{eur(receivableDelta(m.amountCents), { sign: true })}</td>
       </tr>
     );
   };
@@ -428,29 +433,35 @@ function ContactBody({ statement }: { statement: Statement }) {
         </h2>
         <ContactRename contact={statement.contact} />
       </div>
-      <p className="contacts-balance">
-        {eur(statement.balanceCents)}{' '}
-        <span>
-          {statement.balanceCents > 0
-            ? 'offen'
-            : statement.balanceCents < 0
-              ? 'Guthaben des Kontakts'
-              : 'ausgeglichen'}
-        </span>
+      <p className={`contacts-balance is-${balance.tone}`}>
+        <span className="contacts-balance-words">{balance.words}</span>{' '}
+        <span className="contacts-balance-amount">{balance.amount}</span>
       </p>
-      <p>
-        Auslagen und Rückzahlungen bewegen Geld. Ein Ausgleich übernimmt Guthaben ins Budget oder
-        erlässt eine Forderung als Ausgabe, ohne Geldbewegung.
-      </p>
-      <Button onClick={() => setReceipt((r) => !r)}>
-        {receipt ? 'Rückzahlung schließen' : 'Rückzahlung buchen'}
-      </Button>
-      {receipt && <ReceiptForm statement={statement} onDone={() => setReceipt(false)} />}
-      {statement.balanceCents !== 0 && (
-        <Button variant="ghost" onClick={() => setWriteOff(true)}>
-          Ausgleichen
+      <div className="contacts-actions">
+        <Button onClick={() => setReceipt((r) => !r)}>
+          {receipt ? 'Rückzahlung schließen' : 'Rückzahlung buchen'}
         </Button>
+        {statement.balanceCents !== 0 && (
+          <ContactActionsMenu name={statement.contact.name} onSettle={() => setWriteOff(true)} />
+        )}
+        <button
+          type="button"
+          className="icon-btn contact-info"
+          aria-expanded={info}
+          aria-controls={noteId}
+          aria-label="Erläuterung zu Rückzahlung und Ausgleich"
+          onClick={() => setInfo((open) => !open)}
+        >
+          <Info size={16} strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      </div>
+      {info && (
+        <p id={noteId} className="contacts-note">
+          Auslagen und Rückzahlungen bewegen Geld. Ein Ausgleich übernimmt Guthaben ins Budget oder
+          erlässt eine Forderung als Ausgabe, ohne Geldbewegung.
+        </p>
       )}
+      {receipt && <ReceiptForm statement={statement} onDone={() => setReceipt(false)} />}
       {writeOff && (
         <ContactWriteOffDialog
           contact={{ ...statement.contact, balanceCents: statement.balanceCents }}

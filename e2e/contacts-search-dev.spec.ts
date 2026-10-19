@@ -7,8 +7,10 @@ test('package: contact history, search URL and developer details preserve naviga
   page,
 }, info) => {
   await page.goto('/konten/kontakte?verlauf=1');
-  const history = page.getByLabel('Auch ausgeglichene Kontakte');
-  await expect(history).toBeChecked();
+  const history = page
+    .getByRole('group', { name: 'Kontakte anzeigen' })
+    .getByRole('button', { name: 'Alle' });
+  await expect(history).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('link', { name: 'Kontakt M. Muster', exact: true }).click();
   await expect(page).toHaveURL(/\/konten\/kontakte\/[^?]+\?verlauf=1/);
   const detailUrl = page.url();
@@ -21,7 +23,7 @@ test('package: contact history, search URL and developer details preserve naviga
   );
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.goBack();
-  await expect(history).toBeChecked();
+  await expect(history).toHaveAttribute('aria-pressed', 'true');
   await page.goForward();
   await page.reload();
   await expect(page.getByRole('region', { name: 'Kontaktkontoauszug' })).toContainText(
@@ -29,7 +31,7 @@ test('package: contact history, search URL and developer details preserve naviga
   );
   await page.screenshot({ path: info.outputPath('contact-page.png'), fullPage: true });
   await page.getByRole('link', { name: 'Zurück zu Kontakte', exact: true }).click();
-  await expect(history).toBeChecked();
+  await expect(history).toHaveAttribute('aria-pressed', 'true');
   const contactId = new URL(detailUrl).pathname.split('/').at(-1)!;
   await page.goto(`/konten/kontakte?kontakt=${contactId}&verlauf=1`);
   await expect(page).toHaveURL(/\/konten\/kontakte\/[^?]+\?verlauf=1/);

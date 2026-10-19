@@ -63,9 +63,8 @@ it('links retained contact history to its statement page with the overview conte
   expect(screen.getByRole('link', { name: /Saldo Kontakt Beispiel/ }).getAttribute('href')).toBe(
     '/konten/kontakte/synthetic-contact?verlauf=1',
   );
-  expect((screen.getByLabelText('Auch ausgeglichene Kontakte') as HTMLInputElement).checked).toBe(
-    true,
-  );
+  expect(screen.getByRole('button', { name: 'Alle' }).getAttribute('aria-pressed')).toBe('true');
+  expect(screen.getByRole('button', { name: 'Offen' }).getAttribute('aria-pressed')).toBe('false');
   expect(screen.getByRole('button', { name: 'Kontakt Beispiel umbenennen' })).toBeDefined();
 });
 
@@ -83,8 +82,8 @@ it('keeps the balance link accessible while hiding its amount under privacy mode
     { name: /Saldo Kontakt Beispiel/ },
     { timeout: 10000 },
   );
-  expect(link.getAttribute('aria-label')).toBe('••• €, Saldo Kontakt Beispiel');
-  expect(link.textContent).toBe('••• €');
+  expect(link.getAttribute('aria-label')).toBe('Ausgeglichen, Saldo Kontakt Beispiel');
+  expect(link.textContent).toBe('Ausgeglichen');
 });
 
 it('keeps current-month movements out of history when no recorded closure exists', async () => {
