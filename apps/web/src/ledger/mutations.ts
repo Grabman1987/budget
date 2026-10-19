@@ -65,16 +65,21 @@ export function useLedgerWrites() {
   const toast = useToast();
   // A booking moves account balances (ledger) and the Available of its category (budget).
   const settled = () => {
-    // Restart cursor lists after a write, rather than refetching every older page.
-    qc.setQueriesData<InfiniteData<BookingPage>>(
-      { queryKey: [...BOOKINGS_KEY, 'infinite'] },
-      (data) => data && { pages: data.pages.slice(0, 1), pageParams: data.pageParams.slice(0, 1) },
-    );
-    // Active figures refresh in the background; inactive wealth stays stale for its next visit.
-    // Returning immediately keeps every refetch (including a visible wealth page) off save's path.
-    void qc.invalidateQueries({ queryKey: LEDGER_KEY });
-    void qc.invalidateQueries({ queryKey: BUDGET_KEY });
-    void qc.invalidateQueries({ queryKey: ['expected'] });
+    // Invalidation reuses an initial pending fetch with no data. Discard pre-write booking reads
+    // first, or an empty account's old response can satisfy the refresh after its first capture.
+    void qc.cancelQueries({ queryKey: BOOKINGS_KEY }).then(() => {
+      // Restart cursor lists after a write, rather than refetching every older page.
+      qc.setQueriesData<InfiniteData<BookingPage>>(
+        { queryKey: [...BOOKINGS_KEY, 'infinite'] },
+        (data) =>
+          data && { pages: data.pages.slice(0, 1), pageParams: data.pageParams.slice(0, 1) },
+      );
+      // Active figures refresh in the background; inactive wealth stays stale for its next visit.
+      // Returning immediately keeps every refetch (including a visible wealth page) off save's path.
+      void qc.invalidateQueries({ queryKey: LEDGER_KEY });
+      void qc.invalidateQueries({ queryKey: BUDGET_KEY });
+      void qc.invalidateQueries({ queryKey: ['expected'] });
+    });
   };
 
   const offerUndo = (message: string, groupId: string) =>

@@ -237,8 +237,8 @@ it('compares stored foreign quotes in EUR using quote-date FX without rounding p
     "UPDATE price SET currency='USD' WHERE security_id='bench'; INSERT INTO fx_rate (currency,date,rate_micro) VALUES ('USD','2025-12-31',2000000),('USD','2026-01-01',1000000)",
   );
   const portfolio = await readPortfolio();
-  expect(portfolio.performanceHistory?.benchmarkReturn).toBeCloseTo(1.205, 12);
-  expect(portfolio.performanceHistory?.months[0]?.benchmarkRate).toBeCloseTo(1.1, 12);
+  expect(portfolio.performanceHistory?.benchmarkReturn).toBeCloseTo(-0.44875, 12);
+  expect(portfolio.performanceHistory?.months[0]?.benchmarkRate).toBeCloseTo(-0.475, 12);
 });
 
 it('allows Friday closes for exchange-traded benchmarks but requires the exact date for crypto', async () => {

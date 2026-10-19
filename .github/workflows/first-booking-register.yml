@@ -1,0 +1,54 @@
+name: First booking register regression
+
+on:
+  pull_request:
+    paths:
+      - apps/web/src/ledger/**
+      - e2e/ledger.spec.ts
+      - e2e/ledger-helpers.ts
+      - .github/workflows/first-booking-register.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: first-booking-register-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repeated-register:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [desktop, mobile]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install the pinned Chromium and its system dependencies
+        run: npx playwright install --with-deps chromium
+      - name: Build the synthetic E2E application
+        run: npm run build:e2e
+      - name: Run the unchanged account-check scenario five times without retries
+        env:
+          TEST_PROJECT: ${{ matrix.project }}
+        run: >-
+          npx playwright test e2e/ledger.spec.ts
+          --grep 'Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo'
+          --project="$TEST_PROJECT" --repeat-each=5 --workers=1 --retries=0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: first-booking-register-${{ matrix.project }}
+          path: |
+            playwright-report/
+            test-results/
+            !test-results/.auth/**
+          retention-days: 7

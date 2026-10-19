@@ -6,6 +6,7 @@ import {
   CHECKLIST_DEFS,
   defaultParams,
   evaluateRule,
+  evaluateFreedomRule,
   isRuleCode,
   lastDayOfMonth,
   monthOf,
@@ -24,7 +25,7 @@ import { rule, ruleResult } from '../schema';
 import { updateEntity } from './entities';
 import { EntityNotFoundError, MissingFxRateError } from './errors';
 import { netWorthAsOf } from './portfolio';
-import { loadFacts, ruleInputs, type RuleFacts } from './rule-inputs';
+import { freedomRuleInput, loadFacts, ruleInputs, type RuleFacts } from './rule-inputs';
 import { runInTransaction, type Executor } from './types';
 import type { AuditContext } from './audit';
 
@@ -262,6 +263,18 @@ export function listRules(
   }
   return {
     rules: rules.map((r) => {
+      if (upTo && r.code === 'R16') {
+        const freedom = inputs ? inputs.freedom : freedomRuleInput(db, upTo);
+        const evaluation = evaluateFreedomRule(parseJson(r.paramsJson), freedom);
+        return {
+          ...listing(r, undefined),
+          latest: evaluation ? { asOf: upTo, ...evaluation } : null,
+          unavailableReason:
+            freedom === null
+              ? 'Anlagebasis oder Ausgabenbasis ist nicht vollständig verfügbar.'
+              : null,
+        };
+      }
       if (!inputs || !isRuleCode(r.code) || !livePreview(r.code)) {
         const row = listing(r, withheld && livePreview(r.code) ? undefined : latest.get(r.id));
         return withheld && livePreview(r.code) ? { ...row, unavailableReason: withheld } : row;
