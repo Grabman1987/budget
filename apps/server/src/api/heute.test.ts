@@ -102,16 +102,27 @@ async function call(method: string, path: string, body?: unknown) {
   return { status: res.status, body: (await res.json()) as any };
 }
 
-it('reminds from the shared account dates and audited configurable interval', async () => {
+it('shares type-specific due dates while preserving the audited legacy interval setting', async () => {
   const reminders = (await call('GET', '/heute')).body.accountReminders;
   expect(reminders).toEqual([
-    { accountId: 'giro', accountName: 'Giro', days: 76, action: 'reconcile' },
+    {
+      accountId: 'giro',
+      accountName: 'Giro',
+      days: 76,
+      action: 'reconcile',
+      dueOn: '2026-01-15',
+      checkedOn: null,
+      policy: '14-days',
+      supported: true,
+    },
   ]);
   expect((await call('GET', '/accounts/reminders')).body.reminders).toEqual(reminders);
   const saved = await call('PATCH', '/display-settings', { accountReminderDays: 80 });
   expect(saved.status).toBe(200);
-  expect((await call('GET', '/heute')).body.accountReminders).toEqual([]);
+  expect((await call('GET', '/display-settings')).body.accountReminderDays).toBe(80);
+  expect((await call('GET', '/heute')).body.accountReminders).toEqual(reminders);
   expect((await call('POST', '/undo', { groupId: saved.body.groupId })).status).toBe(200);
+  expect((await call('GET', '/display-settings')).body.accountReminderDays).toBe(35);
   expect((await call('GET', '/accounts/reminders')).body.reminders).toEqual(reminders);
   for (const days of [0, 366, 1.5, '35', null])
     expect((await call('PATCH', '/display-settings', { accountReminderDays: days })).status).toBe(

@@ -52,6 +52,15 @@ test('Today and inbox reminders open existing dialogs and include one-off plans 
       { date: '2026-08-13', valueCents: 900 },
       'put',
     );
+    for (const account of [checking.account, manual.account])
+      for (const amountCents of [1, -1])
+        await write('/bookings', {
+          type: 'booking',
+          accountId: account.id,
+          date: '2026-08-14',
+          amountCents,
+          status: 'pending',
+        });
     const event = await write('/liquidity/events', {
       name: 'Synthetisches Einmalereignis ' + suffix,
       date: '2026-10-01',
@@ -111,7 +120,7 @@ test('Today and inbox reminders open existing dialogs and include one-off plans 
       .getByRole('region', { name: 'Zu tun' })
       .getByRole('link', { name: 'Prüfen', exact: true })
       .click();
-    await expect(row).toContainText('Konto seit 35 Tagen nicht geprüft');
+    await expect(row).toContainText('Prüfung fällig seit 27.08.2026');
     await row.getByRole('link', { name: 'Kontostand prüfen' }).click();
     await expect(
       page.getByRole('dialog', { name: 'Kontostand prüfen · ' + checking.account.name }),
@@ -120,7 +129,7 @@ test('Today and inbox reminders open existing dialogs and include one-off plans 
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await page.goto('/konten/posteingang');
     const manualRow = page.locator('.account-reminder').filter({ hasText: manual.account.name });
-    await expect(manualRow).toContainText('35 Tagen');
+    await expect(manualRow).toContainText('Prüfung fällig seit 13.09.2026');
     await manualRow.getByRole('link', { name: 'Wert aktualisieren' }).click();
     await expect(
       page.getByRole('dialog', { name: 'Wert aktualisieren · ' + manual.account.name }),
@@ -138,15 +147,37 @@ test('Today and inbox reminders open existing dialogs and include one-off plans 
     await page.keyboard.press('Escape');
     await page.goto('/einstellungen/profil');
     const setting = page.getByRole('region', { name: 'Kontoprüfung · Erinnerung' });
-    await setting.getByLabel('Kontoprüfung erinnern nach (Tagen)').fill('36');
-    await setting.getByRole('button', { name: 'Speichern', exact: true }).click();
-    await expect(setting.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
+    await expect(setting).toContainText('14 Tagen');
+    await expect(setting).toContainText('Kalendermonat');
+    await expect(setting).toContainText('Ohne neue Buchungen');
+    await expect(setting.getByLabel('Kontoprüfung erinnern nach (Tagen)')).toHaveCount(0);
+    await expect(setting.getByRole('button', { name: 'Speichern', exact: true })).toHaveCount(0);
+    const savedSetting = await page.request.patch('/api/display-settings', {
+      data: { accountReminderDays: 36 },
+      headers: { origin: SAMPLE_URL },
+    });
+    expect(savedSetting.status()).toBe(200);
+    const savedSettingBody = await savedSetting.json();
     const stored = await (await page.request.get('/api/display-settings')).json();
     expect(stored.accountReminderDays).toBe(36);
     await page.goto('/konten/posteingang');
     await expect(
       page.locator('.account-reminder').filter({ hasText: checking.account.name }),
-    ).toHaveCount(0);
+    ).toContainText('Prüfung fällig seit 27.08.2026');
+    expect(
+      (
+        await page.request.post('/api/undo', {
+          data: { groupId: savedSettingBody.groupId },
+          headers: { origin: SAMPLE_URL },
+        })
+      ).status(),
+    ).toBe(200);
+    expect(
+      (await (await page.request.get('/api/display-settings')).json()).accountReminderDays,
+    ).toBe(35);
+    await expect(
+      page.locator('.account-reminder').filter({ hasText: checking.account.name }),
+    ).toContainText('Prüfung fällig seit 27.08.2026');
   } finally {
     await page.request.patch('/api/display-settings', {
       data: { accountReminderDays: 35 },

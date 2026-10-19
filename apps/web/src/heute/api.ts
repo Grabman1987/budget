@@ -1,4 +1,4 @@
-import type { PlannedEventOccurrence } from '@budget/domain';
+import type { AccountReviewStatus, PlannedEventOccurrence } from '@budget/domain';
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -9,6 +9,10 @@ export interface AccountReminder {
   accountName: string;
   days: number;
   action: 'reconcile' | 'value';
+  dueOn?: string | null;
+  checkedOn?: string | null;
+  policy?: AccountReviewStatus['policy'];
+  supported?: boolean;
 }
 
 export interface HeuteUnavailable {

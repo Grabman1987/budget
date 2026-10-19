@@ -373,7 +373,7 @@ function GroupRows({
         const util = utilisation(a);
         const shown = values?.get(a.id);
         const value = shown ? shown.cents : accountValueEur(a);
-        const check = accountCheck(a, todayInVienna());
+        const check = accountCheck(a);
         const row = reorder.rowProps(a.id);
         return (
           <tr {...row} className={cx(row.className, 'krow')} key={a.id}>
@@ -388,13 +388,16 @@ function GroupRows({
                 {ACCOUNT_TYPE_LABEL[a.type]}
                 {a.pendingCount > 0 && <span>{a.pendingCount} vorgemerkt</span>}
               </span>
-              <span className={cx('kmeta', 'kcheck', check.stale && 'is-stale')}>
+              <span
+                className={cx('kmeta', 'kcheck', check.stale && 'is-stale')}
+                data-review-state={check.state}
+              >
                 {check.stale && (
                   <AlertTriangle
                     size={14}
                     strokeWidth={1.75}
                     role="img"
-                    aria-label="Seit mindestens 35 Tagen nicht aktualisiert"
+                    aria-label="Prüfung fällig"
                   />
                 )}
                 {check.text}

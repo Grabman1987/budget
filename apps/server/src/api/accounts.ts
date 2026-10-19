@@ -1,4 +1,4 @@
-import { accountReminders } from '@budget/db';
+import { accountReminders, accountReviewSummaries } from '@budget/db';
 import {
   account,
   valuation,
@@ -10,7 +10,6 @@ import {
   bankBalanceForAccount,
   lockBankBalance,
   accounts,
-  accountSummaries,
   balanceSeries,
   holdingAccountValueSeries,
   accountPreview,
@@ -24,11 +23,16 @@ import {
   type AccountSummary,
   type Db,
 } from '@budget/db';
-import { and, desc, eq, isNull, lte, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { Hono, type Context } from 'hono';
-import { eachDay, isReconcileAdjustCategoryKind, type CashValuation } from '@budget/domain';
+import {
+  eachDay,
+  isReconcileAdjustCategoryKind,
+  type CashValuation,
+  type AccountReviewStatus,
+} from '@budget/domain';
 import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 import {
   accountClose,
@@ -68,6 +72,7 @@ function assertTermOrder(start: string | null | undefined, end: string | null | 
 
 /** EUR valuation fields can be null when a required security quote or exchange rate is missing. */
 export type AccountView = AccountSummary & {
+  reviewStatus: AccountReviewStatus;
   lastValuedOn: string | null;
   manualValueCents: number | null;
   hasHoldings: boolean;
@@ -131,26 +136,20 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   const accountList = (asOf: string) => {
     const value = cashValuer(db);
     const netWorth = netWorthValuationAsOf(db, asOf);
-    const latestValues = new Map<string, typeof valuation.$inferSelect>();
-    for (const row of db
-      .select()
-      .from(valuation)
-      .where(and(isNull(valuation.deletedAt), lte(valuation.date, asOf)))
-      .orderBy(desc(valuation.date))
-      .all()) {
-      if (!latestValues.has(row.accountId)) latestValues.set(row.accountId, row);
-    }
+    const reviewModel = accountReviewSummaries(db, asOf);
+    const latestValues = reviewModel.latestValuations;
     return {
       netWorthEurCents: netWorth.totalCents,
       missingFxCurrencies: netWorth.missingFxCurrencies,
       missingPriceSecurityIds: netWorth.missingPriceSecurityIds,
-      accounts: accountSummaries(db, asOf).map((a) => {
+      accounts: reviewModel.accounts.map((a) => {
         const manual = a.type === 'p2p' || a.type === 'other_asset';
         const latest = a.openingDate <= asOf ? latestValues.get(a.id) : undefined;
         const bankBalance =
           a.closedAt || asOf !== today() ? null : bankBalanceForAccount(db, a.id, today());
         return {
           ...a,
+          reviewStatus: reviewModel.reviews.get(a.id)!,
           lastValuedOn: manual ? (latest?.date ?? null) : null,
           manualValueCents: manual ? (latest?.valueCents ?? a.balanceCents) : null,
           hasHoldings:

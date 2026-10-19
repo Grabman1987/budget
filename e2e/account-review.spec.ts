@@ -40,12 +40,34 @@ test('checks off-budget accounts, updates manual values with undo and prepares t
     date: '2026-09-06',
     valueCents: 12501,
   });
+  for (const account of [accounts[0], accounts[4]])
+    for (const amountCents of [1, -1])
+      await write('POST', '/bookings', {
+        type: 'booking',
+        accountId: account.id,
+        date: '2026-09-08',
+        amountCents,
+        status: 'pending',
+      });
+  const { account: quiet } = await write('POST', '/accounts', {
+    name: 'Muster quiet',
+    type: 'checking',
+    onBudget: false,
+    openingDate: '2026-09-01',
+  });
+  await write('POST', `/accounts/${quiet.id}/reconciliation`, {
+    date: '2026-09-06',
+    statementBalanceCents: 0,
+  });
   await page.goto('/konten');
   const row = (name: string) =>
     page.locator('.ktable .krow').filter({ has: page.getByRole('link', { name, exact: true }) });
-  await expect(row('Muster checking').getByText('geprüft am 06.09.2026')).toHaveClass(/is-stale/);
+  await expect(row('Muster checking').getByText('Fällig · geprüft am 06.09.2026')).toHaveClass(
+    /is-stale/,
+  );
+  await expect(row('Muster quiet').getByText('geprüft am 06.09.2026')).not.toHaveClass(/is-stale/);
   await expect(row('Muster loan').getByText('geprüft am 07.09.2026')).not.toHaveClass(/is-stale/);
-  await expect(row('Muster p2p').getByText('Wert vom 06.09.2026')).toHaveClass(/is-stale/);
+  await expect(row('Muster p2p').getByText('Fällig · Wert vom 06.09.2026')).toHaveClass(/is-stale/);
   await expect(row('Muster brokerage').getByText('nie geprüft')).toBeVisible();
   const review = async (name: string) => {
     await page.waitForLoadState('networkidle');
