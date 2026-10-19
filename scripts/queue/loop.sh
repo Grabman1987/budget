@@ -50,7 +50,8 @@ while :; do
   lout=$(bash "$HERE/live.sh" "${DRYARG[@]}" 2>&1); rc=$?
   log "live: $(oneline <<<"${lout:-nothing}")"
   has 'live in |closed' "$lout" && act=1
-  has 'failed|cannot read|no healthy|unreadable' "$lout" && err=1
+  # Board updates are best-effort warnings; keep them in the log without error backoff.
+  has 'failed|cannot read|no healthy|unreadable' "$(sed '/^warn: board /d' <<<"$lout")" && err=1
   if gout=$(bash "$HERE/gate.sh" 2>&1); then
     log "gate: $(oneline <<<"${gout:-ok}")"
     out=$(bash "$HERE/automerge.sh" "${DRYARG[@]}" 2>&1)
