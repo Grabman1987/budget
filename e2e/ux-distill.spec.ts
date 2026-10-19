@@ -164,7 +164,7 @@ isolatedTest(
       '1 gedeckt, 2 offen · 15,00 € fehlen',
     );
     const value = (name: string) =>
-      page.locator('tr.prow', { hasText: name }).locator('.col-avail');
+      page.locator('tr.prow', { hasText: name }).locator('.col-avail .pill');
     await expect(value('Zuerst')).toHaveText('0,00 €');
     await expect(value('Später')).toHaveText('−12,00 €');
     await expect(value('Zuletzt')).toHaveText('−3,00 €');

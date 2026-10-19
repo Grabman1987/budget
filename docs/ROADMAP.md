@@ -1,5 +1,23 @@
 # Roadmap
 
+### #509 — complete public reference-case assurance (2026-10-19)
+
+- [x] Complete the public CASE-001–007 inventory with independent literal cents/raw units across domain, real repositories and API: cash/card carry, full/partial card reserves, signed splits, transfer-scope classification and existing purchase/dividend conventions. The retained eight comparison cases and all existing tests remain unchanged; production formulas and write policy are untouched.
+- [x] Prove actual second-transfer-INSERT rollback after the first leg was reached, both-leg grouped undo with append-only audit identity, linked trade settlement undo/redo, dated pending exclusion and reconciliation locks. Reuse existing missing-debt-term proofs rather than inventing calculations ([public matrix](evidence/reference-adoption/wp-001-public-acceptance-509.md)).
+- [x] Three new suites pass 26 focused cases; all workspace types and lint pass. Actual native WebKit passes 5/5, including three setup cases plus desktop 1440 and phone 390 walkthroughs of drilldown, privacy, invalid-split blocking and grouped undo. Both themes pass strict Axe/overflow; four exact original PNGs and two safe profile proofs are independently reviewed with explicit toast/navigation capture limits.
+- [x] At frozen `aa98c7ae`, based on live Main713 `bf11eebd`, `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check` passes 526 files / 4,607 tests (Vitest 407.16s) and the separate normal production build passes. All 16 owned and all 3,340 tracked hashes, HEAD and clean status stay exact; this result precedes the following documentation-only update.
+- [ ] Final delivery-delta review, exact-head canonical Chromium CI, controlled integration/deployment and public-live verification. Keep #509 open until all public acceptance gates pass; #690 remains open until the combined delivery is live. Private holdings/returns/month-end #355/#356/#357 stay separate and open; no Gate3/Gate4 or owner acceptance is claimed.
+
+### Plan single-category bands — #481 (2026-10-19)
+
+- [x] Owner decision 7A combines single-category groups and multi-category group heads with their first category in the single-month Groups view. Group totals and category figures remain distinct; collapse/focus, selection, inspector and inline + remain available. Existing cent calculations, APIs and write/undo callbacks are unchanged.
+- [x] Current synthetic sample: 55 → 36 logical content rows, 34.55% fewer against the owner-approved 55-row main baseline; all 36 categories and 19 group contexts remain. Actual physical table heights 1746.625px at 1440×900 and 3842.25px at 390×664 are separate, with no physical-height percentage claim.
+- [x] Actual frozen `218679c8`: fresh E2E build and canonical WebKit 15/15 pass, including retained 768/1180/1439 regressions, strict seven-width/two-theme page/role bounds and genuine existing right-edge scrolling/focus. Four current desktop/phone light/dark images and safe proof are [recorded and independently reviewed](evidence/plan-single-category-481/README.md); known fixed-navigation/FAB hit-test limits remain explicit.
+- [x] Final clean normal-main merge `908e090c` includes verified live `bf11eebd`. Required-age two-worker check passes 519 files / 4573 tests, then normal production build passes; all 29 frozen plus 3337 tracked-file hashes, HEAD and clean status remain exact. Own product/test bytes remain exact `218679c8` through the mechanical main refresh; native evidence is qualified to its actual runtime head.
+- [x] All nine existing-test adaptations were applied only by the coordinator under named owner decisions and independently reviewed, retaining financial oracles and original size budgets. Independent Codex whole-diff, geometry-policy, runtime/visual and mechanical-merge reviews are clear under [owner model authorization #694](https://github.com/Grabman1987/budget/issues/694).
+- [ ] Complete exact-head Chromium desktop/mobile CI, affected-caller compatibility and final coordinator delivery review; local source/full evidence is not a remote-CI claim.
+- [ ] Complete serial integration and deployed-revision verification. #481 remains open until every acceptance criterion is live; old queue loops remain disabled.
+
 ### #632 — pending and confirmed account-register proof (2026-10-19)
 
 - [x] Audit the existing account register, then add only a dedicated isolated-ledger regression: one pending and one confirmed booking in A, plus a pending B sentinel. Literal balances are 98,199 and 49,110 cents; no product calculation or status rule changes.
@@ -1444,3 +1462,14 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [ ] Final documentation-delta review, exact-head required CI including Chromium/Windows, serial integration and exact deployed health/live acceptance. No #617 completion or parent #528 acceptance is claimed before those gates.
 
 Evidence: [personal goal validation](evidence/reference-adoption/wp-personal-goal-617.md).
+
+
+## #578 — Account review deadlines and one Heute source
+
+Owner decision: [#467, 16 October](https://github.com/Grabman1987/budget/issues/467#issuecomment-6209941680); task [#578](https://github.com/Grabman1987/budget/issues/578). Budget accounts and credit cards use an inclusive fourteen-day deadline; loans and supported Investments use a clamped calendar month. Quiet actually checked accounts stay checked. A shared batched read-only model drives overview due badges, reminder details and Heute's one account source/count; real audit chronology covers same-day/backdated creation/restoration and preserves original check undo/redo boundaries. Legacy unsupported receivable hints/settings remain; no money, booking/check/lock, schema or undo writer changes. General account-list layout and #566 inbox grouping are outside this change.
+
+Local evidence: pre-merge Node 22 typecheck/lint exit 0 and six focused files **74/74 PASS** (17.27s); fresh E2E build exit 0 at `b6a03490`, followed by canonical real WebKit **5/5 PASS** (two new scenarios + three setup, 71.090s), both themes at actual 390 × 664 and a separate true 1440 × 900 desktop layout context. Independent whole financial/source, Root-owned four-existing-test delta, mechanical Main inheritance and actual eight-image/runtime reviews are clear. Runtime reports observed phone `maxTouchPoints: 0`; no native-touch or unobscured-hit guarantee. Fixed-nav/FAB full-page photo occlusion is explicitly qualified. See [evidence](evidence/account-review-578.md).
+
+**Required aggregate completed:** at frozen `2342ffc7`, Node 22.23.3 / age 1.2.1, `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check` passed **530 test files / 4,656 tests** (387.00s), followed by normal `npm run build` exit 0. All 32 owned / 3,370 tracked / 14 protected files, the four Root-owned existing tests, HEAD and clean status stayed exact; wrapper, postguard and lock-release checks exited 0. Existing lint/JSDOM/chunk-size warnings remain documented. Final changes are results-only in this block and the evidence document; all thirty other owned blobs remain exact.
+
+**Pending:** exact-head Chromium desktop/mobile CI (including the two old E2E specs not selected by WebKit), reviewed PR, serial integration and exact live revision. No completion of #467/#566 or deployed #578 behavior is claimed.
