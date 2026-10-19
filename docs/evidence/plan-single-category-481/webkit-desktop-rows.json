@@ -1,0 +1,26 @@
+{
+  "sourceCommit": "f922dfba7bbf14b867492aa58897bfc6f6908c1c",
+  "profile": "genuine Desktop Safari diagnostic; not canonical Chromium acceptance",
+  "engine": "WebKit",
+  "browserVersion": "27.2",
+  "theme": "light",
+  "configuredDesktopFlags": {
+    "isMobile": false,
+    "hasTouch": false
+  },
+  "oldRows": 55,
+  "newRows": 36,
+  "reductionPercent": 34.54545454545455,
+  "axeViolations": 0,
+  "tableHeight": 1844.71875,
+  "documentWidth": 1440,
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "logicalRows": 36,
+  "observedTouchPoints": 0,
+  "observedCoarsePointer": false,
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Safari/605.1.15",
+  "fontsStatus": "loaded"
+}

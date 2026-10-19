@@ -306,7 +306,7 @@ isolatedTest(
       expect(assigned.ok()).toBe(true);
       await page.goto(`/plan/monat?monat=${selected}`);
       const targetRow = page.locator('tr.prow', { hasText: targetName });
-      await expect(targetRow.locator('.col-avail')).toHaveText('−50,00 €');
+      await expect(targetRow.locator('.col-avail .pill')).toHaveText('−50,00 €');
       // The compact row control opens the envelope panel (UX-2 replaced the triage table rows).
       await page.getByRole('button', { name: `${targetName} decken`, exact: true }).click();
       const coverPanel = page.getByRole('complementary', { name: 'Plan-Inspektor' });
@@ -316,9 +316,9 @@ isolatedTest(
       );
       await coverPanel.getByRole('button', { name: 'Decken · 50,00 €', exact: true }).click();
       expect((await covered).ok()).toBe(true);
-      await expect(targetRow.locator('.col-avail')).toHaveText('0,00 €');
+      await expect(targetRow.locator('.col-avail .pill')).toHaveText('0,00 €');
       await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();
-      await expect(targetRow.locator('.col-avail')).toHaveText('−50,00 €');
+      await expect(targetRow.locator('.col-avail .pill')).toHaveText('−50,00 €');
       if (delta === 1 && info.project.name === 'desktop') {
         await withSpan(2)(page);
         await page.goto(`/plan/monat?monat=${current}`);
