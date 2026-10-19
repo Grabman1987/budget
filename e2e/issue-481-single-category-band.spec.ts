@@ -51,6 +51,47 @@ async function expectCompactBandContents(page: Page, phone: boolean) {
   }
 }
 
+/** Check actual on-screen inherited ink, which full-page Axe can miss off viewport. */
+async function expectOnscreenParentInk(page: Page) {
+  const bands = page.locator('.ptable-zero .pmulti');
+  const results = [];
+  for (let index = 0; index < (await bands.count()); index++) {
+    const band = bands.nth(index);
+    const toggle = band.locator('.grp-toggle');
+    await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+    await expect(toggle).toBeInViewport({ ratio: 1 });
+    const ink = await page.evaluate(() => {
+      const value = getComputedStyle(document.documentElement)
+        .getPropertyValue('--ink')
+        .trim()
+        .slice(1);
+      const hex = value.length === 3 ? Array.from(value, (digit) => digit + digit).join('') : value;
+      return `rgb(${[0, 2, 4].map((offset) => parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
+    });
+    await expect(toggle).toHaveCSS('color', ink);
+    await expect(toggle.locator('.grp-title')).toHaveCSS('color', ink);
+    await expect(toggle.locator('svg')).toHaveCSS('color', ink);
+    const id = await band.getAttribute('id');
+    const axe = await new AxeBuilder({ page }).include(`[id="${id}"]`).analyze();
+    expect(axe.violations, id!).toEqual([]);
+    // The on-screen band must actually undergo a contrast check, rather than be skipped.
+    expect(
+      axe.passes.some((rule) => rule.id === 'color-contrast'),
+      id!,
+    ).toBe(true);
+    results.push({ id, ink });
+  }
+  return results;
+}
+
+async function resetCaptureScroll(page: Page) {
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    window.scrollTo(0, 0);
+  });
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+}
+
 sampleTest(
   'sample ledger: group-first-category bands, current-baseline reduction and visual/accessibility evidence',
   async ({ page, browser }, info) => {
@@ -141,6 +182,11 @@ sampleTest(
       await page.evaluate((value) => {
         document.documentElement.dataset['theme'] = value;
       }, theme);
+      const parentInk = await expectOnscreenParentInk(page);
+      await info.attach(`parent-ink-${theme}`, {
+        body: JSON.stringify(parentInk),
+        contentType: 'application/json',
+      });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );
@@ -159,6 +205,7 @@ sampleTest(
           );
         expect(targets.filter((t) => t.width < 44 || t.height < 44)).toEqual([]);
       }
+      await resetCaptureScroll(page);
       await page.screenshot({ path: info.outputPath(`sample-${theme}.png`), fullPage: true });
       if (
         (info.project.name === 'desktop' && theme === 'light') ||
@@ -401,7 +448,7 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
 // Use an actual desktop context even when this regression runs in the iPhone engine project.
 sampleTest(
   'desktop group labels stay inside their controls at 1440 pixels',
-  async ({ browser }) => {
+  async ({ browser }, info) => {
     const context = await browser.newContext({
       baseURL: SAMPLE_URL,
       storageState: STORAGE_STATE_SAMPLE,
@@ -418,53 +465,97 @@ sampleTest(
       await desktop.goto('/plan/monat?monat=2026-09');
       await expect(desktop.locator('.ptable-zero .pmulti')).toHaveCount(8);
       await desktop.evaluate(() => document.fonts.ready);
-      await expectCompactBandContents(desktop, false);
-      const bands = desktop.locator('.ptable-zero .pmulti');
-      let truncatedLabels = 0;
-      for (let index = 0; index < (await bands.count()); index++) {
-        const band = bands.nth(index);
-        const title = (await band.locator('.grp-title').textContent())!;
-        await expect(band.locator('.grp-toggle')).toHaveAccessibleName(`Gruppe ${title}`);
-        const geometry = await band.evaluate((row) => {
-          const title = row.querySelector<HTMLElement>('.grp-title')!;
-          const toggle = row.querySelector<HTMLElement>('.grp-toggle')!;
-          const add = row.querySelector<HTMLElement>('.band-parent .plan-add')!;
-          const selection = row.querySelector<HTMLElement>('.col-name > .plan-select')!;
-          const rect = title.getBoundingClientRect();
-          const text = document.createRange();
-          text.selectNodeContents(title);
-          const fullText = text.getBoundingClientRect();
-          const style = getComputedStyle(title);
-          return {
-            labelLeft: rect.left,
-            labelRight: rect.right,
-            labelWidth: rect.width,
-            textRight: fullText.right,
-            toggleRight: toggle.getBoundingClientRect().right,
-            addLeft: add.getBoundingClientRect().left,
-            addRight: add.getBoundingClientRect().right,
-            selectionLeft: selection.getBoundingClientRect().left,
-            clipsText: ['hidden', 'clip'].includes(style.overflowX),
-            textOverflow: style.textOverflow,
-          };
-        });
-        expect(geometry.labelWidth, title).toBeGreaterThan(0);
-        expect(geometry.labelRight, title).toBeLessThanOrEqual(geometry.toggleRight);
-        expect(geometry.toggleRight, title).toBeLessThanOrEqual(geometry.addLeft);
-        expect(geometry.addRight, title).toBeLessThanOrEqual(geometry.selectionLeft);
-        if (geometry.textRight > geometry.labelRight) {
-          truncatedLabels++;
-          expect(geometry.clipsText, title).toBe(true);
-          expect(geometry.textOverflow, title).toBe('ellipsis');
+      for (const theme of ['light', 'dark']) {
+        await desktop.evaluate((value) => {
+          document.documentElement.dataset['theme'] = value;
+        }, theme);
+        await expectCompactBandContents(desktop, false);
+        const parentInk = await expectOnscreenParentInk(desktop);
+        const bands = desktop.locator('.ptable-zero .pmulti');
+        let truncatedLabels = 0;
+        for (let index = 0; index < (await bands.count()); index++) {
+          const band = bands.nth(index);
+          const title = (await band.locator('.grp-title').textContent())!;
+          await expect(band.locator('.grp-toggle')).toHaveAccessibleName(`Gruppe ${title}`);
+          const geometry = await band.evaluate((row) => {
+            const title = row.querySelector<HTMLElement>('.grp-title')!;
+            const toggle = row.querySelector<HTMLElement>('.grp-toggle')!;
+            const add = row.querySelector<HTMLElement>('.band-parent .plan-add')!;
+            const selection = row.querySelector<HTMLElement>('.col-name > .plan-select')!;
+            const rect = title.getBoundingClientRect();
+            const text = document.createRange();
+            text.selectNodeContents(title);
+            const fullText = text.getBoundingClientRect();
+            const style = getComputedStyle(title);
+            return {
+              labelLeft: rect.left,
+              labelRight: rect.right,
+              labelWidth: rect.width,
+              textRight: fullText.right,
+              toggleRight: toggle.getBoundingClientRect().right,
+              addLeft: add.getBoundingClientRect().left,
+              addRight: add.getBoundingClientRect().right,
+              selectionLeft: selection.getBoundingClientRect().left,
+              clipsText: ['hidden', 'clip'].includes(style.overflowX),
+              textOverflow: style.textOverflow,
+            };
+          });
+          if (['Wohnen', 'Kredite', 'Abos'].includes(title))
+            expect(geometry.textRight, title).toBeLessThanOrEqual(geometry.labelRight);
+          expect(geometry.labelWidth, title).toBeGreaterThan(0);
+          expect(geometry.labelRight, title).toBeLessThanOrEqual(geometry.toggleRight);
+          expect(geometry.toggleRight, title).toBeLessThanOrEqual(geometry.addLeft);
+          expect(geometry.addRight, title).toBeLessThanOrEqual(geometry.selectionLeft);
+          if (geometry.textRight > geometry.labelRight) {
+            truncatedLabels++;
+            expect(geometry.clipsText, title).toBe(true);
+            expect(geometry.textOverflow, title).toBe('ellipsis');
+          }
+          const paintedRight = geometry.clipsText
+            ? Math.min(geometry.textRight, geometry.labelRight)
+            : geometry.textRight;
+          expect(paintedRight, title).toBeLessThanOrEqual(geometry.addLeft);
+          expect(paintedRight, title).toBeLessThanOrEqual(geometry.selectionLeft);
         }
-        const paintedRight = geometry.clipsText
-          ? Math.min(geometry.textRight, geometry.labelRight)
-          : geometry.textRight;
-        expect(paintedRight, title).toBeLessThanOrEqual(geometry.addLeft);
-        expect(paintedRight, title).toBeLessThanOrEqual(geometry.selectionLeft);
+        // The sample includes long labels such as Versicherungen, so the guard is exercised.
+        expect(truncatedLabels).toBeGreaterThan(0);
+        expect(
+          await desktop.evaluate(() => document.documentElement.scrollWidth),
+        ).toBeLessThanOrEqual(1440);
+        expect(
+          (await new AxeBuilder({ page: desktop }).include('main').analyze()).violations,
+        ).toEqual([]);
+        await resetCaptureScroll(desktop);
+        await desktop.screenshot({ path: info.outputPath(`desktop-${theme}.png`), fullPage: true });
+        const measurements = await desktop.locator('.ptable-zero').evaluate((table) => ({
+          tableHeight: table.getBoundingClientRect().height,
+          viewport: { width: innerWidth, height: innerHeight },
+          observedTouchPoints: navigator.maxTouchPoints,
+          observedCoarsePointer: matchMedia('(pointer: coarse)').matches,
+          documentWidth: document.documentElement.scrollWidth,
+          fontsStatus: document.fonts.status,
+        }));
+        expect(measurements.observedTouchPoints).toBe(0);
+        expect(measurements.observedCoarsePointer).toBe(false);
+        writeFileSync(
+          info.outputPath(`desktop-${theme}-metrics.json`),
+          JSON.stringify(
+            {
+              engine: browser.browserType().name(),
+              browserVersion: browser.version(),
+              theme,
+              configuredDesktopFlags: { isMobile: false, hasTouch: false },
+              oldRows: 55,
+              newRows: 36,
+              reductionPercent: (100 * (55 - 36)) / 55,
+              parentInk,
+              ...measurements,
+            },
+            null,
+            2,
+          ) + '\n',
+        );
       }
-      // The sample includes long labels such as Versicherungen, so the guard is exercised.
-      expect(truncatedLabels).toBeGreaterThan(0);
     } finally {
       await context.close();
     }

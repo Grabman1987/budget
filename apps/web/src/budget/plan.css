@@ -2460,6 +2460,7 @@
 }
 .plan .pmulti .band-parent .grp-toggle {
   flex: 1 1 auto;
+  color: var(--ink);
 }
 .plan .pmulti .band-parent .grp-title {
   min-width: 0;
@@ -2501,7 +2502,7 @@
 }
 @media (min-width: 768px) {
   .plan .ptable-zero .pmulti .col-name {
-    grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) minmax(0, 1.3fr);
+    grid-template-columns: minmax(0, 1.5fr) 24px minmax(0, 1fr) minmax(0, 1fr);
     grid-template-rows: 28px 4px;
     padding-top: 4px;
   }
