@@ -47,7 +47,7 @@ while IFS=$'\t' read -r head mc complete pr merged_at; do
         --jq '.[] | select(.event == "labeled" and .label.name == "queue:complete") | .created_at' 2>/dev/null) ||
         { echo "#$n: label events unreadable, skipping"; continue; }
       last=$(tr -d '\r' <<<"$ev" | sort | tail -n1)
-      [[ -n "$last" && "$last" > "${merged_at:-}" ]] || complete=false
+      [[ -n "${merged_at:-}" && -n "$last" && "$last" > "$merged_at" ]] || complete=false
     fi
     if [ "${complete:-}" != true ]; then # live but not verified complete: never close, tell the issue once per PR
       if [ "$DRY" = 1 ]; then echo "#$n: live in ${rev:0:7}, open items remain (would comment once)"; continue; fi

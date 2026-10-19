@@ -30,12 +30,19 @@
 }
 .ex-chip-pair {
   display: inline-flex;
+  max-width: 100%;
 }
 .ex-chip-pair .ex-chip {
+  min-width: 0;
+  overflow-wrap: anywhere;
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
+.ex-chip-pair .ex-chip svg {
+  flex-shrink: 0;
+}
 .ex-chip-x {
+  flex: 0 0 44px;
   display: inline-grid;
   place-items: center;
   width: 44px;
@@ -46,6 +53,9 @@
   background: var(--surface);
   color: var(--ink-2);
   cursor: pointer;
+}
+.ex-chip-x:not(:last-child) {
+  border-radius: 0;
 }
 .ex-chip-x:hover {
   background: var(--tint);

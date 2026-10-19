@@ -1,7 +1,7 @@
 import { checkedReportPeriod, reportPeriodSchema } from './report-period';
 import { debtRoutes } from './debts';
 import {
-  freedomView,
+  freedomViewWithHistory,
   accountValuesAsOf,
   earliestAccountDate,
   netWorthAsOf,
@@ -21,7 +21,7 @@ export function wealthRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   app.route('/debts', debtRoutes(db, today));
 
-  app.get('/freedom', (c) => c.json(freedomView(db, today())));
+  app.get('/freedom', (c) => c.json(freedomViewWithHistory(db, today())));
 
   /**
    * Net worth over a period: the daily series (first point = the start value, the close of the
