@@ -20,7 +20,15 @@ import {
   ChevronDown,
   Info,
 } from 'lucide-react';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 import { expectedQuery } from '../expected/api';
 import { PLAN_MONAT } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
@@ -166,6 +174,17 @@ function PlanBody({
   const phone = useIsPhone();
   const [distribute, setDistribute] = useState(false);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  const groupFocusAfterToggle = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const key = groupFocusAfterToggle.current;
+    groupFocusAfterToggle.current = null;
+    if (key !== null) {
+      document
+        .getElementById(`grp-${key}`)
+        ?.querySelector<HTMLButtonElement>('.grp-toggle')
+        ?.focus();
+    }
+  }, [collapsed]);
   const [editing, setEditing] = useState<string | null>(null);
   const savedInspector = useLocation({ select: (location) => location.state.planInspector });
   const restored = savedInspector && months.includes(savedInspector.month) ? savedInspector : null;
@@ -631,7 +650,13 @@ function PlanBody({
                     const isCollapsed = !singleBand && collapsed.has(g.key);
                     const band = shownView === 'group' && g.rows.length > 0 && !isCollapsed;
                     const sugSum = g.rows.reduce((a, r) => a + (sug[r.id] ?? 0), 0);
-                    const toggle = () => toggleGroup(g.key);
+                    const toggle = (event: MouseEvent<HTMLButtonElement>) => {
+                      // The shared category row and collapsed parent have different React keys.
+                      // Keep keyboard focus on the equivalent native control after that remount.
+                      if (event.currentTarget === document.activeElement)
+                        groupFocusAfterToggle.current = g.key;
+                      toggleGroup(g.key);
+                    };
                     const groupHeading = (
                       <div className="group-heading">
                         <PlanSelection
@@ -1388,7 +1413,9 @@ function EnvelopeRow({
         if (
           event.target instanceof Element &&
           (band || event.target.closest('.col-name')) &&
-          !event.target.closest('button, input, label')
+          !event.target.closest(
+            'button, input, label, .band-parent, .band-total, .band-parent-totals',
+          )
         )
           onInspect();
       }}

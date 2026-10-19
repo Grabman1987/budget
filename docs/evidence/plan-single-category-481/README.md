@@ -25,7 +25,10 @@ this implementer does not merge, deploy, close issues or start queue loops.
   its category. Parent checkbox/button names explicitly identify the group,
   including when group and first-category names happen to be identical.
 - Collapsing a multiple-category group retains its original parent-only summary
-  and hides every category; reopening retains selection. The existing collapse
+  and hides every category; reopening retains selection. Native group controls
+  retain keyboard focus through both transitions, so consecutive Space/Enter
+  activations continue to work. Group totals and parent whitespace remain inert;
+  category controls retain their inspector behavior. The existing collapse
   exception for a single-category band remains unchanged.
 - All amounts reuse existing `groupStatus`, `EnvelopeRow`, `AssignCell`, inspector
   and mutation callbacks. No financial formula, API or persisted data changes.
@@ -79,5 +82,7 @@ npx playwright test e2e/issue-481-single-category-band.spec.ts e2e/issue-588-pla
 ```
 
 The normal API-only setup uses synthetic disposable databases. No real financial
-data, production access or secrets are used. No existing-main test, tolerance,
-baseline, configuration, manifest or repository rule was changed by this work.
+data, production access or secrets are used. Existing-main test adaptations in this branch were made and authorized by the
+coordinator, including the explicit 36-row collapse/reopen expectations in
+issue-588-plan-menus.spec.ts. This implementer only iterated the new #481
+regression. No tolerance, baseline, configuration or manifest was weakened.

@@ -3,6 +3,7 @@ import { expect } from '@playwright/test';
 import { sampleTest } from './sample';
 import { test } from './isolated-ledger';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { cents, formatEuro } from '@budget/domain';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 
 sampleTest(
@@ -84,11 +85,7 @@ sampleTest(
       const expected = ['assignedCents', 'activityCents', 'availableCents'] as const;
       for (const [index, key] of expected.entries()) {
         const value = summaries.reduce((sum, row) => sum + row[key], 0);
-        await expect(totals.nth(index)).toContainText(
-          new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR' })
-            .format(value / 100)
-            .replace('-', '−'),
-        );
+        await expect(totals.nth(index)).toContainText(formatEuro(cents(value)));
       }
       await expect(band.locator('.pname')).toHaveCount(1);
       await expect(band.locator('.spending-status')).not.toBeEmpty();
@@ -294,6 +291,19 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   await expect(totals.nth(2)).toContainText('0,21 €');
   await expect(band.locator('.band-category-assigned')).toContainText('100,01 €');
   await expect(band.locator('.band-category-available')).toContainText('−0,01 €');
+  // Parent summaries never inspect the first category; the category button still does.
+  await expect(
+    inspector.getByRole('heading', { name: 'Musterposten', exact: true }),
+  ).not.toBeVisible();
+  for (let index = 0; index < 3; index++) {
+    await totals.nth(index).click();
+    await expect(
+      inspector.getByRole('heading', { name: 'Musterposten', exact: true }),
+    ).not.toBeVisible();
+  }
+  await band.locator('.pname').click();
+  await expect(inspector.getByRole('heading', { name: 'Musterposten', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
   const groupSelection = band.getByRole('checkbox', {
     name: 'Gruppe Musterband auswählen',
     exact: true,
@@ -305,14 +315,25 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   await expect(
     page.getByRole('checkbox', { name: 'Zweiter Musterposten auswählen', exact: true }),
   ).toBeChecked();
-  await band.locator('.grp-toggle').click();
-  await expect(band.locator('.grp-toggle')).toHaveAttribute('aria-expanded', 'false');
+  const groupToggle = band.locator('.grp-toggle');
+  await groupToggle.focus();
+  await page.keyboard.press('Space');
+  await expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(groupToggle).toBeFocused();
   await expect(page.locator(`.ptable-zero [data-category-id="${category.id}"]`)).not.toBeVisible();
   await expect(
     page.getByRole('checkbox', { name: 'Zweiter Musterposten auswählen', exact: true }),
   ).not.toBeVisible();
   await expect(groupSelection).toBeChecked();
-  await band.locator('.grp-toggle').click();
+  await page.keyboard.press('Space');
+  await expect(groupToggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(groupToggle).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(groupToggle).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(groupToggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(groupToggle).toBeFocused();
   await expect(groupSelection).toBeChecked();
   await expect(
     page.getByRole('checkbox', { name: 'Zweiter Musterposten auswählen', exact: true }),
