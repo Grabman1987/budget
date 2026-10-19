@@ -1,6 +1,7 @@
 import { calendarRangeWindow, isCalendarRange, type CalendarRange } from '../report-range';
 import { addDays, addMonths, daysBetween, lastDayOfMonth } from '../date';
 import { irr, modifiedDietz, periodReturn, type CashFlow, type Valuation } from './returns';
+import { benchmarkQuoteResolver, type BenchmarkQuote } from './benchmark-quotes';
 
 /**
  * Portfolio performance per window (P5.2, SPEC §6). Inputs are integer cents (values, flows); the
@@ -223,8 +224,8 @@ export interface PerformanceInput {
   returnFlows?: ReadonlyArray<CashFlow>;
   /** PP XIRR converts net payments and tax separately; TTWROR converts pre-tax amounts. */
   irrFlows?: ReadonlyArray<CashFlow>;
-  /** Index levels (daily or monthly, carried forward); enables beta and the benchmark return. */
-  benchmark?: ReadonlyArray<BenchmarkLevel>;
+  /** EUR index levels with the shared boundary freshness policy; enables beta/comparison. */
+  benchmark?: ReadonlyArray<BenchmarkQuote>;
   riskFree?: number;
 }
 
@@ -257,12 +258,6 @@ function valueOn(series: ReadonlyArray<Valuation>, day: string): number {
   return found;
 }
 
-function levelOn(levels: ReadonlyArray<BenchmarkLevel>, day: string): number | undefined {
-  let found: number | undefined;
-  for (const l of levels) if (l.date <= day) found = l.level;
-  return found;
-}
-
 /**
  * All figures of one window. The series must cover `from … to`; `from` is moved to the first day
  * of the series when it starts later. Monthly returns chain the daily returns of each calendar
@@ -290,6 +285,7 @@ export function windowPerformance(input: PerformanceInput, window: Window): Wind
   const months: number[] = [];
   const benchmarkMonths: number[] = [];
   let benchmarkOk = input.benchmark !== undefined && input.benchmark.length > 0;
+  const quoteOn = benchmarkQuoteResolver(input.benchmark ?? []);
   for (let i = 1; i < bounds.length; i++) {
     const a = bounds[i - 1] as string;
     const b = bounds[i] as string;
@@ -299,9 +295,9 @@ export function windowPerformance(input: PerformanceInput, window: Window): Wind
     if (benchmarkOk) {
       let level = 1;
       for (const segment of returnWindows(valued)) {
-        const la = levelOn(input.benchmark ?? [], segment.from);
-        const lb = levelOn(input.benchmark ?? [], segment.to);
-        if (la === undefined || lb === undefined || la <= 0) benchmarkOk = false;
+        const la = quoteOn(segment.from).level;
+        const lb = quoteOn(segment.to).level;
+        if (la === null || lb === null || la <= 0) benchmarkOk = false;
         else level *= lb / la;
       }
       benchmarkMonths.push(level - 1);
