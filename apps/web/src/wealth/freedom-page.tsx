@@ -309,15 +309,24 @@ export function FreedomContent({ view }: { view: FreedomView }) {
       <section className="freedom-wide" aria-labelledby="freedom-way">
         <div className="head">
           <h2 id="freedom-way">Weg zum Ziel</h2>
-          <span className="aside">Prognose ab heute · keine Garantie</span>
+          <span className="aside">
+            {view.investedHistory ? 'Ist seit Okt. 2023 · ' : ''}Prognose ab heute · keine Garantie
+          </span>
         </div>
-        {projection && view.targetCents !== null ? (
+        <p className="vnote">Kontenauswahl Stand heute · gilt auch für historische Bewertungen.</p>
+        {(projection && view.targetCents !== null) || view.investedHistory ? (
           <FreedomChart
             projection={projection}
-            target={view.targetCents}
+            target={view.targetCents !== null && view.targetCents > 0 ? view.targetCents : null}
             startMonth={view.asOf.slice(0, 7)}
+            history={view.investedHistory}
           />
         ) : (
+          <p className="vnote">
+            {reason || error || 'Die Prognose beginnt nach Eingabe einer Sparrate.'}
+          </p>
+        )}
+        {!projection && view.investedHistory && (
           <p className="vnote">
             {reason || error || 'Die Prognose beginnt nach Eingabe einer Sparrate.'}
           </p>
@@ -370,7 +379,7 @@ export function FreedomContent({ view }: { view: FreedomView }) {
       >
         <div className="head">
           <h2 id="freedom-account-title">Investiert: Quellkonten</h2>
-          <span className="aside">Kontoguthaben plus Bestände · in Euro</span>
+          <span className="aside">Ausgewählte Anlagebasis · in Euro</span>
         </div>
         {view.accounts.length ? (
           <table className="kv-table">

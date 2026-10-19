@@ -253,7 +253,15 @@ describe('protected paths (denylist on top of any scope)', () => {
       'e2e/plan.specs.ts', // was e2e/plan.spec.ts: a real spec is now protected (existing-test rule)
       'packages/db/src/schema.ts',
     ];
-    expect(checkScope([{ status: 'M', paths }], everything)).toEqual({ ok: true, outside: [] });
+    expect(
+      checkScope(
+        [
+          { status: 'M', paths },
+          { status: 'A', paths: ['e2e/plan.spec.ts'] },
+        ],
+        everything,
+      ),
+    ).toEqual({ ok: true, outside: [] });
   });
 });
 

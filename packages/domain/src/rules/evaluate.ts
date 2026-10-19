@@ -420,7 +420,7 @@ const r15: Rule<'R15'> = (p, i) => {
   );
 };
 
-const r16: Rule<'R16'> = (p, i) => {
+const r16 = (p: RuleParams<'R16'>, i: Pick<RuleInputs, 'freedom'>): RuleEvaluation | null => {
   if (!i.freedom) return null;
   const target = freedomTargetCents(i.freedom.annualSpendCents, p.multiple);
   if (target <= 0) return null;
@@ -434,6 +434,11 @@ const r16: Rule<'R16'> = (p, i) => {
     { progressBp: progress, previousProgressBp: prev, targetCents: target },
   );
 };
+
+/** Read-only R16 preview without requiring unrelated account valuations. */
+export function evaluateFreedomRule(params: unknown, freedom: RuleInputs['freedom']) {
+  return r16(resolveParams('R16', params) as RuleParams<'R16'>, { freedom });
+}
 
 const RULES: { [C in RuleCode]: Rule<C> } = {
   R01: r01,

@@ -49,6 +49,13 @@ Owner model/integration authorization (2026-10-19, [#694](https://github.com/Gra
 - Isolation or root-cause fixes that make a test stricter follow the same review and table.
 - Obsolete test with no matching decision: `needs-human`, reason in a comment.
 
+Residual limitation: `checkScope` protects existing `*.test.*` and `e2e/**/*.spec.ts`
+files, but test helpers and fixtures with other names (for example `test-utils.ts`
+or `fixtures/data.ts`) can still weaken what tests verify without triggering that
+existing-test guard. This is caught only by orchestrator review: Opus must inspect
+helper/fixture changes and their effect on the tests before integration. The guard
+does not establish that test coverage or assertions remain equally strict.
+
 ## Screenshot baselines
 
 Intended UI changes regenerate only the affected specs on the PR branch: run `update-snapshots.yml` with the `specs` input (for example `e2e/shell.spec.ts`). The orchestrator opens the new PNGs and judges them before the merge. The bot's push does not start CI, so push an empty commit afterwards. Never regenerate all baselines to get green.
