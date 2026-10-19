@@ -1,5 +1,13 @@
 # Roadmap
 
+### #632 — pending and confirmed account-register proof (2026-10-19)
+
+- [x] Audit the existing account register, then add only a dedicated isolated-ledger regression: one pending and one confirmed booking in A, plus a pending B sentinel. Literal balances are 98,199 and 49,110 cents; no product calculation or status rule changes.
+- [x] Prove distinct rows, global-status-filter/account isolation and reload, unchanged raw booking/split/audit data during display, the separate planned #579 occurrence, and explicit existing confirmation/undo with exact amounts and audit linkage.
+- [x] Final actual phone WebKit passes 4/4 including three setup cases, both themes, strict Axe, overflow and 44px targets. Two genuine register viewports and safe actual JSON are independently reviewed; account header remains above the photographed viewport ([evidence](evidence/account-pending-632/README.md)).
+- [x] At frozen `8918df7c`, the age-required two-worker full check passes 514 files / 4,552 tests and the normal production build passes; all 3,307 tracked hashes, HEAD and clean status remain unchanged. This result precedes the following documentation-only update.
+- [ ] Canonical desktop 1440 / Chromium mobile 390 execution, exact-head CI, controlled integration/live verification and remaining issue acceptance gates. Do not close #632 from local phone/unit evidence alone.
+
 ### #627 — CSV of the validated current Explorer table (2026-10-19)
 
 - [x] Add a read-only authenticated filtered CSV using the existing validated pivot, raw integer units, supplied footer/truncation metadata, safe text encoding and explicit empty marker. Compare the server recomputation with the displayed result before creating a file; changed data retains the view and offers reload.
