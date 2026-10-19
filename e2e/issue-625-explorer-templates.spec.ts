@@ -158,12 +158,41 @@ async function inspect(
   await expect(page.locator(`[data-booking="${ids.out}"]`)).toContainText('−20,02');
   await page.goBack();
   await expect(page.getByTestId('template-sources')).toBeVisible();
+  const closeGeometry: Record<string, unknown>[] = [];
+  const snapshotClose = async (phase: string) => {
+    try {
+      closeGeometry.push({ phase, observedAt: Date.now(), ...(await safe625HitGeometry(page)) });
+    } catch (error) {
+      closeGeometry.push({
+        phase,
+        diagnosticError: error instanceof Error ? error.name : 'UnknownError',
+      });
+    }
+  };
   try {
+    await snapshotClose('before-close-click');
     await page.getByRole('button', { name: 'Buchungen schließen' }).click();
+    await snapshotClose('after-close-click-resolved');
     await expect(detail).toHaveCount(0);
   } finally {
     try {
-      const evidence = { events: closeObservation, final: await safe625Location(page) };
+      await snapshotClose('after-original-assertion-or-failure');
+      const browser = page.context().browser();
+      const evidence = {
+        metadata: {
+          project: info.project.name,
+          template: id,
+          browser: browser?.browserType().name() ?? null,
+          browserVersion: browser?.version() ?? null,
+          viewport: page.viewportSize(),
+          projectConfiguredIsMobile: info.project.use.isMobile ?? false,
+          projectConfiguredHasTouch: info.project.use.hasTouch ?? false,
+          projectConfiguredDeviceScaleFactor: info.project.use.deviceScaleFactor ?? null,
+        },
+        closeGeometry,
+        events: closeObservation,
+        final: await safe625Location(page),
+      };
       const path = info.outputPath('625-safe-close-chronology.json');
       await writeFile(path, JSON.stringify(evidence, null, 2));
       await info.attach('625-safe-close-chronology', { path, contentType: 'application/json' });
@@ -355,6 +384,86 @@ async function safe625Location(page: Page) {
     };
   });
 }
+async function safe625HitGeometry(page: Page) {
+  return page.evaluate(() => {
+    const rect = (value: DOMRect) => ({
+      x: value.x,
+      y: value.y,
+      width: value.width,
+      height: value.height,
+      top: value.top,
+      right: value.right,
+      bottom: value.bottom,
+      left: value.left,
+    });
+    const classify = (element: Element | null) => ({
+      tag: element?.tagName.slice(0, 48) ?? null,
+      surface: element?.closest('.ex-template-sources')
+        ? 'sources'
+        : element?.closest('.ex-template-scroll')
+          ? 'template-scroll'
+          : element?.closest('.fab')
+            ? 'fab'
+            : element?.closest('.tabbar')
+              ? 'tabbar'
+              : element?.closest('.m-head')
+                ? 'mobile-header'
+                : 'other',
+      close: Boolean(
+        element?.closest('.ex-template-sources button')?.textContent?.trim() ===
+        'Buchungen schließen',
+      ),
+    });
+    const close = [
+      ...document.querySelectorAll<HTMLButtonElement>('.ex-template-sources button'),
+    ].find((button) => button.textContent?.trim() === 'Buchungen schließen');
+    const bounds = close?.getBoundingClientRect();
+    const hit = (x: number, y: number) => ({
+      x,
+      y,
+      elements: document.elementsFromPoint(x, y).slice(0, 6).map(classify),
+    });
+    const ancestors = [];
+    for (let node = close?.parentElement; node && ancestors.length < 8; node = node.parentElement) {
+      ancestors.push({
+        ...classify(node),
+        scrollLeft: node.scrollLeft,
+        scrollTop: node.scrollTop,
+        clientWidth: node.clientWidth,
+        clientHeight: node.clientHeight,
+        scrollWidth: node.scrollWidth,
+        scrollHeight: node.scrollHeight,
+      });
+    }
+    const viewport = window.visualViewport;
+    const geometry = {
+      closeConnected: close?.isConnected ?? false,
+      closeRect: bounds ? rect(bounds) : null,
+      closeClientRects: close ? [...close.getClientRects()].slice(0, 4).map(rect) : [],
+      centerHit: bounds ? hit(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2) : null,
+      scroll: { x: window.scrollX, y: window.scrollY },
+      layoutViewport: { width: window.innerWidth, height: window.innerHeight },
+      runtime: {
+        devicePixelRatio: window.devicePixelRatio,
+        maxTouchPoints: navigator.maxTouchPoints,
+        coarsePointer: window.matchMedia('(pointer: coarse)').matches,
+      },
+      visualViewport: viewport
+        ? {
+            width: viewport.width,
+            height: viewport.height,
+            offsetLeft: viewport.offsetLeft,
+            offsetTop: viewport.offsetTop,
+            pageLeft: viewport.pageLeft,
+            pageTop: viewport.pageTop,
+            scale: viewport.scale,
+          }
+        : null,
+      ancestors,
+    };
+    return geometry;
+  });
+}
 async function observe625Close(page: Page) {
   const events: Record<string, unknown>[] = [];
   const push = (record: Record<string, unknown>) => {
@@ -448,12 +557,100 @@ async function observe625Close(page: Page) {
         name,
         (event) => {
           const item = target(event.target);
-          if (item.kind !== 'other' && item.kind !== 'none')
+          const pointer = name === 'pointerdown' || name === 'pointerup' || name === 'click';
+          if (pointer || (item.kind !== 'other' && item.kind !== 'none')) {
+            const rect = (value: DOMRect) => ({
+              x: value.x,
+              y: value.y,
+              width: value.width,
+              height: value.height,
+              top: value.top,
+              right: value.right,
+              bottom: value.bottom,
+              left: value.left,
+            });
+            const classify = (element: Element | null) => ({
+              tag: element?.tagName.slice(0, 48) ?? null,
+              surface: element?.closest('.ex-template-sources')
+                ? 'sources'
+                : element?.closest('.ex-template-scroll')
+                  ? 'template-scroll'
+                  : element?.closest('.fab')
+                    ? 'fab'
+                    : element?.closest('.tabbar')
+                      ? 'tabbar'
+                      : element?.closest('.m-head')
+                        ? 'mobile-header'
+                        : 'other',
+              close: Boolean(
+                element?.closest('.ex-template-sources button')?.textContent?.trim() ===
+                'Buchungen schließen',
+              ),
+            });
+            const close = [
+              ...document.querySelectorAll<HTMLButtonElement>('.ex-template-sources button'),
+            ].find((button) => button.textContent?.trim() === 'Buchungen schließen');
+            const bounds = close?.getBoundingClientRect();
+            const hit = (x: number, y: number) => ({
+              x,
+              y,
+              elements: document.elementsFromPoint(x, y).slice(0, 6).map(classify),
+            });
+            const ancestors = [];
+            for (
+              let node = close?.parentElement;
+              node && ancestors.length < 8;
+              node = node.parentElement
+            ) {
+              ancestors.push({
+                ...classify(node),
+                scrollLeft: node.scrollLeft,
+                scrollTop: node.scrollTop,
+                clientWidth: node.clientWidth,
+                clientHeight: node.clientHeight,
+                scrollWidth: node.scrollWidth,
+                scrollHeight: node.scrollHeight,
+              });
+            }
+            const viewport = window.visualViewport;
+            const geometry = {
+              closeConnected: close?.isConnected ?? false,
+              closeRect: bounds ? rect(bounds) : null,
+              closeClientRects: close ? [...close.getClientRects()].slice(0, 4).map(rect) : [],
+              centerHit: bounds
+                ? hit(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+                : null,
+              scroll: { x: window.scrollX, y: window.scrollY },
+              layoutViewport: { width: window.innerWidth, height: window.innerHeight },
+              runtime: {
+                devicePixelRatio: window.devicePixelRatio,
+                maxTouchPoints: navigator.maxTouchPoints,
+                coarsePointer: window.matchMedia('(pointer: coarse)').matches,
+              },
+              visualViewport: viewport
+                ? {
+                    width: viewport.width,
+                    height: viewport.height,
+                    offsetLeft: viewport.offsetLeft,
+                    offsetTop: viewport.offsetTop,
+                    pageLeft: viewport.pageLeft,
+                    pageTop: viewport.pageTop,
+                    scale: viewport.scale,
+                  }
+                : null,
+              ancestors,
+            };
+            const coordinates =
+              event instanceof MouseEvent ? { x: event.clientX, y: event.clientY } : null;
             emit(name, {
               target: item,
               trusted: event.isTrusted,
               pointerType: 'pointerType' in event ? event.pointerType : null,
+              coordinates,
+              geometry,
+              pointHit: coordinates ? hit(coordinates.x, coordinates.y) : null,
             });
+          }
         },
         { passive: true, capture: true },
       );
