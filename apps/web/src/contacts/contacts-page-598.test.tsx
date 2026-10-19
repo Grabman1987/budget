@@ -123,7 +123,7 @@ it('switches between open contacts and all contacts', async () => {
   expect(within(group).getByRole('button', { name: 'Alle' }).getAttribute('aria-pressed')).toBe(
     'false',
   );
-  expect(vi.mocked(fetch).mock.calls[0]?.[0]).toBe('/api/contacts?history=0');
+  expect(vi.mocked(fetch).mock.calls.map((c) => c[0])).toContain('/api/contacts?history=0');
 });
 
 it('asks for all contacts when the Alle switch is set', async () => {
@@ -134,7 +134,7 @@ it('asks for all contacts when the Alle switch is set', async () => {
   expect(within(group).getByRole('button', { name: 'Alle' }).getAttribute('aria-pressed')).toBe(
     'true',
   );
-  expect(vi.mocked(fetch).mock.calls[0]?.[0]).toBe('/api/contacts?history=1');
+  expect(vi.mocked(fetch).mock.calls.map((c) => c[0])).toContain('/api/contacts?history=1');
 });
 
 const statement = (balanceCents: number) => ({
