@@ -679,3 +679,106 @@ for (const theme of ['light', 'dark'] as const) {
     },
   );
 }
+
+for (const theme of ['light', 'dark'] as const) {
+  sampleTest(
+    `narrow desktop ${theme} bands keep labels, bounds and right-edge actions`,
+    async ({ browser }, info) => {
+      await withDesktopSample(browser, async (desktop) => {
+        await desktop.evaluate((value) => {
+          document.documentElement.dataset['theme'] = value;
+        }, theme);
+        const measurements = [];
+        for (const width of [768, 1180, 1439]) {
+          await desktop.setViewportSize({ width, height: 900 });
+          await expectCompactBandContents(desktop, false);
+          const labels = await desktop.locator('.ptable-zero .pmulti').evaluateAll((rows) =>
+            rows.map((row) => {
+              const title = row.querySelector<HTMLElement>('.grp-title')!;
+              const range = document.createRange();
+              range.selectNodeContents(title);
+              const rect = (selector: string) => {
+                const box = row.querySelector(selector)!.getBoundingClientRect();
+                return {
+                  left: box.left,
+                  right: box.right,
+                  top: box.top,
+                  bottom: box.bottom,
+                  width: box.width,
+                };
+              };
+              return {
+                name: title.textContent!,
+                textRight: range.getBoundingClientRect().right,
+                title: rect('.grp-title'),
+                add: rect('.band-parent .plan-add'),
+                selection: rect('.col-name > .plan-select'),
+                category: rect('.pname'),
+                status: rect('.spending-status'),
+              };
+            }),
+          );
+          expect(labels).toHaveLength(8);
+          for (const label of labels) {
+            const context = JSON.stringify({ width, theme, ...label });
+            expect(label.title.width, context).toBeGreaterThan(0);
+            expect(label.category.width, context).toBeGreaterThan(0);
+            expect(label.status.width, context).toBeGreaterThan(0);
+            expect(label.title.right, context).toBeLessThanOrEqual(label.add.left);
+            const separateControls =
+              label.add.right <= label.selection.left ||
+              label.selection.right <= label.add.left ||
+              label.add.bottom <= label.selection.top ||
+              label.selection.bottom <= label.add.top;
+            expect(separateControls, context).toBe(true);
+            if (['Wohnen', 'Kredite', 'Abos'].includes(label.name))
+              expect(label.textRight, context).toBeLessThanOrEqual(label.title.right);
+          }
+          expect(
+            await desktop.evaluate(() => document.documentElement.scrollWidth),
+          ).toBeLessThanOrEqual(width);
+          const scroll = desktop.locator('.pmulti-scroll:has(.ptable-zero)');
+          await expect(scroll).toHaveCSS('overflow-x', 'auto');
+          await scroll.evaluate((element) => {
+            element.scrollLeft = element.scrollWidth;
+          });
+          const action = desktop.locator('.ptable-zero .col-avail button').first();
+          await action.focus();
+          await expect(action).toBeFocused();
+          const reachability = await scroll.evaluate((element) => {
+            const outer = element.getBoundingClientRect();
+            const header = element.querySelector('thead th:last-child')!.getBoundingClientRect();
+            const target = document.activeElement!.getBoundingClientRect();
+            return {
+              outerLeft: outer.left,
+              outerRight: outer.right,
+              headerRight: header.right,
+              actionLeft: target.left,
+              actionRight: target.right,
+              scrollWidth: element.scrollWidth,
+              clientWidth: element.clientWidth,
+              scrollLeft: element.scrollLeft,
+              documentWidth: document.documentElement.scrollWidth,
+            };
+          });
+          const context = JSON.stringify({ width, theme, reachability });
+          expect(reachability.headerRight, context).toBeLessThanOrEqual(reachability.outerRight);
+          expect(reachability.actionLeft, context).toBeGreaterThanOrEqual(reachability.outerLeft);
+          expect(reachability.actionRight, context).toBeLessThanOrEqual(reachability.outerRight);
+          expect(reachability.documentWidth, context).toBeLessThanOrEqual(width);
+          if (reachability.scrollWidth > reachability.clientWidth)
+            expect(reachability.scrollLeft, context).toBeGreaterThan(0);
+          measurements.push({ width, theme, labels, reachability });
+          writeFileSync(
+            info.outputPath(`responsive-${theme}-metrics.json`),
+            JSON.stringify(measurements, null, 2) + '\n',
+          );
+          await action.evaluate((element) => element.blur());
+          await scroll.evaluate((element) => {
+            element.scrollLeft = 0;
+          });
+        }
+      });
+    },
+  );
+}
