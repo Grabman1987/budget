@@ -332,7 +332,7 @@ it('selects a category into the inspector, keeps amount editing separate and cle
     'GET /api/categories': () => ok(categories),
   });
   renderPage(<PlanMonthPage />, '/plan/monat?monat=2026-09');
-  const category = await screen.findByRole('button', { name: 'Lebensmittel' });
+  const category = await screen.findByRole('button', { name: 'Alltag· Lebensmittel' });
   await userEvent.click(category);
   const inspector = screen.getByRole('complementary', { name: 'Plan-Inspektor' });
   expect(within(inspector).getByRole('heading', { name: row.name })).toBeTruthy();
