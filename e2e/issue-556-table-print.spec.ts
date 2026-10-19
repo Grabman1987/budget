@@ -63,24 +63,28 @@ for (const report of reports) {
           requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
         ),
     );
+    const expectedPalette = await page.evaluate(() => {
+      const root = getComputedStyle(document.documentElement);
+      const rgb = (token: string) => {
+        const value = root.getPropertyValue(token).trim().slice(1);
+        // The built stylesheet minifies #ffffff to #fff.
+        const hex =
+          value.length === 3 ? Array.from(value, (digit) => digit + digit).join('') : value;
+        return `rgb(${[0, 2, 4].map((offset) => parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
+      };
+      const ink = rgb('--ink');
+      return { paper: rgb('--surface'), body: ink, heading: ink, value: ink };
+    });
     await expect
       .poll(() =>
-        page.evaluate(() => {
-          const root = getComputedStyle(document.documentElement);
-          const rgb = (token: string) => {
-            const hex = root.getPropertyValue(token).trim().slice(1);
-            return `rgb(${[0, 2, 4].map((offset) => parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
-          };
-          const ink = rgb('--ink');
-          return {
-            paper: getComputedStyle(document.body).backgroundColor === rgb('--surface'),
-            body: getComputedStyle(document.body).color === ink,
-            heading: getComputedStyle(document.querySelector('h1')!).color === ink,
-            value: getComputedStyle(document.querySelector('.rtable td')!).color === ink,
-          };
-        }),
+        page.evaluate(() => ({
+          paper: getComputedStyle(document.body).backgroundColor,
+          body: getComputedStyle(document.body).color,
+          heading: getComputedStyle(document.querySelector('h1')!).color,
+          value: getComputedStyle(document.querySelector('.rtable td')!).color,
+        })),
       )
-      .toEqual({ paper: true, body: true, heading: true, value: true });
+      .toEqual(expectedPalette);
     const printInk = await page.evaluate(() => ({
       token: getComputedStyle(document.documentElement).getPropertyValue('--ink'),
       body: getComputedStyle(document.body).color,
