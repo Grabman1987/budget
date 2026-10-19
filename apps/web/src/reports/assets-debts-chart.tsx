@@ -113,6 +113,7 @@ function Drawing({
       height={H}
       label={summary}
       testId="assets-debts-chart"
+      table
       points={chartPoints(
         months.map((m) => m.month),
         x,
