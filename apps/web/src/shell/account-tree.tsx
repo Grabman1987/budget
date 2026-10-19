@@ -21,16 +21,20 @@ import { useState } from 'react';
 import { useOrderedAccounts, useReorder } from '../ledger/account-order';
 import { AccountFormPanel } from '../ledger/account-form';
 import { eur } from '../ledger/format';
-import { accountValueEur, type AccountGroupId } from '../ledger/labels';
+import type { AccountGroupId } from '../ledger/labels';
 import { overviewModel, type GroupView } from '../ledger/overview-model';
 import { accountsQuery } from '../ledger/queries';
+import { sumTreeValues, treeValues, type TreeValue } from '../ledger/tree-values';
 import type { AccountType } from '../ledger/types';
+import { portfolioPositionsQuery } from '../wealth/portfolio-api';
 import { AppLink } from './app-link';
 import { useStoredFlag } from './use-stored-flag';
 
 /** Euro amount without cents for the narrow sidebar; a missing rate stays visible as a dash. */
-const short = (value: number | null) =>
-  value === null ? '–' : eur(Math.round(value / 100) * 100).replace(/,00(?=\s?€)/, '');
+const short = ({ cents, approx }: TreeValue) =>
+  cents === null
+    ? '–'
+    : `${approx ? '≈ ' : ''}${eur(Math.round(cents / 100) * 100).replace(/,00(?=\s?€)/, '')}`;
 
 const GROUP_ICON: Record<AccountGroupId, LucideIcon> = {
   budget: Wallet,
@@ -55,7 +59,8 @@ const TYPE_ICON: Record<AccountType, LucideIcon> = {
 /**
  * Account hierarchy under the Planliste: the overview's groups in YNAB's order (Budget-Konten,
  * Kreditkarten, Kredite, Investments) with their sums, each open account linking to its sheet.
- * Negative balances use red ink. Groups fold away; the choice is remembered per group.
+ * A depot shows its Depotwert (the figure of its depot page, "≈" when a position has no price);
+ * the group sum adds the shown figures. Negative balances use red ink. Groups fold away; the choice is remembered per group.
  *
  * The pencil (on hover or focus of a group head or account) switches the whole tree to edit mode:
  * accounts get a grip and ↑ / ↓ buttons to change their order within their group, "Fertig" ends it.
@@ -67,7 +72,9 @@ export function AccountTree() {
   const ordered = useOrderedAccounts(accounts.data?.accounts);
   const [editing, setEditing] = useState(false);
   const [creating, setCreating] = useState(false);
+  const positions = useQuery(portfolioPositionsQuery());
   const { groups } = overviewModel(ordered.accounts ?? []);
+  const values = treeValues(ordered.accounts ?? [], positions.data);
   return (
     <>
       <nav className="acct-tree" aria-labelledby="acct-tree-label">
@@ -102,6 +109,7 @@ export function AccountTree() {
           <AccountGroupBlock
             key={g.group.id}
             view={g}
+            values={values}
             current={params.id}
             editing={editing}
             onEdit={() => setEditing(true)}
@@ -138,12 +146,14 @@ function PencilButton(props: {
 
 function AccountGroupBlock({
   view,
+  values,
   current,
   editing,
   onEdit,
   onReorder,
 }: {
   view: GroupView;
+  values: ReadonlyMap<string, TreeValue>;
   current: string | undefined;
   editing: boolean;
   onEdit: () => void;
@@ -158,7 +168,7 @@ function AccountGroupBlock({
   const ids = view.accounts.map((a) => a.id);
   const names = new Map(view.accounts.map((a) => [a.id, a.name]));
   const reorder = useReorder(ids, onReorder, (id) => names.get(id) ?? '');
-  const sum = view.sumCents;
+  const sum = sumTreeValues(view.accounts, values);
   const GroupIcon = GROUP_ICON[groupId];
   return (
     <section className={cx('acct-group', folded && 'is-folded', editing && 'is-editing')}>
@@ -182,11 +192,13 @@ function AccountGroupBlock({
             onClick={onEdit}
           />
         )}
-        <span className={cx('acct-amount', sum !== null && sum < 0 && 'is-neg')}>{short(sum)}</span>
+        <span className={cx('acct-amount', sum.cents !== null && sum.cents < 0 && 'is-neg')}>
+          {short(sum)}
+        </span>
       </div>
       <ul id={listId} hidden={folded}>
         {view.accounts.map((a) => {
-          const value = accountValueEur(a);
+          const value = values.get(a.id) ?? { cents: null, approx: false };
           const TypeIcon = TYPE_ICON[a.type];
           const row = reorder.rowProps(a.id);
           return (
@@ -210,7 +222,12 @@ function AccountGroupBlock({
                       aria-hidden="true"
                     />
                     <span className="acct-name">{a.name}</span>
-                    <span className={cx('acct-amount', value !== null && value < 0 && 'is-neg')}>
+                    <span
+                      className={cx(
+                        'acct-amount',
+                        value.cents !== null && value.cents < 0 && 'is-neg',
+                      )}
+                    >
                       {short(value)}
                     </span>
                   </Link>
