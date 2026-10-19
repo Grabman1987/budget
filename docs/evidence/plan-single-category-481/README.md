@@ -11,6 +11,28 @@ visible category restores a normal group. Alternative and multiple-month
 layouts remain separate; collapse-all excludes bands only in the single-month
 Groups view. A distinct category name remains in the button's accessible name.
 
+## Cloud handoff verification (2026-10-19)
+
+The additional cloud agent reused implementation commit `18725a63` in an isolated
+worktree; it did not start a second implementation. `npm ci` and
+`npm run build:e2e` succeeded with Node 22.23.3 and npm 10.9.9.
+
+Fresh genuine Playwright launch probes still fail before page assertions:
+Chromium headless shell build 1248 is absent; WebKit build 2370 is present but
+requires `libgtk-4.so.1`, `libgraphene-1.0.so.0`, `libharfbuzz-icu.so.0`,
+`libmanette-0.2.so.0`, `libhyphen.so.0` and `libGLESv2.so.2` in this runtime.
+The Chromium installation attempt returned HTTP 403 `Domain forbidden` for
+`https://cdn.playwright.dev/builds/cft/156.0.8078.4/linux64/chrome-linux64.zip`.
+The current enforced network policy includes the CDN, but excludes its
+`storage.googleapis.com` redirect destination (confirmed by the coordinator).
+No alternate-host workaround or substitute browser acceptance is claimed.
+
+The desktop/mobile browser results below belong to the original implementer's
+system-Chromium run. They are historical evidence for the unchanged UI tree,
+not successful canonical browser checks in this handoff. This work is being
+handed off as an explicitly authorized draft PR, pending the listed integration
+and exact-browser checks; no merge, deployment or issue completion is claimed.
+
 ## Reduction reference
 
 The owner clarified in this session that the ≥30% comparison is against the
