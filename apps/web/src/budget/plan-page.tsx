@@ -26,7 +26,7 @@ import {
   useMemo,
   useRef,
   useState,
-  type MouseEvent,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
 import { expectedQuery } from '../expected/api';
@@ -650,7 +650,7 @@ function PlanBody({
                     const isCollapsed = !singleBand && collapsed.has(g.key);
                     const band = shownView === 'group' && g.rows.length > 0 && !isCollapsed;
                     const sugSum = g.rows.reduce((a, r) => a + (sug[r.id] ?? 0), 0);
-                    const toggle = (event: MouseEvent<HTMLButtonElement>) => {
+                    const toggle = (event: ReactMouseEvent<HTMLButtonElement>) => {
                       // The shared category row and collapsed parent have different React keys.
                       // Keep keyboard focus on the equivalent native control after that remount.
                       if (event.currentTarget === document.activeElement)
