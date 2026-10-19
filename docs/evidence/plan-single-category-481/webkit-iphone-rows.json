@@ -1,0 +1,15 @@
+{
+  "groups": 19,
+  "categories": 36,
+  "singles": 11,
+  "combinedGroups": 19,
+  "oldRows": 55,
+  "newRows": 36,
+  "reductionPercent": 34.54545454545455,
+  "browserVersion": "27.2",
+  "viewport": {
+    "width": 390,
+    "height": 664
+  },
+  "physicalTableHeightPx": 3842.25
+}

@@ -172,8 +172,8 @@ test('"Überzogene decken" covers from the named source and its undo restores th
   const row = (name: string) => page.locator('tr.prow', { hasText: name });
   const toast = page.locator('.toast.is-open');
   const tba = page.getByTestId('to-be-assigned');
-  await expect(row('Testessen').locator('.col-avail')).toHaveText('−50,00 €');
-  await expect(row('Testcafe').locator('.col-avail')).toHaveText('100,00 €');
+  await expect(row('Testessen').locator('.col-avail .pill')).toHaveText('−50,00 €');
+  await expect(row('Testcafe').locator('.col-avail .pill')).toHaveText('100,00 €');
   await expect(tba).toHaveText('900,00 €');
 
   await page.locator('.plan-menu summary', { hasText: 'Verteilen' }).click();
@@ -183,14 +183,14 @@ test('"Überzogene decken" covers from the named source and its undo restores th
   await expect(cover).toHaveAccessibleDescription('1 überzogen · aus verfügbaren Envelopes');
   await cover.click();
   await expect(toast).toContainText('1 gedeckt, 0 offen · 0,00 € fehlen');
-  await expect(row('Testessen').locator('.col-avail')).toHaveText('0,00 €');
+  await expect(row('Testessen').locator('.col-avail .pill')).toHaveText('0,00 €');
   await expect(row('Testessen')).not.toHaveClass(/is-over/);
-  await expect(row('Testcafe').locator('.col-avail')).toHaveText('100,00 €');
+  await expect(row('Testcafe').locator('.col-avail .pill')).toHaveText('100,00 €');
   await expect(tba).toHaveText('850,00 €');
 
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
-  await expect(row('Testessen').locator('.col-avail')).toHaveText('−50,00 €');
+  await expect(row('Testessen').locator('.col-avail .pill')).toHaveText('−50,00 €');
   await expect(row('Testessen')).toHaveClass(/is-over/);
-  await expect(row('Testcafe').locator('.col-avail')).toHaveText('100,00 €');
+  await expect(row('Testcafe').locator('.col-avail .pill')).toHaveText('100,00 €');
   await expect(tba).toHaveText('900,00 €');
 });
