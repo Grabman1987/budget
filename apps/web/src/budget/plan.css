@@ -2522,6 +2522,32 @@
     overflow-wrap: normal;
   }
 }
+/* Keep both roles readable before the full-width desktop layout has enough room. */
+@media (min-width: 768px) and (max-width: 1439px) {
+  .plan .ptable-zero .pmulti .col-name {
+    grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: 28px 28px 4px;
+  }
+  .plan .pmulti .band-parent {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .plan .ptable-zero .pmulti .col-name > .plan-select {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .plan .ptable-zero .pmulti .pname {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .plan .ptable-zero .pmulti .spending-status {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .plan .ptable-zero .pmulti .spending-bar {
+    grid-row: 3;
+  }
+}
 @media (max-width: 767px) {
   .plan .ptable-zero .pmulti:not(.is-empty) {
     grid-template-rows: 44px auto 44px 20px 4px;
