@@ -1,5 +1,11 @@
 # Roadmap
 
+### #615 — shared Freiheit / R16 investment basis (2026-10-19)
+
+- [x] Current and historical Freiheit, R16 and Allokation use the same selected Anlagebasis; the page explains retrospective current membership. Existing R16 formulas, source money, locks and undo remain unchanged.
+- [x] Independent HIGH whole-diff review and literal scope-save/undo regressions passed. At candidate `1f8fad2`, the age-required full check passed 487 files / 4,401 tests and the production build passed; actual phone/1440px desktop WebKit passed 5/5 selected tests with both-theme Axe and overflow checks ([evidence](evidence/reference-adoption/wp-010-freedom-universe-615.md)).
+- [ ] Exact-head remote CI, serial integration and live verification remain required. Historical Ist chart (#616), personal goals/assumptions (#617), parent and private acceptance gates remain separate.
+
 ### #677 — first-booking register refresh (2026-10-19)
 
 - [x] Cancel pre-write booking reads before scheduling ledger invalidation so a pending initial empty response cannot satisfy the refresh after the first capture.

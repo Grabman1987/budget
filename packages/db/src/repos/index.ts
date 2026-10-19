@@ -34,6 +34,7 @@ export * from './portfolio-summary';
 export * from './portfolio-benchmark';
 export * from './portfolio-performance';
 export * from './investment-preferences';
+export * from './explorer-views';
 export * from './savings-plans';
 export * from './heute';
 export * from './planning-accuracy';

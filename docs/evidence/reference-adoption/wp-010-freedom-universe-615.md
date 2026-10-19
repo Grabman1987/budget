@@ -93,9 +93,18 @@ The browser proof uses a real authenticated isolated synthetic ledger.
   runtime assertions confirm width 1440, fine pointer, touch 0 and pixel ratio 1.
   This is actual Linux WebKit desktop-layout evidence, not a Chromium or Windows
   substitute. Chromium desktop/mobile coverage remains a remote CI gate.
-- Independent whole-diff financial review, serialized required full check, production
-  build, final exact-head CI and serial live delivery remain pending. No existing
-  tests were edited. This evidence does not close #615, its parent or private gates.
+- Independent HIGH whole-diff financial review passed, including independently
+  executed exact-cancellation, excluded-FX, dated-FX and empty-universe probes.
+  The final 21-file source/test/browser-evidence candidate was independently cleared.
+- At immutable candidate `1f8fad2aa2c7a5471d731484d2d19753db8c31be`, serialized
+  `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check` passed all 487 test files /
+  4,401 tests, workspace typechecks, lint and formatting. The existing panel ESLint
+  warning remained unchanged. `npm run build` then passed. Both commands exited 0;
+  all 21 candidate file hashes matched before and after, with a clean working tree.
+  Only this evidence and the roadmap status are updated after that aggregate run.
+- Final exact-head remote CI, including canonical Chromium coverage, and serial
+  integration/live verification remain pending. No existing tests were edited.
+  This evidence does not close #615, its parent or private gates.
 
 Detailed logs and synthetic screenshots are retained outside the repository under
 `/workspace/.budget-tools/logs/615-*` and the isolated worktree's test-results folder.
