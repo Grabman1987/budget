@@ -1,5 +1,15 @@
 # Roadmap
 
+### #627 — CSV of the validated current Explorer table (2026-10-19)
+
+- [x] Add a read-only authenticated filtered CSV using the existing validated pivot, raw integer units, supplied footer/truncation metadata, safe text encoding and explicit empty marker. Compare the server recomputation with the displayed result before creating a file; changed data retains the view and offers reload.
+- [x] Literal projection/API/client/DOM checks and unchanged report/export neighbors pass seven files / 55 tests; the later identical-body relative-period fix passes three affected files / 17 tests. Download filenames identify the validated effective window. Existing tests and financial write paths remain unchanged ([evidence](evidence/reference-adoption/wp-009-explorer-csv-627.md)).
+- [x] Corrected actual WebKit composition passes 8/8, including all unchanged #624 cases and the complete CSV race/reload/retry. The initial 7/8 fixture-400 failure remains documented; only its required discriminator was corrected.
+- [x] Final genuine document-top capture passes 5/5, with four actual light/dark desktop/phone PNGs and safe geometry/focus evidence. Skip-link overlay is absent without CSS, hiding or focus mutation; root and independent review clear the new CSV visual scope. No whole-application or physical-device acceptance is implied.
+- [x] Independent HIGH source/security review and effective-window correction passed, including thirty new tests and independent literal/adversarial probes.
+- [x] At the reviewed 17-file candidate based on `74abab0`, the age-required two-worker full check passes 505 files / 4,507 tests and the normal production build passes. All candidate hashes remain unchanged after both commands; the following delivery update changes only these status documents.
+- [ ] Complete final evidence-delta review, exact-head CI and serial live verification. Templates, charts, hub integration and full export remain separate; do not close #627 or its parent from local checks.
+
 ### #615 — shared Freiheit / R16 investment basis (2026-10-19)
 
 - [x] Current and historical Freiheit, R16 and Allokation use the same selected Anlagebasis; the page explains retrospective current membership. Existing R16 formulas, source money, locks and undo remain unchanged.

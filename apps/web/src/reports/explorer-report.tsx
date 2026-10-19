@@ -18,14 +18,14 @@ import {
   DEFAULT_EXPLORER_QUERY,
   lastDayOfMonth,
   overviewHeat,
-  type ExplorerColumn,
+  explorerTableHeaders,
   type ExplorerQuery,
   type ExplorerResult,
   type PersistedExplorerView,
 } from '@budget/domain';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Bookmark, Pencil, X } from 'lucide-react';
-import { useState, type CSSProperties, type FormEvent } from 'react';
+import { Bookmark, Download, Pencil, X } from 'lucide-react';
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
@@ -33,28 +33,13 @@ import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
 import { sameQuery } from './explorer-views';
 import { useExplorerViews } from './use-explorer-views';
-import { explorerQuery } from './overview-api';
+import { EXPLORER_CSV_CHANGED_MESSAGE, explorerQuery, fetchExplorerCsv } from './overview-api';
 import { euroCellText, monthLong, monthShortYear, wholeText } from './overview-format';
 import './overview-reports.css';
 import './explorer-report.css';
 
 const label = <T extends ReadonlyArray<{ id: string; label: string }>>(list: T, id: string) =>
   list.find((x) => x.id === id)?.label ?? id;
-
-const columnLabel = (column: ExplorerColumn, cols: ExplorerQuery['cols']) => {
-  switch (cols) {
-    case 'monat':
-      return monthShortYear(column.key);
-    case 'quartal': {
-      const [year = '', q = ''] = column.key.split('-');
-      return `${q} ${year.slice(2)}`;
-    }
-    case 'jahr':
-      return column.key;
-    case 'keine':
-      return 'Zeitraum';
-  }
-};
 
 const periodName = (months: string[]) =>
   months.length === 0
@@ -74,6 +59,56 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
   const [replace, setReplace] = useState<PersistedExplorerView>();
   const result = useQuery({ ...explorerQuery(query), placeholderData: keepPreviousData });
   const data = result.data;
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string>();
+  const exportReady = Boolean(
+    data &&
+    !result.isPending &&
+    !result.isFetching &&
+    !result.isPlaceholderData &&
+    !result.isError &&
+    sameQuery(query, data.result.query),
+  );
+  const latest = useRef({ query, result: data?.result, ready: exportReady });
+  useEffect(() => {
+    latest.current = { query, result: data?.result, ready: exportReady };
+  }, [query, data, exportReady]);
+  const download = async () => {
+    const snapshot = data?.result;
+    if (!snapshot || !exportReady || exporting) return;
+    setExporting(true);
+    setExportError(undefined);
+    try {
+      const { blob, filename } = await fetchExplorerCsv(snapshot);
+      const current = latest.current;
+      if (
+        !current.ready ||
+        current.result !== snapshot ||
+        !sameQuery(current.query, snapshot.query)
+      )
+        throw new Error(EXPLORER_CSV_CHANGED_MESSAGE);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      try {
+        link.href = url;
+        link.download = filename;
+        link.hidden = true;
+        document.body.append(link);
+        link.click();
+      } finally {
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+    } catch (error) {
+      setExportError(
+        error instanceof Error && error.message === EXPLORER_CSV_CHANGED_MESSAGE
+          ? EXPLORER_CSV_CHANGED_MESSAGE
+          : 'Der CSV-Export ist fehlgeschlagen. Bitte versuche es erneut.',
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
   const set = <K extends keyof ExplorerQuery>(key: K, value: ExplorerQuery[K]) =>
     setQuery((q) => ({ ...q, [key]: value }));
 
@@ -361,7 +396,22 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
           <ErrorNote what="Explorer" error={result.error} onRetry={() => void result.refetch()} />
         )}
         {data && (
-          <Pivot result={data.result} firstMonth={data.firstMonth} fetching={result.isFetching} />
+          <Pivot
+            result={data.result}
+            firstMonth={data.firstMonth}
+            fetching={result.isFetching}
+            onExport={() => void download()}
+            exportDisabled={!exportReady || exporting}
+            exporting={exporting}
+          />
+        )}
+        {exportError && (
+          <p className="ov-note" role="alert">
+            {exportError}{' '}
+            <Button variant="ghost" onClick={() => void result.refetch()}>
+              Auswertung neu laden
+            </Button>
+          </p>
         )}
       </div>
     </PageFrame>
@@ -372,13 +422,20 @@ function Pivot({
   result,
   firstMonth,
   fetching,
+  onExport,
+  exportDisabled,
+  exporting,
 }: {
   result: ExplorerResult;
   firstMonth: string | null;
   fetching: boolean;
+  onExport: () => void;
+  exportDisabled: boolean;
+  exporting: boolean;
 }) {
   useAmountPrivacy();
   const { query, columns, rows, totals } = result;
+  const headers = explorerTableHeaders(result);
   const fmt = (value: number) => (result.unit === 'count' ? wholeText(value) : euroCellText(value));
   const first = result.months[0];
   const last = result.months[result.months.length - 1];
@@ -403,6 +460,15 @@ function Pivot({
             {rows.length} {rows.length === 1 ? 'Zeile' : 'Zeilen'}
           </span>
         </span>
+        <Button
+          variant="ghost"
+          style={{ minHeight: 'var(--touch)' }}
+          disabled={exportDisabled}
+          onClick={onExport}
+        >
+          <Download size={15} strokeWidth={1.75} aria-hidden="true" />
+          {exporting ? 'CSV wird geprüft …' : 'CSV exportieren'}
+        </Button>
       </div>
       {rows.length === 0 ? (
         <p className="ov-empty" role="status">
@@ -421,15 +487,13 @@ function Pivot({
           <table className="ov-table ex-table" data-testid="ex-table">
             <thead>
               <tr>
-                <th className="tech ex-first">{label(EXPLORER_DIMS, query.dim)}</th>
-                {columns.map((c) => (
+                <th className="tech ex-first">{headers[0]}</th>
+                {columns.map((c, i) => (
                   <th key={c.key} className="tech n">
-                    {columnLabel(c, query.cols)}
+                    {headers[i + 1]}
                   </th>
                 ))}
-                {columns.length > 1 && (
-                  <th className="tech n">{query.meas === 'avg' ? 'Ø' : 'Gesamt'}</th>
-                )}
+                {columns.length > 1 && <th className="tech n">{headers.at(-1)}</th>}
               </tr>
             </thead>
             <tbody>

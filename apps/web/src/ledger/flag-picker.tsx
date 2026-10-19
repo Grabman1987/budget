@@ -1,13 +1,20 @@
 import { cx } from '@budget/ui';
-import { Flag } from 'lucide-react';
+import { Circle, Diamond, Flag, Hexagon, Pentagon, Square, Triangle } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { FLAG_KEY, FLAG_LABEL } from './labels';
 import { BOOKING_FLAGS, type BookingFlag } from './types';
 
-/**
- * A flag as a coloured glyph. The colour is never the only signal: the name is read out and shown
- * as a tooltip. `flag` empty draws the outline in the neutral ink (the "no flag" state).
- */
+/** Presentation only: the six stored values, names, shortcuts and meanings are unchanged. */
+export const FLAG_SHAPES = {
+  red: { Icon: Triangle, label: 'Dreieck' },
+  orange: { Icon: Diamond, label: 'Raute' },
+  yellow: { Icon: Circle, label: 'Kreis' },
+  green: { Icon: Square, label: 'Quadrat' },
+  blue: { Icon: Pentagon, label: 'Fünfeck' },
+  purple: { Icon: Hexagon, label: 'Sechseck' },
+} as const;
+
+/** Distinct geometry supplements colour; an empty flag keeps its neutral outline. */
 export function FlagGlyph({
   flag,
   size = 16,
@@ -18,9 +25,10 @@ export function FlagGlyph({
   /** Add the screen-reader name ("Markierung Rot"); off where the surrounding control names it. */
   named?: boolean;
 }) {
+  const Icon = flag ? FLAG_SHAPES[flag].Icon : Flag;
   return (
     <>
-      <Flag
+      <Icon
         className={cx('icon kflag-glyph', flag ? `is-${flag}` : 'is-none')}
         size={size}
         strokeWidth={1.75}

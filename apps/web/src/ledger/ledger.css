@@ -1712,6 +1712,113 @@
   cursor: text;
   max-width: 100%;
 }
+.kcell-edit:hover,
+.kcell-edit:focus-visible {
+  background: var(--ground-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+button.kstatus-btn:hover,
+button.kstatus-btn:focus-visible {
+  background: var(--ground-2);
+  color: var(--ink);
+}
+.kstatus-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 8px;
+}
+.kstatus-chips > .btn {
+  min-height: var(--touch);
+  border: 1px solid var(--rule);
+}
+.kstatus-chips > .btn[aria-pressed='true'] {
+  background: var(--ground-2);
+  border-color: var(--line);
+}
+.kstatus-chips .status {
+  margin: 0;
+}
+.klegend-short,
+.kstatus-all-short {
+  display: none;
+}
+.kbooking-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.kbooking-tools > .kbooking-legend[open] {
+  flex-basis: 100%;
+}
+.kbooking-legend {
+  margin-block: 8px;
+  font-size: var(--fs-label);
+}
+.kbooking-legend > summary {
+  width: fit-content;
+  max-width: 100%;
+  min-height: var(--touch);
+  align-content: center;
+  cursor: pointer;
+  color: var(--ink-2);
+}
+.kbooking-legend-body {
+  padding: 8px 0;
+  border-block: 1px solid var(--rule);
+}
+.kbooking-legend-body ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.kbooking-legend-body ul + ul {
+  margin-top: 8px;
+}
+.kbooking-legend-body li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.kbooking-legend-body .status {
+  margin: 0;
+}
+@media (max-width: 767px) {
+  .kstatus-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    margin-top: 0;
+    gap: var(--space-xs);
+  }
+  .kstatus-chips > .btn {
+    flex-shrink: 0;
+    padding-inline: var(--space-sm);
+  }
+  .klegend-full,
+  .kstatus-all-full {
+    display: none;
+  }
+  .klegend-short,
+  .kstatus-all-short {
+    display: inline;
+  }
+  /* Pack only the new tools into the existing select-all row; retain full 44px targets. */
+  .kbooking-tools:has(> .kselect-all) {
+    margin-block: calc(-1 * var(--space-sm));
+  }
+  .kbooking-tools > .kbooking-legend,
+  .kbooking-tools > .kselect-all {
+    margin: 0;
+  }
+}
 .kc-num .kcell-edit {
   text-align: right;
 }

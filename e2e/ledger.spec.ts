@@ -215,7 +215,7 @@ test('Alle Buchungen: filter in the URL, search, bulk edit with undo', async ({
 });
 
 test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ page }, testInfo) => {
-  const tag = `${testInfo.project.name}${again(testInfo)}`;
+  const tag = `Kontostand ${testInfo.project.name}${again(testInfo)}`;
   const name = `Prüf ${tag}`;
   await createAccount(page, name, 'Giro', '500');
   await openAccount(page, name);
