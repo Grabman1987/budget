@@ -1,7 +1,7 @@
 # Account review rules — #578
 
-Status: focused and native validation passed; required aggregate validation, normal production
-build, exact-head CI and live delivery remain pending. Independent whole financial/source review,
+Status: focused, native and required aggregate validation passed, followed by the normal production
+build. Exact-head CI and live delivery remain pending. Independent whole financial/source review,
 coordinator-owned existing-test review, mechanical Main inheritance review and actual image/runtime
 review are clear. No complete delivery or all-engine acceptance is claimed.
 
@@ -70,6 +70,28 @@ The native wrapper, archive, post-source guards and lock-release checks all exit
 owned files, 3,345 tracked files, 14 protected files, HEAD and clean status remained exact.
 The compiled output contained 169 hashed files. Existing build chunk-size warnings were retained.
 
+At clean `2342ffc7667665e62c77379e3c62b215b344c4b7`, after normal inheritance of verified live
+Main `23a2eb22`, the required full validation ran with Node **22.23.3** and age **1.2.1**:
+
+```sh
+BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check
+npm run build
+```
+
+The check exited **0**: **530 test files and 4,656/4,656 tests passed**, with a Vitest duration of
+**387.00 seconds**. Only after that success, the regular production build ran and exited **0**.
+The wrapper, post-run source guard and nonblocking-lock release checks also each exited **0**.
+All **32 owned files, 3,370 tracked files, 14 protected files, the four coordinator-owned existing
+tests, HEAD and clean status** remained exact before and after both commands. There were no
+source, test or documentation writes during validation. Existing warnings remain visible:
+`panel.tsx:208` has an unused ESLint disable, JSDOM reports unimplemented `Window.scrollTo`, and
+production bundling reports its existing chunk-size warnings. No warning or test was suppressed.
+
+This result belongs to the frozen `2342ffc7` tree. Subsequent delivery edits update only this
+result document and the own #578 Roadmap block; the other thirty owned blobs, including all
+source/tests and the exact eight images/runtime extract, remain unchanged. No repeat aggregate
+or new browser execution is claimed for that documentation-only checkpoint.
+
 Initial fixture errors and failed runs remain in the external validation archive. The final
 repairs were narrowly reviewed: required matching splits in the coordinator-owned ±1 fixture,
 the new test's actual nested reconciliation response, and waiting for the existing preview
@@ -119,6 +141,5 @@ files passed in the six-file run. **Existing `e2e/account-review.spec.ts` and
 `e2e/account-reminders.spec.ts` are excluded by the canonical WebKit match and were not run or
 claimed as WebKit coverage**; their exact Chromium desktop/mobile CI acceptance remains pending.
 
-Pending: required age-enabled aggregate check, normal production build, actual Chromium
-desktop/mobile acceptance, exact-head CI, reviewed PR, serial integration and exact deployed
-revision verification. Parent #467 and #566 are not completed by this evidence.
+Pending: actual Chromium desktop/mobile acceptance, exact-head CI, reviewed PR, serial
+integration and exact deployed revision verification. Parent #467 and #566 are not completed by this evidence.
