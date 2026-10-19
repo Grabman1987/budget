@@ -2503,6 +2503,7 @@
   .plan .ptable-zero .pmulti .col-name {
     grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) minmax(0, 1.3fr);
     grid-template-rows: 28px 4px;
+    padding-top: 4px;
   }
   .plan .ptable-zero .pmulti .spending-status {
     grid-column: 4;
