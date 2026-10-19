@@ -6,7 +6,7 @@ The rules retain existing DESIGN roles. Automatic column layout keeps financial 
 
 ## Current verified result
 
-Runtime source `7ff1b2e02807eeae67df530d425bd840e503a479`, including current main and the verified shared reduced-motion dependency, passed:
+Runtime source `7ff1b2e02807eeae67df530d425bd840e503a479`, based on historical main `f3aafd78e2832bbe3110dde436ecfb5eaebafa80` and the verified common dependency `5be538a0712394bd81058f7f6de28120c99e5598`, passed:
 
 - **Actual pinned WebKit 27.2: 7/7, exit 0, 47.5s**, after a fresh E2E build (exit 0): three unchanged setup cases, Jahresansicht, Kategorieübersicht, Sparquote and the separate portrait-route case. Light/dark screen Axe, phone target/overflow checks, strict print Axe, complete column/header parity, every cell/paper bound, remembered-state restoration and strict DOM Range checks against broken numeric tokens passed.
 - **Age-required full check: 505 files / 4491 tests, exit 0**, unit duration 382.04s; workspace type, lint and formatting checks passed. Node22.23.3 and age1.2.1, two Vitest workers, `BUDGET_REQUIRE_AGE=1`, with the shared full-check lock held through the production build.
