@@ -230,7 +230,7 @@ function SheetOne({
           terms={[
             { label: 'Anfang', value: cents(nw.startCents) },
             {
-              label: 'Eigenleistung',
+              label: 'Gespart',
               value: cents(Math.abs(nw.ownCents)),
               op: nw.ownCents >= 0 ? '+' : '-',
             },

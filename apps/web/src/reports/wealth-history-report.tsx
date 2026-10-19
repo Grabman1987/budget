@@ -147,7 +147,7 @@ function Body({ history }: { history: NetWorthHistory }) {
           </li>
         </ul>
         <p className="vnote">
-          Eigenleistung = Einnahmen minus Konsum plus reguläre Tilgung. Markt = Kursveränderung der
+          Gespart = Einnahmen minus Konsum plus reguläre Tilgung. Markt = Kursveränderung der
           Anlagen. Die Flächen zeigen den Stand zum Beginn und zu jedem{' '}
           {history.unit === 'week' ? 'Wochen' : 'Monats'}ende, die Linie das tägliche Nettovermögen;
           dieselbe Reihe wie unter Vermögen.

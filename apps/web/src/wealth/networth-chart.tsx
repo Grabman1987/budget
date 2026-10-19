@@ -23,7 +23,7 @@ const R = 14;
 
 /**
  * Nettovermögen als Verlauf: the daily line (drawn like a plotter) in the upper two thirds, and
- * beneath it its own band of bars around zero with its own axis: Eigenleistung in ink, Markt in
+ * beneath it its own band of bars around zero with its own axis: Gespart in ink, Markt in
  * pale ink, per week (up to 3 months) or per month. Port of `drawNW` in
  * `design/prototype/vermoegen.js`, composed from the chart primitives of packages/ui. The end dot
  * and "heute" fade in after the line.
@@ -89,7 +89,7 @@ function Drawing({
     const own: Bar = {
       x: cx - w / 2 - 1,
       value: b.ownCents / 100,
-      title: `Eigenleistung ${eur(b.ownCents)}`,
+      title: `Gespart ${eur(b.ownCents)}`,
     };
     const market: Bar = {
       x: cx + w / 2 + 1,
@@ -107,7 +107,7 @@ function Drawing({
   const first0 = daily[0]?.netWorthCents ?? 0;
   const summary =
     `Nettovermögen täglich, ${periodLabel}: von ${eur(first0)} auf ${eur(daily[n]?.netWorthCents ?? 0)}. ` +
-    `Darunter Eigenleistung und Markt je ${bars.unit === 'week' ? 'Woche' : 'Monat'}.`;
+    `Darunter Gespart und Markt je ${bars.unit === 'week' ? 'Woche' : 'Monat'}.`;
 
   return (
     <ChartSvg
@@ -134,14 +134,14 @@ function Drawing({
             ...(b
               ? [
                   {
-                    name: `Eigenleistung (${b.from} · ${b.to})`,
+                    name: `Gespart (${b.from} · ${b.to})`,
                     value: eur(b.ownCents),
-                    color: b.ownCents < 0 ? 'var(--red)' : 'var(--line)',
+                    color: b.ownCents < 0 ? 'var(--minus-ink)' : 'var(--line)',
                   },
                   {
                     name: `Markt (${b.from} · ${b.to})`,
                     value: eur(b.marketCents),
-                    color: b.marketCents < 0 ? 'var(--red)' : 'var(--line-2)',
+                    color: b.marketCents < 0 ? 'var(--minus-ink)' : 'var(--line-2)',
                   },
                 ]
               : []),
