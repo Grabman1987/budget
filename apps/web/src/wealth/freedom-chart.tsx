@@ -18,6 +18,7 @@ import { eur, longDay } from '../ledger/format';
 import { kfmt, yTicks } from './networth-model';
 import { monthText } from './freedom-model';
 import { freedomHistoryModel } from './freedom-history-model';
+import { freedomGoalAxis } from './freedom-goal-model';
 
 /** Exact month-end actuals and the unchanged shared forecast, including its final partial year. */
 export function FreedomChart({
@@ -25,11 +26,13 @@ export function FreedomChart({
   target,
   startMonth,
   history,
+  goalYear = null,
 }: {
   projection: FreedomProjection | null;
   target: number | null;
   startMonth: string;
   history?: FreedomInvestedHistory | undefined;
+  goalYear?: number | null;
 }) {
   useAmountPrivacy();
   const [asTable, setAsTable] = useState(false);
@@ -43,7 +46,9 @@ export function FreedomChart({
   const months = p?.months ?? MAX_FREEDOM_MONTHS;
   const values = p?.yearlyPath ?? [];
   const model = freedomHistoryModel(history, p, startMonth);
-  const x = (date: string) => L + model.position(date) * (width - L - R);
+  const goal = goalYear === null ? null : freedomGoalAxis(model.dates, startMonth, goalYear);
+  const x = (date: string) =>
+    L + (goal ? goal.position(date) : model.position(date)) * (width - L - R);
   const actualValues = model.actual.flatMap((point) =>
     point.investedCents === null ? [] : [point.investedCents],
   );
@@ -55,7 +60,7 @@ export function FreedomChart({
   const first = points[0];
   const actualByDate = new Map(model.actual.map((point) => [point.date, point.investedCents]));
   const forecastByDate = new Map(model.forecast.map((point) => [point.date, point.investedCents]));
-  const label = `${history ? 'Investiertes Vermögen: Ist seit Oktober 2023. Fehlende Bewertungen bleiben Lücken. ' : ''}${p ? `Prognose ab ${monthText(startMonth)}: ${p.doneMonth ? `Ziel erreicht ${monthText(p.doneMonth)}` : 'Ziel innerhalb von 60 Jahren nicht erreicht'}. Keine Garantie.` : 'Prognose derzeit nicht verfügbar.'}`;
+  const label = `${history ? 'Investiertes Vermögen: Ist seit Oktober 2023. Fehlende Bewertungen bleiben Lücken. ' : ''}${p ? `Prognose ab ${monthText(startMonth)}: ${p.doneMonth ? `Ziel erreicht ${monthText(p.doneMonth)}` : 'Ziel innerhalb von 60 Jahren nicht erreicht'}. Keine Garantie.` : 'Prognose derzeit nicht verfügbar.'}${goal ? ` Persönliches Ziel: Jänner ${goalYear}.` : ''}`;
   return (
     <div ref={ref} className="freedom-chart">
       {p && (
@@ -120,6 +125,26 @@ export function FreedomChart({
           />
           {target !== null && <path className="l-goal" d={`M${L} ${y(target)}H${width - R}`} />}
           {history && <TodayLine x={x(history.current.date)} y1={T} y2={B} />}
+          {goal && (
+            <g aria-hidden="true">
+              <line
+                data-testid="freedom-goal-date"
+                className="freedom-goal-date"
+                x1={x(goal.goalDate)}
+                x2={x(goal.goalDate)}
+                y1={T}
+                y2={B}
+              />
+              <text
+                x={x(goal.goalDate)}
+                y={T - 8}
+                textAnchor={goal.goalDate === goal.first ? 'start' : 'end'}
+                className="svg-label"
+              >
+                Zieljahr {goalYear}
+              </text>
+            </g>
+          )}
           {model.segments.map((segment) => (
             <path
               key={segment[0]!.date}
@@ -151,10 +176,14 @@ export function FreedomChart({
             />
           )}
           <text x={L} y={H - 6} className="svg-label-line">
-            {history ? monthText(model.dates[0]!.slice(0, 7)) : 'heute'}
+            {goal
+              ? monthText(goal.first.slice(0, 7))
+              : history
+                ? monthText(model.dates[0]!.slice(0, 7))
+                : 'heute'}
           </text>
           <text x={width - R} y={H - 6} textAnchor="end" className="svg-label">
-            {model.dates.at(-1)?.slice(0, 4)}
+            {(goal?.last ?? model.dates.at(-1))?.slice(0, 4)}
           </text>
         </ChartSvg>
       )}
