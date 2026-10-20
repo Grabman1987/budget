@@ -93,3 +93,4 @@ export * from './whole-picture';
 export * from './inflation-basket';
 
 export * from './account-reminders';
+export * from './statement-intake';

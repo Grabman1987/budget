@@ -49,7 +49,7 @@ export function listReceipts(db: Executor, bookingId?: string) {
         bookingId ? liveLink : sql`NOT ${liveLink}`,
         bookingId
           ? undefined
-          : sql`NOT EXISTS (SELECT 1 FROM payslip_intake pi WHERE pi.receipt_id = ${receipt.id} AND pi.deleted_at IS NULL) AND NOT EXISTS (SELECT 1 FROM payslip p WHERE p.receipt_id = ${receipt.id} AND p.deleted_at IS NULL)`,
+          : sql`NOT EXISTS (SELECT 1 FROM payslip_intake pi WHERE pi.receipt_id = ${receipt.id} AND pi.deleted_at IS NULL) AND NOT EXISTS (SELECT 1 FROM payslip p WHERE p.receipt_id = ${receipt.id} AND p.deleted_at IS NULL) AND NOT EXISTS (SELECT 1 FROM statement_intake si WHERE si.receipt_id = ${receipt.id} AND si.deleted_at IS NULL)`,
       ),
     )
     .orderBy(desc(receipt.createdAt), receipt.id)
@@ -150,7 +150,9 @@ export function removeReceipt(db: Executor, id: string, ctx: AuditContext) {
 
 /** Even forced or partial undo must not leave a live link pointing to a deleted receipt. */
 export function assertReceiptUndo(db: Executor, entries: AuditEntry[]) {
-  if (!entries.some((e) => e.entityType === 'receipt' || e.entityType === 'booking_receipt'))
+  if (
+    !entries.some((e) => ['receipt', 'booking_receipt', 'statement_intake'].includes(e.entityType))
+  )
     return;
   const invalid = db
     .select({ id: receipt.id })
@@ -169,4 +171,10 @@ export function assertReceiptUndo(db: Executor, entries: AuditEntry[]) {
     .get();
   if (payrollReference)
     throw new AuditError('Cannot undo: a receipt is still referenced by a payslip.');
+  if (
+    db.get(
+      sql`SELECT si.id FROM statement_intake si LEFT JOIN receipt r ON r.id=si.receipt_id WHERE si.deleted_at IS NULL AND (r.id IS NULL OR r.deleted_at IS NOT NULL OR r.sha256 IS NULL OR r.sha256!=si.sha256) LIMIT 1`,
+    )
+  )
+    throw new AuditError('Cannot undo: a statement needs its matching live receipt.');
 }
