@@ -49,6 +49,20 @@
   margin-block: 16px;
 }
 @media (max-width: 767px) {
+  /* Keep this dialog's actions reachable by ordinary scrolling while its toast is visible. */
+  .statement-dialog-726 {
+    padding-block-end: calc(4 * var(--touch) + env(safe-area-inset-bottom));
+  }
+  dialog:has(.statement-dialog-726) .toast {
+    width: calc(100vw - 32px);
+  }
+  dialog:has(.statement-dialog-726) .toast-body > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  dialog:has(.statement-dialog-726) .toast-body > button {
+    flex-shrink: 0;
+  }
   .statement-fields-726 {
     grid-template-columns: minmax(0, 1fr);
   }

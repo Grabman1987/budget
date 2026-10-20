@@ -141,6 +141,9 @@ for (const profile of ['desktop-layout', 'configured-profile'] as const)
             exact: true,
           }),
         ).toBeVisible();
+        const undo = dialog.getByRole('button', { name: 'Rückgängig', exact: true });
+        await expect(undo).toBeVisible();
+        await undo.focus();
         const list = await active.request.get(`${origin}/api/statement-intake?accountId=${id}`);
         expect(list.status()).toBe(200);
         const row = (await list.json()).intakes.find(
@@ -166,7 +169,175 @@ for (const profile of ['desktop-layout', 'configured-profile'] as const)
         expect(
           await active.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
         ).toBe(true);
+        const undoGeometry = await undo.evaluate((button) => {
+          const box = (r: DOMRect) => ({
+            left: r.left,
+            top: r.top,
+            right: r.right,
+            bottom: r.bottom,
+            width: r.width,
+            height: r.height,
+          });
+          const rect = button.getBoundingClientRect(),
+            range = document.createRange();
+          range.selectNodeContents(button);
+          const text = range.getBoundingClientRect();
+          const clipping = [];
+          for (let parent = button.parentElement; parent; parent = parent.parentElement) {
+            const style = getComputedStyle(parent),
+              r = parent.getBoundingClientRect();
+            if (/(hidden|clip|auto|scroll)/.test(style.overflowX + ' ' + style.overflowY))
+              clipping.push({
+                left: r.left + parent.clientLeft,
+                top: r.top + parent.clientTop,
+                right: r.left + parent.clientLeft + parent.clientWidth,
+                bottom: r.top + parent.clientTop + parent.clientHeight,
+                x: /(hidden|clip|auto|scroll)/.test(style.overflowX),
+                y: /(hidden|clip|auto|scroll)/.test(style.overflowY),
+              });
+          }
+          const toast = button.closest('.toast-body')!.getBoundingClientRect();
+          const ownsCorners = (r: DOMRect) =>
+            [r.left + 1, r.right - 1].every((x) =>
+              [r.top + 1, r.bottom - 1].every((y) =>
+                button.contains(document.elementFromPoint(x, y)),
+              ),
+            );
+          const ownsEdges = (r: DOMRect) =>
+            [
+              [r.left + 1, r.y + r.height / 2],
+              [r.right - 1, r.y + r.height / 2],
+              [r.x + r.width / 2, r.top + 1],
+              [r.x + r.width / 2, r.bottom - 1],
+            ].every(([x, y]) => button.contains(document.elementFromPoint(x!, y!)));
+          const footer = [...button.closest('dialog')!.querySelectorAll('button')]
+            .filter((e) =>
+              ['Prüfung wieder öffnen', 'Dokument entfernen', 'Stand neu laden'].includes(
+                e.textContent!.trim(),
+              ),
+            )
+            .map((e) => {
+              const r = e.getBoundingClientRect();
+              const scroll = [];
+              for (let parent = e.parentElement; parent; parent = parent.parentElement) {
+                if (parent.scrollHeight > parent.clientHeight) {
+                  const r = parent.getBoundingClientRect();
+                  scroll.push({
+                    tag: parent.tagName,
+                    className: parent.className,
+                    scrollTop: parent.scrollTop,
+                    maximum: parent.scrollHeight - parent.clientHeight,
+                    clientHeight: parent.clientHeight,
+                    rect: box(r),
+                  });
+                }
+              }
+              return {
+                action: e.textContent!.trim(),
+                rect: box(r),
+                scroll,
+                ownsCentre: e.contains(
+                  document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2),
+                ),
+                intersectsToast:
+                  r.left < toast.right &&
+                  r.right > toast.left &&
+                  r.top < toast.bottom &&
+                  r.bottom > toast.top,
+              };
+            });
+          return {
+            button: box(rect),
+            text: box(text),
+            toast: box(toast),
+            footer,
+            viewport: { width: innerWidth, height: innerHeight },
+            clipping,
+            ownsButtonEdges: ownsEdges(rect),
+            ownsTextCorners: ownsCorners(text),
+            ownsCentre: button.contains(
+              document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2),
+            ),
+          };
+        });
+        await writeFile(
+          info.outputPath(`undo-${profile}-${selected}.json`),
+          JSON.stringify(undoGeometry, null, 2),
+        );
+        expect(undoGeometry.button.width).toBeGreaterThanOrEqual(44);
+        expect(undoGeometry.button.height).toBeGreaterThanOrEqual(44);
+        for (const rect of [undoGeometry.button, undoGeometry.text]) {
+          expect(rect.left).toBeGreaterThanOrEqual(0);
+          expect(rect.top).toBeGreaterThanOrEqual(0);
+          expect(rect.right).toBeLessThanOrEqual(undoGeometry.viewport.width);
+          expect(rect.bottom).toBeLessThanOrEqual(undoGeometry.viewport.height);
+        }
+        expect(undoGeometry.text.left).toBeGreaterThanOrEqual(undoGeometry.button.left);
+        expect(undoGeometry.text.right).toBeLessThanOrEqual(undoGeometry.button.right);
+        expect(undoGeometry.text.top).toBeGreaterThanOrEqual(undoGeometry.button.top);
+        expect(undoGeometry.text.bottom).toBeLessThanOrEqual(undoGeometry.button.bottom);
+        expect(undoGeometry.ownsCentre).toBe(true);
+        expect(undoGeometry.ownsButtonEdges).toBe(true);
+        expect(undoGeometry.ownsTextCorners).toBe(true);
+        const footerAfterScroll = [];
+        for (const name of ['Prüfung wieder öffnen', 'Dokument entfernen', 'Stand neu laden']) {
+          const action = dialog.getByRole('button', { name, exact: true });
+          await action.evaluate((e) =>
+            e.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }),
+          );
+          const rect = await action.boundingBox();
+          const physical = await action.evaluate((e) => {
+            const r = e.getBoundingClientRect();
+            const scroll = [];
+            for (let parent = e.parentElement; parent; parent = parent.parentElement) {
+              if (parent.scrollHeight > parent.clientHeight) {
+                const r = parent.getBoundingClientRect();
+                scroll.push({
+                  tag: parent.tagName,
+                  className: parent.className,
+                  scrollTop: parent.scrollTop,
+                  maximum: parent.scrollHeight - parent.clientHeight,
+                  clientHeight: parent.clientHeight,
+                  rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
+                });
+              }
+            }
+            return {
+              ownsCentre: e.contains(
+                document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2),
+              ),
+              scroll,
+            };
+          });
+          const ownsCentre = physical.ownsCentre;
+          footerAfterScroll.push({ name, rect, ownsCentre, scroll: physical.scroll });
+          await writeFile(
+            info.outputPath(`footer-${profile}-${selected}.json`),
+            JSON.stringify(footerAfterScroll, null, 2),
+          );
+          expect(rect!.width).toBeGreaterThanOrEqual(44);
+          expect(rect!.height).toBeGreaterThanOrEqual(44);
+          expect(rect!.x).toBeGreaterThanOrEqual(0);
+          expect(rect!.y).toBeGreaterThanOrEqual(0);
+          expect(rect!.x + rect!.width).toBeLessThanOrEqual(active.viewportSize()!.width);
+          expect(rect!.y + rect!.height).toBeLessThanOrEqual(active.viewportSize()!.height);
+          expect(ownsCentre).toBe(true);
+        }
         await capture(active, info, profile, selected);
+        await undo.click();
+        await expect
+          .poll(async () => {
+            const response = await active.request.get(`${origin}/api/statement-intake/${row.id}`);
+            expect(response.status()).toBe(200);
+            const value = (await response.json()).intake;
+            return { status: value.status, reviewed: value.reviewed };
+          })
+          .toEqual({ status: 'pending', reviewed: null });
+        await dialog.getByRole('button', { name: 'Stand neu laden', exact: true }).click();
+        await expect(dialog.getByLabel('Einzugsdatum', { exact: true })).toHaveValue('');
+        await expect(
+          dialog.getByRole('button', { name: 'Als geprüft speichern', exact: true }),
+        ).toBeDisabled();
         await dialog.getByRole('button', { name: 'Schließen', exact: true }).click();
         await active.evaluate(() => {
           localStorage.setItem('budget-amounts-hidden', '1');

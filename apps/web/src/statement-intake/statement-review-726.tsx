@@ -275,7 +275,7 @@ function AccountStatements({ accountId }: { accountId: string }) {
             throw cause;
           }
         },
-        () => 'Abrechnungsdokument aktualisiert. Es wurde nichts gebucht.',
+        () => 'Abrechnung aktualisiert. Es wurde nichts gebucht.',
       );
       if (result) {
         adopt(result.intake);
