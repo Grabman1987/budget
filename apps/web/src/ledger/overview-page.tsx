@@ -417,17 +417,33 @@ function GroupRows({
         </td>
         <td className="kc-line" />
         <td className="kc-num">
-          <span data-testid="account-group-value">
-            {view.sumCents === null
-              ? loading
-                ? '–'
-                : 'Kurs fehlt'
-              : `${view.sumApprox && !view.accounts.some((a) => a.valuationSources) ? '≈ ' : ''}${eur(view.sumCents)}`}
+          <span
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+            }}
+          >
+            <span
+              data-testid="account-group-value"
+              style={
+                view.sumCents === null
+                  ? { minWidth: 0, whiteSpace: 'normal', overflowWrap: 'anywhere' }
+                  : { whiteSpace: 'nowrap' }
+              }
+            >
+              {view.sumCents === null
+                ? loading
+                  ? '–'
+                  : 'Kurs fehlt'
+                : `${view.sumApprox && !view.accounts.some((a) => a.valuationSources) ? '≈ ' : ''}${eur(view.sumCents)}`}
+            </span>
+            <ValuationSourceHint
+              sources={overviewGroupValuationSources(view.accounts, sourcesByRow)}
+              label={view.group.title}
+            />
           </span>
-          <ValuationSourceHint
-            sources={overviewGroupValuationSources(view.accounts, sourcesByRow)}
-            label={view.group.title}
-          />
         </td>
         {ordering && <td className="kc-order" />}
       </tr>
@@ -533,14 +549,30 @@ function GroupRows({
               )}
             </td>
             <td className={cx('kc-num', value !== null && value < 0 && 'is-neg')}>
-              <span data-testid="account-value">
-                {value === null
-                  ? loading && !shown?.approx
-                    ? '–'
-                    : valuationMissingText(a)
-                  : `${shown?.approx && !a.valuationSources ? '≈ ' : ''}${eur(value)}`}
+              <span
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                }}
+              >
+                <span
+                  data-testid="account-value"
+                  style={
+                    value === null
+                      ? { minWidth: 0, whiteSpace: 'normal', overflowWrap: 'anywhere' }
+                      : { whiteSpace: 'nowrap' }
+                  }
+                >
+                  {value === null
+                    ? loading && !shown?.approx
+                      ? '–'
+                      : valuationMissingText(a)
+                    : `${shown?.approx && !a.valuationSources ? '≈ ' : ''}${eur(value)}`}
+                </span>
+                <ValuationSourceHint sources={sourcesByRow.get(a.id)} label={a.name} />
               </span>
-              <ValuationSourceHint sources={sourcesByRow.get(a.id)} label={a.name} />
             </td>
             {ordering && <td className="kc-order">{reorder.controls(a.id)}</td>}
           </tr>
