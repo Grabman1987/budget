@@ -1,0 +1,337 @@
+{
+  "scope": "Current local source9574 at joint HEAD e8a08498/Main d8bc8d34; exact future-head CI and LIVE pending. Historical required AGE full6171 is oldMain208-based, not post-CSS validation.",
+  "source": {
+    "head": "e8a08498445f9d3f502a432a2fc7d17da6ef7d8c",
+    "freezeSHA256": "95746d1438035cd9cef34c0aafbbebd3f454bf1dca0b609d4114b59ee3d5b8f5",
+    "workingFiles": 3500,
+    "ownedPaths": 17,
+    "cssSHA256": "3e0ff5803259bf3aa15b15d77f88df9a7b8b9ff27d744589203ebf9e8d918c6d",
+    "nativeSHA256": "f29abec676505e990a528fe13d8e8be23a8d49c6bc1b20aacd2422ac5d482ee5",
+    "allSourceModesIndexStatusUnchangedDuringRuns": true
+  },
+  "wholeRun": {
+    "session": 59692,
+    "archive": "721-trailing-space-full35-reuse-native-first-actual",
+    "resultSHA256": "326714b2334b6102192a746b8b9565820ba53f1b0a64a3f606d450e3f834fbd8",
+    "archiveHashManifestSHA256": "e6b67ffca8757b4f3c12fcc30b8025ac04a4b6e7dcaf1c04d633e337559903e3",
+    "tests": 35,
+    "setup": 3,
+    "feature": 32,
+    "reportedDuration": "5.1m",
+    "wrapperSourceCompiledProcessArchiveLockExits": 0,
+    "freshBuildThisRun": false,
+    "reusedBuildSession": 17855,
+    "reusedBuildResultSHA256": "ab42f3270558c88a0258c0b86a14fbf03821059a55b732c24f94efef47cf4ffc",
+    "compiledFiles": 168,
+    "compiledManifestSHA256": "d45e37145442774f587d6ad60b478e10f5e39615ede5203681f57aef9b8d0110",
+    "allCompiledHashesAndFullModesExact": true
+  },
+  "controlledHistory": {
+    "red": {
+      "session": 44013,
+      "resultSHA256": "9783fe02ff918f46aa6e14cb613d92d7fdb98f1e5629cb1b6aab55fc0fd29d3f",
+      "setupPass": 3,
+      "endpointFail": 2,
+      "reportedDuration": "22.6s",
+      "forcedTableWidth": 579.421875,
+      "headerRight": 739.4375,
+      "outerRight": 739,
+      "preBoundaryBudgetAndWritesControlsReached": true
+    },
+    "green": {
+      "session": 17855,
+      "resultSHA256": "ab42f3270558c88a0258c0b86a14fbf03821059a55b732c24f94efef47cf4ffc",
+      "testsPass": 5,
+      "reportedDuration": "23.8s",
+      "freshE2EBuildExit": 0
+    },
+    "naturalCI": {
+      "run": "39406413753",
+      "headerRight": 739.421875,
+      "outerRight": 739,
+      "scope": "Different1/64px from controlled local RED; no identical natural reproduction or font-cause claim."
+    },
+    "countsNotAdditive": "Whole35 includes controlled2 and overlapping setups, not40unique."
+  },
+  "profiles": [
+    {
+      "project": "webkit-iphone",
+      "browser": "webkit",
+      "projectConfiguredIsMobile": true,
+      "projectConfiguredHasTouch": true,
+      "profile": "desktop",
+      "theme": "light",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "documentWidth": 1440,
+      "dpr": 1,
+      "rawTouchPoints": 0,
+      "coarse": false,
+      "rawGeometry": "test-results/issue-481-separated-group--2cceb--and-controls-desktop-light-webkit-iphone/separated-heading-geometry.json",
+      "rawGeometrySHA256": "a0abc7007dcebfb7924fe59dc7b439355aff482734aa6571e5609be033059721",
+      "rawImageSHA256": "7eb2f8e0e601a2fef7042634a3e8273815e0a76212b31f91efa508381ce9978d",
+      "parentCount": 8,
+      "ordinaryCategoryBoxCount": 25,
+      "maxParentHeight": 30,
+      "maxCategoryHeight": 33,
+      "maxParentFirstPairHeight": 63.0,
+      "minimumParentControlWidth": 28,
+      "minimumParentControlHeight": 24,
+      "currentImage": "desktop-light-trailing-space.png"
+    },
+    {
+      "project": "webkit-iphone",
+      "browser": "webkit",
+      "projectConfiguredIsMobile": true,
+      "projectConfiguredHasTouch": true,
+      "profile": "desktop",
+      "theme": "dark",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "documentWidth": 1440,
+      "dpr": 1,
+      "rawTouchPoints": 0,
+      "coarse": false,
+      "rawGeometry": "test-results/issue-481-separated-group--5edee-y-and-controls-desktop-dark-webkit-iphone/separated-heading-geometry.json",
+      "rawGeometrySHA256": "c2662041ffc1177757bf96f0e1cb2c5d27489d9044f9a130cadda3e8aeee3d05",
+      "rawImageSHA256": "a005b5d76869a723e2b480705c83884cfed50e31c00244ad420e3898c3156add",
+      "parentCount": 8,
+      "ordinaryCategoryBoxCount": 25,
+      "maxParentHeight": 30,
+      "maxCategoryHeight": 33,
+      "maxParentFirstPairHeight": 63.0,
+      "minimumParentControlWidth": 28,
+      "minimumParentControlHeight": 24,
+      "currentImage": "desktop-dark-trailing-space.png"
+    },
+    {
+      "project": "webkit-iphone",
+      "browser": "webkit",
+      "projectConfiguredIsMobile": true,
+      "projectConfiguredHasTouch": true,
+      "profile": "phone-tall",
+      "theme": "dark",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "documentWidth": 390,
+      "dpr": 3,
+      "rawTouchPoints": 0,
+      "coarse": true,
+      "rawGeometry": "test-results/issue-481-separated-group--7a4c5-nd-controls-phone-tall-dark-webkit-iphone/separated-heading-geometry.json",
+      "rawGeometrySHA256": "cfcbb77edf9b22dbd74c8b7df39dcc40445c0e15f41574d6cff639d2d90ac80c",
+      "rawImageSHA256": "f87e1505e57eb12e4efde3699bfdd759098b1aef74017e722ef4458dc0ea8639",
+      "parentCount": 8,
+      "ordinaryCategoryBoxCount": 25,
+      "maxParentHeight": 71.390625,
+      "maxCategoryHeight": 75,
+      "maxParentFirstPairHeight": 146.390625,
+      "minimumParentControlWidth": 44,
+      "minimumParentControlHeight": 44,
+      "currentImage": "phone-dark.png",
+      "byteEqualOriginalTrackedPhone": true
+    },
+    {
+      "project": "webkit-iphone",
+      "browser": "webkit",
+      "projectConfiguredIsMobile": true,
+      "projectConfiguredHasTouch": true,
+      "profile": "phone-tall",
+      "theme": "light",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "documentWidth": 390,
+      "dpr": 3,
+      "rawTouchPoints": 0,
+      "coarse": true,
+      "rawGeometry": "test-results/issue-481-separated-group--7fa8f-d-controls-phone-tall-light-webkit-iphone/separated-heading-geometry.json",
+      "rawGeometrySHA256": "32dac67002a2ecb4301e8237e1ee7af5bca9fad757ddfeee5eefd39a12faa928",
+      "rawImageSHA256": "5f1320c68de6201415ee43e2e3924735cc8ff2de012f56679f4b0a480696e5e5",
+      "parentCount": 8,
+      "ordinaryCategoryBoxCount": 25,
+      "maxParentHeight": 71.390625,
+      "maxCategoryHeight": 75,
+      "maxParentFirstPairHeight": 146.390625,
+      "minimumParentControlWidth": 44,
+      "minimumParentControlHeight": 44,
+      "currentImage": "phone-light.png",
+      "byteEqualOriginalTrackedPhone": true
+    },
+    {
+      "project": "webkit-iphone",
+      "browser": "webkit",
+      "projectConfiguredIsMobile": true,
+      "projectConfiguredHasTouch": true,
+      "profile": "configured",
+      "theme": "dark",
+      "viewport": {
+        "width": 390,
+        "height": 664
+      },
+      "documentWidth": 390,
+      "dpr": 3,
+      "rawTouchPoints": 0,
+      "coarse": true,
+      "rawGeometry": "test-results/issue-481-separated-group--c595c-nd-controls-configured-dark-webkit-iphone/separated-heading-geometry.json",
+      "rawGeometrySHA256": "a0b2a740b4ab24906e6645031a50ed55fffcb0b7ad70eb0b2d6cb5cb78767048",
+      "rawImageSHA256": "48f4f43a9d6af4522fbfd5a7ce7e0623ced43bdbdcde8ad7dd738ba09d47dd6c",
+      "parentCount": 8,
+      "ordinaryCategoryBoxCount": 25,
+      "maxParentHeight": 71.390625,
+      "maxCategoryHeight": 75,
+      "maxParentFirstPairHeight": 146.390625,
+      "minimumParentControlWidth": 44,
+      "minimumParentControlHeight": 44,
+      "currentImage": "Not imported; configured capture remains in raw archive."
+    },
+    {
+      "project": "webkit-iphone",
+      "browser": "webkit",
+      "projectConfiguredIsMobile": true,
+      "projectConfiguredHasTouch": true,
+      "profile": "configured",
+      "theme": "light",
+      "viewport": {
+        "width": 390,
+        "height": 664
+      },
+      "documentWidth": 390,
+      "dpr": 3,
+      "rawTouchPoints": 0,
+      "coarse": true,
+      "rawGeometry": "test-results/issue-481-separated-group--eb973-d-controls-configured-light-webkit-iphone/separated-heading-geometry.json",
+      "rawGeometrySHA256": "6f79fbfdc33e9ca345958fcb967d62ff6bbe043c009a2470c5feeec86975f6f4",
+      "rawImageSHA256": "ec98493c8215bc6e57b9065ed187111b13c5c1240f939f14e8043de7af8b3872",
+      "parentCount": 8,
+      "ordinaryCategoryBoxCount": 25,
+      "maxParentHeight": 71.390625,
+      "maxCategoryHeight": 75,
+      "maxParentFirstPairHeight": 146.390625,
+      "minimumParentControlWidth": 44,
+      "minimumParentControlHeight": 44,
+      "currentImage": "Not imported; configured capture remains in raw archive."
+    }
+  ],
+  "currentBoundaryProofs": [
+    {
+      "kind": "controlled input",
+      "theme": "light",
+      "rawPath": "test-results/issue-481-separated-group--1921f-fully-reachable-at768-light-webkit-iphone/controlled-ci-fractional-width.json",
+      "rawSHA256": "55544eddb0d99e515b98de11fbd08190bed944fa9be0aafdc8d9dfa2be3a7b23",
+      "writes": [],
+      "afterOriginalScrollAndFocus": {
+        "stage": "controlled-width-after-original-scroll-and-focus",
+        "tableWidth": 579.421875,
+        "scrollWidth": 583,
+        "clientWidth": 474,
+        "scrollLeft": 109,
+        "paddingRight": "4px",
+        "headerRight": 735.4375,
+        "outerRight": 739,
+        "textRight": 727.4375,
+        "actionRight": 723.4375,
+        "actionActive": true,
+        "originalActionHit": true,
+        "documentWidth": 768
+      }
+    },
+    {
+      "kind": "controlled input",
+      "theme": "dark",
+      "rawPath": "test-results/issue-481-separated-group--aec2b--fully-reachable-at768-dark-webkit-iphone/controlled-ci-fractional-width.json",
+      "rawSHA256": "34cf42c9429c1e4a3f12fac0a4276c927eae4c1c0df65ed64bc29cbfb9be14e0",
+      "writes": [],
+      "afterOriginalScrollAndFocus": {
+        "stage": "controlled-width-after-original-scroll-and-focus",
+        "tableWidth": 579.421875,
+        "scrollWidth": 583,
+        "clientWidth": 474,
+        "scrollLeft": 109,
+        "paddingRight": "4px",
+        "headerRight": 735.4375,
+        "outerRight": 739,
+        "textRight": 727.4375,
+        "actionRight": 723.4375,
+        "actionActive": true,
+        "originalActionHit": true,
+        "documentWidth": 768
+      }
+    },
+    {
+      "kind": "natural local",
+      "theme": "dark",
+      "rawPath": "test-results/issue-481-separated-group--2b9fa--without-oracle-waiver-dark-webkit-iphone/768-boundary-diagnostic.json",
+      "rawSHA256": "2551f8481d99ea9773aac3b06d48190aed6797859347752c1255d060524d18cd",
+      "writes": [],
+      "afterOriginalScrollAndFocus": {
+        "stage": "after-original-action-focus",
+        "tableWidth": 578.78125,
+        "scrollWidth": 583,
+        "clientWidth": 474,
+        "scrollLeft": 109,
+        "paddingRight": "4px",
+        "headerRight": 734.78125,
+        "outerRight": 739,
+        "textRight": 726.78125,
+        "actionRight": 722.78125,
+        "actionActive": true,
+        "originalActionHit": true,
+        "documentWidth": 768
+      }
+    },
+    {
+      "kind": "natural local",
+      "theme": "light",
+      "rawPath": "test-results/issue-481-separated-group--48ac2-without-oracle-waiver-light-webkit-iphone/768-boundary-diagnostic.json",
+      "rawSHA256": "8f876a091296b263de370f37cbb758a7efcc5dcdc4a302d255c0984527f2c32c",
+      "writes": [],
+      "afterOriginalScrollAndFocus": {
+        "stage": "after-original-action-focus",
+        "tableWidth": 578.78125,
+        "scrollWidth": 583,
+        "clientWidth": 474,
+        "scrollLeft": 109,
+        "paddingRight": "4px",
+        "headerRight": 734.78125,
+        "outerRight": 739,
+        "textRight": 726.78125,
+        "actionRight": 722.78125,
+        "actionActive": true,
+        "originalActionHit": true,
+        "documentWidth": 768
+      }
+    }
+  ],
+  "imageImports": [
+    {
+      "repoPath": "docs/evidence/plan-separated-headings-481/desktop-light-trailing-space.png",
+      "rawPath": "/workspace/.budget-tools/cloud-control/721-trailing-space-full35-reuse-native-first-actual/test-results/issue-481-separated-group--2cceb--and-controls-desktop-light-webkit-iphone/separated-headings.png",
+      "sha256": "7eb2f8e0e601a2fef7042634a3e8273815e0a76212b31f91efa508381ce9978d"
+    },
+    {
+      "repoPath": "docs/evidence/plan-separated-headings-481/desktop-dark-trailing-space.png",
+      "rawPath": "/workspace/.budget-tools/cloud-control/721-trailing-space-full35-reuse-native-first-actual/test-results/issue-481-separated-group--5edee-y-and-controls-desktop-dark-webkit-iphone/separated-headings.png",
+      "sha256": "a005b5d76869a723e2b480705c83884cfed50e31c00244ad420e3898c3156add"
+    }
+  ],
+  "immutablePriorEvidence": {
+    "desktop-dark.png": "3aa14f399199a37c113141a937a479ee3183e6ec8975b9574a483230ece366ee",
+    "desktop-light.png": "f64bfbe27196d0f55237a1be5bd52f0a3b441e5810175791d780070d5b43b07a",
+    "phone-dark.png": "f87e1505e57eb12e4efde3699bfdd759098b1aef74017e722ef4458dc0ea8639",
+    "phone-light.png": "5f1320c68de6201415ee43e2e3924735cc8ff2de012f56679f4b0a480696e5e5",
+    "profiles.json": "2e4df7b53cbfdd77862eed6c09221a1ca54c47a57a01ec65d60c1e3e09cd431b"
+  },
+  "captureLimits": [
+    "Manual phone390x844/DPR3/coarse/rawTouchPoints0; project configured mobile options are distinct from manually created desktop contexts.",
+    "Phone NAV/FAB can cover Strom/Internet near initial viewport; no wholly unobscured-page or universal point-hit proof.",
+    "Desktop ellipsis/focus rings remain. Original four PNGs/profiles immutable; current manual phone images byte-equal tracked originals.",
+    "No physical-phone/OS-pan/accepted-native-compatibility-click claim."
+  ]
+}

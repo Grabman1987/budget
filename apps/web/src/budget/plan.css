@@ -2690,3 +2690,9 @@
     min-height: 44px;
   }
 }
+
+@media (min-width: 768px) {
+  .plan .pmulti-scroll:has(> .ptable-zero) {
+    padding-inline-end: 4px;
+  }
+}

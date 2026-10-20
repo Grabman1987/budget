@@ -807,3 +807,157 @@ for (const theme of ['light', 'dark'] as const) {
     },
   );
 }
+
+for (const theme of ['light', 'dark'] as const) {
+  sampleTest(
+    `controlled CI fractional table width stays fully reachable at768 ${theme}`,
+    async ({ browser }, info) => {
+      const context = await browser.newContext({
+        baseURL: SAMPLE_URL,
+        storageState: STORAGE_STATE_SAMPLE,
+        viewport: { width: 1440, height: 900 },
+        isMobile: false,
+        hasTouch: false,
+        deviceScaleFactor: 1,
+        colorScheme: 'light',
+        reducedMotion: 'reduce',
+        serviceWorkers: 'block',
+      });
+      const page = await context.newPage();
+      const measurements: Awaited<ReturnType<typeof recordNarrowDesktopBoundary>>[] = [];
+      const writes: string[] = [];
+      const controlledInput = {
+        tableInlineWidth: '579.421875px',
+        exactExpectedTableWidth: 579.421875,
+        scope:
+          'Controlled test input from natural joint-CI geometry; not a natural local CI reproduction.',
+        observedJointCiRun: '39406413753',
+        observedJointCiReadingsSha256: '5ada82cc',
+      };
+      page.on('request', (request) => {
+        if (
+          request.method() !== 'GET' &&
+          /\/api\/(budget|categories|bookings|undo)/.test(request.url())
+        )
+          writes.push(`${request.method()} ${new URL(request.url()).pathname}`);
+      });
+      const capture = async (stage: string) => {
+        const observation = await recordNarrowDesktopBoundary(page, stage);
+        measurements.push(observation);
+        console.log(
+          '481-CONTROLLED-FRACTIONAL-WIDTH',
+          JSON.stringify({
+            project: info.project.name,
+            engine: browser.browserType().name(),
+            browserVersion: browser.version(),
+            theme,
+            controlledInput,
+            ...observation,
+          }),
+        );
+        return observation;
+      };
+      try {
+        await page.clock.setFixedTime(new Date(SAMPLE_NOW));
+        await page.goto('/plan/monat?monat=2026-09');
+        const table = page.locator('.ptable-zero');
+        await expect(table.locator('tbody > .pgroup:not(.psingle)')).toHaveCount(8);
+        await page.evaluate(() => document.fonts.ready);
+        await page.evaluate((value) => {
+          document.documentElement.dataset['theme'] = value;
+        }, theme);
+        await page.setViewportSize({ width: 768, height: 900 });
+        await expect(table.locator('.pname')).toHaveCount(36);
+        await expect(table.locator('tbody > .psingle')).toHaveCount(11);
+        await expect(table.locator('tbody > tr:not(.pgroup-gap):not(.is-empty)')).toHaveCount(44);
+        const before = await readBudget(page, '2026-09');
+        const expectedIds = [...multiGroups.flatMap(([, ids]) => [...ids]), ...singleCategoryIds]
+          .map((id) => `cat-${id}`)
+          .sort();
+        expect(
+          before.categories
+            .filter((category) => !category.hiddenAt)
+            .map((category) => category.id)
+            .sort(),
+        ).toEqual(expectedIds);
+        expect(
+          await table
+            .locator('.pname')
+            .evaluateAll((elements) =>
+              elements.map((element) => (element as HTMLElement).dataset['categoryId']).sort(),
+            ),
+        ).toEqual(expectedIds);
+        await capture('natural-local-width-before-controlled-input');
+        // Explicit controlled fixture dimension, copied literally from the natural joint-CI reading.
+        // No font, zoom, table-layout, tolerance or production CSS override is applied.
+        await table.evaluate((element) => {
+          (element as HTMLElement).style.width = '579.421875px';
+        });
+        const controlled = await capture('controlled-literal-width-before-original-scroll');
+        expect(controlled.viewport).toEqual({ width: 768, height: 900 });
+        expect(controlled.dpr).toBe(1);
+        expect(controlled.coarse).toBe(false);
+        expect(controlled.table.rect.width).toBe(579.421875);
+        expect(controlled.table.style['width']).toBe('579.421875px');
+        expect(controlled.scroller.clientWidth).toBeGreaterThan(0);
+        expect(controlled.scroller.scrollWidth).toBeGreaterThan(controlled.scroller.clientWidth);
+        const scroll = page.locator('.pmulti-scroll:has(.ptable-zero)');
+        await expect(scroll).toHaveCSS('overflow-x', 'auto');
+        await scroll.evaluate((element) => {
+          element.scrollLeft = element.scrollWidth;
+        });
+        const action = table.locator('.col-avail button').first();
+        await action.focus();
+        await expect(action).toBeFocused();
+        const reached = await capture('controlled-width-after-original-scroll-and-focus');
+        const diagnostic = JSON.stringify({ theme, controlledInput, reached });
+        expect(reached.table.rect.width).toBe(579.421875);
+        expect(reached.header.text).toBe('Verfügbar');
+        expect(reached.header.textRange.width).toBeGreaterThan(0);
+        expect(reached.action.rect.width).toBeGreaterThan(0);
+        expect(reached.action.rect.height).toBeGreaterThan(0);
+        expect(reached.action.active).toBe(true);
+        expect(reached.action.centreInViewport).toBe(true);
+        expect(reached.action.centreHit?.originalActionOrDescendant).toBe(true);
+        expect(reached.action.rect.left, diagnostic).toBeGreaterThanOrEqual(
+          reached.scroller.rect.left,
+        );
+        expect(reached.action.rect.right, diagnostic).toBeLessThanOrEqual(
+          reached.scroller.rect.right,
+        );
+        expect(reached.documentWidth).toBeLessThanOrEqual(768);
+        expect(reached.scroller.scrollLeft).toBeGreaterThan(0);
+        expect(await readBudget(page, '2026-09')).toEqual(before);
+        expect(writes).toEqual([]);
+        // Same strict endpoint invariant as existing old481:896, with no epsilon or rounding.
+        expect(reached.header.rect.right, diagnostic).toBeLessThanOrEqual(
+          reached.scroller.rect.right,
+        );
+      } finally {
+        try {
+          await writeFile(
+            info.outputPath('controlled-ci-fractional-width.json'),
+            JSON.stringify(
+              {
+                project: info.project.name,
+                engine: browser.browserType().name(),
+                browserVersion: browser.version(),
+                theme,
+                controlledInput,
+                measurements,
+                writes,
+                scope:
+                  'Controlled literal table-width regression; original natural old481 boundary oracle is unchanged.',
+              },
+              null,
+              2,
+            ),
+          );
+        } catch (error) {
+          console.log('481-DIAGNOSTIC-ERROR', error instanceof Error ? error.name : typeof error);
+        }
+        await context.close();
+      }
+    },
+  );
+}
