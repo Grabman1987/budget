@@ -282,7 +282,7 @@ function PlanBody({
         event.target instanceof Element &&
         event.target.isConnected &&
         !event.target.closest(
-          '.plan-inspector, .prow, .plan-select, dialog, .toast, .quick-assign-actions, .plan-menu-verteilen',
+          '.plan-inspector, .prow, .pgroup, .plan-select, dialog, .toast, .quick-assign-actions, .plan-menu-verteilen',
         )
       )
         clearSelection();
@@ -726,7 +726,7 @@ function PlanBody({
                     const st = groupStatus(g.rows);
                     const singleBand = shownView === 'group' && g.rows.length === 1;
                     const isCollapsed = !singleBand && collapsed.has(g.key);
-                    const band = shownView === 'group' && g.rows.length > 0 && !isCollapsed;
+                    const band = singleBand;
                     const sugSum = g.rows.reduce((a, r) => a + (sug[r.id] ?? 0), 0);
                     const toggle = (event: ReactMouseEvent<HTMLButtonElement>) => {
                       // The shared category row and collapsed parent have different React keys.

@@ -89,7 +89,7 @@ test('the old controls are gone; both menus are keyboard operable and named', as
 test('"Alle einklappen" and the month span work from "Optionen ▾"', async ({ page, isMobile }) => {
   await page.goto('/plan/monat?monat=2026-09');
   const optionen = menuSummary(page, 'Optionen');
-  const multiBands = page.locator('tr.pmulti');
+  const multiBands = page.locator('tr.pgroup:not(.psingle)');
   const bands = page.locator('tr.psingle:not(.pmulti)');
   const children = page.locator('tr.prow:not(.psingle):not(.is-empty)');
   const categoryRows = page.locator('tr.prow:not(.is-empty)');
@@ -98,15 +98,21 @@ test('"Alle einklappen" and the month span work from "Optionen ▾"', async ({ p
   await expect(bands).toHaveCount(11);
   await expect(categoryRows).toHaveCount(36);
   const childCount = await children.count();
-  expect(childCount).toBeGreaterThan(0);
+  expect(childCount).toBe(25);
+  const firstChild = multiBands.first().locator('xpath=following-sibling::tr[1]');
+  await expect(firstChild).toHaveClass(/prow/);
+  await expect(firstChild).toBeVisible();
   await optionen.click();
   await menuPanel(page, 'Optionen')
     .getByRole('button', { name: 'Alle einklappen', exact: true })
     .click();
   await expect(page.locator('tr.pgroup:not(.psingle):not(.is-collapsed)')).toHaveCount(0);
   await expect(page.locator('tr.pgroup:not(.psingle).is-collapsed')).toHaveCount(8);
-  await expect(multiBands).toHaveCount(0);
+  await expect(multiBands).toHaveCount(8);
   await expect(children).toHaveCount(0);
+  await expect(multiBands.first().locator('xpath=following-sibling::tr[1]')).not.toHaveClass(
+    /prow/,
+  );
   await expect(bands).toHaveCount(11);
   await expect(categoryRows).toHaveCount(11);
   for (const band of await bands.all()) {
@@ -120,6 +126,8 @@ test('"Alle einklappen" and the month span work from "Optionen ▾"', async ({ p
   await expect(page.locator('tr.pgroup:not(.psingle).is-collapsed')).toHaveCount(0);
   await expect(multiBands).toHaveCount(8);
   await expect(children).toHaveCount(childCount);
+  await expect(firstChild).toHaveClass(/prow/);
+  await expect(firstChild).toBeVisible();
   await expect(categoryRows).toHaveCount(36);
   if (isMobile) return;
   await optionen.click();
