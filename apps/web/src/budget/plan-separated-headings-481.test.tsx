@@ -258,3 +258,63 @@ describe('#481 separate multi-category headings preserve independent category id
     expect(writes).toEqual([]);
   });
 });
+
+describe('#481 desktop separate-heading selection domain', () => {
+  it('retains desktop selection across native Space, Enter and click collapse but clears outside', async () => {
+    const user = userEvent.setup();
+    mount();
+    const toggle = await screen.findByRole('button', { name: 'Gruppe Mustergruppe' });
+    const originalParent = parent();
+    expect(originalParent.classList.contains('pgroup')).toBe(true);
+    expect(originalParent.classList.contains('prow')).toBe(false);
+    const group = screen.getByRole<HTMLInputElement>('checkbox', {
+      name: 'Gruppe Mustergruppe auswählen',
+    });
+    const first = () =>
+      screen.getByRole<HTMLInputElement>('checkbox', { name: 'Erster Posten auswählen' });
+    const second = () =>
+      screen.getByRole<HTMLInputElement>('checkbox', { name: 'Zweiter Posten auswählen' });
+    const single = screen.getByRole<HTMLInputElement>('checkbox', {
+      name: 'Einzelposten auswählen',
+    });
+    await user.click(group);
+    expect(group.checked).toBe(true);
+    expect(first().checked).toBe(true);
+    expect(second().checked).toBe(true);
+    expect(single.checked).toBe(false);
+    await user.tab();
+    expect(document.activeElement).toBe(toggle);
+    for (const key of ['[Space]', '{Enter}']) {
+      await user.keyboard(key);
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      expect(parent()).toBe(originalParent);
+      expect(document.activeElement).toBe(toggle);
+      expect(category('first')).toBeNull();
+      expect(category('second')).toBeNull();
+      expect(group.checked).toBe(true);
+      expect(single.checked).toBe(false);
+      await user.keyboard(key);
+      expect(toggle.getAttribute('aria-expanded')).toBe('true');
+      expect(document.activeElement).toBe(toggle);
+      expect(group.checked).toBe(true);
+      expect(first().checked).toBe(true);
+      expect(second().checked).toBe(true);
+      expect(single.checked).toBe(false);
+    }
+    await user.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(toggle);
+    expect(group.checked).toBe(true);
+    await user.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(first().checked).toBe(true);
+    expect(second().checked).toBe(true);
+    expect(single.checked).toBe(false);
+    await user.click(document.body);
+    expect(group.checked).toBe(false);
+    expect(first().checked).toBe(false);
+    expect(second().checked).toBe(false);
+    expect(single.checked).toBe(false);
+    expect(writes).toEqual([]);
+  });
+});

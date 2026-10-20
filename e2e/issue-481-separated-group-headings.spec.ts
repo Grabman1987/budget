@@ -384,3 +384,426 @@ test('real parent literals, independent first category, assignment and undo surv
   await expect(parent.locator('.col-assign')).toHaveText('45,09 €');
   expect(await readBudget(page, month)).toEqual(before);
 });
+
+// NEW desktop regression and read-only diagnostic; existing cases/oracles above stay unchanged.
+async function recordNarrowDesktopBoundary(page: Page, stage: string) {
+  return page.locator('.pmulti-scroll:has(.ptable-zero)').evaluate((element, stage) => {
+    const scroller = element as HTMLElement;
+    const table = scroller.querySelector<HTMLTableElement>('.ptable-zero')!;
+    const header = table.querySelector<HTMLElement>('thead th:last-child')!;
+    const action = table.querySelector<HTMLButtonElement>('.col-avail button')!;
+    const box = (rect: DOMRect) => ({
+      left: rect.left,
+      right: rect.right,
+      top: rect.top,
+      bottom: rect.bottom,
+      width: rect.width,
+      height: rect.height,
+    });
+    const styles = (node: Element, properties: string[]) => {
+      const style = getComputedStyle(node);
+      return Object.fromEntries(
+        properties.map((name) => [name, style.getPropertyValue(name).slice(0, 140)]),
+      );
+    };
+    const layoutProperties = [
+      'width',
+      'min-width',
+      'max-width',
+      'box-sizing',
+      'padding-left',
+      'padding-right',
+      'border-left-width',
+      'border-right-width',
+      'overflow-x',
+      'overflow-y',
+      'transform',
+      'direction',
+      'zoom',
+      'scroll-behavior',
+    ];
+    const fontProperties = ['font-family', 'font-size', 'font-weight', 'letter-spacing'];
+    const outer = scroller.getBoundingClientRect();
+    const target = action.getBoundingClientRect();
+    const range = document.createRange();
+    range.selectNodeContents(header);
+    const text = range.getBoundingClientRect();
+    const clipLeft = outer.left + scroller.clientLeft;
+    const clipRight = clipLeft + scroller.clientWidth;
+    const x = target.left + target.width / 2,
+      y = target.top + target.height / 2;
+    const hit =
+      x >= 0 && x < innerWidth && y >= 0 && y < innerHeight
+        ? document.elementFromPoint(x, y)
+        : null;
+    const font = getComputedStyle(table);
+    return {
+      stage,
+      viewport: { width: innerWidth, height: innerHeight },
+      dpr: devicePixelRatio,
+      coarse: matchMedia('(pointer: coarse)').matches,
+      rawTouchPoints: navigator.maxTouchPoints,
+      documentWidth: document.documentElement.scrollWidth,
+      windowScroll: { x: scrollX, y: scrollY },
+      scroller: {
+        rect: box(outer),
+        clientLeft: scroller.clientLeft,
+        clientTop: scroller.clientTop,
+        clientWidth: scroller.clientWidth,
+        clientHeight: scroller.clientHeight,
+        offsetWidth: scroller.offsetWidth,
+        scrollWidth: scroller.scrollWidth,
+        scrollLeft: scroller.scrollLeft,
+        integerCssomMax: scroller.scrollWidth - scroller.clientWidth,
+        clipLeft,
+        clipRight,
+        style: styles(scroller, layoutProperties),
+      },
+      table: {
+        rect: box(table.getBoundingClientRect()),
+        style: styles(table, [
+          ...layoutProperties,
+          ...fontProperties,
+          'table-layout',
+          'border-collapse',
+          'border-spacing',
+        ]),
+      },
+      header: {
+        rect: box(header.getBoundingClientRect()),
+        text: header.textContent!.trim().slice(0, 80),
+        textRange: box(text),
+        textRects: Array.from(range.getClientRects(), box).slice(0, 4),
+        textClientClipWidth: Math.max(
+          0,
+          Math.min(text.right, clipRight) - Math.max(text.left, clipLeft),
+        ),
+        style: styles(header, [...layoutProperties, ...fontProperties]),
+      },
+      action: {
+        rect: box(target),
+        active: document.activeElement === action,
+        centreInViewport: x >= 0 && x < innerWidth && y >= 0 && y < innerHeight,
+        centreHit: hit
+          ? {
+              tag: hit.tagName,
+              classes: Array.from(hit.classList).slice(0, 4),
+              originalActionOrDescendant: hit === action || action.contains(hit),
+            }
+          : null,
+        style: styles(action, [...layoutProperties, ...fontProperties]),
+      },
+      fonts: {
+        status: document.fonts.status,
+        actualTableFontAvailable: document.fonts.check(
+          `${font.fontSize} ${font.fontFamily}`,
+          'Verfügbar',
+        ),
+        faces: Array.from(document.fonts)
+          .slice(0, 8)
+          .map((face) => ({
+            family: face.family.slice(0, 100),
+            weight: face.weight.slice(0, 40),
+            style: face.style.slice(0, 40),
+            status: face.status,
+          })),
+      },
+    };
+  }, stage);
+}
+
+for (const theme of ['light', 'dark'] as const) {
+  sampleTest(
+    `desktop selected group survives Space Enter and click, outside clears ${theme}`,
+    async ({ browser }, info) => {
+      const context = await browser.newContext({
+        baseURL: SAMPLE_URL,
+        storageState: STORAGE_STATE_SAMPLE,
+        viewport: { width: 1440, height: 900 },
+        isMobile: false,
+        hasTouch: false,
+        deviceScaleFactor: 1,
+        colorScheme: 'light',
+        reducedMotion: 'reduce',
+        serviceWorkers: 'block',
+      });
+      const page = await context.newPage();
+      const writes: string[] = [];
+      const observations: Array<{
+        stage: string;
+        expanded: string | null;
+        groupChecked: boolean;
+        focused: boolean;
+      }> = [];
+      page.on('request', (request) => {
+        if (
+          request.method() !== 'GET' &&
+          /\/api\/(budget|categories|bookings|undo)/.test(request.url())
+        )
+          writes.push(`${request.method()} ${new URL(request.url()).pathname}`);
+      });
+      try {
+        await page.clock.setFixedTime(new Date(SAMPLE_NOW));
+        await page.goto('/plan/monat?monat=2026-09');
+        await page.evaluate(() => document.fonts.ready);
+        await page.evaluate((value) => {
+          document.documentElement.dataset['theme'] = value;
+        }, theme);
+        const table = page.locator('.ptable-zero');
+        await expect(table.locator('.pname')).toHaveCount(36);
+        await expect(table.locator('tbody > .pgroup:not(.psingle)')).toHaveCount(8);
+        await expect(table.locator('tbody > .psingle')).toHaveCount(11);
+        await expect(table.locator('tbody > tr:not(.pgroup-gap):not(.is-empty)')).toHaveCount(44);
+        expect(
+          await page.evaluate(() => ({
+            width: innerWidth,
+            height: innerHeight,
+            dpr: devicePixelRatio,
+            coarse: matchMedia('(pointer: coarse)').matches,
+          })),
+        ).toEqual({ width: 1440, height: 900, dpr: 1, coarse: false });
+        const before = await readBudget(page, '2026-09');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+          1440,
+        );
+        const sourceGroup = before.groups.find((group) => group.name === 'Wohnen')!;
+        expect(sourceGroup).toBeTruthy();
+        const ids = ['cat-miete', 'cat-strom', 'cat-internet', 'cat-haushalt'];
+        expect(
+          before.categories
+            .filter((category) => category.groupId === sourceGroup.id && !category.hiddenAt)
+            .map((category) => category.id)
+            .sort(),
+        ).toEqual([...ids].sort());
+        const parent = table.locator(`[id="grp-${sourceGroup.id}"]`);
+        await expect(parent).not.toHaveClass(/prow|psingle/);
+        const group = parent.getByRole('checkbox', {
+          name: 'Gruppe Wohnen auswählen',
+          exact: true,
+        });
+        const toggle = parent.getByRole('button', { name: 'Gruppe Wohnen', exact: true });
+        const child = (id: string) =>
+          nameButton(page, id).locator('xpath=ancestor::tr').getByRole('checkbox');
+        const single = child('cat-bankspesen');
+        const record = async (stage: string) =>
+          observations.push({
+            stage,
+            expanded: await toggle.getAttribute('aria-expanded'),
+            groupChecked: await group.isChecked(),
+            focused: await toggle.evaluate((element) => document.activeElement === element),
+          });
+        await group.check();
+        for (const id of ids) await expect(child(id)).toBeChecked();
+        await expect(single).not.toBeChecked();
+        await expect(
+          table.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }),
+        ).toHaveJSProperty('indeterminate', true);
+        await toggle.focus();
+        for (const key of ['Space', 'Enter']) {
+          await page.keyboard.press(key);
+          await record(`${key}-collapsed`);
+          await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+          await expect(toggle).toBeFocused();
+          await expect(table.locator('.pname')).toHaveCount(32);
+          await expect(parent).toHaveCount(1);
+          await expect(group).toBeChecked();
+          await expect(single).not.toBeChecked();
+          await page.keyboard.press(key);
+          await record(`${key}-expanded`);
+          await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+          await expect(toggle).toBeFocused();
+          await expect(table.locator('.pname')).toHaveCount(36);
+          await expect(group).toBeChecked();
+          for (const id of ids) await expect(child(id)).toBeChecked();
+          await expect(single).not.toBeChecked();
+        }
+        await toggle.click();
+        await record('mouse-collapsed');
+        await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        await expect(toggle).toBeFocused();
+        await expect(group).toBeChecked();
+        await toggle.click();
+        await record('mouse-expanded');
+        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        for (const id of ids) await expect(child(id)).toBeChecked();
+        await expect(single).not.toBeChecked();
+        const outside = page.getByRole('heading', {
+          name: 'September 2026',
+          level: 1,
+          exact: true,
+        });
+        await expect(outside).toBeVisible();
+        expect(
+          await outside.evaluate((element) => element.isConnected && !element.closest('.plan')),
+        ).toBe(true);
+        await outside.click();
+        await record('real-outside-cleared');
+        await expect(group).not.toBeChecked();
+        for (const id of ids) await expect(child(id)).not.toBeChecked();
+        await expect(single).not.toBeChecked();
+        await expect(
+          table.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }),
+        ).toHaveJSProperty('indeterminate', false);
+        expect(await readBudget(page, '2026-09')).toEqual(before);
+        expect(writes).toEqual([]);
+      } finally {
+        try {
+          const proof = {
+            project: info.project.name,
+            engine: browser.browserType().name(),
+            browserVersion: browser.version(),
+            actualDesktopOptions: {
+              viewport: { width: 1440, height: 900 },
+              dpr: 1,
+              isMobile: false,
+              hasTouch: false,
+            },
+            theme,
+            observations,
+            writes,
+          };
+          await writeFile(
+            info.outputPath('desktop-selected-group-native.json'),
+            JSON.stringify(proof, null, 2),
+          );
+          console.log('481-DESKTOP-SELECTION', JSON.stringify(proof));
+        } catch (error) {
+          console.log('481-DIAGNOSTIC-ERROR', error instanceof Error ? error.name : typeof error);
+        }
+        await context.close();
+      }
+    },
+  );
+
+  sampleTest(
+    `768 desktop exact boundary diagnostic without oracle waiver ${theme}`,
+    async ({ browser }, info) => {
+      // Preserve the original old481 ordering: start1440, font-ready, theme, then resize768.
+      const context = await browser.newContext({
+        baseURL: SAMPLE_URL,
+        storageState: STORAGE_STATE_SAMPLE,
+        viewport: { width: 1440, height: 900 },
+        isMobile: false,
+        hasTouch: false,
+        deviceScaleFactor: 1,
+        colorScheme: 'light',
+        reducedMotion: 'reduce',
+        serviceWorkers: 'block',
+      });
+      const page = await context.newPage();
+      const measurements: Awaited<ReturnType<typeof recordNarrowDesktopBoundary>>[] = [];
+      const writes: string[] = [];
+      page.on('request', (request) => {
+        if (
+          request.method() !== 'GET' &&
+          /\/api\/(budget|categories|bookings|undo)/.test(request.url())
+        )
+          writes.push(`${request.method()} ${new URL(request.url()).pathname}`);
+      });
+      const capture = async (stage: string) => {
+        const observation = await recordNarrowDesktopBoundary(page, stage);
+        measurements.push(observation);
+        // Whitelist and fixed-size arrays keep the complete critical fields readable in job logs.
+        console.log(
+          '481-NARROW768',
+          JSON.stringify({
+            project: info.project.name,
+            engine: browser.browserType().name(),
+            browserVersion: browser.version(),
+            theme,
+            ...observation,
+          }),
+        );
+        return observation;
+      };
+      try {
+        await page.clock.setFixedTime(new Date(SAMPLE_NOW));
+        await page.goto('/plan/monat?monat=2026-09');
+        const table = page.locator('.ptable-zero');
+        await expect(table.locator('tbody > .pgroup:not(.psingle)')).toHaveCount(8);
+        await page.evaluate(() => document.fonts.ready);
+        await page.evaluate((value) => {
+          document.documentElement.dataset['theme'] = value;
+        }, theme);
+        await page.setViewportSize({ width: 768, height: 900 });
+        await expect(table.locator('.pname')).toHaveCount(36);
+        await expect(table.locator('tbody > .psingle')).toHaveCount(11);
+        await expect(table.locator('tbody > tr:not(.pgroup-gap):not(.is-empty)')).toHaveCount(44);
+        const before = await readBudget(page, '2026-09');
+        const expectedIds = [...multiGroups.flatMap(([, ids]) => [...ids]), ...singleCategoryIds]
+          .map((id) => `cat-${id}`)
+          .sort();
+        expect(
+          before.categories
+            .filter((category) => !category.hiddenAt)
+            .map((category) => category.id)
+            .sort(),
+        ).toEqual(expectedIds);
+        expect(
+          await table
+            .locator('.pname')
+            .evaluateAll((elements) =>
+              elements.map((element) => (element as HTMLElement).dataset['categoryId']).sort(),
+            ),
+        ).toEqual(expectedIds);
+        const initial = await capture('initial-before-original-scroll');
+        expect(initial.viewport).toEqual({ width: 768, height: 900 });
+        expect(initial.dpr).toBe(1);
+        expect(initial.coarse).toBe(false);
+        expect(initial.documentWidth).toBeLessThanOrEqual(768);
+        expect(initial.scroller.clientWidth).toBeGreaterThan(0);
+        expect(initial.table.rect.width).toBeGreaterThan(0);
+        expect(initial.header.text).toBe('Verfügbar');
+        expect(initial.header.textRange.width).toBeGreaterThan(0);
+        expect(initial.action.rect.width).toBeGreaterThan(0);
+        expect(initial.action.rect.height).toBeGreaterThan(0);
+        const scroll = page.locator('.pmulti-scroll:has(.ptable-zero)');
+        await expect(scroll).toHaveCSS('overflow-x', 'auto');
+        await scroll.evaluate((element) => {
+          element.scrollLeft = element.scrollWidth;
+        });
+        await capture('original-max-scroll-before-focus');
+        const action = table.locator('.col-avail button').first();
+        await action.focus();
+        await expect(action).toBeFocused();
+        const original = await capture('after-original-action-focus');
+        expect(original.action.active).toBe(true);
+        expect(original.action.rect.left).toBeGreaterThanOrEqual(original.scroller.rect.left);
+        expect(original.action.rect.right).toBeLessThanOrEqual(original.scroller.rect.right);
+        expect(original.documentWidth).toBeLessThanOrEqual(768);
+        if (original.scroller.scrollWidth > original.scroller.clientWidth)
+          expect(original.scroller.scrollLeft).toBeGreaterThan(0);
+        // Diagnostic clamp only AFTER the original measurement; not a fix or replacement for strict old481:896.
+        await scroll.evaluate((element) => {
+          element.scrollLeft = element.scrollWidth + element.clientWidth;
+        });
+        await capture('diagnostic-explicit-max-clamp-after-original-stage');
+        expect(await readBudget(page, '2026-09')).toEqual(before);
+        expect(writes).toEqual([]);
+      } finally {
+        try {
+          await writeFile(
+            info.outputPath('768-boundary-diagnostic.json'),
+            JSON.stringify(
+              {
+                project: info.project.name,
+                engine: browser.browserType().name(),
+                browserVersion: browser.version(),
+                theme,
+                measurements,
+                writes,
+                scope:
+                  'Read-only layout diagnosis. Existing old481 strict headerRight<=outerRight remains unchanged; no rounding waiver or fix claim.',
+              },
+              null,
+              2,
+            ),
+          );
+        } catch (error) {
+          console.log('481-DIAGNOSTIC-ERROR', error instanceof Error ? error.name : typeof error);
+        }
+        await context.close();
+      }
+    },
+  );
+}
