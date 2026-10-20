@@ -196,6 +196,9 @@ export function CaptureForm({
     [accounts.data, offlineChoices, memory],
   );
   const accountId = draft.accountId || accountFromPayee(open, memory.accounts, undefined);
+  const explicitAccountId =
+    state.mode === 'create' ? (state.prefill?.accountId ?? state.accountId) : undefined;
+  const hasAccountContext = open.some((account) => account.id === explicitAccountId);
   const isTransfer = draft.kind === 'transfer';
   const legOfTransfer = editing !== null && isTransferBooking(editing);
   const locked = editing?.status === 'reconciled';
@@ -317,6 +320,7 @@ export function CaptureForm({
     if (
       !editing &&
       !queued &&
+      !hasAccountContext &&
       draft.kind !== 'transfer' &&
       key &&
       (chosen || key !== accountPayee.current)
@@ -1041,7 +1045,6 @@ function DateField({
   year: string;
 }) {
   useAmountPrivacy();
-  const pickerRef = useRef<HTMLInputElement>(null);
   const parsed = captureDate(draft.date, year);
   return (
     <div className="kdate">
@@ -1054,30 +1057,19 @@ function DateField({
               ref={inputRef}
               value={draft.date.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3.$2.$1')}
               placeholder="TT.MM.JJJJ"
-              inputMode="numeric"
+              inputMode="text"
               autoComplete="off"
               aria-invalid={invalid}
               aria-describedby={describedBy}
               onChange={(e) => set('date', e.target.value)}
               onBlur={() => parsed && set('date', parsed)}
-              onClick={() => pickerRef.current?.showPicker?.()}
             />
             <span className="bk-calendar">
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label="Kalender öffnen"
-                title="Kalender öffnen"
-                onClick={() => pickerRef.current?.showPicker?.()}
-              >
-                <CalendarDays size={18} aria-hidden="true" />
-              </button>
+              <CalendarDays size={18} aria-hidden="true" />
               <input
-                ref={pickerRef}
                 type="date"
                 aria-label="Datum im Kalender"
-                aria-hidden="true"
-                tabIndex={-1}
+                title="Kalender öffnen"
                 value={parsed ?? ''}
                 onChange={(e) => set('date', e.target.value)}
               />
