@@ -1635,6 +1635,10 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
   all 44 new cases; 539.79s Vitest duration with two workers. Two unchanged
   account-filter API tests timed out at 5,000 ms, then passed unchanged on both
   selected source trees (four cases); the timeout cause remains unproven. An
-  existing migration-44 fixture assumes it is still the latest migration; its
-  isolated correction awaits approval. Full is red, normal build did not run;
-  final-head CI and serial LIVE remain pending.
+  existing migration-44 fixture assumed it was still the latest migration; its
+  expressly approved isolated setup correction preserves all assertions and
+  passed its selected test in 2.48s. The first full was red and did not run a build.
+- Final required AGE full passed all 568 files/5,067 tests with one worker;
+  833.67s Vitest duration. The following normal production build passed. Final-head
+  CI and serial LIVE remain pending. Actual production receipt-volume/owner
+  backup-restore verification is still open; #726 remains a partial delivery.

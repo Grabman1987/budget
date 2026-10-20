@@ -160,7 +160,14 @@ All 44 new unit cases passed in the first required AGE full run. That run used
 their unchanged 5,000 ms limit; both then passed unchanged in a selected comparison
 against this source and the delivered comparison tree (four cases total). That
 comparison does not establish the timeout cause. One existing migration-44 test
-assumes that migration 44 is still the latest; its isolated fixture correction
-awaits approval. The required full check is therefore red. The normal production
-build did not run; final-head CI and LIVE verification remain pending. No
-production-volume restore is claimed.
+assumed that migration 44 was still the latest. Its expressly approved setup now
+limits its disposable fixture to migration 44, preserving every original
+assertion; the isolated test passed in 2.48 seconds. The first full check was red
+and did not run the normal production build.
+
+The final required check used `BUDGET_REQUIRE_AGE=1` and
+`VITEST_MAX_WORKERS=1`: all 568 test files and 5,067 tests passed, with an
+833.67-second Vitest duration. The normal production build then passed. Final-head
+CI and serial LIVE verification remain pending. Actual production receipt-volume
+configuration and an owner backup/restore remain unverified, so this is a partial
+delivery and #726 remains open.
