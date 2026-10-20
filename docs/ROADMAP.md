@@ -3,8 +3,8 @@
 ### #526 — edit wealth stages together (2026-10-20)
 
 - [x] Replace the stage selector with an editable stage-by-asset-class table, retaining dated versions, per-row validation, account scope, custom bands, unmanaged targets and the existing audited save path. Phones show one card per stage.
-- [x] Six new focused component tests pass. Canonical WebKit passes eleven tests, including the unchanged financial assertions in the coordinator-adapted existing tests: seven-by-six desktop fit, phone layout, 44px grid controls, keyboard, Axe in both themes, dated save, real Undo and stale-scope conflict. [Actual captures and qualifications](evidence/wealth-stage-table-526/README.md).
-- [x] Required-age single-worker full check passes 569 files / 5,074 tests and the normal production build passes; all 3,574 frozen source files and guard checks remain unchanged. This precedes only the evidence/Roadmap result update.
+- [x] Seven new focused component tests pass after independently splitting a CI-timed-out draft-status case with the same inputs and stronger value checks; time limits remain unchanged. Canonical WebKit passes eleven tests, including the unchanged financial assertions in the coordinator-adapted existing tests: seven-by-six desktop fit, phone layout, 44px grid controls, keyboard, Axe in both themes, dated save, real Undo and stale-scope conflict. [Actual captures and qualifications](evidence/wealth-stage-table-526/README.md).
+- [x] Required-age single-worker full check passes 569 files / 5,074 tests and the normal production build passes; all 3,574 frozen source files and guard checks remain unchanged. This result precedes the subsequent new-test-only CI correction; its focused tests, Web types, lint and formatting pass. Product and browser-evidence bytes remain unchanged.
 - [ ] Complete exact-head CI and serial live delivery before closing #526.
 
 ### #625 — four fixed Explorer report templates (2026-10-19)

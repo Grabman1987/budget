@@ -425,7 +425,7 @@ it('hides a chosen column without converting its managed zero into unmanaged tar
   ]);
 });
 
-it('separates the supplied saved active stage from edited and future-dated drafts without writing', async () => {
+it('separates the supplied saved active stage from a renamed draft without writing', async () => {
   const { user, writes } = await mount();
   const table = screen.getByRole('table', { name: 'Vermögensstufen' });
   const fifth = within(table).getByRole('row', { name: 'Stufe 5' });
@@ -434,13 +434,36 @@ it('separates the supplied saved active stage from edited and future-dated draft
   expect(within(fourth).getByText('aus')).toBeTruthy();
   const name = within(fifth).getByLabelText('Stufe 5 · Name (optional)');
   await user.clear(name);
-  await user.type(name, 'Noch nicht angewendet');
+  await user.paste('Noch nicht angewendet');
+  if (!(name instanceof HTMLInputElement)) throw new TypeError('Expected the stage name input');
+  expect(name.value).toBe('Noch nicht angewendet');
   expect(within(fifth).getByText('Entwurf')).toBeTruthy();
   expect(within(fifth).queryByText('aktiv')).toBeNull();
+  const saved = screen.getByText(/Gespeicherter Stand 20\.10\.2026/);
+  expect(saved.textContent).toContain('Version 01.09.2026');
+  expect(saved.textContent).toContain('Musterstufe 5 · aktiv');
+  expect(saved.textContent).toContain('Eingaben sind noch nicht angewendet.');
+  expect(writes).toEqual([]);
+});
+
+it('separates the supplied saved active stage from a future-dated draft without writing', async () => {
+  const { user, writes } = await mount();
+  const table = screen.getByRole('table', { name: 'Vermögensstufen' });
+  const fifth = within(table).getByRole('row', { name: 'Stufe 5' });
+  const fourth = within(table).getByRole('row', { name: 'Stufe 4' });
+  expect(within(fifth).getByText('aktiv')).toBeTruthy();
+  expect(within(fourth).getByText('aus')).toBeTruthy();
+  const name = within(fifth).getByLabelText('Stufe 5 · Name (optional)');
+  if (!(name instanceof HTMLInputElement)) throw new TypeError('Expected the stage name input');
+  expect(name.value).toBe('Musterstufe 5');
   const date = screen.getByLabelText('Gültig ab');
   await user.clear(date);
-  await user.type(date, '21.10.2026');
+  await user.paste('21.10.2026');
+  if (!(date instanceof HTMLInputElement)) throw new TypeError('Expected the date input');
+  expect(date.value).toBe('21.10.2026');
   expect(within(fifth).getByText('Entwurf')).toBeTruthy();
+  expect(within(fifth).queryByText('aktiv')).toBeNull();
+  expect(name.value).toBe('Musterstufe 5');
   const saved = screen.getByText(/Gespeicherter Stand 20\.10\.2026/);
   expect(saved.textContent).toContain('Version 01.09.2026');
   expect(saved.textContent).toContain('Musterstufe 5 · aktiv');
