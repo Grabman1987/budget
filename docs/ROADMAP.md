@@ -1591,3 +1591,12 @@ Final whole financial review then found a material inherited Number-sum gap. NEW
 - [ ] Exact-head Chromium/Windows CI, final publication and serial actual LIVE proof. No local aggregate/browser result completes the excluded-input contracts or all four public ACs.
 
 **All four public #512 ACs remain unchecked.** Only security closing valuations are observed; flows/their FX, fees/taxes, benchmarks, cash and class-sleeve provenance are excluded. No whole-return/SPEC008 completion or old checkbox/prefix rewrite.
+
+
+## #724 — account capture/date input; account bank review (#477 partial)
+
+- [x] Retain explicit account context through payee suggestions; preserve manual/outside defaults. Allow German date punctuation and actual native calendar touch/focus without showPicker.
+- [x] Show unresolved bank candidates by real account UUID before counts/paging, after account identity/balance and before history. Global review work precedes reminders; posted pending bookings and existing write/Undo rules remain. Wider #477 stays open.
+- [x] Required AGE full check: 562 files / 5,000 tests passed (506.15s); normal production build passed. Independent whole-source and Root-only existing UI test reviews completed.
+- [x] New WebKit scenarios9 passed in initial21/22 batch. Existing mixed-theme Axe failure corrected with two exact theme-color checks before unchanged Axe; separate old case/setup4/4 passed. No blanket22/22 rerun or baseline adoption. [Eight reviewed originals and limits](evidence/account-capture-724/README.md).
+- [ ] Final exact-head Chromium/Windows/static/recovery CI, serial merge/deploy and public health revision verification; keep #724 open until verified.
