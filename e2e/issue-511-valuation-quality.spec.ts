@@ -83,8 +83,9 @@ async function write(page: Page, origin: string, path: string, data: unknown, me
 }
 async function currentDetail(page: Page) {
   const more = page.getByRole('button', { name: 'Mehr zum Monat', exact: true });
-  if ((await more.isVisible()) && (await more.getAttribute('aria-expanded')) === 'false')
-    await more.click();
+  await expect(more).toBeVisible();
+  if ((await more.getAttribute('aria-expanded')) === 'false') await more.click();
+  await expect(more).toHaveAttribute('aria-expanded', 'true');
   const hint = page.getByRole('button', {
     name: 'Bewertungsgrundlage · Nettovermögen',
     exact: true,
