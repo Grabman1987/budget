@@ -1,5 +1,5 @@
 import { ChartSvg, Line, LineLegend, Segmented, useAmountPrivacy } from '@budget/ui';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Info } from 'lucide-react';
 import { portfolioPerformanceQuery } from './portfolio-api';
@@ -11,7 +11,11 @@ import { useZeitraum } from './zeitraum';
 import { kfmt, monthTickLabel, monthTicks, portfolioIndexAxis } from './networth-model';
 import { AppLink } from '../shell/app-link';
 import { useElementWidth } from '../charts/use-element-width';
-import { PortfolioCalculationDisclosure } from '../reports/portfolio-calculation-disclosure-512';
+import {
+  HistoricalBasisCue,
+  historicalBasisReasons,
+  PortfolioCalculationDisclosure,
+} from '../reports/portfolio-calculation-disclosure-512';
 
 const percent = (rate: number) =>
   `${rate < 0 ? '−' : '+'}${new Intl.NumberFormat('de-AT', { maximumFractionDigits: 1 }).format(Math.abs(rate) * 100)} %`;
@@ -24,6 +28,9 @@ export function PortfolioOverview() {
   const [chartFrameRef, chartFrameWidth] = useElementWidth<HTMLElement>();
   const query = useQuery(portfolioPerformanceQuery(period));
   const performance = query.data?.portfolio.performance;
+  const basisId = useId();
+  const sourceId = useId();
+  const basisReasons = query.data ? historicalBasisReasons(query.data.portfolio) : [];
   const index = query.data?.portfolio.performanceHistory?.dailyIndex ?? [];
   const values = query.data?.portfolio.performanceHistory?.dailyValues ?? [];
   const benchmarks = query.data?.portfolio.benchmarks ?? [];
@@ -120,31 +127,38 @@ export function PortfolioOverview() {
         />
       )}
       {performance && (
-        <details className="wealth-details">
-          <summary data-testid="portfolio-return">
-            Rendite p. a.{' '}
-            {performance.ttwrorAnnualised !== null &&
-            Number.isFinite(performance.ttwrorAnnualised) &&
-            performance.days > 0
-              ? percent(performance.ttwrorAnnualised)
-              : '—'}{' '}
-            (zeitgewichtet) <Info size={18} strokeWidth={1.75} aria-hidden="true" />
-          </summary>
-          <p className="vnote">
-            Zeitgewichtete Rendite nach Portfolio Performance, auf ein Jahr umgerechnet. Zuflüsse
-            zählen am Tagesanfang, Abflüsse am Tagesende. Wertpapiere ohne Depotkassa: nach
-            Gebühren, vor Steuern. {longDay(performance.from)} bis {longDay(performance.to)}. Kurze
-            Zeiträume können stark schwanken. Die Renditen werden auf Basis 100 verkettet. Ohne
-            Kapital einschließlich Tageszuflüssen bleibt der betreffende Tag als Lücke sichtbar; die
-            Linie zeigt dieselbe zeitgewichtete Entwicklung wie die Reports.
-          </p>
-          {query.data && (
-            <PortfolioCalculationDisclosure
-              summary={query.data.portfolio}
-              incomplete={query.data.incomplete}
-            />
-          )}
-        </details>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: 12 }}>
+          <details className="wealth-details" style={{ flex: '0 1 auto', minWidth: 0 }}>
+            <summary
+              data-testid="portfolio-return"
+              aria-describedby={basisReasons.length ? basisId : undefined}
+            >
+              Rendite p. a.{' '}
+              {performance.ttwrorAnnualised !== null &&
+              Number.isFinite(performance.ttwrorAnnualised) &&
+              performance.days > 0
+                ? percent(performance.ttwrorAnnualised)
+                : '—'}{' '}
+              (zeitgewichtet) <Info size={18} strokeWidth={1.75} aria-hidden="true" />
+            </summary>
+            <p className="vnote">
+              Zeitgewichtete Rendite nach Portfolio Performance, auf ein Jahr umgerechnet. Zuflüsse
+              zählen am Tagesanfang, Abflüsse am Tagesende. Wertpapiere ohne Depotkassa: nach
+              Gebühren, vor Steuern. {longDay(performance.from)} bis {longDay(performance.to)}.
+              Kurze Zeiträume können stark schwanken. Die Renditen werden auf Basis 100 verkettet.
+              Ohne Kapital einschließlich Tageszuflüssen bleibt der betreffende Tag als Lücke
+              sichtbar; die Linie zeigt dieselbe zeitgewichtete Entwicklung wie die Reports.
+            </p>
+            {query.data && (
+              <PortfolioCalculationDisclosure
+                summary={query.data.portfolio}
+                incomplete={query.data.incomplete}
+                sourceId={sourceId}
+              />
+            )}
+          </details>
+          <HistoricalBasisCue reasons={basisReasons} id={basisId} sourceId={sourceId} />
+        </div>
       )}
       {hasHistory ? (
         <div className="portfolio-chart-frame">
