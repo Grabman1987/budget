@@ -148,7 +148,13 @@
   }
   /* The three values share one line height, whether they are a link, a button or plain. */
   .heute-kennzahl > a,
-  .heute-kennzahl > .heute-answer-value {
+  .heute-kennzahl > .heute-answer-value,
+  .heute-kennzahl > .heute-kennzahl-figure {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .heute-kennzahl-figure > a {
     display: flex;
     align-items: center;
     min-height: 44px;
@@ -221,6 +227,7 @@
         h2,
         .heute-info,
         .heute-answer-value,
+        .heute-kennzahl-figure,
         a,
         .heute-kennzahl-note,
         .heute-kennzahl-missing,
@@ -238,6 +245,7 @@
       height: 44px;
     }
     .heute-kennzahl > .heute-answer-value,
+    .heute-kennzahl > .heute-kennzahl-figure,
     .heute-kennzahl > a {
       order: 3;
     }

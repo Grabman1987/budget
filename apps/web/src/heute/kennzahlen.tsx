@@ -306,7 +306,7 @@ function Kennzahl({
       {state?.isError ? (
         <ErrorNote what={label} error={state.error} onRetry={() => void state.refetch()} />
       ) : sourceHint ? (
-        <span className={`${className} heute-kennzahl-figure`}>
+        <span className="heute-kennzahl-figure">
           {figure}
           {sourceHint}
         </span>

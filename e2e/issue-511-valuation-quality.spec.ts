@@ -103,10 +103,19 @@ test('one current quote task and local disclosures follow real manual quote save
   const response = await page.request.get('/api/accounts');
   expect(response.status()).toBe(200);
   expect((await response.json()).netWorthEurCents).toBe(34000);
+  await expect(page.getByTestId('net-worth')).toHaveText('340,00 €');
+  await expect(page.getByTestId('net-worth').getByRole('button')).toHaveCount(0);
   const hint = page.getByRole('button', {
     name: 'Bewertungsgrundlage · Nettovermögen',
     exact: true,
   });
+  expect(
+    await page
+      .getByTestId('net-worth')
+      .locator('..')
+      .getByRole('button', { name: 'Bewertungsgrundlage · Nettovermögen', exact: true })
+      .count(),
+  ).toBe(1);
   await hint.focus();
   const popup = page.locator(`[id="${await hint.getAttribute('aria-describedby')}"]`);
   await expect(popup).toBeVisible();
@@ -125,6 +134,14 @@ test('one current quote task and local disclosures follow real manual quote save
     );
   const kpi = page.getByRole('region', { name: 'Nettovermögen', exact: true });
   await expect(kpi.locator('[data-kennzahl="nettovermoegen"]')).toHaveText('340,00 €');
+  await expect(kpi.locator('.heute-answer-value')).toHaveCount(1);
+  await expect(kpi.locator('.heute-answer-value')).toHaveText('340,00 €');
+  const amountLinkBox = await kpi
+    .getByRole('link', { name: '340,00 €', exact: true })
+    .boundingBox();
+  expect(amountLinkBox).not.toBeNull();
+  expect(amountLinkBox!.width).toBeGreaterThanOrEqual(44);
+  expect(amountLinkBox!.height).toBeGreaterThanOrEqual(44);
   const kpiMarker = kpi.getByRole('button', {
     name: 'Bewertungsgrundlage · Nettovermögen · Kennzahl',
     exact: true,
@@ -191,6 +208,21 @@ test('one current quote task and local disclosures follow real manual quote save
   await expect(privateKpiPopup).toBeVisible();
   await expect(privateKpiPopup).toContainText('Einstandswert als Schätzung');
   expect(await privateKpiPopup.textContent()).not.toContain('340');
+  await page.keyboard.press('Escape');
+  await page.goto('/konten');
+  await expect(page.getByTestId('net-worth')).toHaveText('•••,••• €');
+  const privateAccountMarker = page.getByRole('button', {
+    name: 'Bewertungsgrundlage · Nettovermögen',
+    exact: true,
+  });
+  await expect(page.getByTestId('net-worth').getByRole('button')).toHaveCount(0);
+  await privateAccountMarker.focus();
+  const privateAccountPopup = page.locator(
+    `[id="${await privateAccountMarker.getAttribute('aria-describedby')}"]`,
+  );
+  await expect(privateAccountPopup).toBeVisible();
+  await expect(privateAccountPopup).toContainText('Einstandswert als Schätzung');
+  expect(await privateAccountPopup.textContent()).not.toContain('340');
 });
 async function theme(page: Page, selected: 'light' | 'dark') {
   const resolved = () =>
@@ -227,6 +259,14 @@ async function capture(page: Page, info: TestInfo, label: string) {
       await page.goto(surface === 'accounts' ? '/konten' : '/');
       await theme(page, selected);
       if (surface === 'today') {
+        const amountLink = page
+          .getByRole('region', { name: 'Nettovermögen', exact: true })
+          .getByRole('link', { name: '340,00 €', exact: true });
+        await expect(amountLink).toBeVisible();
+        const amountBox = await amountLink.boundingBox();
+        expect(amountBox).not.toBeNull();
+        expect(amountBox!.width).toBeGreaterThanOrEqual(44);
+        expect(amountBox!.height).toBeGreaterThanOrEqual(44);
         const kpiMarker = page
           .getByRole('region', { name: 'Nettovermögen', exact: true })
           .getByRole('button', {

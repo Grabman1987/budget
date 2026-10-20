@@ -54,7 +54,7 @@ test('a position without market quote is valued at cost and flagged; the first q
 
   await page.goto('/konten');
   await expect(page.getByTestId('net-worth')).not.toHaveText('Nicht verfügbar');
-  const accountMarker = page.getByTestId('net-worth').getByRole('button', {
+  const accountMarker = page.getByTestId('net-worth').locator('..').getByRole('button', {
     name: 'Bewertungsgrundlage · Nettovermögen',
     exact: true,
   });

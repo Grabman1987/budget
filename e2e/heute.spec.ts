@@ -344,7 +344,9 @@ test('a past month has no out-of-range today marker in the balance or pace chart
   page,
 }) => {
   await page.goto('/?monat=2026-08&period=month');
-  await expect(page.getByRole('heading', { name: 'August 2026' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'August 2026', exact: true, level: 1 }),
+  ).toBeVisible();
   await expect(page.getByTestId('heute-pace-chart')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('[data-testid="heute-balance-chart"] .l-today')).toHaveCount(0);
   await expect(page.locator('[data-testid="heute-pace-chart"] .l-today')).toHaveCount(0);

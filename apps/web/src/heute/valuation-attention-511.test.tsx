@@ -287,3 +287,64 @@ it('does not mark the top KPI for an exact same-day quote with identity FX', () 
     screen.queryByRole('button', { name: 'Bewertungsgrundlage · Nettovermögen · Kennzahl' }),
   ).toBeNull();
 });
+
+it('keeps all four populated Q3 sources within four rows while preserving every account action', () => {
+  const full = data(3);
+  full.nextSteps = {
+    count: 1,
+    items: [
+      {
+        kind: 'overspent',
+        urgent: true,
+        categoryId: 'synthetic',
+        categoryName: 'Synthetic',
+        cents: -100,
+        count: 1,
+      },
+    ],
+  };
+  full.financeCheck = {
+    actionRules: [
+      { code: 'R1', name: 'Synthetic rule', valueText: 'Synthetic', actionText: 'Prüfen' },
+    ],
+    counts: { ok: 0, warn: 1, bad: 0, total: 1, notEvaluated: 0 },
+    keyRules: [],
+  };
+  full.attention = { ...full.attention, inboxCount: 2, pendingCount: 4, loanTermsMissing: true };
+  full.accountReminders = [
+    { accountId: 'synthetic-a', accountName: 'Synthetic A', days: 15, action: 'reconcile' },
+    { accountId: 'synthetic-b', accountName: 'Synthetic B', days: 32, action: 'value' },
+  ];
+  const { container } = render(<AttentionBar data={full} />);
+  const rows = container.querySelectorAll('.attention-row');
+  expect(rows).toHaveLength(4);
+  expect(rows[0]?.textContent).toContain('1 Kategorie überzogen');
+  expect(rows[1]?.textContent).toContain('1 Regelbefund zum Handeln');
+  expect(rows[2]?.textContent).toContain('2 unter Prüfen');
+  expect(rows[2]?.textContent).toContain('4 unbestätigte Buchungen');
+  expect(rows[3]?.textContent).toContain('2 Konten warten auf Prüfung');
+  expect(rows[3]?.textContent).toContain('3 Wertpapiere ohne aktuellen Kurs');
+  expect(rows[3]?.textContent).toContain('Kreditkonditionen fehlen');
+  for (const [label, href] of [
+    ['Prüfen', '/konten/pruefen'],
+    ['Kurse prüfen', '/vermoegen/portfolio'],
+    ['Konditionen ergänzen', '/einstellungen/konten'],
+  ] as const) {
+    const link = screen.getByRole('link', { name: label });
+    expect(rows[3]?.contains(link)).toBe(true);
+    expect(link.getAttribute('href')).toBe(href);
+  }
+});
+it('keeps the top amount selector unique and annotation outside its exact money text', () => {
+  const { container } = renderKpi(kpiSource);
+  const tile = container.querySelector('[data-kennzahl="nettovermoegen"]')!.closest('section')!;
+  expect(tile.querySelectorAll('.heute-answer-value')).toHaveLength(1);
+  expect(tile.querySelector('.heute-answer-value')?.textContent).toBe('114,00 €');
+  const figure = tile.querySelector('.heute-kennzahl-figure')!;
+  expect(figure.classList.contains('heute-answer-value')).toBe(false);
+  expect(
+    figure.contains(
+      screen.getByRole('button', { name: 'Bewertungsgrundlage · Nettovermögen · Kennzahl' }),
+    ),
+  ).toBe(true);
+});

@@ -252,15 +252,17 @@ function NetWorth({
           </span>
         )}
       </div>
-      <div className="tbd-fig" data-testid="net-worth">
-        {parts ? (
-          <>
-            {parts.whole}
-            <span className="cents">,{parts.fraction} €</span>
-          </>
-        ) : (
-          <span>Nicht verfügbar</span>
-        )}
+      <div className="tbd-fig">
+        <span data-testid="net-worth">
+          {parts ? (
+            <>
+              {parts.whole}
+              <span className="cents">,{parts.fraction} €</span>
+            </>
+          ) : (
+            <span>Nicht verfügbar</span>
+          )}
+        </span>
         <ValuationSourceHint
           sources={accounts.flatMap((a) => a.valuationSources ?? [])}
           label="Nettovermögen"
@@ -415,11 +417,13 @@ function GroupRows({
         </td>
         <td className="kc-line" />
         <td className="kc-num">
-          {view.sumCents === null
-            ? loading
-              ? '–'
-              : 'Kurs fehlt'
-            : `${view.sumApprox && !view.accounts.some((a) => a.valuationSources) ? '≈ ' : ''}${eur(view.sumCents)}`}
+          <span data-testid="account-group-value">
+            {view.sumCents === null
+              ? loading
+                ? '–'
+                : 'Kurs fehlt'
+              : `${view.sumApprox && !view.accounts.some((a) => a.valuationSources) ? '≈ ' : ''}${eur(view.sumCents)}`}
+          </span>
           <ValuationSourceHint
             sources={overviewGroupValuationSources(view.accounts, sourcesByRow)}
             label={view.group.title}
@@ -529,11 +533,13 @@ function GroupRows({
               )}
             </td>
             <td className={cx('kc-num', value !== null && value < 0 && 'is-neg')}>
-              {value === null
-                ? loading && !shown?.approx
-                  ? '–'
-                  : valuationMissingText(a)
-                : `${shown?.approx && !a.valuationSources ? '≈ ' : ''}${eur(value)}`}
+              <span data-testid="account-value">
+                {value === null
+                  ? loading && !shown?.approx
+                    ? '–'
+                    : valuationMissingText(a)
+                  : `${shown?.approx && !a.valuationSources ? '≈ ' : ''}${eur(value)}`}
+              </span>
               <ValuationSourceHint sources={sourcesByRow.get(a.id)} label={a.name} />
             </td>
             {ordering && <td className="kc-order">{reorder.controls(a.id)}</td>}
