@@ -1600,3 +1600,10 @@ Final whole financial review then found a material inherited Number-sum gap. NEW
 - [x] Required AGE full check: 562 files / 5,000 tests passed (506.15s); normal production build passed. Independent whole-source and Root-only existing UI test reviews completed.
 - [x] New WebKit scenarios9 passed in initial21/22 batch. Existing mixed-theme Axe failure corrected with two exact theme-color checks before unchanged Axe; separate old case/setup4/4 passed. No blanket22/22 rerun or baseline adoption. [Eight reviewed originals and limits](evidence/account-capture-724/README.md).
 - [ ] Final exact-head Chromium/Windows/static/recovery CI, serial merge/deploy and public health revision verification; keep #724 open until verified.
+
+### #725 correction validation
+
+- [x] Hide successful empty account review without unmounting its learning state; the new real-UI/synthetic-HTTP lifecycle case retains the learning offer after the last confirmation. NEW unit cases now22.
+- [x] A measured phone scroll clamp is corrected with one touch-row of account-only bottom padding. Original register/Toast tests are unchanged; corrected canonical WebKit7/7 passed55.2s, focused rendered5/5 plus types/lint/format passed and corrected production build passed. The initial AGE full5000 checkpoint remains5c8cd732; final-head CI revalidates the correction.
+- [x] Root-only existing-test adapters now cover four files: generic payee fixture enters outside an explicit account; native internal Tab steps may retain only the same date host before exact Wiederholen. All subsequent financial/focus/Axe/Undo checks remain.
+- [ ] Final exact-head CI and LIVE verification remain required.

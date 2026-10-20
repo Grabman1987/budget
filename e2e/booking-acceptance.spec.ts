@@ -216,8 +216,13 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Datum', { exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(dialog.getByLabel('Datum im Kalender')).toBeFocused();
-  await page.keyboard.press('Tab');
+  const calendar = dialog.getByLabel('Datum im Kalender');
+  await expect(calendar).toBeFocused();
+  // Native date segments can retain focus within the same input before its next control.
+  for (let step = 0; step < 4; step++) {
+    await page.keyboard.press('Tab');
+    if (!(await calendar.evaluate((node) => document.activeElement === node))) break;
+  }
   await expect(dialog.getByLabel('Wiederholen')).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Kategorie', { exact: true })).toBeFocused();
