@@ -1473,8 +1473,6 @@ Local evidence: pre-merge Node 22 typecheck/lint exit 0 and six focused files **
 **Required aggregate completed:** at frozen `2342ffc7`, Node 22.23.3 / age 1.2.1, `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check` passed **530 test files / 4,656 tests** (387.00s), followed by normal `npm run build` exit 0. All 32 owned / 3,370 tracked / 14 protected files, the four Root-owned existing tests, HEAD and clean status stayed exact; wrapper, postguard and lock-release checks exited 0. Existing lint/JSDOM/chunk-size warnings remain documented. Final changes are results-only in this block and the evidence document; all thirty other owned blobs remain exact.
 
 **Pending:** exact-head Chromium desktop/mobile CI (including the two old E2E specs not selected by WebKit), reviewed PR, serial integration and exact live revision. No completion of #467/#566 or deployed #578 behavior is claimed.
-
-
 ## #606 — Recorded payment history and future read projection
 
 - [x] Reproduce the real synthetic stale-detail false-empty path before product edits, distinguishing explicit refresh and the separate end-day28 boundary; historical production cause remains unverified.
@@ -1483,6 +1481,7 @@ Local evidence: pre-merge Node 22 typecheck/lint exit 0 and six focused files **
 - [x] Fresh E2E build0 and actual canonical WebKit6/6 PASS (NEW3+setup3),44.731628s, strict Axe/44px/privacy/keyboard/nooverflow in both themes. Exact original phone390×664/coarse/DPR3/rawTouch0 and trueWebKit1440 layout captures reviewed; click/keyboard is not trusted-touch proof and full-page fixednav photography limits remain explicit. Source12/3370tracked/22protected and compiled169 bytes unchanged during native run.
 - [x] Preserve the first actual required aggregate at ed882:532 files passed, one OLD router-mock collection failure,4684 executed tests passed/397.68s; check1, normal production build NOTRUN, all18/3381/22/lstat/source guards unchanged and lock released. No failed result is relabelled as success.
 - [x] Root-only partial actual-router fixture adapter independently inverse-reviewed, preserving both old mock hooks and all three old test bodies/fixtures/money assertions. Actual focused old3/3 PASS (3.05s), webtypes/one-filelint/format0,19/3381/22/modes unchanged and lock released; new RTL links are anchor-mocked, earlier native6 covers real AppLink/router href.
-- [ ] Required age-enabled aggregate RECHECK after the Root-owned mock correction and normal production build, final evidence/mechanical review, exact-head Chromium/Windows CI and old expected financial/visual compatibility, serial live revision. No full #606 or parent #482 acceptance is claimed yet.
+- [x] Required recheck at clean `ce54f2cb` with Node22.23.3/npm10.9.9/age1.2.1: `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check` passed 533 files / 4687 tests in 385.88s, then normal production build0; actual phase/wrapper exits0, all19owned/3381tracked/22protected/filesystemmodes/HEAD/status/index exact and lock released. First failed full and narrow old3 focus remain separate evidence; subsequent changes are only this own result block and own evidence document.
+- [ ] Final results-only evidence/mechanical review, exact-head Chromium/Windows CI and old expected financial/visual compatibility, serial live revision. No full #606 or parent #482 acceptance is claimed yet.
 
 Evidence: [payment detail history](evidence/payment-history-606.md).

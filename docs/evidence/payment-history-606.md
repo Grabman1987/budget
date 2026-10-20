@@ -1,6 +1,6 @@
 # Payment detail history — #606
 
-Status: implementation, focused verification and genuine WebKit checks passed locally. Independent financial/source, Root-owned existing-test deltas and actual four-image/runtime reviews are clear. **The first required aggregate failed on one existing router-mock collection error; required full recheck, normal production build, exact-head Chromium/Windows CI and serial live verification are pending.** Neither full issue acceptance nor the historical production cause is claimed.
+Status: implementation, focused verification and genuine WebKit checks passed locally. Independent financial/source, Root-owned existing-test deltas and actual four-image/runtime reviews are clear. **The first required aggregate failed on one existing router-mock collection error. After the independently reviewed Root-only fixture correction, required full recheck passed 533 files / 4687 tests and normal production build exited0. Exact-head Chromium/Windows CI and serial live verification remain pending.** Neither full issue acceptance nor the historical production cause is claimed.
 
 ## Owner contract and boundaries
 
@@ -37,7 +37,7 @@ The final regression retains all three literal dates and false-empty absence, us
 | Next three respect the schedule                                           | Repository tests PASS for monthly/yearly/52-week, clamp/shift, stored skip/link/missed identities and current effective versions. Native default3, fourth-March 100000→120000→100000 actual UI version save/undo, and 31 December 2028 identity-free annual preview PASS.                                                         |
 | Desktop1440, Chromium390, WebKit phone; both themes/Axe0/44px/no overflow | Actual canonical WebKit three NEW scenarios plus three setups PASS; light/dark strict Axe, keyboard disclosure, privacy, 44px controls and no horizontal overflow PASS. True WebKit1440 layout and actual390×664 phone captured. Chromium desktop/mobile acceptance remains pending; WebKit desktop is not a Chromium substitute. |
 | Existing design tokens                                                    | Payment-scoped CSS reuses existing typography, line/color/spacing tokens; targeted ESLint/Prettier and independent actual four-image reviews passed. No global layout/token changes or blanket baseline refresh.                                                                                                                  |
-| Integer cents; existing money/write/lock/undo rules                       | Pure read model and whole financial review clear. Real repository/API byte-invariance and existing writer/undo controls PASS; original writers unchanged. Root's one existing-test disclosure click preserves every old money/undo assertion. Required aggregate/normal build and exact Chromium CI of old tests remain pending.  |
+| Integer cents; existing money/write/lock/undo rules                       | Pure read model and whole financial review clear. Real repository/API byte-invariance and existing writer/undo controls PASS; original writers unchanged. Root's one existing-test disclosure click preserves every old money/undo assertion. Required aggregate533/4687 and normal production build passed at `ce54f2cb`; exact Chromium CI of old tests remains pending.  |
 
 ## Focused checks: separate actual checkpoints
 
@@ -58,9 +58,24 @@ At clean `ed882527`, Root actually ran Node22.23.3 with `BUDGET_REQUIRE_AGE=1 VI
 
 Root alone then changed that existing mock to partial actual module exports with a static type-only namespace. Both original `useNavigate`/`useLocation` overrides and all three original bodies, fixtures, money/navigation/form assertions and timeouts remain byte-identical by whole-file inverse; independent exact-delta HIGH review is clear. Original SHA256 is `330855e0b1bc1d57274cb6635b28e4cc0b6c1292d5d70cbd27b7fbc4e16ab97d`; corrected Root SHA256 is `1024c78c6103071f62d7a9ed18bc684772e8512be5a6860af59ddf61ab4b8328`.
 
-Root's actual focused follow-up at fixture freeze `f03c654d` passed **all three existing cases in one file**,3.05s total; web typecheck, one-file ESLint and one-file Prettier each exited0. All19/3381tracked/22protected files, filesystem modes, HEAD and exact dirty status stayed unchanged, wrapper0 and actual lock release verified. This is a bounded compatibility proof, **not a successful full check**. Root checkpointed the existing-test correction at `373e037a`; only these two result documents remain to checkpoint before the required aggregate recheck.
+Root's actual focused follow-up at fixture freeze `f03c654d` passed **all three existing cases in one file**,3.05s total; web typecheck, one-file ESLint and one-file Prettier each exited0. All19/3381tracked/22protected files, filesystem modes, HEAD and exact dirty status stayed unchanged, wrapper0 and actual lock release verified. This is a bounded compatibility proof, **not a successful full check**. Root checkpointed the existing-test correction at `373e037a`, then the two result documents at `ce54f2cb` before the successful required aggregate recheck described below.
 
 The old fixture does not cache the new detail GET and does not render a populated booking row, so these three old cases are not real link-hook coverage. The NEW RTL tests explicitly use a plain-anchor `AppLink` mock. The earlier actual native6 run renders the real `AppLink` with the real application router and checks its booking href; it does not click that link or prove trusted touch. Product/CSS/NEW tests and all four original native captures remain unchanged after that native run. No extra browser run or baseline refresh is inferred from a test-only module adapter.
+
+## Successful required aggregate recheck and normal production build
+
+Root ran the required recheck at clean HEAD `ce54f2cbd5c62da7b91ba3f0b2ccc5b514c8cd16`, freeze `c2a5c14d251669d99a0a05daef593683d8c2635a2e9bbad6dfcd02457728f870`, with Node22.23.3 / npm10.9.9 / age1.2.1:
+
+```sh
+BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check
+npm run build
+```
+
+The actual recheck passed **533 test files / 4687 tests**, **385.88s**, check exit0. It includes the three original expected-page cases that previously failed collection, without removing or weakening them. Only after check0, the normal production build actually ran and exited0; wrapper exit0 and lock release verified. This is distinct from the earlier E2E build. The raw `606-full-root19-second-actual` archive contains actual check/build logs, both phase exits, result JSON and byte-identical pre/post snapshots.
+
+All **19 owned /3381 tracked /22 protected files**, actual filesystem modes, HEAD, branch, clean status and index stayed exact during the run. Subsequent changes are **results-only in this evidence document and the own Roadmap block**; all seventeen other owned paths, including both Root-owned old tests, four original PNGs and historical native proof JSON, remain unchanged from the successful full snapshot. The native JSON deliberately retains capture-time pending-gate labels; the current aggregate result is recorded here rather than rewriting historical runtime evidence.
+
+Existing warnings were reported unchanged: one unused `eslint-disable` directive at `packages/ui/src/components/panel.tsx:208`, JSDOM's unimplemented `window.scrollTo`, Vite's over500kB chunk notice and existing esbuild bundle-size notices. No warning suppression, rule change, extra code fix or redundant runtime was used for this result. The first failed full and narrow old3 focus remain separate, preserved evidence. A full check/build pass does not establish the pending canonical Chromium/Windows CI, old visual baselines or exact live revision.
 
 ## Genuine browser run and actual captures
 
@@ -70,7 +85,7 @@ At unchanged HEAD `3427d925`, frozen source12 `b2c712c3`, the official pinned We
 run-webkit.sh /workspace/cloud-payment-detail-606 test e2e/issue-606-payment-history.spec.ts --project=webkit-iphone --workers=1 --reporter=json
 ```
 
-Actual result: **6/6 PASS**, 44.731628s, zero skipped/flaky/unexpected cases and no top-level errors. Build, native, archive, source postguard, compiled postguard, wrapper and lock-release checks all exited0. All source12/3370 tracked/22 protected files, HEAD/status/modes stayed exact; all **169 compiled artifacts** stayed byte-identical during native execution. This E2E build is not the pending normal production build.
+Actual result: **6/6 PASS**, 44.731628s, zero skipped/flaky/unexpected cases and no top-level errors. Build, native, archive, source postguard, compiled postguard, wrapper and lock-release checks all exited0. All source12/3370 tracked/22 protected files, HEAD/status/modes stayed exact; all **169 compiled artifacts** stayed byte-identical during native execution. This earlier E2E build is separate from the successful normal production build at `ce54f2cb`.
 
 The two visual scenarios each exercised the real canonical phone plus an explicitly created 1440×900 WebKit context (`isMobile:false`, `hasTouch:false`, DPR1). Physical runtime JSON was written and attached; all four original images were opened by author, coordinator and independent reviewer. [Sanitized proof](payment-history-606/runtime-proof.json) contains actual four profiles, report/runner hashes, historical source12 and compiled169 hashes, exact copied-image provenance and limits. It omits auth state, databases, traces and full reports.
 
@@ -96,7 +111,7 @@ The fixture starts on28 December2026: default3 means December/January/February. 
 
 ## Remaining delivery gates
 
-- Independent result-document/Root-mock mechanical review and clean checkpoint. Feature checkpoint `ed882527` is a direct child of verified Main3427, and Root fixture commit `373e037a` descends from it; no extra Main merge is required at this point.
-- Required `BUDGET_REQUIRE_AGE=1` aggregate **recheck** after the Root-owned mock correction, then normal production build only on aggregate exit0. The first aggregate failed as recorded above; normal production build has not run.
+- Independent final result-document/mechanical review and clean delivery checkpoint. The successful full source `ce54f2cb` descends from feature `ed882527` and Root fixture `373e037a`, with Main3427 as its base; only the two result documents changed after that full run.
+- Required age-enabled aggregate recheck and normal production build are completed at `ce54f2cb` as recorded above; no repeated full run is needed solely for these result-document updates.
 - Exact-head required CI, including canonical Chromium desktop/mobile, old financial/visual tests and Windows; specific baseline changes only after actual evidence and coordinator review.
 - Reviewed PR, serial integration/deployment and exact live health revision. Parent #482 and other children remain open according to their own acceptance.
