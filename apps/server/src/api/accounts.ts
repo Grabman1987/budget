@@ -14,6 +14,8 @@ import {
   holdingAccountValueSeries,
   accountPreview,
   netWorthValuationAsOf,
+  currentValuationSources,
+  type ValuationSource,
   booking,
   category,
   listReconciliations,
@@ -82,6 +84,7 @@ export type AccountView = AccountSummary & {
   valueEurCents: number | null;
   missingFxCurrencies: string[];
   missingPriceSecurityIds: string[];
+  valuationSources: ValuationSource[];
 };
 
 export function accountRoutes(db: Db, today: () => string): Hono {
@@ -136,10 +139,12 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   const accountList = (asOf: string) => {
     const value = cashValuer(db);
     const netWorth = netWorthValuationAsOf(db, asOf);
+    const provenance = currentValuationSources(db, asOf);
     const reviewModel = accountReviewSummaries(db, asOf);
     const latestValues = reviewModel.latestValuations;
     return {
       netWorthEurCents: netWorth.totalCents,
+      valuationSources: provenance.sources,
       missingFxCurrencies: netWorth.missingFxCurrencies,
       missingPriceSecurityIds: netWorth.missingPriceSecurityIds,
       accounts: reviewModel.accounts.map((a) => {
@@ -150,6 +155,7 @@ export function accountRoutes(db: Db, today: () => string): Hono {
         return {
           ...a,
           reviewStatus: reviewModel.reviews.get(a.id)!,
+          valuationSources: provenance.sources.filter((source) => source.accountId === a.id),
           lastValuedOn: manual ? (latest?.date ?? null) : null,
           manualValueCents: manual ? (latest?.valueCents ?? a.balanceCents) : null,
           hasHoldings:

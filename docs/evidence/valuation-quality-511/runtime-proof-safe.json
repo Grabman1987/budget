@@ -1,0 +1,1451 @@
+{
+  "syntheticOnly": true,
+  "sourceHead": "667f85956156138223f6a0be9292bda51db9a2a9",
+  "verifiedLiveMain": "9c509faea270b86ea1bd6a827b202a8c90e25f9d",
+  "sourceFreezeSha256": "f362e2b8f4c9e723d375ec8a02051b2c0f7dd4eaba7c144c222e5e1096ada26c",
+  "source24": {
+    "packages/domain/src/invest/invest.ts": "bad289bd32991a51aeded2f9793be7e16a30564cec4195bc98193030eadb27bf",
+    "packages/domain/src/invest/series.ts": "6c3f7656dfa15faede885fb5c973c2d892b664a250b21bebbb83f3f2e7fb967f",
+    "packages/import-pp/src/convert.ts": "977ed94570021d0ee59549499a5cb497f9f5f994d7c4e104eced08e0051ecd73",
+    "packages/db/src/repos/portfolio.ts": "7b1c254f67602dca31e91bc76b9c0649d1a1e31d7177cdee95d43c60fd0ed192",
+    "apps/server/src/api/accounts.ts": "2a00ecc0facef2e34ce414af5385769731042526892543fbef69bed9ec2690ea",
+    "apps/server/src/api/heute.ts": "a251ed2cbda530617445feea365ce497a36ff3ee9d4de838e3410b648512ae14",
+    "apps/web/src/ledger/types.ts": "16aa4b66085623ef2bd5545301e42a28dfc878ac349736b63e281c0876af856d",
+    "apps/web/src/ledger/valuation-hint.tsx": "6d3106e9ee056c6b111965aaef9bd42f54fd7136bd73742e99b1c6ccb69aa7c4",
+    "apps/web/src/ledger/overview-page.tsx": "0411b91eee2d38536fbce2a3062feaca5a85184cefe94bd0e6f43510fe063ff4",
+    "apps/web/src/heute/api.ts": "8cff3c6e0261ea9cdd31084a6a220ef1133f44e260938b956ec178d9eb64d653",
+    "apps/web/src/heute/heute-page.tsx": "f9a8a685716884f9889c02e3517420ceebd982b20d7e1764627a71b032d90158",
+    "apps/web/src/heute/attention-bar.tsx": "c618d77d26fa71dc63e6c22375b47b1ddb6fe87d0aa30399ba6c62974757daa1",
+    "packages/domain/src/invest/valuation-boundaries-511.test.ts": "9475e451efa1831765dfc2d09928ed72a71d59159bc6b2ebc3b50d18dab58a72",
+    "packages/import-pp/src/precision-511.test.ts": "2761dfb5101a2530807625056edf91f01750ca6a5f8f35a7db2f639c65b943e1",
+    "packages/db/src/repos/valuation-provenance-511.test.ts": "8f9968686d8bbdef867435a57628dfcb74b5fa0a88d003038213f3f3d1fe0920",
+    "apps/server/src/api/valuation-provenance-511.test.ts": "a9cebf2c95559ff8e486806b3932f59821b49c9b4fa01168b536ea35214df5a8",
+    "apps/web/src/ledger/valuation-disclosure-511.test.tsx": "a972cba84ac55ee5b184904a74ef835155b1533ede61fa8d8dc72801d953c9b7",
+    "apps/web/src/heute/valuation-attention-511.test.tsx": "78fe13b651ac184e10884c325932e4f7f7674d0f85d8ee74724e977452433fd8",
+    "e2e/issue-511-valuation-quality.spec.ts": "378916a86bfb4286183375a6724d7e5e00edcf93fe9f748f0a01102589b318b9",
+    "packages/import-pp/src/model.test.ts": "c3ba1b1aaa2f654c4061c73f03aac0b9729c06d71260ef010af5a3ea05619d8e",
+    "e2e/missing-quotes.spec.ts": "860692646a2c541f0a486687954f59170884929097b4fb9d6ee5363eec267d54",
+    "e2e/valuation-hint.spec.ts": "88ef29436bc0f62f0cf5887b9bb7a7224d24af8eb8e55523c653e536d8506455",
+    "apps/web/src/heute/kennzahlen.tsx": "c9503b8f7bd63cc74cef95f47ba23f01dbddc28f58ed24f8d6874bf4325365c6",
+    "apps/web/src/heute/heute.css": "0c293360473d74320da8f46c77ab2a714af4382218783d33d500c6423c91654c"
+  },
+  "actualRunStats": {
+    "startTime": "2026-10-20T01:27:18.273Z",
+    "duration": 49094.328,
+    "expected": 5,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "actualRunDirectoryName": "511-kpi-main9c-native-actual",
+  "freshBuildE2eExit": 0,
+  "compiled": {
+    "actualCount": 168,
+    "beforeAfterIdentical": true,
+    "sha256Map": {
+      "apps/server/dist/bank-sync-worker.js": {
+        "sha256": "7e2ab2f49bdbd53c083a0dbf45d7021ffef6bdec43f70a01629b0cb0fdd856cc",
+        "mode": 33152
+      },
+      "apps/server/dist/import-worker.js": {
+        "sha256": "0a700a8a5d60ed2237869a0432be4090a390428ca7f901d669be4f005e5c25fc",
+        "mode": 33152
+      },
+      "apps/server/dist/index.js": {
+        "sha256": "7081c5cc7c4990e096038187a967f91c04e3ea30e837a6d2c20e56dc43d0b6b3",
+        "mode": 33152
+      },
+      "apps/server/dist/migrate-cli.js": {
+        "sha256": "cc98c253bff116ce02d881611bb8301a51a42280980f0d4a71df2e11c897c75c",
+        "mode": 33152
+      },
+      "apps/server/dist/migrate-pp-cli.js": {
+        "sha256": "2268234a7cc7973e1360dba466f1b77ef8eda5768eff24d4870c3a3c7f521400",
+        "mode": 33152
+      },
+      "apps/server/dist/pdf-thread.js": {
+        "sha256": "8a70564e215a2debdbf6ba92a5a8bc98979e230218b560fc5228af9a6361419d",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/account-page-DMav5aEb.css": {
+        "sha256": "35207996a9e80868261ef0b7b96028b03e274ef65df15e3dbcdea521ce9a3374",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/account-page-GkosVjxd.js": {
+        "sha256": "1c9ff0b7b44a4ce33eb66b4708bb532f5784397ccac03d8f7d1e94763441e0f1",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/accounts-settings-Dt2QVURb.js": {
+        "sha256": "a838dcb6dd19ebcd5d706e3981e354699a8047edf7371b04b1a6431696165438",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/accounts-settings-RDLzL2yK.css": {
+        "sha256": "674bcda72265a012f96eaeaa55601eec8a113c2bbeaa480e48dfea9b1d6fc1c8",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/allocation-bar-CYDVh4OW.js": {
+        "sha256": "2267a58a69bbb50705da30f6f7a46b9bf7f52dfdf1a868c8c809ef63eb67542d",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/allocation-bar-ntXeUjoa.css": {
+        "sha256": "586ea228f74edae8cd3ae101bb4f3768c51210065276c10dc872f4ca74db5dee",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/api-BjsVO8uv.js": {
+        "sha256": "32e1b8a02eac83570bbe41b6de5b2ea90e0451f0f77a96732493ed28e6e9ba75",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/archivo-latin-DY7AcnAa.woff2": {
+        "sha256": "e3a28eade21a900c7155a247757f4b2834c07bb7ef07ad7efa55cebaac1e8f5e",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/assets-debts-api-CiyCRj6M.js": {
+        "sha256": "591faeefc6c92208e3108287886d9eb6f8c2349abb7713054765a47f92d86b38",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/assignment-page-CMKLGJxV.js": {
+        "sha256": "3cbcd98876b24309f1729ac93262be382faf2f17e8d7008c0194fcd7c1a235cb",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/auth-layout-nvxe7aoe.js": {
+        "sha256": "25871cec1452b60670d308a2bdeec013600ab9621d09cdd5f3fde67e06543c8c",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/bank-balance-D1P7IjBN.js": {
+        "sha256": "ba1157301df5ed1861e4ed976bc625d590592886dc7fd3ed7e62fa2a1a044f41",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/barlow-sc-400-DlzeKIMS.woff2": {
+        "sha256": "d03a7a5f6b74534c80699289d4f6495fdb09a7596774a4ede79129d2f8bb67b1",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/barlow-sc-500-G0uxJNrM.woff2": {
+        "sha256": "0d7513795eaf8fdab7f340144841bd2d9fac7d9303c03aa6b525a2c908e9b371",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/barlow-sc-600-BkLiAYu4.woff2": {
+        "sha256": "f158417e9207b5362f9b71a2fe779ce5bb836ad972f38445c3163af39d2c998d",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/bars-D6BcSMFE.js": {
+        "sha256": "703d5756b1161e57eba8a241effc3c8ff56d97c64e79f83c10c43ee43c7ac7ba",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/bookings-page-BzFdvq7N.js": {
+        "sha256": "eca507319e95f7358153e18c1b2b6f1cc2587f822907adf801336919a4fbc0bc",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/capture-page-G3kkQBlh.js": {
+        "sha256": "a77b75a53f37c4eb8a1ea2691e242833b7874f319ae2279931b74d985d4ddfa0",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/categories-page-CVhHEfUX.js": {
+        "sha256": "e018268920714d814e19aec8ec577d1ba46aff5fb116b607e2f1d531e59bddcf",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/category-icon-BP2sIu2r.js": {
+        "sha256": "dff5ce2bc7382abd81064b99e8b3e9b4f80ec9bcdd3263685ef80fd430e42eae",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/category-panel-CFttBF3M.js": {
+        "sha256": "19c687cdd6c2b08b66724da4c76abcf0fc42b43d8f801cc3ea95210ff99b5595",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/charts-D_-YkJaC.js": {
+        "sha256": "29d9696ad04b77ddd29f6a066204dbe3b3356dc76719e35a66838400a6c5f574",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/charts-spike-uLsuXb28.js": {
+        "sha256": "f0ea48d56573f959ce028a1acc721c7689bb280385299e298ecc717c6e06602e",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/check-P9NshytF.js": {
+        "sha256": "64e535d53c9d55cb99b9e2dc9f13734dd1095c7d10ffa4589e88e2ff49c729c5",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/class-patterns-Cx3HNQnO.js": {
+        "sha256": "d972ad5d1cbd704195d11c5d9b17bb93ecc476d6ac06a65ed31d7f7480b80bcb",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/clock-DrV_S6dF.js": {
+        "sha256": "0e5a334f4af960fc1ef339f9aa769357b0d07c832b7409376d052d8524ac6be5",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/components-page-zT8NZmfl.js": {
+        "sha256": "061f4003583116d48c68fad4f140cd1af354efe322ee555962bd854e5060a281",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/contacts-page-B90gORL1.css": {
+        "sha256": "e7ee86ce7f16998bad03510cea38334d9216e8d4841f83000bbe7e0331a53698",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/contacts-page-C3adLVij.js": {
+        "sha256": "4d918ab7b2a5d5ee68b82f1484004592d2c90f04295f2bcd9983fee50edafdf7",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/data-sources-BZGfNvc3.css": {
+        "sha256": "d84364a65fb5ffc208aa01178b15160dcf2a7789f9e22c4d2426594ec8d60d71",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/data-sources-CHc8zYDC.js": {
+        "sha256": "3df7b8b0778b473004fe8bfd0b1f7a6290ff18ebe810abf20def6b53244c1da5",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/data-sources-Uqlg5v_F.css": {
+        "sha256": "8290493165d4fcf747a823c0ebf58091a62d3893716767697773fc727dd797da",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/debts-page-CR0uqCKQ.js": {
+        "sha256": "b85e664485399d0d80103ba276104465af6b4580a216c17da86cc760403dea2b",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/debts-page-DGXE8Kii.css": {
+        "sha256": "b461e9793fdd6b4195cceb7133fdb774e64fd30464eda780b5a525129f5ae43f",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/detail-example-DNA-ZwdG.js": {
+        "sha256": "ea8fafa54626316af18c911c52bbdc1da27cbbf67e0c49093fd035d8ae0d9beb",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/detail-nav-C6oaKI1B.css": {
+        "sha256": "59fcaf4050a1414af5dbf0b7474659952d948914a4db5a8cba7374f625b6b2e1",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/detail-nav-D5YH9_uI.js": {
+        "sha256": "c9b2039893c4e08f489b7e5cf7af1b1e575b876a7ddc11ccbbbfb6a7e932146d",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/dimension-chain-BNBCUaUW.js": {
+        "sha256": "1a300f4098caddceee45de25e6aa6d5470dbb6e0c1892fda749c7fac15d961c6",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/dimension-chain-drawing-CIpTJE8M.js": {
+        "sha256": "98f091c3d202679adc0d5c0c2da1de0c70ed1741b6c43dd8abc61fb6f80c9a7a",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/dimension-page-CJO-BLzX.js": {
+        "sha256": "6175521c4722da1ab9a51e56e0b1b1c17f0cd8ecc8e5d9442c6ad5161c0b767e",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/elevation-mark-D2wdihZw.js": {
+        "sha256": "522c7fa8322ecefe5c78c7da095c80049e140aea8a7371fe002c92d6b661a191",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/ellipsis-BQQ-QEm0.js": {
+        "sha256": "b5b5c074abab2eadc19f1f7505a20b8214d3e07792ee834f7831197dcdfae64b",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/envelope-page-Et9pj6l5.js": {
+        "sha256": "a2a043f6b21e9d573decde0a3f9644e31bda6bea0e46507b6e8c96592b913ce9",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/envelope-panel-D93HbyNK.js": {
+        "sha256": "7fab9f9dff104ecedd805399e6fd2bf1bd8a40a5eb0adac792c3bc123cb3a244",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/expected-model-uG1nThfC.js": {
+        "sha256": "5f7ef1a11c36c691f1f72722a0d2202aa77efd838ffeec44f6445caa1e50bdd9",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/expected-page-Bdtnx_qY.js": {
+        "sha256": "4521f6b453a8ead81b9084c67971e98fad471be5f351f2283a6e87b71258d029",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/export-placeholder-0AqWJ89W.js": {
+        "sha256": "7449f1a58b09d23ed95010864f187cb7b7f9ae1eebd985e0067becf071824776",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/frame-DxbbaqaY.js": {
+        "sha256": "f4d9a452bbaa2acc1b50619f93f049b6d01f7780519d5d300d04dc6c4778797a",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/freedom-CFRnE5-Y.js": {
+        "sha256": "25fa17d2cfd986cfc0f9983f3a51a7aad45753913a1c09c3372b552d013dddfa",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/freedom-api-DXSCeAqM.js": {
+        "sha256": "34aad31e1396bc6a850395f2b83061b836532fcdc6ad9058335b002f42f8b31e",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/freedom-page-DC6guPp4.js": {
+        "sha256": "d04fc44ce30effce6e014dc7ee3da361405de2b9bad53b9399624742cacf4989",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/freedom-page-IrfN323k.css": {
+        "sha256": "dfd79630883ac7b094089ad81fddb635dbe657c85fa2916c2adfb831bbbffa98",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/future-preview-setting-8nOEfrR5.js": {
+        "sha256": "7176f3a91e7c378fe17162d5de3f6bf92a17fb31a22031572702a74177f7ecb4",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/goals-api-D7idHGmU.js": {
+        "sha256": "336a24a51f1e4d33ddef54c983f60a137acc8ed22e61405c19567a1318228ca0",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/goals-page-B-eQlc9k.js": {
+        "sha256": "db89be015679862fafeef5201fc749ab781b786795264fb05fe29ed64105651f",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/goals-panel-B_q2HTIm.js": {
+        "sha256": "87da344fc75dc5b0026d78e40ae209cac6f908a8f569b635552eb8704e05d85c",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/goals-progress-report-CmAOhtev.js": {
+        "sha256": "2cb0a5fc22910e862fdf94cab8c1e074f9acca13d7d7b33d274863fd4d99ad32",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/goals-progress-report-CqFQ7cPn.css": {
+        "sha256": "c70502ed91fa18ef4a9f9ac5a20646f5c0bb520b65631474c0fe8a44cb4b650d",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/heute-CV9TZf36.css": {
+        "sha256": "b8e11c167f935d9f936e1cc8369c85089db8fb4ad2f8f6c84be76f9be6118bcf",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/heute-page-KIrcXUNd.js": {
+        "sha256": "4e8614744cd747556266c0272429867d090e996c19ea4a3e335cf8aa9ea04c39",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/home-Dd62yD4c.js": {
+        "sha256": "a835c635526bd443fb6baab7e1d3e8d62fa54c78f6cebc8d04aefcadb048cd22",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/inbox-page-bjyuUy70.js": {
+        "sha256": "cce4943041174e999ef93078ce73d1f894f6197dba1f6cc99cf5ae5b3cab9e34",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/inbox-page-n_3oguNq.css": {
+        "sha256": "165f4bf7230c9e86355431d767a477101eaf8349c582dfdca340824fd31626db",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/income-panel-oMe4EKxV.js": {
+        "sha256": "65f544f25bd684bcf7ef98f94ce6d03fded9b2b2be2895d01c0ff8a134d97f28",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/index-B6AycebI.js": {
+        "sha256": "9776f7080fb7945b63e5d44da4fb9d9f1b9af4f90dc0648985d54cbc1eb18167",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/index-D7m1slfj.css": {
+        "sha256": "ad9a085564aed78f7e85d210bc9d22adb123f583e8a75d60f61edf629b8be352",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/inflation-basket-settings-Cf5unhp1.js": {
+        "sha256": "2c3951b51761815249a948af3e94f9f56ce1191b80d94636060016020ba301fc",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/inflation-basket-settings-IwUZgHtS.css": {
+        "sha256": "7fa1b4f3c773e7c5ee7b411ce823a76705001e9574b57a718d8bd1532c110d3f",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/info-BL1bWjh9.js": {
+        "sha256": "60f9a58c11e7a6919d87013ba63385b3d8bb94a64e1142598fac0b803ebab297",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/investment-settings-9_a-rP1M.css": {
+        "sha256": "5088dd05371c2176a569ca77c1ade09f0343dd410a2a8d033cbe1d4174ff141a",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/investment-settings-MFUZxpld.js": {
+        "sha256": "66662ed417e0bd6a1f066f4c63e020cae6021985517850c6d364f0b598a78c48",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/legend-DShxskZX.js": {
+        "sha256": "090aae703aa59f4d5fd1f09b47856c7e8a0ae20328781c983df10b6147a87b1e",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/linear-BxjdFh_h.js": {
+        "sha256": "a3195fccd27046f289ab13e553cd101abb1ad4beb357252ebaa06769cf618d8d",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/liquidity-api-CGpDKH3g.js": {
+        "sha256": "e31c1c425a413cbb334fbbaca0200ec13dbb597faf2576b4d26f7c4893a0df74",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/liquidity-report-CWvxg5bf.js": {
+        "sha256": "e8f31a46eddc21b0067f651d3155c62b96e094d17547c2568c9677b5495d586f",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/liquidity-selection-DZZvN7xN.js": {
+        "sha256": "1732bbb245de8fcc2fa87f2ba4085dc44fd926ac8ac293ffbd0a88636b58f797",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/load-older-BQW4aSg0.js": {
+        "sha256": "1f2fe8e6504d8839b95b85d56c84158f16799782c3b5d0f219fb81042fdd05a6",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/login-route-sFvpoZqZ.js": {
+        "sha256": "112874a7a7293e6c971fe858e42835a6125ac58cc6177d6841869bd2d69363f4",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/month-close-page-BjaOb3qe.css": {
+        "sha256": "5681bc132d04533e4882301ceab6570bd91b2aeb0f8bcf26709d056519ea8455",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/month-close-page-DiLia2X7.js": {
+        "sha256": "4cc4c91cf303ab420f1d1acde8c69e282a2a516a2327b470e40e6d28ede93c98",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/networth-model-D-2-pdaL.js": {
+        "sha256": "15b39e15b3fa76816a21c222b8bf75c520544522bc1d17a34fef7fe2d169201c",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/networth-page-2eZyLvZU.js": {
+        "sha256": "5ef7b20e63186cf1c3e8b031db7a1a62db5dc9b19bcabd00e2aaa75b11f5310f",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/noto-emoji-0-CX2sV23s.woff2": {
+        "sha256": "9fdc19b463dca107cc4fa244fbc6a981e89ec1a995ad708e12d4b6a48f4fbe3a",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/noto-emoji-1-VgfP6Vxz.woff2": {
+        "sha256": "6dc6074a62952ed57d974e26079d06ab517a1494d0f4e49f5721dc24b5d04893",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/noto-emoji-10-DJfWN1h8.woff2": {
+        "sha256": "6707ec9ca4b67f4338364a8733db88f7218f9bc5fe73115788b479f45c651328",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/noto-emoji-2-BqwrfNe8.woff2": {
+        "sha256": "edb7946b0dfe84daae78756161f5a2ac8aae20cab7a7d2eb07777d6c64de06ba",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/noto-emoji-3-DxR8MaxG.woff2": {
+        "sha256": "c2ac5eb6f0c3a456576149957837be905968290dd8c3e247fba850d17656fe3b",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/noto-emoji-4-D1WGNkT6.woff2": {
+        "sha256": "45fea66a674cd46d1ee2758fdb0ced335cc221baecf741587a3353c7337142af",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/noto-emoji-5-BrCfUcOg.woff2": {
+        "sha256": "c12c035e5b8b6d79c9b97936eb2f676fd72072a69ab46b304ad56b534637b8d3",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/noto-emoji-6-Ctwy3DWE.woff2": {
+        "sha256": "d75b09e01ea847f8eb26956636e1af26316a2ebf4985bccb37fffaa16824e024",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/noto-emoji-7-BIe2450D.woff2": {
+        "sha256": "fe4aa2af9f30f341a71bd6d0d4b58cb368dafd63d9e7d68ae6691435cc59ddc1",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/noto-emoji-8-DqfNEQGu.woff2": {
+        "sha256": "9f4a8c6f319903a91e57dc1f2a6bd1d21231935c76875546d6f6e6d97a408d0d",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/noto-emoji-9-C-RwaufH.woff2": {
+        "sha256": "aa5a88bc157a4ec0759bee8df076ff3b04c91ed13d705b7ae0ee78f37c30d652",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/onepager-report-Blor8w75.js": {
+        "sha256": "3b2e74e7f6c63c1eff5e99962269666557e872fc3c90968f52c345353b02cc0a",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/onepager-report-D25N9dqi.css": {
+        "sha256": "4072e3940bd0b3ebeb0a3bf075ea51bd87edb5279a9951ac81e41ef449a83a14",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/overview-page-BSDJhIUg.js": {
+        "sha256": "e32b985bbbaa7e35a584af9282d51d00247a769f7a9af02d89fdb94218bf59c1",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/panels-harness-D-5MB_y3.js": {
+        "sha256": "f2a647ef6836ef999bce4a682600a74e698abd34f4079c92dcaf2579a348cf74",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/payment-page-Bn1NL8Pl.js": {
+        "sha256": "65b34c14755d59314228520bb22f87ce9e636c531cd476833ad7c8ec4361ceb0",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/payment-panel-CFAisV6q.js": {
+        "sha256": "bdba7946344316eba3e8bca827b31844ddd57305cd3acf1acd8bf842b9403f48",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/payroll-projects-B0CcWcMI.css": {
+        "sha256": "45d7b75af94d38ba9aeac44cd2217ef13e50a0b2c93695b9a0b6a5a302dde7fe",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/payslip-intake-Ccz-pq-6.js": {
+        "sha256": "750df50bafabceba69a8e0a3d38e4b124a400c5f73dcd59cfec95ff9c79e5017",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/payslip-intake-D9fjhN0D.css": {
+        "sha256": "87315200723fe711ac1118abf4ba2a988c26a1851e0b23a775d7aa9660817d9b",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/plan-CHEk4q86.css": {
+        "sha256": "0397a82a338c002b4b698370706b2833536c2a0af8ee0d86a36541ae34a8feb2",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/plan-page-rDujKXDP.js": {
+        "sha256": "76eae5fef5d6b6658c50366638157ab9b3215e7cc3b412420735a9e8894f1d5c",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/plan-panel-pages-C6p0lZyl.css": {
+        "sha256": "59bd7db74ab5b9a6c68d7844280400fd727a7eab072326e8a483dd3dd9de11f5",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/plan-panel-pages-nCwxdS8G.js": {
+        "sha256": "17cd95c8d61bb2e628ee37c097eb812b9c69dcd1516da55f19143a2855a24048",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/plan-year-page-DUQBi-s8.js": {
+        "sha256": "28009c08fa04277a8252aa97f1ce9cb355e1f2d3b51d4d270aa4b651c6b19681",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/plan-year-page-szHTVU_z.css": {
+        "sha256": "6e4351245ef8467eb675819deda5279b4f9644ed58f4ea0b0dcadb09492ece9b",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/planning-accuracy-report-CqC5bpzx.js": {
+        "sha256": "1c70d9054a67f8547568c101f7159560bc478fc78687a352fe34dc54e9d2dd8a",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/planning-accuracy-report-Dzm2d2u8.css": {
+        "sha256": "8e9f1496655496d4c34550a56e027664ed64a173ab14b5a20fff8a4c9c589b92",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/portfolio-25Q2mBsu.js": {
+        "sha256": "30ab4d99546b395f1af7af465c0dc7cbe8a2a1992d2504879a1df1b50ff02e8d",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/portfolio-benchmark-settings-CIUbvgDe.css": {
+        "sha256": "717fd0546c98a8904d3f10856966a25b1443b882a74e4603df277f0c266097d5",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/portfolio-benchmark-settings-CPXvx8UF.js": {
+        "sha256": "4b171092b6d0ad48f776b66533ae103391721911100d416009d3c59bfe05910b",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/portfolio-detail-page-Brv0I1Qn.js": {
+        "sha256": "eb213a23f28e30c0d4ee350b260c19b22c28db65db7cc60ae47a2a2823196907",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/portfolio-foAf9lme.css": {
+        "sha256": "bbbe9c07e397353e5cd0550bbf194aec371fe57aa0534a3b8fbb4d413e3f8872",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/portfolio-format-CtjM_EOi.js": {
+        "sha256": "46a2f7adb95b6f6ccaa42aa872ec811c324a27bf9b74045b1d89b47c2b355a25",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/portfolio-page-CMZOzy_u.js": {
+        "sha256": "186776c06c225d6813f50997f22bd5547456d132de3037d59629ece93b6e4356",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/portfolio-report-shared-BzW2PsEU.css": {
+        "sha256": "a7982ff2cc8031c8e9c4432694fca443d8ef55a0d928a572c309d5caaf677b1c",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/portfolio-report-shared-CtBb2qZL.js": {
+        "sha256": "f9af7276372c1d20e8cfb7581f64ca425b4f5d09af659a9babb1b2757c8454e6",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/profile-settings-DqDOPPpA.css": {
+        "sha256": "a9e93c55d2bc734c9ea1ec2f86b9efc44b3ff1e54783b69b58f0cb2443ed0ff5",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/profile-settings-UidQAoHK.js": {
+        "sha256": "ccb29a0ae8ac640547c3d4651cebb5bc23cbc8e5302f09f5cbd856a79a69310e",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/project-settings-6KQcyaO5.js": {
+        "sha256": "cb7767b944d599be5af2de32e9f1347c586f50717fc68dd9593d3b8865f2bcd0",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/reconcile-panel-DEScHhtc.js": {
+        "sha256": "3882d5c22f929ca7f5b53cbf11ed9f178f2a641d9850ec9698eea6d819ef0d2a",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/recovery-codes-BmIod-Z9.js": {
+        "sha256": "51233fb0f6f6b831d19b1f0f11302f48b9c1dfd22c1d4b502730dfbce5df1b05",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/reports-future-CYN0PKTP.js": {
+        "sha256": "15e5d79a7d029c2655cebcfa071921f322dde7112d5c76b7067b985d1afa408a",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/reports-future-Ca1GlelN.css": {
+        "sha256": "3bbab35e01ef7ed67f391a5fd1785dbd6fdb502747d3737e9bef427a8638d727",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/reports-pages-BnIIxXdC.js": {
+        "sha256": "26712a2f914560f651a03b3859f5573e274caf95766776773df5804c7d451212",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/reports-pages-DVlu0wrV.css": {
+        "sha256": "096362f0e297bf72406fdfd01331717a4ace74016f721d330ea0f18c96135e16",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/revision-table-DvRII9TD.js": {
+        "sha256": "c27a7893f6345980e27dec0887ac2f47b85c45b9d6f79d7c40581d1971629b8d",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/rule-status-page-C3ng0GSh.js": {
+        "sha256": "992925cd1b4162b88f880915fb1208bdc1d65110f596cd362dba210dc3264197",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/rules-model-BQ3DGjiL.js": {
+        "sha256": "6577ba08e4237a300e99bfb5d206ebf134acbcff274259957a20637ed5a20298",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/rules-page-B0rpjv9F.js": {
+        "sha256": "694f0cc5107d2c22cb400bf9a0838c52c6ad461d1512c107db36cabfd843efce",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/sankey-chart--OnSVQAV.js": {
+        "sha256": "315c4a8d6cc58767444dab26391fb07d6952081791ea1700d7fe938e071264b3",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/sankey-chart-BA4gSjts.css": {
+        "sha256": "87e26b1dd3cce8b61f06d26ac58f16360edc77d71d9c2eebeb91b658173577df",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/savings-api-C8FOTFGq.js": {
+        "sha256": "26c88ede60c61a86cae14bbd7faade30578cde66d397003d3aa65e0b496adda2",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/security-page-B93bBUre.js": {
+        "sha256": "40dcae7ed12ce341632b3c99e239ab6db61f05e54d5348d0cb2fdd872ac39c26",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/settings-index-BJ_yipeh.js": {
+        "sha256": "6d4655d3bd50d5a9f0d241de2af7b94164266fedf06486de7d8d9437c5222bd1",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/setup-route-6Y4eCmny.js": {
+        "sha256": "4cd824a1faaac6db31b4fdbf7b6cc1dedaaa5cd4d457049ce54073fca9fea56d",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/spending-reports-CPG7zkrn.css": {
+        "sha256": "1a637f55b5fc2b8894c1bc431a93a020c73a350449e6dc16891be0c1b1c322b5",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/spending-shared-D8qCyFAo.js": {
+        "sha256": "832b48aafa70ffe8910a8db24eee239af56ea0d099e1ff10c9d75d8af6ad9734",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/stamps-gFyinh6K.js": {
+        "sha256": "61538f3c22abbd28eeacad633c731398f576f354fa56fc2c1c13d24823f99fb6",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/status-stamp-CvaOoqAm.js": {
+        "sha256": "21cb724e2027f89de9370826f547fe32023d17fac49f2dfd76d12bbd7b942ea6",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/table-reports-api-COsHGlsl.js": {
+        "sha256": "e4648eeeb456afe22f9bb517800f1b22c66248acedbce7512ff8319aee9f71f2",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/term-gThN-dVa.css": {
+        "sha256": "7de6f13a1f771649dee010d42b756144b7951e6dd2e15cb894cbeaf06a15f854",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/tooltip-data-BEoy7sKZ.js": {
+        "sha256": "06ad3a3a8332054aa594070ced7ddbff87c524460855aafa8f1fa808dd3e4bce",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/trade-api-D8XDkUCU.js": {
+        "sha256": "da13350ada8beb311a2b2eccd9fb060c2905aa49704565cae6e62d187334fcbe",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/trade-draft-CicDhw3K.js": {
+        "sha256": "1ee463bac00f357864b6c4a806795b5a2eed90018fb39870884ca830e137c231",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/trade-panel-DtJkWbeo.js": {
+        "sha256": "b93289112250627bd024f900e7f8520768f556430378f60e684a55d4343ade03",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/use-element-width-Dp75f8XM.js": {
+        "sha256": "1136210528775e0a08cb075c2f9582f0cae958c5bef45b41f837816eac9eea31",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/use-rule-writes-DHYMcnKx.js": {
+        "sha256": "771588fb789472648e5db139a4e01e83750330bcacca21fdd45c6cdb2eb0e053",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/useInfiniteQuery-BNEjsh3X.js": {
+        "sha256": "b1f513225026a5f6bd98c02a98d33bc31df1d58a75ee68707616c01411bd8a6f",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/valuation-hint-juxtMHUi.js": {
+        "sha256": "59a62df1d830290bb152b7ebb00f9d54fa2e63fb5427fbfe4e1d0a036a6873fb",
+        "mode": 33152
+      },
+      "apps/web/dist/assets/webauthn-D3vg6rLd.js": {
+        "sha256": "a2376634c5c5026cc7b71d70f55f9589ccc168b6f586c96406eb2527e98016c8",
+        "mode": 33152
+      },
+      "apps/web/dist/icons/budget-192.png": {
+        "sha256": "fcfaffb3864ee7c2fd20be7ff3de9d07a5316b7f50dc082032442805ef25feaf",
+        "mode": 33152
+      },
+      "apps/web/dist/icons/budget-512.png": {
+        "sha256": "b97ee42cda48f41032fed925f46c9ee8ff28b0104f59e529739555d98e475a54",
+        "mode": 33152
+      },
+      "apps/web/dist/icons/budget.svg": {
+        "sha256": "e09540ac75fa721b57da7f15657d59a1738cc4734d1a5db5a6aae90d5c8e64fe",
+        "mode": 33152
+      },
+      "apps/web/dist/index.html": {
+        "sha256": "2909015af53010d007a5c0b609d1ba977cede175ec3ed2d1c8df0c7a32c0d774",
+        "mode": 33152
+      },
+      "apps/web/dist/manifest.webmanifest": {
+        "sha256": "f09e161c031d1e43a940e3692d00db1a554da3cb05e7385eea8612fbf70bcddb",
+        "mode": 33152
+      },
+      "apps/web/dist/offline.css": {
+        "sha256": "3fa81abc1ba957d31669ada2710f68b1d209e8366564cf89e5867414c366f670",
+        "mode": 33152
+      },
+      "apps/web/dist/offline.html": {
+        "sha256": "75847ece8291d2c1899ef8142ade551489e462df0a0a4027ffe6df7f33d26d6a",
+        "mode": 33152
+      },
+      "apps/web/dist/sw.js": {
+        "sha256": "593caf39dac58a163bf7d403d8bc20fcb568befd1984ed99b9af2f6fc732ff05",
+        "mode": 33152
+      },
+      "apps/web/dist/theme-init.js": {
+        "sha256": "29b3aa5b839fbb29d2da1a73da313e590887f2a217b43c92d4d572e179f74747",
+        "mode": 33152
+      }
+    }
+  },
+  "profiles": {
+    "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-configured-profile-accounts-dark.json": {
+      "sha256": "57c006aabd9be6371a6d6707df16266a904fa9a58ce923e4694dcf2206eb7e43",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "configured-profile",
+        "surface": "accounts",
+        "configuredContext": {
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "isMobile": true,
+          "hasTouch": true,
+          "deviceScaleFactor": 3
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "coarse": true,
+        "deviceScaleFactor": 3,
+        "rawMaxTouchPoints": 0,
+        "theme": "dark"
+      }
+    },
+    "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-configured-profile-accounts-light.json": {
+      "sha256": "5ad663ac9770282106e306ee4a43a0d8ecf6241dbe150ea0834f683d29c57130",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "configured-profile",
+        "surface": "accounts",
+        "configuredContext": {
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "isMobile": true,
+          "hasTouch": true,
+          "deviceScaleFactor": 3
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "coarse": true,
+        "deviceScaleFactor": 3,
+        "rawMaxTouchPoints": 0,
+        "theme": "system"
+      }
+    },
+    "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-configured-profile-today-dark.json": {
+      "sha256": "930d2f6a720c40d06afed6b2a0ec6939a81a7a558de73f5326223e265b917e1f",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "configured-profile",
+        "surface": "today",
+        "configuredContext": {
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "isMobile": true,
+          "hasTouch": true,
+          "deviceScaleFactor": 3
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "coarse": true,
+        "deviceScaleFactor": 3,
+        "rawMaxTouchPoints": 0,
+        "theme": "dark"
+      }
+    },
+    "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-configured-profile-today-light.json": {
+      "sha256": "ad8b427214046659691201d9b263544d280f90017839eab655e5cfd624079e65",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "configured-profile",
+        "surface": "today",
+        "configuredContext": {
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "isMobile": true,
+          "hasTouch": true,
+          "deviceScaleFactor": 3
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "coarse": true,
+        "deviceScaleFactor": 3,
+        "rawMaxTouchPoints": 0,
+        "theme": "system"
+      }
+    },
+    "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-desktop-layout-accounts-dark.json": {
+      "sha256": "65382f46c379ec88a7c95b85d124fb9374cf7339d7d2be648d2ad1eb0e63847f",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "desktop-layout",
+        "surface": "accounts",
+        "configuredContext": {
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "isMobile": false,
+          "hasTouch": false,
+          "deviceScaleFactor": 1
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "coarse": false,
+        "deviceScaleFactor": 1,
+        "rawMaxTouchPoints": 0,
+        "theme": "dark"
+      }
+    },
+    "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-desktop-layout-accounts-light.json": {
+      "sha256": "debb1ce1db999646cba3ebbc36d5f56ddbc82fa9be481a56813cecb6996e71ae",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "desktop-layout",
+        "surface": "accounts",
+        "configuredContext": {
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "isMobile": false,
+          "hasTouch": false,
+          "deviceScaleFactor": 1
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "coarse": false,
+        "deviceScaleFactor": 1,
+        "rawMaxTouchPoints": 0,
+        "theme": "light"
+      }
+    },
+    "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-desktop-layout-today-dark.json": {
+      "sha256": "f57417556748aab5d4d296f31ed55e5d97967f46ece0af366689c91f659c3991",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "desktop-layout",
+        "surface": "today",
+        "configuredContext": {
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "isMobile": false,
+          "hasTouch": false,
+          "deviceScaleFactor": 1
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "coarse": false,
+        "deviceScaleFactor": 1,
+        "rawMaxTouchPoints": 0,
+        "theme": "dark"
+      }
+    },
+    "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-desktop-layout-today-light.json": {
+      "sha256": "b93ef88e2f7bf2bb4f95170fd63169639fd421ac7b16731076217bdbaf4c40e9",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "desktop-layout",
+        "surface": "today",
+        "configuredContext": {
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "isMobile": false,
+          "hasTouch": false,
+          "deviceScaleFactor": 1
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "coarse": false,
+        "deviceScaleFactor": 1,
+        "rawMaxTouchPoints": 0,
+        "theme": "light"
+      }
+    }
+  },
+  "reporterAttachmentCopies": {
+    "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/attachments/valuation-configured-profile-accounts-dark-ab58c3f20b35ee7f8c343733d57b3cc68e38d0f4.json": {
+      "sha256": "57c006aabd9be6371a6d6707df16266a904fa9a58ce923e4694dcf2206eb7e43",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "configured-profile",
+        "surface": "accounts",
+        "configuredContext": {
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "isMobile": true,
+          "hasTouch": true,
+          "deviceScaleFactor": 3
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "coarse": true,
+        "deviceScaleFactor": 3,
+        "rawMaxTouchPoints": 0,
+        "theme": "dark"
+      }
+    },
+    "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/attachments/valuation-configured-profile-accounts-light-869d0476695fbb8ccda42f285a0a87e6052da264.json": {
+      "sha256": "5ad663ac9770282106e306ee4a43a0d8ecf6241dbe150ea0834f683d29c57130",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "configured-profile",
+        "surface": "accounts",
+        "configuredContext": {
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "isMobile": true,
+          "hasTouch": true,
+          "deviceScaleFactor": 3
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "coarse": true,
+        "deviceScaleFactor": 3,
+        "rawMaxTouchPoints": 0,
+        "theme": "system"
+      }
+    },
+    "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/attachments/valuation-configured-profile-today-dark-f9e1f288243b6270e1bf7e42f45c695595a8367b.json": {
+      "sha256": "930d2f6a720c40d06afed6b2a0ec6939a81a7a558de73f5326223e265b917e1f",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "configured-profile",
+        "surface": "today",
+        "configuredContext": {
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "isMobile": true,
+          "hasTouch": true,
+          "deviceScaleFactor": 3
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "coarse": true,
+        "deviceScaleFactor": 3,
+        "rawMaxTouchPoints": 0,
+        "theme": "dark"
+      }
+    },
+    "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/attachments/valuation-configured-profile-today-light-ab3e77c640d198d1d56b1b4fb2bd02b0a2cfaa9d.json": {
+      "sha256": "ad8b427214046659691201d9b263544d280f90017839eab655e5cfd624079e65",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "configured-profile",
+        "surface": "today",
+        "configuredContext": {
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "isMobile": true,
+          "hasTouch": true,
+          "deviceScaleFactor": 3
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "coarse": true,
+        "deviceScaleFactor": 3,
+        "rawMaxTouchPoints": 0,
+        "theme": "system"
+      }
+    },
+    "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/attachments/valuation-desktop-layout-accounts-dark-b38299539ee57e579a0fa2caa1221f1b150d1e0d.json": {
+      "sha256": "65382f46c379ec88a7c95b85d124fb9374cf7339d7d2be648d2ad1eb0e63847f",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "desktop-layout",
+        "surface": "accounts",
+        "configuredContext": {
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "isMobile": false,
+          "hasTouch": false,
+          "deviceScaleFactor": 1
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "coarse": false,
+        "deviceScaleFactor": 1,
+        "rawMaxTouchPoints": 0,
+        "theme": "dark"
+      }
+    },
+    "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/attachments/valuation-desktop-layout-accounts-light-d0cf24c908658c127278e4188a1d62adc028f143.json": {
+      "sha256": "debb1ce1db999646cba3ebbc36d5f56ddbc82fa9be481a56813cecb6996e71ae",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "desktop-layout",
+        "surface": "accounts",
+        "configuredContext": {
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "isMobile": false,
+          "hasTouch": false,
+          "deviceScaleFactor": 1
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "coarse": false,
+        "deviceScaleFactor": 1,
+        "rawMaxTouchPoints": 0,
+        "theme": "light"
+      }
+    },
+    "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/attachments/valuation-desktop-layout-today-dark-13f91b09339286bb5f8e3b3d4524368701504771.json": {
+      "sha256": "f57417556748aab5d4d296f31ed55e5d97967f46ece0af366689c91f659c3991",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "desktop-layout",
+        "surface": "today",
+        "configuredContext": {
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "isMobile": false,
+          "hasTouch": false,
+          "deviceScaleFactor": 1
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "coarse": false,
+        "deviceScaleFactor": 1,
+        "rawMaxTouchPoints": 0,
+        "theme": "dark"
+      }
+    },
+    "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/attachments/valuation-desktop-layout-today-light-c3ca74f88c3887031e9da0dff632c84ecd188ac9.json": {
+      "sha256": "b93ef88e2f7bf2bb4f95170fd63169639fd421ac7b16731076217bdbaf4c40e9",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "desktop-layout",
+        "surface": "today",
+        "configuredContext": {
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "isMobile": false,
+          "hasTouch": false,
+          "deviceScaleFactor": 1
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "coarse": false,
+        "deviceScaleFactor": 1,
+        "rawMaxTouchPoints": 0,
+        "theme": "light"
+      }
+    }
+  },
+  "byteIdenticalPairs": [
+    {
+      "original": "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-configured-profile-accounts-dark.json",
+      "copy": "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/attachments/valuation-configured-profile-accounts-dark-ab58c3f20b35ee7f8c343733d57b3cc68e38d0f4.json",
+      "sha256": "57c006aabd9be6371a6d6707df16266a904fa9a58ce923e4694dcf2206eb7e43"
+    },
+    {
+      "original": "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-configured-profile-accounts-light.json",
+      "copy": "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/attachments/valuation-configured-profile-accounts-light-869d0476695fbb8ccda42f285a0a87e6052da264.json",
+      "sha256": "5ad663ac9770282106e306ee4a43a0d8ecf6241dbe150ea0834f683d29c57130"
+    },
+    {
+      "original": "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-configured-profile-today-dark.json",
+      "copy": "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/attachments/valuation-configured-profile-today-dark-f9e1f288243b6270e1bf7e42f45c695595a8367b.json",
+      "sha256": "930d2f6a720c40d06afed6b2a0ec6939a81a7a558de73f5326223e265b917e1f"
+    },
+    {
+      "original": "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-configured-profile-today-light.json",
+      "copy": "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/attachments/valuation-configured-profile-today-light-ab3e77c640d198d1d56b1b4fb2bd02b0a2cfaa9d.json",
+      "sha256": "ad8b427214046659691201d9b263544d280f90017839eab655e5cfd624079e65"
+    },
+    {
+      "original": "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-desktop-layout-accounts-dark.json",
+      "copy": "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/attachments/valuation-desktop-layout-accounts-dark-b38299539ee57e579a0fa2caa1221f1b150d1e0d.json",
+      "sha256": "65382f46c379ec88a7c95b85d124fb9374cf7339d7d2be648d2ad1eb0e63847f"
+    },
+    {
+      "original": "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-desktop-layout-accounts-light.json",
+      "copy": "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/attachments/valuation-desktop-layout-accounts-light-d0cf24c908658c127278e4188a1d62adc028f143.json",
+      "sha256": "debb1ce1db999646cba3ebbc36d5f56ddbc82fa9be481a56813cecb6996e71ae"
+    },
+    {
+      "original": "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-desktop-layout-today-dark.json",
+      "copy": "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/attachments/valuation-desktop-layout-today-dark-13f91b09339286bb5f8e3b3d4524368701504771.json",
+      "sha256": "f57417556748aab5d4d296f31ed55e5d97967f46ece0af366689c91f659c3991"
+    },
+    {
+      "original": "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-desktop-layout-today-light.json",
+      "copy": "issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/attachments/valuation-desktop-layout-today-light-c3ca74f88c3887031e9da0dff632c84ecd188ac9.json",
+      "sha256": "b93ef88e2f7bf2bb4f95170fd63169639fd421ac7b16731076217bdbaf4c40e9"
+    }
+  ],
+  "images": [
+    {
+      "original": "/workspace/.budget-tools/cloud-control/511-kpi-main9c-native-actual/actual-test-results/issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-configured-profile-accounts-dark.png",
+      "stagedOutside": "/workspace/.budget-tools/cloud-control/511-error-boundary-outside-evidence-package/valuation-quality-511/valuation-configured-profile-accounts-dark.png",
+      "repositoryTarget": "docs/evidence/valuation-quality-511/valuation-configured-profile-accounts-dark.png",
+      "sha256": "a4a148492966d30c0beae79e5b3489d01deb2150ba91e14ae86b02c8b2fb4561"
+    },
+    {
+      "original": "/workspace/.budget-tools/cloud-control/511-kpi-main9c-native-actual/actual-test-results/issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-configured-profile-accounts-light.png",
+      "stagedOutside": "/workspace/.budget-tools/cloud-control/511-error-boundary-outside-evidence-package/valuation-quality-511/valuation-configured-profile-accounts-light.png",
+      "repositoryTarget": "docs/evidence/valuation-quality-511/valuation-configured-profile-accounts-light.png",
+      "sha256": "24420289b599215b43e3f6eac8595e94807773e5b8b39dc7eff99cdb28247a48"
+    },
+    {
+      "original": "/workspace/.budget-tools/cloud-control/511-kpi-main9c-native-actual/actual-test-results/issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-configured-profile-today-dark.png",
+      "stagedOutside": "/workspace/.budget-tools/cloud-control/511-error-boundary-outside-evidence-package/valuation-quality-511/valuation-configured-profile-today-dark.png",
+      "repositoryTarget": "docs/evidence/valuation-quality-511/valuation-configured-profile-today-dark.png",
+      "sha256": "294bf3a8438bf877841facd87dcaa590ce152b636dcdc7defa9d28893549d6f3"
+    },
+    {
+      "original": "/workspace/.budget-tools/cloud-control/511-kpi-main9c-native-actual/actual-test-results/issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-configured-profile-today-light.png",
+      "stagedOutside": "/workspace/.budget-tools/cloud-control/511-error-boundary-outside-evidence-package/valuation-quality-511/valuation-configured-profile-today-light.png",
+      "repositoryTarget": "docs/evidence/valuation-quality-511/valuation-configured-profile-today-light.png",
+      "sha256": "98aff77ba5b4783e26b8d97f3c8124140160e2cf4224e83dae8cb45158511055"
+    },
+    {
+      "original": "/workspace/.budget-tools/cloud-control/511-kpi-main9c-native-actual/actual-test-results/issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-desktop-layout-accounts-dark.png",
+      "stagedOutside": "/workspace/.budget-tools/cloud-control/511-error-boundary-outside-evidence-package/valuation-quality-511/valuation-desktop-layout-accounts-dark.png",
+      "repositoryTarget": "docs/evidence/valuation-quality-511/valuation-desktop-layout-accounts-dark.png",
+      "sha256": "9be691bc466a1713ef63c13d25599a41160f76b78be560c5206d799fc85cc5ee"
+    },
+    {
+      "original": "/workspace/.budget-tools/cloud-control/511-kpi-main9c-native-actual/actual-test-results/issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-desktop-layout-accounts-light.png",
+      "stagedOutside": "/workspace/.budget-tools/cloud-control/511-error-boundary-outside-evidence-package/valuation-quality-511/valuation-desktop-layout-accounts-light.png",
+      "repositoryTarget": "docs/evidence/valuation-quality-511/valuation-desktop-layout-accounts-light.png",
+      "sha256": "a15fe1d473b2e597783231d89480d7e4fc6b3f8696694bcb8f5a2638893665da"
+    },
+    {
+      "original": "/workspace/.budget-tools/cloud-control/511-kpi-main9c-native-actual/actual-test-results/issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-desktop-layout-today-dark.png",
+      "stagedOutside": "/workspace/.budget-tools/cloud-control/511-error-boundary-outside-evidence-package/valuation-quality-511/valuation-desktop-layout-today-dark.png",
+      "repositoryTarget": "docs/evidence/valuation-quality-511/valuation-desktop-layout-today-dark.png",
+      "sha256": "34d8f1ccf7b03a89a5641585764629fe402572994f2f70d5955829afde34adc0"
+    },
+    {
+      "original": "/workspace/.budget-tools/cloud-control/511-kpi-main9c-native-actual/actual-test-results/issue-511-valuation-qualit-aa0d1-desktop-light-dark-contexts-webkit-iphone/valuation-desktop-layout-today-light.png",
+      "stagedOutside": "/workspace/.budget-tools/cloud-control/511-error-boundary-outside-evidence-package/valuation-quality-511/valuation-desktop-layout-today-light.png",
+      "repositoryTarget": "docs/evidence/valuation-quality-511/valuation-desktop-layout-today-light.png",
+      "sha256": "bb0b83557da085538dda16326614f41981cc33ee071cfce373920dca56469737"
+    }
+  ],
+  "phaseExits": {
+    "archive.exit": "0",
+    "build-e2e.exit": "0",
+    "compiled-before.exit": "0",
+    "compiled-guard.exit": "0",
+    "discovery-guard.exit": "0",
+    "discovery.exit": "0",
+    "evidence-guard.exit": "0",
+    "lock-free.exit": "0",
+    "native.exit": "0",
+    "original-phase.exit": "0",
+    "post-guard.exit": "0",
+    "prior-archive.exit": "0",
+    "process-guard.exit": "0",
+    "wrapper.exit": "0"
+  },
+  "kpiFocused": {
+    "actualUnitFile": "apps/web/src/heute/valuation-attention-511.test.tsx",
+    "casesPassed": 10,
+    "testDurationMs": 397,
+    "runDurationSeconds": 3.19,
+    "webTypes": 0,
+    "changedLint": 0,
+    "cssScale": 0,
+    "formatOwn4": 0,
+    "discoveryCount": 5,
+    "sourceCheckpoint": "c858c426 before Root7af8 commit and Main9c inheritance; all24 feature bytes preserved"
+  },
+  "qualifications": [
+    "genuine WebKit configured phone; explicit1440 desktop layout context, not Chromium acceptance",
+    "Playwright click/focus; rawMaxTouchPoints retained; no trusted-touch claim",
+    "FullPage images may have fixed-nav/FAB overlap; no whole-page unobscured hit-test claim",
+    "Only explicit manual quote PUT+undo writes in own functional scenario; DB/API exact read-only unit proof is separate, not a native full-table diff",
+    "8 independent physical JSON profiles and8 byte-identical reporter attachment copies, not16 independent profiles",
+    "Configured phone light capture retains raw theme=system; legitimate UI helper resolves OS prefers-color-scheme light",
+    "Fresh E2Ebuild0 at current667/Main9c precedes these current5 actual cases; earlier54137 runtime is historical before TOPKPI correction",
+    "TOP Heute KPI sources reuse SAME computation, local marker/44/privacy assertions are reached in currentrun",
+    "No native full database/audit snapshot comparison: intended quote PUT and undo only; immutable-read proof is separate DB/API unit evidence",
+    "Initial whole5 run had4PASS1NEW helper timeout with privacy unreached; preKPI corrected5PASS separate historical",
+    "Full-page Today photography can include focused skip-link/sticky-shell composition; no inferred product regression or simultaneous unobscured all-hit assurance",
+    "Browser77855 source24/clean667 before typed API boundary correction; no corrected-API browser or final aggregate result is claimed",
+    "Initial required full actual3failed540passed suites/3failed4767passed tests; normal production build NOTRUN; source24/modes/index/headclean guards0",
+    "Corrected domain/DB/API source27 has130 actual focused cases plus separately repeated6APIcases after test-only typing repair, all affectedtypes/lint/format0 at their checkpoints; required full recheck/normalprod/exactCI/live remainpending"
+  ],
+  "firstRequiredFull": {
+    "sourceHead": "667f85956156138223f6a0be9292bda51db9a2a9",
+    "sourceOwnedCount": 24,
+    "sourceTrackedCount": 3425,
+    "settings": {
+      "BUDGET_REQUIRE_AGE": 1,
+      "VITEST_MAX_WORKERS": 2
+    },
+    "testFiles": {
+      "total": 543,
+      "passed": 540,
+      "failed": 3
+    },
+    "tests": {
+      "total": 4770,
+      "passed": 4767,
+      "failed": 3
+    },
+    "durationSeconds": 401.77,
+    "checkExit": 1,
+    "normalProductionBuild": "NOTRUN becausecheck1",
+    "wrapperExit": 1,
+    "postGuardExit": 0,
+    "lockReleaseExit": 0,
+    "checkLogSha256": "0a390f946b6078b167b3eae5759279b70731bdcf2cdbb7d62d23193a82f6a3dc",
+    "failures": [
+      "OLDinvest expected422 received400",
+      "OLDdebts expectedunknownEURnull butreceivederrorbodywithouttotal",
+      "OLDHeute stricttop-levelkeysexpectedlistdidnotyetincludeapprovedvaluationSources"
+    ]
+  },
+  "typedBoundaryCorrectionCandidate": {
+    "sourceHead": "7fd4a00b4595ca9f8022b55f73b0b834e6831752",
+    "sourceStatus": "Clean Root-owned correction checkpoint; all27blobs and3425trackedmodes exact preceding focused validation",
+    "sourceFreezeSha256": "11d7714407f7522d4025c398a1fb97513ffa62f482cbe43fc8fcf924d2a172c3",
+    "source27": {
+      "packages/domain/src/invest/invest.ts": "83d1ecdaa59553ba9785d3dc9eb40eac4a8240981a971df88e1a95cedfcaf34a",
+      "packages/domain/src/invest/series.ts": "204f45e75a1a9f5d1e17e7d5096d3fac73464054a2219d4d2550b077c411138d",
+      "packages/import-pp/src/convert.ts": "977ed94570021d0ee59549499a5cb497f9f5f994d7c4e104eced08e0051ecd73",
+      "packages/db/src/repos/portfolio.ts": "7116ecf4803b1d016cd4c1130cc80bbf3c45a045b2d51166b232f6ce89960b27",
+      "apps/server/src/api/accounts.ts": "2a00ecc0facef2e34ce414af5385769731042526892543fbef69bed9ec2690ea",
+      "apps/server/src/api/heute.ts": "a251ed2cbda530617445feea365ce497a36ff3ee9d4de838e3410b648512ae14",
+      "apps/web/src/ledger/types.ts": "16aa4b66085623ef2bd5545301e42a28dfc878ac349736b63e281c0876af856d",
+      "apps/web/src/ledger/valuation-hint.tsx": "6d3106e9ee056c6b111965aaef9bd42f54fd7136bd73742e99b1c6ccb69aa7c4",
+      "apps/web/src/ledger/overview-page.tsx": "0411b91eee2d38536fbce2a3062feaca5a85184cefe94bd0e6f43510fe063ff4",
+      "apps/web/src/heute/api.ts": "8cff3c6e0261ea9cdd31084a6a220ef1133f44e260938b956ec178d9eb64d653",
+      "apps/web/src/heute/heute-page.tsx": "f9a8a685716884f9889c02e3517420ceebd982b20d7e1764627a71b032d90158",
+      "apps/web/src/heute/attention-bar.tsx": "c618d77d26fa71dc63e6c22375b47b1ddb6fe87d0aa30399ba6c62974757daa1",
+      "packages/domain/src/invest/valuation-boundaries-511.test.ts": "7eebafba2b85fc5831ae21a9a16c94c1cd03613f26cf20f22a86eb48f1a48caf",
+      "packages/import-pp/src/precision-511.test.ts": "2761dfb5101a2530807625056edf91f01750ca6a5f8f35a7db2f639c65b943e1",
+      "packages/db/src/repos/valuation-provenance-511.test.ts": "d378f68ef72421ed73d160bda62f5b4ad928583befe8cdcaf2c906e9b97e93c9",
+      "apps/server/src/api/valuation-provenance-511.test.ts": "6cc7b96463eb0ff9095fe214bd5c5c1489247d205e5e16eb70f6b55ab6f0cf49",
+      "apps/web/src/ledger/valuation-disclosure-511.test.tsx": "a972cba84ac55ee5b184904a74ef835155b1533ede61fa8d8dc72801d953c9b7",
+      "apps/web/src/heute/valuation-attention-511.test.tsx": "78fe13b651ac184e10884c325932e4f7f7674d0f85d8ee74724e977452433fd8",
+      "e2e/issue-511-valuation-quality.spec.ts": "378916a86bfb4286183375a6724d7e5e00edcf93fe9f748f0a01102589b318b9",
+      "packages/import-pp/src/model.test.ts": "c3ba1b1aaa2f654c4061c73f03aac0b9729c06d71260ef010af5a3ea05619d8e",
+      "e2e/missing-quotes.spec.ts": "860692646a2c541f0a486687954f59170884929097b4fb9d6ee5363eec267d54",
+      "e2e/valuation-hint.spec.ts": "88ef29436bc0f62f0cf5887b9bb7a7224d24af8eb8e55523c653e536d8506455",
+      "apps/web/src/heute/kennzahlen.tsx": "c9503b8f7bd63cc74cef95f47ba23f01dbddc28f58ed24f8d6874bf4325365c6",
+      "apps/web/src/heute/heute.css": "0c293360473d74320da8f46c77ab2a714af4382218783d33d500c6423c91654c",
+      "apps/server/src/api/invest.ts": "e6e12c5f5e009987de73fa6fe96aa3e540e6f95e0ad3a13c40a007a7c36c996b",
+      "packages/db/src/repos/debts.ts": "f02a2851ae9ea20c426bc183a3a87b25bb1ecd87c70531e3f0b1cc359a82a4f5",
+      "apps/server/src/api/heute.test.ts": "9f5399a80c94db47403d6251283809d7af243865a833a44c79fcddca8f35b427"
+    },
+    "contracts": [
+      "Typed ValuationLimitError remains RangeError and distinguishes operand/result; exact existing messages and numerical operations retained",
+      "Only portfolioGET boundary maps typedlimit+existinghistorylimit to existing422/calculation_limit",
+      "Only debt-safe-nativecash RESULT overflow uses same memoized computation/null+privateIDs; unsafe native/otherexceptions propagate; publicvaluationDTO unchanged",
+      "Rootonly strictHeuteObject.keys expectedlist addsoneapproved valuationSources key; allmoney/read-onlyassertionsuntouched"
+    ],
+    "firstFocused": {
+      "filesPassed": 9,
+      "testsPassed": 130,
+      "durationSeconds": 13.74,
+      "domainTypesExit": 0,
+      "dbTypesExit": 0,
+      "serverTypesExit": 2,
+      "webLintFormat": "NOTRUN afterNEWtest unknownbodytypeerror",
+      "postGuardExit": 0,
+      "lockExit": 0
+    },
+    "newTestOnlyTypeFix": "Strict absentportfolio property assertion instead of direct unknown property access; wholefileinverse exact; no cast or product change",
+    "remainingFocused": {
+      "newApiFileCasesPassed": 6,
+      "newApiTestDurationMs": 397,
+      "newApiRunDurationSeconds": 3.98,
+      "serverTypesExit": 0,
+      "webTypesExit": 0,
+      "changed8LintExit": 0,
+      "changed8FormatExit": 0,
+      "wrapperExit": 0,
+      "postGuardExit": 0,
+      "lockExit": 0,
+      "qualification": "Same6APIcases are already part of earlier130; no136unique claim. Only the stronger NEW assertion changed after130/domain+dbtypes0."
+    },
+    "requiredFullRecheckAndProductionBuild": "PENDING"
+  },
+  "coordinatorOnlyOldTestApprovals": [
+    {
+      "path": "packages/import-pp/src/model.test.ts",
+      "originalSHA256": "b88db62ddbec4acda6e8d47214e59c7b479bc3b398245a086c3ac732207d04f6",
+      "appliedSHA256": "c3ba1b1aaa2f654c4061c73f03aac0b9729c06d71260ef010af5a3ea05619d8e",
+      "authority": "https://github.com/Grabman1987/budget/issues/511#issuecomment-6278013668",
+      "ownerOriginalAnswer": "Einzeln ablehnen; zwei Tests korrigieren (empfohlen)",
+      "delta": "title+two quoteToMicro50/49 expectations become individual ValueError rejection; otherfinancebyteexact",
+      "review": "511-root-approved-model-test-independent-review.md",
+      "reviewSHA256": "f431ff4351e73fe43f8ddcb612092e62ba19a994ba48c48aa370ad4e156927de"
+    },
+    {
+      "path": "e2e/missing-quotes.spec.ts",
+      "originalSHA256": "b82ee3f0bb4d3fc13ae65b347a1da907bc0f13bcfa952707e722b7c547722c0b",
+      "appliedSHA256": "860692646a2c541f0a486687954f59170884929097b4fb9d6ee5363eec267d54",
+      "authority": "https://github.com/Grabman1987/budget/issues/511#issuecomment-6212998367",
+      "delta": "OnlyHeute/Kontenbanner\u2192local\u2248/source/task oracles; financialflows/otherconsumers/accessibility/timeouts untouched",
+      "review": "511-root-old-ui-adapters-independent-review.md",
+      "reviewSHA256": "95622949ba4146bbe91a054978856b50a0be1b56f61c30069898e551956addaf"
+    },
+    {
+      "path": "e2e/valuation-hint.spec.ts",
+      "originalSHA256": "8029ef78bc32b0d4f34b52b642f18cd2b9bc5bca7e4d30f650faf42f5be00545",
+      "appliedSHA256": "88ef29436bc0f62f0cf5887b9bb7a7224d24af8eb8e55523c653e536d8506455",
+      "authority": "https://github.com/Grabman1987/budget/issues/511#issuecomment-6231030665",
+      "delta": "Currentendpointmarker/source +strictactualquote-task held ID; closed/executionexcludedfromquote-work; allfixtures/timeouts unchanged",
+      "review": "511-root-old-ui-adapters-independent-review.md",
+      "reviewSHA256": "95622949ba4146bbe91a054978856b50a0be1b56f61c30069898e551956addaf"
+    },
+    {
+      "path": "apps/server/src/api/heute.test.ts",
+      "originalSHA256": "82c97a4455ed3514bede9f26cb5b9f7f93f9d0fee23adba0b0a67cabd0fdf8b5",
+      "appliedSHA256": "9f5399a80c94db47403d6251283809d7af243865a833a44c79fcddca8f35b427",
+      "authority": "https://github.com/Grabman1987/budget/issues/511#issuecomment-6212998367",
+      "delta": "ExactlyonevaluationSourceskeyaddedtostill-exactsortedObject.keys oracle; no monetary/no-writeassertion change",
+      "review": "511-root-heute-response-shape-independent-review.md",
+      "reviewSHA256": "4639b7fe1ebf5b043c12f17ea922caa171e1e9885f6a5520a73ad8bba99d0f7c"
+    }
+  ],
+  "currentCandidate": {
+    "head": "7fd4a00b4595ca9f8022b55f73b0b834e6831752",
+    "verifiedLiveMain": "9c509faea270b86ea1bd6a827b202a8c90e25f9d",
+    "freezeSha256": "11d7714407f7522d4025c398a1fb97513ffa62f482cbe43fc8fcf924d2a172c3",
+    "sourceOwnedCount": 27,
+    "trackedCount": 3425,
+    "clean": true,
+    "unchangedCapturedUiBlobs": {
+      "apps/web/src/ledger/types.ts": "16aa4b66085623ef2bd5545301e42a28dfc878ac349736b63e281c0876af856d",
+      "apps/web/src/ledger/valuation-hint.tsx": "6d3106e9ee056c6b111965aaef9bd42f54fd7136bd73742e99b1c6ccb69aa7c4",
+      "apps/web/src/ledger/overview-page.tsx": "0411b91eee2d38536fbce2a3062feaca5a85184cefe94bd0e6f43510fe063ff4",
+      "apps/web/src/heute/api.ts": "8cff3c6e0261ea9cdd31084a6a220ef1133f44e260938b956ec178d9eb64d653",
+      "apps/web/src/heute/heute-page.tsx": "f9a8a685716884f9889c02e3517420ceebd982b20d7e1764627a71b032d90158",
+      "apps/web/src/heute/attention-bar.tsx": "c618d77d26fa71dc63e6c22375b47b1ddb6fe87d0aa30399ba6c62974757daa1",
+      "apps/web/src/ledger/valuation-disclosure-511.test.tsx": "a972cba84ac55ee5b184904a74ef835155b1533ede61fa8d8dc72801d953c9b7",
+      "apps/web/src/heute/valuation-attention-511.test.tsx": "78fe13b651ac184e10884c325932e4f7f7674d0f85d8ee74724e977452433fd8",
+      "e2e/issue-511-valuation-quality.spec.ts": "378916a86bfb4286183375a6724d7e5e00edcf93fe9f748f0a01102589b318b9",
+      "e2e/missing-quotes.spec.ts": "860692646a2c541f0a486687954f59170884929097b4fb9d6ee5363eec267d54",
+      "e2e/valuation-hint.spec.ts": "88ef29436bc0f62f0cf5887b9bb7a7224d24af8eb8e55523c653e536d8506455",
+      "apps/web/src/heute/kennzahlen.tsx": "c9503b8f7bd63cc74cef95f47ba23f01dbddc28f58ed24f8d6874bf4325365c6",
+      "apps/web/src/heute/heute.css": "0c293360473d74320da8f46c77ab2a714af4382218783d33d500c6423c91654c"
+    }
+  }
+}

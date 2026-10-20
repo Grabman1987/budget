@@ -1,4 +1,4 @@
-import { heute, planningAccuracyReport, type Db } from '@budget/db';
+import { currentValuationSources, heute, planningAccuracyReport, type Db } from '@budget/db';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { readQuery } from './http';
@@ -19,8 +19,11 @@ export function heuteRoutes(db: Db, today: () => string): Hono {
     const { period, month: shown } = readQuery(c, heuteQuery);
     const day = today();
     const data = heute(db, { today: day, period, ...(shown && { month: shown }) });
+    const provenance = currentValuationSources(db, day);
     return c.json({
       ...data,
+      valuationSources: provenance.sources,
+      attention: { ...data.attention, quoteReview: provenance.quoteReview },
       planningAccuracy: planningAccuracyReport(db, data.pace.month, day).summary,
     });
   });

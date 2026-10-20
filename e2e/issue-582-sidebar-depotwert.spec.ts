@@ -30,7 +30,7 @@ const treeSum = (page: Page, group: string): Locator =>
     .locator('xpath=ancestor::section')
     .locator('.acct-group-bar > .acct-amount');
 const overviewSum = (page: Page, group: string): Locator =>
-  page.locator(`tr.kgroup#kg-${group} td.kc-num`);
+  page.locator(`tr.kgroup#kg-${group} td.kc-num`).getByTestId('account-group-value');
 const overviewRow = (page: Page, name: string): Locator =>
   page.locator('tr.krow', { hasText: name });
 
@@ -125,13 +125,24 @@ for (const theme of ['light', 'dark'] as const) {
 
     // Konten › Übersicht: the same figures in cents; Nettovermögen 116,23 is unchanged.
     await page.goto('/konten');
-    await expect(overviewRow(page, 'Testdepot').locator('td.kc-num')).toHaveText('24,68 €');
-    expect(cents((await overviewRow(page, 'Testdepot').locator('td.kc-num').textContent())!)).toBe(
-      pageCents,
+    await expect(overviewRow(page, 'Testdepot').getByTestId('account-value')).toHaveText('24,68 €');
+    expect(
+      cents((await overviewRow(page, 'Testdepot').getByTestId('account-value').textContent())!),
+    ).toBe(pageCents);
+    await expect(overviewRow(page, 'Testverrechnung').getByTestId('account-value')).toHaveText(
+      '91,55 €',
     );
-    await expect(overviewRow(page, 'Testverrechnung').locator('td.kc-num')).toHaveText('91,55 €');
     await expect(page.getByTestId('included-depot-cash')).toContainText('−26,90 €');
     await expect(overviewSum(page, 'investments')).toHaveText('24,68 €');
+    const groupMarker = overviewSum(page, 'investments')
+      .locator('..')
+      .getByRole('button', { name: 'Bewertungsgrundlage · Investments', exact: true });
+    await expect(groupMarker).toHaveText('≈');
+    await groupMarker.focus();
+    await expect(
+      page.locator(`[id="${await groupMarker.getAttribute('aria-describedby')}"]`),
+    ).toContainText('Brutto-Ausführung');
+    await page.keyboard.press('Escape');
     await expect(overviewSum(page, 'budget')).toHaveText('91,55 €');
     await expect(page.getByTestId('net-worth')).toContainText('116,23');
     await fits(page);
@@ -158,9 +169,11 @@ test('without a Verrechnungskonto the depot cash stays with the depot as a Cash 
   const origin = isolatedLedger.origin;
   const { depot } = await seed(request, origin, false);
   await page.goto('/konten');
-  await expect(overviewRow(page, 'Testdepot').locator('td.kc-num')).toHaveText('24,68 €');
+  await expect(overviewRow(page, 'Testdepot').getByTestId('account-value')).toHaveText('24,68 €');
   await expect(page.getByTestId('depot-own-cash')).toContainText('−26,90 €');
-  await expect(overviewRow(page, 'Testverrechnung').locator('td.kc-num')).toHaveText('118,45 €');
+  await expect(overviewRow(page, 'Testverrechnung').getByTestId('account-value')).toHaveText(
+    '118,45 €',
+  );
   // The Investments sum keeps the depot cash: 24,68 - 26,90 = -2,22.
   await expect(overviewSum(page, 'investments')).toHaveText('−2,22 €');
   await expect(page.getByTestId('net-worth')).toContainText('116,23');
@@ -223,8 +236,20 @@ test('a partly unpriced depot shows ≈ in tree and overview like on its page, a
   await fits(page);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.goto('/konten');
-  await expect(overviewRow(page, 'Testdepot').locator('td.kc-num')).toHaveText('≈ 24,68 €');
-  await expect(overviewRow(page, 'Testkrypto').locator('td.kc-num')).not.toHaveText(/\d,\d\d €/);
+  await expect(overviewRow(page, 'Testdepot').getByTestId('account-value')).toHaveText('24,68 €');
+  const partialMarker = overviewRow(page, 'Testdepot').getByRole('button', {
+    name: 'Bewertungsgrundlage · Testdepot',
+    exact: true,
+  });
+  await expect(partialMarker).toHaveText('≈');
+  await partialMarker.focus();
+  await expect(
+    page.locator(`[id="${await partialMarker.getAttribute('aria-describedby')}"]`),
+  ).toContainText('Bewertung fehlt');
+  await page.keyboard.press('Escape');
+  await expect(overviewRow(page, 'Testkrypto').getByTestId('account-value')).not.toHaveText(
+    /\d,\d\d €/,
+  );
   await fits(page);
   if (isMobile) return;
   await expect(sidebarRow(page, 'Testdepot').locator('.acct-amount')).toHaveText('≈ 25 €');
