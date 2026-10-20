@@ -231,7 +231,16 @@ export function parseStatementText(text: string, sha256: string): StatementPropo
     const ref = /\b(?:Rechnungsnummer|Rechnungtnummer|Abrechnungsnummer)\s*:?\s*(\S.{0,127})/i.exec(
       l,
     );
-    if (ref) add('reference', ref[1]!.trim().slice(0, 128), i, 'reference');
+    if (ref)
+      add(
+        'reference',
+        ref[1]!
+          .split(/ {2,}|\t/)[0]!
+          .trim()
+          .slice(0, 128),
+        i,
+        'reference',
+      );
     if (/\b(?:Rechnungsdatum|Rechnungtdaium|Ausstellungsdatum)\b/i.test(l))
       for (const d of dates(l)) add('issueDate', d, i, 'issue_date');
     if (/\b(?:Abrechnungszeitraum|Abrechnungtzeiiraum)\b/i.test(l)) {

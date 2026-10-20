@@ -197,3 +197,15 @@ it('recognizes a VAT amount label spanning its anchor from the monetary side of 
     parseStatementText([header, continuation(74), row].join('\n'), sha).fields.payableCents.value,
   ).toBeNull();
 });
+it('stops a printed reference at a preserved column gap while retaining single internal spaces', () => {
+  for (const label of ['Rechnungsnummer', 'Rechnungtnummer', 'Abrechnungsnummer']) {
+    for (const gap of ['  ', '   ', '\t']) {
+      expect(
+        parseStatementText(`${label}: SYNTHETIC-02${gap}Nachbarfeld`, sha).fields.reference.value,
+      ).toBe('SYNTHETIC-02');
+    }
+    expect(parseStatementText(`${label}: SYNTHETIC 02`, sha).fields.reference.value).toBe(
+      'SYNTHETIC 02',
+    );
+  }
+});
