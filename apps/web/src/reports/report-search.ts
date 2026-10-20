@@ -1,4 +1,5 @@
 import { isMonth } from '../nav/month';
+import { isExplorerTemplate } from '@budget/domain';
 
 const id = (value: unknown) =>
   typeof value === 'string' && value.length > 0 && value.length <= 64 ? value : undefined;
@@ -8,6 +9,7 @@ const ids = (value: unknown) =>
     : undefined;
 
 export const validateReportSearch = (search: Record<string, unknown>) => ({
+  vorlage: isExplorerTemplate(search['vorlage']) ? search['vorlage'] : undefined,
   kategorien: ids(search['kategorien']),
   gruppen: ids(search['gruppen']),
   vorjahr: search['vorjahr'] === true || search['vorjahr'] === 'true' ? true : undefined,
@@ -15,7 +17,9 @@ export const validateReportSearch = (search: Record<string, unknown>) => ({
   zettel: id(search['zettel']),
   zelle:
     typeof search['zelle'] === 'string' &&
-    /^(inc|exp|net|(inc|cat|group):.{1,64})$/.test(search['zelle'])
+    /^(inc|exp|net|need|want|future|cons|rest|(inc|cat|group|memo|need|want|future):.{1,64})$/.test(
+      search['zelle'],
+    )
       ? search['zelle']
       : undefined,
   spalte:
