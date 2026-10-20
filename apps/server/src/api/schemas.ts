@@ -164,6 +164,7 @@ export const transferCreate = z.object({
   memo: nullableText.optional(),
   status: writableStatus.default('confirmed'),
   projectId: id.nullable().optional(),
+  bankStatus: writableStatus.optional(),
 });
 export const createBody = z.discriminatedUnion('type', [bookingCreate, transferCreate]);
 

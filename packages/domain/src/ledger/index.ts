@@ -38,6 +38,7 @@ export {
   type BudgetClass,
 } from './alloc';
 export { netWorthAttribution, netWorthSeries, type NetWorthPoint } from './networth';
+export { manualTransferStatus, type ManualBankStatus } from './manual-transfer-status';
 export {
   bucketNetWorth,
   netWorthWindow,
