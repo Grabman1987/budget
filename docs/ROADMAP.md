@@ -1,5 +1,12 @@
 # Roadmap
 
+### #526 — edit wealth stages together (2026-10-20)
+
+- [x] Replace the stage selector with an editable stage-by-asset-class table, retaining dated versions, per-row validation, account scope, custom bands, unmanaged targets and the existing audited save path. Phones show one card per stage.
+- [x] Six new focused component tests pass. Canonical WebKit passes eleven tests, including the unchanged financial assertions in the coordinator-adapted existing tests: seven-by-six desktop fit, phone layout, 44px grid controls, keyboard, Axe in both themes, dated save, real Undo and stale-scope conflict. [Actual captures and qualifications](evidence/wealth-stage-table-526/README.md).
+- [x] Required-age single-worker full check passes 569 files / 5,074 tests and the normal production build passes; all 3,574 frozen source files and guard checks remain unchanged. This precedes only the evidence/Roadmap result update.
+- [ ] Complete exact-head CI and serial live delivery before closing #526.
+
 ### #625 — four fixed Explorer report templates (2026-10-19)
 
 - [x] Add Heatmap Ausgaben, Jahresansicht, Gesamttabelle and Kategorie im Verlauf beside saved views, reusing canonical aggregation, the shared report period/header and per-row heat. Monetary cell drilldown preserves exact classified source shares, booking identity and reloadable selection; existing saved-query/custom CSV behavior remains available.

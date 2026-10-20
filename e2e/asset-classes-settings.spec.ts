@@ -96,9 +96,7 @@ sampleTest(
       const panel = page.getByRole('dialog', { name: 'Sollquoten bearbeiten' });
       const collapsedScope = panel.locator('details.stage-scope:not([open])');
       if (await collapsedScope.count())
-        await collapsedScope
-          .getByText('Konten und Depots auswählen', { exact: true })
-          .click();
+        await collapsedScope.getByText('Konten und Depots auswählen', { exact: true }).click();
       await expect(
         panel.getByRole('heading', { name: '1. Konten und Depots auswählen' }),
       ).toBeVisible();
@@ -107,9 +105,7 @@ sampleTest(
       await expect(panel.getByLabel(wallet.name, { exact: true })).not.toBeChecked();
       const collapsedReference = panel.locator('details.stage-reference:not([open])');
       if (await collapsedReference.count())
-        await collapsedReference
-          .getByText('Vorlagen und Erläuterungen', { exact: true })
-          .click();
+        await collapsedReference.getByText('Vorlagen und Erläuterungen', { exact: true }).click();
       await panel.getByText('Beispielplan mit sieben Vermögensstufen', { exact: true }).click();
       const allClasses = (
         await (await page.request.get('/api/asset-classes')).json()
