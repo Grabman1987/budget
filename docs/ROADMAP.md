@@ -1607,3 +1607,14 @@ Final whole financial review then found a material inherited Number-sum gap. NEW
 - [x] A measured phone scroll clamp is corrected with one touch-row of account-only bottom padding. Original register/Toast tests are unchanged; corrected canonical WebKit7/7 passed55.2s, focused rendered5/5 plus types/lint/format passed and corrected production build passed. The initial AGE full5000 checkpoint remains5c8cd732; final-head CI revalidates the correction.
 - [x] Root-only existing-test adapters now cover four files: generic payee fixture enters outside an explicit account; native internal Tab steps may retain only the same date host before exact Wiederholen. All subsequent financial/focus/Axe/Undo checks remain.
 - [ ] Final exact-head CI and LIVE verification remain required.
+
+
+## #512 / WP-004 — visible historical-basis cue (local checks passed; delivery pending)
+
+Report TTWROR and compact Wealth now qualify same-response selected closing observations beside the result and link/focus existing source details. Carried quote/FX, estimated cost, later execution, missing and unknown/truncated facts remain distinct; unrelated current cash FX cannot qualify fresh history. Original amounts/verdict/method/navigation, financial API/formulas/resolvers and all existing tests remain unchanged in this five-source-file stage.
+
+Local evidence: focused36/36 (NEW22+old14),13.60s Vitest; first fresh-build canonical12=11PASS/1 strict phone centre-hit failure, retained. Corrected OWN normal-centre helper kept strict44px/viewport/hit and supported tap/Enter/focus: canonical7/7 firstPASS60.407289s (setup3+NEWfour), same168 outputs reused/all21 exits0; older five passed separately. Eight originals/profiles, both themes/true1440/configured390, have actual fixed-nav/topbar/skiplink/search/sidebar occlusion qualifications and scoped ReportAxe/Overviewprivacy/11-table/API-observer proof.
+
+Earlier joined80959 stopped at unused NEW binding lint before units/build; exact correction retained all bodies. Current local join36819 (B414+A724540f) mandatoryAGE1/workers2 check:563 files/5023 testsPASS472.72s **Vitest duration**, normalproductionbuild0/all17 exits0/source3536 exact. Native168→normal157 compiled outputs are separate checkpoints. [Evidence and8 originals](evidence/investment-explanations-512/visible-quality/README.md).
+
+Final exact-head CI and serial LIVE remain pending; all four public512 ACs stay unchecked. Any later Main delta requires Root review before reuse. Selected-closing scope excludes flow-FX/fee-tax/benchmark/cash/class provenance; parent508/privateGate3 remain open separately. Incoming Roadmap prefix and all earlier checkboxes are preserved.
