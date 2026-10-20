@@ -26,6 +26,7 @@ export function AttentionBar({
   const overspending = data.nextSteps.items.filter((i) => i.kind === 'overspent').length;
   const reminders = data.accountReminders?.length ?? 0;
   const loanTermsMissing = data.attention.loanTermsMissing;
+  const quoteReview = data.attention.quoteReview?.count ?? 0;
   const month = data.stand.today.slice(0, 7);
   const closeMonth = closeEntryMonth(data.stand.today);
   if (
@@ -37,7 +38,8 @@ export function AttentionBar({
     !savingsRows.length &&
     !savingsError &&
     !reminders &&
-    !loanTermsMissing
+    !loanTermsMissing &&
+    !quoteReview
   )
     return null;
   return (
@@ -131,6 +133,17 @@ export function AttentionBar({
           <AppLink to="/konten/pruefen" hash="account-reminder-title">
             Prüfen
           </AppLink>
+        </div>
+      )}
+      {quoteReview > 0 && (
+        <div className="attention-row">
+          <span>
+            {quoteReview}{' '}
+            {quoteReview === 1
+              ? 'Wertpapier ohne aktuellen Kurs'
+              : 'Wertpapiere ohne aktuellen Kurs'}
+          </span>
+          <AppLink to="/vermoegen/portfolio">Kurse prüfen</AppLink>
         </div>
       )}
       {loanTermsMissing && (

@@ -2,7 +2,7 @@ import type { AccountReviewStatus, PlannedEventOccurrence } from '@budget/domain
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
-import type { WithValuationNotes } from '../ledger/valuation-hint';
+import type { ValuationSource, WithValuationNotes } from '../ledger/valuation-hint';
 
 export interface AccountReminder {
   accountId: string;
@@ -39,6 +39,7 @@ export interface HeuteOccurrence {
 }
 
 export interface Heute extends WithValuationNotes {
+  valuationSources?: ValuationSource[];
   monthResult: { earnedCents: number; consumptionCents: number; savedCents: number };
   budgetAnswer: {
     spentCents: number;
@@ -170,6 +171,7 @@ export interface Heute extends WithValuationNotes {
     pendingCount: number;
     pendingBefore: string;
     loanTermsMissing: boolean;
+    quoteReview?: { securityIds: string[]; count: number };
   };
   lastBookings: Array<{
     id: string;

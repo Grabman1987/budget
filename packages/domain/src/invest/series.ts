@@ -182,11 +182,21 @@ export interface PriceChoice {
 /** One cent rounding, also when an execution price lies between stored micro-units. */
 export function valueAtPrice(unitsE8: number, choice: PriceChoice, fxRateMicro: number): number {
   if (!choice.execution) return marketValueEurCents(unitsE8, choice.price.priceMicro, fxRateMicro);
+  if (
+    ![unitsE8, fxRateMicro, choice.execution.amountCents, choice.execution.unitsE8].every(
+      Number.isSafeInteger,
+    )
+  )
+    throw new RangeError('Execution valuation requires safe integer operands');
   const scaled = BigInt(unitsE8) * BigInt(choice.execution.amountCents) * BigInt(fxRateMicro);
   const denominator = BigInt(Math.abs(choice.execution.unitsE8)) * 1_000_000n;
   const negative = scaled < 0n;
   const rounded = ((negative ? -scaled : scaled) + denominator / 2n) / denominator;
-  return Number(negative ? -rounded : rounded);
+  const signed = negative ? -rounded : rounded;
+  const maximum = BigInt(Number.MAX_SAFE_INTEGER);
+  if (signed > maximum || signed < -maximum)
+    throw new RangeError('Execution valuation exceeds safe integer range');
+  return Number(signed);
 }
 
 /**

@@ -17,7 +17,7 @@ import { AlertTriangle, ArrowDown, ArrowUp, ChevronRight } from 'lucide-react';
 import { PaceAccuracyNote } from '../reports/planning-accuracy-report';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
-import { ValuationHint } from '../ledger/valuation-hint';
+import { ValuationSourceHint } from '../ledger/valuation-hint';
 import { HEUTE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { monthLabel as monthName } from '../nav/month';
@@ -286,24 +286,7 @@ function HeuteBody({ data }: { data: Heute }) {
         title="Fällig 14 Tage"
         standToday={away ? longDay(data.stand.today) : undefined}
       />
-      <section className="heute-wealth-line" aria-labelledby="heute-wealth-title">
-        <h2 id="heute-wealth-title">Nettovermögen · 12 Monate</h2>
-        {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
-        {net ? (
-          <>
-            <WealthSparkline series={net.series} />
-            <AppLink to="/vermoegen/nettovermoegen" search={{ zeitraum: '1J' }}>
-              {eur(net.yearDeltaCents, { sign: true })} seit {shortDay(net.yearAgoDay)} vor 12
-              Monaten
-            </AppLink>
-            <ValuationHint incomplete={data.incomplete} />
-          </>
-        ) : (
-          'unavailable' in data.netWorth && (
-            <ValuationNote message={data.netWorth.unavailable.message} />
-          )
-        )}
-      </section>
+      <HeuteWealthLine data={data} />
       <section className="heute-section heute-finance-check" aria-labelledby="heute-check-title">
         <SectionHead
           id="heute-check-title"
@@ -473,6 +456,7 @@ function HeuteBody({ data }: { data: Heute }) {
                     result={{ label: 'Nettovermögen', cents: cents(net.totalCents) }}
                     onSelect={(key) => openNetDetail(key as DimensionKind)}
                   />
+                  <ValuationSourceHint sources={data.valuationSources} label="Nettovermögen" />
                 </div>
                 <p className="heute-note">
                   Wähle ein Maß für die Konten.
@@ -481,11 +465,13 @@ function HeuteBody({ data }: { data: Heute }) {
                 <p className="heute-note">
                   Stichtag {longDay(net.asOf)} · Vormonatsende {eur(net.previousMonthEndCents)}
                 </p>
-                <ValuationHint incomplete={data.incomplete} />
               </>
             ) : (
               'unavailable' in data.netWorth && (
-                <ValuationNote message={data.netWorth.unavailable.message} />
+                <>
+                  <ValuationNote message={data.netWorth.unavailable.message} />
+                  <ValuationSourceHint sources={data.valuationSources} label="Nettovermögen" />
+                </>
               )
             )}
           </section>
@@ -559,6 +545,39 @@ function MoreMonth({ phone, children }: { phone: boolean; children: ReactNode })
         {children}
       </div>
     </div>
+  );
+}
+
+/** Visible independently of the optional month detail; provenance describes its current endpoint. */
+export function HeuteWealthLine({
+  data,
+}: {
+  data: Pick<Heute, 'stand' | 'netWorth' | 'valuationSources'>;
+}) {
+  useAmountPrivacy();
+  const away = data.stand.month !== data.stand.today.slice(0, 7);
+  const net = 'unavailable' in data.netWorth ? null : data.netWorth;
+  return (
+    <section className="heute-wealth-line" aria-labelledby="heute-wealth-title">
+      <h2 id="heute-wealth-title">Nettovermögen · 12 Monate</h2>
+      {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
+      {net ? (
+        <>
+          <WealthSparkline series={net.series} />
+          <AppLink to="/vermoegen/nettovermoegen" search={{ zeitraum: '1J' }}>
+            {eur(net.yearDeltaCents, { sign: true })} seit {shortDay(net.yearAgoDay)} vor 12 Monaten
+          </AppLink>
+        </>
+      ) : (
+        'unavailable' in data.netWorth && (
+          <ValuationNote message={data.netWorth.unavailable.message} />
+        )
+      )}
+      <ValuationSourceHint
+        sources={data.valuationSources}
+        label="Verlauf Nettovermögen · aktueller Stand"
+      />
+    </section>
   );
 }
 

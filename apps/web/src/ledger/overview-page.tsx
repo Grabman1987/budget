@@ -38,12 +38,57 @@ import {
 import { accountsQuery, LEDGER_KEY, seriesBatchQuery } from './queries';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import { treePositionsQuery, treeValues, type TreeValue } from './tree-values';
-import { ValuationHint } from './valuation-hint';
+import { ValuationSourceHint, type ValuationSource } from './valuation-hint';
 import type { AccountRow, SeriesPoint } from './types';
 
 const META = KONTEN_META;
 /** Window of the sparklines and of the net-worth change figure. */
 const WINDOW_DAYS = 90;
+
+/** Match the existing tree's cash presentation; no money is recalculated here. */
+export function overviewValuationSources(
+  accounts: ReadonlyArray<
+    Pick<AccountRow, 'id' | 'type' | 'closedAt' | 'referenceAccountId' | 'valuationSources'>
+  >,
+) {
+  const byId = new Map(accounts.map((account) => [account.id, account]));
+  const mapped = new Map(
+    accounts.map((account) => [account.id, [...(account.valuationSources ?? [])]]),
+  );
+  for (const depot of accounts) {
+    if (!['brokerage', 'crypto'].includes(depot.type) || depot.closedAt) continue;
+    const own = depot.valuationSources ?? [];
+    mapped.set(
+      depot.id,
+      own.filter((source) => source.securityId !== null),
+    );
+    const linked = depot.referenceAccountId ? byId.get(depot.referenceAccountId) : undefined;
+    if (linked && !linked.closedAt && !['brokerage', 'crypto'].includes(linked.type))
+      mapped.set(linked.id, [
+        ...(mapped.get(linked.id) ?? []),
+        ...own.filter((source) => source.securityId === null),
+      ]);
+  }
+  return mapped;
+}
+
+/** Group sums also contain unlinked depot cash whose amount can be unknown. */
+export function overviewGroupValuationSources(
+  accounts: ReadonlyArray<Pick<AccountRow, 'id' | 'valuationSources'>>,
+  sourcesByRow: ReadonlyMap<string, ValuationSource[]>,
+) {
+  const mappedCashAccounts = new Set(
+    [...sourcesByRow.values()].flatMap((sources) =>
+      sources.filter((source) => source.securityId === null).map((source) => source.accountId),
+    ),
+  );
+  return accounts.flatMap((account) => [
+    ...(sourcesByRow.get(account.id) ?? []),
+    ...(mappedCashAccounts.has(account.id)
+      ? []
+      : (account.valuationSources?.filter((source) => source.securityId === null) ?? [])),
+  ]);
+}
 
 /** Konten › Übersicht: net worth with its chain by group, then the parts list of the accounts. */
 export function OverviewPage() {
@@ -108,7 +153,6 @@ export function OverviewPage() {
               accounts={accounts.data?.accounts ?? []}
               asOf={accounts.data?.asOf ?? todayInVienna()}
             />
-            <ValuationHint incomplete={accounts.data?.incomplete} />
             <AccountsTable
               model={model}
               values={values}
@@ -217,6 +261,10 @@ function NetWorth({
         ) : (
           <span>Nicht verfügbar</span>
         )}
+        <ValuationSourceHint
+          sources={accounts.flatMap((a) => a.valuationSources ?? [])}
+          label="Nettovermögen"
+        />
       </div>
       {model.netWorthCents === null ? (
         <p role="status" className="ksum">
@@ -244,6 +292,10 @@ function AccountsTable({
   onReorder: (groupId: AccountGroupId, ids: string[]) => void;
 }) {
   useAmountPrivacy();
+  const sourcesByRow = overviewValuationSources([
+    ...model.groups.flatMap((g) => g.accounts),
+    ...model.closed,
+  ]);
   const open = model.groups.flatMap((g) => g.accounts);
   // One request for all accounts instead of one per account.
   const series = useQuery(seriesBatchQuery(WINDOW_DAYS));
@@ -290,6 +342,7 @@ function AccountsTable({
               view={g}
               values={values}
               loading={loading}
+              sourcesByRow={sourcesByRow}
               index={gi + 1}
               series={byId}
               ordering={ordering}
@@ -312,6 +365,7 @@ function AccountsTable({
                 <span className="kmeta">{ACCOUNT_TYPE_LABEL[a.type]}</span>
                 <span className={cx('kclosed-val', (accountValueEur(a) ?? 0) < 0 && 'is-neg')}>
                   {accountValueEur(a) === null ? valuationMissingText(a) : eur(accountValueEur(a)!)}
+                  <ValuationSourceHint sources={a.valuationSources} label={a.name} />
                 </span>
               </li>
             ))}
@@ -325,6 +379,7 @@ function AccountsTable({
 function GroupRows({
   view,
   values,
+  sourcesByRow,
   loading,
   index,
   series,
@@ -334,6 +389,7 @@ function GroupRows({
   view: GroupView;
   values: ReadonlyMap<string, TreeValue> | undefined;
   loading: boolean;
+  sourcesByRow: ReadonlyMap<string, ValuationSource[]>;
   index: number;
   series: Map<string, SeriesPoint[]>;
   ordering: boolean;
@@ -363,7 +419,11 @@ function GroupRows({
             ? loading
               ? '–'
               : 'Kurs fehlt'
-            : `${view.sumApprox ? '≈ ' : ''}${eur(view.sumCents)}`}
+            : `${view.sumApprox && !view.accounts.some((a) => a.valuationSources) ? '≈ ' : ''}${eur(view.sumCents)}`}
+          <ValuationSourceHint
+            sources={overviewGroupValuationSources(view.accounts, sourcesByRow)}
+            label={view.group.title}
+          />
         </td>
         {ordering && <td className="kc-order" />}
       </tr>
@@ -408,6 +468,10 @@ function GroupRows({
                   data-testid="depot-own-cash"
                 >
                   Cash im Depot {eur(shown.cashCents)}
+                  <ValuationSourceHint
+                    sources={a.valuationSources?.filter((source) => source.securityId === null)}
+                    label={`Cash · ${a.name}`}
+                  />
                 </span>
               )}
               {shown?.includedCashCents != null && (
@@ -416,6 +480,10 @@ function GroupRows({
                   data-testid="included-depot-cash"
                 >
                   inkl. Cash im Depot {eur(shown.includedCashCents)}
+                  <ValuationSourceHint
+                    sources={sourcesByRow.get(a.id)?.filter((source) => source.accountId !== a.id)}
+                    label={`Depot-Cash · ${a.name}`}
+                  />
                 </span>
               )}
               <BankBalance account={a} />
@@ -465,7 +533,8 @@ function GroupRows({
                 ? loading && !shown?.approx
                   ? '–'
                   : valuationMissingText(a)
-                : `${shown?.approx ? '≈ ' : ''}${eur(value)}`}
+                : `${shown?.approx && !a.valuationSources ? '≈ ' : ''}${eur(value)}`}
+              <ValuationSourceHint sources={sourcesByRow.get(a.id)} label={a.name} />
             </td>
             {ordering && <td className="kc-order">{reorder.controls(a.id)}</td>}
           </tr>

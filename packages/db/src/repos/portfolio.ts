@@ -66,15 +66,54 @@ export interface HoldingValue {
   priceDate: string | null;
 }
 
-type Rates = { currency: string; date: string; rateMicro: number }[];
+/** Nonmonetary provenance, from the actual chosen valuation branch. */
+export interface ValuationSource {
+  accountId: string;
+  securityId: string | null;
+  name: string | null;
+  asOf: string;
+  kind: 'quote' | 'execution' | 'cost' | 'missing' | 'cash';
+  quality: ValuationQuality;
+  date: string | null;
+  currency: string;
+  source: string | null;
+  lookAhead: boolean;
+  positiveHolding: boolean;
+  quoteNeeded: boolean;
+  missing: 'price' | 'fx' | null;
+  fx: {
+    kind: 'identity' | 'rate' | 'missing';
+    date: string | null;
+    source: string | null;
+  };
+}
+
+export interface CurrentValuationSources {
+  asOf: string;
+  sources: ValuationSource[];
+  quoteReview: { securityIds: string[]; count: number };
+}
+
+type Rates = { currency: string; date: string; rateMicro: number; source: string }[];
+
+function selectedRate(rates: Rates, currency: string, asOf: string): Rates[number] | undefined {
+  let best: Rates[number] | undefined;
+  for (const row of rates)
+    if (row.currency === currency && row.date <= asOf && (!best || row.date > best.date))
+      best = row;
+  return best;
+}
+
+function rateSource(rates: Rates, currency: string, asOf: string): ValuationSource['fx'] {
+  if (currency === 'EUR') return { kind: 'identity', date: null, source: null };
+  const best = selectedRate(rates, currency, asOf);
+  return best
+    ? { kind: 'rate', date: best.date, source: best.source }
+    : { kind: 'missing', date: null, source: null };
+}
 
 function rateOrMissing(rates: Rates, currency: string, asOf: string): number | undefined {
-  if (currency === 'EUR') return 1_000_000;
-  // Latest rate on or before the day (the first of equal days), without sorting every call.
-  let best: Rates[number] | undefined;
-  for (const r of rates)
-    if (r.currency === currency && r.date <= asOf && (!best || r.date > best.date)) best = r;
-  return best?.rateMicro;
+  return currency === 'EUR' ? 1_000_000 : selectedRate(rates, currency, asOf)?.rateMicro;
 }
 
 /**
@@ -109,6 +148,10 @@ export function holdingValuationAsOf(
   asOf: string,
   options: ValuationOptions = {},
 ): HoldingValuation {
+  return holdingValuationRead(db, asOf, options).valuation;
+}
+
+function holdingValuationRead(db: Executor, asOf: string, options: ValuationOptions = {}) {
   const estimate = options.estimate ?? true;
   return memoized(db, `holdings|${asOf}|${estimate}`, () =>
     computeHoldingValuation(db, asOf, estimate),
@@ -145,7 +188,8 @@ function fxRatesUpTo(db: Executor, asOf: string): Rates {
   );
 }
 
-function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean): HoldingValuation {
+function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean) {
+  const sources: ValuationSource[] = [];
   const live = new Set(
     db
       .select({ id: security.id })
@@ -180,13 +224,18 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
   // Read the latest stored quote on/before the day by index per held security.
   const latestPrice = (securityId: string) =>
     db
-      .select({ date: price.date, priceMicro: price.priceMicro, currency: price.currency })
+      .select({
+        date: price.date,
+        priceMicro: price.priceMicro,
+        currency: price.currency,
+        source: price.source,
+      })
       .from(price)
       .where(and(eq(price.securityId, securityId), lte(price.date, asOf)))
       .orderBy(desc(price.date))
       .limit(1)
       .get();
-  const pricesBySecurity = new Map<string, DatedPrice[]>();
+  const pricesBySecurity = new Map<string, Array<DatedPrice & { source: string }>>();
   for (const securityId of heldSecurities) {
     const found = latestPrice(securityId);
     if (found) pricesBySecurity.set(securityId, [found]);
@@ -232,9 +281,11 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
     );
     if (units === 0) continue;
     const prices = pricesBySecurity.get(securityId) ?? [];
+    const storedChoice = pickPrice(prices, asOf, false);
     const choice =
-      pickPrice(prices, asOf, false) ??
+      storedChoice ??
       (estimate ? pickTradePrice(priceTrades.get(securityId) ?? [], asOf) : undefined);
+    const quoteNeeded = units > 0 && (!choice || storedChoice?.quality === 'stale');
     if (!choice) {
       // No usable price: the moving-average cost basis, flagged as an estimate (step 3 of the
       // fallback order), or nothing at all when even the cost is unknown.
@@ -251,6 +302,23 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
             asOf,
           )
         : null;
+      const fx = rateSource(rates, accountCurrency, asOf);
+      sources.push({
+        accountId,
+        securityId,
+        name: null,
+        asOf,
+        kind: basis === null ? 'missing' : 'cost',
+        quality: basis === null ? 'missing' : 'estimated',
+        date: null,
+        currency: accountCurrency,
+        source: null,
+        lookAhead: false,
+        positiveHolding: units > 0,
+        quoteNeeded,
+        missing: basis === null ? 'price' : fx.kind === 'missing' ? 'fx' : null,
+        fx,
+      });
       if (basis !== null && rateOrMissing(rates, accountCurrency, asOf) === undefined) {
         missingFx(accountId, accountCurrency);
         missingFxPositions.push({
@@ -291,6 +359,22 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
     }
     const { priceMicro, currency: priceCurrency } = choice.price;
     const fxRateMicro = rateOrMissing(rates, priceCurrency, asOf);
+    sources.push({
+      accountId,
+      securityId,
+      name: null,
+      asOf,
+      kind: storedChoice ? 'quote' : 'execution',
+      quality: choice.quality,
+      date: choice.price.date,
+      currency: priceCurrency,
+      source: storedChoice ? prices[0]!.source : null,
+      lookAhead: choice.price.date > asOf,
+      positiveHolding: units > 0,
+      quoteNeeded,
+      missing: fxRateMicro === undefined ? 'fx' : null,
+      fx: rateSource(rates, priceCurrency, asOf),
+    });
     if (fxRateMicro === undefined) {
       missingFx(accountId, priceCurrency);
       missingFxPositions.push({
@@ -336,7 +420,7 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
       : []),
   ];
   noteIncomplete(incomplete);
-  return {
+  const valuation: HoldingValuation = {
     values: out.sort(
       (a, b) => a.accountId.localeCompare(b.accountId) || a.securityId.localeCompare(b.securityId),
     ),
@@ -349,6 +433,7 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean):
       (a, b) => a.accountId.localeCompare(b.accountId) || a.securityId.localeCompare(b.securityId),
     ),
   };
+  return { valuation, sources };
 }
 
 /** Export details retain every held position, including missing quotes or exchange rates. */
@@ -410,17 +495,18 @@ export function netWorthValuationAsOf(
   asOf: string,
   options: ValuationOptions = {},
 ): NetWorthValuation {
+  return netWorthValuationRead(db, asOf, options).valuation;
+}
+
+function netWorthValuationRead(db: Executor, asOf: string, options: ValuationOptions = {}) {
   const estimate = options.estimate ?? true;
   return memoized(db, `networth|${asOf}|${estimate}`, () =>
     computeNetWorthValuation(db, asOf, options),
   );
 }
 
-function computeNetWorthValuation(
-  db: Executor,
-  asOf: string,
-  options: ValuationOptions,
-): NetWorthValuation {
+function computeNetWorthValuation(db: Executor, asOf: string, options: ValuationOptions) {
+  const cashSources: ValuationSource[] = [];
   const estimate = options.estimate ?? true;
   const accountRows = db
     .select({
@@ -433,7 +519,8 @@ function computeNetWorthValuation(
     .where(isNull(account.deletedAt))
     .all();
   const currencies = new Map(accountRows.map((row) => [row.id, row.currency]));
-  const holdings = holdingValuationAsOf(db, asOf, options);
+  const holdingRead = holdingValuationRead(db, asOf, options);
+  const holdings = holdingRead.valuation;
   const holdingAccounts = new Set(
     [...holdings.values, ...holdings.missingPricePositions, ...holdings.missingFxPositions].map(
       (h) => h.accountId,
@@ -472,6 +559,23 @@ function computeNetWorthValuation(
   for (const balance of accountBalances(db, asOf)) {
     const currency = currencies.get(balance.accountId) ?? 'EUR';
     const nativeCents = manualValues.get(balance.accountId) ?? balance.balanceCents;
+    const fx = rateSource(rates, currency, asOf);
+    cashSources.push({
+      accountId: balance.accountId,
+      securityId: null,
+      name: null,
+      asOf,
+      kind: 'cash',
+      quality: fx.kind === 'missing' ? 'missing' : 'exact',
+      date: asOf,
+      currency,
+      source: null,
+      lookAhead: false,
+      positiveHolding: false,
+      quoteNeeded: false,
+      missing: fx.kind === 'missing' ? 'fx' : null,
+      fx,
+    });
     const rate = nativeCents === 0 ? 1_000_000 : rateOrMissing(rates, currency, asOf);
     if (rate === undefined) addMissing(balance.accountId, currency);
     else byAccount[balance.accountId] = toEurCents(nativeCents, rate);
@@ -515,7 +619,7 @@ function computeNetWorthValuation(
     missingFxCurrencies.length || knownValues.length !== values.length
       ? null
       : knownValues.reduce((sum, value) => sum + value, 0);
-  return {
+  const result: NetWorthValuation = {
     totalCents,
     byAccount,
     holdingsByAccount,
@@ -529,6 +633,40 @@ function computeNetWorthValuation(
       [...missingFxByAccount].map(([id, values]) => [id, [...values].sort()]),
     ),
   };
+  return { valuation: result, cashSources, holdingSources: holdingRead.sources };
+}
+
+/** Current-only disclosures reuse the memoized valuation, without recomputing money. */
+export function currentValuationSources(db: Executor, asOf: string): CurrentValuationSources {
+  return memoized(db, `valuationSources|${asOf}`, () => {
+    const names = new Map(
+      db
+        .select({ id: security.id, name: security.name })
+        .from(security)
+        .all()
+        .map((row) => [row.id, row.name]),
+    );
+    const read = netWorthValuationRead(db, asOf);
+    const sources = [...read.cashSources, ...read.holdingSources]
+      .map((source) => ({
+        ...source,
+        name: source.securityId === null ? null : (names.get(source.securityId) ?? null),
+      }))
+      .sort(
+        (a, b) =>
+          a.accountId.localeCompare(b.accountId) ||
+          (a.securityId ?? '').localeCompare(b.securityId ?? ''),
+      );
+    const securityIds = [
+      ...new Set(
+        sources
+          .filter((source) => source.quoteNeeded)
+          .map((source) => source.securityId)
+          .filter((id): id is string => id !== null),
+      ),
+    ].sort();
+    return { asOf, sources, quoteReview: { securityIds, count: securityIds.length } };
+  });
 }
 
 /** Net worth on a day: every live account's balance in EUR plus the market value of its positions. */

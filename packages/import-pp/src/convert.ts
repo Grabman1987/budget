@@ -2,7 +2,7 @@
  * Value decoding without floats (`docs/migration/pp-export.md` §Scales). PP stores amounts as
  * integer cents (x100), shares as integer x1e8, quotes as integer x1e8 (client versions from 40;
  * older files used fewer decimals and need an explicit `quoteScale`). Everything here is integer
- * or BigInt arithmetic, rounded half up.
+ * or BigInt arithmetic. Quotes must fit losslessly; decimal FX retains its half-up rounding.
  */
 
 export const SHARES_SCALE = 100_000_000n;
@@ -12,7 +12,7 @@ export const MIN_QUOTE_SCALE_VERSION = 40;
 
 export class ValueError extends Error {
   constructor(
-    readonly code: 'integer' | 'day' | 'decimal' | 'range',
+    readonly code: 'integer' | 'day' | 'decimal' | 'range' | 'precision',
     message: string,
   ) {
     super(message);
@@ -38,11 +38,15 @@ export function divRound(a: bigint, b: bigint): bigint {
   return neg ? -q : q;
 }
 
-/** PP quote text (`v` attribute) to price micro-units (1e-6): `round(v * 1e6 / scale)`. */
+/** PP quote text (`v` attribute) to lossless price micro-units (1e-6): `v * 1e6 / scale`. */
 export function quoteToMicro(v: string | undefined, scale: bigint = DEFAULT_QUOTE_SCALE): number {
   const t = v?.trim() ?? '';
   if (!/^\d+$/.test(t)) throw new ValueError('integer', 'Not a quote');
-  const micro = divRound(BigInt(t) * 1_000_000n, scale);
+  if (scale <= 0n) throw new ValueError('range', 'Quote scale must be positive');
+  const scaled = BigInt(t) * 1_000_000n;
+  if (scaled % scale !== 0n)
+    throw new ValueError('precision', 'Quote cannot be represented losslessly in micro-units');
+  const micro = scaled / scale;
   if (micro > BigInt(Number.MAX_SAFE_INTEGER)) throw new ValueError('range', 'Quote out of range');
   return Number(micro);
 }

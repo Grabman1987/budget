@@ -248,10 +248,10 @@ describe('parsePp robustness', () => {
 });
 
 describe('value conversion (no floats)', () => {
-  it('converts quotes to micro, half up', () => {
+  it('converts quotes losslessly to micro and rejects excess precision', () => {
     expect(quoteToMicro('515685000')).toBe(5156850);
-    expect(quoteToMicro('50')).toBe(1); // 0,0000005 rounds up to 1 micro
-    expect(quoteToMicro('49')).toBe(0);
+    expect(() => quoteToMicro('50')).toThrow(ValueError);
+    expect(() => quoteToMicro('49')).toThrow(ValueError);
     expect(quoteToMicro('12345', 10_000n)).toBe(1234500);
     expect(quoteToMicro('900719925474099100')).toBe(9007199254740991);
     expect(() => quoteToMicro('9007199254740991000')).toThrow(/range/);

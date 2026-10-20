@@ -5,14 +5,27 @@
  */
 
 const E12 = 10n ** 12n;
+const MAX_SAFE = BigInt(Number.MAX_SAFE_INTEGER);
+
+function integer(value: number): bigint {
+  if (!Number.isSafeInteger(value))
+    throw new RangeError('Valuation requires safe integer operands');
+  return BigInt(value);
+}
+
+function safeNumber(value: bigint): number {
+  if (value > MAX_SAFE || value < -MAX_SAFE)
+    throw new RangeError('Valuation result exceeds safe integer range');
+  return Number(value);
+}
 
 /** Value in cents of `unitsE8` at `priceMicro`, rounded half up. */
 export function marketValueCents(unitsE8: number, priceMicro: number): number {
-  const scaled = BigInt(unitsE8) * BigInt(priceMicro);
+  const scaled = integer(unitsE8) * integer(priceMicro);
   const negative = scaled < 0n;
   const abs = negative ? -scaled : scaled;
   const rounded = (abs + E12 / 2n) / E12;
-  return Number(negative ? -rounded : rounded);
+  return safeNumber(negative ? -rounded : rounded);
 }
 
 const E18 = 10n ** 18n;
@@ -26,16 +39,26 @@ export function marketValueEurCents(
   priceMicro: number,
   fxRateMicro: number,
 ): number {
-  const scaled = BigInt(unitsE8) * BigInt(priceMicro) * BigInt(fxRateMicro);
+  const scaled = integer(unitsE8) * integer(priceMicro) * integer(fxRateMicro);
   const negative = scaled < 0n;
   const abs = negative ? -scaled : scaled;
   const rounded = (abs + E18 / 2n) / E18;
-  return Number(negative ? -rounded : rounded);
+  return safeNumber(negative ? -rounded : rounded);
 }
 
 /** Cents in a foreign currency converted to EUR cents at `fxRateMicro`, rounded half up. */
 export function toEurCents(cents: number, fxRateMicro: number): number {
-  return Math.sign(cents) * Math.round((Math.abs(cents) * fxRateMicro) / 1e6);
+  const amount = integer(cents);
+  const scaled = (amount < 0n ? -amount : amount) * integer(fxRateMicro);
+  const denominator = 1_000_000n;
+  // Exact equivalent of the existing Math.round on the unsigned amount times the rate.
+  // Positive FX retains signed half-away cents; signed/zero rates keep their old behaviour.
+  const rounded =
+    scaled >= 0n
+      ? (scaled + denominator / 2n) / denominator
+      : -((-scaled + denominator / 2n - 1n) / denominator);
+  const value = safeNumber(rounded);
+  return value === 0 ? Math.sign(cents) * Math.sign(fxRateMicro) * 0 : Math.sign(cents) * value;
 }
 
 /** Units (1e-8) that `cents` buy at `priceMicro`, rounded half up. */
@@ -43,10 +66,11 @@ export function unitsFor(cents: number, priceMicro: number): number {
   if (!Number.isSafeInteger(priceMicro) || priceMicro <= 0)
     throw new RangeError('Price must be a positive integer (micro-units)');
   const negative = cents < 0;
-  const abs = BigInt(Math.abs(cents));
+  const amount = integer(cents);
+  const abs = amount < 0n ? -amount : amount;
   const price = BigInt(priceMicro);
   const rounded = (abs * E12 + price / 2n) / price;
-  return Number(negative ? -rounded : rounded);
+  return safeNumber(negative ? -rounded : rounded);
 }
 
 export interface HoldingSnapshot {
