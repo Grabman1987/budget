@@ -45,6 +45,9 @@ import { EXPLORER_CSV_CHANGED_MESSAGE, explorerQuery, fetchExplorerCsv } from '.
 import { euroCellText, monthLong, monthShortYear, wholeText } from './overview-format';
 import './overview-reports.css';
 import './explorer-report.css';
+import { customChartModel } from './explorer-chart-model-626';
+import { ExplorerChart626, ExplorerViewToggle626 } from './explorer-chart-626';
+import { ExplorerTableInspector626 } from './explorer-table-inspector-626';
 
 const label = <T extends ReadonlyArray<{ id: string; label: string }>>(list: T, id: string) =>
   list.find((x) => x.id === id)?.label ?? id;
@@ -571,6 +574,8 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
             result={data.result}
             firstMonth={data.firstMonth}
             fetching={result.isFetching}
+            failed={result.isError}
+            ready={exportReady}
             onExport={() => void download()}
             exportDisabled={!exportReady || exporting}
             exporting={exporting}
@@ -599,6 +604,8 @@ function Pivot({
   result,
   firstMonth,
   fetching,
+  failed,
+  ready,
   onExport,
   exportDisabled,
   exporting,
@@ -606,11 +613,16 @@ function Pivot({
   result: ExplorerResult;
   firstMonth: string | null;
   fetching: boolean;
+  failed: boolean;
+  ready: boolean;
   onExport: () => void;
   exportDisabled: boolean;
   exporting: boolean;
 }) {
   useAmountPrivacy();
+  const [view, setView] = useState<'table' | 'chart'>('table');
+  const chartData = useMemo(() => customChartModel(result), [result]);
+  const cellsPerRow = result.columns.length + chartData.summaryColumns.length;
   const { query, columns, rows, totals } = result;
   const headers = explorerTableHeaders(result);
   const fmt = (value: number) => (result.unit === 'count' ? wholeText(value) : euroCellText(value));
@@ -647,87 +659,115 @@ function Pivot({
           {exporting ? 'CSV wird geprüft …' : 'CSV exportieren'}
         </Button>
       </div>
-      {rows.length === 0 ? (
-        <p className="ov-empty" role="status">
-          {firstMonth === null
-            ? 'Es gibt noch keine Buchungen auf Budgetkonten.'
-            : 'Keine Werte für diese Auswahl.'}
-        </p>
-      ) : (
-        <div
-          className="ov-scroll ex-scroll"
-          role="region"
-          aria-label="Pivottabelle, bei Bedarf horizontal verschiebbar"
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the wide table.
-          tabIndex={0}
-        >
-          <table className="ov-table ex-table" data-testid="ex-table">
-            <thead>
-              <tr>
-                <th className="tech ex-first">{headers[0]}</th>
-                {columns.map((c, i) => (
-                  <th key={c.key} className="tech n">
-                    {headers[i + 1]}
-                  </th>
-                ))}
-                {columns.length > 1 && <th className="tech n">{headers.at(-1)}</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
-                const heat = columns.length > 1 ? overviewHeat(row.values, result.good) : [];
-                const to = link(row.key);
-                return (
-                  <tr key={row.key || '__none'}>
-                    <th scope="row" className="ex-first">
-                      {row.class && <ClassSwatch kind={row.class} />}
-                      {to ? (
-                        <AppLink to="/konten/buchungen" search={to}>
-                          {row.label}
-                        </AppLink>
-                      ) : (
-                        row.label
-                      )}
-                    </th>
-                    {row.values.map((value, i) => {
-                      const h = heat[i];
-                      return (
+      <ExplorerViewToggle626 value={view} onChange={setView} busy={!ready} />
+      {view === 'chart' &&
+        (failed ? (
+          <p role="status">Diagramm für diese Auswahl nicht verfügbar.</p>
+        ) : !ready ? (
+          <LoadingNote what="Diagramm" />
+        ) : (
+          <ExplorerChart626 data={chartData} />
+        ))}
+      <div hidden={view !== 'table'} className="ex-native-view">
+        <ExplorerTableInspector626 data={chartData} active={view === 'table'}>
+          {rows.length === 0 ? (
+            <p className="ov-empty" role="status">
+              {firstMonth === null
+                ? 'Es gibt noch keine Buchungen auf Budgetkonten.'
+                : 'Keine Werte für diese Auswahl.'}
+            </p>
+          ) : (
+            <div
+              className="ov-scroll ex-scroll"
+              role="region"
+              aria-label="Pivottabelle, bei Bedarf horizontal verschiebbar"
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the wide table.
+              tabIndex={0}
+            >
+              <table className="ov-table ex-table" data-testid="ex-table">
+                <thead>
+                  <tr>
+                    <th className="tech ex-first">{headers[0]}</th>
+                    {columns.map((c, i) => (
+                      <th key={c.key} className="tech n">
+                        {headers[i + 1]}
+                      </th>
+                    ))}
+                    {columns.length > 1 && <th className="tech n">{headers.at(-1)}</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, rowIndex) => {
+                    const heat = columns.length > 1 ? overviewHeat(row.values, result.good) : [];
+                    const to = link(row.key);
+                    return (
+                      <tr key={row.key || '__none'}>
+                        <th scope="row" className="ex-first">
+                          {row.class && <ClassSwatch kind={row.class} />}
+                          {to ? (
+                            <AppLink to="/konten/buchungen" search={to}>
+                              {row.label}
+                            </AppLink>
+                          ) : (
+                            row.label
+                          )}
+                        </th>
+                        {row.values.map((value, i) => {
+                          const h = heat[i];
+                          return (
+                            <td
+                              key={columns[i]?.key ?? i}
+                              data-chart-point={rowIndex * cellsPerRow + i}
+                              className={`n${h ? ` ov-hc is-${h.tone}` : ''}`}
+                              style={
+                                h ? ({ '--h': h.strength.toFixed(2) } as CSSProperties) : undefined
+                              }
+                            >
+                              {value === 0 ? <span className="muted">·</span> : fmt(value)}
+                            </td>
+                          );
+                        })}
+                        {columns.length > 1 && (
+                          <td
+                            className="n"
+                            data-chart-point={rowIndex * cellsPerRow + columns.length}
+                          >
+                            <strong>{fmt(row.total)}</strong>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                  {totals && (
+                    <tr className="is-total">
+                      <th scope="row" className="ex-first">
+                        Summe
+                      </th>
+                      {totals.values.map((value, i) => (
                         <td
                           key={columns[i]?.key ?? i}
-                          className={`n${h ? ` ov-hc is-${h.tone}` : ''}`}
-                          style={
-                            h ? ({ '--h': h.strength.toFixed(2) } as CSSProperties) : undefined
-                          }
+                          className="n"
+                          data-chart-point={rows.length * cellsPerRow + i}
                         >
-                          {value === 0 ? <span className="muted">·</span> : fmt(value)}
+                          {fmt(value)}
                         </td>
-                      );
-                    })}
-                    {columns.length > 1 && (
-                      <td className="n">
-                        <strong>{fmt(row.total)}</strong>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-              {totals && (
-                <tr className="is-total">
-                  <th scope="row" className="ex-first">
-                    Summe
-                  </th>
-                  {totals.values.map((value, i) => (
-                    <td key={columns[i]?.key ?? i} className="n">
-                      {fmt(value)}
-                    </td>
-                  ))}
-                  {columns.length > 1 && <td className="n">{fmt(totals.total)}</td>}
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+                      ))}
+                      {columns.length > 1 && (
+                        <td
+                          className="n"
+                          data-chart-point={rows.length * cellsPerRow + columns.length}
+                        >
+                          {fmt(totals.total)}
+                        </td>
+                      )}
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </ExplorerTableInspector626>
+      </div>
       {result.truncated > 0 && (
         <p className="ov-note" role="note">
           Die größten {rows.length} Zeilen sind aufgelistet, {result.truncated} weitere nicht.
