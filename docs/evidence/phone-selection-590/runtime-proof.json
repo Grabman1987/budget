@@ -1,0 +1,5149 @@
+{
+  "scope": "Current bounded local verification at reviewed working freeze312a on HEAD167983, after verified LIVE Main9c inheritance and Root-only old5 adapters. Outside result proposal; final required AGE check, exact-head Chromium/remainingCI, integration/live still pending.",
+  "actualRun": {
+    "archive": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual",
+    "session": 85302,
+    "sourceHead": "1679836114a0a3f07061519ae1fae0183b5a4c4f",
+    "sourceFreezeSHA256": "312a4233c159046e94d7c96e1a65aaccab5d537a77e4c7cc4ad4cce000a61ccb",
+    "reviewedOwnedCount": 18,
+    "workingSourceCount": 3427,
+    "owned18Hashes": {
+      "apps/web/src/budget/plan-menus.tsx": "b851eefc9000fb6609d4b2bed6544f2d744d5b06c122137027556e8a35009920",
+      "apps/web/src/budget/plan-page.tsx": "3fd5766384835bb843f90bc50db2435c5e4db3509ef7b372455164ebfe8760a0",
+      "apps/web/src/budget/plan-phone-selection-590.test.tsx": "41b6c1d2bb509b7a575f4238cb7f2bd01be852c860f8925e276f8731b2a8dc45",
+      "apps/web/src/budget/plan.css": "976b4da26e5c8ece787ab78c35f995cd003525bf5bf0f494b581aacb80eca9d6",
+      "docs/ROADMAP.md": "5a622c6ea411e122ce168229bd0176a424e6d5e6e9732c25d99c03c168a874cc",
+      "docs/evidence/phone-selection-590/IMAGE_INDEX.json": "2cd111d71f49585416ee5a6c1ebf15ac41f8249616b6973a60eb867fc927230a",
+      "docs/evidence/phone-selection-590/README.md": "582a89c0a24b089b9c8b3b0f388ac4354f1ffc1913789c5b280bff8dd4ed019b",
+      "docs/evidence/phone-selection-590/first-category-390x844-dark.png": "17d5f8d726625758417e2c7a54440a2e27aa44dea2840e6299bd292fa77d651c",
+      "docs/evidence/phone-selection-590/first-category-390x844-light.png": "2885d21b4bb1af1980eddac57fd7b895d411397357e1a4f48e955b6eb511b2a8",
+      "docs/evidence/phone-selection-590/runtime-proof.json": "8fb5b058d885e9e715a25a131f53b4ffa1f844371ebd17123ca3a83a02dc521c",
+      "docs/evidence/phone-selection-590/selection-390-dark.png": "2737662fa480b6237cc072411691287ece40b30f953560d9521f416f18cf2e72",
+      "docs/evidence/phone-selection-590/selection-390-light.png": "a3741facb01a1da9d0a9911a37183d480fc1aa14a9665fc5f55720788244816b",
+      "e2e/issue-481-single-category-band.spec.ts": "10be0f9364e793ab5ba89a9aa9efbe09c4d4005933b6b96585eb596a74875259",
+      "e2e/issue-588-plan-menus-undo.spec.ts": "bf1cb9cbd512bb5a6feebf291083bbbd5f6085d36c4fcd614c455ea89950a1f1",
+      "e2e/issue-590-phone-selection.spec.ts": "78f97ad34d18c33cb022dbd294e86dd96be083e5abcdf9cf274d17c57c455b78",
+      "e2e/plan-compact-grid.spec.ts": "d91b0acbb1d99823fb8c674a3b2e5764d8772edbe2ccf0fe10411ac7399783eb",
+      "e2e/plan-ghost.spec.ts": "62c4999f8e4913fe9d2286d13f28994166f467a6d4a61b536f91722a1f2d6dfd",
+      "e2e/plan-inspector.spec.ts": "5b461b6b6e9681c99f09c2b91edecb4c69a7487c2c6f5e1c7d95faf57ad26db5"
+    },
+    "rawResultSHA256": "5f3bd703a29adfbe6aa0566017d9a0b68e94e8f7ddb547a7ad27cdb6b58d1df4",
+    "rawNativeLogSHA256": "eb7eac79a1ab285839424006c10c82ae0a938bcd7c6cec69eafcc3669aee2d8d",
+    "actualCollection": 20,
+    "passed": 20,
+    "new590Cases": 4,
+    "existingCompatibilityCases": 13,
+    "setups": 3,
+    "rawDuration": "3.6m",
+    "freshRegularBuildExit": 0,
+    "nativeCommandWaitExit": 0,
+    "wrapperExit": 0,
+    "guardExit": 0,
+    "explicitLockReacquireExit": 0,
+    "freshCompiledFiles": 158,
+    "compiledFullsetHashModesSame": true,
+    "nativeProcessGroupGone": true,
+    "buildProcessQualification": "No live owned members; one exited build zombie retained in actual cleanup record.",
+    "qualification": "Fresh REGULAR npm run build completed in this run. No169-build reuse claim."
+  },
+  "images": [
+    {
+      "file": "first-category-390x844-light.png",
+      "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-590-phone-selection--706bb-tom-controls-in-both-themes-webkit-iphone/first-category-390x844-light.png",
+      "sha256": "2885d21b4bb1af1980eddac57fd7b895d411397357e1a4f48e955b6eb511b2a8",
+      "pixelWidth": 1170,
+      "pixelHeight": 2532,
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "renderedWidthRatio": 3.0,
+      "captureKind": "viewport",
+      "sourceCase": "NEW issue-590 own phone case",
+      "qualification": "First-category frame is outside selection mode; selection frame can show groupheader/FABamount overlay. No wholly unobscured-row or all-control hit-test claim."
+    },
+    {
+      "file": "first-category-390x844-dark.png",
+      "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-590-phone-selection--706bb-tom-controls-in-both-themes-webkit-iphone/first-category-390x844-dark.png",
+      "sha256": "17d5f8d726625758417e2c7a54440a2e27aa44dea2840e6299bd292fa77d651c",
+      "pixelWidth": 1170,
+      "pixelHeight": 2532,
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "renderedWidthRatio": 3.0,
+      "captureKind": "viewport",
+      "sourceCase": "NEW issue-590 own phone case",
+      "qualification": "First-category frame is outside selection mode; selection frame can show groupheader/FABamount overlay. No wholly unobscured-row or all-control hit-test claim."
+    },
+    {
+      "file": "selection-390-light.png",
+      "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-590-phone-selection--bc7c7-t-desktop-checkboxes-remain-webkit-iphone/selection-390-light.png",
+      "sha256": "a3741facb01a1da9d0a9911a37183d480fc1aa14a9665fc5f55720788244816b",
+      "pixelWidth": 1170,
+      "pixelHeight": 1992,
+      "cssViewport": {
+        "width": 390,
+        "height": 664
+      },
+      "renderedWidthRatio": 3.0,
+      "captureKind": "viewport",
+      "sourceCase": "NEW issue-590 own phone case",
+      "qualification": "First-category frame is outside selection mode; selection frame can show groupheader/FABamount overlay. No wholly unobscured-row or all-control hit-test claim."
+    },
+    {
+      "file": "selection-390-dark.png",
+      "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-590-phone-selection--bc7c7-t-desktop-checkboxes-remain-webkit-iphone/selection-390-dark.png",
+      "sha256": "2737662fa480b6237cc072411691287ece40b30f953560d9521f416f18cf2e72",
+      "pixelWidth": 1170,
+      "pixelHeight": 1992,
+      "cssViewport": {
+        "width": 390,
+        "height": 664
+      },
+      "renderedWidthRatio": 3.0,
+      "captureKind": "viewport",
+      "sourceCase": "NEW issue-590 own phone case",
+      "qualification": "First-category frame is outside selection mode; selection frame can show groupheader/FABamount overlay. No wholly unobscured-row or all-control hit-test claim."
+    },
+    {
+      "file": "desktop-light.png",
+      "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-481-single-category--439c1-eir-controls-at-1440-pixels-webkit-iphone/desktop-light.png",
+      "sha256": "df074afbbfa907fd30b7cb798c40d614be8ee30ec975f551a778556d7f6acd9a",
+      "pixelWidth": 4320,
+      "pixelHeight": 6261,
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "renderedWidthRatio": 3.0,
+      "captureKind": "fullPage",
+      "sourceCase": "EXISTING issue-481 manual desktop context, not NEW590 desktop branch",
+      "qualification": "Full-page frame/known sticky-heading limits; observed desktop flags and coarse/touch measurements in matching raw metrics. Runtime DPR is not recorded by this existing fixture; image width is3xCSSviewport."
+    },
+    {
+      "file": "desktop-dark.png",
+      "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-481-single-category--19ff1-eir-controls-at-1440-pixels-webkit-iphone/desktop-dark.png",
+      "sha256": "ab583cf8c662a9117c11fd84a277d91a81a93558160f98f18fbda220262e5812",
+      "pixelWidth": 4320,
+      "pixelHeight": 6261,
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "renderedWidthRatio": 3.0,
+      "captureKind": "fullPage",
+      "sourceCase": "EXISTING issue-481 manual desktop context, not NEW590 desktop branch",
+      "qualification": "Full-page frame/known sticky-heading limits; observed desktop flags and coarse/touch measurements in matching raw metrics. Runtime DPR is not recorded by this existing fixture; image width is3xCSSviewport."
+    }
+  ],
+  "safeOriginalMeasurements": {
+    "responsive-light-metrics.json": {
+      "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-481-single-category--92326-unds-and-right-edge-actions-webkit-iphone/responsive-light-metrics.json",
+      "sha256": "f1aa086d26a4944d93cdf3f8806dd905f21e06efbbc8ddc70113f8d1da454049",
+      "value": [
+        {
+          "width": 768,
+          "theme": "light",
+          "labels": [
+            {
+              "name": "Wohnen",
+              "textRight": 386.8123779296875,
+              "title": {
+                "left": 329,
+                "right": 386.8125,
+                "top": 424.8125,
+                "bottom": 446.5625,
+                "width": 57.8125
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 421.6875,
+                "bottom": 449.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 449.6875,
+                "bottom": 473.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 450.8125,
+                "bottom": 472.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 452.984375,
+                "bottom": 470.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Kredite",
+              "textRight": 379.82037353515625,
+              "title": {
+                "left": 329,
+                "right": 379.828125,
+                "top": 660.8125,
+                "bottom": 682.5625,
+                "width": 50.828125
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 657.6875,
+                "bottom": 685.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 685.6875,
+                "bottom": 709.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 686.8125,
+                "bottom": 708.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 688.984375,
+                "bottom": 706.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Versicherungen",
+              "textRight": 440.00274658203125,
+              "title": {
+                "left": 329,
+                "right": 426.9375,
+                "top": 766.8125,
+                "bottom": 788.5625,
+                "width": 97.9375
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 763.6875,
+                "bottom": 791.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 791.6875,
+                "bottom": 815.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 792.8125,
+                "bottom": 814.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 794.984375,
+                "bottom": 812.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Abos",
+              "textRight": 365.97528076171875,
+              "title": {
+                "left": 329,
+                "right": 365.984375,
+                "top": 904.8125,
+                "bottom": 926.5625,
+                "width": 36.984375
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 901.6875,
+                "bottom": 929.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 929.6875,
+                "bottom": 953.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 930.8125,
+                "bottom": 952.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 932.984375,
+                "bottom": 950.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Freizeit",
+              "textRight": 380.70538330078125,
+              "title": {
+                "left": 329,
+                "right": 380.71875,
+                "top": 1142.8125,
+                "bottom": 1164.5625,
+                "width": 51.71875
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 1139.6875,
+                "bottom": 1167.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 1167.6875,
+                "bottom": 1191.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 1168.8125,
+                "bottom": 1190.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 1170.984375,
+                "bottom": 1188.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Mobilit\u00e4t",
+              "textRight": 389.72039794921875,
+              "title": {
+                "left": 329,
+                "right": 389.734375,
+                "top": 1412.8125,
+                "bottom": 1434.5625,
+                "width": 60.734375
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 1409.6875,
+                "bottom": 1437.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 1437.6875,
+                "bottom": 1461.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 1438.8125,
+                "bottom": 1460.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 1440.984375,
+                "bottom": 1458.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Genuss",
+              "textRight": 383.6304016113281,
+              "title": {
+                "left": 329,
+                "right": 383.640625,
+                "top": 1682.8125,
+                "bottom": 1704.5625,
+                "width": 54.640625
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 1679.6875,
+                "bottom": 1707.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 1707.6875,
+                "bottom": 1731.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 1708.8125,
+                "bottom": 1730.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 1710.984375,
+                "bottom": 1728.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Geschenke",
+              "textRight": 408.6871337890625,
+              "title": {
+                "left": 329,
+                "right": 408.6875,
+                "top": 1920.8125,
+                "bottom": 1942.5625,
+                "width": 79.6875
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 1917.6875,
+                "bottom": 1945.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 1945.6875,
+                "bottom": 1969.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 1946.8125,
+                "bottom": 1968.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 1948.984375,
+                "bottom": 1966.375,
+                "width": 72.96875
+              }
+            }
+          ],
+          "reachability": {
+            "outerLeft": 265,
+            "outerRight": 739,
+            "headerRight": 738.578125,
+            "actionLeft": 698.578125,
+            "actionRight": 726.578125,
+            "scrollWidth": 589,
+            "clientWidth": 474,
+            "scrollLeft": 115,
+            "documentWidth": 768
+          }
+        },
+        {
+          "width": 1180,
+          "theme": "light",
+          "labels": [
+            {
+              "name": "Wohnen",
+              "textRight": 386.8123779296875,
+              "title": {
+                "left": 329,
+                "right": 386.8125,
+                "top": 424.8125,
+                "bottom": 446.5625,
+                "width": 57.8125
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 421.6875,
+                "bottom": 449.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 449.6875,
+                "bottom": 473.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 450.8125,
+                "bottom": 472.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 452.984375,
+                "bottom": 470.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Kredite",
+              "textRight": 379.82037353515625,
+              "title": {
+                "left": 329,
+                "right": 379.828125,
+                "top": 660.8125,
+                "bottom": 682.5625,
+                "width": 50.828125
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 657.6875,
+                "bottom": 685.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 685.6875,
+                "bottom": 709.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 686.8125,
+                "bottom": 708.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 688.984375,
+                "bottom": 706.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Versicherungen",
+              "textRight": 440.00274658203125,
+              "title": {
+                "left": 329,
+                "right": 426.9375,
+                "top": 766.8125,
+                "bottom": 788.5625,
+                "width": 97.9375
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 763.6875,
+                "bottom": 791.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 791.6875,
+                "bottom": 815.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 792.8125,
+                "bottom": 814.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 794.984375,
+                "bottom": 812.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Abos",
+              "textRight": 365.97528076171875,
+              "title": {
+                "left": 329,
+                "right": 365.984375,
+                "top": 904.8125,
+                "bottom": 926.5625,
+                "width": 36.984375
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 901.6875,
+                "bottom": 929.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 929.6875,
+                "bottom": 953.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 930.8125,
+                "bottom": 952.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 932.984375,
+                "bottom": 950.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Freizeit",
+              "textRight": 380.70538330078125,
+              "title": {
+                "left": 329,
+                "right": 380.71875,
+                "top": 1142.8125,
+                "bottom": 1164.5625,
+                "width": 51.71875
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 1139.6875,
+                "bottom": 1167.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 1167.6875,
+                "bottom": 1191.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 1168.8125,
+                "bottom": 1190.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 1170.984375,
+                "bottom": 1188.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Mobilit\u00e4t",
+              "textRight": 389.72039794921875,
+              "title": {
+                "left": 329,
+                "right": 389.734375,
+                "top": 1412.8125,
+                "bottom": 1434.5625,
+                "width": 60.734375
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 1409.6875,
+                "bottom": 1437.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 1437.6875,
+                "bottom": 1461.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 1438.8125,
+                "bottom": 1460.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 1440.984375,
+                "bottom": 1458.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Genuss",
+              "textRight": 383.6304016113281,
+              "title": {
+                "left": 329,
+                "right": 383.640625,
+                "top": 1682.8125,
+                "bottom": 1704.5625,
+                "width": 54.640625
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 1679.6875,
+                "bottom": 1707.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 1707.6875,
+                "bottom": 1731.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 1708.8125,
+                "bottom": 1730.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 1710.984375,
+                "bottom": 1728.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Geschenke",
+              "textRight": 408.6871337890625,
+              "title": {
+                "left": 329,
+                "right": 408.6875,
+                "top": 1920.8125,
+                "bottom": 1942.5625,
+                "width": 79.6875
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 1917.6875,
+                "bottom": 1945.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 1945.6875,
+                "bottom": 1969.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 1946.8125,
+                "bottom": 1968.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 1948.984375,
+                "bottom": 1966.375,
+                "width": 72.96875
+              }
+            }
+          ],
+          "reachability": {
+            "outerLeft": 265,
+            "outerRight": 814.984375,
+            "headerRight": 814.578125,
+            "actionLeft": 774.578125,
+            "actionRight": 802.578125,
+            "scrollWidth": 589,
+            "clientWidth": 550,
+            "scrollLeft": 39,
+            "documentWidth": 1180
+          }
+        },
+        {
+          "width": 1439,
+          "theme": "light",
+          "labels": [
+            {
+              "name": "Wohnen",
+              "textRight": 398.8123779296875,
+              "title": {
+                "left": 341,
+                "right": 398.8125,
+                "top": 424.8125,
+                "bottom": 446.5625,
+                "width": 57.8125
+              },
+              "add": {
+                "left": 639.359375,
+                "right": 667.359375,
+                "top": 421.6875,
+                "bottom": 449.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 289,
+                "right": 313,
+                "top": 449.6875,
+                "bottom": 473.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 319,
+                "right": 490.171875,
+                "top": 450.8125,
+                "bottom": 472.5625,
+                "width": 171.171875
+              },
+              "status": {
+                "left": 496.171875,
+                "right": 667.359375,
+                "top": 452.984375,
+                "bottom": 470.375,
+                "width": 171.1875
+              }
+            },
+            {
+              "name": "Kredite",
+              "textRight": 391.82037353515625,
+              "title": {
+                "left": 341,
+                "right": 391.828125,
+                "top": 660.8125,
+                "bottom": 682.5625,
+                "width": 50.828125
+              },
+              "add": {
+                "left": 639.359375,
+                "right": 667.359375,
+                "top": 657.6875,
+                "bottom": 685.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 289,
+                "right": 313,
+                "top": 685.6875,
+                "bottom": 709.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 319,
+                "right": 490.171875,
+                "top": 686.8125,
+                "bottom": 708.5625,
+                "width": 171.171875
+              },
+              "status": {
+                "left": 496.171875,
+                "right": 667.359375,
+                "top": 688.984375,
+                "bottom": 706.375,
+                "width": 171.1875
+              }
+            },
+            {
+              "name": "Versicherungen",
+              "textRight": 452.00274658203125,
+              "title": {
+                "left": 341,
+                "right": 452.015625,
+                "top": 766.8125,
+                "bottom": 788.5625,
+                "width": 111.015625
+              },
+              "add": {
+                "left": 639.359375,
+                "right": 667.359375,
+                "top": 763.6875,
+                "bottom": 791.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 289,
+                "right": 313,
+                "top": 791.6875,
+                "bottom": 815.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 319,
+                "right": 490.171875,
+                "top": 792.8125,
+                "bottom": 814.5625,
+                "width": 171.171875
+              },
+              "status": {
+                "left": 496.171875,
+                "right": 667.359375,
+                "top": 794.984375,
+                "bottom": 812.375,
+                "width": 171.1875
+              }
+            },
+            {
+              "name": "Abos",
+              "textRight": 377.97528076171875,
+              "title": {
+                "left": 341,
+                "right": 377.984375,
+                "top": 904.8125,
+                "bottom": 926.5625,
+                "width": 36.984375
+              },
+              "add": {
+                "left": 639.359375,
+                "right": 667.359375,
+                "top": 901.6875,
+                "bottom": 929.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 289,
+                "right": 313,
+                "top": 929.6875,
+                "bottom": 953.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 319,
+                "right": 490.171875,
+                "top": 930.8125,
+                "bottom": 952.5625,
+                "width": 171.171875
+              },
+              "status": {
+                "left": 496.171875,
+                "right": 667.359375,
+                "top": 932.984375,
+                "bottom": 950.375,
+                "width": 171.1875
+              }
+            },
+            {
+              "name": "Freizeit",
+              "textRight": 392.70538330078125,
+              "title": {
+                "left": 341,
+                "right": 392.71875,
+                "top": 1142.8125,
+                "bottom": 1164.5625,
+                "width": 51.71875
+              },
+              "add": {
+                "left": 639.359375,
+                "right": 667.359375,
+                "top": 1139.6875,
+                "bottom": 1167.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 289,
+                "right": 313,
+                "top": 1167.6875,
+                "bottom": 1191.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 319,
+                "right": 490.171875,
+                "top": 1168.8125,
+                "bottom": 1190.5625,
+                "width": 171.171875
+              },
+              "status": {
+                "left": 496.171875,
+                "right": 667.359375,
+                "top": 1170.984375,
+                "bottom": 1188.375,
+                "width": 171.1875
+              }
+            },
+            {
+              "name": "Mobilit\u00e4t",
+              "textRight": 401.72039794921875,
+              "title": {
+                "left": 341,
+                "right": 401.734375,
+                "top": 1412.8125,
+                "bottom": 1434.5625,
+                "width": 60.734375
+              },
+              "add": {
+                "left": 639.359375,
+                "right": 667.359375,
+                "top": 1409.6875,
+                "bottom": 1437.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 289,
+                "right": 313,
+                "top": 1437.6875,
+                "bottom": 1461.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 319,
+                "right": 490.171875,
+                "top": 1438.8125,
+                "bottom": 1460.5625,
+                "width": 171.171875
+              },
+              "status": {
+                "left": 496.171875,
+                "right": 667.359375,
+                "top": 1440.984375,
+                "bottom": 1458.375,
+                "width": 171.1875
+              }
+            },
+            {
+              "name": "Genuss",
+              "textRight": 395.6304016113281,
+              "title": {
+                "left": 341,
+                "right": 395.640625,
+                "top": 1682.8125,
+                "bottom": 1704.5625,
+                "width": 54.640625
+              },
+              "add": {
+                "left": 639.359375,
+                "right": 667.359375,
+                "top": 1679.6875,
+                "bottom": 1707.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 289,
+                "right": 313,
+                "top": 1707.6875,
+                "bottom": 1731.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 319,
+                "right": 490.171875,
+                "top": 1708.8125,
+                "bottom": 1730.5625,
+                "width": 171.171875
+              },
+              "status": {
+                "left": 496.171875,
+                "right": 667.359375,
+                "top": 1710.984375,
+                "bottom": 1728.375,
+                "width": 171.1875
+              }
+            },
+            {
+              "name": "Geschenke",
+              "textRight": 420.6871337890625,
+              "title": {
+                "left": 341,
+                "right": 420.6875,
+                "top": 1920.8125,
+                "bottom": 1942.5625,
+                "width": 79.6875
+              },
+              "add": {
+                "left": 639.359375,
+                "right": 667.359375,
+                "top": 1917.6875,
+                "bottom": 1945.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 289,
+                "right": 313,
+                "top": 1945.6875,
+                "bottom": 1969.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 319,
+                "right": 490.171875,
+                "top": 1946.8125,
+                "bottom": 1968.5625,
+                "width": 171.171875
+              },
+              "status": {
+                "left": 496.171875,
+                "right": 667.359375,
+                "top": 1948.984375,
+                "bottom": 1966.375,
+                "width": 171.1875
+              }
+            }
+          ],
+          "reachability": {
+            "outerLeft": 277,
+            "outerRight": 1062,
+            "headerRight": 1062,
+            "actionLeft": 1022,
+            "actionRight": 1050,
+            "scrollWidth": 785,
+            "clientWidth": 785,
+            "scrollLeft": 0,
+            "documentWidth": 1439
+          }
+        }
+      ]
+    },
+    "desktop-light-metrics.json": {
+      "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-481-single-category--439c1-eir-controls-at-1440-pixels-webkit-iphone/desktop-light-metrics.json",
+      "sha256": "98be25866ed3c5a16f9496e6eea936d8bdb6fb7f03c0971129e1b90e1d8416c4",
+      "value": {
+        "engine": "webkit",
+        "browserVersion": "27.2",
+        "theme": "light",
+        "configuredDesktopFlags": {
+          "isMobile": false,
+          "hasTouch": false
+        },
+        "oldRows": 55,
+        "newRows": 36,
+        "reductionPercent": 34.54545454545455,
+        "tableHeight": 1746.625,
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "observedTouchPoints": 0,
+        "observedCoarsePointer": false,
+        "documentWidth": 1440,
+        "fontsStatus": "loaded"
+      }
+    },
+    "native-contact-partial.json": {
+      "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-590-phone-selection--3f054-ds-without-financial-writes-webkit-iphone/native-contact-partial.json",
+      "sha256": "026f7f094a474d181b31d999ff78b32f046b4b07b2ba4535bbe8af4aeaaf0643",
+      "value": {
+        "scope": "Pinned-protocol gesture identity: trusted up/id/duration plus original connected captured button, exact overlay hit or original target, original touchend; cancel/move/no-write assertions remain required.",
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "observedEventCount": 25,
+        "droppedEventCount": 0,
+        "events": [
+          {
+            "type": "pointerdown",
+            "trusted": true,
+            "pointerType": "touch",
+            "pointerId": 3,
+            "time": 1321,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "SPAN",
+            "coordinates": {
+              "x": 129,
+              "y": 574
+            },
+            "changedTouches": [],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "touchstart",
+            "trusted": true,
+            "pointerType": null,
+            "pointerId": null,
+            "time": 1322,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "SPAN",
+            "coordinates": {
+              "x": 129,
+              "y": 574
+            },
+            "changedTouches": [
+              {
+                "id": 1,
+                "x": 129,
+                "y": 574
+              }
+            ],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "gotpointercapture",
+            "trusted": true,
+            "pointerType": "touch",
+            "pointerId": 3,
+            "time": 2023,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "BUTTON",
+            "coordinates": {
+              "x": 0,
+              "y": 0
+            },
+            "changedTouches": [],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": true,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "pointerup",
+            "trusted": true,
+            "pointerType": "touch",
+            "pointerId": 3,
+            "time": 2024,
+            "category": null,
+            "targetKind": "selection-bar",
+            "targetTag": "SECTION",
+            "coordinates": {
+              "x": 129,
+              "y": 574
+            },
+            "changedTouches": [],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": true,
+              "targetIsOriginalCategory": false,
+              "targetIsExactOverlay": true,
+              "overlayUnderPoint": true
+            }
+          },
+          {
+            "type": "lostpointercapture",
+            "trusted": true,
+            "pointerType": "touch",
+            "pointerId": 3,
+            "time": 2024,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "BUTTON",
+            "coordinates": {
+              "x": 0,
+              "y": 0
+            },
+            "changedTouches": [],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "touchend",
+            "trusted": true,
+            "pointerType": null,
+            "pointerId": null,
+            "time": 2025,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "SPAN",
+            "coordinates": {
+              "x": 129,
+              "y": 574
+            },
+            "changedTouches": [
+              {
+                "id": 1,
+                "x": 129,
+                "y": 574
+              }
+            ],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "pointerdown",
+            "trusted": true,
+            "pointerType": "touch",
+            "pointerId": 2,
+            "time": 2274,
+            "category": null,
+            "targetKind": "selection-bar",
+            "targetTag": "BUTTON",
+            "coordinates": {
+              "x": 278,
+              "y": 609
+            },
+            "changedTouches": [],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": false,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "touchstart",
+            "trusted": true,
+            "pointerType": null,
+            "pointerId": null,
+            "time": 2274,
+            "category": null,
+            "targetKind": "selection-bar",
+            "targetTag": "BUTTON",
+            "coordinates": {
+              "x": 278,
+              "y": 609
+            },
+            "changedTouches": [
+              {
+                "id": 0,
+                "x": 278,
+                "y": 609
+              }
+            ],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": false,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "gotpointercapture",
+            "trusted": true,
+            "pointerType": "touch",
+            "pointerId": 2,
+            "time": 2276,
+            "category": null,
+            "targetKind": "selection-bar",
+            "targetTag": "BUTTON",
+            "coordinates": {
+              "x": 0,
+              "y": 0
+            },
+            "changedTouches": [],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": false,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "pointerup",
+            "trusted": true,
+            "pointerType": "touch",
+            "pointerId": 2,
+            "time": 2276,
+            "category": null,
+            "targetKind": "selection-bar",
+            "targetTag": "BUTTON",
+            "coordinates": {
+              "x": 278,
+              "y": 609
+            },
+            "changedTouches": [],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": false,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "lostpointercapture",
+            "trusted": true,
+            "pointerType": "touch",
+            "pointerId": 2,
+            "time": 2277,
+            "category": null,
+            "targetKind": "selection-bar",
+            "targetTag": "BUTTON",
+            "coordinates": {
+              "x": 0,
+              "y": 0
+            },
+            "changedTouches": [],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": false,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "touchend",
+            "trusted": true,
+            "pointerType": null,
+            "pointerId": null,
+            "time": 2277,
+            "category": null,
+            "targetKind": "selection-bar",
+            "targetTag": "BUTTON",
+            "coordinates": {
+              "x": 278,
+              "y": 609
+            },
+            "changedTouches": [
+              {
+                "id": 0,
+                "x": 278,
+                "y": 609
+              }
+            ],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": false,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "click",
+            "trusted": true,
+            "pointerType": "mouse",
+            "pointerId": 1,
+            "time": 2280,
+            "category": null,
+            "targetKind": "selection-bar",
+            "targetTag": "BUTTON",
+            "coordinates": {
+              "x": 278,
+              "y": 609
+            },
+            "changedTouches": [],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": false,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "pointerdown",
+            "trusted": true,
+            "pointerType": "touch",
+            "pointerId": 3,
+            "time": 2620,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "SPAN",
+            "coordinates": {
+              "x": 129,
+              "y": 574
+            },
+            "changedTouches": [],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "touchstart",
+            "trusted": true,
+            "pointerType": null,
+            "pointerId": null,
+            "time": 2621,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "SPAN",
+            "coordinates": {
+              "x": 129,
+              "y": 574
+            },
+            "changedTouches": [
+              {
+                "id": 1,
+                "x": 129,
+                "y": 574
+              }
+            ],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "gotpointercapture",
+            "trusted": true,
+            "pointerType": "touch",
+            "pointerId": 3,
+            "time": 2646,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "SPAN",
+            "coordinates": {
+              "x": 0,
+              "y": 0
+            },
+            "changedTouches": [],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "pointercancel",
+            "trusted": true,
+            "pointerType": "touch",
+            "pointerId": 3,
+            "time": 2647,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "SPAN",
+            "coordinates": {
+              "x": 129,
+              "y": 574
+            },
+            "changedTouches": [],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "touchcancel",
+            "trusted": true,
+            "pointerType": null,
+            "pointerId": null,
+            "time": 2647,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "SPAN",
+            "coordinates": {
+              "x": 129,
+              "y": 574
+            },
+            "changedTouches": [
+              {
+                "id": 1,
+                "x": 129,
+                "y": 574
+              }
+            ],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "pointerdown",
+            "trusted": true,
+            "pointerType": "touch",
+            "pointerId": 3,
+            "time": 3349,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "SPAN",
+            "coordinates": {
+              "x": 129,
+              "y": 574
+            },
+            "changedTouches": [],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "touchstart",
+            "trusted": true,
+            "pointerType": null,
+            "pointerId": null,
+            "time": 3350,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "SPAN",
+            "coordinates": {
+              "x": 129,
+              "y": 574
+            },
+            "changedTouches": [
+              {
+                "id": 1,
+                "x": 129,
+                "y": 574
+              }
+            ],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "pointermove",
+            "trusted": true,
+            "pointerType": "touch",
+            "pointerId": 3,
+            "time": 3388,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "SPAN",
+            "coordinates": {
+              "x": 149,
+              "y": 574
+            },
+            "changedTouches": [],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "touchmove",
+            "trusted": true,
+            "pointerType": null,
+            "pointerId": null,
+            "time": 3389,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "SPAN",
+            "coordinates": {
+              "x": 149,
+              "y": 574
+            },
+            "changedTouches": [
+              {
+                "id": 1,
+                "x": 149,
+                "y": 574
+              }
+            ],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "pointerup",
+            "trusted": true,
+            "pointerType": "touch",
+            "pointerId": 3,
+            "time": 3410,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "SPAN",
+            "coordinates": {
+              "x": 149,
+              "y": 574
+            },
+            "changedTouches": [],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "lostpointercapture",
+            "trusted": true,
+            "pointerType": "touch",
+            "pointerId": 3,
+            "time": 3411,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "SPAN",
+            "coordinates": {
+              "x": 0,
+              "y": 0
+            },
+            "changedTouches": [],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          },
+          {
+            "type": "touchend",
+            "trusted": true,
+            "pointerType": null,
+            "pointerId": null,
+            "time": 3413,
+            "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+            "targetKind": "category",
+            "targetTag": "SPAN",
+            "coordinates": {
+              "x": 149,
+              "y": 574
+            },
+            "changedTouches": [
+              {
+                "id": 1,
+                "x": 149,
+                "y": 574
+              }
+            ],
+            "origin": {
+              "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+              "connected": true,
+              "currentQueryIdentity": true,
+              "hasCapture": false,
+              "targetIsOriginalCategory": true,
+              "targetIsExactOverlay": false,
+              "overlayUnderPoint": false
+            }
+          }
+        ],
+        "protocolAcknowledgments": [
+          {
+            "type": "start",
+            "point": {
+              "id": 1,
+              "x": 129,
+              "y": 574
+            },
+            "acknowledged": true,
+            "durationMs": 14.136234999983571
+          },
+          {
+            "type": "end",
+            "point": {
+              "id": 1,
+              "x": 129,
+              "y": 574
+            },
+            "acknowledged": true,
+            "durationMs": 5.187822999985656
+          },
+          {
+            "type": "start",
+            "point": {
+              "id": 1,
+              "x": 129,
+              "y": 574
+            },
+            "acknowledged": true,
+            "durationMs": 3.4749590000137687
+          },
+          {
+            "type": "cancel",
+            "point": {
+              "id": 1,
+              "x": 129,
+              "y": 574
+            },
+            "acknowledged": true,
+            "durationMs": 5.640813000005437
+          },
+          {
+            "type": "start",
+            "point": {
+              "id": 1,
+              "x": 129,
+              "y": 574
+            },
+            "acknowledged": true,
+            "durationMs": 2.5794739999982994
+          },
+          {
+            "type": "move",
+            "point": {
+              "id": 1,
+              "x": 149,
+              "y": 574
+            },
+            "acknowledged": true,
+            "durationMs": 2.542755999980727
+          },
+          {
+            "type": "end",
+            "point": {
+              "id": 1,
+              "x": 149,
+              "y": 574
+            },
+            "acknowledged": true,
+            "durationMs": 6.706420000002254
+          }
+        ],
+        "geometrySnapshots": [
+          {
+            "stage": "before-start",
+            "point": {
+              "id": 1,
+              "x": 129,
+              "y": 574
+            },
+            "observation": {
+              "viewport": {
+                "width": 390,
+                "height": 844
+              },
+              "scrollingElement": {
+                "tag": "HTML",
+                "top": 0,
+                "height": 844,
+                "scrollHeight": 1403
+              },
+              "documentWidth": 390,
+              "grid": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 1248.890625,
+                "width": 358,
+                "height": 987.5
+              },
+              "gridPaddingBottom": "0px",
+              "bar": null,
+              "topbar": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 315.390625,
+                "width": 358,
+                "height": 54
+              },
+              "nav": {
+                "left": 0,
+                "right": 390,
+                "top": 780,
+                "bottom": 844,
+                "width": 390,
+                "height": 64
+              },
+              "fab": {
+                "left": 316,
+                "right": 374,
+                "top": 706,
+                "bottom": 764,
+                "width": 58,
+                "height": 58
+              },
+              "hitStack": [
+                {
+                  "tag": "SPAN",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "BUTTON",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "TR",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TBODY",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TABLE",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "DIV",
+                  "kind": "other",
+                  "category": null
+                }
+              ]
+            }
+          },
+          {
+            "stage": "after-start",
+            "point": {
+              "id": 1,
+              "x": 129,
+              "y": 574
+            },
+            "observation": {
+              "viewport": {
+                "width": 390,
+                "height": 844
+              },
+              "scrollingElement": {
+                "tag": "HTML",
+                "top": 0,
+                "height": 844,
+                "scrollHeight": 1403
+              },
+              "documentWidth": 390,
+              "grid": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 1248.890625,
+                "width": 358,
+                "height": 987.5
+              },
+              "gridPaddingBottom": "0px",
+              "bar": null,
+              "topbar": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 315.390625,
+                "width": 358,
+                "height": 54
+              },
+              "nav": {
+                "left": 0,
+                "right": 390,
+                "top": 780,
+                "bottom": 844,
+                "width": 390,
+                "height": 64
+              },
+              "fab": {
+                "left": 316,
+                "right": 374,
+                "top": 706,
+                "bottom": 764,
+                "width": 58,
+                "height": 58
+              },
+              "hitStack": [
+                {
+                  "tag": "SPAN",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "BUTTON",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "TR",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TBODY",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TABLE",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "DIV",
+                  "kind": "other",
+                  "category": null
+                }
+              ]
+            }
+          },
+          {
+            "stage": "before-end",
+            "point": {
+              "id": 1,
+              "x": 129,
+              "y": 574
+            },
+            "observation": {
+              "viewport": {
+                "width": 390,
+                "height": 844
+              },
+              "scrollingElement": {
+                "tag": "HTML",
+                "top": 0,
+                "height": 844,
+                "scrollHeight": 2217
+              },
+              "documentWidth": 390,
+              "grid": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 2062.890625,
+                "width": 358,
+                "height": 1801.5
+              },
+              "gridPaddingBottom": "278.375px",
+              "bar": {
+                "left": 16,
+                "right": 374,
+                "top": 573.625,
+                "bottom": 698,
+                "width": 358,
+                "height": 124.375
+              },
+              "topbar": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 315.390625,
+                "width": 358,
+                "height": 54
+              },
+              "nav": {
+                "left": 0,
+                "right": 390,
+                "top": 780,
+                "bottom": 844,
+                "width": 390,
+                "height": 64
+              },
+              "fab": {
+                "left": 316,
+                "right": 374,
+                "top": 706,
+                "bottom": 764,
+                "width": 58,
+                "height": 58
+              },
+              "hitStack": [
+                {
+                  "tag": "SECTION",
+                  "kind": "selection-bar",
+                  "category": null
+                },
+                {
+                  "tag": "SPAN",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "BUTTON",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "TR",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TBODY",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TABLE",
+                  "kind": "other",
+                  "category": null
+                }
+              ]
+            }
+          },
+          {
+            "stage": "after-end",
+            "point": {
+              "id": 1,
+              "x": 129,
+              "y": 574
+            },
+            "observation": {
+              "viewport": {
+                "width": 390,
+                "height": 844
+              },
+              "scrollingElement": {
+                "tag": "HTML",
+                "top": 0,
+                "height": 844,
+                "scrollHeight": 2217
+              },
+              "documentWidth": 390,
+              "grid": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 2062.890625,
+                "width": 358,
+                "height": 1801.5
+              },
+              "gridPaddingBottom": "278.375px",
+              "bar": {
+                "left": 16,
+                "right": 374,
+                "top": 573.625,
+                "bottom": 698,
+                "width": 358,
+                "height": 124.375
+              },
+              "topbar": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 315.390625,
+                "width": 358,
+                "height": 54
+              },
+              "nav": {
+                "left": 0,
+                "right": 390,
+                "top": 780,
+                "bottom": 844,
+                "width": 390,
+                "height": 64
+              },
+              "fab": {
+                "left": 316,
+                "right": 374,
+                "top": 706,
+                "bottom": 764,
+                "width": 58,
+                "height": 58
+              },
+              "hitStack": [
+                {
+                  "tag": "SECTION",
+                  "kind": "selection-bar",
+                  "category": null
+                },
+                {
+                  "tag": "SPAN",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "BUTTON",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "TR",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TBODY",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TABLE",
+                  "kind": "other",
+                  "category": null
+                }
+              ]
+            }
+          },
+          {
+            "stage": "before-start",
+            "point": {
+              "id": 1,
+              "x": 129,
+              "y": 574
+            },
+            "observation": {
+              "viewport": {
+                "width": 390,
+                "height": 844
+              },
+              "scrollingElement": {
+                "tag": "HTML",
+                "top": 0,
+                "height": 844,
+                "scrollHeight": 1403
+              },
+              "documentWidth": 390,
+              "grid": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 1248.890625,
+                "width": 358,
+                "height": 987.5
+              },
+              "gridPaddingBottom": "0px",
+              "bar": null,
+              "topbar": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 315.390625,
+                "width": 358,
+                "height": 54
+              },
+              "nav": {
+                "left": 0,
+                "right": 390,
+                "top": 780,
+                "bottom": 844,
+                "width": 390,
+                "height": 64
+              },
+              "fab": {
+                "left": 316,
+                "right": 374,
+                "top": 706,
+                "bottom": 764,
+                "width": 58,
+                "height": 58
+              },
+              "hitStack": [
+                {
+                  "tag": "SPAN",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "BUTTON",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "TR",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TBODY",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TABLE",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "DIV",
+                  "kind": "other",
+                  "category": null
+                }
+              ]
+            }
+          },
+          {
+            "stage": "after-start",
+            "point": {
+              "id": 1,
+              "x": 129,
+              "y": 574
+            },
+            "observation": {
+              "viewport": {
+                "width": 390,
+                "height": 844
+              },
+              "scrollingElement": {
+                "tag": "HTML",
+                "top": 0,
+                "height": 844,
+                "scrollHeight": 1403
+              },
+              "documentWidth": 390,
+              "grid": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 1248.890625,
+                "width": 358,
+                "height": 987.5
+              },
+              "gridPaddingBottom": "0px",
+              "bar": null,
+              "topbar": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 315.390625,
+                "width": 358,
+                "height": 54
+              },
+              "nav": {
+                "left": 0,
+                "right": 390,
+                "top": 780,
+                "bottom": 844,
+                "width": 390,
+                "height": 64
+              },
+              "fab": {
+                "left": 316,
+                "right": 374,
+                "top": 706,
+                "bottom": 764,
+                "width": 58,
+                "height": 58
+              },
+              "hitStack": [
+                {
+                  "tag": "SPAN",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "BUTTON",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "TR",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TBODY",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TABLE",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "DIV",
+                  "kind": "other",
+                  "category": null
+                }
+              ]
+            }
+          },
+          {
+            "stage": "before-cancel",
+            "point": {
+              "id": 1,
+              "x": 129,
+              "y": 574
+            },
+            "observation": {
+              "viewport": {
+                "width": 390,
+                "height": 844
+              },
+              "scrollingElement": {
+                "tag": "HTML",
+                "top": 0,
+                "height": 844,
+                "scrollHeight": 1403
+              },
+              "documentWidth": 390,
+              "grid": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 1248.890625,
+                "width": 358,
+                "height": 987.5
+              },
+              "gridPaddingBottom": "0px",
+              "bar": null,
+              "topbar": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 315.390625,
+                "width": 358,
+                "height": 54
+              },
+              "nav": {
+                "left": 0,
+                "right": 390,
+                "top": 780,
+                "bottom": 844,
+                "width": 390,
+                "height": 64
+              },
+              "fab": {
+                "left": 316,
+                "right": 374,
+                "top": 706,
+                "bottom": 764,
+                "width": 58,
+                "height": 58
+              },
+              "hitStack": [
+                {
+                  "tag": "SPAN",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "BUTTON",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "TR",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TBODY",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TABLE",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "DIV",
+                  "kind": "other",
+                  "category": null
+                }
+              ]
+            }
+          },
+          {
+            "stage": "after-cancel",
+            "point": {
+              "id": 1,
+              "x": 129,
+              "y": 574
+            },
+            "observation": {
+              "viewport": {
+                "width": 390,
+                "height": 844
+              },
+              "scrollingElement": {
+                "tag": "HTML",
+                "top": 0,
+                "height": 844,
+                "scrollHeight": 1403
+              },
+              "documentWidth": 390,
+              "grid": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 1248.890625,
+                "width": 358,
+                "height": 987.5
+              },
+              "gridPaddingBottom": "0px",
+              "bar": null,
+              "topbar": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 315.390625,
+                "width": 358,
+                "height": 54
+              },
+              "nav": {
+                "left": 0,
+                "right": 390,
+                "top": 780,
+                "bottom": 844,
+                "width": 390,
+                "height": 64
+              },
+              "fab": {
+                "left": 316,
+                "right": 374,
+                "top": 706,
+                "bottom": 764,
+                "width": 58,
+                "height": 58
+              },
+              "hitStack": [
+                {
+                  "tag": "SPAN",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "BUTTON",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "TR",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TBODY",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TABLE",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "DIV",
+                  "kind": "other",
+                  "category": null
+                }
+              ]
+            }
+          },
+          {
+            "stage": "before-start",
+            "point": {
+              "id": 1,
+              "x": 129,
+              "y": 574
+            },
+            "observation": {
+              "viewport": {
+                "width": 390,
+                "height": 844
+              },
+              "scrollingElement": {
+                "tag": "HTML",
+                "top": 0,
+                "height": 844,
+                "scrollHeight": 1403
+              },
+              "documentWidth": 390,
+              "grid": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 1248.890625,
+                "width": 358,
+                "height": 987.5
+              },
+              "gridPaddingBottom": "0px",
+              "bar": null,
+              "topbar": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 315.390625,
+                "width": 358,
+                "height": 54
+              },
+              "nav": {
+                "left": 0,
+                "right": 390,
+                "top": 780,
+                "bottom": 844,
+                "width": 390,
+                "height": 64
+              },
+              "fab": {
+                "left": 316,
+                "right": 374,
+                "top": 706,
+                "bottom": 764,
+                "width": 58,
+                "height": 58
+              },
+              "hitStack": [
+                {
+                  "tag": "SPAN",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "BUTTON",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "TR",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TBODY",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TABLE",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "DIV",
+                  "kind": "other",
+                  "category": null
+                }
+              ]
+            }
+          },
+          {
+            "stage": "after-start",
+            "point": {
+              "id": 1,
+              "x": 129,
+              "y": 574
+            },
+            "observation": {
+              "viewport": {
+                "width": 390,
+                "height": 844
+              },
+              "scrollingElement": {
+                "tag": "HTML",
+                "top": 0,
+                "height": 844,
+                "scrollHeight": 1403
+              },
+              "documentWidth": 390,
+              "grid": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 1248.890625,
+                "width": 358,
+                "height": 987.5
+              },
+              "gridPaddingBottom": "0px",
+              "bar": null,
+              "topbar": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 315.390625,
+                "width": 358,
+                "height": 54
+              },
+              "nav": {
+                "left": 0,
+                "right": 390,
+                "top": 780,
+                "bottom": 844,
+                "width": 390,
+                "height": 64
+              },
+              "fab": {
+                "left": 316,
+                "right": 374,
+                "top": 706,
+                "bottom": 764,
+                "width": 58,
+                "height": 58
+              },
+              "hitStack": [
+                {
+                  "tag": "SPAN",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "BUTTON",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "TR",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TBODY",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TABLE",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "DIV",
+                  "kind": "other",
+                  "category": null
+                }
+              ]
+            }
+          },
+          {
+            "stage": "before-move",
+            "point": {
+              "id": 1,
+              "x": 149,
+              "y": 574
+            },
+            "observation": {
+              "viewport": {
+                "width": 390,
+                "height": 844
+              },
+              "scrollingElement": {
+                "tag": "HTML",
+                "top": 0,
+                "height": 844,
+                "scrollHeight": 1403
+              },
+              "documentWidth": 390,
+              "grid": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 1248.890625,
+                "width": 358,
+                "height": 987.5
+              },
+              "gridPaddingBottom": "0px",
+              "bar": null,
+              "topbar": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 315.390625,
+                "width": 358,
+                "height": 54
+              },
+              "nav": {
+                "left": 0,
+                "right": 390,
+                "top": 780,
+                "bottom": 844,
+                "width": 390,
+                "height": 64
+              },
+              "fab": {
+                "left": 316,
+                "right": 374,
+                "top": 706,
+                "bottom": 764,
+                "width": 58,
+                "height": 58
+              },
+              "hitStack": [
+                {
+                  "tag": "SPAN",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "BUTTON",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "TR",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TBODY",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TABLE",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "DIV",
+                  "kind": "other",
+                  "category": null
+                }
+              ]
+            }
+          },
+          {
+            "stage": "after-move",
+            "point": {
+              "id": 1,
+              "x": 149,
+              "y": 574
+            },
+            "observation": {
+              "viewport": {
+                "width": 390,
+                "height": 844
+              },
+              "scrollingElement": {
+                "tag": "HTML",
+                "top": 0,
+                "height": 844,
+                "scrollHeight": 1403
+              },
+              "documentWidth": 390,
+              "grid": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 1248.890625,
+                "width": 358,
+                "height": 987.5
+              },
+              "gridPaddingBottom": "0px",
+              "bar": null,
+              "topbar": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 315.390625,
+                "width": 358,
+                "height": 54
+              },
+              "nav": {
+                "left": 0,
+                "right": 390,
+                "top": 780,
+                "bottom": 844,
+                "width": 390,
+                "height": 64
+              },
+              "fab": {
+                "left": 316,
+                "right": 374,
+                "top": 706,
+                "bottom": 764,
+                "width": 58,
+                "height": 58
+              },
+              "hitStack": [
+                {
+                  "tag": "SPAN",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "BUTTON",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "TR",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TBODY",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TABLE",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "DIV",
+                  "kind": "other",
+                  "category": null
+                }
+              ]
+            }
+          },
+          {
+            "stage": "before-end",
+            "point": {
+              "id": 1,
+              "x": 149,
+              "y": 574
+            },
+            "observation": {
+              "viewport": {
+                "width": 390,
+                "height": 844
+              },
+              "scrollingElement": {
+                "tag": "HTML",
+                "top": 0,
+                "height": 844,
+                "scrollHeight": 1403
+              },
+              "documentWidth": 390,
+              "grid": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 1248.890625,
+                "width": 358,
+                "height": 987.5
+              },
+              "gridPaddingBottom": "0px",
+              "bar": null,
+              "topbar": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 315.390625,
+                "width": 358,
+                "height": 54
+              },
+              "nav": {
+                "left": 0,
+                "right": 390,
+                "top": 780,
+                "bottom": 844,
+                "width": 390,
+                "height": 64
+              },
+              "fab": {
+                "left": 316,
+                "right": 374,
+                "top": 706,
+                "bottom": 764,
+                "width": 58,
+                "height": 58
+              },
+              "hitStack": [
+                {
+                  "tag": "SPAN",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "BUTTON",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "TR",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TBODY",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TABLE",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "DIV",
+                  "kind": "other",
+                  "category": null
+                }
+              ]
+            }
+          },
+          {
+            "stage": "after-end",
+            "point": {
+              "id": 1,
+              "x": 149,
+              "y": 574
+            },
+            "observation": {
+              "viewport": {
+                "width": 390,
+                "height": 844
+              },
+              "scrollingElement": {
+                "tag": "HTML",
+                "top": 0,
+                "height": 844,
+                "scrollHeight": 1403
+              },
+              "documentWidth": 390,
+              "grid": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 1248.890625,
+                "width": 358,
+                "height": 987.5
+              },
+              "gridPaddingBottom": "0px",
+              "bar": null,
+              "topbar": {
+                "left": 16,
+                "right": 374,
+                "top": 261.390625,
+                "bottom": 315.390625,
+                "width": 358,
+                "height": 54
+              },
+              "nav": {
+                "left": 0,
+                "right": 390,
+                "top": 780,
+                "bottom": 844,
+                "width": 390,
+                "height": 64
+              },
+              "fab": {
+                "left": 316,
+                "right": 374,
+                "top": 706,
+                "bottom": 764,
+                "width": 58,
+                "height": 58
+              },
+              "hitStack": [
+                {
+                  "tag": "SPAN",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "BUTTON",
+                  "kind": "category",
+                  "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35"
+                },
+                {
+                  "tag": "TR",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TBODY",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "TABLE",
+                  "kind": "other",
+                  "category": null
+                },
+                {
+                  "tag": "DIV",
+                  "kind": "other",
+                  "category": null
+                }
+              ]
+            }
+          }
+        ],
+        "observedFinancialWrites": [],
+        "qualification": "Missing observations never waive required input. Protocol acknowledgments are not DOM release/cancel proof; no physical-device or OS-scroll claim."
+      }
+    },
+    "band-inventory-phone-light.json": {
+      "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-590-phone-selection--bc7c7-t-desktop-checkboxes-remain-webkit-iphone/band-inventory-phone-light.json",
+      "sha256": "a74d8ffcf2ddbe242345ad2e499c7dad1d345abd4cd2f0628a054771edc58593",
+      "value": {
+        "stage": "phone-light",
+        "phone": true,
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "bands": [
+          {
+            "rowId": "grp-606cb11d-db0b-4b3b-8000-9bf0162943ec",
+            "categoryEndpoints": [
+              {
+                "left": 25,
+                "right": 233.640625,
+                "top": 552.171875,
+                "bottom": 596.171875,
+                "width": 208.640625,
+                "height": 44
+              },
+              {
+                "left": 25,
+                "right": 233.640625,
+                "top": 596.171875,
+                "bottom": 616.171875,
+                "width": 208.640625,
+                "height": 20
+              },
+              {
+                "left": 25,
+                "right": 365,
+                "top": 616.171875,
+                "bottom": 620.171875,
+                "width": 340,
+                "height": 4
+              },
+              {
+                "left": 241.640625,
+                "right": 365,
+                "top": 597.46875,
+                "bottom": 614.859375,
+                "width": 123.359375,
+                "height": 17.390625
+              },
+              {
+                "left": 301.390625,
+                "right": 365,
+                "top": 555.171875,
+                "bottom": 593.171875,
+                "width": 63.609375,
+                "height": 38
+              }
+            ],
+            "parentEndpoints": [
+              {
+                "left": 25,
+                "right": 365,
+                "top": 475.390625,
+                "bottom": 519.390625,
+                "width": 340,
+                "height": 44
+              },
+              {
+                "left": 25,
+                "right": 133,
+                "top": 519.390625,
+                "bottom": 548.171875,
+                "width": 108,
+                "height": 28.78125
+              },
+              {
+                "left": 141,
+                "right": 249,
+                "top": 519.390625,
+                "bottom": 548.171875,
+                "width": 108,
+                "height": 28.78125
+              },
+              {
+                "left": 257,
+                "right": 365,
+                "top": 519.390625,
+                "bottom": 548.171875,
+                "width": 108,
+                "height": 28.78125
+              }
+            ],
+            "financialAndTickEndpoints": [
+              {
+                "left": 46.921875,
+                "right": 47.921875,
+                "top": 614.171875,
+                "bottom": 622.171875,
+                "width": 1,
+                "height": 8
+              },
+              {
+                "left": 301.390625,
+                "right": 365,
+                "top": 552.171875,
+                "bottom": 596.171875,
+                "width": 63.609375,
+                "height": 44
+              }
+            ],
+            "parentControlEndpoints": [
+              {
+                "left": 25,
+                "right": 69,
+                "top": 475.390625,
+                "bottom": 519.390625,
+                "width": 44,
+                "height": 44
+              },
+              {
+                "left": 73,
+                "right": 317,
+                "top": 475.390625,
+                "bottom": 519.390625,
+                "width": 244,
+                "height": 44
+              },
+              {
+                "left": 321,
+                "right": 365,
+                "top": 475.390625,
+                "bottom": 519.390625,
+                "width": 44,
+                "height": 44
+              }
+            ],
+            "categoryCount": 5,
+            "parentCount": 4,
+            "categoryHeight": 70,
+            "parentHeight": 72.78125,
+            "wholeHeight": 149.78125
+          }
+        ],
+        "selectionControls": [
+          {
+            "role": "group-or-all",
+            "label": "Alle Kategorien ausw\u00e4hlen",
+            "pressed": "true",
+            "categoryId": null,
+            "left": 25,
+            "right": 69,
+            "top": 429.390625,
+            "bottom": 473.390625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "role": "group-or-all",
+            "label": "Gruppe Mustergruppe ausw\u00e4hlen",
+            "pressed": "true",
+            "categoryId": null,
+            "left": 25,
+            "right": 69,
+            "top": 475.390625,
+            "bottom": 519.390625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "role": "category",
+            "label": null,
+            "pressed": "true",
+            "categoryId": "630c0173-2bba-468d-b0f4-1d480134921d",
+            "left": 25,
+            "right": 233.640625,
+            "top": 552.171875,
+            "bottom": 596.171875,
+            "width": 208.640625,
+            "height": 44
+          },
+          {
+            "role": "category",
+            "label": null,
+            "pressed": "true",
+            "categoryId": "a5987830-ce4e-4ecb-9343-d3b1395999c5",
+            "left": 25,
+            "right": 237.359375,
+            "top": 625.171875,
+            "bottom": 669.171875,
+            "width": 212.359375,
+            "height": 44
+          }
+        ]
+      }
+    },
+    "band-inventory-phone-dark.json": {
+      "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-590-phone-selection--bc7c7-t-desktop-checkboxes-remain-webkit-iphone/band-inventory-phone-dark.json",
+      "sha256": "45e027c99b2d479cb5224688006bfdb950335319b03cd405e841871714c2d445",
+      "value": {
+        "stage": "phone-dark",
+        "phone": true,
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "bands": [
+          {
+            "rowId": "grp-606cb11d-db0b-4b3b-8000-9bf0162943ec",
+            "categoryEndpoints": [
+              {
+                "left": 25,
+                "right": 233.640625,
+                "top": 552.171875,
+                "bottom": 596.171875,
+                "width": 208.640625,
+                "height": 44
+              },
+              {
+                "left": 25,
+                "right": 233.640625,
+                "top": 596.171875,
+                "bottom": 616.171875,
+                "width": 208.640625,
+                "height": 20
+              },
+              {
+                "left": 25,
+                "right": 365,
+                "top": 616.171875,
+                "bottom": 620.171875,
+                "width": 340,
+                "height": 4
+              },
+              {
+                "left": 241.640625,
+                "right": 365,
+                "top": 597.46875,
+                "bottom": 614.859375,
+                "width": 123.359375,
+                "height": 17.390625
+              },
+              {
+                "left": 301.390625,
+                "right": 365,
+                "top": 555.171875,
+                "bottom": 593.171875,
+                "width": 63.609375,
+                "height": 38
+              }
+            ],
+            "parentEndpoints": [
+              {
+                "left": 25,
+                "right": 365,
+                "top": 475.390625,
+                "bottom": 519.390625,
+                "width": 340,
+                "height": 44
+              },
+              {
+                "left": 25,
+                "right": 133,
+                "top": 519.390625,
+                "bottom": 548.171875,
+                "width": 108,
+                "height": 28.78125
+              },
+              {
+                "left": 141,
+                "right": 249,
+                "top": 519.390625,
+                "bottom": 548.171875,
+                "width": 108,
+                "height": 28.78125
+              },
+              {
+                "left": 257,
+                "right": 365,
+                "top": 519.390625,
+                "bottom": 548.171875,
+                "width": 108,
+                "height": 28.78125
+              }
+            ],
+            "financialAndTickEndpoints": [
+              {
+                "left": 46.921875,
+                "right": 47.921875,
+                "top": 614.171875,
+                "bottom": 622.171875,
+                "width": 1,
+                "height": 8
+              },
+              {
+                "left": 301.390625,
+                "right": 365,
+                "top": 552.171875,
+                "bottom": 596.171875,
+                "width": 63.609375,
+                "height": 44
+              }
+            ],
+            "parentControlEndpoints": [
+              {
+                "left": 25,
+                "right": 69,
+                "top": 475.390625,
+                "bottom": 519.390625,
+                "width": 44,
+                "height": 44
+              },
+              {
+                "left": 73,
+                "right": 317,
+                "top": 475.390625,
+                "bottom": 519.390625,
+                "width": 244,
+                "height": 44
+              },
+              {
+                "left": 321,
+                "right": 365,
+                "top": 475.390625,
+                "bottom": 519.390625,
+                "width": 44,
+                "height": 44
+              }
+            ],
+            "categoryCount": 5,
+            "parentCount": 4,
+            "categoryHeight": 70,
+            "parentHeight": 72.78125,
+            "wholeHeight": 149.78125
+          }
+        ],
+        "selectionControls": [
+          {
+            "role": "group-or-all",
+            "label": "Alle Kategorien ausw\u00e4hlen",
+            "pressed": "true",
+            "categoryId": null,
+            "left": 25,
+            "right": 69,
+            "top": 429.390625,
+            "bottom": 473.390625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "role": "group-or-all",
+            "label": "Gruppe Mustergruppe ausw\u00e4hlen",
+            "pressed": "true",
+            "categoryId": null,
+            "left": 25,
+            "right": 69,
+            "top": 475.390625,
+            "bottom": 519.390625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "role": "category",
+            "label": null,
+            "pressed": "true",
+            "categoryId": "630c0173-2bba-468d-b0f4-1d480134921d",
+            "left": 25,
+            "right": 233.640625,
+            "top": 552.171875,
+            "bottom": 596.171875,
+            "width": 208.640625,
+            "height": 44
+          },
+          {
+            "role": "category",
+            "label": null,
+            "pressed": "true",
+            "categoryId": "a5987830-ce4e-4ecb-9343-d3b1395999c5",
+            "left": 25,
+            "right": 237.359375,
+            "top": 625.171875,
+            "bottom": 669.171875,
+            "width": 212.359375,
+            "height": 44
+          }
+        ]
+      }
+    },
+    "desktop-dark-metrics.json": {
+      "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-481-single-category--19ff1-eir-controls-at-1440-pixels-webkit-iphone/desktop-dark-metrics.json",
+      "sha256": "f4ec56efacf98121e0059ee7b11c71f183cab150a6d61f86b60c9b34f96bb9d1",
+      "value": {
+        "engine": "webkit",
+        "browserVersion": "27.2",
+        "theme": "dark",
+        "configuredDesktopFlags": {
+          "isMobile": false,
+          "hasTouch": false
+        },
+        "oldRows": 55,
+        "newRows": 36,
+        "reductionPercent": 34.54545454545455,
+        "tableHeight": 1746.625,
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "observedTouchPoints": 0,
+        "observedCoarsePointer": false,
+        "documentWidth": 1440,
+        "fontsStatus": "loaded"
+      }
+    },
+    "responsive-dark-metrics.json": {
+      "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-481-single-category--39c2d-unds-and-right-edge-actions-webkit-iphone/responsive-dark-metrics.json",
+      "sha256": "7b0f2988a82c25ea34971280b0504090a8a1021c9434887841aaad3618a9072d",
+      "value": [
+        {
+          "width": 768,
+          "theme": "dark",
+          "labels": [
+            {
+              "name": "Wohnen",
+              "textRight": 386.8123779296875,
+              "title": {
+                "left": 329,
+                "right": 386.8125,
+                "top": 424.8125,
+                "bottom": 446.5625,
+                "width": 57.8125
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 421.6875,
+                "bottom": 449.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 449.6875,
+                "bottom": 473.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 450.8125,
+                "bottom": 472.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 452.984375,
+                "bottom": 470.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Kredite",
+              "textRight": 379.82037353515625,
+              "title": {
+                "left": 329,
+                "right": 379.828125,
+                "top": 660.8125,
+                "bottom": 682.5625,
+                "width": 50.828125
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 657.6875,
+                "bottom": 685.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 685.6875,
+                "bottom": 709.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 686.8125,
+                "bottom": 708.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 688.984375,
+                "bottom": 706.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Versicherungen",
+              "textRight": 440.00274658203125,
+              "title": {
+                "left": 329,
+                "right": 426.9375,
+                "top": 766.8125,
+                "bottom": 788.5625,
+                "width": 97.9375
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 763.6875,
+                "bottom": 791.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 791.6875,
+                "bottom": 815.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 792.8125,
+                "bottom": 814.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 794.984375,
+                "bottom": 812.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Abos",
+              "textRight": 365.97528076171875,
+              "title": {
+                "left": 329,
+                "right": 365.984375,
+                "top": 904.8125,
+                "bottom": 926.5625,
+                "width": 36.984375
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 901.6875,
+                "bottom": 929.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 929.6875,
+                "bottom": 953.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 930.8125,
+                "bottom": 952.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 932.984375,
+                "bottom": 950.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Freizeit",
+              "textRight": 380.70538330078125,
+              "title": {
+                "left": 329,
+                "right": 380.71875,
+                "top": 1142.8125,
+                "bottom": 1164.5625,
+                "width": 51.71875
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 1139.6875,
+                "bottom": 1167.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 1167.6875,
+                "bottom": 1191.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 1168.8125,
+                "bottom": 1190.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 1170.984375,
+                "bottom": 1188.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Mobilit\u00e4t",
+              "textRight": 389.72039794921875,
+              "title": {
+                "left": 329,
+                "right": 389.734375,
+                "top": 1412.8125,
+                "bottom": 1434.5625,
+                "width": 60.734375
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 1409.6875,
+                "bottom": 1437.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 1437.6875,
+                "bottom": 1461.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 1438.8125,
+                "bottom": 1460.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 1440.984375,
+                "bottom": 1458.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Genuss",
+              "textRight": 383.6304016113281,
+              "title": {
+                "left": 329,
+                "right": 383.640625,
+                "top": 1682.8125,
+                "bottom": 1704.5625,
+                "width": 54.640625
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 1679.6875,
+                "bottom": 1707.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 1707.6875,
+                "bottom": 1731.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 1708.8125,
+                "bottom": 1730.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 1710.984375,
+                "bottom": 1728.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Geschenke",
+              "textRight": 408.6871337890625,
+              "title": {
+                "left": 329,
+                "right": 408.6875,
+                "top": 1920.8125,
+                "bottom": 1942.5625,
+                "width": 79.6875
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 1917.6875,
+                "bottom": 1945.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 1945.6875,
+                "bottom": 1969.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 1946.8125,
+                "bottom": 1968.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 1948.984375,
+                "bottom": 1966.375,
+                "width": 72.96875
+              }
+            }
+          ],
+          "reachability": {
+            "outerLeft": 265,
+            "outerRight": 739,
+            "headerRight": 738.578125,
+            "actionLeft": 698.578125,
+            "actionRight": 726.578125,
+            "scrollWidth": 589,
+            "clientWidth": 474,
+            "scrollLeft": 115,
+            "documentWidth": 768
+          }
+        },
+        {
+          "width": 1180,
+          "theme": "dark",
+          "labels": [
+            {
+              "name": "Wohnen",
+              "textRight": 386.8123779296875,
+              "title": {
+                "left": 329,
+                "right": 386.8125,
+                "top": 424.8125,
+                "bottom": 446.5625,
+                "width": 57.8125
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 421.6875,
+                "bottom": 449.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 449.6875,
+                "bottom": 473.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 450.8125,
+                "bottom": 472.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 452.984375,
+                "bottom": 470.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Kredite",
+              "textRight": 379.82037353515625,
+              "title": {
+                "left": 329,
+                "right": 379.828125,
+                "top": 660.8125,
+                "bottom": 682.5625,
+                "width": 50.828125
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 657.6875,
+                "bottom": 685.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 685.6875,
+                "bottom": 709.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 686.8125,
+                "bottom": 708.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 688.984375,
+                "bottom": 706.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Versicherungen",
+              "textRight": 440.00274658203125,
+              "title": {
+                "left": 329,
+                "right": 426.9375,
+                "top": 766.8125,
+                "bottom": 788.5625,
+                "width": 97.9375
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 763.6875,
+                "bottom": 791.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 791.6875,
+                "bottom": 815.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 792.8125,
+                "bottom": 814.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 794.984375,
+                "bottom": 812.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Abos",
+              "textRight": 365.97528076171875,
+              "title": {
+                "left": 329,
+                "right": 365.984375,
+                "top": 904.8125,
+                "bottom": 926.5625,
+                "width": 36.984375
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 901.6875,
+                "bottom": 929.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 929.6875,
+                "bottom": 953.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 930.8125,
+                "bottom": 952.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 932.984375,
+                "bottom": 950.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Freizeit",
+              "textRight": 380.70538330078125,
+              "title": {
+                "left": 329,
+                "right": 380.71875,
+                "top": 1142.8125,
+                "bottom": 1164.5625,
+                "width": 51.71875
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 1139.6875,
+                "bottom": 1167.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 1167.6875,
+                "bottom": 1191.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 1168.8125,
+                "bottom": 1190.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 1170.984375,
+                "bottom": 1188.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Mobilit\u00e4t",
+              "textRight": 389.72039794921875,
+              "title": {
+                "left": 329,
+                "right": 389.734375,
+                "top": 1412.8125,
+                "bottom": 1434.5625,
+                "width": 60.734375
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 1409.6875,
+                "bottom": 1437.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 1437.6875,
+                "bottom": 1461.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 1438.8125,
+                "bottom": 1460.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 1440.984375,
+                "bottom": 1458.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Genuss",
+              "textRight": 383.6304016113281,
+              "title": {
+                "left": 329,
+                "right": 383.640625,
+                "top": 1682.8125,
+                "bottom": 1704.5625,
+                "width": 54.640625
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 1679.6875,
+                "bottom": 1707.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 1707.6875,
+                "bottom": 1731.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 1708.8125,
+                "bottom": 1730.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 1710.984375,
+                "bottom": 1728.375,
+                "width": 72.96875
+              }
+            },
+            {
+              "name": "Geschenke",
+              "textRight": 408.6871337890625,
+              "title": {
+                "left": 329,
+                "right": 408.6875,
+                "top": 1920.8125,
+                "bottom": 1942.5625,
+                "width": 79.6875
+              },
+              "add": {
+                "left": 430.9375,
+                "right": 458.9375,
+                "top": 1917.6875,
+                "bottom": 1945.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 277,
+                "right": 301,
+                "top": 1945.6875,
+                "bottom": 1969.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 307,
+                "right": 379.96875,
+                "top": 1946.8125,
+                "bottom": 1968.5625,
+                "width": 72.96875
+              },
+              "status": {
+                "left": 385.96875,
+                "right": 458.9375,
+                "top": 1948.984375,
+                "bottom": 1966.375,
+                "width": 72.96875
+              }
+            }
+          ],
+          "reachability": {
+            "outerLeft": 265,
+            "outerRight": 814.984375,
+            "headerRight": 814.578125,
+            "actionLeft": 774.578125,
+            "actionRight": 802.578125,
+            "scrollWidth": 589,
+            "clientWidth": 550,
+            "scrollLeft": 39,
+            "documentWidth": 1180
+          }
+        },
+        {
+          "width": 1439,
+          "theme": "dark",
+          "labels": [
+            {
+              "name": "Wohnen",
+              "textRight": 398.8123779296875,
+              "title": {
+                "left": 341,
+                "right": 398.8125,
+                "top": 424.8125,
+                "bottom": 446.5625,
+                "width": 57.8125
+              },
+              "add": {
+                "left": 639.359375,
+                "right": 667.359375,
+                "top": 421.6875,
+                "bottom": 449.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 289,
+                "right": 313,
+                "top": 449.6875,
+                "bottom": 473.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 319,
+                "right": 490.171875,
+                "top": 450.8125,
+                "bottom": 472.5625,
+                "width": 171.171875
+              },
+              "status": {
+                "left": 496.171875,
+                "right": 667.359375,
+                "top": 452.984375,
+                "bottom": 470.375,
+                "width": 171.1875
+              }
+            },
+            {
+              "name": "Kredite",
+              "textRight": 391.82037353515625,
+              "title": {
+                "left": 341,
+                "right": 391.828125,
+                "top": 660.8125,
+                "bottom": 682.5625,
+                "width": 50.828125
+              },
+              "add": {
+                "left": 639.359375,
+                "right": 667.359375,
+                "top": 657.6875,
+                "bottom": 685.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 289,
+                "right": 313,
+                "top": 685.6875,
+                "bottom": 709.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 319,
+                "right": 490.171875,
+                "top": 686.8125,
+                "bottom": 708.5625,
+                "width": 171.171875
+              },
+              "status": {
+                "left": 496.171875,
+                "right": 667.359375,
+                "top": 688.984375,
+                "bottom": 706.375,
+                "width": 171.1875
+              }
+            },
+            {
+              "name": "Versicherungen",
+              "textRight": 452.00274658203125,
+              "title": {
+                "left": 341,
+                "right": 452.015625,
+                "top": 766.8125,
+                "bottom": 788.5625,
+                "width": 111.015625
+              },
+              "add": {
+                "left": 639.359375,
+                "right": 667.359375,
+                "top": 763.6875,
+                "bottom": 791.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 289,
+                "right": 313,
+                "top": 791.6875,
+                "bottom": 815.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 319,
+                "right": 490.171875,
+                "top": 792.8125,
+                "bottom": 814.5625,
+                "width": 171.171875
+              },
+              "status": {
+                "left": 496.171875,
+                "right": 667.359375,
+                "top": 794.984375,
+                "bottom": 812.375,
+                "width": 171.1875
+              }
+            },
+            {
+              "name": "Abos",
+              "textRight": 377.97528076171875,
+              "title": {
+                "left": 341,
+                "right": 377.984375,
+                "top": 904.8125,
+                "bottom": 926.5625,
+                "width": 36.984375
+              },
+              "add": {
+                "left": 639.359375,
+                "right": 667.359375,
+                "top": 901.6875,
+                "bottom": 929.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 289,
+                "right": 313,
+                "top": 929.6875,
+                "bottom": 953.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 319,
+                "right": 490.171875,
+                "top": 930.8125,
+                "bottom": 952.5625,
+                "width": 171.171875
+              },
+              "status": {
+                "left": 496.171875,
+                "right": 667.359375,
+                "top": 932.984375,
+                "bottom": 950.375,
+                "width": 171.1875
+              }
+            },
+            {
+              "name": "Freizeit",
+              "textRight": 392.70538330078125,
+              "title": {
+                "left": 341,
+                "right": 392.71875,
+                "top": 1142.8125,
+                "bottom": 1164.5625,
+                "width": 51.71875
+              },
+              "add": {
+                "left": 639.359375,
+                "right": 667.359375,
+                "top": 1139.6875,
+                "bottom": 1167.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 289,
+                "right": 313,
+                "top": 1167.6875,
+                "bottom": 1191.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 319,
+                "right": 490.171875,
+                "top": 1168.8125,
+                "bottom": 1190.5625,
+                "width": 171.171875
+              },
+              "status": {
+                "left": 496.171875,
+                "right": 667.359375,
+                "top": 1170.984375,
+                "bottom": 1188.375,
+                "width": 171.1875
+              }
+            },
+            {
+              "name": "Mobilit\u00e4t",
+              "textRight": 401.72039794921875,
+              "title": {
+                "left": 341,
+                "right": 401.734375,
+                "top": 1412.8125,
+                "bottom": 1434.5625,
+                "width": 60.734375
+              },
+              "add": {
+                "left": 639.359375,
+                "right": 667.359375,
+                "top": 1409.6875,
+                "bottom": 1437.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 289,
+                "right": 313,
+                "top": 1437.6875,
+                "bottom": 1461.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 319,
+                "right": 490.171875,
+                "top": 1438.8125,
+                "bottom": 1460.5625,
+                "width": 171.171875
+              },
+              "status": {
+                "left": 496.171875,
+                "right": 667.359375,
+                "top": 1440.984375,
+                "bottom": 1458.375,
+                "width": 171.1875
+              }
+            },
+            {
+              "name": "Genuss",
+              "textRight": 395.6304016113281,
+              "title": {
+                "left": 341,
+                "right": 395.640625,
+                "top": 1682.8125,
+                "bottom": 1704.5625,
+                "width": 54.640625
+              },
+              "add": {
+                "left": 639.359375,
+                "right": 667.359375,
+                "top": 1679.6875,
+                "bottom": 1707.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 289,
+                "right": 313,
+                "top": 1707.6875,
+                "bottom": 1731.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 319,
+                "right": 490.171875,
+                "top": 1708.8125,
+                "bottom": 1730.5625,
+                "width": 171.171875
+              },
+              "status": {
+                "left": 496.171875,
+                "right": 667.359375,
+                "top": 1710.984375,
+                "bottom": 1728.375,
+                "width": 171.1875
+              }
+            },
+            {
+              "name": "Geschenke",
+              "textRight": 420.6871337890625,
+              "title": {
+                "left": 341,
+                "right": 420.6875,
+                "top": 1920.8125,
+                "bottom": 1942.5625,
+                "width": 79.6875
+              },
+              "add": {
+                "left": 639.359375,
+                "right": 667.359375,
+                "top": 1917.6875,
+                "bottom": 1945.6875,
+                "width": 28
+              },
+              "selection": {
+                "left": 289,
+                "right": 313,
+                "top": 1945.6875,
+                "bottom": 1969.6875,
+                "width": 24
+              },
+              "category": {
+                "left": 319,
+                "right": 490.171875,
+                "top": 1946.8125,
+                "bottom": 1968.5625,
+                "width": 171.171875
+              },
+              "status": {
+                "left": 496.171875,
+                "right": 667.359375,
+                "top": 1948.984375,
+                "bottom": 1966.375,
+                "width": 171.1875
+              }
+            }
+          ],
+          "reachability": {
+            "outerLeft": 277,
+            "outerRight": 1062,
+            "headerRight": 1062,
+            "actionLeft": 1022,
+            "actionRight": 1050,
+            "scrollWidth": 785,
+            "clientWidth": 785,
+            "scrollLeft": 0,
+            "documentWidth": 1439
+          }
+        }
+      ]
+    },
+    "band-inventory-manual390-light.json": {
+      "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-590-phone-selection--706bb-tom-controls-in-both-themes-webkit-iphone/band-inventory-manual390-light.json",
+      "sha256": "26fc2864111adfe3e295be8fccf5699cef7bb565e034cc5119b8c062abee31f3",
+      "value": {
+        "stage": "manual390-light",
+        "phone": true,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "bands": [
+          {
+            "rowId": "grp-8cfbb2d1-38bf-4441-8877-67dd72628d74",
+            "categoryEndpoints": [
+              {
+                "left": 25,
+                "right": 233.640625,
+                "top": 552.171875,
+                "bottom": 596.171875,
+                "width": 208.640625,
+                "height": 44
+              },
+              {
+                "left": 25,
+                "right": 233.640625,
+                "top": 596.171875,
+                "bottom": 616.171875,
+                "width": 208.640625,
+                "height": 20
+              },
+              {
+                "left": 25,
+                "right": 365,
+                "top": 616.171875,
+                "bottom": 620.171875,
+                "width": 340,
+                "height": 4
+              },
+              {
+                "left": 241.640625,
+                "right": 365,
+                "top": 597.46875,
+                "bottom": 614.859375,
+                "width": 123.359375,
+                "height": 17.390625
+              },
+              {
+                "left": 301.390625,
+                "right": 365,
+                "top": 555.171875,
+                "bottom": 593.171875,
+                "width": 63.609375,
+                "height": 38
+              }
+            ],
+            "parentEndpoints": [
+              {
+                "left": 25,
+                "right": 365,
+                "top": 475.390625,
+                "bottom": 519.390625,
+                "width": 340,
+                "height": 44
+              },
+              {
+                "left": 25,
+                "right": 133,
+                "top": 519.390625,
+                "bottom": 548.171875,
+                "width": 108,
+                "height": 28.78125
+              },
+              {
+                "left": 141,
+                "right": 249,
+                "top": 519.390625,
+                "bottom": 548.171875,
+                "width": 108,
+                "height": 28.78125
+              },
+              {
+                "left": 257,
+                "right": 365,
+                "top": 519.390625,
+                "bottom": 548.171875,
+                "width": 108,
+                "height": 28.78125
+              }
+            ],
+            "financialAndTickEndpoints": [
+              {
+                "left": 46.921875,
+                "right": 47.921875,
+                "top": 614.171875,
+                "bottom": 622.171875,
+                "width": 1,
+                "height": 8
+              },
+              {
+                "left": 301.390625,
+                "right": 365,
+                "top": 552.171875,
+                "bottom": 596.171875,
+                "width": 63.609375,
+                "height": 44
+              }
+            ],
+            "parentControlEndpoints": [
+              {
+                "left": 25,
+                "right": 69,
+                "top": 475.390625,
+                "bottom": 519.390625,
+                "width": 44,
+                "height": 44
+              },
+              {
+                "left": 73,
+                "right": 317,
+                "top": 475.390625,
+                "bottom": 519.390625,
+                "width": 244,
+                "height": 44
+              },
+              {
+                "left": 321,
+                "right": 365,
+                "top": 475.390625,
+                "bottom": 519.390625,
+                "width": 44,
+                "height": 44
+              }
+            ],
+            "categoryCount": 5,
+            "parentCount": 4,
+            "categoryHeight": 70,
+            "parentHeight": 72.78125,
+            "wholeHeight": 149.78125
+          }
+        ],
+        "selectionControls": [
+          {
+            "role": "group-or-all",
+            "label": "Alle Kategorien ausw\u00e4hlen",
+            "pressed": "mixed",
+            "categoryId": null,
+            "left": 25,
+            "right": 69,
+            "top": 429.390625,
+            "bottom": 473.390625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "role": "group-or-all",
+            "label": "Gruppe Mustergruppe ausw\u00e4hlen",
+            "pressed": "mixed",
+            "categoryId": null,
+            "left": 25,
+            "right": 69,
+            "top": 475.390625,
+            "bottom": 519.390625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "role": "category",
+            "label": null,
+            "pressed": "true",
+            "categoryId": "342aa559-5e41-4584-a741-a49e4a2a3c4d",
+            "left": 25,
+            "right": 233.640625,
+            "top": 552.171875,
+            "bottom": 596.171875,
+            "width": 208.640625,
+            "height": 44
+          },
+          {
+            "role": "category",
+            "label": null,
+            "pressed": "false",
+            "categoryId": "eef272df-f22a-4f96-a03d-c6c37fa12078",
+            "left": 25,
+            "right": 237.359375,
+            "top": 625.171875,
+            "bottom": 669.171875,
+            "width": 212.359375,
+            "height": 44
+          }
+        ]
+      }
+    },
+    "phone390x844-profile.json": {
+      "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-590-phone-selection--706bb-tom-controls-in-both-themes-webkit-iphone/phone390x844-profile.json",
+      "sha256": "6d9faf8a919c00197e82a6f5442dfc2cbcf4ee28769b4812dc111df01a1bd711",
+      "value": [
+        {
+          "theme": "dark",
+          "geometry": {
+            "nameBottom": 596.171875,
+            "navTop": 780,
+            "documentWidth": 390,
+            "width": 390
+          },
+          "barGeometry": {
+            "bar": {
+              "left": 16,
+              "right": 374,
+              "top": 573.625,
+              "bottom": 698,
+              "width": 358,
+              "height": 124.375
+            },
+            "fab": {
+              "left": 316,
+              "right": 374,
+              "top": 706,
+              "bottom": 764,
+              "width": 58,
+              "height": 58
+            },
+            "tabbar": {
+              "left": 0,
+              "right": 390,
+              "top": 780,
+              "bottom": 844,
+              "width": 390,
+              "height": 64
+            },
+            "targets": [
+              {
+                "left": 195.75,
+                "right": 361,
+                "top": 587.8125,
+                "bottom": 631.8125,
+                "width": 165.25,
+                "height": 44
+              },
+              {
+                "left": 29,
+                "right": 181.671875,
+                "top": 641,
+                "bottom": 685,
+                "width": 152.671875,
+                "height": 44
+              },
+              {
+                "left": 189.671875,
+                "right": 299.171875,
+                "top": 641,
+                "bottom": 685,
+                "width": 109.5,
+                "height": 44
+              },
+              {
+                "left": 307.171875,
+                "right": 360.359375,
+                "top": 641,
+                "bottom": 685,
+                "width": 53.1875,
+                "height": 44
+              }
+            ],
+            "width": 390,
+            "height": 844,
+            "documentWidth": 390
+          },
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dpr": 3,
+          "coarse": true,
+          "touchPoints": 0
+        },
+        {
+          "theme": "light",
+          "geometry": {
+            "nameBottom": 596.171875,
+            "navTop": 780,
+            "documentWidth": 390,
+            "width": 390
+          },
+          "barGeometry": {
+            "bar": {
+              "left": 16,
+              "right": 374,
+              "top": 573.625,
+              "bottom": 698,
+              "width": 358,
+              "height": 124.375
+            },
+            "fab": {
+              "left": 316,
+              "right": 374,
+              "top": 706,
+              "bottom": 764,
+              "width": 58,
+              "height": 58
+            },
+            "tabbar": {
+              "left": 0,
+              "right": 390,
+              "top": 780,
+              "bottom": 844,
+              "width": 390,
+              "height": 64
+            },
+            "targets": [
+              {
+                "left": 195.75,
+                "right": 361,
+                "top": 587.8125,
+                "bottom": 631.8125,
+                "width": 165.25,
+                "height": 44
+              },
+              {
+                "left": 29,
+                "right": 181.671875,
+                "top": 641,
+                "bottom": 685,
+                "width": 152.671875,
+                "height": 44
+              },
+              {
+                "left": 189.671875,
+                "right": 299.171875,
+                "top": 641,
+                "bottom": 685,
+                "width": 109.5,
+                "height": 44
+              },
+              {
+                "left": 307.171875,
+                "right": 360.359375,
+                "top": 641,
+                "bottom": 685,
+                "width": 53.1875,
+                "height": 44
+              }
+            ],
+            "width": 390,
+            "height": 844,
+            "documentWidth": 390
+          },
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "dpr": 3,
+          "coarse": true,
+          "touchPoints": 0
+        }
+      ]
+    },
+    "band-inventory-manual390-dark.json": {
+      "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-590-phone-selection--706bb-tom-controls-in-both-themes-webkit-iphone/band-inventory-manual390-dark.json",
+      "sha256": "54c21c5a0f87390dc416ecf209a02546bbf0d31be2c2842191a99a2cfbff8c66",
+      "value": {
+        "stage": "manual390-dark",
+        "phone": true,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "bands": [
+          {
+            "rowId": "grp-8cfbb2d1-38bf-4441-8877-67dd72628d74",
+            "categoryEndpoints": [
+              {
+                "left": 25,
+                "right": 233.640625,
+                "top": 552.171875,
+                "bottom": 596.171875,
+                "width": 208.640625,
+                "height": 44
+              },
+              {
+                "left": 25,
+                "right": 233.640625,
+                "top": 596.171875,
+                "bottom": 616.171875,
+                "width": 208.640625,
+                "height": 20
+              },
+              {
+                "left": 25,
+                "right": 365,
+                "top": 616.171875,
+                "bottom": 620.171875,
+                "width": 340,
+                "height": 4
+              },
+              {
+                "left": 241.640625,
+                "right": 365,
+                "top": 597.46875,
+                "bottom": 614.859375,
+                "width": 123.359375,
+                "height": 17.390625
+              },
+              {
+                "left": 301.390625,
+                "right": 365,
+                "top": 555.171875,
+                "bottom": 593.171875,
+                "width": 63.609375,
+                "height": 38
+              }
+            ],
+            "parentEndpoints": [
+              {
+                "left": 25,
+                "right": 365,
+                "top": 475.390625,
+                "bottom": 519.390625,
+                "width": 340,
+                "height": 44
+              },
+              {
+                "left": 25,
+                "right": 133,
+                "top": 519.390625,
+                "bottom": 548.171875,
+                "width": 108,
+                "height": 28.78125
+              },
+              {
+                "left": 141,
+                "right": 249,
+                "top": 519.390625,
+                "bottom": 548.171875,
+                "width": 108,
+                "height": 28.78125
+              },
+              {
+                "left": 257,
+                "right": 365,
+                "top": 519.390625,
+                "bottom": 548.171875,
+                "width": 108,
+                "height": 28.78125
+              }
+            ],
+            "financialAndTickEndpoints": [
+              {
+                "left": 46.921875,
+                "right": 47.921875,
+                "top": 614.171875,
+                "bottom": 622.171875,
+                "width": 1,
+                "height": 8
+              },
+              {
+                "left": 301.390625,
+                "right": 365,
+                "top": 552.171875,
+                "bottom": 596.171875,
+                "width": 63.609375,
+                "height": 44
+              }
+            ],
+            "parentControlEndpoints": [
+              {
+                "left": 25,
+                "right": 69,
+                "top": 475.390625,
+                "bottom": 519.390625,
+                "width": 44,
+                "height": 44
+              },
+              {
+                "left": 73,
+                "right": 317,
+                "top": 475.390625,
+                "bottom": 519.390625,
+                "width": 244,
+                "height": 44
+              },
+              {
+                "left": 321,
+                "right": 365,
+                "top": 475.390625,
+                "bottom": 519.390625,
+                "width": 44,
+                "height": 44
+              }
+            ],
+            "categoryCount": 5,
+            "parentCount": 4,
+            "categoryHeight": 70,
+            "parentHeight": 72.78125,
+            "wholeHeight": 149.78125
+          }
+        ],
+        "selectionControls": [
+          {
+            "role": "group-or-all",
+            "label": "Alle Kategorien ausw\u00e4hlen",
+            "pressed": "mixed",
+            "categoryId": null,
+            "left": 25,
+            "right": 69,
+            "top": 429.390625,
+            "bottom": 473.390625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "role": "group-or-all",
+            "label": "Gruppe Mustergruppe ausw\u00e4hlen",
+            "pressed": "mixed",
+            "categoryId": null,
+            "left": 25,
+            "right": 69,
+            "top": 475.390625,
+            "bottom": 519.390625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "role": "category",
+            "label": null,
+            "pressed": "true",
+            "categoryId": "342aa559-5e41-4584-a741-a49e4a2a3c4d",
+            "left": 25,
+            "right": 233.640625,
+            "top": 552.171875,
+            "bottom": 596.171875,
+            "width": 208.640625,
+            "height": 44
+          },
+          {
+            "role": "category",
+            "label": null,
+            "pressed": "false",
+            "categoryId": "eef272df-f22a-4f96-a03d-c6c37fa12078",
+            "left": 25,
+            "right": 237.359375,
+            "top": 625.171875,
+            "bottom": 669.171875,
+            "width": 212.359375,
+            "height": 44
+          }
+        ]
+      }
+    }
+  },
+  "gestureSummary": {
+    "trustedPointerId": 3,
+    "actualHoldMilliseconds": 703,
+    "eventCount": 25,
+    "dropped": 0,
+    "upOrigin": {
+      "category": "b948a4ac-c76e-4443-96d7-d26d9a5d6f35",
+      "connected": true,
+      "currentQueryIdentity": true,
+      "hasCapture": true,
+      "targetIsOriginalCategory": false,
+      "targetIsExactOverlay": true,
+      "overlayUnderPoint": true
+    },
+    "releaseTargetKind": "selection-bar",
+    "explicitCancelMovementAndFinalReadOnlyReached": true,
+    "nativeAcceptedCompatibilityClickProven": false,
+    "qualification": "Same trusted pointer/type/duration, original query-identical connected captured button ATup, exact mounted overlay at measured point OR original target, got\u2192up\u2192lost dispatch order, original category touchend/touchidentifier retained. The standalone control demonstrated private-protocol retargeting; no physical-phone or automaticOS-pan claim."
+  },
+  "reachedFinancialChecks": {
+    "new590": "Literal4000/6000 assigned cents andTBA0; one actual undo restores0/0 andTBA10000; accounts unchanged.",
+    "existing481": "Existing refusal, literal cent expression, exact source IDs, POST payloads, undo and transition to two categories all reached/PASS.",
+    "existing588": "Both existing menu tests reached/PASS, including distribute actions, named-source cover and actual undo.",
+    "existingCompact": "Original group/category cent totals, names/add controls/keyboard/phonegeometry/44/Axe checks and original toolbar.y>=topbar.bottom assertion all reached/PASS. Desktop-only Compact branch is not executed by the WebKit project.",
+    "readOnly": "Final native observed financialWrites[], exact before/after budget andaccounts equality reached/PASS."
+  },
+  "legacy481AutoGeneratedEvidence": {
+    "rawProofSHA256": "b354a446a598cec378a293eefb53ffa4d7fe8f996c24dcdd25d08e9aa858b547",
+    "value": {
+      "path": "docs/evidence/plan-single-category-481/webkit-iphone-dark.png",
+      "authorization": "Root NEW_TASK after84121: preservegeneratedoutput outside thenrestoreEXACTpre-runoriginalblob beforefinalguard withbefore/generated/restoredSHA+mode; no baselineacceptance; allotherunownedmutationfailclosed.",
+      "beforeSHA256": "1825e49c77f9b4a2a19e042dffea8db13f0616379ac7030a3600c63daed7e72b",
+      "generatedSHA256": "e83186df4facd7fd87411783ade5f9bf2aa885fe9c94bae5c4f9b5ae81a34935",
+      "restoredSHA256": "1825e49c77f9b4a2a19e042dffea8db13f0616379ac7030a3600c63daed7e72b",
+      "beforeLstatMode": 33152,
+      "generatedLstatMode": 33152,
+      "restoredLstatMode": 33152,
+      "changedGeneratedOutput": true,
+      "baselineAccepted": false
+    },
+    "qualification": "Only this preauthorized autogenerated legacy image restored exactpre-runHEADbytes/mode after preserving generatedoutput. Not a baseline approval. All other source mutations fail closed."
+  },
+  "history": {
+    "priorOwnNative40944": "7/7PASS49.3s before Main inheritance; reused historical freshbuild39305/169compiled, qualified historical only.",
+    "old3_84121": "Freshregularbuild0;14PASS2FAIL. Helper wrongly requiredmultiple group toggles in single-category groups; originaltoolbar y0.390625<118. OuterGuard1 solelyautogeneratedlegacy481PNG; allrawfailures retained.",
+    "combined6621": "Freshregularbuild0/158compiled;19PASS1FAIL, originaltoolbar unchangedfailure; single targetscrollmargin ineffective for pinnedprotocol. Guard0 with authorized legacyimagearchive/exactrestore.",
+    "fourArm64632": "Samepinnedprotocol honors actualrootpadding120, ignores computedtargetmargin120. RealDOMscrollIntoView blockstart+targetmargin120 positivecontrol works; no app acceptance inferred.",
+    "firstRootPadding71913": "Log20passed3.5m but environment60 restart killed outerrunner before native wait/wrapper/postguard records. Preserved asINTERRUPTED, never claimed clean0; recovery restored solelegacyPNG and verifiedunchangedsource/compiled before one authorizedclean rerun85302."
+  },
+  "limits": [
+    "No native accepted-hold compatibilityclick emitted; separate26componentcases preserve shield behavior.",
+    "Explicit cancellation and20px movement only, no automaticOS-pan or physical-device claim.",
+    "Raw touchpoints0 in configured touchWebKit profiles; manual390844 DPR3/coarse recorded.",
+    "True1440/noTouch images are from EXISTING481 manual contexts, not new590 desktop-branch execution or Chromium.",
+    "Desktop images4320px wide for1440CSSpx; runtimeDPR not recorded in matchingoldfixture, do not claimDPR1.",
+    "Known390664 selectedgroupheader/FABamount framing limits; not every underlying row/control is unobscured in static capture.",
+    "Ghost/inspector protected files are not selected by this WebKitOLD3 scope; their canonical browser coverage remainsCI-pending.",
+    "No final required aggregate or exacthead ChromiumCI/live proof yet."
+  ]
+}

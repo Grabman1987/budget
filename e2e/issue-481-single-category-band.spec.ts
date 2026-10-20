@@ -7,6 +7,41 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { cents, formatEuro } from '@budget/domain';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 
+/** Phone-only equivalents for the owner-approved explicit selection controls. */
+async function enterPhoneSelection(page: Page) {
+  const options = page.locator('details.plan-menu').filter({
+    has: page.locator('summary', { hasText: 'Optionen' }),
+  });
+  await options.locator('summary').click();
+  await options.getByRole('button', { name: 'Auswählen', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Kategorienauswahl', exact: true })).toBeVisible();
+}
+async function exitPhoneSelection(page: Page) {
+  const bar = page.getByRole('region', { name: 'Kategorienauswahl', exact: true });
+  await bar.getByRole('button', { name: 'Auswahl beenden', exact: true }).click();
+  await expect(bar).toHaveCount(0);
+}
+async function expectPhoneSelectionTargets(page: Page) {
+  const categories = page.locator('.ptable .pname:visible');
+  const toggles = page.locator('.ptable .plan-select-toggle:visible');
+  expect(await categories.count()).toBeGreaterThan(0);
+  const headings = page.locator('.ptable .group-heading:visible');
+  expect(await headings.count()).toBeGreaterThan(0);
+  await expect(toggles).toHaveCount(await headings.count());
+  for (const heading of await headings.all())
+    await expect(heading.locator('.plan-select-toggle')).toHaveCount(1);
+  await expect(
+    page.getByRole('button', { name: 'Alle Kategorien auswählen', exact: true }),
+  ).toHaveCount(1);
+  for (const controls of [categories, toggles]) {
+    for (let index = 0; index < (await controls.count()); index++) {
+      const bounds = (await controls.nth(index).boundingBox())!;
+      expect(bounds.width).toBeGreaterThanOrEqual(44);
+      expect(bounds.height).toBeGreaterThanOrEqual(44);
+    }
+  }
+}
+
 /** Keep both original compact row roles bounded when they share one physical band. */
 async function expectCompactBandContents(page: Page, phone: boolean) {
   const bands = await page.locator('.ptable-zero .pmulti').evaluateAll((rows) =>
@@ -42,7 +77,7 @@ async function expectCompactBandContents(page: Page, phone: boolean) {
   );
   expect(bands.length).toBeGreaterThan(0);
   for (const band of bands) {
-    expect(band.categoryCount, band.id).toBe(phone ? 6 : 7);
+    expect(band.categoryCount, band.id).toBe(phone ? 5 : 7);
     expect(band.parentCount, band.id).toBe(4);
     expect(band.categoryHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 40);
     expect(band.parentHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 36);
@@ -281,7 +316,11 @@ sampleTest(
                 height: e.getBoundingClientRect().height,
               })),
           );
+        expect(targets.length).toBeGreaterThan(0);
         expect(targets.filter((t) => t.width < 44 || t.height < 44)).toEqual([]);
+        await enterPhoneSelection(page);
+        await expectPhoneSelectionTargets(page);
+        await exitPhoneSelection(page);
       }
       await resetCaptureScroll(page);
       await page.screenshot({ path: info.outputPath(`sample-${theme}.png`), fullPage: true });
@@ -361,11 +400,28 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Alle einklappen', exact: true }).click();
   await expect(name).toBeVisible();
-  await page.getByRole('checkbox', { name: 'Musterposten auswählen', exact: true }).check();
+  if (page.viewportSize()!.width < 768) {
+    await enterPhoneSelection(page);
+    await name.click();
+    await expect(page.locator(`.pname[data-category-id="${category.id}"]`)).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  } else {
+    await page.getByRole('checkbox', { name: 'Musterposten auswählen', exact: true }).check();
+  }
   await expect(name).toHaveAttribute('aria-pressed', 'true');
-  await expect(
-    page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }),
-  ).toHaveJSProperty('indeterminate', true);
+  if (page.viewportSize()!.width < 768) {
+    await expect(
+      page.getByRole('button', { name: 'Alle Kategorien auswählen', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'mixed');
+    await expectPhoneSelectionTargets(page);
+    await exitPhoneSelection(page);
+  } else {
+    await expect(
+      page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }),
+    ).toHaveJSProperty('indeterminate', true);
+  }
   await band.locator('.spending-status').click();
   await expect(inspector.getByRole('heading', { name: 'Musterposten' })).toBeVisible();
   const writes: { path: string; body: unknown }[] = [];
@@ -476,40 +532,95 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   await band.locator('.pname').click();
   await expect(inspector.getByRole('heading', { name: 'Musterposten', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
-  const groupSelection = band.getByRole('checkbox', {
-    name: 'Gruppe Musterband auswählen',
-    exact: true,
-  });
-  await groupSelection.check();
-  await expect(
-    page.getByRole('checkbox', { name: 'Musterposten auswählen', exact: true }),
-  ).toBeChecked();
-  await expect(
-    page.getByRole('checkbox', { name: 'Zweiter Musterposten auswählen', exact: true }),
-  ).toBeChecked();
-  const groupToggle = band.locator('.grp-toggle');
-  await groupToggle.focus();
-  await page.keyboard.press('Space');
-  await expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(groupToggle).toBeFocused();
-  await expect(page.locator(`.ptable-zero [data-category-id="${category.id}"]`)).not.toBeVisible();
-  await expect(
-    page.getByRole('checkbox', { name: 'Zweiter Musterposten auswählen', exact: true }),
-  ).not.toBeVisible();
-  await expect(groupSelection).toBeChecked();
-  await page.keyboard.press('Space');
-  await expect(groupToggle).toHaveAttribute('aria-expanded', 'true');
-  await expect(groupToggle).toBeFocused();
-  await page.keyboard.press('Enter');
-  await expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(groupToggle).toBeFocused();
-  await page.keyboard.press('Enter');
-  await expect(groupToggle).toHaveAttribute('aria-expanded', 'true');
-  await expect(groupToggle).toBeFocused();
-  await expect(groupSelection).toBeChecked();
-  await expect(
-    page.getByRole('checkbox', { name: 'Zweiter Musterposten auswählen', exact: true }),
-  ).toBeChecked();
+  if (page.viewportSize()!.width < 768) {
+    await enterPhoneSelection(page);
+    const groupSelection = band.getByRole('button', {
+      name: 'Gruppe Musterband auswählen',
+      exact: true,
+    });
+    await groupSelection.click();
+    await expect(page.locator(`.pname[data-category-id="${category.id}"]`)).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(page.locator(`.pname[data-category-id="${sibling.id}"]`)).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(page.locator(`.pname[data-category-id="${category.id}"]`)).toContainText(
+      'Musterposten',
+    );
+    await expect(page.locator(`.pname[data-category-id="${sibling.id}"]`)).toContainText(
+      'Zweiter Musterposten',
+    );
+    await expectPhoneSelectionTargets(page);
+    const groupToggle = band.locator('.grp-toggle');
+    await groupToggle.focus();
+    await page.keyboard.press('Space');
+    await expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(groupToggle).toBeFocused();
+    await expect(
+      page.locator(`.ptable-zero [data-category-id="${category.id}"]`),
+    ).not.toBeVisible();
+    await expect(page.locator(`.pname[data-category-id="${sibling.id}"]`)).not.toBeVisible();
+    await expect(groupSelection).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Space');
+    await expect(groupToggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(groupToggle).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(groupToggle).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(groupToggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(groupToggle).toBeFocused();
+    await expect(groupSelection).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator(`.pname[data-category-id="${category.id}"]`)).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(page.locator(`.pname[data-category-id="${sibling.id}"]`)).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await exitPhoneSelection(page);
+  } else {
+    const groupSelection = band.getByRole('checkbox', {
+      name: 'Gruppe Musterband auswählen',
+      exact: true,
+    });
+    await groupSelection.check();
+    await expect(
+      page.getByRole('checkbox', { name: 'Musterposten auswählen', exact: true }),
+    ).toBeChecked();
+    await expect(
+      page.getByRole('checkbox', { name: 'Zweiter Musterposten auswählen', exact: true }),
+    ).toBeChecked();
+    const groupToggle = band.locator('.grp-toggle');
+    await groupToggle.focus();
+    await page.keyboard.press('Space');
+    await expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(groupToggle).toBeFocused();
+    await expect(
+      page.locator(`.ptable-zero [data-category-id="${category.id}"]`),
+    ).not.toBeVisible();
+    await expect(
+      page.getByRole('checkbox', { name: 'Zweiter Musterposten auswählen', exact: true }),
+    ).not.toBeVisible();
+    await expect(groupSelection).toBeChecked();
+    await page.keyboard.press('Space');
+    await expect(groupToggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(groupToggle).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(groupToggle).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(groupToggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(groupToggle).toBeFocused();
+    await expect(groupSelection).toBeChecked();
+    await expect(
+      page.getByRole('checkbox', { name: 'Zweiter Musterposten auswählen', exact: true }),
+    ).toBeChecked();
+  }
   if (info.project.name === 'desktop') {
     const options = page
       .locator('details.plan-menu')

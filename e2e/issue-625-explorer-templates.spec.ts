@@ -104,6 +104,7 @@ async function inspect(
   info: TestInfo,
   id: (typeof templates)[number][0],
   ids: ReturnType<typeof seed>,
+  themeValues: readonly ('dark' | 'light')[] = ['dark', 'light'],
 ) {
   const closeObservation = await observe625Close(page);
   await page.addInitScript(() => localStorage.setItem('budget-theme', 'light'));
@@ -206,8 +207,10 @@ async function inspect(
       );
     }
   }
+  // Preserve the original dark-to-light transition in the isolated light case.
+  if (themeValues.length === 1 && themeValues[0] === 'light') await theme(page, 'dark');
   const measurements = [];
-  for (const value of ['dark', 'light'] as const) {
+  for (const value of themeValues) {
     await theme(page, value);
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
@@ -369,15 +372,29 @@ async function inspect(
 }
 
 for (const [id, label] of templates) {
-  test(`${label}: exact contributions, real scrolling and configured viewport light/dark`, async ({
-    page,
-    isolatedLedger,
-  }, info) => {
-    const ids = seed(isolatedLedger.databasePath);
-    const before = financialFingerprint(isolatedLedger.databasePath);
-    await inspect(page, info, id, ids);
-    expect(financialFingerprint(isolatedLedger.databasePath)).toBe(before);
-  });
+  if (id === 'total') {
+    for (const value of ['dark', 'light'] as const) {
+      test(`${label}: exact contributions, real scrolling and configured viewport ${value}`, async ({
+        page,
+        isolatedLedger,
+      }, info) => {
+        const ids = seed(isolatedLedger.databasePath);
+        const before = financialFingerprint(isolatedLedger.databasePath);
+        await inspect(page, info, id, ids, [value]);
+        expect(financialFingerprint(isolatedLedger.databasePath)).toBe(before);
+      });
+    }
+  } else {
+    test(`${label}: exact contributions, real scrolling and configured viewport light/dark`, async ({
+      page,
+      isolatedLedger,
+    }, info) => {
+      const ids = seed(isolatedLedger.databasePath);
+      const before = financialFingerprint(isolatedLedger.databasePath);
+      await inspect(page, info, id, ids);
+      expect(financialFingerprint(isolatedLedger.databasePath)).toBe(before);
+    });
+  }
   test(`${label}: actual 1440px desktop light/dark and unchanged raw finance`, async ({
     browser,
     isolatedLedger,

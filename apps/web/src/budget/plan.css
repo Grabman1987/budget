@@ -1680,6 +1680,9 @@
   margin: 0 0 0 4px;
 }
 @media (max-width: 767px) {
+  html:has(.plan .ptoolbar) {
+    scroll-padding-top: calc(64px + 56px);
+  }
   .plan .plan-topbar {
     top: 64px;
     flex-wrap: wrap;
@@ -2603,5 +2606,87 @@
   .plan .ptable-zero .pmulti .spending-bar {
     grid-column: 1 / -1;
     grid-row: 5;
+  }
+}
+
+/* #590: phone selection uses category names, distinct group/all buttons and a local action bar. */
+@media (max-width: 767px) {
+  .plan .has-phone-selection {
+    padding-bottom: calc(
+      var(--plan-selection-clearance, 0px) + var(--tabbar-h) + var(--fab-gap) + var(--fab-size) +
+        16px
+    );
+  }
+  .plan .has-phone-selection :is(.pname, .plan-select-toggle) {
+    scroll-margin-block: calc(64px + var(--plan-selection-topbar-height, 44px) + 8px)
+      calc(
+        var(--plan-selection-clearance, 0px) + var(--tabbar-h) + var(--fab-gap) + var(--fab-size) +
+          16px
+      );
+  }
+  .plan .plan-select-toggle {
+    flex: none;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 4px;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+  }
+  .plan .plan-select-toggle[aria-pressed='true'],
+  .plan .plan-select-toggle[aria-pressed='mixed'] {
+    background: var(--tint-2);
+  }
+  .plan .ptable-zero .prow:not(.psingle):not(.is-empty),
+  .plan .ptable-zero .pmulti:not(.is-empty) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .plan .ptable-zero .prow:not(.psingle) .pname,
+  .plan .ptable-zero .pmulti .pname {
+    grid-column: 1;
+  }
+  .plan .ptable-zero .prow:not(.psingle) .col-avail,
+  .plan .ptable-zero .prow:not(.psingle) .col-assign,
+  .plan .ptable-zero .pmulti .col-avail,
+  .plan .ptable-zero .pmulti .col-assign {
+    grid-column: 2;
+  }
+  .plan .ptable-zero .prow:not(.psingle) .spending-status,
+  .plan .ptable-zero .pmulti .spending-status {
+    grid-column: 1;
+  }
+  .plan .ptable-zero .psingle:not(.pmulti) .spending-status {
+    grid-column: 1 / 3;
+  }
+  .plan .plan-selection-bar {
+    position: fixed;
+    z-index: 5;
+    inset-inline: 16px;
+    bottom: calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 8px);
+    display: grid;
+    gap: 8px;
+    max-height: calc(100dvh - var(--tabbar-h) - var(--fab-gap) - var(--fab-size) - 32px);
+    overflow-y: auto;
+    padding: 12px;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-md);
+    background: var(--raised);
+    color: var(--ink);
+    box-shadow: var(--card-shadow);
+  }
+  .plan .plan-selection-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+  .plan .plan-selection-bar p {
+    margin: 0;
+  }
+  .plan .plan-selection-bar .btn {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
