@@ -10,6 +10,7 @@ import {
   netWorthValuationAsOf,
 } from './portfolio';
 import { runWithRequestMemo } from './request-memo';
+import { debtsAsOf } from './debts';
 
 const DAY = '2026-09-20';
 let opened: OpenedDatabase;
@@ -425,4 +426,332 @@ describe('current valuation facts from the actual financial read', () => {
       expect(netWorthValuationAsOf(opened.db, DAY).totalCents).toBe(12000);
     });
   });
+});
+
+function aggregateCash(values: readonly number[], currency = 'EUR') {
+  values.forEach((openingBalanceCents, index) => {
+    opened.db
+      .insert(account)
+      .values({
+        id: `aggregate-${index}`,
+        name: `Synthetic aggregate ${index}`,
+        type: 'checking',
+        role: 'budget',
+        onBudget: false,
+        currency,
+        openingDate: DAY,
+        openingBalanceCents,
+        sortOrder: index + 1,
+      })
+      .run();
+  });
+}
+function aggregatePosition(id: string, unitsE8: number, priceMicro: number, currency = 'EUR') {
+  opened.db
+    .insert(security)
+    .values({ id, name: `Synthetic ${id}`, kind: 'stock', currency })
+    .run();
+  opened.db
+    .insert(holding)
+    .values({
+      id: `holding-${id}`,
+      securityId: id,
+      accountId: 'depot',
+      asOf: DAY,
+      unitsE8,
+      costBasisCents: null,
+    })
+    .run();
+  quote(id, DAY, currency, priceMicro);
+}
+function aggregateReadOnly(check: () => void) {
+  const before = opened.sqlite.serialize();
+  try {
+    check();
+  } finally {
+    expect(opened.sqlite.serialize().equals(before)).toBe(true);
+  }
+}
+function aggregateResultLimit(read: () => unknown) {
+  let caught: unknown;
+  try {
+    read();
+  } catch (error) {
+    caught = error;
+  }
+  expect(caught).toBeInstanceOf(ValuationLimitError);
+  if (!(caught instanceof ValuationLimitError))
+    throw new Error('Expected typed valuation result limit');
+  expect(caught.boundary).toBe('result');
+  expect(caught.message).toBe('Valuation result exceeds safe integer range');
+}
+
+describe('literal exact shared aggregate boundaries, using actual stored account and holding reads', () => {
+  it.each([1, -1])(
+    'keeps a safe account final when cash cancels an overflowing holdings subtotal (%s)',
+    (sign) => {
+      opened.db
+        .update(account)
+        .set({ openingBalanceCents: -sign * 9007199254740991 })
+        .where(eq(account.id, 'depot'))
+        .run();
+      aggregatePosition('aggregate-held-0', sign * 1000000000000, 9007199254740991);
+      aggregatePosition('aggregate-held-1', sign * 100000000, 20000);
+      aggregateReadOnly(() => {
+        const read = fallibleNetWorthValuationAsOf(opened.db, DAY);
+        expect(read.valuation).toMatchObject({
+          holdingsByAccount: { depot: null },
+          byAccount: { depot: sign === 1 ? 2 : -2 },
+          totalCents: sign === 1 ? 2 : -2,
+        });
+        expect(read.calculationLimitAccountIds).toEqual([]);
+        expect(read.calculationLimitAccountSigns).toEqual({});
+        const debts = debtsAsOf(opened.db, DAY);
+        expect(debts.totalEurCents).toBe(sign === 1 ? 0 : 2);
+        expect(
+          debts.accounts.map((row) => ({
+            id: row.id,
+            cents: row.owedEurCents,
+            reason: row.unavailableReason,
+          })),
+        ).toEqual(sign === 1 ? [] : [{ id: 'depot', cents: 2, reason: null }]);
+      });
+    },
+  );
+  it.each([1, -1])(
+    'identifies an overflowing account final without hiding its safe holding subtotal (%s)',
+    (sign) => {
+      opened.db
+        .update(account)
+        .set({ openingBalanceCents: sign * 9007199254740991 })
+        .where(eq(account.id, 'depot'))
+        .run();
+      aggregatePosition('aggregate-held', sign * 100000000, 20000);
+      aggregateReadOnly(() => {
+        const read = fallibleNetWorthValuationAsOf(opened.db, DAY);
+        expect(read.valuation).toMatchObject({
+          holdingsByAccount: { depot: sign === 1 ? 2 : -2 },
+          byAccount: { depot: null },
+          totalCents: null,
+        });
+        expect(read.calculationLimitAccountIds).toEqual(['depot']);
+        expect(read.calculationLimitAccountSigns).toEqual({ depot: sign });
+      });
+    },
+  );
+  it.each([1, -1])(
+    'uses the exact overflow sign rather than opposite native cash to select debt rows (%s)',
+    (sign) => {
+      opened.db
+        .update(account)
+        .set({ openingBalanceCents: -sign })
+        .where(eq(account.id, 'depot'))
+        .run();
+      aggregatePosition('aggregate-held-0', sign * 1000000000000, 9007199254740991);
+      aggregatePosition('aggregate-held-1', sign * 1000000000000, 9007199254740991);
+      aggregateReadOnly(() => {
+        const read = fallibleNetWorthValuationAsOf(opened.db, DAY);
+        expect(read.valuation).toMatchObject({
+          holdingsByAccount: { depot: null },
+          byAccount: { depot: null },
+          totalCents: null,
+        });
+        expect(read.calculationLimitAccountIds).toEqual(['depot']);
+        expect(read.calculationLimitAccountSigns).toEqual({ depot: sign });
+        const debts = debtsAsOf(opened.db, DAY);
+        expect(debts.totalEurCents).toBe(sign === 1 ? 0 : null);
+        expect(
+          debts.accounts.map((row) => ({
+            id: row.id,
+            cents: row.owedEurCents,
+            reason: row.unavailableReason,
+          })),
+        ).toEqual(sign === 1 ? [] : [{ id: 'depot', cents: null, reason: 'calculation_limit' }]);
+      });
+    },
+  );
+  it.each([
+    [9007199254740991, 2, -9007199254740991],
+    [9007199254740991, -9007199254740991, 2],
+    [2, 9007199254740991, -9007199254740991],
+    [2, -9007199254740991, 9007199254740991],
+    [-9007199254740991, 9007199254740991, 2],
+    [-9007199254740991, 2, 9007199254740991],
+  ])('retains literal positive cancellation2 for account order %j', (...values) => {
+    aggregateCash(values);
+    aggregateReadOnly(() => {
+      const read = netWorthValuationAsOf(opened.db, DAY);
+      expect(read.totalCents).toBe(2);
+      expect(values.map((_, index) => read.byAccount[`aggregate-${index}`])).toEqual(values);
+    });
+  });
+  it.each([
+    [-9007199254740991, -2, 9007199254740991],
+    [-9007199254740991, 9007199254740991, -2],
+    [-2, -9007199254740991, 9007199254740991],
+    [-2, 9007199254740991, -9007199254740991],
+    [9007199254740991, -9007199254740991, -2],
+    [9007199254740991, -2, -9007199254740991],
+  ])('retains literal negative cancellation−2 for account order %j', (...values) => {
+    aggregateCash(values);
+    aggregateReadOnly(() => expect(netWorthValuationAsOf(opened.db, DAY).totalCents).toBe(-2));
+  });
+  it.each([1, -1])(
+    'sums quoted signed holdings to literal ±2 without losing an intermediate cent (%s)',
+    (sign) => {
+      aggregatePosition('aggregate-held-0', sign * 1000000000000, 9007199254740991);
+      aggregatePosition('aggregate-held-1', sign * 100000000, 20000);
+      aggregatePosition('aggregate-held-2', -sign * 1000000000000, 9007199254740991);
+      aggregateReadOnly(() => {
+        expect(netWorthValuationAsOf(opened.db, DAY)).toMatchObject({
+          holdingsByAccount: { depot: sign === 1 ? 2 : -2 },
+          byAccount: { depot: sign === 1 ? 2 : -2 },
+          totalCents: sign === 1 ? 2 : -2,
+        });
+      });
+    },
+  );
+  it.each([1, -1])('sums mixed cash and holdings at the final account boundary (%s)', (sign) => {
+    opened.db
+      .update(account)
+      .set({ openingBalanceCents: sign * 9007199254740991 })
+      .where(eq(account.id, 'depot'))
+      .run();
+    aggregatePosition('aggregate-held-0', sign * 100000000, 20000);
+    aggregatePosition('aggregate-held-1', -sign * 1000000000000, 9007199254740991);
+    aggregateReadOnly(() =>
+      expect(netWorthValuationAsOf(opened.db, DAY)).toMatchObject({
+        holdingsByAccount: { depot: sign === 1 ? -9007199254740989 : 9007199254740989 },
+        byAccount: { depot: sign === 1 ? 2 : -2 },
+        totalCents: sign === 1 ? 2 : -2,
+      }),
+    );
+  });
+  it.each([1, -1])('rejects an unsafe final overall aggregate with safe operands (%s)', (sign) => {
+    aggregateCash([sign * 9007199254740991, sign * 2]);
+    aggregateReadOnly(() => aggregateResultLimit(() => netWorthValuationAsOf(opened.db, DAY)));
+  });
+  it.each([1, -1])(
+    'rejects an unsafe final holding subtotal even if cash cancels the account (%s)',
+    (sign) => {
+      opened.db
+        .update(account)
+        .set({ openingBalanceCents: -sign * 9007199254740991 })
+        .where(eq(account.id, 'depot'))
+        .run();
+      aggregatePosition('aggregate-held-0', sign * 1000000000000, 9007199254740991);
+      aggregatePosition('aggregate-held-1', sign * 100000000, 20000);
+      aggregateReadOnly(() => aggregateResultLimit(() => netWorthValuationAsOf(opened.db, DAY)));
+    },
+  );
+  it.each([1, -1])('rejects an unsafe cash-plus-holding account final aggregate (%s)', (sign) => {
+    opened.db
+      .update(account)
+      .set({ openingBalanceCents: sign * 9007199254740991 })
+      .where(eq(account.id, 'depot'))
+      .run();
+    aggregatePosition('aggregate-held', sign * 100000000, 20000);
+    aggregateReadOnly(() => aggregateResultLimit(() => netWorthValuationAsOf(opened.db, DAY)));
+  });
+  it('keeps a partial overall sum unknown when another account lacks FX', () => {
+    aggregateCash([9007199254740991, 2]);
+    opened.db
+      .update(account)
+      .set({ currency: 'USD', openingBalanceCents: 1 })
+      .where(eq(account.id, 'depot'))
+      .run();
+    aggregateReadOnly(() =>
+      expect(netWorthValuationAsOf(opened.db, DAY)).toMatchObject({
+        totalCents: null,
+        byAccount: { depot: null, 'aggregate-0': 9007199254740991, 'aggregate-1': 2 },
+        missingFxCurrencies: ['USD'],
+        missingFxByAccount: { depot: ['USD'] },
+      }),
+    );
+  });
+  it('keeps incomplete holdings unknown instead of range-checking a partial subtotal', () => {
+    aggregatePosition('aggregate-held-0', 1000000000000, 9007199254740991);
+    aggregatePosition('aggregate-held-1', 100000000, 20000);
+    aggregatePosition('aggregate-held-2', 100000000, 1000000, 'USD');
+    aggregateReadOnly(() =>
+      expect(netWorthValuationAsOf(opened.db, DAY)).toMatchObject({
+        totalCents: null,
+        byAccount: { depot: null },
+        holdingsByAccount: { depot: null },
+        missingFxCurrencies: ['USD'],
+        missingFxByAccount: { depot: ['USD'] },
+      }),
+    );
+  });
+  it('keeps strict missing-price holdings unknown before validating a partial subtotal', () => {
+    aggregatePosition('aggregate-held-0', 1000000000000, 9007199254740991);
+    aggregatePosition('aggregate-held-1', 100000000, 20000);
+    position('aggregate-held-2', null);
+    aggregateReadOnly(() =>
+      expect(netWorthValuationAsOf(opened.db, DAY, { estimate: false })).toMatchObject({
+        totalCents: null,
+        byAccount: { depot: null },
+        holdingsByAccount: { depot: null },
+        missingPriceSecurityIds: ['aggregate-held-2'],
+        missingPriceByAccount: { depot: ['aggregate-held-2'] },
+      }),
+    );
+  });
+  it('preserves cash-only negative zero while the overall seeded sum is positive zero', () => {
+    opened.db
+      .update(account)
+      .set({ currency: 'USD', openingBalanceCents: -1 })
+      .where(eq(account.id, 'depot'))
+      .run();
+    opened.db.insert(fxRate).values({ currency: 'USD', date: DAY, rateMicro: 1 }).run();
+    aggregateReadOnly(() => {
+      const read = netWorthValuationAsOf(opened.db, DAY);
+      expect(Object.is(read.byAccount.depot, -0)).toBe(true);
+      expect(Object.is(read.totalCents, 0)).toBe(true);
+    });
+  });
+  it('preserves positive zero after a real holding addition to negative-zero cash', () => {
+    opened.db
+      .update(account)
+      .set({ currency: 'USD', openingBalanceCents: -1 })
+      .where(eq(account.id, 'depot'))
+      .run();
+    opened.db.insert(fxRate).values({ currency: 'USD', date: DAY, rateMicro: 1 }).run();
+    aggregatePosition('aggregate-tiny-held', 1, 1);
+    aggregateReadOnly(() => {
+      const read = netWorthValuationAsOf(opened.db, DAY);
+      expect(Object.is(read.holdingsByAccount.depot, 0)).toBe(true);
+      expect(Object.is(read.byAccount.depot, 0)).toBe(true);
+      expect(Object.is(read.totalCents, 0)).toBe(true);
+    });
+  });
+  it.each(['strict-first', 'fallible-first'] as const)(
+    'keeps safe individual debt rows when only the total exceeds the range (%s)',
+    (order) => {
+      aggregateCash([-9007199254740991, -1]);
+      aggregateReadOnly(() =>
+        runWithRequestMemo(() => {
+          if (order === 'strict-first')
+            aggregateResultLimit(() => netWorthValuationAsOf(opened.db, DAY));
+          const read = fallibleNetWorthValuationAsOf(opened.db, DAY);
+          expect(read.calculationLimitAccountIds).toEqual([]);
+          expect(read.valuation).toMatchObject({
+            totalCents: null,
+            byAccount: {
+              depot: 0,
+              'aggregate-0': -9007199254740991,
+              'aggregate-1': -1,
+            },
+          });
+          aggregateResultLimit(() => netWorthValuationAsOf(opened.db, DAY));
+          expect(fallibleNetWorthValuationAsOf(opened.db, DAY)).toEqual(read);
+          const debts = debtsAsOf(opened.db, DAY);
+          expect(debts.totalEurCents).toBeNull();
+          expect(debts.unavailableReason).toBe('calculation_limit');
+          expect(debts.accounts.map((row) => row.owedEurCents)).toEqual([9007199254740991, 1]);
+          expect(debts.accounts.map((row) => row.unavailableReason)).toEqual([null, null]);
+        }),
+      );
+    },
+  );
 });

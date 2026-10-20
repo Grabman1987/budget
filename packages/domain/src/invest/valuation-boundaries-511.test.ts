@@ -5,6 +5,7 @@ import {
   toEurCents,
   unitsFor,
   ValuationLimitError,
+  sumValuationCents,
 } from './invest';
 import { pickTradePrice, valueAtPrice } from './series';
 
@@ -146,4 +147,44 @@ describe('#511 existing valuation arithmetic boundaries', () => {
       expect(calculate).toThrow(RangeError);
     },
   );
+});
+
+describe('#511 exact aggregate final boundary', () => {
+  it('retains literal ±2 after intermediate magnitudes exceed the safe range', () => {
+    expect(sumValuationCents([9007199254740991, 2, -9007199254740991])).toBe(2);
+    expect(sumValuationCents([-9007199254740991, -2, 9007199254740991])).toBe(-2);
+  });
+  it.each([1, -1] as const)('retains the exact sign of an unsafe final result (%s)', (sign) => {
+    let caught: unknown;
+    try {
+      sumValuationCents([sign * 9007199254740991, sign * 2]);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ValuationLimitError);
+    if (!(caught instanceof ValuationLimitError)) throw new Error('Expected typed result limit');
+    expect(caught.boundary).toBe('result');
+    expect(caught.resultSign).toBe(sign);
+    expect(caught.message).toBe('Valuation result exceeds safe integer range');
+  });
+  it('still rejects unsafe operands even if cancellation could hide them', () => {
+    expect(() => sumValuationCents([9007199254740992, -9007199254740992])).toThrow(
+      ValuationLimitError,
+    );
+    try {
+      sumValuationCents([9007199254740992, -9007199254740992]);
+      throw new Error('Expected an operand limit');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ValuationLimitError);
+      if (!(error instanceof ValuationLimitError)) throw error;
+      expect(error.boundary).toBe('operand');
+      expect(error).not.toHaveProperty('resultSign');
+    }
+  });
+  it('retains seeded positive zero without changing the existing signed cash conversion', () => {
+    expect(Object.is(sumValuationCents([]), 0)).toBe(true);
+    expect(Object.is(sumValuationCents([-0, -0]), 0)).toBe(true);
+    expect(Object.is(toEurCents(-1, 0), -0)).toBe(true);
+    expect(Object.is(toEurCents(-1, 1), -0)).toBe(true);
+  });
 });

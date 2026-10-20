@@ -9,12 +9,17 @@ const MAX_SAFE = BigInt(Number.MAX_SAFE_INTEGER);
 
 /** A precise valuation cannot represent its operand or result as safe integer units. */
 export class ValuationLimitError extends RangeError {
+  /** Exact sign, only when an aggregate final result exceeds the representable range. */
+  declare readonly resultSign?: -1 | 1;
+
   constructor(
     message: string,
     readonly boundary: 'operand' | 'result',
+    resultSign?: -1 | 1,
   ) {
     super(message);
     this.name = 'ValuationLimitError';
+    if (resultSign !== undefined) this.resultSign = resultSign;
   }
 }
 
@@ -24,10 +29,21 @@ function integer(value: number): bigint {
   return BigInt(value);
 }
 
-function safeNumber(value: bigint): number {
+function safeNumber(value: bigint, resultSign?: -1 | 1): number {
   if (value > MAX_SAFE || value < -MAX_SAFE)
-    throw new ValuationLimitError('Valuation result exceeds safe integer range', 'result');
+    throw new ValuationLimitError(
+      'Valuation result exceeds safe integer range',
+      'result',
+      resultSign,
+    );
   return Number(value);
+}
+
+/** Exact sum of safe component cents; only the final published sum must fit the safe range. */
+export function sumValuationCents(values: Iterable<number>): number {
+  let sum = 0n;
+  for (const value of values) sum += integer(value);
+  return safeNumber(sum, sum < 0n ? -1 : 1);
 }
 
 /** Value in cents of `unitsE8` at `priceMicro`, rounded half up. */

@@ -188,3 +188,73 @@ it('the actual YNAB two-decimal EUR boundary rejects extra precision and unsafe 
   for (const raw of ['€0,001', '€1,234', 'USD12.34', '1234', '€90071992547409,92'])
     expect(parseAmount(raw)).toBeNull();
 });
+
+function apiAggregateCash(values: readonly number[]) {
+  opened.db
+    .update(schema.account)
+    .set({ currency: 'EUR', openingBalanceCents: 0 })
+    .where(eq(schema.account.id, 'depot'))
+    .run();
+  opened.db.update(schema.holding).set({ unitsE8: 0 }).where(eq(schema.holding.id, 'h')).run();
+  values.forEach((openingBalanceCents, index) => {
+    opened.db
+      .insert(schema.account)
+      .values({
+        id: `aggregate-${index}`,
+        name: `Synthetic aggregate ${index}`,
+        type: 'checking',
+        role: 'budget',
+        onBudget: false,
+        openingDate: DAY,
+        openingBalanceCents,
+        sortOrder: index + 1,
+      })
+      .run();
+  });
+}
+it('actual account DTO retains the literal2 cancellation instead of serializing a lost cent', async () => {
+  apiAggregateCash([9007199254740991, 2, -9007199254740991]);
+  const before = opened.sqlite.serialize();
+  const listed = await read<Listed>('/accounts');
+  expect(listed.netWorthEurCents).toBe(2);
+  expect(
+    listed.accounts
+      .filter((row) => row.id.startsWith('aggregate-'))
+      .map((row) => row.valueEurCents),
+  ).toEqual([9007199254740991, 2, -9007199254740991]);
+  expect(opened.sqlite.serialize().equals(before)).toBe(true);
+});
+it('actual debt aggregate stays200/null with known safe rows instead of a strict overall422', async () => {
+  apiAggregateCash([-9007199254740991, -1]);
+  const before = opened.sqlite.serialize();
+  const response = await app.request('/api/wealth/debts');
+  expect(response.status).toBe(200);
+  expect(response.headers.get('cache-control')).toContain('no-store');
+  const body = await response.json();
+  expect(body).toMatchObject({
+    totalEurCents: null,
+    unavailableReason: 'calculation_limit',
+    accounts: [
+      { id: 'aggregate-0', owedEurCents: 9007199254740991, unavailableReason: null },
+      { id: 'aggregate-1', owedEurCents: 1, unavailableReason: null },
+    ],
+  });
+  expect(opened.sqlite.serialize().equals(before)).toBe(true);
+});
+it('actual owed aggregate stays unavailable even when an asset offsets net worth to literal−2', async () => {
+  apiAggregateCash([9007199254740991, -9007199254740991, -2]);
+  const before = opened.sqlite.serialize();
+  expect((await read<Listed>('/accounts')).netWorthEurCents).toBe(-2);
+  const response = await app.request('/api/wealth/debts');
+  expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(body).toMatchObject({
+    totalEurCents: null,
+    unavailableReason: 'calculation_limit',
+    accounts: [
+      { id: 'aggregate-1', owedEurCents: 9007199254740991, unavailableReason: null },
+      { id: 'aggregate-2', owedEurCents: 2, unavailableReason: null },
+    ],
+  });
+  expect(opened.sqlite.serialize().equals(before)).toBe(true);
+});

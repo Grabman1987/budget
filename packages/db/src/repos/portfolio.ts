@@ -13,6 +13,7 @@ import {
   pickTradePrice,
   securityFlows,
   toEurCents,
+  sumValuationCents,
   unitsHeld,
   ValuationLimitError,
   type CashFlow,
@@ -499,23 +500,22 @@ export function netWorthValuationAsOf(
   return netWorthValuationRead(db, asOf, options).valuation;
 }
 
-/** Fallible debt rows keep safe native amounts when only the EUR cash result is out of range. */
+/** Fallible debt reads retain safe rows when only a final EUR result is out of range. */
 export function fallibleNetWorthValuationAsOf(db: Executor, asOf: string) {
-  const { valuation, calculationLimitAccountIds } = netWorthValuationRead(db, asOf, {}, true);
-  return { valuation, calculationLimitAccountIds };
+  const { valuation, calculationLimitAccountIds, calculationLimitAccountSigns } =
+    netWorthValuationRead(db, asOf, {}, true);
+  return { valuation, calculationLimitAccountIds, calculationLimitAccountSigns };
 }
 
 function netWorthValuationRead(
   db: Executor,
   asOf: string,
   options: ValuationOptions = {},
-  nullCashResultLimits = false,
+  nullResultLimits = false,
 ) {
   const estimate = options.estimate ?? true;
-  return memoized(
-    db,
-    `networth|${asOf}|${estimate}${nullCashResultLimits ? '|cash-result-null' : ''}`,
-    () => computeNetWorthValuation(db, asOf, options, nullCashResultLimits),
+  return memoized(db, `networth|${asOf}|${estimate}${nullResultLimits ? '|result-null' : ''}`, () =>
+    computeNetWorthValuation(db, asOf, options, nullResultLimits),
   );
 }
 
@@ -523,9 +523,28 @@ function computeNetWorthValuation(
   db: Executor,
   asOf: string,
   options: ValuationOptions,
-  nullCashResultLimits: boolean,
+  nullResultLimits: boolean,
 ) {
   const calculationLimitAccountIds: string[] = [];
+  const calculationLimitAccountSigns: Record<string, -1 | 1> = {};
+  const sum = (values: Iterable<number>, accountId?: string): number | null => {
+    try {
+      return sumValuationCents(values);
+    } catch (error) {
+      if (
+        !nullResultLimits ||
+        !(error instanceof ValuationLimitError) ||
+        error.boundary !== 'result'
+      )
+        throw error;
+      if (accountId !== undefined) {
+        if (error.resultSign === undefined) throw error;
+        calculationLimitAccountIds.push(accountId);
+        calculationLimitAccountSigns[accountId] = error.resultSign;
+      }
+      return null;
+    }
+  };
   const cashSources: ValuationSource[] = [];
   const estimate = options.estimate ?? true;
   const accountRows = db
@@ -603,7 +622,7 @@ function computeNetWorthValuation(
         byAccount[balance.accountId] = toEurCents(nativeCents, rate);
       } catch (error) {
         if (
-          !nullCashResultLimits ||
+          !nullResultLimits ||
           !(error instanceof ValuationLimitError) ||
           error.boundary !== 'result' ||
           !Number.isSafeInteger(nativeCents)
@@ -616,13 +635,11 @@ function computeNetWorthValuation(
   }
 
   const holdingsByAccount: Record<string, number | null> = {};
+  const holdingTerms = new Map<string, number[]>();
   for (const holding of holdings.values) {
-    if (holdingsByAccount[holding.accountId] === null) continue;
-    holdingsByAccount[holding.accountId] =
-      (holdingsByAccount[holding.accountId] ?? 0) + holding.valueCents;
-    if (byAccount[holding.accountId] !== null) {
-      byAccount[holding.accountId] = (byAccount[holding.accountId] ?? 0) + holding.valueCents;
-    }
+    const terms = holdingTerms.get(holding.accountId) ?? [];
+    terms.push(holding.valueCents);
+    holdingTerms.set(holding.accountId, terms);
   }
   for (const [accountId, currencies] of holdings.missingFxByAccount) {
     holdingsByAccount[accountId] = null;
@@ -641,6 +658,14 @@ function computeNetWorthValuation(
     }
   }
 
+  // Missing components mask their partial sum. Finalize complete fields independently: cash may
+  // cancel an oversized holdings subtotal for a fallible debt row without publishing that subtotal.
+  for (const [accountId, terms] of holdingTerms) {
+    if (holdingsByAccount[accountId] !== null) holdingsByAccount[accountId] = sum(terms);
+    if (byAccount[accountId] !== null)
+      byAccount[accountId] = sum([byAccount[accountId] ?? 0, ...terms], accountId);
+  }
+
   const missingPriceSecurityIds = [
     ...new Set([...missingPriceByAccount.values()].flatMap((s) => [...s])),
   ].sort();
@@ -650,9 +675,7 @@ function computeNetWorthValuation(
   const values = Object.values(byAccount);
   const knownValues = values.filter((value): value is number => value !== null);
   const totalCents =
-    missingFxCurrencies.length || knownValues.length !== values.length
-      ? null
-      : knownValues.reduce((sum, value) => sum + value, 0);
+    missingFxCurrencies.length || knownValues.length !== values.length ? null : sum(knownValues);
   const result: NetWorthValuation = {
     totalCents,
     byAccount,
@@ -672,6 +695,7 @@ function computeNetWorthValuation(
     cashSources,
     holdingSources: holdingRead.sources,
     calculationLimitAccountIds: calculationLimitAccountIds.sort(),
+    calculationLimitAccountSigns,
   };
 }
 
