@@ -27,6 +27,8 @@ import {
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type CSSProperties,
   type ReactNode,
 } from 'react';
 import { expectedQuery } from '../expected/api';
@@ -53,6 +55,7 @@ import {
 import { CategoryIcon } from './category-icon';
 import { IncomeButton } from '../expected/income-panel';
 import { PlanInspector } from './plan-inspector';
+import { QuickAssignActions } from './quick-assign-actions';
 import { patchCategory } from './api';
 import {
   availableInEnvelopes,
@@ -192,7 +195,41 @@ function PlanBody({
     new Set(restored ? [restored.id] : []),
   );
   const [open, setOpen] = useState<{ id: string; month: string } | null>(restored);
+  const [phoneSelection, setPhoneSelection] = useState(false);
+  const selectionReturn = useRef<string | null>(null);
+  const selectionBar = useRef<HTMLElement>(null);
+  const [selectionHeight, setSelectionHeight] = useState(0);
+  const [selectionTopbarHeight, setSelectionTopbarHeight] = useState(44);
+  useLayoutEffect(() => {
+    const bar = selectionBar.current;
+    if (!phoneSelection || !bar) return;
+    const topbar = bar.closest('.plan-grid')?.querySelector<HTMLElement>('.plan-topbar');
+    const measure = () => {
+      setSelectionHeight(bar.getBoundingClientRect().height);
+      setSelectionTopbarHeight(topbar?.getBoundingClientRect().height ?? 44);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
+    if (topbar) observer.observe(topbar);
+    return () => observer.disconnect();
+  }, [phoneSelection]);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 767px)');
+    const resetPhoneSelection = () => {
+      if (phoneSelection && !window.matchMedia(query.media).matches) {
+        setPhoneSelection(false);
+        setSelected(new Set());
+        setOpen(null);
+      }
+    };
+    query.addEventListener('change', resetPhoneSelection);
+    return () => query.removeEventListener('change', resetPhoneSelection);
+  }, [phoneSelection]);
   const inspect = (id: string, selectedMonth = month) => {
+    selectionReturn.current = id;
+    setPhoneSelection(false);
     setSelected(new Set([id]));
     setOpen({ id, month: selectedMonth });
   };
@@ -203,9 +240,14 @@ function PlanBody({
       window.history.replaceState(state, '');
     }
     if (focus) {
-      const id = open?.id ?? [...selected][0];
-      document.querySelector<HTMLButtonElement>(`.pname[data-category-id="${id}"]`)?.focus();
+      const id =
+        open?.id ?? (phone && phoneSelection ? selectionReturn.current : null) ?? [...selected][0];
+      const target =
+        document.querySelector<HTMLButtonElement>(`.pname[data-category-id="${id}"]`) ??
+        (phone ? document.querySelector<HTMLElement>('.plan-menu-optionen summary') : null);
+      target?.focus();
     }
+    setPhoneSelection(false);
     setSelected(new Set());
     setOpen(null);
   };
@@ -214,7 +256,7 @@ function PlanBody({
     enabled: categoryForm !== null || selected.size > 0 || open !== null,
   });
   useEffect(() => {
-    if (!selected.size && !open) return;
+    if (!selected.size && !open && !phoneSelection) return;
     const escape = (event: KeyboardEvent) => {
       if (
         event.key === 'Escape' &&
@@ -228,6 +270,12 @@ function PlanBody({
       }
     };
     const outside = (event: MouseEvent) => {
+      if (
+        phone &&
+        (phoneSelection ||
+          (event.target instanceof Element && event.target.closest('.plan-menu-optionen')))
+      )
+        return;
       // A control that was removed while handling this very click (e.g. the inspector's own
       // overview list swapping to the selection) is not an outside click.
       if (
@@ -305,6 +353,7 @@ function PlanBody({
   const shownIds = new Set(shownRows.map((r) => r.id));
   const orderedRows = [...shownRows, ...rows.filter((r) => !shownIds.has(r.id))];
   const toggleSelected = (id: string) => {
+    selectionReturn.current = id;
     setOpen(null);
     setSelected((prev) => {
       const next = new Set(prev);
@@ -325,6 +374,15 @@ function PlanBody({
       return next;
     });
   };
+  const startPhoneSelection = (id?: string) => {
+    if (!phone) return;
+    setOpen(null);
+    if (!phoneSelection) setSelected(new Set(id ? [id] : []));
+    else if (id) setSelected((previous) => new Set([...previous, id]));
+    if (id) selectionReturn.current = id;
+    setPhoneSelection(true);
+  };
+  const selectedIds = orderedRows.filter((row) => selected.has(row.id)).map((row) => row.id);
   const tba = s.toBeAssignedCents;
   // The disabled "Geld verteilen" / "Wasserfall-Assistent" say why, in words next to them.
   const distributeBlock =
@@ -426,7 +484,21 @@ function PlanBody({
   };
 
   return (
-    <div className={cx('plan-grid', multi && 'is-wide')}>
+    <div
+      className={cx(
+        'plan-grid',
+        multi && 'is-wide',
+        phone && phoneSelection && 'has-phone-selection',
+      )}
+      style={
+        phone && phoneSelection
+          ? ({
+              '--plan-selection-clearance': `${selectionHeight}px`,
+              '--plan-selection-topbar-height': `${selectionTopbarHeight}px`,
+            } as CSSProperties)
+          : undefined
+      }
+    >
       <div className="plan-main">
         <PlanTopBar
           data={data}
@@ -533,6 +605,10 @@ function PlanBody({
               view={shownView}
               multi={multi}
               phone={phone}
+              selectionMode={phoneSelection}
+              onSelectionMode={() =>
+                phoneSelection ? clearSelection(true) : startPhoneSelection()
+              }
               collapsed={collapsed.size > 0}
               onView={setView}
               onToggleAll={() =>
@@ -606,6 +682,8 @@ function PlanBody({
                     <th className="tech col-name" scope="col">
                       <div className="group-heading">
                         <PlanSelection
+                          phone={phone}
+                          mode={phoneSelection}
                           label="Alle Kategorien auswählen"
                           rows={shownRows}
                           selected={selected}
@@ -660,6 +738,8 @@ function PlanBody({
                     const groupHeading = (
                       <div className="group-heading">
                         <PlanSelection
+                          phone={phone}
+                          mode={phoneSelection}
                           label={`${shownView === 'group' && g.rows.length > 1 ? 'Gruppe ' : ''}${g.title} auswählen`}
                           rows={g.rows}
                           selected={selected}
@@ -764,6 +844,8 @@ function PlanBody({
                               }}
                               onTake={() => take([r.id])}
                               selected={selected.has(r.id)}
+                              phoneSelection={phoneSelection}
+                              onHold={() => startPhoneSelection(r.id)}
                               onSelect={() => toggleSelected(r.id)}
                               onCover={() => inspect(r.id)}
                               onInspect={() => inspect(r.id)}
@@ -777,6 +859,19 @@ function PlanBody({
           )}
         </section>
       </div>
+      {phone && phoneSelection && (
+        <section ref={selectionBar} className="plan-selection-bar" aria-label="Kategorienauswahl">
+          <div className="plan-selection-head">
+            <p aria-live="polite">
+              {selected.size} {selected.size === 1 ? 'Kategorie' : 'Kategorien'} ausgewählt
+            </p>
+            <Button variant="ghost" onClick={() => clearSelection(true)}>
+              Auswahl beenden
+            </Button>
+          </div>
+          <QuickAssignActions month={month} emptyIds={[]} selectedIds={selectedIds} inline />
+        </section>
+      )}
       <PlanInspector
         month={open?.month ?? month}
         rows={panelRows}
@@ -1289,17 +1384,39 @@ function Rail({
 }
 
 function PlanSelection({
+  phone,
+  mode,
   label,
   rows,
   selected,
   onChange,
 }: {
+  phone: boolean;
+  mode: boolean;
   label: string;
   rows: PlanRow[];
   selected: ReadonlySet<string>;
   onChange: () => void;
 }) {
   const count = rows.filter((r) => selected.has(r.id)).length;
+  if (phone)
+    return mode ? (
+      <button
+        type="button"
+        className="plan-select-toggle"
+        aria-label={label}
+        title={label}
+        aria-pressed={
+          count > 0 && count < rows.length ? 'mixed' : rows.length > 0 && count === rows.length
+        }
+        disabled={!rows.length}
+        onClick={onChange}
+      >
+        <span aria-hidden="true">
+          {count}/{rows.length}
+        </span>
+      </button>
+    ) : null;
   return (
     <label className="plan-select">
       <input
@@ -1344,6 +1461,113 @@ function BandTotal({ group, metric, value }: { group: string; metric: string; va
   );
 }
 
+/** Only category-name touch input can enter phone mode; pending holds never block scrolling. */
+function usePhoneSelectionHold(phone: boolean, month: string, onHold: () => void) {
+  const callback = useRef(onHold);
+  useLayoutEffect(() => {
+    callback.current = onHold;
+  });
+  const cleanup = useRef<(() => void) | null>(null);
+  const accepted = useRef(false);
+  const clearCompatibilityClick = useRef<(() => void) | null>(null);
+  const cancelPending = () => {
+    cleanup.current?.();
+    cleanup.current = null;
+  };
+  useEffect(
+    () => () => {
+      cleanup.current?.();
+      cleanup.current = null;
+      clearCompatibilityClick.current?.();
+      accepted.current = false;
+    },
+    [phone, month],
+  );
+  const start = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    cancelPending();
+    clearCompatibilityClick.current?.();
+    accepted.current = false;
+    if (!phone || event.pointerType !== 'touch' || !event.isPrimary) return;
+    const id = event.pointerId;
+    const button = event.currentTarget;
+    const x = event.clientX;
+    const y = event.clientY;
+    // Aborting the hold timer never releases an already accepted gesture's click shield.
+    const cancel = () => cancelPending();
+    const move = (next: PointerEvent) => {
+      if (next.pointerId === id && Math.hypot(next.clientX - x, next.clientY - y) > 10) cancel();
+    };
+    const another = (next: PointerEvent) => {
+      if (next.pointerId !== id) cancel();
+    };
+    const release = (next: PointerEvent) => {
+      if (next.pointerId === id) cancelPending();
+    };
+    cleanup.current = () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerdown', another);
+      window.removeEventListener('pointerup', release);
+      window.removeEventListener('pointercancel', cancel);
+      window.removeEventListener('scroll', cancel, true);
+      window.removeEventListener('blur', cancel);
+      window.removeEventListener('resize', cancel);
+    };
+    window.addEventListener('pointermove', move, { passive: true });
+    window.addEventListener('pointerdown', another, { passive: true });
+    window.addEventListener('pointerup', release, { passive: true });
+    window.addEventListener('pointercancel', cancel, { passive: true });
+    window.addEventListener('scroll', cancel, { passive: true, capture: true });
+    window.addEventListener('blur', cancel);
+    window.addEventListener('resize', cancel);
+    const timer = window.setTimeout(() => {
+      // Capture only an accepted hold before the bar mounts; pending touch scrolling stays native.
+      try {
+        button.setPointerCapture?.(id);
+      } catch {
+        cancelPending();
+        return;
+      }
+      accepted.current = true;
+      // The bar can appear under the held finger. Consume only this gesture's compatibility
+      // click at capture time, including when its target is now a bulk action. A fresh down or
+      // keyboard/switch activation clears the guard without consuming that new action.
+      const clear = () => {
+        accepted.current = false;
+        window.removeEventListener('click', followClick, true);
+        window.removeEventListener('pointerdown', clear, true);
+        clearCompatibilityClick.current = null;
+      };
+      const followClick = (click: MouseEvent) => {
+        const suppress = accepted.current && click.detail > 0;
+        clear();
+        if (suppress) {
+          click.preventDefault();
+          click.stopImmediatePropagation();
+        }
+      };
+      clearCompatibilityClick.current = clear;
+      window.addEventListener('click', followClick, true);
+      window.addEventListener('pointerdown', clear, { capture: true, passive: true });
+      callback.current();
+    }, 500);
+  };
+  return {
+    start,
+    cancelPending,
+    accepted: () => accepted.current,
+    consume: (event: ReactMouseEvent<HTMLButtonElement>) => {
+      const suppress = accepted.current && event.detail > 0;
+      accepted.current = false;
+      if (suppress) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      return suppress;
+    },
+  };
+}
+
 function EnvelopeRow({
   row: r,
   band,
@@ -1358,6 +1582,8 @@ function EnvelopeRow({
   onCommit,
   onTake,
   selected,
+  phoneSelection,
+  onHold,
   onSelect,
   onCover,
   onInspect,
@@ -1376,6 +1602,8 @@ function EnvelopeRow({
   onCommit: (value: number) => void;
   onTake: () => void;
   selected: boolean;
+  phoneSelection: boolean;
+  onHold: () => void;
   onSelect: () => void;
   onCover: () => void;
   onInspect: () => void;
@@ -1388,6 +1616,8 @@ function EnvelopeRow({
   const spending = spendingBar(r);
   const assignment = assignGhost(r);
   const phone = useIsPhone();
+  const hold = usePhoneSelectionHold(phone, ctx.month, onHold);
+  const openRow = () => (phone && phoneSelection ? onSelect() : onInspect());
   const ghost = suggestion !== undefined && (
     <button
       type="button"
@@ -1417,7 +1647,7 @@ function EnvelopeRow({
             'button, input, label, .band-parent, .band-total, .band-parent-totals',
           )
         )
-          onInspect();
+          openRow();
       }}
     >
       <td className="col-name">
@@ -1429,14 +1659,16 @@ function EnvelopeRow({
             <BandTotal group={band!.title} metric="Verfügbar" value={bandSummary.available} />
           </div>
         )}
-        <label className="plan-select">
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={onSelect}
-            aria-label={`${r.name} auswählen`}
-          />
-        </label>
+        {!phone && (
+          <label className="plan-select">
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={onSelect}
+              aria-label={`${r.name} auswählen`}
+            />
+          </label>
+        )}
         <button
           type="button"
           className="pname"
@@ -1451,7 +1683,15 @@ function EnvelopeRow({
             .join(' · ')}
           data-category-id={r.id}
           aria-pressed={selected}
-          onClick={onInspect}
+          onPointerDown={hold.start}
+          onBlur={hold.cancelPending}
+          onContextMenu={(event) => {
+            if (hold.accepted()) event.preventDefault();
+          }}
+          onClick={(event) => {
+            if (hold.consume(event)) return;
+            openRow();
+          }}
         >
           {band && !bandHeading ? (
             <span className="band-number" aria-hidden="true">

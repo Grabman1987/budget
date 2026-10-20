@@ -1,0 +1,92 @@
+[
+  {
+    "file": "first-category-390x844-light.png",
+    "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-590-phone-selection--706bb-tom-controls-in-both-themes-webkit-iphone/first-category-390x844-light.png",
+    "sha256": "2885d21b4bb1af1980eddac57fd7b895d411397357e1a4f48e955b6eb511b2a8",
+    "pixelWidth": 1170,
+    "pixelHeight": 2532,
+    "cssViewport": {
+      "width": 390,
+      "height": 844
+    },
+    "renderedWidthRatio": 3.0,
+    "captureKind": "viewport",
+    "sourceCase": "NEW issue-590 own phone case",
+    "qualification": "First-category frame is outside selection mode; selection frame can show groupheader/FABamount overlay. No wholly unobscured-row or all-control hit-test claim."
+  },
+  {
+    "file": "first-category-390x844-dark.png",
+    "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-590-phone-selection--706bb-tom-controls-in-both-themes-webkit-iphone/first-category-390x844-dark.png",
+    "sha256": "17d5f8d726625758417e2c7a54440a2e27aa44dea2840e6299bd292fa77d651c",
+    "pixelWidth": 1170,
+    "pixelHeight": 2532,
+    "cssViewport": {
+      "width": 390,
+      "height": 844
+    },
+    "renderedWidthRatio": 3.0,
+    "captureKind": "viewport",
+    "sourceCase": "NEW issue-590 own phone case",
+    "qualification": "First-category frame is outside selection mode; selection frame can show groupheader/FABamount overlay. No wholly unobscured-row or all-control hit-test claim."
+  },
+  {
+    "file": "selection-390-light.png",
+    "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-590-phone-selection--bc7c7-t-desktop-checkboxes-remain-webkit-iphone/selection-390-light.png",
+    "sha256": "a3741facb01a1da9d0a9911a37183d480fc1aa14a9665fc5f55720788244816b",
+    "pixelWidth": 1170,
+    "pixelHeight": 1992,
+    "cssViewport": {
+      "width": 390,
+      "height": 664
+    },
+    "renderedWidthRatio": 3.0,
+    "captureKind": "viewport",
+    "sourceCase": "NEW issue-590 own phone case",
+    "qualification": "First-category frame is outside selection mode; selection frame can show groupheader/FABamount overlay. No wholly unobscured-row or all-control hit-test claim."
+  },
+  {
+    "file": "selection-390-dark.png",
+    "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-590-phone-selection--bc7c7-t-desktop-checkboxes-remain-webkit-iphone/selection-390-dark.png",
+    "sha256": "2737662fa480b6237cc072411691287ece40b30f953560d9521f416f18cf2e72",
+    "pixelWidth": 1170,
+    "pixelHeight": 1992,
+    "cssViewport": {
+      "width": 390,
+      "height": 664
+    },
+    "renderedWidthRatio": 3.0,
+    "captureKind": "viewport",
+    "sourceCase": "NEW issue-590 own phone case",
+    "qualification": "First-category frame is outside selection mode; selection frame can show groupheader/FABamount overlay. No wholly unobscured-row or all-control hit-test claim."
+  },
+  {
+    "file": "desktop-light.png",
+    "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-481-single-category--439c1-eir-controls-at-1440-pixels-webkit-iphone/desktop-light.png",
+    "sha256": "df074afbbfa907fd30b7cb798c40d614be8ee30ec975f551a778556d7f6acd9a",
+    "pixelWidth": 4320,
+    "pixelHeight": 6261,
+    "cssViewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "renderedWidthRatio": 3.0,
+    "captureKind": "fullPage",
+    "sourceCase": "EXISTING issue-481 manual desktop context, not NEW590 desktop branch",
+    "qualification": "Full-page frame/known sticky-heading limits; observed desktop flags and coarse/touch measurements in matching raw metrics. Runtime DPR is not recorded by this existing fixture; image width is3xCSSviewport."
+  },
+  {
+    "file": "desktop-dark.png",
+    "originalPath": "/workspace/.budget-tools/cloud-control/590-plan-root-padding-combined-native-clean-second-actual/test-results/issue-481-single-category--19ff1-eir-controls-at-1440-pixels-webkit-iphone/desktop-dark.png",
+    "sha256": "ab583cf8c662a9117c11fd84a277d91a81a93558160f98f18fbda220262e5812",
+    "pixelWidth": 4320,
+    "pixelHeight": 6261,
+    "cssViewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "renderedWidthRatio": 3.0,
+    "captureKind": "fullPage",
+    "sourceCase": "EXISTING issue-481 manual desktop context, not NEW590 desktop branch",
+    "qualification": "Full-page frame/known sticky-heading limits; observed desktop flags and coarse/touch measurements in matching raw metrics. Runtime DPR is not recorded by this existing fixture; image width is3xCSSviewport."
+  }
+]
