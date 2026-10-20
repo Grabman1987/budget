@@ -49,11 +49,83 @@ export function PortfolioCalculationDisclosure({
       ) : (
         <p>Berechnungsumfang: nicht ausgewiesen.</p>
       )}
-      <p>
-        Die Quellen der einzelnen historischen Tageswerte sind hier nicht vollständig ausgewiesen.
-        Auch ohne gemeldete Bewertungshinweise ist damit keine lückenlose historische Quellenprüfung
-        belegt.
-      </p>
+      {summary.valuationProvenance ? (
+        <details className="wealth-details">
+          <summary>Historische Bewertungsquellen</summary>
+          <p>
+            Nur Schlussbewertungen der Wertpapierpositionen im ausgewerteten Zeitraum.
+            Zahlungsflüsse und deren Wechselkurse, Gebühren/Steuern, Vergleichsindizes, Depotkassa
+            und Anlageklassen-Teilreihen sind hier nicht nachgewiesen.
+          </p>
+          {summary.valuationProvenance.status === 'no-history' ? (
+            <p>Keine Bewertungshistorie vorhanden; keine Quellenprüfung einer Rendite möglich.</p>
+          ) : (
+            <>
+              <p>
+                {summary.valuationProvenance.coverage.retainedPositionDays} von{' '}
+                {summary.valuationProvenance.coverage.observedPositionDays} Positionstagen
+                dokumentiert · {summary.valuationProvenance.coverage.calendarDays} Schlussstichtage.
+              </p>
+              <p>
+                {summary.valuationProvenance.coverage.complete
+                  ? 'Die Quellenangaben dieses Bewertungsumfangs sind vollständig dokumentiert. Das bestätigt weder exakte Werte noch sämtliche Eingaben der Rendite.'
+                  : 'Die Quellenangaben dieses Bewertungsumfangs sind nicht vollständig dokumentiert.'}
+              </p>
+              {summary.valuationProvenance.coverage.truncated && (
+                <p>
+                  Anzeige begrenzt: {summary.valuationProvenance.coverage.omittedPositionDays}{' '}
+                  Positionstage in {summary.valuationProvenance.coverage.omittedRuns} Intervallen
+                  fehlen. Höchstens 256 Intervalle und 64 KiB Quellenmetadaten; die Berechnung
+                  umfasst weiterhin den gesamten gewählten Zeitraum.
+                </p>
+              )}
+              {summary.valuationProvenance.coverage.unknownSourceLabelPositionDays !== '0' && (
+                <p>
+                  Quellenbezeichnung nicht dokumentiert für{' '}
+                  {summary.valuationProvenance.coverage.unknownSourceLabelPositionDays}{' '}
+                  Positionstage.
+                </p>
+              )}
+              <ul>
+                {summary.valuationProvenance.runs.map((run, index) => (
+                  <li key={`${run.accountId}:${run.securityId}:${run.from}:${index}`}>
+                    {summary.names.securities[run.securityId] ?? 'Wertpapier'} · Intervall{' '}
+                    {index + 1} · {longDay(run.from)} bis {longDay(run.to)} ({run.days}{' '}
+                    Positionstage).{' '}
+                    {run.kind === 'quote'
+                      ? 'Gespeicherter Kurs'
+                      : run.kind === 'execution'
+                        ? 'Brutto-Ausführung ohne Gebühren und Steuern'
+                        : run.kind === 'cost'
+                          ? 'Kostenbasis: gleitender Durchschnitt'
+                          : 'Kurs oder Kostenbasis fehlt'}
+                    {run.date && ` vom ${longDay(run.date)}`}
+                    {run.currency && ` (${run.currency})`}.{' '}
+                    {run.kind === 'quote' && `Quelle: ${run.source ?? 'nicht dokumentiert'}. `}
+                    {run.lookAhead && 'Spätere Ausführung als Fallback (Look-ahead). '}
+                    {run.quality === 'stale' && 'Kurs mehr als sieben Tage fortgeschrieben. '}
+                    {run.quality === 'estimated' && 'Bewertung geschätzt. '}
+                    {run.quality === 'missing' && 'Bewertung nicht verfügbar. '}
+                    {run.fx.kind === 'identity'
+                      ? 'EUR ohne Währungsumrechnung.'
+                      : run.fx.kind === 'rate'
+                        ? `Wechselkurs vom ${longDay(run.fx.date)}; Quelle: ${run.fx.source ?? 'nicht dokumentiert'}.`
+                        : run.fx.kind === 'missing'
+                          ? 'Wechselkurs fehlt.'
+                          : 'Wechselkurs nicht ausgewertet, da die Bewertungsbasis fehlt.'}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </details>
+      ) : (
+        <p>
+          Die Quellen der einzelnen historischen Tageswerte sind hier nicht vollständig ausgewiesen.
+          Auch ohne gemeldete Bewertungshinweise ist damit keine lückenlose historische
+          Quellenprüfung belegt.
+        </p>
+      )}
       {incomplete && incomplete.length > 0 && (
         <>
           <p>

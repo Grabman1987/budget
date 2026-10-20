@@ -1562,3 +1562,14 @@ Final whole financial review then found a material inherited Number-sum gap. NEW
 - [ ] Exact-head Chromium/Windows CI, final independent publication review and serial exact deployed health.
 
 **This is PARTIAL, not complete #512 acceptance:** all four public ACs remain unchecked. SPEC-008 AC-008-01/02 selected-performance historical-source/as-of/FX/look-ahead transport and corresponding consumer proofs remain OPEN. Inherited #511 current account/Heute provenance is not historical performance metadata. No old checkbox or original Roadmap byte is rewritten.
+
+
+## #512 / WP-004 — selected closing-valuation metadata stage (local evidence; acceptance open)
+
+- [x] Add explicit valuation-v1 opt-in at original daily observation seams; preserve numerical order/rounding, legacy JSON/errors/cache and actual sold/negative/zero/window semantics. Report and compact Wealth reuse selected historical quote/execution/cost/FX facts; allocation context stays separate. No second resolver or invented historical source.
+- [x] Preserve setup-only60310 and genuine2954 RED2PASS/8FAIL; final36 NEW and55 unchanged neighbors pass across distinct documented checkpoints (not a single91/91 claim). Four affected types/lint12/format12 pass; strict256-run/64KiB prefix counters, missing/unknown labels, legacy/cache/no-write fixtures remain literal.
+- [x] Native55607: one freshE2Ebuild0, canonical8/8 firstPASS71.777407s (setup3+old512three+NEWtwo), defaults30s/1worker, all18exits0/source3497/current690d/compiled168/process/container/archive/lock exact. NEW8 original images+safe8 profiles preserve CSS390/DPR3→PNG1170 andtrue1440/DPR1, both themes, with actual fixedshell/nav/skiplink/off-frame occlusion and scoped ReportAxe/privacy/11-table/request-observer qualifiers. Root-only oldnative two-selector adapter retains every financial/action/timing oracle. [Evidence](evidence/investment-explanations-512.md#selected-closing-valuation-metadata-stage--local-evidence-delivery-pending).
+- [x] Actual53760 at current690d/HEADd8: required `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check`555files/4973testsPASS;437.97s Vitest duration, then normal production build0; all10actualexits0/source3497/fullmodes/index/head/status/process/lock exact. Native168 beforebaseline retained; normalprod159 output snapshot is separate, not repeated browser proof. SafeJSON fullpending remains historical atnative55607; prior PR722 full remains historical.
+- [ ] Exact-head Chromium/Windows CI, final publication and serial actual LIVE proof. No local aggregate/browser result completes the excluded-input contracts or all four public ACs.
+
+**All four public #512 ACs remain unchecked.** Only security closing valuations are observed; flows/their FX, fees/taxes, benchmarks, cash and class-sleeve provenance are excluded. No whole-return/SPEC008 completion or old checkbox/prefix rewrite.
