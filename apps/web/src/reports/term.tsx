@@ -12,6 +12,10 @@ const GLOSSARY = new Map<string, string>([
     'Die geldgewichtete Rendite berücksichtigt Höhe und Zeitpunkte deiner Ein- und Auszahlungen.',
   ],
   [
+    'XIRR',
+    'XIRR berücksichtigt Höhe und Zeitpunkte deiner Ein- und Auszahlungen mit der Tageszählung actual/365. Das Ergebnis kann unter anderem bei unzureichenden Zahlungsdaten oder einer nicht eindeutig bestimmbaren Rendite nicht verfügbar sein.',
+  ],
+  [
     'Exposure',
     'Exposure beschreibt die wirtschaftliche Beteiligung an Anlagen oder Risiken, einschließlich einer möglichen Hebelwirkung.',
   ],
@@ -72,7 +76,6 @@ const ALIASES = new Map<string, string>([
   ['MWR', 'MWR/IZF'],
   ['IZF', 'MWR/IZF'],
   ['IRR', 'MWR/IZF'],
-  ['XIRR', 'MWR/IZF'],
   ['Geldgewichtet', 'MWR/IZF'],
   ['Allocation', 'Allokation'],
   ['Einstand', 'Einstandswert'],

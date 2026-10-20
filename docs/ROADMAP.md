@@ -1553,6 +1553,17 @@ Final whole financial review then found a material inherited Number-sum gap. NEW
 - [ ] Exakte Chromium/Windows-CI, serielle Integration und tatsächliche LIVE-Health noch offen. Fotos/Rawtouch0/Stickyfooter-Grenzen und vollständige Historie: [Evidence](evidence/cash-bank-transfer-585.md). Keine rückwirkenden Checkbox- oder Abschlussänderungen.
 
 
+## #512 / WP-004 — partial UI explanation stage (local evidence; acceptance open)
+
+- [x] Explain XIRR actual/365 and nonexclusive unavailability; retain existing Term/popover behavior. Existing Report and compact Wealth disclose only their SAME returned method/cost/period/scope and request-note bounds, separately from current allocation-as-of reasons. No calculation, resolver, API/DTO/router/CSS or existing-test change.
+- [x] Retain meaningful NEW-unit RED10/2PASS8FAIL8.32s; after bounded implementation, actual4files14/14PASS10.54s (NEW10+unchangedTerm4), WEBtypes/lint/format/AST/strict discovery/source/process/lock all0. Literal11400/1400/+14%, exact allocation versus historical bounds, privacy and real navigation remain strict.
+- [x] Actual43904: one freshE2Ebuild0, canonical WebKit6/6 firstPASS45.951220s (setup3+own3), default30/1worker, all17exitfiles0/source3482/fullmodes/index/HEAD/status/compiled168/process/container/archive/lock exact. Eight byte-identical originals plus safe profiles preserve390×664/true1440×900/both themes and explicit nav/FAB/skiplink/off-frame/closed-popover limits; Report-only Axe/privacy and configured-only empty503 scopes are qualified. [Evidence](evidence/investment-explanations-512.md).
+- [x] Actual5562 at frozen6757085d/HEAD208/sourcea29a: `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check`551files/4937testsPASS439.88s, then normal `npm run build`0. All8exitfiles0; all3492working/19owned/source8/fullmodes/index/HEAD/exactstatus/whole207308-byte incoming Roadmap prefix+append/process/lock stayed exact. Native safeJSON pending flags retain their earlier checkpoint meaning; afterward only this own result block and evidence result text change, other3490bytes/modes immutable.
+- [ ] Exact-head Chromium/Windows CI, final independent publication review and serial exact deployed health.
+
+**This is PARTIAL, not complete #512 acceptance:** all four public ACs remain unchecked. SPEC-008 AC-008-01/02 selected-performance historical-source/as-of/FX/look-ahead transport and corresponding consumer proofs remain OPEN. Inherited #511 current account/Heute provenance is not historical performance metadata. No old checkbox or original Roadmap byte is rewritten.
+
+
 ### #481 follow-up — separate multi-category headings (2026-10-20)
 
 - [x] Owner 6285882335 explicitly accepts “Klare Trennung priorisieren; 44 Zeilen / 20 % akzeptieren”: retain 36 category rows and 11 single-category bands, restore 8 separate multi-category headings (44 content rows versus 55; 20% fewer). This supersedes the 19 October fusion extension; historical 36-row evidence stays qualified.
