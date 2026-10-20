@@ -14,3 +14,4 @@ export * from './bank-sync';
 export * from './payslip-intake';
 export * from './loans';
 export * from './statement-intake';
+export * from './statement-settlement';

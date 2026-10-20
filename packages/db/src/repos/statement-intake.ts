@@ -22,6 +22,7 @@ import {
 import { addReceipt, getReceipt } from './receipts';
 import { ConflictError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
+import { assertStatementSourceWrite } from './statement-settlement-invariants';
 
 export function statementAccount(db: Executor, id: string) {
   if (
@@ -275,6 +276,7 @@ export function mutateStatementIntake(
     const row = tx.select().from(statementIntake).where(eq(statementIntake.id, id)).get()!;
     if (Object.entries(patch).every(([k, v]) => row[k as keyof typeof row] === v))
       return { intake: current, groupId: null };
+    assertStatementSourceWrite(tx, id);
     updateTracked(
       tx,
       statementIntake,

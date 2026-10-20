@@ -1,6 +1,10 @@
 import { bookingIncomeDefault } from './income-month';
 import { manualTransferStatus, type ManualBankStatus } from '@budget/domain';
 import { assertContactBookingWrite, assertContactSettlementInvariants } from './contact-invariants';
+import {
+  assertStatementBookingWrite,
+  assertStatementSettlementInvariants,
+} from './statement-settlement-invariants';
 import { learnBankPayee, learnInboxAssignment } from './assignment-rules';
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, gte, inArray, isNull, lte, ne, type SQL } from 'drizzle-orm';
@@ -532,8 +536,10 @@ export function importTransfer(
         throw new BookingInvariantError('An import leg already belongs to another transfer');
       const transferId = randomUUID();
       tx.insert(transfer).values({ id: transferId }).run();
-      for (const leg of [fromLeg, toLeg])
+      for (const leg of [fromLeg, toLeg]) {
+        assertStatementBookingWrite(tx, leg.id, 'update', ['transferId']);
         updateTracked(tx, booking, [leg.id], { transferId }, grouped);
+      }
       assertLedgerInvariants(tx, [fromLeg.id, toLeg.id]);
       return { transferId, fromBookingId: fromLeg.id, toBookingId: toLeg.id, outcome: 'linked' };
     }
@@ -548,6 +554,7 @@ export function importTransfer(
     }
     const transferId = randomUUID();
     tx.insert(transfer).values({ id: transferId }).run();
+    assertStatementBookingWrite(tx, found.id, 'update', ['transferId']);
     updateTracked(tx, booking, [found.id], { transferId }, grouped);
     const missing = insertBooking(
       tx,
@@ -644,6 +651,14 @@ function updateBookingImpl(
   runInTransaction(db, (tx) => {
     const cur = loadBooking(tx, id);
     if (!cur) throw new EntityNotFoundError('booking', id);
+    assertStatementBookingWrite(
+      tx,
+      id,
+      'update',
+      Object.entries(patch)
+        .filter(([, v]) => v !== undefined)
+        .map(([k]) => k),
+    );
     if (!tradeNative)
       assertTradeSettlementBookingWrite(
         tx,
@@ -844,6 +859,7 @@ export function markBankBookingTransfer(
         'Nur ungeprüfte Bankbuchungen ohne bestehende Umbuchung wählen.',
       );
     assertContactBookingWrite(tx, id, 'update', ['transferId', 'splits']);
+    assertStatementBookingWrite(tx, id, 'update', ['transferId', 'splits']);
     assertTradeSettlementBookingWrite(tx, id, 'update', ['transferId', 'splits']);
     const source = liveAccount(tx, row.accountId),
       target = liveAccount(tx, targetAccountId);
@@ -1047,6 +1063,7 @@ function deleteBookingImpl(
     if (!tradeNative)
       for (const leg of legs) assertTradeSettlementBookingWrite(tx, leg.id, 'delete');
     for (const leg of legs) assertContactBookingWrite(tx, leg.id, 'delete');
+    for (const leg of legs) assertStatementBookingWrite(tx, leg.id, 'delete');
     assertUnlocked(
       legs.filter((l) => l.deletedAt === null),
       options,
@@ -1057,6 +1074,7 @@ function deleteBookingImpl(
         updateTracked(tx, booking, [leg.id], { deletedAt }, grouped, 'delete');
     }
     assertContactSettlementInvariants(tx);
+    assertStatementSettlementInvariants(tx);
     for (const { id: occurrenceId, patch } of expectedLinkPatches(
       tx,
       legs.map((leg) => leg.id),
@@ -1092,6 +1110,7 @@ export function restoreBooking(db: Executor, id: string, ctx: AuditContext): voi
     if (!cur) throw new EntityNotFoundError('booking', id);
     if (cur.deletedAt === null) throw new BookingInvariantError(`Booking ${id} is not deleted`);
     assertContactBookingWrite(tx, id, 'restore');
+    assertStatementBookingWrite(tx, id, 'restore');
     assertTradeSettlementBookingWrite(tx, id, 'restore');
     for (const leg of transferLegs(tx, cur)) {
       assertTradeSettlementBookingWrite(tx, leg.id, 'restore');

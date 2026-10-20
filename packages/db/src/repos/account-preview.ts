@@ -21,6 +21,11 @@ import { balanceSeries } from './ledger-queries';
 import type { Executor } from './types';
 import { forecastInputs, loadFacts, scheduled } from './rule-inputs';
 import { CategoryRuleError } from './errors';
+import {
+  statementForecastLegs,
+  statementLegacyKeys,
+  statementOwnedBookingIds,
+} from './statement-settlement-read';
 
 /** Read-only matching shared by the account chart and the upcoming register. */
 export function unbookedAccountOccurrences(
@@ -31,12 +36,18 @@ export function unbookedAccountOccurrences(
   to: string,
 ) {
   const rows = listBookings(db, { accountId, to });
+  const replaced = statementLegacyKeys(db),
+    owned = statementOwnedBookingIds(db);
   const due = upcoming(db, from, to).filter(
-    (o) => o.accountId === accountId && o.status === 'expected' && !o.bookingId,
+    (o) =>
+      o.accountId === accountId &&
+      o.status === 'expected' &&
+      !o.bookingId &&
+      !replaced.has(o.paymentId + '|' + o.dueDate),
   );
   // Match unlinked pending captures as well. The real matching worker is never run by a chart read.
   const candidates = rows
-    .filter((b) => b.status === 'pending' || b.date >= asOf)
+    .filter((b) => !owned.has(b.id) && (b.status === 'pending' || b.date >= asOf))
     .map((b) => ({ b, splits: b.splits }));
   const matches = assignMatches(
     due.map((o) => ({
@@ -113,6 +124,13 @@ export function accountPreview(
   ];
   if (unavailableCurrencies.length) return { points: [], unavailableCurrencies };
   const items: ForecastItem[] = [
+    ...statementForecastLegs(
+      db,
+      addDays(asOf, 1),
+      to,
+      new Set([accountId]),
+      new Set(rows.map((b) => b.id)),
+    ).map((l) => ({ day: l.day, cents: l.cents, kind: 'event' as const })),
     ...rows
       .filter((b) => b.date > asOf)
       .map((b) => ({ day: b.date, cents: b.amountCents, kind: 'event' as const })),
