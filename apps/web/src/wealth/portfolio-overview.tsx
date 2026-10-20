@@ -1,5 +1,5 @@
 import { ChartSvg, Line, LineLegend, Segmented, useAmountPrivacy } from '@budget/ui';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Info } from 'lucide-react';
 import { portfolioPerformanceQuery } from './portfolio-api';
@@ -11,7 +11,11 @@ import { useZeitraum } from './zeitraum';
 import { kfmt, monthTickLabel, monthTicks, portfolioIndexAxis } from './networth-model';
 import { AppLink } from '../shell/app-link';
 import { useElementWidth } from '../charts/use-element-width';
-import { PortfolioCalculationDisclosure } from '../reports/portfolio-calculation-disclosure-512';
+import {
+  HistoricalBasisCue,
+  historicalBasisReasons,
+  PortfolioCalculationDisclosure,
+} from '../reports/portfolio-calculation-disclosure-512';
 
 const percent = (rate: number) =>
   `${rate < 0 ? '−' : '+'}${new Intl.NumberFormat('de-AT', { maximumFractionDigits: 1 }).format(Math.abs(rate) * 100)} %`;
@@ -24,6 +28,9 @@ export function PortfolioOverview() {
   const [chartFrameRef, chartFrameWidth] = useElementWidth<HTMLElement>();
   const query = useQuery(portfolioPerformanceQuery(period));
   const performance = query.data?.portfolio.performance;
+  const basisId = useId();
+  const sourceId = useId();
+  const basisReasons = query.data ? historicalBasisReasons(query.data.portfolio) : [];
   const index = query.data?.portfolio.performanceHistory?.dailyIndex ?? [];
   const values = query.data?.portfolio.performanceHistory?.dailyValues ?? [];
   const benchmarks = query.data?.portfolio.benchmarks ?? [];
@@ -121,7 +128,10 @@ export function PortfolioOverview() {
       )}
       {performance && (
         <details className="wealth-details">
-          <summary data-testid="portfolio-return">
+          <summary
+            data-testid="portfolio-return"
+            aria-describedby={basisReasons.length ? basisId : undefined}
+          >
             Rendite p. a.{' '}
             {performance.ttwrorAnnualised !== null &&
             Number.isFinite(performance.ttwrorAnnualised) &&
@@ -142,9 +152,13 @@ export function PortfolioOverview() {
             <PortfolioCalculationDisclosure
               summary={query.data.portfolio}
               incomplete={query.data.incomplete}
+              sourceId={sourceId}
             />
           )}
         </details>
+      )}
+      {performance && (
+        <HistoricalBasisCue reasons={basisReasons} id={basisId} sourceId={sourceId} />
       )}
       {hasHistory ? (
         <div className="portfolio-chart-frame">

@@ -2,13 +2,90 @@ import type { PortfolioSummary } from '@budget/db';
 import { longDay } from '../ledger/format';
 import type { ValuationNote } from '../ledger/valuation-hint';
 
+/** Qualify selected closing observations, never the unrelated current allocation. */
+export function historicalBasisReasons(summary: PortfolioSummary): string[] {
+  const metadata = summary.valuationProvenance;
+  if (!metadata) return ['Quellenhinweise unvollständig'];
+  const reasons: string[] = [];
+  if (
+    metadata.runs.some(
+      (run) =>
+        run.quality === 'stale' ||
+        ((run.kind === 'quote' || run.kind === 'execution') &&
+          run.date !== null &&
+          run.date < run.to) ||
+        (run.fx.kind === 'rate' && run.fx.date < run.to),
+    )
+  )
+    reasons.push('≈ Bewertungsdaten fortgeschrieben');
+  if (
+    metadata.runs.some(
+      (run) => run.quality === 'estimated' || (run.kind === 'cost' && run.quality !== 'missing'),
+    )
+  )
+    reasons.push('≈ Bewertung teilweise geschätzt');
+  if (metadata.runs.some((run) => run.lookAhead))
+    reasons.push('≈ Spätere Ausführung als Bewertungsfallback');
+  if (
+    metadata.runs.some(
+      (run) => run.quality === 'missing' || run.kind === 'missing' || run.fx.kind === 'missing',
+    )
+  )
+    reasons.push('Bewertung teilweise nicht verfügbar');
+  if (
+    metadata.status === 'no-history' ||
+    !metadata.coverage.complete ||
+    metadata.coverage.truncated ||
+    metadata.coverage.unknownSourceLabelPositionDays !== '0'
+  )
+    reasons.push('Quellenhinweise unvollständig');
+  return reasons;
+}
+
+export function HistoricalBasisCue({
+  reasons,
+  id,
+  sourceId,
+}: {
+  reasons: readonly string[];
+  id: string;
+  sourceId: string;
+}) {
+  if (reasons.length === 0) return null;
+  return (
+    <div className="vnote" id={id} role="status" aria-label="Historische Bewertungsgrundlage">
+      <p>
+        {reasons.join(' · ')}. Nur Schlussbewertungen der Wertpapiere; kein Qualitätsnachweis
+        sämtlicher Renditeeingaben.
+      </p>
+      <a
+        className="btn btn-ghost"
+        style={{ minHeight: 44, whiteSpace: 'normal' }}
+        href={`#${sourceId}`}
+        onClick={(event) => {
+          const target = document.getElementById(sourceId);
+          if (!target) return;
+          event.preventDefault();
+          for (let parent = target.parentElement; parent; parent = parent.parentElement)
+            if (parent instanceof HTMLDetailsElement) parent.open = true;
+          target.focus();
+        }}
+      >
+        Bewertungsquellen ansehen
+      </a>
+    </div>
+  );
+}
+
 /** Explain only facts returned with this performance response, without resolving valuations. */
 export function PortfolioCalculationDisclosure({
   summary,
   incomplete,
+  sourceId,
 }: {
   summary: PortfolioSummary;
   incomplete?: ReadonlyArray<ValuationNote> | undefined;
+  sourceId?: string;
 }) {
   const performance = summary.performance;
   const quality = summary.quality;
@@ -51,7 +128,7 @@ export function PortfolioCalculationDisclosure({
       )}
       {summary.valuationProvenance ? (
         <details className="wealth-details">
-          <summary>Historische Bewertungsquellen</summary>
+          <summary id={sourceId}>Historische Bewertungsquellen</summary>
           <p>
             Nur Schlussbewertungen der Wertpapierpositionen im ausgewerteten Zeitraum.
             Zahlungsflüsse und deren Wechselkurse, Gebühren/Steuern, Vergleichsindizes, Depotkassa
@@ -120,7 +197,7 @@ export function PortfolioCalculationDisclosure({
           )}
         </details>
       ) : (
-        <p>
+        <p id={sourceId} tabIndex={sourceId ? -1 : undefined}>
           Die Quellen der einzelnen historischen Tageswerte sind hier nicht vollständig ausgewiesen.
           Auch ohne gemeldete Bewertungshinweise ist damit keine lückenlose historische
           Quellenprüfung belegt.
