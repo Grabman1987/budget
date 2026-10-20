@@ -1,4 +1,5 @@
 import { AccountFreshness } from './account-freshness';
+import { InboxWorkflow } from '../inbox/inbox-page';
 import { BankBalance } from './bank-balance';
 import { useAmountPrivacy, Button, Segmented, Select, Field, cx } from '@budget/ui';
 import {
@@ -12,7 +13,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearch, useNavigate } from '@tanstack/react-router';
 import { ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ACCOUNT_PAGE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { BalanceChart } from './balance-chart';
@@ -60,6 +61,10 @@ export function AccountPage({ id }: { id: string }) {
   const account = accounts.data?.accounts.find((a) => a.id === id);
   const bankBalance =
     accounts.isError || !account || account.closedAt ? undefined : account.bankBalance;
+  const bankReview =
+    account && !accounts.isError ? (
+      <InboxWorkflow key={account.id} bankAccountId={account.id} />
+    ) : undefined;
   return (
     <PageFrame
       meta={ACCOUNT_PAGE}
@@ -95,16 +100,16 @@ export function AccountPage({ id }: { id: string }) {
         {accounts.data && !account && <EmptyNote>Dieses Konto gibt es nicht (mehr).</EmptyNote>}
         {account &&
           (account.type === 'brokerage' || account.type === 'crypto' ? (
-            <DepotBody account={account} />
+            <DepotBody account={account} bankReview={bankReview} />
           ) : (
-            <AccountBody account={account} />
+            <AccountBody account={account} bankReview={bankReview} />
           ))}
       </section>
     </PageFrame>
   );
 }
 
-function AccountBody({ account }: { account: AccountRow }) {
+function AccountBody({ account, bankReview }: { account: AccountRow; bankReview?: ReactNode }) {
   useAmountPrivacy();
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -267,6 +272,7 @@ function AccountBody({ account }: { account: AccountRow }) {
         </details>
       </div>
       <BankBalance account={account} />
+      {bankReview}
       {search.faellig && (
         <p className="kmeta" data-testid="account-payment-context">
           <AppLink className="btn btn-ghost" to="/">

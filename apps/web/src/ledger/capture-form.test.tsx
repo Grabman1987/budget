@@ -93,7 +93,7 @@ it.each(['1.10.2026', '1.10.26', '01.10.', '1.10.'])(
   },
 );
 
-it('places status by account, repeat by date and sharing by category, and opens the native calendar', async () => {
+it('places status by account, repeat by date and sharing by category, and exposes the native calendar', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const { container } = render(
     <QueryClientProvider client={client}>
@@ -124,12 +124,12 @@ it('places status by account, repeat by date and sharing by category, and opens 
   expect(categoryRow.contains(screen.getByRole('button', { name: 'Teilen ▾' }))).toBe(true);
   expect(screen.queryByLabelText('Auslage für Kontakt')).toBeNull();
   const picker = container.querySelector<HTMLInputElement>('input[type="date"]')!;
-  expect(picker.tabIndex).toBe(-1);
-  expect(screen.getByRole('button', { name: 'Kalender öffnen' })).toBeTruthy();
-  const show = vi.fn();
-  picker.showPicker = show;
-  fireEvent.click(screen.getByLabelText('Datum', { exact: true }));
-  expect(show).toHaveBeenCalledTimes(1);
+  expect(picker.tabIndex).toBe(0);
+  expect(screen.getByLabelText('Datum im Kalender')).toBe(picker);
+  expect(picker.getAttribute('aria-hidden')).not.toBe('true');
+  expect(picker.title).toBe('Kalender öffnen');
+  await userEvent.setup().click(screen.getByLabelText('Datum', { exact: true }));
+  expect(document.activeElement).toBe(screen.getByLabelText('Datum', { exact: true }));
   fireEvent.change(picker, { target: { value: '2026-10-02' } });
   expect((screen.getByLabelText('Datum', { exact: true }) as HTMLInputElement).value).toBe(
     '02.10.2026',
@@ -303,6 +303,11 @@ it('shows note and category lines outside Mehr and accepts direct dates without 
 });
 
 it('keeps a manual account choice when the same payee is left again', async () => {
+  const previousMemory = localStorage.getItem('budget-capture-memory');
+  localStorage.setItem(
+    'budget-capture-memory',
+    JSON.stringify({ accounts: ['giro'], categories: [] }),
+  );
   const lookup = vi.spyOn(ledgerApi, 'fetchBookings').mockResolvedValue({
     items: [
       {
@@ -337,7 +342,7 @@ it('keeps a manual account choice when the same payee is left again', async () =
       <QueryClientProvider client={client}>
         <ToastProvider>
           <CaptureForm
-            state={{ mode: 'create', accountId: 'giro' }}
+            state={{ mode: 'create' }}
             onDone={vi.fn()}
             dirtyRef={{ current: false }}
             discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
@@ -357,10 +362,17 @@ it('keeps a manual account choice when the same payee is left again', async () =
     expect(account.value).toBe('giro');
   } finally {
     lookup.mockRestore();
+    if (previousMemory === null) localStorage.removeItem('budget-capture-memory');
+    else localStorage.setItem('budget-capture-memory', previousMemory);
   }
 });
 
 it('ignores a delayed account suggestion after a manual account selection', async () => {
+  const previousMemory = localStorage.getItem('budget-capture-memory');
+  localStorage.setItem(
+    'budget-capture-memory',
+    JSON.stringify({ accounts: ['giro'], categories: [] }),
+  );
   let resolve!: (value: Awaited<ReturnType<typeof ledgerApi.fetchBookings>>) => void;
   const lookup = vi.spyOn(ledgerApi, 'fetchBookings').mockReturnValue(
     new Promise((done) => {
@@ -373,7 +385,7 @@ it('ignores a delayed account suggestion after a manual account selection', asyn
       <QueryClientProvider client={client}>
         <ToastProvider>
           <CaptureForm
-            state={{ mode: 'create', accountId: 'giro' }}
+            state={{ mode: 'create' }}
             onDone={vi.fn()}
             dirtyRef={{ current: false }}
             discard={{ asking: false, keep: vi.fn(), discard: vi.fn() }}
@@ -392,6 +404,8 @@ it('ignores a delayed account suggestion after a manual account selection', asyn
     expect(account.value).toBe('wallet');
   } finally {
     lookup.mockRestore();
+    if (previousMemory === null) localStorage.removeItem('budget-capture-memory');
+    else localStorage.setItem('budget-capture-memory', previousMemory);
   }
 });
 

@@ -216,7 +216,7 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Datum', { exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Kalender öffnen' })).toBeFocused();
+  await expect(dialog.getByLabel('Datum im Kalender')).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Wiederholen')).toBeFocused();
   await page.keyboard.press('Tab');
