@@ -16,7 +16,11 @@ test('V1 wealth answers, disclosures and accessible desktop/phone layouts', asyn
     'aria-label',
     'Portfolioentwicklung, zeitgewichtet, Indexbasis 100',
   );
-  await expect(page.locator('.portfolio-overview .wealth-details')).toContainText(
+  await expect(
+    page
+      .locator('.portfolio-overview .wealth-details')
+      .filter({ has: page.getByTestId('portfolio-return') }),
+  ).toContainText(
     'Ohne Kapital einschließlich Tageszuflüssen bleibt der betreffende Tag als Lücke sichtbar',
   );
   await expect(chart.locator('text').last()).toHaveText('17.09.26');
