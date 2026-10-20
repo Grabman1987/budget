@@ -260,7 +260,7 @@ async function mount(invalidRows = false) {
   const date = await screen.findByLabelText('Gültig ab');
   expect(date).toBeInstanceOf(HTMLInputElement);
   expect(date.getAttribute('type')).toBe('text');
-  expect(date.getAttribute('inputmode')).toBe('numeric');
+  expect(date.getAttribute('inputmode')).toBe('text');
   expect(date.getAttribute('placeholder')).toBe('TT.MM.JJJJ');
   if (!(date instanceof HTMLInputElement))
     throw new TypeError('Expected the existing native date input');
