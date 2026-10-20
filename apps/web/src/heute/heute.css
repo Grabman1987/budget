@@ -228,7 +228,8 @@
       ) {
       display: none;
     }
-    .heute-kennzahl > a {
+    .heute-kennzahl > a,
+    .heute-kennzahl > .heute-kennzahl-figure {
       grid-column: auto;
       min-height: 44px;
     }

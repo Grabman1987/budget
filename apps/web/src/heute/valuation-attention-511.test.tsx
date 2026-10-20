@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { setAmountsHidden } from '@budget/ui';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { AnchorHTMLAttributes } from 'react';
 import { HeuteWealthLine } from './heute-page';
 import type { ValuationSource } from '../ledger/valuation-hint';
 import { AttentionBar } from './attention-bar';
+import { Kennzahlen } from './kennzahlen';
+import type { BudgetMonthView } from '../budget/budget-api';
 vi.mock('../shell/app-link', () => ({
   AppLink: ({
     to,
@@ -16,7 +20,10 @@ vi.mock('../shell/app-link', () => ({
     </a>
   ),
 }));
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  act(() => setAmountsHidden(false));
+});
 const data = (count: number): Parameters<typeof AttentionBar>[0]['data'] => ({
   stand: {
     today: '2026-09-20',
@@ -123,3 +130,160 @@ it.each(['quote', 'cost'] as const)(
     );
   },
 );
+
+const kpiSource: ValuationSource = {
+  accountId: 'depot',
+  securityId: 'held',
+  name: 'Synthetic held',
+  asOf: '2026-09-20',
+  kind: 'cost',
+  quality: 'estimated',
+  date: null,
+  currency: 'EUR',
+  source: null,
+  lookAhead: false,
+  positiveHolding: true,
+  quoteNeeded: true,
+  missing: null,
+  fx: { kind: 'identity', date: null, source: null },
+};
+function renderKpi(source: ValuationSource, missingFx = false) {
+  const props: Parameters<typeof Kennzahlen>[0]['data'] = {
+    stand: data(0).stand,
+    valuationSources: [source],
+    nearestGoal: null,
+    monthResult: { earnedCents: 0, consumptionCents: 0, savedCents: 0 },
+    budgetAnswer: { spentCents: 0, plannedCents: 0, remainingCents: 0, day: 20, daysInMonth: 30 },
+    lead: {
+      needCents: 0,
+      wantCents: 0,
+      openCents: 0,
+      freeCents: 0,
+      daysToPayday: 10,
+      chain: [],
+      items: { need: [], want: [], open: [] },
+    },
+    balance: { actual: [], forecast: [], salary: null, low: null },
+    netWorth: missingFx
+      ? {
+          unavailable: {
+            reason: 'missing_fx',
+            message: 'EUR-Umrechnung fehlt',
+            asOf: '2026-09-20',
+          },
+        }
+      : {
+          totalCents: 11400,
+          assetsCents: 11400,
+          liabilitiesCents: 0,
+          monthChange: { deltaCents: 1400, investmentsInCents: 0, marketCents: 1400 },
+          liquidCents: 0,
+          investedCents: 11400,
+          receivableCents: 0,
+          debtCents: 0,
+          asOf: '2026-09-20',
+          previousMonthEndCents: 10000,
+          yearAgoCents: 10000,
+          yearAgoDay: '2025-09-20',
+          yearDeltaCents: 1400,
+          deltaCents: 1400,
+          deltaBp: 1400,
+          series: [],
+        },
+  };
+  function Subject() {
+    const budget = useQuery<BudgetMonthView>({
+      queryKey: ['synthetic-kpi-budget'],
+      queryFn: () => {
+        throw new Error('Disabled synthetic budget query must not fetch');
+      },
+      enabled: false,
+    });
+    return <Kennzahlen data={props} budget={budget} onLeadClick={() => {}} />;
+  }
+  return render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Subject />
+    </QueryClientProvider>,
+  );
+}
+it.each(['cost', 'stale'] as const)(
+  'marks the literal top net-worth KPI directly for %s without changing its amount',
+  (kind) => {
+    const source: ValuationSource =
+      kind === 'cost'
+        ? kpiSource
+        : {
+            ...kpiSource,
+            kind: 'quote',
+            quality: 'stale',
+            date: '2026-09-12',
+          };
+    const { container } = renderKpi(source);
+    const value = container.querySelector('[data-kennzahl="nettovermoegen"]')!;
+    expect(value.textContent).toBe('114,00 €');
+    const marker = screen.getByRole('button', {
+      name: 'Bewertungsgrundlage · Nettovermögen · Kennzahl',
+    });
+    expect(value.closest('section')?.contains(marker)).toBe(true);
+    expect(marker.closest('#heute-more-content')).toBeNull();
+    marker.focus();
+    expect(document.activeElement).toBe(marker);
+    const detail = document.getElementById(marker.getAttribute('aria-describedby')!)!;
+    const show = vi.fn();
+    Object.defineProperty(detail, 'showPopover', { value: show });
+    fireEvent.click(marker);
+    expect(show).toHaveBeenCalledOnce();
+    expect(detail.textContent).toContain(
+      kind === 'cost' ? 'Einstandswert als Schätzung' : 'Kurs vom 12.09.2026 fortgeschrieben',
+    );
+  },
+);
+it('retains the top KPI missing-FX reason without inventing a complete EUR amount', () => {
+  const { container } = renderKpi(
+    {
+      ...kpiSource,
+      kind: 'quote',
+      quality: 'exact',
+      date: '2026-09-20',
+      currency: 'USD',
+      missing: 'fx',
+      fx: { kind: 'missing', date: null, source: null },
+    },
+    true,
+  );
+  expect(container.querySelector('[data-kennzahl="nettovermoegen"]')).toBeNull();
+  expect(screen.getByText('EUR-Umrechnung fehlt')).toBeTruthy();
+  const marker = screen.getByRole('button', {
+    name: 'Bewertungsgrundlage · Nettovermögen · Kennzahl',
+  });
+  expect(document.getElementById(marker.getAttribute('aria-describedby')!)?.textContent).toContain(
+    'EUR-Umrechnung fehlt · USD',
+  );
+});
+it('keeps the affected top KPI marker and reason while the amount is private', () => {
+  act(() => setAmountsHidden(true));
+  const { container } = renderKpi(kpiSource);
+  expect(container.querySelector('[data-kennzahl="nettovermoegen"]')?.textContent).toBe('••• €');
+  const marker = screen.getByRole('button', {
+    name: 'Bewertungsgrundlage · Nettovermögen · Kennzahl',
+  });
+  marker.focus();
+  expect(document.activeElement).toBe(marker);
+  const detail = document.getElementById(marker.getAttribute('aria-describedby')!)!;
+  expect(detail.textContent).toContain('Einstandswert als Schätzung');
+  expect(detail.textContent).not.toContain('114');
+  expect(marker.outerHTML).not.toContain('114');
+});
+it('does not mark the top KPI for an exact same-day quote with identity FX', () => {
+  renderKpi({
+    ...kpiSource,
+    kind: 'quote',
+    quality: 'exact',
+    date: '2026-09-20',
+    quoteNeeded: false,
+  });
+  expect(
+    screen.queryByRole('button', { name: 'Bewertungsgrundlage · Nettovermögen · Kennzahl' }),
+  ).toBeNull();
+});

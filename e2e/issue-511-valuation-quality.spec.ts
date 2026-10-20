@@ -123,6 +123,17 @@ test('one current quote task and local disclosures follow real manual quote save
       'aria-expanded',
       'false',
     );
+  const kpi = page.getByRole('region', { name: 'Nettovermögen', exact: true });
+  await expect(kpi.locator('[data-kennzahl="nettovermoegen"]')).toHaveText('340,00 €');
+  const kpiMarker = kpi.getByRole('button', {
+    name: 'Bewertungsgrundlage · Nettovermögen · Kennzahl',
+    exact: true,
+  });
+  await kpiMarker.focus();
+  await expect(
+    page.locator(`[id="${await kpiMarker.getAttribute('aria-describedby')}"]`),
+  ).toContainText('Einstandswert als Schätzung');
+  await page.keyboard.press('Escape');
   await expect(
     page.locator('.heute-wealth-line').getByRole('button', {
       name: 'Bewertungsgrundlage · Verlauf Nettovermögen · aktueller Stand',
@@ -166,6 +177,20 @@ test('one current quote task and local disclosures follow real manual quote save
   await expect(privatePopup).toBeVisible();
   expect(await privatePopup.textContent()).not.toContain('340');
   await expect(privatePopup).toContainText('12.09.2026');
+  await page.keyboard.press('Escape');
+  const privateKpi = page.getByRole('region', { name: 'Nettovermögen', exact: true });
+  await expect(privateKpi.locator('[data-kennzahl="nettovermoegen"]')).toHaveText('••• €');
+  const privateKpiMarker = privateKpi.getByRole('button', {
+    name: 'Bewertungsgrundlage · Nettovermögen · Kennzahl',
+    exact: true,
+  });
+  await privateKpiMarker.focus();
+  const privateKpiPopup = page.locator(
+    `[id="${await privateKpiMarker.getAttribute('aria-describedby')}"]`,
+  );
+  await expect(privateKpiPopup).toBeVisible();
+  await expect(privateKpiPopup).toContainText('Einstandswert als Schätzung');
+  expect(await privateKpiPopup.textContent()).not.toContain('340');
 });
 async function theme(page: Page, selected: 'light' | 'dark') {
   const resolved = () =>
@@ -201,6 +226,26 @@ async function capture(page: Page, info: TestInfo, label: string) {
     for (const surface of ['accounts', 'today'] as const) {
       await page.goto(surface === 'accounts' ? '/konten' : '/');
       await theme(page, selected);
+      if (surface === 'today') {
+        const kpiMarker = page
+          .getByRole('region', { name: 'Nettovermögen', exact: true })
+          .getByRole('button', {
+            name: 'Bewertungsgrundlage · Nettovermögen · Kennzahl',
+            exact: true,
+          });
+        await kpiMarker.scrollIntoViewIfNeeded();
+        await kpiMarker.focus();
+        const kpiBox = (await kpiMarker.boundingBox())!;
+        expect(kpiBox.width).toBeGreaterThanOrEqual(44);
+        expect(kpiBox.height).toBeGreaterThanOrEqual(44);
+        await expect(
+          page.locator(`[id="${await kpiMarker.getAttribute('aria-describedby')}"]`),
+        ).toBeVisible();
+        await expect(
+          page.locator(`[id="${await kpiMarker.getAttribute('aria-describedby')}"]`),
+        ).toContainText('Einstandswert als Schätzung');
+        await page.keyboard.press('Escape');
+      }
       const hint =
         surface === 'today'
           ? await currentDetail(page)
