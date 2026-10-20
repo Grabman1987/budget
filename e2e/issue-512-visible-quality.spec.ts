@@ -334,7 +334,7 @@ for (const label of ['configured-profile', 'desktop-layout'] as const) {
     page,
     browser,
     isolatedLedger,
-  }, info) => {
+  }) => {
     const context =
       label === 'desktop-layout'
         ? await browser.newContext({
