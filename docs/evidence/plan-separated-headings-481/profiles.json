@@ -1,0 +1,431 @@
+{
+  "scope": "Native capture checkpoint only; full required-age check, separate normal production build, exact-head Chromium CI and integration/LIVE still pending.",
+  "ownerDecision": {
+    "url": "https://github.com/Grabman1987/budget/issues/481#issuecomment-6285882335",
+    "exactQuote": "Klare Trennung priorisieren; 44 Zeilen / 20 % akzeptieren"
+  },
+  "runtime": {
+    "gitHead": "208cf9d10868c99044be2bf0ad81c6fe36712c51",
+    "workingSourceFreezeSha256": "34cbc6a84981ae32c99c831aa003ef80041bbc427c4db4ce754402781c4f0bb9",
+    "workingSourcePaths": 3479,
+    "sourceQualification": "HEAD plus reviewed nine working source/test/document changes; not a clean published commit.",
+    "source9Sha256": {
+      "DESIGN.md": "569cd77d604bc8f17ac0ca0e7105bbdf8610a03c63bdd72e6abd5bf7a985162f",
+      "PRODUCT.md": "873c50b0519d195cce682abbb7918b98f426258da8f8c370327605ce7572e094",
+      "apps/web/src/budget/plan-page.tsx": "2f5cfb46f5281437652c676f541efb7eb62d862402d23bf1b52f925e48031c27",
+      "apps/web/src/budget/plan-separated-headings-481.test.tsx": "537a17999cb9000a48b4c358d7e64f6f673261ada1536deaf60d195328f510ee",
+      "e2e/issue-481-separated-group-headings.spec.ts": "53da3adc3ed78716bcb72333ecc402bfbeb784649d24d3f9cc6a98553c35379d",
+      "e2e/issue-481-single-category-band.spec.ts": "23b1acd01a73eaeb606de7bfd9104b52c0681e0e8a6786343f22e56ece75765a",
+      "e2e/issue-588-plan-menus.spec.ts": "f9d5d42a25f5452f8b5736996488923baed307a43ca5ed36316c596993de1294",
+      "e2e/issue-590-phone-selection.spec.ts": "3dbc626277f4f2a044d2eeea4e470a0ccf7356f105f36277f34f8689462ea106",
+      "e2e/plan-compact-grid.spec.ts": "b6e1c74e173a8c434cd9c2de82af8ecde650541184abb63540033847fcb05350"
+    },
+    "node": "22.23.3",
+    "engine": "WebKit27.2 via unchanged pinned run-webkit.sh",
+    "helperSha256": "663c45b799d4da770396b9724636611238fa457727c51ee5e0aa9d0cb7ad5a26",
+    "officialProject": "webkit-iphone",
+    "workers": 1,
+    "defaultNewTestTimeoutMs": 30000,
+    "originalExplicitTimeoutsPreserved": true,
+    "freshE2eBuildExit": 0,
+    "compiledFileCount": 168,
+    "canonicalPassed": 29,
+    "setupPassed": 3,
+    "featurePassed": 26,
+    "newFeaturePassed": 7,
+    "nativeLogReportedDuration": "5.3m",
+    "nativePhaseStartedAt": "2026-10-20T08:22:34.546642+00:00",
+    "nativePhaseFinishedAt": "2026-10-20T08:28:06.174285+00:00",
+    "allSourceCompiledProcessArchiveWrapperLockExits": 0,
+    "cleanupQualification": "No owned live phase/container remained; one exited esbuild zombie is recorded in raw process cleanup, not a running build.",
+    "rawArchive": "/workspace/.budget-tools/cloud-control/481-separated-root29-fresh-canonical-native-first-actual",
+    "rawResultSha256": "1b7a4facd953045d56c3d5b9da65ed787d6dc4fd602fbc98e7d4a948b9d3ee43",
+    "rawArchiveManifestSha256": "275c8bd220298c128c3211736f92a4fff20421ec2300d60e6aea380ea62dedc2",
+    "compiledManifestSha256": "892028c75cb2746b99d050e72c5d7484958f0abc1989c65b2d1e8e25f5600e93"
+  },
+  "logicalRows": {
+    "groups": 19,
+    "categories": 36,
+    "retainedSingleCategoryBands": 11,
+    "separateMultiCategoryHeadings": 8,
+    "contentRows": 44,
+    "comparisonBaselineRows": 55,
+    "reductionPercent": 20,
+    "decorativeGapRowsExcluded": 18,
+    "physicalHeightReductionClaim": false,
+    "rawCurrentRowAuditSha256": "ed14040776775810ea1adad59f207b843fafe256aa449792acd1a978774ccf75"
+  },
+  "profiles": [
+    {
+      "profile": "desktop",
+      "theme": "light",
+      "engine": "webkit",
+      "officialProject": "webkit-iphone",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "documentWidthCssPx": 1440,
+      "observedDpr": 1,
+      "observedCoarsePointer": false,
+      "observedRawTouchPoints": 0,
+      "projectConfiguredOnly": {
+        "isMobile": true,
+        "hasTouch": true
+      },
+      "parentRowsMeasured": 8,
+      "ordinaryCategoryRowsMeasured": 25,
+      "parentHeightCssPx": {
+        "min": 30,
+        "max": 30
+      },
+      "ordinaryCategoryHeightCssPx": {
+        "min": 32,
+        "max": 33
+      },
+      "parentFirstChildHeightCssPx": {
+        "min": 62.0,
+        "max": 63.0
+      },
+      "parentButtonMinSizeCssPx": {
+        "width": 28,
+        "height": 24
+      },
+      "rawGeometryArchivePath": "test-results/issue-481-separated-group--2cceb--and-controls-desktop-light-webkit-iphone/separated-heading-geometry.json",
+      "rawGeometrySha256": "a0575b1f0fb77d58d0da64d4606444ecca5f02b1cde8a1dc2f1627aa15add105"
+    },
+    {
+      "profile": "desktop",
+      "theme": "dark",
+      "engine": "webkit",
+      "officialProject": "webkit-iphone",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "documentWidthCssPx": 1440,
+      "observedDpr": 1,
+      "observedCoarsePointer": false,
+      "observedRawTouchPoints": 0,
+      "projectConfiguredOnly": {
+        "isMobile": true,
+        "hasTouch": true
+      },
+      "parentRowsMeasured": 8,
+      "ordinaryCategoryRowsMeasured": 25,
+      "parentHeightCssPx": {
+        "min": 30,
+        "max": 30
+      },
+      "ordinaryCategoryHeightCssPx": {
+        "min": 32,
+        "max": 33
+      },
+      "parentFirstChildHeightCssPx": {
+        "min": 62.0,
+        "max": 63.0
+      },
+      "parentButtonMinSizeCssPx": {
+        "width": 28,
+        "height": 24
+      },
+      "rawGeometryArchivePath": "test-results/issue-481-separated-group--5edee-y-and-controls-desktop-dark-webkit-iphone/separated-heading-geometry.json",
+      "rawGeometrySha256": "1cd484e2665bbf294d00d55f109f17a197523c84ea9ac8692be3d6fb95eb588a"
+    },
+    {
+      "profile": "phone-tall",
+      "theme": "dark",
+      "engine": "webkit",
+      "officialProject": "webkit-iphone",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "documentWidthCssPx": 390,
+      "observedDpr": 3,
+      "observedCoarsePointer": true,
+      "observedRawTouchPoints": 0,
+      "projectConfiguredOnly": {
+        "isMobile": true,
+        "hasTouch": true
+      },
+      "parentRowsMeasured": 8,
+      "ordinaryCategoryRowsMeasured": 25,
+      "parentHeightCssPx": {
+        "min": 71.390625,
+        "max": 71.390625
+      },
+      "ordinaryCategoryHeightCssPx": {
+        "min": 75,
+        "max": 75
+      },
+      "parentFirstChildHeightCssPx": {
+        "min": 146.390625,
+        "max": 146.390625
+      },
+      "parentButtonMinSizeCssPx": {
+        "width": 44,
+        "height": 44
+      },
+      "rawGeometryArchivePath": "test-results/issue-481-separated-group--7a4c5-nd-controls-phone-tall-dark-webkit-iphone/separated-heading-geometry.json",
+      "rawGeometrySha256": "cfcbb77edf9b22dbd74c8b7df39dcc40445c0e15f41574d6cff639d2d90ac80c"
+    },
+    {
+      "profile": "phone-tall",
+      "theme": "light",
+      "engine": "webkit",
+      "officialProject": "webkit-iphone",
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "documentWidthCssPx": 390,
+      "observedDpr": 3,
+      "observedCoarsePointer": true,
+      "observedRawTouchPoints": 0,
+      "projectConfiguredOnly": {
+        "isMobile": true,
+        "hasTouch": true
+      },
+      "parentRowsMeasured": 8,
+      "ordinaryCategoryRowsMeasured": 25,
+      "parentHeightCssPx": {
+        "min": 71.390625,
+        "max": 71.390625
+      },
+      "ordinaryCategoryHeightCssPx": {
+        "min": 75,
+        "max": 75
+      },
+      "parentFirstChildHeightCssPx": {
+        "min": 146.390625,
+        "max": 146.390625
+      },
+      "parentButtonMinSizeCssPx": {
+        "width": 44,
+        "height": 44
+      },
+      "rawGeometryArchivePath": "test-results/issue-481-separated-group--7fa8f-d-controls-phone-tall-light-webkit-iphone/separated-heading-geometry.json",
+      "rawGeometrySha256": "32dac67002a2ecb4301e8237e1ee7af5bca9fad757ddfeee5eefd39a12faa928"
+    },
+    {
+      "profile": "configured",
+      "theme": "dark",
+      "engine": "webkit",
+      "officialProject": "webkit-iphone",
+      "cssViewport": {
+        "width": 390,
+        "height": 664
+      },
+      "documentWidthCssPx": 390,
+      "observedDpr": 3,
+      "observedCoarsePointer": true,
+      "observedRawTouchPoints": 0,
+      "projectConfiguredOnly": {
+        "isMobile": true,
+        "hasTouch": true
+      },
+      "parentRowsMeasured": 8,
+      "ordinaryCategoryRowsMeasured": 25,
+      "parentHeightCssPx": {
+        "min": 71.390625,
+        "max": 71.390625
+      },
+      "ordinaryCategoryHeightCssPx": {
+        "min": 75,
+        "max": 75
+      },
+      "parentFirstChildHeightCssPx": {
+        "min": 146.390625,
+        "max": 146.390625
+      },
+      "parentButtonMinSizeCssPx": {
+        "width": 44,
+        "height": 44
+      },
+      "rawGeometryArchivePath": "test-results/issue-481-separated-group--c595c-nd-controls-configured-dark-webkit-iphone/separated-heading-geometry.json",
+      "rawGeometrySha256": "a0b2a740b4ab24906e6645031a50ed55fffcb0b7ad70eb0b2d6cb5cb78767048"
+    },
+    {
+      "profile": "configured",
+      "theme": "light",
+      "engine": "webkit",
+      "officialProject": "webkit-iphone",
+      "cssViewport": {
+        "width": 390,
+        "height": 664
+      },
+      "documentWidthCssPx": 390,
+      "observedDpr": 3,
+      "observedCoarsePointer": true,
+      "observedRawTouchPoints": 0,
+      "projectConfiguredOnly": {
+        "isMobile": true,
+        "hasTouch": true
+      },
+      "parentRowsMeasured": 8,
+      "ordinaryCategoryRowsMeasured": 25,
+      "parentHeightCssPx": {
+        "min": 71.390625,
+        "max": 71.390625
+      },
+      "ordinaryCategoryHeightCssPx": {
+        "min": 75,
+        "max": 75
+      },
+      "parentFirstChildHeightCssPx": {
+        "min": 146.390625,
+        "max": 146.390625
+      },
+      "parentButtonMinSizeCssPx": {
+        "width": 44,
+        "height": 44
+      },
+      "rawGeometryArchivePath": "test-results/issue-481-separated-group--eb973-d-controls-configured-light-webkit-iphone/separated-heading-geometry.json",
+      "rawGeometrySha256": "6f79fbfdc33e9ca345958fcb967d62ff6bbe043c009a2470c5feeec86975f6f4"
+    }
+  ],
+  "additionalCurrentTableHeightAudits": [
+    {
+      "engine": "webkit",
+      "theme": "dark",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "tableHeightCssPx": 1883,
+      "rawArchivePath": "test-results/issue-481-single-category--19ff1-eir-controls-at-1440-pixels-webkit-iphone/desktop-dark-metrics.json",
+      "rawSha256": "53187331bb124bcbf8eb5e67c3f740828cd69376cbe95529aae769dec9b92efa"
+    },
+    {
+      "engine": "webkit",
+      "theme": "light",
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "tableHeightCssPx": 1883,
+      "rawArchivePath": "test-results/issue-481-single-category--439c1-eir-controls-at-1440-pixels-webkit-iphone/desktop-light-metrics.json",
+      "rawSha256": "2f6caf8f52f44b180768acf50cd37fd52ab77a68f9924c72314084b876a4f1c6"
+    },
+    {
+      "engine": "webkit",
+      "cssViewport": {
+        "width": 390,
+        "height": 664
+      },
+      "tableHeightCssPx": 3807.125,
+      "rawFieldQualification": "Original field physicalTableHeightPx is a DOM bounding-box CSS-pixel height, not DPR-scaled PNG pixels.",
+      "rawArchivePath": "test-results/issue-481-single-category--9a516-sual-accessibility-evidence-webkit-iphone/webkit-iphone-rows.json",
+      "rawSha256": "ed14040776775810ea1adad59f207b843fafe256aa449792acd1a978774ccf75"
+    }
+  ],
+  "originalImages": [
+    {
+      "repositoryPath": "docs/evidence/plan-separated-headings-481/desktop-light.png",
+      "rawArchivePath": "test-results/issue-481-separated-group--2cceb--and-controls-desktop-light-webkit-iphone/separated-headings.png",
+      "sha256": "f64bfbe27196d0f55237a1be5bd52f0a3b441e5810175791d780070d5b43b07a",
+      "physicalPngPixels": {
+        "width": 1440,
+        "height": 2224
+      },
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "dpr": 1,
+      "profile": "desktop",
+      "theme": "light"
+    },
+    {
+      "repositoryPath": "docs/evidence/plan-separated-headings-481/desktop-dark.png",
+      "rawArchivePath": "test-results/issue-481-separated-group--5edee-y-and-controls-desktop-dark-webkit-iphone/separated-headings.png",
+      "sha256": "3aa14f399199a37c113141a937a479ee3183e6ec8975b9574a483230ece366ee",
+      "physicalPngPixels": {
+        "width": 1440,
+        "height": 2224
+      },
+      "cssViewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "dpr": 1,
+      "profile": "desktop",
+      "theme": "dark"
+    },
+    {
+      "repositoryPath": "docs/evidence/plan-separated-headings-481/phone-light.png",
+      "rawArchivePath": "test-results/issue-481-separated-group--7fa8f-d-controls-phone-tall-light-webkit-iphone/separated-headings.png",
+      "sha256": "5f1320c68de6201415ee43e2e3924735cc8ff2de012f56679f4b0a480696e5e5",
+      "physicalPngPixels": {
+        "width": 1170,
+        "height": 15153
+      },
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "dpr": 3,
+      "profile": "phone-tall",
+      "theme": "light"
+    },
+    {
+      "repositoryPath": "docs/evidence/plan-separated-headings-481/phone-dark.png",
+      "rawArchivePath": "test-results/issue-481-separated-group--7a4c5-nd-controls-phone-tall-dark-webkit-iphone/separated-headings.png",
+      "sha256": "f87e1505e57eb12e4efde3699bfdd759098b1aef74017e722ef4458dc0ea8639",
+      "physicalPngPixels": {
+        "width": 1170,
+        "height": 15153
+      },
+      "cssViewport": {
+        "width": 390,
+        "height": 844
+      },
+      "dpr": 3,
+      "profile": "phone-tall",
+      "theme": "dark"
+    }
+  ],
+  "assertionsReached": {
+    "newRtl": "5/5 passed at preformat freeze0b473; subsequent NEW2 formatting independently normalized-AST equivalent.",
+    "newRtlResultSha256": "bfab57a4d56ba3d61db66263e1db64b8f2849b1e05e7e378dea728543ee9cb83",
+    "newRtlLogSha256": "6ab9f5f9c2ff94fec2db5817a135efbbc9dc99be9873ae1876520b5dcaf87173",
+    "strictNativeScopes": [
+      "Every multi heading has no first-category inspector/assignment control, with independent ordered category rows; single7A retained.",
+      "Parent4509/-1405/3104 cents versus first501/-703/-202; real existing assignment601 with second4008 gives parent4609, then actualUndo restores full budget.",
+      "All six sample profiles: strict page overflow, Axe zero violations, actual viewport/DPR/coarse, eight parent/25ordinary-category geometry checks.",
+      "Phone category names/selection toggles/header buttons44px width and height; original desktop36/40/76 and phone76/76/152 parent/category/pair caps preserved.",
+      "Unchanged old590 real4000/6000 assignment and Undo0/0/TBA10000, trusted gesture identity/cancel/movement and final no-financial-write/budget/account checks."
+    ],
+    "trustedContactSummary": {
+      "observedEvents": 25,
+      "droppedEvents": 0,
+      "observedFinancialWrites": [],
+      "strictOriginalIdentityReleaseCancelMoveAssertionsPassed": true,
+      "rawArchivePath": "test-results/issue-590-phone-selection--3f054-ds-without-financial-writes-webkit-iphone/native-contact-partial.json",
+      "rawSha256": "b526dbeb33f9aa34a2e4ceff0486709e25374ff439edba14c3738b3cbae1b316",
+      "limits": "Pinned protocol; no physical-device/OS-pan or accepted native compatibility-click proof claimed."
+    }
+  },
+  "preservedHistory": {
+    "baselineRtlRawReviewSha256": "7b575168360f051c00675263aa5ab6184e657f1697e3ad9b7cc19f3748a524b6",
+    "baselineCollected": 5,
+    "baselineFailed": 5,
+    "directHierarchyFailures": 3,
+    "otherBaselineFailures": "Stale fused-toggle object and NEW global exit selector ambiguity; separately qualified, not financial defects.",
+    "originalFused36RowEvidence": "Historical prior #481 delivery remains untouched; not current44-row proof."
+  },
+  "captureLimits": [
+    "Four curated PNGs are byte-exact original full-page captures, not screenshot comparison baselines.",
+    "Manual desktop supplied isMobilefalse/hasTouchfalse/DPR1; manual390x844 supplied isMobiletrue/hasTouchtrue/DPR3. Project-configured flags describe project only, not manual context.",
+    "WebKit reports rawTouchPoints0 even for coarse phone profiles; not a physical touchscreen claim.",
+    "Phone NAV/FAB cover part of Strom/Internet near the initial844CSS viewport in the full-page capture. No wholly unoccluded-page/per-point hit-test claim.",
+    "Desktop Miete focus outline and ordinary label/status ellipsis are retained; not a full-label visibility claim.",
+    "Physical phone PNG1170x15153 atDPR3 differs from CSS390x844. Root preview was downscaled to463x6000 without changing original bytes. Logical20percent is not physical table/image reduction."
+  ],
+  "visualReview": {
+    "rootFourOriginalsSha256": "e3f2a9584366869483686cfd35c8d44b576dae83c9f9a8688e0c82cd058a9626",
+    "independentFourOriginalsReportSha256": "6e5a8fb3d59bb000a58cec2e705f751a64500cecd008513ceedd403eaca559b5",
+    "independentCompleteActualReportSha256": "243b97af16ff68af4b39582222a60c9d32e4602aa65b0d8edf437805f766330f"
+  }
+}

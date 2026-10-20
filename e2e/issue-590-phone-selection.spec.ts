@@ -97,22 +97,24 @@ async function setTheme(page: Page, theme: 'dark' | 'light') {
     nameButton(page, (await page.locator('.pname').first().getAttribute('data-category-id'))!),
   ).toHaveCSS('color', theme === 'dark' ? 'rgb(238, 246, 252)' : 'rgb(11, 27, 51)');
 }
-/** Retain #481's complete semantic/control/tick unions and physical band budgets. */
+/** Retain complete role/control/tick unions for separate parent/category pairs. */
 async function assertCompactBands(page: Page, phone: boolean, info: TestInfo, stage: string) {
-  const bands = await page.locator('.ptable-zero .pmulti').evaluateAll((rows) =>
+  const bands = await page.locator('.ptable-zero .pgroup:not(.psingle)').evaluateAll((rows) =>
     rows.map((row) => {
-      const boxes = (selector: string) =>
-        [...row.querySelectorAll(selector)]
+      const child = row.nextElementSibling!;
+      if (!child.matches('.prow:not(.psingle)')) throw new Error('Missing separate first category');
+      const boxes = (selector: string, scope: Element = child) =>
+        [...scope.querySelectorAll(selector)]
           .map((element) => element.getBoundingClientRect())
           .filter((rect) => rect.width > 0 && rect.height > 0);
       const category = boxes(
-        '.col-name > .plan-select, .pname, .spending-status, .spending-bar, .band-category-assigned, .band-category-activity, .band-category-available',
+        '.col-name > .plan-select, .pname, .spending-status, .spending-bar, .col-assign, .col-act, .col-avail',
       );
-      const parent = boxes('.band-parent .group-heading, .band-total');
+      const parent = boxes('.group-heading, .col-num', row);
       const controls = boxes(
-        '.band-category-assigned :is(button,input,label), .band-category-available :is(button,input,label), .spending-bar .pbar-tick',
+        '.col-assign :is(button,input,label), .col-avail :is(button,input,label), .spending-bar .pbar-tick',
       );
-      const parentControls = boxes('.band-parent :is(button,input,label)');
+      const parentControls = boxes('.group-heading :is(button,input,label)', row);
       const height = (rects: DOMRect[]) =>
         Math.max(...rects.map((rect) => rect.bottom)) - Math.min(...rects.map((rect) => rect.top));
       const endpoints = (rects: DOMRect[]) =>
@@ -134,7 +136,9 @@ async function assertCompactBands(page: Page, phone: boolean, info: TestInfo, st
         parentCount: parent.length,
         categoryHeight: height([...category, ...controls]),
         parentHeight: height([...parent, ...parentControls]),
-        wholeHeight: row.getBoundingClientRect().height,
+        wholeHeight: child.getBoundingClientRect().bottom - row.getBoundingClientRect().top,
+        parentBottom: row.getBoundingClientRect().bottom,
+        childTop: child.getBoundingClientRect().top,
       };
     }),
   );
@@ -186,11 +190,14 @@ async function assertCompactBands(page: Page, phone: boolean, info: TestInfo, st
       expect(control.height).toBeGreaterThanOrEqual(44);
     }
   }
-  expect(bands.length).toBeGreaterThan(0);
+  expect(bands).toHaveLength(1);
+  await expect(page.locator('.ptable-zero .prow:not(.is-empty)')).toHaveCount(2);
+  await expect(page.locator('.ptable-zero .psingle')).toHaveCount(0);
   for (const band of bands) {
     // Phone loses exactly its category checkbox; financial/status/bar roles remain required.
     expect(band.categoryCount).toBe(phone ? 5 : 7);
     expect(band.parentCount).toBe(4);
+    expect(band.parentBottom).toBeLessThanOrEqual(band.childTop);
     expect(band.categoryHeight).toBeGreaterThan(0);
     expect(band.parentHeight).toBeGreaterThan(0);
     expect(band.categoryHeight).toBeLessThanOrEqual(phone ? 76 : 40);
