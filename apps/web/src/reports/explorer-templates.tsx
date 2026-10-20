@@ -197,10 +197,33 @@ export function ExplorerTemplates({
           aria-labelledby={`${prefix}-sources`}
           data-testid="template-sources"
         >
-          <h3 id={`${prefix}-sources`} ref={detailHeading} tabIndex={-1}>
-            {row.label} · {selectedColumn === 'summe' ? 'Summe' : monthLong(selectedColumn!)} ·
-            Buchungen
-          </h3>
+          <div className="ex-template-source-heading">
+            <h3 id={`${prefix}-sources`} ref={detailHeading} tabIndex={-1}>
+              {row.label} · {selectedColumn === 'summe' ? 'Summe' : monthLong(selectedColumn!)} ·
+              Buchungen
+            </h3>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const target = origin.current?.isConnected
+                  ? origin.current
+                  : [
+                      ...(root.current?.querySelectorAll<HTMLButtonElement>(
+                        '[data-template-column]',
+                      ) ?? []),
+                    ].find(
+                      (button) =>
+                        button.dataset['templateColumn'] === selectedColumn &&
+                        button.closest('[data-template-row]')?.getAttribute('data-template-row') ===
+                          row.key,
+                    );
+                onClose();
+                target?.focus();
+              }}
+            >
+              Buchungen schließen
+            </Button>
+          </div>
           <p>
             Gewählte Zelle: <strong>{eur(value)}</strong> · Summe der zugeordneten Anteile:{' '}
             <strong>{eur(sourceSum)}</strong>
@@ -232,27 +255,6 @@ export function ExplorerTemplates({
             Bei geteilten Buchungen steht hier nur der klassifizierte Anteil dieser Zelle, nicht der
             gesamte Kontobetrag. Erstattungen und Umbuchungen behalten ihre bestehende Zuordnung.
           </p>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              const target = origin.current?.isConnected
-                ? origin.current
-                : [
-                    ...(root.current?.querySelectorAll<HTMLButtonElement>(
-                      '[data-template-column]',
-                    ) ?? []),
-                  ].find(
-                    (button) =>
-                      button.dataset['templateColumn'] === selectedColumn &&
-                      button.closest('[data-template-row]')?.getAttribute('data-template-row') ===
-                        row.key,
-                  );
-              onClose();
-              target?.focus();
-            }}
-          >
-            Buchungen schließen
-          </Button>
         </section>
       )}
     </section>

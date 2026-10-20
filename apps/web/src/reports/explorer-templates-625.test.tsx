@@ -456,3 +456,44 @@ describe('625 source booking → history back → close under immediate-stalenes
     },
   );
 });
+
+describe('625 source close control stays in the source heading rather than after booking content', () => {
+  it.each(['heatmap', 'year', 'total', 'category'] as const)(
+    'keeps %s close semantics and source identity in the header',
+    async (id) => {
+      const { router } = mount(`?vorlage=${id}&zeitraum=1J&kategorien=%5B%22food%22%5D`);
+      await screen.findByTestId(`template-${id}`);
+      const cell = screen.getByRole('button', { name: /Lebensmittel · Februar 2024 · 20,01 €/ });
+      fireEvent.click(cell);
+      const sources = await screen.findByTestId('template-sources');
+      const heading = within(sources).getByRole('heading', { level: 3 });
+      const close = within(sources).getByRole('button', { name: 'Buchungen schließen' });
+      const header = sources.querySelector('.ex-template-source-heading');
+      expect(header).not.toBeNull();
+      expect(header!.contains(heading)).toBe(true);
+      expect(header!.contains(close)).toBe(true);
+      expect(header!.querySelectorAll('button')).toHaveLength(1);
+      expect(sources.getAttribute('aria-labelledby')).toBe(heading.id);
+      const links = within(sources).getAllByRole('link');
+      expect(
+        Boolean(header!.compareDocumentPosition(links[0]!) & Node.DOCUMENT_POSITION_FOLLOWING),
+      ).toBe(true);
+      expect(links.map((link) => link.getAttribute('href'))).toEqual([
+        '/konten/buchungen?buchung=out',
+        '/konten/buchungen?buchung=refund',
+      ]);
+      expect(sources.textContent).toContain('Gewählte Zelle: 20,01 €');
+      expect(sources.textContent).toContain('Summe der zugeordneten Anteile: 20,01 €');
+      fireEvent.click(close);
+      await waitFor(() => expect(screen.queryByTestId('template-sources')).toBeNull());
+      expect(router.state.location.search).toMatchObject({
+        vorlage: id,
+        kategorien: ['food'],
+      });
+      expect(router.state.location.search).not.toHaveProperty('zelle');
+      expect(router.state.location.search).not.toHaveProperty('spalte');
+      expect(document.activeElement).toBe(cell);
+      expect(saved.write).not.toHaveBeenCalled();
+    },
+  );
+});

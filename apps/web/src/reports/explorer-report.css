@@ -162,6 +162,25 @@
   border-top: 1px solid var(--rule-strong);
   padding-top: 16px;
 }
+.ex-template-source-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+.ex-template-source-heading h3 {
+  min-width: 0;
+  min-height: var(--touch);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.ex-template-source-heading .btn {
+  min-width: var(--touch);
+  min-height: var(--touch);
+  max-width: 100%;
+  white-space: normal;
+}
 .ex-template-sources li {
   margin-block: 4px;
 }

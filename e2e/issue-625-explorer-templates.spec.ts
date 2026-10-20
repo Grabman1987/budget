@@ -171,6 +171,7 @@ async function inspect(
   };
   try {
     await snapshotClose('before-close-click');
+    await expect625CloseHit(page, info, id, 'return-from-booking');
     await page.getByRole('button', { name: 'Buchungen schließen' }).click();
     await snapshotClose('after-close-click-resolved');
     await expect(detail).toHaveCount(0);
@@ -224,7 +225,82 @@ async function inspect(
     await expect(page.getByTestId('template-sources')).toContainText(
       id === 'total' ? 'Gewählte Zelle: 7,00 €' : 'Gewählte Zelle: 30,02 €',
     );
-    await page.getByRole('button', { name: 'Buchungen schließen' }).click();
+    const closeInputMarker = closeObservation.length;
+    closeObservation.push({
+      observedAt: Date.now(),
+      channel: 'test-marker',
+      template: id,
+      theme: value,
+      event: 'before-original-far-close',
+    });
+    try {
+      await page.getByRole('button', { name: 'Buchungen schließen' }).click();
+      await expect(page.getByTestId('template-sources')).toHaveCount(0);
+    } finally {
+      try {
+        const path = info.outputPath(
+          `625-close-input-attempt-${id}-${page.viewportSize()!.width}-${value}.json`,
+        );
+        await writeFile(
+          path,
+          JSON.stringify(
+            {
+              project: info.project.name,
+              template: id,
+              theme: value,
+              markerIndex: closeInputMarker,
+              eventsAfterMarker: closeObservation.slice(closeInputMarker + 1),
+            },
+            null,
+            2,
+          ),
+        );
+        await info.attach(`625-close-input-attempt-${id}-${value}`, {
+          path,
+          contentType: 'application/json',
+        });
+      } catch (error) {
+        console.info(
+          '625-close-input-attempt-unavailable',
+          error instanceof Error ? error.name : 'UnknownError',
+        );
+      }
+    }
+    const closeInput = await expect625CloseInput(
+      page,
+      info,
+      id,
+      value,
+      closeObservation,
+      closeInputMarker,
+    );
+    let keyboardHeaderHit = null;
+    let keyboardHeaderHitAfterCapture = null;
+    if (id === 'heatmap') {
+      // The original mouse flow above is independent. This additional real keyboard cycle
+      // captures the OPEN header after natural Tab focus, without test scrolling or focus calls.
+      await expect(farControl).toBeFocused();
+      await page.keyboard.press('Enter');
+      await expect(
+        page.getByTestId('template-sources').getByRole('heading', { level: 3 }),
+      ).toBeFocused();
+      await page.keyboard.press('Tab');
+      await expect(page.getByRole('button', { name: 'Buchungen schließen' })).toBeFocused();
+      keyboardHeaderHit = await expect625CloseHit(page, info, id, `${value}-keyboard`);
+      await page.screenshot({
+        path: info.outputPath(`source-header-heatmap-${page.viewportSize()!.width}-${value}.png`),
+        fullPage: false,
+      });
+      keyboardHeaderHitAfterCapture = await expect625CloseHit(
+        page,
+        info,
+        id,
+        `${value}-keyboard-after-capture`,
+      );
+      await page.keyboard.press('Enter');
+      await expect(page.getByTestId('template-sources')).toHaveCount(0);
+      await expect(farControl).toBeFocused();
+    }
     const bounds = await scroll.evaluate((element) => {
       const r = element.getBoundingClientRect();
       return {
@@ -272,6 +348,9 @@ async function inspect(
       engine: page.context().browser()!.browserType().name(),
       version: page.context().browser()!.version(),
       bounds,
+      closeInput,
+      keyboardHeaderHit,
+      keyboardHeaderHitAfterCapture,
       ...(await page.evaluate(() => ({
         width: innerWidth,
         height: innerHeight,
@@ -370,6 +449,147 @@ test('saved custom view and exact627 CSV survive fixed-template use with grouped
 });
 
 /** Passive CI diagnosis only: no navigation/fetch override, focus mutation or input synthesis. */
+/** Verify the real unforced mouse flow at input time, after any browser-native autoscroll. */
+async function expect625CloseInput(
+  page: Page,
+  info: TestInfo,
+  template: string,
+  theme: string,
+  events: Record<string, unknown>[],
+  markerIndex: number,
+) {
+  const types = ['pointerdown', 'pointerup', 'click'];
+  const inputs = () =>
+    events
+      .slice(markerIndex + 1)
+      .filter(
+        (event) =>
+          event.channel === 'dom' &&
+          event.trusted === true &&
+          (event.target as { kind?: unknown } | undefined)?.kind === 'close' &&
+          types.includes(String(event.event)),
+      );
+  try {
+    // Waiting for observed input transport is an assertion with the unchanged default budget;
+    // no synthetic input, scrolling, arbitrary delay or locator retry is introduced here.
+    await expect
+      .poll(() => types.every((type) => inputs().some((event) => event.event === type)))
+      .toBe(true);
+    const actual = inputs();
+    const indices = types.map((type) => actual.findIndex((event) => event.event === type));
+    expect(indices[0]).toBeGreaterThanOrEqual(0);
+    expect(indices[1]).toBeGreaterThan(indices[0]!);
+    expect(indices[2]).toBeGreaterThan(indices[1]!);
+    for (const type of types) {
+      const event = actual.find((candidate) => candidate.event === type)!;
+      const geometry = event.geometry as Awaited<ReturnType<typeof safe625HitGeometry>>;
+      expect(geometry).toBeDefined();
+      expect(geometry.closeConnected).toBe(true);
+      const rect = geometry.closeRect;
+      expect(rect).not.toBeNull();
+      expect(rect!.width).toBeGreaterThanOrEqual(44);
+      expect(rect!.height).toBeGreaterThanOrEqual(44);
+      expect(rect!.left).toBeGreaterThanOrEqual(0);
+      expect(rect!.right).toBeLessThanOrEqual(geometry.layoutViewport.width);
+      expect(rect!.top).toBeGreaterThanOrEqual(0);
+      expect(rect!.bottom).toBeLessThanOrEqual(
+        geometry.tabbarRect?.top ?? geometry.layoutViewport.height,
+      );
+      expect(geometry.centerHit?.elements[0]?.close).toBe(true);
+      const hit = event.pointHit as { elements: { close: boolean }[] };
+      expect(hit?.elements[0]?.close).toBe(true);
+    }
+    return { markerIndex, inputs: actual };
+  } finally {
+    try {
+      const path = info.outputPath(
+        `625-close-input-${template}-${page.viewportSize()!.width}-${theme}.json`,
+      );
+      await writeFile(
+        path,
+        JSON.stringify(
+          {
+            project: info.project.name,
+            template,
+            theme,
+            markerIndex,
+            eventsAfterMarker: events.slice(markerIndex + 1),
+            qualification:
+              'Actual trusted original pointer flow after native autoscroll; keyboard capture is a separate cycle.',
+          },
+          null,
+          2,
+        ),
+      );
+      await info.attach(`625-close-input-${template}-${theme}`, {
+        path,
+        contentType: 'application/json',
+      });
+    } catch (error) {
+      console.info(
+        '625-close-input-proof-unavailable',
+        error instanceof Error ? error.name : 'UnknownError',
+      );
+    }
+  }
+}
+
+/** Actual pre-click geometry: no forced input, scroll, focus or navigation change. */
+async function expect625CloseHit(page: Page, info: TestInfo, template: string, stage: string) {
+  const close = page.getByRole('button', { name: 'Buchungen schließen' });
+  const proof = await close.evaluate((button) => {
+    const bounds = button.getBoundingClientRect();
+    const nav = document.querySelector('.tabbar')?.getBoundingClientRect();
+    const visibleNav = nav && nav.width > 0 && nav.height > 0;
+    const hit = document.elementFromPoint(
+      bounds.x + bounds.width / 2,
+      bounds.y + bounds.height / 2,
+    );
+    return {
+      inHeader: Boolean(button.closest('.ex-template-source-heading')),
+      bounds: {
+        left: bounds.left,
+        right: bounds.right,
+        top: bounds.top,
+        bottom: bounds.bottom,
+        width: bounds.width,
+        height: bounds.height,
+      },
+      viewport: { width: innerWidth, height: innerHeight },
+      navTop: visibleNav ? nav.top : null,
+      centerHitsClose: Boolean(hit && (hit === button || button.contains(hit))),
+      centerHitTag: hit?.tagName.slice(0, 48) ?? null,
+      documentWidth: document.documentElement.scrollWidth,
+    };
+  });
+  try {
+    const path = info.outputPath(
+      `625-close-hit-${template}-${page.viewportSize()!.width}-${stage}.json`,
+    );
+    await writeFile(path, JSON.stringify(proof, null, 2));
+    await info.attach(`625-close-hit-${template}-${stage}`, {
+      path,
+      contentType: 'application/json',
+    });
+  } catch (error) {
+    console.info(
+      '625-close-hit-proof-unavailable',
+      error instanceof Error ? error.name : 'UnknownError',
+    );
+  }
+  expect(proof.inHeader).toBe(true);
+  expect(proof.bounds.width).toBeGreaterThanOrEqual(44);
+  expect(proof.bounds.height).toBeGreaterThanOrEqual(44);
+  expect(proof.bounds.left).toBeGreaterThanOrEqual(0);
+  expect(proof.bounds.right).toBeLessThanOrEqual(proof.viewport.width);
+  expect(proof.bounds.top).toBeGreaterThanOrEqual(0);
+  expect(proof.bounds.bottom).toBeLessThanOrEqual(proof.navTop ?? proof.viewport.height);
+  expect(proof.centerHitsClose, JSON.stringify(proof)).toBe(true);
+  expect(proof.documentWidth).toBeLessThanOrEqual(proof.viewport.width);
+  await expect(close).toBeInViewport({ ratio: 1 });
+  return proof;
+}
+
 async function safe625Location(page: Page) {
   return page.evaluate(() => {
     const search = new URLSearchParams(location.search);
@@ -436,7 +656,9 @@ async function safe625HitGeometry(page: Page) {
       });
     }
     const viewport = window.visualViewport;
+    const tabbar = document.querySelector('.tabbar')?.getBoundingClientRect();
     const geometry = {
+      tabbarRect: tabbar && tabbar.width > 0 && tabbar.height > 0 ? rect(tabbar) : null,
       closeConnected: close?.isConnected ?? false,
       closeRect: bounds ? rect(bounds) : null,
       closeClientRects: close ? [...close.getClientRects()].slice(0, 4).map(rect) : [],
@@ -465,9 +687,11 @@ async function safe625HitGeometry(page: Page) {
   });
 }
 async function observe625Close(page: Page) {
+  // Fixed diagnostic budgets cover both themed original mouse flows plus two keyboard captures.
+  // Required close inputs still fail closed if absent; these are not assertion timeouts.
   const events: Record<string, unknown>[] = [];
   const push = (record: Record<string, unknown>) => {
-    if (events.length < 160) events.push({ observedAt: Date.now(), ...record });
+    if (events.length < 320) events.push({ observedAt: Date.now(), ...record });
   };
   page.on('console', (message) => {
     const text = message.text();
@@ -528,7 +752,7 @@ async function observe625Close(page: Page) {
       return { kind: 'other', tag: element.tagName };
     };
     const emit = (event: string, extra: Record<string, unknown> = {}) => {
-      if (count++ >= 100) return;
+      if (count++ >= 200) return;
       const search = new URLSearchParams(location.search);
       console.info(
         'budget625-safe-close ' +
@@ -613,7 +837,9 @@ async function observe625Close(page: Page) {
               });
             }
             const viewport = window.visualViewport;
+            const tabbar = document.querySelector('.tabbar')?.getBoundingClientRect();
             const geometry = {
+              tabbarRect: tabbar && tabbar.width > 0 && tabbar.height > 0 ? rect(tabbar) : null,
               closeConnected: close?.isConnected ?? false,
               closeRect: bounds ? rect(bounds) : null,
               closeClientRects: close ? [...close.getClientRects()].slice(0, 4).map(rect) : [],
