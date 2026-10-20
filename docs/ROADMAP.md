@@ -1616,3 +1616,25 @@ Report TTWROR and compact Wealth qualify same-response selected security closing
 Current focused36/36 (NEW22+old14),14.30s Vitest; types/lint/check5 and two-UI AST0. The NEW unchanged-sample default1440×900 geometry case reproduced1002.375>900, then measured884.875<900 atscroll0 with fully visible44px source action/centre hit/Enter focus. One fresh E2E build, canonical9/9 firstPASS101.832271s (setup3+OWNfive+unchanged Wealth), all30 physical exits0. Seven old Wealth JPG outputs were archivedraw then exactprebytes/fullmodes restored; no unchanged-throughout/new-baseline claim. Eight current originals/profiles preserve both themes/configured390/true1440 and actual fixed-shell photo qualifications. [Evidence and8 originals](evidence/investment-explanations-512/visible-quality/README.md).
 
 Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers2 full563files/5023PASS472.72s **Vitest duration** +normal build0 predates this layout correction; earlier failed/checkpoint archives remain historical. Current-layout normal production build0/all12 exits0/source3545 exact; native166→normal157 are distinct checkpoints, without a post-normal browser claim. Final exact-head CI and serial LIVE are pending. All four public512 ACs remain unchecked. Selected-closing scope excludes flow-FX/fee-tax/benchmark/cash/class provenance; parent508/privateGate3 remain open separately. Incoming Main Roadmap prefix and all earlier checkboxes are preserved.
+
+
+### #726 — Account-local statement PDF intake
+
+- Added protected original-PDF intake, bounded shared extraction and a private
+  read-only script, account-local document review, explicit unknown debit dates,
+  SHA deduplication, revision/hash/account checks and grouped document Undo.
+- Statement review creates no booking, payment, obligation, forecast or bank
+  order; financial settlement remains separate. Existing receipt-reference and
+  backup rules cover these documents, with synthetic migration-copy rollback and
+  source-backup/restore tests. Actual production-volume restore is unverified.
+- Focused units and canonical WebKit checks passed at separate checkpoints. The
+  final five-case statement batch includes real Undo activation, explicit reload,
+  normal-scroll footer access, dialog Axe and scoped privacy/conservation checks.
+  [Guide and synthetic originals](statement-intake.md).
+- First required AGE full: 5,064/5,067 tests passed across 568 files, including
+  all 44 new cases; 539.79s Vitest duration with two workers. Two unchanged
+  account-filter API tests timed out at 5,000 ms, then passed unchanged on both
+  selected source trees (four cases); the timeout cause remains unproven. An
+  existing migration-44 fixture assumes it is still the latest migration; its
+  isolated correction awaits approval. Full is red, normal build did not run;
+  final-head CI and serial LIVE remain pending.
