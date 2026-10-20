@@ -1,4 +1,5 @@
 import { bookingIncomeDefault } from './income-month';
+import { manualTransferStatus, type ManualBankStatus } from '@budget/domain';
 import { assertContactBookingWrite, assertContactSettlementInvariants } from './contact-invariants';
 import { learnBankPayee, learnInboxAssignment } from './assignment-rules';
 import { randomUUID } from 'node:crypto';
@@ -410,6 +411,7 @@ export function createTransfer(
   db: Executor,
   input: TransferInput,
   ctx: AuditContext,
+  options: { manualCashBank?: { bankStatus?: ManualBankStatus } } = {},
 ): TransferResult {
   const grouped = withGroup(ctx);
   if (!isCents(input.amountCents)) {
@@ -431,6 +433,15 @@ export function createTransfer(
         `Transfers between different currencies (${from.currency}, ${to.currency}) are not supported`,
       );
     }
+    // Only the manual whole-transfer API opts in. Import/operator callers retain their policy.
+    const manual = options.manualCashBank
+      ? manualTransferStatus(from.type, to.type, options.manualCashBank.bankStatus)
+      : null;
+    if (options.manualCashBank?.bankStatus !== undefined && !manual) {
+      throw new BookingInvariantError(
+        'Bank status requires a cash transfer with checking or savings',
+      );
+    }
     const legs = categoryLegs(from, to, input.categoryId);
     const transferId = randomUUID();
     tx.insert(transfer).values({ id: transferId }).run();
@@ -446,6 +457,7 @@ export function createTransfer(
       tx,
       {
         ...common,
+        ...(manual ? { status: manual.fromStatus } : {}),
         accountId: input.fromAccountId,
         amountCents: -input.amountCents,
         importKey: input.importKey ?? null,
@@ -458,6 +470,7 @@ export function createTransfer(
       tx,
       {
         ...common,
+        ...(manual ? { status: manual.toStatus } : {}),
         accountId: input.toAccountId,
         amountCents: input.amountCents,
         importKey: input.toImportKey ?? input.importKey ?? null,
