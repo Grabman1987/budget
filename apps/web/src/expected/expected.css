@@ -248,6 +248,7 @@ h4.xp-sub {
   text-align: right;
 }
 .xp-detail .xp-occ > li {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-areas: 'date amt' 'actual delta' 'state state' 'book book' 'act act';
 }
 .xp-occ-book a,

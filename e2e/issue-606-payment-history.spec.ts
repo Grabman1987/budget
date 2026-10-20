@@ -309,3 +309,194 @@ for (const value of ['light', 'dark'] as const) {
     }
   });
 }
+
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 1440, height: 900 },
+]) {
+  test(`legacy currency explanation retains whole dates and contained content at ${viewport.width}px`, async ({
+    browser,
+    isolatedLedger,
+    ledgerToday,
+  }, info) => {
+    const phone = viewport.width === 390;
+    const context = await browser.newContext({
+      baseURL: isolatedLedger.origin,
+      storageState: isolatedLedger.storageState,
+      viewport,
+      isMobile: phone,
+      hasTouch: phone,
+      deviceScaleFactor: phone ? 3 : 1,
+      reducedMotion: 'reduce',
+      serviceWorkers: 'block',
+    });
+    try {
+      const page = await context.newPage();
+      await page.clock.setFixedTime(new Date(`${ledgerToday}T12:00:00+02:00`));
+      const { paymentId } = await seed(page, isolatedLedger.origin);
+      // Real stored EUR occurrence + backdated USD version: retained cents have no currency proof.
+      await post(
+        page,
+        isolatedLedger.origin,
+        `/expected/${paymentId}/versions`,
+        {
+          validFrom: '2026-08-01',
+          amountCents: 1234,
+          currency: 'USD',
+        },
+        201,
+      );
+      const response = await page.request.get(`/api/expected/${paymentId}/detail`);
+      expect(response.status()).toBe(200);
+      const before = await response.json();
+      expect(
+        before.history.find((row: { dueDate: string }) => row.dueDate === '2026-08-20'),
+      ).toMatchObject({
+        currency: null,
+        expectedAmountCents: -1234,
+        actualComparableCents: null,
+        deviationCents: null,
+        unavailableReason: 'missing_currency',
+      });
+      const writes: string[] = [];
+      page.on('request', (request) => {
+        if (request.url().includes('/api/') && request.method() !== 'GET')
+          writes.push(request.method() + ' ' + new URL(request.url()).pathname);
+      });
+      await page.goto(`/plan/erwartet/${paymentId}`);
+      const row = page
+        .getByRole('list', { name: 'Vergangene Fälligkeiten von Synthetic monthly payment' })
+        .locator('li', { hasText: '20.08.2026' });
+      await expect(row.locator('.xp-occ-date')).toHaveText('20.08.2026');
+      await expect(row.locator('.xp-occ-amt')).toContainText('−12,34 (Währung nicht dokumentiert)');
+      await expect(row.locator('.xp-occ-amt')).not.toContainText('€');
+      await expect(row.locator('.xp-occ-book')).toContainText(
+        'Ursprüngliche Währung nicht dokumentiert; Abweichung nicht verfügbar.',
+      );
+      const proofs = [];
+      for (const value of ['light', 'dark'] as const) {
+        await theme(page, value);
+        await page.evaluate(() => document.fonts.ready);
+        await row.scrollIntoViewIfNeeded();
+        const geometry = await row.evaluate((element) => {
+          const rect = (target: Element) => {
+            const r = target.getBoundingClientRect();
+            return {
+              left: r.left,
+              right: r.right,
+              top: r.top,
+              bottom: r.bottom,
+              width: r.width,
+              height: r.height,
+            };
+          };
+          const part = (selector: string) => {
+            const target = element.querySelector(selector);
+            if (!target) throw new Error(`Missing required occurrence role: ${selector}`);
+            const range = document.createRange();
+            range.selectNodeContents(target);
+            return {
+              box: rect(target),
+              text: [...range.getClientRects()]
+                .filter((r) => r.width > 0 && r.height > 0)
+                .map((r) => ({
+                  left: r.left,
+                  right: r.right,
+                  top: r.top,
+                  bottom: r.bottom,
+                  width: r.width,
+                  height: r.height,
+                })),
+            };
+          };
+          const visibleObstacle = (selector: string) => {
+            const target = document.querySelector(selector);
+            if (!target) return null;
+            const bounds = rect(target);
+            return bounds.width > 0 && bounds.height > 0 ? bounds : null;
+          };
+          return {
+            row: rect(element),
+            date: part('.xp-occ-date'),
+            amount: part('.xp-occ-amt'),
+            reason: part('.xp-occ-book'),
+            controls: [...element.querySelectorAll('button,a')].map(rect),
+            fab: visibleObstacle('.fab'),
+            nav: visibleObstacle('.tabbar'),
+            viewport: { width: innerWidth, height: innerHeight },
+            documentWidth: document.documentElement.scrollWidth,
+            engineIndependentProfile: {
+              dpr: devicePixelRatio,
+              coarse: matchMedia('(pointer: coarse)').matches,
+              maxTouchPoints: navigator.maxTouchPoints,
+            },
+          };
+        });
+        const violations = (await new AxeBuilder({ page }).analyze()).violations;
+        proofs.push({ theme: value, geometry, axeViolations: violations });
+        await page.screenshot({
+          path: info.outputPath(`legacy-currency-${viewport.width}-${value}.png`),
+          fullPage: false,
+        });
+      }
+      // Save all actual profile/theme geometry before the first layout assertion can fail.
+      await writeFile(
+        info.outputPath(`legacy-currency-${viewport.width}-geometry.json`),
+        JSON.stringify(
+          {
+            fixture: 'Real API stored EUR occurrence followed by same-cents backdated USD version',
+            engine: browser.browserType().name(),
+            project: info.project.name,
+            proofs,
+          },
+          null,
+          2,
+        ),
+      );
+      for (const proof of proofs) {
+        const { geometry: g } = proof;
+        expect(g.documentWidth).toBeLessThanOrEqual(viewport.width);
+        if (phone) {
+          // Real fixture NAV is visible; hidden FAB is recorded as null, not visible-FAB proof.
+          expect(g.nav).not.toBeNull();
+          expect(g.nav?.width ?? 0).toBeGreaterThan(0);
+          expect(g.nav?.height ?? 0).toBeGreaterThan(0);
+        }
+        expect(g.date.text).toHaveLength(1);
+        expect(g.date.box.width).toBeGreaterThan(0);
+        expect(g.date.box.right).toBeLessThanOrEqual(g.amount.box.left);
+        for (const part of [g.date, g.amount, g.reason]) {
+          expect(part.text.length).toBeGreaterThan(0);
+          for (const text of part.text) {
+            expect(text.left).toBeGreaterThanOrEqual(part.box.left);
+            expect(text.right).toBeLessThanOrEqual(part.box.right);
+            expect(text.left).toBeGreaterThanOrEqual(g.row.left);
+            expect(text.right).toBeLessThanOrEqual(g.row.right);
+            expect(text.top).toBeGreaterThanOrEqual(g.row.top);
+            expect(text.bottom).toBeLessThanOrEqual(g.row.bottom);
+            if (g.nav) expect(text.bottom).toBeLessThanOrEqual(g.nav.top);
+            if (g.fab)
+              expect(
+                text.left < g.fab.right &&
+                  text.right > g.fab.left &&
+                  text.top < g.fab.bottom &&
+                  text.bottom > g.fab.top,
+              ).toBe(false);
+          }
+        }
+        expect(g.controls.length).toBeGreaterThan(0);
+        for (const control of g.controls) {
+          expect(control.width).toBeGreaterThanOrEqual(44);
+          expect(control.height).toBeGreaterThanOrEqual(44);
+        }
+        expect(proof.axeViolations).toEqual([]);
+      }
+      expect(writes).toEqual([]);
+      const after = await page.request.get(`/api/expected/${paymentId}/detail`);
+      expect(after.status()).toBe(200);
+      expect(await after.json()).toEqual(before);
+    } finally {
+      await context.close();
+    }
+  });
+}
