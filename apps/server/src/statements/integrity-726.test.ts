@@ -1,6 +1,8 @@
 import { afterEach, expect, it } from 'vitest';
 import {
   copyFileSync,
+  existsSync,
+  readdirSync,
   cpSync,
   lstatSync,
   mkdirSync,
@@ -11,7 +13,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { migrateDatabase, openDatabase, stageStatementIntake } from '@budget/db';
 import { parseStatementText } from '@budget/domain';
 import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
@@ -140,6 +142,25 @@ it('shares the parser with a one-file private CLI, refuses overwrite, and never 
   async function* empty() {
     yield Buffer.from('');
   }
+  if (process.platform === 'win32') {
+    let consumed = false;
+    async function* password() {
+      consumed = true;
+      yield Buffer.from('synthetic-password');
+    }
+    await expect(statementExtract([input, output, '--password-stdin'], password())).rejects.toThrow(
+      'unsupported_private_output_platform',
+    );
+    expect(consumed).toBe(false);
+    expect(existsSync(output)).toBe(false);
+    writeFileSync(output, 'synthetic-existing-output');
+    await expect(statementExtract([input, output], empty())).rejects.toThrow(
+      'unsupported_private_output_platform',
+    );
+    expect(readFileSync(output, 'utf8')).toBe('synthetic-existing-output');
+    expect(readFileSync(input)).toEqual(bytes);
+    return;
+  }
   await statementExtract([input, output], empty());
   expect(lstatSync(output).mode & 0o777).toBe(0o600);
   expect(JSON.parse(readFileSync(output, 'utf8'))).toMatchObject({
@@ -169,13 +190,30 @@ it('runs the actual TypeScript CLI subprocess with the same bounded PDF worker a
     output = join(d, 'private-cli.json'),
     bytes = await pdf();
   writeFileSync(input, bytes);
+  if (process.platform === 'win32') {
+    const child = spawnSync(
+      process.execPath,
+      ['--import', 'tsx', resolve('scripts/statement-extract.ts'), input, output],
+      { cwd: resolve('.'), encoding: 'utf8', timeout: 20000, stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    expect(child.error).toBeUndefined();
+    expect(child.status).toBe(1);
+    expect(child.signal).toBeNull();
+    expect(child.stdout).toBe('');
+    expect(child.stderr).toBe(
+      'Private extraction is unavailable on Windows; use a POSIX environment with a private output directory.\n',
+    );
+    expect(existsSync(output)).toBe(false);
+    expect(readFileSync(input)).toEqual(bytes);
+    return;
+  }
   const stdout = execFileSync(
     process.execPath,
     ['--import', 'tsx', resolve('scripts/statement-extract.ts'), input, output],
     {
       cwd: resolve('.'),
       encoding: 'utf8',
-      timeout: process.platform === 'win32' ? 20000 : 4000,
+      timeout: 4000,
       stdio: ['ignore', 'pipe', 'pipe'],
     },
   );
@@ -186,4 +224,36 @@ it('runs the actual TypeScript CLI subprocess with the same bounded PDF worker a
     sha256: digest(bytes),
     fields: { payableCents: { value: 12000 }, debitDate: { value: null } },
   });
+});
+
+it('refuses unsupported Windows private output before source, password or target access', async () => {
+  const d = temp(),
+    input = join(d, 'nonexistent-synthetic.pdf'),
+    output = join(d, 'private.json');
+  const before = readdirSync(d),
+    descriptor = Object.getOwnPropertyDescriptor(process, 'platform');
+  expect(descriptor).toBeDefined();
+  let consumed = false;
+  async function* password() {
+    consumed = true;
+    yield Buffer.from('synthetic-password');
+  }
+  let attempt!: ReturnType<typeof statementExtract>;
+  try {
+    Object.defineProperty(process, 'platform', { ...descriptor!, value: 'win32' });
+    attempt = statementExtract([input, output, '--password-stdin'], password());
+  } finally {
+    Object.defineProperty(process, 'platform', descriptor!);
+  }
+  // Restore the real descriptor before awaiting any asynchronous work.
+  const failure: unknown = await attempt.then(
+    () => null,
+    (error) => error,
+  );
+  expect(consumed).toBe(false);
+  expect(existsSync(input)).toBe(false);
+  expect(existsSync(output)).toBe(false);
+  expect(readdirSync(d)).toEqual(before);
+  expect(failure).toBeInstanceOf(Error);
+  expect((failure as Error).message).toBe('unsupported_private_output_platform');
 });

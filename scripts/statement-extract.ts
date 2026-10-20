@@ -3,8 +3,13 @@ import { resolve } from 'node:path';
 import { extractStatement } from '../apps/server/src/statements/service';
 import { RECEIPT_LIMIT } from '../apps/server/src/receipts/files';
 
-/** Private one-file extraction. Invoke with node --import tsx; output never goes to stdout. */
+const unsupportedPlatform = 'unsupported_private_output_platform';
+const unsupportedMessage =
+  'Private extraction is unavailable on Windows; use a POSIX environment with a private output directory.\n';
+
+/** Private POSIX-only extraction. Invoke with node --import tsx; output never goes to stdout. */
 export async function statementExtract(args: string[], stdin: AsyncIterable<Uint8Array>) {
+  if (process.platform === 'win32') throw new Error(unsupportedPlatform);
   const passwordInput = args.includes('--password-stdin'),
     paths = args.filter((a) => a !== '--password-stdin');
   if (paths.length !== 2 || args.some((a) => a.startsWith('--') && a !== '--password-stdin'))
@@ -44,8 +49,12 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename
     () => {
       process.stdout.write('Extraction saved privately.\n');
     },
-    () => {
-      process.stderr.write('Extraction failed; check input, password or private output path.\n');
+    (error: unknown) => {
+      process.stderr.write(
+        error instanceof Error && error.message === unsupportedPlatform
+          ? unsupportedMessage
+          : 'Extraction failed; check input, password or private output path.\n',
+      );
       process.exitCode = 1;
     },
   );

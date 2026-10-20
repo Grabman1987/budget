@@ -1638,7 +1638,13 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
   existing migration-44 fixture assumed it was still the latest migration; its
   expressly approved isolated setup correction preserves all assertions and
   passed its selected test in 2.48s. The first full was red and did not run a build.
-- Final required AGE full passed all 568 files/5,067 tests with one worker;
-  833.67s Vitest duration. The following normal production build passed. Final-head
-  CI and serial LIVE remain pending. Actual production receipt-volume/owner
+- Before the Windows CLI correction, checkpoint `15aa5a8` passed the required
+  AGE full: all 568 files/5,067 tests with one worker, 833.67s Vitest duration,
+  followed by a successful normal production build.
+- Windows CI showed that POSIX mode bits did not establish private CLI output
+  there. The CLI now refuses Windows execution before source/password/output
+  access. Focused Linux integrity6/6 passed (6.17s Vitest duration), with server
+  types, lint and format checks; the guard-ordering probe and real POSIX private
+  output cases passed. Actual Windows refusal and fresh exact-head aggregate CI
+  and serial LIVE remain pending. Actual production receipt-volume/owner
   backup-restore verification is still open; #726 remains a partial delivery.

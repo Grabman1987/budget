@@ -74,6 +74,12 @@ node --import tsx scripts/statement-extract.ts /private/INPUT.pdf /private/OUTPU
 node --import tsx scripts/statement-extract.ts /private/INPUT.pdf /private/OUTPUT.json --password-stdin
 ```
 
+The private extraction CLI is not supported on Windows. It refuses the action
+before inspecting the input file, consuming a password or creating an output. Run
+it on a POSIX host with a private output directory and a filesystem that honors
+`0600` creation permissions. This CLI restriction does not change the app upload
+or server extraction workflow.
+
 The second form reads an optional password from bounded standard input until EOF.
 Supply it through a protected input stream; never put it in command arguments,
 environment variables or shell history. The script does not use saved payroll
@@ -165,9 +171,18 @@ limits its disposable fixture to migration 44, preserving every original
 assertion; the isolated test passed in 2.48 seconds. The first full check was red
 and did not run the normal production build.
 
-The final required check used `BUDGET_REQUIRE_AGE=1` and
+The required check before the Windows CLI correction used `BUDGET_REQUIRE_AGE=1` and
 `VITEST_MAX_WORKERS=1`: all 568 test files and 5,067 tests passed, with an
 833.67-second Vitest duration. The normal production build then passed. Final-head
 CI and serial LIVE verification remain pending. Actual production receipt-volume
 configuration and an owner backup/restore remain unverified, so this is a partial
 delivery and #726 remains open.
+
+Later Windows CI exposed that POSIX mode bits did not establish private CLI
+output there. The CLI now refuses unsupported Windows execution before reading
+input, consuming a password or creating output. Focused Linux validation passed
+all six integrity cases (6.17s Vitest duration), server types, lint and format
+checks. The guard-ordering probe and real POSIX worker/private-output cases passed;
+actual Windows refusal and fresh exact-head aggregate CI remain pending. The
+568-file full check and production build above belong to the earlier `15aa5a8`
+checkpoint, before this CLI correction.
