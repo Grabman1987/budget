@@ -68,6 +68,7 @@ test('a new version from February 2027 changes only the future occurrences; undo
   const panel = page.locator('.xp-detail-body');
   await expect(page).toHaveURL(/\/plan\/erwartet\/[^?]+/);
   await expect(panel).toBeVisible();
+  await panel.getByRole('button', { name: 'Weitere Termine', exact: true }).click();
 
   const occurrence = (date: string) => panel.locator('.xp-occ li', { hasText: date });
   await expect(occurrence('28.01.2027')).toContainText('1.000,00 €');

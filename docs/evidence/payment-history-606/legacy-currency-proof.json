@@ -1,0 +1,812 @@
+{
+  "schema": "budget-payment-history-606-legacy-currency-proof-v1",
+  "scope": "Synthetic actual native evidence; no auth/session/database/trace content",
+  "captureSource": {
+    "head": "5ec38a63530596f631e6f60326fe1aca2fe62194",
+    "formattedFreezeSHA256": "448e845060a2cbcc3be8b1d052d3cb071cac2238c5832e0f0a468194fc1d1311",
+    "cssSHA256": "45319cbea3bf1554fb875c253acad96c6c5a34ce29a55239f323263a8c8bf35b",
+    "nativeSpecSHA256": "a5ecbf068915ada875f6e82d264b17e5cb2de57a8554fda286fe85bb9c88ed7f",
+    "capturedBeforeResultDocsAndFourImageImport": true
+  },
+  "actualGreen": {
+    "tests": 8,
+    "originalOwnedCases": 3,
+    "newProfileCases": 2,
+    "setupCases": 3,
+    "passed": 8,
+    "duration": "59.5s",
+    "workers": 1,
+    "freshE2EBuildExit": 0,
+    "nativeExit": 0,
+    "guardExit": 0,
+    "wrapperExit": 0,
+    "lockReleaseExit": 0,
+    "actualCompiledFiles": 169,
+    "source3381Own20Protected22ModesHeadStatusIndexUnchanged": true,
+    "compiledFullsetHashesUnchanged": true,
+    "rawResultSHA256": "8dd715d0fc8f47c2c325a5dfae71a88fc6f5d2df74dbc5ca7996fd692641ea81",
+    "rawNativeLogSHA256": "f705a26387c6b7241c29b745ff89d04feef0660f1cc16e1bd0215427fe3e3628",
+    "preSnapshotSHA256": "d669c669385ea8faf5e016234492a9e95d6662339da9c75acbe740f00abd91d6",
+    "postSnapshotSHA256": "d669c669385ea8faf5e016234492a9e95d6662339da9c75acbe740f00abd91d6",
+    "compiledManifestSHA256": "05ebe7c1b4321720241335fb55c2520136c7d7ddbc4444884b9133d9b2003785"
+  },
+  "syntheticRegression": {
+    "fixture": "Actual stored EUR occurrence then same-cents backdated USD version; no assumed FX/comparison",
+    "oldCSSPhoneRED": {
+      "twoNewCasesSelectedWithThreeSetup": 5,
+      "nativeFailed": 2,
+      "dateFragmentsAt390BothThemes": 4,
+      "dateBoxWidth": 27.828125,
+      "realProductPhoneRED": true
+    },
+    "oldCSSDesktopOracleCorrection": "Hidden0x0nav/fab rectangles were truthy; corrected NEWtest samples positive-size obstacles only. Old desktop failure is not product overflow proof.",
+    "preflightMetadataFailure": "Earlier runner integer-vs-octal permission representation stopped before build/browser; archived phases[]/wrapper1 remain preserved. No actual permission changed.",
+    "greenPhoneDateFragments": 1,
+    "greenPhoneDateBoxWidth": 152
+  },
+  "actualGeometry": [
+    {
+      "file": "legacy-currency-1440-geometry.json",
+      "sha256": "d64cdff0030ba0b6db52ee703e9c1bc203338ef005d3f64683728cbcb1c98d67",
+      "actual": {
+        "fixture": "Real API stored EUR occurrence followed by same-cents backdated USD version",
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "proofs": [
+          {
+            "theme": "light",
+            "geometry": {
+              "row": {
+                "left": 297,
+                "right": 1378.984375,
+                "top": 339.8125,
+                "bottom": 560.484375,
+                "width": 1081.984375,
+                "height": 220.671875
+              },
+              "date": {
+                "box": {
+                  "left": 297,
+                  "right": 831.984375,
+                  "top": 358.5,
+                  "bottom": 380.25,
+                  "width": 534.984375,
+                  "height": 21.75
+                },
+                "text": [
+                  {
+                    "left": 297,
+                    "right": 375.0905456542969,
+                    "top": 361.375,
+                    "bottom": 377.375,
+                    "width": 78.09054565429688,
+                    "height": 16
+                  }
+                ]
+              },
+              "amount": {
+                "box": {
+                  "left": 843.984375,
+                  "right": 1378.984375,
+                  "top": 349.8125,
+                  "bottom": 388.953125,
+                  "width": 535,
+                  "height": 39.140625
+                },
+                "text": [
+                  {
+                    "left": 843.984375,
+                    "right": 1378.984375,
+                    "top": 349.8125,
+                    "bottom": 367.203125,
+                    "width": 535,
+                    "height": 17.390625
+                  },
+                  {
+                    "left": 1358.4521484375,
+                    "right": 1378.984375,
+                    "top": 351.5078125,
+                    "bottom": 365.5078125,
+                    "width": 20.5322265625,
+                    "height": 14
+                  },
+                  {
+                    "left": 1120.085693359375,
+                    "right": 1378.984375,
+                    "top": 370.078125,
+                    "bottom": 386.078125,
+                    "width": 258.898681640625,
+                    "height": 16
+                  }
+                ]
+              },
+              "reason": {
+                "box": {
+                  "left": 297,
+                  "right": 1378.984375,
+                  "top": 457.484375,
+                  "bottom": 501.484375,
+                  "width": 1081.984375,
+                  "height": 44
+                },
+                "text": [
+                  {
+                    "left": 297,
+                    "right": 465.546875,
+                    "top": 457.484375,
+                    "bottom": 501.484375,
+                    "width": 168.546875,
+                    "height": 44
+                  },
+                  {
+                    "left": 297,
+                    "right": 465.54119873046875,
+                    "top": 472.4765625,
+                    "bottom": 486.4765625,
+                    "width": 168.54119873046875,
+                    "height": 14
+                  },
+                  {
+                    "left": 465.546875,
+                    "right": 850.7542114257812,
+                    "top": 472.46875,
+                    "bottom": 486.46875,
+                    "width": 385.20733642578125,
+                    "height": 14
+                  }
+                ]
+              },
+              "controls": [
+                {
+                  "left": 297,
+                  "right": 465.546875,
+                  "top": 457.484375,
+                  "bottom": 501.484375,
+                  "width": 168.546875,
+                  "height": 44
+                },
+                {
+                  "left": 1310.171875,
+                  "right": 1378.984375,
+                  "top": 505.484375,
+                  "bottom": 549.484375,
+                  "width": 68.8125,
+                  "height": 44
+                }
+              ],
+              "fab": null,
+              "nav": null,
+              "viewport": {
+                "width": 1440,
+                "height": 900
+              },
+              "documentWidth": 1440,
+              "engineIndependentProfile": {
+                "dpr": 1,
+                "coarse": false,
+                "maxTouchPoints": 0
+              }
+            },
+            "axeViolations": []
+          },
+          {
+            "theme": "dark",
+            "geometry": {
+              "row": {
+                "left": 297,
+                "right": 1378.984375,
+                "top": 339.8125,
+                "bottom": 560.484375,
+                "width": 1081.984375,
+                "height": 220.671875
+              },
+              "date": {
+                "box": {
+                  "left": 297,
+                  "right": 831.984375,
+                  "top": 358.5,
+                  "bottom": 380.25,
+                  "width": 534.984375,
+                  "height": 21.75
+                },
+                "text": [
+                  {
+                    "left": 297,
+                    "right": 375.0905456542969,
+                    "top": 361.375,
+                    "bottom": 377.375,
+                    "width": 78.09054565429688,
+                    "height": 16
+                  }
+                ]
+              },
+              "amount": {
+                "box": {
+                  "left": 843.984375,
+                  "right": 1378.984375,
+                  "top": 349.8125,
+                  "bottom": 388.953125,
+                  "width": 535,
+                  "height": 39.140625
+                },
+                "text": [
+                  {
+                    "left": 843.984375,
+                    "right": 1378.984375,
+                    "top": 349.8125,
+                    "bottom": 367.203125,
+                    "width": 535,
+                    "height": 17.390625
+                  },
+                  {
+                    "left": 1358.4521484375,
+                    "right": 1378.984375,
+                    "top": 351.5078125,
+                    "bottom": 365.5078125,
+                    "width": 20.5322265625,
+                    "height": 14
+                  },
+                  {
+                    "left": 1120.085693359375,
+                    "right": 1378.984375,
+                    "top": 370.078125,
+                    "bottom": 386.078125,
+                    "width": 258.898681640625,
+                    "height": 16
+                  }
+                ]
+              },
+              "reason": {
+                "box": {
+                  "left": 297,
+                  "right": 1378.984375,
+                  "top": 457.484375,
+                  "bottom": 501.484375,
+                  "width": 1081.984375,
+                  "height": 44
+                },
+                "text": [
+                  {
+                    "left": 297,
+                    "right": 465.546875,
+                    "top": 457.484375,
+                    "bottom": 501.484375,
+                    "width": 168.546875,
+                    "height": 44
+                  },
+                  {
+                    "left": 297,
+                    "right": 465.54119873046875,
+                    "top": 472.4765625,
+                    "bottom": 486.4765625,
+                    "width": 168.54119873046875,
+                    "height": 14
+                  },
+                  {
+                    "left": 465.546875,
+                    "right": 850.7542114257812,
+                    "top": 472.46875,
+                    "bottom": 486.46875,
+                    "width": 385.20733642578125,
+                    "height": 14
+                  }
+                ]
+              },
+              "controls": [
+                {
+                  "left": 297,
+                  "right": 465.546875,
+                  "top": 457.484375,
+                  "bottom": 501.484375,
+                  "width": 168.546875,
+                  "height": 44
+                },
+                {
+                  "left": 1310.171875,
+                  "right": 1378.984375,
+                  "top": 505.484375,
+                  "bottom": 549.484375,
+                  "width": 68.8125,
+                  "height": 44
+                }
+              ],
+              "fab": null,
+              "nav": null,
+              "viewport": {
+                "width": 1440,
+                "height": 900
+              },
+              "documentWidth": 1440,
+              "engineIndependentProfile": {
+                "dpr": 1,
+                "coarse": false,
+                "maxTouchPoints": 0
+              }
+            },
+            "axeViolations": []
+          }
+        ]
+      }
+    },
+    {
+      "file": "legacy-currency-390-geometry.json",
+      "sha256": "2e2e85628ace129057482fe9ac225eca5b545e528a574c7182682ef81ca0c289",
+      "actual": {
+        "fixture": "Real API stored EUR occurrence followed by same-cents backdated USD version",
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "proofs": [
+          {
+            "theme": "light",
+            "geometry": {
+              "row": {
+                "left": 37,
+                "right": 353,
+                "top": 289.453125,
+                "bottom": 553.578125,
+                "width": 316,
+                "height": 264.125
+              },
+              "date": {
+                "box": {
+                  "left": 37,
+                  "right": 189,
+                  "top": 319.734375,
+                  "bottom": 342.921875,
+                  "width": 152,
+                  "height": 23.1875
+                },
+                "text": [
+                  {
+                    "left": 37,
+                    "right": 120.29623413085938,
+                    "top": 322.828125,
+                    "bottom": 339.828125,
+                    "width": 83.29623413085938,
+                    "height": 17
+                  }
+                ]
+              },
+              "amount": {
+                "box": {
+                  "left": 201,
+                  "right": 353,
+                  "top": 299.453125,
+                  "bottom": 363.21875,
+                  "width": 152,
+                  "height": 63.765625
+                },
+                "text": [
+                  {
+                    "left": 201,
+                    "right": 353,
+                    "top": 299.453125,
+                    "bottom": 316.84375,
+                    "width": 152,
+                    "height": 17.390625
+                  },
+                  {
+                    "left": 332.46783447265625,
+                    "right": 353,
+                    "top": 301.1484375,
+                    "bottom": 315.1484375,
+                    "width": 20.53216552734375,
+                    "height": 14
+                  },
+                  {
+                    "left": 224.73471069335938,
+                    "right": 353,
+                    "top": 319.9375,
+                    "bottom": 336.9375,
+                    "width": 128.26528930664062,
+                    "height": 17
+                  },
+                  {
+                    "left": 208.29225158691406,
+                    "right": 353,
+                    "top": 343.125,
+                    "bottom": 360.125,
+                    "width": 144.70774841308594,
+                    "height": 17
+                  }
+                ]
+              },
+              "reason": {
+                "box": {
+                  "left": 37,
+                  "right": 353,
+                  "top": 433.1875,
+                  "bottom": 494.578125,
+                  "width": 316,
+                  "height": 61.390625
+                },
+                "text": [
+                  {
+                    "left": 37,
+                    "right": 205.546875,
+                    "top": 433.1875,
+                    "bottom": 477.1875,
+                    "width": 168.546875,
+                    "height": 44
+                  },
+                  {
+                    "left": 37,
+                    "right": 205.5412139892578,
+                    "top": 448.1796875,
+                    "bottom": 462.1796875,
+                    "width": 168.5412139892578,
+                    "height": 14
+                  },
+                  {
+                    "left": 205.546875,
+                    "right": 333.3548278808594,
+                    "top": 448.171875,
+                    "bottom": 462.171875,
+                    "width": 127.80795288085938,
+                    "height": 14
+                  },
+                  {
+                    "left": 37,
+                    "right": 291.89141845703125,
+                    "top": 478.8828125,
+                    "bottom": 492.8828125,
+                    "width": 254.89141845703125,
+                    "height": 14
+                  }
+                ]
+              },
+              "controls": [
+                {
+                  "left": 37,
+                  "right": 205.546875,
+                  "top": 433.1875,
+                  "bottom": 477.1875,
+                  "width": 168.546875,
+                  "height": 44
+                },
+                {
+                  "left": 281.328125,
+                  "right": 353,
+                  "top": 498.578125,
+                  "bottom": 542.578125,
+                  "width": 71.671875,
+                  "height": 44
+                }
+              ],
+              "fab": {
+                "left": 316,
+                "right": 374,
+                "top": 706,
+                "bottom": 764,
+                "width": 58,
+                "height": 58
+              },
+              "nav": {
+                "left": 0,
+                "right": 390,
+                "top": 780,
+                "bottom": 844,
+                "width": 390,
+                "height": 64
+              },
+              "viewport": {
+                "width": 390,
+                "height": 844
+              },
+              "documentWidth": 390,
+              "engineIndependentProfile": {
+                "dpr": 3,
+                "coarse": true,
+                "maxTouchPoints": 0
+              }
+            },
+            "axeViolations": []
+          },
+          {
+            "theme": "dark",
+            "geometry": {
+              "row": {
+                "left": 37,
+                "right": 353,
+                "top": 289.453125,
+                "bottom": 553.578125,
+                "width": 316,
+                "height": 264.125
+              },
+              "date": {
+                "box": {
+                  "left": 37,
+                  "right": 189,
+                  "top": 319.734375,
+                  "bottom": 342.921875,
+                  "width": 152,
+                  "height": 23.1875
+                },
+                "text": [
+                  {
+                    "left": 37,
+                    "right": 120.29623413085938,
+                    "top": 322.828125,
+                    "bottom": 339.828125,
+                    "width": 83.29623413085938,
+                    "height": 17
+                  }
+                ]
+              },
+              "amount": {
+                "box": {
+                  "left": 201,
+                  "right": 353,
+                  "top": 299.453125,
+                  "bottom": 363.21875,
+                  "width": 152,
+                  "height": 63.765625
+                },
+                "text": [
+                  {
+                    "left": 201,
+                    "right": 353,
+                    "top": 299.453125,
+                    "bottom": 316.84375,
+                    "width": 152,
+                    "height": 17.390625
+                  },
+                  {
+                    "left": 332.46783447265625,
+                    "right": 353,
+                    "top": 301.1484375,
+                    "bottom": 315.1484375,
+                    "width": 20.53216552734375,
+                    "height": 14
+                  },
+                  {
+                    "left": 224.73471069335938,
+                    "right": 353,
+                    "top": 319.9375,
+                    "bottom": 336.9375,
+                    "width": 128.26528930664062,
+                    "height": 17
+                  },
+                  {
+                    "left": 208.29225158691406,
+                    "right": 353,
+                    "top": 343.125,
+                    "bottom": 360.125,
+                    "width": 144.70774841308594,
+                    "height": 17
+                  }
+                ]
+              },
+              "reason": {
+                "box": {
+                  "left": 37,
+                  "right": 353,
+                  "top": 433.1875,
+                  "bottom": 494.578125,
+                  "width": 316,
+                  "height": 61.390625
+                },
+                "text": [
+                  {
+                    "left": 37,
+                    "right": 205.546875,
+                    "top": 433.1875,
+                    "bottom": 477.1875,
+                    "width": 168.546875,
+                    "height": 44
+                  },
+                  {
+                    "left": 37,
+                    "right": 205.5412139892578,
+                    "top": 448.1796875,
+                    "bottom": 462.1796875,
+                    "width": 168.5412139892578,
+                    "height": 14
+                  },
+                  {
+                    "left": 205.546875,
+                    "right": 333.3548278808594,
+                    "top": 448.171875,
+                    "bottom": 462.171875,
+                    "width": 127.80795288085938,
+                    "height": 14
+                  },
+                  {
+                    "left": 37,
+                    "right": 291.89141845703125,
+                    "top": 478.8828125,
+                    "bottom": 492.8828125,
+                    "width": 254.89141845703125,
+                    "height": 14
+                  }
+                ]
+              },
+              "controls": [
+                {
+                  "left": 37,
+                  "right": 205.546875,
+                  "top": 433.1875,
+                  "bottom": 477.1875,
+                  "width": 168.546875,
+                  "height": 44
+                },
+                {
+                  "left": 281.328125,
+                  "right": 353,
+                  "top": 498.578125,
+                  "bottom": 542.578125,
+                  "width": 71.671875,
+                  "height": 44
+                }
+              ],
+              "fab": {
+                "left": 316,
+                "right": 374,
+                "top": 706,
+                "bottom": 764,
+                "width": 58,
+                "height": 58
+              },
+              "nav": {
+                "left": 0,
+                "right": 390,
+                "top": 780,
+                "bottom": 844,
+                "width": 390,
+                "height": 64
+              },
+              "viewport": {
+                "width": 390,
+                "height": 844
+              },
+              "documentWidth": 390,
+              "engineIndependentProfile": {
+                "dpr": 3,
+                "coarse": true,
+                "maxTouchPoints": 0
+              }
+            },
+            "axeViolations": []
+          }
+        ]
+      }
+    }
+  ],
+  "actualOriginalRuntimeProfiles": [
+    {
+      "file": "runtime-webkit-desktop-layout1440-light.json",
+      "sha256": "efbfe8eb4ad87a54306207179118ab1f8e473a9fad275d5350b534c41e5806b1",
+      "actual": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "webkit-desktop-layout1440",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "theme": "light",
+        "coarse": false,
+        "maxTouchPoints": 0,
+        "dpr": 1
+      }
+    },
+    {
+      "file": "runtime-webkit-iphone-light.json",
+      "sha256": "864e999558bc3e8a04a17418c74a97860202f27b0969a439a0e018841a9ab211",
+      "actual": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "webkit-iphone",
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "theme": "light",
+        "coarse": true,
+        "maxTouchPoints": 0,
+        "dpr": 3
+      }
+    },
+    {
+      "file": "runtime-webkit-desktop-layout1440-dark.json",
+      "sha256": "ec1b5f288213584b5713b81dd959f99f6cde1b8fab22ccdacdf454aac0f1362c",
+      "actual": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "webkit-desktop-layout1440",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "theme": "dark",
+        "coarse": false,
+        "maxTouchPoints": 0,
+        "dpr": 1
+      }
+    },
+    {
+      "file": "runtime-webkit-iphone-dark.json",
+      "sha256": "423d79c08d2f7f7bf8c33b3f035a9b8c28a57b82ac0b5208a552fef189a6e926",
+      "actual": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "webkit-iphone",
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "theme": "dark",
+        "coarse": true,
+        "maxTouchPoints": 0,
+        "dpr": 3
+      }
+    }
+  ],
+  "newImages": [
+    {
+      "committedPath": "docs/evidence/payment-history-606/legacy-currency-1440-dark.png",
+      "actualCapture": "/workspace/.budget-tools/cloud-control/606-legacy-currency-native-green-first-actual/test-results/issue-606-payment-history--aac75-contained-content-at-1440px-webkit-iphone/legacy-currency-1440-dark.png",
+      "sha256": "f1d2def70d3ad40b17eeed1f3a1ab530f73c40e46ec181c276b9480f0df28341",
+      "bytes": 131199
+    },
+    {
+      "committedPath": "docs/evidence/payment-history-606/legacy-currency-1440-light.png",
+      "actualCapture": "/workspace/.budget-tools/cloud-control/606-legacy-currency-native-green-first-actual/test-results/issue-606-payment-history--aac75-contained-content-at-1440px-webkit-iphone/legacy-currency-1440-light.png",
+      "sha256": "015c37c5abaeeb428572b8e25909858dc83f79ea47b3b80f9c6926f76ea2b3cb",
+      "bytes": 130238
+    },
+    {
+      "committedPath": "docs/evidence/payment-history-606/legacy-currency-390-dark.png",
+      "actualCapture": "/workspace/.budget-tools/cloud-control/606-legacy-currency-native-green-first-actual/test-results/issue-606-payment-history--defbf--contained-content-at-390px-webkit-iphone/legacy-currency-390-dark.png",
+      "sha256": "a1f39d447552364f982bb74e922416a6b7e979f5517a05fff99835c982d778a0",
+      "bytes": 263260
+    },
+    {
+      "committedPath": "docs/evidence/payment-history-606/legacy-currency-390-light.png",
+      "actualCapture": "/workspace/.budget-tools/cloud-control/606-legacy-currency-native-green-first-actual/test-results/issue-606-payment-history--defbf--contained-content-at-390px-webkit-iphone/legacy-currency-390-light.png",
+      "sha256": "3b97813f1622cf74ef495ed4ebc688ef7a6bce3c217da6546f41b43467e335ac",
+      "bytes": 262438
+    }
+  ],
+  "immutableHistoricalMedia": {
+    "docs/evidence/payment-history-606/runtime-proof.json": "04e6aa1e7dbcba5193791df68d9ca2f14c1aba6b347c80767968e52cdd1b6de1",
+    "docs/evidence/payment-history-606/webkit-desktop-layout1440-dark.png": "a741d3da0763e9c32febd3cc580b29eb1010b9a8bfa813f878490e06582f6f04",
+    "docs/evidence/payment-history-606/webkit-desktop-layout1440-light.png": "94d58b9717ee701f50d57cc79cfae71aae2d66049ffd733579000155ded5f5f4",
+    "docs/evidence/payment-history-606/webkit-phone390-dark.png": "c4d93a9999ce2b2614d7ebc82d91701a3a5e30e7f0d946f0d88013c8aff83e99",
+    "docs/evidence/payment-history-606/webkit-phone390-light.png": "c79cafc184f621e98d51da989a12b11b09f17c22953c6634f2862ca1497082d4"
+  },
+  "historicalPreCSSFull": {
+    "head": "ce54f2cbd5c62da7b91ba3f0b2ccc5b514c8cd16",
+    "requiredAge": true,
+    "workers": 2,
+    "files": 533,
+    "tests": 4687,
+    "duration": "385.88s",
+    "checkExit": 0,
+    "normalProductionBuildExit": 0,
+    "qualification": "Before subsequent scoped CSS/NEWnative correction; not current post-CSS aggregate."
+  },
+  "canonicalBaselineChronology": {
+    "initialHead": "f65910a6fd74eb8572c7984c93777335b81c1355",
+    "initialCIRun": 39345071788,
+    "visualJob": 118375590253,
+    "actualInitialVisualSummary": "1failed/17preexistingSkipped/119passed2.5m",
+    "onlyFailedBaseline": "e2e/expected.spec.ts-snapshots/expected-panel-light-mobile-linux.png",
+    "differentPixels": 20661,
+    "ratio": 0.07,
+    "targetedUpdateRun": 39345877984,
+    "actualTargetedTestResult": "15passed36.5s; existing ||true means workflow status alone is insufficient",
+    "botCommit": "5ec38a63530596f631e6f60326fe1aca2fe62194",
+    "botBaselineRejectedAfterActualImageReview": true,
+    "baselineRemainsUnchangedByThisPackage": true
+  },
+  "limits": [
+    "Root and independent reviewer opened all4newlegacyimages: full date/amount/longreason readable and contained, phoneNAV visibly present.",
+    "Geometry records a positive58x58phoneFABrectangle at an earlier instant; screenshots do not visibly draw it. Computedvisibility/opacity wasnot sampled: do not claim confirmed visibleFAB or generic hit-testing.",
+    "Desktop upper versions heading partly under sticky search is a currentviewport framing limit.",
+    "New regressionphone390x844/DPR3 is separate from original canonicalphone390x664/DPR3; desktop1440x900/DPR1. RawmaxTouchPoints0, ordinary click/keyboard are not physicaltouch proof.",
+    "Enginewebkit is recorded; this fixture doesnot capture browserVersion.",
+    "Four original published native images and original runtime-proof.json remain immutable historical evidence.",
+    "Local required-age full533/4687 and normal production build0 remain historical before CSS. Passed scoped CSS/lint/format and whole native8 cover this local follow-up; final exact-head aggregate CI with all configured static/Linux/Windows unit/visual/browser/restore checks, targeted baseline approval and serial live remain required. No current local full or parent482 completion is claimed; no CI check is waived."
+  ]
+}
