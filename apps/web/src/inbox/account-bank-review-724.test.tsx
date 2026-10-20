@@ -79,14 +79,14 @@ function page(entries: InboxStored[], next: number | null = null, total = entrie
     next,
   };
 }
-function fetchFixture(reply: (url: URL) => Response | Promise<Response>) {
+function fetchFixture(reply: (url: URL, init?: RequestInit) => Response | Promise<Response>) {
   const calls: URL[] = [];
   vi.stubGlobal('fetch', async (input: string | URL | Request, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
     if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) forbiddenWrites.push(method);
     const url = new URL(String(input), 'http://localhost');
     calls.push(url);
-    return reply(url);
+    return reply(url, init);
   });
   return calls;
 }
@@ -222,7 +222,9 @@ it('hides stale account work on a fatal refresh error and offers retry and a tru
   failed = false;
   empty = true;
   await userEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
-  await screen.findByText('Keine offenen Bankumsätze für dieses Konto.');
+  await waitFor(() =>
+    expect(screen.queryByRole('region', { name: 'Bankumsätze prüfen' })).toBeNull(),
+  );
   expect(screen.queryByRole('alert')).toBeNull();
 });
 
@@ -256,4 +258,79 @@ it('renders actual bank-candidate work before the account-reminder section witho
   expect(
     calls.every((url) => ['/api/inbox', '/api/accounts/reminders'].includes(url.pathname)),
   ).toBe(true);
+});
+
+it('retains the real learning offer after confirming the last candidate and refetching an empty account queue', async () => {
+  const id = '72400000-0000-4000-8000-000000000003';
+  const bookingId = '72400000-0000-4000-8000-000000000004';
+  const revision = 'a'.repeat(64);
+  let confirmed = false;
+  const posts: { path: string; body: unknown }[] = [];
+  fetchFixture((url, init) => {
+    if ((init?.method ?? 'GET') === 'POST') {
+      posts.push({ path: url.pathname, body: JSON.parse(String(init?.body)) });
+      expect(url.pathname).toBe(`/api/bank-sync/candidates/${id}/confirm`);
+      confirmed = true;
+      return json({ groupId: 'synthetic-724-confirm', bookingId });
+    }
+    if (url.pathname === '/api/inbox')
+      return json(page(confirmed ? [] : [candidate(id, 'Letzter Umsatz')]));
+    if (url.pathname === '/api/lookups')
+      return json({
+        categories: [{ id: 'category-724', name: 'Kategorie A', kind: 'variable' }],
+        incomeTypes: [],
+      });
+    if (url.pathname === '/api/payees') return json({ payees: [] });
+    if (url.pathname === `/api/bank-sync/candidates/${id}/matches`)
+      return json({ merge: [], link: [], transfers: [] });
+    if (url.pathname === `/api/assignment-rules/candidates/${id}`)
+      return json({
+        suggestions: [],
+        cleanup: { cleaned: 'Shop A', payeeId: null },
+        candidateRevision: revision,
+      });
+    throw new Error(`Unexpected synthetic read: ${url.pathname}`);
+  });
+  const { client } = mount(`/konten/${a}`);
+  await screen.findByText(/Letzter Umsatz · −12,01\s€/);
+  await userEvent.click(screen.getByText('Vorschläge beim Öffnen prüfen', { exact: true }));
+  await screen.findByRole('option', { name: 'Kategorie A' });
+  await userEvent.selectOptions(
+    screen.getByRole('combobox', { name: 'Kategorie' }),
+    'category-724',
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Als Buchung bestätigen' }).getAttribute('disabled'),
+    ).toBeNull(),
+  );
+  await userEvent.click(await screen.findByRole('button', { name: 'Als Buchung bestätigen' }));
+  const key = inboxPagesQuery(
+    'all',
+    undefined,
+    'newest',
+    undefined,
+    'umsaetze',
+    undefined,
+    a,
+  ).queryKey;
+  await waitFor(() =>
+    expect(client.getQueryData<{ pages: ReturnType<typeof page>[] }>(key)?.pages[0]?.count).toBe(0),
+  );
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: 'Regel daraus erstellen' })).toBeTruthy();
+    expect(screen.queryByText(/Letzter Umsatz · −12,01\s€/)).toBeNull();
+    expect(screen.getByRole('region', { name: 'Bankumsätze prüfen' })).toBeTruthy();
+  });
+  expect(posts).toEqual([
+    {
+      path: `/api/bank-sync/candidates/${id}/confirm`,
+      body: {
+        categoryId: 'category-724',
+        candidateRevision: revision,
+        actions: { categoryId: 'category-724', payeeId: null },
+      },
+    },
+  ]);
+  expect(forbiddenWrites.splice(0)).toEqual(['POST']);
 });

@@ -641,6 +641,16 @@ function InboxBodyContent({
   const remaining = serverPaginated
     ? Math.max((totalEntries ?? entries.length) - entries.length, 0)
     : entries.length - shown;
+  if (
+    accountScoped &&
+    !pending &&
+    !error &&
+    !nextPageError &&
+    count === 0 &&
+    entries.length === 0 &&
+    !learnBookingId
+  )
+    return null;
   return (
     <section className="kinbox" aria-labelledby={headingId}>
       <SectionHead

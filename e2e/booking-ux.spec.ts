@@ -228,7 +228,7 @@ test('single payee suggestion selects its recent account and leaves account cont
     date: '2026-10-01',
     amountCents: -321,
   });
-  await page.goto(`/konten/${first.id}?panel=buchung`);
+  await page.goto('/konten/buchungen?panel=buchung');
   let panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await panel.getByLabel('Empfänger', { exact: true }).fill('Laden Bei');
   const list = panel.getByRole('listbox', { name: 'Empfänger, Vorschläge' });
