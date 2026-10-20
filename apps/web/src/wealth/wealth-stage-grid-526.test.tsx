@@ -337,7 +337,7 @@ it('keeps distinct 95-percent errors on both invalid off-focus stage rows and se
 });
 
 it('retains an explicitly chosen fifth row, unmanaged absence and custom zero/300bp when becoming static', async () => {
-  const { user, writes, onSaved } = await mount();
+  const { user, writes, onSaved, save } = await mount();
   const row = within(screen.getByRole('table', { name: 'Vermögensstufen' })).getByRole('row', {
     name: 'Stufe 5',
   });
@@ -358,7 +358,10 @@ it('retains an explicitly chosen fifth row, unmanaged absence and custom zero/30
   await user.selectOptions(b.getByRole('combobox', { name: 'Musterklasse B · Band' }), 'custom');
   const customBand = b.getByLabelText('Musterklasse B · Band (Prozentpunkte)');
   await user.clear(customBand);
-  await user.type(customBand, '3,00');
+  await user.paste('3,00');
+  if (!(customBand instanceof HTMLInputElement))
+    throw new TypeError('Expected the native custom band field');
+  expect(customBand.value).toBe('3,00');
   const e = await options('Musterklasse E');
   await user.click(
     e.getByRole('checkbox', { name: 'Im Sollmodell berücksichtigen · Musterklasse E' }),
@@ -367,7 +370,12 @@ it('retains an explicitly chosen fifth row, unmanaged absence and custom zero/30
   await user.click(
     within(row).getByRole('radio', { name: 'Stufe 5 für einfache Sollquoten behalten' }),
   );
-  await user.click(screen.getByRole('checkbox', { name: 'Dynamische Stufen nach Anlagesumme' }));
+  const dynamicLabel = screen.getByText('Dynamische Stufen nach Anlagesumme', {
+    selector: 'label',
+  });
+  await user.click(
+    within(dynamicLabel).getByRole('checkbox', { name: 'Dynamische Stufen nach Anlagesumme' }),
+  );
   expect(screen.queryByRole('table', { name: 'Vermögensstufen' })).toBeNull();
   expect(screen.queryByLabelText('Musterklasse E · Soll (%)')).toBeNull();
   const managedZero = screen.getByLabelText('Musterklasse F · Soll (%)');
@@ -375,7 +383,9 @@ it('retains an explicitly chosen fifth row, unmanaged absence and custom zero/30
     throw new TypeError('Expected managed zero, not unmanaged');
   expect(managedZero.value).toBe('0,00');
   expect(writes).toEqual([]);
-  await user.click(screen.getByRole('button', { name: 'Sollquoten speichern' }));
+  expect(save.isConnected).toBe(true);
+  expect(save.textContent).toBe('Sollquoten speichern');
+  await user.click(save);
   await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
   expect(writes).toEqual([
     {
