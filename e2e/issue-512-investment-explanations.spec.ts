@@ -244,10 +244,11 @@ async function checkSurfaces(page: Page, info: TestInfo, label: string, touch: b
     await page.getByRole('button', { name: 'Portfolio öffnen', exact: true }).click();
     await expect(page).toHaveURL(/vermoegen\/portfolio\?zeitraum=1M/);
     const overview = page.getByRole('region', { name: 'Portfolioentwicklung', exact: true });
-    await overview.locator('summary').click();
+    const returnSummary = overview.getByTestId('portfolio-return');
+    await returnSummary.click();
     await expect(overview.getByText('Kostenmethode: FIFO', { exact: true })).toBeVisible();
     await expect(overview.getByText(/Allokationsstand.*20\.09\.2026/)).toBeVisible();
-    await expect(overview.locator('summary')).not.toContainText('≈');
+    await expect(returnSummary).not.toContainText('≈');
     await expect(overview.getByTestId('portfolio-overview-chart')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
