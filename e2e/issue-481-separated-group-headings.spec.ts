@@ -827,10 +827,12 @@ for (const theme of ['light', 'dark'] as const) {
       const measurements: Awaited<ReturnType<typeof recordNarrowDesktopBoundary>>[] = [];
       const writes: string[] = [];
       const controlledInput = {
-        tableInlineWidth: '579.421875px',
-        exactExpectedTableWidth: 579.421875,
+        naturalTableWidth: null as number | null,
+        tableInlineWidth: null as string | null,
+        exactExpectedTableWidth: null as number | null,
+        fractionalPart: 0.421875,
         scope:
-          'Controlled test input from natural joint-CI geometry; not a natural local CI reproduction.',
+          'Controlled per-engine input: ceil(recorded natural width) + literal 0.421875px; not identical natural CI geometry.',
         observedJointCiRun: '39406413753',
         observedJointCiReadingsSha256: '5ada82cc',
       };
@@ -887,18 +889,24 @@ for (const theme of ['light', 'dark'] as const) {
               elements.map((element) => (element as HTMLElement).dataset['categoryId']).sort(),
             ),
         ).toEqual(expectedIds);
-        await capture('natural-local-width-before-controlled-input');
-        // Explicit controlled fixture dimension, copied literally from the natural joint-CI reading.
-        // No font, zoom, table-layout, tolerance or production CSS override is applied.
-        await table.evaluate((element) => {
-          (element as HTMLElement).style.width = '579.421875px';
-        });
+        const natural = await capture('natural-local-width-before-controlled-input');
+        expect(Number.isFinite(natural.table.rect.width)).toBe(true);
+        expect(natural.table.rect.width).toBeGreaterThan(0);
+        // Preserve the observed CI fractional part while exceeding this engine's intrinsic minimum.
+        // No font, zoom, table-layout, tolerance or other style override is applied.
+        const controlledWidth = Math.ceil(natural.table.rect.width) + 0.421875;
+        controlledInput.naturalTableWidth = natural.table.rect.width;
+        controlledInput.exactExpectedTableWidth = controlledWidth;
+        controlledInput.tableInlineWidth = `${controlledWidth}px`;
+        await table.evaluate((element, width) => {
+          (element as HTMLElement).style.width = `${width}px`;
+        }, controlledWidth);
         const controlled = await capture('controlled-literal-width-before-original-scroll');
         expect(controlled.viewport).toEqual({ width: 768, height: 900 });
         expect(controlled.dpr).toBe(1);
         expect(controlled.coarse).toBe(false);
-        expect(controlled.table.rect.width).toBe(579.421875);
-        expect(controlled.table.style['width']).toBe('579.421875px');
+        expect(controlled.table.rect.width).toBe(controlledWidth);
+        expect(controlled.table.rect.width % 1).toBe(0.421875);
         expect(controlled.scroller.clientWidth).toBeGreaterThan(0);
         expect(controlled.scroller.scrollWidth).toBeGreaterThan(controlled.scroller.clientWidth);
         const scroll = page.locator('.pmulti-scroll:has(.ptable-zero)');
@@ -911,7 +919,7 @@ for (const theme of ['light', 'dark'] as const) {
         await expect(action).toBeFocused();
         const reached = await capture('controlled-width-after-original-scroll-and-focus');
         const diagnostic = JSON.stringify({ theme, controlledInput, reached });
-        expect(reached.table.rect.width).toBe(579.421875);
+        expect(reached.table.rect.width).toBe(controlledWidth);
         expect(reached.header.text).toBe('Verfügbar');
         expect(reached.header.textRange.width).toBeGreaterThan(0);
         expect(reached.action.rect.width).toBeGreaterThan(0);
@@ -947,7 +955,7 @@ for (const theme of ['light', 'dark'] as const) {
                 measurements,
                 writes,
                 scope:
-                  'Controlled literal table-width regression; original natural old481 boundary oracle is unchanged.',
+                  'Controlled per-engine fractional table-width regression; original natural old481 boundary oracle is unchanged.',
               },
               null,
               2,
