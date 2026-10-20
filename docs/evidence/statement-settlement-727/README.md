@@ -44,6 +44,15 @@ images do not establish unobstructed reading of the whole form at once.
 
 Current UI 15/15, source-original eligibility rejection/positive controls,
 migration-copy/backup and projection checks are separate focused checkpoints.
-They are not summed with the native batch. Net-only/difference reconciliation and
+They are not summed with the native batch.
+
+The first integrated required check stopped before units on formatting of the
+NEW generated 0046 snapshot. Types passed; ESLint had no errors and one existing
+warning. That failed check did not run a normal production build.
+
+The integrated checkpoint `5c1855e0` passed the required AGE1/one-worker full
+check: 575 files / 5,157 tests, 799.95s Vitest duration. The following
+normal production build passed. Exact-head CI and serial LIVE remain pending.
+ Net-only/difference reconciliation and
 the represented-source reassessment editor remain OPEN; backend acknowledged
 reassessment preserves the same credit/history. #727 remains a partial delivery.

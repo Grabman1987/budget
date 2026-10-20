@@ -1680,6 +1680,9 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
 - [Feature guide](statement-settlement.md) and [four synthetic originals with
   photographic limits](evidence/statement-settlement-727/README.md). Full-page
   captures include internal scroll/background and toast-overlapped prose; strict
-  action 44px/text/hit checks passed. Empty-draft privacy is scoped. Integrated
-  full check/normal build, exact-head CI and LIVE remain pending. Net-only/difference
+  action 44px/text/hit checks passed. Empty-draft privacy is scoped. The first integrated check stopped before units on generated 0046 JSON
+  formatting; no normal build ran. Later integrated AGE1/one-worker full check
+  at `5c1855e0` passed 575 files / 5,157 tests
+  (799.95s Vitest duration), then normal production build passed. Exact-head
+  CI and serial LIVE remain pending. Net-only/difference
   reconciliation and uncertain partial credits remain OPEN; #727 is not marked complete.

@@ -84,7 +84,14 @@ migration and backup coverage.
 
 A fresh-build canonical WebKit batch passed seven cases: four explicit desktop/phone
 and theme scenes plus three setup cases. The [synthetic originals and limits](evidence/statement-settlement-727/README.md)
-record measured actions, independent Undo and scoped privacy evidence. Integrated
-required full check/normal production build, exact-head CI and LIVE remain pending. Net-only/difference extraction/reconciliation, uncertain
+record measured actions, independent Undo and scoped privacy evidence.
+
+The first integrated required check stopped before units on formatting of the
+NEW generated 0046 snapshot. Types passed; ESLint had no errors and one existing
+warning. That failed check did not run a normal production build.
+
+The integrated checkpoint `5c1855e0` passed the required AGE1/one-worker full
+check: 575 files / 5,157 tests, 799.95s Vitest duration. The following
+normal production build passed. Exact-head CI and serial LIVE remain pending. Net-only/difference extraction/reconciliation, uncertain
 partial credits and the represented-source reassessment editor remain OPEN.
 #727 is not marked complete. All examples and committed evidence are synthetic.
