@@ -1,5 +1,7 @@
 import { ReportPeriodControl } from '../reports/period-quick-select';
 import { Term } from '../reports/term';
+import { PortfolioCalculationDisclosure } from '../reports/portfolio-calculation-disclosure-512';
+import type { ValuationNote } from '../ledger/valuation-hint';
 import type { ReactNode } from 'react';
 import { useAmountPrivacy, DimensionChain, Button } from '@budget/ui';
 import { cents, type Period } from '@budget/domain';
@@ -115,6 +117,7 @@ export function PortfolioPerformanceReport({
         {!query.isError && query.data && (
           <PerformanceBody
             summary={query.data.portfolio}
+            incomplete={query.data.incomplete}
             onOpenPortfolio={() =>
               void navigate({
                 to: '/vermoegen/portfolio',
@@ -153,9 +156,11 @@ function PeriodControl({
 
 function PerformanceBody({
   summary,
+  incomplete,
   onOpenPortfolio,
 }: {
   summary: PortfolioSummary;
+  incomplete?: ValuationNote[] | undefined;
   onOpenPortfolio: () => void;
 }) {
   useAmountPrivacy();
@@ -228,6 +233,7 @@ function PerformanceBody({
             angenommen.
           </p>
         )}
+        <PortfolioCalculationDisclosure summary={summary} incomplete={incomplete} />
       </section>
       <PerformanceComparisons summary={summary} />
       <section className="performance-realized" aria-labelledby="realized-gain-title">
