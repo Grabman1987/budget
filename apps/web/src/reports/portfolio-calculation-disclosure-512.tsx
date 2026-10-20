@@ -53,11 +53,17 @@ export function HistoricalBasisCue({
 }) {
   if (reasons.length === 0) return null;
   return (
-    <div className="vnote" id={id} role="status" aria-label="Historische Bewertungsgrundlage">
-      <p>
+    <div
+      className="vnote"
+      style={{ maxWidth: 'none', minWidth: 0, margin: 0, flex: '1 1 32rem' }}
+      id={id}
+      role="status"
+      aria-label="Historische Bewertungsgrundlage"
+    >
+      <span>
         {reasons.join(' · ')}. Nur Schlussbewertungen der Wertpapiere; kein Qualitätsnachweis
         sämtlicher Renditeeingaben.
-      </p>
+      </span>{' '}
       <a
         className="btn btn-ghost"
         style={{ minHeight: 44, whiteSpace: 'normal' }}

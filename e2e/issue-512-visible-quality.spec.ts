@@ -3,6 +3,7 @@ import { openDatabase } from '@budget/db';
 import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { test } from './isolated-ledger';
+import { sampleTest, SAMPLE_NOW, SAMPLE_URL } from './sample';
 const DAY = '2026-09-20';
 test.use({ ledgerToday: DAY });
 const TABLES = [
@@ -386,3 +387,115 @@ for (const label of ['configured-profile', 'desktop-layout'] as const) {
     }
   });
 }
+
+sampleTest(
+  'sample-default portfolio chart and complete cue fit the original desktop viewport',
+  async ({ page, browser, browserName }, info) => {
+    const context = await browser.newContext({
+      baseURL: SAMPLE_URL,
+      storageState: await page.context().storageState(),
+      viewport: { width: 1440, height: 900 },
+      isMobile: false,
+      hasTouch: false,
+      deviceScaleFactor: 1,
+      colorScheme: 'light',
+      reducedMotion: 'reduce',
+      serviceWorkers: 'block',
+    });
+    const actual = await context.newPage();
+    try {
+      await actual.clock.setFixedTime(new Date(SAMPLE_NOW));
+      await actual.goto('/vermoegen/portfolio');
+      await expect(actual.getByTestId('portfolio-gain')).toContainText('€');
+      const region = actual.getByRole('region', { name: 'Portfolioentwicklung', exact: true });
+      const cue = region.getByRole('status', { name: 'Historische Bewertungsgrundlage' });
+      await expect(cue).toBeVisible();
+      await expect(cue).toContainText(
+        'Nur Schlussbewertungen der Wertpapiere; kein Qualitätsnachweis sämtlicher Renditeeingaben.',
+      );
+      const original = region.getByTestId('portfolio-return');
+      await expect(original.locator('..')).not.toHaveAttribute('open', '');
+      const link = cue.getByRole('link', { name: 'Bewertungsquellen ansehen' });
+      const geometry = await actual.evaluate(() => {
+        const rect = (el: Element | null) => {
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return {
+            x: r.x,
+            y: r.y,
+            width: r.width,
+            height: r.height,
+            right: r.right,
+            bottom: r.bottom,
+          };
+        };
+        const cue = document.querySelector(
+          '[role="status"][aria-label="Historische Bewertungsgrundlage"]',
+        )!;
+        const text = cue.firstElementChild!;
+        const link = cue.querySelector('a')!;
+        const r = link.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        const css = (el: Element) => {
+          const s = getComputedStyle(el);
+          return {
+            display: s.display,
+            marginTop: s.marginTop,
+            marginBottom: s.marginBottom,
+            maxWidth: s.maxWidth,
+            fontSize: s.fontSize,
+            lineHeight: s.lineHeight,
+          };
+        };
+        return {
+          scrollX,
+          scrollY,
+          viewport: { width: innerWidth, height: innerHeight },
+          DPR: devicePixelRatio,
+          coarse: matchMedia('(pointer: coarse)').matches,
+          rawMaxTouchPoints: navigator.maxTouchPoints,
+          chart: rect(document.querySelector('[data-testid="portfolio-overview-chart"]')),
+          lead: rect(document.querySelector('[data-testid="portfolio-value"]')),
+          summary: rect(document.querySelector('[data-testid="portfolio-return"]')),
+          cue: rect(cue),
+          text: rect(text),
+          link: rect(link),
+          cueText: cue.textContent,
+          cueStyle: css(cue),
+          textStyle: css(text),
+          linkOwnsCentre: hit === link || (!!hit && link.contains(hit)),
+          hit: hit ? { tag: hit.tagName, class: hit.getAttribute('class'), rect: rect(hit) } : null,
+        };
+      });
+      await mkdir(info.outputPath('diagnostics'), { recursive: true });
+      await writeFile(
+        info.outputPath('diagnostics', 'sample-default-before-interaction.json'),
+        JSON.stringify({ engine: browserName, project: info.project.name, ...geometry }, null, 2),
+      );
+      await actual.screenshot({
+        path: info.outputPath('diagnostics', 'sample-default-before-interaction.png'),
+        animations: 'disabled',
+      });
+      expect(geometry.viewport).toEqual({ width: 1440, height: 900 });
+      expect(geometry.scrollX).toBe(0);
+      expect(geometry.scrollY).toBe(0);
+      expect(geometry.chart).not.toBeNull();
+      expect(geometry.chart!.bottom).toBeLessThan(geometry.viewport.height);
+      expect(geometry.link).not.toBeNull();
+      expect(geometry.link!.width).toBeGreaterThanOrEqual(44);
+      expect(geometry.link!.height).toBeGreaterThanOrEqual(44);
+      expect(geometry.link!.x).toBeGreaterThanOrEqual(0);
+      expect(geometry.link!.y).toBeGreaterThanOrEqual(0);
+      expect(geometry.link!.right).toBeLessThanOrEqual(geometry.viewport.width);
+      expect(geometry.link!.bottom).toBeLessThanOrEqual(geometry.viewport.height);
+      expect(geometry.linkOwnsCentre).toBe(true);
+      await link.focus();
+      await actual.keyboard.press('Enter');
+      const sources = actual.getByText('Historische Bewertungsquellen', { exact: true });
+      await expect(sources.locator('..')).toHaveAttribute('open', '');
+      await expect(sources).toBeFocused();
+    } finally {
+      await context.close();
+    }
+  },
+);

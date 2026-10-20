@@ -127,38 +127,38 @@ export function PortfolioOverview() {
         />
       )}
       {performance && (
-        <details className="wealth-details">
-          <summary
-            data-testid="portfolio-return"
-            aria-describedby={basisReasons.length ? basisId : undefined}
-          >
-            Rendite p. a.{' '}
-            {performance.ttwrorAnnualised !== null &&
-            Number.isFinite(performance.ttwrorAnnualised) &&
-            performance.days > 0
-              ? percent(performance.ttwrorAnnualised)
-              : '—'}{' '}
-            (zeitgewichtet) <Info size={18} strokeWidth={1.75} aria-hidden="true" />
-          </summary>
-          <p className="vnote">
-            Zeitgewichtete Rendite nach Portfolio Performance, auf ein Jahr umgerechnet. Zuflüsse
-            zählen am Tagesanfang, Abflüsse am Tagesende. Wertpapiere ohne Depotkassa: nach
-            Gebühren, vor Steuern. {longDay(performance.from)} bis {longDay(performance.to)}. Kurze
-            Zeiträume können stark schwanken. Die Renditen werden auf Basis 100 verkettet. Ohne
-            Kapital einschließlich Tageszuflüssen bleibt der betreffende Tag als Lücke sichtbar; die
-            Linie zeigt dieselbe zeitgewichtete Entwicklung wie die Reports.
-          </p>
-          {query.data && (
-            <PortfolioCalculationDisclosure
-              summary={query.data.portfolio}
-              incomplete={query.data.incomplete}
-              sourceId={sourceId}
-            />
-          )}
-        </details>
-      )}
-      {performance && (
-        <HistoricalBasisCue reasons={basisReasons} id={basisId} sourceId={sourceId} />
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: 12 }}>
+          <details className="wealth-details" style={{ flex: '0 1 auto', minWidth: 0 }}>
+            <summary
+              data-testid="portfolio-return"
+              aria-describedby={basisReasons.length ? basisId : undefined}
+            >
+              Rendite p. a.{' '}
+              {performance.ttwrorAnnualised !== null &&
+              Number.isFinite(performance.ttwrorAnnualised) &&
+              performance.days > 0
+                ? percent(performance.ttwrorAnnualised)
+                : '—'}{' '}
+              (zeitgewichtet) <Info size={18} strokeWidth={1.75} aria-hidden="true" />
+            </summary>
+            <p className="vnote">
+              Zeitgewichtete Rendite nach Portfolio Performance, auf ein Jahr umgerechnet. Zuflüsse
+              zählen am Tagesanfang, Abflüsse am Tagesende. Wertpapiere ohne Depotkassa: nach
+              Gebühren, vor Steuern. {longDay(performance.from)} bis {longDay(performance.to)}.
+              Kurze Zeiträume können stark schwanken. Die Renditen werden auf Basis 100 verkettet.
+              Ohne Kapital einschließlich Tageszuflüssen bleibt der betreffende Tag als Lücke
+              sichtbar; die Linie zeigt dieselbe zeitgewichtete Entwicklung wie die Reports.
+            </p>
+            {query.data && (
+              <PortfolioCalculationDisclosure
+                summary={query.data.portfolio}
+                incomplete={query.data.incomplete}
+                sourceId={sourceId}
+              />
+            )}
+          </details>
+          <HistoricalBasisCue reasons={basisReasons} id={basisId} sourceId={sourceId} />
+        </div>
       )}
       {hasHistory ? (
         <div className="portfolio-chart-frame">

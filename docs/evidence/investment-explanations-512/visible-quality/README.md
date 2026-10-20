@@ -1,27 +1,24 @@
 # #512 — visible historical valuation basis
 
-**Local checks passed; CI/LIVE pending.** Source basis: `codex/512-visible-result-quality`, clean local join `36819f9e4a7ff6f74ada59659bb8ca9490c440cb` (B414 +reviewed A724540f). This evidence-only addition preserves the five source files. Earlier focused/browser runs used Main49 plus the same B product code, not the later joint tree.
+**Current focused/browser checks and normal production build passed; exact-head CI and LIVE acceptance pending.** Basis: verified Main84bb plus the reviewed visible-basis code and compact layout. Earlier full-check and browser checkpoints below retain their original scope; they are not reruns on this layout.
 
-## Behavior and public acceptance evidence
+## Behavior and acceptance scope
 
-Report TTWROR and compact Wealth now show an adjacent historical-basis cue from the **same response's selected closing observations**. Carried quote/FX dates (including exact-age carry), estimated cost, later execution, unavailable values and unknown/truncated sources remain distinct and can coexist. Unrelated current cash FX cannot qualify fresh selected history. The link opens/focuses existing sources; original return text/verdict, amounts, period and legacy limitation remain. No formula/API/DTO/resolver or existing test changed in this stage.
+Report TTWROR and compact Wealth qualify the **same response’s selected security closing observations**. Carried quote/FX (including short exact-age carry), cost estimates, later execution, missing values and unknown/truncated sources remain distinct and can coexist. Unrelated current cash FX cannot qualify fresh selected history. The adjacent44px action opens/focuses the existing sources; original result text/verdict, amounts, method, period and destinations remain unchanged. No formula/API/DTO/resolver or existing test changed.
 
-1. **Method/scope/quality:** NEW literal consumer cases preserve10000→11400/gain1400/+14%, PP conventions and relevant selected-history distinctions. Closing metadata does not certify all return inputs; flow-FX/fee-tax/benchmark/cash/class-sleeve provenance stays excluded. [Earlier explanation/source/undo evidence](../../investment-explanations-512.md) remains historical.
-2. **Profiles/privacy/unavailable:** both themes/profiles passed supported source input/focus,44px/full-viewport/centre, Report-only Axe, Overview114.00→mask/no114, tooltip/inspected aria/title privacy, empty and real required-FX503. The11-selected-table and post-setup API write-request observer (non-GET/HEAD/OPTIONS) are scoped evidence, not full-DB/auth/all-application guarantees.
-3. **Navigation:** original compact disclosure, Report→Wealth→catalog/back and1M retention passed without a new destination.
-4. **Regression/delivery:** the actual checks below passed. All four public ACs remain unchecked until final joined-head CI/LIVE acceptance. Parent508 and private Gate3 remain open separately.
+The compact cue shares the closed Wealth return row and wraps naturally on phone. Every reason and the closing-only limitation stays visible. Closing metadata excludes flow-FX, fee/tax, benchmark, cash and class-sleeve observations; it does not certify every return input. [Earlier explanation/source/undo evidence](../../investment-explanations-512.md) remains historical. All four public ACs await final CI/LIVE acceptance; parent508 and private Gate3 remain open separately.
 
-## Actual validation
+## Current actual evidence
 
-- Focused **36/36**,13.60s Vitest duration (NEW22+old14), Webtypes/lint4/format4 and17 exits0.
-- First fresh-build native batch **11/12**,100.710133s Playwright duration. The first phone Report centre-hit check failed after default scroll alignment; exact interceptor was unrecorded. Later phone assertions were unreached. Older five cases passed. The failed archive remains intact.
-- Corrected OWN helper: pre/post diagnostics, one ordinary centred scroll and unchanged strict assertions. **7/7 first-attempt**,60.407289s, setup3+NEWfour; same168 fresh-build outputs reused, all21 exits0. Four phone pre-targets were off-viewport/hit=null; all eight post-targets passed. No forced click, retry, timeout/tolerance or product-CSS change.
-- Joined check80959 previously stopped on unused NEW `info` at lint, before units/build. Removing only that binding preserved all case bodies. Cheap lint/format then passed.
-- Current mandatory AGE1/workers2 aggregate99774: **563 files/5023 tests passed,472.72s Vitest duration**; normal production build0; all17 exits0/source3536/fullmodes/index/HEAD/process/lock exact. Normal production intentionally replaced native168 outputs with157 outputs; no post-build browser rerun is claimed.
+- Focused **36/36**, four files (NEW22+old14), **14.30s Vitest duration**; Webtypes, lint/check5 and two-UI formatter AST correspondence passed.
+- The NEW sample-default1440×900 case uses the unchanged synthetic sample, route, period and value mode from the original Wealth test. Baseline fresh-build RED reproduced **chart bottom1002.375**, scroll0. The correction measured **884.875<900**, scroll0; source action44px, fully in-viewport and owning its centre, then Enter opened/focused the original disclosure. No viewport tolerance, clipping or scroll workaround was added to that geometry case.
+- One fresh E2E build followed by canonical **9/9 first-attempt**, **101.832271s Playwright duration**: setup3+OWNfive+unchanged Wealth test. No skipped/flaky/unexpected cases; all30 physical exits/source3545/compiled166/process/container/lock guards0. OWN cases retain default30s; the original Wealth test retains its existing180s.
+- That unchanged Wealth test regenerated seven tracked JPGs. Their raw outputs were archived, then all seven original bytes/full modes were restored before the separate post-source guard. They were not unchanged throughout and no new baseline was accepted.
+- Prior mandatory AGE1/workers2 full check on local36819 (B414+reviewed A540f, whose incoming tree equals LIVE84bb): **563 files/5023 tests,472.72s Vitest duration**, normal build0. It predates this two-file layout fix and NEW geometry case. Earlier unused-binding lint STOP, first12-case phone hit failure, corrected7 and older-five checkpoints remain retained historical evidence. Current-layout normal production build19383 passed, all12 physical exits/source guards0; native166 outputs became normal157 outputs. No post-normal-build browser run is claimed. New exact-head CI remains pending.
 
-## Original images and limits
+## Eight current originals and limits
 
-Root and the independent reviewer opened/hash-verified all8 originals. Eight matching runtime objects and16 byte-equal reporter copies remain in the external native archive.
+Root, the author and the independent reviewer opened all eight; current source/native/image review is HIGH CLEAR. Eight matching runtime objects and sixteen byte-equal reporter copies remain outside the repository, alongside the separate pre-interaction sample geometry JSON/PNG.
 
 | Scene | Light | Dark |
 | --- | --- | --- |
@@ -30,11 +27,11 @@ Root and the independent reviewer opened/hash-verified all8 originals. Eight mat
 | Desktop Report | [Original](desktop-light-report.png) | [Original](desktop-dark-report.png) |
 | Desktop Wealth | [Original](desktop-light-overview.png) | [Original](desktop-dark-overview.png) |
 
-WebKit configured CSS390×664/coarse/DPR3→PNG1170 and manual1440×900/fine/DPR1→PNG1440, both themes. RawMaxTouchPoints=0; LIGHT attribute null/unset, DARK=`dark`. Touch protocol is not physical iPhone or Chromium evidence. **Actual fixed nav/topbar/skiplink and desktop search/sidebar overlap other photo content.** No unobscured whole-page claim; target usability comes from separate post-scroll input/focus/hit proofs.
+WebKit CSS390×664/coarse/DPR3→PNG1170 and true1440×900/fine/DPR1→PNG1440, both themes. RawMaxTouchPoints0; LIGHT attribute unset, DARKdark. Supported touch/Enter is not physical-device or Chromium proof. Actual fixed nav/skiplink/topbar/search/sidebar overlap other full-page photo content; the long phone previews do not prove every off-frame text legible. Target hit/focus and default chart bounds have separate assertions. Axe is Report-only; privacy covers inspected Overview amount/tooltip/ARIA/title channels. The11-selected-table conservation and post-setup non-GET/HEAD/OPTIONS API observer are not full-DB/auth/all-application guarantees.
 
-## Reproduction and pending delivery
+## Reproduction
 
-Use the existing Node22 environment and shared lock. The browser command below reused exact E2E outputs from the first batch's `npm run build:e2e`.
+Use Node22 and the shared test lock. Preserve/archive/restore the original Wealth test’s seven media outputs when reproducing its unchanged case.
 
 ```bash
 . /workspace/.budget-tools/env.sh
@@ -44,12 +41,11 @@ npx --no-install vitest run \
   apps/web/src/pages/portfolio-performance-disclosure-512.test.tsx \
   apps/web/src/wealth/portfolio-overview-disclosure-512.test.tsx \
   --maxWorkers=1 --no-file-parallelism
+npm run build:e2e
 bash /workspace/.budget-tools/cloud-control/run-webkit.sh \
   /workspace/cloud-investment-explanations-512 test \
-  e2e/issue-512-visible-quality.spec.ts \
+  e2e/issue-512-visible-quality.spec.ts e2e/wealth-ux-v1.spec.ts \
   --project=webkit-iphone --workers=1 --reporter=json
-BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check
-npm run build
 ```
 
-Exact-head CI, serial integration and fresh LIVE proof remain pending. If later Main differs from the tested joint tree, Root must assess its exact delta before reusing this full result. No automatic acceptance, closure or Gate3 claim follows.
+Independent final-head review, exact-head CI and serial LIVE proof remain gates. No automatic public-AC/closure/private-Gate3 claim follows.
