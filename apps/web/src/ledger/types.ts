@@ -1,7 +1,7 @@
 import type { AccountReviewStatus, CashValuation } from '@budget/domain';
 
 /** Shapes of the ledger API (`docs/api-ledger.md`); amounts are integer cents, days `YYYY-MM-DD`. */
-import type { WithValuationNotes } from './valuation-hint';
+import type { ValuationSource, WithValuationNotes } from './valuation-hint';
 
 export const ACCOUNT_ROLES = ['budget', 'reserve', 'investment', 'debt', 'receivable'] as const;
 export type AccountRole = (typeof ACCOUNT_ROLES)[number];
@@ -63,6 +63,7 @@ export interface AccountRow {
   holdingsCents: number | null;
   /** Entire account value in EUR, or null when a required security quote or FX rate is missing. */
   valueEurCents: number | null;
+  valuationSources?: ValuationSource[];
   cashValuation?: CashValuation;
   pendingValuation?: CashValuation;
   /** FX currencies that prevented this account's EUR valuation. */
@@ -88,6 +89,7 @@ export interface AccountRow {
 }
 
 export interface AccountList extends WithValuationNotes {
+  valuationSources?: ValuationSource[];
   asOf: string;
   accounts: AccountRow[];
   netWorthEurCents: number | null;

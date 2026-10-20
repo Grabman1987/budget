@@ -54,7 +54,20 @@ test('a position without market quote is valued at cost and flagged; the first q
 
   await page.goto('/konten');
   await expect(page.getByTestId('net-worth')).not.toHaveText('Nicht verfügbar');
-  await expect(page.getByTestId('valuation-hint')).toContainText(hint);
+  const accountMarker = page.getByTestId('net-worth').locator('..').getByRole('button', {
+    name: 'Bewertungsgrundlage · Nettovermögen',
+    exact: true,
+  });
+  await expect(accountMarker).toHaveText('≈');
+  await accountMarker.focus();
+  const accountSource = page.locator(
+    `[id="${await accountMarker.getAttribute('aria-describedby')}"]`,
+  );
+  await expect(accountSource).toBeVisible();
+  await expect(accountSource).toContainText(name);
+  await expect(accountSource).toContainText('Einstandswert als Schätzung');
+  await expect(page.getByTestId('valuation-hint')).toHaveCount(0);
+  await page.keyboard.press('Escape');
   await expect(page.getByText('Wechselkurs fehlt', { exact: false })).toHaveCount(0);
 
   await page.goto('/');
@@ -64,7 +77,26 @@ test('a position without market quote is valued at cost and flagged; the first q
   await expect(page.getByRole('heading', { name: 'Fällig 14 Tage' })).toHaveCount(0);
   await expect(page.locator('.heute-check-counts')).toBeVisible();
   await expect(page.locator('.heute-net-worth')).not.toContainText('Bewertung nicht verfügbar');
-  await expect(page.locator('.heute-net-worth').getByTestId('valuation-hint')).toContainText(hint);
+  const todayMarker = page.locator('.heute-net-worth').getByRole('button', {
+    name: 'Bewertungsgrundlage · Nettovermögen',
+    exact: true,
+  });
+  await expect(todayMarker).toHaveText('≈');
+  await todayMarker.focus();
+  const todaySource = page.locator(`[id="${await todayMarker.getAttribute('aria-describedby')}"]`);
+  await expect(todaySource).toBeVisible();
+  await expect(todaySource).toContainText(name);
+  await expect(todaySource).toContainText('Einstandswert als Schätzung');
+  await expect(page.getByTestId('valuation-hint')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.getByText('1 Wertpapier ohne aktuellen Kurs', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Kurse prüfen', exact: true })).toHaveCount(1);
+  const todayResponse = await request.get(`${origin}/api/heute`);
+  expect(todayResponse.status()).toBe(200);
+  expect((await todayResponse.json()).attention.quoteReview).toEqual({
+    count: 1,
+    securityIds: [security.id],
+  });
 
   await page.goto('/reports/peinzahlungen?zeitraum=YTD');
   await expect(page.getByTestId('contributions-end-value')).toContainText('≈');

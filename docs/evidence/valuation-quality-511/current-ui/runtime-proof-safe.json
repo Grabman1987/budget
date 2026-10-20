@@ -1,0 +1,348 @@
+{
+  "schemaVersion": 1,
+  "purpose": "synthetic current UI follow-up evidence, no DB/auth/trace/HTML/report copies",
+  "baseHead": "c7e13d5ee2a6200eb9cb683a0549a798dc0b73ae",
+  "sourceQualifier": "ten reviewed dirty UI/test paths, frozen exactly throughout runtime; not a separate clean delivery commit",
+  "sourceFreezeSha256": "b96a270c60abddfb0988d8bd361588142d830012e18ce750a6734754670c8dd7",
+  "source": {
+    "owned": 41,
+    "tracked": 3435,
+    "protected": 18,
+    "headStatusIndexBytesAndFullModesUnchanged": true,
+    "financialSource805eUnchanged": true
+  },
+  "actualRuntime": {
+    "session": 22624,
+    "stats": {
+      "startTime": "2026-10-20T04:25:48.593Z",
+      "duration": 95898.754,
+      "expected": 11,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "phaseAndGuardExits": {
+      "discovery.exit": 0,
+      "evidence-guard.exit": 0,
+      "compiled-before.exit": 0,
+      "build-e2e.exit": 0,
+      "lock-free.exit": 0,
+      "wrapper.exit": 0,
+      "original-phase.exit": 0,
+      "post-guard.exit": 0,
+      "prior-archive.exit": 0,
+      "process-guard.exit": 0,
+      "discovery-guard.exit": 0,
+      "compiled-guard.exit": 0,
+      "archive.exit": 0,
+      "native.exit": 0
+    },
+    "freshBuild": "npm run build:e2e exit0 before browser run",
+    "compiledFiles": 168,
+    "compiledBytesAndModesUnchanged": true,
+    "compiledManifestSha256": "ff89bfe91aab080d328f42c7635c1417fb73d3bfcbc3965731d187ca40cffa1e"
+  },
+  "selection": {
+    "project": "webkit-iphone",
+    "workers": 1,
+    "setupCases": 3,
+    "own511Cases": 2,
+    "old582Cases": 4,
+    "oldLoanCases": 2,
+    "actualTotal": 11,
+    "excludedOldSpecs": [
+      "e2e/missing-quotes.spec.ts",
+      "e2e/heute-cards.spec.ts"
+    ],
+    "remainingChromiumGate": "unchanged desktop/mobile Chromium CI, including old582 desktop-only sidebar branch"
+  },
+  "captures": [
+    {
+      "path": "docs/evidence/valuation-quality-511/current-ui/valuation-configured-profile-accounts-dark.png",
+      "sha256": "a4a148492966d30c0beae79e5b3489d01deb2150ba91e14ae86b02c8b2fb4561",
+      "pixels": {
+        "width": 1170,
+        "height": 2586
+      },
+      "originalPhysicalRuntimeSha256": "57c006aabd9be6371a6d6707df16266a904fa9a58ce923e4694dcf2206eb7e43",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "configured-profile",
+        "surface": "accounts",
+        "configuredContext": {
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "isMobile": true,
+          "hasTouch": true,
+          "deviceScaleFactor": 3
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "coarse": true,
+        "deviceScaleFactor": 3,
+        "rawMaxTouchPoints": 0,
+        "theme": "dark"
+      }
+    },
+    {
+      "path": "docs/evidence/valuation-quality-511/current-ui/valuation-configured-profile-accounts-light.png",
+      "sha256": "24420289b599215b43e3f6eac8595e94807773e5b8b39dc7eff99cdb28247a48",
+      "pixels": {
+        "width": 1170,
+        "height": 2586
+      },
+      "originalPhysicalRuntimeSha256": "5ad663ac9770282106e306ee4a43a0d8ecf6241dbe150ea0834f683d29c57130",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "configured-profile",
+        "surface": "accounts",
+        "configuredContext": {
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "isMobile": true,
+          "hasTouch": true,
+          "deviceScaleFactor": 3
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "coarse": true,
+        "deviceScaleFactor": 3,
+        "rawMaxTouchPoints": 0,
+        "theme": "system"
+      }
+    },
+    {
+      "path": "docs/evidence/valuation-quality-511/current-ui/valuation-configured-profile-today-dark.png",
+      "sha256": "15793328b5151cf0d9a70afd053e74d1ea450ed6b43e3cab9c9ebeb36b4c9010",
+      "pixels": {
+        "width": 1170,
+        "height": 9486
+      },
+      "originalPhysicalRuntimeSha256": "930d2f6a720c40d06afed6b2a0ec6939a81a7a558de73f5326223e265b917e1f",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "configured-profile",
+        "surface": "today",
+        "configuredContext": {
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "isMobile": true,
+          "hasTouch": true,
+          "deviceScaleFactor": 3
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "coarse": true,
+        "deviceScaleFactor": 3,
+        "rawMaxTouchPoints": 0,
+        "theme": "dark"
+      }
+    },
+    {
+      "path": "docs/evidence/valuation-quality-511/current-ui/valuation-configured-profile-today-light.png",
+      "sha256": "4c41f5c39e123a99ece388413189e82d6d67bc39c9ade7c8c6d765f3043e4504",
+      "pixels": {
+        "width": 1170,
+        "height": 9486
+      },
+      "originalPhysicalRuntimeSha256": "ad8b427214046659691201d9b263544d280f90017839eab655e5cfd624079e65",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "configured-profile",
+        "surface": "today",
+        "configuredContext": {
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "isMobile": true,
+          "hasTouch": true,
+          "deviceScaleFactor": 3
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "coarse": true,
+        "deviceScaleFactor": 3,
+        "rawMaxTouchPoints": 0,
+        "theme": "system"
+      }
+    },
+    {
+      "path": "docs/evidence/valuation-quality-511/current-ui/valuation-desktop-layout-accounts-dark.png",
+      "sha256": "9be691bc466a1713ef63c13d25599a41160f76b78be560c5206d799fc85cc5ee",
+      "pixels": {
+        "width": 1440,
+        "height": 900
+      },
+      "originalPhysicalRuntimeSha256": "65382f46c379ec88a7c95b85d124fb9374cf7339d7d2be648d2ad1eb0e63847f",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "desktop-layout",
+        "surface": "accounts",
+        "configuredContext": {
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "isMobile": false,
+          "hasTouch": false,
+          "deviceScaleFactor": 1
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "coarse": false,
+        "deviceScaleFactor": 1,
+        "rawMaxTouchPoints": 0,
+        "theme": "dark"
+      }
+    },
+    {
+      "path": "docs/evidence/valuation-quality-511/current-ui/valuation-desktop-layout-accounts-light.png",
+      "sha256": "a15fe1d473b2e597783231d89480d7e4fc6b3f8696694bcb8f5a2638893665da",
+      "pixels": {
+        "width": 1440,
+        "height": 900
+      },
+      "originalPhysicalRuntimeSha256": "debb1ce1db999646cba3ebbc36d5f56ddbc82fa9be481a56813cecb6996e71ae",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "desktop-layout",
+        "surface": "accounts",
+        "configuredContext": {
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "isMobile": false,
+          "hasTouch": false,
+          "deviceScaleFactor": 1
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "coarse": false,
+        "deviceScaleFactor": 1,
+        "rawMaxTouchPoints": 0,
+        "theme": "light"
+      }
+    },
+    {
+      "path": "docs/evidence/valuation-quality-511/current-ui/valuation-desktop-layout-today-dark.png",
+      "sha256": "6ae6fc94001ec26c7488177d8b5ce0bd84f4511cb3ad6e76385a8dce9109beec",
+      "pixels": {
+        "width": 1440,
+        "height": 2933
+      },
+      "originalPhysicalRuntimeSha256": "f57417556748aab5d4d296f31ed55e5d97967f46ece0af366689c91f659c3991",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "desktop-layout",
+        "surface": "today",
+        "configuredContext": {
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "isMobile": false,
+          "hasTouch": false,
+          "deviceScaleFactor": 1
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "coarse": false,
+        "deviceScaleFactor": 1,
+        "rawMaxTouchPoints": 0,
+        "theme": "dark"
+      }
+    },
+    {
+      "path": "docs/evidence/valuation-quality-511/current-ui/valuation-desktop-layout-today-light.png",
+      "sha256": "828d8ee42e86ffc0b369372a18e0f93740948cc444c477d81b2e34d5b091a754",
+      "pixels": {
+        "width": 1440,
+        "height": 2933
+      },
+      "originalPhysicalRuntimeSha256": "b93ef88e2f7bf2bb4f95170fd63169639fd421ac7b16731076217bdbaf4c40e9",
+      "runtime": {
+        "engine": "webkit",
+        "project": "webkit-iphone",
+        "label": "desktop-layout",
+        "surface": "today",
+        "configuredContext": {
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "isMobile": false,
+          "hasTouch": false,
+          "deviceScaleFactor": 1
+        },
+        "actions": "Playwright click/focus; no observed touch-event claim",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "coarse": false,
+        "deviceScaleFactor": 1,
+        "rawMaxTouchPoints": 0,
+        "theme": "light"
+      }
+    }
+  ],
+  "captureCount": 8,
+  "physicalRuntimeRecordCount": 8,
+  "byteIdenticalReporterCopyCount": 8,
+  "configurations": [
+    "configured phone390x664 coarse/DPR3/mobile+touch configured/rawMaxTouchPoints0",
+    "actual WebKit desktop1440x900 fine/DPR1/not mobile/not touch/rawMaxTouchPoints0"
+  ],
+  "review": {
+    "rootOpenedAllEightOriginals": true,
+    "independentReviewerOpenedAllEightOriginals": true,
+    "independentReviewer": "valuation_aggregate_review",
+    "disposition": "HIGH CLEAR with explicit capture limits"
+  },
+  "limits": [
+    "System light is raw theme=system where recorded; resolved legitimate OS light, not a forced explicit light attribute",
+    "Genuine WebKit with an explicit desktop layout context is not Chromium acceptance or a physical device",
+    "Actions are Playwright click/focus/keyboard; no observed trusted touch or unobstructed whole-page hit-test claim",
+    "Full-page Today photographs include focused skiplink/sticky shell/fixed-nav/FAB framing; lower-content photographic overlap is qualified",
+    "Manual quote PUT and audited undo are intentional synthetic writes; full-table native read-only proof is not claimed",
+    "Historical77855 eight tracked captures and old runtime proof remain byte-exact and separately qualified",
+    "Earlier AGE full5565 is a financial/source baseline before these four UI-only corrections, not a post-UI local aggregate rerun",
+    "Required exact-head CI, targeted shell baseline review and serial LIVE verification remain pending"
+  ]
+}

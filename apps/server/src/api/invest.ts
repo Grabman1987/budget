@@ -64,6 +64,7 @@ import {
   nextExecutionAfter,
   parseScaledDecimal,
   parseRegionWeights,
+  ValuationLimitError,
 } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
@@ -711,7 +712,7 @@ export function portfolioRoutes(db: Db, today: () => string): Hono {
         ),
       });
     } catch (error) {
-      if (error instanceof ContributionHistoryLimitError)
+      if (error instanceof ContributionHistoryLimitError || error instanceof ValuationLimitError)
         throw new ApiError(
           422,
           'calculation_limit',
