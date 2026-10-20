@@ -1494,3 +1494,16 @@ Local evidence: pre-merge Node 22 typecheck/lint exit 0 and six focused files **
 - [ ] Corrected baseline actual-image approval and required final exact-head aggregate CI with every configured static/Linux/Windows unit/visual/browser/restore check, final PR and serial exact live revision. Local full533/4687 and normal production build0 remain historical; scoped CSS/lint/format and whole native8 cover the CSS-only local follow-up, without a new local full claim or any CI waiver. #606 and parent #482 remain unaccepted until their own gates pass.
 
 Evidence: [payment detail history](evidence/payment-history-606.md).
+
+## #590 — checkbox-free phone selection (current local proof; delivery pending)
+
+- [x] Phone checkbox-free category/group/all selection, explicit keyboard/menu entry, real hold and readonly exit remain distinct from ordinary inspection, collapse/add and unchanged financial callbacks.
+- [x] Historical26/26 component tests passed9.48s with affected types/lint/CSS/format/discovery0; compatibility-click shielding and deliberate fresh gestures remain protected.
+- [x] Root committed source5 at9cb82f44 and inherited verified LIVE Main9c509fae at167983. Root-only existing phone-UI adapters now preserve every logical category/membership, cent/source/undo oracle and original geometry limits.
+- [x] Current working freeze312a: clean85302 fresh REGULAR production build0, then canonical20/20PASS3.6m (NEW590four + existing481ten/588two/Compactone + setupthree); all18/3427/source modes/index/head and158freshcompiled bytes/modes exact, native/wrapper/guard/lock0. Original Compact public-scroll/sticky-toolbar assertion passes with phone/Plan-only actualroot scroll-padding64+56; ineffective targetmargin removed, no added stickybar.
+- [x] Literal4000/6000 assignment, actual undo0/0/TBA10000, existing cent/refusal/cover/keyboard flows and trusted703ms original-button/capture/touch identity, explicit cancel/move plus final noPOST/budget/accounts all reached/PASS. Native accepted compatibilityclick, automaticOS-pan and physical-phone proof are not claimed.
+- [x] Six actual current unedited images: NEWphone390×664/390×844 and EXISTING481 manual1440×900/noMobile/noTouch, both themes; source-specific profile/DPR/framing limits retained. Geometry boxes5/4 per measured band/parent are not logical category counts; phone inclusive70/72.78125/149.78125 within unchanged76/76/152.
+- [x] Historical40944seven-case proof/build39305reuse,84121two failures,6621targetmargin failure and isolatedprotocol controls remain qualified. First71913log20PASS was interrupted by environment restart without wrapper/postguards; current85302 is the completed independent clean rerun. Generatedlegacy481PNG preserved outside then exact originalHEADbytes/mode restored, not a baseline approval.
+- [ ] Required final AGE aggregate check and normal production build, exact-head canonical Chromium/remainingCI including protectedghost/inspector projects, serial integration and verified live revision. #590 remains open.
+
+Evidence: [phone selection590](evidence/phone-selection-590/README.md).

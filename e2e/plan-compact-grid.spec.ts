@@ -2,6 +2,41 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page } from '@playwright/test';
 import { test } from './isolated-ledger';
 
+/** Phone-only equivalents for the owner-approved explicit selection controls. */
+async function enterPhoneSelection(page: Page) {
+  const options = page.locator('details.plan-menu').filter({
+    has: page.locator('summary', { hasText: 'Optionen' }),
+  });
+  await options.locator('summary').click();
+  await options.getByRole('button', { name: 'Auswählen', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Kategorienauswahl', exact: true })).toBeVisible();
+}
+async function exitPhoneSelection(page: Page) {
+  const bar = page.getByRole('region', { name: 'Kategorienauswahl', exact: true });
+  await bar.getByRole('button', { name: 'Auswahl beenden', exact: true }).click();
+  await expect(bar).toHaveCount(0);
+}
+async function expectPhoneSelectionTargets(page: Page) {
+  const categories = page.locator('.ptable .pname:visible');
+  const toggles = page.locator('.ptable .plan-select-toggle:visible');
+  expect(await categories.count()).toBeGreaterThan(0);
+  const headings = page.locator('.ptable .group-heading:visible');
+  expect(await headings.count()).toBeGreaterThan(0);
+  await expect(toggles).toHaveCount(await headings.count());
+  for (const heading of await headings.all())
+    await expect(heading.locator('.plan-select-toggle')).toHaveCount(1);
+  await expect(
+    page.getByRole('button', { name: 'Alle Kategorien auswählen', exact: true }),
+  ).toHaveCount(1);
+  for (const controls of [categories, toggles]) {
+    for (let index = 0; index < (await controls.count()); index++) {
+      const bounds = (await controls.nth(index).boundingBox())!;
+      expect(bounds.width).toBeGreaterThanOrEqual(44);
+      expect(bounds.height).toBeGreaterThanOrEqual(44);
+    }
+  }
+}
+
 // #481: shared bands retain both original category and parent compactness budgets.
 async function compactDimensions(page: Page) {
   return page.locator('.plan').evaluate((plan) => {
@@ -130,30 +165,75 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   await expect(page.locator('.prow .spending-status').nth(2)).toHaveText(
     'Komplett ausgegeben · fehlt 5,00 € bis Ziel',
   );
-  await page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }).check();
-  const selectedCategories = page.locator(
-    '.ptable tbody > tr.prow > td.col-name > label.plan-select > input[type="checkbox"]:checked',
-  );
-  const firstParent = page.getByRole('checkbox', {
-    name: 'Gruppe Mustergruppe 1 auswählen',
-    exact: true,
-  });
-  const secondParent = page.getByRole('checkbox', {
-    name: 'Gruppe Mustergruppe 2 auswählen',
-    exact: true,
-  });
-  await expect(selectedCategories).toHaveCount(18);
-  await expect(firstParent).toBeChecked();
-  await expect(secondParent).toBeChecked();
-  await firstParent.uncheck();
-  await expect(selectedCategories).toHaveCount(9);
-  await expect(firstParent).not.toBeChecked();
-  await expect(secondParent).toBeChecked();
-  await expect(
-    page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }),
-  ).toHaveJSProperty('indeterminate', true);
-  await page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }).check();
-  await page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }).uncheck();
+  if (page.viewportSize()!.width < 768) {
+    await enterPhoneSelection(page);
+    const all = page.getByRole('button', { name: 'Alle Kategorien auswählen', exact: true });
+    const firstParent = page.getByRole('button', {
+      name: 'Gruppe Mustergruppe 1 auswählen',
+      exact: true,
+    });
+    const secondParent = page.getByRole('button', {
+      name: 'Gruppe Mustergruppe 2 auswählen',
+      exact: true,
+    });
+    const selectedCategories = page.locator('.ptable .pname[aria-pressed="true"]');
+    await expect(page.locator('.ptable .pname')).toHaveCount(18);
+    await expectPhoneSelectionTargets(page);
+    await all.click();
+    await expect(selectedCategories).toHaveCount(18);
+    for (const id of categoryIds)
+      await expect(page.locator(`.pname[data-category-id="${id}"]`)).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+    await expect(firstParent).toHaveAttribute('aria-pressed', 'true');
+    await expect(secondParent).toHaveAttribute('aria-pressed', 'true');
+    await firstParent.click();
+    await expect(selectedCategories).toHaveCount(9);
+    for (const [index, id] of categoryIds.entries())
+      await expect(page.locator(`.pname[data-category-id="${id}"]`)).toHaveAttribute(
+        'aria-pressed',
+        index < 9 ? 'false' : 'true',
+      );
+    await expect(firstParent).toHaveAttribute('aria-pressed', 'false');
+    await expect(secondParent).toHaveAttribute('aria-pressed', 'true');
+    await expect(all).toHaveAttribute('aria-pressed', 'mixed');
+    await all.click();
+    await expect(selectedCategories).toHaveCount(18);
+    await expect(all).toHaveAttribute('aria-pressed', 'true');
+    await all.click();
+    await expect(selectedCategories).toHaveCount(0);
+    await expect(all).toHaveAttribute('aria-pressed', 'false');
+    await expect(
+      page.getByRole('region', { name: 'Kategorienauswahl', exact: true }),
+    ).toBeVisible();
+    await exitPhoneSelection(page);
+  } else {
+    await page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }).check();
+    const selectedCategories = page.locator(
+      '.ptable tbody > tr.prow > td.col-name > label.plan-select > input[type="checkbox"]:checked',
+    );
+    const firstParent = page.getByRole('checkbox', {
+      name: 'Gruppe Mustergruppe 1 auswählen',
+      exact: true,
+    });
+    const secondParent = page.getByRole('checkbox', {
+      name: 'Gruppe Mustergruppe 2 auswählen',
+      exact: true,
+    });
+    await expect(selectedCategories).toHaveCount(18);
+    await expect(firstParent).toBeChecked();
+    await expect(secondParent).toBeChecked();
+    await firstParent.uncheck();
+    await expect(selectedCategories).toHaveCount(9);
+    await expect(firstParent).not.toBeChecked();
+    await expect(secondParent).toBeChecked();
+    await expect(
+      page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }),
+    ).toHaveJSProperty('indeterminate', true);
+    await page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }).check();
+    await page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }).uncheck();
+  }
   await expect(page.getByTestId('to-be-assigned')).toHaveText('1.909,82 €');
   await expect(page.getByText('Unterfinanziert 90,00 €', { exact: true })).toBeVisible();
   const firstBand = page.locator('.ptable tbody > tr.pmulti').first();
@@ -278,7 +358,7 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
       const dimensions = await compactDimensions(page);
       expect(dimensions.heights).toHaveLength(18);
       expect(dimensions.groups).toHaveLength(2);
-      expect(dimensions.categoryCounts).toEqual([6, 6]);
+      expect(dimensions.categoryCounts).toEqual([5, 5]);
       expect(dimensions.parentCounts).toEqual([4, 4]);
       expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(76);
       expect(Math.max(...dimensions.groups)).toBeLessThanOrEqual(76);
@@ -290,12 +370,14 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
       const toolbar = (await page.locator('.ptoolbar').boundingBox())!;
       expect(toolbar.y).toBeGreaterThanOrEqual(topbar.y + topbar.height);
       await page.evaluate(() => window.scrollTo(0, 0));
+      await enterPhoneSelection(page);
+      await expectPhoneSelectionTargets(page);
+      await exitPhoneSelection(page);
       for (const selector of [
         '.grp-toggle',
         '.plan-add',
         '.pname',
         '.plan-available',
-        '.plan-select',
         '.plan-topbar summary',
         '.plan-chip-scroll > .btn',
       ]) {

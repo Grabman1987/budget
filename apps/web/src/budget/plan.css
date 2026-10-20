@@ -1680,6 +1680,9 @@
   margin: 0 0 0 4px;
 }
 @media (max-width: 767px) {
+  html:has(.plan .ptoolbar) {
+    scroll-padding-top: calc(64px + 56px);
+  }
   .plan .plan-topbar {
     top: 64px;
     flex-wrap: wrap;
