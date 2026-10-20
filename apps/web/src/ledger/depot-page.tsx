@@ -16,12 +16,18 @@ import { longDay, nativeCurrency } from './format';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
 import './depot.css';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 const TABS = { bestaende: 'Bestände', trades: 'Trades', verrechnung: 'Verrechnung' } as const;
 type DepotTab = keyof typeof TABS;
 
-export function DepotBody({ account }: { account: AccountRow }) {
+export function DepotBody({
+  account,
+  bankReview,
+}: {
+  account: AccountRow;
+  bankReview?: ReactNode;
+}) {
   useAmountPrivacy();
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -90,6 +96,7 @@ export function DepotBody({ account }: { account: AccountRow }) {
           </Link>
         </p>
       )}
+      {bankReview}
       <nav className="depot-tabs" aria-label="Depotansicht">
         {Object.entries(TABS).map(([key, label]) => (
           <Link

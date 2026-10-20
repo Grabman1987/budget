@@ -61,6 +61,8 @@ import {
   holdingValuesAsOf,
   portfolioFlows,
   valuationSeries,
+  valuationProvenanceCollector,
+  type ValuationProvenance,
 } from './portfolio';
 import { MissingFxRateError } from './errors';
 import { investmentPreferences } from './investment-preferences';
@@ -86,6 +88,8 @@ export interface PortfolioOptions {
   /** Build the bounded report 4.3 series from the valuation/flow data already loaded here. */
   includeContributionHistory?: boolean;
   includePerformanceHistory?: boolean;
+  /** Explicit, versioned observation of the same securities closing valuations only. */
+  valuationProvenance?: 'valuation-v1';
 }
 
 export interface PositionLine {
@@ -133,6 +137,7 @@ export interface PlatformShare {
 }
 
 export interface PortfolioSummary {
+  valuationProvenance?: ValuationProvenance;
   quality: AllocationQuality;
   asOf: string;
   costMethod: CostMethod;
@@ -727,7 +732,9 @@ export function portfolioSummary(db: Executor, options: PortfolioOptions): Portf
     options.today,
     performanceStart(db, options, options.today) ?? options.today,
   );
-  return withValuationRange(range.from, range.to, () => portfolioSummaryInRange(db, options));
+  return withValuationRange(range.from, range.to, () =>
+    portfolioSummaryInRange(db, options, range),
+  );
 }
 
 /** Cash is part of depot performance even before the first security holding exists. */
@@ -776,7 +783,11 @@ function performanceStart(db: Executor, options: PortfolioOptions, today: string
   );
 }
 
-function portfolioSummaryInRange(db: Executor, options: PortfolioOptions): PortfolioSummary {
+function portfolioSummaryInRange(
+  db: Executor,
+  options: PortfolioOptions,
+  range: { from: string; to: string },
+): PortfolioSummary {
   const { costMethod } = investmentPreferences(db);
   const today = periodWindow(options.period ?? '1J', options.today).to;
   const period = options.period ?? '1J';
@@ -817,6 +828,17 @@ function portfolioSummaryInRange(db: Executor, options: PortfolioOptions): Portf
 
   // ---- performance of the period ----
   const start = performanceStart(db, options, today);
+  const provenance =
+    options.valuationProvenance === 'valuation-v1'
+      ? valuationProvenanceCollector(
+          start === null
+            ? null
+            : {
+                from: range.from < start ? start : range.from,
+                to: today,
+              },
+        )
+      : undefined;
   let performance: WindowPerformance | null = null;
   let performanceHistory: PortfolioPerformanceHistory | null = null;
   let benchmark: PortfolioSummary['benchmark'] = null;
@@ -825,7 +847,11 @@ function portfolioSummaryInRange(db: Executor, options: PortfolioOptions): Portf
   let contributionHistory: ContributionHistory | null | undefined =
     options.includeContributionHistory ? null : undefined;
   if (start !== null) {
-    const series = valuationSeries(db, { from: start, to: today });
+    const series = valuationSeries(
+      db,
+      { from: start, to: today },
+      provenance ? { observe: provenance.observe } : {},
+    );
     const days = series.days;
     let total = series.totalCents;
     if (view === 'depot') {
@@ -1148,6 +1174,7 @@ function portfolioSummaryInRange(db: Executor, options: PortfolioOptions): Portf
       securities: Object.fromEntries([...loaded.securities].map(([id, s]) => [id, s.name])),
       institutions: Object.fromEntries(loaded.institutions),
     },
+    ...(provenance ? { valuationProvenance: provenance.finish() } : {}),
   };
 }
 

@@ -87,8 +87,8 @@ export function InboxPage() {
           </AppLink>
         </p>
       )}
-      {!search.bankSource && <InboxAccountReminders />}
       <InboxWorkflow bankSource={search.bankSource} />
+      {!search.bankSource && <InboxAccountReminders />}
     </PageFrame>
   );
 }
@@ -132,11 +132,13 @@ export function InboxWorkflow({
   entryIds,
   detailEntry,
   bankSource,
+  bankAccountId,
   readSource,
 }: {
   entryIds?: string[] | undefined;
   detailEntry?: InboxStored | undefined;
   bankSource?: string | undefined;
+  bankAccountId?: string | undefined;
   readSource?: string | undefined;
 }) {
   useAmountPrivacy();
@@ -173,6 +175,7 @@ export function InboxWorkflow({
       entryIds={entryIds}
       detailEntry={detailEntry}
       bankSource={bankSource}
+      bankAccountId={bankAccountId}
       readSource={readSource}
       onEdit={(id) => void edit(id)}
       loadingId={loading}
@@ -203,6 +206,7 @@ function InboxBody({
   entryIds,
   detailEntry,
   bankSource,
+  bankAccountId,
   readSource,
   onEdit,
   loadingId,
@@ -211,11 +215,21 @@ function InboxBody({
   entryIds?: string[] | undefined;
   detailEntry?: InboxStored | undefined;
   bankSource?: string | undefined;
+  bankAccountId?: string | undefined;
   readSource?: string | undefined;
   onEdit: (id: string) => void;
   loadingId: string | null;
   onSavings: (proposal: SavingsExecutionProposal) => void;
 }) {
+  if (bankAccountId)
+    return (
+      <AccountBankInboxBody
+        accountId={bankAccountId}
+        onEdit={onEdit}
+        loadingId={loadingId}
+        onSavings={onSavings}
+      />
+    );
   if (readSource)
     return (
       <ReadSourceMovementsBody
@@ -271,6 +285,47 @@ type InboxBodyProps = {
   loadingId: string | null;
   onSavings: (proposal: SavingsExecutionProposal) => void;
 };
+
+/** A separate account-keyed queue; account navigation never changes global Prüfen filters. */
+function AccountBankInboxBody({ accountId, ...props }: InboxBodyProps & { accountId: string }) {
+  const queue = useInfiniteQuery(
+    inboxPagesQuery('all', undefined, 'newest', undefined, 'umsaetze', undefined, accountId),
+  );
+  const loadingMore = useRef(false);
+  const loadMore = async () => {
+    if (loadingMore.current || queue.isFetching || !queue.hasNextPage) return;
+    loadingMore.current = true;
+    try {
+      await queue.fetchNextPage();
+    } finally {
+      loadingMore.current = false;
+    }
+  };
+  const failed = queue.isError && !queue.isFetchNextPageError;
+  const pages = failed ? [] : (queue.data?.pages ?? []);
+  const firstPage = pages[0];
+  return (
+    <InboxBodyContent
+      {...props}
+      entries={pages.flatMap((page) => page.entries)}
+      count={firstPage?.count}
+      totalEntries={firstPage?.totalEntries}
+      countsByKind={firstPage?.countsByKind}
+      countsByCause={firstPage?.countsByCause}
+      pending={queue.isPending}
+      error={failed ? queue.error : null}
+      nextPageError={queue.isFetchNextPageError ? queue.error : null}
+      onRetry={() => void queue.refetch()}
+      onRetryNextPage={() => void loadMore()}
+      showReceipts={false}
+      serverPaginated
+      accountScoped
+      hasMore={queue.hasNextPage}
+      loadingMore={queue.isFetching}
+      loadMore={() => void loadMore()}
+    />
+  );
+}
 
 function ReadSourceMovementsBody({ sourceId, ...props }: InboxBodyProps & { sourceId: string }) {
   const [title, setTitle] = useState('');
@@ -513,6 +568,7 @@ function InboxBodyContent({
   segmentCounts,
   detailView = false,
   groupByTitle = false,
+  accountScoped = false,
   readSourceSummaries,
   pending,
   error,
@@ -537,6 +593,7 @@ function InboxBodyContent({
   segmentCounts?: { shown: InboxSegment; counts: Record<InboxSegment, number> } | undefined;
   detailView?: boolean;
   groupByTitle?: boolean;
+  accountScoped?: boolean;
   readSourceSummaries?: { sourceId: string | null; name: string; count: number }[] | undefined;
   pending: boolean;
   error: Error | null;
@@ -552,7 +609,8 @@ function InboxBodyContent({
   useAmountPrivacy();
   const entries = received.filter((entry): entry is TaskEntry => entry.type !== 'envelope');
   const headingId = useId();
-  const search = useSearch({ strict: false }) as InboxSearch;
+  const routeSearch = useSearch({ strict: false }) as InboxSearch;
+  const search: Partial<InboxSearch> = accountScoped ? {} : routeSearch;
   const navigate = useNavigate();
   const writes = useLedgerWrites();
   const write = useBudgetWrite();
@@ -575,7 +633,7 @@ function InboxBodyContent({
     setBusy(null);
   };
   const groups: (Exclude<InboxKind, 'overspent'> | null)[] =
-    search.bankSource || groupByTitle
+    accountScoped || search.bankSource || groupByTitle
       ? [null]
       : (Object.keys(LABELS) as Exclude<InboxKind, 'overspent'>[]);
   let room = serverPaginated ? entries.length : shown;
@@ -583,11 +641,27 @@ function InboxBodyContent({
   const remaining = serverPaginated
     ? Math.max((totalEntries ?? entries.length) - entries.length, 0)
     : entries.length - shown;
+  if (
+    accountScoped &&
+    !pending &&
+    !error &&
+    !nextPageError &&
+    count === 0 &&
+    entries.length === 0 &&
+    !learnBookingId
+  )
+    return null;
   return (
     <section className="kinbox" aria-labelledby={headingId}>
       <SectionHead
         id={headingId}
-        title={groupByTitle ? 'Bewegungen zu prüfen' : 'Offene Entscheidungen'}
+        title={
+          accountScoped
+            ? 'Bankumsätze prüfen'
+            : groupByTitle
+              ? 'Bewegungen zu prüfen'
+              : 'Offene Entscheidungen'
+        }
         aside={
           segmentCounts
             ? `${segmentCounts.counts[segmentCounts.shown]} offen`
@@ -604,11 +678,13 @@ function InboxBodyContent({
       )}
       {count === 0 && (
         <EmptyNote>
-          {groupByTitle
-            ? 'Keine offenen Bewegungen vorhanden.'
-            : readSourceSummaries?.length
-              ? 'Keine offenen Entscheidungen vorhanden.'
-              : 'Prüfen leer. Es sind keine offenen Aufgaben vorhanden.'}
+          {accountScoped
+            ? 'Keine offenen Bankumsätze für dieses Konto.'
+            : groupByTitle
+              ? 'Keine offenen Bewegungen vorhanden.'
+              : readSourceSummaries?.length
+                ? 'Keine offenen Entscheidungen vorhanden.'
+                : 'Prüfen leer. Es sind keine offenen Aufgaben vorhanden.'}
         </EmptyNote>
       )}
       {!pending && !error && count !== 0 && entries.length === 0 && (
@@ -632,7 +708,11 @@ function InboxBodyContent({
             />
           )}
           <table className="rev-table kinbox-table">
-            <caption className="sr-only">Offene Entscheidungen nach Typ</caption>
+            <caption className="sr-only">
+              {accountScoped
+                ? 'Offene Bankumsätze dieses Kontos'
+                : 'Offene Entscheidungen nach Typ'}
+            </caption>
             <thead>
               <tr>
                 <th className="tech" scope="col" colSpan={2}>
@@ -655,9 +735,11 @@ function InboxBodyContent({
                     <th scope="rowgroup" colSpan={2}>
                       {kind
                         ? LABELS[kind]
-                        : groupByTitle
-                          ? 'Quellbewegungen'
-                          : 'Aufgaben dieser Bankquelle'}{' '}
+                        : accountScoped
+                          ? 'Bankumsätze dieses Kontos'
+                          : groupByTitle
+                            ? 'Quellbewegungen'
+                            : 'Aufgaben dieser Bankquelle'}{' '}
                       <span className="kgcount">
                         {kind ? (countsByKind?.[kind] ?? all.length) : (totalEntries ?? all.length)}
                       </span>
@@ -672,9 +754,10 @@ function InboxBodyContent({
                       : [item];
                     const total = cause ? (countsByCause?.[cause] ?? members.length) : 1;
                     if ((total > 1 || groupByTitle) && members[0]?.id !== item.id) return [];
-                    const expanded = groupByTitle
-                      ? expandedTitle === cause
-                      : search.gruppe === item.id;
+                    const expanded =
+                      groupByTitle || accountScoped
+                        ? expandedTitle === cause
+                        : search.gruppe === item.id;
                     const group =
                       total > 1 || groupByTitle ? (
                         <tr className="inbox-cause" key={`cause-${item.id}`}>
@@ -684,7 +767,7 @@ function InboxBodyContent({
                               variant="ghost"
                               aria-expanded={expanded}
                               onClick={() =>
-                                groupByTitle
+                                groupByTitle || accountScoped
                                   ? setExpandedTitle(expanded ? null : cause)
                                   : void navigate({
                                       to: '.',

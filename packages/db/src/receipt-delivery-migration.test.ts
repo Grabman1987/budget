@@ -31,6 +31,16 @@ it('migrates a copied existing ledger additively, reverses only the empty cache 
   );
   for (const entry of oldEntries)
     copyFileSync(join(source, `${entry.tag}.sql`), join(oldFolder, `${entry.tag}.sql`));
+  // Exercise migration 0044 independently of later additive migrations.
+  const targetFolder = join(folder, 'through-receipt-delivery');
+  const targetEntries = journal.entries.slice(0, migrationIndex + 1);
+  mkdirSync(join(targetFolder, 'meta'), { recursive: true });
+  writeFileSync(
+    join(targetFolder, 'meta', '_journal.json'),
+    JSON.stringify({ ...journal, entries: targetEntries }),
+  );
+  for (const entry of targetEntries)
+    copyFileSync(join(source, `${entry.tag}.sql`), join(targetFolder, `${entry.tag}.sql`));
   const sourcePath = join(folder, 'synthetic-existing.sqlite');
   let existing: OpenedDatabase | undefined;
   let copy: OpenedDatabase | undefined;
@@ -74,8 +84,8 @@ it('migrates a copied existing ledger additively, reverses only the empty cache 
     const copiedPath = join(folder, 'migration-copy.sqlite');
     copyFileSync(sourcePath, copiedPath);
     copy = openDatabase(copiedPath);
-    migrateDatabase(copy.db);
-    migrateDatabase(copy.db);
+    migrateDatabase(copy.db, targetFolder);
+    migrateDatabase(copy.db, targetFolder);
     // Only the migration journal may change among original tables; audit/financial rows are exact.
     const migrated = rows(copy);
     expect({ ...migrated, __drizzle_migrations: original['__drizzle_migrations'] }).toEqual(
@@ -94,13 +104,13 @@ it('migrates a copied existing ledger additively, reverses only the empty cache 
       .prepare('DELETE FROM __drizzle_migrations WHERE created_at = ?')
       .run(newJournal.when);
     expect(rows(copy)).toEqual(original);
-    migrateDatabase(copy.db);
+    migrateDatabase(copy.db, targetFolder);
     copy.sqlite
       .prepare('INSERT INTO receipt_delivery (key, request_hash, response_json) VALUES (?, ?, ?)')
       .run('synthetic-physical-upload-0001', 'f'.repeat(64), '{"synthetic":"acknowledged"}');
     const acknowledged = copy.sqlite.prepare('SELECT * FROM receipt_delivery').all();
     migrateDatabase(copy.db, oldFolder); // An older app must retain, never drop, durable keys.
-    migrateDatabase(copy.db);
+    migrateDatabase(copy.db, targetFolder);
     expect(copy.sqlite.prepare('SELECT * FROM receipt_delivery').all()).toEqual(acknowledged);
     expect({ ...rows(copy), __drizzle_migrations: original['__drizzle_migrations'] }).toEqual(
       original,
