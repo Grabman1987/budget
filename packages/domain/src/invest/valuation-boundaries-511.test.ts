@@ -1,8 +1,41 @@
 import { describe, expect, it } from 'vitest';
-import { marketValueCents, marketValueEurCents, toEurCents, unitsFor } from './invest';
+import {
+  marketValueCents,
+  marketValueEurCents,
+  toEurCents,
+  unitsFor,
+  ValuationLimitError,
+} from './invest';
 import { pickTradePrice, valueAtPrice } from './series';
 
 describe('#511 existing valuation arithmetic boundaries', () => {
+  it.each([
+    [
+      'operand',
+      () => toEurCents(-9_007_199_254_740_994, 1_000_000),
+      'Valuation requires safe integer operands',
+    ],
+    [
+      'result',
+      () => toEurCents(-4_503_599_627_370_497, 3_000_000),
+      'Valuation result exceeds safe integer range',
+    ],
+  ] as const)(
+    'identifies the %s boundary without weakening the existing RangeError contract',
+    (boundary, calculate, message) => {
+      expect(calculate).toThrow(RangeError);
+      expect(calculate).toThrow(ValuationLimitError);
+      try {
+        calculate();
+        throw new Error('Synthetic out-of-range conversion must be rejected');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ValuationLimitError);
+        if (!(error instanceof ValuationLimitError)) throw error;
+        expect(error.boundary).toBe(boundary);
+        expect(error.message).toBe(message);
+      }
+    },
+  );
   it('retains literal native/EUR values and one signed position-day rounding', () => {
     expect(marketValueCents(1_000_000_000, 12_000_000)).toBe(12_000);
     expect(marketValueEurCents(1_000_000_000, 12_000_000, 950_000)).toBe(11_400);

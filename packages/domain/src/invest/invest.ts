@@ -7,15 +7,26 @@
 const E12 = 10n ** 12n;
 const MAX_SAFE = BigInt(Number.MAX_SAFE_INTEGER);
 
+/** A precise valuation cannot represent its operand or result as safe integer units. */
+export class ValuationLimitError extends RangeError {
+  constructor(
+    message: string,
+    readonly boundary: 'operand' | 'result',
+  ) {
+    super(message);
+    this.name = 'ValuationLimitError';
+  }
+}
+
 function integer(value: number): bigint {
   if (!Number.isSafeInteger(value))
-    throw new RangeError('Valuation requires safe integer operands');
+    throw new ValuationLimitError('Valuation requires safe integer operands', 'operand');
   return BigInt(value);
 }
 
 function safeNumber(value: bigint): number {
   if (value > MAX_SAFE || value < -MAX_SAFE)
-    throw new RangeError('Valuation result exceeds safe integer range');
+    throw new ValuationLimitError('Valuation result exceeds safe integer range', 'result');
   return Number(value);
 }
 

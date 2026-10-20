@@ -14,6 +14,7 @@ import {
   securityFlows,
   toEurCents,
   unitsHeld,
+  ValuationLimitError,
   type CashFlow,
   type DatedPrice,
   type IncompleteValuation,
@@ -498,14 +499,33 @@ export function netWorthValuationAsOf(
   return netWorthValuationRead(db, asOf, options).valuation;
 }
 
-function netWorthValuationRead(db: Executor, asOf: string, options: ValuationOptions = {}) {
+/** Fallible debt rows keep safe native amounts when only the EUR cash result is out of range. */
+export function fallibleNetWorthValuationAsOf(db: Executor, asOf: string) {
+  const { valuation, calculationLimitAccountIds } = netWorthValuationRead(db, asOf, {}, true);
+  return { valuation, calculationLimitAccountIds };
+}
+
+function netWorthValuationRead(
+  db: Executor,
+  asOf: string,
+  options: ValuationOptions = {},
+  nullCashResultLimits = false,
+) {
   const estimate = options.estimate ?? true;
-  return memoized(db, `networth|${asOf}|${estimate}`, () =>
-    computeNetWorthValuation(db, asOf, options),
+  return memoized(
+    db,
+    `networth|${asOf}|${estimate}${nullCashResultLimits ? '|cash-result-null' : ''}`,
+    () => computeNetWorthValuation(db, asOf, options, nullCashResultLimits),
   );
 }
 
-function computeNetWorthValuation(db: Executor, asOf: string, options: ValuationOptions) {
+function computeNetWorthValuation(
+  db: Executor,
+  asOf: string,
+  options: ValuationOptions,
+  nullCashResultLimits: boolean,
+) {
+  const calculationLimitAccountIds: string[] = [];
   const cashSources: ValuationSource[] = [];
   const estimate = options.estimate ?? true;
   const accountRows = db
@@ -578,7 +598,21 @@ function computeNetWorthValuation(db: Executor, asOf: string, options: Valuation
     });
     const rate = nativeCents === 0 ? 1_000_000 : rateOrMissing(rates, currency, asOf);
     if (rate === undefined) addMissing(balance.accountId, currency);
-    else byAccount[balance.accountId] = toEurCents(nativeCents, rate);
+    else {
+      try {
+        byAccount[balance.accountId] = toEurCents(nativeCents, rate);
+      } catch (error) {
+        if (
+          !nullCashResultLimits ||
+          !(error instanceof ValuationLimitError) ||
+          error.boundary !== 'result' ||
+          !Number.isSafeInteger(nativeCents)
+        )
+          throw error;
+        byAccount[balance.accountId] = null;
+        calculationLimitAccountIds.push(balance.accountId);
+      }
+    }
   }
 
   const holdingsByAccount: Record<string, number | null> = {};
@@ -633,7 +667,12 @@ function computeNetWorthValuation(db: Executor, asOf: string, options: Valuation
       [...missingFxByAccount].map(([id, values]) => [id, [...values].sort()]),
     ),
   };
-  return { valuation: result, cashSources, holdingSources: holdingRead.sources };
+  return {
+    valuation: result,
+    cashSources,
+    holdingSources: holdingRead.sources,
+    calculationLimitAccountIds: calculationLimitAccountIds.sort(),
+  };
 }
 
 /** Current-only disclosures reuse the memoized valuation, without recomputing money. */

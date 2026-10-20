@@ -69,6 +69,50 @@ async function read<T>(path: string): Promise<T> {
   expect(response.headers.get('cache-control')).toContain('no-store');
   return response.json() as Promise<T>;
 }
+it('maps a typed safe-native EUR result overflow to the existing portfolio calculation-limit response', async () => {
+  opened.db
+    .update(schema.account)
+    .set({ openingBalanceCents: -4503599627370497 })
+    .where(eq(schema.account.id, 'depot'))
+    .run();
+  opened.db.insert(schema.fxRate).values({ currency: 'USD', date: DAY, rateMicro: 3000000 }).run();
+  const before = opened.sqlite.serialize();
+  const response = await app.request('/api/portfolio?period=1J&history=contributions');
+  expect(response.status).toBe(422);
+  const body = await response.json();
+  expect(body).toMatchObject({ error: 'calculation_limit' });
+  expect(body).not.toHaveProperty('portfolio');
+  expect(opened.sqlite.serialize().equals(before)).toBe(true);
+});
+it('does not relabel an unrelated original risk-policy RangeError as a valuation calculation limit', async () => {
+  opened.db
+    .update(schema.account)
+    .set({ openingBalanceCents: 0, currency: 'EUR' })
+    .where(eq(schema.account.id, 'depot'))
+    .run();
+  opened.db
+    .update(schema.holding)
+    .set({ costBasisCents: 10000 })
+    .where(eq(schema.holding.id, 'h'))
+    .run();
+  opened.db
+    .insert(schema.rule)
+    .values({
+      id: 'invalid-risk',
+      code: 'R13',
+      name: 'Synthetic invalid risk',
+      paramsJson: '{"maxBandBp":-1}',
+    })
+    .run();
+  const before = opened.sqlite.serialize();
+  const response = await app.request('/api/portfolio?period=1J&history=contributions');
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({
+    error: 'invalid',
+    message: 'Die gespeicherten Risikoparameter sind ungültig. Bitte das Regelwerk prüfen.',
+  });
+  expect(opened.sqlite.serialize().equals(before)).toBe(true);
+});
 it('real account and Heute routes expose the same current source choices without changing native cash or stored bytes', async () => {
   const before = opened.sqlite.serialize();
   const listed = await read<Listed>('/accounts');

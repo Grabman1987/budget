@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
+import { ValuationLimitError } from '@budget/domain';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { account, holding, price, security, trade, fxRate, valuation } from '../schema';
+import { account, booking, holding, price, security, trade, fxRate, valuation } from '../schema';
 import {
   currentValuationSources,
+  fallibleNetWorthValuationAsOf,
   holdingValuationExportAsOf,
   netWorthValuationAsOf,
 } from './portfolio';
@@ -53,6 +55,87 @@ const sources = () => currentValuationSources(opened.db, DAY);
 const one = (id: string) => sources().sources.find((s) => s.securityId === id)!;
 
 describe('current valuation facts from the actual financial read', () => {
+  it.each(['strict-first', 'fallible-first'] as const)(
+    'isolates safe-native cash result overflow from strict memoized reads (%s)',
+    (order) => {
+      opened.db
+        .insert(account)
+        .values({
+          id: 'loan',
+          name: 'Synthetic loan',
+          type: 'loan',
+          role: 'debt',
+          onBudget: false,
+          currency: 'USD',
+          openingDate: DAY,
+          openingBalanceCents: -4503599627370497,
+        })
+        .run();
+      opened.db.insert(fxRate).values({ currency: 'USD', date: DAY, rateMicro: 3000000 }).run();
+      const before = opened.sqlite.serialize();
+      runWithRequestMemo(() => {
+        if (order === 'strict-first')
+          expect(() => netWorthValuationAsOf(opened.db, DAY)).toThrow(ValuationLimitError);
+        const read = fallibleNetWorthValuationAsOf(opened.db, DAY);
+        expect(read.calculationLimitAccountIds).toEqual(['loan']);
+        expect(read.valuation).toMatchObject({
+          totalCents: null,
+          byAccount: { depot: 0, loan: null },
+          missingFxCurrencies: [],
+          missingFxByAccount: {},
+        });
+        expect(Object.keys(read.valuation).sort()).toEqual(
+          [
+            'totalCents',
+            'byAccount',
+            'holdingsByAccount',
+            'missingFxCurrencies',
+            'missingFxByAccount',
+            'missingPriceSecurityIds',
+            'missingPriceByAccount',
+            'incomplete',
+          ].sort(),
+        );
+        expect(() => netWorthValuationAsOf(opened.db, DAY)).toThrow(ValuationLimitError);
+        expect(fallibleNetWorthValuationAsOf(opened.db, DAY)).toEqual(read);
+      });
+      expect(opened.sqlite.serialize().equals(before)).toBe(true);
+    },
+  );
+  it('does not turn an unsafe native principal into a tolerated missing EUR row', () => {
+    opened.db
+      .insert(account)
+      .values({
+        id: 'loan',
+        name: 'Synthetic loan',
+        type: 'loan',
+        role: 'debt',
+        onBudget: false,
+        openingDate: DAY,
+        openingBalanceCents: -4503599627370497,
+      })
+      .run();
+    opened.db
+      .insert(booking)
+      .values({
+        id: 'large-payment',
+        accountId: 'loan',
+        date: DAY,
+        amountCents: -4503599627370497,
+        status: 'confirmed',
+      })
+      .run();
+    const before = opened.sqlite.serialize();
+    try {
+      fallibleNetWorthValuationAsOf(opened.db, DAY);
+      throw new Error('Synthetic unsafe native sum must be rejected');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ValuationLimitError);
+      if (!(error instanceof ValuationLimitError)) throw error;
+      expect(error.boundary).toBe('operand');
+    }
+    expect(opened.sqlite.serialize().equals(before)).toBe(true);
+  });
   it('reads the real dated manual-value table without shadowing it with the result object', () => {
     opened.db
       .insert(account)

@@ -503,6 +503,7 @@ describe('GET /heute', () => {
         'planningAccuracy',
         'stand',
         'upcoming14',
+        'valuationSources',
       ].sort(),
     );
     expect(res.body.stand).toMatchObject({

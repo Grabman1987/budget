@@ -1,6 +1,6 @@
 import { addDays, daysBetween } from '../date';
 import { costOf, type ProductTrade } from './cost';
-import { marketValueEurCents, toEurCents } from './invest';
+import { marketValueEurCents, toEurCents, ValuationLimitError } from './invest';
 import type { CashFlow } from './returns';
 
 /**
@@ -187,7 +187,7 @@ export function valueAtPrice(unitsE8: number, choice: PriceChoice, fxRateMicro: 
       Number.isSafeInteger,
     )
   )
-    throw new RangeError('Execution valuation requires safe integer operands');
+    throw new ValuationLimitError('Execution valuation requires safe integer operands', 'operand');
   const scaled = BigInt(unitsE8) * BigInt(choice.execution.amountCents) * BigInt(fxRateMicro);
   const denominator = BigInt(Math.abs(choice.execution.unitsE8)) * 1_000_000n;
   const negative = scaled < 0n;
@@ -195,7 +195,7 @@ export function valueAtPrice(unitsE8: number, choice: PriceChoice, fxRateMicro: 
   const signed = negative ? -rounded : rounded;
   const maximum = BigInt(Number.MAX_SAFE_INTEGER);
   if (signed > maximum || signed < -maximum)
-    throw new RangeError('Execution valuation exceeds safe integer range');
+    throw new ValuationLimitError('Execution valuation exceeds safe integer range', 'result');
   return Number(signed);
 }
 

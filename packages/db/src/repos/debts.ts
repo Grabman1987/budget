@@ -1,6 +1,6 @@
 import type { Executor } from './types';
 import { accountSummaries, type AccountSummary } from './ledger-queries';
-import { netWorthValuationAsOf } from './portfolio';
+import { fallibleNetWorthValuationAsOf } from './portfolio';
 
 export type DebtAccount = AccountSummary & {
   owedEurCents: number | null;
@@ -17,13 +17,15 @@ export interface DebtsView {
 
 /** The same negative account values as wealth composition, without strict unrelated history. */
 export function debtsAsOf(db: Executor, asOf: string): DebtsView {
-  const valuation = netWorthValuationAsOf(db, asOf);
+  const { valuation, calculationLimitAccountIds } = fallibleNetWorthValuationAsOf(db, asOf);
+  const calculationLimits = new Set(calculationLimitAccountIds);
   const accounts = accountSummaries(db, asOf).flatMap((account): DebtAccount[] => {
     const value = valuation.byAccount[account.id] ?? null;
     if (value === null ? account.balanceCents >= 0 : value >= 0) return [];
     if (!Number.isSafeInteger(account.balanceCents))
       throw new RangeError('Debt principal exceeds the safe integer range');
-    const unsafe = value !== null && !Number.isSafeInteger(value);
+    const unsafe =
+      calculationLimits.has(account.id) || (value !== null && !Number.isSafeInteger(value));
     return [
       {
         ...account,
