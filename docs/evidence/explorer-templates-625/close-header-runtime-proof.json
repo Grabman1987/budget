@@ -1,0 +1,1941 @@
+{
+  "scope": "CURRENT_CLOSE_HEADER_CANONICAL_WEBKIT_EVIDENCE_ONLY_NOT_CHROMIUM_OR_LIVE_ACCEPTANCE",
+  "source": {
+    "head": "67212b99a426ee181258bb9be9424f2e9ac0c037",
+    "dirtyOwnedPaths": [
+      "apps/web/src/reports/explorer-templates.tsx",
+      "apps/web/src/reports/explorer-report.css",
+      "apps/web/src/reports/explorer-templates-625.test.tsx",
+      "e2e/issue-625-explorer-templates.spec.ts"
+    ],
+    "actualPreSourceSHA256": "a2801f57195c8d92bece0e37f2ef081166695896dd9d27c4d8718a6cb6c0c2b9",
+    "nativeSourceSHA256": "5cf386727bf11f9b67437b11ca5194fd3228a7ca286645e7a1271cc4fe29c565",
+    "productSourceHashes": {
+      "apps/web/src/reports/explorer-report.css": "48c28d2f90c96ae3d10560434434ca9484ef837b74ef886b961a75776f805d4a",
+      "apps/web/src/reports/explorer-report.tsx": "166e313a58e59f4e9a30197a10099923e0424ef7bfb5aee7f3fa668e8767812c",
+      "apps/web/src/reports/explorer-template-api.ts": "2ac5b3a28c84b205eba56d73c4fd245d1050e7de707b1c7181b15484efe17039",
+      "apps/web/src/reports/explorer-template-trend.tsx": "3df5f78f5a871ce93389285754b42900d4ecb480b37023da16987b8b98237d26",
+      "apps/web/src/reports/explorer-templates.tsx": "b1eedf083b586e82efd9c75f9fced26f9d03ea4a759b9d77a7fc66c35731ff1f",
+      "apps/web/src/reports/report-search.ts": "170df01e9b97a997e2b8baea1fbf60e30f464241428351dc21fbaef1a2b87690",
+      "packages/domain/src/overview/explorer-templates.ts": "920ba7ec659b4f3f269ee70cc05b1b928da534e3231bd1f050344ab80319d4f3",
+      "packages/domain/src/overview/index.ts": "a715f050b42610febd1809b0165f7b563b0ed55be7b55b502354e3a5438456d8"
+    },
+    "all3397Owned33Protected12Product8HeadStatusModesExact": true
+  },
+  "actualRun": {
+    "summary": "12/12PASS2.1m;1worker;no skips/flakes/unexpected failures in actual summary",
+    "counts": {
+      "physicalInputProofs": 16,
+      "attemptProofs": 16,
+      "trustedMouseEvents": 48,
+      "physicalHitProofs": 16,
+      "returnFromBookingHitProofs": 8,
+      "separateKeyboardHeaderHitProofs": 8,
+      "heatmapHeaderPNGs": 4,
+      "profileFiles": 8,
+      "profileThemeRecords": 16
+    },
+    "exits": {
+      "wrapper.exit": "0",
+      "canonical-webkit.exit": "0",
+      "guard.exit": "0",
+      "lock-release.exit": "0",
+      "canonical-webkit.command-wait.exit": "0"
+    },
+    "resultSHA256": "0167d500ff51d115f506abee5c3a6212bd28d4f2f2af3635d3faa9ab59f97757",
+    "nativeLogSHA256": "dffaa17a073f5a0b9649a3628479884990236ed8d57c5b741f3277f28330e18b",
+    "safeIndexSHA256": "0db7883fff53f4612a6c1577af7261c242e3f55a89cad201e58ca75e2c51363e",
+    "helperSHA256": "663c45b799d4da770396b9724636611238fa457727c51ee5e0aa9d0cb7ad5a26",
+    "buildProvenance": {
+      "actualBuildWaitExit": 0,
+      "actualBuildCompositeExit": 0,
+      "compiledFiles": 167,
+      "compiledManifestSHA256": "d488382c89f276db7eec01e5b3847b4075b9bcf53366af9997d30fb07b71e02c",
+      "qualification": "Historical build0 reused under full current167set/hash and product/source guards; no new build phase claimed."
+    },
+    "all167CompiledSetAndHashesExact": true,
+    "singleFilePreparation": {
+      "resultSHA256": "a818a5f0fc9799b715944bf5845885f57e51b497030e86598a93bfc52f12b6db",
+      "actualFourCommandExits": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "actualGuardExit": 0,
+      "actualWrapperExitPreserved": 1,
+      "correctedReadOnlyDiscovery": {
+        "total": 12,
+        "own": 9,
+        "originalSetup": 3
+      },
+      "qualification": "Root independently adjudicated post-command basename counter error; no rerun or fabricated seven-phase success."
+    }
+  },
+  "profiles": [
+    {
+      "id": "category",
+      "theme": "dark",
+      "engine": "webkit",
+      "version": "27.2",
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "pixelRatio": 1,
+      "coarse": false,
+      "touchPoints": 0
+    },
+    {
+      "id": "category",
+      "theme": "light",
+      "engine": "webkit",
+      "version": "27.2",
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "pixelRatio": 1,
+      "coarse": false,
+      "touchPoints": 0
+    },
+    {
+      "id": "year",
+      "theme": "dark",
+      "engine": "webkit",
+      "version": "27.2",
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "pixelRatio": 1,
+      "coarse": false,
+      "touchPoints": 0
+    },
+    {
+      "id": "year",
+      "theme": "light",
+      "engine": "webkit",
+      "version": "27.2",
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "pixelRatio": 1,
+      "coarse": false,
+      "touchPoints": 0
+    },
+    {
+      "id": "total",
+      "theme": "dark",
+      "engine": "webkit",
+      "version": "27.2",
+      "width": 390,
+      "height": 664,
+      "documentWidth": 390,
+      "pixelRatio": 3,
+      "coarse": true,
+      "touchPoints": 0
+    },
+    {
+      "id": "total",
+      "theme": "light",
+      "engine": "webkit",
+      "version": "27.2",
+      "width": 390,
+      "height": 664,
+      "documentWidth": 390,
+      "pixelRatio": 3,
+      "coarse": true,
+      "touchPoints": 0
+    },
+    {
+      "id": "total",
+      "theme": "dark",
+      "engine": "webkit",
+      "version": "27.2",
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "pixelRatio": 1,
+      "coarse": false,
+      "touchPoints": 0
+    },
+    {
+      "id": "total",
+      "theme": "light",
+      "engine": "webkit",
+      "version": "27.2",
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "pixelRatio": 1,
+      "coarse": false,
+      "touchPoints": 0
+    },
+    {
+      "id": "heatmap",
+      "theme": "dark",
+      "engine": "webkit",
+      "version": "27.2",
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "pixelRatio": 1,
+      "coarse": false,
+      "touchPoints": 0
+    },
+    {
+      "id": "heatmap",
+      "theme": "light",
+      "engine": "webkit",
+      "version": "27.2",
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "pixelRatio": 1,
+      "coarse": false,
+      "touchPoints": 0
+    },
+    {
+      "id": "heatmap",
+      "theme": "dark",
+      "engine": "webkit",
+      "version": "27.2",
+      "width": 390,
+      "height": 664,
+      "documentWidth": 390,
+      "pixelRatio": 3,
+      "coarse": true,
+      "touchPoints": 0
+    },
+    {
+      "id": "heatmap",
+      "theme": "light",
+      "engine": "webkit",
+      "version": "27.2",
+      "width": 390,
+      "height": 664,
+      "documentWidth": 390,
+      "pixelRatio": 3,
+      "coarse": true,
+      "touchPoints": 0
+    },
+    {
+      "id": "year",
+      "theme": "dark",
+      "engine": "webkit",
+      "version": "27.2",
+      "width": 390,
+      "height": 664,
+      "documentWidth": 390,
+      "pixelRatio": 3,
+      "coarse": true,
+      "touchPoints": 0
+    },
+    {
+      "id": "year",
+      "theme": "light",
+      "engine": "webkit",
+      "version": "27.2",
+      "width": 390,
+      "height": 664,
+      "documentWidth": 390,
+      "pixelRatio": 3,
+      "coarse": true,
+      "touchPoints": 0
+    },
+    {
+      "id": "category",
+      "theme": "dark",
+      "engine": "webkit",
+      "version": "27.2",
+      "width": 390,
+      "height": 664,
+      "documentWidth": 390,
+      "pixelRatio": 3,
+      "coarse": true,
+      "touchPoints": 0
+    },
+    {
+      "id": "category",
+      "theme": "light",
+      "engine": "webkit",
+      "version": "27.2",
+      "width": 390,
+      "height": 664,
+      "documentWidth": 390,
+      "pixelRatio": 3,
+      "coarse": true,
+      "touchPoints": 0
+    }
+  ],
+  "originalMouseFlows": [
+    {
+      "rawArtifact": "625-close-input-category-1440-dark.json",
+      "rawSHA256": "d12e7cd0739a8be798a4166457ad130f5096aedb3537261f2c7f289971d0d2d3",
+      "template": "category",
+      "theme": "dark",
+      "project": "webkit-iphone",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "runtime": {
+        "devicePixelRatio": 1,
+        "maxTouchPoints": 0,
+        "coarsePointer": false
+      },
+      "events": [
+        {
+          "event": "pointerdown",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 533
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 512.1875,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "pointerup",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 533
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 511.1875,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "click",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 533
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 511.1875,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        }
+      ],
+      "selectionClearObserved": true,
+      "panelZeroObserved": true
+    },
+    {
+      "rawArtifact": "625-close-input-category-1440-light.json",
+      "rawSHA256": "811114f0f94162c4a03f1f57ec5f06dc7864a1fcd5f58ead596722a068d79a6e",
+      "template": "category",
+      "theme": "light",
+      "project": "webkit-iphone",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "runtime": {
+        "devicePixelRatio": 1,
+        "maxTouchPoints": 0,
+        "coarsePointer": false
+      },
+      "events": [
+        {
+          "event": "pointerdown",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 533
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 512.1875,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "pointerup",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 533
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 511.1875,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "click",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 533
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 511.1875,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        }
+      ],
+      "selectionClearObserved": true,
+      "panelZeroObserved": true
+    },
+    {
+      "rawArtifact": "625-close-input-year-1440-dark.json",
+      "rawSHA256": "78bd4bf8e59a52f94b45bc6d3866e271d9fd3bfaf3daecc84989c5c8bfd14e9c",
+      "template": "year",
+      "theme": "dark",
+      "project": "webkit-iphone",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "runtime": {
+        "devicePixelRatio": 1,
+        "maxTouchPoints": 0,
+        "coarsePointer": false
+      },
+      "events": [
+        {
+          "event": "pointerdown",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 532
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 511.78125,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "pointerup",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 532
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 510.78125,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "click",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 532
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 510.78125,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        }
+      ],
+      "selectionClearObserved": true,
+      "panelZeroObserved": true
+    },
+    {
+      "rawArtifact": "625-close-input-year-1440-light.json",
+      "rawSHA256": "157ced9e2e51d7036833eb36d73a5b137c8e68687e6a74773055fb8011b4bd67",
+      "template": "year",
+      "theme": "light",
+      "project": "webkit-iphone",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "runtime": {
+        "devicePixelRatio": 1,
+        "maxTouchPoints": 0,
+        "coarsePointer": false
+      },
+      "events": [
+        {
+          "event": "pointerdown",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 532
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 511.78125,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "pointerup",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 532
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 510.78125,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "click",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 532
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 510.78125,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        }
+      ],
+      "selectionClearObserved": true,
+      "panelZeroObserved": true
+    },
+    {
+      "rawArtifact": "625-close-input-total-390-dark.json",
+      "rawSHA256": "85ce843f93d22a2e6ab2516a97e9cc4a5b5299011c66e6d24ac996ec44c00d4e",
+      "template": "total",
+      "theme": "dark",
+      "project": "webkit-iphone",
+      "viewport": {
+        "width": 390,
+        "height": 664
+      },
+      "runtime": {
+        "devicePixelRatio": 3,
+        "maxTouchPoints": 0,
+        "coarsePointer": true
+      },
+      "events": [
+        {
+          "event": "pointerdown",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.703125,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "pointerup",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.703125,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "click",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.703125,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        }
+      ],
+      "selectionClearObserved": true,
+      "panelZeroObserved": true
+    },
+    {
+      "rawArtifact": "625-close-input-total-390-light.json",
+      "rawSHA256": "63a2a1e2efe0ecf1bb7ccf6e2c2987763aa2c1bbce36639522b5aa34d26f46a3",
+      "template": "total",
+      "theme": "light",
+      "project": "webkit-iphone",
+      "viewport": {
+        "width": 390,
+        "height": 664
+      },
+      "runtime": {
+        "devicePixelRatio": 3,
+        "maxTouchPoints": 0,
+        "coarsePointer": true
+      },
+      "events": [
+        {
+          "event": "pointerdown",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.703125,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "pointerup",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.703125,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "click",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.703125,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        }
+      ],
+      "selectionClearObserved": true,
+      "panelZeroObserved": true
+    },
+    {
+      "rawArtifact": "625-close-input-total-1440-dark.json",
+      "rawSHA256": "38e0a873738b895f2125b7caaaa275f751ee5fc7e76e4a96633c33fb40d15f9f",
+      "template": "total",
+      "theme": "dark",
+      "project": "webkit-iphone",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "runtime": {
+        "devicePixelRatio": 1,
+        "maxTouchPoints": 0,
+        "coarsePointer": false
+      },
+      "events": [
+        {
+          "event": "pointerdown",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 628
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 607.390625,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "pointerup",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 628
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 606.390625,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "click",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 628
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 606.390625,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        }
+      ],
+      "selectionClearObserved": true,
+      "panelZeroObserved": true
+    },
+    {
+      "rawArtifact": "625-close-input-total-1440-light.json",
+      "rawSHA256": "710d2a90831afc0ecf692a1792939304e1fd02b25b846371b09f8b35de8b4b1a",
+      "template": "total",
+      "theme": "light",
+      "project": "webkit-iphone",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "runtime": {
+        "devicePixelRatio": 1,
+        "maxTouchPoints": 0,
+        "coarsePointer": false
+      },
+      "events": [
+        {
+          "event": "pointerdown",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 628
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 607.390625,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "pointerup",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 628
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 606.390625,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "click",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 628
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 606.390625,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        }
+      ],
+      "selectionClearObserved": true,
+      "panelZeroObserved": true
+    },
+    {
+      "rawArtifact": "625-close-input-heatmap-1440-dark.json",
+      "rawSHA256": "2a8554414c6eea641f4709af393e292f9dc3aac44c9ea1089135394cd8bfbd9b",
+      "template": "heatmap",
+      "theme": "dark",
+      "project": "webkit-iphone",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "runtime": {
+        "devicePixelRatio": 1,
+        "maxTouchPoints": 0,
+        "coarsePointer": false
+      },
+      "events": [
+        {
+          "event": "pointerdown",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 532
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 511.640625,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "pointerup",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 532
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 510.640625,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "click",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 532
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 510.640625,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        }
+      ],
+      "selectionClearObserved": true,
+      "panelZeroObserved": true
+    },
+    {
+      "rawArtifact": "625-close-input-heatmap-1440-light.json",
+      "rawSHA256": "ff6a8e902b7e9320a542089bd2222208f2bbf27fe237393014a06e38195a4605",
+      "template": "heatmap",
+      "theme": "light",
+      "project": "webkit-iphone",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "runtime": {
+        "devicePixelRatio": 1,
+        "maxTouchPoints": 0,
+        "coarsePointer": false
+      },
+      "events": [
+        {
+          "event": "pointerdown",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 532
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 511.640625,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "pointerup",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 532
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 510.640625,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "click",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 1282,
+            "y": 532
+          },
+          "closeBounds": {
+            "left": 1190.53125,
+            "top": 510.640625,
+            "width": 184.453125,
+            "height": 44
+          },
+          "navTop": null,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        }
+      ],
+      "selectionClearObserved": true,
+      "panelZeroObserved": true
+    },
+    {
+      "rawArtifact": "625-close-input-heatmap-390-dark.json",
+      "rawSHA256": "23d733d5818407f58f2e83ee62e301c88a95614b4050fcfcd20c20ae50203f94",
+      "template": "heatmap",
+      "theme": "dark",
+      "project": "webkit-iphone",
+      "viewport": {
+        "width": 390,
+        "height": 664
+      },
+      "runtime": {
+        "devicePixelRatio": 3,
+        "maxTouchPoints": 0,
+        "coarsePointer": true
+      },
+      "events": [
+        {
+          "event": "pointerdown",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.578125,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "pointerup",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.578125,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "click",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.578125,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        }
+      ],
+      "selectionClearObserved": true,
+      "panelZeroObserved": true
+    },
+    {
+      "rawArtifact": "625-close-input-heatmap-390-light.json",
+      "rawSHA256": "d0417cad574af767146a6284048767031494310453b9e8c67fd5cb7a37aff1c7",
+      "template": "heatmap",
+      "theme": "light",
+      "project": "webkit-iphone",
+      "viewport": {
+        "width": 390,
+        "height": 664
+      },
+      "runtime": {
+        "devicePixelRatio": 3,
+        "maxTouchPoints": 0,
+        "coarsePointer": true
+      },
+      "events": [
+        {
+          "event": "pointerdown",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.578125,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "pointerup",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.578125,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "click",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.578125,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        }
+      ],
+      "selectionClearObserved": true,
+      "panelZeroObserved": true
+    },
+    {
+      "rawArtifact": "625-close-input-year-390-dark.json",
+      "rawSHA256": "4da554ad8b1cec92491f526a3e4f5d4ad922fcc9c172d0e72f4ff7e194c02578",
+      "template": "year",
+      "theme": "dark",
+      "project": "webkit-iphone",
+      "viewport": {
+        "width": 390,
+        "height": 664
+      },
+      "runtime": {
+        "devicePixelRatio": 3,
+        "maxTouchPoints": 0,
+        "coarsePointer": true
+      },
+      "events": [
+        {
+          "event": "pointerdown",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.515625,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "pointerup",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.515625,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "click",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.515625,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        }
+      ],
+      "selectionClearObserved": true,
+      "panelZeroObserved": true
+    },
+    {
+      "rawArtifact": "625-close-input-year-390-light.json",
+      "rawSHA256": "f5bbd56cbf1be866de1b165401dc4f605f7dfe55a3cd673ef6ce755c93495b5d",
+      "template": "year",
+      "theme": "light",
+      "project": "webkit-iphone",
+      "viewport": {
+        "width": 390,
+        "height": 664
+      },
+      "runtime": {
+        "devicePixelRatio": 3,
+        "maxTouchPoints": 0,
+        "coarsePointer": true
+      },
+      "events": [
+        {
+          "event": "pointerdown",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.515625,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "pointerup",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.515625,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "click",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.515625,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        }
+      ],
+      "selectionClearObserved": true,
+      "panelZeroObserved": true
+    },
+    {
+      "rawArtifact": "625-close-input-category-390-dark.json",
+      "rawSHA256": "928f02f60dce68de892cfb09387138752f14ded8f8b3fc996dba30f750d8306a",
+      "template": "category",
+      "theme": "dark",
+      "project": "webkit-iphone",
+      "viewport": {
+        "width": 390,
+        "height": 664
+      },
+      "runtime": {
+        "devicePixelRatio": 3,
+        "maxTouchPoints": 0,
+        "coarsePointer": true
+      },
+      "events": [
+        {
+          "event": "pointerdown",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.609375,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "pointerup",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.609375,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "click",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.609375,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        }
+      ],
+      "selectionClearObserved": true,
+      "panelZeroObserved": true
+    },
+    {
+      "rawArtifact": "625-close-input-category-390-light.json",
+      "rawSHA256": "0507c37c6b98e4f61f76f16060edfceefacc40d2ed831aaeac30cd137726ded4",
+      "template": "category",
+      "theme": "light",
+      "project": "webkit-iphone",
+      "viewport": {
+        "width": 390,
+        "height": 664
+      },
+      "runtime": {
+        "devicePixelRatio": 3,
+        "maxTouchPoints": 0,
+        "coarsePointer": true
+      },
+      "events": [
+        {
+          "event": "pointerdown",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.609375,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "pointerup",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.609375,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        },
+        {
+          "event": "click",
+          "trusted": true,
+          "pointerType": "mouse",
+          "coordinates": {
+            "x": 261,
+            "y": 331
+          },
+          "closeBounds": {
+            "left": 164.515625,
+            "top": 309.609375,
+            "width": 194.484375,
+            "height": 44
+          },
+          "navTop": 600,
+          "centerHitsClose": true,
+          "inputPointHitsClose": true
+        }
+      ],
+      "selectionClearObserved": true,
+      "panelZeroObserved": true
+    }
+  ],
+  "returnAndKeyboardGeometry": [
+    {
+      "rawArtifact": "625-close-hit-category-1440-return-from-booking.json",
+      "rawSHA256": "d7fc65e7ac59860364092150e108169d6bb27e277736bf34257a88e9e2e82342",
+      "proof": {
+        "inHeader": true,
+        "bounds": {
+          "left": 1190.53125,
+          "right": 1374.984375,
+          "top": 760.1875,
+          "bottom": 804.1875,
+          "width": 184.453125,
+          "height": 44
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "navTop": null,
+        "centerHitsClose": true,
+        "centerHitTag": "BUTTON",
+        "documentWidth": 1440
+      }
+    },
+    {
+      "rawArtifact": "625-close-hit-year-1440-return-from-booking.json",
+      "rawSHA256": "7b090aadc11e118f4e49801372d7ccbf90a14cf7f753f3df80d0173bc5042613",
+      "proof": {
+        "inHeader": true,
+        "bounds": {
+          "left": 1190.53125,
+          "right": 1374.984375,
+          "top": 558.78125,
+          "bottom": 602.78125,
+          "width": 184.453125,
+          "height": 44
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "navTop": null,
+        "centerHitsClose": true,
+        "centerHitTag": "BUTTON",
+        "documentWidth": 1440
+      }
+    },
+    {
+      "rawArtifact": "625-close-hit-total-390-return-from-booking.json",
+      "rawSHA256": "b25b3fb7277eea50cf16698543cca934043855360b055aa89af3d365bce56145",
+      "proof": {
+        "inHeader": true,
+        "bounds": {
+          "left": 164.515625,
+          "right": 359,
+          "top": 276.703125,
+          "bottom": 320.703125,
+          "width": 194.484375,
+          "height": 44
+        },
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "navTop": 600,
+        "centerHitsClose": true,
+        "centerHitTag": "BUTTON",
+        "documentWidth": 390
+      }
+    },
+    {
+      "rawArtifact": "625-close-hit-total-1440-return-from-booking.json",
+      "rawSHA256": "47a63bbadddc4f2208ad6e839549ffc38e976c8b4b9f05b1a2f68d6c0b775b59",
+      "proof": {
+        "inHeader": true,
+        "bounds": {
+          "left": 1190.53125,
+          "right": 1374.984375,
+          "top": 558.390625,
+          "bottom": 602.390625,
+          "width": 184.453125,
+          "height": 44
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "navTop": null,
+        "centerHitsClose": true,
+        "centerHitTag": "BUTTON",
+        "documentWidth": 1440
+      }
+    },
+    {
+      "rawArtifact": "625-close-hit-heatmap-1440-dark-keyboard-after-capture.json",
+      "rawSHA256": "b9fe26fb069a642cd60cf51a6f68a0be544f9dd3c903f454b186c66413835784",
+      "proof": {
+        "inHeader": true,
+        "bounds": {
+          "left": 1190.53125,
+          "right": 1374.984375,
+          "top": 510.640625,
+          "bottom": 554.640625,
+          "width": 184.453125,
+          "height": 44
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "navTop": null,
+        "centerHitsClose": true,
+        "centerHitTag": "BUTTON",
+        "documentWidth": 1440
+      }
+    },
+    {
+      "rawArtifact": "625-close-hit-heatmap-1440-dark-keyboard.json",
+      "rawSHA256": "b9fe26fb069a642cd60cf51a6f68a0be544f9dd3c903f454b186c66413835784",
+      "proof": {
+        "inHeader": true,
+        "bounds": {
+          "left": 1190.53125,
+          "right": 1374.984375,
+          "top": 510.640625,
+          "bottom": 554.640625,
+          "width": 184.453125,
+          "height": 44
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "navTop": null,
+        "centerHitsClose": true,
+        "centerHitTag": "BUTTON",
+        "documentWidth": 1440
+      }
+    },
+    {
+      "rawArtifact": "625-close-hit-heatmap-1440-light-keyboard-after-capture.json",
+      "rawSHA256": "b9fe26fb069a642cd60cf51a6f68a0be544f9dd3c903f454b186c66413835784",
+      "proof": {
+        "inHeader": true,
+        "bounds": {
+          "left": 1190.53125,
+          "right": 1374.984375,
+          "top": 510.640625,
+          "bottom": 554.640625,
+          "width": 184.453125,
+          "height": 44
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "navTop": null,
+        "centerHitsClose": true,
+        "centerHitTag": "BUTTON",
+        "documentWidth": 1440
+      }
+    },
+    {
+      "rawArtifact": "625-close-hit-heatmap-1440-light-keyboard.json",
+      "rawSHA256": "b9fe26fb069a642cd60cf51a6f68a0be544f9dd3c903f454b186c66413835784",
+      "proof": {
+        "inHeader": true,
+        "bounds": {
+          "left": 1190.53125,
+          "right": 1374.984375,
+          "top": 510.640625,
+          "bottom": 554.640625,
+          "width": 184.453125,
+          "height": 44
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "navTop": null,
+        "centerHitsClose": true,
+        "centerHitTag": "BUTTON",
+        "documentWidth": 1440
+      }
+    },
+    {
+      "rawArtifact": "625-close-hit-heatmap-1440-return-from-booking.json",
+      "rawSHA256": "4c287404dbe5c4a764d553197201fbbc0c9b3c4ab02cf46b6396190a24c3a966",
+      "proof": {
+        "inHeader": true,
+        "bounds": {
+          "left": 1190.53125,
+          "right": 1374.984375,
+          "top": 558.640625,
+          "bottom": 602.640625,
+          "width": 184.453125,
+          "height": 44
+        },
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "navTop": null,
+        "centerHitsClose": true,
+        "centerHitTag": "BUTTON",
+        "documentWidth": 1440
+      }
+    },
+    {
+      "rawArtifact": "625-close-hit-heatmap-390-dark-keyboard-after-capture.json",
+      "rawSHA256": "f568d275c49051923503c5a3fdaa253d9ab7c8f26784da2d812597498b4c214d",
+      "proof": {
+        "inHeader": true,
+        "bounds": {
+          "left": 164.515625,
+          "right": 359,
+          "top": 290.578125,
+          "bottom": 334.578125,
+          "width": 194.484375,
+          "height": 44
+        },
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "navTop": 600,
+        "centerHitsClose": true,
+        "centerHitTag": "BUTTON",
+        "documentWidth": 390
+      }
+    },
+    {
+      "rawArtifact": "625-close-hit-heatmap-390-dark-keyboard.json",
+      "rawSHA256": "f568d275c49051923503c5a3fdaa253d9ab7c8f26784da2d812597498b4c214d",
+      "proof": {
+        "inHeader": true,
+        "bounds": {
+          "left": 164.515625,
+          "right": 359,
+          "top": 290.578125,
+          "bottom": 334.578125,
+          "width": 194.484375,
+          "height": 44
+        },
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "navTop": 600,
+        "centerHitsClose": true,
+        "centerHitTag": "BUTTON",
+        "documentWidth": 390
+      }
+    },
+    {
+      "rawArtifact": "625-close-hit-heatmap-390-light-keyboard-after-capture.json",
+      "rawSHA256": "f568d275c49051923503c5a3fdaa253d9ab7c8f26784da2d812597498b4c214d",
+      "proof": {
+        "inHeader": true,
+        "bounds": {
+          "left": 164.515625,
+          "right": 359,
+          "top": 290.578125,
+          "bottom": 334.578125,
+          "width": 194.484375,
+          "height": 44
+        },
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "navTop": 600,
+        "centerHitsClose": true,
+        "centerHitTag": "BUTTON",
+        "documentWidth": 390
+      }
+    },
+    {
+      "rawArtifact": "625-close-hit-heatmap-390-light-keyboard.json",
+      "rawSHA256": "f568d275c49051923503c5a3fdaa253d9ab7c8f26784da2d812597498b4c214d",
+      "proof": {
+        "inHeader": true,
+        "bounds": {
+          "left": 164.515625,
+          "right": 359,
+          "top": 290.578125,
+          "bottom": 334.578125,
+          "width": 194.484375,
+          "height": 44
+        },
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "navTop": 600,
+        "centerHitsClose": true,
+        "centerHitTag": "BUTTON",
+        "documentWidth": 390
+      }
+    },
+    {
+      "rawArtifact": "625-close-hit-heatmap-390-return-from-booking.json",
+      "rawSHA256": "9cf4c293a1c5564b3db48bb09c5410b109c271e72ba3b273e5d0bc3290fdadea",
+      "proof": {
+        "inHeader": true,
+        "bounds": {
+          "left": 164.515625,
+          "right": 359,
+          "top": 276.578125,
+          "bottom": 320.578125,
+          "width": 194.484375,
+          "height": 44
+        },
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "navTop": 600,
+        "centerHitsClose": true,
+        "centerHitTag": "BUTTON",
+        "documentWidth": 390
+      }
+    },
+    {
+      "rawArtifact": "625-close-hit-year-390-return-from-booking.json",
+      "rawSHA256": "8d123a243ed1b4d0661dfc226a375d56f7d83627cf6f46154a2f828df475ec1d",
+      "proof": {
+        "inHeader": true,
+        "bounds": {
+          "left": 164.515625,
+          "right": 359,
+          "top": 276.515625,
+          "bottom": 320.515625,
+          "width": 194.484375,
+          "height": 44
+        },
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "navTop": 600,
+        "centerHitsClose": true,
+        "centerHitTag": "BUTTON",
+        "documentWidth": 390
+      }
+    },
+    {
+      "rawArtifact": "625-close-hit-category-390-return-from-booking.json",
+      "rawSHA256": "03bcfd8edda9af382f1428d984d920c677f169cb3631c627471ae931891efedc",
+      "proof": {
+        "inHeader": true,
+        "bounds": {
+          "left": 164.515625,
+          "right": 359,
+          "top": 276.609375,
+          "bottom": 320.609375,
+          "width": 194.484375,
+          "height": 44
+        },
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "navTop": 600,
+        "centerHitsClose": true,
+        "centerHitTag": "BUTTON",
+        "documentWidth": 390
+      }
+    }
+  ],
+  "images": [
+    {
+      "proposedRepositoryPath": "docs/evidence/explorer-templates-625/source-header-heatmap-1440-dark.png",
+      "sha256": "2372c9e6392cf5ced25bfdb79c18d50f14759a22c02c34de1acd9eabc80ca607",
+      "bytes": 147480,
+      "physicalDimensions": [
+        1440,
+        900
+      ],
+      "capture": "Separate real Enter/Tab keyboard cycle after original unforced mouse close already passed; unchanged viewport screenshot."
+    },
+    {
+      "proposedRepositoryPath": "docs/evidence/explorer-templates-625/source-header-heatmap-1440-light.png",
+      "sha256": "3b9fd8692ad949da4dc9689c3843a02a86830ed12a490730726a1cc7dfb8f78d",
+      "bytes": 146924,
+      "physicalDimensions": [
+        1440,
+        900
+      ],
+      "capture": "Separate real Enter/Tab keyboard cycle after original unforced mouse close already passed; unchanged viewport screenshot."
+    },
+    {
+      "proposedRepositoryPath": "docs/evidence/explorer-templates-625/source-header-heatmap-390-dark.png",
+      "sha256": "040ad0c1d4ce412b4b2a83df8c688fc9a4e2763631e38dd7fc42e0971440781a",
+      "bytes": 262361,
+      "physicalDimensions": [
+        1170,
+        1992
+      ],
+      "capture": "Separate real Enter/Tab keyboard cycle after original unforced mouse close already passed; unchanged viewport screenshot."
+    },
+    {
+      "proposedRepositoryPath": "docs/evidence/explorer-templates-625/source-header-heatmap-390-light.png",
+      "sha256": "b7d18c199af8ab80904d0a2180e02ba52991dcdabfcdf8bdcde41350468b62d4",
+      "bytes": 257796,
+      "physicalDimensions": [
+        1170,
+        1992
+      ],
+      "capture": "Separate real Enter/Tab keyboard cycle after original unforced mouse close already passed; unchanged viewport screenshot."
+    }
+  ],
+  "limits": [
+    "No new build executed: historical24179build0 reused only after every167path/hash and product/source guard passed.",
+    "One-file formatter/lint/format/list commands actually0; original wrapper1/counterbug remains recorded and Root independently adjudicated actual9+3 listing.",
+    "Actual trusted close input is mouse, not physical touch. Canonical WebKit phone is390x664/DPR3/coarse/rawmaxTouch0; actualdesktop1440x900/DPR1/fine/rawTouch0.",
+    "Four new header frames use a separate natural keyboard cycle after original mouse flow passed; do not call these screenshots the original click frame.",
+    "Root observed desktop global page heading partially underneath sticky search in currentviewport; header success does not prove an unobscured whole page or all hit testing.",
+    "Current required-age full+normal production now pass at the stated dirty-source freeze; exact-head canonical Chromium156 CI and committed delivery/live gates remain separate.",
+    "No auth/session/network contents read; no repository evidence/source edits after actual run.",
+    "Original16 table PNGs and original runtime-proof.json remain immutable at their historical90da capture; this new proof does not rewrite that provenance."
+  ],
+  "requiredFull": {
+    "sourceHead": "67212b99a426ee181258bb9be9424f2e9ac0c037",
+    "sourceFreezeSHA256": "63bf6772790c89b0c624f4315eef3751f255d42f990ee0c4dde8c6aabd1411bf",
+    "sourceState": "Same four dirty reviewed source files as actual native; not a clean-commit result.",
+    "nodeVersion": "v22.23.3",
+    "ageVersion": "1.2.1",
+    "requiredAge": true,
+    "vitestMaxWorkers": 2,
+    "tests": {
+      "files": 534,
+      "tests": 4682,
+      "vitestSeconds": 392.88
+    },
+    "commands": [
+      {
+        "name": "check",
+        "command": [
+          "npm",
+          "run",
+          "check"
+        ],
+        "exit": 0
+      },
+      {
+        "name": "production",
+        "command": [
+          "npm",
+          "run",
+          "build"
+        ],
+        "exit": 0
+      }
+    ],
+    "wrapperExit": 0,
+    "guardExit": 0,
+    "all3397HashesUnchanged": true,
+    "all33OwnedUnchanged": true,
+    "all12ProtectedUnchanged": true,
+    "permissionBitsUnchanged": true,
+    "indexUnchanged": true,
+    "rawArchive": "715-header-required-age-full-second-actual",
+    "rawSHA256": {
+      "result.json": "6ebd8f0218fc7a59e2c7224883feff601558eb0cff300b5000813fd238beb052",
+      "pre.json": "63bf6772790c89b0c624f4315eef3751f255d42f990ee0c4dde8c6aabd1411bf",
+      "check.log": "f96dd3b6782b7b49148faa8e117202f5dad362a6d9aaad2fa023867419654226",
+      "production.log": "9c3be6c0623dc3c55007ed34cde6d980f9ffc790524f3a9749fbd12e269d96d3",
+      "check.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "production.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "guard.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "wrapper.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "priorRootPreguardFailure": {
+      "rawArchive": "715-header-required-age-full-first-actual",
+      "resultSHA256": "12278cb0afc4c8aed9b237f7b63e9648c16e04fe38db2bc5a3a5a19abf61fccf",
+      "stderrSHA256": "75ee87fc6d62263ca889652196198a292b4c05b0110474de259f1df5e7a7b017",
+      "wrapperExit": 1,
+      "npmCheckStarted": false,
+      "productionBuildStarted": false,
+      "cause": "Frozen625 stores stat.S_IMODE permission bits384, but Root compared full lstat.st_mode33152. Also finally referenced indexpath before assignment and masked preguard assertion.",
+      "all3397SourceHashesExactAfter": true,
+      "permissionBitsUnchanged": true,
+      "lockReacquireAndRelease": 0
+    }
+  }
+}

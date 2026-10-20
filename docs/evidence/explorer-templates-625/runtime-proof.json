@@ -1,0 +1,456 @@
+{
+  "issue": 625,
+  "runtimeHead": "90da8fa9921686015384e2f45863cf9f70d0cf78",
+  "includedVerifiedLiveMain": "3427d925bc7b9487db95bf6323f51a4375bc057d",
+  "sourceFreezeSha256": "5929a231c50afff336a3f5b9454871f32bffa977d7e1acf0160e32e0b768e63c",
+  "node": "22.23.3",
+  "playwright": "1.64.1",
+  "engine": "webkit",
+  "engineVersion": "27.2",
+  "command": "run-webkit.sh /workspace/cloud-report-templates-625 test e2e/issue-625-explorer-templates.spec.ts --project=webkit-iphone --workers=1",
+  "nativeExit": 0,
+  "wrapperExit": 0,
+  "guardExit": 0,
+  "passed": 12,
+  "ownFeatureCases": 9,
+  "canonicalSetupCases": 3,
+  "reportedDuration": "2.2m",
+  "build": {
+    "exit": 0,
+    "runtimeHead": "90da8fa9921686015384e2f45863cf9f70d0cf78",
+    "reusedAfterEnvironmentRepair": true,
+    "compiledManifestSha256": "fa2ec15245683234de909248e5e65284ae38f41265849c709bd10ea70bbace29",
+    "unchangedCompiledFileCount": 167
+  },
+  "guards": {
+    "ownedSourceFileCount": 14,
+    "trackedFileCount": 3379,
+    "protectedFileCount": 12,
+    "unchanged": true,
+    "postHead": "90da8fa9921686015384e2f45863cf9f70d0cf78",
+    "postStatus": ""
+  },
+  "firstNativeAttempt": {
+    "exit": 1,
+    "collectionReached": false,
+    "error": "ENOSPC mkdir '/tmp/playwright-transform-cache-1000/f5'",
+    "preservedArchive": "625-90da-first-native-artifacts"
+  },
+  "repair": {
+    "scope": "Only reinstallable dependencies from verified closed worktrees; all tracked source/head/status unchanged. No browser configuration or pinned image change.",
+    "containerProbeExit": 0,
+    "probeSha256": "d0925a942f944f347ae656a715129507ec828dc67cc13237a75077ceba1411ed"
+  },
+  "measurements": [
+    {
+      "id": "category",
+      "theme": "dark",
+      "engine": "webkit",
+      "version": "27.2",
+      "bounds": {
+        "clientWidth": 1074,
+        "scrollWidth": 1074,
+        "scrollLeft": 0,
+        "left": 301,
+        "right": 1374.984375
+      },
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "pixelRatio": 1,
+      "coarse": false,
+      "touchPoints": 0
+    },
+    {
+      "id": "category",
+      "theme": "light",
+      "engine": "webkit",
+      "version": "27.2",
+      "bounds": {
+        "clientWidth": 1074,
+        "scrollWidth": 1074,
+        "scrollLeft": 0,
+        "left": 301,
+        "right": 1374.984375
+      },
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "pixelRatio": 1,
+      "coarse": false,
+      "touchPoints": 0
+    },
+    {
+      "id": "year",
+      "theme": "dark",
+      "engine": "webkit",
+      "version": "27.2",
+      "bounds": {
+        "clientWidth": 1074,
+        "scrollWidth": 1077,
+        "scrollLeft": 3,
+        "left": 301,
+        "right": 1374.984375
+      },
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "pixelRatio": 1,
+      "coarse": false,
+      "touchPoints": 0
+    },
+    {
+      "id": "year",
+      "theme": "light",
+      "engine": "webkit",
+      "version": "27.2",
+      "bounds": {
+        "clientWidth": 1074,
+        "scrollWidth": 1077,
+        "scrollLeft": 3,
+        "left": 301,
+        "right": 1374.984375
+      },
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "pixelRatio": 1,
+      "coarse": false,
+      "touchPoints": 0
+    },
+    {
+      "id": "total",
+      "theme": "dark",
+      "engine": "webkit",
+      "version": "27.2",
+      "bounds": {
+        "clientWidth": 328,
+        "scrollWidth": 2257,
+        "scrollLeft": 1929,
+        "left": 31,
+        "right": 359
+      },
+      "width": 390,
+      "height": 664,
+      "documentWidth": 390,
+      "pixelRatio": 3,
+      "coarse": true,
+      "touchPoints": 0
+    },
+    {
+      "id": "total",
+      "theme": "light",
+      "engine": "webkit",
+      "version": "27.2",
+      "bounds": {
+        "clientWidth": 328,
+        "scrollWidth": 2257,
+        "scrollLeft": 1929,
+        "left": 31,
+        "right": 359
+      },
+      "width": 390,
+      "height": 664,
+      "documentWidth": 390,
+      "pixelRatio": 3,
+      "coarse": true,
+      "touchPoints": 0
+    },
+    {
+      "id": "total",
+      "theme": "dark",
+      "engine": "webkit",
+      "version": "27.2",
+      "bounds": {
+        "clientWidth": 1074,
+        "scrollWidth": 2416,
+        "scrollLeft": 1342,
+        "left": 301,
+        "right": 1374.984375
+      },
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "pixelRatio": 1,
+      "coarse": false,
+      "touchPoints": 0
+    },
+    {
+      "id": "total",
+      "theme": "light",
+      "engine": "webkit",
+      "version": "27.2",
+      "bounds": {
+        "clientWidth": 1074,
+        "scrollWidth": 2416,
+        "scrollLeft": 1342,
+        "left": 301,
+        "right": 1374.984375
+      },
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "pixelRatio": 1,
+      "coarse": false,
+      "touchPoints": 0
+    },
+    {
+      "id": "heatmap",
+      "theme": "dark",
+      "engine": "webkit",
+      "version": "27.2",
+      "bounds": {
+        "clientWidth": 1074,
+        "scrollWidth": 1074,
+        "scrollLeft": 0,
+        "left": 301,
+        "right": 1374.984375
+      },
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "pixelRatio": 1,
+      "coarse": false,
+      "touchPoints": 0
+    },
+    {
+      "id": "heatmap",
+      "theme": "light",
+      "engine": "webkit",
+      "version": "27.2",
+      "bounds": {
+        "clientWidth": 1074,
+        "scrollWidth": 1074,
+        "scrollLeft": 0,
+        "left": 301,
+        "right": 1374.984375
+      },
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "pixelRatio": 1,
+      "coarse": false,
+      "touchPoints": 0
+    },
+    {
+      "id": "heatmap",
+      "theme": "dark",
+      "engine": "webkit",
+      "version": "27.2",
+      "bounds": {
+        "clientWidth": 328,
+        "scrollWidth": 928,
+        "scrollLeft": 600,
+        "left": 31,
+        "right": 359
+      },
+      "width": 390,
+      "height": 664,
+      "documentWidth": 390,
+      "pixelRatio": 3,
+      "coarse": true,
+      "touchPoints": 0
+    },
+    {
+      "id": "heatmap",
+      "theme": "light",
+      "engine": "webkit",
+      "version": "27.2",
+      "bounds": {
+        "clientWidth": 328,
+        "scrollWidth": 928,
+        "scrollLeft": 600,
+        "left": 31,
+        "right": 359
+      },
+      "width": 390,
+      "height": 664,
+      "documentWidth": 390,
+      "pixelRatio": 3,
+      "coarse": true,
+      "touchPoints": 0
+    },
+    {
+      "id": "year",
+      "theme": "dark",
+      "engine": "webkit",
+      "version": "27.2",
+      "bounds": {
+        "clientWidth": 328,
+        "scrollWidth": 1015,
+        "scrollLeft": 687,
+        "left": 31,
+        "right": 359
+      },
+      "width": 390,
+      "height": 664,
+      "documentWidth": 390,
+      "pixelRatio": 3,
+      "coarse": true,
+      "touchPoints": 0
+    },
+    {
+      "id": "year",
+      "theme": "light",
+      "engine": "webkit",
+      "version": "27.2",
+      "bounds": {
+        "clientWidth": 328,
+        "scrollWidth": 1015,
+        "scrollLeft": 687,
+        "left": 31,
+        "right": 359
+      },
+      "width": 390,
+      "height": 664,
+      "documentWidth": 390,
+      "pixelRatio": 3,
+      "coarse": true,
+      "touchPoints": 0
+    },
+    {
+      "id": "category",
+      "theme": "dark",
+      "engine": "webkit",
+      "version": "27.2",
+      "bounds": {
+        "clientWidth": 328,
+        "scrollWidth": 992,
+        "scrollLeft": 664,
+        "left": 31,
+        "right": 359
+      },
+      "width": 390,
+      "height": 664,
+      "documentWidth": 390,
+      "pixelRatio": 3,
+      "coarse": true,
+      "touchPoints": 0
+    },
+    {
+      "id": "category",
+      "theme": "light",
+      "engine": "webkit",
+      "version": "27.2",
+      "bounds": {
+        "clientWidth": 328,
+        "scrollWidth": 992,
+        "scrollLeft": 664,
+        "left": 31,
+        "right": 359
+      },
+      "width": 390,
+      "height": 664,
+      "documentWidth": 390,
+      "pixelRatio": 3,
+      "coarse": true,
+      "touchPoints": 0
+    }
+  ],
+  "images": [
+    {
+      "file": "category-1440-dark.png",
+      "sha256": "e1e378c6ab3555eda24f8c5a1c6e035e23eeac9ddd49955a5dde6cc01b6a3750",
+      "pixelWidth": 1440,
+      "pixelHeight": 1431
+    },
+    {
+      "file": "category-1440-light.png",
+      "sha256": "59a63414e9e64e631fadde8a7d50a6f14e55760634e9ba9791ed70c7945d4f87",
+      "pixelWidth": 1440,
+      "pixelHeight": 1431
+    },
+    {
+      "file": "year-1440-dark.png",
+      "sha256": "1f602ac4133b636714ceedea05e5784a0632d21f4046f8b8575db715b69dac2a",
+      "pixelWidth": 1440,
+      "pixelHeight": 1862
+    },
+    {
+      "file": "year-1440-light.png",
+      "sha256": "bcbba7703c19a7bb996754fd95621f5e7ca6a9fe6a92e531ea842ab142b14215",
+      "pixelWidth": 1440,
+      "pixelHeight": 1862
+    },
+    {
+      "file": "total-390-dark.png",
+      "sha256": "8ebf3df41576844c0ed63fc0287fb0caff51114adda78633fbc4d151a23d07aa",
+      "pixelWidth": 1170,
+      "pixelHeight": 7524
+    },
+    {
+      "file": "total-390-light.png",
+      "sha256": "e79c347d0b389ca706d7c8c9e0f9795d5e74e6ed45c008254ad9a02058ef0bd1",
+      "pixelWidth": 1170,
+      "pixelHeight": 7524
+    },
+    {
+      "file": "total-1440-dark.png",
+      "sha256": "395b57809547b9f6fb65cba01ca43d34498f9dc49e296bc74e391e93a378099e",
+      "pixelWidth": 1440,
+      "pixelHeight": 1860
+    },
+    {
+      "file": "total-1440-light.png",
+      "sha256": "bd1b55f1b7c2d1191158c5566927a25888f3f03006358cf3fc1b63ca0f79db4a",
+      "pixelWidth": 1440,
+      "pixelHeight": 1860
+    },
+    {
+      "file": "heatmap-1440-dark.png",
+      "sha256": "69f2074ed80d045e6f4c2d7afe34b26f3caae90790d5cd812045b7ec743123ba",
+      "pixelWidth": 1440,
+      "pixelHeight": 1037
+    },
+    {
+      "file": "heatmap-1440-light.png",
+      "sha256": "b589d56869f77cd64245e97d94e2f26823e5f2381ca75bae436803bf188a7334",
+      "pixelWidth": 1440,
+      "pixelHeight": 1037
+    },
+    {
+      "file": "heatmap-390-dark.png",
+      "sha256": "215288c79bc988114455a496dba425b307cbfbc1a0f7a9bc1ba923ad46ba3fa5",
+      "pixelWidth": 1170,
+      "pixelHeight": 4995
+    },
+    {
+      "file": "heatmap-390-light.png",
+      "sha256": "00236e387343fc805ed37c29165c3a13b8eec23e63a824bfb2ed86e02318697e",
+      "pixelWidth": 1170,
+      "pixelHeight": 4995
+    },
+    {
+      "file": "year-390-dark.png",
+      "sha256": "170481cf0736fcd1ef7aa9bc79a86fdb46479a7bd4bfc78158e059a265362d39",
+      "pixelWidth": 1170,
+      "pixelHeight": 7089
+    },
+    {
+      "file": "year-390-light.png",
+      "sha256": "6514678a97add4969bd74c7e3d0358ebd6c3b60c3494589b8b4a485cf71194f9",
+      "pixelWidth": 1170,
+      "pixelHeight": 7089
+    },
+    {
+      "file": "category-390-dark.png",
+      "sha256": "1fb9fd9ed9d9ba167b4070d91baf3aa219f80980dd1cf3f322ec9753869621ba",
+      "pixelWidth": 1170,
+      "pixelHeight": 6330
+    },
+    {
+      "file": "category-390-light.png",
+      "sha256": "d6e3ad060b099f86ce1f3554d5678763abd7b34eaf6c51d6cc2f1b31060e9842",
+      "pixelWidth": 1170,
+      "pixelHeight": 6330
+    }
+  ],
+  "limits": [
+    "WebKit engine in both profiles; no canonical Chromium execution claimed.",
+    "Phone hasTouch is configured and native theme actions use tap, but actual navigator.maxTouchPoints is 0; not a physical-device proof.",
+    "Full-page captures include fixed navigation/FAB at the photographed viewport position. No unobscured hit-target proof for every control is claimed.",
+    "bounds are recorded before scrollLeft is reset to zero for the original PNG; right-edge interaction and screenshot show distinct moments.",
+    "Only synthetic fixture data. No raw databases, auth state, trace or recording is included.",
+    "Required-age aggregate, normal production build, exact-head CI, integration and live acceptance remain pending."
+  ]
+}
