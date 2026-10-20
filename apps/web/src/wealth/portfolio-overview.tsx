@@ -11,6 +11,7 @@ import { useZeitraum } from './zeitraum';
 import { kfmt, monthTickLabel, monthTicks, portfolioIndexAxis } from './networth-model';
 import { AppLink } from '../shell/app-link';
 import { useElementWidth } from '../charts/use-element-width';
+import { PortfolioCalculationDisclosure } from '../reports/portfolio-calculation-disclosure-512';
 
 const percent = (rate: number) =>
   `${rate < 0 ? '−' : '+'}${new Intl.NumberFormat('de-AT', { maximumFractionDigits: 1 }).format(Math.abs(rate) * 100)} %`;
@@ -137,6 +138,12 @@ export function PortfolioOverview() {
             Kapital einschließlich Tageszuflüssen bleibt der betreffende Tag als Lücke sichtbar; die
             Linie zeigt dieselbe zeitgewichtete Entwicklung wie die Reports.
           </p>
+          {query.data && (
+            <PortfolioCalculationDisclosure
+              summary={query.data.portfolio}
+              incomplete={query.data.incomplete}
+            />
+          )}
         </details>
       )}
       {hasHistory ? (
