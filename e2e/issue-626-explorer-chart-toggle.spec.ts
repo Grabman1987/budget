@@ -182,7 +182,49 @@ async function proof(
     pan = await region.evaluate((e) => e.scrollLeft);
   }
   const originalCell = sourceRow.locator('td[data-chart-point]').first();
-  await originalCell.hover();
+  if (view === 'custom' && regionSize.scrollWidth > regionSize.width) {
+    // A native horizontal pan may put the cell centre behind the sticky row header.
+    // Hover the exposed part of the SAME January cell; public hover still performs
+    // its normal vertical scrolling and hit checks.
+    const exposed = await originalCell.evaluate((cell) => {
+      const scroller = cell.closest('.ex-scroll')!;
+      const box = cell.getBoundingClientRect();
+      const scrollBox = scroller.getBoundingClientRect();
+      const sticky = cell.parentElement!.querySelector('th.ex-first')!.getBoundingClientRect();
+      const left = Math.max(box.left, scrollBox.left + scroller.clientLeft, sticky.right, 0);
+      const right = Math.min(
+        box.right,
+        scrollBox.left + scroller.clientLeft + scroller.clientWidth,
+        innerWidth,
+      );
+      const borderLeft = parseFloat(getComputedStyle(cell).borderLeftWidth) || 0;
+      return {
+        exposedWidth: right - left,
+        x: (left + right) / 2 - box.left - borderLeft,
+        y: cell.clientHeight / 2,
+        cellWidth: cell.clientWidth,
+        cell: { left: box.left, right: box.right, width: box.width },
+        sticky: { left: sticky.left, right: sticky.right, width: sticky.width },
+        scroller: { left: scrollBox.left, right: scrollBox.right, width: scroller.clientWidth },
+        scrollLeft: scroller.scrollLeft,
+        viewportWidth: innerWidth,
+      };
+    });
+    const hoverGeometry = info.outputPath('original-cell-hover-geometry.json');
+    await writeFile(hoverGeometry, JSON.stringify(exposed, null, 2));
+    await info.attach('original-cell-hover-geometry', {
+      path: hoverGeometry,
+      contentType: 'application/json',
+    });
+    expect(Number.isFinite(exposed.exposedWidth)).toBe(true);
+    expect(exposed.exposedWidth).toBeGreaterThan(0);
+    expect(Number.isFinite(exposed.x)).toBe(true);
+    expect(exposed.x).toBeGreaterThanOrEqual(0);
+    expect(exposed.x).toBeLessThan(exposed.cellWidth);
+    await originalCell.hover({ position: { x: exposed.x, y: exposed.y } });
+  } else {
+    await originalCell.hover();
+  }
   await expect(page.locator('.chart-tooltip[role="status"]')).toContainText('Kategorie 09');
   await expect(page.locator('.chart-tooltip[role="status"]')).toContainText('9,01 €');
   const panBeforeSwitch = await region.evaluate((e) => e.scrollLeft);
