@@ -152,7 +152,11 @@ async function serveBuildCopy(upstream: string) {
       );
     },
     close: async () => {
-      await new Promise((done) => server.close(done));
+      await new Promise<void>((done, reject) => {
+        server.close((error) => (error ? reject(error) : done()));
+        // The browser is still alive here; dispose this throwaway host's active connections.
+        server.closeAllConnections();
+      });
       rmSync(dir, { recursive: true, force: true });
     },
   };
