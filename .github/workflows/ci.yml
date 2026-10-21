@@ -101,7 +101,7 @@ jobs:
   e2e:
     needs: reuse
     if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       SHARDS: 12
@@ -125,7 +125,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+          key: playwright-${{ runner.os }}-ubuntu-24.04-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
       # With a cache hit the browsers are not downloaded again; the system packages still are.
       - name: Install Chromium and WebKit
         run: npx playwright install --with-deps chromium webkit
@@ -166,7 +166,7 @@ jobs:
   visual:
     needs: reuse
     if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -184,7 +184,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+          key: playwright-${{ runner.os }}-ubuntu-24.04-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
       - name: Install Chromium and WebKit
         run: npx playwright install --with-deps chromium webkit
       - name: Build (e2e mode)

@@ -257,10 +257,14 @@ async function mount(invalidRows = false) {
       </ToastProvider>
     </QueryClientProvider>,
   );
-  const date = await screen.findByLabelText('Gültig ab');
+  const dateLabel = await screen.findByText('Gültig ab', { selector: 'label' });
+  const dateField = dateLabel.closest('.field-row');
+  if (!(dateField instanceof HTMLElement))
+    throw new TypeError('Expected the real labelled effective-date field');
+  const date = within(dateField).getByLabelText('Gültig ab');
   expect(date).toBeInstanceOf(HTMLInputElement);
   expect(date.getAttribute('type')).toBe('text');
-  expect(date.getAttribute('inputmode')).toBe('numeric');
+  expect(date.getAttribute('inputmode')).toBe('text');
   expect(date.getAttribute('placeholder')).toBe('TT.MM.JJJJ');
   if (!(date instanceof HTMLInputElement))
     throw new TypeError('Expected the existing native date input');
@@ -409,8 +413,13 @@ it('retains an explicitly chosen fifth row, unmanaged absence and custom zero/30
 
 it('hides a chosen column without converting its managed zero into unmanaged targets', async () => {
   const { user, writes, onSaved } = await mount();
-  await user.click(screen.getByText('Anlageklassenspalten'));
-  await user.click(screen.getByRole('checkbox', { name: 'Musterklasse F anzeigen' }));
+  const summary = screen.getByText('Anlageklassenspalten', { selector: 'summary' });
+  await user.click(summary);
+  const columns = summary.closest('details');
+  if (!(columns instanceof HTMLDetailsElement))
+    throw new TypeError('Expected the real class-column disclosure');
+  expect(columns.open).toBe(true);
+  await user.click(within(columns).getByRole('checkbox', { name: 'Musterklasse F anzeigen' }));
   const table = screen.getByRole('table', { name: 'Vermögensstufen' });
   expect(within(table).queryByRole('columnheader', { name: 'Musterklasse F %' })).toBeNull();
   expect(writes).toEqual([]);

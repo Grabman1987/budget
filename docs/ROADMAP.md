@@ -1,11 +1,21 @@
 # Roadmap
 
+### #731 — punctuation-capable shared date entry (2026-10-20)
+
+- [x] Request a text keyboard for shared German date fields. Preserve partial editing, German/ISO conversion, calendar validity, limits and all financial actions.
+- [x] The new keyboard-hint regression first fails against the unchanged numeric hint. After the one-line correction, ten focused tests pass, including both unchanged shared-date tests and seven wealth-stage cases; UI/Web types, affected lint and formatting pass. The coordinator initially adapted the obsolete wealth-stage keyboard-hint expectation under the owner's decided-UI policy.
+- [x] Canonical WebKit passes four cases (one new phone flow and three setup cases), with no failures, skips, retries or flaky results. Sequential dotted input, validity, Tab, 44px date control and unchanged target versions/no writes are verified. [Unedited capture and scope](evidence/shared-date-keyboard-731/README.md); browser emulation does not certify a physical iPhone keyboard.
+- [x] Before the query-scoping follow-up, `BUDGET_REQUIRE_AGE=1 npm run check` passed 570 files / 5,076 tests with one worker, followed by a successful normal production build.
+- [x] On 21 October the owner separately approved exactly two existing-test query scopes. All ten focused cases, Web types, affected lint and format checks pass; financial expectations, actions, Save role/visibility checks and 5,000 ms limits remain intact. The two previously timing-out cases completed locally in 1.68s and 0.46s; fresh exact-head CI remains required.
+- [ ] Complete exact-head CI and serial live delivery.
+
 ### #526 — edit wealth stages together (2026-10-20)
 
 - [x] Replace the stage selector with an editable stage-by-asset-class table, retaining dated versions, per-row validation, account scope, custom bands, unmanaged targets and the existing audited save path. Phones show one card per stage.
 - [x] Seven new focused component tests pass after independently splitting the draft-status case and removing redundant input updates/queries from the custom-band case; both CI timeouts remain documented and time limits remain unchanged. Canonical WebKit passes eleven tests, including the unchanged financial assertions in the coordinator-adapted existing tests: seven-by-six desktop fit, phone layout, 44px grid controls, keyboard, Axe in both themes, dated save, real Undo and stale-scope conflict. [Actual captures and qualifications](evidence/wealth-stage-table-526/README.md).
 - [x] Required-age single-worker full check passes 569 files / 5,074 tests and the normal production build passes; all 3,574 frozen source files and guard checks remain unchanged. This result precedes the subsequent new-test-only CI correction; its focused tests, Web types, lint and formatting pass. Product and browser-evidence bytes remain unchanged.
-- [ ] Complete exact-head CI and serial live delivery before closing #526.
+- [x] Exact-head CI and serial live delivery verified at `dcc93c52ae5b7a459c04fc685bb1f05a8968e186`; Main CI, Deploy, fresh health and the complete reviewed Git tree match. Two unchanged older bank-inbox tests passed one unchanged failed-job retry.
+- [ ] Resolve the inherited shared-date keyboard limitation in #731 before closing #526.
 
 ### #625 — four fixed Explorer report templates (2026-10-19)
 
