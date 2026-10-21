@@ -155,7 +155,7 @@ export function PlanMonthPage() {
   );
   return (
     <PageFrame meta={PLAN_MONAT} income={income}>
-      <div className="plan">
+      <div className="plan plan-month">
         {budget.isPending && <LoadingNote what="Envelopes" />}
         {budget.isError && (
           <ErrorNote what="Envelopes" error={budget.error} onRetry={() => void budget.refetch()} />

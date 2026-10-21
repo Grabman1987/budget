@@ -2882,38 +2882,38 @@
    The financial rail can scroll horizontally instead of growing another line; its popovers
    remain outside the scroll container. Phone/coarse controls retain their 44px rules. */
 @media (min-width: 1180px) and (pointer: fine) {
-  .plan .plan-main {
+  .plan-month .plan-main {
     gap: 4px;
   }
-  .plan .plan-topbar {
+  .plan-month .plan-topbar {
     padding-block: 0;
   }
-  .plan .plan-chip-scroll {
+  .plan-month .plan-chip-scroll {
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
   }
-  .plan .plan-chip-scroll::-webkit-scrollbar {
+  .plan-month .plan-chip-scroll::-webkit-scrollbar {
     display: none;
   }
-  .plan .plan-chip-scroll > * {
+  .plan-month .plan-chip-scroll > * {
     flex-shrink: 0;
   }
-  .plan-filterbar {
+  :where(.plan-month) .plan-filterbar {
     padding-block: 0;
   }
-  .plan-category-search .input {
+  :where(.plan-month) .plan-category-search .input {
     height: 32px;
     min-height: 32px;
   }
-  .plan-filter-segments {
+  :where(.plan-month) .plan-filter-segments {
     padding: 1px;
   }
-  .plan .ptoolbar {
+  .plan-month .ptoolbar {
     min-height: 32px;
     padding-block: 0;
   }
-  .plan .ptoolbar .btn {
+  .plan-month .ptoolbar .btn {
     height: 28px;
     min-height: 28px;
   }
