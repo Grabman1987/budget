@@ -1,0 +1,47 @@
+[
+  {
+    "path": "docs/handoff/547-548-instrument-savings-detail/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/547-548-instrument-savings-detail/README.md",
+    "size": 486,
+    "sha256": "c8ad7e00aa9515fd200f95603fa9015d4582cf7cc4926821831310c4450682ab"
+  },
+  {
+    "path": "docs/handoff/547-548-instrument-savings-detail/integration/2bc11152a13ccacb528a11fac3d6fc45c8356904.json",
+    "size": 367,
+    "sha256": "2ccc8056d53a4797b8f67db113e49bba318f15eded48238d284e0fc033e3835a"
+  },
+  {
+    "path": "docs/handoff/547-548-instrument-savings-detail/integration/2bc11152a13ccacb528a11fac3d6fc45c8356904.patch",
+    "size": 1583,
+    "sha256": "791b20968b680bb20634adb11bdd74c4798eda435d3bf5e5367e82144cdbca0c"
+  },
+  {
+    "path": "docs/handoff/547-548-instrument-savings-detail/owned/01-addda5986563c9421d20e2efe5b57b410d45d55b.patch",
+    "size": 46027,
+    "sha256": "7c96b14b7d8eafa0e71ff0c1fdd0ed2d471accbe069479948e1e2c6f42745857"
+  },
+  {
+    "path": "docs/handoff/547-548-instrument-savings-detail/packet.json",
+    "size": 2252,
+    "sha256": "e7639a40a65e661e9f6899cd7f9e321bba44f91022a29c2c1ba606a9d16398f2"
+  },
+  {
+    "path": "docs/handoff/547-548-instrument-savings-detail/reviews/547-548-final-whole13-independent-correspondence.json",
+    "size": 2518,
+    "sha256": "5ab7b3817860e1e1023634d6e9cf65b49141c365b07af8eddc68bbc90537d146"
+  },
+  {
+    "path": "docs/handoff/547-548-instrument-savings-detail/reviews/547-548-financial-read-three-independent-source-high.md",
+    "size": 3386,
+    "sha256": "5f537bed7507aabbe899d4ca1b82c2c99e14e28a824a6057028a780a9743cd76"
+  },
+  {
+    "path": "docs/handoff/547-548-instrument-savings-detail/reviews/547-548-whole-thirteen-final-independent-source-high.md",
+    "size": 6617,
+    "sha256": "7cd449700ffc7a992aaa296e8c121265e63e27f70e7ae079ac4c69a232655f15"
+  }
+]

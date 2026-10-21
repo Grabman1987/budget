@@ -1,0 +1,66 @@
+{
+  "manifestSHA256": "e971ebea59363e6acddd29939096a386b5c3a808c98faebd2d0f59a1224f8d0c",
+  "checkout": "/workspace/cloud-allocation-provenance-521",
+  "head": "759464abc050195c5d6dc285190efbadbe55de6b",
+  "owned13": {
+    "apps/server/src/api/invest.ts": {
+      "sha256": "03820e4c9047883e6663b37d2ddbe21220cd970cfa4a1c45b53616cb99b0ec09",
+      "mode": 33152
+    },
+    "apps/web/src/wealth/portfolio-api.ts": {
+      "sha256": "165f5802123b816e8192780ca5b692e15b87901bb2db92dcfafc5a8bb4a7d9a8",
+      "mode": 33152
+    },
+    "apps/web/src/wealth/portfolio-detail-page.tsx": {
+      "sha256": "ebae3b6be30bf0789f270116da9dd215e79ca626d2fd283b52575ca8eeb76671",
+      "mode": 33152
+    },
+    "apps/web/src/wealth/portfolio-panel.tsx": {
+      "sha256": "166ccc12fe4646ffbd56f099cf5e5596744ab2c580b98def4d64638be086e207",
+      "mode": 33152
+    },
+    "apps/web/src/wealth/price-history.css": {
+      "sha256": "2ef9baebd3581d0d93e2ad6a91a58914f4f928221d225f6ad2317df3f2c9bbb0",
+      "mode": 33152
+    },
+    "apps/web/src/wealth/price-history.tsx": {
+      "sha256": "63c49410c4a39904ac0c75a262c692bf2e5438633d3146238ac28e3d3abc7391",
+      "mode": 33152
+    },
+    "apps/web/src/wealth/savings-detail.tsx": {
+      "sha256": "33f906a83ab42cb7fc72c75d2b35e65d02873e308673ebe8386a496f82277406",
+      "mode": 33152
+    },
+    "apps/web/src/wealth/savings-model.ts": {
+      "sha256": "c9709ded4c5a4538668abe1abc58e920eaa68824a10635ac1dc2bbaf7a49f9f9",
+      "mode": 33152
+    },
+    "apps/web/src/wealth/savings.css": {
+      "sha256": "b016775b04a0fb2f4bd764103cf941fb6cb2234cbce957fef976b915174d8031",
+      "mode": 33152
+    },
+    "apps/web/src/wealth/trade-history.tsx": {
+      "sha256": "e06f347601064896f7beea58cc098d8a3d632a6b28658d3f6c5d120467558bf8",
+      "mode": 33152
+    },
+    "docs/ROADMAP.md": {
+      "sha256": "c0a2de775360358a32da19513d532700e4bec8fc38b68f2247bd7fd3529e3eca",
+      "mode": 33152
+    },
+    "packages/db/src/repos/index.ts": {
+      "sha256": "fb4a18a280213c3264490716ce37e3f87cf983e9e843f02c5a5730d429ed96d8",
+      "mode": 33152
+    },
+    "packages/db/src/repos/instrument-history.ts": {
+      "sha256": "a4e8a9c6af88bf26f4b1d8ebb17fe65804f2c394b9fe7fa7fd5bafa9e5055cb5",
+      "mode": 33152
+    }
+  },
+  "changedVsFirst13": [
+    "apps/web/src/wealth/portfolio-panel.tsx",
+    "apps/web/src/wealth/price-history.tsx"
+  ],
+  "financial3Exact": true,
+  "roadmapWholePrefixBytes": 256027,
+  "validation": "read-only source/hash/mode comparison only; no project execution"
+}

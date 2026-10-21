@@ -1,0 +1,817 @@
+diff --git a/apps/server/src/api/invest.ts b/apps/server/src/api/invest.ts
+index c4e417d08c86d0e765cd31f9b4398cecd166c11a..7999e7991e5734c748f12724810876dc53e5fad4 100644
+--- a/apps/server/src/api/invest.ts
++++ b/apps/server/src/api/invest.ts
+@@ -31,6 +31,8 @@ import {
+   setPortfolioBenchmark,
+   ContributionHistoryLimitError,
+   portfolioPositions,
++  instrumentHistory,
++  InstrumentHistoryRangeError,
+   portfolioAllocation,
+   depotComparison,
+   allocationReport,
+@@ -172,6 +174,19 @@ export function securityRoutes(db: Db, today: () => string): Hono {
+     );
+     return c.json({ security: row, groupId: ctx.groupId }, 201);
+   });
++  app.get('/:id/history', (c) => {
++    const securityId = c.req.param('id');
++    const { from, to } = readQuery(c, z.strictObject({ from: exposureDay.optional(), to: exposureDay }));
++    if (to > today() || (from !== undefined && from > to))
++      throw new ApiError(400, 'invalid_history_window', 'Bitte einen vergangenen Zeitraum in aufsteigender Reihenfolge wählen.');
++    try {
++      return c.json({ history: db.transaction((tx) => instrumentHistory(tx, securityId, defined({ from, to }))) });
++    } catch (error) {
++      if (error instanceof InstrumentHistoryRangeError)
++        throw new ApiError(400, 'history_window_limit', error.message);
++      throw error;
++    }
++  });
+   app.get('/:id/exposures', (c) => {
+     const securityId = c.req.param('id');
+     if (!getSecurity(db, securityId))
+diff --git a/apps/web/src/wealth/portfolio-api.ts b/apps/web/src/wealth/portfolio-api.ts
+index 2877fa7df48d3c4ea8f29e239dcb7fb26747f52e..9c86e05d6dff42af53702ab26676c82d2028961f 100644
+--- a/apps/web/src/wealth/portfolio-api.ts
++++ b/apps/web/src/wealth/portfolio-api.ts
+@@ -3,6 +3,7 @@ import type {
+   PortfolioPositionsView,
+   SecurityRecord,
+   PortfolioSummary,
++  InstrumentHistory,
+ } from '@budget/db';
+ import type { Period } from '@budget/domain';
+ import { queryOptions } from '@tanstack/react-query';
+@@ -51,3 +52,17 @@ export const assetClassesQuery = () =>
+     retry: false,
+     queryFn: () => request<{ assetClasses: AssetClassRow[] }>('GET', '/api/asset-classes'),
+   });
++
++
++export const instrumentHistoryQuery = (securityId: string, from: string | undefined, to: string | undefined) =>
++  queryOptions({
++    queryKey: [...LEDGER_KEY, 'instrument-history', securityId, from ?? 'Max', to],
++    enabled: !!securityId && securityId !== 'neu' && !!to,
++    retry: false,
++    queryFn: () => {
++      if (!to) throw new Error('Der Stichtag fehlt.');
++      const params = new URLSearchParams({ to });
++      if (from) params.set('from', from);
++      return request<{ history: InstrumentHistory }>('GET', `/api/securities/${encodeURIComponent(securityId)}/history?${params.toString()}`);
++    },
++  });
+diff --git a/apps/web/src/wealth/portfolio-detail-page.tsx b/apps/web/src/wealth/portfolio-detail-page.tsx
+index 8291bc090611c5c911625383e496dc5eb1505f8a..7e33f772474607d19be38fc56b0477d66ab1c42d 100644
+--- a/apps/web/src/wealth/portfolio-detail-page.tsx
++++ b/apps/web/src/wealth/portfolio-detail-page.tsx
+@@ -111,6 +111,7 @@ export function InstrumentPage() {
+             (p) => p.securityId === id,
+           )}
+           asOf={view?.asOf}
++          historyPeriod={zeitraum}
+           positionState={
+             positions.isError ? 'unavailable' : positions.isPending ? 'loading' : 'ready'
+           }
+diff --git a/apps/web/src/wealth/portfolio-panel.tsx b/apps/web/src/wealth/portfolio-panel.tsx
+index 4f9215a2beebf0964f2a4ee95041cd8e49c63abb..f7ea6324ce547e34a555bd009380a7e35bd09f7c 100644
+--- a/apps/web/src/wealth/portfolio-panel.tsx
++++ b/apps/web/src/wealth/portfolio-panel.tsx
+@@ -19,21 +19,25 @@ import { instrumentQuery, type PortfolioPosition } from './portfolio-api';
+ import { basisReason, moneyText, quoteStand, quoteText, unitsText } from './portfolio-format';
+ import { InstrumentForm, INSTRUMENT_KIND } from './instrument-form';
+ import { TradeHistory } from './trade-history';
+-import { PriceHistory } from './price-history';
++import { PriceHistory, useInstrumentHistory } from './price-history';
++import type { Period } from '@budget/domain';
++import { longDay } from '../ledger/format';
+ 
+ export function InstrumentPanel({
+   id,
+-  position,
++  position: currentPosition,
+   asOf,
++  historyPeriod = 'YTD',
+   onClose,
+   onSelect,
+-  positionState,
++  positionState: initialPositionState,
+   onRetryPositions,
+   onTrade,
+ }: {
+   id: string;
+   position?: PortfolioPosition | undefined;
+   asOf?: string | undefined;
++  historyPeriod?: Period | undefined;
+   onClose: () => void;
+   onSelect: (id?: string, replace?: boolean) => void;
+   positionState: 'loading' | 'unavailable' | 'ready';
+@@ -42,6 +46,11 @@ export function InstrumentPanel({
+ }) {
+   useAmountPrivacy();
+   const creating = id === 'neu';
++  const history = useInstrumentHistory(creating ? '' : id, asOf, historyPeriod);
++  const historyView = history.query.isError ? undefined : history.query.data?.history;
++  const position = historyView?.position ?? undefined;
++  const positionState = !asOf ? initialPositionState : history.query.isError || historyView?.unavailable === 'calculation_limit'
++    ? 'unavailable' : history.query.isPending ? 'loading' : 'ready';
+   const instrument = useQuery(instrumentQuery(creating ? '' : id));
+   const [editing, setEditing] = useState(false);
+   const [quoting, setQuoting] = useState(false);
+@@ -164,10 +173,12 @@ export function InstrumentPanel({
+           </Button>
+           {!position && positionState === 'loading' && <LoadingNote what="Bestände" />}
+           {!position && positionState === 'unavailable' && (
+-            <ErrorNote what="Bestände" error={undefined} onRetry={onRetryPositions} />
++            <ErrorNote what="Bestände" error={history.query.error} onRetry={() => {
++              if (!asOf) onRetryPositions(); else void history.query.refetch();
++            }} />
+           )}
+           {!position && positionState === 'ready' && (
+-            <p className="vnote">Dieses Instrument hat keinen aktuellen Bestand.</p>
++            <p className="vnote">Dieses Instrument hat am gewählten Stichtag keinen Bestand.</p>
+           )}
+           {position && (
+             <>
+@@ -178,10 +189,11 @@ export function InstrumentPanel({
+               </p>
+             </>
+           )}
+-          <PriceHistory key={id} securityId={id} asOf={asOf} />
++          <PriceHistory key={id} securityId={id} controller={history} />
+           {position && (
+             <>
+               <h3>Bestand je Konto</h3>
++              {historyView && <p className="vnote">Stichtag {longDay(historyView.to)} · dieselbe Bewertung wie im Wertverlauf.</p>}
+               <table className="instrument-accounts">
+                 <caption className="sr-only">
+                   Bestand des Instruments je Konto und Plattform
+@@ -224,7 +236,7 @@ export function InstrumentPanel({
+             </>
+           )}
+           <TradeHistory securityId={id} onEdit={openTrade} disabled={saving} />
+-          {asOf && position && (
++          {asOf && currentPosition && (
+             <Button variant="ghost" disabled={saving} onClick={() => setQuoting(true)}>
+               Kurs eintragen
+             </Button>
+diff --git a/apps/web/src/wealth/price-history.css b/apps/web/src/wealth/price-history.css
+index 7ef1e33cc5d046ce010e6530ba077d47ebe0c74e..b5485bab7b7873338a1ba41ab8d9057bb99245dd 100644
+--- a/apps/web/src/wealth/price-history.css
++++ b/apps/web/src/wealth/price-history.css
+@@ -17,3 +17,19 @@
+   background: var(--primary);
+   color: var(--on-primary);
+ }
++
++.instrument-history-frame {
++  width: 100%;
++  min-width: 0;
++  min-height: 280px;
++}
++.instrument-cost-line {
++  stroke: var(--ink-2);
++  stroke-width: var(--stroke-measure);
++  stroke-dasharray: var(--dash-plan);
++}
++.instrument-trade-marker {
++  fill: var(--surface);
++  stroke: var(--line);
++  stroke-width: var(--stroke-measure);
++}
+diff --git a/apps/web/src/wealth/price-history.tsx b/apps/web/src/wealth/price-history.tsx
+index 0a0105f357603989149a8eeb95e383b1f5146d07..ac745192067bc17253128d7dc6e15343c87fb381 100644
+--- a/apps/web/src/wealth/price-history.tsx
++++ b/apps/web/src/wealth/price-history.tsx
+@@ -1,122 +1,133 @@
+-import { addMonths, lastDayOfMonth } from '@budget/domain';
+-import type { PriceRow } from '@budget/db';
+-import { AxisLine, Button, ChartSvg, Graticule, Line, XTicks, useAmountPrivacy } from '@budget/ui';
++import { addMonths, lastDayOfMonth, periodWindow, type Period } from '@budget/domain';
++import type { InstrumentHistory, PriceRow } from '@budget/db';
++import { AxisLine, Button, ChartSvg, Graticule, Line, maskMoneyText, useAmountPrivacy } from '@budget/ui';
+ import { useQuery } from '@tanstack/react-query';
+ import { useState } from 'react';
+ import { request } from '../api/http';
+ import { LEDGER_KEY } from '../ledger/queries';
+ import { ErrorNote, LoadingNote } from '../ledger/states';
+-import { shortDay } from '../ledger/format';
+-import { quoteText } from './portfolio-format';
++import { eur, longDay, shortDay } from '../ledger/format';
++import { quoteText, unitsText } from './portfolio-format';
++import { sourceMoney } from './trade-api';
++import { TRADE_LABELS } from './trade-draft';
++import { instrumentHistoryQuery } from './portfolio-api';
++import { useElementWidth } from '../charts/use-element-width';
++import { kfmt } from './networth-model';
+ import './price-history.css';
+ 
++const SOURCE_LABELS = { quote: 'Gespeicherter Kurs', execution: 'Ausführungskurs', cost: 'Einstandsschätzung', missing: 'Wert fehlt' };
++const FX_LABELS = { identity: 'EUR ohne Umrechnung', rate: 'Gespeicherter Wechselkurs', missing: 'Wechselkurs fehlt', 'not-evaluated': 'Umrechnung nicht angewendet' };
+ const RANGES = ['1M', '6M', '1J', 'Max'] as const;
+ type Range = (typeof RANGES)[number];
+ 
+-export function PriceHistory({
+-  securityId,
+-  asOf,
+-}: {
+-  securityId: string;
+-  asOf?: string | undefined;
+-}) {
++/** One snapshot feeds the chart and the visible end-position/basis; form dates remain separate. */
++export function useInstrumentHistory(securityId: string, asOf: string | undefined, period: Period) {
++  const [range, setRange] = useState<Range | null>(null);
++  const window = asOf ? periodWindow(period, asOf) : undefined;
++  const to = window?.to;
++  const month = to && range && range !== 'Max' ? addMonths(to.slice(0, 7), -{ '1M': 1, '6M': 6, '1J': 12 }[range]) : undefined;
++  const rangeFrom = month && to ? `${month}-${to.slice(8, 10)}` > lastDayOfMonth(month)
++    ? lastDayOfMonth(month) : `${month}-${to.slice(8, 10)}` : undefined;
++  const from = range === 'Max' || (range === null && period === 'Alles') ? undefined
++    : rangeFrom ?? window?.from;
++  const query = useQuery(instrumentHistoryQuery(securityId, from, to));
++  return { range, setRange, from, to, query };
++}
++export type InstrumentHistoryController = ReturnType<typeof useInstrumentHistory>;
++
++export function PriceHistory({ securityId, controller }: { securityId: string; controller: InstrumentHistoryController }) {
+   useAmountPrivacy();
+-  const [range, setRange] = useState<Range>('Max');
++  const [mode, setMode] = useState<'value' | 'price'>('value');
++  const [frame, width] = useElementWidth<HTMLDivElement>();
+   const query = useQuery({
+-    queryKey: [...LEDGER_KEY, 'security-prices', securityId],
+-    retry: false,
+-    queryFn: () =>
+-      request<{ securityId: string; currency: string; prices: PriceRow[] }>(
+-        'GET',
+-        `/api/securities/${encodeURIComponent(securityId)}/prices`,
+-      ),
++    queryKey: [...LEDGER_KEY, 'security-prices', securityId], retry: false,
++    queryFn: () => request<{ securityId: string; currency: string; prices: PriceRow[] }>('GET', `/api/securities/${encodeURIComponent(securityId)}/prices`),
+   });
+-  const to = asOf ?? query.data?.prices.at(-1)?.date;
+-  const month =
+-    to && range !== 'Max'
+-      ? addMonths(to.slice(0, 7), -{ '1M': 1, '6M': 6, '1J': 12 }[range])
+-      : null;
+-  const from =
+-    month && to
+-      ? `${month}-${to.slice(8, 10)}` > lastDayOfMonth(month)
+-        ? lastDayOfMonth(month)
+-        : `${month}-${to.slice(8, 10)}`
+-      : null;
+-  const prices =
+-    query.data?.prices.filter((p) => (!from || p.date >= from) && (!to || p.date <= to)) ?? [];
+-  return (
+-    <section className="price-history" aria-labelledby="price-history-title">
+-      <h3 id="price-history-title">Kursverlauf</h3>
+-      <div className="price-history-ranges" role="group" aria-label="Zeitraum des Kursverlaufs">
+-        {RANGES.map((r) => (
+-          <Button key={r} variant="ghost" aria-pressed={range === r} onClick={() => setRange(r)}>
+-            {r}
+-          </Button>
+-        ))}
+-      </div>
+-      {query.isPending && <LoadingNote what="Kursverlauf" />}
+-      {query.isError && (
+-        <ErrorNote what="Kursverlauf" error={query.error} onRetry={() => void query.refetch()} />
+-      )}
+-      {query.isSuccess &&
+-        (prices.length ? (
+-          <PriceChart prices={prices} />
+-        ) : (
+-          <p className="vnote">Keine gespeicherten Kurse im Zeitraum.</p>
+-        ))}
+-    </section>
+-  );
++  const history = controller.query.isError ? undefined : controller.query.data?.history;
++  const from = mode === 'price' ? controller.from : history?.from ?? controller.from;
++  const to = history?.to ?? controller.to;
++  const prices = query.data?.prices.filter((p) => (!from || p.date >= from) && (!to || p.date <= to)) ?? [];
++  return <section className="price-history" aria-labelledby="price-history-title">
++    <h3 id="price-history-title">Wert und Kurs</h3>
++    <div className="price-history-ranges" role="group" aria-label="Darstellung des Instruments">
++      <Button variant="ghost" aria-pressed={mode === 'value'} onClick={() => setMode('value')}>Wert €</Button>
++      <Button variant="ghost" aria-pressed={mode === 'price'} onClick={() => setMode('price')}>Kurs</Button>
++    </div>
++    <div className="price-history-ranges" role="group" aria-label="Zeitraum des Instrumentverlaufs">
++      <Button variant="ghost" aria-pressed={controller.range === null} onClick={() => controller.setRange(null)}>Portfolio-Zeitraum</Button>
++      {RANGES.map((range) => <Button key={range} variant="ghost" aria-pressed={controller.range === range} onClick={() => controller.setRange(range)}>{range}</Button>)}
++    </div>
++    {to && <p className="vnote">{from ? `${longDay(from)} bis ` : 'Gesamte gespeicherte Historie bis '}{longDay(to)} · {mode === 'value' ? 'Wert aller Kontobestände in EUR, ohne Kassa' : `Gespeicherter Kurs je Stück in ${query.data?.currency ?? 'Kurswährung'}`}</p>}
++    {controller.query.isPending && <LoadingNote what="Wertverlauf" />}
++    {controller.query.isError && <ErrorNote what="Wertverlauf" error={controller.query.error} onRetry={() => void controller.query.refetch()} />}
++    {controller.query.isFetching && !controller.query.isPending && <p className="vnote" role="status">Wertverlauf und Stichtagsbestand werden gemeinsam aktualisiert.</p>}
++    {history?.unavailable && <p className="vnote" role="status">Wertverlauf nicht verfügbar: {history.unavailable === 'missing_fx' ? 'Ein Wechselkurs fehlt.' : 'Der darstellbare Zahlenbereich wird überschritten.'} Gespeicherte Kurse bleiben separat verfügbar.</p>}
++    {mode === 'price' && query.isPending && <LoadingNote what="Kursverlauf" />}
++    {mode === 'price' && query.isError && <ErrorNote what="Kursverlauf" error={query.error} onRetry={() => void query.refetch()} />}
++    <div ref={frame} className="instrument-history-frame">
++      {width > 100 && to && (mode === 'value' && history || mode === 'price' && query.isSuccess) &&
++        <Drawing mode={mode} width={width} prices={prices} history={history} from={from ?? prices[0]?.date ?? to} to={to} />}
++    </div>
++    {mode === 'value' && history && <p className="vnote">Täglich gerundete EUR-Kontopositionen, keine Multiplikation gerundeter Gesamtstücke mit einem Anzeigekurs. {history.unavailable || history.position?.costCents == null ? 'Für diesen Verlauf wird keine Einstandslinie angezeigt.' : <>Gestrichelt: dokumentierter Stichtag-Einstand vom {longDay(history.to)} ({history.costMethod === 'fifo' ? 'FIFO' : 'gleitender Durchschnitt'}), kein historischer Einstandsverlauf.</>} Fehlende Werte unterbrechen die Linie; Tagesquelle und Qualität stehen in der Inspektion.</p>}
++    {mode === 'price' && query.isSuccess && prices.length === 0 && <p className="vnote">Keine gespeicherten Kurse im Zeitraum.</p>}
++    <p className="vnote">Käufe und Verkäufe stehen am tatsächlichen Handelsdatum. Ereignisse ohne Bewertung erscheinen am unteren Rand und sind keine Wertpunkte.</p>
++  </section>;
+ }
+ 
+-function PriceChart({ prices }: { prices: PriceRow[] }) {
+-  const lo = Math.min(...prices.map((p) => p.priceMicro));
+-  const hi = Math.max(...prices.map((p) => p.priceMicro));
+-  const pad = Math.max(1, (hi - lo) * 0.1);
+-  const first = Date.parse(prices[0]!.date);
+-  const duration = Date.parse(prices.at(-1)!.date) - first;
+-  const x = (p: PriceRow) =>
+-    duration ? 100 + ((Date.parse(p.date) - first) / duration) * 620 : 410;
+-  const y = (v: number) => 226 - ((v - lo + pad) / (hi - lo + 2 * pad)) * 200;
+-  const currency = prices[0]!.currency;
+-  return (
+-    <ChartSvg
+-      width={760}
+-      height={270}
+-      label={`Gespeicherte Kurse in ${currency}`}
+-      testId="price-history-chart"
+-      points={prices.map((p) => ({
+-        x: x(p),
+-        date: p.date,
+-        series: [{ name: 'Kurs', value: quoteText(p), color: 'var(--line)' }],
+-      }))}
+-    >
+-      <Graticule
+-        x1={100}
+-        x2={720}
+-        lines={[...new Set([lo, hi])].map((v) => ({
+-          y: y(v),
+-          label: quoteText({ ...prices[0]!, priceMicro: v }),
+-        }))}
+-      />
+-      <AxisLine x1={100} x2={720} y={226} />
+-      <Line kind="actual" points={prices.map((p) => [x(p), y(p.priceMicro)])} />
+-      {prices.map((p, i) => (
+-        <circle
+-          key={p.date}
+-          data-chart-point={i}
+-          cx={x(p)}
+-          cy={y(p.priceMicro)}
+-          r={prices.length === 1 ? 3 : 1.5}
+-          fill="var(--line)"
+-        />
+-      ))}
+-      <XTicks
+-        y={256}
+-        ticks={[prices[0]!, ...(prices.length > 1 ? [prices.at(-1)!] : [])].map((p) => ({
+-          x: x(p),
+-          label: `${shortDay(p.date)}${p.date.slice(0, 4)}`,
+-        }))}
+-      />
+-    </ChartSvg>
+-  );
++function Drawing({ mode, width, prices, history, from, to }: {
++  mode: 'value' | 'price'; width: number; prices: PriceRow[]; history: InstrumentHistory | undefined; from: string; to: string;
++}) {
++  useAmountPrivacy();
++  const height = 280, left = 64, right = 16, top = 20, bottom = 232;
++  const rows = mode === 'value' ? (history?.points ?? []).map((p) => ({ date: p.date, value: p.valueCents }))
++    : prices.map((p) => ({ date: p.date, value: p.priceMicro }));
++  const basis = mode === 'value' && !history?.unavailable ? history?.position?.costCents ?? null : null;
++  const known = rows.flatMap((p) => p.value === null ? [] : [p.value]);
++  if (basis !== null) known.push(basis);
++  const lo = Math.min(0, ...known), hi = Math.max(0, ...known), pad = (hi - lo) * 0.08 || 1;
++  const day = (date: string) => Date.parse(`${date}T00:00:00Z`);
++  const duration = day(to) - day(from);
++  const x = (date: string) => left + (duration === 0 ? 0.5 : (day(date) - day(from)) / duration) * (width - left - right);
++  const y = (value: number) => bottom - (value - lo + pad) / (hi - lo + pad * 2) * (bottom - top);
++  const byDate = new Map(rows.map((p) => [p.date, p]));
++  const facts = new Map(history?.points.map((p) => [p.date, p]));
++  const events = (history?.events ?? []).filter((e) => e.date >= from && e.date <= to);
++  const dates = [...new Set([...rows.map((p) => p.date), ...events.map((e) => e.date)])].sort();
++  const quotes = new Map(prices.map((p) => [p.date, p]));
++  const points = dates.map((date) => {
++    const fact = facts.get(date), quote = quotes.get(date);
++    return { x: x(date), date, series: [
++      { name: mode === 'value' ? 'Wert in EUR' : 'Kurs je Stück', value: mode === 'value'
++        ? fact?.valueCents === null || !fact ? 'Nicht verfügbar' : eur(fact.valueCents)
++        : quote ? quoteText(quote) : 'Kein gespeicherter Kurs an diesem Tag' },
++      ...(mode === 'value' && fact ? [
++        { name: 'Stück', value: unitsText(fact.unitsE8) },
++        { name: 'Bewertung', value: fact.quality === 'exact' ? 'Bekannt' : fact.quality === 'stale' ? 'Kurs veraltet' : fact.quality === 'estimated' ? 'Geschätzt' : 'Fehlend' },
++        ...fact.observations.map((source) => ({ name: maskMoneyText(`Tagesquelle · ${history?.position?.accounts.find((a) => a.accountId === source.accountId)?.name ?? 'Konto ohne Stichtagsbestand'}`), value: `${SOURCE_LABELS[source.kind]} · ${source.date ?? 'ohne Kursdatum'} · ${source.currency ?? 'Währung unbekannt'}${source.lookAhead ? ' · spätere Ausführung als Bewertungsquelle' : ''} · ${FX_LABELS[source.fx.kind]}${source.fx.kind === 'rate' ? ` ${source.fx.date}` : ''}` })),
++      ] : []),
++      ...(basis !== null ? [{ name: `Stichtag-Einstand ${history!.to}`, value: eur(basis) }] : []),
++      ...events.filter((e) => e.date === date).map((e) => ({ name: TRADE_LABELS[e.kind], value: `${unitsText(e.unitsE8)} Stück · ${sourceMoney(e.amountCents, e.currency)}` })),
++    ] };
++  });
++  const segments: Array<Array<[number, number]>> = [[]];
++  for (const row of rows) {
++    if (row.value === null) segments.push([]);
++    else segments[segments.length - 1]!.push([x(row.date), y(row.value)]);
++  }
++  return <ChartSvg width={width} height={height} testId={mode === 'value' ? 'instrument-value-chart' : 'price-history-chart'}
++    label={mode === 'value' ? 'Täglicher Instrumentwert in EUR und dokumentierter Stichtag-Einstand' : `Gespeicherter Kurs je Stück in ${prices[0]?.currency ?? 'Kurswährung'}`}
++    points={points} table>
++    <Graticule x1={left} x2={width - right} lines={[...new Set([lo, hi])].map((v) => ({ y: y(v), label: mode === 'value' ? kfmt(v / 100) : quoteText(prices[0] ? { ...prices[0], priceMicro: v } : null) }))} />
++    <AxisLine x1={left} x2={width - right} y={y(0)} />
++    {segments.filter((segment) => segment.length > 0).map((segment, i) => <g key={i}>
++      <Line kind="actual" points={segment} />
++      {segment.length === 1 && <circle cx={segment[0]![0]} cy={segment[0]![1]} r={3} className="dot-actual" />}
++    </g>)}
++    {basis !== null && <line x1={left} x2={width - right} y1={y(basis)} y2={y(basis)} className="instrument-cost-line" />}
++    {[...new Set(events.map((e) => e.date))].map((date) => <g key={date}>
++      <circle cx={x(date)} cy={byDate.get(date)?.value === null || byDate.get(date)?.value === undefined ? bottom : y(byDate.get(date)!.value!)} r={4} className="instrument-trade-marker" />
++    </g>)}
++    <text x={left} y={height - 8} className="svg-label" textAnchor="start">{shortDay(from)}</text>
++    <text x={width - right} y={height - 8} className="svg-label" textAnchor="end">{shortDay(to)}</text>
++  </ChartSvg>;
+ }
+diff --git a/apps/web/src/wealth/savings-detail.tsx b/apps/web/src/wealth/savings-detail.tsx
+index e89f26d44d7246baa94fd7a21e0e7cedb6c0beea..b387ad175a65ca3befc4951f608e29e2675ad6ec 100644
+--- a/apps/web/src/wealth/savings-detail.tsx
++++ b/apps/web/src/wealth/savings-detail.tsx
+@@ -1,8 +1,9 @@
+ import { useQuery } from '@tanstack/react-query';
+-import { useAmountPrivacy } from '@budget/ui';
++import { privateAmount, useAmountPrivacy } from '@budget/ui';
+ import type { SavingsPlanRecord } from './savings-api';
+-import { nextPlanExecution, planPurchases } from './savings-model';
++import { nextPlanExecution, planPurchases, savingsMonthStrip } from './savings-model';
+ import { tradesQuery } from './trade-api';
++import { unitsText } from './portfolio-format';
+ import { TradeHistory } from './trade-history';
+ import { longDay, nativeCurrency } from '../ledger/format';
+ import { LoadingNote, ErrorNote } from '../ledger/states';
+@@ -20,6 +21,8 @@ export function SavingsDetail({
+   const query = useQuery(tradesQuery(rows[0]!.securityId));
+   const next = nextPlanExecution(rows, today);
+   const purchases = planPurchases(rows, query.data?.trades ?? [], today);
++  const months = savingsMonthStrip(rows, query.data?.trades ?? [], today);
++  const status = { not_planned: 'Nicht geplant', open: 'Offen', missing_link: 'Zuordnung fehlt', executed: 'Ausgeführt · zugeordnet', ambiguous: 'Zuordnung prüfen' };
+   const money = (value: number | null) =>
+     value !== null && currency ? nativeCurrency(value, currency) : 'Nicht verfügbar';
+   return (
+@@ -49,9 +52,21 @@ export function SavingsDetail({
+       {query.isError && (
+         <ErrorNote what="Käufe" error={query.error} onRetry={() => void query.refetch()} />
+       )}
+-      {query.isSuccess && (
+-        <TradeHistory securityId={rows[0]!.securityId} trades={purchases.buys} disabled purchases />
+-      )}
++      {query.isSuccess && <>
++        <section className="savings-months" aria-labelledby="savings-months-title">
++          <h3 id="savings-months-title">Letzte zwölf Monate</h3>
++          <p className="vnote">Stand {longDay(today)}. „Ausgeführt“ bedeutet ausdrücklich zugeordneter Kauf, keine Bestätigung der Bank. Manuelle oder nur ähnlich erkannte Käufe bleiben in der Kaufhistorie; bei fehlender Zuordnung bitte den Posteingang prüfen.</p>
++          <ol>{months.map((slot) => <li key={slot.month}>
++            <strong>{slot.month}</strong><span>{status[slot.status]}</span>
++            <span>{slot.amountCents !== null ? money(slot.amountCents) : slot.plannedCents !== null ? `Geplant: ${money(slot.plannedCents)}` : 'Kein geplanter Betrag'}</span>
++            <span>Stück: {slot.unitsE8 === null ? 'nicht zugeordnet' : privateAmount(unitsText(slot.unitsE8))}</span>
++            {slot.tradeDate && <small>Kauf am {longDay(slot.tradeDate)}</small>}
++          </li>)}</ol>
++        </section>
++        <details className="savings-purchases"><summary>Käufe anzeigen</summary>
++          <TradeHistory securityId={rows[0]!.securityId} trades={purchases.buys} disabled purchases />
++        </details>
++      </>}
+     </>
+   );
+ }
+diff --git a/apps/web/src/wealth/savings-model.ts b/apps/web/src/wealth/savings-model.ts
+index 9b6bba4eb273eabfe188fea1a0eba654fd43240d..845b5cfacefccccaecb0c6d59cf6545857967f4f 100644
+--- a/apps/web/src/wealth/savings-model.ts
++++ b/apps/web/src/wealth/savings-model.ts
+@@ -1,4 +1,5 @@
+-import { addDays, freedomSumCents, nextExecutionAfter, rowAppliesOn } from '@budget/domain';
++import { addDays, addMonths, monthOf, plannedExecutions, freedomSumCents, nextExecutionAfter, rowAppliesOn } from '@budget/domain';
++import type { TradeRow } from './trade-api';
+ import type { SavingsPlanRecord } from './savings-api';
+ 
+ export const BANK_NOTE =
+@@ -101,3 +102,44 @@ export function currentRates(
+   if (missingAccount) for (const currency of totals.keys()) totals.set(currency, null);
+   return totals;
+ }
++
++
++export interface SavingsMonthSlot {
++  month: string;
++  status: 'not_planned' | 'open' | 'missing_link' | 'executed' | 'ambiguous';
++  plannedDate: string | null;
++  plannedCents: number | null;
++  amountCents: number | null;
++  unitsE8: number | null;
++  tradeDate: string | null;
++}
++
++/** Explicit retained execution links only. Approximate/manual recognition stays in the inbox. */
++export function savingsMonthStrip(rows: readonly SavingsPlanRecord[], trades: readonly TradeRow[], asOf: string): SavingsMonthSlot[] {
++  const first = rows[0];
++  const versions = first ? rows.filter((row) => row.accountId === first.accountId && row.securityId === first.securityId) : [];
++  return Array.from({ length: 12 }, (_, index): SavingsMonthSlot => {
++    const month = addMonths(monthOf(asOf), index - 11);
++    const base: SavingsMonthSlot = { month, status: 'not_planned', plannedDate: null,
++      plannedCents: null, amountCents: null, unitsE8: null, tradeDate: null };
++    if (!first) return base;
++    const planned = plannedExecutions(versions, month);
++    const linked = trades.filter((t) => t.kind === 'buy' && t.deletedAt === null &&
++      t.accountId === first.accountId && t.securityId === first.securityId &&
++      t.savingsMonth === month && t.date <= asOf);
++    if (versions.length !== rows.length || planned.length > 1 || linked.length > 1)
++      return { ...base, status: 'ambiguous' };
++    const schedule = planned[0];
++    const actual = linked[0];
++    if (!schedule) return actual ? { ...base, status: 'ambiguous' } : base;
++    const slot = { ...base, plannedDate: schedule.date, plannedCents: schedule.amountCents };
++    if (actual) {
++      if (actual.savingsPlanId !== schedule.planId || !Number.isSafeInteger(actual.amountCents) ||
++        !Number.isSafeInteger(actual.unitsE8) || actual.amountCents < 0 || actual.unitsE8 <= 0)
++        return { ...slot, status: 'ambiguous' };
++      return { ...slot, status: 'executed', amountCents: actual.amountCents,
++        unitsE8: actual.unitsE8, tradeDate: actual.date };
++    }
++    return { ...slot, status: schedule.date > asOf ? 'open' : 'missing_link' };
++  });
++}
+diff --git a/apps/web/src/wealth/savings.css b/apps/web/src/wealth/savings.css
+index 52ccea2458e6afc4350d76ca7a872be34d921299..c79b04134fd6d801c72d063af999d7b65d451391 100644
+--- a/apps/web/src/wealth/savings.css
++++ b/apps/web/src/wealth/savings.css
+@@ -84,3 +84,45 @@
+   font-weight: 620;
+   overflow-wrap: anywhere;
+ }
++
++/* Explicit savings links: the strip never promotes an inferred/manual buy to an execution. */
++.savings-months ol {
++  display: grid;
++  grid-template-columns: repeat(4, minmax(0, 1fr));
++  gap: 12px;
++  padding: 0;
++  list-style: none;
++}
++.savings-months li {
++  display: grid;
++  align-content: start;
++  gap: 4px;
++  padding: 8px;
++  border: 1px solid var(--rule);
++  overflow-wrap: anywhere;
++  font-variant-numeric: tabular-nums;
++}
++.savings-months li small {
++  color: var(--ink-2);
++}
++.savings-purchases summary,
++.trade-row-edit {
++  min-height: 44px;
++  padding-block: 12px;
++}
++.trade-row-edit {
++  background: transparent;
++  border: 0;
++  color: var(--line);
++  font: inherit;
++  text-align: left;
++  cursor: pointer;
++}
++@media (max-width: 600px) {
++  .savings-months ol {
++    grid-template-columns: repeat(2, minmax(0, 1fr));
++  }
++}
++.trade-list tr:has(.trade-row-edit:enabled) {
++  cursor: pointer;
++}
+diff --git a/apps/web/src/wealth/trade-history.tsx b/apps/web/src/wealth/trade-history.tsx
+index a269df1171ce7efc459d507dd7eb8f792a3d3058..183b20bbdc46f5b80486bb24b42d28669b0c2093 100644
+--- a/apps/web/src/wealth/trade-history.tsx
++++ b/apps/web/src/wealth/trade-history.tsx
+@@ -1,4 +1,5 @@
+-import { useAmountPrivacy, Button } from '@budget/ui';
++import { useAmountPrivacy, maskMoneyText, privateAmount, Button } from '@budget/ui';
++import { useState } from 'react';
+ import { useQuery } from '@tanstack/react-query';
+ import { accountsQuery } from '../ledger/queries';
+ import { ErrorNote, LoadingNote } from '../ledger/states';
+@@ -22,6 +23,9 @@ export function TradeHistory({
+   useAmountPrivacy();
+   const query = useQuery(tradesQuery(securityId));
+   const accounts = useQuery({ ...accountsQuery(), retry: false });
++  const [all, setAll] = useState(false);
++  const ordered = [...(trades ?? query.data?.trades ?? [])].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
++  const visible = all ? ordered : ordered.slice(0, 12);
+   return (
+     <section className="trade-history" aria-labelledby="trade-history-title">
+       <h3 id="trade-history-title">{purchases ? 'Käufe' : 'Handelsverlauf'}</h3>
+@@ -58,7 +62,7 @@ export function TradeHistory({
+                 'Gebühren',
+                 'Steuer',
+                 'Notiz',
+-                ...(onEdit ? ['Aktion'] : []),
++
+               ].map((label) => (
+                 <th key={label} scope="col">
+                   {label}
+@@ -67,46 +71,39 @@ export function TradeHistory({
+             </tr>
+           </thead>
+           <tbody>
+-            {(trades ?? query.data?.trades ?? [])
+-              .slice()
+-              .reverse()
+-              .map((trade) => {
++            {visible.map((trade) => {
+                 const account = accounts.data?.accounts.find(
+                   (account) => account.id === trade.accountId,
+                 );
+                 const money = (cents: number) =>
+                   account ? sourceMoney(cents, account.currency) : 'Kontowährung wird geladen';
+                 return (
+-                  <tr key={trade.id} data-trade-id={trade.id}>
++                  <tr key={trade.id} data-trade-id={trade.id}
++                    onPointerUp={onEdit && !disabled ? (event) => {
++                      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || window.getSelection()?.toString()) return;
++                      if (event.target instanceof Element && event.target.closest('button,a,input,select,textarea')) return;
++                      onEdit(trade.id);
++                    } : undefined}>
+                     <td>{longDay(trade.date)}</td>
+                     <th scope="row">
+-                      <strong>{KINDS[trade.kind]}</strong>
+-                      <small>{account?.name ?? 'Konto wird geladen'}</small>
++                      {onEdit ? <button type="button" className="trade-row-edit" disabled={disabled}
++                        onClick={() => onEdit(trade.id)} aria-label={`${KINDS[trade.kind]} vom ${longDay(trade.date)} bearbeiten`}>
++                        {KINDS[trade.kind]}
++                      </button> : <strong>{KINDS[trade.kind]}</strong>}
++                      <small>{maskMoneyText(account?.name ?? 'Konto wird geladen')}</small>
+                     </th>
+                     <td className="num">
+-                      {unitsText(
++                      {privateAmount(unitsText(
+                         trade.kind === 'buy' || trade.kind === 'sell'
+                           ? Math.abs(trade.unitsE8)
+                           : trade.unitsE8,
+-                      )}
++                      ))}
+                     </td>
+                     <td className="num">{money(trade.amountCents)}</td>
+                     <td className="num">{money(trade.feeCents)}</td>
+                     <td className="num">{money(trade.taxCents)}</td>
+-                    <td>{trade.note ?? '—'}</td>
+-                    {onEdit && (
+-                      <td>
+-                        <Button
+-                          variant="ghost"
+-                          size="sm"
+-                          disabled={disabled}
+-                          onClick={() => onEdit(trade.id)}
+-                          aria-label={`${KINDS[trade.kind]} vom ${longDay(trade.date)} bearbeiten`}
+-                        >
+-                          Bearbeiten
+-                        </Button>
+-                      </td>
+-                    )}
++                    <td>{maskMoneyText(trade.note ?? '—')}</td>
++
+                   </tr>
+                 );
+               })}
+@@ -114,6 +111,9 @@ export function TradeHistory({
+         </table>
+       </div>
+       {/* eslint-enable jsx-a11y/no-noninteractive-tabindex */}
++      {ordered.length > 12 && <Button variant="ghost" onClick={() => setAll((shown) => !shown)}>
++        {all ? 'Letzte zwölf anzeigen' : `Alle anzeigen (${ordered.length})`}
++      </Button>}
+     </section>
+   );
+ }
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index 7a179ee0176a4f5af7c0150093faadc034349366..2000a8d81e2202def3249827c5da319a1dac8945 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1888,3 +1888,11 @@ explicit reanalysis/review. Upload and reanalysis never post money.
+ - Added a compact Kennzahlen view from the exact performance-report query: TTWROR period/p.a., XIRR p.a., benchmark differences, risk explanations and a collapsed table of the already-produced daily calculation flows. Report and register links preserve the selected period. No Modified Dietz, new benchmark convention or financial formula is introduced.
+ - Added an optional validated past asOf to the existing positions GET, reusing the same dated producer. Successful historical performance selects its identical endpoint for the lead and position values. If only performance history is unavailable, the separately dated current-position facts remain visible with an explicit unavailable-comparison note rather than being relabelled a historical endpoint.
+ - [ ] Source-only checkpoint: existing tests are unchanged, and no new tests, execution, formatter, typecheck, build, native/visual/Axe or CI ran for this packet. Independent whole-source review and later literal same-period parity/100+100→220=10%/dated endpoint/router/dialog/privacy tests plus actual desktop/phone layouts, two-screen bounds, 44px/Axe, required checks and LIVE acceptance remain pending. #543 calculations are reused, not claimed as newly implemented; #487/#547/#548 depth/detail redesigns remain separate.
++
++
++### #547 / #548 — dated instrument history and explicit savings months (source checkpoint, 2026-10-21)
++
++- Added one bounded read-only instrument-history endpoint using the existing daily valuation plus the canonical dated position and configured cost-basis method in a shared read transaction. Live account identity, account-level cent rounding, daily observed quality, missing values and exact endpoint correspondence are retained; unsafe new aggregates are explicitly unavailable. The new endpoint alone rejects windows above 20,000 inclusive days without truncation.
++- Instrument detail now defaults to Wert € with a separate native-currency Kurs mode, existing range choices, actual dated trade events and a labelled dashed Stichtag-Einstand reference when documented. The same response supplies historical chart and visible position/basis; existing writer/form dates and dirty/busy/trade controllers remain separate and unchanged. Source observations, units and gaps are available through the same hover/keyboard/table points.
++- Added a twelve-month savings strip from retained explicit savingsMonth/plan-version links only. Adjacent posting dates retain their saved month; manual/inferred buys do not become executions. Existing version-aware next execution, manual-inclusive purchase total, proposal logic and writers are unchanged. Purchases start collapsed. Shared trade history shows the last twelve with All access; existing instrument edit control is reused through native keyboard action and pointer-row delegation, while savings purchases remain read-only as required by the bounded scope.
++- [ ] Source-only checkpoint: no existing tests were edited and no new tests, execution, formatter, typecheck, lint, build, native/visual/Axe or CI ran. Financial read/selector source review is available; independent whole-source review and later literal dated endpoint/basis/FX/cent rounding, event/units, explicit-link/version/manual-extra/Undo and original editor regression proofs remain required, followed by actual responsive/touch/privacy/Axe, required checks and LIVE acceptance. Neither issue is complete from this source checkpoint.
+diff --git a/packages/db/src/repos/index.ts b/packages/db/src/repos/index.ts
+index ecbfafb7a144e4bf281debe8b8092d1d48eb3b6a..ce14635f967822dacf8b8d0a073bf2d6eeb58d70 100644
+--- a/packages/db/src/repos/index.ts
++++ b/packages/db/src/repos/index.ts
+@@ -103,3 +103,4 @@ export * from './booking-bulk-eligibility';
+ export * from './month-close-state';
+ export * from './networth-composition';
+ export * from './month-close-reconciliation';
++export * from './instrument-history';
+diff --git a/packages/db/src/repos/instrument-history.ts b/packages/db/src/repos/instrument-history.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..1b156fac2fa3db27441d2e34b448a0943498c982
+--- /dev/null
++++ b/packages/db/src/repos/instrument-history.ts
+@@ -0,0 +1,102 @@
++import {
++  daysBetween, ExchangeRateUnavailableError, sumValuationCents, ValuationLimitError,
++  worstQuality, type DailyValuationObservation, type ValuationQuality,
++} from '@budget/domain';
++import { and, asc, eq, isNull, lte, min } from 'drizzle-orm';
++import { account, holding, security, trade } from '../schema';
++import { EntityNotFoundError } from './errors';
++import { portfolioPositions, type PortfolioPosition } from './portfolio-positions';
++import { valuationSeries } from './portfolio';
++import type { Executor } from './types';
++
++export const INSTRUMENT_HISTORY_DAY_LIMIT = 20_000;
++export class InstrumentHistoryRangeError extends RangeError {
++  override readonly name = 'InstrumentHistoryRangeError';
++}
++export interface InstrumentHistoryPoint {
++  date: string;
++  unitsE8: number;
++  valueCents: number | null;
++  quality: ValuationQuality;
++  missing: 'price' | 'fx' | null;
++  observations: Readonly<DailyValuationObservation>[];
++}
++export interface InstrumentHistory {
++  securityId: string;
++  from: string;
++  to: string;
++  unit: 'EUR';
++  position: PortfolioPosition | null;
++  costMethod: 'average' | 'fifo';
++  points: InstrumentHistoryPoint[];
++  events: Array<{
++    id: string; date: string; kind: typeof trade.$inferSelect.kind;
++    accountId: string; unitsE8: number; amountCents: number; currency: string;
++  }>;
++  unavailable: 'missing_fx' | 'calculation_limit' | null;
++}
++
++/** One existing daily valuation read; no repeated as-of queries or second pricing/cost engine. */
++export function instrumentHistory(db: Executor, securityId: string, window: { from?: string; to: string }): InstrumentHistory {
++  if (!db.select({ id: security.id }).from(security).where(and(eq(security.id, securityId), isNull(security.deletedAt))).get())
++    throw new EntityNotFoundError('security', securityId);
++  const accountIds = db.select({ id: account.id }).from(account).where(isNull(account.deletedAt)).all().map((a) => a.id);
++  const firstHolding = db.select({ date: min(holding.asOf) }).from(holding)
++    .innerJoin(account, eq(holding.accountId, account.id))
++    .where(and(eq(holding.securityId, securityId), isNull(holding.deletedAt), isNull(account.deletedAt), lte(holding.asOf, window.to))).get()?.date;
++  const firstTrade = db.select({ date: min(trade.date) }).from(trade)
++    .innerJoin(account, eq(trade.accountId, account.id))
++    .where(and(eq(trade.securityId, securityId), isNull(trade.deletedAt), isNull(account.deletedAt), lte(trade.date, window.to))).get()?.date;
++  const earliest = [firstHolding, firstTrade].filter((d): d is string => d !== null && d !== undefined).sort()[0];
++  const from = window.from ?? earliest ?? window.to;
++  if (from > window.to || daysBetween(from, window.to) + 1 > INSTRUMENT_HISTORY_DAY_LIMIT)
++    throw new InstrumentHistoryRangeError('Der Instrumentverlauf umfasst höchstens 20.000 Tage. Bitte Zeitraum eingrenzen.');
++  const positions = portfolioPositions(db, window.to);
++  const canonical = positions.positions.find((p) => p.securityId === securityId) ?? null;
++  const safe = (value: number | null) => value === null || Number.isSafeInteger(value);
++  const positionSafe = !canonical || ([canonical.unitsE8, canonical.valueCents, canonical.costCents,
++    canonical.gainCents, canonical.gainBp, canonical.shareBp].every(safe) &&
++    canonical.accounts.every((a) => [a.unitsE8, a.valueCents, a.costCents, a.gainCents].every(safe)));
++  const position = positionSafe ? canonical : null;
++  const events = db.select({ id: trade.id, date: trade.date, kind: trade.kind, accountId: trade.accountId,
++    unitsE8: trade.unitsE8, amountCents: trade.amountCents, currency: account.currency }).from(trade)
++    .innerJoin(account, eq(trade.accountId, account.id))
++    .where(and(eq(trade.securityId, securityId), isNull(trade.deletedAt), isNull(account.deletedAt), lte(trade.date, window.to)))
++    .orderBy(asc(trade.date), asc(trade.id)).all().filter((t) => t.date >= from);
++  const base = { securityId, from, to: window.to, unit: 'EUR' as const,
++    position, costMethod: positions.costMethod, events };
++  if (!positionSafe) return { ...base, points: [], unavailable: 'calculation_limit' };
++  const observations = new Map<string, Readonly<DailyValuationObservation>[]>();
++  try {
++    const series = valuationSeries(db, { from, to: window.to, securities: [securityId], accounts: accountIds }, {
++      estimate: true,
++      observe: (fact) => {
++        const entries = observations.get(fact.day) ?? [];
++        entries.push(fact); observations.set(fact.day, entries);
++      },
++    });
++    const points = series.days.map((date, i): InstrumentHistoryPoint => {
++      const facts = observations.get(date) ?? [];
++      const missing = facts.some((f) => f.fx.kind === 'missing' || f.missing === 'fx') ? 'fx'
++        : facts.some((f) => f.quality === 'missing') ? 'price' : null;
++      return {
++        date, unitsE8: sumValuationCents(series.positions.map((p) => p.unitsE8[i]!)),
++        valueCents: missing ? null : sumValuationCents(series.positions.map((p) => p.valueCents[i]!)),
++        quality: facts.reduce<ValuationQuality>((quality, f) => worstQuality(quality, f.quality), 'exact'),
++        missing, observations: facts,
++      };
++    });
++    const last = points.at(-1);
++    const endpoint = position ? position.valueCents : 0;
++    if (last && last.valueCents !== endpoint)
++      throw new Error('Instrument history and canonical dated position disagree');
++    if (last && last.unitsE8 !== (position?.unitsE8 ?? 0))
++      throw new Error('Instrument history and canonical dated units disagree');
++    return { ...base, points, unavailable: null };
++  } catch (error) {
++    if (error instanceof ExchangeRateUnavailableError) return { ...base, points: [], unavailable: 'missing_fx' };
++    if (error instanceof ValuationLimitError && error.boundary === 'result')
++      return { ...base, points: [], unavailable: 'calculation_limit' };
++    throw error;
++  }
++}

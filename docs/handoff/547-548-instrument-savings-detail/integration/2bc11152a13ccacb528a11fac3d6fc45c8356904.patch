@@ -1,0 +1,13 @@
+diff --git a/apps/web/src/wealth/price-history.tsx b/apps/web/src/wealth/price-history.tsx
+index ac745192067bc17253128d7dc6e15343c87fb381..d1792d52d1317f7cc32628654ca9df2ac540e650 100644
+--- a/apps/web/src/wealth/price-history.tsx
++++ b/apps/web/src/wealth/price-history.tsx
+@@ -65,7 +65,7 @@ export function PriceHistory({ securityId, controller }: { securityId: string; c
+     {mode === 'price' && query.isPending && <LoadingNote what="Kursverlauf" />}
+     {mode === 'price' && query.isError && <ErrorNote what="Kursverlauf" error={query.error} onRetry={() => void query.refetch()} />}
+     <div ref={frame} className="instrument-history-frame">
+-      {width > 100 && to && (mode === 'value' && history || mode === 'price' && query.isSuccess) &&
++      {width > 100 && to && (mode === 'value' && history || mode === 'price' && query.isSuccess && prices.length > 0) &&
+         <Drawing mode={mode} width={width} prices={prices} history={history} from={from ?? prices[0]?.date ?? to} to={to} />}
+     </div>
+     {mode === 'value' && history && <p className="vnote">Täglich gerundete EUR-Kontopositionen, keine Multiplikation gerundeter Gesamtstücke mit einem Anzeigekurs. {history.unavailable || history.position?.costCents == null ? 'Für diesen Verlauf wird keine Einstandslinie angezeigt.' : <>Gestrichelt: dokumentierter Stichtag-Einstand vom {longDay(history.to)} ({history.costMethod === 'fifo' ? 'FIFO' : 'gleitender Durchschnitt'}), kein historischer Einstandsverlauf.</>} Fehlende Werte unterbrechen die Linie; Tagesquelle und Qualität stehen in der Inspektion.</p>}

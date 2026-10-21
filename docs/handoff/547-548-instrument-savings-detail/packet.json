@@ -1,0 +1,49 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/547-548-instrument-savings-detail",
+  "sourceHead": "addda5986563c9421d20e2efe5b57b410d45d55b",
+  "originalBaseBeforeOwnedCommits": "759464abc050195c5d6dc285190efbadbe55de6b",
+  "orderedCommits": [
+    {
+      "sha": "addda5986563c9421d20e2efe5b57b410d45d55b",
+      "parentBase": "759464abc050195c5d6dc285190efbadbe55de6b",
+      "subject": "feat: add instrument history and explicit savings detail sources (validation pending)",
+      "paths": [
+        "apps/server/src/api/invest.ts",
+        "apps/web/src/wealth/portfolio-api.ts",
+        "apps/web/src/wealth/portfolio-detail-page.tsx",
+        "apps/web/src/wealth/portfolio-panel.tsx",
+        "apps/web/src/wealth/price-history.css",
+        "apps/web/src/wealth/price-history.tsx",
+        "apps/web/src/wealth/savings-detail.tsx",
+        "apps/web/src/wealth/savings-model.ts",
+        "apps/web/src/wealth/savings.css",
+        "apps/web/src/wealth/trade-history.tsx",
+        "docs/ROADMAP.md",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/repos/instrument-history.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout addda5986563c9421d20e2efe5b57b410d45d55b > OWN_OUTPUT/addda5986563c9421d20e2efe5b57b410d45d55b.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-addda5986563c9421d20e2efe5b57b410d45d55b.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/server/src/api/invest.ts",
+    "apps/web/src/wealth/portfolio-api.ts",
+    "apps/web/src/wealth/portfolio-detail-page.tsx",
+    "apps/web/src/wealth/portfolio-panel.tsx",
+    "apps/web/src/wealth/price-history.css",
+    "apps/web/src/wealth/price-history.tsx",
+    "apps/web/src/wealth/savings-detail.tsx",
+    "apps/web/src/wealth/savings-model.ts",
+    "apps/web/src/wealth/savings.css",
+    "apps/web/src/wealth/trade-history.tsx",
+    "docs/ROADMAP.md",
+    "packages/db/src/repos/index.ts",
+    "packages/db/src/repos/instrument-history.ts"
+  ],
+  "mixedSourceAncestry": true,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

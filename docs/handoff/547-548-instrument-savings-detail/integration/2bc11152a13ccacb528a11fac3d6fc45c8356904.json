@@ -1,0 +1,10 @@
+{
+  "state": "WIP / UNINTEGRATED",
+  "sha": "2bc11152a13ccacb528a11fac3d6fc45c8356904",
+  "parentBase": "6097312929c84ea8bd827bc5895e6f4e85f87cf2",
+  "subject": "Keep empty quote histories free of an empty chart",
+  "paths": [
+    "apps/web/src/wealth/price-history.tsx"
+  ],
+  "scope": "Exact per-path diff; no unrelated file, branch ancestor or full batch diff."
+}
