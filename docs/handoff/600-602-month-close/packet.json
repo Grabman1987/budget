@@ -1,0 +1,43 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/600-602-month-close",
+  "sourceHead": "fc6d51be781fd68203e509c172b7c216162a979d",
+  "originalBaseBeforeOwnedCommits": "b3b12a508b77180618e0595b78aa17fcc463d0fe",
+  "orderedCommits": [
+    {
+      "sha": "fc6d51be781fd68203e509c172b7c216162a979d",
+      "parentBase": "b3b12a508b77180618e0595b78aa17fcc463d0fe",
+      "subject": "feat(month-close): skip empty steps and retain reviewed results",
+      "paths": [
+        "apps/server/src/api/month-close.ts",
+        "apps/web/src/month-close/api.ts",
+        "apps/web/src/month-close/month-close-page.tsx",
+        "apps/web/src/month-close/month-close.css",
+        "apps/web/src/month-close/month-review.tsx",
+        "apps/web/src/month-close/stepper.tsx",
+        "docs/ROADMAP.md",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/repos/month-close-state.ts",
+        "packages/domain/src/month-close.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout fc6d51be781fd68203e509c172b7c216162a979d > OWN_OUTPUT/fc6d51be781fd68203e509c172b7c216162a979d.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-fc6d51be781fd68203e509c172b7c216162a979d.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/server/src/api/month-close.ts",
+    "apps/web/src/month-close/api.ts",
+    "apps/web/src/month-close/month-close-page.tsx",
+    "apps/web/src/month-close/month-close.css",
+    "apps/web/src/month-close/month-review.tsx",
+    "apps/web/src/month-close/stepper.tsx",
+    "docs/ROADMAP.md",
+    "packages/db/src/repos/index.ts",
+    "packages/db/src/repos/month-close-state.ts",
+    "packages/domain/src/month-close.ts"
+  ],
+  "mixedSourceAncestry": true,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

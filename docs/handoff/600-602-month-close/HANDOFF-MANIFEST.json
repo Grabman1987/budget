@@ -1,0 +1,37 @@
+[
+  {
+    "path": "docs/handoff/600-602-month-close/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/600-602-month-close/README.md",
+    "size": 472,
+    "sha256": "ca81d8d4e76c5bab5ac971ddb1c696f76382ca938cd4fd0fdfd777ef7cdc8d51"
+  },
+  {
+    "path": "docs/handoff/600-602-month-close/owned/01-fc6d51be781fd68203e509c172b7c216162a979d.patch",
+    "size": 49193,
+    "sha256": "9e7f3d32bf9301bde7e2cae4e6dec5659ad88c5bcb415eb46fb7c2f2fcc5d032"
+  },
+  {
+    "path": "docs/handoff/600-602-month-close/packet.json",
+    "size": 1946,
+    "sha256": "7b731cda457c314c652ca25b947fae76e11f7d5c88e252d0a12b952e821881e1"
+  },
+  {
+    "path": "docs/handoff/600-602-month-close/reviews/600-602-root-backend-four-independent-source-high.md",
+    "size": 3317,
+    "sha256": "fdc30e61520c3436af22552f9bdd106018976fe6968c2b5dbc14f9d08ef7454b"
+  },
+  {
+    "path": "docs/handoff/600-602-month-close/reviews/600-602-whole-ten-independent-source-correspondence.json",
+    "size": 2523,
+    "sha256": "83f637d87dc20237266eb3c0d1f7991bd08b56571e1b41a270f7df8b03922d09"
+  },
+  {
+    "path": "docs/handoff/600-602-month-close/reviews/600-602-whole-ten-ui-result-integration-independent-source-high.md",
+    "size": 3689,
+    "sha256": "5a493c756981c71df593e21a1268ba3c1ee6efc19ed7c09965093bec48d70280"
+  }
+]

@@ -1,0 +1,74 @@
+{
+  "verdict": "HIGH CLEAR \u2014 source only",
+  "manifestSha256": "8a576d75498d4130f1cbb24527f29d44a84fc8030c60ae69eaa024e9e33d7750",
+  "base": "b3b12a508b77180618e0595b78aa17fcc463d0fe",
+  "files": [
+    {
+      "path": "apps/server/src/api/month-close.ts",
+      "sha256": "16a5d0ee4f316478ad7f0a39a352235bf75c9d145112e3952943b14201554988",
+      "mode": "0o600",
+      "owner": "Root backend/domain"
+    },
+    {
+      "path": "apps/web/src/month-close/api.ts",
+      "sha256": "9949038f42f858579caca2f5f4b6660ca999900948115b18e89811800fbbee3d",
+      "mode": "0o600",
+      "owner": "Case UI/docs"
+    },
+    {
+      "path": "apps/web/src/month-close/month-close-page.tsx",
+      "sha256": "d799658b6b38b921a551ad816923184d865b3656094a82a173db06d57cc648f9",
+      "mode": "0o600",
+      "owner": "Case UI/docs"
+    },
+    {
+      "path": "apps/web/src/month-close/month-close.css",
+      "sha256": "f1a7b8d2b00b7130aa5056be6e8d02c2610b363f0d7ca5ddf86ec6b5d408a854",
+      "mode": "0o600",
+      "owner": "Case UI/docs"
+    },
+    {
+      "path": "apps/web/src/month-close/month-review.tsx",
+      "sha256": "1f43521de4cd0cbb7c0d47f30e0c7e026519147682f1f2e94646791906b96651",
+      "mode": "0o600",
+      "owner": "Case UI/docs"
+    },
+    {
+      "path": "apps/web/src/month-close/stepper.tsx",
+      "sha256": "b563e973f2ad313c2cdc8780bdd2caa50752b13cff7a86bffd68af9babc5ce34",
+      "mode": "0o600",
+      "owner": "Case UI/docs"
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "sha256": "de6f0a34cc8735244a4d37a75eae7d57b773fe7c997f8c9ae1622586f7d0c9c5",
+      "mode": "0o600",
+      "owner": "Case UI/docs"
+    },
+    {
+      "path": "packages/db/src/repos/index.ts",
+      "sha256": "ea336c2929698fa624e423decc51ad5f8979e6cf61e82202db0fffbe7ae5445d",
+      "mode": "0o600",
+      "owner": "Root backend/domain"
+    },
+    {
+      "path": "packages/db/src/repos/month-close-state.ts",
+      "sha256": "127dbe349487e53dc530eb7b91a43b2ab1184b6510c468fd40af25dc1e1344dc",
+      "mode": "0o600",
+      "owner": "Root backend/domain"
+    },
+    {
+      "path": "packages/domain/src/month-close.ts",
+      "sha256": "4b20b79a0555b7978cd741f52e47b6a887ba90251903caf5eede10297489077f",
+      "mode": "0o600",
+      "owner": "Root backend/domain"
+    }
+  ],
+  "onlyFinalCorrection": [
+    "apps/web/src/month-close/month-close-page.tsx"
+  ],
+  "wholeInverseExact": true,
+  "roadmapPrefixBytes": 244622,
+  "runtimeExecuted": false,
+  "reportSha256": "5a493c756981c71df593e21a1268ba3c1ee6efc19ed7c09965093bec48d70280"
+}

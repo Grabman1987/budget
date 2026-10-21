@@ -1,0 +1,1140 @@
+diff --git a/apps/server/src/api/month-close.ts b/apps/server/src/api/month-close.ts
+index 663ed6c64c3012c0df566a0b768e9bb87133e1b4..b36d9c31175c69c477fdb5f3df8a8f3f17ab066b 100644
+--- a/apps/server/src/api/month-close.ts
++++ b/apps/server/src/api/month-close.ts
+@@ -12,12 +12,17 @@ import {
+   holdingValuationAsOf,
+   listReconciliations,
+   reportTables,
++  monthOnePager,
++  monthCloseSourceRevision,
+   occurrencesBetween,
+   loadFacts,
+   type Db,
+ } from '@budget/db';
+ import {
+   closeSteps,
++  closeNavigation,
++  closeResultSnapshotSchema,
++  cents,
+   lastDayOfMonth,
+   monthCloseStateSchema,
+   closeDecisionSchema,
+@@ -39,6 +44,10 @@ const fingerprint = (value: unknown) =>
+ const key = (m: string) => `month_close.${m}`;
+ 
+ export function readMonthClose(db: Db, m: string, today: string) {
++  return db.transaction((tx) => readMonthCloseWithin(tx, m, today));
++}
++
++function readMonthCloseWithin(db: Db, m: string, today: string) {
+   const end = lastDayOfMonth(m);
+   const asOf = end < today ? end : today;
+   const holdings = holdingValuationAsOf(db, asOf);
+@@ -155,11 +164,59 @@ export function readMonthClose(db: Db, m: string, today: string) {
+       fingerprint: fingerprint(e.overspentCents),
+     })),
+   ];
++  const steps = closeSteps(work, state.decisions, {
++    remainingCents: nextBudget.summary.toBeAssignedCents,
++    ...(state.closedOn && { closedOn: state.closedOn }),
++  });
++  const report = m <= today.slice(0, 7) ? monthOnePager(db, today, m) : null;
++  const result = report ? {
++    report,
++    checkedAccounts: accounts.filter((a) => a.done).length,
++    totalAccounts: accounts.length,
++    deferredAccounts: work.filter((w) => w.step === 2 && state.decisions.some((d) =>
++      d.step === w.step && d.id === w.id && d.fingerprint === w.fingerprint)).length,
++    assignedCents: plan.summary.assignedCents,
++    overspentCount: overspent.length,
++    overspentCents: cents(Number(overspent.reduce((sum, row) => sum + BigInt(row.overspentCents), 0n))),
++    carryInCents: nextBudget.summary.carryInCents,
++    sourceMonth: m,
++    destinationMonth: nextMonth,
++  } : null;
++  const sourceRevision = monthCloseSourceRevision(db, m, {
++    // Calendar refreshes alone are not a new close. Historical month values use their real end.
++    end, asOf, work, accounts: accounts.map((a) => ({
++      id: a.id, balanceCents: a.balanceCents, clearedCents: a.clearedCents,
++      lastReconciledOn: a.lastReconciledOn, lastValuedOn: a.lastValuedOn,
++      valueCents: a.valueCents, done: a.done,
++    })),
++    steps: steps.slice(0, 4),
++    currentSummary: { assignedCents: plan.summary.assignedCents,
++      activityCents: plan.summary.activityCents, availableCents: plan.summary.availableCents,
++      toBeAssignedCents: plan.summary.toBeAssignedCents,
++      envelopes: plan.summary.envelopes.map((e) => ({ categoryId: e.categoryId,
++        carryCents: e.carryCents, assignedCents: e.assignedCents, activityCents: e.activityCents,
++        availableCents: e.availableCents, overspentCents: e.overspentCents })),
++    },
++    nextSummary: { toBeAssignedCents: nextBudget.summary.toBeAssignedCents,
++      assignedCents: nextBudget.summary.assignedCents, carryInCents: nextBudget.summary.carryInCents,
++    },
++    result: result ? {
++      ...result, report: { result: report!.result, allocation: report!.allocation,
++        plan: report!.plan, pace: report!.pace.figures, top: report!.top },
++    } : null,
++  }, accounts.map((a) => a.id));
+   return {
+     month: m,
+     end,
+     asOf,
+     state,
++    sourceRevision,
++    navigation: closeNavigation(steps),
++    result,
++    close: {
++      changedSinceClose: Boolean(state.snapshot && state.snapshot.sourceRevision !== sourceRevision),
++      legacyMarker: Boolean(state.closedOn && !state.snapshot),
++    },
+     work,
+     inbox,
+     accounts,
+@@ -171,10 +228,7 @@ export function readMonthClose(db: Db, m: string, today: string) {
+         return c?.class ? [{ ...e, name: c.name }] : [];
+       }),
+     ),
+-    steps: closeSteps(work, state.decisions, {
+-      remainingCents: nextBudget.summary.toBeAssignedCents,
+-      ...(state.closedOn && { closedOn: state.closedOn }),
+-    }),
++    steps,
+   };
+ }
+ 
+@@ -190,12 +244,19 @@ export function monthCloseRoutes(db: Db, today: () => string): Hono {
+           currentStep: z.int().min(1).max(5).optional(),
+           decisions: z.array(closeDecisionSchema).max(1000).optional(),
+           close: z.literal(true).optional(),
++          sourceRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+         })
+-        .refine((v) => v.currentStep !== undefined || v.decisions !== undefined || v.close),
++        .refine((v) => v.currentStep !== undefined || v.decisions !== undefined || v.close)
++        .refine((v) => !v.close || (v.currentStep === undefined && v.decisions === undefined),
++          'Close separately after reviewing the current decisions'),
+     );
+     const ctx = { actor: ACTOR, groupId: randomUUID() };
+     const result = db.transaction((tx) => {
+       const view = readMonthClose(tx, m, today());
++      if (patch.close && patch.sourceRevision && patch.sourceRevision !== view.sourceRevision)
++        throw new ApiError(409, 'stale_close', 'Der Monatsstand hat sich geändert. Bitte neu laden und erneut prüfen.');
++      if (patch.close && view.state.snapshot?.sourceRevision === view.sourceRevision)
++        return { state: view.state, changedCount: 0 };
+       if (
+         patch.close &&
+         (view.end > today() || view.steps.slice(0, 4).some((s) => s.status === 'open'))
+@@ -219,14 +280,33 @@ export function monthCloseRoutes(db: Db, today: () => string): Hono {
+         ...view.state,
+         currentStep: patch.close ? 5 : (patch.currentStep ?? view.state.currentStep),
+         decisions: [...decisions.values()],
+-        ...(patch.close && { closedOn: view.state.closedOn ?? today() }),
++        ...(patch.close && {
++          closedOn: view.state.closedOn ?? today(),
++          closedAt: new Date().toISOString(),
++          snapshot: closeResultSnapshotSchema.parse({
++            version: 1, sourceRevision: view.sourceRevision, month: m,
++            checkedAccounts: view.result!.checkedAccounts,
++            totalAccounts: view.result!.totalAccounts,
++            deferredAccounts: view.result!.deferredAccounts,
++            assignedCents: view.result!.assignedCents,
++            overspentCount: view.result!.overspentCount,
++            overspentCents: view.result!.overspentCents,
++            carryInCents: view.result!.carryInCents,
++            destinationMonth: view.result!.destinationMonth,
++            savingsRateBp: view.result!.report.result.savingsRateBp,
++            spentCents: view.result!.report.pace.figures.spentCents,
++            plannedCents: view.result!.report.pace.figures.limitCents,
++          }),
++        }),
+       });
+       const current = getEntity(tx, appSetting, key(m));
+-      if (current) updateEntity(tx, appSetting, key(m), { value: JSON.stringify(state) }, ctx);
+-      else createEntity(tx, appSetting, { id: key(m), value: JSON.stringify(state) }, ctx);
+-      return state;
++      const value = JSON.stringify(state);
++      if (current?.value === value) return { state, changedCount: 0 };
++      if (current) updateEntity(tx, appSetting, key(m), { value }, ctx);
++      else createEntity(tx, appSetting, { id: key(m), value }, ctx);
++      return { state, changedCount: 1 };
+     });
+-    return c.json({ state: result, groupId: ctx.groupId });
++    return c.json({ ...result, groupId: ctx.groupId });
+   });
+   return app;
+ }
+diff --git a/apps/web/src/month-close/api.ts b/apps/web/src/month-close/api.ts
+index 7abfd1dddc626579261e974958e920829396b222..3c27c01e851242035046b95e94d8513cfceff493 100644
+--- a/apps/web/src/month-close/api.ts
++++ b/apps/web/src/month-close/api.ts
+@@ -5,11 +5,12 @@ import type {
+   closePlanHistory,
+   closeDeviations,
+ } from '@budget/domain';
+-import type { AccountSummary, InboxEntry, HeuteOccurrence } from '@budget/db';
++import type { AccountSummary, InboxEntry, HeuteOccurrence, OnePager } from '@budget/db';
+ import { queryOptions } from '@tanstack/react-query';
+ import { request } from '../api/http';
+ import { LEDGER_KEY } from '../ledger/queries';
+ import type { EnvelopeSummary, BudgetMonthView } from '../budget/budget-api';
++import type { WithValuationNotes } from '../ledger/valuation-hint';
+ export interface NextClosePlan {
+   month: string;
+   payday: string;
+@@ -18,13 +19,34 @@ export interface NextClosePlan {
+   history: ReturnType<typeof closePlanHistory>;
+   payments: HeuteOccurrence[];
+ }
+-export interface MonthCloseView {
++export interface MonthCloseView extends WithValuationNotes {
+   month: string;
+   end: string;
+   asOf: string;
+   state: MonthCloseState;
+   work: CloseWork[];
+   steps: CloseStep[];
++  navigation: {
++    currentStep: number;
++    nextStep: number;
++    nextByStep: Record<number, number>;
++    completedTasks: number;
++    totalTasks: number;
++  };
++  sourceRevision: string;
++  close: { changedSinceClose: boolean; legacyMarker: boolean };
++  result: {
++    report: OnePager;
++    checkedAccounts: number;
++    totalAccounts: number;
++    deferredAccounts: number;
++    assignedCents: number;
++    overspentCount: number;
++    overspentCents: number;
++    carryInCents: number;
++    sourceMonth: string;
++    destinationMonth: string;
++  } | null;
+   inbox: InboxEntry[];
+   accounts: Array<
+     AccountSummary & {
+@@ -45,5 +67,13 @@ export const monthCloseQuery = (month: string) =>
+   });
+ export const saveMonthClose = (
+   month: string,
+-  patch: Pick<Partial<MonthCloseState>, 'currentStep' | 'decisions'> & { close?: true },
+-) => request<{ groupId: string }>('PATCH', `/api/month-close/${month}`, patch);
++  patch: Pick<Partial<MonthCloseState>, 'currentStep' | 'decisions'> & {
++    close?: true;
++    sourceRevision?: string;
++  },
++) =>
++  request<{ groupId: string; changedCount?: number }>(
++    'PATCH',
++    `/api/month-close/${month}`,
++    patch,
++  );
+diff --git a/apps/web/src/month-close/month-close-page.tsx b/apps/web/src/month-close/month-close-page.tsx
+index 83cdd17623f0efae4eac40f8e6bf6e71ff8496fe..e65bfd03fedcc3ea6696572879b2b3ff02fcd56a 100644
+--- a/apps/web/src/month-close/month-close-page.tsx
++++ b/apps/web/src/month-close/month-close-page.tsx
+@@ -22,6 +22,29 @@ import { NextMonthPlan } from './next-month-plan';
+ import { MonthReview } from './month-review';
+ import './month-close.css';
+ 
++const STEP_HELP = [
++  {
++    why: 'Offene Buchungen und Vorschläge brauchen eine Entscheidung.',
++    after: 'Deine Entscheidungen sind gespeichert; ausdrücklich aufgeschobene Aufgaben bleiben sichtbar.',
++  },
++  {
++    why: 'Der Kontostand im Plan soll zum tatsächlichen Stand am Monatsende passen.',
++    after: 'Geprüfte Buchungen bleiben wie bisher abgeglichen. Der Monatsabschluss setzt keine zusätzliche Sperre.',
++  },
++  {
++    why: 'Überzogene Kategorien zeigen, wo Geld fehlt.',
++    after: 'Verschiebungen sind gespeichert; akzeptierte Überziehungen bleiben mit ihrem Grund nachvollziehbar.',
++  },
++  {
++    why: 'Ein verteilter Plan macht den nächsten Monat überschaubar.',
++    after: 'Die übernommenen Zuweisungen stehen im nächsten Monat und lassen sich gemeinsam rückgängig machen.',
++  },
++  {
++    why: 'Die Ergebnisse zeigen, was geprüft wurde und wie der Monat ausgegangen ist.',
++    after: 'Der Abschluss merkt diesen Stand. Buchungen bleiben nach den bisherigen Regeln bearbeitbar.',
++  },
++] as const;
++
+ export function MonthClosePage() {
+   const { month } = useParams({ strict: false }) as { month: string };
+   const query = useQuery(monthCloseQuery(month));
+@@ -48,18 +71,36 @@ export function MonthClosePage() {
+           onRetry={() => void query.refetch()}
+         />
+       )}
+-      {query.data && <CloseFlow key={month} data={query.data} />}
++      {query.isFetching && !query.isPending && <LoadingNote what="Aktueller Abschlussstand" />}
++      {query.data && (
++        <CloseFlow
++          key={month}
++          data={query.data}
++          fresh={query.isSuccess && !query.isFetching}
++          onReload={() => void query.refetch()}
++        />
++      )}
+     </>
+   );
+ }
+ 
+-function CloseFlow({ data }: { data: MonthCloseView }) {
++function CloseFlow({
++  data,
++  fresh,
++  onReload,
++}: {
++  data: MonthCloseView;
++  fresh: boolean;
++  onReload: () => void;
++}) {
+   const write = useBudgetWrite();
+   const [busy, setBusy] = useState(false);
+   const [dirtyPlan, setDirtyPlan] = useState(false);
+   const [selected, setSelected] = useState<string | null>(null);
+   const [deferring, setDeferring] = useState<CloseWork[] | null>(null);
+-  const step = data.state.currentStep;
++  // Explicit inspection stays put while a child editor or Plan draft is active.
++  const [chosenStep, setChosenStep] = useState<number | null>(null);
++  const step = chosenStep ?? data.navigation.currentStep;
+   const status = data.steps[step - 1]!;
+   const budget = useQuery({ ...budgetQuery(data.month), enabled: step === 3 });
+   const accounts = useQuery({
+@@ -76,7 +117,7 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
+       ),
+   );
+   const select = async (currentStep: number) => {
+-    if (busy || dirtyPlan) return;
++    if (busy || dirtyPlan || !fresh) return;
+     setBusy(true);
+     if (
+       await write(
+@@ -84,6 +125,7 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
+         () => 'Fortschritt gespeichert.',
+       )
+     ) {
++      setChosenStep(currentStep);
+       setSelected(null);
+       setDeferring(null);
+       requestAnimationFrame(() => document.getElementById('close-step-title')?.focus());
+@@ -96,7 +138,8 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
+       <CloseStepper
+         steps={data.steps}
+         current={step}
+-        disabled={busy || dirtyPlan}
++        progress={data.navigation}
++        disabled={busy || dirtyPlan || !fresh}
+         onSelect={(s) => void select(s)}
+       />
+       <section aria-labelledby="close-step-title" className="close-body">
+@@ -104,12 +147,22 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
+           {step}. {status.title}
+         </h2>
+         <p role="status">
+-          {CLOSE_STATUS[status.status]}
++          {step < 5 && !status.hasTasks ? '✓ nichts offen' : CLOSE_STATUS[status.status]}
+           {status.openCount > 0 ? ` · ${status.openCount} offen` : ''}
+         </p>
+         {status.reasons.map((reason) => (
+           <p key={reason}>Grund: {reason}</p>
+         ))}
++        <dl className="close-step-help">
++          <div>
++            <dt>Warum</dt>
++            <dd>{STEP_HELP[step - 1]!.why}</dd>
++          </div>
++          <div>
++            <dt>Danach</dt>
++            <dd>{STEP_HELP[step - 1]!.after}</dd>
++          </div>
++        </dl>
+         {step === 1 && (
+           <>
+             <p>
+@@ -119,7 +172,14 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
+             <AppLink to="/reports/gesamttabelle" search={{ monat: data.month }}>
+               {data.inbox.length} offene Aufgaben im Monat
+             </AppLink>
+-            <InboxWorkflow entryIds={data.inbox.map((e) => e.id)} />
++            <div
++              role="group"
++              aria-label="Aufgaben im Monat prüfen"
++              onFocusCapture={() => setChosenStep(1)}
++              onPointerDownCapture={() => setChosenStep(1)}
++            >
++              <InboxWorkflow entryIds={data.inbox.map((e) => e.id)} />
++            </div>
+           </>
+         )}
+         {step === 2 && (
+@@ -170,7 +230,10 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
+                       <Button
+                         variant="ghost"
+                         disabled={(!a.manual && !account) || busy}
+-                        onClick={() => setSelected(selected === a.id ? null : a.id)}
++                        onClick={() => {
++                          setChosenStep(step);
++                          setSelected(selected === a.id ? null : a.id);
++                        }}
+                       >
+                         {selected === a.id
+                           ? 'Einklappen'
+@@ -182,7 +245,10 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
+                         <Button
+                           variant="ghost"
+                           disabled={busy}
+-                          onClick={() => setDeferring([work])}
++                          onClick={() => {
++                            setChosenStep(step);
++                            setDeferring([work]);
++                          }}
+                         >
+                           Nicht nötig · Grund angeben
+                         </Button>
+@@ -237,7 +303,10 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
+                   <div className="close-actions">
+                     <Button
+                       variant="ghost"
+-                      onClick={() => setSelected(selected === r.id ? null : r.id)}
++                      onClick={() => {
++                        setChosenStep(step);
++                        setSelected(selected === r.id ? null : r.id);
++                      }}
+                     >
+                       {selected === r.id ? 'Einklappen' : 'Geld verschieben'}
+                     </Button>
+@@ -260,7 +329,10 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
+         {step === 4 && (
+           <NextMonthPlan
+             data={data.nextPlan}
+-            onDirtyChange={setDirtyPlan}
++            onDirtyChange={(dirty) => {
++              if (dirty) setChosenStep(4);
++              setDirtyPlan(dirty);
++            }}
+             onApply={async (items) => {
+               setBusy(true);
+               const result = await write(
+@@ -275,14 +347,28 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
+         {step === 4 && dirtyPlan && (
+           <p>Übernimm oder verwirf den Entwurf vor dem nächsten Schritt.</p>
+         )}
+-        {step === 5 && <MonthReview data={data} />}
++        {step === 5 && <MonthReview data={data} fresh={fresh} onReload={onReload} />}
+         {step === 1 && open.length > 0 && (
+-          <Button variant="ghost" disabled={busy} onClick={() => setDeferring(open)}>
++          <Button
++            variant="ghost"
++            disabled={busy}
++            onClick={() => {
++              setChosenStep(step);
++              setDeferring(open);
++            }}
++          >
+             Rest ausdrücklich aufschieben
+           </Button>
+         )}
+         {step === 3 && open.length > 0 && (
+-          <Button variant="ghost" disabled={busy} onClick={() => setDeferring(open)}>
++          <Button
++            variant="ghost"
++            disabled={busy}
++            onClick={() => {
++              setChosenStep(step);
++              setDeferring(open);
++            }}
++          >
+             Übertrag akzeptieren · Grund angeben
+           </Button>
+         )}
+@@ -302,8 +388,8 @@ function CloseFlow({ data }: { data: MonthCloseView }) {
+           </AppLink>
+           {step < 5 && (
+             <Button
+-              disabled={busy || dirtyPlan || status.status === 'open'}
+-              onClick={() => void select(step + 1)}
++              disabled={busy || dirtyPlan || !fresh || status.status === 'open'}
++              onClick={() => void select(data.navigation.nextByStep[step] ?? 5)}
+             >
+               Weiter
+             </Button>
+diff --git a/apps/web/src/month-close/month-close.css b/apps/web/src/month-close/month-close.css
+index b12a0c7b6b0c693677b8bb87ec23bcc53365089b..66103038ddb5c97b83d3e2bcdcf556c33e32d5ba 100644
+--- a/apps/web/src/month-close/month-close.css
++++ b/apps/web/src/month-close/month-close.css
+@@ -72,6 +72,10 @@
+   padding: 12px 0;
+   border-top: 1px solid var(--rule);
+ }
++.close-footer .btn {
++  max-width: 100%;
++  white-space: normal;
++}
+ .month-close .btn {
+   min-height: 44px;
+ }
+@@ -129,6 +133,70 @@
+ .close-stepper button:disabled {
+   cursor: default;
+ }
++.close-step-help {
++  margin-block: 16px 24px;
++  color: var(--ink-2);
++}
++.close-step-help > div {
++  display: grid;
++  grid-template-columns: 5ch minmax(0, 1fr);
++  gap: 12px;
++  padding-block: 4px;
++}
++.close-step-help dt {
++  font-weight: 600;
++}
++.close-step-help dd,
++.close-result-metrics dd {
++  margin: 0;
++}
++.close-result-metrics {
++  display: grid;
++  grid-template-columns: repeat(2, minmax(0, 1fr));
++  margin-block: 24px;
++  border-block: 1px solid var(--rule-strong);
++}
++.close-result-metrics > div {
++  min-width: 0;
++  padding: 16px;
++  border-bottom: 1px solid var(--rule);
++}
++.close-result-metrics dt {
++  margin-bottom: 8px;
++  color: var(--ink-2);
++}
++.close-result-metrics dd {
++  font-weight: 600;
++  font-variant-numeric: tabular-nums;
++  overflow-wrap: anywhere;
++}
++.close-result-metrics small {
++  display: block;
++  margin-top: 8px;
++  color: var(--ink-2);
++  font-weight: 400;
++}
++.close-result-details {
++  border-block: 1px solid var(--rule);
++  margin-block: 24px;
++}
++.close-result-details > summary {
++  min-height: 44px;
++  display: flex;
++  align-items: center;
++  gap: 8px;
++  cursor: pointer;
++}
++.close-result-details > summary:focus-visible {
++  outline: 2px solid var(--line);
++  outline-offset: 2px;
++}
++.close-result-details > summary svg {
++  flex-shrink: 0;
++}
++.close-result-details[open] > summary svg {
++  transform: rotate(180deg);
++}
+ @media (max-width: 767px) {
+   .close-stepper ol {
+     grid-template-columns: 1fr;
+@@ -149,6 +217,12 @@
+     background: var(--surface);
+     z-index: 2;
+   }
++  .close-result-metrics {
++    grid-template-columns: 1fr;
++  }
++  .close-result-metrics > div {
++    padding-inline: 0;
++  }
+   .close-row .kform {
+     min-width: 0;
+   }
+diff --git a/apps/web/src/month-close/month-review.tsx b/apps/web/src/month-close/month-review.tsx
+index 3cf0de34fbb4c7187dee9eef233cb5aaaaca2954..89e44114ee0770b845b577f0ca05c5e0facae486 100644
+--- a/apps/web/src/month-close/month-review.tsx
++++ b/apps/web/src/month-close/month-review.tsx
+@@ -1,119 +1,297 @@
+-import { useQuery } from '@tanstack/react-query';
+ import { useState } from 'react';
+-import { Button } from '@budget/ui';
+-import { todayInVienna } from '@budget/domain';
+-import { eur, longDay } from '../ledger/format';
+-import { ErrorNote, LoadingNote } from '../ledger/states';
+-import { onePagerQuery } from '../reports/month-api';
++import { Button, privateAmount, useAmountPrivacy } from '@budget/ui';
++import { todayInVienna, type CloseResultSnapshot } from '@budget/domain';
++import { ChevronDown } from 'lucide-react';
++import { eur, longDay, MINUS } from '../ledger/format';
++import { ValuationHint } from '../ledger/valuation-hint';
++import { monthLabel } from '../nav/month';
++import { AllocationBar } from '../reports/allocation-bar';
+ import { OnePagerSheet } from '../reports/onepager-report';
+ import { AppLink } from '../shell/app-link';
+ import { useBudgetWrite } from '../budget/use-category-writes';
+ import { saveMonthClose, type MonthCloseView } from './api';
+ 
+-export function MonthReview({ data }: { data: MonthCloseView }) {
+-  const report = useQuery(onePagerQuery(data.month));
++export function MonthReview({
++  data,
++  fresh,
++  onReload,
++}: {
++  data: MonthCloseView;
++  fresh: boolean;
++  onReload: () => void;
++}) {
++  useAmountPrivacy();
++  const result = data.result;
++  const report = result
++    ? { ...result.report, ...(data.incomplete && { incomplete: data.incomplete }) }
++    : undefined;
+   const write = useBudgetWrite();
+   const [busy, setBusy] = useState(false);
++  const [failed, setFailed] = useState(false);
+   const canClose =
+     data.end <= todayInVienna() && data.steps.slice(0, 4).every((s) => s.status !== 'open');
+   const close = async () => {
++    if (busy || !fresh || !canClose || !result) return;
+     setBusy(true);
+-    await write(
+-      () => saveMonthClose(data.month, { close: true }),
+-      () => 'Monat abgeschlossen. Der Plan für den nächsten Monat steht.',
++    setFailed(false);
++    const saved = await write(
++      () => saveMonthClose(data.month, { close: true, sourceRevision: data.sourceRevision }),
++      (response) =>
++        response.changedCount === 0
++          ? 'Dieser Abschlussstand ist bereits gespeichert.'
++          : 'Monat abgeschlossen. Der geprüfte Stand ist gespeichert.',
+     );
++    setFailed(!saved);
+     setBusy(false);
+   };
+-  const check = report.data?.check;
++  const check = report?.check;
+   const openRules =
+     check && !('unavailable' in check) ? check.rules.filter((r) => r.status !== 'ok') : [];
+   return (
+     <>
+       <p>
+-        Prüfe den Monatsbericht und die größten Abweichungen. Der Abschluss setzt einen Marker; du
+-        kannst später weiter bearbeiten.
++        Prüfe die aktuellen Ergebnisse. Der Abschluss merkt diesen Stand und sperrt keine
++        zusätzlichen Buchungen.
+       </p>
+       <AppLink to="/reports/onepager" search={{ monat: data.month }}>
+         Monatsbericht und Zahlen im Report öffnen
+       </AppLink>
+       {data.state.closedOn && (
+         <p role="status">
+-          Abgeschlossen am {longDay(data.state.closedOn)}. Buchungen bleiben bearbeitbar.
++          {data.state.closedAt ? (
++            <>
++              Stand gespeichert am{' '}
++              <time dateTime={data.state.closedAt}>
++                {new Date(data.state.closedAt).toLocaleString('de-AT', {
++                  timeZone: 'Europe/Vienna',
++                  day: '2-digit',
++                  month: '2-digit',
++                  year: 'numeric',
++                  hour: '2-digit',
++                  minute: '2-digit',
++                })}
++              </time>
++              .
++            </>
++          ) : (
++            <>Abgeschlossen am {longDay(data.state.closedOn)}.</>
++          )}{' '}
++          Buchungen bleiben nach den bisherigen Regeln bearbeitbar.
+         </p>
+       )}
+-      {report.isPending && <LoadingNote what="Monatsbericht" />}
+-      {report.isError && (
+-        <ErrorNote
+-          what="Monatsbericht"
+-          error={report.error}
+-          onRetry={() => void report.refetch()}
+-        />
++      {data.close.legacyMarker && (
++        <p>
++          Der frühere Abschluss enthält noch keinen gespeicherten Zahlenstand. Darunter stehen
++          die zuletzt geladenen Zahlen.
++        </p>
+       )}
+-      {report.data && (
++      {data.close.changedSinceClose && (
++        <p role="status">
++          Der Stand hat sich seit dem Abschluss geändert. Prüfe die offenen Schritte und speichere
++          das Ergebnis anschließend erneut.
++        </p>
++      )}
++      {result && report ? (
+         <>
+-          <div className="mrep onepager-report">
+-            <OnePagerSheet data={report.data} linkVerdict />
+-          </div>
+-          <h3>Die drei größten Abweichungen</h3>
+-          <p>
+-            Ist minus Plan, nach Betrag gereiht. Plan enthält Übertrag und Zuweisung; ein Minus
+-            bedeutet weniger als geplant.
+-          </p>
+-          <ul className="close-deviations">
+-            {data.deviations.map((r) => (
+-              <li key={r.categoryId}>
+-                <AppLink
+-                  to="/reports/kategorien"
+-                  search={{ monat: data.month, kategorie: r.categoryId }}
+-                >
+-                  {r.name}: {eur(r.deltaCents, { sign: true })} · Plan {eur(r.planCents)} · Ist{' '}
+-                  {eur(r.actualCents)}
+-                </AppLink>
+-              </li>
+-            ))}
+-            {!data.deviations.length && <li>Keine Abweichung zwischen Plan und Ist.</li>}
+-          </ul>
+-          <h3>Diese Regelbefunde bleiben offen</h3>
++          <h3>
++            {fresh ? 'Aktuelles Ergebnis' : 'Zuletzt geladenes Ergebnis'} · {monthLabel(data.month)}
++          </h3>
++          <p>Stand zum {longDay(data.asOf)}. Alle Zahlen stammen aus demselben Monatsstand.</p>
++          <ValuationHint {...(data.incomplete && { incomplete: data.incomplete })} />
++          <ResultMetrics
++            figures={{
++              checkedAccounts: result.checkedAccounts,
++              totalAccounts: result.totalAccounts,
++              deferredAccounts: result.deferredAccounts,
++              assignedCents: result.assignedCents,
++              overspentCount: result.overspentCount,
++              overspentCents: result.overspentCents,
++              carryInCents: result.carryInCents,
++              destinationMonth: result.destinationMonth,
++              savingsRateBp: report.result.savingsRateBp,
++              spentCents: report.pace.figures.spentCents,
++              plannedCents: report.pace.figures.limitCents,
++            }}
++          />
++          <h3>Verteilung 50/30/20</h3>
++          <AllocationBar
++            data={report.allocation}
++            label="Verteilung des zugewiesenen Einkommens auf Monatsbasis"
++          />
+           <p>
+-            Stand zum {longDay(data.asOf)}. Ein Monatsabschluss erledigt keine Regel automatisch.
++            Bedarf {eur(report.allocation.needCents)} · Wunsch {eur(report.allocation.wantCents)} ·{' '}
++            Zukunft {eur(report.allocation.futureCents)}. Zugewiesenes Geld auf Monatsbasis;
++            periodische Kosten und Sonderzahlungen zählen als Zwölftel. Die Sparquote oben zeigt
++            dagegen das tatsächlich gesparte Einkommen im Monatsreport.
+           </p>
+-          {check && 'unavailable' in check ? (
+-            <p>{check.unavailable.message}</p>
+-          ) : (
+-            <ul className="close-open-rules">
+-              {openRules.map((r) => (
+-                <li key={r.code}>
+-                  <AppLink to="/reports/finanzcheck" search={{ monat: data.month }}>
+-                    {r.code} · {r.name} ·{' '}
+-                    {r.status === 'warn'
+-                      ? 'Warnung'
+-                      : r.status === 'bad'
+-                        ? 'verletzt'
+-                        : 'nicht bewertbar'}
++          <details className="close-result-details">
++            <summary>
++              <ChevronDown aria-hidden="true" size={16} /> Monatsbericht, Abweichungen und offene Regeln
++            </summary>
++            <div className="mrep onepager-report">
++              <OnePagerSheet data={report} linkVerdict />
++            </div>
++            <h3>Die drei größten Abweichungen</h3>
++            <p>
++              Ist minus Plan, nach Betrag gereiht. Plan enthält Übertrag und Zuweisung; ein Minus
++              bedeutet weniger als geplant.
++            </p>
++            <ul className="close-deviations">
++              {data.deviations.map((r) => (
++                <li key={r.categoryId}>
++                  <AppLink
++                    to="/reports/kategorien"
++                    search={{ monat: data.month, kategorie: r.categoryId }}
++                  >
++                    {r.name}: {eur(r.deltaCents, { sign: true })} · Plan {eur(r.planCents)} · Ist{' '}
++                    {eur(r.actualCents)}
+                   </AppLink>
+                 </li>
+               ))}
+-              {!openRules.length && <li>Keine offenen Regelbefunde.</li>}
++              {!data.deviations.length && <li>Keine Abweichung zwischen Plan und Ist.</li>}
+             </ul>
+-          )}
++            <h3>Diese Regelbefunde bleiben offen</h3>
++            <p>
++              Stand zum {longDay(data.asOf)}. Ein Monatsabschluss erledigt keine Regel automatisch.
++            </p>
++            {check && 'unavailable' in check ? (
++              <p>{check.unavailable.message}</p>
++            ) : (
++              <ul className="close-open-rules">
++                {openRules.map((r) => (
++                  <li key={r.code}>
++                    <AppLink to="/reports/finanzcheck" search={{ monat: data.month }}>
++                      {r.code} · {r.name} ·{' '}
++                      {r.status === 'warn'
++                        ? 'Warnung'
++                        : r.status === 'bad'
++                          ? 'verletzt'
++                          : 'nicht bewertbar'}
++                    </AppLink>
++                  </li>
++                ))}
++                {!openRules.length && <li>Keine offenen Regelbefunde.</li>}
++              </ul>
++            )}
++          </details>
+         </>
++      ) : (
++        <p>
++          Für einen zukünftigen Monat gibt es noch kein Monatsergebnis. Du kannst die Schritte
++          vorbereiten.
++        </p>
++      )}
++      {data.state.snapshot && data.close.changedSinceClose && (
++        <details className="close-result-details">
++          <summary>
++            <ChevronDown aria-hidden="true" size={16} /> Gespeicherte Abschlusszahlen ansehen
++          </summary>
++          <p>Historischer Stand; spätere Änderungen sind in den aktuellen Zahlen oben enthalten.</p>
++          <ResultMetrics figures={data.state.snapshot} />
++        </details>
++      )}
++      {failed && (
++        <div role="alert">
++          <p>
++            Der Abschluss konnte nicht bestätigt werden. Lade den aktuellen Stand und prüfe ihn
++            vor einem neuen Versuch.
++          </p>
++          <Button
++            variant="ghost"
++            disabled={busy}
++            onClick={() => {
++              setFailed(false);
++              onReload();
++            }}
++          >
++            Stand aktualisieren
++          </Button>
++        </div>
+       )}
+       <div className="close-footer">
+         <AppLink to="/plan/monat" search={{ monat: data.month }} className="btn btn-ghost">
+           Verlassen
+         </AppLink>
+-        {!canClose && !data.state.closedOn && (
++        {!canClose && (
+           <p>
+-            Bearbeite zuerst die offenen Schritte. „Noch zu verteilen“ muss 0,00 € erreichen, und
++            Bearbeite zuerst die offenen Schritte. „Zu verteilen“ muss 0,00 € erreichen, und
+             der Monatsletzte muss erreicht sein.
+           </p>
+         )}
+-        {!data.state.closedOn && (
+-          <Button disabled={busy || !canClose || !report.data} onClick={() => void close()}>
+-            Monat abschließen
++        {(!data.state.closedOn || data.close.changedSinceClose || data.close.legacyMarker) && (
++          <Button disabled={busy || !fresh || !canClose || !result} onClick={() => void close()}>
++            {data.state.closedOn ? 'Geprüften Stand erneut speichern' : 'Monat abschließen'}
+           </Button>
+         )}
+       </div>
+     </>
+   );
+ }
++type ResultFigures = Pick<
++  CloseResultSnapshot,
++  | 'checkedAccounts'
++  | 'totalAccounts'
++  | 'deferredAccounts'
++  | 'assignedCents'
++  | 'overspentCount'
++  | 'overspentCents'
++  | 'carryInCents'
++  | 'destinationMonth'
++  | 'savingsRateBp'
++  | 'spentCents'
++  | 'plannedCents'
++>;
++
++function ResultMetrics({ figures: f }: { figures: ResultFigures }) {
++  useAmountPrivacy();
++  const rate = f.savingsRateBp;
++  return (
++    <dl className="close-result-metrics">
++      <div>
++        <dt>Geprüfte Konten</dt>
++        <dd>
++          {f.checkedAccounts} von {f.totalAccounts}
++          {f.deferredAccounts > 0 && (
++            <small>{f.deferredAccounts} mit Grund aufgeschoben, nicht abgeglichen.</small>
++          )}
++        </dd>
++      </div>
++      <div>
++        <dt>Verteiltes Einkommen</dt>
++        <dd>
++          {eur(f.assignedCents)}
++          <small>Zuweisungen im Monat, einschließlich zugewiesenem Guthaben.</small>
++        </dd>
++      </div>
++      <div>
++        <dt>Offene Überziehungen</dt>
++        <dd>{f.overspentCount} · {eur(f.overspentCents)} fehlen</dd>
++      </div>
++      <div>
++        <dt>Unverteiltes Geld in {monthLabel(f.destinationMonth)}</dt>
++        <dd>
++          {eur(f.carryInCents)}
++          <small>Übertrag des unverteilten Geldes; Kategorie-Guthaben sind davon getrennt.</small>
++        </dd>
++      </div>
++      <div>
++        <dt>Sparquote</dt>
++        <dd>
++          {rate === null
++            ? 'Ohne Einkommen nicht berechenbar'
++            : privateAmount(`${rate < 0 ? MINUS : ''}${Math.abs(Math.round(rate / 100))} %`)}
++          <small>
++            Wie im Monatsreport: tatsächlich Gespartes im Verhältnis zum Haushaltseinkommen.
++          </small>
++        </dd>
++      </div>
++      <div>
++        <dt>Ausgaben vs. Plan</dt>
++        <dd>
++          {eur(f.spentCents)} · Plan {eur(f.plannedCents)}
++          <small>Ausgaben im Monatsverlauf wie im Monatsreport; Plan für den ganzen Monat.</small>
++        </dd>
++      </div>
++    </dl>
++  );
++}
+diff --git a/apps/web/src/month-close/stepper.tsx b/apps/web/src/month-close/stepper.tsx
+index 2a8954bca188be21ba4b20b19203930a72b601b8..254a966a3c67277b4f04d4f5a6052eb26416bb94 100644
+--- a/apps/web/src/month-close/stepper.tsx
++++ b/apps/web/src/month-close/stepper.tsx
+@@ -11,17 +11,31 @@ export function CloseStepper({
+   current,
+   onSelect,
+   disabled = false,
++  progress,
+ }: {
+   steps: CloseStep[];
+   current: number;
+   onSelect: (step: number) => void;
+   disabled?: boolean;
++  progress?: { completedTasks: number; totalTasks: number };
+ }) {
+-  const completed = steps.filter((s) => s.status === 'done' || s.status === 'skipped').length;
++  const tasks = steps.filter((s) => s.hasTasks);
++  const total = progress?.totalTasks ?? tasks.length;
++  const completed =
++    progress?.completedTasks ??
++    tasks.filter((s) => s.status === 'done' || s.status === 'skipped').length;
+   return (
+     <nav className="close-stepper" aria-label="Monatsabschluss">
+-      <label htmlFor="close-progress">{completed} von 5 Schritten bearbeitet</label>
+-      <progress id="close-progress" max={5} value={completed} />
++      {total > 0 ? (
++        <>
++          <label htmlFor="close-progress">
++            {completed} von {total} {total === 1 ? 'Schritt' : 'Schritten'} mit Aufgaben bearbeitet
++          </label>
++          <progress id="close-progress" max={total} value={completed} />
++        </>
++      ) : (
++        <p role="status">Nichts offen. Prüfe das Ergebnis und merke den Stand.</p>
++      )}
+       <ol>
+         {steps.map((s) => (
+           <li key={s.step}>
+@@ -34,7 +48,9 @@ export function CloseStepper({
+               <span>
+                 {s.step}. {s.title}
+               </span>
+-              <small>{CLOSE_STATUS[s.status]}</small>
++              <small>
++                {s.step < 5 && !s.hasTasks ? '✓ nichts offen' : CLOSE_STATUS[s.status]}
++              </small>
+             </button>
+           </li>
+         ))}
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index 7d6005d2d82f4597231c5bb01bea8f1cf5e0c371..1faa63f8d76ff6f249887f32d9770ca534765117 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1831,3 +1831,11 @@ explicit reanalysis/review. Upload and reanalysis never post money.
+ - Project income has unavailable expectations rather than global forecasts or fabricated zero/missing badges. The minimal scoped table omits assignments, money age, net worth and targets; the generic table frame generates the old verdict only from complete legacy tables. Scope notes identify the actual resolved project and read date. Existing distinct monthly/window/net meanings are retained, and the separate full ProjectsReport remains linked for tracking/off-budget results.
+ - Root’s read-only backend filters already classified sources after transfer-partner resolution, including signed Zukunft set-aside and the separate capital source. No financial formula, schema, booking writer, audit or Undo rule changes. Report source/back links retain project scope; individual ledger links use actual filtered booking IDs, without claiming an unsupported ledger project filter.
+ - Validation is deferred by the owner’s implementation-first batching instruction: literal no-filter parity; same-name/archived/invalid/empty project isolation, refunds, cross-project internal transfers and separate capital; unavailable expectations/global fields; reassignment/Undo/cache/source/CSV scope; view/month/window/BackForward, loading/error/privacy/44px/Axe/device geometry, and coherent full/native/CI/live gates. No tests were added or changed, and no acceptance criterion is marked verified.
++
++
++### #600 / #602 — Guided month close and saved result (implementation pending batch validation)
++
++- Five steps now use Prüfen / Konten abgleichen / Überzogenes ausgleichen / Nächsten Monat planen / Ergebnis. Server-derived navigation skips empty work on entry and continuation; empty steps remain inspectable with “nichts offen”, progress counts only task-bearing steps, and each step explains Warum / Danach. Existing explicit decisions, account actions and dirty Plan drafts remain intact.
++- The result shows checked versus deferred accounts, assignments, unresolved overspending, the next month's unallocated carry, actual savings rate and the existing monthly spending/plan comparison. Figures and the full One-Pager come from one close read snapshot; the shared 50/30/20 allocation stays distinct from the actual savings rate. Existing report details, deviations and open findings remain accessible.
++- Closing retains the historical date and adds a server timestamp, bounded result snapshot and revision check. Repeated identical close requests are no-ops without another audit write or false Undo action. Later changes keep the historical marker; explicit re-close is audited and undoable. Closing introduces no booking lock and no financial writer or calculation change. Account bulk confirmation (#601) and bounded Heute priorities/change reminders (#603 with #573) remain separate work.
++- Validation is deferred by the owner's implementation-first batching instruction: literal result/report/Plan cent parity; empty/accepted work and quiet-month <=3-click completion; resume, stale-source refusal, true repeated-close no-op, changed-source re-close and grouped Undo; old title/progress adapter review without weakening financial assertions; privacy, keyboard/Axe, 44 px targets, light/dark desktop/phone layout and required full/native/CI/live gates. No acceptance criterion is marked verified here.
+diff --git a/packages/db/src/repos/index.ts b/packages/db/src/repos/index.ts
+index 8576aed8f874ded2b40d1b92ca4f935e384e329c..8a3dfbe9f22514ceb03197659c7901423e671c2a 100644
+--- a/packages/db/src/repos/index.ts
++++ b/packages/db/src/repos/index.ts
+@@ -100,3 +100,4 @@ export * from './statement-settlement-read';
+ export * from './statement-automation';
+ export * from './statement-receipt-links';
+ export * from './booking-bulk-eligibility';
++export * from './month-close-state';
+diff --git a/packages/db/src/repos/month-close-state.ts b/packages/db/src/repos/month-close-state.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..685a488f667f89d52e5344877b929f2d98c3f417
+--- /dev/null
++++ b/packages/db/src/repos/month-close-state.ts
+@@ -0,0 +1,48 @@
++import { addMonths, lastDayOfMonth } from '@budget/domain';
++import { createHash } from 'node:crypto';
++import { sql } from 'drizzle-orm';
++import type { Executor } from './types';
++
++/**
++ * An aggregate of retained booking/split and relevant planning/account audits supplies an ABA fence. Before and
++ * after dates include moves out of the month; Undo is another retained event. Only a count
++ * leaves SQLite, never private audit snapshots. This does not create a close task or a lock.
++ */
++export function monthCloseSourceRevision(db: Executor, month: string, facts: unknown,
++  accountIds: readonly string[] = [],
++): string {
++  const nextMonth = addMonths(month, 1);
++  const accountList = JSON.stringify([...new Set(accountIds)].sort());
++  const end = lastDayOfMonth(month);
++  const rows = db.all<{ count: number }>(sql`
++    SELECT COUNT(*) AS count FROM audit_log a WHERE
++      (a.entity_type = 'booking' AND
++        (substr(json_extract(a.before_json, '$.date'), 1, 7) = ${month}
++         OR substr(json_extract(a.after_json, '$.date'), 1, 7) = ${month}))
++      OR (a.entity_type IN ('envelope_month', 'budget_month') AND
++        (json_extract(a.before_json, '$.month') <= ${nextMonth}
++         OR json_extract(a.after_json, '$.month') <= ${nextMonth}))
++      OR (a.entity_type = 'account' AND a.entity_id IN (SELECT value FROM json_each(${accountList})))
++      OR (a.entity_type = 'account_reconciliation' AND
++        (json_extract(a.before_json, '$.account_id') IN (SELECT value FROM json_each(${accountList}))
++         OR json_extract(a.after_json, '$.account_id') IN (SELECT value FROM json_each(${accountList}))))
++      OR (a.entity_type = 'valuation' AND
++        ((json_extract(a.before_json, '$.account_id') IN (SELECT value FROM json_each(${accountList}))
++          AND json_extract(a.before_json, '$.date') <= ${end})
++         OR (json_extract(a.after_json, '$.account_id') IN (SELECT value FROM json_each(${accountList}))
++          AND json_extract(a.after_json, '$.date') <= ${end})))
++      OR (a.entity_type = 'booking_split' AND (
++        EXISTS (SELECT 1 FROM booking b WHERE b.id IN
++          (json_extract(a.before_json, '$.booking_id'), json_extract(a.after_json, '$.booking_id'))
++          AND substr(b.date, 1, 7) = ${month})
++        OR EXISTS (SELECT 1 FROM audit_log parent WHERE parent.entity_type = 'booking'
++          AND parent.entity_id IN
++            (json_extract(a.before_json, '$.booking_id'), json_extract(a.after_json, '$.booking_id'))
++          AND (substr(json_extract(parent.before_json, '$.date'), 1, 7) = ${month}
++            OR substr(json_extract(parent.after_json, '$.date'), 1, 7) = ${month}))
++      ))
++  `);
++  const eventCount = rows[0]?.count;
++  if (!Number.isSafeInteger(eventCount) || eventCount! < 0) throw new RangeError('Invalid month audit count');
++  return createHash('sha256').update(JSON.stringify({ version: 1, month, eventCount, facts })).digest('hex');
++}
+diff --git a/packages/domain/src/month-close.ts b/packages/domain/src/month-close.ts
+index 976ec2c0132970d12c1ac0d72eb5bca6475f2fac..78817610cf1a91d39ef99c5200b00a38f28beb26 100644
+--- a/packages/domain/src/month-close.ts
++++ b/packages/domain/src/month-close.ts
+@@ -12,20 +12,41 @@ export const closeDecisionSchema = z.strictObject({
+   fingerprint: z.string().min(1).max(100),
+   reason: z.string().trim().min(1).max(500),
+ });
++/** A bounded historical result; current figures remain a separately computed read model. */
++export const closeResultSnapshotSchema = z.strictObject({
++  version: z.literal(1),
++  sourceRevision: z.string().regex(/^[a-f0-9]{64}$/),
++  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
++  checkedAccounts: z.int().min(0),
++  totalAccounts: z.int().min(0),
++  deferredAccounts: z.int().min(0),
++  assignedCents: z.int(),
++  overspentCount: z.int().min(0),
++  overspentCents: z.int().min(0),
++  carryInCents: z.int(),
++  destinationMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
++  savingsRateBp: z.int().nullable(),
++  spentCents: z.int(),
++  plannedCents: z.int(),
++});
++export type CloseResultSnapshot = z.infer<typeof closeResultSnapshotSchema>;
++
+ export const monthCloseStateSchema = z.strictObject({
+   currentStep: z.int().min(1).max(5).default(1),
+   decisions: z.array(closeDecisionSchema).max(1000).default([]),
+   closedOn: z.iso.date().optional(),
++  closedAt: z.iso.datetime().optional(),
++  snapshot: closeResultSnapshotSchema.optional(),
+ });
+ export type CloseDecision = z.infer<typeof closeDecisionSchema>;
+ export type MonthCloseState = z.infer<typeof monthCloseStateSchema>;
+ export type CloseWork = Pick<CloseDecision, 'step' | 'id' | 'fingerprint'>;
+ export const CLOSE_TITLES = [
+-  'Posteingang leeren',
++  'Prüfen',
+   'Konten abgleichen',
+   'Überzogenes ausgleichen',
+   'Nächsten Monat planen',
+-  'Rückblick',
++  'Ergebnis',
+ ] as const;
+ export function closeSteps(
+   work: CloseWork[],
+@@ -45,6 +66,7 @@ export function closeSteps(
+       step,
+       title,
+       openCount: step === 4 && plan ? Number(plan.remainingCents !== 0) : openCount,
++      hasTasks: step <= 3 ? items.length > 0 : step === 4 && Boolean(plan && plan.remainingCents !== 0),
+       reasons: [...new Set(accepted.map((d) => d.reason))],
+       status:
+         step === 4 && plan
+@@ -67,6 +89,19 @@ export function closeSteps(
+ }
+ export type CloseStep = ReturnType<typeof closeSteps>[number];
+ 
++/** Navigation skips empty/completed work without recording a decision or closing on read. */
++export function closeNavigation(steps: readonly CloseStep[]) {
++  const tasks = steps.filter((step) => step.step < 5 && step.hasTasks);
++  const currentStep = steps.find((step) => step.step < 5 && step.status === 'open')?.step ?? 5;
++  const nextByStep = Object.fromEntries(steps.map((step) => [step.step,
++    steps.find((candidate) => candidate.step > step.step && candidate.step < 5 && candidate.status === 'open')?.step ?? 5,
++  ])) as Record<number, number>;
++  return { currentStep, nextStep: nextByStep[currentStep] ?? 5, nextByStep,
++    completedTasks: tasks.filter((step) => step.status === 'done' || step.status === 'skipped').length,
++    totalTasks: tasks.length };
++}
++
++
+ /** Tracked zero-spend months count; partial and pre-tracking months never dilute the mean. */
+ export function closePlanHistory(
+   ids: readonly string[],
