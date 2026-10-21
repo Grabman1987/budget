@@ -1,0 +1,684 @@
+diff --git a/apps/server/src/api/wealth.ts b/apps/server/src/api/wealth.ts
+index f15f95cb262017ed17e1879181c3fc363b6fbb55..bb13a538e5a1d3a7a0a5934e002b0d09176fe30f 100644
+--- a/apps/server/src/api/wealth.ts
++++ b/apps/server/src/api/wealth.ts
+@@ -1,7 +1,7 @@
+ import { checkedReportPeriod, reportPeriodSchema } from './report-period';
+ import { debtRoutes } from './debts';
+ import {
+-  freedomView,
++  freedomViewWithHistory,
+   accountValuesAsOf,
+   earliestAccountDate,
+   netWorthAsOf,
+@@ -21,7 +21,7 @@ export function wealthRoutes(db: Db, today: () => string): Hono {
+   const app = new Hono();
+   app.route('/debts', debtRoutes(db, today));
+ 
+-  app.get('/freedom', (c) => c.json(freedomView(db, today())));
++  app.get('/freedom', (c) => c.json(freedomViewWithHistory(db, today())));
+ 
+   /**
+    * Net worth over a period: the daily series (first point = the start value, the close of the
+diff --git a/apps/web/src/wealth/freedom-api.ts b/apps/web/src/wealth/freedom-api.ts
+index 84eb5522736c4bddd22b31d3a09ff0e30fd27841..ff21e774c04ccdcb98d65e04b26de46abba35981 100644
+--- a/apps/web/src/wealth/freedom-api.ts
++++ b/apps/web/src/wealth/freedom-api.ts
+@@ -1,8 +1,8 @@
+-import type { FreedomView } from '@budget/db';
++import type { FreedomView as CurrentFreedomView, FreedomInvestedHistory } from '@budget/db';
+ import { queryOptions } from '@tanstack/react-query';
+ import { request } from '../api/http';
+ import { LEDGER_KEY } from '../ledger/queries';
+-export type { FreedomView } from '@budget/db';
++export type FreedomView = CurrentFreedomView & { investedHistory?: FreedomInvestedHistory };
+ export const FREEDOM_KEY = [...LEDGER_KEY, 'freedom'] as const;
+ export const freedomQuery = () =>
+   queryOptions({
+diff --git a/apps/web/src/wealth/freedom-chart.tsx b/apps/web/src/wealth/freedom-chart.tsx
+index 904d8b970e9ef4e800a06b3a69279be4f89c7e49..5eeea541d898727ddc78303a19d29b87245e5959 100644
+--- a/apps/web/src/wealth/freedom-chart.tsx
++++ b/apps/web/src/wealth/freedom-chart.tsx
+@@ -7,68 +7,108 @@ import {
+   Line,
+   ElevationMark,
+   Switch,
++  linePath,
++  TodayLine,
+   type Point,
+ } from '@budget/ui';
+ import { addMonths, MAX_FREEDOM_MONTHS, type FreedomProjection } from '@budget/domain';
++import type { FreedomInvestedHistory } from '@budget/db';
+ import { useElementWidth } from '../charts/use-element-width';
+-import { eur } from '../ledger/format';
++import { eur, longDay } from '../ledger/format';
+ import { kfmt, yTicks } from './networth-model';
+ import { monthText } from './freedom-model';
++import { freedomHistoryModel } from './freedom-history-model';
+ 
+-/** Forecast only: year-end samples returned by the shared engine, including its final partial year. */
++/** Exact month-end actuals and the unchanged shared forecast, including its final partial year. */
+ export function FreedomChart({
+   projection: p,
+   target,
+   startMonth,
++  history,
+ }: {
+-  projection: FreedomProjection;
+-  target: number;
++  projection: FreedomProjection | null;
++  target: number | null;
+   startMonth: string;
++  history?: FreedomInvestedHistory | undefined;
+ }) {
+   useAmountPrivacy();
+   const [asTable, setAsTable] = useState(false);
++  const showTable = asTable && p !== null;
+   const [ref, width] = useElementWidth<HTMLDivElement>();
+   const H = 260,
+     L = 56,
+     R = 20,
+     T = 28,
+     B = H - 28;
+-  const months = p.months ?? MAX_FREEDOM_MONTHS;
+-  const x = (m: number) => L + (m / Math.max(1, months)) * (width - L - R);
+-  const values = p.yearlyPath;
+-  const low = Math.min(0, ...values);
+-  const high = Math.max(target, ...values, 1);
++  const months = p?.months ?? MAX_FREEDOM_MONTHS;
++  const values = p?.yearlyPath ?? [];
++  const model = freedomHistoryModel(history, p, startMonth);
++  const x = (date: string) => L + model.position(date) * (width - L - R);
++  const actualValues = model.actual.flatMap((point) =>
++    point.investedCents === null ? [] : [point.investedCents],
++  );
++  const low = Math.min(0, ...values, ...actualValues);
++  const high = Math.max(target ?? 0, ...values, ...actualValues, 1);
+   const span = (high - low) * 1.12;
+   const y = (v: number) => B - ((v - low) / span) * (B - T);
+-  const points: Point[] = values.map((v, i) => [x(Math.min(i * 12, months)), y(v)]);
++  const points: Point[] = model.forecast.map((point) => [x(point.date), y(point.investedCents)]);
+   const first = points[0];
++  const actualByDate = new Map(model.actual.map((point) => [point.date, point.investedCents]));
++  const forecastByDate = new Map(model.forecast.map((point) => [point.date, point.investedCents]));
++  const label = `${history ? 'Investiertes Vermögen: Ist seit Oktober 2023. Fehlende Bewertungen bleiben Lücken. ' : ''}${p ? `Prognose ab ${monthText(startMonth)}: ${p.doneMonth ? `Ziel erreicht ${monthText(p.doneMonth)}` : 'Ziel innerhalb von 60 Jahren nicht erreicht'}. Keine Garantie.` : 'Prognose derzeit nicht verfügbar.'}`;
+   return (
+     <div ref={ref} className="freedom-chart">
+-      <div className="freedom-table-switch">
+-        <label id="freedom-table-label" htmlFor="freedom-table-switch">
+-          Prognosewerte als Tabelle
+-        </label>
+-        <Switch
+-          id="freedom-table-switch"
+-          labelledBy="freedom-table-label"
+-          checked={asTable}
+-          onChange={setAsTable}
+-        />
+-      </div>
+-      {!asTable && width > 0 && (
++      {p && (
++        <div className="freedom-table-switch">
++          <label id="freedom-table-label" htmlFor="freedom-table-switch">
++            Prognosewerte als Tabelle
++          </label>
++          <Switch
++            id="freedom-table-switch"
++            labelledBy="freedom-table-label"
++            checked={asTable}
++            onChange={setAsTable}
++          />
++        </div>
++      )}
++      {!showTable && width > 0 && (
+         <ChartSvg
+           width={width}
+           height={H}
+           testId="freedom-chart"
+-          points={chartPoints(
+-            values.map((_, i) => addMonths(startMonth, Math.min(i * 12, months))),
+-            (i) => x(Math.min(i * 12, months)),
+-            [
+-              { name: 'Prognose', values: values, color: 'var(--line)' },
+-              { name: 'Ziel', values: values.map(() => target), color: 'var(--line-2)' },
+-            ],
+-          )}
+-          label={`Prognose ab ${monthText(startMonth)}: ${p.doneMonth ? `Ziel erreicht ${monthText(p.doneMonth)}` : 'Ziel innerhalb von 60 Jahren nicht erreicht'}. Keine Garantie.`}
++          points={chartPoints(model.dates, (i) => x(model.dates[i]!), [
++            ...(history
++              ? [
++                  {
++                    name: 'Ist',
++                    values: model.dates.map((date) => actualByDate.get(date)),
++                    color: 'var(--line)',
++                  },
++                ]
++              : []),
++            ...(p
++              ? [
++                  {
++                    name: 'Prognose',
++                    values: model.dates.map((date) => forecastByDate.get(date)),
++                    color: 'var(--line)',
++                  },
++                ]
++              : []),
++            ...(target !== null
++              ? [{ name: 'Ziel', values: model.dates.map(() => target), color: 'var(--line-2)' }]
++              : []),
++          ]).map((point) => ({
++            ...point,
++            series: point.series.filter(
++              (series) =>
++                series.name === 'Ziel' ||
++                (series.name === 'Ist'
++                  ? actualByDate.has(point.date)
++                  : forecastByDate.has(point.date)),
++            ),
++          }))}
++          label={label}
+         >
+           <Graticule
+             x1={L}
+@@ -78,12 +118,32 @@ export function FreedomChart({
+               label: kfmt(v),
+             }))}
+           />
+-          <path className="l-goal" d={`M${L} ${y(target)}H${width - R}`} />
+-          <Line kind="forecast" points={points} />
++          {target !== null && <path className="l-goal" d={`M${L} ${y(target)}H${width - R}`} />}
++          {history && <TodayLine x={x(history.current.date)} y1={T} y2={B} />}
++          {model.segments.map((segment) => (
++            <path
++              key={segment[0]!.date}
++              data-testid="freedom-actual-segment"
++              className="l-actual"
++              d={linePath(segment.map((point) => [x(point.date), y(point.investedCents!)]))}
++            />
++          ))}
++          {model.actual
++            .filter((point) => point.investedCents !== null)
++            .map((point) => (
++              <circle
++                key={point.date}
++                cx={x(point.date)}
++                cy={y(point.investedCents!)}
++                r={3}
++                className="dot-actual"
++              />
++            ))}
++          {p && <Line kind="forecast" points={points} />}
+           {first && <circle cx={first[0]} cy={first[1]} r={4} className="dot-actual" />}
+-          {p.months !== null && (
++          {p && p.months !== null && target !== null && (
+             <ElevationMark
+-              x={x(months)}
++              x={x(model.forecast.at(-1)!.date)}
+               y={y(target)}
+               label={`Ziel ${p.doneYear}`}
+               align={months === 0 ? 'start' : 'end'}
+@@ -91,30 +151,42 @@ export function FreedomChart({
+             />
+           )}
+           <text x={L} y={H - 6} className="svg-label-line">
+-            heute
++            {history ? monthText(model.dates[0]!.slice(0, 7)) : 'heute'}
+           </text>
+           <text x={width - R} y={H - 6} textAnchor="end" className="svg-label">
+-            {addMonths(startMonth, months).slice(0, 4)}
++            {model.dates.at(-1)?.slice(0, 4)}
+           </text>
+         </ChartSvg>
+       )}
+-      {!asTable && (
++      {!showTable && (
+         <div className="legend" aria-hidden="true">
+-          <span>
+-            <svg viewBox="0 0 26 8">
+-              <path className="l-forecast" d="M0 4h26" />
+-            </svg>
+-            Prognose ab heute
+-          </span>
+-          <span>
+-            <svg viewBox="0 0 26 8">
+-              <path className="l-goal" d="M0 4h26" />
+-            </svg>
+-            Ziel {eur(target)}
+-          </span>
++          {history && (
++            <span>
++              <svg viewBox="0 0 26 8">
++                <path className="l-actual" d="M0 4h26" />
++              </svg>
++              Ist investiertes Vermögen
++            </span>
++          )}
++          {p && (
++            <span>
++              <svg viewBox="0 0 26 8">
++                <path className="l-forecast" d="M0 4h26" />
++              </svg>
++              Prognose ab heute
++            </span>
++          )}
++          {target !== null && (
++            <span>
++              <svg viewBox="0 0 26 8">
++                <path className="l-goal" d="M0 4h26" />
++              </svg>
++              Ziel {eur(target)}
++            </span>
++          )}
+         </div>
+       )}
+-      {asTable && (
++      {showTable && p && (
+         <table className="kv-table" data-testid="freedom-table">
+           <caption>Ungespeicherte Prognose · keine Garantie</caption>
+           <thead>
+@@ -133,6 +205,38 @@ export function FreedomChart({
+           </tbody>
+         </table>
+       )}
++      {history && (
++        <p className="vnote">
++          Ist: abgeschlossene Monatsenden · Heute {longDay(history.current.date)} separat.
++        </p>
++      )}
++      {history && (
++        <details className="freedom-data">
++          <summary>Ist-Werte als Tabelle · fehlende Bewertungen bleiben Lücken</summary>
++          <table className="kv-table" data-testid="freedom-history-table">
++            <caption>Monatsenden seit Oktober 2023 · Kontenauswahl Stand heute</caption>
++            <thead>
++              <tr>
++                <th>Datum</th>
++                <th>Investiert</th>
++              </tr>
++            </thead>
++            <tbody>
++              {model.actual.map((point) => (
++                <tr key={point.date}>
++                  <td>
++                    {longDay(point.date)}
++                    {point.date === history.current.date ? ' · Heute' : ''}
++                  </td>
++                  <td>
++                    {point.investedCents === null ? 'nicht bewertbar' : eur(point.investedCents)}
++                  </td>
++                </tr>
++              ))}
++            </tbody>
++          </table>
++        </details>
++      )}
+     </div>
+   );
+ }
+diff --git a/apps/web/src/wealth/freedom-page.tsx b/apps/web/src/wealth/freedom-page.tsx
+index 3e02b14a948a13044d35c0c440aa684179a94bc2..1eb7c421d54a05d9075cc0a15f94c524e001b0e7 100644
+--- a/apps/web/src/wealth/freedom-page.tsx
++++ b/apps/web/src/wealth/freedom-page.tsx
+@@ -309,19 +309,28 @@ export function FreedomContent({ view }: { view: FreedomView }) {
+       <section className="freedom-wide" aria-labelledby="freedom-way">
+         <div className="head">
+           <h2 id="freedom-way">Weg zum Ziel</h2>
+-          <span className="aside">Prognose ab heute · keine Garantie</span>
++          <span className="aside">
++            {view.investedHistory ? 'Ist seit Okt. 2023 · ' : ''}Prognose ab heute · keine Garantie
++          </span>
+         </div>
+-        {projection && view.targetCents !== null ? (
++        <p className="vnote">Kontenauswahl Stand heute · gilt auch für historische Bewertungen.</p>
++        {(projection && view.targetCents !== null) || view.investedHistory ? (
+           <FreedomChart
+             projection={projection}
+             target={view.targetCents}
+             startMonth={view.asOf.slice(0, 7)}
++            history={view.investedHistory}
+           />
+         ) : (
+           <p className="vnote">
+             {reason || error || 'Die Prognose beginnt nach Eingabe einer Sparrate.'}
+           </p>
+         )}
++        {!projection && view.investedHistory && (
++          <p className="vnote">
++            {reason || error || 'Die Prognose beginnt nach Eingabe einer Sparrate.'}
++          </p>
++        )}
+       </section>
+       <details className="freedom-wide freedom-data" id="freedom-expenses">
+         <summary>Woher die Jahresausgaben kommen</summary>
+@@ -370,7 +379,7 @@ export function FreedomContent({ view }: { view: FreedomView }) {
+       >
+         <div className="head">
+           <h2 id="freedom-account-title">Investiert: Quellkonten</h2>
+-          <span className="aside">Kontoguthaben plus Bestände · in Euro</span>
++          <span className="aside">Ausgewählte Anlagebasis · in Euro</span>
+         </div>
+         {view.accounts.length ? (
+           <table className="kv-table">
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index 1c02fdb804c361c7214d10c2cd97fa64dbb3c10a..8c3d0ffd4cdff2e2cf3e41fa5053f3c02f956fe4 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1127,6 +1127,8 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
+ - [ ] Required CI and owner visual acceptance; pre-existing loan-dialog trigger-focus restoration remains a separate gap.
+ 
+ ### P5.8 — Freiheitszahl: forecast from today
++- [x] #615: current #507 Anlagebasis shared by Freiheit and R16, applied to dated history with the visible current-selection note; literal scope-save/undo, missing valuation and read-only preview regressions ([evidence](evidence/reference-adoption/wp-010-freedom-universe-615.md)).
++- [ ] #615 required CI/live acceptance; historical Ist chart (#616) and persisted personal goal/assumptions (#617) remain separate.
+ - [x] Connected current R16 expense/investment sources and configurable multiple; explicit unknown quote/FX and short-history annualisation, original lead/chain/quarter progress and source navigation.
+ - [x] Explicit unsaved saving assumption and 5 % real-return default; shared monthly projection with +100 EUR comparison, bounded numeric errors, desktop/mobile light/dark and accessible values.
+ - [ ] Historical Soll-Pfad, chosen goal year and persisted assumptions await separate owner decisions; the complete freedom workflow and private acceptance remain open.
+diff --git a/packages/db/src/repos/allocation-inputs.ts b/packages/db/src/repos/allocation-inputs.ts
+index e0907a866b34cb32205082b3f89ced6fc292027c..e31c7e5d561599c478f4eeaa7d5ca73d0b50ceb1 100644
+--- a/packages/db/src/repos/allocation-inputs.ts
++++ b/packages/db/src/repos/allocation-inputs.ts
+@@ -1,6 +1,7 @@
+ import {
+   allocationQuality,
+   defaultAllocationIncluded,
++  freedomSumCents,
+   grossExposureCents,
+   type WealthPosition,
+ } from '@budget/domain';
+@@ -194,7 +195,7 @@ export function allocationInputsAsOf(db: Executor, asOf: string) {
+     valueCents:
+       quality.valuationQuality === 'incomplete'
+         ? null
+-        : positions.reduce((sum, p) => sum + p.valueCents, 0),
++        : freedomSumCents(positions.map((position) => position.valueCents)),
+     universe: { accountIds: [...accounts.keys()], securityIds: [...securities.keys()] },
+   };
+ }
+diff --git a/packages/db/src/repos/freedom-inputs.ts b/packages/db/src/repos/freedom-inputs.ts
+index 72429047bfb4b3ea7ca1c7dfbdf6c20555da76a6..ca459c7259611bff6e06612d005105f5e5ae71f2 100644
+--- a/packages/db/src/repos/freedom-inputs.ts
++++ b/packages/db/src/repos/freedom-inputs.ts
+@@ -1,4 +1,47 @@
+ import { addMonths, freedomAnnualSpendCents, freedomSumCents, monthsBetween } from '@budget/domain';
++import { isNull } from 'drizzle-orm';
++import { account } from '../schema';
++import { allocationInputsAsOf } from './allocation-inputs';
++import type { Executor } from './types';
++
++/** The current Anlagebasis selection applies to every dated valuation, including history. */
++export function freedomInvestmentBasis(db: Executor, asOf: string) {
++  const basis = allocationInputsAsOf(db, asOf);
++  const selected = new Set(basis.universe.accountIds);
++  const accounts = db
++    .select()
++    .from(account)
++    .where(isNull(account.deletedAt))
++    .all()
++    .filter((row) => selected.has(row.id) && row.openingDate <= asOf)
++    .map((row) => {
++      const unavailable = basis.unavailable.filter((position) => position.accountId === row.id);
++      return {
++        id: row.id,
++        name: row.name,
++        valueCents: unavailable.length
++          ? null
++          : freedomSumCents(
++              basis.positions
++                .filter((position) => position.accountId === row.id)
++                .map((position) => position.valueCents),
++            ),
++        missingPrice: unavailable.some((position) => position.reason === 'missing_price'),
++        missingFxCurrencies: [
++          ...new Set(
++            unavailable.flatMap((position) =>
++              position.reason === 'missing_fx' && position.currency ? [position.currency] : [],
++            ),
++          ),
++        ],
++      };
++    });
++  return {
++    investedCents:
++      basis.valueCents !== null && Number.isSafeInteger(basis.valueCents) ? basis.valueCents : null,
++    accounts,
++  };
++}
+ 
+ /** The existing R16 sources, shared with the forecast page. Refunds stay netted. */
+ export function freedomExpenseMonths(
+@@ -35,7 +78,7 @@ export function freedomExpenses(
+   );
+ }
+ 
+-/** Cash plus holdings in investment-role accounts; exactly the existing R16 selection. */
++/** Legacy role-based helper retained for compatibility; live consumers use the Anlagebasis. */
+ export function freedomInvestmentAccounts<T extends { role: string; openingDate: string }>(
+   accounts: ReadonlyArray<T>,
+   day: string,
+diff --git a/packages/db/src/repos/freedom.ts b/packages/db/src/repos/freedom.ts
+index 377f098a83cf2c42db976533811fc82ed6f6bcb2..c32c434d89fc610b7aeb0301838bbae3fbdbbe55 100644
+--- a/packages/db/src/repos/freedom.ts
++++ b/packages/db/src/repos/freedom.ts
+@@ -13,15 +13,10 @@ import {
+ } from '@budget/domain';
+ import { isNull, eq, and } from 'drizzle-orm';
+ import { account, category, rule } from '../schema';
+-import { netWorthValuationAsOf } from './portfolio';
+ import { budget } from './queries';
+ import { allocationMonth } from './allocation';
+ import { referenceMonth } from './rule-inputs';
+-import {
+-  freedomExpenseMonths,
+-  freedomInvestedCents,
+-  freedomInvestmentAccounts,
+-} from './freedom-inputs';
++import { freedomExpenseMonths, freedomInvestmentBasis } from './freedom-inputs';
+ import type { Executor } from './types';
+ 
+ export interface FreedomView {
+@@ -88,26 +83,7 @@ export function freedomView(db: Executor, asOf: string): FreedomView {
+   }
+   const target = annualSpendCents === null ? null : freedomTargetCents(annualSpendCents, multiple);
+   const targetCents = target !== null && Number.isSafeInteger(target) ? target : null;
+-  const valuation = netWorthValuationAsOf(db, asOf);
+-  const sources = freedomInvestmentAccounts(accounts, asOf).map((a) => {
+-    const missingPrice = !!valuation.missingPriceByAccount[a.id]?.length;
+-    // A position with neither a price nor a cost basis would silently count as 0: the Freiheitszahl
+-    // progress stays unknown instead of understating the invested sum.
+-    const value = missingPrice ? null : (valuation.byAccount[a.id] ?? null);
+-    return {
+-      id: a.id,
+-      name: a.name,
+-      valueCents: value !== null && Number.isSafeInteger(value) ? value : null,
+-      missingPrice,
+-      missingFxCurrencies: valuation.missingFxByAccount[a.id] ?? [],
+-    };
+-  });
+-  const invested = freedomInvestedCents(
+-    accounts,
+-    asOf,
+-    Object.fromEntries(sources.map((a) => [a.id, a.valueCents])),
+-  );
+-  const investedCents = invested !== null && Number.isSafeInteger(invested) ? invested : null;
++  const { investedCents, accounts: sources } = freedomInvestmentBasis(db, asOf);
+   const progress =
+     investedCents !== null && targetCents !== null && targetCents > 0 && months.length > 0
+       ? freedomProgressBp(investedCents, targetCents)
+diff --git a/packages/db/src/repos/index.ts b/packages/db/src/repos/index.ts
+index a0f48e943af2095b5cff96ef92d4a613c7e9af5c..f137fcbc59e8e4f9fb3ab75d707b39fc11eb6955 100644
+--- a/packages/db/src/repos/index.ts
++++ b/packages/db/src/repos/index.ts
+@@ -49,6 +49,7 @@ export * from './portfolio-allocation';
+ export * from './payments-preview';
+ export * from './payee-report';
+ export * from './freedom';
++export * from './freedom-history';
+ export * from './profile';
+ export * from './liquidity-report';
+ export * from './income-pauses';
+diff --git a/packages/db/src/repos/rule-inputs.ts b/packages/db/src/repos/rule-inputs.ts
+index af8b66b3522238068daa52f6f974e25c13c3af20..e4e45cf033ef3c6501430bf0addacdef52a8e290 100644
+--- a/packages/db/src/repos/rule-inputs.ts
++++ b/packages/db/src/repos/rule-inputs.ts
+@@ -63,7 +63,7 @@ import { fxRateOnOrBefore } from './prices';
+ import { memoizedShared } from './request-memo';
+ import { budgetLedger, budgetOfLedger } from './queries';
+ import type { Executor } from './types';
+-import { freedomExpenses, freedomInvestedCents } from './freedom-inputs';
++import { freedomExpenses } from './freedom-inputs';
+ 
+ /**
+  * `ruleInputs` is the single place that assembles what the rules read (SPEC §4): the budget
+@@ -503,6 +503,43 @@ export function forecastInputs(
+   };
+ }
+ 
++/** R16 alone needs the selected Anlagebasis, not valuations of unrelated accounts. */
++export function freedomRuleInput(
++  db: Executor,
++  asOf: string,
++  facts = loadFacts(db, asOf),
++  current = allocationInputsAsOf(db, asOf),
++): RuleInputs['freedom'] {
++  const ref = referenceMonth(asOf);
++  if (!facts.budgetByMonth.has(monthOf(asOf)) && !facts.budgetByMonth.has(ref)) return null;
++  const progressAt = (day: string, refMonth: string) => {
++    const invested = (day === asOf ? current : allocationInputsAsOf(db, day)).valueCents;
++    if (invested === null || !Number.isSafeInteger(invested)) return null;
++    try {
++      return { invested, spend: freedomExpenses(facts, refMonth) };
++    } catch (error) {
++      if (!(error instanceof RangeError)) throw error;
++      return null;
++    }
++  };
++  const now = progressAt(asOf, ref);
++  if (!now) return null;
++  const previousRef = addMonths(ref, -3);
++  const previousDay = lastDayOfMonth(previousRef);
++  const previous =
++    facts.budgetByMonth.has(previousRef) && previousDay >= facts.firstMonth
++      ? progressAt(previousDay, previousRef)
++      : null;
++  return {
++    investedCents: now.invested,
++    annualSpendCents: now.spend,
++    previousProgressBp:
++      previous && previous.spend > 0
++        ? freedomProgressBp(previous.invested, freedomTargetCents(previous.spend))
++        : null,
++  };
++}
++
+ export function ruleInputs(
+   db: Executor,
+   asOf: string,
+@@ -758,31 +795,7 @@ export function ruleInputs(
+   const portfolioRiskPolicy = resolvePortfolioRiskPolicy(db, asOf, allocationInputs.valueCents);
+   const classTargets = portfolioRiskPolicy.targets;
+ 
+-  // R16: invested wealth over 25 annual spends, now and three months ago
+-  const progressAt = (day: string, refM: string): { invested: number; spend: number } => {
+-    const worth = day === asOf ? nw : netWorthAsOf(db, day);
+-    const invested = freedomInvestedCents(f.accounts, day, worth.byAccount);
+-    if (invested === null) throw new RangeError('Freedom investment total unavailable');
+-    return {
+-      invested,
+-      spend: freedomExpenses(f, refM),
+-    };
+-  };
+-  const nowP = progressAt(asOf, ref);
+-  const prevRef = addMonths(ref, -3);
+-  const prevDay = lastDayOfMonth(prevRef);
+-  const prevP =
+-    f.budgetByMonth.has(prevRef) && prevDay >= f.firstMonth ? progressAt(prevDay, prevRef) : null;
+-  const freedom = hasBudget
+-    ? {
+-        investedCents: nowP.invested,
+-        annualSpendCents: nowP.spend,
+-        previousProgressBp:
+-          prevP && prevP.spend > 0
+-            ? freedomProgressBp(prevP.invested, freedomTargetCents(prevP.spend))
+-            : null,
+-      }
+-    : null;
++  const freedom = freedomRuleInput(db, asOf, f, allocationInputs);
+ 
+   return {
+     asOf,
+diff --git a/packages/db/src/repos/rules.ts b/packages/db/src/repos/rules.ts
+index e635debc748130d1c4f85756f4fc12da64fdb84f..c1198d271d64e30839f1a297f15460cac5c9cb08 100644
+--- a/packages/db/src/repos/rules.ts
++++ b/packages/db/src/repos/rules.ts
+@@ -6,6 +6,7 @@ import {
+   CHECKLIST_DEFS,
+   defaultParams,
+   evaluateRule,
++  evaluateFreedomRule,
+   isRuleCode,
+   lastDayOfMonth,
+   monthOf,
+@@ -24,7 +25,7 @@ import { rule, ruleResult } from '../schema';
+ import { updateEntity } from './entities';
+ import { EntityNotFoundError, MissingFxRateError } from './errors';
+ import { netWorthAsOf } from './portfolio';
+-import { loadFacts, ruleInputs, type RuleFacts } from './rule-inputs';
++import { freedomRuleInput, loadFacts, ruleInputs, type RuleFacts } from './rule-inputs';
+ import { runInTransaction, type Executor } from './types';
+ import type { AuditContext } from './audit';
+ 
+@@ -262,6 +263,18 @@ export function listRules(
+   }
+   return {
+     rules: rules.map((r) => {
++      if (upTo && r.code === 'R16') {
++        const freedom = inputs ? inputs.freedom : freedomRuleInput(db, upTo);
++        const evaluation = evaluateFreedomRule(parseJson(r.paramsJson), freedom);
++        return {
++          ...listing(r, undefined),
++          latest: evaluation ? { asOf: upTo, ...evaluation } : null,
++          unavailableReason:
++            freedom === null
++              ? 'Anlagebasis oder Ausgabenbasis ist nicht vollständig verfügbar.'
++              : null,
++        };
++      }
+       if (!inputs || !isRuleCode(r.code) || !livePreview(r.code)) {
+         const row = listing(r, withheld && livePreview(r.code) ? undefined : latest.get(r.id));
+         return withheld && livePreview(r.code) ? { ...row, unavailableReason: withheld } : row;
+diff --git a/packages/domain/src/rules/evaluate.ts b/packages/domain/src/rules/evaluate.ts
+index f545614efd19744d96922c80564c33beffddbab7..b90dcc8c929a9030c6593c35f050fb4c7db8ee2f 100644
+--- a/packages/domain/src/rules/evaluate.ts
++++ b/packages/domain/src/rules/evaluate.ts
+@@ -420,7 +420,7 @@ const r15: Rule<'R15'> = (p, i) => {
+   );
+ };
+ 
+-const r16: Rule<'R16'> = (p, i) => {
++const r16 = (p: RuleParams<'R16'>, i: Pick<RuleInputs, 'freedom'>): RuleEvaluation | null => {
+   if (!i.freedom) return null;
+   const target = freedomTargetCents(i.freedom.annualSpendCents, p.multiple);
+   if (target <= 0) return null;
+@@ -435,6 +435,11 @@ const r16: Rule<'R16'> = (p, i) => {
+   );
+ };
+ 
++/** Read-only R16 preview without requiring unrelated account valuations. */
++export function evaluateFreedomRule(params: unknown, freedom: RuleInputs['freedom']) {
++  return r16(resolveParams('R16', params) as RuleParams<'R16'>, { freedom });
++}
++
+ const RULES: { [C in RuleCode]: Rule<C> } = {
+   R01: r01,
+   R02: r02,
+diff --git a/packages/domain/src/rules/index.ts b/packages/domain/src/rules/index.ts
+index d98c37e61a59553669a8dcd8705598c1091f12cd..75ba1f4fa64a3dec7828e968216016d7f6f9e1c8 100644
+--- a/packages/domain/src/rules/index.ts
++++ b/packages/domain/src/rules/index.ts
+@@ -12,7 +12,7 @@ export {
+ } from './params';
+ export { CHECKLIST_DEFS, RULE_DEFS, type ChecklistDef, type RuleDef } from './definitions';
+ export type { BookRuleInputs, RuleEvaluation, RuleInputs, RuleStatus } from './types';
+-export { evaluateRule, formatPercent } from './evaluate';
++export { evaluateRule, evaluateFreedomRule, formatPercent } from './evaluate';
+ export {
+   bySeverity,
+   KEY_RULES,

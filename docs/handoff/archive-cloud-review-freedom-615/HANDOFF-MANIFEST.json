@@ -1,0 +1,92 @@
+[
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/README.md",
+    "size": 498,
+    "sha256": "acd4fd09202ff6c73e565be164f3debc1dc70d71a78b0ee98636ca1db38d3609"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/preservation.json",
+    "size": 1717,
+    "sha256": "e5d00ed7c8e6b8d1ae3453d3733e9e13e5aa1e4356d0a89478b9471bcc4cc7f2"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/tracked-head.patch",
+    "size": 29338,
+    "sha256": "dbdafe8f68765a1e15d97e700bd825c271cc1d140c56c89028ecd4b24286ab88"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/untracked/apps/server/src/api/freedom-history-616.test.ts",
+    "size": 1496,
+    "sha256": "97d3dfc6eb9a7a687bfef70e656b41d1f5ebd1513a7eacaaddcb104c1199116c"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/untracked/apps/server/src/api/freedom-universe-615.test.ts",
+    "size": 4385,
+    "sha256": "ceb93358c2874477051965a7347cab45a1a6b1376c7b3e95f6619193a51e2aae"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/untracked/apps/web/src/wealth/freedom-history-616.test.tsx",
+    "size": 3452,
+    "sha256": "bd71eae89e4cb3e1e9aa1b337e8556325a8d013a6f1c248abe911cc476955074"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/untracked/apps/web/src/wealth/freedom-history-model-616.test.ts",
+    "size": 2712,
+    "sha256": "acd58f04795cf67a188f1a4fbb35cd97c03ae694f77e2e749a5460996b840e97"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/untracked/apps/web/src/wealth/freedom-history-model.ts",
+    "size": 1864,
+    "sha256": "6afc1e88298d09f864cca190c11c5e1f28d16c4a21a729df7e06a07f0581f7ca"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/untracked/apps/web/src/wealth/freedom-universe-615.test.tsx",
+    "size": 2428,
+    "sha256": "54e34dde96f65682b630fdc10b8b06efcd635d1ce5d2a0188a969373cae8822e"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/untracked/docs/evidence/reference-adoption/wp-010-freedom-universe-615.md",
+    "size": 7969,
+    "sha256": "15f999345605748c3ca10766d2a07b6e21160cbb75fe500e67721037376aad41"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/untracked/e2e/issue-615-freedom-universe.spec.ts",
+    "size": 3914,
+    "sha256": "ca6356d22786b1eecbc0c61cd5a78132601d84a5c78adc984ab0d7c727694057"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/untracked/e2e/issue-616-freedom-history.spec.ts",
+    "size": 7496,
+    "sha256": "a4f8e19bab2764f85243263e3bee9f855cefc8192e35091aa5659e58975e4909"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/untracked/packages/db/src/repos/freedom-history-616.test.ts",
+    "size": 4959,
+    "sha256": "9785a979869a66e1a08f1d533961224faa4b9da2d64e1fe858985dbd2331b0c7"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/untracked/packages/db/src/repos/freedom-history.ts",
+    "size": 2165,
+    "sha256": "4c53c8574716b8f68141b42175643eaab9785fae54011cae3191a3976b1f1d14"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/untracked/packages/db/src/repos/freedom-universe-615.test.ts",
+    "size": 11691,
+    "sha256": "4f7dd2b2384c2e6d9cefee6f0bbf03e77fecb3085ef2a99a74879f2a32a09a16"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/untracked/packages/db/src/repos/freedom-universe-fixture-615.ts",
+    "size": 1621,
+    "sha256": "3b62f9a86eeb1f17330c8a4f127a7afd67e418c3c624a765f4bd42fa949954f5"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-freedom-615/untracked/packages/domain/src/rules/freedom-preview-615.test.ts",
+    "size": 777,
+    "sha256": "f93de884ab88bbcfe67c97829650afb2d3780bf9df7fadd87a29ad8cbac14c63"
+  }
+]
