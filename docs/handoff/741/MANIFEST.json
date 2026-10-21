@@ -1,0 +1,312 @@
+[
+  {
+    "path": "docs/handoff/741/CURRENT-AUTHORIZATION.md",
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1",
+    "size": 1204
+  },
+  {
+    "path": "docs/handoff/741/README.md",
+    "sha256": "904d1ac6fe82b0756f1145f398d77ac03badb048ad74853b6f043ee52ef2cd87",
+    "size": 1061
+  },
+  {
+    "path": "docs/handoff/741/STATUS.json",
+    "sha256": "4fe41fbdbe397922f7e789a0a143121a45c59f07a4dfca680afaf0e3f8294eaf",
+    "size": 522
+  },
+  {
+    "path": "docs/handoff/741/checks/741-canonical-webkit-seven-first-actual/counts.json",
+    "sha256": "84dcdc34637a7d3c3019130140a08dfaf17e94828a6426dbb2bef57d392633cd",
+    "size": 137
+  },
+  {
+    "path": "docs/handoff/741/checks/741-canonical-webkit-seven-first-actual/guards.json",
+    "sha256": "1e6721895338c0a9c8567547427715e5838235f4f18f8b00ae4ad324680cb948",
+    "size": 126
+  },
+  {
+    "path": "docs/handoff/741/checks/741-canonical-webkit-seven-first-actual/result.json",
+    "sha256": "fb5c2cc9f42dde6ec0af377052035591af840b36087f37b9adb0ffba645225fe",
+    "size": 151
+  },
+  {
+    "path": "docs/handoff/741/checks/741-effective-type-webkit-seven-second-actual/counts.json",
+    "sha256": "0227a5de2c01b47f8c640b6a544c64de60b1951a3563dd413d97ec1467a79984",
+    "size": 136
+  },
+  {
+    "path": "docs/handoff/741/checks/741-effective-type-webkit-seven-second-actual/guards.json",
+    "sha256": "1e6721895338c0a9c8567547427715e5838235f4f18f8b00ae4ad324680cb948",
+    "size": 126
+  },
+  {
+    "path": "docs/handoff/741/checks/741-effective-type-webkit-seven-second-actual/result.json",
+    "sha256": "1ebc39e046876c3dc4e4b02d430d52faa50f8a1210be41527b206ba8e29de08e",
+    "size": 157
+  },
+  {
+    "path": "docs/handoff/741/checks/741-native-effective-type-static-second-actual/result.json",
+    "sha256": "1eb1e9a546a4f0e37850c602deef1e642ea29319c3eeb020d0f24159d792818f",
+    "size": 340
+  },
+  {
+    "path": "docs/handoff/741/checks/741-native-second-format-static-continuation-actual/result.json",
+    "sha256": "19b8bec93aa5105eb10bb7e10c7cb8305f07b19466e7e94bf9e138470c109348",
+    "size": 340
+  },
+  {
+    "path": "docs/handoff/741/checks/741-new-five-first-actual/result.json",
+    "sha256": "7cb6d6554641e65dcc4f1b04e8ffbb9d45bf59605c743440989aa3e9e0c3eeb0",
+    "size": 247
+  },
+  {
+    "path": "docs/handoff/741/checks/741-new-five-first-actual/sanitized-counters.json",
+    "sha256": "c87dfa8659e6cfce12603fa624aed5a0f60e9668b1606f9d4f57a3977746bcd0",
+    "size": 326
+  },
+  {
+    "path": "docs/handoff/741/checks/741-owned24-format-first-actual/result.json",
+    "sha256": "500263c554cd548cb240bb4df2cc744244152a4cee4b87ebba7ef2bfdd3dcc5b",
+    "size": 1398
+  },
+  {
+    "path": "docs/handoff/741/checks/741-rollback-db-three-old-eight-and-types-second-actual/result.json",
+    "sha256": "ad00a6e0315dec2d3cfa8bb8871897be75d2ca81fa2efa945b0ceffa800882c3",
+    "size": 695
+  },
+  {
+    "path": "docs/handoff/741/checks/741-rollback-db-three-old-eight-and-types-second-actual/sanitized-counters.json",
+    "sha256": "5c9a595ffebe60f8d97a58536cd019b1234efb70c00c30a48c2124fcf09eaa26",
+    "size": 910
+  },
+  {
+    "path": "docs/handoff/741/checks/741-scoped-static-types-first-actual/result.json",
+    "sha256": "f23dc593f6adb82c1e81223bfca7024b05c3798aad1143d97aca5de24f6ab3f9",
+    "size": 587
+  },
+  {
+    "path": "docs/handoff/741/native-tested-revision.json",
+    "sha256": "a025e7c698a78ce2bf798563119661897a9958c57e5c06c37cfe60b83027673c",
+    "size": 269
+  },
+  {
+    "path": "docs/handoff/741/prepared-only/741-old-two-ui-transport-proposal/README.md",
+    "sha256": "b8dbba91ec1ea576929d2543d39bcae8deb6fe26100751870accabaf83cc2f75",
+    "size": 1818
+  },
+  {
+    "path": "docs/handoff/741/prepared-only/741-old-two-ui-transport-proposal/before/apps/web/src/statement-intake/statement-review-726.test.tsx",
+    "sha256": "6d6bfe0c6b67a9fd34438d4189e5b230b92535b59e817987abb7f7454fa40dee",
+    "size": 21032
+  },
+  {
+    "path": "docs/handoff/741/prepared-only/741-old-two-ui-transport-proposal/before/apps/web/src/statement-intake/statement-settlement-727.test.tsx",
+    "sha256": "60eafa37f8b379a752306482f8db99b1396ad460ae3b33aaced7db0818c9ebea",
+    "size": 31460
+  },
+  {
+    "path": "docs/handoff/741/prepared-only/741-old-two-ui-transport-proposal/candidate/apps/web/src/statement-intake/statement-review-726.test.tsx",
+    "sha256": "e158e476537096c6cf8c6127991aabe30f20529dc5b3e66669448e24069e3ebd",
+    "size": 22078
+  },
+  {
+    "path": "docs/handoff/741/prepared-only/741-old-two-ui-transport-proposal/candidate/apps/web/src/statement-intake/statement-settlement-727.test.tsx",
+    "sha256": "7fc25b17c965e7f822d9cd015d0493086787441ac19c207ef2ff3cf56bb32025",
+    "size": 32093
+  },
+  {
+    "path": "docs/handoff/741/prepared-only/741-old-two-ui-transport-proposal/change.diff",
+    "sha256": "de4bc27e9f22fdc6444348526415d0feb38e78656682d4e55f55e7213bf6d60e",
+    "size": 3930
+  },
+  {
+    "path": "docs/handoff/741/prepared-only/741-old-two-ui-transport-proposal/manifest.json",
+    "sha256": "481ba7b8c2b1971703f3c16f24bedb73a129486e5bfbaba2f277d1cfa94321a2",
+    "size": 867
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-card-payroll-contract-independent-bounded-review.md",
+    "sha256": "fc353ec4cb431bd25c34aea2fd213872d2c57dd4b264ac5445222654c1c031a2",
+    "size": 3129
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-card-pure-and-api-ui-three-source-independent-high.md",
+    "sha256": "f8e2809282d6424f5bfddec7d09a802b78c63769815257ae9f58b81bb9d6dba6",
+    "size": 3588
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-card-pure-corrected-independent-source-hold.md",
+    "sha256": "c611350182153a0793405ce98ad1a61dc21a7e6b9a098e58dbc9f237b73653cf",
+    "size": 1973
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-card-pure-first-independent-source-hold.md",
+    "sha256": "4f1128a86d2090735d1c14c533df61b69cb7e0ab19675251ddcb910cccfccead",
+    "size": 3393
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-card-result-links-three-independent-source-addendum.md",
+    "sha256": "79077b325099c79832cd16a379e4f9e1382b76300d18ad42c23705b2f895685c",
+    "size": 1243
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-card-scheduled-payment-three-independent-source-addendum.md",
+    "sha256": "ee74bf9ef8c566ea8a483755571571e098323b10f747c8f5249c9af1830b2e36",
+    "size": 1323
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-final29-16d3-and-main074-join-independent-source-high.md",
+    "sha256": "30cea6a955bc685c0964ccb2f8ce9d28855f50c26b980bfbd623b614c3f6c84f",
+    "size": 4564
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-financial-first-whole-source-independent-review-hold.md",
+    "sha256": "d7e6d380bafb881bda2eb5291650314ae851bf342048bbe63960af01c24e28cf",
+    "size": 2503
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-financial-whole23-final-independent-source-high.md",
+    "sha256": "cd18fdbdd4590d1b14eb87c8a56f63719b5fa5156d69f0878943fd33d7aefe41",
+    "size": 2928
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-migration47-explicit-split-independent-source-clear.md",
+    "sha256": "35575a5e4045409bd304c469bd9cb5801b97424502e2eda4881f129671e6f0df",
+    "size": 1128
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-migration47-independent-source-review.md",
+    "sha256": "3079f5f878b06894c1ac23c1530375d8e684706543cd51772988c47c13f52733",
+    "size": 3626
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-migration47-new-copy-test-independent-source-review.md",
+    "sha256": "0623cdac2dbe21ffc1faa98728e96cd1c5087385f9a1deff20aa1df28bb4c006",
+    "size": 3216
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-native-effective-input-type-independent-source-high.md",
+    "sha256": "3e01cd83e4427670992e891866f9ec78fcaa62a80ec04311f4f771a1b34daa50",
+    "size": 1981
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-native-prettier-second-pass-independent-source-high.md",
+    "sha256": "bfa08a606019e1a9ef289eb69a51ec4a84eba90904acfee1e478f8de6f93c36e",
+    "size": 1296
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-new-api-worker-independent-source-high.md",
+    "sha256": "a157fbc8790b292da32cb3f0362a48558ff290928a1341157ed63e00ddafb948",
+    "size": 3722
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-new-db-three-recurring-consumption-independent-source-high.md",
+    "sha256": "b7d29f155d06d09d4aa5a69db940938a72ecea7e9461100e37c9e9c970edf42f",
+    "size": 3344
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-new-domain-db-first-three-independent-source-high.md",
+    "sha256": "685d08436d2eefd1a594bc8a80bc058b8c769f4edd09d59edfd380568a1f8068",
+    "size": 3638
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-new-domain-first-source-independent-review.md",
+    "sha256": "6a27702dad86a6aea5e3a848af0a1107e2b7127d0a044acab36cab23b6cccbea",
+    "size": 3054
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-new-native-canonical-recovery-final-independent-source-high.md",
+    "sha256": "6a6fbf8083561a0421b8ef066ef3aae3e4da0823545175e9c8b099d2a9e62bb7",
+    "size": 2328
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-new-native-four-independent-source-high.md",
+    "sha256": "651f9c70d4b29d25fa4004b04f1fbaa2f8a071440e2d184193834bcd8900ae5c",
+    "size": 3700
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-new-ui-seven-independent-source-high.md",
+    "sha256": "1ddc0c9b6c8f3d13b3ef49f258ca28822c07ffac9d8048789a5dedee9d684d37",
+    "size": 3478
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-old-two-ui-transport-independent-source-review.md",
+    "sha256": "16282fb6924cd6bde46122cb4438e191a5869ee47fb14a282b4b65369cbbc763",
+    "size": 5207
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-owned24-pureformat-independent-source-high.md",
+    "sha256": "9e10fed464444dff4ee6763e41b08dff18619d87b61ccc1bc4030a4baafc2c62",
+    "size": 2509
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-partial-six-docs-originals-independent-high.md",
+    "sha256": "c75f6c72a1106826db59132afe49f06f937a1df8ae95cdb798b16fdad3441e29",
+    "size": 3443
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-payroll-continuation-independent-source-high.md",
+    "sha256": "1492df2f00bb724007786d747cc51c89c2991a0437be80e2569ceccb1258df15",
+    "size": 5202
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-payroll-first-whole-source-independent-high.md",
+    "sha256": "45714ce9cc1ad033b185b27653678618cc27c2983d5fb27f1ec79918b93ba0f3",
+    "size": 3778
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-payroll-new-four-v2-independent-source-high.md",
+    "sha256": "e09adb1ea05185192df47f6d45a06989b305a7f6b4f967a9645cec50a8e24612",
+    "size": 3959
+  },
+  {
+    "path": "docs/handoff/741/reviews/741-rollback47-later-journal-independent-source-high.md",
+    "sha256": "e9d915f438bbcbb051ef1773a078603b8ecd77b75d77d36e283ae6f60f63992c",
+    "size": 1610
+  },
+  {
+    "path": "docs/handoff/741/synthetic-artifacts/issue-741-card-automation--4d6db-nt-and-Undo-in-desktop-dark-webkit-iphone/desktop-dark.png",
+    "sha256": "9fd3ff0a9fd95183c863f57104af2d9c02bd961e74f6cfbb0d03609f7d0795be",
+    "size": 197892
+  },
+  {
+    "path": "docs/handoff/741/synthetic-artifacts/issue-741-card-automation--4d6db-nt-and-Undo-in-desktop-dark-webkit-iphone/evidence.json",
+    "sha256": "0e88198e8252591feb3a8fc6d044f2c3bd84923811791a640a3b26f481507112",
+    "size": 1111
+  },
+  {
+    "path": "docs/handoff/741/synthetic-artifacts/issue-741-card-automation--78df8-t-and-Undo-in-desktop-light-webkit-iphone/desktop-light.png",
+    "sha256": "0fa7fa5eabb38d8c1750a72b6221c6570c7e9dac52adf1cfc1f4e0cac8eb150c",
+    "size": 201591
+  },
+  {
+    "path": "docs/handoff/741/synthetic-artifacts/issue-741-card-automation--78df8-t-and-Undo-in-desktop-light-webkit-iphone/evidence.json",
+    "sha256": "c8c901b9e1d66dbf221e61958f5513c0af6bcc708c08aa18babddd4ed1ce9255",
+    "size": 1112
+  },
+  {
+    "path": "docs/handoff/741/synthetic-artifacts/issue-741-card-automation--89d70-ent-and-Undo-in-phone-light-webkit-iphone/evidence.json",
+    "sha256": "f8e50b665d3eafe8dfb630ed6d94c4ef481df82fdd3aca95ab960cf4801cfc43",
+    "size": 1112
+  },
+  {
+    "path": "docs/handoff/741/synthetic-artifacts/issue-741-card-automation--89d70-ent-and-Undo-in-phone-light-webkit-iphone/phone-light.png",
+    "sha256": "0c2d04dc8c375b957d58bcde460620ef8c306de475369ef198eff05d61a7916f",
+    "size": 468533
+  },
+  {
+    "path": "docs/handoff/741/synthetic-artifacts/issue-741-card-automation--a9f4f-ment-and-Undo-in-phone-dark-webkit-iphone/evidence.json",
+    "sha256": "f418ffff25d7c45e7a789eb35a621caa1491e4b5849c09ee5a87ef161d93e0d1",
+    "size": 1111
+  },
+  {
+    "path": "docs/handoff/741/synthetic-artifacts/issue-741-card-automation--a9f4f-ment-and-Undo-in-phone-dark-webkit-iphone/phone-dark.png",
+    "sha256": "eb1046796647583ef66521da727bc5349936678a05f00058a03ec9e1c53429a1",
+    "size": 477804
+  },
+  {
+    "path": "docs/handoff/741/synthetic-artifacts-index.json",
+    "sha256": "b1087a41c2a814fe5b30da0bf569d259c00c8beb454915049b41f0047ee6e5dd",
+    "size": 1725
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "ticket": "741",
+  "testedSource": "88ee863bedf0eac786b98f78b6eb4999cb337c8a",
+  "passed": "WebKit 7/7 (3 setup + 4 feature cases). Earlier migration10 + DB3 and DB/server/web types passed at16d3ae1c53055cf1960b0e19e36359836b6896a8; OLD8 suite failed (77 passed /17 failed).",
+  "remaining": "Two OLD UI transport-fixture adaptations are preserved, not applied. Full check/build/Chromium CI and payroll continuation remain pending; not all acceptance is covered.",
+  "notLive": true,
+  "preparedDiffsApplied": false
+}

@@ -1,0 +1,5 @@
+# NEW741 migration47 fixture correction — source CLEAR
+
+Bound corrected manifest 83b6315f224fc8e0fc0652d78a3a741ecca86921641f5a61c63aee3a4dccfb60 and candidate 1bf0376ea73399f94fe1578a0ce7015aec5cb25f5d3a1f2e7ed9d34d32801bbf. Exact whole-file inverse against the reviewed original07b660bf proves the sole change supplies splits:[{categoryId:null,amountCents:-10000}] to the real initial −10000 booking. Actual checkout file matches this corrected copy. Required-splits setup HOLD is closed; all existing migration assertions, legacy balances, Undo/redo, copied-database isolation and seven refusal variants are byte-exact.
+
+The earlier full bounded review remains /CONTROL/741-migration47-new-copy-test-independent-source-review.md SHA0623cdac2dbe21ffc1faa98728e96cd1c5087385f9a1deff20aa1df28bb4c006. In particular the later-journal expected refusal remains meaningful and is predicted to expose an actual missing rollback47 guard, not a fixture error. Source CLEAR permits that diagnostic to be reached; it does not claim current product GREEN or test execution. No project edits, tests, migrations or runtime by reviewer.

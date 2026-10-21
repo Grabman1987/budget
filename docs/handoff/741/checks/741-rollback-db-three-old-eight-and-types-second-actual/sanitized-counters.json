@@ -1,0 +1,29 @@
+[
+  {
+    "sourceLogName": "migration10.log",
+    "sha256": "6057cf95870cf31266f04356a12e33dc49ea2a848de85800e425450c2888f6a0",
+    "summaryLines": [
+      "Test Files  1 passed (1)",
+      "Tests  10 passed (10)",
+      "Duration  4.93s (tests 49%, transform 34%, import 17%)"
+    ]
+  },
+  {
+    "sourceLogName": "new-db3.log",
+    "sha256": "c3db2c2480aa707e10b04e1c915521057c794296ab82ebe0ceef6b1da52f78d4",
+    "summaryLines": [
+      "Test Files  1 passed (1)",
+      "Tests  3 passed | 13 skipped (16)",
+      "Duration  2.93s (transform 58%, import 23%, tests 18%)"
+    ]
+  },
+  {
+    "sourceLogName": "old-eight.log",
+    "sha256": "da130e2ae2301398e6b4ad03cd99d5692e686db571c0224191b7b6ded68cf19a",
+    "summaryLines": [
+      "Test Files  2 failed | 6 passed (8)",
+      "Tests  17 failed | 77 passed (94)",
+      "Duration  41.12s (tests 72%, import 14%, transform 11%, environment 2%)"
+    ]
+  }
+]
