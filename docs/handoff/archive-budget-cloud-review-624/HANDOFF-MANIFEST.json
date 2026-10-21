@@ -1,0 +1,77 @@
+[
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-624/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-624/README.md",
+    "size": 497,
+    "sha256": "e0c02851de6a9e96645759d6a410955f499238fc3b8c1ac11b7ef416d6895749"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-624/preservation.json",
+    "size": 1161,
+    "sha256": "1313c219d59100ab79f7875fb7c9e86464052b3c180365cb5dc073cd11e17815"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-624/tracked-head.patch",
+    "size": 13479,
+    "sha256": "fa773bc671b356f1e579d4f50c6fde247026f8114394bdacfffeaa701140189f"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-624/untracked/apps/server/src/api/explorer-views.test.ts",
+    "size": 3109,
+    "sha256": "fcbfced18af210630474a15743d82da4e33d64ffaab5236b9b68c1ba3c67781f"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-624/untracked/apps/server/src/api/explorer-views.ts",
+    "size": 1663,
+    "sha256": "1302309968f5a1042213a4097733a8d95e84016a109c0d4626fdea9ecb81fafe"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-624/untracked/apps/web/src/reports/explorer-promotion.test.ts",
+    "size": 2074,
+    "sha256": "24da1186d9873cdb6448372a6c743cedf3c8eec24d8a3f06f211ae099e032542"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-624/untracked/apps/web/src/reports/explorer-view-api.ts",
+    "size": 1318,
+    "sha256": "557d5351b1459cf3ec4566fd4b100797491dccf0751c3d71be377aefae383483"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-624/untracked/apps/web/src/reports/use-explorer-views.test.tsx",
+    "size": 2799,
+    "sha256": "c870a52dd7e1f531613a059617549668492e3e0994a376d4009c9a99b9326961"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-624/untracked/apps/web/src/reports/use-explorer-views.ts",
+    "size": 4976,
+    "sha256": "b078a9e07ddc5a750b17079cb3400b31b7e758c6d0b572ae5b425f67f996eaa5"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-624/untracked/e2e/issue-624-explorer-persistence.spec.ts",
+    "size": 7216,
+    "sha256": "a9b00c6b528bba23e2e94c2d9ddcd89a467fef07a2c7fa3b9aa9c2ebdc8c6eaa"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-624/untracked/packages/db/src/repos/explorer-views.test.ts",
+    "size": 6882,
+    "sha256": "e0736b102f6fbf29f29dbaaae7f45f733ea7b6b1effc5c150ce05a93b6884501"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-624/untracked/packages/db/src/repos/explorer-views.ts",
+    "size": 5837,
+    "sha256": "b3eea70aba1ef6d23677b1cea1041168a6e300b9274c038b98aa600e307fe612"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-624/untracked/packages/domain/src/overview/explorer-saved-views.test.ts",
+    "size": 2214,
+    "sha256": "7c6d32bf3184f6d6d6cdfd6e4a169311bfda3e15db430c261d7b22388f4f9b37"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-624/untracked/packages/domain/src/overview/explorer-saved-views.ts",
+    "size": 4031,
+    "sha256": "1519b71b8e5279d20fb7928d82d357d3b072eb40532a38b6df493b4d6d9db3cc"
+  }
+]

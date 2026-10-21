@@ -1,0 +1,305 @@
+diff --git a/apps/server/src/api/index.ts b/apps/server/src/api/index.ts
+index 93a10abf61dec88d47da15271be857105d3f1062..a2ff7d0828498eaba35173354ce3ec24c44d2dd0 100644
+--- a/apps/server/src/api/index.ts
++++ b/apps/server/src/api/index.ts
+@@ -1,5 +1,6 @@
+ import { inflationBasketRoutes } from './inflation-basket';
+ import { displaySettingsRoutes } from './display-settings';
++import { explorerViewsRoutes } from './explorer-views';
+ import { payrollRoutes, projectRoutes } from './payroll-projects';
+ import { assignmentRoutes } from './assignment-rules';
+ import { payslipIntakeRoutes } from './payslip-intake';
+@@ -179,6 +180,7 @@ export function createLedgerApi({
+   api.route('/savings-plans', savingsPlanRoutes(db, today));
+   api.route('/portfolio', portfolioRoutes(db, today));
+   api.route('/display-settings', displaySettingsRoutes(db));
++  api.route('/reports/saved-queries', explorerViewsRoutes(db));
+   api.route('/profile', profileRoutes(db, today));
+   api.route('/reports/month', monthReportRoutes(db, today));
+   api.route('/reports/spending', spendingReportRoutes(db, today));
+diff --git a/apps/web/src/reports/explorer-report.tsx b/apps/web/src/reports/explorer-report.tsx
+index 030cf58f238b13483d0c4c49b3672ae55a4ccb0f..a3155d6378e7401246313504dfc63ec2803d9761 100644
+--- a/apps/web/src/reports/explorer-report.tsx
++++ b/apps/web/src/reports/explorer-report.tsx
+@@ -21,29 +21,23 @@ import {
+   type ExplorerColumn,
+   type ExplorerQuery,
+   type ExplorerResult,
++  type PersistedExplorerView,
+ } from '@budget/domain';
+ import { keepPreviousData, useQuery } from '@tanstack/react-query';
+-import { Bookmark, X } from 'lucide-react';
++import { Bookmark, Pencil, X } from 'lucide-react';
+ import { useState, type CSSProperties, type FormEvent } from 'react';
+ import { ErrorNote, LoadingNote } from '../ledger/states';
+ import type { PageMeta } from '../nav/pages';
+ import type { ReportEntry } from '../nav/reports-catalog';
+ import { PageFrame } from '../pages/placeholder-page';
+ import { AppLink } from '../shell/app-link';
+-import { loadViews, sameQuery, storeViews, withoutView, withView } from './explorer-views';
++import { sameQuery } from './explorer-views';
++import { useExplorerViews } from './use-explorer-views';
+ import { explorerQuery } from './overview-api';
+ import { euroCellText, monthLong, monthShortYear, wholeText } from './overview-format';
+ import './overview-reports.css';
+ import './explorer-report.css';
+ 
+-const browserStorage = (): Storage | null => {
+-  try {
+-    return window.localStorage;
+-  } catch {
+-    return null;
+-  }
+-};
+-
+ const label = <T extends ReadonlyArray<{ id: string; label: string }>>(list: T, id: string) =>
+   list.find((x) => x.id === id)?.label ?? id;
+ 
+@@ -73,13 +67,39 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+   useAmountPrivacy();
+   const toast = useToast();
+   const [query, setQuery] = useState<ExplorerQuery>(DEFAULT_EXPLORER_QUERY);
+-  const [views, setViews] = useState(() => loadViews(browserStorage()));
++  const saved = useExplorerViews();
++  const views = saved.views;
+   const [name, setName] = useState('');
++  const [editingId, setEditingId] = useState<string>();
++  const [replace, setReplace] = useState<PersistedExplorerView>();
+   const result = useQuery({ ...explorerQuery(query), placeholderData: keepPreviousData });
+   const data = result.data;
+   const set = <K extends keyof ExplorerQuery>(key: K, value: ExplorerQuery[K]) =>
+     setQuery((q) => ({ ...q, [key]: value }));
+ 
++  const persist = async (id?: string) => {
++    const clean = name.trim();
++    const response = await saved.write(
++      { kind: 'save', view: { name: clean, query }, ...(id ? { id } : {}) },
++      `Ansicht „${clean}“ gespeichert.`,
++    );
++    if (response) {
++      setName('');
++      setEditingId(undefined);
++      setReplace(undefined);
++    }
++  };
++  const remove = async (view: PersistedExplorerView) => {
++    const removed = await saved.write(
++      { kind: 'delete', id: view.id },
++      `Ansicht „${view.name}“ gelöscht.`,
++    );
++    if (removed && editingId === view.id) {
++      setEditingId(undefined);
++      setName('');
++      setReplace(undefined);
++    }
++  };
+   const save = (event: FormEvent) => {
+     event.preventDefault();
+     const clean = name.trim();
+@@ -87,20 +107,9 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+       toast.show({ message: 'Bitte einen Namen für die Ansicht eingeben.' });
+       return;
+     }
+-    const next = withView(views, clean, query);
+-    if (!storeViews(browserStorage(), next)) {
+-      toast.show({ message: 'Die Ansicht konnte in diesem Browser nicht gespeichert werden.' });
+-      return;
+-    }
+-    setViews(next);
+-    setName('');
+-    toast.show({ message: `Ansicht „${clean}“ gespeichert.` });
+-  };
+-  const remove = (viewName: string) => {
+-    const next = withoutView(views, viewName);
+-    storeViews(browserStorage(), next);
+-    setViews(next);
+-    toast.show({ message: `Ansicht „${viewName}“ gelöscht.` });
++    const existing = views.find((view) => view.name.toLowerCase() === clean.toLowerCase());
++    if (existing && existing.id !== editingId) setReplace(existing);
++    else void persist(editingId);
+   };
+ 
+   return (
+@@ -130,6 +139,34 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+           <div className="tbd-head">
+             <h2 id="ex-views">Gespeicherte Ansichten</h2>
+           </div>
++          {saved.isPending && <LoadingNote what="Gespeicherte Ansichten" />}
++          {saved.isError && (
++            <ErrorNote
++              what="Gespeicherte Ansichten"
++              error={saved.error}
++              onRetry={() => void saved.refetch()}
++            />
++          )}
++          {saved.data?.unavailable && (
++            <p role="status">
++              Gespeicherte Ansichten sind nicht verfügbar. Die Daten bleiben erhalten; die Vorlagen
++              und Filter kannst du weiter verwenden.
++            </p>
++          )}
++          {saved.migrationError && (
++            <p role="status">
++              {saved.migrationError}{' '}
++              <Button variant="ghost" onClick={saved.retryMigration}>
++                Erneut versuchen
++              </Button>
++            </p>
++          )}
++          {saved.unavailableLocalCount > 0 && (
++            <p role="status">
++              {saved.unavailableLocalCount} lokale Ansichten sind nicht verfügbar. Ihre
++              ursprünglichen Daten bleiben in diesem Browser erhalten.
++            </p>
++          )}
+           <div className="ex-chips" role="group" aria-label="Gespeicherte Ansichten">
+             {EXPLORER_PRESETS.map((preset) => (
+               <button
+@@ -144,7 +181,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+               </button>
+             ))}
+             {views.map((view) => (
+-              <span className="ex-chip-pair" key={view.name}>
++              <span className="ex-chip-pair" key={view.id}>
+                 <button
+                   type="button"
+                   className="ex-chip"
+@@ -154,11 +191,26 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+                   <Bookmark size={13} strokeWidth={1.75} aria-hidden="true" />
+                   {view.name}
+                 </button>
++                <button
++                  type="button"
++                  className="ex-chip-x"
++                  aria-label={`Ansicht ${view.name} bearbeiten`}
++                  disabled={saved.busy}
++                  onClick={() => {
++                    setEditingId(view.id);
++                    setName(view.name);
++                    setQuery(view.query);
++                    setReplace(undefined);
++                  }}
++                >
++                  <Pencil size={13} strokeWidth={1.75} aria-hidden="true" />
++                </button>
+                 <button
+                   type="button"
+                   className="ex-chip-x"
+                   aria-label={`Ansicht ${view.name} löschen`}
+-                  onClick={() => remove(view.name)}
++                  disabled={saved.busy}
++                  onClick={() => void remove(view)}
+                 >
+                   <X size={13} strokeWidth={1.75} aria-hidden="true" />
+                 </button>
+@@ -261,14 +313,46 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+                 />
+               )}
+             </Field>
+-            <Button type="submit" variant="ghost" size="sm">
++            <Button
++              type="submit"
++              variant="ghost"
++              size="sm"
++              disabled={!saved.data || saved.data.unavailable || saved.busy}
++            >
+               <Bookmark size={15} strokeWidth={1.75} aria-hidden="true" />
+               Speichern
+             </Button>
++            {editingId && (
++              <Button
++                variant="ghost"
++                onClick={() => {
++                  setEditingId(undefined);
++                  setName('');
++                  setReplace(undefined);
++                }}
++              >
++                Bearbeiten abbrechen
++              </Button>
++            )}
+           </form>
++          {replace && (
++            <div role="alert">
++              Die Ansicht „{replace.name}“ ersetzen?{' '}
++              <Button
++                variant="ghost"
++                onClick={() => void persist(replace.id)}
++                disabled={saved.busy}
++              >
++                Ersetzen
++              </Button>
++              <Button variant="ghost" onClick={() => setReplace(undefined)}>
++                Abbrechen
++              </Button>
++            </div>
++          )}
+           <p className="ov-note">
+-            Gespeicherte Ansichten liegen in diesem Browser; auf anderen Geräten sind sie nicht
+-            sichtbar.
++            Gespeicherte Ansichten sind nach dem Neuladen auch auf deinen anderen Geräten verfügbar.
++            Höchstens 20 Ansichten; je Name höchstens 40 Zeichen.
+           </p>
+         </section>
+ 
+diff --git a/e2e/explorer-report.spec.ts b/e2e/explorer-report.spec.ts
+index 89f47de2f431f2b2a9e05099377c09e8e78e4e62..986abb7cd9dc9c2c54b97fad3d7ef68ac6dc8d03 100644
+--- a/e2e/explorer-report.spec.ts
++++ b/e2e/explorer-report.spec.ts
+@@ -58,14 +58,15 @@ test('Explorer pivots the booking splits and drills down to the bookings', async
+   await inspectReport(page, info, 'explorer-empfaenger');
+ });
+ 
+-test('Explorer saves, restores and deletes a view in this browser', async ({ page }) => {
++test('Explorer saves, restores and deletes a view in this browser', async ({ page }, info) => {
++  const viewName = `Mein Schnitt ${info.project.name}-${info.retry}`;
+   await page.goto('/reports/explorer');
+   await expect(page.getByTestId('ex-table')).toBeVisible();
+   await page.getByLabel('Spalten').selectOption('jahr');
+   await page.getByLabel('Kennzahl').selectOption('avg');
+-  await page.getByLabel('Ansicht speichern').fill('Mein Schnitt');
++  await page.getByLabel('Ansicht speichern').fill(viewName);
+   await page.getByRole('button', { name: 'Speichern' }).click();
+-  const chip = page.getByRole('button', { name: 'Mein Schnitt', exact: true });
++  const chip = page.getByRole('button', { name: viewName, exact: true });
+   await expect(chip).toHaveAttribute('aria-pressed', 'true');
+ 
+   // Another view is chosen, the saved one comes back with all five choices.
+@@ -78,11 +79,11 @@ test('Explorer saves, restores and deletes a view in this browser', async ({ pag
+   // It survives a reload and can be deleted.
+   await page.reload();
+   await expect(chip).toBeVisible();
+-  await page.getByRole('button', { name: 'Ansicht Mein Schnitt löschen' }).click();
++  await page.getByRole('button', { name: `Ansicht ${viewName} löschen` }).click();
+   await expect(chip).toHaveCount(0);
+   await page.reload();
+   await expect(page.getByRole('button', { name: 'Gruppen je Monat' })).toBeVisible();
+-  await expect(page.getByRole('button', { name: 'Mein Schnitt', exact: true })).toHaveCount(0);
++  await expect(page.getByRole('button', { name: viewName, exact: true })).toHaveCount(0);
+ });
+ 
+ test('Explorer asks for a name before it saves', async ({ page }) => {
+diff --git a/packages/db/src/repos/index.ts b/packages/db/src/repos/index.ts
+index a0f48e943af2095b5cff96ef92d4a613c7e9af5c..afade32cd527fe08fc6653fc3bcc340b6e23d4d5 100644
+--- a/packages/db/src/repos/index.ts
++++ b/packages/db/src/repos/index.ts
+@@ -34,6 +34,7 @@ export * from './portfolio-summary';
+ export * from './portfolio-benchmark';
+ export * from './portfolio-performance';
+ export * from './investment-preferences';
++export * from './explorer-views';
+ export * from './savings-plans';
+ export * from './heute';
+ export * from './planning-accuracy';
+diff --git a/packages/domain/src/index.ts b/packages/domain/src/index.ts
+index de6b417dd4f93b7f81dd1682613ba6fe88096403..b882586e59e62817c768330b557f28ed9dccaee3 100644
+--- a/packages/domain/src/index.ts
++++ b/packages/domain/src/index.ts
+@@ -20,6 +20,7 @@ export * from './profile';
+ export * from './reports/month';
+ export * from './reports/planning-accuracy';
+ export * from './overview';
++export * from './overview/explorer-saved-views';
+ export * from './spending';
+ export * from './report-tables';
+ export * from './reports/payroll-projects';

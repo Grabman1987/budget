@@ -1,0 +1,27 @@
+{
+  "state": "ARCHIVED REVIEW / ALREADY DELIVERED \u2014 NOT NEW IMPLEMENTATION",
+  "worktree": "/workspace/budget-cloud-review-624",
+  "head": "e037acead749623271b62b70fcc4b9dfe8eabec3",
+  "historicalContext": "#624 persistence delivered in PR701; detached old review copy, retain without republishing it.",
+  "trackedPaths": [
+    "apps/server/src/api/index.ts",
+    "apps/web/src/reports/explorer-report.tsx",
+    "e2e/explorer-report.spec.ts",
+    "packages/db/src/repos/index.ts",
+    "packages/domain/src/index.ts"
+  ],
+  "untrackedPaths": [
+    "apps/server/src/api/explorer-views.test.ts",
+    "apps/server/src/api/explorer-views.ts",
+    "apps/web/src/reports/explorer-promotion.test.ts",
+    "apps/web/src/reports/explorer-view-api.ts",
+    "apps/web/src/reports/use-explorer-views.test.tsx",
+    "apps/web/src/reports/use-explorer-views.ts",
+    "e2e/issue-624-explorer-persistence.spec.ts",
+    "packages/db/src/repos/explorer-views.test.ts",
+    "packages/db/src/repos/explorer-views.ts",
+    "packages/domain/src/overview/explorer-saved-views.test.ts",
+    "packages/domain/src/overview/explorer-saved-views.ts"
+  ],
+  "originalsMutated": false
+}
