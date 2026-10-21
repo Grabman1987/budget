@@ -1,0 +1,1010 @@
+diff --git a/apps/server/src/api/schemas.ts b/apps/server/src/api/schemas.ts
+index 034889a897d728a686c04e3facbc90828c4ebef2..fe1d2715c539a41b59683e1b1eb415ba7393fc34 100644
+--- a/apps/server/src/api/schemas.ts
++++ b/apps/server/src/api/schemas.ts
+@@ -327,7 +327,7 @@ export const assignBody = z.object({
+ });
+ export const quickAssignBody = z
+   .object({
+-    mode: z.enum(['empty', 'last-month', 'average', 'target']),
++    mode: z.enum(['empty', 'last-month', 'average', 'target', 'reset']),
+     categoryIds: z
+       .array(id)
+       .min(1)
+diff --git a/apps/web/src/budget/envelope-panel.tsx b/apps/web/src/budget/envelope-panel.tsx
+index 5e42cfa049b45c2f101f1d348842259f07a29b10..ffb8f148d8d967172357330331f13654a0cecf92 100644
+--- a/apps/web/src/budget/envelope-panel.tsx
++++ b/apps/web/src/budget/envelope-panel.tsx
+@@ -6,8 +6,9 @@ import {
+   Field,
+   Segmented,
+   Select,
++  maskMoneyText,
+ } from '@budget/ui';
+-import { cents, formatDecimal, parseAmount } from '@budget/domain';
++import { cents, formatDecimal, parseAmount, todayInVienna } from '@budget/domain';
+ import { ChevronDown } from 'lucide-react';
+ import { AppLink } from '../shell/app-link';
+ import { useState } from 'react';
+@@ -81,6 +82,7 @@ export function EnvelopeBody({
+   onDone,
+   quickValues = false,
+   compact = false,
++  coverCapCents,
+ }: {
+   month: string;
+   row: PlanRow;
+@@ -89,6 +91,7 @@ export function EnvelopeBody({
+   onDone: () => void;
+   quickValues?: boolean;
+   compact?: boolean;
++  coverCapCents?: number | undefined;
+ }) {
+   useAmountPrivacy();
+   const write = useBudgetWrite();
+@@ -118,6 +121,7 @@ export function EnvelopeBody({
+   const [error, setError] = useState<string>();
+   const [moveError, setMoveError] = useState<string>();
+   const [choosing, setChoosing] = useState(false);
++  const [coverBusy, setCoverBusy] = useState(false);
+   const others = rows.filter((o) => o.id !== r.id && !isCard(o));
+   const fill = Math.min(r.needCents, Math.max(0, tba));
+   const sourceFree =
+@@ -126,12 +130,25 @@ export function EnvelopeBody({
+       : freeCoverCents(rows.find((o) => o.id === other) ?? { availableCents: 0 });
+   const cappedRest = Math.max(0, r.overspentCents - sourceFree);
+   const name = (id: string) =>
+-    id === '' ? 'Zu verteilen' : (rows.find((o) => o.id === id)?.name ?? '');
++    id === '' ? 'Zu verteilen' : maskMoneyText(rows.find((o) => o.id === id)?.name ?? '');
+ 
+   const run = async (fn: () => Promise<{ groupId: string }>, message: string) => {
+     if (await write(fn, () => message)) onDone();
+   };
+   const coverFrom = useCover(month, name);
++  const directCap = month === todayInVienna().slice(0, 7) ? coverCapCents ?? 0 : Number.POSITIVE_INFINITY;
++  const directAmount = other === 'none' ? 0 : Math.max(0, Math.min(r.overspentCents, sourceFree, directCap));
++  const directRest = r.overspentCents - directAmount;
++  const directCover = async () => {
++    if (coverBusy || directAmount <= 0) return;
++    setCoverBusy(true);
++    try {
++      // The button explicitly acknowledges the shown capped cover; server revalidates it.
++      if (await coverFrom(r, other === '' ? null : other)) onDone();
++    } finally {
++      setCoverBusy(false);
++    }
++  };
+   /** Confirm only the capped amount when Zu verteilen is short. */
+   const cover = async (confirmedCap = false) => {
+     const short = other === '' && coverFromToBeAssigned(r.overspentCents, tba).short;
+@@ -208,8 +225,8 @@ export function EnvelopeBody({
+             {(r.overspentCents > 0 && direction === 'in' ? coverOptions : others).map((o) => (
+               <option key={o.id} value={o.id}>
+                 {o.id === '' || r.overspentCents === 0 || direction !== 'in'
+-                  ? `${o.name} · ${eur(o.availableCents)}`
+-                  : coverSourceLabel(o)}
++                  ? `${maskMoneyText(o.name)} · ${eur(o.availableCents)}`
++                  : maskMoneyText(coverSourceLabel(o))}
+               </option>
+             ))}
+           </Select>
+@@ -243,7 +260,7 @@ export function EnvelopeBody({
+             disabled={other === 'none'}
+             onClick={() => void cover()}
+           >
+-            Decken · {eur(r.overspentCents)}
++            Decken · <span className="insp-amount">{eur(r.overspentCents)}</span>
+           </Button>
+         )}
+       </div>
+@@ -282,7 +299,7 @@ export function EnvelopeBody({
+               )
+             }
+           >
+-            Ziel füllen · {eur(fill)}
++            Ziel füllen · <span className="insp-amount">{eur(fill)}</span>
+           </Button>
+         )}
+       </div>
+@@ -290,6 +307,17 @@ export function EnvelopeBody({
+       {quickValues && (
+         <QuickAssignActions month={month} emptyIds={[]} selectedIds={[r.id]} inline />
+       )}
++      {compact && r.overspentCents > 0 && <div className="inspector-cover-suggestion">
++        <Button variant={r.cashOverspentCents > 0 ? 'alert' : 'ghost'} disabled={coverBusy || directAmount <= 0}
++          onClick={() => void directCover()}>
++          <span>Mit {other === 'none' ? 'freier Quelle' : maskMoneyText(other === '' ? 'Zu verteilen' : name(other))} decken</span>
++          <span className="insp-amount">{eur(directAmount)}</span>
++        </Button>
++        {directRest > 0 && <p className="panel-sub">
++          {directAmount === 0 ? 'Es ist kein freies Geld zum Decken verfügbar.' : 'Auf freies Geld und die Deckungsgrenze begrenzt.'}
++          {' '}<span className="insp-amount">{eur(directRest)}</span> bleiben offen.
++        </p>}
++      </div>}
+       {!compact && (
+         <h3 className="panel-h">
+           {r.overspentCents > 0 ? 'Decken oder verschieben' : 'Geld verschieben'}
+diff --git a/apps/web/src/budget/plan-inspector.tsx b/apps/web/src/budget/plan-inspector.tsx
+index 205f8096c9872a6281ec7e839a4ae6d088c63ce4..e8c53f3afc29f497dda34f93fa6ef2458ff9fe96 100644
+--- a/apps/web/src/budget/plan-inspector.tsx
++++ b/apps/web/src/budget/plan-inspector.tsx
+@@ -1,16 +1,20 @@
+-import { Button, cx, useAmountPrivacy } from '@budget/ui';
++import { Button, cx, maskMoneyText, useAmountPrivacy } from '@budget/ui';
+ import { ChevronDown, X } from 'lucide-react';
+-import type { ReactNode } from 'react';
++import { useLayoutEffect, useRef, useState, type MouseEventHandler, type ReactNode } from 'react';
+ import { eur, longDay } from '../ledger/format';
+ import { AppLink } from '../shell/app-link';
+ import type { CategoryRow } from './api';
+ import { EnvelopeBody } from './envelope-panel';
+ import { ActivityLink } from './activity-link';
+ import { targetText } from './labels';
+-import type { PlanRow } from './plan-model';
++import { CLASS_TEXT, type PlanRow } from './plan-model';
++import { monthLabel } from '../nav/month';
++import { useStoredFlag } from '../shell/use-stored-flag';
+ import { QuickAssignActions } from './quick-assign-actions';
+ import type { PanelState } from './category-panel';
+ 
++const moneyWords = (text: string) => maskMoneyText(text).replace(/ (?=€)/g, '\u00a0');
++
+ declare module '@tanstack/history' {
+   interface HistoryState {
+     planInspector?: { id: string; month: string };
+@@ -18,15 +22,31 @@ declare module '@tanstack/history' {
+ }
+ 
+ /** Disclosure title with the grid's chevron instead of the browser marker. */
+-export function FoldTitle({ children, className }: { children: ReactNode; className?: string }) {
++export function FoldTitle({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: MouseEventHandler<HTMLElement> }) {
+   return (
+-    <summary className={className}>
++    <summary className={className} onClick={onClick}>
+       <ChevronDown className="insp-chev" size={16} strokeWidth={1.75} aria-hidden="true" />
+       {children}
+     </summary>
+   );
+ }
+ 
++/** Only disclosure booleans are stored on this device, never financial values. */
++function RememberedSection({ name, title, defaultOpen = false, children, id }: {
++  name: string; title: string; defaultOpen?: boolean; children: ReactNode; id?: string;
++}) {
++  const [flag, setFlag] = useStoredFlag(`budget.plan.inspector.${name}`);
++  const open = defaultOpen ? !flag : flag;
++  return <details className="inspector-section" id={id} open={open}
++    onToggle={(event) => {
++      const next = event.currentTarget.open;
++      if (next !== open) setFlag(defaultOpen ? !next : next);
++    }}>
++    <FoldTitle>{title}</FoldTitle>
++    {children}
++  </details>;
++}
++
+ /** Reuses the existing month figures and audited money forms; mobile stays in document flow. */
+ export function PlanInspector({
+   month,
+@@ -42,6 +62,12 @@ export function PlanInspector({
+   income,
+   money,
+   rail,
++  actionRows,
++  actionScopeLabel,
++  inspectionIntent,
++  coverCapCents,
++  pace,
++  sourceUnavailable,
+ }: {
+   month: string;
+   rows: PlanRow[];
+@@ -56,19 +82,58 @@ export function PlanInspector({
+   income: ReactNode;
+   money: ReactNode;
+   rail: ReactNode;
++  actionRows: PlanRow[];
++  actionScopeLabel: string;
++  inspectionIntent: number;
++  coverCapCents: number | undefined;
++  pace: string;
++  sourceUnavailable: boolean;
+ }) {
+   useAmountPrivacy();
+   const row = selected.length === 1 ? selected[0] : undefined;
++  const [collapsed, setCollapsed] = useStoredFlag('budget.plan.inspector.collapsed');
++  const hasSelection = selected.length > 0;
++  const [fold, setFold] = useState({ intent: inspectionIntent, selected: hasSelection, open: !collapsed });
++  // Only deliberate inspection opens the fold; leaving selection restores the overview preference.
++  if (fold.intent !== inspectionIntent || fold.selected !== hasSelection) setFold({
++    intent: inspectionIntent, selected: hasSelection,
++    open: fold.intent !== inspectionIntent ? true : !hasSelection ? !collapsed : fold.open,
++  });
++  const heading = useRef<HTMLHeadingElement>(null);
++  const focusedIntent = useRef(inspectionIntent);
++  useLayoutEffect(() => {
++    if (focusedIntent.current === inspectionIntent) return;
++    focusedIntent.current = inspectionIntent;
++    if (!window.matchMedia('(max-width: 1179px)').matches || !heading.current) return;
++    heading.current.focus({ preventScroll: true });
++    heading.current.scrollIntoView({ block: 'start', behavior:
++      window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
++  }, [inspectionIntent]);
++  const actions = <QuickAssignActions month={month} emptyIds={[]} selectedIds={actionRows.map((r) => r.id)}
++    preview={{ rows: actionRows, tba, scopeLabel: actionScopeLabel }} />;
+   return (
+     <aside className="plan-inspector card" aria-label="Plan-Inspektor">
+-      <details className="inspector-fold" open key={selected.map((r) => r.id).join(':')}>
+-        <FoldTitle className="inspector-fold-title">
+-          {row ? 'Kategorie-Details' : selected.length ? 'Auswahl' : 'Monatszahlen'}
++      <details className="inspector-fold" open={fold.open}
++        onToggle={(event) => {
++          const open = event.currentTarget.open;
++          if (open !== fold.open) {
++            setFold({ intent: inspectionIntent, selected: hasSelection, open });
++          }
++        }}>
++        <FoldTitle className="inspector-fold-title" onClick={(event) => {
++          // Click also covers native summary keyboard activation. Programmatic toggles and
++          // inspection auto-open update only local state, never the remembered overview choice.
++          event.preventDefault();
++          const open = !fold.open;
++          setFold({ intent: inspectionIntent, selected: hasSelection, open });
++          setCollapsed(!open);
++        }}>
++          <span>{selected.length ? 'Kategorie-Details' : 'Monatsüberblick'}<span className="insp-month"> · {monthLabel(month)}</span></span>
+         </FoldTitle>
+         {selected.length ? (
+           <div className="inspector-selection">
+             <div className="inspector-head">
+-              <h2>{row?.name ?? `${selected.length} Kategorien ausgewählt`}</h2>
++              <h2 ref={heading} tabIndex={-1}>{row ? maskMoneyText(row.name) : `${selected.length} Kategorien ausgewählt`}</h2>
+               <Button
+                 variant="ghost"
+                 className="inspector-close"
+@@ -79,6 +144,9 @@ export function PlanInspector({
+                 <X size={18} strokeWidth={1.75} aria-hidden="true" />
+               </Button>
+             </div>
++            {sourceUnavailable && <p className="panel-sub" role="alert">Die Monatsquelle ist gerade nicht verfügbar. Die bisherige Ansicht und deine Eingaben bleiben erhalten; Geldaktionen sind bis zum Neuladen gesperrt.</p>}
++            <fieldset className="inspector-source-fields" disabled={sourceUnavailable}>
++              <legend className="sr-only">Kategorie und Geldaktionen für {monthLabel(month)}</legend>
+             {row ? (
+               <>
+                 <div className="inspector-activity">
+@@ -92,7 +160,7 @@ export function PlanInspector({
+                 </div>
+                 <div className="inspector-target">
+                   <h3 className="panel-h">Ziel</h3>
+-                  <p className="panel-sub">{row.target ? targetText(row.target) : 'Kein Ziel.'}</p>
++                  <p className="panel-sub">{row.target ? moneyWords(targetText(row.target)) : 'Kein Ziel.'}</p>
+                   {row.target && (
+                     <>
+                       <progress
+@@ -107,6 +175,7 @@ export function PlanInspector({
+                     </>
+                   )}
+                 </div>
++                {actions}
+                 <EnvelopeBody
+                   key={`${month}:${row.id}:${row.assignedCents}`}
+                   month={month}
+@@ -114,15 +183,16 @@ export function PlanInspector({
+                   rows={rows}
+                   tba={tba}
+                   onDone={() => {}}
+-                  quickValues
++                  coverCapCents={coverCapCents}
+                   compact
+                 />
+                 {row.due?.source === 'expected' && (
+                   <p className="panel-sub">
+-                    erwartet {longDay(row.due.date)} · {row.due.name}
+-                    {row.due.amountCents != null && ` · ${eur(row.due.amountCents)}`}
++                    erwartet {longDay(row.due.date)} · {moneyWords(row.due.name ?? '')}
++                    {row.due.amountCents != null && <> · <span className="insp-amount">{eur(row.due.amountCents)}</span></>}
+                   </p>
+                 )}
++                <p className="panel-sub inspector-pace">{row.cls && `${CLASS_TEXT[row.cls]} · `}{moneyWords(pace || 'Keine Pace-Angabe.')}</p>
+                 <AppLink
+                   to={`/plan/monat/envelope/${encodeURIComponent(row.id)}`}
+                   search={{ monat: month }}
+@@ -185,34 +255,29 @@ export function PlanInspector({
+                     </div>
+                   ))}
+                 </dl>
+-                <QuickAssignActions
+-                  month={month}
+-                  emptyIds={[]}
+-                  selectedIds={selected.map((r) => r.id)}
+-                  inline
+-                />
++                {actions}
+               </>
+             )}
++            </fieldset>
+           </div>
+         ) : (
+           <>
+-            <details className="inspector-section" open>
+-              <FoldTitle>Monatsüberblick</FoldTitle>
++            <RememberedSection name="overview-closed" title="Monatsaufstellung" defaultOpen>
+               {overview}
+-            </details>
+-            <details className="inspector-section">
+-              <FoldTitle>50/30/20</FoldTitle>
++            </RememberedSection>
++            {actions}
++            <RememberedSection name="split-closed" title="50/30/20" defaultOpen>
+               {split}
+-            </details>
+-            <details className="inspector-section" id="inspector-income">
+-              <FoldTitle>Erwartetes Einkommen vs. Monatsziele</FoldTitle>
++            </RememberedSection>
++            <RememberedSection id="inspector-income" name="income" title="Erwartetes Einkommen vs. Monatsziele">
+               {income}
+-            </details>
+-            {money}
+-            <details className="inspector-section">
+-              <FoldTitle>Wasserfall-Stufen</FoldTitle>
++            </RememberedSection>
++            <RememberedSection name="money" title="Geld auf Budget-Konten">
++              {money}
++            </RememberedSection>
++            <RememberedSection name="waterfall" title="Wasserfall-Stufen">
+               {rail}
+-            </details>
++            </RememberedSection>
+           </>
+         )}
+       </details>
+diff --git a/apps/web/src/budget/plan-model.ts b/apps/web/src/budget/plan-model.ts
+index cefbc8f543a26a30b985eb11351fa42eac559bf8..3269f0d4b3981667ace08afec898aeb611d533c5 100644
+--- a/apps/web/src/budget/plan-model.ts
++++ b/apps/web/src/budget/plan-model.ts
+@@ -5,6 +5,8 @@ import {
+   percentShares,
+   overspentEnvelopes,
+   waterfallFill,
++  quickAssignPlan,
++  type QuickAssignMode,
+ } from '@budget/domain';
+ import { eur } from '../ledger/format';
+ import type { CategoryClass, CategoryKind } from './api';
+@@ -60,6 +62,35 @@ export const CLASS_TEXT = { need: 'Bedarf', want: 'Wunsch', future: 'Zukunft' }
+ export const availableInEnvelopes = (rows: ReadonlyArray<{ availableCents: number }>) =>
+   rows.reduce((sum, r) => sum + r.availableCents, 0);
+ 
++/** Inspector accounting uses one complete canonical envelope scope, never TBA carry-in. */
++export function inspectorTotals(rows: ReadonlyArray<EnvelopeSummary>) {
++  const sum = (key: 'carryCents' | 'assignedCents' | 'activityCents' | 'availableCents') =>
++    rows.reduce((total, row) => total + row[key], 0);
++  return { carryCents: sum('carryCents'), assignedCents: sum('assignedCents'),
++    activityCents: sum('activityCents'), availableCents: sum('availableCents') };
++}
++
++/** Target funding comes from the next canonical month; excess never hides another row's need. */
++export function inspectorCoverage(rows: ReadonlyArray<EnvelopeSummary>) {
++  const targeted = rows.filter((row) => row.target !== null);
++  const goalCents = targeted.reduce((sum, row) => sum + row.goalCents, 0);
++  const assignedCents = targeted.reduce((sum, row) => sum + row.assignedCents, 0);
++  const needCents = targeted.reduce((sum, row) => sum + row.needCents, 0);
++  const excessCents = targeted.reduce((sum, row) => sum + Math.max(0, row.assignedCents - row.goalCents), 0);
++  const fundedCents = goalCents - needCents;
++  return { goalCents, assignedCents, fundedCents, needCents, excessCents,
++    percent: goalCents > 0 ? Math.max(0, fundedCents) / goalCents * 100 : null };
++}
++
++/** The canonical plan returns absolute assignments; action labels show only their signed change. */
++export function inspectorQuickAssign(rows: ReadonlyArray<PlanRow>, mode: QuickAssignMode, tba: number) {
++  const eligible = rows.filter((row) => row.quickAssign);
++  const plan = quickAssignPlan(eligible.map((row) => ({ ...row, categoryId: row.id })), mode, tba);
++  const before = new Map(eligible.map((row) => [row.id, row.assignedCents]));
++  const deltaCents = plan.items.reduce((sum, item) => sum + item.assignedCents - before.get(item.categoryId)!, 0);
++  return { ...plan, deltaCents, ids: eligible.map((row) => row.id) };
++}
++
+ /** Rows in list order; hidden categories only while they still hold or move money. */
+ export function planRows(view: BudgetMonthView): PlanRow[] {
+   const byId = new Map(view.summary.envelopes.map((e) => [e.categoryId, e]));
+@@ -602,7 +633,9 @@ export function monthStatus(summary: MonthSummary, rows: PlanRow[]): StatusLine[
+       tone: 'bad',
+       text: `${over} ${over === 1 ? 'Envelope' : 'Envelopes'} überzogen`,
+     });
+-  if (!lines.length) lines.push({ tone: 'good', text: 'Nichts ist überzogen.' });
++  const underfunded = rows.filter((row) => row.needCents > 0).length;
++  if (underfunded) lines.push({ tone: 'warn', text: `${underfunded} ${underfunded === 1 ? 'Kategorie' : 'Kategorien'} unterfinanziert` });
++  if (!lines.length) lines.push({ tone: 'good', text: 'Nichts ist unterfinanziert oder überzogen.' });
+   return lines;
+ }
+ 
+diff --git a/apps/web/src/budget/plan-page.tsx b/apps/web/src/budget/plan-page.tsx
+index 4e33af060820a02234ca3cd9f4a6f5f8f12e5d0b..fa930be56c0dbfeb1a55686c23e8aea0cb7bc566 100644
+--- a/apps/web/src/budget/plan-page.tsx
++++ b/apps/web/src/budget/plan-page.tsx
+@@ -2,6 +2,7 @@ import { AllocationBar } from '../reports/allocation-bar';
+ import { IncomeTargetsCard } from './income-targets-card';
+ import {
+   useAmountPrivacy,
++  maskMoneyText,
+   Button,
+   ClassSwatch,
+   DimensionChain,
+@@ -58,7 +59,6 @@ import {
+   assign,
+   coverAll,
+   budgetMonthsQuery,
+-  budgetQuery,
+   budgetUncategorizedQuery,
+   type BudgetMonthView,
+ } from './budget-api';
+@@ -79,6 +79,8 @@ import {
+   isCard,
+   isCashOver,
+   monthStatus,
++  inspectorTotals,
++  inspectorCoverage,
+   planGroups,
+   planMulti,
+   planRows,
+@@ -131,14 +133,12 @@ export function PlanMonthPage() {
+     () => Array.from({ length: span }, (_, i) => shiftMonth(month, i)),
+     [month, span],
+   );
+-  // The leftmost month drives hero, triage, inspector and title block; the others only fill columns.
+-  // One month is the single-month call; several months are ONE batch call (the server derives the
+-  // facts and the history once, not once per month column).
+-  const first = useQuery({ ...budgetQuery(months[0]!), enabled: months.length === 1 });
+-  const batch = useQuery({ ...budgetMonthsQuery(months), enabled: months.length > 1 });
+-  const budget = months.length === 1 ? first : batch;
+-  const data = months.length === 1 ? first.data : batch.data?.months[months[0]!];
+-  const columns = months.map((m) => (months.length === 1 ? first.data : batch.data?.months[m]));
++  // Keep the bounded read stable across span/phone changes: up to three inspected columns
++  // plus their successor. Display and action scopes still use only the chosen visible rows.
++  const readMonths = useMemo(() => Array.from({ length: 4 }, (_, i) => shiftMonth(month, i)), [month]);
++  const budget = useQuery(budgetMonthsQuery(readMonths));
++  const data = budget.data?.months[month];
++  const columns = months.map((m) => budget.data?.months[m]);
+   const views = columns.every((v) => v) ? columns.map((v) => v!) : null;
+   // The month's income (title block and chain term) opens received against expected.
+   const navigate = useNavigate();
+@@ -167,6 +167,7 @@ export function PlanMonthPage() {
+             months={months}
+             data={data}
+             views={views}
++            inspectorViews={budget.data?.months ?? {}}
+             onIncome={openIncome}
+           />
+         )}
+@@ -180,6 +181,7 @@ function PlanBody({
+   months,
+   data,
+   views,
++  inspectorViews,
+   onIncome,
+ }: {
+   month: string;
+@@ -188,11 +190,25 @@ function PlanBody({
+   data: BudgetMonthView;
+   /** All visible months once loaded. */
+   views: BudgetMonthView[] | null;
++  /** Read-only extra next month; never part of the displayed columns or action universe. */
++  inspectorViews: Record<string, BudgetMonthView>;
+   onIncome: () => void;
+ }) {
+   useAmountPrivacy();
+   const write = useBudgetWrite();
+   const [categoryForm, setCategoryForm] = useState<PanelState>(null);
++  const planMain = useRef<HTMLDivElement>(null);
++  useLayoutEffect(() => {
++    const main = planMain.current;
++    const grid = main?.parentElement;
++    if (!main || !grid) return;
++    const measure = () => grid.style.setProperty('--plan-main-height', `${Math.floor(main.getBoundingClientRect().height)}px`);
++    measure();
++    if (typeof ResizeObserver === 'undefined') return;
++    const observer = new ResizeObserver(measure);
++    observer.observe(main);
++    return () => { observer.disconnect(); grid.style.removeProperty('--plan-main-height'); };
++  }, []);
+   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
+   const expected = useQuery(expectedQuery()).data;
+   const search = useSearch({ strict: false }) as PlanFilterSearch & {
+@@ -257,7 +273,8 @@ function PlanBody({
+   const candidateInspector = restoredPlan ? restoredPlan.inspector : savedInspector;
+   const restored =
+     candidateInspector &&
+-    months.includes(candidateInspector.month) &&
++    [month, shiftMonth(month, 1), shiftMonth(month, 2)].includes(candidateInspector.month) &&
++    inspectorViews[candidateInspector.month]?.summary.month === candidateInspector.month &&
+     liveIds.has(candidateInspector.id)
+       ? candidateInspector
+       : null;
+@@ -325,7 +342,10 @@ function PlanBody({
+     query.addEventListener('change', resetPhoneSelection);
+     return () => query.removeEventListener('change', resetPhoneSelection);
+   }, [phoneSelection]);
++  const [inspectionIntent, setInspectionIntent] = useState(0);
+   const inspect = (id: string, selectedMonth = month) => {
++    if (!months.includes(selectedMonth) || inspectorViews[selectedMonth]?.summary.month !== selectedMonth) return;
++    setInspectionIntent((intent) => intent + 1);
+     selectionReturn.current = id;
+     setPhoneSelection(false);
+     setSelected(new Set([id]));
+@@ -429,7 +449,15 @@ function PlanBody({
+   };
+   const rows = planRows(data);
+   const byId = new Map(rows.map((r) => [r.id, r]));
+-  const panelView = views?.find((v) => v.summary.month === open?.month) ?? data;
++  const desiredPanelMonth = open?.month ?? month;
++  const currentPanelView = inspectorViews[desiredPanelMonth];
++  const validPanelView = currentPanelView && currentPanelView.summary.month === desiredPanelMonth ? currentPanelView : null;
++  const panelReady = validPanelView !== null;
++  const [panelSnapshot, setPanelSnapshot] = useState(data);
++  if (validPanelView && validPanelView !== panelSnapshot) setPanelSnapshot(validPanelView);
++  // A missing response retains the previous source/draft read-only, never left-month fallback.
++  // Inspection/restoration only opens months actually present in the bounded read above.
++  const panelView = validPanelView ?? panelSnapshot;
+   const allRows = planRows({
+     ...data,
+     categories: data.categories.map((c) => ({ ...c, hiddenAt: null })),
+@@ -486,6 +514,19 @@ function PlanBody({
+   const shownRows = groups.flatMap((g) => g.rows);
+   const shownIds = new Set(shownRows.map((r) => r.id));
+   const orderedRows = [...shownRows, ...rows.filter((r) => !shownIds.has(r.id))];
++  const actionIds = multi
++    ? visibleMultiGroups.flatMap((group) => group.rows.map((row) => row.id))
++    : shownRows.map((row) => row.id);
++  const selectedScope = open ? new Set([open.id]) : selected;
++  const actionById = new Map(panelRows.map((row) => [row.id, row]));
++  const inspectorActionRows = !panelReady || filter === 'uncategorized' ? [] : actionIds.flatMap((id) => {
++    if (selectedScope.size && !selectedScope.has(id)) return [];
++    const row = actionById.get(id);
++    return row?.quickAssign ? [row] : [];
++  });
++  const inspectorActionLabel = `${inspectorActionRows.length} ${selectedScope.size ? 'ausgewählte' : 'sichtbare'} ${inspectorActionRows.length === 1 ? 'Kategorie' : 'Kategorien'} · ${monthLabel(panelView.summary.month)}`;
++  const inspectedId = open?.id ?? (selected.size === 1 ? [...selected][0] : undefined);
++  const inspectedRow = inspectedId ? actionById.get(inspectedId) : undefined;
+   const toggleSelected = (id: string) => {
+     selectionReturn.current = id;
+     setOpen(null);
+@@ -723,7 +764,7 @@ function PlanBody({
+           : undefined
+       }
+     >
+-      <div className="plan-main">
++      <div className="plan-main" ref={planMain}>
+         <PlanTopBar
+           data={data}
+           month={month}
+@@ -1099,13 +1140,19 @@ function PlanBody({
+         </section>
+       )}
+       <PlanInspector
+-        month={open?.month ?? month}
++        month={panelView.summary.month}
++        sourceUnavailable={!panelReady}
+         rows={panelRows}
+         selected={(open
+           ? panelRows.filter((r) => r.id === open.id)
+           : orderedRows.filter((r) => selected.has(r.id))
+-        ).map((r) => planGroups('time', [r], panelView, ctx).flatMap((g) => g.rows)[0] ?? r)}
++        ).map((r) => planGroups('time', [r], panelView, { ...ctx, month: panelView.summary.month }).flatMap((g) => g.rows)[0] ?? r)}
+         tba={panelView.summary.toBeAssignedCents}
++        actionRows={inspectorActionRows}
++        actionScopeLabel={inspectorActionLabel}
++        inspectionIntent={inspectionIntent}
++        coverCapCents={panelView.budgetMoney?.coverCapCents}
++        pace={inspectedRow ? barFor(inspectedRow, { ...ctx, month: panelView.summary.month }).meta : ''}
+         category={categoryTree.data?.categories.find(
+           (c) => c.id === (open?.id ?? [...selected][0]),
+         )}
+@@ -1118,7 +1165,7 @@ function PlanBody({
+           )
+         }
+         overview={
+-          <MonthOverview data={data} rows={rows} month={months.length > 1 ? month : undefined} />
++          <MonthOverview data={data} rows={rows} nextView={inspectorViews[shiftMonth(month, 1)]} />
+         }
+         split={<SplitBand data={data} rows={rows} />}
+         income={
+@@ -1130,30 +1177,17 @@ function PlanBody({
+         }
+         money={
+           data.budgetMoney && (
+-            <details className="plan-budget-money inspector-section">
+-              <summary
+-                title={data.budgetMoney.accounts
+-                  .map(
+-                    (a) =>
+-                      `${a.name}: ${eur(a.balanceCents)}${a.usedCreditCents > 0 ? ` · Kredit genutzt ${eur(-a.usedCreditCents)}${a.creditLineCents !== null ? ` · Rahmen ${eur(a.creditLineCents)}` : ' · Rahmen nicht hinterlegt'}` : ''}`,
+-                  )
+-                  .join(' · ')}
+-              >
+-                <ChevronDown
+-                  className="insp-chev"
+-                  size={16}
+-                  strokeWidth={1.75}
+-                  aria-hidden="true"
+-                />
+-                Geld auf Budget-Konten · {eur(data.budgetMoney.totalCents)}
++            <div className="plan-budget-money">
++              <p className="panel-sub">
++                Insgesamt {eur(data.budgetMoney.totalCents)}
+                 {data.budgetMoney.usedCreditCents > 0 && (
+                   <> · davon Dispo/Kreditrahmen genutzt {eur(-data.budgetMoney.usedCreditCents)}</>
+                 )}
+-              </summary>
++              </p>
+               <ul>
+                 {data.budgetMoney.accounts.map((a) => (
+                   <li key={a.id}>
+-                    {a.name} · {eur(a.balanceCents)}
++                    {maskMoneyText(a.name)} · {eur(a.balanceCents)}
+                     {a.usedCreditCents > 0 && (
+                       <>
+                         {' '}
+@@ -1166,7 +1200,7 @@ function PlanBody({
+                   </li>
+                 ))}
+               </ul>
+-            </details>
++            </div>
+           )
+         }
+         rail={
+@@ -1376,65 +1410,45 @@ function PlanTopBar({
+ }
+ 
+ /** Inspector: the month in figures, the overspending state and what is left in the envelopes. */
+-function MonthOverview({
+-  data,
+-  rows,
+-  month,
+-}: {
++function MonthOverview({ data, rows, nextView }: {
+   data: BudgetMonthView;
+   rows: PlanRow[];
+-  /** Several months are shown: the overview names the leftmost one. */
+-  month: string | undefined;
++  nextView: BudgetMonthView | undefined;
+ }) {
+   useAmountPrivacy();
+-  const s = data.summary;
+-  const activity = rows.reduce((a, r) => a + r.activityCents, 0);
+-  const available = availableInEnvelopes(rows);
+-  const status = monthStatus(s, rows);
++  const totals = inspectorTotals(data.summary.envelopes);
++  const status = monthStatus(data.summary, rows);
++  const coverage = nextView ? inspectorCoverage(nextView.summary.envelopes) : null;
+   return (
+-    <section className="insp-card card" aria-labelledby="overview-title">
+-      <h2 className="insp-title" id="overview-title">
+-        Monatsüberblick
+-        {month && <span className="insp-month"> · {monthLabel(month)}</span>}
+-      </h2>
++    <section className="inspector-month-figures" aria-label="Monatsaufstellung">
+       <ul className="insp-status" aria-label="Zustand des Monats">
+-        {status.map((l) => (
+-          <li key={l.text} className={`is-${l.tone}`}>
+-            {l.tone === 'good' ? (
+-              <CheckCircle2 size={15} strokeWidth={1.75} aria-hidden="true" />
+-            ) : (
+-              <AlertTriangle size={15} strokeWidth={1.75} aria-hidden="true" />
+-            )}
+-            {l.text}
++        {status.map((line) => (
++          <li key={line.text} className={`is-${line.tone}`}>
++            {line.tone === 'good' ? <CheckCircle2 size={15} strokeWidth={1.75} aria-hidden="true" />
++              : <AlertTriangle size={15} strokeWidth={1.75} aria-hidden="true" />}
++            {line.text}
+           </li>
+         ))}
+       </ul>
+       <dl className="insp-list">
+-        <div>
+-          <dt>Übertrag</dt>
+-          <dd>{eur(s.carryInCents)}</dd>
+-        </div>
+-        <div>
+-          <dt>Einnahmen</dt>
+-          <dd>{eur(s.incomeCents)}</dd>
+-        </div>
+-        <div>
+-          <dt>Zugewiesen</dt>
+-          <dd>{eur(s.assignedCents)}</dd>
+-        </div>
+-        <div>
+-          <dt>Aktivität</dt>
+-          <dd>{eur(activity)}</dd>
+-        </div>
+-        <div className="insp-total">
+-          <dt>Verfügbar in Envelopes</dt>
+-          <dd>
+-            <span className={cx('pill', available > 0 ? 'is-good' : available < 0 && 'is-bad')}>
+-              {eur(available)}
+-            </span>
+-          </dd>
+-        </div>
++        <div><dt>→ Übertrag</dt><dd className="insp-amount">{eur(totals.carryCents)}</dd></div>
++        <div><dt>+ Zugewiesen</dt><dd className="insp-amount">{eur(totals.assignedCents)}</dd></div>
++        <div><dt>+ Aktivität</dt><dd className="insp-amount">{eur(totals.activityCents)}</dd></div>
++        <div className="insp-total"><dt>= Verfügbar</dt><dd className="insp-amount">
++          <span className={cx('pill', totals.availableCents > 0 ? 'is-good' : totals.availableCents < 0 && 'is-bad')}>{eur(totals.availableCents)}</span>
++        </dd></div>
+       </dl>
++      <section className="inspector-next" aria-label="Nächster Monat">
++        <h3 className="panel-h">Nächster Monat · {monthLabel(shiftMonth(data.summary.month, 1))}</h3>
++        {coverage ? <>
++          <p className="panel-sub">{coverage.percent === null ? coverage.needCents > 0 ? 'Kein positiver Monatszielbetrag; offener Finanzierungsbedarf bleibt bestehen.' : 'Keine Monatsziele zu finanzieren.'
++            : `${new Intl.NumberFormat('de-AT', { maximumFractionDigits: 1 }).format(coverage.percent)} % vorbereitet`}</p>
++          {coverage.percent !== null && <progress aria-label="Ziele im nächsten Monat vorbereitet" max={100} value={Math.min(100, coverage.percent)} />}
++          <p className="panel-sub">Zugewiesen <span className="insp-amount">{eur(coverage.assignedCents)}</span> · Monatsziele <span className="insp-amount">{eur(coverage.goalCents)}</span></p>
++          {coverage.needCents > 0 && <p className="panel-sub">fehlt <span className="insp-amount">{eur(coverage.needCents)}</span></p>}
++          {coverage.excessCents > 0 && <p className="panel-sub"><span className="insp-amount">{eur(coverage.excessCents, { sign: true })}</span> über Ziel in einzelnen Kategorien</p>}
++        </> : <p className="panel-sub">Zielwerte noch nicht verfügbar.</p>}
++      </section>
+     </section>
+   );
+ }
+diff --git a/apps/web/src/budget/plan.css b/apps/web/src/budget/plan.css
+index 7732edadace6077641fb9e88a08e8e31b55d7809..f90ff469548ba03404f845d1dbddc4e7b2e0b48a 100644
+--- a/apps/web/src/budget/plan.css
++++ b/apps/web/src/budget/plan.css
+@@ -1937,9 +1937,6 @@
+     overflow-y: auto;
+     overscroll-behavior: contain;
+   }
+-  .plan .inspector-fold[open] > .inspector-fold-title {
+-    display: none;
+-  }
+   .plan .plan-topbar {
+     flex-wrap: wrap;
+   }
+@@ -2877,3 +2874,130 @@
+     right: 12px;
+   }
+ }
++
++
++/* #591–593: one compact inspector; every money action keeps the existing writer. */
++.plan .plan-inspector {
++  overflow-wrap: normal;
++}
++.plan .plan-inspector .inspector-fold-title {
++  display: flex;
++  position: sticky;
++  top: 0;
++  z-index: 1;
++  background: var(--surface);
++}
++.plan .plan-inspector .inspector-fold-title > span,
++.plan .inspector-head h2 {
++  overflow-wrap: anywhere;
++}
++.plan .inspector-head h2 {
++  scroll-margin-top: 88px;
++}
++.plan .inspector-head h2:focus-visible {
++  outline: 2px solid var(--line);
++  outline-offset: 2px;
++}
++.plan .inspector-month-figures {
++  padding: 0 16px 12px;
++}
++.plan .inspector-month-figures .insp-status {
++  margin-top: 0;
++}
++.plan .inspector-month-figures .insp-status li {
++  padding: 4px 0;
++  background: transparent;
++  border-radius: 0;
++  font-size: var(--fs-meta);
++}
++.plan .plan-inspector .insp-list > div {
++  min-height: 28px;
++}
++.plan .plan-inspector .insp-amount {
++  white-space: nowrap;
++  overflow-wrap: normal;
++  word-break: normal;
++  font-variant-numeric: tabular-nums;
++}
++.plan .inspector-next {
++  margin-top: 12px;
++}
++.plan .inspector-next .panel-sub {
++  margin-block: 4px;
++}
++.plan .inspector-next progress {
++  display: block;
++  width: 100%;
++  height: var(--bar-progress);
++  accent-color: var(--line);
++}
++.plan .inspector-quick {
++  padding: 12px 16px;
++  border-top: 1px solid var(--card-border);
++}
++.plan .inspector-selection .inspector-quick {
++  margin-inline: -16px;
++  margin-block: 12px;
++}
++.plan .inspector-quick .panel-sub {
++  margin-block: 4px;
++}
++.plan .inspector-quick-rows {
++  margin-top: 8px;
++}
++.plan .inspector-quick .inspector-quick-row {
++  display: grid;
++  grid-template-columns: auto minmax(0, 1fr) auto auto;
++  gap: 8px;
++  width: 100%;
++  min-height: 44px;
++  height: auto;
++  padding: 8px 0;
++  border-radius: 0;
++  border-bottom: 1px solid var(--card-border);
++  white-space: normal;
++  text-align: left;
++}
++.plan .inspector-quick-row > span:not(.insp-amount) {
++  overflow-wrap: anywhere;
++}
++.plan .inspector-quick .inspector-quick-limit {
++  color: var(--ink-2);
++  font-size: var(--fs-meta);
++}
++.plan .inspector-cover-suggestion {
++  margin-block: 12px;
++}
++.plan .inspector-cover-suggestion > .btn {
++  width: 100%;
++  min-height: 44px;
++  height: auto;
++  display: flex;
++  flex-wrap: wrap;
++  justify-content: space-between;
++  gap: 8px;
++  white-space: normal;
++  text-align: left;
++}
++.plan .inspector-cover-suggestion > .btn > span:first-child {
++  min-width: 0;
++  overflow-wrap: anywhere;
++}
++.plan .plan-inspector .plan-budget-money {
++  padding: 0 16px 12px;
++}
++.plan .plan-inspector .plan-budget-money > ul {
++  padding: 0 0 0 16px;
++}
++@media (min-width: 1180px) {
++  .plan .plan-inspector:not(:has(.inspector-selection)) {
++    max-height: min(var(--plan-main-height, calc(100dvh - 88px)), calc(100dvh - 88px));
++  }
++}
++
++.plan .inspector-source-fields {
++  min-width: 0;
++  margin: 0;
++  padding: 0;
++  border: 0;
++}
+diff --git a/apps/web/src/budget/quick-assign-actions.tsx b/apps/web/src/budget/quick-assign-actions.tsx
+index f67e4d2d7b0803b3f2f170a788fe09fc22b55c03..da625aa30f07f1e73ed759636e31420942a0f343 100644
+--- a/apps/web/src/budget/quick-assign-actions.tsx
++++ b/apps/web/src/budget/quick-assign-actions.tsx
+@@ -1,6 +1,8 @@
+ import { Button, useAmountPrivacy } from '@budget/ui';
+-import type { QuickAssignMode } from '@budget/domain';
++import { overspentEnvelopes, type QuickAssignMode } from '@budget/domain';
+ import { useState } from 'react';
++import { BarChart3, ChevronRight, History, PaintBucket, RotateCcw, Target } from 'lucide-react';
++import { inspectorQuickAssign, type PlanRow } from './plan-model';
+ import { eur } from '../ledger/format';
+ import { quickAssign } from './budget-api';
+ import { useBudgetWrite } from './use-category-writes';
+@@ -39,15 +41,57 @@ export function QuickAssignActions({
+   emptyIds,
+   selectedIds,
+   inline = false,
++  preview,
+ }: {
+   month: string;
+   emptyIds: string[];
+   selectedIds: string[];
+   inline?: boolean;
++  /** Inspector-only: exact ordered action scope from the displayed month, not all loaded rows. */
++  preview?: { rows: PlanRow[]; tba: number; scopeLabel: string };
+ }) {
+   useAmountPrivacy();
+   const quick = useQuickAssign(month);
+   const busy = quick.busy;
++  if (preview) {
++    const actions = [
++      ['last-month', 'Wie letzter Monat', History],
++      ['average', 'Ø 3 Monate', BarChart3],
++      ['target', 'Ziele', Target],
++      ['empty', 'Leere füllen', PaintBucket],
++      ['reset', 'Auf 0 zurücksetzen', RotateCcw],
++    ] as const;
++    return (
++      <section className="inspector-quick" aria-label="Automatisch zuweisen">
++        <h3 className="panel-h">Automatisch zuweisen</h3>
++        <p className="panel-sub">{preview.scopeLabel}</p>
++        <p className="panel-sub">{!preview.rows.length ? 'Keine zuweisbaren Kategorien in dieser Auswahl.'
++          : preview.rows.some((row) => row.needCents > 0) || overspentEnvelopes({ envelopes: preview.rows }).length
++            ? `${overspentEnvelopes({ envelopes: preview.rows }).length} überzogen, ${preview.rows.filter((row) => row.needCents > 0).length} unterfinanziert`
++            : 'Nichts ist unterfinanziert oder überzogen.'}</p>
++        <div className="inspector-quick-rows">
++          {actions.map(([mode, label, Icon]) => {
++            const plan = inspectorQuickAssign(preview.rows, mode, preview.tba);
++            return (
++              <div key={mode}>
++                <Button variant="ghost" className="inspector-quick-row"
++                  disabled={busy || plan.ids.length === 0 || plan.deltaCents === 0}
++                  onClick={() => void quick.apply(mode, plan.ids)}>
++                  <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
++                  <span>{label}</span>
++                  <span className="insp-amount">{eur(plan.deltaCents, { sign: true })}</span>
++                  <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />
++                </Button>
++                {plan.openCount > 0 && <p className="panel-sub inspector-quick-limit">
++                  Zu verteilen: {eur(preview.tba)} · auf freies Geld begrenzt · {eur(plan.missingCents)} fehlen für {categories(plan.openCount)}.
++                </p>}
++              </div>
++            );
++          })}
++        </div>
++      </section>
++    );
++  }
+   const apply = (mode: QuickAssignMode) =>
+     quick.apply(mode, mode === 'empty' ? emptyIds : selectedIds);
+   const actions = (
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index d1763835c29e83012c299c1435af86deb176a35f..70f3da78c263a27e5083b46173a84c3ddb23a111 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1904,3 +1904,11 @@ explicit reanalysis/review. Upload and reanalysis never post money.
+ - Category target synchronization preserves conflicting manual targets and competing goals; these remain explicitly blocked until the source association is resolved. No automatic winner or historical target deletion.
+ - Automatic completion reads coherent retained audit groups and canonical ledger projections only. A fully audited empty initial ledger basis is required. The existing direct fixture seed has no such basis, so even new goals in a seeded/imported database remain unavailable for automatic completion. Missing/ambiguous/over-bound chronology, account-goal evidence and pre-entered future expense chronology also remain explicitly unavailable; manual completion is retained. Existing financial writes and Undo machinery are unchanged.
+ - Migration48 adds start-month/manual-completion intent only; copy rollback rejects retained/audited use. Migration execution, new acceptance coverage, required checks, browser evidence, review completion and live delivery remain pending. This entry is not verified completion of #604.
++
++
++### #591 / #592 / #593 — Month inspector and exact quick actions (source implementation, validation deferred)
++
++- Added a remembered month overview and disclosure defaults, a four-term accounting display summed from one canonical envelope scope, and next-month target coverage from the existing bounded multi-month read. Canonical remaining need controls funding progress; signed actual assignments and per-category excess stay separate, so one excess cannot hide another category's deficit. No additional budget calculation or endpoint is introduced.
++- Inspector quick actions preview the exact signed change of the shared `quickAssignPlan`, including the additive reset mode. They use the active month and matching eligible rows in displayed order, intersect actual selection, preserve capped shortfalls and apply through the existing atomic quick-assign/assignment/Undo path. Toolbar behavior, filtered counts, category filters and URL Back/Forward reconciliation are retained.
++- The selected panel retains activity/history navigation and return state, existing assignment/move/category operations, and adds a one-click explicitly capped cover through the existing guarded writer. Class and pace reuse current row metadata. Deliberate category inspection opens/focuses the heading below1180px with reduced-motion handling; background data and restored history do not steal focus. Disclosure preferences store booleans only; amounts use shared privacy formatting and protected number spans.
++- All tests, new acceptance fixtures, type/lint/format/build/native/Axe/full/CI/live validation are deferred by the owner's implementation-first batch instruction. Literal cent identities, under/exact/over/zero/mixed-target coverage, all five action deltas/caps/reset negatives, one-group financial Undo, cross-month/filter/selection scope, source caps and draft/focus/history preservation require later proof. Actual1440/390/light-dark/coarse-pointer44px/default-grid-height evidence and precise coordinator-approved legacy test adaptations remain pending; no acceptance is marked verified here.
+diff --git a/packages/domain/src/ledger/quick-assign.ts b/packages/domain/src/ledger/quick-assign.ts
+index f31fa1400e6f8b7e73038d20d4c133676b33c83c..e3e1cb036039da983432db356bcfca9de9bcfc63 100644
+--- a/packages/domain/src/ledger/quick-assign.ts
++++ b/packages/domain/src/ledger/quick-assign.ts
+@@ -2,7 +2,7 @@ import { addMonths, monthOf } from '../date';
+ import type { TableMonth } from '../report-tables';
+ import { averageCents, freedomSumCents } from '../wealth/freedom';
+ 
+-export type QuickAssignMode = 'empty' | 'last-month' | 'average' | 'target';
++export type QuickAssignMode = 'empty' | 'last-month' | 'average' | 'target' | 'reset';
+ export interface QuickAssignFigures {
+   lastMonthCents: number;
+   averageCents: number;
+@@ -62,9 +62,11 @@ export function quickAssignPlan(
+           ? r.quickAssign.lastMonthCents
+           : mode === 'average'
+             ? r.quickAssign.averageCents
+-            : r.target
+-              ? r.assignedCents + r.needCents
+-              : r.assignedCents;
++            : mode === 'reset'
++              ? 0
++              : r.target
++                ? r.assignedCents + r.needCents
++                : r.assignedCents;
+     return [{ ...r, value }];
+   });
+   // A reduction can fund another selected category in the same atomic action.

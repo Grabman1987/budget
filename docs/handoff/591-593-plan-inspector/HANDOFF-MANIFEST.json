@@ -1,0 +1,52 @@
+[
+  {
+    "path": "docs/handoff/591-593-plan-inspector/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/591-593-plan-inspector/README.md",
+    "size": 475,
+    "sha256": "badf762dd1bedb4e00496376e5353f29dff3ee604060753a9e6dab7f9950fc62"
+  },
+  {
+    "path": "docs/handoff/591-593-plan-inspector/integration/6097312929c84ea8bd827bc5895e6f4e85f87cf2.json",
+    "size": 371,
+    "sha256": "7948eac55b2995eb1e715e0b5f4d606e2fa4c9575df763ba266c0d9a9d50cf7b"
+  },
+  {
+    "path": "docs/handoff/591-593-plan-inspector/integration/6097312929c84ea8bd827bc5895e6f4e85f87cf2.patch",
+    "size": 565,
+    "sha256": "39479e18ccb5eb2c56ef82de13b885cb46e1c523c0cef2330acf065bc1ca292a"
+  },
+  {
+    "path": "docs/handoff/591-593-plan-inspector/owned/01-d785b65eef4f01d17389c5697af76c903aeb181a.patch",
+    "size": 47172,
+    "sha256": "a34c7f39a51bdfce54d87893a70104c79c9a22506795b405de6490bafb28f9b6"
+  },
+  {
+    "path": "docs/handoff/591-593-plan-inspector/packet.json",
+    "size": 1836,
+    "sha256": "d1d519fd166ef39980309455137b701553c55a9f3f023b9bcf9bff10e7cb3c57"
+  },
+  {
+    "path": "docs/handoff/591-593-plan-inspector/reviews/591-593-final-whole9-independent-correspondence.json",
+    "size": 2325,
+    "sha256": "21a4d0f7939d5eb3fb3837ad9fd6dfbf8d750749d92cc20dba3aee3452e58978"
+  },
+  {
+    "path": "docs/handoff/591-593-plan-inspector/reviews/591-593-root-reset-and-selector-actions-early-independent-review.md",
+    "size": 3364,
+    "sha256": "a5e76c19e9ff90021d0a5fbfe90533785fa8aefb03cea5520c22932df15abc96"
+  },
+  {
+    "path": "docs/handoff/591-593-plan-inspector/reviews/591-593-whole-nine-final-independent-source-high.md",
+    "size": 6383,
+    "sha256": "0f425fa954781b56f6c1a9a0008f37cf6379822e7a2c6797919d36d94907375b"
+  },
+  {
+    "path": "docs/handoff/591-593-plan-inspector/reviews/591-593-whole-nine-independent-source-review.md",
+    "size": 6007,
+    "sha256": "ccc3f47fa2d60957f69df4acf1b0ec576b98119e0d4650f5f87a071f7e16362c"
+  }
+]

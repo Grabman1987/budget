@@ -1,0 +1,13 @@
+diff --git a/apps/web/src/budget/plan-page.tsx b/apps/web/src/budget/plan-page.tsx
+index fa930be56c0dbfeb1a55686c23e8aea0cb7bc566..1306fb866ac00d81b5376905eedfe496f046b570 100644
+--- a/apps/web/src/budget/plan-page.tsx
++++ b/apps/web/src/budget/plan-page.tsx
+@@ -230,7 +230,7 @@ function PlanBody({
+     void navigate({
+       to: '/plan/monat',
+       resetScroll: false,
+-      search: (previous) => ({
++      search: (previous: Record<string, unknown>) => ({
+         ...previous,
+         ansicht: undefined,
+         filter: next === 'all' ? undefined : next,

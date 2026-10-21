@@ -1,0 +1,41 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/591-593-plan-inspector",
+  "sourceHead": "d785b65eef4f01d17389c5697af76c903aeb181a",
+  "originalBaseBeforeOwnedCommits": "f81c206d47dbb851e59a07db396d10fc4512270e",
+  "orderedCommits": [
+    {
+      "sha": "d785b65eef4f01d17389c5697af76c903aeb181a",
+      "parentBase": "f81c206d47dbb851e59a07db396d10fc4512270e",
+      "subject": "feat(plan): compact inspector with canonical assignment previews",
+      "paths": [
+        "apps/server/src/api/schemas.ts",
+        "apps/web/src/budget/envelope-panel.tsx",
+        "apps/web/src/budget/plan-inspector.tsx",
+        "apps/web/src/budget/plan-model.ts",
+        "apps/web/src/budget/plan-page.tsx",
+        "apps/web/src/budget/plan.css",
+        "apps/web/src/budget/quick-assign-actions.tsx",
+        "docs/ROADMAP.md",
+        "packages/domain/src/ledger/quick-assign.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout d785b65eef4f01d17389c5697af76c903aeb181a > OWN_OUTPUT/d785b65eef4f01d17389c5697af76c903aeb181a.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-d785b65eef4f01d17389c5697af76c903aeb181a.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/server/src/api/schemas.ts",
+    "apps/web/src/budget/envelope-panel.tsx",
+    "apps/web/src/budget/plan-inspector.tsx",
+    "apps/web/src/budget/plan-model.ts",
+    "apps/web/src/budget/plan-page.tsx",
+    "apps/web/src/budget/plan.css",
+    "apps/web/src/budget/quick-assign-actions.tsx",
+    "docs/ROADMAP.md",
+    "packages/domain/src/ledger/quick-assign.ts"
+  ],
+  "mixedSourceAncestry": true,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

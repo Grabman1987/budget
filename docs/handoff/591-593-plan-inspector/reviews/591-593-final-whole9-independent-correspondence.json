@@ -1,0 +1,59 @@
+{
+  "manifestSHA256": "5f71533dc028fc27f3ee98c375a2781f71c7334112b9f5239c7d92ec7b57ddea",
+  "owned9": {
+    "apps/web/src/budget/plan-inspector.tsx": {
+      "path": "apps/web/src/budget/plan-inspector.tsx",
+      "sha256": "525c705e3cf7499fc13aa916c324e6dd4b90df0194f5b4df2246621e569b3be6",
+      "mode": "0o600"
+    },
+    "apps/web/src/budget/plan-page.tsx": {
+      "path": "apps/web/src/budget/plan-page.tsx",
+      "sha256": "4671d3a1ead8eca3539caa033cd91a1ba6264c7775135dda9b4d6eeba49b1a48",
+      "mode": "0o600"
+    },
+    "apps/web/src/budget/quick-assign-actions.tsx": {
+      "path": "apps/web/src/budget/quick-assign-actions.tsx",
+      "sha256": "450776dd594ad0172be53eca0392ff124fcac88643fd69ae2adc2ade4a768f04",
+      "mode": "0o600"
+    },
+    "apps/web/src/budget/envelope-panel.tsx": {
+      "path": "apps/web/src/budget/envelope-panel.tsx",
+      "sha256": "24486129eaf1f8ee78e7ac8c70ba747db47bb1348aa03eaaf302ccbf10c50d11",
+      "mode": "0o600"
+    },
+    "apps/web/src/budget/plan-model.ts": {
+      "path": "apps/web/src/budget/plan-model.ts",
+      "sha256": "02ac607ddf50d29704943a688f0208244a6cc8ae2bb3abcb3e042558d719868e",
+      "mode": "0o600"
+    },
+    "apps/web/src/budget/plan.css": {
+      "path": "apps/web/src/budget/plan.css",
+      "sha256": "7fe3d4a86308be4a1102d4c3fbf3c11bfd0f2976925b07cdb02513cb38e3b0aa",
+      "mode": "0o600"
+    },
+    "packages/domain/src/ledger/quick-assign.ts": {
+      "path": "packages/domain/src/ledger/quick-assign.ts",
+      "sha256": "2d2d02ff79fee52f1513be0167e3cb854330957eb09727ce0736e022c45a6f1d",
+      "mode": "0o600"
+    },
+    "apps/server/src/api/schemas.ts": {
+      "path": "apps/server/src/api/schemas.ts",
+      "sha256": "13905d2d9415870ff58f69023e10004607db4e01e51be85b5628887672004844",
+      "mode": "0o600"
+    },
+    "docs/ROADMAP.md": {
+      "path": "docs/ROADMAP.md",
+      "sha256": "cfafecfbe10dcdc134b071a4520eccae37e90e934e7831ffa0db8670bfbe62e8",
+      "mode": "0o600"
+    }
+  },
+  "allCurrentFrozenSHAAndModesExact": true,
+  "onlyThreeCorrectionsVsPrior5de": [
+    "apps/web/src/budget/plan-inspector.tsx",
+    "apps/web/src/budget/plan-page.tsx",
+    "apps/web/src/budget/plan.css"
+  ],
+  "roadmapWholePrefixBytes": 259464,
+  "wholeSourceRead": true,
+  "scope": "read-only source/hash/mode comparison; no project runtime"
+}
