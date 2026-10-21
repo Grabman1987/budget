@@ -1,0 +1,242 @@
+import type { AccountReviewStatus, CashValuation } from '@budget/domain';
+
+/** Shapes of the ledger API (`docs/api-ledger.md`); amounts are integer cents, days `YYYY-MM-DD`. */
+import type { ValuationSource, WithValuationNotes } from './valuation-hint';
+
+export const ACCOUNT_ROLES = ['budget', 'reserve', 'investment', 'debt', 'receivable'] as const;
+export type AccountRole = (typeof ACCOUNT_ROLES)[number];
+
+export const ACCOUNT_TYPES = [
+  'checking',
+  'cash',
+  'savings',
+  'credit_card',
+  'loan',
+  'brokerage',
+  'crypto',
+  'p2p',
+  'receivable',
+  'other_asset',
+  'other_liability',
+] as const;
+export type AccountType = (typeof ACCOUNT_TYPES)[number];
+
+export const BOOKING_STATUSES = ['pending', 'confirmed', 'reconciled'] as const;
+export type BookingStatus = (typeof BOOKING_STATUSES)[number];
+export const BOOKING_FLAGS = ['red', 'orange', 'yellow', 'green', 'blue', 'purple'] as const;
+export type BookingFlag = (typeof BOOKING_FLAGS)[number];
+
+export interface AccountRow {
+  /** Present in current account reads; missing older cached data is not proof of a quiet account. */
+  reviewStatus?: AccountReviewStatus;
+  allocationScope?: 'default' | 'included' | 'excluded';
+  allocationAssetClassId?: string | null;
+  id: string;
+  name: string;
+  type: AccountType;
+  role: AccountRole;
+  onBudget: boolean;
+  currency: string;
+  institutionId: string | null;
+  /** Separate cash account used for depot settlements; null means cash is integrated. */
+  referenceAccountId?: string | null;
+  openingBalanceCents: number;
+  openingDate: string;
+  creditLimitCents: number | null;
+  overdraftLimitCents: number | null;
+  interestRateBp: number | null;
+  termEnd: string | null;
+  monthlyFeeCents: number | null;
+  /** Loan terms (Einstellungen › Konten). */
+  interestKind: 'fixed' | 'variable' | null;
+  installmentCents: number | null;
+  termStart: string | null;
+  originalAmountCents: number | null;
+  sortOrder: number;
+  closedAt: string | null;
+  note: string | null;
+  balanceCents: number;
+  clearedCents: number;
+  unclearedCents: number;
+  scheduledCents: number;
+  /** Market value of securities held in the account (depots, crypto). */
+  holdingsCents: number | null;
+  /** Entire account value in EUR, or null when a required security quote or FX rate is missing. */
+  valueEurCents: number | null;
+  valuationSources?: ValuationSource[];
+  cashValuation?: CashValuation;
+  pendingValuation?: CashValuation;
+  /** FX currencies that prevented this account's EUR valuation. */
+  missingFxCurrencies: string[];
+  missingPriceSecurityIds: string[];
+  bookingCount: number;
+  pendingCount: number;
+  lastReconciledOn: string | null;
+  lastValuedOn?: string | null;
+  manualValueCents?: number | null;
+  hasHoldings?: boolean;
+  bankBalance?: {
+    valuation?: CashValuation | null;
+    amountCents: number | null;
+    date: string | null;
+    /** Day the balance counts for: `date`, else the Vienna day it was fetched. */
+    effectiveDate: string | null;
+    fetchedAt: string | null;
+    reconciledThrough: string | null;
+    canLock: boolean;
+    lockReason?: string | null;
+  } | null;
+}
+
+export interface AccountList extends WithValuationNotes {
+  valuationSources?: ValuationSource[];
+  asOf: string;
+  accounts: AccountRow[];
+  netWorthEurCents: number | null;
+  missingFxCurrencies: string[];
+  missingPriceSecurityIds: string[];
+}
+
+export interface SeriesPoint {
+  date: string;
+  balanceCents: number;
+  valuation?: CashValuation;
+}
+
+export interface ListedSplit {
+  id: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  amountCents: number;
+  memo: string | null;
+  contactId: string | null;
+  incomeTypeId: string | null;
+  transferId: string | null;
+}
+
+export interface ListedBooking {
+  categorySpendingCents?: number;
+  id: string;
+  accountId: string;
+  accountName: string;
+  date: string;
+  incomeNextMonth?: boolean;
+  source?: string;
+  amountCents: number;
+  payeeId: string | null;
+  payeeName: string | null;
+  memo: string | null;
+  status: BookingStatus;
+  flag: BookingFlag | null;
+  transferId: string | null;
+  transferAccountId: string | null;
+  transferAccountName: string | null;
+  projectId: string | null;
+  currency: string;
+  originalAmountCents: number | null;
+  originalCurrency: string | null;
+  splits: ListedSplit[];
+  balanceAfterCents: number | null;
+  amountValuation?: CashValuation;
+  balanceValuation?: CashValuation | null;
+}
+
+export interface BookingPage {
+  categorySpendingCents?: number;
+  items: ListedBooking[];
+  nextCursor: string | null;
+  total: number;
+  sumCents: number;
+  sumEurCents?: number | null;
+}
+
+export type BookingSort = 'date' | 'amount' | 'payee' | 'account';
+
+/** Filter of the booking list; the same fields are the URL parameters of Alle Buchungen. */
+export interface BookingFilter {
+  basis?: 'category-spending' | undefined;
+  id?: string | undefined;
+  accountId?: string | undefined;
+  from?: string | undefined;
+  to?: string | undefined;
+  categoryId?: string | undefined;
+  categoryGroupId?: string | undefined;
+  payeeId?: string | undefined;
+  status?: BookingStatus | undefined;
+  flag?: BookingFlag | 'none' | undefined;
+  q?: string | undefined;
+  sort?: BookingSort | undefined;
+  direction?: 'asc' | 'desc' | undefined;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  groupId: string | null;
+  class: string | null;
+  kind: string;
+  sortOrder: number;
+}
+
+export interface Lookups {
+  groups: { id: string; name: string; sortOrder: number }[];
+  categories: Category[];
+  projects: { id: string; name: string; archivedAt?: string | null }[];
+  incomeTypes: { id: string; name: string }[];
+  contacts: { id: string; name: string }[];
+  institutions: { id: string; name: string; kind: string }[];
+}
+
+export interface PayeeRow {
+  id: string;
+  name: string;
+  /** Category capture pre-fills for this payee. */
+  defaultCategoryId?: string | null;
+  systemKind?: string | null;
+  bookingCount?: number;
+  lastBookingDate?: string | null;
+}
+
+export interface WriteResult {
+  groupId: string;
+}
+
+export interface DuplicateCandidate {
+  removeId: string;
+  keepId: string;
+  date: string;
+  payeeName: string | null;
+  amountCents: number;
+  /** Removing it makes the balances agree. */
+  explainsDifference: boolean;
+  valuation?: CashValuation;
+}
+
+export interface ReconciliationPreview {
+  currency?: string;
+  valuations?: {
+    booked: CashValuation;
+    pending: CashValuation;
+    statement: CashValuation;
+    difference: CashValuation;
+  };
+  accountId: string;
+  date: string;
+  statementBalanceCents: number;
+  bookedBalanceCents: number;
+  pendingCents: number;
+  /** `statement − booked`; negative means the app is too high. */
+  differenceCents: number;
+  toReconcileCount: number;
+  duplicates: DuplicateCandidate[];
+  pendingMatches: { bookingIds: string[]; sumCents: number }[];
+  missing: { kind: 'expense' | 'income'; amountCents: number } | null;
+}
+
+export interface ReconcileResult {
+  reconciliationId: string;
+  groupId: string;
+  differenceCents: number;
+  adjustmentBookingId: string | null;
+  reconciledCount: number;
+}

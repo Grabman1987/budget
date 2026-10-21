@@ -1,0 +1,27 @@
+{
+  "base": "23a5748273a5088dff62630054882ca12b28d2eb",
+  "status": "READ_ONLY_PROPOSAL_NOT_IMPLEMENTATION_AUTHORIZATION",
+  "sourcePinsSha256": "c088f007dd78c5d1f696ee04de68198bb6a1e3ecccd1c52fb9286227682afa36",
+  "issueEvidenceSha256": "cb85e3477bd5deacedc16fa3b467d47e566f9e27cadb964bad93c96f0c4e9070",
+  "planSha256": "b0d25e0969ebc88fed878160d1fc9e5a7a171debef4436cf9c3713bdd1c5cc9c",
+  "proposedPaths": [
+    "apps/web/src/ledger/bookings-page.tsx",
+    "apps/web/src/ledger/bookings-search.ts",
+    "apps/web/src/ledger/api.ts",
+    "apps/web/src/ledger/types.ts",
+    "apps/web/src/ledger/booking-table.tsx",
+    "apps/web/src/ledger/ledger.css",
+    "packages/db/src/repos/ledger-queries.ts",
+    "apps/web/src/ledger/queries.ts",
+    "apps/server/src/api/bookings.ts",
+    "apps/server/src/api/schemas.ts",
+    "apps/server/src/api/export.ts",
+    "docs/export.md",
+    "docs/ROADMAP.md"
+  ],
+  "repositoryChanges": false,
+  "testsOrRuntime": false,
+  "branchCreated": false,
+  "remoteWrites": false,
+  "577MustPrecedeSharedCss": true
+}

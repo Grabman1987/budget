@@ -1,0 +1,289 @@
+# Product
+
+Owner wealth completeness/backlog request (2026-10-15): add open implementation
+work for a compact benchmark comparison in Vermögen, actual portfolio-value EUR
+history and asset composition/development. Value, flow-adjusted return and allocation
+share are distinct measures with explicit scope/period. Detailed analysis remains
+in Reports. Verify the existing net-worth graph's visibility before changing it.
+The linked [GAP01–08 backlog](docs/product/open-gaps.md) also covers Figma/navigation
+reconciliation, missing onboarding designs and semantic acceptance; none is marked delivered.
+
+Current reading guide, 2026-10-15: [Product foundation](docs/product/README.md)
+connects the existing decisions to current requirements, routes, Figma references,
+processes and acceptance. Newer SPEC directives govern detail-page navigation,
+the Plan/search exceptions, compact wealth performance summary, current report
+catalog and valuation fallback. Historical design decisions below retain their
+date/context; proposed financial first-use onboarding is not yet delivered.
+
+Owner Q2 directive (2026-10-15, #465): historical report negatives use quiet ink while retaining their signs and zero geometry; historical debt bars use a dashed outline. Current action-needed warnings, negative sidebar balances and specified signed heatmaps retain their existing semantics. The inbox overview shows one urgent overspent summary with category count, exact total deficit and a secondary link to Plan triage. Individual entries, raw counts and detail views remain; the filtered full summary is computed before pagination. This read-only presentation never covers categories or changes bookings by itself.
+
+Owner direct payroll review directive (2026-10-15, #499): a manually uploaded PDF opens its result immediately in the wide upload/review dialog; the retained inbox task remains a recovery entry. Known wage codes are parsed automatically. Unknown numeric wage codes can be assigned at the review to the existing earning, deduction, reimbursement, tax-adjustment or social-insurance-adjustment sections and reparsed; this neither adds database columns nor changes payroll formulas. Saving the mapping, parsed result and inbox urgency is one audited group, guarded against concurrent changes. New payout confirmation exposes account, explicit payout date, sender and an eligible unbooked salary expectation. A printed date or the selected expectation can propose the date; no missing date silently becomes month end. Confirmation links the expectation and creates or links the payout atomically with the payslip and receipt. Existing matched booking dates, senders and manually corrected records remain unchanged. Desktop PDF/download/confirm/reject/reanalyse actions share one row; phone layout preserves readable fields and touch targets. Upload alone never books money.
+
+Owner delivery and cash directive (2026-10-15, #499): coherent changes may share a reviewable PR, CI run and live delivery. Required checks and serial merge/deployment/live-revision gates remain. New cash capture is immediately confirmed and its status cannot be toggled to pending; bank capture retains its pending default and manual confirmation. Existing stored bookings, reconciliation locks and audited undo remain intact. Further account-purpose, import and transfer semantics are tracked in #499.
+
+Owner booking-line directive (2026-10-14, #463): the capture head shows amount, payee, account/status and date/repetition before category/contact lines on desktop and phone. Date/repetition use 2:1 columns; direct date entry and the calendar remain. One category row can represent a category, a whole contact outlay, or a category with percentage/fixed contact shares; additional gross lines show a cent-exact rest and block saving until it is zero. Slim suggestions share one row. Date chips, the separate outlay field and Split mode button are removed. Tab follows head → lines → actions; Enter saves valid input and Escape retains its guard. Map to the existing ledger splits with largest-remainder cents, preserving stored metadata, audited writes, locks and undo.
+
+Owner payslip directive (2026-10-15, #499): review preselects the configured salary account and permits another active EUR payout account. Confirmation links an existing matching booking or creates a pending payout (cash: confirmed), with salary/special income and reimbursements kept separate. Payslip, payout, receipt and inbox decision are atomic and undoable. Upload alone never books money. The PDF drop alternative preserves the native chooser; Linux browser evidence does not establish a fix for the reported Windows Chrome chooser hang.
+
+Owner account-properties directive (2026-10-15, #499): account type keeps its existing meaning; cash uses `cash`, the salary account is selected in Datenquellen, and a depot with separate settlement cash uses the existing optional `referenceAccountId`. Integrated depot cash needs no separate link. Create/edit forms expose this distinction without a new purpose column, migration or historical rewrite. New links require an open checking/cash/savings account in the same currency; incompatible type or currency changes must first explicitly release linked depots. Existing historical references remain visible and unrelated edits preserve them. Account metadata changes retain the audited write and undo path; credit-card behavior is unchanged.
+
+Owner contact-history directive (2026-10-15, #499): contact name and balance open the same retained detail. A persisted repayment that fully clears both open outlays and credit defines the latest history boundary; inferred legacy receipts never invent a recorded settlement. Older completed movements remain available in a disclosure, current-month movements are itemized against the statement as-of month with saved allocations and credit, and older open outlays remain visible. Same-day order and all stored financial data, write paths, locks and undo remain unchanged.
+
+Owner Q3 decision (2026-10-14, #466, 3B): Heute keeps the month switch and Monat / Bis Gehalt. Zu tun is one nonempty block with at most four source summaries, ordered Plan, rule findings, inbox/bookings, account checks. Existing source routes own all confirmation and undo. Month close shares the Plan row; savings execution proposals use their existing inbox count. Recurring payments and planned one-off events share a nonempty Fällig 14 Tage list; later events remain in Plan › Jahr. Finanz-Check is a summary tile. Other-month views say Ansicht: <month> and offer Zum aktuellen Monat; current-only blocks say Stand heute, while Pace and pinned envelopes follow the selected month. These rules replace the older separate Nächste Schritte and seven-day/afterward blocks below.
+
+Owner UX V1 directive (2026-10-14, #480): Vermögen shows a compact performance summary before decisions: value, unrealised gain in EUR/percent, annualised time-weighted return and a chart using the Reports calculation. Detailed benchmark and performance analysis stays in Reports. Period controls sit beside the chart and are absent from non-chart details. Schulden starts with total debt and actual history; payoff dates require complete calculable terms, and repayment scenarios/terms explanations are disclosures. Freiheit starts with an editable average of up to six closed Zukunft months; expense sources are collapsed. Savings details show the next version-aware planned date, recorded gross buys since the first version in the selected instrument/account (including manual buys), and collapsed rate versions. No write, booking, bank-order or undo semantics change.
+
+Owner wealth-detail directive (2026-10-15, #499): compare signed assets and debts against the same proportional zero, and put the Portfolio's daily, flow-adjusted index before its next portfolio actions. The index starts from a base of 100, follows actual valuation dates and leaves unavailable daily returns as visible gaps. Carried-forward stored quotes are explained; responsive charts preserve real date spacing and legible axis labels. The detailed monthly index, benchmarks and portfolio performance mathematics remain unchanged.
+
+Owner decision 7A (2026-10-14; corrected 2026-10-20, #481): Plan › Monat combines a group with one visible category into one selectable band in the single-month Groups view. Group number/name, category amounts, available pill and spending status/bar share the band; + opens the existing category form. Multi-category groups retain a separate group heading, with every category on its own following row. Group totals belong to the heading and do not inspect the first category. Group collapse, whole-group selection and + remain available; a collapsed multi-category group shows its parent summary and hides all categories. The owner prioritizes clear separation and accepts 55 to 44 logical rows (20% fewer), superseding the 2026-10-19 first-category fusion and 36-row/≥30% target; physical table height is reported separately. Selection, inspector, shortcuts, money writes and undo keep their existing paths.
+
+Owner Z1 decision (2026-10-13, #448): Plan › Monat adopts the Zerosum category-grid arrangement with group header creation, group/overall checkboxes and spending status/two-tone green bars, preserving Budget's backgrounds and colour tokens. Mobile uses one scrolling chip row and compact category rows; the available pill opens the existing assignment/cover inspector. Write paths and undo remain unchanged; Z2–Z4 are separate packages.
+
+Owner search directive (2026-10-14, #484): global search opens a modal command palette without changing the source URL or page state; phones use a full-screen sheet. Actions lead, followed by grouped results; the empty palette contains actions and validated session recents only. `/suche` remains the deep-linkable all-results page with type filtering. This search-only exception supersedes the earlier forms-only dialog restriction. Existing capture, month-close, privacy and ledger destinations remain unchanged.
+
+Owner Z4 decision (2026-10-13, #451): the left account list uses the Zerosum
+arrangement with create/account-settings shortcuts, group/type icons and no
+navigation numbers or group subtitles. Every negative sidebar balance is red
+with its minus, including credit cards and loans; this supersedes the sidebar
+colour exception of 2026-10-05. Existing account grouping, ordering, hidden closed
+accounts, remembered collapse, write/undo paths and colour tokens remain.
+
+Owner decision 2026-10-12 (#446): Plan › Monat selects category names into a right inspector on desktop and a collapsible section below the grid under 1180px. Escape or an outside click returns to the monthly overview. Existing audited assignment, move, cover, category forms and quick values remain the write paths; Verlauf und Buchungen links to the envelope detail page.
+
+Owner decision 2026-10-06: Einstellungen › Warenkorb explains everyday spending and automatic inclusion, shows one Automatic/Always/Never choice with its current effect, and autosaves optional official price groups (switching to CPI on selection) and payee exceptions with undo; the existing basket API and domain rules stay unchanged.
+
+Owner-Entscheidung 05.10.2026: Plan › Monat adopts the YNAB auto-assign principle: explicit empty-fill and selected-category quick assignment use shared target/history figures, available money and one undoable audit group; faded suggestions never book money on their own.
+
+Owner-Entscheidung 05.10.2026 — Heute adopts the three-answer-card principle: one number, one proportional bar and two sublines each for Nettovermögen, Dieser Monat and Budget, followed by the nearest unfinished savings goal; the existing Präzisionsschicht and shared read models remain the design and calculation sources.
+
+Owner-Entscheidung 05.10.2026 — Pace: Heute and One-Pager show elapsed days, actual spending, linear pro-rata expectation and the existing month-end forecast from one shared read model; chart and Plan › Monat category bars label today's time marker. Forecast stays fixed-cost/plan-based before day 7 and extrapolated thereafter.
+
+Owner navigation decision (2026-10-05): details and secondary information use
+sub-pages with their own URLs, breadcrumbs and browser/back navigation. Content
+side panels, drawers, right sheets and permanent side card columns are retired;
+summaries are full-width inline sections or links to sub-pages. Dialogs only hold
+input/confirmation forms; phone bottom sheets only forms and filters. The left app
+navigation stays. This overrides earlier panel descriptions below; see
+[inventory and implementation scope](docs/no-side-panels-1005.md).
+
+Owner-Entscheidung 05.10.2026: In Report 2.4 bleiben Warenkorbvergleich und Kategorie-Explorer getrennt; die Interpretation von Preis- und Mengeneffekten bleibt beim Owner, ohne automatisches Inflationsurteil.
+
+Owner-Entscheidung 05.10.2026 — Tagesbudget: Heute translates the existing cent-exact Leitmaß into an approximate daily allowance through the shared next bank-day payday, including today; nonpositive room uses alarm copy instead of a daily amount, and the formula is available on hover/focus.
+
+Owner-Entscheidung 05.10.2026: Heute and R07 Kontoprognose share fourteen days of actual lookback through next bank-day payday + 2 (Bis Gehalt) or shown month end + 2 (Monat); payday forecasts shorter than seven days extend to the following payday + 2. The period is remembered, fallback Bis Gehalt.
+
+Owner composition decision (2026-10-05): Allocation shows groups inside and user-defined classes outside; products remain in the source table. Groups can be created/renamed and classes moved in Einstellungen › Anlageklassen. Soll stays class-specific and dated, with group sums. P2P accounts can be assigned in account settings; defaults are limited to an explicitly run operator configuration. Uninformative region charts are removed. See [composition contract](docs/portfolio-composition.md).
+
+Owner-Entscheidung 05.10.2026: Planungsqualität wird an gespeicherten Pace-Prognosen vom 15. gegen tatsächliche Monatsausgaben gemessen; fehlende historische Prognosen bleiben offen statt rückwirkend erfunden. See [planning hit rate](docs/planning-accuracy.md).
+
+Owner booking directive (2026-10-04): new manual bookings use the booking month; the dialog has no Budgetmonat field and does not apply next-month defaults. Existing stored values stay intact. Booking Wiederholen creates a recurring schedule; owner-facing wording is Wiederkehrende Zahlungen; the Plan register is labelled „Zahlungen“ (page review 2026-10-16). Account chart preview defaults to 35 days, configurable 0–365.
+
+Owner directive PR4 (2026-10-04): real Anlageklassen settings owns configuration, target/band/version editing, lifecycle and dated instrument assignment. Portfolio owns analysis and links to this shared editor. Investment-sum tiers are versioned, select inclusively from depots plus signed investment cash and use the existing resolver at each historical date; unmanaged is distinct from managed zero. Safe atomic retirement and undo preserve targets/history. See [settings contract](docs/asset-classes-settings.md).
+
+Owner directive PR3 (2026-10-04): explicit Anlageuniversum includes depots and signed investment cash; account/instrument metadata defines membership. Unknown/estimated data produces provisional allocation decisions and suppresses savings optimisation. Umschichtungsabstand and Neues Kapital bis Soll are separate decision aids. No settings page or automatic order is added. See [allocation quality/scope](docs/allocation-quality-scope.md).
+
+<!-- impeccable:product-schema 1 -->
+
+Name: **Budget** (O10 entschieden am 29.09.2026; privat, nur für den Eigentümer). Vorrang der Quellen regelt `SPEC.md`; Detailquelle ist `docs/concept/produktkonzept.md`. Diese Datei hält die dauerhaften Produktfakten und alle Entscheidungen der Designphase fest.
+
+Current feature coverage: [`docs/FEATURES.md`](docs/FEATURES.md). Remaining
+requirements and historical concept overrides: [`docs/REQUIREMENTS-GAPS.md`](docs/REQUIREMENTS-GAPS.md).
+Receipts use content-addressed files on the Fly volume with encrypted archive backups
+(owner task decision 2026-10-02; see `docs/receipts.md`); the earlier receipt object-storage
+goal is superseded for Y21. Payslip uploads remain a separate workflow.
+
+Product intent, implemented engine/API and complete application workflow are
+recorded separately; mockups alone do not establish completion.
+
+Owner directive PR1 (2026-10-04): asset classification now uses effective-dated weighted exposure sets. Today's reassignment never changes earlier Ist; mixed and explicitly incomplete sets conserve the portfolio's cents and preserve unknown weight. The existing instrument editor accepts an effective date; the weighted API supports audited replacement and undo. Asset-class settings, risk unification/leverage and allocation quality remain separate PRs. See [historical asset exposure](docs/asset-exposure.md).
+
+## Canonical UI terminology
+
+The German labels below record the accepted wording from [#469](https://github.com/Grabman1987/budget/issues/469), including the owner's [allocation terms](https://github.com/Grabman1987/budget/issues/469#issuecomment-6209535836) and [single-category and Gespart clarification](https://github.com/Grabman1987/budget/issues/469#issuecomment-6213536356). They supersede conflicting historical UI wording in this document; dated directives remain as history. Financial meaning and calculations still follow `SPEC.md` and the existing shared models.
+
+- **Kategorie** replaces visible “Envelope”; technical identifiers may retain `envelope`.
+- **Verplantes Geld** replaces the UI label “Verfügbar in Envelopes”. This is a wording mapping, not a new calculation or a replacement for every use of “Verfügbar”.
+- **Ausgabentempo** replaces visible “Pace”; the existing metric and period contract remain unchanged.
+- **Noch im Plan** replaces the UI label “Plan-Rest”.
+- **Zu verteilen** is the lead figure in Plan, Heute and the corresponding reports, replacing “Noch zu verplanen”.
+- **Zugewiesen** names the category assignment column. This does not rename unrelated concepts such as “Geplante Zahlung”.
+- **Verteilen** names distributing “Zu verteilen” across multiple categories. **Zuweisen** remains appropriate for one category, including “Rate zuweisen” and “Schnell zuweisen”.
+- **Sparziel** denotes a target amount by a date; **Monatsziel** denotes the monthly rate. These names do not introduce another target type or change target calculations.
+- **Gespart**, in the wealth-development measure chain, replaces “Eigenleistung”: **Einnahmen − Konsum + reguläre Tilgung**, so **Anfang + Gespart + Markt = Jetzt**. This is the existing wealth contract, not a new formula or a definition for unrelated savings measures.
+- **Allokation** replaces visible “Allocation”.
+
+The [page review](docs/product/page-review-2026-10-16.md) also records newer route and navigation wording, including “Prüfen” instead of “Posteingang”. Under [#529](https://github.com/Grabman1987/budget/issues/529), apply terminology in each owning page task, not a separate app-wide replacement sweep. This glossary records the agreed vocabulary; it does not certify that every visible string has been updated or that #469's browser and delivery acceptance is complete.
+
+## Platform
+
+Owner directive PR2 (2026-10-04): stored Regelwerk risk thresholds supply Portfolio, report 4.2, rebalancing, savings recommendations and Heute/finance check through one resolver. Leveraged ETFs count in speculative/cluster risk; market value and gross exposure stay distinct. Stored class bands override the smaller-of-5-percentage-points/25%-of-target standard. Historical parameter/leverage versioning remains outside this slice. See [risk policy](docs/portfolio-risk-policy.md).
+
+web
+
+## Stack
+
+Entschieden am 28.09.2026 (Konzept 11.1, O1), durch P1 bestätigt und in `SPEC.md` §9 konkretisiert: TypeScript auf Node 22 LTS (auch Node 24 unterstützt); React + Vite mit TanStack Router und Query, Tailwind für das Theme und eigene zugängliche Komponenten auf nativen Elementen; Radix wird nicht verwendet. Eigene SVG-Diagramme auf d3-scale/d3-shape im Blaupausen-Stil; Hono mit zod; SQLite (WAL) mit Drizzle; Litestream plus nächtliche age-verschlüsselte Kopie. Belege im Objektspeicher, Hintergrund-Worker und installierbare PWA mit Offline-Warteschlange bleiben Zielumfang; den Umsetzungsstand hält `docs/STATUS.md` fest. Betrieb auf Fly.io, eigenes Repo (O2). Die alte Fly-App diente zuletzt nur als Prototyp und wurde vom Nutzer am 01.10.2026 entfernt; die Designreferenz bleibt versioniert.
+
+## Users
+
+Ein einzelner Nutzer, der die Finanzen eines Haushalts führt (Single-User, 1.2). Partnerin, Freunde und Arbeitgeber sind **Kontakte** ohne eigenen Login, mit denen Geld hin- und hergeht.
+
+Zwei Nutzungssituationen mit derselben Sitemap, unterschiedlich tief:
+
+- **Unterwegs am Handy:** Barzahlung oder Auslage in 10 Sekunden erfassen, Beleg fotografieren, in 5 Sekunden sehen, ob der Monat hält, Prüfen abarbeiten.
+- **Am Desktop:** steuern. Geld verteilen, Monatsabschluss, Jahresplanung, Schulden, Portfolio-Review, Berichte.
+
+Der Nutzer kennt YNAB, Actual Budget und Portfolio Performance aus jahrelanger Nutzung und ersetzt alle drei durch diese App.
+
+## Product Purpose
+
+Eine private Haushalts-Finanz-App, die Cashflow und Vermögen nicht nur trackt, sondern aktiv optimiert. Sie ersetzt das bisherige Cockpit auf Actual Budget, YNAB und Portfolio Performance durch eine App mit einer Datenbasis und einer Sprache.
+
+Fünf Ziele mit festen Messgrößen (Konzept Kapitel 2 und 8):
+
+1. **Cashflow sichern:** Hält der Monat, hält das Konto bis zum nächsten Gehalt?
+2. **Cashflow optimieren:** Wohin fließt das Geld, was lässt sich umlenken?
+3. **Vermögen tracken:** Wie entwickelt sich das Nettovermögen und warum?
+4. **Vermögen optimieren:** Ist das Geld richtig verteilt, wohin soll der nächste Euro?
+5. **Vorausschauen:** Was kommt in 1, 3 und 12 Monaten?
+
+Erfolg heißt: Eine Buchung dauert 10 Sekunden, die Antwort „hält der Monat?“ 5 Sekunden. Die Routinen brauchen etwa 10 Minuten pro Woche und 30 Minuten zum Monatswechsel. Nach einem Monatswechsel im Parallelbetrieb ohne Abweichung werden die verbleibenden bisherigen Finanzprogramme abgelöst, insbesondere YNAB und PP (Gate 4). Die Entfernung der reinen Prototyp-App ist keine Finanzabnahme.
+
+## Positioning
+
+Ein Hybrid, den keines der Vorbilder bietet:
+
+- **Envelope-Budgeting im Kern** (YNAB-Prinzip: Jeder vorhandene Euro hat genau einen Job, Zielwert „Zu verteilen“ = 0).
+- **Ausgabenlimit-Sicht obendrauf:** Aus den Zielen je Kategorie entsteht ein Monatslimit mit täglicher Pace-Linie („760 € von 3.000 €“), ohne das Envelope-Prinzip aufzugeben.
+- **Regelwerk aus Finanz-Basics** (registrierte Regeln (`RULE_CODES`): 50/30/20, Notgroschen, vom Vormonat leben, Sinking Funds, Dispo nie im Plan, Tilgungsreihenfolge, Asset Allocation, Klumpenrisiko, Freiheitszahl …) als konfigurierbare Daten, laufend geprüft, jede Regel mit Status und konkreter Maßnahme.
+- **Geldfluss-Wasserfall** in neun Stufen, der am Gehaltstag, bei Windfalls und bei Überschuss beantwortet, wohin der nächste freie Euro fließt.
+- **Vollständiges Vermögens- und Portfolio-Tracking** in derselben Datenbasis (TTWROR, IRR, Benchmark, Allocation Soll/Ist, Schulden mit Tilgungsszenarien).
+
+## Operating Context
+
+Acht Routinen tragen die App (Konzept Kapitel 4), jede mit geführtem Ablauf und Fortschrittsanzeige statt verstreuter Einzelseiten:
+
+| Rhythmus | Routine | Gerät |
+| --- | --- | --- |
+| Täglich, automatisch | Nachtlauf: Bank-Sync 2 × täglich, Kurse, Wechselkurse, erwartete Zahlungen zuordnen, Umbuchungen und Dubletten erkennen, Regeln prüfen | Server |
+| Laufend | Erfassen | Handy |
+| Wöchentlich | Prüfen leeren, Pace prüfen | Handy oder Desktop |
+| Gehaltstag | Geld verteilen mit dem Wasserfall-Assistenten | Desktop oder Handy |
+| Monatswechsel | Monatsabschluss: Kontostände prüfen, manuelle Werte, Überziehungen decken, Kontakte abrechnen, Monatsbericht | Desktop |
+| Quartal | Portfolio-Review, Abo-Preise, Bank-Einwilligungen erneuern (alle 180 Tage) | Desktop |
+| Jährlich | Jahresplanung, Jahresbericht, Wiederherstellung einer Sicherung testen | Desktop |
+| Ereignis | Szenario anlegen (Gehaltsänderung, Karenz, Teilzeit) | Desktop |
+
+**Prüfen** (`/konten/pruefen`, früher Posteingang) ist die zentrale Arbeitsliste: unkategorisierte Buchungen, Vorschläge, abweichende erwartete Zahlungen, Regelverletzungen, veraltete Werte, ablaufende Bank-Einwilligungen.
+
+Datenquellen: Enable Banking (PSD2) für österreichische Banken, Bitpanda-Lese-API, Kurse über yfinance mit Ersatzquelle Ariva, EZB-Wechselkurse, manuelle Bewertungen für P2P und Sonstiges Vermögen. Datei-Importe entfallen als App-Feature gemäß Entscheidung vom 01.10.2026; die einmalige Übernahme erfolgt separat mit Codex oder Claude aus den vorhandenen Exporten und der PP-Datei im privaten Datenbestand.
+
+## Capabilities and Constraints
+
+**Informationsarchitektur (Kapitel 6):** Fünf Hauptbereiche, je eine Leitfrage, auf Handy und Desktop gleich in Inhalt und Reihenfolge:
+
+| Bereich | Leitfrage |
+| --- | --- |
+| Heute | Hält der Monat? (Leitzahl: frei verfügbar bis Gehalt) |
+| Plan | Jeder Euro hat einen Job |
+| Konten | Was ist passiert? |
+| Vermögen | Was besitze ich? |
+| Reports | Warum und wohin? |
+
+Einstellungen liegen im Profil-Menü. Auf jeder Seite: Suche, Pille „Prüfen · N“ (früher Posteingang mit Zähler; Seitenreview 16.10.2026), „+ Buchung“. Zweite Ebene als Register (Einstellungen: gruppierte Liste statt Register, am Handy als Übersicht), keine dritte Menüebene; Details als Seitenpanel (Desktop) oder Blatt von unten (Handy). Jede Ansicht hat eine eigene URL.
+
+**Fachliche Invarianten (Kapitel 5.2):** Beträge als Integer in Cent; Summe der Anteile = Buchungsbetrag; Umbuchung = genau zwei Buchungen; nichts wird hart gelöscht, jede Änderung ist protokolliert und rückgängig machbar; Importe idempotent; Stichtag 01.10.2023 mit Eröffnungssalden, Kurshistorie vollständig auch davor.
+
+**Navigation-Begriff:** Der fünfte Hauptbereich heißt „Reports“ (Entscheidung 28.09.2026, statt „Berichte“).
+
+**Reports-Katalog (Entscheidung 29.09.2026, erweitert die 16 Berichte aus Konzept 9.1 auf 25):**
+- Monat und Einkommen: Monats-One-Pager (druckbar), Gehaltsreport (Brutto → Netto, Erhöhungen gegen Inflation), Einnahmen (erwartet gegen eingegangen), Geldfluss (Sankey), Jahresansicht (Kategorie × Monat), Kategorieübersicht, Gesamttabelle (alle Monate, CSV), Sparquote und Geldalter.
+- Ausgaben und Plan: Ausgabenanalyse, Budgettreue inkl. 50/30/20, Abos und Fixkosten, Persönliche Inflation, Empfänger-Analyse, Bank- und Zinskosten.
+- Zukunft und Vermögen: Liquiditätsprognose (90 Tage, 12 Monate, Szenarien), Cashflow-Verlauf, Vermögensverläufe, Portfolio-Performance, Jahresvorschau Zahlungen, Sparziele-Fortschritt.
+- Überblick: Jahresreport (druckbar), Finanz-Check-Verlauf, Explorer mit gespeicherten Ansichten, Kontakte-Abrechnung, Zeitraumvergleich.
+Alle Reports rechnen aus demselben Hauptbuch; Nettovermögen, Rendite und Regelstatus sind auf Heute, Vermögen und Reports identisch.
+
+**Feedback-Runde Reports (Entscheidungen 29.09.2026):**
+- Katalog jetzt 30 Reports in 5 Baugruppen: neu „Projekte und Nebeneinkünfte“ (1.9), Baugruppe 4 „Portfolio“ (Depots im Vergleich, Allocation, Einzahlungen und Wert, Rendite und Kennzahlen, Kosten/Steuern/Erträge), Überblick wird 5. Reihenfolge 1.7 Sparquote und Geldalter, 1.8 Gesamttabelle. „Abos und Fixkosten“ heißt „Verträge und Abos“ und enthält alle Verträge mit Fristen und Fremdwährung.
+- Vermögen und Reports doppeln sich nicht: Vermögen ist der Ort für Entscheidungen (Soll/Ist, Rebalancing, Sparpläne), Reports zeigen, wie sich die Entscheidungen ausgewirkt haben (auch gegen Weltindex). Der Performance-Verlauf ist aus Vermögen › Portfolio in die Reports gewandert.
+- 50/30/20 zeigt zugewiesenes Geld: periodische Kosten, Sonderzahlungen und Windfall-Umbuchungen zählen als Zwölftel; Bedarf + Wunsch + Zukunft + Übrig/aus Guthaben = 100 % der Einnahmen.
+- Liquiditätsprognose (ab 16.10.2026: Plan › Prognose statt Report) ist das Planungswerkzeug für geplante Ereignisse (z. B. Papamonat ohne Gehalt, Kinderwagen, Kinderzimmer): Ereignisliste, 6-Monats-Vorausschau, Urteil „geht sich aus“, 10 % Puffer, Stellschrauben (Weihnachtsgeld, Sparplan-Pause, Kündigen). Das Szenario „ohne Beitrag Miete“ entfällt.
+- Gehaltsreport folgt der eigenen Gehaltsübersicht (Auszahlung je Monat und Jahr, Jahresgehälter mit Zuwachs, Gehaltszettel mit Bezügen/Abzügen, Kollektiverhöhung/Biennalsprung). „Gehaltszettel hinzufügen“: PDF hochladen (Ablage in Dropbox › Finanzen › Einkommen › Gehalt) oder Werte eingeben.
+- Kreditkonditionen (Rahmen, Dispo, Zinssatz, Laufzeit) werden unter Einstellungen › Konten gepflegt; Fremdwährung: Originalbetrag bleibt, Umrechnung mit EZB-Kurs des Buchungstags, Abweichung der Bank als Fremdwährungsgebühr.
+- Regelwerk: Stufenmodell nach Nettovermögen (bis 10.000 / 100.000 / 1 Mio. €) mit Regeln aus I Will Teach You to Be Rich, Get Good with Money, Your Money or Your Life, Everyday Millionaires; „Dignity“ nur als Haltung (Würde statt Scham). Pflege unter Einstellungen › Regelwerk.
+- Farben: pastelliges Grün/Rot für Heatmaps und für Veränderungen mit Vorzeichen (besser/schlechter); Rot für Handlungsbedarf bleibt unverändert.
+- Planungswerkzeug mit KI-Unterstützung beim Befüllen und Entscheiden ist ein Ziel für später (V1+).
+
+**Buchungserfassung (Entscheidung 28.09.2026, ersetzt Konzept 7.5 Punkt 2):** Kein eigener Ziffernblock. Der Betrag ist ein Eingabefeld wie bei YNAB, in das Grundrechenarten direkt getippt werden können, ergänzt um kleine Operator-Knöpfe. Einnahmen können einer Kategorie zugeordnet werden (z. B. Geldgeschenk für eine Reise), Standard ist „Zu verteilen“. Bei einer Umbuchung ist die Gegenseite immer ein anderes Konto, nie ein Empfänger.
+
+**Heute (Entscheidung 28.09.2026):** Kein Urteilssatz wie „Ja, der Monat hält“; die Leitzahl beantwortet die Frage selbst. Der Seitenkopf zeigt den aktuellen Monat. Der Finanz-Check trägt eine Kennzahl (erfüllt / Warnung / verletzt über alle Regeln).
+
+**Migration aus YNAB (Entscheidungen 29.09.2026):** Quelle ist YNAB, nicht Actual. Die Aufzeichnungen in Budget beginnen am 01.10.2023 mit den Salden dieses Tages; Konten, die vorher geschlossen wurden, entfallen. Die YNAB-Struktur wird angepasst, nicht kopiert: weniger, gröbere Kategorien, Abos und Jahreszahlungen als erwartete Zahlungen, Einmalkäufe als Sparziele, Personen als Kontakte, Nebenprojekte als eigene Gruppe „Side Hustle“ mit einer Kategorie je Projekt. Neue Zuordnungsregeln gelten ab Jänner 2026. Echte Namen (Kontakte, Empfänger) stehen nur in der Datenbank und werden in der App unter Einstellungen gepflegt, nie im Repo. Emojis an Kategorien bleiben, aber einfarbig.
+
+**Envelope-Regeln und Darstellung (Entscheidungen 30.09.2026):** Positives Guthaben wird in jeder Kategorie vorgetragen, auch bei Fix-, Investier- und Kredit-Envelopes (wie YNAB; der Prototyp setzte sie zur Vereinfachung auf 0). Kreditkarten siehe den folgenden Absatz. Prozentanteile werden nach dem größten Rest gerundet und ergeben immer 100 (August-One-Pager 54 / 34 / 26 / −14 %). Der Darstellungs-Knopf benennt wie im Prototyp das Ziel („Dunkle Blaupause“ / „Heller Zeichenfilm“) und folgt bis zum ersten Umschalten dem System. Der Titelstreifen auf dem Handy zeigt nur Werte; Labels nur, wo der Wert allein mehrdeutig ist. 44-px-Tippflächen und Lucide-Symbole gelten vor Pixelgleichheit mit dem Prototyp.
+
+**Kreditkarten (Entscheidung 30.09.2026, ersetzt die einfache Konzeptregel aus Konzept 3.1):** Kartenausgaben folgen YNAB. In den Envelope „Kartenzahlung“ wandert nur der gedeckte Teil einer Kartenausgabe; was die Kategorie nicht decken kann, bleibt als neue Kartenschuld stehen (Kredit-Überziehung) und mindert „Zu verteilen“ im Folgemonat nicht, anders als eine Überziehung mit Bargeld. Wird die Kategorie später im Monat gedeckt, wandert der Betrag nachträglich. Gutschriften auf der Karte fließen voll in die Kategorie zurück, Zahlungen an die Karte mindern den Envelope. Ist eine Kategorie im selben Monat bar und mit Karte überzogen, zählt zuerst das Bargeld (wie YNAB: „takes the cash out first“), nur der Rest ist Kartenschuld. Die einfache Konzeptregel bleibt für den Parallelbetrieb umschaltbar.
+
+**Kategorien und Plan › Monat (Entscheidungen 30.09.2026, P2c-Review):** Zusammenführen verrechnet eine Überziehung der Quelle mit dem Geld des Ziels, der Übertrag in den Folgemonat kann sich daher ändern (wie YNAB); die Oberfläche weist darauf hin. Zusammenführen in eine Einnahmen-Kategorie ist nur für Einnahmen möglich (Server und Oberfläche), in eine ausgeblendete nur mit Hinweis. Zusammenführen und Abspalten ordnen auch geprüfte Buchungen um, Abspalten nimmt nur bestehende (nicht gelöschte) Buchungen. Ein entferntes Ziel verliert alle Versionen (die Geschichte bleibt im Änderungsprotokoll). Eine Kartenzahlung behält Art und Karte. „Decken“ aus „Zu verteilen“ nimmt höchstens, was dort liegt; mehr (dann wird „Zu verteilen“ negativ) nur nach ausdrücklicher Bestätigung. Auf dem Handy wird statt Ziehen mit ↑/↓ sortiert. Der Beispielhaushalt lebt nach R03 vom Vormonat: das Gehalt vom 30. bleibt bis zum Folgemonat in „Zu verteilen“, periodische Kosten werden als Zwölftel angespart.
+
+**YNAB-Import, Review (Entscheidungen 30.09.2026):** Eine Überweisung von der Kreditkarte auf ein Budgetkonto (z. B. PayPal) ist ein Barvorschuss nach YNAB: neue Kartenschuld, das Geld kommt in „Zu verteilen“, die Kartenzahlung bleibt unverändert. Ab der ersten Zuordnungsregel werden die Kartenzahlungs-Kategorien nicht mehr mit YNAB verglichen; die Verschiebung der Kartenschuld wird eigens ausgewiesen. Buchungen nach dem Exportdatum kommen vorerst als offene Buchungen (erwartete Zahlungen entscheidet P3). Eine Buchung wandert nie auf ein Konto mit anderer Währung, und ein zusammengeführter Empfänger mit geprüften Buchungen bleibt bestehen.
+
+**Geldfluss-Wasserfall (Entscheidung 28.09.2026, ergänzt Konzept 3.6):** Neun statt acht Stufen. Nach „1 Fixkosten und Mindestraten“ kommt neu „2 Laufender Monat“ mit den variablen Monatszielen für Bedarf und Wunsch (Lebensmittel, Treibstoff, Freizeit …); die Konzeptstufen 2–8 rücken auf 3–9. Plan › Monat ordnet die Tabelle standardmäßig nach diesen Stufen (umschaltbar auf Gruppen oder Klassen); Überziehungen erscheinen als Triage-Leiste über der unveränderten Tabelle, nicht als eigener Modus.
+
+**Umfang V1:** Budget, Vermögen und Portfolio komplett, 27 KPIs mit fester Formel und genau einem primären Ort, 30 Reports inkl. Explorer und druckbarer Blätter (`SPEC.md` §7), Diagramm-Grammatik nach Konzept 9.2 und 9.3 und DESIGN.md.
+
+**Login:** Passkeys (Face ID, Touch ID, Windows Hello), zehn Wiederherstellungscodes, 30-Tage-Session auf registrierten Geräten, erneute Bestätigung für Export, Bankverbindung und neue Passkeys.
+
+**Nicht in V1:** Steuer, KI-Beratung oder KI-Kategorisierung, Fahrzeug- und Immobilienbewertung, Mehrbenutzer und Partner-Verknüpfung, native App, Kompatibilität zu Actual.
+
+**Umsetzung:** Pakete P0–P6 mit vier Gates (`SPEC.md` §11, `docs/ROADMAP.md`). Stand 01.10.2026: Fundament, erste Auditkorrekturen und große Teile von P2/P3 sowie die Nettovermögen-Seite umgesetzt; mehrere produktive Seiten fehlen noch. Gate 1–4 sind nicht abgenommen. Implementierung, offene Fehler und Betriebsnachweise stehen getrennt in `docs/STATUS.md`.
+
+**Erster echter Import (Entscheidung 01.10.2026):** nur EUR. Vollständige Fremdwährungsunterstützung bleibt Zielumfang; nicht unterstützte Fremdwährungs-Budgetkonten dürfen nicht stillschweigend in EUR-Summen eingehen. Quelle ist der YNAB-Export, Actual wird nicht migriert.
+
+**Kontakte und Ausgleich (Nutzerentscheidung, 01.10.2026):** Eingehende Rückzahlungen werden standardmäßig der ältesten offenen Auslage zugeordnet; die Zuordnung ist vor dem Speichern änderbar. Cash-Buchung, Zuordnung und Guthaben werden gemeinsam protokolliert und rückgängig gemacht. Überzahlungen bleiben als negatives Kontaktguthaben bestehen, nicht als Einnahme oder Geschenk. Nullsalden blenden Kontakte nur in der normalen Übersicht aus; Identität und Kontoblatt bleiben erhalten und auswählbar. Ein neuer Saldo zeigt den Kontakt wieder. Abgeleitete Kontaktforderungen und -guthaben werden nicht zum Nettovermögen addiert: Dieses folgt tatsächlichen Kontosalden und Anlagewerten, eine Auslage mindert es bis zur realen Rückzahlung. Die aktuelle Umsetzung der Kontoblätter und Rückzahlungen ist auf EUR beschränkt; Fremdwährungen bleiben Zielumfang.
+
+**Import/Export als App-Feature (Entscheidung 01.10.2026):** Importfunktion entfernen. Der geschützte CSV-Export aller Konten und Depots lädt nach erneuter Passkey-Bestätigung eine ZIP-Datei mit vollständiger Buchungs- und gespeicherter Portfoliohistorie. Berechnete Salden und Positionen beziehen sich auf heute; Originalbeträge bleiben erhalten und nicht berechenbare Werte werden gekennzeichnet. Authentifizierungsdaten, Zugangsdaten und Auditdaten gehören nicht in den Export. Die einmalige Datenübernahme bleibt ein separater, vom Nutzer autorisierter Auftrag für Codex oder Claude auf Basis der vorhandenen Exporte und PP-Datei.
+
+**Kontogruppen und Profil (Entscheidung 02.10.2026):** Konten stehen überall in YNAB-Reihenfolge: Budget-Konten (Giro, Bargeld, Tagesgeld im Budget), Kreditkarten, Kredite, Investments (Depot, Krypto, P2P, sonstiges Vermögen, auch Konten außerhalb des Budgets); innerhalb der Gruppe gilt die Sortierung des Besitzers. Geschlossene Konten erscheinen nicht in Seitenleiste, Gruppen und Auswahlen, nur eingeklappt unter „Geschlossen“ in Konten › Übersicht und auf Wunsch in Filtern. Einstellungen › Profil speichert Name, Kürzel, Geburtsdatum, Haushalt (Personen) und Bundesland als Einstellungen (app_setting, protokolliert), später für den Vergleich von Einkommen und Vermögen mit der Statistik Austria; das Repo enthält keine echten Angaben, der Standard ist generisch.
+
+**Offen:** Die Konten- und Kategorienliste für die Migration (P2). Name entschieden: Budget.
+
+## Brand Commitments
+
+- **Sprache der Oberfläche:** Deutsch (de-AT), Beträge `1.234,56 €`, Minus als echtes „−“, Einnahmen mit „+“. Kennzahlen ohne Cent, Listen mit Cent. Code, Kommentare und technische Doku auf Englisch.
+- **Eigenes Glossar statt Fremdbegriffen (Prinzip 1):** „Zu verteilen“, „Verfügbar“, „Bestätigt“, „Kontostand prüfen“, „Erwartet“, „Prüfen“ (früher „Posteingang“), „Kontakt“, „Anteil“, „Umbuchung“. Keine Begriffe wie „Abgleichbuchung“, „cleared“ oder „Bei Bank gebucht“. Jeder Begriff steht im Glossar.
+- **Generisch statt personenbezogen (Prinzip 2):** Kein Personen- oder Anbietername im Code, in UI-Texten oder in Beispielen. Personen sind Kontakte, Anbieter sind Institutionen, beides Daten.
+- **Name:** Budget.
+- **Visuelle Welt:** Kapitel 10 des Konzepts (Manrope, Farb-Tokens, Akzent, Klassenfarben, helle Kacheln) und die Mockups in `03_Mockups` sind nur Entwurf. Vom Nutzer festgelegt (28.09.2026): **Blautöne und Blaupausen-Look** – technisch, klar, stilsicher, „feine Klinge“; nicht generisch. Abgelehnt: Braun-/Rams-Industriedesign. Details entstehen über `/impeccable` und landen in DESIGN.md. Präzisionsschicht (Entscheidung 02.10.2026, „Architect / Precision Fintech“): kühler Slate-Grund mit weißen Karten, eisblaue Seitenleiste mit Kontenhierarchie, Waldgrün als Signal für vorhandenes Geld (Hero-Kennzahl, Mint-Pillen), Zeichenraster nur als ausgeblendeter Eckakzent, Plan › Monat dreispaltig mit Inspektor; der dunkle Modus bleibt Preußischblau; die Mockups in `design/screens` sind keine Prüfreferenz mehr (DESIGN.md). Verbindlich ist außerdem die Bedeutungslogik: Die drei Klassen Bedarf/Wunsch/Zukunft, Richtung (Einnahme/Ausgabe) und Status (erfüllt/Warnung/verletzt) brauchen je eine eigene, überall gleiche Kennzeichnung.
+
+## Evidence on Hand
+
+- `docs/concept/produktkonzept.md` – ursprüngliche vollständige Spezifikation (Vorrang regelt `SPEC.md`).
+- `docs/concept/ist-analyse-altes-cockpit.md` – Befunde zum alten Cockpit und Zuordnung des Nutzer-Feedbacks zu Ursachen.
+- `design/prototype/` und `design/screens/` – verbindlicher Prototyp im Blaupausen-Look (ersetzt die alten Mockups `03_Mockups`, die nicht mehr gelten).
+- `reference/finance-hub/` – getestete Rechenmodule des alten Repos (Liquidität, Tilgung, TTWROR/IRR, Kurshistorie, Kontoabgleich, Import-Zuordnung, Dublettenschutz, wiederkehrende Zahlungen, Betragsformat) werden nach TypeScript portiert und von Namen befreit.
+
+**Nicht erfinden:** Alle Zahlen, Bank-, Broker- und Positionsnamen in den Mockups sind Beispieldaten. Echte Finanzdaten kommen erst über die Migration (P2) in die App. Keine realen Salden, Institutionen oder Personen in Entwürfe, Tests oder Doku übernehmen.
+
+## Product Principles
+
+1. **Eine Frage je Ort.** Jeder Hauptbereich, jede Kachel und jeder Bericht beantwortet genau eine Frage; jede Kennzahl hat genau einen primären Ort.
+2. **Jede Zahl ist erklärbar.** Jede Kennzahl lässt sich bis zur einzelnen Buchung aufklappen; nichts verschwindet stillschweigend, alles ist rückgängig machbar.
+3. **Mobil erfassen, Desktop steuern.** Beide Geräte zeigen dieselbe Sitemap und dieselben Inhalte, sie unterscheiden sich nur in der Tiefe.
+4. **Regeln statt Bauchgefühl.** Finanz-Basics sind geprüfte Regeln mit Status und Maßnahme, nicht Hinweistexte.
+5. **Automatisch, wo es zuverlässig ist.** Bank-Sync und Kurse laufen von selbst; manuelle Eingabe ist ein gleichwertiger Weg, kein Notbehelf.
+
+**Owner-Entscheidung 05.10.2026 — Alarmsemantik:** Jede Überziehung bleibt rot und hat pro Seite genau einen Warnort. Heute bündelt sie unter „Braucht Aufmerksamkeit“ (die zwei größten, Rest über „weitere N“); angepinnte Envelopes zeigen nur ihren roten verfügbaren Betrag, Nächste Schritte wiederholt keine Überziehung. Plan zeigt rote Einzelbeträge mit kompaktem Deckungszugriff und eine gemeinsame Deckungsaktion. Kreditkarten- und Kreditsalden in der Seitenleiste sind Tinte mit Minus, keine rote Pille.
+
+**Owner-Entscheidung 05.10.2026 — Wortwahl:** Maßkette, Stückliste, Revision und Wasserstand bleiben als grafische Begriffe. Schaltflächen und Links auf Heute und Plan benennen die Handlung in einfachen Worten, etwa „Herleitung zeigen“.
+
+Heute beginnt mit frei verfügbar bis Gehalt und der gemeinsamen 35-Tage-Prognose, den nächsten sieben Tagen, Aufmerksamkeit und Gesamtvermögen (dieselbe Nettovermögensbewertung wie Vermögen). Pace und weitere Monatszahlen bleiben unter „Mehr zum Monat“, am Handy anfangs geschlossen, am Desktop offen; Auswahl je Gerät gespeichert. Deckung zeigt den verbleibenden Quellbetrag, schlägt nur ausreichend gefüllte Quellen absteigend vor und bietet eine Sammeldeckung in Wasserfall-Reihenfolge bis das Geld aufgebraucht ist, mit einer Rücknahme für die gesamte Aktion.
+
+## Accessibility & Inclusion
+
+Owner UX Q1 (2026-10-14, #464): normal text has at least 4.5:1 contrast and control boundaries/meaningful data marks at least 3:1 in both themes. Hover and selection metadata use the stronger secondary text role. Positive dark fills retain a contrasting foreground; DS1 owns the later teal/orange palette.
+
+- Rot und Grün nur zusammen mit Vorzeichen oder Symbol (Farbfehlsichtigkeit). Kontrast und Farbfehlsichtigkeit werden mit einem Werkzeug geprüft, bevor Farben festgeschrieben werden.
+- Berührflächen mindestens 44 × 44 px; Erfassung und Suchfelder sind mit Tastatur und Touch bedienbar (eigene Combobox statt `<datalist>`, die auf iOS Safari versagt).
+- Reduzierte Bewegung wird respektiert.
+- Vollwertiger Dunkelmodus.

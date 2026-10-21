@@ -1,0 +1,177 @@
+[
+  {
+    "path": "docs/handoff/594-preparation/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/594-preparation/README.md",
+    "size": 186,
+    "sha256": "74e5d5609c0c3dc4f827bbf0293a78354ba6ac13a46b33560e08a5598e694d0b"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/ISSUE_EVIDENCE.json",
+    "size": 1271,
+    "sha256": "cb85e3477bd5deacedc16fa3b467d47e566f9e27cadb964bad93c96f0c4e9070"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/PLAN.md",
+    "size": 16004,
+    "sha256": "b0d25e0969ebc88fed878160d1fc9e5a7a171debef4436cf9c3713bdd1c5cc9c"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/PROPOSAL_FREEZE.json",
+    "size": 1047,
+    "sha256": "12ef5cf4e6528f2a01ddda664c58ccfc358db0d37c50c33ff7434880defb4afb"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/READ_ONLY_RECEIPT.json",
+    "size": 338,
+    "sha256": "8f414bd3eb6e500b2aaed98c180adbd0f5156e1ff7d54406d202a7dd1d3c26be"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/SOURCE_PINS.json",
+    "size": 4345,
+    "sha256": "c088f007dd78c5d1f696ee04de68198bb6a1e3ecccd1c52fb9286227682afa36"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/DESIGN.md",
+    "size": 59191,
+    "sha256": "569cd77d604bc8f17ac0ca0e7105bbdf8610a03c63bdd72e6abd5bf7a985162f"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/PRODUCT.md",
+    "size": 44429,
+    "sha256": "d1c38fd46f253bd80c3ac4a19daa485b861ccd59fd544375682d142113594cca"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/SPEC.md",
+    "size": 51766,
+    "sha256": "b08704a5e9e48cf7223bebf81d5775e8b543c1bb41e0b564d5c40345d1e09c42"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/server/src/api/bookings.ts",
+    "size": 17049,
+    "sha256": "bad0f205b3eae3185f5f15ff3fcd733708d5d33d9f69411ca5ce165ffd4fe793"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/server/src/api/export-admission.ts",
+    "size": 520,
+    "sha256": "9f5411dbd21ad5934abd8aa0cf827366eb7f2d749bffdccf078fe46d6be7784b"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/server/src/api/export.ts",
+    "size": 26386,
+    "sha256": "e56ae48098893e296ac38e15daeddd3782e3471ce024db8272c0eb458a2b8782"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/server/src/api/index.ts",
+    "size": 9316,
+    "sha256": "0652387a05167ff4972da522e5ab43813a034ab4c91c1f54592e8b4744b754cf"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/server/src/api/schemas.ts",
+    "size": 15253,
+    "sha256": "13905d2d9415870ff58f69023e10004607db4e01e51be85b5628887672004844"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/web/src/ledger/api.ts",
+    "size": 10135,
+    "sha256": "cabbe8701ebdc941c881faab9d0d83f58376949e6dce976bb88b05bc2755c581"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/web/src/ledger/booking-delete-preview.tsx",
+    "size": 7064,
+    "sha256": "c13c9605c9f55b0b603956dffdf7f7ef48e634284abfabe7371b3480c5717162"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/web/src/ledger/booking-selection-bar.tsx",
+    "size": 6891,
+    "sha256": "24c8c0b8930664cece2622d34655ab375af9bcbe5f164aaf9f7232a40cc77024"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/web/src/ledger/booking-table-581.test.tsx",
+    "size": 5190,
+    "sha256": "2a4b825a43303ef15402cd77da80c7afb6a5a9db79e43806e5e5cd2f8abdaeb3"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/web/src/ledger/booking-table.tsx",
+    "size": 20504,
+    "sha256": "ed741b087b9bc85c5e0b1bbb7154bcb6e70755492263efea1d90840b85f44198"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/web/src/ledger/bookings-page.tsx",
+    "size": 24674,
+    "sha256": "49646503d06e6e6e52b5ba5475a0a698f46236c14e5524a4dd73a2dbd7811852"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/web/src/ledger/bookings-search.test.ts",
+    "size": 3710,
+    "sha256": "7b6a457e6a9be33d56f8a5fc049e0a83482ae4fd1b1d0f8b04f2af062bc1cf33"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/web/src/ledger/bookings-search.ts",
+    "size": 4338,
+    "sha256": "afbdb72ac324878e357ed088ec5151e7202c690e5ad4178c81aee69310811218"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/web/src/ledger/format.ts",
+    "size": 4811,
+    "sha256": "3734f39ed027077e9033675da160b800978d0916e5f6e9d054e540d3920865e2"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/web/src/ledger/queries.ts",
+    "size": 3251,
+    "sha256": "2089427b0df8fe8af48b0c1900a1a8ea094b3d7a8a94e254b1b61cb61bfd7e60"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/web/src/ledger/types.ts",
+    "size": 7092,
+    "sha256": "674bd136e0197701132011599ccfedae6ac4897e9a6a7d8442a45ef4ed292606"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/web/src/ledger/upcoming-register.tsx",
+    "size": 6898,
+    "sha256": "b580613b4e784a5dfb6d07001e6faa1278b4746e4fe7fbf02f093ac24709b909"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/web/src/reports/overview-api.ts",
+    "size": 4005,
+    "sha256": "afbee7f60d9abccec7da5173860c36a5da7589cd5b0a8da9d60741d2758e9132"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/apps/web/src/router.tsx",
+    "size": 33285,
+    "sha256": "83f09b7733c2f4b10c2419e1d15e3e6f14535870b116b74534ec6abff7fd7902"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/docs/ROADMAP.md",
+    "size": 269151,
+    "sha256": "c2845f1588abe3fa54cebf2ac0b5975bd3fe816e4ddd0a24b4902c2f2e937677"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/docs/export.md",
+    "size": 3920,
+    "sha256": "c2e3a40fa6e3a184efd1edc06085a84a437787397279d727ac5316642258e7cf"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/e2e/ledger-filters.spec.ts",
+    "size": 4248,
+    "sha256": "a8702ebed7b5859d1d0b1b09a27131fcf9b6efbfd81445b4c5f96ff2ae688fcc"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/packages/db/src/repos/ledger-queries.ts",
+    "size": 21669,
+    "sha256": "0c5c8274d5758018c1b2c4f6058ffd0f00f92a7c7b319c4c1bb6af254e60d825"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/packages/domain/src/overview/explorer-csv.ts",
+    "size": 3138,
+    "sha256": "2f9a594cc4cfad39f562cf20d073814c912816d12297ea32ab944ac8a147119c"
+  },
+  {
+    "path": "docs/handoff/594-preparation/prepared-only/pinned-sources/packages/ui/src/components/panel.tsx",
+    "size": 9930,
+    "sha256": "94ae2b2f38abf71d20fddc53d02a347b69cc1290fa7aa16d9896da4286bc0f91"
+  }
+]

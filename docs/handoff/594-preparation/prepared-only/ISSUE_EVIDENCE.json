@@ -1,0 +1,19 @@
+{
+  "readAt": "2026-10-21T13:54:52.002510+00:00",
+  "issue594": {
+    "state": "OPEN",
+    "title": "Alle Buchungen: search + \"Filter ▾\" with removable chips, URL state, sum and count, CSV in ⋯",
+    "unblockedOwnerComment": "https://github.com/Grabman1987/budget/issues/594#issuecomment-6234171059",
+    "quote": "Unblocked: all blockers (468) are closed/live."
+  },
+  "owner479": {
+    "url": "https://github.com/Grabman1987/budget/issues/479#issuecomment-6211452827",
+    "quotes": [
+      "Filter: **Suchfeld + „Filter ▾“** (Konto, Kategorie, Zeitraum, Status, Markierung); aktive Filter als entfernbare **Chips**; wirkt sofort, steht in der URL. Kein „Filter anwenden“.",
+      "Routine: Kommend als eingeklappte Zeile (wie Register); Anzahl + Summe des Filters immer sichtbar; Saldo-Spalte nur bei genau einem Konto; CSV-Export des aktuellen Filters im ⋯-Menü."
+    ]
+  },
+  "596SourceOnlyOwnerComment": "https://github.com/Grabman1987/budget/issues/596#issuecomment-6315114858",
+  "597SourceOnlyOwnerComment": "https://github.com/Grabman1987/budget/issues/597#issuecomment-6315602856",
+  "scope": "Public issue/owner comments read with gh issue view this turn. No board/issue/PR mutation. Existing source checkpoints are not LIVE acceptance."
+}
