@@ -44,7 +44,6 @@ CREATE UNIQUE INDEX `statement_settlement_transfer_uq` ON `statement_settlement`
 --> statement-breakpoint
 CREATE UNIQUE INDEX `statement_settlement_legacy_uq` ON `statement_settlement` (`legacy_payment_id`,`legacy_due_date`) WHERE `deleted_at` IS NULL AND `state` NOT IN ('withdrawn','superseded');
 --> statement-breakpoint
---> statement-breakpoint
 CREATE UNIQUE INDEX statement_settlement_issued_identity_uq ON statement_settlement(card_account_id,issue_date) WHERE reference IS NULL AND deleted_at IS NULL AND state NOT IN ('withdrawn','superseded');
 --> statement-breakpoint
 CREATE TABLE statement_automation_config (
