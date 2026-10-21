@@ -1,0 +1,37 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/623-wealth-report-views",
+  "sourceHead": "8286d82cc689addd5a71b939ec599e5f89122ae9",
+  "originalBaseBeforeOwnedCommits": "2be8458390912470bd0260580a5b55547cc158e0",
+  "orderedCommits": [
+    {
+      "sha": "8286d82cc689addd5a71b939ec599e5f89122ae9",
+      "parentBase": "2be8458390912470bd0260580a5b55547cc158e0",
+      "subject": "feat(reports): combine the wealth report views (validation pending)",
+      "paths": [
+        "apps/web/src/pages/reports-pages.tsx",
+        "apps/web/src/reports/assets-debts-report.tsx",
+        "apps/web/src/reports/report-search.ts",
+        "apps/web/src/reports/wealth-history-report.tsx",
+        "apps/web/src/reports/wealth-report-views.tsx",
+        "apps/web/src/reports/whole-picture-report.tsx",
+        "docs/ROADMAP.md"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 8286d82cc689addd5a71b939ec599e5f89122ae9 > OWN_OUTPUT/8286d82cc689addd5a71b939ec599e5f89122ae9.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-8286d82cc689addd5a71b939ec599e5f89122ae9.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/web/src/pages/reports-pages.tsx",
+    "apps/web/src/reports/assets-debts-report.tsx",
+    "apps/web/src/reports/report-search.ts",
+    "apps/web/src/reports/wealth-history-report.tsx",
+    "apps/web/src/reports/wealth-report-views.tsx",
+    "apps/web/src/reports/whole-picture-report.tsx",
+    "docs/ROADMAP.md"
+  ],
+  "mixedSourceAncestry": false,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

@@ -1,0 +1,198 @@
+diff --git a/apps/web/src/pages/reports-pages.tsx b/apps/web/src/pages/reports-pages.tsx
+index af96633cce9156f473c083835dac60f879ff5717..4d6613995e2937ad38bb46e9e51a80b2d610669a 100644
+--- a/apps/web/src/pages/reports-pages.tsx
++++ b/apps/web/src/pages/reports-pages.tsx
+@@ -25,7 +25,7 @@ import { GoalsProgressReport } from './goals-progress-report';
+ import { PaymentsPreviewReport } from './payments-preview-report';
+ import { ContactReportPage } from '../reports/contact-report';
+ import { CashflowReportPage } from '../reports/cashflow-report';
+-import { AssetsDebtsReport } from '../reports/assets-debts-report';
++import { WealthReportViews } from '../reports/wealth-report-views';
+ import { WealthHistoryReport } from '../reports/wealth-history-report';
+ import { PayeeAnalysisReport } from './payee-analysis-report';
+ import { PortfolioPerformanceReport } from './portfolio-performance-report';
+@@ -198,7 +198,7 @@ export function ReportPage({ reportId, detail = false }: { reportId: string; det
+   };
+   if (report.id === 'cashflow') return <CashflowReportPage report={report} meta={meta} />;
+   if (report.id === 'vermoegen') return <WealthHistoryReport report={report} meta={meta} />;
+-  if (report.id === 'vermoegen-schulden') return <AssetsDebtsReport report={report} meta={meta} />;
++  if (report.id === 'vermoegen-schulden') return <WealthReportViews report={report} meta={meta} />;
+   if (report.id === 'ausgaben') return <SpendingReportViews report={report} meta={meta} />;
+   if (report.id === 'budgettreue') return <BudgetAdherenceReportPage report={report} meta={meta} />;
+   if (report.id === 'planungstreue')
+diff --git a/apps/web/src/reports/assets-debts-report.tsx b/apps/web/src/reports/assets-debts-report.tsx
+index 969e6465a74f09e185da3829f640624a19b21260..6991935d258180d75cfa47b984181172cc8d1149 100644
+--- a/apps/web/src/reports/assets-debts-report.tsx
++++ b/apps/web/src/reports/assets-debts-report.tsx
+@@ -2,7 +2,7 @@ import { ReportPeriodControl } from './period-quick-select';
+ import { useAmountPrivacy } from '@budget/ui';
+ import { MINUS } from '@budget/domain';
+ import { useQuery } from '@tanstack/react-query';
+-import { useMemo } from 'react';
++import { useMemo, type ReactNode } from 'react';
+ import { useNavigate, useSearch } from '@tanstack/react-router';
+ import { ArrowDown, ArrowUp } from 'lucide-react';
+ import { userText } from '../api/error-text';
+@@ -56,7 +56,11 @@ function useSelectedMonth(
+  * months that rest on an estimated price carry the usual valuation hint. A selected month shows
+  * the accounts behind it.
+  */
+-export function AssetsDebtsReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
++export function AssetsDebtsReport({ report, meta, viewControl }: {
++  report: ReportEntry;
++  meta: PageMeta;
++  viewControl?: ReactNode;
++}) {
+   useAmountPrivacy();
+   const [period, setPeriod] = useZeitraum('Alles');
+   const query = useQuery(assetsDebtsHistoryQuery(period));
+@@ -85,6 +89,7 @@ export function AssetsDebtsReport({ report, meta }: { report: ReportEntry; meta:
+             : 'wird geladen'
+       }
+       extraFields={[
++        ...(viewControl ? [{ label: 'Ansicht', value: viewControl }] : []),
+         {
+           label: 'Zeitraum',
+           value: (
+diff --git a/apps/web/src/reports/report-search.ts b/apps/web/src/reports/report-search.ts
+index 35e9a3cf423c397a8aa1c20cc0bd58bd5e1bffa4..daf8ccc22a89c9a27eba73f1fcbf9d71570c7f1f 100644
+--- a/apps/web/src/reports/report-search.ts
++++ b/apps/web/src/reports/report-search.ts
+@@ -9,7 +9,8 @@ const ids = (value: unknown) =>
+     : undefined;
+ 
+ export const validateReportSearch = (search: Record<string, unknown>) => ({
+-  darstellung: search['darstellung'] === 'gruppen' || search['darstellung'] === 'empfaenger' ? search['darstellung'] : undefined,
++  darstellung: ['gruppen', 'empfaenger', 'bilanz', 'verlauf', 'gesamt'].includes(search['darstellung'] as string)
++    ? search['darstellung'] as 'gruppen' | 'empfaenger' | 'bilanz' | 'verlauf' | 'gesamt' : undefined,
+   empfaenger: id(search['empfaenger']),
+   exakt: search['exakt'] === true || search['exakt'] === 'true' ? true : undefined,
+   vorlage: isExplorerTemplate(search['vorlage']) ? search['vorlage'] : undefined,
+diff --git a/apps/web/src/reports/wealth-history-report.tsx b/apps/web/src/reports/wealth-history-report.tsx
+index 2d96179a8029d3816117988ac9b14e5eaa6b1fa4..565226682cd508120f2d5ca27bb1401f3eb3a454 100644
+--- a/apps/web/src/reports/wealth-history-report.tsx
++++ b/apps/web/src/reports/wealth-history-report.tsx
+@@ -1,7 +1,7 @@
+ import { ReportPeriodControl } from './period-quick-select';
+ import { useAmountPrivacy, DimensionChain } from '@budget/ui';
+ import { useQuery } from '@tanstack/react-query';
+-import { useMemo } from 'react';
++import { useMemo, type ReactNode } from 'react';
+ import { ArrowDown, ArrowUp } from 'lucide-react';
+ import { userText } from '../api/error-text';
+ import { ApiError } from '../api/http';
+@@ -28,7 +28,11 @@ const percent = new Intl.NumberFormat('de-AT', {
+  * Report 3.3 Vermögensverläufe: the net worth of the chosen Zeitraum with its Maßkette (the same
+  * series and chain as Vermögen › Nettovermögen) and how it is made up by account type over time.
+  */
+-export function WealthHistoryReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
++export function WealthHistoryReport({ report, meta, viewControl }: {
++  report: ReportEntry;
++  meta: PageMeta;
++  viewControl?: ReactNode;
++}) {
+   useAmountPrivacy();
+   const [period, setPeriod] = useZeitraum();
+   const query = useQuery(netWorthHistoryQuery(period));
+@@ -54,6 +58,7 @@ export function WealthHistoryReport({ report, meta }: { report: ReportEntry; met
+             : 'wird geladen'
+       }
+       extraFields={[
++        ...(viewControl ? [{ label: 'Ansicht', value: viewControl }] : []),
+         {
+           label: 'Zeitraum',
+           value: (
+diff --git a/apps/web/src/reports/wealth-report-views.tsx b/apps/web/src/reports/wealth-report-views.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..bf4aed1772c4791fdfcffc990a9855d5cd0cb33f
+--- /dev/null
++++ b/apps/web/src/reports/wealth-report-views.tsx
+@@ -0,0 +1,42 @@
++import { Segmented } from '@budget/ui';
++import { isReportPeriod } from '@budget/domain';
++import { useNavigate, useSearch } from '@tanstack/react-router';
++import type { PageMeta } from '../nav/pages';
++import type { ReportEntry } from '../nav/reports-catalog';
++import { DEFAULT_ZEITRAUM } from '../wealth/zeitraum';
++import { AssetsDebtsReport } from './assets-debts-report';
++import { WealthHistoryReport } from './wealth-history-report';
++import { WholePictureReport } from './whole-picture-report';
++import './report-views.css';
++
++const WEALTH_VIEWS = [
++  { value: 'bilanz', label: 'Vermögen und Schulden' },
++  { value: 'verlauf', label: 'Vermögensverlauf' },
++  { value: 'gesamt', label: 'Gesamtübersicht' },
++] as const;
++type WealthView = (typeof WEALTH_VIEWS)[number]['value'];
++
++/** Reuse the complete original readers, valuation states and monetary bodies, one at a time. */
++export function WealthReportViews({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
++  const search = useSearch({ strict: false }) as { darstellung?: unknown; zeitraum?: unknown };
++  const navigate = useNavigate();
++  const view: WealthView = search.darstellung === 'verlauf' || search.darstellung === 'gesamt'
++    ? search.darstellung : 'bilanz';
++  const changeView = (next: WealthView) => {
++    if (next === view) return;
++    // Materialize the active reader's existing fallback only at a real switch, never on mount.
++    const period = isReportPeriod(search.zeitraum) ? search.zeitraum
++      : view === 'verlauf' ? DEFAULT_ZEITRAUM : view === 'gesamt' ? '1J' : 'Alles';
++    void navigate({
++      to: '.',
++      search: ((previous: Record<string, unknown>) => ({
++        ...previous, darstellung: next, zeitraum: period,
++      })) as never,
++    });
++  };
++  const control = <Segmented className="report-view-switch" label="Ansicht von Vermögen und Schulden"
++    options={WEALTH_VIEWS} value={view} onChange={changeView} />;
++  if (view === 'verlauf') return <WealthHistoryReport report={report} meta={meta} viewControl={control} />;
++  if (view === 'gesamt') return <WholePictureReport report={report} meta={meta} viewControl={control} />;
++  return <AssetsDebtsReport report={report} meta={meta} viewControl={control} />;
++}
+diff --git a/apps/web/src/reports/whole-picture-report.tsx b/apps/web/src/reports/whole-picture-report.tsx
+index 97e9876e43bb8657170e1836b3146e3555e92d00..528130b7842218ff99a1970b59d16d29d67a432b 100644
+--- a/apps/web/src/reports/whole-picture-report.tsx
++++ b/apps/web/src/reports/whole-picture-report.tsx
+@@ -1,4 +1,4 @@
+-import { useMemo } from 'react';
++import { useMemo, type ReactNode } from 'react';
+ import {
+   addMonths,
+   cents,
+@@ -76,7 +76,11 @@ export function WholePictureVerdict({ row, estimated = false }: { row: Row; esti
+   return <VerdictLine facts={facts} testId="whole-verdict" />;
+ }
+ 
+-export function WholePictureReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
++export function WholePictureReport({ report, meta, viewControl }: {
++  report: ReportEntry;
++  meta: PageMeta;
++  viewControl?: ReactNode;
++}) {
+   useAmountPrivacy();
+   const [period, setPeriod] = useZeitraum('1J');
+   const query = useQuery(
+@@ -140,6 +144,7 @@ export function WholePictureReport({ report, meta }: { report: ReportEntry; meta
+           : 'Keine Monatsdaten'
+       }
+       extraFields={[
++        ...(viewControl ? [{ label: 'Ansicht', value: viewControl }] : []),
+         {
+           label: 'Zeitraum',
+           value: (
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index 827b71738b856951d3a315824a5d24daf9bddbef..0f203ceeb1e7c9b7685e9d4896d2c022e408d832 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1783,3 +1783,10 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
+ - Added a URL-selected groups/categories or Empfänger view under the existing Ausgabenanalyse route. Only the active existing report body mounts; the payee reader, monetary content, classifications, refund handling and paginated booking detail remain unchanged. The old direct Empfänger route remains available until #620.
+ - View changes preserve the selected period and a bounded payee-detail ID, including refresh and Back/Forward. Explicit period changes atomically clear that detail selection, retaining the previous behavior; the legacy direct report retains its original local-state default. The view selector is scoped, labelled and wraps with phone/coarse44px targets.
+ - Validation is deferred by the owner’s implementation-first batching instruction: independently literal legacy/new-view cent equivalence, period/detail URL restoration, malformed selectors, existing loading/error/retry/detail pagination, privacy, keyboard/Axe,44px/390px/light-dark layout and the required full/native/CI/live gates. No tests were added or changed, and no acceptance criterion is marked verified.
++
++
++### #623 — Three views of Vermögen und Schulden (implementation pending batch validation)
++
++- Added a URL-selected balance, history or whole-picture view under the existing Vermögen und Schulden route. Only the active original report mounts; its financial reader/body, valuation quality and unavailable states,≈marks, source links, period controls, detail tables and CSV behavior remain unchanged. Old direct report routes remain available until #620.
++- View changes preserve the actual current period and selected month/search context. The original differing defaults (balanceAlles, historyYTD, whole-picture1J) are materialized only when switching views without a valid explicit period; no mount rewrite or financial/date formula changes. The existing scoped view selector provides labelled wrapping and coarse/phone44px controls.
++- Validation is deferred by the owner’s implementation-first batching instruction: independent fixed-date legacy/new-view cent equivalence; exact period/default and selected-month identity on switching/refresh/BackForward; existing estimated/unknown valuation provenance,≈coverage, unavailable states, CSV and source drilldowns; privacy, keyboard/Axe,44px/390px/light-dark layouts and required full/native/CI/live gates. No tests were added or changed, and no acceptance criterion is marked verified.

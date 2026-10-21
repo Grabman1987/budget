@@ -1,0 +1,27 @@
+[
+  {
+    "path": "docs/handoff/623-wealth-report-views/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/623-wealth-report-views/README.md",
+    "size": 476,
+    "sha256": "5dd102e5402b004e2198a46c22e0f0ed01ec77f3b8739e972c8ab5d0f22b5ef5"
+  },
+  {
+    "path": "docs/handoff/623-wealth-report-views/owned/01-8286d82cc689addd5a71b939ec599e5f89122ae9.patch",
+    "size": 12450,
+    "sha256": "256b3f6b14c3e6e1f6ce73292e99c5654daf59c4b94291bb1d31ff9e8883a8f6"
+  },
+  {
+    "path": "docs/handoff/623-wealth-report-views/packet.json",
+    "size": 1733,
+    "sha256": "7aad00777e0a4c9ce0e71c3534725e579c781cd9a7ad1b0ed4380bc3ead90746"
+  },
+  {
+    "path": "docs/handoff/623-wealth-report-views/reviews/623-whole-seven-wealth-report-views-independent-source-high.md",
+    "size": 4082,
+    "sha256": "f96b816c18045d245e68aa03f6760b6ed23e1814cbd04a87cc6a94fc7e3d1954"
+  }
+]
