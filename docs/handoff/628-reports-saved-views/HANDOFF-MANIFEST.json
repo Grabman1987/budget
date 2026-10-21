@@ -1,0 +1,37 @@
+[
+  {
+    "path": "docs/handoff/628-reports-saved-views/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/628-reports-saved-views/README.md",
+    "size": 476,
+    "sha256": "8b4d63546e807b90b1ee9bb580576c9512935b3bf84ed5e2f9187eed0d84787e"
+  },
+  {
+    "path": "docs/handoff/628-reports-saved-views/integration/6097312929c84ea8bd827bc5895e6f4e85f87cf2.json",
+    "size": 379,
+    "sha256": "607ea062958575d8edcff6b64d36aef16f4c3226705776f24b572efbee58d457"
+  },
+  {
+    "path": "docs/handoff/628-reports-saved-views/integration/6097312929c84ea8bd827bc5895e6f4e85f87cf2.patch",
+    "size": 1341,
+    "sha256": "820ff6d283236f3455fc3f93bd7de0895cfae75d90d7af6b96f81449ed833205"
+  },
+  {
+    "path": "docs/handoff/628-reports-saved-views/owned/01-c12c67e08407412105a3d8bd578863291e5b23fa.patch",
+    "size": 14405,
+    "sha256": "c105d9c2c46eeabb74aa54751bed17124f77756c1ccffc0893af862511ec6bd2"
+  },
+  {
+    "path": "docs/handoff/628-reports-saved-views/packet.json",
+    "size": 1774,
+    "sha256": "bdc069c652330778e6ca5b0259080e6861834a3618b343f64cca5c0f9c54ef99"
+  },
+  {
+    "path": "docs/handoff/628-reports-saved-views/reviews/628-whole-seven-independent-source-high.md",
+    "size": 3097,
+    "sha256": "3d7b84d5f1fb1c5378ff52c35ec7d2343bcf707463383fbdf47663b1fca5d3a4"
+  }
+]

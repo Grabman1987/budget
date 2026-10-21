@@ -1,0 +1,310 @@
+diff --git a/apps/web/src/pages/reports-pages.tsx b/apps/web/src/pages/reports-pages.tsx
+index c3c4faf9b998a013ad88624d97052b01643a7d43..9a43cefc16367119e6ed4d4a20555101ea5329f7 100644
+--- a/apps/web/src/pages/reports-pages.tsx
++++ b/apps/web/src/pages/reports-pages.tsx
+@@ -37,6 +37,7 @@ import { FinanzcheckReport } from '../reports/finanzcheck-report';
+ import { CompareReport } from '../reports/compare-report';
+ import { JahresreportPage } from '../reports/jahresreport-page';
+ import { ExplorerReportPage } from '../reports/explorer-report';
++import { SavedExplorerLinks } from '../reports/saved-explorer-links';
+ import { SpendingAnalysisReport } from '../reports/spending-analysis-report';
+ import { BudgetAdherenceReportPage } from '../reports/budget-adherence-report';
+ import { PlanningAccuracyReportPage } from '../reports/planning-accuracy-report';
+@@ -165,6 +166,7 @@ export function ReportsCatalogPage() {
+         subtitle={`${REPORTS.length} Zeichnungen aus einem Hauptbuch`}
+       />
+       <ReportRegisters current="katalog" />
++      <SavedExplorerLinks />
+       <ReportCatalogTable groups={REPORT_GROUPS} caption="Katalog der Reports" />
+     </>
+   );
+diff --git a/apps/web/src/reports/explorer-report.css b/apps/web/src/reports/explorer-report.css
+index e65ea84cae8b000a88d0e3a6a8ea28189ef9229d..62db306067c47f476876577e11fbf07d09ad00ab 100644
+--- a/apps/web/src/reports/explorer-report.css
++++ b/apps/web/src/reports/explorer-report.css
+@@ -209,3 +209,10 @@
+     scroll-padding-inline-start: 150px;
+   }
+ }
++
++.ex-custom-query {
++  min-width: 0;
++  margin: 0;
++  padding: 0;
++  border: 0;
++}
+diff --git a/apps/web/src/reports/explorer-report.tsx b/apps/web/src/reports/explorer-report.tsx
+index 135776620a36a0b3d0a69f43c314900e7e7e9e07..c0bfcb3e116cf775e6fbe659a407ae7f11e505b9 100644
+--- a/apps/web/src/reports/explorer-report.tsx
++++ b/apps/web/src/reports/explorer-report.tsx
+@@ -29,7 +29,7 @@ import {
+ } from '@budget/domain';
+ import { keepPreviousData, useQuery } from '@tanstack/react-query';
+ import { Bookmark, Download, Pencil, X } from 'lucide-react';
+-import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react';
++import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+ import { useNavigate, useSearch } from '@tanstack/react-router';
+ import { ErrorNote, LoadingNote } from '../ledger/states';
+ import type { PageMeta } from '../nav/pages';
+@@ -41,6 +41,7 @@ import { explorerTemplateQuery } from './explorer-template-api';
+ import { ExplorerTemplates } from './explorer-templates';
+ import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
+ import { useExplorerViews } from './use-explorer-views';
++import { savedExplorerEntryQuery } from './explorer-view-api';
+ import { EXPLORER_CSV_CHANGED_MESSAGE, explorerQuery, fetchExplorerCsv } from './overview-api';
+ import { euroCellText, monthLong, monthShortYear, wholeText } from './overview-format';
+ import './overview-reports.css';
+@@ -61,11 +62,12 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+   const toast = useToast();
+   const search = useSearch({ strict: false }) as {
+     vorlage?: unknown;
++    ansicht?: string;
+     kategorien?: string[];
+     zelle?: string;
+     spalte?: string;
+   };
+-  const template = isExplorerTemplate(search.vorlage) ? search.vorlage : undefined;
++  const template = !search.ansicht && isExplorerTemplate(search.vorlage) ? search.vorlage : undefined;
+   const navigate = useNavigate();
+   const changeTemplateSearch = (patch: Record<string, unknown>) =>
+     void navigate({
+@@ -75,6 +77,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+   const chooseTemplate = (id: typeof template) =>
+     changeTemplateSearch({
+       vorlage: id,
++      ansicht: undefined,
+       zelle: undefined,
+       spalte: undefined,
+       ...(id
+@@ -97,17 +100,38 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+     [template, templateRead.data, templatePeriod, templateCategory],
+   );
+   const [query, setQuery] = useState<ExplorerQuery>(DEFAULT_EXPLORER_QUERY);
++  const entryInstance = useId();
++  const [observedEntry, setObservedEntry] = useState({ id: search.ansicht, generation: 0 });
++  const entry = useQuery(savedExplorerEntryQuery(search.ansicht, `${entryInstance}:${observedEntry.generation}`));
++  const [capturedEntry, setCapturedEntry] = useState<string>();
++  const entryFresh = entry.isSuccess && !entry.isFetching && !entry.data.unavailable && entry.data.schemaVersion === 1;
++  const requested = entryFresh ? entry.data.views.find((view) => view.id === search.ansicht) : undefined;
+   const saved = useExplorerViews();
+   const views = saved.views;
+   const [name, setName] = useState('');
+   const [editingId, setEditingId] = useState<string>();
+   const [replace, setReplace] = useState<PersistedExplorerView>();
++  // Capture a freshly read tuple once per entry. Background refetches retain local edits;
++  // A → failed B → Back A still needs A's new read, never the earlier captured tuple.
++  if (observedEntry.id !== search.ansicht) {
++    setObservedEntry({ id: search.ansicht, generation: observedEntry.generation + 1 });
++    setCapturedEntry(undefined);
++  } else if (search.ansicht && requested && capturedEntry !== search.ansicht) {
++    setCapturedEntry(search.ansicht);
++    setQuery(requested.query);
++    setName('');
++    setEditingId(undefined);
++    setReplace(undefined);
++  }
++  const entryReady = !search.ansicht || capturedEntry === search.ansicht;
+   const result = useQuery({
+     ...explorerQuery(query),
+     placeholderData: keepPreviousData,
+-    enabled: !template,
++    enabled: !template && entryReady,
+   });
+-  const data = result.data;
++  const data = entryReady && (!search.ansicht || (result.data && sameQuery(query, result.data.result.query)))
++    ? result.data
++    : undefined;
+   const [exporting, setExporting] = useState(false);
+   const [exportError, setExportError] = useState<string>();
+   const exportReady =
+@@ -189,6 +213,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+   const save = (event: FormEvent) => {
+     event.preventDefault();
+     const clean = name.trim();
++    if (!entryReady) return;
+     if (clean === '') {
+       toast.show({ message: 'Bitte einen Namen für die Ansicht eingeben.' });
+       return;
+@@ -285,6 +310,16 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+               </button>
+             )}
+           </div>
++          {search.ansicht && !entryReady && (
++            <div>
++              {entry.isFetching && <LoadingNote what="Gespeicherte Auswertung" />}
++              {entry.isError && <ErrorNote what="Gespeicherte Auswertung" error={entry.error} onRetry={() => void entry.refetch()} />}
++              {entry.isSuccess && !entry.isFetching && !requested && (
++                <p role="status">Diese gespeicherte Auswertung ist nicht mehr verfügbar. Es wird keine andere Auswahl geladen.</p>
++              )}
++              <Button variant="ghost" onClick={() => chooseTemplate(undefined)}>Eigene Auswertung öffnen</Button>
++            </div>
++          )}
+           {saved.isPending && <LoadingNote what="Gespeicherte Ansichten" />}
+           {saved.isError && (
+             <ErrorNote
+@@ -371,7 +406,8 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+             ))}
+           </div>
+           {!template && (
+-            <>
++            <fieldset className="ex-custom-query" disabled={!entryReady}>
++              <legend className="sr-only">Auswertungseinstellungen</legend>
+               <PeriodQuickSelect
+                 period={query.period}
+                 onChange={(period) => set('period', period)}
+@@ -472,7 +508,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+                   type="submit"
+                   variant="ghost"
+                   size="sm"
+-                  disabled={!saved.data || saved.data.unavailable || saved.busy}
++                  disabled={!entryReady || !saved.data || saved.data.unavailable || saved.busy}
+                 >
+                   <Bookmark size={15} strokeWidth={1.75} aria-hidden="true" />
+                   Speichern
+@@ -505,7 +541,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+                   </Button>
+                 </div>
+               )}
+-            </>
++            </fieldset>
+           )}
+           <p className="ov-note">
+             Gespeicherte Ansichten sind nach dem Neuladen auch auf deinen anderen Geräten verfügbar.
+@@ -562,8 +598,10 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+               />
+             </>
+           )}
+-        {!template && result.isPending && <LoadingNote what="Explorer" />}
+-        {!template && result.isError && (
++        {!template && entryReady && (result.isPending || (search.ansicht && result.isFetching && !data)) && (
++          <LoadingNote what="Explorer" />
++        )}
++        {!template && entryReady && result.isError && (
+           <ErrorNote what="Explorer" error={result.error} onRetry={() => void result.refetch()} />
+         )}
+         {!template && data && (
+diff --git a/apps/web/src/reports/explorer-view-api.ts b/apps/web/src/reports/explorer-view-api.ts
+index bb83effb3bb3684f753268e34975c66ac240bf52..5fd1706f5f1181c2160851f6e8b9dcad5c006a1c 100644
+--- a/apps/web/src/reports/explorer-view-api.ts
++++ b/apps/web/src/reports/explorer-view-api.ts
+@@ -10,6 +10,16 @@ export const savedExplorerViewsQuery = () =>
+     retry: false,
+     queryFn: () => request<ExplorerViewsState>('GET', '/api/reports/saved-queries'),
+   });
++/** A separate per-entry read prevents an earlier hub/editor cache from selecting an old query. */
++export const savedExplorerEntryQuery = (id: string | undefined, entryKey: string) =>
++  queryOptions({
++    ...savedExplorerViewsQuery(),
++    queryKey: [...SAVED_EXPLORER_KEY, 'entry', id, entryKey],
++    enabled: Boolean(id),
++    gcTime: 0,
++    refetchOnMount: 'always' as const,
++  });
++
+ export const changeSavedExplorerViews = (revision: string, change: ExplorerViewsChange) =>
+   request<ExplorerViewsWrite>('POST', '/api/reports/saved-queries', { revision, ...change });
+ 
+diff --git a/apps/web/src/reports/report-search.ts b/apps/web/src/reports/report-search.ts
+index 80f621e43f81bf611340935b8b619ad9b23e16a2..2fc5cf329bf2223c4f96cbb82a014f7ab1fbfc45 100644
+--- a/apps/web/src/reports/report-search.ts
++++ b/apps/web/src/reports/report-search.ts
+@@ -9,6 +9,7 @@ const ids = (value: unknown) =>
+     : undefined;
+ 
+ export const validateReportSearch = (search: Record<string, unknown>) => ({
++  ansicht: id(search['ansicht']),
+   vorlage: isExplorerTemplate(search['vorlage']) ? search['vorlage'] : undefined,
+   kategorien: ids(search['kategorien']),
+   gruppen: ids(search['gruppen']),
+diff --git a/apps/web/src/reports/saved-explorer-links.css b/apps/web/src/reports/saved-explorer-links.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..2aa55677afc783c7d20d5a596d890a26641b8d80
+--- /dev/null
++++ b/apps/web/src/reports/saved-explorer-links.css
+@@ -0,0 +1,41 @@
++.saved-explorer-links {
++  min-width: 0;
++}
++.saved-explorer-links h2 {
++  margin: 0 0 8px;
++  font-size: var(--fs-headline);
++}
++.saved-explorer-links p {
++  color: var(--ink-2);
++}
++.saved-explorer-chips {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 8px;
++}
++.saved-explorer-chips a {
++  display: inline-flex;
++  align-items: center;
++  gap: 6px;
++  min-width: 44px;
++  min-height: 44px;
++  max-width: 100%;
++  padding: 4px 12px;
++  border: 1px solid var(--rule-strong);
++  border-radius: var(--radius-md);
++  color: var(--ink);
++  background: var(--surface);
++  overflow-wrap: anywhere;
++  text-decoration: none;
++}
++.saved-explorer-chips a:hover {
++  background: var(--tint);
++}
++.saved-explorer-chips svg {
++  flex: none;
++}
++.saved-explorer-links p a {
++  display: inline-flex;
++  align-items: center;
++  min-height: 44px;
++}
+diff --git a/apps/web/src/reports/saved-explorer-links.tsx b/apps/web/src/reports/saved-explorer-links.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..59b98ee88c65f8b8c7b4d5c2c77bca0a275ac337
+--- /dev/null
++++ b/apps/web/src/reports/saved-explorer-links.tsx
+@@ -0,0 +1,39 @@
++import { maskMoneyText, useAmountPrivacy } from '@budget/ui';
++import { useQuery } from '@tanstack/react-query';
++import { Bookmark } from 'lucide-react';
++import { AppLink } from '../shell/app-link';
++import { ErrorNote, LoadingNote } from '../ledger/states';
++import { savedExplorerViewsQuery } from './explorer-view-api';
++import './saved-explorer-links.css';
++
++/** Read the shared document only; visiting the hub never promotes or modifies local views. */
++export function SavedExplorerLinks() {
++  useAmountPrivacy();
++  const saved = useQuery({ ...savedExplorerViewsQuery(), refetchOnMount: 'always' });
++  const current = saved.isSuccess && !saved.isFetching && !saved.data.unavailable && saved.data.schemaVersion === 1
++    ? saved.data.views
++    : undefined;
++  return (
++    <section className="saved-explorer-links" aria-labelledby="saved-explorer-title">
++      <h2 id="saved-explorer-title">Meine Auswertungen</h2>
++      {saved.isFetching && <LoadingNote what="Gespeicherte Auswertungen" />}
++      {saved.isError && <ErrorNote what="Gespeicherte Auswertungen" error={saved.error} onRetry={() => void saved.refetch()} />}
++      {saved.isSuccess && !saved.isFetching && !current && (
++        <p role="status">Gespeicherte Auswertungen sind nicht verfügbar. Die Daten bleiben erhalten.</p>
++      )}
++      {current?.length === 0 && (
++        <p>Noch keine eigene Auswertung gespeichert. <AppLink to="/reports/explorer">Auswertung erstellen</AppLink></p>
++      )}
++      {current && current.length > 0 && (
++        <nav className="saved-explorer-chips" aria-label="Meine Auswertungen">
++          {current.map((view) => (
++            <AppLink key={view.id} to="/reports/explorer" search={{ ansicht: view.id }}>
++              <Bookmark size={16} aria-hidden="true" />
++              {maskMoneyText(view.name)}
++            </AppLink>
++          ))}
++        </nav>
++      )}
++    </section>
++  );
++}

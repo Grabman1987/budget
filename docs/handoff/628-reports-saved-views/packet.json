@@ -1,0 +1,37 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/628-reports-saved-views",
+  "sourceHead": "c12c67e08407412105a3d8bd578863291e5b23fa",
+  "originalBaseBeforeOwnedCommits": "cadefe15230a977651351184739eafd46b721f3c",
+  "orderedCommits": [
+    {
+      "sha": "c12c67e08407412105a3d8bd578863291e5b23fa",
+      "parentBase": "cadefe15230a977651351184739eafd46b721f3c",
+      "subject": "feat(reports): open saved Explorer views from the hub (validation pending)",
+      "paths": [
+        "apps/web/src/pages/reports-pages.tsx",
+        "apps/web/src/reports/explorer-report.css",
+        "apps/web/src/reports/explorer-report.tsx",
+        "apps/web/src/reports/explorer-view-api.ts",
+        "apps/web/src/reports/report-search.ts",
+        "apps/web/src/reports/saved-explorer-links.css",
+        "apps/web/src/reports/saved-explorer-links.tsx"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout c12c67e08407412105a3d8bd578863291e5b23fa > OWN_OUTPUT/c12c67e08407412105a3d8bd578863291e5b23fa.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-c12c67e08407412105a3d8bd578863291e5b23fa.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/web/src/pages/reports-pages.tsx",
+    "apps/web/src/reports/explorer-report.css",
+    "apps/web/src/reports/explorer-report.tsx",
+    "apps/web/src/reports/explorer-view-api.ts",
+    "apps/web/src/reports/report-search.ts",
+    "apps/web/src/reports/saved-explorer-links.css",
+    "apps/web/src/reports/saved-explorer-links.tsx"
+  ],
+  "mixedSourceAncestry": false,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

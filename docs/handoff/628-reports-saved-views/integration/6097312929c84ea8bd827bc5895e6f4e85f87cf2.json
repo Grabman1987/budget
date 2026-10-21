@@ -1,0 +1,10 @@
+{
+  "state": "WIP / UNINTEGRATED",
+  "sha": "6097312929c84ea8bd827bc5895e6f4e85f87cf2",
+  "parentBase": "1543ddd98dd8ca714d0c45921d80dba453c178a7",
+  "subject": "Preserve route and query types across source integrations",
+  "paths": [
+    "apps/web/src/reports/explorer-view-api.ts"
+  ],
+  "scope": "Exact per-path diff; no unrelated file, branch ancestor or full batch diff."
+}

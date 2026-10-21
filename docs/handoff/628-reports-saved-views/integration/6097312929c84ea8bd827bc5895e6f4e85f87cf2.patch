@@ -1,0 +1,28 @@
+diff --git a/apps/web/src/reports/explorer-view-api.ts b/apps/web/src/reports/explorer-view-api.ts
+index 5fd1706f5f1181c2160851f6e8b9dcad5c006a1c..59d142a2100e80911f1c4d93975c3fcfec3428e9 100644
+--- a/apps/web/src/reports/explorer-view-api.ts
++++ b/apps/web/src/reports/explorer-view-api.ts
+@@ -4,16 +4,16 @@ import { request } from '../api/http';
+ import { EXPLORER_VIEWS_KEY } from './explorer-views';
+ 
+ export const SAVED_EXPLORER_KEY = ['explorer-saved-views'] as const;
+-export const savedExplorerViewsQuery = () =>
+-  queryOptions({
+-    queryKey: SAVED_EXPLORER_KEY,
+-    retry: false,
+-    queryFn: () => request<ExplorerViewsState>('GET', '/api/reports/saved-queries'),
+-  });
++const savedExplorerViewsOptions = () => ({
++  queryKey: SAVED_EXPLORER_KEY,
++  retry: false,
++  queryFn: () => request<ExplorerViewsState>('GET', '/api/reports/saved-queries'),
++});
++export const savedExplorerViewsQuery = () => queryOptions(savedExplorerViewsOptions());
+ /** A separate per-entry read prevents an earlier hub/editor cache from selecting an old query. */
+ export const savedExplorerEntryQuery = (id: string | undefined, entryKey: string) =>
+   queryOptions({
+-    ...savedExplorerViewsQuery(),
++    ...savedExplorerViewsOptions(),
+     queryKey: [...SAVED_EXPLORER_KEY, 'entry', id, entryKey],
+     enabled: Boolean(id),
+     gcTime: 0,
