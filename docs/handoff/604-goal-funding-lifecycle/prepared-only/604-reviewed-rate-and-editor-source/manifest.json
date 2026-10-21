@@ -1,0 +1,106 @@
+{
+  "status": "source-only; no executable verification",
+  "baseManifest": "85f2724d4c8c3413261210f5aca02a3bbfea1e62208727823aed3a7052f9ec7c",
+  "paths": {
+    "SPEC.md": {
+      "sha256": "b08704a5e9e48cf7223bebf81d5775e8b543c1bb41e0b564d5c40345d1e09c42",
+      "size": 51766
+    },
+    "apps/server/src/api/goals.ts": {
+      "sha256": "a1743db149e4d6317c2b14ebc6c16a6c25c676ff36bd32a9505d8b7f6e2790a7",
+      "size": 3136
+    },
+    "apps/server/src/api/schemas.ts": {
+      "sha256": "aa56edeeb2c551bd40e07d6ac2892a025b112149a1278c59cb2927c768f1070d",
+      "size": 15244
+    },
+    "apps/web/src/budget/goals-api.ts": {
+      "sha256": "28e269c07af76d1e2545aba42c95d7d518e31e9c5453336309504fee1fc55b9e",
+      "size": 2763
+    },
+    "apps/web/src/budget/goals-model.ts": {
+      "sha256": "221ca9d3d9c000b4ad260a0814d85148d732f5b89640572d1374ae46508d93a3",
+      "size": 3793
+    },
+    "apps/web/src/budget/goals-page.tsx": {
+      "sha256": "49e55ee3539a08935f01dcb4781ae914d7a3b6d66e96de5de76b7ef626c73acc",
+      "size": 11719
+    },
+    "apps/web/src/budget/goals-panel.tsx": {
+      "sha256": "d678971541c7e8e26b67384c2b84559fe439eaad3e47682dcc960d9cc2668e68",
+      "size": 10823
+    },
+    "apps/web/src/budget/goals.css": {
+      "sha256": "cd7b83c7286c41030b1dafd13e05928d5ece7b46a3146b5923f2e80f78a8ab1c",
+      "size": 3511
+    },
+    "apps/web/src/budget/plan-panel-pages.tsx": {
+      "sha256": "4f3979691f8bf0bc15074295c32d50f7c11c95b0b7bbafd139beee07709f8ab9",
+      "size": 9228
+    },
+    "apps/web/src/pages/goals-progress-report.tsx": {
+      "sha256": "8202eca1a57077788e23498d45b90fc69e10153fd1d1dd6b9002b924cf785106",
+      "size": 18093
+    },
+    "docs/ROADMAP.md": {
+      "sha256": "f77ddbe81a9335a159b611e1e1c50150053f6a00509b06d620043b0cfb2add5f",
+      "size": 252468
+    },
+    "packages/db/drizzle/0048_goal_lifecycle.sql": {
+      "sha256": "38315a73c9c07da0e89e0b77ce6a0e6b724ba0e328e70934b513fd0ed8e2e9da",
+      "size": 451
+    },
+    "packages/db/drizzle/meta/0048_snapshot.json": {
+      "sha256": "b6d942e2cce708db2cf913d8f40430dbcbc7c9caf6b389b2dd702577d36e5f24",
+      "size": 271874
+    },
+    "packages/db/drizzle/meta/_journal.json": {
+      "sha256": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42",
+      "size": 7221
+    },
+    "packages/db/drizzle/rollback/0048_goal_lifecycle.sql": {
+      "sha256": "14eb89462c1ef2e5a4220d42dbe13cf6e794a7a919fd8dfdc80da7c90b2d51be",
+      "size": 971
+    },
+    "packages/db/src/repos/budget-ledger-input.ts": {
+      "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c",
+      "size": 2319
+    },
+    "packages/db/src/repos/goal-lifecycle.ts": {
+      "sha256": "4141c1819b06b44c35a342f2ed3c47defc5290fe6e1f4a6bb7abd7adb3d3e787",
+      "size": 13986
+    },
+    "packages/db/src/repos/goals.ts": {
+      "sha256": "186ab9633d341757867691d870cef8bb084c8a5a021f2d351cf786683db82923",
+      "size": 20064
+    },
+    "packages/db/src/repos/queries.ts": {
+      "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7",
+      "size": 7291
+    },
+    "packages/db/src/schema/budget.ts": {
+      "sha256": "96f15acd478900da0ac2bfd362c82c2efdb1028f40a7ec5434de8c455e123410",
+      "size": 15477
+    },
+    "packages/domain/src/goals/lifecycle.ts": {
+      "sha256": "82c34702cd69c59dc3e4496baeb1edbdfebff05eefe5900261ee879c25aa9387",
+      "size": 3591
+    },
+    "packages/domain/src/index.ts": {
+      "sha256": "58dbcb797924042017eaaee21ae39cdbfcdad4392aef4b9ea9894733c002c8ee",
+      "size": 1822
+    }
+  },
+  "changed": [
+    "apps/server/src/api/goals.ts",
+    "apps/server/src/api/schemas.ts",
+    "apps/web/src/budget/goals-api.ts",
+    "apps/web/src/budget/goals-model.ts",
+    "apps/web/src/budget/goals-page.tsx",
+    "apps/web/src/budget/goals-panel.tsx",
+    "apps/web/src/budget/plan-panel-pages.tsx",
+    "apps/web/src/pages/goals-progress-report.tsx",
+    "docs/ROADMAP.md",
+    "packages/db/src/repos/goals.ts"
+  ]
+}

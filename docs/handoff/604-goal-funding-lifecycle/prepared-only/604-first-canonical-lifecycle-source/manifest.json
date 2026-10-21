@@ -1,0 +1,19 @@
+{
+  "head": "5960e51cba63d509cdc9f24262103ab16d3dfead",
+  "files": {
+    "packages/db/src/repos/budget-ledger-input.ts": {
+      "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c",
+      "mode": "0o600"
+    },
+    "packages/db/src/repos/queries.ts": {
+      "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7",
+      "mode": "0o600"
+    },
+    "packages/domain/src/goals/lifecycle.ts": {
+      "sha256": "b53e70358c55b2ec5094a17a5e1378da580f4b644c65e07dc2bdf1846e72e03d",
+      "mode": "0o600"
+    }
+  },
+  "sourceOnly": true,
+  "verified": false
+}

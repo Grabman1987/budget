@@ -1,0 +1,39 @@
+{
+  "scope": "604 ONE rollback SQL file, exactly two added lines, outside-only product proposal",
+  "source48": {
+    "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+    "path": "packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+    "sha256": "eadcf08b4df0fea328bf72ed9c3acc58dc12c33434febbc43aa356b77a9f84fc"
+  },
+  "reference47": {
+    "revision": "88ee863bedf0eac786b98f78b6eb4999cb337c8a",
+    "path": "packages/db/drizzle/rollback/0047_statement_automation.sql",
+    "sha256": "2463e7edc919a57e2c3a2264679a9ea1a2728df2217e45a494a29f55c9564b7b"
+  },
+  "candidate": {
+    "path": "packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+    "sha256": "6d2b4cbc3d525afeff41781738c28dbde0dd06e9e4d9559791fd9638a90ca17a"
+  },
+  "journal48When": 1792520000000,
+  "allOriginalRollbackBytesPreserved": true,
+  "wholeFileInverseExact": true,
+  "addedLines": 2,
+  "forwardSQLSnapshotJournalUnchanged": true,
+  "fixtureUnchanged": {
+    "manifestSHA256": "ece96c6aeb6973d95b59229223592fec2d5aae29d0e664f2329cf7e232bdff41",
+    "path": "packages/db/src/goal-lifecycle-migration-604.test.ts",
+    "sha256": "983681d51c5b65484158e263d47dcd12a414ca72ecc3bcc596e18f5aec61b649"
+  },
+  "files": {
+    "change.diff": "21990c601dbfb66c4443bef0fbda87107a4d8921f210b3efb9ffd447d20f0260",
+    "inverse-proof.json": "a90fe1efb8091bbb1222931e07f89a71dc8e86c4a8e2353c9b3244a01988c0a8",
+    "README.md": "25c932e504cb7c6a132b304777da42ff7bf2c93205bdc3002a342e3174e2b0d3"
+  },
+  "status": "SOURCE-ONLY proposal awaiting independent review; no SQL/runtime/adoption",
+  "runtimeExecuted": false,
+  "repositoryModified": false,
+  "testsModified": false,
+  "actualFailBeforeRecorded": false,
+  "actualPassAfterRecorded": false,
+  "card47LivePrerequisiteRetained": true
+}

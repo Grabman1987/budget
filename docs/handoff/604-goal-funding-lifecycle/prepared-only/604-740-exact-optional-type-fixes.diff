@@ -1,0 +1,28 @@
+diff --git a/packages/db/src/repos/goal-lifecycle.ts b/packages/db/src/repos/goal-lifecycle.ts
+index 51aa29d1..bdc3257c 100644
+--- a/packages/db/src/repos/goal-lifecycle.ts
++++ b/packages/db/src/repos/goal-lifecycle.ts
+@@ -105,7 +105,7 @@ function ledger(state: State) {
+   }));
+   const categories: BudgetLedgerRows['categories'] = values('category').map((r) => ({
+     id: text(r, 'id'), name: text(r, 'name'),
+-    class: nullable(r, 'class') as BudgetLedgerRows['categories'][number]['class'],
++    class: nullable(r, 'class'),
+     kind: text(r, 'kind') as BudgetLedgerRows['categories'][number]['kind'],
+     rolloverOverspending: cents(r, 'rollover_overspending') === 1,
+     cardAccountId: nullable(r, 'card_account_id'),
+diff --git a/packages/db/src/repos/statement-receipt-links.ts b/packages/db/src/repos/statement-receipt-links.ts
+index dd7fc7d5..b23f6179 100644
+--- a/packages/db/src/repos/statement-receipt-links.ts
++++ b/packages/db/src/repos/statement-receipt-links.ts
+@@ -86,8 +86,8 @@ export function readStatementReceiptLinks(db: Executor, intakeId: string, query:
+   if (!Number.isInteger(limit) || limit < 1 || limit > 100 || [query.offset ?? 0, query.attachedOffset ?? 0].some((n) => !Number.isInteger(n) || n < 0 || n > 100000) || (query.q?.length ?? 0) > 200)
+     throw new ConflictError('Ungültiger Buchungsausschnitt.');
+   const managed = managedIds(tx, state.source.receiptId);
+-  const items = state.source.currency ? bookingRows(tx, state.source.receiptId, managed, { accountId: state.source.accountId, currency: state.source.currency, q: query.q, offset: query.offset, limit: limit + 1 }) : [];
+-  const attached = bookingRows(tx, state.source.receiptId, managed, { attached: true, offset: query.attachedOffset, limit: limit + 1 });
++  const items = state.source.currency ? bookingRows(tx, state.source.receiptId, managed, { accountId: state.source.accountId, currency: state.source.currency, ...(query.q === undefined ? {} : { q: query.q }), ...(query.offset === undefined ? {} : { offset: query.offset }), limit: limit + 1 }) : [];
++  const attached = bookingRows(tx, state.source.receiptId, managed, { attached: true, ...(query.attachedOffset === undefined ? {} : { offset: query.attachedOffset }), limit: limit + 1 });
+   return { ...state, items: items.slice(0, limit), attached: attached.slice(0, limit),
+     nextOffset: items.length > limit ? (query.offset ?? 0) + limit : null,
+     nextAttachedOffset: attached.length > limit ? (query.attachedOffset ?? 0) + limit : null,

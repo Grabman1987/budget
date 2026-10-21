@@ -1,0 +1,10 @@
+{
+  "status": "source-only; no migration execution or runtime",
+  "paths": {
+    "packages/db/src/schema/budget.ts": "96f15acd478900da0ac2bfd362c82c2efdb1028f40a7ec5434de8c455e123410",
+    "packages/db/drizzle/0048_goal_lifecycle.sql": "38315a73c9c07da0e89e0b77ce6a0e6b724ba0e328e70934b513fd0ed8e2e9da",
+    "packages/db/drizzle/rollback/0048_goal_lifecycle.sql": "14eb89462c1ef2e5a4220d42dbe13cf6e794a7a919fd8dfdc80da7c90b2d51be",
+    "packages/db/drizzle/meta/0048_snapshot.json": "b6d942e2cce708db2cf913d8f40430dbcbc7c9caf6b389b2dd702577d36e5f24",
+    "packages/db/drizzle/meta/_journal.json": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42"
+  }
+}

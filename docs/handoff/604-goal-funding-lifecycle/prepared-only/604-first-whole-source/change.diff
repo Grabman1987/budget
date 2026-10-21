@@ -1,0 +1,920 @@
+diff --git a/SPEC.md b/SPEC.md
+index efdfdc40..630717c1 100644
+--- a/SPEC.md
++++ b/SPEC.md
+@@ -1,5 +1,17 @@
+ # Budget — Specification
+ 
++Owner savings-goal decision (2026-10-21, #604): category-goal funding uses the
++existing Plan target including the current month. “Rate zuweisen” adds only the
++remaining current-month need through the existing guarded, audited assignment
++path; it does not add a second full rate. Preserve the separate future-month
++forecast where still used. New goals have a selectable start month; existing
++goals retain their previous start until explicitly edited. A goal completes after
++proven reaching followed by its first actual expense, or by explicit manual
++completion. Assignment changes do not qualify as expenses. Undo must restore the
++derived or stored state; goals and bookings are never deleted by completion.
++Unproven historical ordering must remain explicit rather than inventing an
++automatic completion. These decisions supplement the existing goal requirements.
++
+ Owner document-automation directive (2026-10-21, #741): a new explicit manual PDF
+ upload may automatically save fully validated, unambiguous payroll or issued-card
+ statement results and link their retained originals to the matching bookings.
+diff --git a/apps/server/src/api/goals.ts b/apps/server/src/api/goals.ts
+index 635e98f3..e43bc840 100644
+--- a/apps/server/src/api/goals.ts
++++ b/apps/server/src/api/goals.ts
+@@ -1,6 +1,8 @@
+ import {
+   adoptGoalAsCategoryTarget,
+   createGoal,
++  completeGoal,
++  fundGoalRate,
+   deleteGoal,
+   getGoal,
+   listGoals,
+@@ -29,10 +31,13 @@ export function goalRoutes(db: Db, today: () => string): Hono {
+   app.get('/', (c) => {
+     const { month, deleted } = readQuery(c, goalListQuery);
+     const view = monthOrToday(month);
+-    return c.json({ month: view, goals: listGoals(db, view, { includeDeleted: deleted === '1' }) });
++    return c.json({ month: view, goals: listGoals(db, view, { includeDeleted: deleted === '1', today: today() }) });
+   });
+ 
+-  app.get('/report', (c) => c.json(goalsReport(db, today())));
++  app.get('/report', (c) => {
++    const { month } = readQuery(c, goalMonthQuery);
++    return c.json(goalsReport(db, today(), monthOrToday(month)));
++  });
+ 
+   app.post('/', async (c) => {
+     const { month } = readQuery(c, goalMonthQuery);
+@@ -40,6 +45,7 @@ export function goalRoutes(db: Db, today: () => string): Hono {
+       db,
+       defined<GoalInput>(await readBody(c, goalCreate)),
+       audit(),
++      monthOrToday(month),
+     );
+     return c.json({ goal: getGoal(db, goal.id, monthOrToday(month)), groupId }, 201);
+   });
+@@ -51,10 +57,18 @@ export function goalRoutes(db: Db, today: () => string): Hono {
+       c.req.param('id'),
+       defined<GoalPatch>(await readBody(c, goalPatch)),
+       audit(),
++      monthOrToday(month),
+     );
+     return c.json({ goal: getGoal(db, goal.id, monthOrToday(month)), groupId });
+   });
+ 
++  app.post('/:id/fund', (c) => {
++    const { month } = readQuery(c, goalMonthQuery);
++    return c.json(fundGoalRate(db, c.req.param('id'), monthOrToday(month), audit()));
++  });
++
++  app.post('/:id/complete', (c) => c.json(completeGoal(db, c.req.param('id'), today(), audit())));
++
+   app.delete('/:id', (c) => c.json(deleteGoal(db, c.req.param('id'), audit())));
+ 
+   app.post('/:id/restore', (c) => {
+diff --git a/apps/server/src/api/schemas.ts b/apps/server/src/api/schemas.ts
+index 47adbb29..68893a30 100644
+--- a/apps/server/src/api/schemas.ts
++++ b/apps/server/src/api/schemas.ts
+@@ -402,6 +402,7 @@ export const expectedSkipBody = z.object({ dueDate: day });
+ 
+ // ---------- savings goals ----------
+ const goalFields = {
++  startMonth: month.nullable(),
+   name: z.string().trim().min(1).max(120),
+   targetCents: cents.positive(),
+   targetDate: day.nullable(),
+diff --git a/apps/web/src/budget/goals-api.ts b/apps/web/src/budget/goals-api.ts
+index 5be9d3bf..ee4765d6 100644
+--- a/apps/web/src/budget/goals-api.ts
++++ b/apps/web/src/budget/goals-api.ts
+@@ -1,3 +1,4 @@
++import type { GoalLifecycle } from '@budget/domain';
+ import { queryOptions } from '@tanstack/react-query';
+ import { request } from '../api/http';
+ import type { WriteResult } from '../ledger/types';
+@@ -16,6 +17,11 @@ export interface GoalView {
+   categoryId: string | null;
+   accountId: string | null;
+   note: string | null;
++  startMonth?: string | null;
++  effectiveStartMonth?: string;
++  manualCompletedOn?: string | null;
++  lifecycle?: GoalLifecycle;
++  funding?: { monthlyCents: number; remainingCents: number; conflict: string | null } | null;
+   /** Saved at the end of the viewed month. */
+   savedCents: number;
+   remainingCents: number;
+@@ -28,6 +34,7 @@ export interface GoalView {
+ }
+ 
+ export interface GoalInput {
++  startMonth?: string | null;
+   name: string;
+   targetCents: number;
+   targetDate: string | null;
+@@ -57,3 +64,8 @@ export const adoptGoal = (id: string, validFrom: string) =>
+     `/api/goals/${encodeURIComponent(id)}/adopt`,
+     { validFrom },
+   );
++
++export const fundGoalRate = (id: string, month: string) =>
++  request<WriteResult & { changedCount: number; assignedCents: number }>('POST', `/api/goals/${encodeURIComponent(id)}/fund?month=${month}`);
++export const completeGoal = (id: string) =>
++  request<WriteResult & { changedCount: number }>('POST', `/api/goals/${encodeURIComponent(id)}/complete`);
+diff --git a/apps/web/src/budget/goals-model.ts b/apps/web/src/budget/goals-model.ts
+index 4e13b249..928b4adf 100644
+--- a/apps/web/src/budget/goals-model.ts
++++ b/apps/web/src/budget/goals-model.ts
+@@ -6,7 +6,7 @@ import type { GoalView } from './goals-api';
+  * beyond what the domain already delivered (`goalTotals`). */
+ 
+ export interface GoalGroup {
+-  key: 'open' | 'reached';
++  key: 'open' | 'reached' | 'completed';
+   no: number;
+   title: string;
+   rows: GoalView[];
+@@ -32,15 +32,18 @@ const SHORT_MONTH = [
+ export const shortMonth = (month: string): string =>
+   `${SHORT_MONTH[Number(month.slice(5, 7)) - 1] ?? ''} ${month.slice(0, 4)}`;
+ 
+-/** "Offen" first, then "Erreicht"; empty groups are left out. Order within a group is kept. */
++/** Reached, open and retained completed goals; no record disappears on completion. */
++export const goalState = (goal: GoalView) => goal.lifecycle?.state ?? (goal.status === 'reached' ? 'reached' : 'open');
++
+ export function goalGroups(goals: readonly GoalView[]): GoalGroup[] {
+   const groups: Array<Omit<GoalGroup, 'no' | 'totals'>> = [
+-    { key: 'open', title: 'Offen', rows: goals.filter((g) => g.status !== 'reached') },
+-    { key: 'reached', title: 'Erreicht', rows: goals.filter((g) => g.status === 'reached') },
++    { key: 'reached', title: 'Erreicht', rows: goals.filter((g) => goalState(g) === 'reached') },
++    { key: 'open', title: 'Offen', rows: goals.filter((g) => goalState(g) === 'open') },
++    { key: 'completed', title: 'Abgeschlossen', rows: goals.filter((g) => goalState(g) === 'completed') },
+   ];
+   return groups
+     .filter((g) => g.rows.length > 0)
+-    .map((g, i) => ({ ...g, no: i + 1, totals: goalTotals(g.rows) }));
++    .map((g, i) => ({ ...g, no: i + 1, totals: goalTotals(g.rows.map((row) => ({ ...row, neededMonthlyCents: row.funding?.conflict ? null : row.funding?.monthlyCents ?? row.neededMonthlyCents }))) }));
+ }
+ 
+ /**
+@@ -62,7 +65,8 @@ export interface GoalLine {
+ 
+ /** The short status under the bar: what the forecast says, and what is missing if it is late. */
+ export function goalLine(goal: GoalView, month: string): GoalLine {
+-  if (goal.status === 'reached') return { tone: 'done', text: 'erreicht' };
++  if (goalState(goal) === 'completed') return { tone: 'done', text: 'abgeschlossen' };
++  if (goalState(goal) === 'reached') return { tone: 'done', text: 'erreicht' };
+   if (goal.status === 'on_track')
+     return {
+       tone: 'ok',
+diff --git a/apps/web/src/budget/goals-page.tsx b/apps/web/src/budget/goals-page.tsx
+index c2725a6d..25966448 100644
+--- a/apps/web/src/budget/goals-page.tsx
++++ b/apps/web/src/budget/goals-page.tsx
+@@ -9,11 +9,11 @@ import { PLAN_SPARZIELE } from '../nav/pages';
+ import { PageFrame } from '../pages/placeholder-page';
+ import { useMonth } from '../shell/use-month';
+ import { AppLink } from '../shell/app-link';
+-import { categoriesQuery } from './use-category-writes';
++import { categoriesQuery, useBudgetWrite } from './use-category-writes';
+ import type { CategoryRow } from './api';
+ import { budgetQuery } from './budget-api';
+ import { CategoryIcon } from './category-icon';
+-import { goalsQuery, type GoalView } from './goals-api';
++import { goalsQuery, fundGoalRate, type GoalView } from './goals-api';
+ import { goalBar, goalGroups, goalLine, planSummary, type GoalGroup } from './goals-model';
+ import { GoalPanel, type GoalPanelState } from './goals-panel';
+ import { CLASS_TEXT } from './plan-model';
+@@ -48,7 +48,7 @@ function GoalsBody({ month, goals }: { month: string; goals: GoalView[] }) {
+   const categories = tree?.categories ?? [];
+   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
+   const [panel, setPanel] = useState<GoalPanelState>({ mode: 'closed' });
+-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
++  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set(['completed']));
+   const catById = new Map(categories.map((c) => [c.id, c]));
+   const groups = goalGroups(goals);
+   const open = panel.mode === 'edit' ? goals.find((g) => g.id === panel.id) : undefined;
+@@ -230,6 +230,7 @@ function GoalRow({
+   accountName: string | undefined;
+ }) {
+   useAmountPrivacy();
++  const write = useBudgetWrite();
+   const bar = goalBar(g);
+   const line = goalLine(g, month);
+   const cls = category?.class ?? null;
+@@ -293,10 +294,15 @@ function GoalRow({
+         {g.targetDate ? longDay(g.targetDate) : <span className="muted">ohne Datum</span>}
+       </td>
+       <td className="col-num col-rate" data-label="Nötige Rate">
+-        {g.status === 'reached' || g.neededMonthlyCents === null ? (
+-          <span className="muted">–</span>
+-        ) : (
+-          eur(g.neededMonthlyCents)
++        {g.funding?.conflict ? <span className="muted">Ziel abstimmen</span>
++          : g.funding ? eur(g.funding.monthlyCents)
++          : g.neededMonthlyCents === null ? <span className="muted">–</span> : eur(g.neededMonthlyCents)}
++        {g.funding && g.lifecycle?.state !== 'completed' && (
++          <Button size="sm" variant="ghost" disabled={!!g.funding.conflict || g.funding.remainingCents <= 0}
++            onClick={() => void write(() => fundGoalRate(g.id, month),
++              (result) => result.changedCount === 0 ? 'Die Rate ist bereits zugewiesen.' : `${eur(result.assignedCents)} zugewiesen`)}>
++            Rate zuweisen
++          </Button>
+         )}
+       </td>
+     </tr>
+diff --git a/apps/web/src/budget/goals-panel.tsx b/apps/web/src/budget/goals-panel.tsx
+index 12060f5f..0fc317a6 100644
+--- a/apps/web/src/budget/goals-panel.tsx
++++ b/apps/web/src/budget/goals-panel.tsx
+@@ -17,7 +17,7 @@ import { eur, longDay } from '../ledger/format';
+ import type { AccountRow } from '../ledger/types';
+ import { AppLink } from '../shell/app-link';
+ import type { CategoryRow, GroupRow } from './api';
+-import { adoptGoal, createGoal, deleteGoal, patchGoal, type GoalView } from './goals-api';
++import { createGoal, deleteGoal, patchGoal, type GoalView } from './goals-api';
+ import { goalLine, shortMonth } from './goals-model';
+ import { useBudgetWrite } from './use-category-writes';
+ 
+@@ -97,20 +97,21 @@ function GoalBody({
+   const [name, setName] = useState(goal?.name ?? '');
+   const [target, setTarget] = useState(goal ? formatDecimal(cents(goal.targetCents)) : '');
+   const [date, setDate] = useState(goal?.targetDate ?? '');
++  const [startMonth, setStartMonth] = useState(goal?.effectiveStartMonth ?? month);
+   const [link, setLink] = useState<'category' | 'account'>(
+     goal?.accountId ? 'account' : 'category',
+   );
+   const [categoryId, setCategoryId] = useState(goal?.categoryId ?? '');
+   const [accountId, setAccountId] = useState(goal?.accountId ?? '');
+-  const [errors, setErrors] = useState<{ name?: string; target?: string; link?: string }>({});
++  const [errors, setErrors] = useState<{ name?: string; target?: string; link?: string; start?: string }>({});
+ 
+-  const category = categories.find((c) => c.id === (goal?.categoryId ?? ''));
+   const savable = categories.filter(SAVABLE);
+   const open = accounts.filter((a) => a.closedAt === null);
+ 
+   const save = async () => {
+     const parsed = parseAmount(target);
+     const next: typeof errors = {};
++    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(startMonth)) next.start = 'Bitte einen gültigen Startmonat wählen.';
+     if (name.trim() === '') next.name = 'Bitte einen Namen eintragen.';
+     if (!parsed.ok || parsed.cents <= 0) next.target = 'Bitte ein Ziel über 0 eintragen.';
+     if (link === 'category' ? categoryId === '' : accountId === '')
+@@ -118,6 +119,7 @@ function GoalBody({
+     setErrors(next);
+     if (Object.keys(next).length > 0 || !parsed.ok) return;
+     const values = {
++      startMonth,
+       name: name.trim(),
+       targetCents: parsed.cents,
+       targetDate: date === '' ? null : date,
+@@ -135,7 +137,7 @@ function GoalBody({
+       return;
+     }
+     const changed = Object.fromEntries(
+-      Object.entries(values).filter(([k, v]) => goal[k as keyof typeof values] !== v),
++      Object.entries(values).filter(([k, v]) => (k === 'startMonth' ? goal.effectiveStartMonth : goal[k as keyof typeof values]) !== v),
+     );
+     if (Object.keys(changed).length === 0) return onDone();
+     if (
+@@ -163,6 +165,10 @@ function GoalBody({
+         )}
+       </Field>
+       <AmountInput label="Ziel" value={target} onChange={setTarget} error={errors.target} />
++      <Field label="Zielbeginn" error={errors.start} hint="Die Historie beginnt mit diesem Monat; vorhandene Buchungen bleiben unverändert.">
++        {({ id, describedBy }) => <TextInput id={id} type="month" value={startMonth}
++          aria-describedby={describedBy} onChange={(e) => setStartMonth(e.target.value)} />}
++      </Field>
+       <Field label="Zieldatum" hint="Ohne Datum gibt es keine nötige Monatsrate.">
+         {({ id, describedBy }) => (
+           <TextInput
+@@ -243,30 +249,8 @@ function GoalBody({
+         )}
+       </div>
+ 
+-      {goal && category && (
+-        <>
+-          <h3 className="panel-h">Ziel der Kategorie</h3>
+-          <p className="panel-sub">
+-            {goal.targetDate
+-              ? `${category.name} bekommt das Ziel ${eur(goal.targetCents)} bis ${shortMonth(goal.targetDate.slice(0, 7))}, gültig ab ${shortMonth(month)}. Plan › Monat verteilt dann danach.`
+-              : 'Für ein Ziel der Kategorie braucht das Sparziel ein Zieldatum.'}
+-          </p>
+-          <div className="panel-actions">
+-            <Button
+-              variant="ghost"
+-              disabled={!goal.targetDate}
+-              onClick={() =>
+-                void write(
+-                  () => adoptGoal(goal.id, month),
+-                  () => `${category.name}: Ziel ${eur(goal.targetCents)} übernommen`,
+-                )
+-              }
+-            >
+-              Als Ziel der Kategorie übernehmen
+-            </Button>
+-          </div>
+-        </>
+-      )}
++      {goal?.funding?.conflict && <p role="status">{goal.funding.conflict}</p>}
++      <p className="panel-sub">Ein eindeutiges Sparziel mit Zieldatum setzt das Ziel seiner Kategorie beim Speichern. Bestehende abweichende Ziele bleiben erhalten.</p>
+     </div>
+   );
+ }
+@@ -298,7 +282,7 @@ export function GoalFigures({
+       </p>
+       <dl className="kv-list">
+         <div className="kv">
+-          <dt>Envelope</dt>
++          <dt>Kategorie</dt>
+           <dd>
+             {category ? (
+               <AppLink to="/plan/monat" search={(prev) => ({ ...prev, monat: month })}>
+@@ -318,8 +302,8 @@ export function GoalFigures({
+           <dd>{g.monthsLeft ?? '–'}</dd>
+         </div>
+         <div className="kv">
+-          <dt>Nötige Rate</dt>
+-          <dd>{g.neededMonthlyCents === null ? '–' : eur(g.neededMonthlyCents)}</dd>
++          <dt>Rate im gewählten Monat</dt>
++          <dd>{g.funding?.conflict ? 'Ziel abstimmen' : g.funding ? eur(g.funding.monthlyCents) : g.neededMonthlyCents === null ? '–' : eur(g.neededMonthlyCents)}</dd>
+         </div>
+         <div className="kv">
+           <dt>Ø letzte 3 Monate</dt>
+diff --git a/apps/web/src/budget/goals.css b/apps/web/src/budget/goals.css
+index 1121374d..8b4aed6f 100644
+--- a/apps/web/src/budget/goals.css
++++ b/apps/web/src/budget/goals.css
+@@ -149,3 +149,10 @@
+   min-width: 0;
+   margin-inline-end: 0.25em;
+ }
++
++/* The existing table retains a direct, keyboard-accessible funding action at each rate. */
++.goals .col-rate > button {
++  display: block;
++  margin-inline-start: auto;
++  min-height: 44px;
++}
+diff --git a/apps/web/src/budget/plan-panel-pages.tsx b/apps/web/src/budget/plan-panel-pages.tsx
+index c334d3ec..bffc93d3 100644
+--- a/apps/web/src/budget/plan-panel-pages.tsx
++++ b/apps/web/src/budget/plan-panel-pages.tsx
+@@ -12,7 +12,7 @@ import { useMonth } from '../shell/use-month';
+ import { CategoryPanel, type PanelState } from './category-panel';
+ import { CategoryIcon } from './category-icon';
+ import { GoalPanel } from './goals-panel';
+-import { adoptGoal } from './goals-api';
++import { completeGoal, fundGoalRate } from './goals-api';
+ import { KIND_LABEL, STAGES, targetText } from './labels';
+ import { CLASS_TEXT } from './plan-model';
+ import { categoriesQuery, useBudgetWrite } from './use-category-writes';
+@@ -158,7 +158,6 @@ export function GoalDetailPage() {
+   useEffect(() => {
+     heading.current?.focus({ preventScroll: true });
+   }, [row?.id]);
+-  const category = query.data?.categories.categories.find((c) => c.id === goal?.categoryId);
+   return (
+     <PageFrame meta={PLAN_SPARZIELE}>
+       <div className="plan plan-panel-detail">
+@@ -187,31 +186,30 @@ export function GoalDetailPage() {
+             <h2 id="goal-detail-title" ref={heading} tabIndex={-1}>
+               {row.name}
+             </h2>
+-            <GoalDetail row={row} month={month} />
++            <GoalDetail row={row} month={month} showPlanLink={false} />
+             <h3>Historie · Stand {ready.report.month}</h3>
+             <GoalHistory
+               points={ready.report.history.find((h) => h.id === id)?.points ?? []}
+               name={row.name}
+             />
+-            <Button variant="ghost" onClick={() => setEditing(true)}>
+-              Sparziel bearbeiten
+-            </Button>
+-            {goal && category && (
+-              <div className="panel-actions">
+-                <Button
+-                  variant="ghost"
+-                  disabled={!goal.targetDate}
+-                  onClick={() =>
+-                    void write(
+-                      () => adoptGoal(id, month),
+-                      () => `${category.name}: Ziel ${eur(goal.targetCents)} übernommen`,
+-                    )
+-                  }
+-                >
+-                  Als Ziel der Kategorie übernehmen
+-                </Button>
+-              </div>
++            <h3>Nächste Schritte</h3>
++            {goal?.funding?.conflict && <p role="status">{goal.funding.conflict}</p>}
++            {goal?.lifecycle?.evidence === 'unavailable' && goal.lifecycle.state !== 'completed' && (
++              <p>Ein automatischer Abschluss ist aus der vorhandenen Historie nicht eindeutig belegbar. Du kannst das Ziel manuell abschließen.</p>
+             )}
++            <div className="panel-actions">
++              {goal?.funding && goal.lifecycle?.state !== 'completed' && <Button
++                disabled={!!goal.funding.conflict || goal.funding.remainingCents <= 0}
++                onClick={() => void write(() => fundGoalRate(id, month),
++                  (result) => result.changedCount === 0 ? 'Die Rate ist bereits zugewiesen.' : `${eur(result.assignedCents)} zugewiesen`)}>
++                Rate zuweisen
++              </Button>}
++              <Button variant="ghost" onClick={() => setEditing(true)}>Sparziel bearbeiten</Button>
++              {goal && goal.lifecycle?.state !== 'completed' && <Button variant="ghost"
++                onClick={() => void write(() => completeGoal(id), () => 'Sparziel abgeschlossen. Buchungen bleiben erhalten.')}>
++                Manuell abschließen
++              </Button>}
++            </div>
+           </section>
+         )}
+       </div>
+diff --git a/apps/web/src/pages/goals-progress-report.tsx b/apps/web/src/pages/goals-progress-report.tsx
+index 0e8d481a..4fb5d748 100644
+--- a/apps/web/src/pages/goals-progress-report.tsx
++++ b/apps/web/src/pages/goals-progress-report.tsx
+@@ -45,7 +45,7 @@ export const goalsProgressReportQuery = (month?: string) =>
+       const [categories, accounts, report] = await Promise.all([
+         fetchCategories(),
+         fetchAccounts(lastDayOfMonth(data.month)),
+-        request<ReturnType<typeof goalsReport>>('GET', '/api/goals/report'),
++        request<ReturnType<typeof goalsReport>>('GET', `/api/goals/report?month=${data.month}`),
+       ]);
+       if (!Array.isArray(categories.categories) || !Array.isArray(accounts.accounts))
+         throw new ApiError(503, 'unavailable', 'Quellenangaben der Sparziele sind unvollständig.');
+@@ -363,7 +363,7 @@ function Forecast({ goal }: { goal: GoalView }) {
+     </span>
+   );
+ }
+-export function GoalDetail({ row, month }: { row: GoalReportRow; month: string }) {
++export function GoalDetail({ row, month, showPlanLink = true }: { row: GoalReportRow; month: string; showPlanLink?: boolean }) {
+   useAmountPrivacy();
+   const g = row.progress;
+   return (
+@@ -374,6 +374,8 @@ export function GoalDetail({ row, month }: { row: GoalReportRow; month: string }
+       {g ? (
+         <>
+           <GoalBar goal={g} month={month} />
++          <details>
++          <summary>ⓘ Beträge und Prognose erklärt</summary>
+           <GoalFigures
+             goal={g}
+             month={month}
+@@ -387,6 +389,7 @@ export function GoalDetail({ row, month }: { row: GoalReportRow; month: string }
+               ? 'Gespart ist der Geldsaldo am Monatsende. Die Rate ist der mittlere Geldsaldozuwachs der letzten drei Monate; Wertpapierbestände sind keine Quelle dieses Zielstands.'
+               : 'Gespart ist Verfügbar am Monatsende. Die Rate ist die mittlere Zuweisung der letzten drei Monate.'}
+           </p>
++          </details>
+           {row.source && (
+             <AppLink
+               to="/konten/buchungen"
+@@ -412,11 +415,11 @@ export function GoalDetail({ row, month }: { row: GoalReportRow; month: string }
+         <p role="status">Fortschritt und Status nicht verfügbar. {row.reason}</p>
+       )}
+       {row.note && <p>{row.note}</p>}
+-      <p>
++      {showPlanLink && <p>
+         <AppLink to="/plan/sparziele" search={{ monat: month }}>
+           Sparziel im Plan ansehen
+         </AppLink>
+-      </p>
++      </p>}
+     </div>
+   );
+ }
+@@ -429,9 +432,11 @@ export function GoalHistory({
+   name: string;
+ }) {
+   if (!points.length) return null;
+-  const max = Math.max(1, ...points.flatMap((p) => [p.actualCents ?? 0, p.sollCents ?? 0]));
++  const values = points.flatMap((p) => [p.actualCents ?? 0, p.sollCents ?? 0]);
++  const max = Math.max(1, ...values);
++  const min = Math.min(0, ...values);
+   const x = (i: number) => 54 + (i / Math.max(1, points.length - 1)) * 650;
+-  const y = (v: number) => 170 - (v / max) * 150;
++  const y = (v: number) => 170 - ((v - min) / (max - min)) * 150;
+   return (
+     <>
+       <ChartSvg
+@@ -452,7 +457,7 @@ export function GoalHistory({
+           ],
+         )}
+       >
+-        <AxisLine x1={54} x2={704} y={170} />
++        <AxisLine x1={54} x2={704} y={y(0)} />
+         <Line
+           kind="plan"
+           points={points.flatMap((p, i) =>
+@@ -473,7 +478,7 @@ export function GoalHistory({
+         />
+       </ChartSvg>
+       <p className="vnote">
+-        Durchgezogen: gespeicherter Quellenstand. Gestrichelt: linear von 0 im Anlagemonat zum
++        Durchgezogen: gespeicherter Quellenstand. Gestrichelt: linear von 0 im gewählten Startmonat zum
+         Zielbetrag am Zieldatum; vorhandenes Startguthaben kann darüber liegen. Ohne Zieldatum gibt
+         es keine Soll-Linie.
+       </p>
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index 445f23cf..a2a85710 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1865,3 +1865,11 @@ explicit reanalysis/review. Upload and reanalysis never post money.
+ - Clarified the existing report explanation: FIFO within each eligible budget-account outflow, amount weighting within that outflow, then equal weighting of up to ten outflow ages. Positive opening balances and internal budget-account transfers are explicitly distinguished; unavailable age remains unavailable.
+ - Replaced the unsupported claim that reaching a day target proves living on the previous month's money with a neutral comparison target and the distinction between historical age and future bill coverage. Existing Plan, pace, free-until-payday, forecast and financial producers are unchanged; no optional numeric runway was introduced.
+ - Scope is explanation only. Source correspondence was checked against the current domain/repository read model. Existing tests remain unchanged; runtime checks, browser acceptance and delivery are deferred with the owner's implementation batch. Dependencies #513/#517 and the full #518 closing gates remain open.
++
++
++### #604 — goal funding and retained lifecycle (source checkpoint, 2026-10-21)
++
++- Source implementation: explicit goal start month with preserved legacy fallback; current-month Plan rate and remaining-need assignment through the existing guarded writer; grouped Undo for manual completion; reached/open/retained completed groups and category history from the selected start.
++- Category target synchronization preserves conflicting manual targets and competing goals; these remain explicitly blocked until the source association is resolved. No automatic winner or historical target deletion.
++- Automatic completion reads coherent retained audit groups and canonical ledger projections only. Missing/ambiguous/over-bound chronology, account-goal evidence and pre-entered future expense chronology remain explicitly unavailable; manual completion is retained. Existing financial writes and Undo machinery are unchanged.
++- Migration48 adds start-month/manual-completion intent only; copy rollback rejects retained/audited use. Migration execution, new acceptance coverage, required checks, browser evidence, review completion and live delivery remain pending. This entry is not verified completion of #604.
+diff --git a/packages/db/drizzle/meta/_journal.json b/packages/db/drizzle/meta/_journal.json
+index 52c9c987..3e889840 100644
+--- a/packages/db/drizzle/meta/_journal.json
++++ b/packages/db/drizzle/meta/_journal.json
+@@ -337,6 +337,13 @@
+       "when": 1792510000000,
+       "tag": "0047_statement_automation",
+       "breakpoints": true
++    },
++    {
++      "idx": 48,
++      "version": "6",
++      "when": 1792520000000,
++      "tag": "0048_goal_lifecycle",
++      "breakpoints": true
+     }
+   ]
+ }
+diff --git a/packages/db/src/repos/goals.ts b/packages/db/src/repos/goals.ts
+index e9b09c4d..84a23986 100644
+--- a/packages/db/src/repos/goals.ts
++++ b/packages/db/src/repos/goals.ts
+@@ -6,17 +6,22 @@ import {
+   goalProgress,
+   lastDayOfMonth,
+   type GoalProgress,
++  type GoalLifecycle,
++  todayInVienna,
++  summarizeMonth,
+ } from '@budget/domain';
+-import { asc, isNull } from 'drizzle-orm';
+-import { account, category, savingsGoal } from '../schema';
++import { asc, eq, isNull, sql } from 'drizzle-orm';
++import { account, category, categoryTarget, savingsGoal } from '../schema';
+ import { withGroup, type AuditContext } from './audit';
+-import { setCategoryTarget } from './categories';
++import { categoryTree, setCategoryTarget } from './categories';
+ import { createEntity, getEntity, restoreEntity, softDeleteEntity, updateEntity } from './entities';
+ import { CategoryRuleError, EntityNotFoundError } from './errors';
+ import { accountBalances, budget } from './queries';
+ import { reportTables } from './report-tables';
+ import { goalSollCents } from '@budget/domain';
+ import { runInTransaction, type Executor } from './types';
++import { readGoalLifecycles } from './goal-lifecycle';
++import { assignMany } from './budget';
+ 
+ /**
+  * Savings goals (Sparziele, concept §7.2). A goal is linked to an envelope (its available money at
+@@ -37,10 +42,15 @@ export interface GoalInput {
+   categoryId?: string | null;
+   accountId?: string | null;
+   note?: string | null;
++  startMonth?: string | null;
+ }
+ export type GoalPatch = Partial<GoalInput>;
+ 
+-export interface GoalRow extends Goal, GoalProgress {}
++export interface GoalRow extends Goal, GoalProgress {
++  effectiveStartMonth: string;
++  lifecycle: GoalLifecycle;
++  funding: { monthlyCents: number; remainingCents: number; conflict: string | null } | null;
++}
+ 
+ const cleanName = (name: string): string => {
+   const clean = name.trim().replace(/\s+/g, ' ');
+@@ -50,9 +60,11 @@ const cleanName = (name: string): string => {
+ 
+ function checkLinks(
+   db: Executor,
+-  goal: Pick<Goal, 'targetCents' | 'categoryId' | 'accountId'>,
++  goal: Pick<Goal, 'targetCents' | 'categoryId' | 'accountId'> & { startMonth?: string | null },
+ ): void {
+-  if (goal.targetCents <= 0) throw new CategoryRuleError('Das Ziel muss über 0 liegen.');
++  if (goal.startMonth != null && !/^\d{4}-(0[1-9]|1[0-2])$/.test(goal.startMonth))
++    throw new CategoryRuleError('Der Zielbeginn braucht einen gültigen Monat.');
++  if (!Number.isSafeInteger(goal.targetCents) || goal.targetCents <= 0) throw new CategoryRuleError('Das Ziel muss über 0 liegen.');
+   if (goal.categoryId !== null && goal.accountId !== null)
+     throw new CategoryRuleError('Ein Sparziel hängt an einer Kategorie oder an einem Konto.');
+   if (goal.categoryId !== null && !getEntity(db, category, goal.categoryId))
+@@ -80,7 +92,7 @@ const merged = (goal: Goal, patch: GoalPatch): Goal => ({
+ export function listGoals(
+   db: Executor,
+   month: string,
+-  options: { includeDeleted?: boolean } = {},
++  options: { includeDeleted?: boolean; today?: string } = {},
+ ): GoalRow[] {
+   const goals = db
+     .select()
+@@ -103,7 +115,12 @@ export function listGoals(
+ 
+   // Nulls sort first in SQLite: move goals without a date behind the dated ones.
+   const ordered = [...goals.filter((g) => g.targetDate), ...goals.filter((g) => !g.targetDate)];
+-  return ordered.map((g) => {
++  const today = options.today ?? todayInVienna();
++  const asOf = lastDayOfMonth(month) < today ? lastDayOfMonth(month) : today;
++  const tree = categoryTree(db);
++  const current = envelopes.at(-1);
++  const summary = current ? summarizeMonth(current, tree.categories, tree.targets) : null;
++  const rows = ordered.map((g) => {
+     let savedCents = 0;
+     let recentMonthlyCents: number[] = [];
+     if (g.categoryId !== null) {
+@@ -121,6 +138,7 @@ export function listGoals(
+     }
+     return {
+       ...g,
++      effectiveStartMonth: g.startMonth ?? g.createdAt.slice(0, 7),
+       ...goalProgress({
+         month,
+         targetCents: g.targetCents,
+@@ -130,6 +148,30 @@ export function listGoals(
+       }),
+     };
+   });
++  const lifecycle = readGoalLifecycles(db, rows.map((g) => ({
++    id: g.id, categoryId: g.categoryId, startMonth: g.effectiveStartMonth,
++    targetCents: g.targetCents,
++    currentAvailableCents: g.categoryId ? (current?.envelopes[g.categoryId]?.availableCents ?? 0) : g.savedCents,
++    manualCompletedOn: g.manualCompletedOn,
++  })), asOf);
++  return rows.map((g) => {
++    const state = lifecycle.get(g.id)!;
++    const env = summary?.envelopes.find((e) => e.categoryId === g.categoryId);
++    const competing = rows.some((other) => other.id !== g.id && other.deletedAt === null &&
++      other.categoryId === g.categoryId && lifecycle.get(other.id)?.state !== 'completed');
++    const matches = env?.target?.kind === 'by_date' && env.target.amountCents === g.targetCents &&
++      env.target.targetDate === g.targetDate;
++    const conflict = g.categoryId === null ? null : competing
++      ? 'Mehrere Sparziele verwenden diese Kategorie. Bitte die Zuordnung zuerst auflösen.'
++      : !g.targetDate ? 'Für die Monatsrate fehlt das Zieldatum.'
++      : !matches ? 'Das Kategorie-Ziel weicht ab. Bitte das Sparziel oder das Ziel im Plan abstimmen.'
++      : month < g.effectiveStartMonth ? 'Das Sparziel beginnt erst später.' : null;
++    return { ...g, lifecycle: state, funding: g.categoryId === null ? null : {
++      monthlyCents: matches ? env!.goalCents : 0,
++      remainingCents: matches && state.state !== 'completed' ? env!.needCents : 0,
++      conflict,
++    } };
++  });
+ }
+ 
+ /** One goal with its figures for `month`. */
+@@ -143,6 +185,7 @@ export function createGoal(
+   db: Executor,
+   input: GoalInput,
+   ctx: AuditContext,
++  validFrom = todayInVienna().slice(0, 7),
+ ): { goal: Goal; groupId: string } {
+   const grouped = withGroup(ctx);
+   return runInTransaction(db, (tx) => {
+@@ -153,9 +196,12 @@ export function createGoal(
+       categoryId: input.categoryId ?? null,
+       accountId: input.accountId ?? null,
+       note: input.note ?? null,
++      startMonth: input.startMonth ?? validFrom,
+     };
+     checkLinks(tx, values);
+-    return { goal: createEntity(tx, savingsGoal, values, grouped), groupId: grouped.groupId };
++    const goal = createEntity(tx, savingsGoal, values, grouped);
++    synchronizeGoalTarget(tx, goal, validFrom, grouped);
++    return { goal, groupId: grouped.groupId };
+   });
+ }
+ 
+@@ -164,6 +210,7 @@ export function updateGoal(
+   id: string,
+   patch: GoalPatch,
+   ctx: AuditContext,
++  validFrom = todayInVienna().slice(0, 7),
+ ): { goal: Goal; groupId: string } {
+   const grouped = withGroup(ctx);
+   return runInTransaction(db, (tx) => {
+@@ -179,10 +226,67 @@ export function updateGoal(
+       ...(patch.targetCents !== undefined && { targetCents: patch.targetCents }),
+       ...(patch.targetDate !== undefined && { targetDate: patch.targetDate }),
+       ...(patch.note !== undefined && { note: patch.note }),
++      ...(patch.startMonth !== undefined && { startMonth: patch.startMonth ?? current.startMonth ?? current.createdAt.slice(0, 7) }),
+       categoryId: next.categoryId,
+       accountId: next.accountId,
+     };
+-    return { goal: updateEntity(tx, savingsGoal, id, clean, grouped), groupId: grouped.groupId };
++    const goal = updateEntity(tx, savingsGoal, id, clean, grouped);
++    if (patch.targetCents !== undefined || patch.targetDate !== undefined || patch.categoryId !== undefined || patch.startMonth !== undefined)
++      synchronizeGoalTarget(tx, goal, validFrom, grouped);
++    return { goal, groupId: grouped.groupId };
++  });
++}
++
++/** Only an unclaimed target or one last written with this goal may be synchronized. */
++function synchronizeGoalTarget(db: Executor, goal: Goal, validFrom: string, ctx: AuditContext): void {
++  if (!goal.categoryId || !goal.targetDate || goal.manualCompletedOn !== null) return;
++  const peers = db.select().from(savingsGoal).where(isNull(savingsGoal.deletedAt)).all();
++  if (peers.some((other) => other.id !== goal.id && other.categoryId === goal.categoryId && other.manualCompletedOn === null)) return;
++  const effectiveFrom = validFrom < (goal.startMonth ?? goal.createdAt.slice(0, 7))
++    ? (goal.startMonth ?? goal.createdAt.slice(0, 7)) : validFrom;
++  const versions = db.select().from(categoryTarget).where(eq(categoryTarget.categoryId, goal.categoryId)).all();
++  const effective = versions.filter((v) => v.deletedAt === null && v.validFrom <= effectiveFrom)
++    .sort((a, b) => b.validFrom.localeCompare(a.validFrom))[0];
++  const overwritten = versions.find((v) => v.validFrom === effectiveFrom) ?? effective;
++  if (overwritten) {
++    if (overwritten.deletedAt === null && overwritten.kind === 'by_date' && overwritten.amountCents === goal.targetCents && overwritten.targetDate === goal.targetDate) return;
++    const last = db.get<{ groupId: string | null }>(sql`SELECT group_id AS groupId FROM audit_log
++      WHERE entity_type='category_target' AND entity_id=${overwritten.id} ORDER BY rowid DESC LIMIT 1`);
++    const owner = last?.groupId ? db.get<{ n: number }>(sql`SELECT count(*) AS n FROM audit_log
++      WHERE group_id=${last.groupId} AND entity_type='savings_goal' AND entity_id=${goal.id}`)?.n : 0;
++    if (!owner) return;
++  }
++  setCategoryTarget(db, goal.categoryId,
++    { kind: 'by_date', amountCents: goal.targetCents, targetDate: goal.targetDate },
++    effectiveFrom, ctx);
++}
++
++/** Same current-month Plan amount; only remaining need is assigned, never the whole rate again. */
++export function fundGoalRate(db: Executor, id: string, month: string, ctx: AuditContext): { groupId: string; changedCount: number; assignedCents: number } {
++  const grouped = withGroup(ctx);
++  return runInTransaction(db, (tx) => {
++    const goal = getGoal(tx, id, month);
++    if (goal.deletedAt !== null || !goal.categoryId || goal.lifecycle.state === 'completed' || !goal.funding || goal.funding.conflict)
++      throw new CategoryRuleError(goal.funding?.conflict ?? 'Für dieses Sparziel ist keine Rate zuzuweisen.');
++    const amount = goal.funding.remainingCents;
++    if (amount === 0) return { groupId: grouped.groupId, changedCount: 0, assignedCents: 0 };
++    const assigned = budget(tx, [month])[0]?.envelopes[goal.categoryId]?.assignedCents ?? 0;
++    assignMany(tx, month, [{ categoryId: goal.categoryId, assignedCents: assigned + amount }], grouped);
++    return { groupId: grouped.groupId, changedCount: 1, assignedCents: amount };
++  });
++}
++
++/** Manual intent only: no booking, assignment or goal is deleted. Generic Undo restores this row. */
++export function completeGoal(db: Executor, id: string, day: string, ctx: AuditContext): { groupId: string; changedCount: number } {
++  const grouped = withGroup(ctx);
++  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(Date.parse(`${day}T12:00:00Z`)) || new Date(`${day}T12:00:00Z`).toISOString().slice(0, 10) !== day)
++    throw new CategoryRuleError('Der Abschluss braucht einen gültigen Tag.');
++  return runInTransaction(db, (tx) => {
++    const goal = getEntity(tx, savingsGoal, id);
++    if (!goal) throw new EntityNotFoundError('savings_goal', id);
++    if (goal.manualCompletedOn !== null) return { groupId: grouped.groupId, changedCount: 0 };
++    updateEntity(tx, savingsGoal, id, { manualCompletedOn: day }, grouped);
++    return { groupId: grouped.groupId, changedCount: 1 };
+   });
+ }
+ 
+@@ -232,9 +336,8 @@ export function adoptGoalAsCategoryTarget(
+ }
+ 
+ /** Read-only additions to report 3.5; no invented attribution from envelopes to bank accounts. */
+-export function goalsReport(db: Executor, today: string) {
+-  const month = today.slice(0, 7);
+-  const goals = listGoals(db, month);
++export function goalsReport(db: Executor, today: string, month = today.slice(0, 7)) {
++  const goals = listGoals(db, month, { today });
+   const tables = reportTables(db, { today });
+   const balances = new Map(accountBalances(db, today).map((r) => [r.accountId, r.balanceCents]));
+   const accounts = db.select().from(account).where(isNull(account.deletedAt)).all();
+@@ -268,7 +371,7 @@ export function goalsReport(db: Executor, today: string) {
+     counts.set(key, (counts.get(key) ?? 0) + 1);
+   }
+   const history = goals.map((g) => {
+-    const start = g.createdAt.slice(0, 7) > month ? month : g.createdAt.slice(0, 7);
++    const start = g.effectiveStartMonth;
+     const target = g.targetDate?.slice(0, 7) ?? month;
+     const end = target > month ? target : month;
+     const keys = monthsBetween(start, end).slice(0, 1201);
+@@ -283,23 +386,20 @@ export function goalsReport(db: Executor, today: string) {
+       : accounts.find((a) => a.id === g.accountId && a.currency === 'EUR');
+     if (!source || (counts.get(key) ?? 0) !== 1 || (g.categoryId !== null && g.accountId !== null))
+       return { id: g.id, points: [] };
+-    const past = keys.filter((m) => m <= month);
++    const past = keys.filter((m) => m <= month && m <= today.slice(0, 7));
+     const envelopes = g.categoryId && past.length ? budget(db, past) : [];
+     return {
+       id: g.id,
+       points: keys.map((m, i) => ({
+         month: m,
+         actualCents:
+-          m > month
++          m > month || m > today.slice(0, 7)
+             ? null
+             : g.categoryId
+-              ? Math.max(0, envelopes[i]?.envelopes[g.categoryId]?.availableCents ?? 0)
+-              : Math.max(
+-                  0,
+-                  accountBalances(db, m === month ? today : lastDayOfMonth(m)).find(
++              ? (envelopes[i]?.envelopes[g.categoryId]?.availableCents ?? 0)
++              : (accountBalances(db, m === month ? today : lastDayOfMonth(m)).find(
+                     (a) => a.accountId === g.accountId,
+-                  )?.balanceCents ?? 0,
+-                ),
++                  )?.balanceCents ?? 0),
+         sollCents: g.targetDate ? goalSollCents(g.targetCents, start, target, m) : null,
+       })),
+     };
+diff --git a/packages/db/src/repos/queries.ts b/packages/db/src/repos/queries.ts
+index 6e0e8cab..060cfff8 100644
+--- a/packages/db/src/repos/queries.ts
++++ b/packages/db/src/repos/queries.ts
+@@ -6,11 +6,11 @@ import {
+   type BudgetInput,
+   type BudgetMonth,
+   type CardRule,
+-  type LedgerSplit,
+ } from '@budget/domain';
+ import { and, asc, count, eq, gte, isNull, lte, sql } from 'drizzle-orm';
+ import { account, booking, bookingSplit, budgetMonth, category } from '../schema';
+ import { assignedByMonth } from './envelopes';
++import { budgetInputFromRows } from './budget-ledger-input';
+ import { assertEurBudgetAccounts } from './account-invariants';
+ import { memoizedShared } from './request-memo';
+ import type { Executor } from './types';
+@@ -110,33 +110,6 @@ function readBudgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
+     .innerJoin(account, eq(account.id, booking.accountId))
+     .where(and(isNull(booking.deletedAt), isNull(account.deletedAt)))
+     .all();
+-  // Legs per transfer: (booking id, account) of a whole-booking leg or of a split's booking.
+-  const legs = new Map<string, { bookingId: string; accountId: string }[]>();
+-  const addLeg = (transferId: string, bookingId: string, accountId: string) => {
+-    const list = legs.get(transferId) ?? [];
+-    if (!list.some((l) => l.bookingId === bookingId)) list.push({ bookingId, accountId });
+-    legs.set(transferId, list);
+-  };
+-  for (const r of rows) {
+-    if (r.bookingTransferId) addLeg(r.bookingTransferId, r.bookingId, r.accountId);
+-    if (r.splitTransferId) addLeg(r.splitTransferId, r.bookingId, r.accountId);
+-  }
+-  const partnerOf = (transferId: string | null, bookingId: string) =>
+-    transferId === null
+-      ? null
+-      : (legs.get(transferId)?.find((l) => l.bookingId !== bookingId)?.accountId ?? null);
+-  const splits: LedgerSplit[] = rows.map((r) => ({
+-    bookingId: r.bookingId,
+-    splitId: r.splitId,
+-    payeeId: r.payeeId,
+-    status: r.status,
+-    accountId: r.accountId,
+-    date: r.date,
+-    incomeNextMonth: r.incomeNextMonth,
+-    amountCents: r.amountCents,
+-    categoryId: r.categoryId,
+-    transferAccountId: partnerOf(r.splitTransferId ?? r.bookingTransferId, r.bookingId),
+-  }));
+   const held = Object.fromEntries(
+     db
+       .select({ month: budgetMonth.month, heldCents: budgetMonth.heldCents })
+@@ -145,12 +118,7 @@ function readBudgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
+       .all()
+       .map((r) => [r.month, r.heldCents]),
+   );
+-  const openingCarry = Object.fromEntries(
+-    categories
+-      .filter((c) => c.openingAvailableCents !== 0)
+-      .map((c) => [c.id, c.openingAvailableCents]),
+-  );
+-  return { accounts, categories, splits, assigned: assignedByMonth(db), held, openingCarry };
++  return budgetInputFromRows({ accounts, categories, rows, assigned: assignedByMonth(db), held });
+ }
+ 
+ /**
+diff --git a/packages/db/src/schema/budget.ts b/packages/db/src/schema/budget.ts
+index 32c9e5d3..2f5d6fcc 100644
+--- a/packages/db/src/schema/budget.ts
++++ b/packages/db/src/schema/budget.ts
+@@ -335,9 +335,16 @@ export const savingsGoal = sqliteTable('savings_goal', {
+   targetDate: text('target_date'),
+   categoryId: text('category_id').references(() => category.id),
+   accountId: text('account_id').references(() => account.id),
++  /** NULL retains the legacy created-at month; existing dates are never rewritten. */
++  startMonth: text('start_month'),
++  /** Explicit Vienna calendar day for the user's audited manual completion. */
++  manualCompletedOn: text('manual_completed_on'),
+   note: text('note'),
+   ...timestamps(),
+-});
++}, (t) => [
++  isoMonth('savings_goal_start_month_chk', t.startMonth),
++  isoDay('savings_goal_manual_completed_on_chk', t.manualCompletedOn),
++]);
+ 
+ /** Forecast events (Geplantes Ereignis): a purchase, a bonus, a move. */
+ export const plannedEvent = sqliteTable(
+diff --git a/packages/domain/src/index.ts b/packages/domain/src/index.ts
+index aa3726bf..ba60c0a6 100644
+--- a/packages/domain/src/index.ts
++++ b/packages/domain/src/index.ts
+@@ -53,3 +53,4 @@ export * from './statement-settlement';
+ export * from './statement-automation';
+ export * from './statement-automation-contract';
+ export * from './statement-receipt-links';
++export { goalLifecycle, activeGoalAuditEntries, type GoalLifecycle, type GoalLifecyclePoint, type GoalAuditLink } from './goals/lifecycle';

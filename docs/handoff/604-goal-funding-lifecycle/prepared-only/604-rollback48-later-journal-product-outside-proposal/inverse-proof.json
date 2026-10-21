@@ -1,0 +1,14 @@
+{
+  "original48Revision": "1858cffc04262063865f7043c2c39b7e02782212",
+  "original48Path": "packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+  "original48SHA256": "eadcf08b4df0fea328bf72ed9c3acc58dc12c33434febbc43aa356b77a9f84fc",
+  "reference47Revision": "88ee863bedf0eac786b98f78b6eb4999cb337c8a",
+  "reference47Path": "packages/db/drizzle/rollback/0047_statement_automation.sql",
+  "reference47SHA256": "2463e7edc919a57e2c3a2264679a9ea1a2728df2217e45a494a29f55c9564b7b",
+  "candidateSHA256": "6d2b4cbc3d525afeff41781738c28dbde0dd06e9e4d9559791fd9638a90ca17a",
+  "inverse": "Remove exactly the two added lines immediately after CREATE TEMP TABLE goal_lifecycle_rollback_guard; complete original file is byte-identical.",
+  "wholeFileInverseExact": true,
+  "allOriginalBytesPreserved": true,
+  "addedLines": 2,
+  "sqlOrRuntimeExecuted": false
+}

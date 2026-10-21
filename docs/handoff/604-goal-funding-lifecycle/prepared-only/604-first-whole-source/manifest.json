@@ -1,0 +1,94 @@
+{
+  "head": "5960e51cba63d509cdc9f24262103ab16d3dfead",
+  "status": "source-only; no tests, formatting, migration execution, builds, browser or delivery",
+  "paths": {
+    "SPEC.md": {
+      "sha256": "b08704a5e9e48cf7223bebf81d5775e8b543c1bb41e0b564d5c40345d1e09c42",
+      "size": 51766
+    },
+    "apps/server/src/api/goals.ts": {
+      "sha256": "4b35ecf47f020c4776200f8857f066f0d6a3bf1de026dfeeff63941fb3a6567f",
+      "size": 2976
+    },
+    "apps/server/src/api/schemas.ts": {
+      "sha256": "3314a7cf3e77540a9a6d93e295231a499fa64abb8b14fb39e9692ea97f48768d",
+      "size": 15153
+    },
+    "apps/web/src/budget/goals-api.ts": {
+      "sha256": "9eabe770db8cd81f1ddbcee4d5239d574fa44e27a6be05c8e16f41a15c8c34cb",
+      "size": 2704
+    },
+    "apps/web/src/budget/goals-model.ts": {
+      "sha256": "1647739b66fb2b8b5025f4707f4a83b6e59f5bd60e46d49364be0f79b625f5d5",
+      "size": 3355
+    },
+    "apps/web/src/budget/goals-page.tsx": {
+      "sha256": "3108c02b463ac9a9dd67ac39efa9ad220fdb500dfa1feaab402c70069541a4f2",
+      "size": 11597
+    },
+    "apps/web/src/budget/goals-panel.tsx": {
+      "sha256": "250c5d1ba5e7bc32d845993d6c9df7456c4fa6977c7844976129ce5bf2dc4d90",
+      "size": 10635
+    },
+    "apps/web/src/budget/goals.css": {
+      "sha256": "cd7b83c7286c41030b1dafd13e05928d5ece7b46a3146b5923f2e80f78a8ab1c",
+      "size": 3511
+    },
+    "apps/web/src/budget/plan-panel-pages.tsx": {
+      "sha256": "e97c54dca493ae4681543242c38d54ad9ce60ca5a6425d309cff942227f8ccf8",
+      "size": 9201
+    },
+    "apps/web/src/pages/goals-progress-report.tsx": {
+      "sha256": "3f284437bfd76c155c86878360371b71571197c28892c76aa1d190545e9e385d",
+      "size": 18076
+    },
+    "docs/ROADMAP.md": {
+      "sha256": "e1b9dd8dcb182ee785eb3201366ad40c6bd23bfb791432c971396f97bfccbc5d",
+      "size": 252262
+    },
+    "packages/db/drizzle/0048_goal_lifecycle.sql": {
+      "sha256": "38315a73c9c07da0e89e0b77ce6a0e6b724ba0e328e70934b513fd0ed8e2e9da",
+      "size": 451
+    },
+    "packages/db/drizzle/meta/0048_snapshot.json": {
+      "sha256": "b6d942e2cce708db2cf913d8f40430dbcbc7c9caf6b389b2dd702577d36e5f24",
+      "size": 271874
+    },
+    "packages/db/drizzle/meta/_journal.json": {
+      "sha256": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42",
+      "size": 7221
+    },
+    "packages/db/drizzle/rollback/0048_goal_lifecycle.sql": {
+      "sha256": "14eb89462c1ef2e5a4220d42dbe13cf6e794a7a919fd8dfdc80da7c90b2d51be",
+      "size": 971
+    },
+    "packages/db/src/repos/budget-ledger-input.ts": {
+      "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c",
+      "size": 2319
+    },
+    "packages/db/src/repos/goal-lifecycle.ts": {
+      "sha256": "cd28b6da982b57deb84f896cfd91aaea1c75ed6c1b046d9be5283a9e1db48245",
+      "size": 12692
+    },
+    "packages/db/src/repos/goals.ts": {
+      "sha256": "1639daaae2f6a3b757b3faee9e9a7ea6ad31988a857d35cdb222d9ae7eeeb20e",
+      "size": 18743
+    },
+    "packages/db/src/repos/queries.ts": {
+      "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7",
+      "size": 7291
+    },
+    "packages/db/src/schema/budget.ts": {
+      "sha256": "96f15acd478900da0ac2bfd362c82c2efdb1028f40a7ec5434de8c455e123410",
+      "size": 15477
+    },
+    "packages/domain/src/goals/lifecycle.ts": {
+      "sha256": "da7819a306821f893470019b1413e869166c7f601ed1c9cc9a7a43360dd07c67",
+      "size": 3368
+    },
+    "packages/domain/src/index.ts": {
+      "sha256": "58dbcb797924042017eaaee21ae39cdbfcdad4392aef4b9ea9894733c002c8ee",
+      "size": 1822
+    }
+  }
+}

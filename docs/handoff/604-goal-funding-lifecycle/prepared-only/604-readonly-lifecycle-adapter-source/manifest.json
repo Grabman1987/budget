@@ -1,0 +1,10 @@
+{
+  "kind": "source-only-unexecuted",
+  "paths": {
+    "packages/domain/src/goals/lifecycle.ts": "0c1c1c3f4a63d2e3ad6365421c4b2a0cb8fef3adbea594c1577c516d51461a86",
+    "packages/db/src/repos/goal-lifecycle.ts": "ced092a2acc633f99d89bf15eff9d55dd5ab807c76a281519a2bdd52a7147be1",
+    "packages/db/src/repos/budget-ledger-input.ts": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c",
+    "packages/db/src/repos/queries.ts": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7",
+    "packages/domain/src/index.ts": "58dbcb797924042017eaaee21ae39cdbfcdad4392aef4b9ea9894733c002c8ee"
+  }
+}

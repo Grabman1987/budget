@@ -1,0 +1,12 @@
+{
+  "path": "docs/ROADMAP.md",
+  "base_sha256": "f0143d9c20fb42c0bb70a5679ecbb0b6560b66889f3351527577a25849f51579",
+  "ours_sha256": "471fa18c1a2dfd0dc69845e106fcdbdb9a5007ebe42275801a46e44a1df24540",
+  "theirs_sha256": "f77ddbe81a9335a159b611e1e1c50150053f6a00509b06d620043b0cfb2add5f",
+  "merged_sha256": "e801a4c99627f8aab313d8fdd63fff19a63992307ed100eaf0961d15d1dbb980",
+  "method": "exact common prefix + whole ours append + whole theirs append",
+  "source_commit": "63eb5ff3e549781fbea791e601830dd0dcf4fae5",
+  "prior_integration": "ac5fd756b0241d575a9bfddcd330e7af1605da55",
+  "published": false,
+  "tests_run": false
+}

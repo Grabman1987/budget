@@ -1,0 +1,52 @@
+{
+  "issue": 604,
+  "status": "outside-only-unexecuted",
+  "candidate": {
+    "path": "packages/domain/src/goals/lifecycle-604.test.ts",
+    "sha256": "85f588b9137658ef9ee0398c119af9c40b58a9db33f1a7ad95c6b96dd6fc272a",
+    "declaredCases": 10
+  },
+  "sourceChain": [
+    "63eb5ff3e549781fbea791e601830dd0dcf4fae5",
+    "1858cffc04262063865f7043c2c39b7e02782212"
+  ],
+  "adapterOnlyCorrection": "1d0c7b1af8d67dab7dcb1a8c567c20c3f44a1c48",
+  "sourcePins": [
+    {
+      "path": "packages/domain/src/goals/lifecycle.ts",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "82c34702cd69c59dc3e4496baeb1edbdfebff05eefe5900261ee879c25aa9387"
+    },
+    {
+      "path": "packages/domain/src/ledger/targets.ts",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "735480839f512071f15985bf69bb747196a70a7375e4217bccd7f5aff9db0845"
+    },
+    {
+      "path": "packages/domain/src/goals/goals.ts",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "2889f405eb66bb302938771d6ecadd330cdb534d60fbc33dd0efa30e6a01e68b"
+    },
+    {
+      "path": "packages/db/src/repos/goals.ts",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "96a6af187f582096fd128e2051b848781483238d6bcc43e696b055052fff794c"
+    },
+    {
+      "path": "packages/db/src/repos/goal-lifecycle.ts",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "b0078f78fbb8dfe33fbdf92261bcfa92549c8a1e4864e7ffbe50a55db9e92116"
+    }
+  ],
+  "newPathAbsentAt": [
+    "1858cffc04262063865f7043c2c39b7e02782212",
+    "074282335ace136c5fe7f7d4b17c8fc44216da90"
+  ],
+  "files": {
+    "README.md": "6ded72da0cad6034f6dae5305c43795a779e1f991ea0adeec83e9b504e0b6dd8",
+    "change.diff": "a53eaaf07155f04e7d476ab388cd5cafa24f43374b306a25a903e45b82459267"
+  },
+  "runtimeExecuted": false,
+  "repositoryModified": false,
+  "card47DeliveryPrerequisite": true
+}

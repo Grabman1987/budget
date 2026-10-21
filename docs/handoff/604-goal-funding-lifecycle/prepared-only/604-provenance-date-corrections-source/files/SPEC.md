@@ -1,0 +1,316 @@
+# Budget — Specification
+
+Owner savings-goal decision (2026-10-21, #604): category-goal funding uses the
+existing Plan target including the current month. “Rate zuweisen” adds only the
+remaining current-month need through the existing guarded, audited assignment
+path; it does not add a second full rate. Preserve the separate future-month
+forecast where still used. New goals have a selectable start month; existing
+goals retain their previous start until explicitly edited. A goal completes after
+proven reaching followed by its first actual expense, or by explicit manual
+completion. Assignment changes do not qualify as expenses. Undo must restore the
+derived or stored state; goals and bookings are never deleted by completion.
+Unproven historical ordering must remain explicit rather than inventing an
+automatic completion. These decisions supplement the existing goal requirements.
+
+Owner document-automation directive (2026-10-21, #741): a new explicit manual PDF
+upload may automatically save fully validated, unambiguous payroll or issued-card
+statement results and link their retained originals to the matching bookings.
+Parsing and reconciliation are deterministic scripts, without AI. A configured
+source account and counterpart, source-derived dates and integer-cent amounts,
+complete reconciliation and unique matching are required; unresolved portions
+remain in Prüfen. This supersedes the older payroll statements that upload alone
+never books money for this explicit automatic path only; legacy callers and
+scheduled source scans retain their existing manual-review behavior. Automatic
+decisions preserve source provenance, atomic audit and grouped Undo, and retries
+or a repeated upload never silently recreate undone money. Card settlement uses
+the previously issued statement amount, never the current account deficit.
+Existing gross fuel purchases stay unchanged; an independently evidenced rebate
+is a separate credit. A new purchase already recorded at its discounted net
+charge must not receive a second rebate. Missing or ambiguous evidence never
+becomes an invented date, guessed category, balance correction or bank-confirmed
+status. See the bounded implementation and acceptance scope in #741.
+
+Owner reference-adoption decision (2026-10-15): Portfolio Performance is the default return convention, superseding the research proposal to retain Budget's end-flow convention and conflicting prototype examples. Daily TTWROR chains `(closing value + withdrawals) / (previous close + deposits) - 1`, with gross deposits at day start and gross withdrawals at day end. The first holding-establishing trade needs the preceding closing valuation so its fees count. Held-security returns include fees and exclude taxes; a portfolio including cash uses actual external boundary flows, with retained trades/dividends internal and costs reflected in valuation. XIRR uses actual/365 and PP's security tax conversion convention. Modified Dietz remains a separately labelled after-tax approximation until the 2026-10-16 page review's removal from user-facing figures is implemented (#487, #525). Contribution/gain facts remain after tax; no stored financial data is rewritten. Missing capital/valuation stays visibly unavailable instead of adopting PP's warning-plus-zero presentation. Cost-basis preference, risk estimators and quote quality remain separate contracts. The owner also approved database-backed cross-device Explorer views and preparing a limited explicit-FX / same-security-known-basis transfer scope. See [adoption decisions](docs/product/reference-adoption.md).
+
+Owner allocation addition (2026-10-15; delivered in #507): users select the accounts/depots counted for both wealth thresholds and cash share, map existing instruments to asset classes, and enter editable lower-bound stages ("ab Vermögen"). Preserve the existing explicit universe, signed cash, dated target versions and inclusive upper-bound storage: translate each next lower bound to one cent below it without moving legacy boundaries. The requested generic seven-stage example is an explicitly mapped template, never a production seed or trading instruction. Account-scope/cash-class edits and targets must save atomically with conflict detection and grouped undo. Owner decision 2026-10-16: every stage activates by its threshold (conditions are hints) and a reached stage holds until the month-end sum falls below 90 % of its lower bound; see [contract](docs/allocation-wealth-stages.md).
+
+Owner net-worth composition decision (2026-10-21, #550): composition percentages
+use signed net worth as their denominator; debts have negative shares. Show
+percentages only when net worth is at least EUR 100 (10,000 cents) and all values
+are complete. Otherwise show euro amounts without percentages. Thus EUR 10,000
+of assets and EUR 2,000 of debts produce EUR 8,000 net worth, with shares of 125%
+and -25%. This presentation rule does not change stored values or valuation.
+
+Owner wealth completeness/backlog requirement (2026-10-15): Vermögen must expose
+a compact benchmark comparison, actual portfolio value history in EUR, and asset
+composition with time development under explicit scope/unit/date conventions.
+The compact comparison belongs in Vermögen; detailed performance analysis remains
+in Reports. This narrows the older report-only wording where it excluded the
+compact comparison. Existing total-net-worth history must be diagnosed if invisible,
+not declared absent or rebuilt without evidence. Implementation/design work remains
+open as GAP01–08 in [the gap backlog](docs/product/open-gaps.md), including navigation,
+onboarding frames and semantic Figma acceptance. No financial formula or gate is
+changed or accepted merely by recording these requirements.
+
+Page review (2026-10-16): owner-approved per-page decisions in [docs/product/page-review-2026-10-16.md](docs/product/page-review-2026-10-16.md) supersede older Figma frames, audit recommendations and proposals where they differ; financial rules still follow this SPEC. Explicitly superseded there: cash capture confirmed / other capture pending (#499 stays authoritative, transfer Bar↔Bank per side); red overspent chip and inbox counter → one „Prüfen · N“ pill, overspent categories leave Prüfen (Heute › Zu tun + Plan); Plan/Konten register labels (Zahlungen, Prognose, Prüfen) with redirects; report 3.1 Liquiditätsprognose becomes Plan › Prognose; Modified Dietz no longer displayed; compact benchmark comparison in Vermögen (#480 wording applies to the detail only); onboarding deferred to PUB1 (#490).
+
+Current reading entry point (2026-10-15): [Product foundation](docs/product/README.md)
+consolidates the requirements, sitemap, state/data/process contracts and acceptance
+mapping. It preserves the precedence below. Proposed first-use onboarding remains
+a review candidate, not an implemented feature or a newly accepted financial rule.
+
+Owner allocation addition (2026-10-15, implementation draft): users select the accounts/depots counted for both wealth thresholds and cash share, map existing instruments to asset classes, and enter editable lower-bound stages ("ab Vermögen"). Preserve the existing explicit universe, signed cash, dated target versions and inclusive upper-bound storage: translate each next lower bound to one cent below it without moving legacy boundaries. The requested generic seven-stage example is an explicitly mapped template, never a production seed or trading instruction. Account-scope/cash-class edits and targets must save atomically with conflict detection and grouped undo. The conditional-stage default awaits the owner's answer; see [draft contract](docs/allocation-wealth-stages.md).
+
+Owner Q2 directive (2026-10-15, #465): historical report negatives use quiet ink while retaining their signs and zero geometry; historical debt bars use a dashed outline. Current action-needed warnings, negative sidebar balances and specified signed heatmaps retain their existing semantics. The inbox overview shows one urgent overspent summary with category count, exact total deficit and a secondary link to Plan triage. Individual entries, raw counts and detail views remain; the filtered full summary is computed before pagination. This read-only presentation never covers categories or changes bookings by itself.
+
+Owner direct payroll review directive (2026-10-15, #499): a manually uploaded PDF opens its result immediately in the wide upload/review dialog; the retained inbox task remains a recovery entry. Known wage codes are parsed automatically. Unknown numeric wage codes can be assigned at the review to the existing earning, deduction, reimbursement, tax-adjustment or social-insurance-adjustment sections and reparsed; this neither adds database columns nor changes payroll formulas. Saving the mapping, parsed result and inbox urgency is one audited group, guarded against concurrent changes. New payout confirmation exposes account, explicit payout date, sender and an eligible unbooked salary expectation. A printed date or the selected expectation can propose the date; no missing date silently becomes month end. Confirmation links the expectation and creates or links the payout atomically with the payslip and receipt. Existing matched booking dates, senders and manually corrected records remain unchanged. Desktop PDF/download/confirm/reject/reanalyse actions share one row; phone layout preserves readable fields and touch targets. Upload alone never books money.
+
+Owner delivery and cash directive (2026-10-15, #499): coherent changes may share a reviewable PR, CI run and live delivery. Required checks and serial merge/deployment/live-revision gates remain. New cash capture is immediately confirmed and its status cannot be toggled to pending; bank capture retains its pending default and manual confirmation. Existing stored bookings, reconciliation locks and audited undo remain intact. Further account-purpose, import and transfer semantics are tracked in #499.
+
+Owner booking-line directive (2026-10-14, #463): the capture head shows amount, payee, account/status and date/repetition before category/contact lines on desktop and phone. Date/repetition use 2:1 columns; direct date entry and the calendar remain. One category row can represent a category, a whole contact outlay, or a category with percentage/fixed contact shares; additional gross lines show a cent-exact rest and block saving until it is zero. Slim suggestions share one row. Date chips, the separate outlay field and Split mode button are removed. Tab follows head → lines → actions; Enter saves valid input and Escape retains its guard. Map to the existing ledger splits with largest-remainder cents, preserving stored metadata, audited writes, locks and undo.
+
+Owner payslip directive (2026-10-15, #499): review preselects the configured salary account and permits another active EUR payout account. Confirmation links an existing matching booking or creates a pending payout (cash: confirmed), with salary/special income and reimbursements kept separate. Payslip, payout, receipt and inbox decision are atomic and undoable. Upload alone never books money. The PDF drop alternative preserves the native chooser; Linux browser evidence does not establish a fix for the reported Windows Chrome chooser hang.
+
+Owner account-properties directive (2026-10-15, #499): account type keeps its existing meaning; cash uses `cash`, the salary account is selected in Datenquellen, and a depot with separate settlement cash uses the existing optional `referenceAccountId`. Integrated depot cash needs no separate link. Create/edit forms expose this distinction without a new purpose column, migration or historical rewrite. New links require an open checking/cash/savings account in the same currency; incompatible type or currency changes must first explicitly release linked depots. Existing historical references remain visible and unrelated edits preserve them. Account metadata changes retain the audited write and undo path; credit-card behavior is unchanged.
+
+Owner contact-history directive (2026-10-15, #499): contact name and balance open the same retained detail. A persisted repayment that fully clears both open outlays and credit defines the latest history boundary; inferred legacy receipts never invent a recorded settlement. Older completed movements remain available in a disclosure, current-month movements are itemized against the statement as-of month with saved allocations and credit, and older open outlays remain visible. Same-day order and all stored financial data, write paths, locks and undo remain unchanged.
+
+Owner Q3 decision (2026-10-14, #466): Heute retains the month switch and Monat / Bis Gehalt (3B). One nonempty Zu tun block groups work into at most four source rows (Plan, rules, inbox/bookings, account checks), with existing review/write/undo destinations. Month close stays in the Plan row; savings executions already belong to the inbox count. One nonempty Fällig 14 Tage list combines recurring payments and one-off events through day 14; the underlying event read horizon stays 35 days. Finanz-Check is a compact summary tile. Other-month views use a short Ansicht / return line and label current-only sections Stand heute; Pace and pinned envelopes retain their selected-month scope. This supersedes older next-steps and split upcoming-list descriptions.
+
+Owner UX V1 directive (2026-10-14, #480): Vermögen shows a compact performance summary before decisions: value, unrealised gain in EUR/percent, annualised time-weighted return and a chart using the Reports calculation. Detailed benchmark and performance analysis stays in Reports. Period controls sit beside the chart and are absent from non-chart details. Schulden starts with total debt and actual history; payoff dates require complete calculable terms, and repayment scenarios/terms explanations are disclosures. Freiheit starts with an editable average of up to six closed Zukunft months; expense sources are collapsed. Savings details show the next version-aware planned date, recorded gross buys since the first version in the selected instrument/account (including manual buys), and collapsed rate versions. No write, booking, bank-order or undo semantics change.
+
+Owner wealth-detail directive (2026-10-15, #499): signed account-composition bars share one proportional zero axis, so assets extend right and debts left by their actual magnitudes. The Portfolio overview adds a daily index with base 100, using the existing daily TTWROR flow adjustment and period endpoints; unavailable daily returns remain gaps and are not interpolated. Stored valuation dates and possible carried-forward quotes are disclosed. Date spacing is proportional, SVG labels retain readable size at responsive widths, and portfolio actions follow the chart. Existing monthly report index, benchmarks, class series and return mathematics are unchanged.
+
+Owner Z1 directive (2026-10-13, #448): Plan › Monat uses spaced, rounded category-group bands, group/overall selection and inline creation shortcuts in the grid headers. Category rows show net spending status and a green two-tone bar (hatched spent, solid remaining; overspent red); class metadata stays in the inspector. Existing light/dark tokens, cent guards, audited assignment/move/cover/quick assignment, undo and alternative/multiple-month views remain. Phone chips form one horizontally scrolling sticky line; category rows use name/available, status/assigned and bar, with assignment through the existing inspector. The global native checkbox sizing correction is a separate package. This supersedes the earlier Plan category-bar description only.
+
+Owner search directive (2026-10-14, #484): global search opens a modal command palette without changing the source URL or page state; phones use a full-screen sheet. Actions lead, followed by grouped results; the empty palette contains actions and validated session recents only. `/suche` remains the deep-linkable all-results page with type filtering. This search-only exception supersedes the earlier forms-only dialog restriction. Existing capture, month-close, privacy and ledger destinations remain unchanged.
+
+Owner Plan directive (2026-10-12, #446): Plan › Monat restores a 320px sticky right inspector from 1180px. With no category selected, native disclosures show Monatsüberblick open and 50/30/20, expected income versus targets, budget-account money and waterfall stages closed. Category selection shows existing assignment/move/cover forms, target progress, quick assignment and category actions; history remains on the envelope URL. Below 1180px this package uses a collapsible inspector below the grid; the phone action layout is a separate package. This narrowly supersedes the 2026-10-05 navigation directive for Plan › Monat only.
+
+Owner navigation directive (2026-10-05): content details use deep-linkable sub-pages
+with breadcrumbs and back navigation, never side panels/drawers/right sheets or
+permanent side columns of content cards. Summaries are full-width inline sections
+or link to sub-pages. Modal dialogs are only for input/confirmation forms; phone
+bottom sheets only for forms and filters. The left application navigation stays.
+This supersedes the earlier detail-panel descriptions below and in the prototype.
+See [inventory and delivery scope](docs/no-side-panels-1005.md).
+
+Owner income-pause directive (2026-10-08, #285): the first income-pause slice covers exactly one active recurring inflow natively denominated in EUR before any FX conversion. During a required inclusive start/end interval, each scheduled occurrence whose due date after existing rhythm, effective-version and date-shift rules falls in the interval contributes 0 cents to future cash projections. The original schedule resumes at its normal effective amount version on the next occurrence after the interval. Do not prorate by calendar days, alter booking or matching semantics or envelope balances, or show a suppressed receipt in the forecast salary cash marker (`balance.salary`). The rule-based planning boundary (`stand.payday`), its label and period/payday horizon remain unchanged and do not assert an actual receipt. Preserve stable expected-payment identity; reject overlapping pause intervals for that schedule. Existing additive `planned_event` semantics remain unchanged. Nonzero replacement amounts, multiple sources and additive income deltas are outside this first slice. The contract is in [income pause](docs/income-pause.md); #286 owns pure shared calculation and literal tests, while #287 separately owns persistence, forecast adaptation and UI.
+
+Owner composition directive (2026-10-05): report 4.2 has one group/class sunburst and a matching legend; products remain a group/class/product table. Additive migration 0038 adds nullable class parents and an explicit empty-group marker; groups never receive positions or targets, depth is at most two. Class targets remain effective shares of the whole investment universe; group targets sum member targets, including unheld classes. The region table appears only when stored weights cover at least half the positive held security value. P2P defaults are created only by an explicit operator `assetClassTree` run. See [composition contract](docs/portfolio-composition.md).
+
+Owner directive (04.10.2026, portfolio reports): reports 4.1/4.4 use four persisted benchmark checkboxes and dashed EUR index-ETF price lines. Report 4.1 includes all investment account types; closed empty depots are period-filtered. Allocation composition uses positive classified market value with cash/negative/unclassified values separately; risk policy retains signed cash. Report 4.3 keeps daily values and adds monthly reconciliation. Owner decision 05.10.2026: Heute and the R07 account forecast share one period-bound window and low point: fourteen days before today through next rule-based payday plus two days (Bis Gehalt), or shown month end plus two days (Monat). A payday forecast shorter than seven days extends to the following rule-based payday plus two days; actual history is solid, forecast dashed. See [contract](docs/heute-horizon-1005.md).
+
+Owner booking directive (2026-10-04): new manual bookings use the booking month; the dialog has no Budgetmonat field and does not apply next-month defaults. Existing stored values stay intact. Booking Wiederholen creates a recurring schedule; owner-facing wording is Wiederkehrende Zahlungen. Account chart preview defaults to 35 days, configurable 0–365.
+
+**Owner directive PR4, 2026-10-04:** `/einstellungen/anlageklassen` owns class definitions/lifecycle, dated targets, bands and instrument reassignment; Portfolio links to one shared editor. Complete managed targets sum to 10000 bp; omission is null, explicit zero is managed. Versioned investment-sum tiers resolve centrally from PR3's dated universe, including negative cash, for every live/historical policy consumer. Archive cannot invalidate current/future targets or exposure/cash dependencies; replacement version plus retirement is atomic and undoable. Additive migration 0035 preserves all existing sources. See [settings and tier contract](docs/asset-classes-settings.md).
+
+**Owner directive PR3, 2026-10-04:** allocation uses explicit account/instrument membership, including signed investment cash. Unknown classification and estimated/stale valuation make decision support provisional; missing price/FX suppresses proposals. Owner clarification 2026-10-06 (supersedes §10's stored-quote-only guard for default valuation): quotes on/before the day take precedence, then the latest gross trade price on/before it or earliest after it, excluding fees/taxes and retaining trade currency; implied trade prices are not estimated, and the estimate hint covers only positive as-of holdings without a usable quote or trade price. Savings optimisation is suppressed on provisional data. Unclassified value/share/product count and structured valuation details are central. R13 euros distinguish Umschichtungsabstand at unchanged total from single-class Neues Kapital bis Soll. Scope metadata is minimal/current, not a historical membership version; dynamic tiers and PR4 settings remain separate. See [allocation quality/scope](docs/allocation-quality-scope.md).
+
+Status: Gate 1 candidate; owner sign-off remains pending, 2026-10-01. App name: **Budget** (O10 decided). Private, single user. Current implementation and operational evidence: `docs/STATUS.md`.
+
+Budget is a private household finance web app (installable PWA) that replaces YNAB (and the interim Actual-Budget cockpit) and Portfolio Performance with one app, one database and one language. Envelope budgeting at the core, a rule set of finance basics on top, full net-worth and portfolio tracking in the same ledger. Goal: not only track cash flow and wealth, but actively optimise them.
+
+Feature-by-feature implementation coverage, including the current 34-report catalog:
+[`docs/FEATURES.md`](docs/FEATURES.md). Remaining requirement details and superseded
+concept statements: [`docs/REQUIREMENTS-GAPS.md`](docs/REQUIREMENTS-GAPS.md).
+These inventories track delivery and open acceptance; they do not change scope
+or the source precedence below.
+
+## 0. Sources of truth and precedence
+
+When two sources disagree, the higher one wins:
+
+1. **This file (`SPEC.md`)**: decisions, scope, architecture, acceptance criteria.
+2. **`PRODUCT.md`**: product facts and all user decisions made during design (German).
+3. **`DESIGN.md` + `.impeccable/design.json`**: the visual system ("Blaupause"). Replaces chapter 10 of the concept completely.
+4. **`design/prototype/`**: the clickable static prototype. It is the visual and behavioural reference for every page, including the sample ledger and the calculation rules in `design/prototype/reports-core.js`. Screens: `design/screens/`.
+5. **`docs/concept/produktkonzept.md`**: the original, complete concept (German). Detailed methodology, data model, KPIs, processes and migration. Still valid unless overridden above.
+6. **`reference/finance-hub/`**: tested calculation modules of the old app, to be ported (not copied) to TypeScript.
+
+The old concept's design language (Manrope, teal accent, white tiles, `03_Mockups`) is **rejected**. Do not use it.
+
+## 1. Users and usage
+
+- One user runs the finances of a household. Partner, friends and employer are **contacts** (no login).
+- **Phone:** capture a cash payment in 10 s, see "does the month hold?" in 5 s, work the inbox.
+- **Desktop:** steer: distribute money, month-end close, year planning, debts, portfolio review, reports.
+- Routines: nightly sync (automatic), capture (ongoing), weekly inbox, payday distribution, month-end close, quarterly review, yearly planning, event scenarios. See concept ch. 4.
+
+## 2. Principles (binding)
+
+1. One question per place; every KPI has exactly one primary place.
+2. Every number is explainable down to the booking (dimension chains, drill-down); nothing disappears silently; everything is undoable (audit log).
+3. Capture on the phone, steer on the desktop; same sitemap and content on both.
+4. Rules instead of gut feeling: rules are data with status and a concrete action.
+5. Automatic where reliable; manual entry is a first-class path.
+6. **Generic, not personal:** no person or provider names in code, UI texts, fixtures or docs. Persons are contacts, providers are institutions, both are data.
+7. **No real financial data in the repository.** Tests and development use the synthetic sample ledger. Real data only enters the running app through the migration (P2) on the server.
+
+## 3. Information architecture
+
+Five main areas plus settings (profile menu). Registers are the second level; no third menu level. Content details use deep-linkable pages with breadcrumbs/back navigation under the 2026-10-05 directive. The later Plan inspector and search-palette directives are explicit exceptions; dialogs/sheets retain their stated input/filter purposes. Every view has its own URL. Global on every page: search (Ctrl K), inbox with counter, "+ Buchung".
+
+| Area | Question | Registers / views (prototype file) |
+| --- | --- | --- |
+| Heute | Hält der Monat? | Leitmaß "frei verfügbar bis Gehalt", pace, upcoming payments, Finanz-Check KPI, net worth (`index.html`) |
+| Plan | Jeder Euro hat einen Job | Monat · Jahr · Zahlungen · Ziele · Prognose (`/plan/prognose`, formerly `/reports/liquiditaet`); Monat with views Wasserfall / Zeit / Gruppen / Klassen / Triage, Geld verteilen (`plan.html`) |
+| Konten | Was ist passiert? | Übersicht · Buchungen · Prüfen (`/konten/pruefen`, legacy `/konten/posteingang` redirects, including details) · Kontakte; Einzelkonto with Kontostand prüfen (`konten.html`) |
+| Vermögen | Was besitze ich, was entscheide ich? | Nettovermögen, Portfolio (Soll/Ist, Rebalancing, Sparpläne), Schulden (Sondertilgung), Freiheitszahl with Soll-Pfad (`vermoegen.html`) |
+| Reports | Warum und wohin, und wie haben Entscheidungen gewirkt? | Current catalog of 34 reports in 5 groups; exact slugs in `apps/web/src/nav/reports-catalog.ts` |
+| Einstellungen | — | Konten (terms: limits, rates, term; loan terms for the debt calculator and the cost report), Kategorien, Regelwerk (stages + registered rules (`RULE_CODES`)), Zuordnungsregeln, Datenquellen, Anlageklassen, CSV-Export, Sicherheit (`einstellungen.html`, partly built) |
+
+**Import/export feature scope (owner-confirmed 2026-10-01):** the application has no import feature or import UI. Provide one user-initiated ZIP download containing CSV export data for all accounts and depots. Reconfirm authentication before starting the sensitive export. The CSV ZIP is a data export, not an encrypted application backup; exclude auth/session state, secrets, audit events, import staging and raw migration data. This supersedes earlier in-app YNAB/PP and manual CSV/XLSX import requirements. See [`docs/export.md`](docs/export.md) for the file and field conventions. One-time migration remains a separate owner-authorized Codex/Claude task using existing exports and the PP file in private storage (§10).
+
+**Vermögen decides, Reports explain the effect.** Under the 2026-10-14 UX V1 directive, Vermögen includes its compact shared performance summary/chart; the newly requested compact benchmark comparison is open under GAP01, while detailed benchmark/performance analysis remains in Reports. This replaces the older blanket exclusion of performance history from Vermögen.
+
+Current savings-plan slice: Portfolio supports audited schedule create/edit/end and undo/redo, with source accounts, inclusive version history and future changes shown separately from today's rate. Rates and monthly totals retain the investment account's native currency. Overlapping effective versions remain visible and make the affected current rate/total unavailable; missing account currency makes totals explicitly incomplete. Schedule saves do not create trades/bookings or send bank orders; the owner must change the bank schedule manually. Due monthly proposals in Heute/Posteingang require the owner's actual execution date, units, gross amount and fees before creating an audited, undoable buy and its depot settlement; source transfers stay separate. Overdue proposals remain available, and one live confirmed execution per security/account/month prevents duplicate capture across schedule versions. Rate-optimisation proposal/apply UI and private Gate 3 acceptance remain separate work. See [trade and execution workflow](docs/trades-execution.md).
+
+### Booking capture (replaces concept 7.5 item 2)
+No keypad. The amount is a text field with arithmetic (`12,50+8,20`, `+ − × ÷`, German number format incl. thousands `1.576`), small operator buttons, Enter evaluates. No `eval` (strict CSP). Incomes may carry a category (default "Zu verteilen"). A transfer's counterpart is always another account.
+
+## 4. Budget method (concept ch. 3, with overrides)
+
+- **Envelope core:** every euro has one job; "Zu verteilen" target = 0; available rolls over; overspending must be covered (triage).
+- **Income budget month (owner decision 42, 2026-10-03):** an inflow can be marked "für nächsten Monat". Cash/account/report booking dates and income labels remain unchanged; Zu verteilen and budget allocation use the following month. Defaults per payee, income category or income type apply to new owner captures, with payee precedence and a per-booking override; existing bookings are not rewritten.
+- **Three classes:** Bedarf, Wunsch, Zukunft (each category belongs to one). Groups below classes; categories below groups. Target ~40 categories after migration (O3).
+- **Money-flow waterfall: nine stages** (concept 3.6 + decision 28.09.2026): 1 Fixkosten und Mindestraten, **2 Laufender Monat** (variable monthly targets for Bedarf and Wunsch), 3–9 = concept stages 2–8. Plan › Monat orders by stage by default (switchable to groups, classes, time). Overspending shows as a triage bar above the unchanged table.
+- **Expected payments** (versioned schedules), **contacts** with receivables (Kontoblatt per person), **sinking funds**, **savings goals**.
+- **50/30/20 on assigned money** (`alloc` in `design/prototype/reports-core.js`): periodic costs, special payments and their windfall transfers count as twelfths; Bedarf + Wunsch + Zukunft + Übrig (or "aus Guthaben", negative) = 100 % of income, always.
+- **Registered rules (`RULE_CODES`)** (concept 3.5) as data with thresholds, status (erfüllt / Warnung / verletzt) and action.
+- **Stage model** (decision 29.09.2026): stages by net worth up to 10.000 € (Fundament), 100.000 € (Aufbau), 1 Mio. € (Freiheit). Rules per stage from *I Will Teach You to Be Rich*, *Get Good with Money*, *Your Money or Your Life*, *Everyday Millionaires* (see `design/prototype/reports-ueberblick.js` STAGES and `einstellungen.js`). Attitude: dignity, no shame; no report judges a spend as a mistake.
+
+## 5. Data model and invariants (concept ch. 5)
+
+**Owner directive PR1, 2026-10-04:** security asset classes are effective-dated weighted exposure sets, resolved inclusively at each valuation/report date by one shared resolver. Complete sets sum to 10000 bp; explicitly incomplete sets retain their missing weight as unclassified. Largest-remainder integer splits conserve each account/security valuation to the cent. Timeless `security.asset_class_id` remains readable compatibility metadata and is never a calculation source. Version replacement and instrument single-class saves are atomic, audited and undoable. Migration preserves legacy class values from an explicitly labelled assumption at the earliest stored trade/holding (creation day otherwise); it does not claim historical certainty. See [exposure model/API and migration policy](docs/asset-exposure.md). Target/risk/quality policy changes and the settings page remain subsequent PRs.
+
+Entities: Konto (with role: Budget-Konto / Rücklage / Anlage / Schuld, and terms: credit line, overdraft limit, rates, term, fees; for loans fixed or variable interest, monthly installment, start and end of the term, original amount), Buchung with Anteile (splits), Umbuchung, Empfänger, Kategorie/Gruppe/Klasse, Envelope-Monat (assigned, activity, available), Erwartete Zahlung (versioned), Kontakt with Forderungskonto, Sparziel, Wertpapier/Produkt, Trade, Bestand, Kurs (source per price), Wechselkurs, Anlageklasse with Soll-Allocation, Regel + Regelergebnis, Posteingang-Eintrag, Zuordnungsregel, Bank-Verbindung, Beleg (content-addressed volume files), Änderungsprotokoll, Gehaltszettel (payslip lines), Projekt (side income: income and costs), Geplantes Ereignis (forecast events).
+
+Invariants (binding):
+- Amounts are integers in cents. Sum of splits = booking amount. A transfer = exactly two bookings.
+- Nothing is hard-deleted; every change is logged and undoable.
+- Imports are idempotent (dedupe keys; see `reference/finance-hub/bank-sync-dedupe.mjs`).
+- Start date 01.10.2023 with opening balances; price history complete, also before.
+- Foreign currency: keep original amount and currency; convert with the ECB reference rate of the booking date; a bank deviation becomes a foreign-exchange fee.
+- Net worth, returns and rule status are identical on every page (one calculation per figure, shared domain functions).
+- Contact receipts default to the oldest open outlay first; the user may edit allocation before saving. Cash, allocation and excess contact credit are one audited, undoable action. Excess is a negative contact balance owed to the contact, never income or a gift.
+- Zero-balance contacts hide from the normal overview; retained identity and ledger history remain selectable. A new nonzero balance restores visibility.
+- Derived contact receivables and credit do not enter net worth. Actual account balances and investment holdings remain its valuation sources: an outlay lowers cash/net worth until actual repayment. Explicit receivable accounts keep ordinary account valuation.
+
+## 6. KPIs and calculations
+
+**Owner directive PR2, 2026-10-04:** one `resolvePortfolioRiskPolicy(db, asOf)` reads stored R13/R14/R15 parameters and dated class targets for rule evaluation, Portfolio, rebalancing, report 4.2, savings recommendations and Heute/finance check. Domain schemas supply defaults only for missing values. Stored class bands override the standard: “Standardband: der kleinere Wert aus ±5 Prozentpunkten und ±25 % des Sollgewichts.” Leverage in tenths (30 = 3×) affects gross/economic risk exposure; market value still drives allocation, regions, net worth and performance. Central kind/leverage classification includes leveraged ETFs in speculative and single-instrument risk. Risk shares use gross exposure over portfolio market value and can exceed 100%; excess amounts are gross exposure, not sell-order values. Rule parameters and leverage are not historically versioned; dated targets/exposures resolve at the report day. See [risk policy and regression evidence](docs/portfolio-risk-policy.md).
+
+27 KPIs, each with one formula, one target and one primary place: concept ch. 8. Additional calculation rules fixed in the prototype (port them 1:1, with tests):
+
+| Rule | Reference |
+| --- | --- |
+| 50/30/20 as twelfths (`alloc`) | `reports-core.js` |
+| Net worth from the ledger: own contribution = income − consumption + regular principal; market = Σ product market moves | `reports-core.js` |
+| Portfolio: TTWROR, IRR (Modified Dietz annualised > 12 months), volatility, max drawdown, Sharpe (2.5 %), beta vs world index | `reports-portfolio.js` `stats()` |
+| One cost basis / gain / fund cost per product (`costOf`, `gainOf`, `terOf`) used everywhere | `reports-core.js` |
+| Liquidity forecast day by day: fixed costs on due days, variable plan linear, salary at month end, periodic costs from reserves, sweep above buffer keeps planned expenses of the next 4 months, planned events, levers, 10 % buffer, verdict | `reports-zukunft.js` |
+| Dimension chains must add up as displayed (largest-remainder rounding) | `reports-core.js` `balanceChain` |
+| Diverging heat per row vs row average; neutral within 8 %; direction per row (spend: low is good; income, savings, returns: high is good; projects vs 0) | `reports-core.js` `heatAttr` |
+| Freiheitszahl with Soll-Pfad to a goal year and required saving rate | `vermoegen.js` `renderFreedom` |
+| Debt payoff with extra repayment | `vermoegen.js`, `reference/finance-hub/debt-*.mjs` |
+
+## 7. Reports (catalog, decided 29.09.2026)
+
+The numbered list below records the original catalog and subsequent decisions.
+The current registered inventory is 34 reports; [report contracts](docs/product/report-contracts.md)
+maps every current slug/component and its acceptance boundary without renumbering
+historical references. Figma R-screen codes and rule R-codes are separate identifiers.
+
+Every report answers one question with one fixed chart form (grammar: concept 9.2/9.3 and DESIGN.md), unfolds to the booking, and reads the same ledger.
+
+1. **Monat und Einkommen:** 1.1 Monats-One-Pager (printable A4 sheet), 1.2 Gehaltsreport (payslip lines, payout per month and year, yearly salaries with growth, collective raise vs step raise, "Gehaltszettel hinzufügen": PDF upload to object storage or line-by-line entry with check), 1.3 Einnahmen, 1.4 Geldfluss (Sankey via one income pool), 1.5 Jahresansicht (with previous year), 1.6 Kategorieübersicht, 1.7 Sparquote und Geldalter, 1.8 Gesamttabelle (CSV), 1.9 Projekte und Nebeneinkünfte, 1.10 Einnahmen und Ausgaben (owner feedback 04.10.2026: actual monthly income/expense table, chart, booking drilldown and displayed-table CSV; capital/refunds outside household income).
+2. **Ausgaben und Plan:** 2.1 Ausgabenanalyse, 2.2 Budgettreue incl. 50/30/20, 2.3 Verträge und Abos (terms, notice, USD), 2.4 Persönliche Inflation, 2.5 Empfänger-Analyse, 2.6 Bank- und Zinskosten (credit lines incl. overdraft and card).
+3. **Zukunft und Vermögen:** 3.1 Liquiditätsprognose (planned events, levers, 6-month outlook, verdict; moves to Plan › Prognose, report slug redirects – page review 2026-10-16), 3.2 Cashflow-Verlauf, 3.3 Vermögensverläufe, 3.4 Jahresvorschau Zahlungen, 3.5 Sparziele.
+4. **Portfolio:** 4.1 Depots im Vergleich, 4.2 Allocation (composition follows the later group/class sunburst and product-table directive), 4.3 Einzahlungen und Wert, 4.4 Rendite und Kennzahlen (benchmarks, asset classes side by side, heatmap), 4.5 Kosten, Steuern, Erträge (KESt 27.5 %, illustrative latent tax). Products open deep-linkable instrument details with daily price history under the current navigation directive.
+5. **Überblick:** 5.1 Jahresreport (2 printable sheets), 5.2 Finanz-Check-Verlauf (stages + registered rules (`RULE_CODES`)), 5.3 Explorer (pivot, saved views), 5.4 Kontakte-Abrechnung (one ledger per person), 5.5 Zeitraumvergleich.
+
+Report 5.4 currently provides a fixed all-time EUR overview and selected person ledger with shared running balances, credit and source drilldown. Retained balanced histories remain selectable; pending source bookings are explicitly included under the existing contact statement predicate. Unsupported foreign-currency reads are wholly unavailable. Sending, duplicate settlement controls and monthly selectors are outside this slice; owner/private acceptance and other report bodies remain open.
+
+## 8. Design system (binding)
+
+`DESIGN.md` is the contract: blueprint world (blue ink on drafting film; dark = classic blueprint), Archivo + Barlow Semi Condensed (self-hosted), title block (Schriftfeld), registers, dimension chains (Maßkette) for every lead figure, parts lists (Stückliste) with positions, revision tables for findings, ISO line types (solid = actual, dashed = plan/forecast, dash-dot = previous/benchmark), hatching only for classes and committed money, debts as dashed outline, elevation marks only in charts. **Red only for action needed.** Pastel green/red only for heatmaps and signed changes (decision 29.09.2026).
+
+UI language German (de-AT): `1.234,56 €`, real minus `−`, incomes with `+`, KPIs without cents, lists with cents. Touch targets ≥ 44 px, reduced motion respected, full dark mode, colour never the only signal.
+
+Build pages to match `design/prototype/` and `design/screens/`. When in doubt, open the prototype (`npx serve design/prototype` or `python -m http.server -d design/prototype`) and compare.
+
+## 9. Technical architecture
+
+| Layer | Choice |
+| --- | --- |
+| Language | TypeScript (strict), Node 22 LTS (cloud default; concept said 24, 22 is fine); `engines`: `^22.14.0 \|\| ^24.0.0` |
+| Repo | npm workspaces monorepo (layout below) |
+| Frontend | React, Vite, TanStack Router + Query, Tailwind (theme only) with tokens generated from DESIGN.md, own accessible primitives in `packages/ui` on native elements (`<dialog>` panels); Radix is not used |
+| Charts | **Own SVG components** on d3-scale/d3-shape, ported from the prototype (the blueprint grammar is custom). Apache ECharts only if the P1 spike shows a clear need (proposed change to O1, confirm in P1a). |
+| Backend | Hono + zod (request validation on the server today; schemas move to a shared package when a client form needs the same rules, from P2), REST/JSON |
+| Database | SQLite (WAL) with Drizzle ORM and migrations |
+| Backup | Litestream to object storage + nightly age-encrypted copy |
+| Receipts / payslips | Receipts: content-addressed files on the Fly volume (`RECEIPTS_DIR`), metadata/booking links in DB and files in the encrypted archive backup (owner task decision 2026-10-02). Payslip file workflow remains separate. |
+| Jobs | Separate worker process with schedule and catch-up of missed runs (P4) |
+| Auth | Passkeys via SimpleWebAuthn, several devices, ten recovery codes, HttpOnly SameSite=Strict session cookie (30 days), fresh step-up (last 5 minutes) only for the full export, new passkeys, recovery-code regeneration and passkey removal; data sources (bank sync, crypto read source) and imports need only a session opened with a passkey (owner decision 09.10.2026), never a recovery-code session |
+| Security | Strict CSP (`script-src 'self'`), HSTS, no `eval` |
+| Hosting | Fly.io, region `fra`, own app (not the old cockpit), volume for SQLite, deploy via GitHub Actions |
+| Tests | Vitest (domain, API), Playwright (E2E and visual comparison against `design/screens`) |
+
+```
+apps/web          React PWA (pages, routes, offline queue for bookings)
+apps/server       Hono API, auth, static hosting
+apps/worker       nightly jobs (P4)
+packages/domain   pure TS domain logic: money, dates, ledger, envelopes, rules, forecast, performance — no DB, 100 % unit-tested
+packages/db       Drizzle schema, migrations, repositories
+packages/ui       tokens + blueprint primitives: TitleBlock, Registers, DimensionChain, PartsList, RevisionTable, AmountInput, charts
+packages/fixtures synthetic sample ledger (port of design/prototype/reports-core.js) for tests, dev seed and visual tests
+```
+
+Data sources (P4): Enable Banking (PSD2, JWT RS256, booked balances, consent warning 14 days before the 180-day expiry), crypto read API, prices daily via yfinance with fallback Ariva (source stored per price, failures to the inbox), ECB exchange rates (full history), manual valuations. Manual file imports are excluded from the application feature scope; see §3 and the separate migration workflow in §10. Provider-specific code lives in adapters named generically in the domain.
+
+**Bank posting (owner decision 41, 2026-10-03):** fetched BOOK transactions count immediately in account balances as unchecked (`pending`, "vorgemerkt") bookings without a category or income type, shown in Posteingang. PDNG transactions remain candidates until explicit owner confirmation. Each connection can retain the old confirmation-first policy; the default is immediate BOOK posting. No category or envelope assignment is automated. Preserve source identities, deduplication, audit and deleted-booking tombstones.
+
+## 10. Migration (concept 11.4)
+
+The app import feature is removed by the decision in §3. One-time migration remains a separate owner-authorized Codex/Claude task using the already existing exports and PP file in private owner storage (decision 2026-10-01). Do not recreate an import UI to fulfill it; file access and the target data-transfer procedure must be established for that task.
+
+Source is the **YNAB export** (Register.tsv + Plan.tsv); Actual Budget was only an interim tool and is not migrated. Format, quirks and checks: `docs/migration/ynab-export.md`.
+
+**First real import: EUR only** (owner decision 2026-10-01). Full foreign-currency support remains in scope; until implemented, unsupported foreign-currency budget accounts must be rejected or explicitly reported as unsupported, never silently summed as EUR.
+
+**Valuation availability:** the 2026-10-06 clarification above supersedes the earlier stored-quote-only guard. Default valuation uses the shared quote/trade-price fallback and explicitly labeled quality policy; it must not silently turn missing history into a zero-value holding. Required missing FX remains unavailable. See [current ledger API valuation contract](docs/api-ledger.md), [allocation quality/scope](docs/allocation-quality-scope.md) and the shared resolver. Benchmark boundary-quote requirements remain their separate report contract; do not apply the default holding fallback to manufacture benchmark history. Today keeps independently usable budget work available when valuation is incomplete.
+
+**Investment cost method (owner decision 2026-10-01):** moving average acquisition cost is the application default; FIFO is selectable in Einstellungen › Depots & Kryptos and applies consistently to remaining basis and realised gains. Broker-provided acquisition amounts, execution amounts, fees and already withheld taxes are source data; preserve them and reconcile the app's analytical figures against the broker statements during private migration. Do not calculate or book tax withholding again. Known realised gains survive later holding snapshots, including a zero position; missing historical basis is not invented. A method switch recalculates analytical figures without rewriting source transactions. This is not acceptance of tax-reporting parity; Gate 3 still needs independent reconciliation with full source history.
+
+YNAB's structure is evaluated and adapted, not copied: raw import → owner-approved mapping (accounts, n:1 category merges, re-categorisation rules from a chosen month, payees → contacts, bracketed notes → expected payments) → target model. Records start on **01.10.2023** (owner decision 29.09.2026) with the balances of that day; accounts closed before are skipped; the start month stays configurable. Then workspace mapping (persons → contacts and expected payments, debts → credit accounts, goals, receipts), later trades/holdings and price history from Portfolio Performance (P5) → parallel run over one month-end with a reconciliation report → cut-over when all differences are 0 €. **Real exports and mappings may be processed only in the owner's authorized private migration environment; they are never committed or included in CI or logs.**
+
+## 11. Packages and gates
+
+| Package | Content | Done when |
+| --- | --- | --- |
+| **P1 Fundament** | Monorepo, stack spike, passkey login, DB schema v1, design tokens + blueprint primitives, app shell (sidebar, registers, title block, mobile tab bar), CI, deploy to a new Fly app | See `docs/ROADMAP.md` P1 checklist; the shell matches `design/screens/desktop/heute.webp` in layout and tokens |
+| **P2 Kern und Migration** | Accounts, bookings, capture, categories, Plan › Monat; separate one-time agent-assisted migration, no app import feature | **Gate 2:** balances per account and month match YNAB to the cent; Available per target category matches the mapped YNAB categories before the rules month |
+| **P3 Planung und Steuerung** | Expected payments, contacts, savings goals, distribute money, rule set + stages, Heute | Heute and Plan match the prototype with real data |
+| **P4 Datenquellen** | Enable Banking, nightly run, inbox, assignment rules; authenticated ZIP download with CSV data for all accounts and depots | Nightly run stable for 14 days; complete export download accepted |
+| **P5 Vermögen** | Price history, portfolio, returns, allocation, debts, freedom number | **Gate 3:** returns and holdings equal Portfolio Performance |
+| **P6 Reports und Umstellung** | Current 34-report catalog, explorer, printable sheets, parallel run with reconciliation | **Gate 4:** one month-end without difference, then retire remaining finance tools, including YNAB and PP |
+
+**Gate 1 acceptance criterion:** this spec, PRODUCT.md, DESIGN.md and the prototype are accepted by the owner. The criterion is not yet confirmed as passed.
+
+The former Fly app was used only for the prototype and removed by the owner on 2026-10-01. Its removal does not pass a financial migration gate; the versioned prototype remains the design reference.
+
+## 12. Not in V1
+
+Tax filing, AI advice or AI categorisation (AI-assisted planning is a later goal), vehicle and real-estate valuation, multi-user and partner linking, native app, compatibility with Actual.
+
+## 13. Open items
+
+- Private account/category/instrument inventory and approved migration mapping (O3/O7); source access and the actual transfer/reconciliation remain open.
+- Receipt volume storage and encrypted archive backup are implemented in Y21; real-phone capture and an owner restore remain unaccepted. The later independent second encrypted-backup target remains open. Existing backup code and a verified deployment do not prove a real restore.
+- Feature-specific completion and remaining requirements are tracked in `docs/FEATURES.md` and `docs/REQUIREMENTS-GAPS.md`; the selected SVG/d3 chart approach is recorded in §9 and ADR 0001.
+
+## Accepted book-derived checks
+
+The registered rule set includes the six accepted book-derived checks documented in [book-rules.md](docs/concept/book-rules.md). They start disabled. All thresholds and inclusion switches are configurable; R18 is warning-only. R17 links S2-1; S3-2 requires both R13 and R22, without deleting stored manual confirmations. New optional private sources are birth month/year and monthly employer pension contributions; instruments expose TER and leverage (integer tenths, default 10). Rule history is derived for twelve month ends plus today. Enabled rule counts follow the registry and stored switches; Heute key rules and existing rule semantics stay unchanged. R23 is deferred.

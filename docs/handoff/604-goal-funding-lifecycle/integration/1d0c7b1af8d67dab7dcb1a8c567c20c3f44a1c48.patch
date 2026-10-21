@@ -1,0 +1,13 @@
+diff --git a/packages/db/src/repos/goal-lifecycle.ts b/packages/db/src/repos/goal-lifecycle.ts
+index 51aa29d18f0dd3b98162c50df51387c50451f066..bdc3257c74ddada275a242a348b45adc1650722e 100644
+--- a/packages/db/src/repos/goal-lifecycle.ts
++++ b/packages/db/src/repos/goal-lifecycle.ts
+@@ -105,7 +105,7 @@ function ledger(state: State) {
+   }));
+   const categories: BudgetLedgerRows['categories'] = values('category').map((r) => ({
+     id: text(r, 'id'), name: text(r, 'name'),
+-    class: nullable(r, 'class') as BudgetLedgerRows['categories'][number]['class'],
++    class: nullable(r, 'class'),
+     kind: text(r, 'kind') as BudgetLedgerRows['categories'][number]['kind'],
+     rolloverOverspending: cents(r, 'rollover_overspending') === 1,
+     cardAccountId: nullable(r, 'card_account_id'),

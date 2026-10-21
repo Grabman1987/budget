@@ -1,0 +1,493 @@
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index db3d44e18580634b808f3a3a741bcf9f79153847..928f5a57d055fb12157ebe05797ccdd668bb9563 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1871,5 +1871,6 @@ explicit reanalysis/review. Upload and reanalysis never post money.
+ 
+ - Source implementation: explicit goal start month with preserved legacy fallback; current-month Plan rate and remaining-need assignment through the existing guarded writer; grouped Undo for manual completion; reached/open/retained completed groups and category history from the selected start.
+ - Category target synchronization preserves conflicting manual targets and competing goals; these remain explicitly blocked until the source association is resolved. No automatic winner or historical target deletion.
+-- Automatic completion reads coherent retained audit groups and canonical ledger projections only. A fully audited empty initial ledger basis is required. The existing direct fixture seed has no such basis, so even new goals in a seeded/imported database remain unavailable for automatic completion. Missing/ambiguous/over-bound chronology, account-goal evidence and pre-entered future expense chronology also remain explicitly unavailable; manual completion is retained. Existing financial writes and Undo machinery are unchanged.
+-- Migration48 adds start-month/manual-completion intent only; copy rollback rejects retained/audited use. Migration execution, new acceptance coverage, required checks, browser evidence, review completion and live delivery remain pending. This entry is not verified completion of #604.
++- Automatic completion reads coherent retained audit groups and canonical ledger projections only. New category goals and actual changes to their economic intent now capture an internal prospective anchor in the authenticated goal transaction. This can establish a current basis on seeded/imported data without inventing an earlier reaching date. Name/note-only and equal-value patches preserve the anchor; GET, import and migration do not create one. Public goal responses omit the internal anchor, which stores a digest rather than source rows.
++- Legacy goals without an anchor still require a fully audited empty initial ledger basis. Views before capture, pre-anchor financial Undo, missing/ambiguous/over-bound chronology, account-goal evidence and pre-entered future expense chronology remain explicitly unavailable; manual completion is retained. Existing financial writers and Undo machinery are unchanged.
++- Unpublished migration48 adds nullable start-month/manual-completion intent and the internal anchor; copy rollback rejects retained/audited use. Migration execution, new acceptance coverage, required checks, browser evidence, independent anchor review and live delivery remain pending. This entry is source implementation, not verified completion of #604.
+diff --git a/packages/db/drizzle/0048_goal_lifecycle.sql b/packages/db/drizzle/0048_goal_lifecycle.sql
+index 38cdae8dec0631d47c587240bf629a17d7ab5e43..4fb795a2c108742723c619851c29f0e106b3273d 100644
+--- a/packages/db/drizzle/0048_goal_lifecycle.sql
++++ b/packages/db/drizzle/0048_goal_lifecycle.sql
+@@ -2,3 +2,5 @@
+ ALTER TABLE savings_goal ADD COLUMN start_month TEXT CONSTRAINT savings_goal_start_month_chk CHECK (start_month GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]');
+ --> statement-breakpoint
+ ALTER TABLE savings_goal ADD COLUMN manual_completed_on TEXT CONSTRAINT savings_goal_manual_completed_on_chk CHECK (manual_completed_on GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]');
++--> statement-breakpoint
++ALTER TABLE savings_goal ADD COLUMN lifecycle_anchor_json TEXT CONSTRAINT savings_goal_lifecycle_anchor_chk CHECK (lifecycle_anchor_json IS NULL OR (json_valid(lifecycle_anchor_json) AND length(lifecycle_anchor_json)<=2048));
+diff --git a/packages/db/drizzle/meta/0048_snapshot.json b/packages/db/drizzle/meta/0048_snapshot.json
+index eeecddf16145b8b2f1f4118175884144e3a60ecf..216dd97a10951a8a01fd5aaa712d84d181316bb8 100644
+--- a/packages/db/drizzle/meta/0048_snapshot.json
++++ b/packages/db/drizzle/meta/0048_snapshot.json
+@@ -1940,6 +1940,13 @@
+           "primaryKey": false,
+           "notNull": false,
+           "autoincrement": false
++        },
++        "lifecycle_anchor_json": {
++          "name": "lifecycle_anchor_json",
++          "type": "text",
++          "primaryKey": false,
++          "notNull": false,
++          "autoincrement": false
+         }
+       },
+       "indexes": {},
+@@ -1981,6 +1988,10 @@
+         "savings_goal_manual_completed_on_chk": {
+           "name": "savings_goal_manual_completed_on_chk",
+           "value": "\"savings_goal\".\"manual_completed_on\" GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]'"
++        },
++        "savings_goal_lifecycle_anchor_chk": {
++          "name": "savings_goal_lifecycle_anchor_chk",
++          "value": "\"savings_goal\".\"lifecycle_anchor_json\" IS NULL OR (json_valid(\"savings_goal\".\"lifecycle_anchor_json\") AND length(\"savings_goal\".\"lifecycle_anchor_json\") <= 2048)"
+         }
+       }
+     },
+diff --git a/packages/db/drizzle/rollback/0048_goal_lifecycle.sql b/packages/db/drizzle/rollback/0048_goal_lifecycle.sql
+index 52e0aac693fef321786bafdd6fad6f966b2b8e09..bacedc22b9289b2d8a6b0b3987589a6ec2f9cfca 100644
+--- a/packages/db/drizzle/rollback/0048_goal_lifecycle.sql
++++ b/packages/db/drizzle/rollback/0048_goal_lifecycle.sql
+@@ -1,11 +1,13 @@
+ -- Disposable-copy rollback only. Caller wraps this complete script in a transaction.
+ -- Refuse retained or audited intent, including deleted goals and subsequently undone changes.
+ CREATE TEMP TABLE goal_lifecycle_rollback_guard (n INTEGER CHECK (n = 0));
+-INSERT INTO goal_lifecycle_rollback_guard SELECT count(*) FROM savings_goal WHERE start_month IS NOT NULL OR manual_completed_on IS NOT NULL;
++INSERT INTO goal_lifecycle_rollback_guard SELECT count(*) FROM savings_goal WHERE start_month IS NOT NULL OR manual_completed_on IS NOT NULL OR lifecycle_anchor_json IS NOT NULL;
+ INSERT INTO goal_lifecycle_rollback_guard SELECT count(*) FROM audit_log WHERE entity_type='savings_goal' AND (
+  json_extract(before_json,'$.start_month') IS NOT NULL OR json_extract(after_json,'$.start_month') IS NOT NULL OR
++ json_extract(before_json,'$.lifecycle_anchor_json') IS NOT NULL OR json_extract(after_json,'$.lifecycle_anchor_json') IS NOT NULL OR
+  json_extract(before_json,'$.manual_completed_on') IS NOT NULL OR json_extract(after_json,'$.manual_completed_on') IS NOT NULL
+ );
++ALTER TABLE savings_goal DROP COLUMN lifecycle_anchor_json;
+ ALTER TABLE savings_goal DROP COLUMN manual_completed_on;
+ ALTER TABLE savings_goal DROP COLUMN start_month;
+ DELETE FROM __drizzle_migrations WHERE created_at = 1792520000000;
+diff --git a/packages/db/src/repos/goal-lifecycle.ts b/packages/db/src/repos/goal-lifecycle.ts
+index 6a9bb8962c8358eaacab175f7dd6cc3328cce8be..51aa29d18f0dd3b98162c50df51387c50451f066 100644
+--- a/packages/db/src/repos/goal-lifecycle.ts
++++ b/packages/db/src/repos/goal-lifecycle.ts
+@@ -5,6 +5,7 @@ import {
+   type GoalLifecycle,
+   type GoalLifecyclePoint,
+ } from '@budget/domain';
++import { createHash, randomUUID } from 'node:crypto';
+ import { sql } from 'drizzle-orm';
+ import { SYSTEM_PAYEE_IDS } from '../schema';
+ import { budgetInputFromRows, type BudgetLedgerRows } from './budget-ledger-input';
+@@ -37,11 +38,16 @@ interface Entry {
+   before: Row | null;
+   after: Row | null;
+ }
+-export interface GoalLifecycleSource {
++export interface GoalAnchorIntent {
+   id: string;
+   categoryId: string | null;
++  accountId: string | null;
+   startMonth: string;
+   targetCents: number;
++  targetDate: string | null;
++}
++export interface GoalLifecycleSource extends GoalAnchorIntent {
++  lifecycleAnchorJson: string | null;
+   currentAvailableCents: number;
+   /** Explicit Vienna calendar day, not a UTC timestamp prefix. */
+   manualCompletedOn: string | null;
+@@ -89,7 +95,7 @@ function apply(state: State, entry: Entry, reverse: boolean): void {
+   }
+ }
+ function fingerprint(state: State): string {
+-  return JSON.stringify(tables.map((t) => [...state.get(t)!].sort(([a], [b]) => a.localeCompare(b))));
++  return JSON.stringify(tables.map((t) => [...state.get(t)!].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)));
+ }
+ function ledger(state: State) {
+   const values = (table: Table) => [...state.get(table)!.values()];
+@@ -123,7 +129,7 @@ function ledger(state: State) {
+   const held = Object.fromEntries(values('budget_month').map((r) => [text(r, 'month'), cents(r, 'held_cents')]));
+   return budgetInputFromRows({ accounts, categories, rows, assigned, held });
+ }
+-function load(db: Executor): { state: State; entries: Entry[] } {
++function loadState(db: Executor): State {
+   const state: State = new Map();
+   for (const table of tables) {
+     const rows = db.all<Row>(sql.raw(`SELECT ${fields[table].join(', ')} FROM ${table} LIMIT ${MAX_ROWS + 1}`));
+@@ -133,8 +139,13 @@ function load(db: Executor): { state: State; entries: Entry[] } {
+       return projected ? [[keyOf(table, projected), projected] as const] : [];
+     })));
+   }
+-  const raw = db.all<Row>(sql`SELECT rowid AS sequence, id, ts, entity_type, entity_id,
+-    before_json, after_json, group_id, undo_of_id FROM audit_log ORDER BY rowid LIMIT ${MAX_AUDIT + 1}`);
++  return state;
++}
++function readEntries(db: Executor, after = 0): Entry[] {
++  return parseEntries(db.all<Row>(sql`SELECT rowid AS sequence, id, ts, entity_type, entity_id,
++    before_json, after_json, group_id, undo_of_id FROM audit_log WHERE rowid > ${after} ORDER BY rowid LIMIT ${MAX_AUDIT + 1}`));
++}
++function parseEntries(raw: Row[]): Entry[] {
+   if (raw.length > MAX_AUDIT) throw new Error('Goal evidence bound exceeded');
+   const snapshot = (value: unknown): Row | null => {
+     if (value === null) return null;
+@@ -152,18 +163,25 @@ function load(db: Executor): { state: State; entries: Entry[] } {
+       key: text(r, 'entity_id'), before: snapshot(r.before_json), after: snapshot(r.after_json),
+     };
+   });
+-  return { state, entries };
++  return entries;
+ }
+ 
+ /** No GET writes, no guessed history, and no independently implemented balance arithmetic. */
+-export function readGoalLifecycles(db: Executor, goals: readonly GoalLifecycleSource[], asOf: string): Map<string, GoalLifecycle> {
++function replayLifecycles(db: Executor, goals: readonly GoalLifecycleSource[], asOf: string, anchor: GoalAnchor | null = null): Map<string, GoalLifecycle> {
+   const fallback = () => new Map(goals.map((goal) => [goal.id, goalLifecycle({
+     ...goal, asOf, manualCompletedOn: goal.manualCompletedOn, points: [], complete: false,
+   })]));
+   if (goals.every((goal) => goal.categoryId === null || goal.manualCompletedOn !== null)) return fallback();
+   try {
+-    const { state, entries } = load(db);
+-    const active = activeGoalAuditEntries(entries);
++    const state = loadState(db);
++    const entries = readEntries(db, anchor?.auditWatermark ?? 0);
++    const anchorGroup = anchor ? parseEntries(db.all<Row>(sql`SELECT rowid AS sequence, id, ts, entity_type, entity_id,
++      before_json, after_json, group_id, undo_of_id FROM audit_log
++      WHERE group_id=${anchor.groupId} ORDER BY rowid LIMIT ${MAX_AUDIT + 1}`)) : [];
++    const links = anchor ? anchoredAncestry(db, [
++      ...anchorGroup.filter((entry) => entry.sequence <= anchor.auditWatermark), ...entries,
++    ], anchor.auditWatermark) : entries;
++    const active = activeGoalAuditEntries(links);
+     if (!active) return fallback();
+     const current = fingerprint(state);
+     const finalLedger = ledger(state);
+@@ -174,7 +192,19 @@ export function readGoalLifecycles(db: Executor, goals: readonly GoalLifecycleSo
+     for (const entry of [...entries].reverse()) apply(state, entry, true);
+     // A round-trip alone cannot date unaudited initial funding. This proof requires an evidenced
+     // creation chain for every projected source row; legacy initial states remain unavailable.
+-    if (tables.some((table) => state.get(table)!.size !== 0)) return fallback();
++    let anchorPoint: GoalLifecyclePoint | null = null;
++    if (anchor) {
++      if (goals.length !== 1 || !active || !validAnchorWitness(goals[0]!, anchor, entries, anchorGroup, active, asOf)) return fallback();
++      if (digest(fingerprint(state)) !== anchor.sourceFingerprint) return fallback();
++      const basis = ledger(state);
++      // A pre-entered future expense has no post-anchor committed creation boundary.
++      // Once its financial date is in view, do not claim a complete expense chronology.
++      if (basis.splits.some((split) => split.amountCents < 0 && split.date > anchor.capturedOn && split.date <= asOf)) return fallback();
++      const amount = budgetOfLedger(basis, [anchor.capturedOn.slice(0, 7)], { asOf: anchor.capturedOn })[0]?.envelopes[goals[0]!.categoryId!]?.availableCents ?? 0;
++      if (amount !== anchor.availableCents) return fallback();
++      const witness = entries.find((entry) => entry.group === anchor.groupId && entry.table === 'savings_goal' && entry.key === goals[0]!.id && entry.undoOfId === null && entry.after?.lifecycle_anchor_json === goals[0]!.lifecycleAnchorJson)!;
++      anchorPoint = { sequence: witness.sequence, day: anchor.capturedOn, availableCents: amount, expenses: [] };
++    } else if (tables.some((table) => state.get(table)!.size !== 0)) return fallback();
+     const groups: Entry[][] = [];
+     const seen = new Set<string>();
+     for (const entry of entries) {
+@@ -194,7 +224,7 @@ export function readGoalLifecycles(db: Executor, goals: readonly GoalLifecycleSo
+       + Number(asOf.slice(5, 7)) - Number(firstMonth.slice(5, 7)) + 1;
+     if (monthSpan > 1200 || groups.length * Math.max(1, finalLedger.splits.length) * Math.max(1, monthSpan) * Math.max(1, goals.length) > 2000000)
+       return fallback();
+-    const points = new Map(goals.map((goal) => [goal.id, [] as GoalLifecyclePoint[]]));
++    const points = new Map(goals.map((goal) => [goal.id, anchorPoint ? [anchorPoint] : [] as GoalLifecyclePoint[]]));
+     const excludedPayees = new Set<string>(Object.values(SYSTEM_PAYEE_IDS).map((payee) => payee.id));
+     for (const group of groups) {
+       // Undo/Redo entries only select surviving originals; they are never replayed as new expenses.
+@@ -250,3 +280,132 @@ export function readGoalLifecycles(db: Executor, goals: readonly GoalLifecycleSo
+     return fallback();
+   }
+ }
++
++interface GoalAnchor {
++  version: 1;
++  goalId: string;
++  nonce: string;
++  groupId: string;
++  intentDigest: string;
++  capturedOn: string;
++  groupStartWatermark: number;
++  auditWatermark: number;
++  sourceFingerprint: string;
++  availableCents: number;
++}
++const digest = (value: string) => createHash('sha256').update(value).digest('hex');
++
++/** Economic intent only: equal patches and unrelated labels do not restart a prospective proof. */
++export function goalAnchorIntentDigest(goal: GoalAnchorIntent): string {
++  return digest(JSON.stringify({
++    id: goal.id,
++    sourceKind: goal.categoryId !== null ? 'category' : goal.accountId !== null ? 'account' : 'none',
++    sourceId: goal.categoryId ?? goal.accountId,
++    threshold: goal.targetCents, targetDate: goal.targetDate, startMonth: goal.startMonth,
++  }));
++}
++const validDay = (value: unknown): value is string => typeof value === 'string' &&
++  /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T12:00:00Z`)) &&
++  new Date(`${value}T12:00:00Z`).toISOString().slice(0, 10) === value;
++
++function parseAnchor(raw: string): GoalAnchor | null {
++  if (raw.length > 2048) return null;
++  try {
++    const a = JSON.parse(raw) as Partial<GoalAnchor> | null;
++    if (!a || typeof a !== 'object' || a.version !== 1 ||
++      typeof a.goalId !== 'string' || typeof a.nonce !== 'string' || typeof a.groupId !== 'string' ||
++      !a.goalId || !a.groupId || !a.nonce || !validDay(a.capturedOn) ||
++      typeof a.intentDigest !== 'string' || !/^[a-f0-9]{64}$/.test(a.intentDigest) ||
++      typeof a.sourceFingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(a.sourceFingerprint) ||
++      typeof a.auditWatermark !== 'number' || !Number.isSafeInteger(a.auditWatermark) || a.auditWatermark < 0 ||
++      typeof a.groupStartWatermark !== 'number' || !Number.isSafeInteger(a.groupStartWatermark) || a.groupStartWatermark < 0 || a.groupStartWatermark >= a.auditWatermark ||
++      typeof a.availableCents !== 'number' || !Number.isSafeInteger(a.availableCents)) return null;
++    return a as GoalAnchor;
++  } catch { return null; }
++}
++
++/** Called before the first goal write in the existing transaction; reused audit groups cannot anchor. */
++export function goalAnchorGroupStart(db: Executor, groupId: string): number | null {
++  if (db.get(sql`SELECT 1 FROM audit_log WHERE group_id=${groupId} LIMIT 1`)) return null;
++  const watermark = db.get<{ n: number }>(sql`SELECT coalesce(max(rowid),0) AS n FROM audit_log`)!.n;
++  return Number.isSafeInteger(watermark) && watermark >= 0 ? watermark : null;
++}
++
++/** Called only by the existing authenticated goal writer, in its transaction and audit group. */
++export function captureGoalAnchor(db: Executor, goal: GoalAnchorIntent, today: string, groupId: string, groupStartWatermark: number | null): string | null {
++  if (groupStartWatermark === null || goal.categoryId === null || goal.accountId !== null || !validDay(today)) return null;
++  try {
++    const state = loadState(db);
++    const source = ledger(state);
++    const earliest = source.accounts.filter((a) => a.onBudget).map((a) => a.openingDate).sort()[0] ?? today;
++    if (Number(today.slice(0, 4)) - Number(earliest.slice(0, 4)) > 100) return null;
++    const availableCents = budgetOfLedger(source, [today.slice(0, 7)], { asOf: today })[0]?.envelopes[goal.categoryId]?.availableCents;
++    if (availableCents === undefined || !Number.isSafeInteger(availableCents)) return null;
++    const auditWatermark = db.get<{ n: number }>(sql`SELECT coalesce(max(rowid),0) AS n FROM audit_log`)!.n;
++    if (!Number.isSafeInteger(auditWatermark)) return null;
++    const anchor: GoalAnchor = {
++      version: 1, goalId: goal.id, nonce: randomUUID(), groupId,
++      intentDigest: goalAnchorIntentDigest(goal), capturedOn: today, groupStartWatermark, auditWatermark,
++      sourceFingerprint: digest(fingerprint(state)), availableCents,
++    };
++    return JSON.stringify(anchor);
++  } catch {
++    // A goal may be saved without automatic evidence; no false historical basis is persisted.
++    return null;
++  }
++}
++
++/** Only nonfinancial ancestry may cross the anchor. Earlier money reversals invalidate its basis. */
++function anchoredAncestry(db: Executor, entries: Entry[], watermark: number): Entry[] {
++  const known = new Map(entries.map((entry) => [entry.id, entry]));
++  let frontier = entries;
++  let expanded = 0;
++  while (frontier.length) {
++    const missing = [...new Set(frontier.flatMap((entry) => entry.undoOfId && !known.has(entry.undoOfId) ? [entry.undoOfId] : []))];
++    if (!missing.length) break;
++    expanded += missing.length;
++    if (expanded > 256) throw new Error('Goal ancestry bound exceeded');
++    const ancestors = parseEntries(db.all<Row>(sql`SELECT rowid AS sequence, id, ts, entity_type, entity_id,
++      before_json, after_json, group_id, undo_of_id FROM audit_log
++      WHERE id IN (${sql.join(missing.map((id) => sql`${id}`), sql`, `)}) ORDER BY rowid LIMIT 257`));
++    if (ancestors.length !== missing.length || ancestors.some((entry) => entry.sequence > watermark || isTable(entry.table)))
++      throw new Error('Unproven pre-anchor ancestry');
++    for (const entry of ancestors) known.set(entry.id, entry);
++    frontier = ancestors;
++  }
++  return [...known.values()].sort((a, b) => a.sequence - b.sequence);
++}
++
++function validAnchorWitness(goal: GoalLifecycleSource, anchor: GoalAnchor, entries: Entry[], wholeGroup: Entry[], active: Set<string>, asOf: string): boolean {
++  if (anchor.goalId !== goal.id || anchor.intentDigest !== goalAnchorIntentDigest(goal) || anchor.capturedOn > asOf) return false;
++  const witness = entries.find((entry) => entry.group === anchor.groupId && entry.table === 'savings_goal' && entry.key === goal.id &&
++    entry.undoOfId === null && entry.after?.lifecycle_anchor_json === goal.lifecycleAnchorJson && entry.before?.lifecycle_anchor_json !== goal.lifecycleAnchorJson);
++  if (!witness || !active.has(witness.id) || witness.sequence <= anchor.auditWatermark || !witness.after) return false;
++  const after = witness.after;
++  const witnessedIntent: GoalAnchorIntent = {
++    id: text(after, 'id'), categoryId: nullable(after, 'category_id'), accountId: nullable(after, 'account_id'),
++    targetCents: cents(after, 'target_cents'), targetDate: nullable(after, 'target_date'),
++    startMonth: nullable(after, 'start_month') ?? text(after, 'created_at').slice(0, 7),
++  };
++  if (goalAnchorIntentDigest(witnessedIntent) !== anchor.intentDigest) return false;
++  // A nested caller or a reused group cannot turn a pre-commit intermediate amount into proof.
++  return wholeGroup.length > 0 && wholeGroup.length <= MAX_AUDIT &&
++    wholeGroup[0]!.sequence === anchor.groupStartWatermark + 1 &&
++    wholeGroup.at(-1)!.sequence === witness.sequence && witness.sequence === anchor.auditWatermark + 1 &&
++    wholeGroup.every((entry, index) => entry.sequence === anchor.groupStartWatermark + 1 + index) &&
++    wholeGroup.every((entry) => entry.undoOfId === null && active.has(entry.id) && !isTable(entry.table));
++}
++
++/** Internal evidence stays in the repository. Public callers receive lifecycle results only. */
++export function readGoalLifecycles(db: Executor, goals: readonly GoalLifecycleSource[], asOf: string): Map<string, GoalLifecycle> {
++  const result = new Map<string, GoalLifecycle>();
++  const legacy = goals.filter((goal) => goal.lifecycleAnchorJson === null);
++  for (const [id, value] of replayLifecycles(db, legacy, asOf)) result.set(id, value);
++  for (const goal of goals.filter((item) => item.lifecycleAnchorJson !== null)) {
++    const anchor = parseAnchor(goal.lifecycleAnchorJson!);
++    const fallback = goalLifecycle({ ...goal, asOf, points: [], complete: false });
++    if (!anchor || goals.length > 32) { result.set(goal.id, fallback); continue; }
++    result.set(goal.id, replayLifecycles(db, [goal], asOf, anchor).get(goal.id) ?? fallback);
++  }
++  return result;
++}
+diff --git a/packages/db/src/repos/goals.ts b/packages/db/src/repos/goals.ts
+index 3f248589501d9e6bd910347bb5be94a61c867674..b9962eb505e9594d403f78390ff51ee692e5a39b 100644
+--- a/packages/db/src/repos/goals.ts
++++ b/packages/db/src/repos/goals.ts
+@@ -21,7 +21,7 @@ import { accountBalances, budget } from './queries';
+ import { reportTables } from './report-tables';
+ import { goalSollCents } from '@budget/domain';
+ import { runInTransaction, type Executor } from './types';
+-import { readGoalLifecycles } from './goal-lifecycle';
++import { captureGoalAnchor, goalAnchorGroupStart, goalAnchorIntentDigest, readGoalLifecycles, type GoalAnchorIntent } from './goal-lifecycle';
+ import { assignMany } from './budget';
+ 
+ /**
+@@ -32,6 +32,18 @@ import { assignMany } from './budget';
+  */
+ 
+ type Goal = typeof savingsGoal.$inferSelect;
++/** Internal provenance never crosses any public goal response path. */
++export type PublicGoal = Omit<Goal, 'lifecycleAnchorJson'>;
++const publicGoal = (goal: Goal): PublicGoal => {
++  const { lifecycleAnchorJson, ...publicRow } = goal;
++  void lifecycleAnchorJson;
++  return publicRow;
++};
++const anchorIntent = (goal: Goal): GoalAnchorIntent => ({
++  id: goal.id, categoryId: goal.categoryId, accountId: goal.accountId,
++  targetCents: goal.targetCents, targetDate: goal.targetDate,
++  startMonth: goal.startMonth ?? goal.createdAt.slice(0, 7),
++});
+ 
+ export interface GoalInput {
+   name: string;
+@@ -47,7 +59,7 @@ export interface GoalInput {
+ }
+ export type GoalPatch = Partial<GoalInput>;
+ 
+-export interface GoalRow extends Goal, GoalProgress {
++export interface GoalRow extends PublicGoal, GoalProgress {
+   effectiveStartMonth: string;
+   lifecycle: GoalLifecycle;
+   funding: { monthlyCents: number; remainingCents: number; conflict: string | null; reviewToken: string } | null;
+@@ -117,6 +129,15 @@ export function listGoals(
+   db: Executor,
+   month: string,
+   options: { includeDeleted?: boolean; today?: string } = {},
++): GoalRow[] {
++  // One SQLite read snapshot binds the goal, current amounts and retained audit evidence.
++  return runInTransaction(db, (tx) => listGoalsInSnapshot(tx, month, options));
++}
++
++function listGoalsInSnapshot(
++  db: Executor,
++  month: string,
++  options: { includeDeleted?: boolean; today?: string },
+ ): GoalRow[] {
+   const goals = db
+     .select()
+@@ -164,7 +185,7 @@ export function listGoals(
+       });
+     }
+     return {
+-      ...g,
++      ...publicGoal(g),
+       effectiveStartMonth: g.startMonth ?? g.createdAt.slice(0, 7),
+       ...goalProgress({
+         month,
+@@ -176,8 +197,9 @@ export function listGoals(
+     };
+   });
+   const lifecycle = readGoalLifecycles(db, rows.map((g) => ({
+-    id: g.id, categoryId: g.categoryId, startMonth: g.effectiveStartMonth,
+-    targetCents: g.targetCents,
++    id: g.id, categoryId: g.categoryId, accountId: g.accountId, startMonth: g.effectiveStartMonth,
++    targetCents: g.targetCents, targetDate: g.targetDate,
++    lifecycleAnchorJson: goals.find((stored) => stored.id === g.id)?.lifecycleAnchorJson ?? null,
+     currentAvailableCents: g.categoryId ? (actualBudget?.envelopes[g.categoryId]?.availableCents ?? 0) : (actualBalances.get(g.accountId ?? '') ?? 0),
+     manualCompletedOn: g.manualCompletedOn,
+   })), asOf);
+@@ -224,9 +246,10 @@ export function createGoal(
+   ctx: AuditContext,
+   validFrom = todayInVienna().slice(0, 7),
+   today = todayInVienna(),
+-): { goal: Goal; groupId: string } {
++): { goal: PublicGoal; groupId: string } {
+   const grouped = withGroup(ctx);
+   return runInTransaction(db, (tx) => {
++    const groupStartWatermark = goalAnchorGroupStart(tx, grouped.groupId);
+     const values = {
+       name: cleanName(input.name),
+       targetCents: input.targetCents,
+@@ -237,9 +260,11 @@ export function createGoal(
+       startMonth: input.startMonth ?? validFrom,
+     };
+     checkLinks(tx, values);
+-    const goal = createEntity(tx, savingsGoal, values, grouped);
++    let goal = createEntity(tx, savingsGoal, values, grouped);
+     synchronizeGoalTarget(tx, goal, validFrom, grouped, today);
+-    return { goal, groupId: grouped.groupId };
++    const lifecycleAnchorJson = captureGoalAnchor(tx, anchorIntent(goal), today, grouped.groupId, groupStartWatermark);
++    if (lifecycleAnchorJson !== null) goal = updateEntity(tx, savingsGoal, goal.id, { lifecycleAnchorJson }, grouped);
++    return { goal: publicGoal(goal), groupId: grouped.groupId };
+   });
+ }
+ 
+@@ -250,9 +275,10 @@ export function updateGoal(
+   ctx: AuditContext,
+   validFrom = todayInVienna().slice(0, 7),
+   today = todayInVienna(),
+-): { goal: Goal; groupId: string } {
++): { goal: PublicGoal; groupId: string } {
+   const grouped = withGroup(ctx);
+   return runInTransaction(db, (tx) => {
++    const groupStartWatermark = goalAnchorGroupStart(tx, grouped.groupId);
+     const current = getEntity(tx, savingsGoal, id);
+     if (!current) throw new EntityNotFoundError('savings_goal', id);
+     const next = merged(current, patch);
+@@ -269,10 +295,14 @@ export function updateGoal(
+       categoryId: next.categoryId,
+       accountId: next.accountId,
+     };
+-    const goal = updateEntity(tx, savingsGoal, id, clean, grouped);
+-    if (patch.targetCents !== undefined || patch.targetDate !== undefined || patch.categoryId !== undefined || patch.startMonth !== undefined)
++    let goal = updateEntity(tx, savingsGoal, id, clean, grouped);
++    const changedIntent = goalAnchorIntentDigest(anchorIntent(current)) !== goalAnchorIntentDigest(anchorIntent(goal));
++    if (changedIntent) {
+       synchronizeGoalTarget(tx, goal, validFrom, grouped, today);
+-    return { goal, groupId: grouped.groupId };
++      const lifecycleAnchorJson = captureGoalAnchor(tx, anchorIntent(goal), today, grouped.groupId, groupStartWatermark);
++      goal = updateEntity(tx, savingsGoal, id, { lifecycleAnchorJson }, grouped);
++    }
++    return { goal: publicGoal(goal), groupId: grouped.groupId };
+   });
+ }
+ 
+@@ -339,9 +369,9 @@ export function restoreGoal(
+   db: Executor,
+   id: string,
+   ctx: AuditContext,
+-): { goal: Goal; groupId: string } {
++): { goal: PublicGoal; groupId: string } {
+   const grouped = withGroup(ctx);
+-  return { goal: restoreEntity(db, savingsGoal, id, grouped), groupId: grouped.groupId };
++  return { goal: publicGoal(restoreEntity(db, savingsGoal, id, grouped)), groupId: grouped.groupId };
+ }
+ 
+ /**
+diff --git a/packages/db/src/schema/budget.ts b/packages/db/src/schema/budget.ts
+index 2f5d6fcc22ea970869799be0e2349438900b528a..b5c6af8af0da7c7fede9d154d41c2efc1005692c 100644
+--- a/packages/db/src/schema/budget.ts
++++ b/packages/db/src/schema/budget.ts
+@@ -339,11 +339,14 @@ export const savingsGoal = sqliteTable('savings_goal', {
+   startMonth: text('start_month'),
+   /** Explicit Vienna calendar day for the user's audited manual completion. */
+   manualCompletedOn: text('manual_completed_on'),
++  /** Internal prospective evidence only; never serialized in public goal DTOs. */
++  lifecycleAnchorJson: text('lifecycle_anchor_json'),
+   note: text('note'),
+   ...timestamps(),
+ }, (t) => [
+   isoMonth('savings_goal_start_month_chk', t.startMonth),
+   isoDay('savings_goal_manual_completed_on_chk', t.manualCompletedOn),
++  check('savings_goal_lifecycle_anchor_chk', sql`${t.lifecycleAnchorJson} IS NULL OR (json_valid(${t.lifecycleAnchorJson}) AND length(${t.lifecycleAnchorJson}) <= 2048)`),
+ ]);
+ 
+ /** Forecast events (Geplantes Ereignis): a purchase, a bonus, a move. */

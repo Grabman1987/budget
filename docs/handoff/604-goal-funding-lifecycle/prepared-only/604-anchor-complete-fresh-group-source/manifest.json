@@ -1,0 +1,35 @@
+{
+  "head": "63eb5ff3e549781fbea791e601830dd0dcf4fae5",
+  "status": "source-only fresh contiguous wholly active anchor audit-group correction; no runtime",
+  "previous_manifest_sha256": "71736cc9a96717d4ba564b7f529c1d2961c92dc319cd72865adc45044831d322",
+  "paths": {
+    "packages/db/drizzle/0048_goal_lifecycle.sql": {
+      "sha256": "f4250e2490cc14af45c6564d2faf7d75d9f45945bbf4abaa419e1c1300dd8ecc",
+      "size": 702
+    },
+    "packages/db/drizzle/meta/0048_snapshot.json": {
+      "sha256": "d1869c6fd3fb2b27037ada22271d0bd7f70f74ad6f24ac710454fba334f7e422",
+      "size": 272389
+    },
+    "packages/db/drizzle/rollback/0048_goal_lifecycle.sql": {
+      "sha256": "eadcf08b4df0fea328bf72ed9c3acc58dc12c33434febbc43aa356b77a9f84fc",
+      "size": 1202
+    },
+    "packages/db/src/repos/goal-lifecycle.ts": {
+      "sha256": "b0078f78fbb8dfe33fbdf92261bcfa92549c8a1e4864e7ffbe50a55db9e92116",
+      "size": 23978
+    },
+    "packages/db/src/repos/goals.ts": {
+      "sha256": "96a6af187f582096fd128e2051b848781483238d6bcc43e696b055052fff794c",
+      "size": 23268
+    },
+    "packages/db/src/schema/budget.ts": {
+      "sha256": "621fbd19ae0fa65e7c7dcc289fb8c385c72a5a403bb6c0e0689af317edd870b0",
+      "size": 15786
+    },
+    "docs/ROADMAP.md": {
+      "sha256": "57b248252d8936531b09cfded5f85317b878d32640a57d3e56f23cb93bde54f4",
+      "size": 252922
+    }
+  }
+}

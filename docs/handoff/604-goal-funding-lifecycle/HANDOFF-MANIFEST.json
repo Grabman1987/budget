@@ -1,0 +1,1192 @@
+[
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/README.md",
+    "size": 479,
+    "sha256": "3b3b2e09db19d6c9aba1f6aa27ea0a6a80fb88a81c8079177a6747eb83224eab"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/integration/1d0c7b1af8d67dab7dcb1a8c567c20c3f44a1c48.json",
+    "size": 363,
+    "sha256": "1160229609d1323e550fdb519d46881b3d9e0631cb6c4c9a876e12e898fba6f8"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/integration/1d0c7b1af8d67dab7dcb1a8c567c20c3f44a1c48.patch",
+    "size": 794,
+    "sha256": "cb5abb13860c21d52434b6fb6626d3c1969eb61ad87aad5e6b538727656c3134"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/owned/01-63eb5ff3e549781fbea791e601830dd0dcf4fae5.patch",
+    "size": 359434,
+    "sha256": "30077d10d8408e4a995f87e8255a3e1642736057302b68668af724e0194bf808"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/owned/02-1858cffc04262063865f7043c2c39b7e02782212.patch",
+    "size": 29855,
+    "sha256": "c1488be4f7b7a77e4e2450c50ee244e4e4c10e16389d460b5c0b7f9d2ed25ee6"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/packet.json",
+    "size": 3852,
+    "sha256": "54f88691cc4519b6e366c4e6b4a8d639b8a47c41526fb4285085deea03958c00"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-740-exact-optional-independent-source-review.md",
+    "size": 2084,
+    "sha256": "7eb9d56f5781b80a328e7f1b996533a25af2b04316d426206a6a96f492e1dedc"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-740-exact-optional-type-fixes.diff",
+    "size": 2515,
+    "sha256": "2075b660577f187ae38f3ee48f08caff2a5eb65aecf974997342f61accf2797d"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-complete-fresh-group-source/change.diff",
+    "size": 29407,
+    "sha256": "fce246165785108db6b63b7a173b114cfd2ea5f79aea8eddb7efc6d93cab8985"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-complete-fresh-group-source/files/docs/ROADMAP.md",
+    "size": 252922,
+    "sha256": "57b248252d8936531b09cfded5f85317b878d32640a57d3e56f23cb93bde54f4"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-complete-fresh-group-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+    "size": 702,
+    "sha256": "f4250e2490cc14af45c6564d2faf7d75d9f45945bbf4abaa419e1c1300dd8ecc"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-complete-fresh-group-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+    "size": 272389,
+    "sha256": "d1869c6fd3fb2b27037ada22271d0bd7f70f74ad6f24ac710454fba334f7e422"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-complete-fresh-group-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+    "size": 1202,
+    "sha256": "eadcf08b4df0fea328bf72ed9c3acc58dc12c33434febbc43aa356b77a9f84fc"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-complete-fresh-group-source/files/packages/db/src/repos/goal-lifecycle.ts",
+    "size": 23978,
+    "sha256": "b0078f78fbb8dfe33fbdf92261bcfa92549c8a1e4864e7ffbe50a55db9e92116"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-complete-fresh-group-source/files/packages/db/src/repos/goals.ts",
+    "size": 23268,
+    "sha256": "96a6af187f582096fd128e2051b848781483238d6bcc43e696b055052fff794c"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-complete-fresh-group-source/files/packages/db/src/schema/budget.ts",
+    "size": 15786,
+    "sha256": "621fbd19ae0fa65e7c7dcc289fb8c385c72a5a403bb6c0e0689af317edd870b0"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-complete-fresh-group-source/manifest.json",
+    "size": 1372,
+    "sha256": "3ba85060b52724270db0f565e6fee8c7efe74bf20e70f36edb183e31e5820586"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-helper-contract.md",
+    "size": 4569,
+    "sha256": "d8369a7b0aaea26366e3d867fd518a01ea3ac7ed889c94b1f26882e7bab6871e"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-integration-0b9bbb65-independent-source-boundary.md",
+    "size": 1338,
+    "sha256": "b9a61c5ef5196ed28ba5affbff087d0521c0c7eecef24a385042ce83f978b3af"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-local-integration-section-replacement.json",
+    "size": 629,
+    "sha256": "82a938aa37a25af938a91c134259781d6d9807d2040c67ef7e0ab63bc0c60049"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-snapshot-future-source/change.diff",
+    "size": 25005,
+    "sha256": "5b84a8df4b5dfb25e5016f5e198a3cfdfd8a32ea0cfb6b01293b9e6dcb5a88b2"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-snapshot-future-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+    "size": 702,
+    "sha256": "f4250e2490cc14af45c6564d2faf7d75d9f45945bbf4abaa419e1c1300dd8ecc"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-snapshot-future-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+    "size": 272389,
+    "sha256": "d1869c6fd3fb2b27037ada22271d0bd7f70f74ad6f24ac710454fba334f7e422"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-snapshot-future-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+    "size": 1202,
+    "sha256": "eadcf08b4df0fea328bf72ed9c3acc58dc12c33434febbc43aa356b77a9f84fc"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-snapshot-future-source/files/packages/db/src/repos/goal-lifecycle.ts",
+    "size": 22820,
+    "sha256": "a851b3fcabab268a88580c2bc58621398e499c7a693919e6790625c314e56b9b"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-snapshot-future-source/files/packages/db/src/repos/goals.ts",
+    "size": 23054,
+    "sha256": "cb742b471c31f6c066d7938e0c4d03e0c7ba8f48e1423429efde5bdd656adbe0"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-snapshot-future-source/files/packages/db/src/schema/budget.ts",
+    "size": 15786,
+    "sha256": "621fbd19ae0fa65e7c7dcc289fb8c385c72a5a403bb6c0e0689af317edd870b0"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-anchor-snapshot-future-source/manifest.json",
+    "size": 1235,
+    "sha256": "836a575728c514cd37c25b3aaf30d3867b70ade954d1d4cd7f14b3874f3d61e3"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-audit-lifecycle-adapter-first-independent-source-hold.md",
+    "size": 3519,
+    "sha256": "d2abbf62d0066a457d021e2c8033f8550fe27658d97f9613e0ce9a37dc2cfbc1"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/SPEC.md",
+    "size": 51766,
+    "sha256": "b08704a5e9e48cf7223bebf81d5775e8b543c1bb41e0b564d5c40345d1e09c42"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/apps/server/src/api/goals.ts",
+    "size": 3136,
+    "sha256": "a1743db149e4d6317c2b14ebc6c16a6c25c676ff36bd32a9505d8b7f6e2790a7"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/apps/server/src/api/schemas.ts",
+    "size": 15244,
+    "sha256": "aa56edeeb2c551bd40e07d6ac2892a025b112149a1278c59cb2927c768f1070d"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/apps/web/src/budget/goals-api.ts",
+    "size": 2763,
+    "sha256": "28e269c07af76d1e2545aba42c95d7d518e31e9c5453336309504fee1fc55b9e"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/apps/web/src/budget/goals-model.ts",
+    "size": 3793,
+    "sha256": "221ca9d3d9c000b4ad260a0814d85148d732f5b89640572d1374ae46508d93a3"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/apps/web/src/budget/goals-page.tsx",
+    "size": 11719,
+    "sha256": "49e55ee3539a08935f01dcb4781ae914d7a3b6d66e96de5de76b7ef626c73acc"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/apps/web/src/budget/goals-panel.tsx",
+    "size": 10823,
+    "sha256": "d678971541c7e8e26b67384c2b84559fe439eaad3e47682dcc960d9cc2668e68"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/apps/web/src/budget/goals.css",
+    "size": 3511,
+    "sha256": "cd7b83c7286c41030b1dafd13e05928d5ece7b46a3146b5923f2e80f78a8ab1c"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/apps/web/src/budget/plan-panel-pages.tsx",
+    "size": 9228,
+    "sha256": "4f3979691f8bf0bc15074295c32d50f7c11c95b0b7bbafd139beee07709f8ab9"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/apps/web/src/pages/goals-progress-report.tsx",
+    "size": 18093,
+    "sha256": "8202eca1a57077788e23498d45b90fc69e10153fd1d1dd6b9002b924cf785106"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/docs/ROADMAP.md",
+    "size": 252468,
+    "sha256": "f77ddbe81a9335a159b611e1e1c50150053f6a00509b06d620043b0cfb2add5f"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+    "size": 451,
+    "sha256": "38315a73c9c07da0e89e0b77ce6a0e6b724ba0e328e70934b513fd0ed8e2e9da"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+    "size": 271874,
+    "sha256": "b6d942e2cce708db2cf913d8f40430dbcbc7c9caf6b389b2dd702577d36e5f24"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/packages/db/drizzle/meta/_journal.json",
+    "size": 7221,
+    "sha256": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+    "size": 971,
+    "sha256": "14eb89462c1ef2e5a4220d42dbe13cf6e794a7a919fd8dfdc80da7c90b2d51be"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/packages/db/src/repos/budget-ledger-input.ts",
+    "size": 2319,
+    "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/packages/db/src/repos/goal-lifecycle.ts",
+    "size": 13986,
+    "sha256": "4141c1819b06b44c35a342f2ed3c47defc5290fe6e1f4a6bb7abd7adb3d3e787"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/packages/db/src/repos/goals.ts",
+    "size": 21500,
+    "sha256": "c14af63f07fbb24e8112a2c19f19ee3b47ad38c3eacb6f47b0cba4a257830ea1"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/packages/db/src/repos/queries.ts",
+    "size": 7291,
+    "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/packages/db/src/schema/budget.ts",
+    "size": 15477,
+    "sha256": "96f15acd478900da0ac2bfd362c82c2efdb1028f40a7ec5434de8c455e123410"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/packages/domain/src/goals/lifecycle.ts",
+    "size": 3591,
+    "sha256": "82c34702cd69c59dc3e4496baeb1edbdfebff05eefe5900261ee879c25aa9387"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/files/packages/domain/src/index.ts",
+    "size": 1822,
+    "sha256": "58dbcb797924042017eaaee21ae39cdbfcdad4392aef4b9ea9894733c002c8ee"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-completed-target-ownership-source/manifest.json",
+    "size": 3615,
+    "sha256": "92bf1874b4b57c93b53911f16848681810a557b62db0ba912658a54c57f42412"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-concrete-lifecycle-dataflow.md",
+    "size": 11127,
+    "sha256": "c2e211d294128793c3d42007bafd2fe997d9947d42f4bf538b09f8f2e4bb5ba8"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-corrected-provenance-adapter-independent-source-high.md",
+    "size": 2941,
+    "sha256": "176b935345be9526906856d8d90d8b9578028c948933393853e900a39bd235c1"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-final-whole22-independent-correspondence.json",
+    "size": 3755,
+    "sha256": "dc47b01889fd7e926ee3deb95e7845e7cc9660d26ab7b41c2fc424737b4cc5af"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-canonical-lifecycle-independent-source-review.md",
+    "size": 2069,
+    "sha256": "76aa26c1da003872238893fb77d8c69ac1209eec2355835e4a1619250fddf172"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-canonical-lifecycle-source/files/packages/db/src/repos/budget-ledger-input.ts",
+    "size": 2319,
+    "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-canonical-lifecycle-source/files/packages/db/src/repos/queries.ts",
+    "size": 7291,
+    "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-canonical-lifecycle-source/files/packages/domain/src/goals/lifecycle.ts",
+    "size": 3270,
+    "sha256": "b53e70358c55b2ec5094a17a5e1378da580f4b644c65e07dc2bdf1846e72e03d"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-canonical-lifecycle-source/manifest.json",
+    "size": 600,
+    "sha256": "c8ae70e8aabb2a933b4eb77d52302d036b3870c0bd62c594a09e6fe541122905"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/change.diff",
+    "size": 45649,
+    "sha256": "852a9410f4859ffd680dd498d162be5175fe309ef3b5664e4105a86ec2c49a93"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/SPEC.md",
+    "size": 51766,
+    "sha256": "b08704a5e9e48cf7223bebf81d5775e8b543c1bb41e0b564d5c40345d1e09c42"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/apps/server/src/api/goals.ts",
+    "size": 2976,
+    "sha256": "4b35ecf47f020c4776200f8857f066f0d6a3bf1de026dfeeff63941fb3a6567f"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/apps/server/src/api/schemas.ts",
+    "size": 15153,
+    "sha256": "3314a7cf3e77540a9a6d93e295231a499fa64abb8b14fb39e9692ea97f48768d"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/apps/web/src/budget/goals-api.ts",
+    "size": 2704,
+    "sha256": "9eabe770db8cd81f1ddbcee4d5239d574fa44e27a6be05c8e16f41a15c8c34cb"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/apps/web/src/budget/goals-model.ts",
+    "size": 3355,
+    "sha256": "1647739b66fb2b8b5025f4707f4a83b6e59f5bd60e46d49364be0f79b625f5d5"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/apps/web/src/budget/goals-page.tsx",
+    "size": 11597,
+    "sha256": "3108c02b463ac9a9dd67ac39efa9ad220fdb500dfa1feaab402c70069541a4f2"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/apps/web/src/budget/goals-panel.tsx",
+    "size": 10635,
+    "sha256": "250c5d1ba5e7bc32d845993d6c9df7456c4fa6977c7844976129ce5bf2dc4d90"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/apps/web/src/budget/goals.css",
+    "size": 3511,
+    "sha256": "cd7b83c7286c41030b1dafd13e05928d5ece7b46a3146b5923f2e80f78a8ab1c"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/apps/web/src/budget/plan-panel-pages.tsx",
+    "size": 9201,
+    "sha256": "e97c54dca493ae4681543242c38d54ad9ce60ca5a6425d309cff942227f8ccf8"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/apps/web/src/pages/goals-progress-report.tsx",
+    "size": 18076,
+    "sha256": "3f284437bfd76c155c86878360371b71571197c28892c76aa1d190545e9e385d"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/docs/ROADMAP.md",
+    "size": 252262,
+    "sha256": "e1b9dd8dcb182ee785eb3201366ad40c6bd23bfb791432c971396f97bfccbc5d"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+    "size": 451,
+    "sha256": "38315a73c9c07da0e89e0b77ce6a0e6b724ba0e328e70934b513fd0ed8e2e9da"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+    "size": 271874,
+    "sha256": "b6d942e2cce708db2cf913d8f40430dbcbc7c9caf6b389b2dd702577d36e5f24"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/packages/db/drizzle/meta/_journal.json",
+    "size": 7221,
+    "sha256": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+    "size": 971,
+    "sha256": "14eb89462c1ef2e5a4220d42dbe13cf6e794a7a919fd8dfdc80da7c90b2d51be"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/packages/db/src/repos/budget-ledger-input.ts",
+    "size": 2319,
+    "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/packages/db/src/repos/goal-lifecycle.ts",
+    "size": 12692,
+    "sha256": "cd28b6da982b57deb84f896cfd91aaea1c75ed6c1b046d9be5283a9e1db48245"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/packages/db/src/repos/goals.ts",
+    "size": 18743,
+    "sha256": "1639daaae2f6a3b757b3faee9e9a7ea6ad31988a857d35cdb222d9ae7eeeb20e"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/packages/db/src/repos/queries.ts",
+    "size": 7291,
+    "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/packages/db/src/schema/budget.ts",
+    "size": 15477,
+    "sha256": "96f15acd478900da0ac2bfd362c82c2efdb1028f40a7ec5434de8c455e123410"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/packages/domain/src/goals/lifecycle.ts",
+    "size": 3368,
+    "sha256": "da7819a306821f893470019b1413e869166c7f601ed1c9cc9a7a43360dd07c67"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/files/packages/domain/src/index.ts",
+    "size": 1822,
+    "sha256": "58dbcb797924042017eaaee21ae39cdbfcdad4392aef4b9ea9894733c002c8ee"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-first-whole-source/manifest.json",
+    "size": 3570,
+    "sha256": "c31df06d0e67bc5d4b6956200c76e38a9914736e609b46b6f3b95ccba3c25310"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-goal48-isolated-delivery-readonly-prerequisites.md",
+    "size": 9647,
+    "sha256": "f872aba7ad1754ce8c45c9f98e0519c82de3020ba92add40339b90e0970f18f1"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-integration-f81c206d-independent-source-boundary.md",
+    "size": 855,
+    "sha256": "e6f4c80d292cad0485ca01cf5c7cd0c5565d779c368f6142ac86b9df50802d5f"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-local-integration-append-union.json",
+    "size": 627,
+    "sha256": "a30015de9b5a11492db952ac03a4ffa319755725b089b7831334e8d16c588db9"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-migration-intent-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+    "size": 451,
+    "sha256": "38315a73c9c07da0e89e0b77ce6a0e6b724ba0e328e70934b513fd0ed8e2e9da"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-migration-intent-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+    "size": 271874,
+    "sha256": "b6d942e2cce708db2cf913d8f40430dbcbc7c9caf6b389b2dd702577d36e5f24"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-migration-intent-source/files/packages/db/drizzle/meta/_journal.json",
+    "size": 7221,
+    "sha256": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-migration-intent-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+    "size": 971,
+    "sha256": "14eb89462c1ef2e5a4220d42dbe13cf6e794a7a919fd8dfdc80da7c90b2d51be"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-migration-intent-source/files/packages/db/src/schema/budget.ts",
+    "size": 15477,
+    "sha256": "96f15acd478900da0ac2bfd362c82c2efdb1028f40a7ec5434de8c455e123410"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-migration-intent-source/manifest.json",
+    "size": 670,
+    "sha256": "c4a4406790ae0e8dbda62603988533336477ae44441a8af9e1ac1304b2cb0414"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-migration48-intent-independent-correspondence.json",
+    "size": 1160,
+    "sha256": "aa57db35c6e9a166a57f0257e75cda29050da551807935aaf5caf0c0a40491d8"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-migration48-intent-independent-source-high.md",
+    "size": 2604,
+    "sha256": "55e9715423676e4f094ed085e1558739e32cd2af2de23333b9145ade343a9595"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-migration48-one-new-test-outside/manifest.json",
+    "size": 3178,
+    "sha256": "723ffb2e4405df4bc4ce4098359ceba1f5f765fe6a4e07f8f4ec6a1950c20722"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-migration48-one-new-test-outside/packages/db/src/goal-lifecycle-migration-604.test.ts",
+    "size": 18766,
+    "sha256": "6d1a4b213c5083c8c5bd3d65244711002d0eb47a98c2d9cc2f58f6da786be6f4"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-migration48-one-new-test-outside-v2/manifest.json",
+    "size": 3721,
+    "sha256": "ece96c6aeb6973d95b59229223592fec2d5aae29d0e664f2329cf7e232bdff41"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-migration48-one-new-test-outside-v2/packages/db/src/goal-lifecycle-migration-604.test.ts",
+    "size": 19990,
+    "sha256": "983681d51c5b65484158e263d47dcd12a414ca72ecc3bcc596e18f5aec61b649"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-independent-source-high.md",
+    "size": 5126,
+    "sha256": "1473c84808ef330f8c98941b7e90f5f46c7e5fb2eb4bae589f6116be6025ae04"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/README.md",
+    "size": 5205,
+    "sha256": "ebf1f7fb99fb23cc73985c27d32a915ec7b2a9623d7e756c4f09fae807fde8b0"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/candidate/packages/db/src/repos/goal-lifecycle-plan-rate-604.test.ts",
+    "size": 14251,
+    "sha256": "c7cd4ed850a8271686244154adc246564049c3ca6e3d89efa518d207bbdbb1a0"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/change.diff",
+    "size": 14551,
+    "sha256": "665fe5613cb9d32b802ebeaa5d28b28800690373b8b77e6c182ecf6c7d4b61bd"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/clock-and-tombstone-only.diff",
+    "size": 1579,
+    "sha256": "4e8e0398511662100bb0c6d8241158f48c8039c8c47d6ade9286748624dc7a71"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/initial-7b5f1f78/README.md",
+    "size": 4876,
+    "sha256": "15a30fa7abf16cc33604a4abd9835f0d62351a14932c8d6de9766aabdb9fb2d3"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/initial-7b5f1f78/change.diff",
+    "size": 14064,
+    "sha256": "f28b2d1beaa38055c4dbd5de2976d694c540e9fcdb584a0e8ca7793612a0aa6e"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/initial-7b5f1f78/goal-lifecycle-plan-rate-604.test.ts",
+    "size": 13771,
+    "sha256": "d461dd1f66d83b84163bdb634e368b24829eb89d3a3ca4f3bda0f16ca8e4e016"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/initial-7b5f1f78/manifest.json",
+    "size": 6028,
+    "sha256": "7b5f1f78613f443c68261f3a6120babb752cb59827666d26b90d57c09f7b5d17"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/manifest.json",
+    "size": 6768,
+    "sha256": "6988bdf6c29d4b1b5f87d73392ca33a904ba2aff1e8c3a148d5695fc665c5586"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/drizzle/0048_goal_lifecycle.sql",
+    "size": 702,
+    "sha256": "f4250e2490cc14af45c6564d2faf7d75d9f45945bbf4abaa419e1c1300dd8ecc"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/drizzle/meta/0047_snapshot.json",
+    "size": 271053,
+    "sha256": "d5f908d357ad1c1095e8b05c985a8e2e484ffe1312be5fc5ee1931b27c642dad"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/drizzle/meta/0048_snapshot.json",
+    "size": 272389,
+    "sha256": "d1869c6fd3fb2b27037ada22271d0bd7f70f74ad6f24ac710454fba334f7e422"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/drizzle/meta/_journal.json",
+    "size": 7221,
+    "sha256": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/client.ts",
+    "size": 3057,
+    "sha256": "5e80ac5f1715611cee546d3ffeec908eabb5a09405959fe9da29943cf5f97e6e"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/audit.ts",
+    "size": 36114,
+    "sha256": "21777b88918b8e0e874e8a4ba6ced0cccad594276d60fa34d68aeba30b4bc102"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/bookings.ts",
+    "size": 44585,
+    "sha256": "7ac8a632873a1b1a362ffa70a97eea564f703291b8582bfcdbcbd11ad45cef15"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/budget-ledger-input.ts",
+    "size": 2319,
+    "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/budget.ts",
+    "size": 12687,
+    "sha256": "23b98187e59d3085ba46e1241848bdb65728ff23f5dc96a0f7f070cf7cb5f648"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/categories.ts",
+    "size": 20829,
+    "sha256": "ea2e043f30be99273324078ea9ce9727eea597ba599c1a828a1410463f519a7e"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/entities.ts",
+    "size": 9677,
+    "sha256": "611eb370ae5c1e434c3009c1d5fec1f1dddcddef0265f4f436e3dbbae89cc2da"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/envelopes.ts",
+    "size": 2603,
+    "sha256": "c605675e6be4155e6eb979a3f2d63127e3bc80e706425a320b1707100ca7cc44"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/goal-lifecycle.ts",
+    "size": 23927,
+    "sha256": "1e74aec7be50497a032b584c82722885c99468be433018a5468be7584c6fddd5"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/goals.ts",
+    "size": 23268,
+    "sha256": "96a6af187f582096fd128e2051b848781483238d6bcc43e696b055052fff794c"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/plan-months.ts",
+    "size": 5411,
+    "sha256": "509fed5d097d8f8be5683ff9791c8a73be2954e587e20a203fcac489c9c8ba1d"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/queries.ts",
+    "size": 7291,
+    "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/schema/budget.ts",
+    "size": 15786,
+    "sha256": "621fbd19ae0fa65e7c7dcc289fb8c385c72a5a403bb6c0e0689af317edd870b0"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/schema/common.ts",
+    "size": 1757,
+    "sha256": "3430e3681c302cfeceeb304ddc76fc53900bcd3f147dec49b6839e0b1060ca9b"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/domain/src/goals/goals.ts",
+    "size": 6127,
+    "sha256": "2889f405eb66bb302938771d6ecadd330cdb534d60fbc33dd0efa30e6a01e68b"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/domain/src/goals/lifecycle.ts",
+    "size": 3591,
+    "sha256": "82c34702cd69c59dc3e4496baeb1edbdfebff05eefe5900261ee879c25aa9387"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/domain/src/ledger/targets.ts",
+    "size": 4607,
+    "sha256": "735480839f512071f15985bf69bb747196a70a7375e4217bccd7f5aff9db0845"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-pure-and-migration-v2-independent-source-high.md",
+    "size": 5360,
+    "sha256": "3682f7be9410d581edba8b3bd4a51afaa01a4d8bac1fc81632dc2696d2530de2"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-pure-lifecycle-outside-proposal/README.md",
+    "size": 3058,
+    "sha256": "6ded72da0cad6034f6dae5305c43795a779e1f991ea0adeec83e9b504e0b6dd8"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-pure-lifecycle-outside-proposal/candidate/packages/domain/src/goals/lifecycle-604.test.ts",
+    "size": 8082,
+    "sha256": "85f588b9137658ef9ee0398c119af9c40b58a9db33f1a7ad95c6b96dd6fc272a"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-pure-lifecycle-outside-proposal/change.diff",
+    "size": 8337,
+    "sha256": "a53eaaf07155f04e7d476ab388cd5cafa24f43374b306a25a903e45b82459267"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-pure-lifecycle-outside-proposal/manifest.json",
+    "size": 1928,
+    "sha256": "b70497fc670aecfeb5648e5546decdbe60b6870e61423503291633513e3e5127"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-pure-lifecycle-outside-proposal/source-pins/packages/db/src/repos/goal-lifecycle.ts",
+    "size": 23978,
+    "sha256": "b0078f78fbb8dfe33fbdf92261bcfa92549c8a1e4864e7ffbe50a55db9e92116"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-pure-lifecycle-outside-proposal/source-pins/packages/db/src/repos/goals.ts",
+    "size": 23268,
+    "sha256": "96a6af187f582096fd128e2051b848781483238d6bcc43e696b055052fff794c"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-pure-lifecycle-outside-proposal/source-pins/packages/domain/src/goals/goals.ts",
+    "size": 6127,
+    "sha256": "2889f405eb66bb302938771d6ecadd330cdb534d60fbc33dd0efa30e6a01e68b"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-pure-lifecycle-outside-proposal/source-pins/packages/domain/src/goals/lifecycle.ts",
+    "size": 3591,
+    "sha256": "82c34702cd69c59dc3e4496baeb1edbdfebff05eefe5900261ee879c25aa9387"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-new-pure-lifecycle-outside-proposal/source-pins/packages/domain/src/ledger/targets.ts",
+    "size": 4607,
+    "sha256": "735480839f512071f15985bf69bb747196a70a7375e4217bccd7f5aff9db0845"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-first-source/change.diff",
+    "size": 24146,
+    "sha256": "d2063fc75620dfac0165ba6fc696434893584127774f47f906f458c051c7f14b"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-first-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+    "size": 702,
+    "sha256": "f4250e2490cc14af45c6564d2faf7d75d9f45945bbf4abaa419e1c1300dd8ecc"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-first-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+    "size": 272389,
+    "sha256": "d1869c6fd3fb2b27037ada22271d0bd7f70f74ad6f24ac710454fba334f7e422"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-first-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+    "size": 1202,
+    "sha256": "eadcf08b4df0fea328bf72ed9c3acc58dc12c33434febbc43aa356b77a9f84fc"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-first-source/files/packages/db/src/repos/goal-lifecycle.ts",
+    "size": 22480,
+    "sha256": "030a60fd042fda77c0cf241c2448d2f5a452e768b6f58ade141613570f586e15"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-first-source/files/packages/db/src/repos/goals.ts",
+    "size": 22745,
+    "sha256": "ddb364aaa5b83d5ab0774ddbc03dd9d6d1b248ba01eb4a1ed5aa29cf4db2d8fd"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-first-source/files/packages/db/src/schema/budget.ts",
+    "size": 15786,
+    "sha256": "621fbd19ae0fa65e7c7dcc289fb8c385c72a5a403bb6c0e0689af317edd870b0"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-first-source/manifest.json",
+    "size": 1134,
+    "sha256": "ec4ad4d2f844527d3e126f5b63be7f13e08d68f79db40246fa6e2d0c6dfbbc94"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-independent-contract-review.md",
+    "size": 4927,
+    "sha256": "a897e410d9c2254562c7a13d076c7ca1c2928c37ad21e3ad67721b6aa256fb3d"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-proposal.md",
+    "size": 5623,
+    "sha256": "41e1f328b885b18b2895c90918d3b152abbb475147b73c0616feaf4f76f1e1d8"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-seven-independent-source-high.md",
+    "size": 3014,
+    "sha256": "3f328e5c553ed510a50f1d1b2133218ad5bb42c43fbf573d4104f0e157332ab6"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-whole-source/change.diff",
+    "size": 27829,
+    "sha256": "1e6c13df6e5919d3c28e2153573eae626f83a8be6b42113734b1ad64db99ffee"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-whole-source/files/docs/ROADMAP.md",
+    "size": 252922,
+    "sha256": "57b248252d8936531b09cfded5f85317b878d32640a57d3e56f23cb93bde54f4"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-whole-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+    "size": 702,
+    "sha256": "f4250e2490cc14af45c6564d2faf7d75d9f45945bbf4abaa419e1c1300dd8ecc"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-whole-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+    "size": 272389,
+    "sha256": "d1869c6fd3fb2b27037ada22271d0bd7f70f74ad6f24ac710454fba334f7e422"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-whole-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+    "size": 1202,
+    "sha256": "eadcf08b4df0fea328bf72ed9c3acc58dc12c33434febbc43aa356b77a9f84fc"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-whole-source/files/packages/db/src/repos/goal-lifecycle.ts",
+    "size": 22820,
+    "sha256": "a851b3fcabab268a88580c2bc58621398e499c7a693919e6790625c314e56b9b"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-whole-source/files/packages/db/src/repos/goals.ts",
+    "size": 23054,
+    "sha256": "cb742b471c31f6c066d7938e0c4d03e0c7ba8f48e1423429efde5bdd656adbe0"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-whole-source/files/packages/db/src/schema/budget.ts",
+    "size": 15786,
+    "sha256": "621fbd19ae0fa65e7c7dcc289fb8c385c72a5a403bb6c0e0689af317edd870b0"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-prospective-anchor-whole-source/manifest.json",
+    "size": 1383,
+    "sha256": "71736cc9a96717d4ba564b7f529c1d2961c92dc319cd72865adc45044831d322"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/SPEC.md",
+    "size": 51766,
+    "sha256": "b08704a5e9e48cf7223bebf81d5775e8b543c1bb41e0b564d5c40345d1e09c42"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/apps/server/src/api/goals.ts",
+    "size": 3042,
+    "sha256": "57eda91b335e24f92b2a310f476ec9939b744ed70bdab1d719d8a38a43b1012d"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/apps/server/src/api/schemas.ts",
+    "size": 15153,
+    "sha256": "3314a7cf3e77540a9a6d93e295231a499fa64abb8b14fb39e9692ea97f48768d"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/apps/web/src/budget/goals-api.ts",
+    "size": 2704,
+    "sha256": "9eabe770db8cd81f1ddbcee4d5239d574fa44e27a6be05c8e16f41a15c8c34cb"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/apps/web/src/budget/goals-model.ts",
+    "size": 3355,
+    "sha256": "1647739b66fb2b8b5025f4707f4a83b6e59f5bd60e46d49364be0f79b625f5d5"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/apps/web/src/budget/goals-page.tsx",
+    "size": 11597,
+    "sha256": "3108c02b463ac9a9dd67ac39efa9ad220fdb500dfa1feaab402c70069541a4f2"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/apps/web/src/budget/goals-panel.tsx",
+    "size": 10635,
+    "sha256": "250c5d1ba5e7bc32d845993d6c9df7456c4fa6977c7844976129ce5bf2dc4d90"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/apps/web/src/budget/goals.css",
+    "size": 3511,
+    "sha256": "cd7b83c7286c41030b1dafd13e05928d5ece7b46a3146b5923f2e80f78a8ab1c"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/apps/web/src/budget/plan-panel-pages.tsx",
+    "size": 9201,
+    "sha256": "e97c54dca493ae4681543242c38d54ad9ce60ca5a6425d309cff942227f8ccf8"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/apps/web/src/pages/goals-progress-report.tsx",
+    "size": 18076,
+    "sha256": "3f284437bfd76c155c86878360371b71571197c28892c76aa1d190545e9e385d"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/docs/ROADMAP.md",
+    "size": 252262,
+    "sha256": "e1b9dd8dcb182ee785eb3201366ad40c6bd23bfb791432c971396f97bfccbc5d"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+    "size": 451,
+    "sha256": "38315a73c9c07da0e89e0b77ce6a0e6b724ba0e328e70934b513fd0ed8e2e9da"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+    "size": 271874,
+    "sha256": "b6d942e2cce708db2cf913d8f40430dbcbc7c9caf6b389b2dd702577d36e5f24"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/packages/db/drizzle/meta/_journal.json",
+    "size": 7221,
+    "sha256": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+    "size": 971,
+    "sha256": "14eb89462c1ef2e5a4220d42dbe13cf6e794a7a919fd8dfdc80da7c90b2d51be"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/packages/db/src/repos/budget-ledger-input.ts",
+    "size": 2319,
+    "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/packages/db/src/repos/goal-lifecycle.ts",
+    "size": 13986,
+    "sha256": "4141c1819b06b44c35a342f2ed3c47defc5290fe6e1f4a6bb7abd7adb3d3e787"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/packages/db/src/repos/goals.ts",
+    "size": 19195,
+    "sha256": "cf107286161bd67cd572e8d64899110eedb2b4523fa7c4f01f93be6778f84198"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/packages/db/src/repos/queries.ts",
+    "size": 7291,
+    "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/packages/db/src/schema/budget.ts",
+    "size": 15477,
+    "sha256": "96f15acd478900da0ac2bfd362c82c2efdb1028f40a7ec5434de8c455e123410"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/packages/domain/src/goals/lifecycle.ts",
+    "size": 3591,
+    "sha256": "82c34702cd69c59dc3e4496baeb1edbdfebff05eefe5900261ee879c25aa9387"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/files/packages/domain/src/index.ts",
+    "size": 1822,
+    "sha256": "58dbcb797924042017eaaee21ae39cdbfcdad4392aef4b9ea9894733c002c8ee"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-provenance-date-corrections-source/manifest.json",
+    "size": 3744,
+    "sha256": "85f2724d4c8c3413261210f5aca02a3bbfea1e62208727823aed3a7052f9ec7c"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-readonly-goals-contract.md",
+    "size": 17486,
+    "sha256": "8a629a61b82f880b0045eedd2bce3a41a8966b13b6ee66893235038123c78f6d"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-readonly-lifecycle-adapter-source/files/packages/db/src/repos/budget-ledger-input.ts",
+    "size": 2319,
+    "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-readonly-lifecycle-adapter-source/files/packages/db/src/repos/goal-lifecycle.ts",
+    "size": 11559,
+    "sha256": "ced092a2acc633f99d89bf15eff9d55dd5ab807c76a281519a2bdd52a7147be1"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-readonly-lifecycle-adapter-source/files/packages/db/src/repos/queries.ts",
+    "size": 7291,
+    "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-readonly-lifecycle-adapter-source/files/packages/domain/src/goals/lifecycle.ts",
+    "size": 3394,
+    "sha256": "0c1c1c3f4a63d2e3ad6365421c4b2a0cb8fef3adbea594c1577c516d51461a86"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-readonly-lifecycle-adapter-source/files/packages/domain/src/index.ts",
+    "size": 1822,
+    "sha256": "58dbcb797924042017eaaee21ae39cdbfcdad4392aef4b9ea9894733c002c8ee"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-readonly-lifecycle-adapter-source/manifest.json",
+    "size": 617,
+    "sha256": "38575ca9419db3173fa2f626d89d5ccb1cca65f3b3a7c69dc28acde0be3eaeb0"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/SPEC.md",
+    "size": 51766,
+    "sha256": "b08704a5e9e48cf7223bebf81d5775e8b543c1bb41e0b564d5c40345d1e09c42"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/apps/server/src/api/goals.ts",
+    "size": 3136,
+    "sha256": "a1743db149e4d6317c2b14ebc6c16a6c25c676ff36bd32a9505d8b7f6e2790a7"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/apps/server/src/api/schemas.ts",
+    "size": 15244,
+    "sha256": "aa56edeeb2c551bd40e07d6ac2892a025b112149a1278c59cb2927c768f1070d"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/goals-api.ts",
+    "size": 2763,
+    "sha256": "28e269c07af76d1e2545aba42c95d7d518e31e9c5453336309504fee1fc55b9e"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/goals-model.ts",
+    "size": 3793,
+    "sha256": "221ca9d3d9c000b4ad260a0814d85148d732f5b89640572d1374ae46508d93a3"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/goals-page.tsx",
+    "size": 11719,
+    "sha256": "49e55ee3539a08935f01dcb4781ae914d7a3b6d66e96de5de76b7ef626c73acc"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/goals-panel.tsx",
+    "size": 10823,
+    "sha256": "d678971541c7e8e26b67384c2b84559fe439eaad3e47682dcc960d9cc2668e68"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/goals.css",
+    "size": 3511,
+    "sha256": "cd7b83c7286c41030b1dafd13e05928d5ece7b46a3146b5923f2e80f78a8ab1c"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/plan-panel-pages.tsx",
+    "size": 9228,
+    "sha256": "4f3979691f8bf0bc15074295c32d50f7c11c95b0b7bbafd139beee07709f8ab9"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/apps/web/src/pages/goals-progress-report.tsx",
+    "size": 18093,
+    "sha256": "8202eca1a57077788e23498d45b90fc69e10153fd1d1dd6b9002b924cf785106"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/docs/ROADMAP.md",
+    "size": 252468,
+    "sha256": "f77ddbe81a9335a159b611e1e1c50150053f6a00509b06d620043b0cfb2add5f"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+    "size": 451,
+    "sha256": "38315a73c9c07da0e89e0b77ce6a0e6b724ba0e328e70934b513fd0ed8e2e9da"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+    "size": 271874,
+    "sha256": "b6d942e2cce708db2cf913d8f40430dbcbc7c9caf6b389b2dd702577d36e5f24"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/packages/db/drizzle/meta/_journal.json",
+    "size": 7221,
+    "sha256": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+    "size": 971,
+    "sha256": "14eb89462c1ef2e5a4220d42dbe13cf6e794a7a919fd8dfdc80da7c90b2d51be"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/packages/db/src/repos/budget-ledger-input.ts",
+    "size": 2319,
+    "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/packages/db/src/repos/goal-lifecycle.ts",
+    "size": 13986,
+    "sha256": "4141c1819b06b44c35a342f2ed3c47defc5290fe6e1f4a6bb7abd7adb3d3e787"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/packages/db/src/repos/goals.ts",
+    "size": 20064,
+    "sha256": "186ab9633d341757867691d870cef8bb084c8a5a021f2d351cf786683db82923"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/packages/db/src/repos/queries.ts",
+    "size": 7291,
+    "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/packages/db/src/schema/budget.ts",
+    "size": 15477,
+    "sha256": "96f15acd478900da0ac2bfd362c82c2efdb1028f40a7ec5434de8c455e123410"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/packages/domain/src/goals/lifecycle.ts",
+    "size": 3591,
+    "sha256": "82c34702cd69c59dc3e4496baeb1edbdfebff05eefe5900261ee879c25aa9387"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/files/packages/domain/src/index.ts",
+    "size": 1822,
+    "sha256": "58dbcb797924042017eaaee21ae39cdbfcdad4392aef4b9ea9894733c002c8ee"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-reviewed-rate-and-editor-source/manifest.json",
+    "size": 3979,
+    "sha256": "a962bc3efeda2293ee3d65c791e087f1e1817eed47f7d93f285a127141019c2c"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-rollback48-later-journal-independent-source-high.md",
+    "size": 1644,
+    "sha256": "7c8d98221289fa519f524da2f6579f8cda8075d0ace34c777c6c55d268171623"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-rollback48-later-journal-product-outside-proposal/README.md",
+    "size": 2904,
+    "sha256": "25c932e504cb7c6a132b304777da42ff7bf2c93205bdc3002a342e3174e2b0d3"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-rollback48-later-journal-product-outside-proposal/before/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+    "size": 1202,
+    "sha256": "eadcf08b4df0fea328bf72ed9c3acc58dc12c33434febbc43aa356b77a9f84fc"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-rollback48-later-journal-product-outside-proposal/candidate/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+    "size": 1385,
+    "sha256": "6d2b4cbc3d525afeff41781738c28dbde0dd06e9e4d9559791fd9638a90ca17a"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-rollback48-later-journal-product-outside-proposal/change.diff",
+    "size": 986,
+    "sha256": "21990c601dbfb66c4443bef0fbda87107a4d8921f210b3efb9ffd447d20f0260"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-rollback48-later-journal-product-outside-proposal/inverse-proof.json",
+    "size": 851,
+    "sha256": "a90fe1efb8091bbb1222931e07f89a71dc8e86c4a8e2353c9b3244a01988c0a8"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-rollback48-later-journal-product-outside-proposal/manifest.json",
+    "size": 1756,
+    "sha256": "224863212b7cf5c644c9c23a27eb1d286230f150d506f2ec629dace63831a493"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-rollback48-later-journal-product-outside-proposal/reference/packages/db/drizzle/rollback/0047_statement_automation.sql",
+    "size": 5535,
+    "sha256": "2463e7edc919a57e2c3a2264679a9ea1a2728df2217e45a494a29f55c9564b7b"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/prepared-only/604-whole22-final-independent-source-high.md",
+    "size": 5690,
+    "sha256": "a47fe2fe5932b646c93c4c5ec3040a970b4de2ec49c17b286194b9e5775eb54a"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/reviews/604-740-exact-optional-independent-source-review.md",
+    "size": 2084,
+    "sha256": "7eb9d56f5781b80a328e7f1b996533a25af2b04316d426206a6a96f492e1dedc"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/reviews/604-anchor-integration-0b9bbb65-independent-source-boundary.md",
+    "size": 1338,
+    "sha256": "b9a61c5ef5196ed28ba5affbff087d0521c0c7eecef24a385042ce83f978b3af"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/reviews/604-audit-lifecycle-adapter-first-independent-source-hold.md",
+    "size": 3519,
+    "sha256": "d2abbf62d0066a457d021e2c8033f8550fe27658d97f9613e0ce9a37dc2cfbc1"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/reviews/604-corrected-provenance-adapter-independent-source-high.md",
+    "size": 2941,
+    "sha256": "176b935345be9526906856d8d90d8b9578028c948933393853e900a39bd235c1"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/reviews/604-final-whole22-independent-correspondence.json",
+    "size": 3755,
+    "sha256": "dc47b01889fd7e926ee3deb95e7845e7cc9660d26ab7b41c2fc424737b4cc5af"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/reviews/604-first-canonical-lifecycle-independent-source-review.md",
+    "size": 2069,
+    "sha256": "76aa26c1da003872238893fb77d8c69ac1209eec2355835e4a1619250fddf172"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/reviews/604-integration-f81c206d-independent-source-boundary.md",
+    "size": 855,
+    "sha256": "e6f4c80d292cad0485ca01cf5c7cd0c5565d779c368f6142ac86b9df50802d5f"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/reviews/604-migration48-intent-independent-correspondence.json",
+    "size": 1160,
+    "sha256": "aa57db35c6e9a166a57f0257e75cda29050da551807935aaf5caf0c0a40491d8"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/reviews/604-migration48-intent-independent-source-high.md",
+    "size": 2604,
+    "sha256": "55e9715423676e4f094ed085e1558739e32cd2af2de23333b9145ade343a9595"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/reviews/604-new-canonical-plan-db-writer-independent-source-high.md",
+    "size": 5126,
+    "sha256": "1473c84808ef330f8c98941b7e90f5f46c7e5fb2eb4bae589f6116be6025ae04"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/reviews/604-new-pure-and-migration-v2-independent-source-high.md",
+    "size": 5360,
+    "sha256": "3682f7be9410d581edba8b3bd4a51afaa01a4d8bac1fc81632dc2696d2530de2"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/reviews/604-prospective-anchor-independent-contract-review.md",
+    "size": 4927,
+    "sha256": "a897e410d9c2254562c7a13d076c7ca1c2928c37ad21e3ad67721b6aa256fb3d"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/reviews/604-prospective-anchor-seven-independent-source-high.md",
+    "size": 3014,
+    "sha256": "3f328e5c553ed510a50f1d1b2133218ad5bb42c43fbf573d4104f0e157332ab6"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/reviews/604-rollback48-later-journal-independent-source-high.md",
+    "size": 1644,
+    "sha256": "7c8d98221289fa519f524da2f6579f8cda8075d0ace34c777c6c55d268171623"
+  },
+  {
+    "path": "docs/handoff/604-goal-funding-lifecycle/reviews/604-whole22-final-independent-source-high.md",
+    "size": 5690,
+    "sha256": "a47fe2fe5932b646c93c4c5ec3040a970b4de2ec49c17b286194b9e5775eb54a"
+  }
+]

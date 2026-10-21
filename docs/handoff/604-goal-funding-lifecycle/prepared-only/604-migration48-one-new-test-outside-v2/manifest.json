@@ -1,0 +1,59 @@
+{
+  "scope": "ONE NEW outside-only migration48 test file; no adoption/execution",
+  "candidate": "packages/db/src/goal-lifecycle-migration-604.test.ts",
+  "sha256": "983681d51c5b65484158e263d47dcd12a414ca72ecc3bcc596e18f5aec61b649",
+  "sourcePins": {
+    "1858cffc04262063865f7043c2c39b7e02782212:packages/db/drizzle/0048_goal_lifecycle.sql": "f4250e2490cc14af45c6564d2faf7d75d9f45945bbf4abaa419e1c1300dd8ecc",
+    "1858cffc04262063865f7043c2c39b7e02782212:packages/db/drizzle/rollback/0048_goal_lifecycle.sql": "eadcf08b4df0fea328bf72ed9c3acc58dc12c33434febbc43aa356b77a9f84fc",
+    "1858cffc04262063865f7043c2c39b7e02782212:packages/db/drizzle/meta/0048_snapshot.json": "d1869c6fd3fb2b27037ada22271d0bd7f70f74ad6f24ac710454fba334f7e422",
+    "1858cffc04262063865f7043c2c39b7e02782212:packages/db/drizzle/meta/_journal.json": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42",
+    "1858cffc04262063865f7043c2c39b7e02782212:packages/db/src/repos/goals.ts": "96a6af187f582096fd128e2051b848781483238d6bcc43e696b055052fff794c",
+    "1858cffc04262063865f7043c2c39b7e02782212:packages/db/src/schema/budget.ts": "621fbd19ae0fa65e7c7dcc289fb8c385c72a5a403bb6c0e0689af317edd870b0",
+    "1d0c7b1af8d67dab7dcb1a8c567c20c3f44a1c48:packages/db/src/repos/goal-lifecycle.ts": "1e74aec7be50497a032b584c82722885c99468be433018a5468be7584c6fddd5",
+    "88ee863bedf0eac786b98f78b6eb4999cb337c8a:packages/db/src/repos/statement-automation-741.test.ts": "24a11660d62f0fd2e71ebf0c0326c2c0fa77edafe14f74796fd9d49a4dea3929",
+    "88ee863bedf0eac786b98f78b6eb4999cb337c8a:packages/db/src/statement-automation-migration-741.test.ts": "c2d83296c811effec813dab4b86e17d0158a581701718f4d898c02edeac46869",
+    "88ee863bedf0eac786b98f78b6eb4999cb337c8a:packages/db/drizzle/meta/0047_snapshot.json": "d5f908d357ad1c1095e8b05c985a8e2e484ffe1312be5fc5ee1931b27c642dad"
+  },
+  "reviewed604Chain": [
+    "63eb5ff3e549781fbea791e601830dd0dcf4fae5",
+    "1858cffc04262063865f7043c2c39b7e02782212"
+  ],
+  "typeFix": "ONLY nullable-class assertion removal from1d0c7b1; do not import unrelated740",
+  "cardFixtureReference": "88ee863b source/actualNEWDB checkpoint; actual card47 LIVE remains prerequisite for adoption",
+  "adoptionBase": "UNSET until actual delivered card47 Main is verified",
+  "declaredCases": 10,
+  "caseBreakdown": {
+    "closed47copyUpgrade": 1,
+    "unusedRollbackReupgrade": 1,
+    "retainedIntentAndAudits": 6,
+    "laterJournalRefusal": 1,
+    "oldFinancialUndoRedo": 1
+  },
+  "literalFinancialOracles": {
+    "sourceIssuedCents": 8880,
+    "laterExpenseCents": 2300,
+    "beforeUndo": [
+      41120,
+      -2300
+    ],
+    "afterUndo": [
+      50000,
+      -2300
+    ],
+    "afterRedo": [
+      41120,
+      -2300
+    ],
+    "postedAmounts": [
+      -8880,
+      -8880,
+      8880
+    ]
+  },
+  "knownExpectedRED": "later-journal refusal reaches genuine no-intent copy and must throw before any schema/data/journal change; current reviewed48 rollback lacks this guard",
+  "validation": "UNPARSED / UNFORMATTED / UNEXECUTED; no runtime or migration applied",
+  "mutations": "Only this external candidate and manifest. No source/worktree/branch/old test/network/CI changes.",
+  "priorCandidateSHA": "6d1a4b213c5083c8c5bd3d65244711002d0eb47a98c2d9cc2f58f6da786be6f4",
+  "priorManifestSHA": "723ffb2e4405df4bc4ce4098359ceba1f5f765fe6a4e07f8f4ec6a1950c20722",
+  "correction": "Audit-only fixture: actual Undo(createGoal) tombstone assertion; then explicit synthetic-row DELETE only in disposable copy leaves every real intent/Undo audit unchanged and proves zero retained row intent before rollback refusal. Original candidate preserved. This corrects an unexecuted fixture blocker, not the missing later-journal guard."
+}

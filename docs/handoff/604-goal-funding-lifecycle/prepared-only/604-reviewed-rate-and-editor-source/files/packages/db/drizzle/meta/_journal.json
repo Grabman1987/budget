@@ -1,0 +1,349 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1790699828010,
+      "tag": "0000_schema_v1",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790701392726,
+      "tag": "0001_auth",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790706829767,
+      "tag": "0002_auth_hardening",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790712346315,
+      "tag": "0003_ledger_model_v2",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790714955150,
+      "tag": "0004_category_opening_available",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1790769601368,
+      "tag": "0005_category_icon_target_due",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790806573649,
+      "tag": "0006_security_quote_sources",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1790810674327,
+      "tag": "0007_hot_mercury",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1790813894837,
+      "tag": "0008_small_impossible_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790817361088,
+      "tag": "0009_first_revanche",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1790820906517,
+      "tag": "0010_numerous_vertigo",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1790860004270,
+      "tag": "0011_investment_cost_method",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790885302489,
+      "tag": "0012_remarkable_gorgon",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1790932331621,
+      "tag": "0013_app_setting",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1790952941493,
+      "tag": "0014_curvy_iron_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1790953482965,
+      "tag": "0015_volatile_adam_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1790961373080,
+      "tag": "0016_grey_meggan",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1790971531121,
+      "tag": "0017_tiny_blockbuster",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1790979539313,
+      "tag": "0018_worried_corsair",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1790989112582,
+      "tag": "0019_receipts",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1790993749370,
+      "tag": "0020_planned_event_recurrence",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1790996699969,
+      "tag": "0021_melodic_leech",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1790999907207,
+      "tag": "0022_fluffy_harpoon",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1791012476630,
+      "tag": "0023_income_next_month_and_pending",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1791012484225,
+      "tag": "0024_bank_followups",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1791012486581,
+      "tag": "0025_booking_delivery",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1791036483212,
+      "tag": "0026_payslip_intake_and_signed_lines",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1791036845226,
+      "tag": "0027_payslip_secret",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1791050600146,
+      "tag": "0028_savings_execution_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1791050631585,
+      "tag": "0029_savings_execution_guards",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1791067332564,
+      "tag": "0030_owner_config",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1791075904183,
+      "tag": "0031_security_asset_exposure",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1791083495366,
+      "tag": "0032_assignment_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1791091348912,
+      "tag": "0033_allocation_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1791100998362,
+      "tag": "0034_loan_planning",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1791107473526,
+      "tag": "0035_asset_target_versions",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1791135686946,
+      "tag": "0036_booking_weekly",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1791169954625,
+      "tag": "0037_category_inflation_trailing_mean",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1791216204302,
+      "tag": "0038_asset_class_tree",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1791241729755,
+      "tag": "0039_plan_snapshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1791490000172,
+      "tag": "0040_income_pause",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1791527202140,
+      "tag": "0041_occurrence_skipped",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1791549742667,
+      "tag": "0042_bank_source_result",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1791566889673,
+      "tag": "0043_expected_interval_weeks",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1792414491231,
+      "tag": "0044_receipt_delivery",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "6",
+      "when": 1792490000000,
+      "tag": "0045_statement_intake",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "6",
+      "when": 1792500000000,
+      "tag": "0046_statement_settlement",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1792510000000,
+      "tag": "0047_statement_automation",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "6",
+      "when": 1792520000000,
+      "tag": "0048_goal_lifecycle",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,161 @@
+{
+  "issue": 604,
+  "scope": "ONE NEW outside-only DB repository test; no product/API/OLD changes",
+  "status": "UNEXECUTED / UNPARSED / UNFORMATTED; no runtime or repository changes",
+  "candidate": {
+    "path": "packages/db/src/repos/goal-lifecycle-plan-rate-604.test.ts",
+    "sha256": "c7cd4ed850a8271686244154adc246564049c3ca6e3d89efa518d207bbdbb1a0",
+    "declaredCases": 5
+  },
+  "sourceChain": [
+    "63eb5ff3e549781fbea791e601830dd0dcf4fae5",
+    "1858cffc04262063865f7043c2c39b7e02782212"
+  ],
+  "isolatedAdapterCorrection": "1d0c7b1af8d67dab7dcb1a8c567c20c3f44a1c48",
+  "card47Prerequisite": "88ee863bedf0eac786b98f78b6eb4999cb337c8a",
+  "sourcePins": [
+    {
+      "path": "packages/db/src/repos/goals.ts",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "96a6af187f582096fd128e2051b848781483238d6bcc43e696b055052fff794c"
+    },
+    {
+      "path": "packages/db/src/repos/plan-months.ts",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "509fed5d097d8f8be5683ff9791c8a73be2954e587e20a203fcac489c9c8ba1d"
+    },
+    {
+      "path": "packages/db/src/repos/budget.ts",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "23b98187e59d3085ba46e1241848bdb65728ff23f5dc96a0f7f070cf7cb5f648"
+    },
+    {
+      "path": "packages/db/src/repos/envelopes.ts",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "c605675e6be4155e6eb979a3f2d63127e3bc80e706425a320b1707100ca7cc44"
+    },
+    {
+      "path": "packages/db/src/repos/categories.ts",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "ea2e043f30be99273324078ea9ce9727eea597ba599c1a828a1410463f519a7e"
+    },
+    {
+      "path": "packages/db/src/repos/queries.ts",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7"
+    },
+    {
+      "path": "packages/db/src/repos/budget-ledger-input.ts",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c"
+    },
+    {
+      "path": "packages/domain/src/ledger/targets.ts",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "735480839f512071f15985bf69bb747196a70a7375e4217bccd7f5aff9db0845"
+    },
+    {
+      "path": "packages/domain/src/goals/goals.ts",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "2889f405eb66bb302938771d6ecadd330cdb534d60fbc33dd0efa30e6a01e68b"
+    },
+    {
+      "path": "packages/domain/src/goals/lifecycle.ts",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "82c34702cd69c59dc3e4496baeb1edbdfebff05eefe5900261ee879c25aa9387"
+    },
+    {
+      "path": "packages/db/src/schema/budget.ts",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "621fbd19ae0fa65e7c7dcc289fb8c385c72a5a403bb6c0e0689af317edd870b0"
+    },
+    {
+      "path": "packages/db/drizzle/0048_goal_lifecycle.sql",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "f4250e2490cc14af45c6564d2faf7d75d9f45945bbf4abaa419e1c1300dd8ecc"
+    },
+    {
+      "path": "packages/db/drizzle/meta/0048_snapshot.json",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "d1869c6fd3fb2b27037ada22271d0bd7f70f74ad6f24ac710454fba334f7e422"
+    },
+    {
+      "path": "packages/db/drizzle/meta/_journal.json",
+      "revision": "1858cffc04262063865f7043c2c39b7e02782212",
+      "sha256": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42"
+    },
+    {
+      "path": "packages/db/src/repos/goal-lifecycle.ts",
+      "revision": "1d0c7b1af8d67dab7dcb1a8c567c20c3f44a1c48",
+      "sha256": "1e74aec7be50497a032b584c82722885c99468be433018a5468be7584c6fddd5"
+    },
+    {
+      "path": "packages/db/src/repos/audit.ts",
+      "revision": "88ee863bedf0eac786b98f78b6eb4999cb337c8a",
+      "sha256": "21777b88918b8e0e874e8a4ba6ced0cccad594276d60fa34d68aeba30b4bc102"
+    },
+    {
+      "path": "packages/db/src/repos/bookings.ts",
+      "revision": "88ee863bedf0eac786b98f78b6eb4999cb337c8a",
+      "sha256": "7ac8a632873a1b1a362ffa70a97eea564f703291b8582bfcdbcbd11ad45cef15"
+    },
+    {
+      "path": "packages/db/src/repos/entities.ts",
+      "revision": "88ee863bedf0eac786b98f78b6eb4999cb337c8a",
+      "sha256": "611eb370ae5c1e434c3009c1d5fec1f1dddcddef0265f4f436e3dbbae89cc2da"
+    },
+    {
+      "path": "packages/db/src/client.ts",
+      "revision": "88ee863bedf0eac786b98f78b6eb4999cb337c8a",
+      "sha256": "5e80ac5f1715611cee546d3ffeec908eabb5a09405959fe9da29943cf5f97e6e"
+    },
+    {
+      "path": "packages/db/drizzle/meta/0047_snapshot.json",
+      "revision": "88ee863bedf0eac786b98f78b6eb4999cb337c8a",
+      "sha256": "d5f908d357ad1c1095e8b05c985a8e2e484ffe1312be5fc5ee1931b27c642dad"
+    },
+    {
+      "path": "packages/db/src/schema/common.ts",
+      "revision": "88ee863bedf0eac786b98f78b6eb4999cb337c8a",
+      "sha256": "3430e3681c302cfeceeb304ddc76fc53900bcd3f147dec49b6839e0b1060ca9b"
+    }
+  ],
+  "newPathAbsentAt": [
+    "1858cffc04262063865f7043c2c39b7e02782212",
+    "88ee863bedf0eac786b98f78b6eb4999cb337c8a"
+  ],
+  "migration48RollbackNeverInvoked": true,
+  "separateMigrationGuardProposal": {
+    "path": "/workspace/.budget-tools/cloud-control/604-rollback48-later-journal-product-outside-proposal/manifest.json",
+    "sha256": "224863212b7cf5c644c9c23a27eb1d286230f150d506f2ec629dace63831a493",
+    "adoptedOrExecutedHere": false
+  },
+  "literalOracles": {
+    "targetCents": 120000,
+    "octoberMonthlyRateCents": 40000,
+    "alreadyAssignedCents": 15000,
+    "onlyAddedCents": 25000,
+    "separateFutureOnlyForecastCents": 52500,
+    "novemberStartMonthlyCents": 60000,
+    "reachedCents": 120000,
+    "afterReassignmentCents": 110000,
+    "realExpenseCents": 2000,
+    "afterExpenseCents": 108000,
+    "shortTbaCents": 5000
+  },
+  "files": {
+    "README.md": "ebf1f7fb99fb23cc73985c27d32a915ec7b2a9623d7e756c4f09fae807fde8b0",
+    "change.diff": "665fe5613cb9d32b802ebeaa5d28b28800690373b8b77e6c182ecf6c7d4b61bd",
+    "clock-and-tombstone-only.diff": "4e8e0398511662100bb0c6d8241158f48c8039c8c47d6ade9286748624dc7a71"
+  },
+  "runtimeExecuted": false,
+  "repositoryModified": false,
+  "existingTestsModified": false,
+  "priorManifestSha256": "7b5f1f78613f443c68261f3a6120babb752cb59827666d26b90d57c09f7b5d17",
+  "clockFixtureReference": {
+    "path": "packages/db/src/repos/expected-lifecycle-607.test.ts",
+    "revision": "4fd8dda0ad64f08d19e1321bbd931de1246d5d5a",
+    "sha256": "71103fbf0f3458713f488bfc47f494ea12b5ac5b5bd58476c521a62378be5611",
+    "reuse": "exact standard strftime-now clock seam only, not a test/runtime dependency"
+  }
+}

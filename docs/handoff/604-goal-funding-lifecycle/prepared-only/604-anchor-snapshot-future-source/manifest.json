@@ -1,0 +1,31 @@
+{
+  "head": "63eb5ff3e549781fbea791e601830dd0dcf4fae5",
+  "status": "source only; coherent read snapshot and pre-entered future expense guard; no runtime",
+  "previous_manifest_sha256": "ec4ad4d2f844527d3e126f5b63be7f13e08d68f79db40246fa6e2d0c6dfbbc94",
+  "paths": {
+    "packages/db/drizzle/0048_goal_lifecycle.sql": {
+      "sha256": "f4250e2490cc14af45c6564d2faf7d75d9f45945bbf4abaa419e1c1300dd8ecc",
+      "size": 702
+    },
+    "packages/db/drizzle/meta/0048_snapshot.json": {
+      "sha256": "d1869c6fd3fb2b27037ada22271d0bd7f70f74ad6f24ac710454fba334f7e422",
+      "size": 272389
+    },
+    "packages/db/drizzle/rollback/0048_goal_lifecycle.sql": {
+      "sha256": "eadcf08b4df0fea328bf72ed9c3acc58dc12c33434febbc43aa356b77a9f84fc",
+      "size": 1202
+    },
+    "packages/db/src/repos/goal-lifecycle.ts": {
+      "sha256": "a851b3fcabab268a88580c2bc58621398e499c7a693919e6790625c314e56b9b",
+      "size": 22820
+    },
+    "packages/db/src/repos/goals.ts": {
+      "sha256": "cb742b471c31f6c066d7938e0c4d03e0c7ba8f48e1423429efde5bdd656adbe0",
+      "size": 23054
+    },
+    "packages/db/src/schema/budget.ts": {
+      "sha256": "621fbd19ae0fa65e7c7dcc289fb8c385c72a5a403bb6c0e0689af317edd870b0",
+      "size": 15786
+    }
+  }
+}

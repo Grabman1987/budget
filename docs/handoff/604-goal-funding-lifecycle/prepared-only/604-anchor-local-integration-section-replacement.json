@@ -1,0 +1,11 @@
+{
+  "parent": "649e6171b90ee2f3c0727cea7fcd50c613fbad98",
+  "source": "1858cffc04262063865f7043c2c39b7e02782212",
+  "method": "Preserve ours except exact original #604 section replaced with reviewed source section. Correct intermediate local merge marker commit e24864fa; not pushed.",
+  "sha256": {
+    "base": "f77ddbe81a9335a159b611e1e1c50150053f6a00509b06d620043b0cfb2add5f",
+    "ours": "13daeca34510f10b6cf6839abb975a6dcc1347fa524256c2ab904fbe4a6ae3da",
+    "theirs": "57b248252d8936531b09cfded5f85317b878d32640a57d3e56f23cb93bde54f4",
+    "merged": "53f0b3f4e7dc691de643de0c85264945dec4efb7db1d97253b767cce47ec544b"
+  }
+}
