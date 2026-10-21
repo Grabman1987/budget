@@ -7,6 +7,7 @@ export * from './schema';
 
 export { planIncomeTargets } from './repos/income-targets';
 export { planMonthViews, planActivityView } from './repos/plan-months';
+export { planUncategorizedPage } from './repos/plan-uncategorized';
 
 export * from './repos/portfolio-benchmarks';
 

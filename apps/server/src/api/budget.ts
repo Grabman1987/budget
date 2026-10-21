@@ -1,6 +1,7 @@
 import {
   planMonthViews,
   planActivityView,
+  planUncategorizedPage,
   databaseStamp,
   queryBookings,
   assignMany,
@@ -166,6 +167,55 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
   app.get('/months', (c) => {
     const { months, cardRule } = readQuery(c, budgetMonthsQuery);
     return c.json({ months: planMonthViews(db, months, cardRule ? { cardRule } : {}, today()) });
+  });
+
+  app.get('/:month/uncategorized', (c) => {
+    const m = monthParam(c.req.param('month'));
+    const query = readQuery(
+      c,
+      z.object({
+        limit: z.coerce.number().int().min(1).max(50).default(50),
+        cursor: z.string().min(1).max(1024).optional(),
+      }),
+    );
+    c.header('Cache-Control', 'no-store');
+    return c.json(
+      db.transaction((tx) => {
+        const basis = [m, `${cursorEpoch}:${databaseStamp(tx)}`];
+        let offset = 0;
+        if (query.cursor) {
+          let decoded: unknown;
+          try {
+            decoded = JSON.parse(Buffer.from(query.cursor, 'base64url').toString('utf8'));
+          } catch {
+            throw new ApiError(422, 'uncategorized_cursor', 'Ungültige Fortsetzung.');
+          }
+          const parsed = z
+            .tuple([z.string(), z.string(), z.number().int().nonnegative().safe()])
+            .safeParse(decoded);
+          if (!parsed.success)
+            throw new ApiError(422, 'uncategorized_cursor', 'Ungültige Fortsetzung.');
+          if (parsed.data[0] !== basis[0] || parsed.data[1] !== basis[1])
+            throw new ApiError(
+              409,
+              'uncategorized_changed',
+              'Der Plan hat sich geändert. Bitte neu laden.',
+            );
+          offset = parsed.data[2];
+        }
+        const page = planUncategorizedPage(tx, m, offset, query.limit, today());
+        if (offset > page.total)
+          throw new ApiError(422, 'uncategorized_cursor', 'Ungültige Fortsetzung.');
+        const next = offset + page.items.length;
+        return {
+          ...page,
+          nextCursor:
+            next < page.total
+              ? Buffer.from(JSON.stringify([...basis, next])).toString('base64url')
+              : null,
+        };
+      }),
+    );
   });
 
   app.get('/:month/activity/:categoryId', (c) => {

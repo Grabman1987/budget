@@ -2758,3 +2758,122 @@
   max-width: 100%;
   text-align: left;
 }
+
+/* Shareable category filters (#589); the existing budget figures and actions stay authoritative. */
+.plan-filterbar {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+.plan-category-search {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+.plan-category-search .input {
+  width: 100%;
+  min-width: 0;
+}
+.plan-filter-segments {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.plan-filter-segments button {
+  min-width: 44px;
+  padding-inline: 6px;
+  font-size: var(--fs-meta);
+}
+.plan-filter-segments .has-overspending:not([aria-pressed='true']) {
+  color: var(--red);
+}
+.plan-filter-segments .has-overspending[aria-pressed='true'] {
+  background: var(--red);
+  color: var(--on-red);
+}
+.plan-filter-cover,
+.plan-filter-empty {
+  padding: 12px;
+}
+.plan .plan-filterbar .plan-menu-panel {
+  left: auto;
+  right: 0;
+}
+@media (max-width: 767px), (pointer: coarse) {
+  .plan-filterbar .input,
+  .plan-filterbar button,
+  .plan-filterbar summary {
+    min-height: 44px;
+  }
+}
+@media (max-width: 767px) {
+  .plan-category-search {
+    flex-basis: calc(100% - 120px);
+  }
+  .plan-filter-segments {
+    order: 1;
+    flex-basis: 100%;
+    justify-content: flex-start;
+    overflow: visible;
+  }
+  .plan-filter-segments button {
+    white-space: normal;
+  }
+}
+
+.plan-filter-scope {
+  margin: 0;
+  padding: 0 12px 8px;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.plan-uncategorized {
+  padding: 12px;
+}
+.plan-uncategorized table {
+  width: 100%;
+  table-layout: fixed;
+}
+.plan-uncategorized th,
+.plan-uncategorized td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+}
+.plan-uncategorized th:last-child,
+.plan-uncategorized td:last-child {
+  width: 40%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.plan-uncategorized a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  overflow-wrap: anywhere;
+}
+.plan-uncategorized small {
+  display: block;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+@media (min-width: 1180px) {
+  .plan-filterbar {
+    flex-wrap: nowrap;
+  }
+  .plan-filter-segments {
+    flex-wrap: nowrap;
+  }
+  .plan-filter-segments button {
+    white-space: nowrap;
+  }
+}
+@media (max-width: 767px) {
+  .plan .plan-filterbar .plan-menu-panel {
+    left: 12px;
+    right: 12px;
+  }
+}

@@ -7,7 +7,7 @@ import type {
 } from '@budget/domain';
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
-import type { WriteResult } from '../ledger/types';
+import type { ListedBooking, WriteResult } from '../ledger/types';
 import type { CategoryRow, GroupRow, TargetRow } from './api';
 import { BUDGET_KEY } from './use-category-writes';
 
@@ -33,6 +33,8 @@ export interface EnvelopeSummary {
 }
 
 export interface MonthSummary {
+  /** Exact missing-category bookings; distinct from pending/unclassified money. */
+  uncategorizedCount?: number;
   unclassified?: { count: number; inflowCents: number; outflowCents: number; netCents: number };
   month: string;
   carryInCents: number;
@@ -143,4 +145,23 @@ export const budgetActivityQuery = (month: string, id: string) =>
         `${path(month)}/activity/${encodeURIComponent(id)}${pageParam ? `?cursor=${encodeURIComponent(pageParam)}` : ''}`,
       ),
     getNextPageParam: (lastPage) => lastPage.activityBreakdown.nextCursor ?? undefined,
+  });
+
+/** A bounded page of actual missing-category bookings in the month's budget-account scope. */
+export interface BudgetUncategorizedPage {
+  items: ListedBooking[];
+  total: number;
+  nextCursor: string | null;
+}
+
+export const budgetUncategorizedQuery = (month: string) =>
+  infiniteQueryOptions({
+    queryKey: [...BUDGET_KEY, month, 'uncategorized'],
+    queryFn: ({ pageParam }) =>
+      request<BudgetUncategorizedPage>(
+        'GET',
+        `/api/budget/${encodeURIComponent(month)}/uncategorized${pageParam ? `?cursor=${encodeURIComponent(pageParam)}` : ''}`,
+      ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
