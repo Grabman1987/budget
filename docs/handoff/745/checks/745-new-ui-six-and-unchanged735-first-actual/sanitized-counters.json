@@ -1,0 +1,11 @@
+[
+  {
+    "sourceLogName": "new745-and-old735.log",
+    "sha256": "7dd9563f297aa1e3b0ac6976eedbc88d3626a7686e836832ff3a4da97ca06314",
+    "summaryLines": [
+      "Test Files  3 passed (3)",
+      "Tests  18 passed (18)",
+      "Duration  7.49s (transform 50%, tests 23%, import 18%, environment 8%)"
+    ]
+  }
+]

@@ -1,0 +1,48 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "dpr": 1,
+    "coarse": false
+  },
+  "scrollWidth": 1440,
+  "rows": [
+    {
+      "visibleDateCount": 1,
+      "dateLineCount": 1,
+      "dateInsideCell": true,
+      "rowHeight": 88.375,
+      "descriptionWidth": 504.1875,
+      "buttonWidth": 183.25,
+      "buttonHeight": 44,
+      "clippedHorizontally": false,
+      "clippedVertically": false
+    },
+    {
+      "visibleDateCount": 1,
+      "dateLineCount": 1,
+      "dateInsideCell": true,
+      "rowHeight": 89.375,
+      "descriptionWidth": 504.1875,
+      "buttonWidth": 183.25,
+      "buttonHeight": 44,
+      "clippedHorizontally": false,
+      "clippedVertically": false
+    },
+    {
+      "visibleDateCount": 1,
+      "dateLineCount": 1,
+      "dateInsideCell": true,
+      "rowHeight": 71.1875,
+      "descriptionWidth": 504.1875,
+      "buttonWidth": 103.53125,
+      "buttonHeight": 44,
+      "clippedHorizontally": false,
+      "clippedVertically": false
+    }
+  ],
+  "profile": "desktop",
+  "theme": "light",
+  "engine": "webkit",
+  "project": "webkit-iphone"
+}

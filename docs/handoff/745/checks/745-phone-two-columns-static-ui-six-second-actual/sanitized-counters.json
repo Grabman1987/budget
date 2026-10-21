@@ -1,0 +1,11 @@
+[
+  {
+    "sourceLogName": "new-ui6.log",
+    "sha256": "6b8f9fd1893091111e66dfa32e46fdba5dbec9b631d1b7e300c57169d5e98e48",
+    "summaryLines": [
+      "Test Files  1 passed (1)",
+      "Tests  6 passed (6)",
+      "Duration  3.29s (transform 44%, tests 22%, import 18%, environment 16%)"
+    ]
+  }
+]
