@@ -1,0 +1,39 @@
+{
+  "verdict": "HIGH CLEAR \u2014 source only",
+  "manifestSha256": "c4361af527160b3f4942428fd7841c7443f59a683cab1186c7bad661b6ba4db9",
+  "base": "f3821c17e34279fc0083b1ac58c6215789904ef7",
+  "files": [
+    {
+      "path": "apps/web/src/budget/plan-year-page.tsx",
+      "sha256": "a306be26167268195d8bf484757fc6ec45614ddd75ca7c2955c6266f01e2bba6",
+      "mode": "0o600"
+    },
+    {
+      "path": "apps/web/src/budget/plan-year.css",
+      "sha256": "e88677d9a41fe187639338f06ad66ac0c89d1fa992b2a978f07aba813c46ff4d",
+      "mode": "0o600"
+    },
+    {
+      "path": "apps/web/src/budget/year-planning.tsx",
+      "sha256": "2cfccc236dc58eae00093da81b4870fcecf46a8337e4e90bf6f060b29000dc1a",
+      "mode": "0o600"
+    },
+    {
+      "path": "apps/web/src/budget/year-scenario-chart.tsx",
+      "sha256": "93ecc0cdbad0b9477f5779ef83c54caa0931e2ddaecdc8c04620369ed3c6103f",
+      "mode": "0o600"
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "sha256": "54bff81882daf64443adbd2da53486a644527b25a22add90c02844efabc53830",
+      "mode": "0o600"
+    }
+  ],
+  "finalCorrectionOnly": [
+    "apps/web/src/budget/year-scenario-chart.tsx"
+  ],
+  "wholeInverseExact": true,
+  "roadmapPrefixBytes": 248143,
+  "runtimeExecuted": false,
+  "reportSha256": "8f4bbde4657ee6b479f0bb54d7dc3c129f73f31988ee3c4f66f10fff8ab9d90e"
+}

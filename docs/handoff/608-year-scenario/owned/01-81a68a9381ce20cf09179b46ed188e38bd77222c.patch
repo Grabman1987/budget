@@ -1,0 +1,887 @@
+diff --git a/apps/web/src/budget/plan-year-page.tsx b/apps/web/src/budget/plan-year-page.tsx
+index 8a0a038056f5b0095af9bff036fc07f247e653c3..eed4fe2a5b03cfe727f9c4a70a7a99834b91d929 100644
+--- a/apps/web/src/budget/plan-year-page.tsx
++++ b/apps/web/src/budget/plan-year-page.tsx
+@@ -11,7 +11,7 @@ import {
+   type PlanYearRow,
+ } from '@budget/domain';
+ import { useQuery } from '@tanstack/react-query';
+-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
++import { ChevronDown, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+ import { useMemo, useState } from 'react';
+ import { eur } from '../ledger/format';
+ import { ErrorNote, LoadingNote } from '../ledger/states';
+@@ -97,14 +97,14 @@ export function PlanYearPage() {
+           <LoadingNote what="Jahresplan" />
+         ) : (
+           <>
+-            {reports.isError ? (
+-              <ErrorNote
+-                what="Jahressummen"
+-                error={reports.error}
+-                onRetry={() => void reports.refetch()}
+-              />
+-            ) : reports.data ? (
+-              (() => {
++            <YearPlanning
++              key={`events-${year}`}
++              year={year}
++              selectedMonth={month}
++              views={views}
++              context={reports.isError ? (
++                <ErrorNote what="Jahressummen" error={reports.error} onRetry={() => void reports.refetch()} />
++              ) : reports.data ? (() => {
+                 const source = reports.data;
+                 const period = buildYearView(
+                   source.months,
+@@ -113,30 +113,14 @@ export function PlanYearPage() {
+                 ).months.filter((m) => m !== null);
+                 const totals = savingsRateOf(period, source);
+                 return (
+-                  <section className="card year-sheet" aria-label="Jahressummen des Haushalts">
+-                    <dl className="year-totals">
+-                      <div>
+-                        <dt>Haushaltseinnahmen</dt>
+-                        <dd>{eur(totals.incomeCents)}</dd>
+-                      </div>
+-                      <div>
+-                        <dt>Konsum (Bedarf und Wunsch)</dt>
+-                        <dd>{eur(totals.consumptionCents)}</dd>
+-                      </div>
+-                    </dl>
+-                    <p className="year-note">
+-                      Abgeschlossene Monate wie im Jahresreport. Erstattungen mindern Konsum;
+-                      Kapitalerträge, Umbuchungen und Eröffnungssalden sind keine
+-                      Haushaltseinnahmen. Die Envelope-Tabelle zeigt Budgetbewegungen und den
+-                      gespeicherten Plan.
+-                    </p>
+-                  </section>
++                  <>
++                    <span>Einnahmen: <strong>{eur(totals.incomeCents)}</strong></span>
++                    <span>Konsum: <strong>{eur(totals.consumptionCents)}</strong></span>
++                    <small>Abgeschlossene Monate · wie im Jahresreport</small>
++                  </>
+                 );
+-              })()
+-            ) : (
+-              <LoadingNote what="Jahressummen" />
+-            )}
+-            <YearPlanning key={`events-${year}`} year={year} selectedMonth={month} views={views} />
++              })() : <LoadingNote what="Jahressummen" />}
++            />
+             <YearOverview
+               key={year}
+               year={year}
+@@ -165,7 +149,8 @@ function YearOverview({
+   useAmountPrivacy();
+   const [metric, setMetric] = useState<Metric>('assignedCents');
+   const [phoneMonth, setPhoneMonth] = useState(selectedMonth);
+-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
++  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
++  const isCollapsed = (id: string) => !expanded.has(id);
+   const rows = planYearRows(
+     year,
+     views.map((v) => v.summary),
+@@ -205,7 +190,7 @@ function YearOverview({
+   const total = sumPlanYearRows(shown);
+   const monthIndex = months.indexOf(phoneMonth);
+   const toggle = (id: string) =>
+-    setCollapsed((previous) => {
++    setExpanded((previous) => {
+       const next = new Set(previous);
+       if (next.has(id)) next.delete(id);
+       else next.add(id);
+@@ -230,10 +215,10 @@ function YearOverview({
+           ))}
+         </div>
+       </div>
+-      <p className="year-note">
+-        Zugewiesen und Aktivität: Summe des Jahres. Verfügbar: Stand im Dezember, inklusive
+-        Übertrag. Künftige Monate zeigen den gespeicherten Plan, keine Prognose.
+-      </p>
++      <details className="year-instructions">
++        <summary><Info aria-hidden="true" size={16} /> Kennzahlen der Jahrestabelle</summary>
++        <p className="year-note">Zugewiesen und Aktivität: Summe des Jahres. Verfügbar: Stand im Dezember, inklusive Übertrag. Künftige Monate zeigen den gespeicherten Plan, keine Prognose.</p>
++      </details>
+       {shown.length === 0 ? (
+         <p className="year-empty">
+           Noch keine Envelopes vorhanden. Kategorien legst du unter Einstellungen an.
+@@ -271,20 +256,20 @@ function YearOverview({
+                     <th scope="row">
+                       <button
+                         type="button"
+-                        aria-expanded={!collapsed.has(group.id)}
++                        aria-expanded={!isCollapsed(group.id)}
+                         onClick={() => toggle(group.id)}
+                       >
+                         <ChevronDown
+                           size={16}
+                           aria-hidden="true"
+-                          className={cx(collapsed.has(group.id) && 'is-closed')}
++                          className={cx(isCollapsed(group.id) && 'is-closed')}
+                         />
+                         {group.name}
+                       </button>
+                     </th>
+                     <YearCells row={sumPlanYearRows(group.rows)} metric={metric} />
+                   </tr>
+-                  {!collapsed.has(group.id) &&
++                  {!isCollapsed(group.id) &&
+                     group.rows.map((row) => (
+                       <tr key={row.id}>
+                         <th scope="row">
+@@ -327,14 +312,14 @@ function YearOverview({
+                 <button
+                   className="year-phone-summary"
+                   type="button"
+-                  aria-expanded={!collapsed.has(group.id)}
++                  aria-expanded={!isCollapsed(group.id)}
+                   onClick={() => toggle(group.id)}
+                 >
+                   <span>
+                     <ChevronDown
+                       size={16}
+                       aria-hidden="true"
+-                      className={cx(collapsed.has(group.id) && 'is-closed')}
++                      className={cx(isCollapsed(group.id) && 'is-closed')}
+                     />
+                     {group.name}
+                   </span>
+@@ -343,7 +328,7 @@ function YearOverview({
+                     metric={metric}
+                   />
+                 </button>
+-                {!collapsed.has(group.id) &&
++                {!isCollapsed(group.id) &&
+                   group.rows.map((row) => (
+                     <div className="year-phone-row" key={row.id}>
+                       <span>
+diff --git a/apps/web/src/budget/plan-year.css b/apps/web/src/budget/plan-year.css
+index 73cc2d74bfec1a6d614903947bf4b696c7ca2ac8..9b41f4ddf05452d51f0fed23efce797046d863d8 100644
+--- a/apps/web/src/budget/plan-year.css
++++ b/apps/web/src/budget/plan-year.css
+@@ -9,13 +9,6 @@
+ .year-planning .seg button {
+   min-height: 44px;
+ }
+-.event-grid small,
+-.event-phone-row > small {
+-  display: block;
+-  color: var(--ink-2);
+-  font-size: var(--fs-meta);
+-  margin-top: 6px;
+-}
+ .event-check {
+   display: flex;
+   align-items: center;
+@@ -23,24 +16,6 @@
+   min-height: 44px;
+   overflow-wrap: anywhere;
+ }
+-.event-plan {
+-  display: inline-block;
+-  border: 1px dashed var(--line-2);
+-  border-radius: 4px;
+-  padding: 8px;
+-  min-height: 44px;
+-  background: transparent;
+-  color: var(--ink);
+-  font: inherit;
+-  font-variant-numeric: tabular-nums;
+-}
+-button.event-plan {
+-  cursor: pointer;
+-}
+-.event-phone-row {
+-  padding: 12px 16px;
+-  border-bottom: 1px solid var(--rule);
+-}
+ .event-actions {
+   display: flex;
+   gap: 12px;
+@@ -314,3 +289,122 @@ button.event-plan {
+     display: grid;
+   }
+ }
++
++
++/* Calendar-year scenario: existing monthly values and local event selection. */
++.year-scenario-lead {
++  margin: 0;
++  padding: 8px 24px;
++}
++.year-scenario-lead dt {
++  color: var(--ink-2);
++}
++.year-scenario-lead dd {
++  margin: 8px 0;
++  font-size: var(--fs-display);
++  font-weight: 640;
++  font-variant-numeric: tabular-nums;
++  overflow-wrap: anywhere;
++}
++.year-scenario-context {
++  display: flex;
++  flex-wrap: wrap;
++  align-items: baseline;
++  gap: 8px 24px;
++  padding: 0 24px 16px;
++  color: var(--ink-2);
++}
++.year-scenario-context strong {
++  color: var(--ink);
++  font-variant-numeric: tabular-nums;
++}
++.year-scenario-context small {
++  flex-basis: 100%;
++}
++.year-scenario-chart {
++  padding: 0 24px;
++  min-width: 0;
++}
++.year-chart-low {
++  color: var(--ink-2);
++  margin-block: 8px 16px;
++  font-size: var(--fs-meta);
++}
++.year-events,
++.year-instructions {
++  border-top: 1px solid var(--rule);
++}
++.year-events > summary,
++.year-instructions > summary {
++  display: flex;
++  align-items: center;
++  gap: 8px;
++  min-height: 44px;
++  padding: 8px 24px;
++  cursor: pointer;
++}
++.year-events > summary:focus-visible,
++.year-instructions > summary:focus-visible {
++  outline: 2px solid var(--line);
++  outline-offset: -2px;
++}
++.year-events > summary svg,
++.year-instructions > summary svg {
++  flex-shrink: 0;
++}
++.year-events[open] > summary svg {
++  transform: rotate(180deg);
++}
++.year-event-list {
++  padding: 0;
++  margin: 0 24px 16px;
++  list-style: none;
++}
++.year-event-list > li {
++  display: grid;
++  grid-template-columns: minmax(9ch, auto) minmax(0, 1fr) auto auto;
++  align-items: center;
++  gap: 12px;
++  padding-block: 8px;
++  border-top: 1px solid var(--rule);
++}
++.year-event-list small {
++  display: block;
++  color: var(--ink-2);
++  overflow-wrap: anywhere;
++}
++.year-event-list .btn {
++  min-height: 44px;
++}
++.year-event-amount {
++  font-variant-numeric: tabular-nums;
++  overflow-wrap: anywhere;
++}
++@media (max-width: 767px) {
++  .year-scenario-lead,
++  .year-scenario-chart {
++    padding-inline: 16px;
++  }
++  .year-scenario-context {
++    padding-inline: 16px;
++  }
++  .year-events > summary,
++  .year-instructions > summary {
++    padding-inline: 16px;
++  }
++  .year-event-list {
++    margin-inline: 16px;
++  }
++  .year-event-list > li {
++    grid-template-columns: minmax(0, 1fr) auto;
++  }
++  .year-event-date,
++  .year-event-list > li > div:nth-child(2) {
++    grid-column: 1 / -1;
++  }
++}
++
++.year-planning .scenario-label .btn {
++  min-width: 44px;
++  min-height: 44px;
++}
+diff --git a/apps/web/src/budget/year-planning.tsx b/apps/web/src/budget/year-planning.tsx
+index 72d3ef7d5526d8adf05a651f795efab0f13693b5..19fe528e07297deff0f92463f3dbc79357c25a57 100644
+--- a/apps/web/src/budget/year-planning.tsx
++++ b/apps/web/src/budget/year-planning.tsx
+@@ -1,27 +1,29 @@
+-import { plannedEventOccurrences, planYearMonths, planYearScenario } from '@budget/domain';
+-import { Button, Select } from '@budget/ui';
++import { plannedEventOccurrences, planYearScenario } from '@budget/domain';
++import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
+ import { useQuery } from '@tanstack/react-query';
+ import { useNavigate, useSearch } from '@tanstack/react-router';
+-import { useId, useState } from 'react';
+-import { Info } from 'lucide-react';
++import { useId, useState, type ReactNode } from 'react';
++import { ChevronDown, Info } from 'lucide-react';
+ import { eur, longDay } from '../ledger/format';
+ import { ErrorNote, LoadingNote } from '../ledger/states';
+-import { monthLabel } from '../nav/month';
+ import { plannedEventsQuery, type PlannedEventView } from '../reports/liquidity-api';
+ import type { BudgetMonthView } from './budget-api';
+ import { EventPanel, RECURRENCE_LABELS } from './event-panel';
++import { YearScenarioChart } from './year-scenario-chart';
+ 
+ export function YearPlanning({
+   year,
+   selectedMonth,
+   views,
++  context,
+ }: {
+   year: number;
+   selectedMonth: string;
+   views: BudgetMonthView[];
++  context?: ReactNode;
+ }) {
++  useAmountPrivacy();
+   const query = useQuery(plannedEventsQuery());
+-  const [phoneMonth, setPhoneMonth] = useState(selectedMonth);
+   const [without, setWithout] = useState(false);
+   // A selection is local to this view/year. New events are included by default.
+   const [excluded, setExcluded] = useState<readonly string[]>([]);
+@@ -47,19 +49,11 @@ export function YearPlanning({
+     return <ErrorNote what="Ereignisse" error={query.error} onRetry={() => void query.refetch()} />;
+   if (!query.data) return <LoadingNote what="Ereignisse" />;
+   const { events, asOf, budgetAccounts } = query.data;
+-  const months = planYearMonths(year);
+   const eligible = events.filter(
+     (e) => e.status !== 'off_budget' && e.status !== 'unknown_account',
+   );
+   const ids = eligible.filter((e) => !excluded.includes(e.id)).map((e) => e.id);
+-  const scenario = planYearScenario(
+-    year,
+-    views.map((v) => v.summary),
+-    eligible,
+-    ids,
+-    asOf,
+-  );
+-  const activeMonth = scenario.months.find((m) => m.month === phoneMonth)!;
++  const scenario = planYearScenario(year, views.map((v) => v.summary), eligible, ids, asOf);
+   const categories = [
+     ...new Map(views.flatMap((v) => v.categories.map((c) => [c.id, c] as const))).values(),
+   ];
+@@ -67,12 +61,17 @@ export function YearPlanning({
+     event,
+     occurrences: plannedEventOccurrences(event, `${year}-01-01`, `${year}-12-31`),
+   }));
++  const selectedOccurrences = without ? [] : rows.flatMap(({ event, occurrences }) =>
++    event.enabled && eligible.includes(event) && ids.includes(event.id)
++      ? occurrences.filter((o) => o.date > asOf)
++      : [],
++  );
+   const edit = events.find((e) => e.id === search.ereignis);
+   const selection = (e: PlannedEventView) => (
+     <label className="event-check">
+       <input
+         type="checkbox"
+-        aria-label={`${e.name} im Szenario`}
++        aria-label={`${maskMoneyText(e.name)} im Szenario`}
+         checked={ids.includes(e.id) && e.enabled}
+         disabled={!e.enabled || !eligible.includes(e)}
+         onChange={(change) =>
+@@ -82,257 +81,76 @@ export function YearPlanning({
+         }
+       />
+       <span>
+-        {e.name}
++        {maskMoneyText(e.name)}
+         {!e.enabled ? ' · ausgeschaltet' : !eligible.includes(e) ? ' · Konto nicht verfügbar' : ''}
+       </span>
+     </label>
+   );
+   return (
+-    <section
+-      className="card year-planning"
+-      aria-labelledby="events-title"
+-      aria-busy={query.isFetching}
+-    >
++    <section className="card year-planning" aria-labelledby="year-scenario-title" aria-busy={query.isFetching}>
+       <div className="year-toolbar">
+-        <h2 id="events-title">Ereignisse und Szenario</h2>
+-        <Button data-event="neu" onClick={() => select('neu')}>
+-          Ereignis planen
+-        </Button>
++        <h2 id="year-scenario-title">Reicht das Geld bis Jahresende?</h2>
++        <div className="seg" role="group" aria-label="Szenario">
++          <button type="button" aria-pressed={!without} onClick={() => setWithout(false)}>Mit Auswahl</button>
++          <button type="button" aria-pressed={without} onClick={() => setWithout(true)}>Ohne Auswahl</button>
++        </div>
+       </div>
+-      {events.length > 0 && (
+-        <>
+-          <p className="year-note">
+-            Gestrichelt: geplante Beträge je Termin, getrennt von Zugewiesen und Aktivität.
+-            Wiederholungen gelten ab dem Beginn. Bereits gebuchte Zahlungen werden nicht automatisch
+-            mit Ereignissen abgeglichen.
+-          </p>
+-          <div className="year-toolbar">
+-            <div className="seg" role="group" aria-label="Szenario">
+-              <button type="button" aria-pressed={!without} onClick={() => setWithout(false)}>
+-                Mit Auswahl
+-              </button>
+-              <button type="button" aria-pressed={without} onClick={() => setWithout(true)}>
+-                Ohne Auswahl
+-              </button>
+-            </div>
+-          </div>
+-          <p className="year-note">
+-            Zu verteilen mit Ereignissen = „Zu verteilen“ laut gespeichertem Monatsplan + kumulierte
+-            Ereignisse nach {longDay(asOf)}. Keine zusätzlichen Gehaltsannahmen, keine
+-            Kontostandsprognose. Die Auswahl wird nicht gespeichert; ausgeschaltete Ereignisse
+-            zählen auch in der Liquiditätsprognose nicht.
+-          </p>
+-          <dl className="year-totals" aria-live="polite">
+-            <div>
+-              <dt>Freies Geld · Jahresende · {without ? 'ohne Auswahl' : 'mit Auswahl'}</dt>
+-              <dd data-testid="scenario-year-end">
+-                {eur(without ? scenario.yearEnd.withoutCents : scenario.yearEnd.withCents)}
+-              </dd>
+-            </div>
+-            <div>
+-              <dt>Ereigniseffekt · Jahresende</dt>
+-              <dd data-testid="scenario-year-effect">
+-                {eur(without ? 0 : scenario.yearEnd.effectCents, { sign: true })}
+-              </dd>
+-            </div>
+-          </dl>
+-        </>
+-      )}
+-      <div
+-        className="year-desktop"
+-        role="region"
+-        aria-label="Ereignisse und Szenario, horizontal scrollbar"
+-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Allow keyboard scrolling of the calendar.
+-        tabIndex={0}
+-      >
+-        <table className="year-table event-grid">
+-          <caption className="sr-only">
+-            Geplante Ereignisse nach Kategorie und Monat {year}, und freies Geld im Szenario.
+-          </caption>
+-          <thead>
+-            <tr>
+-              <th scope="col">Ereignis · Kategorie</th>
+-              {months.map((m) => (
+-                <th key={m} scope="col">
+-                  <abbr title={monthLabel(m)}>{monthLabel(m).split(' ')[0]}</abbr>
+-                </th>
+-              ))}
+-              <th scope="col">Bearbeiten</th>
+-            </tr>
+-          </thead>
+-          <tbody>
+-            {rows.map(({ event: e, occurrences }) => (
+-              <tr key={e.id}>
+-                <th scope="row">
+-                  {selection(e)}
+-                  <small>
+-                    {e.categoryName ??
+-                      (e.categoryId ? 'Kategorie nicht verfügbar' : 'Ohne Kategorie')}{' '}
+-                    · {RECURRENCE_LABELS[e.recurrence]}
+-                  </small>
+-                </th>
+-                {months.map((m) => (
+-                  <td key={m}>
+-                    {occurrences
+-                      .filter((o) => o.date.startsWith(m))
+-                      .map((o) => (
+-                        <button
+-                          type="button"
+-                          className="event-plan"
+-                          key={o.date}
+-                          onClick={() => select(e.id)}
+-                          aria-label={`${e.name} am ${longDay(o.date)} bearbeiten`}
+-                        >
+-                          {eur(o.amountCents, { sign: true })}
+-                          {!e.enabled && <small>ausgeschaltet</small>}
+-                        </button>
+-                      ))}
+-                  </td>
+-                ))}
+-                <td>
+-                  <Button
+-                    variant="ghost"
+-                    data-event={e.id}
+-                    onClick={() => select(e.id)}
+-                    aria-label={`${e.name} bearbeiten`}
+-                  >
+-                    Bearbeiten
+-                  </Button>
+-                </td>
+-              </tr>
+-            ))}
+-          </tbody>
+-          <tfoot>
+-            <tr>
+-              <th scope="row">Zu verteilen</th>
+-              {scenario.months.map((m) => (
+-                <td key={m.month}>{eur(m.withoutCents)}</td>
+-              ))}
+-              <td />
+-            </tr>
+-            {events.length > 0 && (
+-              <>
+-                <tr>
+-                  <th scope="row">
+-                    <ScenarioLabel kind="month" />
+-                  </th>
+-                  {scenario.months.map((m) => (
+-                    <td key={m.month}>{eur(without ? 0 : m.eventCents, { sign: true })}</td>
+-                  ))}
+-                  <td />
+-                </tr>
+-                <tr>
+-                  <th scope="row">
+-                    <ScenarioLabel kind="sum" />
+-                  </th>
+-                  {scenario.months.map((m) => (
+-                    <td key={m.month}>{eur(without ? 0 : m.effectCents, { sign: true })}</td>
+-                  ))}
+-                  <td />
+-                </tr>
+-                <tr>
+-                  <th scope="row">
+-                    <ScenarioLabel kind="available" />
+-                  </th>
+-                  {scenario.months.map((m) => (
+-                    <td key={m.month}>{eur(without ? m.withoutCents : m.withCents)}</td>
+-                  ))}
+-                  <td />
+-                </tr>
+-              </>
+-            )}
+-          </tfoot>
+-        </table>
++      <dl className="year-scenario-lead" aria-live="polite">
++        <dt>Freies Geld am 31.12.{year} {without ? 'ohne Ereignisse' : 'mit Ereignissen'}</dt>
++        <dd data-testid="scenario-year-end">{eur(without ? scenario.yearEnd.withoutCents : scenario.yearEnd.withCents)}</dd>
++      </dl>
++      <div className="year-scenario-context">
++        {context}
++        <span>Ereignisse: <strong data-testid="scenario-year-effect">{eur(without ? 0 : scenario.yearEnd.effectCents, { sign: true })}</strong></span>
+       </div>
+-      <div className="year-phone">
+-        <label className="year-month-choice">
+-          Ereignismonat
+-          <Select value={phoneMonth} onChange={(e) => setPhoneMonth(e.target.value)}>
+-            {months.map((m) => (
+-              <option key={m} value={m}>
+-                {monthLabel(m)}
+-              </option>
+-            ))}
+-          </Select>
+-        </label>
+-        {rows.map(({ event: e, occurrences }) => (
+-          <div className="event-phone-row" key={e.id}>
+-            {selection(e)}
+-            <small>
+-              {e.categoryName ?? (e.categoryId ? 'Kategorie nicht verfügbar' : 'Ohne Kategorie')} ·{' '}
+-              {RECURRENCE_LABELS[e.recurrence]}
+-            </small>
+-            <div className="event-actions">
+-              {occurrences
+-                .filter((o) => o.date.startsWith(phoneMonth))
+-                .map((o) => (
+-                  <span className="event-plan" key={o.date}>
+-                    {eur(o.amountCents, { sign: true })}
+-                  </span>
+-                ))}
+-              <Button
+-                variant="ghost"
+-                data-event={e.id}
+-                onClick={() => select(e.id)}
+-                aria-label={`${e.name} bearbeiten`}
+-              >
+-                Bearbeiten
+-              </Button>
+-            </div>
+-          </div>
+-        ))}
+-        <dl className="year-totals">
+-          <div>
+-            <dt>Zu verteilen</dt>
+-            <dd>{eur(activeMonth.withoutCents)}</dd>
+-          </div>
+-          {events.length > 0 && (
+-            <>
+-              <div>
+-                <dt>
+-                  <ScenarioLabel kind="month" />
+-                </dt>
+-                <dd>{eur(without ? 0 : activeMonth.eventCents, { sign: true })}</dd>
+-              </div>
+-              <div>
+-                <dt>
+-                  <ScenarioLabel kind="sum" />
+-                </dt>
+-                <dd>{eur(without ? 0 : activeMonth.effectCents, { sign: true })}</dd>
+-              </div>
+-              <div>
+-                <dt>
+-                  <ScenarioLabel kind="available" /> · {monthLabel(phoneMonth)}
+-                </dt>
+-                <dd>{eur(without ? activeMonth.withoutCents : activeMonth.withCents)}</dd>
+-              </div>
+-            </>
+-          )}
+-        </dl>
++      <YearScenarioChart year={year} scenario={scenario} without={without} asOf={asOf} occurrences={selectedOccurrences} />
++      <p className="year-note">
++        <ScenarioLabel kind="available" /> · Monatsstände aus dem gespeicherten Plan, keine Kontostandsprognose.
++      </p>
++      <div className="year-toolbar">
++        <h3 id="events-title">Ereignisse</h3>
++        <Button data-event="neu" onClick={() => select('neu')}>Ereignis planen</Button>
+       </div>
+-      {!events.length && (
+-        <p className="year-empty">
+-          Noch keine Ereignisse geplant. Plane eine einmalige Zahlung oder eine Wiederholung ein.
+-        </p>
++      {!rows.length ? (
++        <p className="year-empty">Noch keine Ereignisse geplant. Auch ohne Ereignisse gilt der gespeicherte Jahresplan.</p>
++      ) : (
++        <details className="year-events">
++          <summary><ChevronDown aria-hidden="true" size={16} /> {rows.length} {rows.length === 1 ? 'Ereignis' : 'Ereignisse'} ansehen und auswählen</summary>
++          <p className="year-note">Auswahl nur für dieses Szenario; ein Häkchen bucht kein Geld. „Ohne Auswahl“ blendet alle Wirkungen aus.</p>
++          <ul className="year-event-list" aria-labelledby="events-title">
++            {rows.map(({ event: e, occurrences }) => {
++              const upcoming = occurrences.find((o) => o.date > asOf);
++              const date = upcoming?.date ?? occurrences[0]?.date ?? e.date;
++              return (
++                <li key={e.id}>
++                  <div className="year-event-date">
++                    <time dateTime={date}>{longDay(date)}</time>
++                    <small>{RECURRENCE_LABELS[e.recurrence]}</small>
++                  </div>
++                  <div>
++                    {selection(e)}
++                    <small>{maskMoneyText(e.categoryName ?? (e.categoryId ? 'Kategorie nicht verfügbar' : 'Ohne Kategorie'))}</small>
++                    {!upcoming && <small>Kein weiterer Termin in diesem Jahr; keine neue Szenariowirkung.</small>}
++                  </div>
++                  <strong className="year-event-amount">{eur(e.amountCents, { sign: true })}</strong>
++                  <Button variant="ghost" data-event={e.id} onClick={() => select(e.id)} aria-label={`${maskMoneyText(e.name)} bearbeiten`}>Bearbeiten</Button>
++                </li>
++              );
++            })}
++          </ul>
++          <p className="year-note">Wirkung auf den Jahresendstand: {eur(without ? 0 : scenario.yearEnd.effectCents, { sign: true })}. Nur ausgewählte, eingeschaltete Termine nach {longDay(asOf)} auf verfügbaren Budgetkonten zählen.</p>
++        </details>
+       )}
+-      {search.ereignis &&
+-        (edit || search.ereignis === 'neu' ? (
+-          <EventPanel
+-            key={search.ereignis}
+-            event={edit}
+-            date={selectedMonth + '-01'}
+-            categories={categories}
+-            accounts={budgetAccounts}
+-            onClose={() => select()}
+-          />
+-        ) : (
+-          <p className="year-empty" role="alert">
+-            Ereignis nicht mehr verfügbar.{' '}
+-            <Button variant="ghost" onClick={() => select()}>
+-              Schließen
+-            </Button>
+-          </p>
+-        ))}
++      <details className="year-instructions">
++        <summary><Info aria-hidden="true" size={16} /> Grundlage und Grenzen der Planung</summary>
++        <p className="year-note">Zu verteilen mit Ereignissen = „Zu verteilen“ laut gespeichertem Monatsplan plus kumulierte ausgewählte Ereignisse nach {longDay(asOf)}. Keine zusätzlichen Gehaltsannahmen. Wiederholungen gelten ab ihrem Beginn. Bereits gebuchte Zahlungen werden nicht automatisch mit Ereignissen abgeglichen.</p>
++        <p className="year-note">Einnahmen und Konsum oben beziehen sich wie im Jahresreport auf abgeschlossene Monate. Erstattungen mindern Konsum; Kapitalerträge, Umbuchungen und Eröffnungssalden sind keine Haushaltseinnahmen. Die Ereignisauswahl wird nicht gespeichert.</p>
++      </details>
++      {search.ereignis && (edit || search.ereignis === 'neu' ? (
++        <EventPanel key={search.ereignis} event={edit} date={selectedMonth + '-01'} categories={categories} accounts={budgetAccounts} onClose={() => select()} />
++      ) : (
++        <p className="year-empty" role="alert">Ereignis nicht mehr verfügbar. <Button variant="ghost" onClick={() => select()}>Schließen</Button></p>
++      ))}
+     </section>
+   );
+ }
+diff --git a/apps/web/src/budget/year-scenario-chart.tsx b/apps/web/src/budget/year-scenario-chart.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..75c71f1e0538dbb5171149005fe9d2bed86d378f
+--- /dev/null
++++ b/apps/web/src/budget/year-scenario-chart.tsx
+@@ -0,0 +1,144 @@
++import { lastDayOfMonth, type plannedEventOccurrences, type planYearScenario } from '@budget/domain';
++import {
++  AxisLine,
++  ChartSvg,
++  Graticule,
++  LineLegend,
++  StepLine,
++  TodayLine,
++  XTicks,
++  maskMoneyText,
++  useAmountPrivacy,
++  type ChartTooltipPoint,
++  type Point,
++} from '@budget/ui';
++import { scaleLinear } from 'd3-scale';
++import { useElementWidth } from '../charts/use-element-width';
++import { eur, longDay } from '../ledger/format';
++import { kfmt, yTicks } from '../wealth/networth-model';
++
++type Scenario = ReturnType<typeof planYearScenario>;
++type Occurrence = ReturnType<typeof plannedEventOccurrences>[number];
++const stamp = (date: string) => Date.parse(`${date}T00:00:00Z`);
++
++/** Draw existing monthly amounts; dated event markers never invent a daily free-money balance. */
++export function YearScenarioChart({
++  year,
++  scenario,
++  without,
++  asOf,
++  occurrences,
++}: {
++  year: number;
++  scenario: Scenario;
++  without: boolean;
++  asOf: string;
++  occurrences: readonly Occurrence[];
++}) {
++  useAmountPrivacy();
++  const [ref, width] = useElementWidth<HTMLDivElement>();
++  const start = `${year}-01-01`;
++  const end = `${year}-12-31`;
++  const months = scenario.months.map((row) => ({
++    ...row,
++    date: lastDayOfMonth(row.month),
++    value: without ? row.withoutCents : row.withCents,
++  }));
++  const actual = months.filter((row) => row.date <= asOf).map((row) => ({
++    date: row.date, value: row.withoutCents,
++  }));
++  const current = months.find((row) => row.month === asOf.slice(0, 7) && row.date > asOf);
++  if (current) actual.push({ date: asOf, value: current.withoutCents });
++  const future = months.filter((row) => row.date > asOf);
++  const values = [...actual, ...future.map(({ date, value }) => ({ date, value }))];
++  const low = values.reduce((a, b) => b.value < a.value ? b : a);
++  const top = 38;
++  const bottom = 214;
++  const height = 244;
++  const left = 54;
++  const right = Math.max(left + 1, width - 18);
++  const x = scaleLinear().domain([stamp(start), stamp(end)]).range([left, right]);
++  const markerDates = [...new Set(occurrences.map((event) => event.date))].sort();
++  let lastLabelX = -Infinity;
++  const labelledDates = new Set(markerDates.filter((date) => {
++    const position = x(stamp(date));
++    if (position - lastLabelX < 48) return false;
++    lastLabelX = position;
++    return true;
++  }));
++  const bounds = [Math.min(0, ...values.map((row) => row.value)), Math.max(1, ...values.map((row) => row.value))];
++  const y = scaleLinear().domain(bounds).nice(4).range([bottom, top]);
++  const ticks = yTicks(y.domain()[0]!, y.domain()[1]!);
++  const drawPoints = (rows: readonly { date: string; value: number }[]): Point[] =>
++    rows.map((row) => [x(stamp(row.date)), y(row.value)]);
++  const projected = future.length ? [...actual.slice(-1), ...future] : [];
++  const points: Array<ChartTooltipPoint & { order: number }> = [
++    ...months.map((row) => ({
++      date: row.date,
++      x: x(stamp(row.date)),
++      order: 0,
++      series: [
++        { name: `Zu verteilen ${without ? 'ohne' : 'mit'} Ereignissen · Monatsende`, value: eur(row.value) },
++        { name: 'Gespeicherter Monatsplan ohne Ereignisse', value: eur(row.withoutCents) },
++        { name: 'Ereignisse bis dahin zusammen', value: eur(without ? 0 : row.effectCents, { sign: true }) },
++      ],
++    })),
++    ...occurrences.map((event) => ({
++      date: event.date,
++      x: x(stamp(event.date)),
++      order: 1,
++      series: [{ name: maskMoneyText(event.name), value: eur(event.amountCents, { sign: true }) }],
++    })),
++  ];
++  if (current) points.push({ date: asOf, x: x(stamp(asOf)), order: 0,
++    series: [{ name: 'Gespeicherter Stand bis heute · ohne künftige Ereignisse', value: eur(current.withoutCents) }] });
++  points.sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order);
++  // Equal-date series share one hit point, so pointer/touch can inspect every event too.
++  const byDate = new Map<string, ChartTooltipPoint>();
++  for (const point of points) {
++    const known = byDate.get(point.date);
++    byDate.set(point.date, {
++      date: point.date,
++      x: point.x,
++      series: [...(known?.series ?? []), ...point.series],
++    });
++  }
++  const inspectionPoints = [...byDate.values()];
++  const summary = `Freies Geld im Jahr ${year}: Dezember ${eur(months[11]!.value)}, Tiefpunkt ${eur(low.value)} am ${longDay(low.date)}. Gespeicherte Monatsstände und geplante Ereignisse, keine tägliche Kontostandsprognose.`;
++  return (
++    <div className="year-scenario-chart">
++      <div ref={ref}>
++      {width > 0 && (
++        <ChartSvg width={width} height={height} label={summary} testId="year-scenario-chart" points={inspectionPoints} table
++          tooltipNote="Die Stufen zeigen Monatsstände. Ereignismarker zeigen echte Termine; zwischen Monatsständen wird kein Tagesguthaben berechnet.">
++          <Graticule x1={left} x2={right} lines={ticks.map((value) => ({ y: y(value), label: kfmt(value / 100) }))} />
++          <AxisLine x1={left} x2={right} y={y(0)} />
++          {asOf >= start && asOf <= end && <TodayLine x={x(stamp(asOf))} y1={top} y2={bottom} />}
++          <StepLine points={drawPoints(actual)} kind="actual" draw={false} />
++          <StepLine points={drawPoints(projected)} kind="plan" draw={false} />
++          {values.map((row) => (
++            <circle key={row.date} cx={x(stamp(row.date))} cy={y(row.value)} r={3}
++              fill={row.date > asOf ? 'var(--surface)' : 'var(--ink)'} stroke="var(--ink)" />
++          ))}
++          {markerDates.map((date) => (
++            <g key={date}>
++              <line x1={x(stamp(date))} x2={x(stamp(date))} y1={top} y2={bottom} className="axis axis-dashed" />
++              {labelledDates.has(date) && (
++                <text x={x(stamp(date))} y={20} textAnchor={x(stamp(date)) > right - 28 ? 'end' : 'middle'} className="svg-label">
++                  ◇ {longDay(date).slice(0, 5)}
++                </text>
++              )}
++            </g>
++          ))}
++          <circle cx={x(stamp(low.date))} cy={y(low.value)} r={5} fill="var(--surface)" stroke="var(--line)" strokeWidth={2} />
++          <XTicks y={height - 8} ticks={months.filter((_, i) => width >= 600 || i % 3 === 0 || i === 11).map((row) => ({
++            x: x(stamp(row.date)), label: new Intl.DateTimeFormat('de-AT', { month: 'short', timeZone: 'UTC' }).format(new Date(stamp(row.date))),
++          }))} />
++        </ChartSvg>
++      )}
++      </div>
++      <LineLegend items={[{ kind: 'actual', label: 'Gespeicherter Stand bis heute' }, { kind: 'plan', label: without ? 'Plan ohne Ereignisse' : 'Plan mit ausgewählten Ereignissen' }]} />
++      <p className="year-chart-low">Tiefpunkt der dargestellten Stände: <strong>{eur(low.value)}</strong> am {longDay(low.date)}. ◇ Ereignistermin; mit Pfeiltasten oder Antippen erkunden.</p>
++    </div>
++  );
++}
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index 2c83c7f8598592a4fedc5ff003229ec772b995d0..de29f72cc5d80c82e7f847f35a42ade6c04c07e3 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1850,3 +1850,10 @@ explicit reanalysis/review. Upload and reanalysis never post money.
+ - The result shows checked versus deferred accounts, assignments, unresolved overspending, the next month's unallocated carry, actual savings rate and the existing monthly spending/plan comparison. Figures and the full One-Pager come from one close read snapshot; the shared 50/30/20 allocation stays distinct from the actual savings rate. Existing report details, deviations and open findings remain accessible.
+ - Closing retains the historical date and adds a server timestamp, bounded result snapshot and revision check. Repeated identical close requests are no-ops without another audit write or false Undo action. Later changes keep the historical marker; explicit re-close is audited and undoable. Closing introduces no booking lock and no financial writer or calculation change. Account bulk confirmation (#601) and bounded Heute priorities/change reminders (#603 with #573) remain separate work.
+ - Validation is deferred by the owner's implementation-first batching instruction: literal result/report/Plan cent parity; empty/accepted work and quiet-month <=3-click completion; resume, stale-source refusal, true repeated-close no-op, changed-source re-close and grouped Undo; old title/progress adapter review without weakening financial assertions; privacy, keyboard/Axe, 44 px targets, light/dark desktop/phone layout and required full/native/CI/live gates. No acceptance criterion is marked verified here.
++
++
++### #608 — Calendar-year scenario (implementation pending batch validation)
++
++- The year-end lead, monthly stepped chart, low point and December value reuse the existing `planYearScenario` amounts and the same local event selection, including years without events. Saved current stands remain distinct from future event effects; dated event markers expose real dates and amounts without inventing daily cash balances or income assumptions. Historical report income/consumption remain qualified secondary context.
++- Replaced the event-by-month matrix with a compact dated event list and existing edit actions. Groups in the year table start collapsed, including newly loaded groups; the three existing metrics, group sums, sticky first column and phone month projection remain. Explanations and the event list can be expanded; shared chart keyboard/tooltip/data-table controls expose exact values.
++- Validation is deferred by the owner's implementation-first batching instruction: independent literal lead/chart/December and toggle parity, zero-event years, current/future boundary, signed low points and real date spacing; preserved event Save/Undo and old financial assertions; privacy, long labels, light/dark 1440/390/WebKit, keyboard/Axe/44px, collapsed two-screen geometry and no page overflow, then required full/native/CI/live. No acceptance criterion is marked verified here.

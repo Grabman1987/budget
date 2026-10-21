@@ -1,0 +1,37 @@
+[
+  {
+    "path": "docs/handoff/608-year-scenario/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/608-year-scenario/README.md",
+    "size": 470,
+    "sha256": "1e01fb082132345e0c746ee6d454670898bc9f49c9046ee3925bb19b36e8ee8e"
+  },
+  {
+    "path": "docs/handoff/608-year-scenario/owned/01-81a68a9381ce20cf09179b46ed188e38bd77222c.patch",
+    "size": 39026,
+    "sha256": "6f3b0947f0130d070120296f58127fc684ed5edb3067d78a6b8d8f57c0963636"
+  },
+  {
+    "path": "docs/handoff/608-year-scenario/packet.json",
+    "size": 1469,
+    "sha256": "31a769fa73794316f8cdf9694c548a26a4a8aa0f8627a1ee5baac7a305dc4922"
+  },
+  {
+    "path": "docs/handoff/608-year-scenario/reviews/608-initial-whole-five-independent-source-finding.md",
+    "size": 2115,
+    "sha256": "4afcd83570f916a2ad0d99e050d80de7c03bbb3a691a7b64cea6f161ec6b56cc"
+  },
+  {
+    "path": "docs/handoff/608-year-scenario/reviews/608-whole-five-independent-source-correspondence.json",
+    "size": 1316,
+    "sha256": "fc0c721d7fb047b07e6dd2d2b7b833f5d5e3fff3135886d3ecd8a5221dc01fa1"
+  },
+  {
+    "path": "docs/handoff/608-year-scenario/reviews/608-whole-five-unique-date-independent-source-high.md",
+    "size": 3595,
+    "sha256": "8f4bbde4657ee6b479f0bb54d7dc3c129f73f31988ee3c4f66f10fff8ab9d90e"
+  }
+]

@@ -1,0 +1,33 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/608-year-scenario",
+  "sourceHead": "81a68a9381ce20cf09179b46ed188e38bd77222c",
+  "originalBaseBeforeOwnedCommits": "f3821c17e34279fc0083b1ac58c6215789904ef7",
+  "orderedCommits": [
+    {
+      "sha": "81a68a9381ce20cf09179b46ed188e38bd77222c",
+      "parentBase": "f3821c17e34279fc0083b1ac58c6215789904ef7",
+      "subject": "feat(plan): surface the calendar-year event scenario",
+      "paths": [
+        "apps/web/src/budget/plan-year-page.tsx",
+        "apps/web/src/budget/plan-year.css",
+        "apps/web/src/budget/year-planning.tsx",
+        "apps/web/src/budget/year-scenario-chart.tsx",
+        "docs/ROADMAP.md"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 81a68a9381ce20cf09179b46ed188e38bd77222c > OWN_OUTPUT/81a68a9381ce20cf09179b46ed188e38bd77222c.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-81a68a9381ce20cf09179b46ed188e38bd77222c.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/web/src/budget/plan-year-page.tsx",
+    "apps/web/src/budget/plan-year.css",
+    "apps/web/src/budget/year-planning.tsx",
+    "apps/web/src/budget/year-scenario-chart.tsx",
+    "docs/ROADMAP.md"
+  ],
+  "mixedSourceAncestry": true,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}
