@@ -5,6 +5,7 @@ import { eur, longDay } from '../ledger/format';
 import { AppLink } from '../shell/app-link';
 import type { CategoryRow } from './api';
 import { EnvelopeBody } from './envelope-panel';
+import { ActivityLink } from './activity-link';
 import { targetText } from './labels';
 import type { PlanRow } from './plan-model';
 import { QuickAssignActions } from './quick-assign-actions';
@@ -80,6 +81,15 @@ export function PlanInspector({
             </div>
             {row ? (
               <>
+                <div className="inspector-activity">
+                  <span>Aktivität</span>
+                  <ActivityLink
+                    month={month}
+                    id={row.id}
+                    name={row.name}
+                    cents={row.activityCents}
+                  />
+                </div>
                 <div className="inspector-target">
                   <h3 className="panel-h">Ziel</h3>
                   <p className="panel-sub">{row.target ? targetText(row.target) : 'Kein Ziel.'}</p>
@@ -105,6 +115,7 @@ export function PlanInspector({
                   tba={tba}
                   onDone={() => {}}
                   quickValues
+                  compact
                 />
                 {row.due?.source === 'expected' && (
                   <p className="panel-sub">

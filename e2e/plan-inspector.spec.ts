@@ -129,6 +129,7 @@ test('inspector discloses month figures and reuses category writes, quick values
     body: { mode: 'target', categoryIds: [ids[0]] },
   });
   await expect(inspector.getByText('Ziel finanziert.')).toBeVisible();
+  await inspector.getByText('Geld verschieben', { selector: 'summary' }).click();
   await inspector.getByLabel('Nach', { exact: true }).selectOption(ids[1]!);
   await inspector.getByLabel('Betrag', { exact: true }).fill('0,01');
   await inspector.getByRole('button', { name: 'Verschieben', exact: true }).click();

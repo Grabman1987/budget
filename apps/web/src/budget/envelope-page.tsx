@@ -1,5 +1,5 @@
 import { Button, useAmountPrivacy } from '@budget/ui';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useParams, useRouter } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { ErrorNote, LoadingNote } from '../ledger/states';
@@ -11,7 +11,8 @@ import { useMonth } from '../shell/use-month';
 import { IncomeBody } from '../expected/income-panel';
 import { ExpectedDetailBack } from '../expected/detail-nav';
 import { PLAN_ERWARTET } from '../nav/pages';
-import { budgetQuery } from './budget-api';
+import { budgetActivityQuery, budgetQuery } from './budget-api';
+import { ActivityContributions } from './activity-contributions';
 import { EnvelopeDetails, EnvelopePanel } from './envelope-panel';
 import { planRows } from './plan-model';
 import './plan.css';
@@ -49,7 +50,10 @@ export function EnvelopePage() {
   useAmountPrivacy();
   const { id } = useParams({ strict: false }) as { id: string };
   const [month] = useMonth();
-  const budget = useQuery(budgetQuery(month));
+  const client = useQueryClient();
+  const query = budgetActivityQuery(month, id);
+  const activity = useInfiniteQuery(query);
+  const budget = { ...activity, data: activity.data?.pages[0] };
   const rows = budget.data
     ? planRows({
         ...budget.data,
@@ -76,6 +80,17 @@ export function EnvelopePage() {
             <h2 id="envelope-title" ref={heading} tabIndex={-1}>
               {row.name} · {monthLabel(month)}
             </h2>
+            <ActivityContributions
+              key={`${month}:${id}`}
+              month={month}
+              pages={activity.data?.pages ?? []}
+              categories={budget.data!.categories}
+              error={activity.error}
+              loadingMore={activity.isFetchingNextPage}
+              hasMore={activity.hasNextPage}
+              onMore={() => void activity.fetchNextPage()}
+              onReload={() => void client.resetQueries({ queryKey: query.queryKey, exact: true })}
+            />
             <EnvelopeDetails month={month} row={row} />
             <Button variant="ghost" onClick={() => setEditing(true)}>
               Zuweisen oder verschieben
