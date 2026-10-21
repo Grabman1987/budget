@@ -1,0 +1,11 @@
+diff --git a/packages/db/src/repos/month-close-reminders.ts b/packages/db/src/repos/month-close-reminders.ts
+index 769f5da2c2b6d83cdb5bb8fd5854899a03bdf73c..e1195cf2857ee5e46fd586765047df33a2837d62 100644
+--- a/packages/db/src/repos/month-close-reminders.ts
++++ b/packages/db/src/repos/month-close-reminders.ts
+@@ -107,5 +107,5 @@ export function readMonthCloseReminders(db: Db, today: string): MonthCloseTaskRe
+     tasks.sort((a, b) => a.month.localeCompare(b.month) || a.id.localeCompare(b.id));
+     unavailable.sort((a, b) => (a.month ?? '').localeCompare(b.month ?? '') || a.reason.localeCompare(b.reason));
+     return { tasks, unavailable };
+-  }))));
++  })));
+ }

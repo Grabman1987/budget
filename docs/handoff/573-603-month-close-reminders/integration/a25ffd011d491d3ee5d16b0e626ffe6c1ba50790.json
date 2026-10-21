@@ -1,0 +1,10 @@
+{
+  "state": "WIP / UNINTEGRATED",
+  "sha": "a25ffd011d491d3ee5d16b0e626ffe6c1ba50790",
+  "parentBase": "87bddde58afff83461d6a7d821bea32baf140016",
+  "subject": "fix(heute): correct month-close reader call nesting",
+  "paths": [
+    "packages/db/src/repos/month-close-reminders.ts"
+  ],
+  "scope": "Exact per-path diff; no unrelated file, branch ancestor or full batch diff."
+}

@@ -1,0 +1,57 @@
+[
+  {
+    "path": "docs/handoff/573-603-month-close-reminders/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/573-603-month-close-reminders/README.md",
+    "size": 482,
+    "sha256": "dc4c569a7bb0291134757176c1783292db03c440b4f036c07a23443ce8191ed5"
+  },
+  {
+    "path": "docs/handoff/573-603-month-close-reminders/integration/a25ffd011d491d3ee5d16b0e626ffe6c1ba50790.json",
+    "size": 378,
+    "sha256": "f03f25bda9f955d895a65911b3c7abf2becf08966708cfd99b2ae5d864fcbeb1"
+  },
+  {
+    "path": "docs/handoff/573-603-month-close-reminders/integration/a25ffd011d491d3ee5d16b0e626ffe6c1ba50790.patch",
+    "size": 672,
+    "sha256": "93ca78c30af0ca78dc5a8264f1e4bd9edf611660d7b3346ecf8d936500f4eac7"
+  },
+  {
+    "path": "docs/handoff/573-603-month-close-reminders/owned/01-286b008a6c1525f5481efb178e756f80bbad7db0.patch",
+    "size": 41231,
+    "sha256": "ae2819d332524da91fa487abc08fcd340d0e6e7393ce5c968b172458943f9b1a"
+  },
+  {
+    "path": "docs/handoff/573-603-month-close-reminders/packet.json",
+    "size": 1836,
+    "sha256": "261358a1dab862944c82cc5b12a9ad8358fa6fbfa9b97ba5e7bc3446e6ba1961"
+  },
+  {
+    "path": "docs/handoff/573-603-month-close-reminders/reviews/573-603-backend-whole-nine-independent-source-high.md",
+    "size": 3448,
+    "sha256": "73892a496a35f90483c8900f7c8de22102a33dfd1cecc86e6fd0f3087c4a03ef"
+  },
+  {
+    "path": "docs/handoff/573-603-month-close-reminders/reviews/573-603-batch-cache-early-independent-source-high.md",
+    "size": 1937,
+    "sha256": "623c06b7ddf71931c5c44a0810336d8892ef16ac9c00e47dd7d23fd11fdde198"
+  },
+  {
+    "path": "docs/handoff/573-603-month-close-reminders/reviews/573-603-canonical-reader-extraction-independent-source-review.md",
+    "size": 1421,
+    "sha256": "7e2cb817facf948cc0f6af895462e82b81c07d24a2d16d6b4358732fc0a4ac71"
+  },
+  {
+    "path": "docs/handoff/573-603-month-close-reminders/reviews/573-603-whole-five-heute-ui-independent-source-high.md",
+    "size": 5328,
+    "sha256": "5814c611d14325174c00cd544814ce53789e8ad8f3ec752bd5d6249a76125296"
+  },
+  {
+    "path": "docs/handoff/573-603-month-close-reminders/reviews/573-month-close-parenthesis-independent-source-review.md",
+    "size": 1151,
+    "sha256": "269c319a3a0ca4616369ed4511306f3f80272713a62d9598ba7e44133d7351c3"
+  }
+]

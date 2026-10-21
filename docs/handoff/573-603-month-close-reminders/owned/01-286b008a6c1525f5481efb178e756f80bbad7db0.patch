@@ -1,0 +1,883 @@
+diff --git a/apps/server/src/api/heute.ts b/apps/server/src/api/heute.ts
+index 8fbe0d6c14b163d97d02af56a84951b28aa62de1..2c937a72549dcbffc9d308a289c482e6d1021033 100644
+--- a/apps/server/src/api/heute.ts
++++ b/apps/server/src/api/heute.ts
+@@ -1,4 +1,4 @@
+-import { currentValuationSources, heute, planningAccuracyReport, type Db } from '@budget/db';
++import { currentValuationSources, heute, planningAccuracyReport, readMonthCloseReminders, type Db } from '@budget/db';
+ import { Hono } from 'hono';
+ import { z } from 'zod';
+ import { readQuery } from './http';
+@@ -23,7 +23,7 @@ export function heuteRoutes(db: Db, today: () => string): Hono {
+     return c.json({
+       ...data,
+       valuationSources: provenance.sources,
+-      attention: { ...data.attention, quoteReview: provenance.quoteReview },
++      attention: { ...data.attention, quoteReview: provenance.quoteReview, monthCloseTasks: readMonthCloseReminders(db, day) },
+       planningAccuracy: planningAccuracyReport(db, data.pace.month, day).summary,
+     });
+   });
+diff --git a/apps/server/src/api/month-close.ts b/apps/server/src/api/month-close.ts
+index 3fc22aa573c742ea2ab9dda95907a716f5ac5e1f..abb89a858fe7e5ce654cec626992414c177d00dd 100644
+--- a/apps/server/src/api/month-close.ts
++++ b/apps/server/src/api/month-close.ts
+@@ -1,248 +1,29 @@
+ import {
+-  accountSummaries,
+   appSetting,
+   createEntity,
+   getEntity,
+   updateEntity,
+-  readInbox,
+-  planMonthViews,
+-  valuation,
+-  bankSyncCandidate,
+-  booking,
+-  holdingValuationAsOf,
+-  listReconciliations,
+-  reportTables,
+-  monthOnePager,
+-  monthCloseSourceRevision,
+-  previewMonthCloseReconciliation,
++  readMonthClose,
+   confirmMonthCloseReconciliation,
+   reconcileAccount,
+-  occurrencesBetween,
+-  loadFacts,
+   type Db,
+ } from '@budget/db';
+ import {
+-  closeSteps,
+-  closeNavigation,
+   closeResultSnapshotSchema,
+-  cents,
+-  lastDayOfMonth,
+   monthCloseStateSchema,
+   closeDecisionSchema,
+-  addMonths,
+-  nextPayday,
+-  closePlanHistory,
+-  closeDeviations,
+-  type CloseWork,
+ } from '@budget/domain';
+-import { and, desc, eq, isNull, lte } from 'drizzle-orm';
+-import { createHash, randomUUID } from 'node:crypto';
++import { randomUUID } from 'node:crypto';
+ import { Hono } from 'hono';
+ import { z } from 'zod';
+ import { ACTOR, ApiError, defined, readBody } from './http';
+ import { assertReconcileAdjustmentCategory } from './accounts';
+ import { month, day, reconcileBody } from './schemas';
+ 
+-const fingerprint = (value: unknown) =>
+-  createHash('sha256').update(JSON.stringify(value)).digest('hex');
++// Preserve existing direct imports while the implementation lives below HTTP.
++export { readMonthClose };
+ const key = (m: string) => `month_close.${m}`;
+ 
+-export function readMonthClose(db: Db, m: string, today: string) {
+-  return db.transaction((tx) => readMonthCloseWithin(tx, m, today));
+-}
+-
+-function readMonthCloseWithin(db: Db, m: string, today: string) {
+-  const end = lastDayOfMonth(m);
+-  const asOf = end < today ? end : today;
+-  const holdings = holdingValuationAsOf(db, asOf);
+-  const holdingAccounts = new Set(
+-    [...holdings.values, ...holdings.missingPricePositions, ...holdings.missingFxPositions].map(
+-      (h) => h.accountId,
+-    ),
+-  );
+-  const stored = getEntity(db, appSetting, key(m));
+-  const state = monthCloseStateSchema.parse(stored ? JSON.parse(stored.value) : {});
+-  // Overspent envelopes are handled in the dedicated step 3, not as inbox work in step 1.
+-  const inbox = readInbox(db, asOf)
+-    .entries.filter((e) => e.type !== 'envelope')
+-    .filter((e) => {
+-      let date = e.type === 'stored' ? e.createdAt.slice(0, 10) : e.date;
+-      if (e.type === 'stored' && e.refId) {
+-        if (e.refType === 'bank-sync-candidate')
+-          date =
+-            db.select().from(bankSyncCandidate).where(eq(bankSyncCandidate.id, e.refId)).get()
+-              ?.date ?? date;
+-        if (e.refType === 'booking')
+-          date = db.select().from(booking).where(eq(booking.id, e.refId)).get()?.date ?? date;
+-      }
+-      return date.slice(0, 7) === m;
+-    });
+-  const accounts = accountSummaries(db, asOf)
+-    .filter(
+-      (a) =>
+-        !a.closedAt &&
+-        a.openingDate <= asOf &&
+-        ([
+-          'checking',
+-          'cash',
+-          'savings',
+-          'credit_card',
+-          'loan',
+-          'other_liability',
+-          'brokerage',
+-          'crypto',
+-        ].includes(a.type) ||
+-          ((a.type === 'p2p' || a.type === 'other_asset') && !holdingAccounts.has(a.id))),
+-    )
+-    .map((a) => {
+-      const manual = a.type === 'p2p' || a.type === 'other_asset';
+-      const value = manual
+-        ? db
+-            .select()
+-            .from(valuation)
+-            .where(
+-              and(
+-                eq(valuation.accountId, a.id),
+-                isNull(valuation.deletedAt),
+-                lte(valuation.date, asOf),
+-              ),
+-            )
+-            .orderBy(desc(valuation.date))
+-            .get()
+-        : undefined;
+-      const reconciled = listReconciliations(db, a.id).some((r) => r.date >= end);
+-      return {
+-        ...a,
+-        manual,
+-        holdingValued: holdingAccounts.has(a.id),
+-        valueCents: value?.valueCents ?? a.balanceCents,
+-        lastValuedOn: value?.date ?? null,
+-        done: manual ? value?.date === end : reconciled,
+-      };
+-    });
+-  // Presentation priority must not reorder the established close sourceRevision/work facts.
+-  const bankFirstAccounts = [...accounts].sort((a, b) =>
+-    Number(!['checking', 'savings', 'credit_card'].includes(a.type)) - Number(!['checking', 'savings', 'credit_card'].includes(b.type)));
+-  const unchangedConfirmation = previewMonthCloseReconciliation(db, m, today,
+-    bankFirstAccounts.map((a) => ({ id: a.id, manual: a.manual, done: a.done, hasHoldings: a.holdingValued })));
+-  const nextMonth = addMonths(m, 1);
+-  const plans = planMonthViews(db, [m, nextMonth], {}, today);
+-  const plan = plans[m]!;
+-  const nextBudget = plans[nextMonth]!;
+-  const facts = loadFacts(db, lastDayOfMonth(nextMonth));
+-  const nextPlan = {
+-    month: nextMonth,
+-    payday: nextPayday(`${nextMonth}-01`).day,
+-    budget: nextBudget,
+-    previousAssigned: Object.fromEntries(
+-      plan.summary.envelopes.map((e) => [e.categoryId, e.assignedCents]),
+-    ),
+-    history: closePlanHistory(
+-      nextBudget.categories.map((c) => c.id),
+-      m,
+-      today,
+-      reportTables(db, { today }).months,
+-    ),
+-    payments: occurrencesBetween(
+-      db,
+-      facts,
+-      `${nextMonth}-01`,
+-      lastDayOfMonth(nextMonth),
+-      today,
+-      facts.budgetByMonth.get(nextMonth),
+-    ),
+-  };
+-  const overspent = plan.summary.envelopes.filter((e) => e.overspentCents > 0);
+-  const work: CloseWork[] = [
+-    ...inbox.map((e) => ({ step: 1 as const, id: e.id, fingerprint: fingerprint(e) })),
+-    ...accounts
+-      .filter((a) => !a.done)
+-      .map((a) => ({
+-        step: 2 as const,
+-        id: a.id,
+-        fingerprint: fingerprint([
+-          a.balanceCents,
+-          a.clearedCents,
+-          a.lastReconciledOn,
+-          a.lastValuedOn,
+-          a.valueCents,
+-        ]),
+-      })),
+-    ...overspent.map((e) => ({
+-      step: 3 as const,
+-      id: e.categoryId,
+-      fingerprint: fingerprint(e.overspentCents),
+-    })),
+-  ];
+-  const steps = closeSteps(work, state.decisions, {
+-    remainingCents: nextBudget.summary.toBeAssignedCents,
+-    ...(state.closedOn && { closedOn: state.closedOn }),
+-  });
+-  const report = m <= today.slice(0, 7) ? monthOnePager(db, today, m) : null;
+-  const result = report ? {
+-    report,
+-    checkedAccounts: accounts.filter((a) => a.done).length,
+-    totalAccounts: accounts.length,
+-    deferredAccounts: work.filter((w) => w.step === 2 && state.decisions.some((d) =>
+-      d.step === w.step && d.id === w.id && d.fingerprint === w.fingerprint)).length,
+-    assignedCents: plan.summary.assignedCents,
+-    overspentCount: overspent.length,
+-    overspentCents: cents(Number(overspent.reduce((sum, row) => sum + BigInt(row.overspentCents), 0n))),
+-    carryInCents: nextBudget.summary.carryInCents,
+-    sourceMonth: m,
+-    destinationMonth: nextMonth,
+-  } : null;
+-  const sourceRevision = monthCloseSourceRevision(db, m, {
+-    // Calendar refreshes alone are not a new close. Historical month values use their real end.
+-    end, asOf, work, accounts: accounts.map((a) => ({
+-      id: a.id, balanceCents: a.balanceCents, clearedCents: a.clearedCents,
+-      lastReconciledOn: a.lastReconciledOn, lastValuedOn: a.lastValuedOn,
+-      valueCents: a.valueCents, done: a.done,
+-    })),
+-    steps: steps.slice(0, 4),
+-    currentSummary: { assignedCents: plan.summary.assignedCents,
+-      activityCents: plan.summary.activityCents, availableCents: plan.summary.availableCents,
+-      toBeAssignedCents: plan.summary.toBeAssignedCents,
+-      envelopes: plan.summary.envelopes.map((e) => ({ categoryId: e.categoryId,
+-        carryCents: e.carryCents, assignedCents: e.assignedCents, activityCents: e.activityCents,
+-        availableCents: e.availableCents, overspentCents: e.overspentCents })),
+-    },
+-    nextSummary: { toBeAssignedCents: nextBudget.summary.toBeAssignedCents,
+-      assignedCents: nextBudget.summary.assignedCents, carryInCents: nextBudget.summary.carryInCents,
+-    },
+-    result: result ? {
+-      ...result, report: { result: report!.result, allocation: report!.allocation,
+-        plan: report!.plan, pace: report!.pace.figures, top: report!.top },
+-    } : null,
+-  }, accounts.map((a) => a.id));
+-  return {
+-    month: m,
+-    end,
+-    asOf,
+-    state,
+-    sourceRevision,
+-    navigation: closeNavigation(steps),
+-    result,
+-    close: {
+-      changedSinceClose: Boolean(state.snapshot && state.snapshot.sourceRevision !== sourceRevision),
+-      legacyMarker: Boolean(state.closedOn && !state.snapshot),
+-    },
+-    work,
+-    inbox,
+-    unchangedConfirmation,
+-    accounts: bankFirstAccounts,
+-    overspent,
+-    nextPlan,
+-    deviations: closeDeviations(
+-      plan.summary.envelopes.flatMap((e) => {
+-        const c = plan.categories.find((c) => c.id === e.categoryId);
+-        return c?.class ? [{ ...e, name: c.name }] : [];
+-      }),
+-    ),
+-    steps,
+-  };
+-}
+-
+ export function monthCloseRoutes(db: Db, today: () => string): Hono {
+   const app = new Hono();
+   app.get('/:month', (c) => c.json(readMonthClose(db, month.parse(c.req.param('month')), today())));
+diff --git a/apps/web/src/heute/api.ts b/apps/web/src/heute/api.ts
+index eb2ce25a80a364fe922e8ad529a0fe83093d2f70..cb52b406f21afc912d359dc44d1b9da6ded4366a 100644
+--- a/apps/web/src/heute/api.ts
++++ b/apps/web/src/heute/api.ts
+@@ -177,6 +177,11 @@ export interface Heute extends WithValuationNotes {
+     pendingBefore: string;
+     loanTermsMissing: boolean;
+     quoteReview?: { securityIds: string[]; count: number };
++    /** Current server-day tasks, independent of the selected report month. */
++    monthCloseTasks?: {
++      tasks: Array<{ id: string; kind: 'close' | 'close-changed'; month: string; target: string }>;
++      unavailable: Array<{ month: string | null; reason: 'legacy' | 'invalid_state' | 'missing_price' | 'missing_fx' }>;
++    };
+   };
+   lastBookings: Array<{
+     id: string;
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index 7a179ee0176a4f5af7c0150093faadc034349366..cd205348a10a39ba836a3092312ac10419b36cf5 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1888,3 +1888,11 @@ explicit reanalysis/review. Upload and reanalysis never post money.
+ - Added a compact Kennzahlen view from the exact performance-report query: TTWROR period/p.a., XIRR p.a., benchmark differences, risk explanations and a collapsed table of the already-produced daily calculation flows. Report and register links preserve the selected period. No Modified Dietz, new benchmark convention or financial formula is introduced.
+ - Added an optional validated past asOf to the existing positions GET, reusing the same dated producer. Successful historical performance selects its identical endpoint for the lead and position values. If only performance history is unavailable, the separately dated current-position facts remain visible with an explicit unavailable-comparison note rather than being relabelled a historical endpoint.
+ - [ ] Source-only checkpoint: existing tests are unchanged, and no new tests, execution, formatter, typecheck, build, native/visual/Axe or CI ran for this packet. Independent whole-source review and later literal same-period parity/100+100→220=10%/dated endpoint/router/dialog/privacy tests plus actual desktop/phone layouts, two-screen bounds, 44px/Axe, required checks and LIVE acceptance remain pending. #543 calculations are reused, not claimed as newly implemented; #487/#547/#548 depth/detail redesigns remain separate.
++
++
++### #573 / #603 — Canonical month-close task backend (source-only, validation deferred)
++
++- Extracted the existing full close reader below HTTP and reused its original version-1 revision facts, property/array order and retained-audit predicate for reminder comparisons. The ordinary close/reconciliation writers and #601 bank-first display/cohort versus original hashed source order remain separate and unchanged in intent.
++- Current-day reminder reads load close settings once, share the existing multi-month plan run and exact financial providers within a strictly synchronous private read-transaction memo, and count retained audits in one batch. Historical valuation notes stay isolated from current Heute valuation disclosures; there are no reminder, financial, audit or snapshot writes and no new schema/engine.
++- Previous-month open work persists through the month. Completed comparable months yield one changed task per real canonical revision difference; legacy, malformed and missing valuation inputs remain explicitly unavailable rather than invented clean/open results. The backend returns all descriptors for a later complete global-four task selector; this increment does not implement or claim the remaining #573 task UI/layout, pins, recent-booking order or finance-tile changes.
++- Validation remains owner-deferred: no tests/newtests, type/lint/format/build/browser/full/CI/live were run. Exact singleton/batch revision and full-response parity, audit/Undo ABA, month/day6 boundaries, reclose/marker Undo, cache invalidation/transaction isolation, historical-note isolation, query scaling and later global-four/privacy/keyboard/phone acceptance remain unproved. No acceptance checkmarks are added.
+diff --git a/packages/db/src/repos/index.ts b/packages/db/src/repos/index.ts
+index ecbfafb7a144e4bf281debe8b8092d1d48eb3b6a..2bdba6dba274abf2e673ed2900a537da9abcb33f 100644
+--- a/packages/db/src/repos/index.ts
++++ b/packages/db/src/repos/index.ts
+@@ -103,3 +103,5 @@ export * from './booking-bulk-eligibility';
+ export * from './month-close-state';
+ export * from './networth-composition';
+ export * from './month-close-reconciliation';
++export * from './month-close-read';
++export * from './month-close-reminders';
+diff --git a/packages/db/src/repos/month-close-read.ts b/packages/db/src/repos/month-close-read.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..752cd6b14f7052a5ad24a190c3e9dd030f602585
+--- /dev/null
++++ b/packages/db/src/repos/month-close-read.ts
+@@ -0,0 +1,255 @@
++import {
++  closeSteps,
++  closeNavigation,
++  cents,
++  lastDayOfMonth,
++  monthCloseStateSchema,
++  addMonths,
++  nextPayday,
++  closePlanHistory,
++  closeDeviations,
++  type CloseWork,
++  type MonthCloseState,
++} from '@budget/domain';
++import { and, desc, eq, isNull, lte } from 'drizzle-orm';
++import { createHash } from 'node:crypto';
++import type { Db } from '../client';
++import { appSetting, valuation, bankSyncCandidate, booking } from '../schema';
++import { getEntity } from './entities';
++import { accountSummaries } from './ledger-queries';
++import { readInbox } from './inbox';
++import { planMonthViews } from './plan-months';
++import { holdingValuationAsOf } from './portfolio';
++import { listReconciliations } from './reconciliation';
++import { reportTables } from './report-tables';
++import { monthOnePager } from './month-reports';
++import { monthCloseSourceRevision } from './month-close-state';
++import { previewMonthCloseReconciliation } from './month-close-reconciliation';
++import { occurrencesBetween } from './heute';
++import { loadFacts } from './rule-inputs';
++
++const fingerprint = (value: unknown) =>
++  createHash('sha256').update(JSON.stringify(value)).digest('hex');
++const key = (m: string) => `month_close.${m}`;
++
++export interface MonthCloseReadContext {
++  plans: ReturnType<typeof planMonthViews>;
++  states: ReadonlyMap<string, MonthCloseState>;
++}
++
++/** One existing canonical plan run for all requested months and their successors. */
++export function monthCloseReadContext(db: Db, months: readonly string[], today: string,
++  states: ReadonlyMap<string, MonthCloseState>,
++): MonthCloseReadContext {
++  const wanted = [...new Set(months.flatMap((month) => [month, addMonths(month, 1)]))].sort();
++  return { plans: planMonthViews(db, wanted, {}, today), states };
++}
++
++export function readMonthClose(db: Db, m: string, today: string) {
++  return db.transaction((tx) => {
++    const prepared = prepareMonthCloseSource(tx, m, today);
++    return completeMonthCloseView(tx, m, today, prepared);
++  });
++}
++
++/** Exact original facts/property/array order, shared by full close and reminder comparison. */
++export function prepareMonthCloseSource(db: Db, m: string, today: string, context?: MonthCloseReadContext) {
++  const end = lastDayOfMonth(m);
++  const asOf = end < today ? end : today;
++  const holdings = holdingValuationAsOf(db, asOf);
++  const holdingAccounts = new Set(
++    [...holdings.values, ...holdings.missingPricePositions, ...holdings.missingFxPositions].map(
++      (h) => h.accountId,
++    ),
++  );
++  const stored = context?.states.has(m) ? undefined : getEntity(db, appSetting, key(m));
++  const state = context?.states.get(m) ?? monthCloseStateSchema.parse(stored ? JSON.parse(stored.value) : {});
++  // Overspent envelopes are handled in the dedicated step 3, not as inbox work in step 1.
++  const inbox = readInbox(db, asOf)
++    .entries.filter((e) => e.type !== 'envelope')
++    .filter((e) => {
++      let date = e.type === 'stored' ? e.createdAt.slice(0, 10) : e.date;
++      if (e.type === 'stored' && e.refId) {
++        if (e.refType === 'bank-sync-candidate')
++          date =
++            db.select().from(bankSyncCandidate).where(eq(bankSyncCandidate.id, e.refId)).get()
++              ?.date ?? date;
++        if (e.refType === 'booking')
++          date = db.select().from(booking).where(eq(booking.id, e.refId)).get()?.date ?? date;
++      }
++      return date.slice(0, 7) === m;
++    });
++  const accounts = accountSummaries(db, asOf)
++    .filter(
++      (a) =>
++        !a.closedAt &&
++        a.openingDate <= asOf &&
++        ([
++          'checking',
++          'cash',
++          'savings',
++          'credit_card',
++          'loan',
++          'other_liability',
++          'brokerage',
++          'crypto',
++        ].includes(a.type) ||
++          ((a.type === 'p2p' || a.type === 'other_asset') && !holdingAccounts.has(a.id))),
++    )
++    .map((a) => {
++      const manual = a.type === 'p2p' || a.type === 'other_asset';
++      const value = manual
++        ? db
++            .select()
++            .from(valuation)
++            .where(
++              and(
++                eq(valuation.accountId, a.id),
++                isNull(valuation.deletedAt),
++                lte(valuation.date, asOf),
++              ),
++            )
++            .orderBy(desc(valuation.date))
++            .get()
++        : undefined;
++      const reconciled = listReconciliations(db, a.id).some((r) => r.date >= end);
++      return {
++        ...a,
++        manual,
++        holdingValued: holdingAccounts.has(a.id),
++        valueCents: value?.valueCents ?? a.balanceCents,
++        lastValuedOn: value?.date ?? null,
++        done: manual ? value?.date === end : reconciled,
++      };
++    });
++  const nextMonth = addMonths(m, 1);
++  const plans = context?.plans ?? planMonthViews(db, [m, nextMonth], {}, today);
++  const plan = plans[m]!;
++  const nextBudget = plans[nextMonth]!;
++  const overspent = plan.summary.envelopes.filter((e) => e.overspentCents > 0);
++  const work: CloseWork[] = [
++    ...inbox.map((e) => ({ step: 1 as const, id: e.id, fingerprint: fingerprint(e) })),
++    ...accounts
++      .filter((a) => !a.done)
++      .map((a) => ({
++        step: 2 as const,
++        id: a.id,
++        fingerprint: fingerprint([
++          a.balanceCents,
++          a.clearedCents,
++          a.lastReconciledOn,
++          a.lastValuedOn,
++          a.valueCents,
++        ]),
++      })),
++    ...overspent.map((e) => ({
++      step: 3 as const,
++      id: e.categoryId,
++      fingerprint: fingerprint(e.overspentCents),
++    })),
++  ];
++  const steps = closeSteps(work, state.decisions, {
++    remainingCents: nextBudget.summary.toBeAssignedCents,
++    ...(state.closedOn && { closedOn: state.closedOn }),
++  });
++  const report = m <= today.slice(0, 7) ? monthOnePager(db, today, m) : null;
++  const result = report ? {
++    report,
++    checkedAccounts: accounts.filter((a) => a.done).length,
++    totalAccounts: accounts.length,
++    deferredAccounts: work.filter((w) => w.step === 2 && state.decisions.some((d) =>
++      d.step === w.step && d.id === w.id && d.fingerprint === w.fingerprint)).length,
++    assignedCents: plan.summary.assignedCents,
++    overspentCount: overspent.length,
++    overspentCents: cents(Number(overspent.reduce((sum, row) => sum + BigInt(row.overspentCents), 0n))),
++    carryInCents: nextBudget.summary.carryInCents,
++    sourceMonth: m,
++    destinationMonth: nextMonth,
++  } : null;
++  const revisionFacts = {
++    // Calendar refreshes alone are not a new close. Historical month values use their real end.
++    end, asOf, work, accounts: accounts.map((a) => ({
++      id: a.id, balanceCents: a.balanceCents, clearedCents: a.clearedCents,
++      lastReconciledOn: a.lastReconciledOn, lastValuedOn: a.lastValuedOn,
++      valueCents: a.valueCents, done: a.done,
++    })),
++    steps: steps.slice(0, 4),
++    currentSummary: { assignedCents: plan.summary.assignedCents,
++      activityCents: plan.summary.activityCents, availableCents: plan.summary.availableCents,
++      toBeAssignedCents: plan.summary.toBeAssignedCents,
++      envelopes: plan.summary.envelopes.map((e) => ({ categoryId: e.categoryId,
++        carryCents: e.carryCents, assignedCents: e.assignedCents, activityCents: e.activityCents,
++        availableCents: e.availableCents, overspentCents: e.overspentCents })),
++    },
++    nextSummary: { toBeAssignedCents: nextBudget.summary.toBeAssignedCents,
++      assignedCents: nextBudget.summary.assignedCents, carryInCents: nextBudget.summary.carryInCents,
++    },
++    result: result ? {
++      ...result, report: { result: report!.result, allocation: report!.allocation,
++        plan: report!.plan, pace: report!.pace.figures, top: report!.top },
++    } : null,
++  };
++  return { end, asOf, state, accounts, nextMonth, plan, nextBudget, overspent, work, steps, report, result, inbox, revisionFacts };
++}
++
++function completeMonthCloseView(db: Db, m: string, today: string,
++  prepared: ReturnType<typeof prepareMonthCloseSource>,
++) {
++  const { end, asOf, state, accounts, nextMonth, plan, nextBudget, overspent, work, steps, result, inbox } = prepared;
++  // Presentation priority must not reorder the established close sourceRevision/work facts.
++  const bankFirstAccounts = [...accounts].sort((a, b) =>
++    Number(!['checking', 'savings', 'credit_card'].includes(a.type)) - Number(!['checking', 'savings', 'credit_card'].includes(b.type)));
++  const unchangedConfirmation = previewMonthCloseReconciliation(db, m, today,
++    bankFirstAccounts.map((a) => ({ id: a.id, manual: a.manual, done: a.done, hasHoldings: a.holdingValued })));
++  const facts = loadFacts(db, lastDayOfMonth(nextMonth));
++  const nextPlan = {
++    month: nextMonth,
++    payday: nextPayday(`${nextMonth}-01`).day,
++    budget: nextBudget,
++    previousAssigned: Object.fromEntries(
++      plan.summary.envelopes.map((e) => [e.categoryId, e.assignedCents]),
++    ),
++    history: closePlanHistory(
++      nextBudget.categories.map((c) => c.id),
++      m,
++      today,
++      reportTables(db, { today }).months,
++    ),
++    payments: occurrencesBetween(
++      db,
++      facts,
++      `${nextMonth}-01`,
++      lastDayOfMonth(nextMonth),
++      today,
++      facts.budgetByMonth.get(nextMonth),
++    ),
++  };
++  const sourceRevision = monthCloseSourceRevision(db, m, prepared.revisionFacts, accounts.map((a) => a.id));
++  return {
++    month: m,
++    end,
++    asOf,
++    state,
++    sourceRevision,
++    navigation: closeNavigation(steps),
++    result,
++    close: {
++      changedSinceClose: Boolean(state.snapshot && state.snapshot.sourceRevision !== sourceRevision),
++      legacyMarker: Boolean(state.closedOn && !state.snapshot),
++    },
++    work,
++    inbox,
++    unchangedConfirmation,
++    accounts: bankFirstAccounts,
++    overspent,
++    nextPlan,
++    deviations: closeDeviations(
++      plan.summary.envelopes.flatMap((e) => {
++        const c = plan.categories.find((c) => c.id === e.categoryId);
++        return c?.class ? [{ ...e, name: c.name }] : [];
++      }),
++    ),
++    steps,
++  };
++}
++
+diff --git a/packages/db/src/repos/month-close-reminders.ts b/packages/db/src/repos/month-close-reminders.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..769f5da2c2b6d83cdb5bb8fd5854899a03bdf73c
+--- /dev/null
++++ b/packages/db/src/repos/month-close-reminders.ts
+@@ -0,0 +1,111 @@
++import {
++  addMonths,
++  lastDayOfMonth,
++  monthCloseStateSchema,
++  PriceUnavailableError,
++  ExchangeRateUnavailableError,
++  type MonthCloseState,
++} from '@budget/domain';
++import { like } from 'drizzle-orm';
++import type { Db } from '../client';
++import { appSetting } from '../schema';
++import { MissingFxRateError } from './errors';
++import { monthCloseReadContext, prepareMonthCloseSource } from './month-close-read';
++import { monthCloseAuditCounts, monthCloseRevisionFromCount } from './month-close-state';
++import { withReadSnapshotMemo } from './request-memo';
++import { runWithValuationNotes } from './valuation-notes';
++
++export interface MonthCloseReminder {
++  id: string;
++  kind: 'close' | 'close-changed';
++  month: string;
++  target: string;
++}
++export interface MonthCloseTaskRead {
++  tasks: MonthCloseReminder[];
++  unavailable: { month: string | null; reason: 'legacy' | 'invalid_state' | 'missing_price' | 'missing_fx' }[];
++}
++const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
++const failureReason = (error: unknown): 'missing_price' | 'missing_fx' | null => {
++  if (error instanceof PriceUnavailableError) return 'missing_price';
++  if (error instanceof ExchangeRateUnavailableError || error instanceof MissingFxRateError) return 'missing_fx';
++  return null;
++};
++
++/** Actual current-day close tasks; no GET writes, financial snapshots or historical valuation notes escape. */
++export function readMonthCloseReminders(db: Db, today: string): MonthCloseTaskRead {
++  // Private notes AND memo: a historical missing position must not become today's valuation warning.
++  return runWithValuationNotes(() => db.transaction((tx) => withReadSnapshotMemo(tx, () => {
++    const tasks: MonthCloseReminder[] = [], unavailable: MonthCloseTaskRead['unavailable'] = [];
++    const states = new Map<string, MonthCloseState>();
++    const invalid = new Set<string>();
++    // app_setting has no soft-delete column: the existing audited entity deletion removes its row.
++    const rows = tx.select().from(appSetting).where(like(appSetting.id, 'month_close.%')).all();
++    for (const row of rows) {
++      if (!row.id.startsWith('month_close.')) continue;
++      const month = row.id.slice('month_close.'.length);
++      if (!monthPattern.test(month)) {
++        unavailable.push({ month: null, reason: 'invalid_state' });
++        continue;
++      }
++      let value: unknown;
++      try { value = JSON.parse(row.value); } catch (error) {
++        if (!(error instanceof SyntaxError)) throw error;
++        invalid.add(month);
++        unavailable.push({ month, reason: 'invalid_state' });
++        continue;
++      }
++      const parsed = monthCloseStateSchema.safeParse(value);
++      if (!parsed.success || (parsed.data.snapshot &&
++        (!parsed.data.closedOn || parsed.data.snapshot.month !== month)) ||
++        (parsed.success && parsed.data.closedOn && lastDayOfMonth(month) > today)) {
++        invalid.add(month);
++        unavailable.push({ month, reason: 'invalid_state' });
++        continue;
++      }
++      states.set(month, parsed.data);
++    }
++    const previousMonth = addMonths(today.slice(0, 7), -1);
++    const previous = states.get(previousMonth);
++    if (!invalid.has(previousMonth) && !previous?.closedOn)
++      tasks.push({ id: `close:${previousMonth}`, kind: 'close', month: previousMonth, target: `/monatsabschluss/${previousMonth}` });
++    const comparable: string[] = [];
++    for (const [month, state] of states) {
++      if (!state.closedOn) continue;
++      if (!state.snapshot) unavailable.push({ month, reason: 'legacy' });
++      else comparable.push(month);
++    }
++    comparable.sort();
++    if (comparable.length > 0) {
++      let context: ReturnType<typeof monthCloseReadContext> | null = null;
++      try { context = monthCloseReadContext(tx, comparable, today, states); } catch (error) {
++        const reason = failureReason(error);
++        if (!reason) throw error;
++        comparable.forEach((month) => unavailable.push({ month, reason }));
++      }
++      if (context) {
++        const prepared = new Map<string, ReturnType<typeof prepareMonthCloseSource>>();
++        for (const month of comparable) {
++          try { prepared.set(month, prepareMonthCloseSource(tx, month, today, context)); } catch (error) {
++            const reason = failureReason(error);
++            if (!reason) throw error;
++            unavailable.push({ month, reason });
++          }
++        }
++        const counts = monthCloseAuditCounts(tx, [...prepared].map(([month, source]) => ({
++          month, accountIds: source.accounts.map((account) => account.id),
++        })));
++        for (const [month, source] of prepared) {
++          const count = counts.get(month);
++          if (count === undefined) throw new RangeError('Missing month audit count');
++          const revision = monthCloseRevisionFromCount(month, source.revisionFacts, count);
++          if (revision !== states.get(month)!.snapshot!.sourceRevision)
++            tasks.push({ id: `close-changed:${month}`, kind: 'close-changed', month, target: `/monatsabschluss/${month}` });
++        }
++      }
++    }
++    tasks.sort((a, b) => a.month.localeCompare(b.month) || a.id.localeCompare(b.id));
++    unavailable.sort((a, b) => (a.month ?? '').localeCompare(b.month ?? '') || a.reason.localeCompare(b.reason));
++    return { tasks, unavailable };
++  }))));
++}
+diff --git a/packages/db/src/repos/month-close-state.ts b/packages/db/src/repos/month-close-state.ts
+index 685a488f667f89d52e5344877b929f2d98c3f417..9a7356a384ebbd1cdf40702061d66fec61019d22 100644
+--- a/packages/db/src/repos/month-close-state.ts
++++ b/packages/db/src/repos/month-close-state.ts
+@@ -3,46 +3,84 @@ import { createHash } from 'node:crypto';
+ import { sql } from 'drizzle-orm';
+ import type { Executor } from './types';
+ 
+-/**
+- * An aggregate of retained booking/split and relevant planning/account audits supplies an ABA fence. Before and
+- * after dates include moves out of the month; Undo is another retained event. Only a count
+- * leaves SQLite, never private audit snapshots. This does not create a close task or a lock.
+- */
+-export function monthCloseSourceRevision(db: Executor, month: string, facts: unknown,
+-  accountIds: readonly string[] = [],
+-): string {
+-  const nextMonth = addMonths(month, 1);
+-  const accountList = JSON.stringify([...new Set(accountIds)].sort());
+-  const end = lastDayOfMonth(month);
+-  const rows = db.all<{ count: number }>(sql`
+-    SELECT COUNT(*) AS count FROM audit_log a WHERE
++export interface MonthCloseAuditScope {
++  month: string;
++  accountIds: readonly string[];
++}
++
++/** Same retained-event predicate for singleton close reads and batched reminder comparisons. */
++export function monthCloseAuditCounts(db: Executor, scopes: readonly MonthCloseAuditScope[]): ReadonlyMap<string, number> {
++  if (scopes.length === 0) return new Map();
++  if (new Set(scopes.map((scope) => scope.month)).size !== scopes.length)
++    throw new RangeError('Duplicate close audit month');
++  const wanted = JSON.stringify(scopes.map(({ month, accountIds }) => ({
++    month,
++    nextMonth: addMonths(month, 1),
++    end: lastDayOfMonth(month),
++    accountIds: [...new Set(accountIds)].sort(),
++  })));
++  // Each wanted month joins each audit at most once: parent/account membership stays EXISTS/IN,
++  // not a multiplicative join. A retained event may legitimately contribute to several months.
++  const rows = db.all<{ month: string; count: number }>(sql`
++    WITH wanted AS (
++      SELECT json_extract(value, '$.month') AS month,
++        json_extract(value, '$.nextMonth') AS next_month,
++        json_extract(value, '$.end') AS end_day,
++        json_extract(value, '$.accountIds') AS account_ids
++      FROM json_each(${wanted})
++    )
++    SELECT w.month AS month, COUNT(a.id) AS count
++    FROM wanted w LEFT JOIN audit_log a ON (
+       (a.entity_type = 'booking' AND
+-        (substr(json_extract(a.before_json, '$.date'), 1, 7) = ${month}
+-         OR substr(json_extract(a.after_json, '$.date'), 1, 7) = ${month}))
++        (substr(json_extract(a.before_json, '$.date'), 1, 7) = w.month
++         OR substr(json_extract(a.after_json, '$.date'), 1, 7) = w.month))
+       OR (a.entity_type IN ('envelope_month', 'budget_month') AND
+-        (json_extract(a.before_json, '$.month') <= ${nextMonth}
+-         OR json_extract(a.after_json, '$.month') <= ${nextMonth}))
+-      OR (a.entity_type = 'account' AND a.entity_id IN (SELECT value FROM json_each(${accountList})))
++        (json_extract(a.before_json, '$.month') <= w.next_month
++         OR json_extract(a.after_json, '$.month') <= w.next_month))
++      OR (a.entity_type = 'account' AND a.entity_id IN (SELECT value FROM json_each(w.account_ids)))
+       OR (a.entity_type = 'account_reconciliation' AND
+-        (json_extract(a.before_json, '$.account_id') IN (SELECT value FROM json_each(${accountList}))
+-         OR json_extract(a.after_json, '$.account_id') IN (SELECT value FROM json_each(${accountList}))))
++        (json_extract(a.before_json, '$.account_id') IN (SELECT value FROM json_each(w.account_ids))
++         OR json_extract(a.after_json, '$.account_id') IN (SELECT value FROM json_each(w.account_ids))))
+       OR (a.entity_type = 'valuation' AND
+-        ((json_extract(a.before_json, '$.account_id') IN (SELECT value FROM json_each(${accountList}))
+-          AND json_extract(a.before_json, '$.date') <= ${end})
+-         OR (json_extract(a.after_json, '$.account_id') IN (SELECT value FROM json_each(${accountList}))
+-          AND json_extract(a.after_json, '$.date') <= ${end})))
++        ((json_extract(a.before_json, '$.account_id') IN (SELECT value FROM json_each(w.account_ids))
++          AND json_extract(a.before_json, '$.date') <= w.end_day)
++         OR (json_extract(a.after_json, '$.account_id') IN (SELECT value FROM json_each(w.account_ids))
++          AND json_extract(a.after_json, '$.date') <= w.end_day)))
+       OR (a.entity_type = 'booking_split' AND (
+         EXISTS (SELECT 1 FROM booking b WHERE b.id IN
+           (json_extract(a.before_json, '$.booking_id'), json_extract(a.after_json, '$.booking_id'))
+-          AND substr(b.date, 1, 7) = ${month})
++          AND substr(b.date, 1, 7) = w.month)
+         OR EXISTS (SELECT 1 FROM audit_log parent WHERE parent.entity_type = 'booking'
+           AND parent.entity_id IN
+             (json_extract(a.before_json, '$.booking_id'), json_extract(a.after_json, '$.booking_id'))
+-          AND (substr(json_extract(parent.before_json, '$.date'), 1, 7) = ${month}
+-            OR substr(json_extract(parent.after_json, '$.date'), 1, 7) = ${month}))
++          AND (substr(json_extract(parent.before_json, '$.date'), 1, 7) = w.month
++            OR substr(json_extract(parent.after_json, '$.date'), 1, 7) = w.month))
+       ))
++    ) GROUP BY w.month ORDER BY w.month
+   `);
+-  const eventCount = rows[0]?.count;
+-  if (!Number.isSafeInteger(eventCount) || eventCount! < 0) throw new RangeError('Invalid month audit count');
++  const counts = new Map<string, number>();
++  for (const row of rows) {
++    if (!Number.isSafeInteger(row.count) || row.count < 0) throw new RangeError('Invalid month audit count');
++    counts.set(row.month, row.count);
++  }
++  if (counts.size !== scopes.length) throw new RangeError('Incomplete month audit count');
++  return counts;
++}
++
++/** Version/property order is the stored #600/#602 snapshot contract; never change on read. */
++export function monthCloseRevisionFromCount(month: string, facts: unknown, eventCount: number): string {
++  if (!Number.isSafeInteger(eventCount) || eventCount < 0) throw new RangeError('Invalid month audit count');
+   return createHash('sha256').update(JSON.stringify({ version: 1, month, eventCount, facts })).digest('hex');
+ }
++
++/**
++ * Retained booking/split and planning/account audits supply the original ABA fence. Before/after
++ * dates include moves out of the month. Only counts leave SQLite, never private audit snapshots.
++ */
++export function monthCloseSourceRevision(db: Executor, month: string, facts: unknown,
++  accountIds: readonly string[] = [],
++): string {
++  const count = monthCloseAuditCounts(db, [{ month, accountIds }]).get(month);
++  if (count === undefined) throw new RangeError('Invalid month audit count');
++  return monthCloseRevisionFromCount(month, facts, count);
++}
+diff --git a/packages/db/src/repos/request-memo.ts b/packages/db/src/repos/request-memo.ts
+index d2e5fa34e302ee39ae13269e7ef9374f17358edd..84247470a32312abb5594a939766afd6d4da9d3a 100644
+--- a/packages/db/src/repos/request-memo.ts
++++ b/packages/db/src/repos/request-memo.ts
+@@ -35,6 +35,39 @@ export function runWithRequestMemo<T>(fn: () => T): T {
+   return storage.run({ byConnection: new WeakMap() }, fn);
+ }
+ 
++interface ReadSnapshotMemo {
++  active: boolean;
++  connection: Database.Database;
++  stamp: string;
++  values: Map<string, unknown>;
++}
++const readSnapshots = new AsyncLocalStorage<ReadSnapshotMemo>();
++
++/**
++ * Explicit synchronous read-transaction scope only. Ordinary transaction memo policy below is
++ * unchanged; entries here cannot survive the callback, a connection change or any database write.
++ */
++export function withReadSnapshotMemo<T>(db: Executor, read: () => T): T {
++  const connection = connectionOf(db);
++  if (!connection || !isTransaction(db) || !connection.inTransaction)
++    throw new Error('A read snapshot requires an active transaction');
++  const stamp = databaseStamp(db);
++  const snapshot: ReadSnapshotMemo = { active: true, connection, stamp, values: new Map() };
++  return readSnapshots.run(snapshot, () => {
++    try {
++      const value = read();
++      if (value !== null && (typeof value === 'object' || typeof value === 'function') && 'then' in value)
++        throw new Error('A read snapshot must be synchronous');
++      if (databaseStamp(db) !== stamp)
++        throw new Error('The database changed during the read snapshot');
++      return value;
++    } finally {
++      snapshot.active = false;
++      snapshot.values.clear();
++    }
++  });
++}
++
+ /** The connection under a database or transaction handle (`session.client` on both). */
+ const connectionOf = (db: Executor): Database.Database | undefined =>
+   (db as unknown as { session?: { client?: Database.Database } }).session?.client;
+@@ -64,8 +97,23 @@ export function memoizedShared<T>(db: Executor, key: string, compute: () => T):
+ }
+ 
+ function memoizedEntry<T>(db: Executor, key: string, compute: () => T, clone: boolean): T {
+-  const memo = storage.getStore();
+   const connection = connectionOf(db);
++  const snapshot = readSnapshots.getStore();
++  if (snapshot?.active && connection && connection === snapshot.connection && connection.inTransaction) {
++    const stamp = databaseStamp(db);
++    if (snapshot.stamp !== stamp) {
++      snapshot.stamp = stamp;
++      snapshot.values.clear();
++    }
++    if (snapshot.values.has(key)) {
++      const value = snapshot.values.get(key);
++      return (clone ? structuredClone(value) : value) as T;
++    }
++    const value = compute();
++    if (databaseStamp(db) === stamp) snapshot.values.set(key, clone ? structuredClone(value) : value);
++    return value;
++  }
++  const memo = storage.getStore();
+   if (!memo || !connection || (!isTransaction(db) && connection.inTransaction)) return compute();
+   const stamp = databaseStamp(db);
+   const transaction = isTransaction(db);

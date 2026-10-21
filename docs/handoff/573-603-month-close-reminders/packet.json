@@ -1,0 +1,41 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/573-603-month-close-reminders",
+  "sourceHead": "286b008a6c1525f5481efb178e756f80bbad7db0",
+  "originalBaseBeforeOwnedCommits": "759464abc050195c5d6dc285190efbadbe55de6b",
+  "orderedCommits": [
+    {
+      "sha": "286b008a6c1525f5481efb178e756f80bbad7db0",
+      "parentBase": "759464abc050195c5d6dc285190efbadbe55de6b",
+      "subject": "feat: derive month-close reminder backend from canonical reader",
+      "paths": [
+        "apps/server/src/api/heute.ts",
+        "apps/server/src/api/month-close.ts",
+        "apps/web/src/heute/api.ts",
+        "docs/ROADMAP.md",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/repos/month-close-read.ts",
+        "packages/db/src/repos/month-close-reminders.ts",
+        "packages/db/src/repos/month-close-state.ts",
+        "packages/db/src/repos/request-memo.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 286b008a6c1525f5481efb178e756f80bbad7db0 > OWN_OUTPUT/286b008a6c1525f5481efb178e756f80bbad7db0.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-286b008a6c1525f5481efb178e756f80bbad7db0.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/server/src/api/heute.ts",
+    "apps/server/src/api/month-close.ts",
+    "apps/web/src/heute/api.ts",
+    "docs/ROADMAP.md",
+    "packages/db/src/repos/index.ts",
+    "packages/db/src/repos/month-close-read.ts",
+    "packages/db/src/repos/month-close-reminders.ts",
+    "packages/db/src/repos/month-close-state.ts",
+    "packages/db/src/repos/request-memo.ts"
+  ],
+  "mixedSourceAncestry": true,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

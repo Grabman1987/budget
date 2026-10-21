@@ -1,0 +1,9 @@
+# #573 / #603 early batch/cache source review — HIGH CLEAR
+
+Bound immutable783e6c5c16ce74dd4f394c2b88e5c5258d0a3ec56cda378df12d0ceebf380bc4, two copies matching manifest hashes. This covers the month-close audit batching and opt-in request snapshot cache, not unfinished reader wiring/UI. No tests, runtime, SQL execution or source edits.
+
+Mechanically normalized the original retained audit OR predicate and replaced only its four bound singleton values with wanted-row columns: predicates are exact. LEFT JOIN wanted-to-audit plus COUNT(a.id) preserves zero-match months and counts each actual valid audit entry once per requested month; relationship membership remains EXISTS/IN with no multiplicative joins. Before/after dates, carry inputs and account/reconciliation/valuation ABA coverage are unchanged. Version1/month/eventCount/facts object property order remains the stored hash contract; no read-time rewrite.
+
+New cache is explicitly opt-in, synchronous, connection-bound and requires an active transaction. It has a fresh local map, database-stamp checks before reuse/storage, top-level thenable rejection and unconditional finally deactivation/clear. Detached async continuations see inactive state rather than inheriting a usable cache. Any write, including rolled-back writes whose total_changes remains advanced, prevents successful publication because the final stamp differs from the entry stamp. The complete original ordinary memo policy tail is byte-exact; default transaction policy is not relaxed outside this scope.
+
+No confirmed source blocker in this increment. Whole integration must still bind scope to one read-only transaction, ensure shared memo consumers do not mutate returned shared objects, batch the exact original month/account scopes and preserve reader facts/hash order. Actual concurrency, rollback, database-handle isolation, SQL count parity, performance and whole acceptance remain deferred.
