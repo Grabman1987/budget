@@ -1,0 +1,166 @@
+{
+  "issue": 734,
+  "base": "9baa582fae87fd32886acae5c03a5c118cf51acd",
+  "nativeSpecSHA256": "2ae58ea7bed8845fa393936437dec87a37a92f8a71b166a2ead2d962c466df8a",
+  "engine": "WebKit (canonical image sha256:4cb1535ccc6d606b3662a4be5465a607fb9b130eeb974837fa58e024ab5e058e)",
+  "passed": 7,
+  "featureCases": 4,
+  "setupCases": 3,
+  "freshBuild": "Current outward-rounded product source fresh E2E build; exact 166 compiled files reused after NEW phone resize/recovery fixture-only correction",
+  "bankConfirmation": "Synthetic response; exact POST category/revision/actions and unchanged real balances/active rows/audit. No real bank confirmation or bank Undo claim.",
+  "capture": "Real POST /bookings, literal -1000 cents with -500 category / -500 contact, public Undo restores original active rows and balance.",
+  "nativeLogSHA256": "728162c1eeaa270138e26d50c67e60588f55eed954e70a2600534e69cf2e3efd",
+  "nativeResultSHA256": "008e1c51b705ca77fb02e9ce78a5c3d3bbf960caa6f3c10b7f2994fce7281fbc",
+  "profiles": [
+    {
+      "profile": "desktop1440",
+      "theme": "dark",
+      "engine": "webkit",
+      "actual": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "dpr": 1,
+        "coarse": false,
+        "rawTouchPoints": 0
+      },
+      "initialBounds": {
+        "top": 243.140625,
+        "bottom": 709.140625,
+        "height": 466,
+        "left": 734,
+        "right": 1025.328125,
+        "clipTop": 156.84375,
+        "clipBottom": 709.84375,
+        "viewportWidth": 1440
+      },
+      "finalBounds": {
+        "top": 243.140625,
+        "bottom": 709.140625,
+        "height": 466,
+        "left": 734,
+        "right": 1025.328125,
+        "clipTop": 156.84375,
+        "clipBottom": 709.84375,
+        "viewportWidth": 1440
+      },
+      "image": "desktop-dark.png",
+      "imageSHA256": "74b78306c7ce4bea3ec28fed66455dcdff91890b17335939dcd2af9111b59d44",
+      "originalProfileSHA256": "e43d6ca46d6cd12462c3687a33e9cfa056851ac75852fc863d9feb63cc83f798"
+    },
+    {
+      "profile": "configured",
+      "theme": "light",
+      "engine": "webkit",
+      "actual": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "dpr": 3,
+        "coarse": true,
+        "rawTouchPoints": 0
+      },
+      "initialBounds": {
+        "top": 190.75,
+        "bottom": 510.75,
+        "height": 320,
+        "left": 16,
+        "right": 249.328125,
+        "clipTop": 190.609375,
+        "clipBottom": 562.609375,
+        "viewportWidth": 390
+      },
+      "finalBounds": {
+        "top": 377.75,
+        "bottom": 523.75,
+        "height": 146,
+        "left": 16,
+        "right": 249.328125,
+        "clipTop": 190.609375,
+        "clipBottom": 562.609375,
+        "viewportWidth": 390
+      },
+      "image": "phone-light.png",
+      "imageSHA256": "af5163bc23b43b5a52197b38348f3c0e2a0fa396230f7bcc030dbeb63fc35a7e",
+      "originalProfileSHA256": "014c5d7654bbaf250a6c676d1ca5b41997a58bc53b1ea52b0cc8aa2d8023b871"
+    },
+    {
+      "profile": "desktop1440",
+      "theme": "light",
+      "engine": "webkit",
+      "actual": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "dpr": 1,
+        "coarse": false,
+        "rawTouchPoints": 0
+      },
+      "initialBounds": {
+        "top": 243.140625,
+        "bottom": 709.140625,
+        "height": 466,
+        "left": 734,
+        "right": 1025.328125,
+        "clipTop": 156.84375,
+        "clipBottom": 709.84375,
+        "viewportWidth": 1440
+      },
+      "finalBounds": {
+        "top": 243.140625,
+        "bottom": 709.140625,
+        "height": 466,
+        "left": 734,
+        "right": 1025.328125,
+        "clipTop": 156.84375,
+        "clipBottom": 709.84375,
+        "viewportWidth": 1440
+      },
+      "image": "desktop-light.png",
+      "imageSHA256": "8a9dcbcd3e33f9e6c2e85d67c48ad2cf9f04b22c8a2ae3cd6220195d0f232de6",
+      "originalProfileSHA256": "ca59f6a76914c7291750b2057e192fc548b5ff984d43ac05064f0a0fc2124d5a"
+    },
+    {
+      "profile": "configured",
+      "theme": "dark",
+      "engine": "webkit",
+      "actual": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "dpr": 3,
+        "coarse": true,
+        "rawTouchPoints": 0
+      },
+      "initialBounds": {
+        "top": 190.75,
+        "bottom": 510.75,
+        "height": 320,
+        "left": 16,
+        "right": 249.328125,
+        "clipTop": 190.609375,
+        "clipBottom": 562.609375,
+        "viewportWidth": 390
+      },
+      "finalBounds": {
+        "top": 377.75,
+        "bottom": 523.75,
+        "height": 146,
+        "left": 16,
+        "right": 249.328125,
+        "clipTop": 190.609375,
+        "clipBottom": 562.609375,
+        "viewportWidth": 390
+      },
+      "image": "phone-dark.png",
+      "imageSHA256": "b6337d1be1f8d7a121e5aa3d439ed83ceb7191a322ad8389615681fc5189471c",
+      "originalProfileSHA256": "74ade076b3dad6714b60514411b80c9f2b1df59eb3b1f16b43422fc26099ea14"
+    }
+  ],
+  "keyboard": "Header-aware active row containment, twelve ArrowUp steps to literal category49, then twelve ArrowDown steps to the same contact",
+  "resize": "At height450, phone hides an offscreen anchor and recovers with Enter without changing draft or posting; desktop retains visible active selection. Later explicit manual hide/reopen tested in both contexts."
+}

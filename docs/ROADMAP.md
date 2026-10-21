@@ -1696,3 +1696,23 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
   (799.95s Vitest duration), then normal production build passed. Exact-head
   CI and serial LIVE remain pending. Net-only/difference
   reconciliation and uncertain partial credits remain OPEN; #727 is not marked complete.
+
+
+### #734 — Grouped, reachable category pickers
+
+- Bank review retains the exact eligible category IDs in native category groups;
+  capture places categories before contacts, including filtered matches. The
+  capture-only popup removes the 60-result cap, uses actual viewport/dialog bounds
+  and preserves compact fine-pointer rows and coarse targets of at least 44px.
+- [x] Independent source review; synthetic desktop/phone light/dark originals
+  and [qualified local evidence](evidence/category-picker-734/README.md).
+- [x] Current canonical WebKit 7/7 (four feature cases plus three setup): strict
+  sticky-heading bounds, twelve upward steps, outward-rounded scrolling, resize,
+  phone450 hidden/recovery, both-context manual hide/reopen, Axe and real capture
+  split/save/Undo. Bank confirmation transport alone is synthetic with exact
+  request/no-real-write oracles; no real bank-confirmation/Undo claim. Phone is
+  390×664 CSS pixels, DPR3, raw touch count0. Earlier interrupted full is not green.
+- [x] Required AGE1/one-worker full check: 578 files / 5,162 tests passed
+  (832.22s Vitest duration), then normal production build passed; base `9baa582f`
+  plus reviewed feature freeze `4a22a00d`. Only factual result docs changed after that checkpoint.
+- [ ] Exact-head Chromium/required CI, serial merge and verified LIVE.
