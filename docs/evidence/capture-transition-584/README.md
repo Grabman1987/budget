@@ -53,3 +53,16 @@ On frozen source `3a1210cc3ddb229f00094cd6e851280335ae224c`,
 589 files / 5213 tests; `npm run build` passed. The running check completed
 normally before handoff. Chromium/required CI, integration and verified LIVE
 remain pending. This preservation does not claim completion or LIVE.
+
+## Delivery continuation, 2026-10-21
+
+The preserved product and test bytes still match tested source `3a1210cc` exactly;
+only evidence and the missing ROADMAP entry were added. Existing independent
+source reviews and full-check/build results were checked against the handoff.
+A fresh E2E build passed, then supplemental system Chromium 154 passed
+**11/11 in 2.4 minutes** (eight desktop/mobile project cases plus three setups),
+including both themes, literal cent splits, keyboard refusal, real Save/Undo,
+API/SQLite readback and the original accessibility/overflow assertions. No
+existing tests, timeouts, financial expectations or production code changed
+during continuation. The prior full check was not rerun for documentation alone.
+Pinned exact-head CI, protected serial integration and live revision remain pending.
