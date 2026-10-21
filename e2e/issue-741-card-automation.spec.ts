@@ -326,7 +326,7 @@ for (const profile of ['desktop', 'phone'] as const)
         await expect(amount).toHaveAttribute('type', 'password');
         await expect(amount).toHaveValue('170,00');
         await active.keyboard.press('Control+Shift+H');
-        await expect(amount).toHaveAttribute('type', 'text');
+        await expect(amount).toHaveJSProperty('type', 'text');
         await expect(amount).toHaveValue('170,00');
         const undoGeometry = await hit(undoButton);
         await expect
