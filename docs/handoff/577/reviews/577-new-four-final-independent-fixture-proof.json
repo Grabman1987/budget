@@ -1,0 +1,33 @@
+{
+  "manifest": "71cf9b5a25a7ff0416126d2c7d0751f971ff678fcfb2388ade0a77a03c4b2c8c",
+  "head": "889edf4a5a0690ff4d53d2f54b06cdc4e2d7c95e",
+  "tracked_diff": [],
+  "new_files": [
+    "apps/server/src/api/account-overview-quality-577.test.ts",
+    "apps/web/src/ledger/account-overview-577.test.tsx",
+    "apps/web/src/ledger/mini-line-quality-577.test.tsx",
+    "e2e/issue-577-account-overview.spec.ts"
+  ],
+  "files": {
+    "apps/server/src/api/account-overview-quality-577.test.ts": {
+      "sha256": "abee9ddb2d74399306fc20585b4d27d2ee9295af062c94c20df0c67fe493b85f",
+      "pinAndFrozenExact": true,
+      "fullMode": true
+    },
+    "apps/web/src/ledger/account-overview-577.test.tsx": {
+      "sha256": "5905eaeb503df33adaa6819a8fae59ce2f96bf3ca3a40462217208d923018e9a",
+      "pinAndFrozenExact": true,
+      "fullMode": true
+    },
+    "apps/web/src/ledger/mini-line-quality-577.test.tsx": {
+      "sha256": "11fca5b48747da19117212f15e46c1f1842734814d04b22e6398bcd0fc8504a1",
+      "pinAndFrozenExact": true,
+      "fullMode": true
+    },
+    "e2e/issue-577-account-overview.spec.ts": {
+      "sha256": "854d4b2c9ecacc96d2aae11e6eeab6a333ccb49ad715054666ef30fea451c8f1",
+      "pinAndFrozenExact": true,
+      "fullMode": true
+    }
+  }
+}

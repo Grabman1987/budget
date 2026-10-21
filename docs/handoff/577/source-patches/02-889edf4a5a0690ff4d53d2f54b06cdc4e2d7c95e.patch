@@ -1,0 +1,13 @@
+diff --git a/apps/web/src/ledger/overview-page.tsx b/apps/web/src/ledger/overview-page.tsx
+index 8e47cf11..011a2277 100644
+--- a/apps/web/src/ledger/overview-page.tsx
++++ b/apps/web/src/ledger/overview-page.tsx
+@@ -255,7 +255,7 @@ function OverviewAccount({ account: a, value: shown, useTreeValues, loading, sou
+     {expanded && <tr className="overview-detail"><td colSpan={ordering ? 6 : 5} id={detailId}>
+       <dl className="overview-detail-facts">
+         <div><dt>Kontotyp</dt><dd>{ACCOUNT_TYPE_LABEL[a.type]} · {a.currency}</dd></div>
+-        <div><dt>Prüfstand</dt><dd>{check.text}</dd></div>
++        <div><dt>Prüfstand</dt><dd className={check.stale ? 'is-stale' : undefined}>{check.text}</dd></div>
+         {a.reviewStatus?.dueOn && <div><dt>Nächste Prüffrist bei Aktivität</dt><dd>{longDay(a.reviewStatus.dueOn)}</dd></div>}
+         <div><dt>Buchungssaldo</dt><dd>{maskMoneyText(valuedCurrency(a.balanceCents, a.currency, a.cashValuation))}</dd></div>
+         <div><dt>Vorgemerkt</dt><dd>{a.pendingCount} Buchungen · {maskMoneyText(valuedCurrency(a.unclearedCents, a.currency, a.pendingValuation))}</dd></div>

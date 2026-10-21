@@ -1,0 +1,12 @@
+{
+  "page": "apps/web/src/ledger/overview-page.tsx",
+  "base": "03d421b5685ed6703e63fd41ca98757b6428dce6",
+  "pageSha256": "b64dbbd58045ecc9a8c377afa767682cf8832a36a195776e92e80a209fc990a4",
+  "exactSingleLineInverse": true,
+  "scope": "bare is-stale class only on actual full-date Details dd; no kcheck layout selector",
+  "existingThreeStillUnedited": {
+    "e2e/account-order.spec.ts": true,
+    "e2e/sidebar-zerosum.spec.ts": true,
+    "apps/web/src/ledger/account-review.test.tsx": true
+  }
+}

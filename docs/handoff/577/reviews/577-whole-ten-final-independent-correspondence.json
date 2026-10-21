@@ -1,0 +1,72 @@
+{
+  "packages/db/src/repos/portfolio.ts": {
+    "sha": "42f8c906adc1b1e99e672b48b46bd2ebe64b64867de1e1d1fbb919a9130e5432",
+    "frozen": true,
+    "full_mode": true
+  },
+  "apps/server/src/api/accounts.ts": {
+    "sha": "0323441c74107ae3a7ecf28d37be90a28a12715a26a18f97b113165f81c0b93b",
+    "frozen": true,
+    "full_mode": true
+  },
+  "apps/web/src/ledger/types.ts": {
+    "sha": "681e69aaf401f0ce86a4470e920fc157e1626504121e9414b3025a04a870f956",
+    "frozen": true,
+    "full_mode": true
+  },
+  "apps/web/src/ledger/api.ts": {
+    "sha": "b065e4476a16b16957dd70f9ee2f486cb29f134d962f59a937ea3b33cd5d4b9c",
+    "frozen": true,
+    "full_mode": true
+  },
+  "apps/web/src/ledger/queries.ts": {
+    "sha": "3d091ba6537332dd274eb87ad4d10698e81c875d27090aa7ab2977a3c6b5dd26",
+    "frozen": true,
+    "full_mode": true
+  },
+  "apps/web/src/ledger/overview-model.ts": {
+    "sha": "50a55f534f139b325200ef06bd315e0d67d7c203aa0edd87049698fd5e074cc7",
+    "frozen": true,
+    "full_mode": true
+  },
+  "apps/web/src/ledger/overview-page.tsx": {
+    "sha": "ddb8c4a40e4a4b663dc1fce2a702d0e67bfe4e7261aaacccc0ddafbc0d6bfd28",
+    "frozen": true,
+    "full_mode": true
+  },
+  "apps/web/src/ledger/mini-line.tsx": {
+    "sha": "13f193f6d3794c59ad15655b0a30be27a04db816d524dc7dafc7346a6447c711",
+    "frozen": true,
+    "full_mode": true
+  },
+  "apps/web/src/ledger/overview.css": {
+    "sha": "e90b8dc82ee44bc7674789aac912b9709233f2bc8e1593996676370539884e4b",
+    "frozen": true,
+    "full_mode": true
+  },
+  "docs/ROADMAP.md": {
+    "sha": "201b5e0cc611998d495f65cf35fbc40bf9faf3f67ef6aa7cae5a6a62222f5fff",
+    "frozen": true,
+    "full_mode": true
+  },
+  "roadmap_prefix": true,
+  "changed": [
+    "apps/server/src/api/accounts.ts",
+    "apps/web/src/ledger/api.ts",
+    "apps/web/src/ledger/mini-line.tsx",
+    "apps/web/src/ledger/overview-model.ts",
+    "apps/web/src/ledger/overview-page.tsx",
+    "apps/web/src/ledger/queries.ts",
+    "apps/web/src/ledger/types.ts",
+    "docs/ROADMAP.md",
+    "packages/db/src/repos/portfolio.ts"
+  ],
+  "untracked": [
+    "apps/web/src/ledger/overview.css"
+  ],
+  "head": "23a5748273a5088dff62630054882ca12b28d2eb",
+  "no_old_test_or_schema_changes": true,
+  "overviewModel_inverse_exact": true,
+  "legacy_mini_body_exact": true,
+  "manifest": "68c802062c3efec09b226dbc0bcd5e822d67acb9548126381ae83d5e0df53a17"
+}

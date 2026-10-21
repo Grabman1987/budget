@@ -1,0 +1,868 @@
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  lazyRouteComponent,
+  notFound,
+  Outlet,
+  redirect,
+} from '@tanstack/react-router';
+import {
+  LIQUIDITY_HORIZONS,
+  LIQUIDITY_LEVERS,
+  type Period,
+  type LiquidityHorizon,
+} from '@budget/domain';
+import type { HeutePeriod } from './heute/api';
+import { AUTH_STATUS_KEY, authStatusQuery, queryClient } from './auth/status-query';
+import { clearDeviceFinancialData } from './pwa/local-data';
+import { validateBookingsSearch } from './ledger/bookings-search';
+import { validatePlanFilterSearch, type PlanFilterSearch } from './budget/plan-filters';
+import { validateInboxSearch } from './inbox/navigation';
+import { accountsQuery } from './ledger/queries';
+import { captureContinuation, validateCaptureSearch } from './ledger/capture-link';
+import { findReport } from './nav/reports-catalog';
+import {
+  ACCOUNT_PAGE,
+  CSV_EXPORT_META,
+  EINSTELLUNGEN_KATEGORIEN,
+  KONTEN_SETTINGS_META,
+  PLAN_ERWARTET,
+  EINSTELLUNGEN_REGELWERK,
+  PLAN_MONAT,
+  PLAN_JAHR,
+  PLAN_SPARZIELE,
+  PLAN_PROGNOSE,
+  HEUTE,
+  SETTINGS_INDEX,
+  KONTEN_BUCHUNGEN_META,
+  KONTEN_META,
+  PAGES,
+  REPORTS_CATALOG,
+  REPORT_GROUP_PAGES,
+  SECURITY_META,
+  PROFILE_META,
+  INVESTMENT_SETTINGS_META,
+  VERMOEGEN_FREIHEIT_META,
+  VERMOEGEN_NETTO_META,
+  VERMOEGEN_PORTFOLIO_META,
+  VERMOEGEN_SCHULDEN_META,
+  type PageMeta,
+} from './nav/pages';
+import { NotFoundPage } from './pages/not-found';
+import { PlaceholderPage } from './pages/placeholder-page';
+import { AppShell } from './shell/app-shell';
+import type { PageTitleData } from './shell/page-meta';
+import { isMonth } from './nav/month';
+import { isZeitraum } from './wealth/zeitraum';
+import { isPanelId, type PanelId } from './shell/panels';
+import { validateReportSearch } from './reports/report-search';
+import { validateLiquiditySearch } from './reports/liquidity-selection';
+
+// Route-level code splitting: everything except the shell and the generic placeholder page is
+// loaded when its route is first visited. Each page module below becomes its own chunk.
+const accountPage = () => import('./ledger/account-page');
+const overviewPage = () => import('./ledger/overview-page');
+const reportsPages = () => import('./pages/reports-pages');
+const heutePage = () => import('./heute/heute-page');
+
+const rootRoute = createRootRoute({
+  // `?panel=` opens the side panel (desktop) or bottom sheet (phone) on any page.
+  // `?monat=YYYY-MM` selects the month on Heute and Plan (linkable, survives reload).
+  // `?zeitraum=1M|3M|YTD|1J|3J|Alles` is the period of the Vermögen pages.
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    panel?: PanelId | undefined;
+    monat?: string | undefined;
+    period?: HeutePeriod | undefined;
+    zeitraum?: Period | undefined;
+    trend?: boolean | undefined;
+    klasse?: string | undefined;
+    instrument?: string | undefined;
+  } => ({
+    panel: isPanelId(search['panel']) ? search['panel'] : undefined,
+    klasse:
+      typeof search['klasse'] === 'string' && search['klasse'].length <= 64
+        ? search['klasse']
+        : undefined,
+    instrument:
+      typeof search['instrument'] === 'string' && search['instrument'].length <= 64
+        ? search['instrument']
+        : undefined,
+    monat: isMonth(search['monat']) ? search['monat'] : undefined,
+    period:
+      search['period'] === 'month' || search['period'] === 'payday' ? search['period'] : undefined,
+    trend: search['trend'] === true || search['trend'] === 'true' ? true : undefined,
+    zeitraum: isZeitraum(search['zeitraum']) ? search['zeitraum'] : undefined,
+  }),
+  beforeLoad: ({ search, location }) => {
+    if (search.panel !== 'posteingang') return;
+    const source = new URL(location.href, 'https://budget.invalid');
+    source.searchParams.delete('panel');
+    throw redirect({
+      to: '/konten/pruefen',
+      search: {
+        ...Object.fromEntries(source.searchParams),
+        von: location.pathname.startsWith('/konten/pruefen')
+          ? undefined
+          : `${source.pathname}${source.search}`,
+      },
+      replace: true,
+    });
+  },
+  component: Outlet,
+  notFoundComponent: NotFoundPage,
+});
+
+/** Everything inside the application shell (sidebar, top bar, tab bar); needs a session. */
+const shellRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: 'shell',
+  beforeLoad: async ({ location }) => {
+    const status = await queryClient.fetchQuery(authStatusQuery);
+    if (status.setupRequired) throw redirect({ to: '/setup' });
+    if (!status.authenticated) {
+      // Session ended (expiry, sign-out in another tab): nothing financial may stay on the device.
+      queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== AUTH_STATUS_KEY[0] });
+      void clearDeviceFinancialData();
+      throw redirect({ to: '/login', search: { weiter: captureContinuation(location.href) } });
+    }
+  },
+  component: AppShell,
+});
+
+const pageRoute = (path: string, meta: PageMeta) =>
+  createRoute({
+    getParentRoute: () => shellRoute,
+    path,
+    staticData: { meta },
+    component: () => <PlaceholderPage meta={meta} />,
+  });
+
+const redirectRoute = (path: string, to: string) =>
+  createRoute({
+    getParentRoute: () => shellRoute,
+    path,
+    beforeLoad: ({ location, params }) => {
+      throw redirect({
+        href: `${to.replace('$id', encodeURIComponent((params as { id?: string }).id ?? ''))}${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
+        replace: true,
+      });
+    },
+  });
+
+const homeRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/',
+  staticData: { meta: HEUTE },
+  component: lazyRouteComponent(heutePage, 'HeutePage'),
+});
+const captureRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/erfassen',
+  staticData: { meta: { ...HEUTE, title: 'Buchung erfassen' } },
+  validateSearch: validateCaptureSearch,
+  component: lazyRouteComponent(() => import('./ledger/capture-page'), 'CapturePage'),
+});
+const BUILT_PATHS = new Set<string>([
+  '/einstellungen/zuordnung',
+  '/einstellungen/datenquellen',
+  SECURITY_META.path,
+  PROFILE_META.path,
+  INVESTMENT_SETTINGS_META.path,
+  KONTEN_SETTINGS_META.path,
+  '/konten',
+  '/einstellungen/warenkorb',
+  '/einstellungen/projekte',
+  '/einstellungen/anlageklassen',
+  '/konten/buchungen',
+  '/konten/kontakte',
+  '/konten/pruefen',
+  EINSTELLUNGEN_KATEGORIEN.path,
+  EINSTELLUNGEN_REGELWERK.path,
+  PLAN_MONAT.path,
+  PLAN_JAHR.path,
+  PLAN_ERWARTET.path,
+  VERMOEGEN_FREIHEIT_META.path,
+  VERMOEGEN_NETTO_META.path,
+  VERMOEGEN_PORTFOLIO_META.path,
+  VERMOEGEN_SCHULDEN_META.path,
+  PLAN_SPARZIELE.path,
+  PLAN_PROGNOSE.path,
+  CSV_EXPORT_META.path,
+]);
+const placeholderRoutes = PAGES.filter((page) => !BUILT_PATHS.has(page.path)).map((page) =>
+  pageRoute(page.path, page),
+);
+const bookingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/konten/buchungen',
+  staticData: { meta: KONTEN_BUCHUNGEN_META },
+  // Filters and sorting are URL parameters (German names, see ledger/bookings-search.ts).
+  validateSearch: validateBookingsSearch,
+  component: lazyRouteComponent(() => import('./ledger/bookings-page'), 'BookingsPage'),
+});
+const inboxRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/konten/pruefen',
+  validateSearch: validateInboxSearch,
+  staticData: { meta: PAGES.find((p) => p.path === '/konten/pruefen')! },
+  component: lazyRouteComponent(() => import('./inbox/inbox-page'), 'InboxPage'),
+});
+const inboxDetailRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/konten/pruefen/$id',
+  validateSearch: validateInboxSearch,
+  staticData: { meta: PAGES.find((p) => p.path === '/konten/pruefen')! },
+  component: lazyRouteComponent(() => import('./inbox/inbox-page'), 'InboxDetailPage'),
+});
+const contactsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/konten/kontakte',
+  validateSearch: (search: Record<string, unknown>) => ({
+    kontakt:
+      typeof search['kontakt'] === 'string' && search['kontakt'].length <= 64
+        ? search['kontakt']
+        : undefined,
+  }),
+  staticData: { meta: PAGES.find((p) => p.path === '/konten/kontakte')! },
+  component: lazyRouteComponent(() => import('./contacts/contacts-page'), 'ContactsPage'),
+});
+const overviewRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/konten',
+  staticData: { meta: KONTEN_META },
+  component: lazyRouteComponent(overviewPage, 'OverviewPage'),
+});
+const securityRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: SECURITY_META.path,
+  staticData: { meta: SECURITY_META },
+  component: lazyRouteComponent(() => import('./pages/security-page'), 'SecurityPage'),
+});
+const inflationBasketSettingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/warenkorb',
+  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/warenkorb')! },
+  component: lazyRouteComponent(
+    () => import('./pages/inflation-basket-settings'),
+    'InflationBasketSettingsPage',
+  ),
+});
+const projectsSettingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/projekte',
+  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/projekte')! },
+  component: lazyRouteComponent(() => import('./pages/project-settings'), 'ProjectSettings'),
+});
+const assetClassesSettingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/anlageklassen',
+  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/anlageklassen')! },
+  component: lazyRouteComponent(
+    () => import('./pages/asset-classes-settings'),
+    'AssetClassesSettingsPage',
+  ),
+});
+const profileRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: PROFILE_META.path,
+  staticData: { meta: PROFILE_META },
+  component: lazyRouteComponent(() => import('./pages/profile-settings'), 'ProfileSettingsPage'),
+});
+const investmentSettingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: INVESTMENT_SETTINGS_META.path,
+  staticData: { meta: INVESTMENT_SETTINGS_META },
+  component: lazyRouteComponent(
+    () => import('./pages/investment-settings'),
+    'InvestmentSettingsPage',
+  ),
+});
+const accountsSettingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: KONTEN_SETTINGS_META.path,
+  staticData: { meta: KONTEN_SETTINGS_META },
+  component: lazyRouteComponent(() => import('./pages/accounts-settings'), 'AccountsSettingsPage'),
+});
+const categoriesRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: EINSTELLUNGEN_KATEGORIEN.path,
+  validateSearch: (search: Record<string, unknown>) => ({
+    ausgeblendet:
+      search['ausgeblendet'] === true || search['ausgeblendet'] === 'true' ? true : undefined,
+  }),
+  staticData: { meta: EINSTELLUNGEN_KATEGORIEN },
+  component: lazyRouteComponent(() => import('./budget/categories-page'), 'CategoriesPage'),
+});
+const categoryDetailRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/kategorien/$id',
+  validateSearch: (search: Record<string, unknown>) => ({
+    ausgeblendet:
+      search['ausgeblendet'] === true || search['ausgeblendet'] === 'true' ? true : undefined,
+  }),
+  staticData: { meta: { ...EINSTELLUNGEN_KATEGORIEN, title: 'Kategorie' } },
+  component: lazyRouteComponent(() => import('./budget/plan-panel-pages'), 'CategoryDetailPage'),
+});
+const goalDetailRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/plan/sparziele/$id',
+  validateSearch: (search: Record<string, unknown>) => ({
+    quelle: search['quelle'] === 'report' ? 'report' : undefined,
+  }),
+  staticData: { meta: { ...PLAN_SPARZIELE, title: 'Sparziel' } },
+  component: lazyRouteComponent(() => import('./budget/plan-panel-pages'), 'GoalDetailPage'),
+});
+const rulesRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: EINSTELLUNGEN_REGELWERK.path,
+  staticData: { meta: EINSTELLUNGEN_REGELWERK },
+  component: lazyRouteComponent(() => import('./rules/rules-page'), 'RulesPage'),
+});
+const ruleStatusRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/regelwerk/$code',
+  staticData: { meta: EINSTELLUNGEN_REGELWERK },
+  validateSearch: (search: Record<string, unknown>) => ({
+    bearbeiten: search['bearbeiten'] === true || search['bearbeiten'] === 'true' ? true : undefined,
+  }),
+  component: lazyRouteComponent(() => import('./rules/rule-status-page'), 'RuleStatusPage'),
+});
+const assignmentRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/zuordnung',
+  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/zuordnung')! },
+  component: lazyRouteComponent(() => import('./assignment/assignment-page'), 'AssignmentPage'),
+});
+const planMonthRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: PLAN_MONAT.path,
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): PlanFilterSearch & { ansicht?: 'triage'; kategorie?: string } => ({
+    ...validatePlanFilterSearch(search),
+    ...(search['ansicht'] === 'triage' ? { ansicht: 'triage' as const } : {}),
+    ...(typeof search['kategorie'] === 'string' && search['kategorie'].length <= 64
+      ? { kategorie: search['kategorie'] }
+      : {}),
+  }),
+  staticData: { meta: PLAN_MONAT },
+  beforeLoad: ({ search }) => {
+    if (search.kategorie)
+      throw redirect({
+        to: '/plan/monat/envelope/$id',
+        params: { id: search.kategorie },
+        search: { monat: search.monat },
+      });
+  },
+  component: lazyRouteComponent(() => import('./budget/plan-page'), 'PlanMonthPage'),
+});
+const envelopeRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/plan/monat/envelope/$id',
+  staticData: { meta: { ...PLAN_MONAT, title: 'Envelope' } },
+  component: lazyRouteComponent(() => import('./budget/envelope-page'), 'EnvelopePage'),
+});
+const planIncomeRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/plan/monat/einnahmen',
+  staticData: { meta: { ...PLAN_MONAT, title: 'Einnahmen' } },
+  component: lazyRouteComponent(() => import('./budget/envelope-page'), 'PlanIncomePage'),
+});
+const dataSourcesRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen/datenquellen',
+  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/datenquellen')! },
+  component: lazyRouteComponent(() => import('./pages/data-sources'), 'DataSourcesPage'),
+});
+const exportRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: CSV_EXPORT_META.path,
+  staticData: { meta: CSV_EXPORT_META },
+  component: lazyRouteComponent(
+    () => import('./pages/export-placeholder'),
+    'ExportPlaceholderPage',
+  ),
+});
+const planYearRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: PLAN_JAHR.path,
+  staticData: { meta: PLAN_JAHR },
+  validateSearch: (search: Record<string, unknown>) => ({
+    ereignis:
+      typeof search['ereignis'] === 'string' && search['ereignis'].length <= 64
+        ? search['ereignis']
+        : undefined,
+  }),
+  component: lazyRouteComponent(() => import('./budget/plan-year-page'), 'PlanYearPage'),
+});
+const planExpectedRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: PLAN_ERWARTET.path,
+  staticData: { meta: PLAN_ERWARTET },
+  component: lazyRouteComponent(() => import('./expected/expected-page'), 'ExpectedPage'),
+});
+const expectedDetailSearch = (search: Record<string, unknown>) => ({
+  ansicht:
+    search['ansicht'] === 'contracts' || search['ansicht'] === 'all' ? search['ansicht'] : 'next',
+  art: search['art'] === 'inflow' || search['art'] === 'outflow' ? search['art'] : 'all',
+});
+const expectedPaymentRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/plan/erwartet/$id',
+  staticData: { meta: { ...PLAN_ERWARTET, title: 'Wiederkehrende Zahlung' } },
+  validateSearch: expectedDetailSearch,
+  component: lazyRouteComponent(() => import('./expected/payment-page'), 'PaymentPage'),
+});
+const expectedIncomeRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/plan/erwartet/einnahmen',
+  staticData: { meta: { ...PLAN_ERWARTET, title: 'Einnahmen' } },
+  validateSearch: expectedDetailSearch,
+  component: lazyRouteComponent(() => import('./budget/envelope-page'), 'PlanIncomePage'),
+});
+const heuteDimensionRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/heute/details/$kind',
+  beforeLoad: ({ params }) => {
+    if (!['liquid', 'invested', 'receivable', 'debt'].includes(params.kind)) throw notFound();
+  },
+  staticData: { meta: { ...HEUTE, title: 'Herleitung' } },
+  component: lazyRouteComponent(() => import('./heute/dimension-page'), 'DimensionPage'),
+});
+const freedomRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: VERMOEGEN_FREIHEIT_META.path,
+  staticData: { meta: VERMOEGEN_FREIHEIT_META },
+  component: lazyRouteComponent(() => import('./wealth/freedom-page'), 'FreedomPage'),
+});
+
+const netWorthRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: VERMOEGEN_NETTO_META.path,
+  staticData: { meta: VERMOEGEN_NETTO_META },
+  component: lazyRouteComponent(() => import('./wealth/networth-page'), 'NetWorthPage'),
+});
+const portfolioRegisterSearch = (search: Record<string, unknown>) => ({
+    sparplan:
+      typeof search['sparplan'] === 'string' && search['sparplan'].length <= 64
+        ? search['sparplan']
+        : undefined,
+    allokation: search['allokation'] === 'ziele' ? 'ziele' : undefined,
+    produkt:
+      typeof search['produkt'] === 'string' && search['produkt'].length <= 64
+        ? search['produkt']
+        : undefined,
+    handel:
+      typeof search['handel'] === 'string' && search['handel'].length <= 64
+        ? search['handel']
+        : undefined,
+  });
+const portfolioLegacyRedirect = ({ search, location }: { search: ReturnType<typeof portfolioRegisterSearch> & { zeitraum?: Period | undefined }; location: { pathname: string } }) => {
+    if (search.sparplan === 'neu' && location.pathname !== '/vermoegen/portfolio/sparplaene')
+      throw redirect({ to: '/vermoegen/portfolio/sparplaene', search });
+    if (search.sparplan && search.sparplan !== 'neu')
+      throw redirect({
+        to: '/vermoegen/portfolio/sparplan/$id',
+        params: { id: search.sparplan },
+        search: { zeitraum: search.zeitraum },
+      });
+    if (!search.sparplan && search.produkt && search.produkt !== 'neu')
+      throw redirect({
+        to: '/vermoegen/portfolio/instrument/$id',
+        params: { id: search.produkt },
+        search: { zeitraum: search.zeitraum, handel: search.handel },
+      });
+  };
+const portfolioRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/portfolio',
+  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Portfolio' } },
+  validateSearch: portfolioRegisterSearch,
+  beforeLoad: portfolioLegacyRedirect,
+  component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioPage'),
+});
+const portfolioPositionsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/portfolio/positionen',
+  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Positionen' } },
+  validateSearch: portfolioRegisterSearch,
+  beforeLoad: portfolioLegacyRedirect,
+  component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioPositionsPage'),
+});
+const portfolioAllocationRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/portfolio/allokation',
+  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Allokation' } },
+  validateSearch: portfolioRegisterSearch,
+  beforeLoad: portfolioLegacyRedirect,
+  component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioAllocationPage'),
+});
+const portfolioSavingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/portfolio/sparplaene',
+  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Sparpläne' } },
+  validateSearch: portfolioRegisterSearch,
+  beforeLoad: portfolioLegacyRedirect,
+  component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioSavingsPage'),
+});
+const portfolioMetricsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/portfolio/kennzahlen',
+  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Kennzahlen' } },
+  validateSearch: portfolioRegisterSearch,
+  beforeLoad: portfolioLegacyRedirect,
+  component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioMetricsPage'),
+});
+const instrumentRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/portfolio/instrument/$id',
+  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Instrument' } },
+  validateSearch: (search: Record<string, unknown>) => ({
+    handel:
+      typeof search['handel'] === 'string' && search['handel'].length <= 64
+        ? search['handel']
+        : undefined,
+  }),
+  component: lazyRouteComponent(() => import('./wealth/portfolio-detail-page'), 'InstrumentPage'),
+});
+const savingsPlanRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/portfolio/sparplan/$id',
+  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Sparplan' } },
+  component: lazyRouteComponent(() => import('./wealth/portfolio-detail-page'), 'SavingsPlanPage'),
+});
+const debtsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/schulden',
+  staticData: { meta: VERMOEGEN_SCHULDEN_META },
+  validateSearch: (search: Record<string, unknown>) => ({
+    kredit:
+      typeof search['kredit'] === 'string' && search['kredit'].length <= 64
+        ? search['kredit']
+        : undefined,
+  }),
+  component: lazyRouteComponent(() => import('./wealth/debts-page'), 'DebtsPage'),
+});
+const planGoalsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: PLAN_SPARZIELE.path,
+  staticData: { meta: PLAN_SPARZIELE },
+  component: lazyRouteComponent(() => import('./budget/goals-page'), 'GoalsPage'),
+});
+/** Whether the viewport is wide enough for the settings rail (the app's desktop breakpoint). */
+const isDesktopViewport = () =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(min-width: 768px)').matches;
+// Phone: the grouped index list. Desktop keeps the old behaviour: the rail is always visible, so the
+// bare address opens the first page.
+const settingsIndexRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/einstellungen',
+  staticData: { meta: SETTINGS_INDEX },
+  beforeLoad: () => {
+    if (isDesktopViewport()) throw redirect({ to: '/einstellungen/konten' as never });
+  },
+  component: lazyRouteComponent(() => import('./pages/settings-index'), 'SettingsIndexPage'),
+});
+const redirects = [
+  redirectRoute('/reports/liquiditaet', '/plan/prognose'),
+  redirectRoute('/konten/posteingang', '/konten/pruefen'),
+  redirectRoute('/konten/posteingang/$id', '/konten/pruefen/$id'),
+  // Legacy import bookmarks lead to the export placeholder; no import action remains in the UI.
+  redirectRoute('/einstellungen/import', '/einstellungen/export'),
+  redirectRoute('/plan', '/plan/monat'),
+  redirectRoute('/vermoegen', '/vermoegen/nettovermoegen'),
+];
+
+const accountRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/konten/$id',
+  validateSearch: (search: Record<string, unknown>) => ({
+    pruefen: ['reconcile', 'value'].includes(String(search['pruefen']))
+      ? (search['pruefen'] as 'reconcile' | 'value')
+      : undefined,
+    vorschau: search['vorschau'] === 'liquiditaet' ? 'liquiditaet' : undefined,
+    horizon: LIQUIDITY_HORIZONS.includes(search['horizon'] as LiquidityHorizon)
+      ? (search['horizon'] as LiquidityHorizon)
+      : undefined,
+    levers:
+      typeof search['levers'] === 'string' && search['levers'].length <= 200
+        ? LIQUIDITY_LEVERS.filter((id) =>
+            (search['levers'] as string).split(',').includes(id),
+          ).join(',')
+        : undefined,
+    faellig:
+      typeof search['faellig'] === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(search['faellig']) &&
+      Number.isFinite(Date.parse(`${search['faellig']}T00:00:00Z`)) &&
+      new Date(`${search['faellig']}T00:00:00Z`).toISOString().startsWith(search['faellig'])
+        ? search['faellig']
+        : undefined,
+  }),
+  staticData: { meta: ACCOUNT_PAGE },
+  // The title is the account name, so the document title is right from the first render.
+  loader: async ({ params }): Promise<PageTitleData> => {
+    try {
+      const { accounts } = await queryClient.fetchQuery({ ...accountsQuery(), staleTime: 5_000 });
+      const name = accounts.find((a) => a.id === params.id)?.name;
+      return name ? { title: name } : {};
+    } catch {
+      return {};
+    }
+  },
+  component: lazyRouteComponent(accountPage, 'AccountRoute'),
+});
+
+const reportsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/reports',
+  staticData: { meta: REPORTS_CATALOG },
+  component: lazyRouteComponent(reportsPages, 'ReportsCatalogPage'),
+});
+
+const reportGroupRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/reports/gruppe/$slug',
+  staticData: { meta: REPORTS_CATALOG },
+  // Every group has its own title ("Reports · Ausgaben", ...), taken from the catalog.
+  loader: ({ params }): PageTitleData => {
+    const page = REPORT_GROUP_PAGES.find((p) => p.slug === params.slug);
+    return page ? { title: page.meta.title } : {};
+  },
+  component: lazyRouteComponent(reportsPages, 'ReportGroupRoute'),
+});
+
+const reportRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/reports/$reportId',
+  validateSearch: validateReportSearch,
+  staticData: { meta: { ...REPORTS_CATALOG, title: 'Report', register: 'katalog' } },
+  loader: ({ params }): PageTitleData => {
+    const report = findReport(params.reportId);
+    return report ? { title: report.name } : {};
+  },
+  component: lazyRouteComponent(reportsPages, 'ReportRoute'),
+});
+
+const payrollHistoryRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/reports/gehalt/historie',
+  validateSearch: validateReportSearch,
+  staticData: { meta: { ...REPORTS_CATALOG, title: 'Gehaltszettel-Historie', register: 'monat' } },
+  component: lazyRouteComponent(reportsPages, 'PayrollHistoryRoute'),
+});
+const incomeExpenseSourcesRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/reports/einnahmen-ausgaben/buchungen',
+  validateSearch: validateReportSearch,
+  staticData: { meta: { ...REPORTS_CATALOG, title: 'Report-Buchungen', register: 'monat' } },
+  component: lazyRouteComponent(reportsPages, 'IncomeExpenseSourcesRoute'),
+});
+
+// Login and first-device setup live outside the shell (no navigation before a session exists).
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/login',
+  validateSearch: (search: Record<string, unknown>): { weiter?: string | undefined } => {
+    const weiter = captureContinuation(search['weiter']);
+    return weiter ? { weiter } : {};
+  },
+  beforeLoad: async () => {
+    const status = await queryClient.fetchQuery(authStatusQuery);
+    if (status.setupRequired) throw redirect({ to: '/setup' });
+    if (status.authenticated) throw redirect({ to: '/' });
+  },
+  component: lazyRouteComponent(() => import('./auth/login-route'), 'LoginRoute'),
+});
+const setupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/setup',
+  beforeLoad: async () => {
+    const status = await queryClient.fetchQuery(authStatusQuery);
+    if (status.authenticated) throw redirect({ to: '/' });
+    if (!status.setupRequired) throw redirect({ to: '/login' });
+  },
+  component: lazyRouteComponent(() => import('./auth/setup-route'), 'SetupRoute'),
+});
+
+// Developer pages (component gallery, chart spike) live outside the shell and outside the session
+// guard, so they exist only in `vite dev` and in the e2e build (`--mode e2e`). In a production build
+// the condition is a constant `false`: the routes and their chunks are not emitted at all.
+const devRoutesEnabled = import.meta.env.DEV || import.meta.env.MODE === 'e2e';
+const devRoutes = devRoutesEnabled
+  ? [
+      createRoute({
+        getParentRoute: () => rootRoute,
+        path: '/dev/details',
+        validateSearch: (search: Record<string, unknown>) => ({
+          titel: typeof search['titel'] === 'string' ? search['titel'].slice(0, 100) : undefined,
+          lang: search['lang'] === true || search['lang'] === 'true',
+          von: search['von'] === 'panels' ? 'panels' : undefined,
+        }),
+        component: lazyRouteComponent(() => import('./routes/detail-example'), 'DetailExamplePage'),
+      }),
+      createRoute({
+        getParentRoute: () => rootRoute,
+        path: '/dev/diagramme',
+        component: lazyRouteComponent(() => import('./routes/charts-spike'), 'ChartsSpikePage'),
+      }),
+      createRoute({
+        getParentRoute: () => rootRoute,
+        path: '/dev/bauteile',
+        component: lazyRouteComponent(() => import('./routes/components-page'), 'ComponentsRoute'),
+      }),
+      createRoute({
+        getParentRoute: () => rootRoute,
+        path: '/dev/panels',
+        component: lazyRouteComponent(() => import('./routes/panels-harness'), 'PanelsHarnessPage'),
+      }),
+      createRoute({
+        getParentRoute: () => rootRoute,
+        path: '/dev/start',
+        component: lazyRouteComponent(() => import('./routes/home'), 'HomePage'),
+      }),
+    ]
+  : [];
+
+const routeTree = rootRoute.addChildren([
+  shellRoute.addChildren([
+    createRoute({
+      getParentRoute: () => shellRoute,
+      path: '/konten/kontakte/$id',
+      validateSearch: (search: Record<string, unknown>) => ({
+        verlauf: search['verlauf'] === 1 || search['verlauf'] === '1' ? 1 : undefined,
+      }),
+      staticData: { meta: PAGES.find((p) => p.path === '/konten/kontakte')! },
+      component: lazyRouteComponent(
+        () => import('./contacts/contacts-page'),
+        'ContactStatementPage',
+      ),
+    }),
+    createRoute({
+      getParentRoute: () => shellRoute,
+      path: '/suche',
+      validateSearch: (search: Record<string, unknown>) => ({
+        q: typeof search['q'] === 'string' ? search['q'].slice(0, 200) : undefined,
+        typ: [
+          'page',
+          'report',
+          'action',
+          'account',
+          'category',
+          'payee',
+          'contact',
+          'booking',
+        ].includes(String(search['typ']))
+          ? String(search['typ'])
+          : undefined,
+        von: validateInboxSearch(search).von,
+      }),
+      staticData: { meta: { ...HEUTE, title: 'Suchen' } },
+      component: lazyRouteComponent(() => import('./shell/global-search'), 'SearchPage'),
+    }),
+    homeRoute,
+    createRoute({
+      getParentRoute: () => shellRoute,
+      path: '/monatsabschluss/$month',
+      beforeLoad: ({ params }) => {
+        if (!isMonth(params.month)) throw notFound();
+      },
+      staticData: {
+        meta: {
+          title: 'Monatsabschluss',
+          area: 'plan',
+          fills: 'F1',
+          spec: 'Geführter Monatsabschluss mit Plan für den nächsten Monat und Rückblick.',
+        },
+      },
+      component: lazyRouteComponent(
+        () => import('./month-close/month-close-page'),
+        'MonthClosePage',
+      ),
+    }),
+    captureRoute,
+    ...placeholderRoutes,
+    securityRoute,
+    profileRoute,
+    projectsSettingsRoute,
+    inflationBasketSettingsRoute,
+    assetClassesSettingsRoute,
+    investmentSettingsRoute,
+    accountsSettingsRoute,
+    categoriesRoute,
+    categoryDetailRoute,
+    goalDetailRoute,
+    rulesRoute,
+    ruleStatusRoute,
+    assignmentRoute,
+    exportRoute,
+    dataSourcesRoute,
+    planMonthRoute,
+    envelopeRoute,
+    planIncomeRoute,
+    planYearRoute,
+    planExpectedRoute,
+    expectedPaymentRoute,
+    expectedIncomeRoute,
+    heuteDimensionRoute,
+    freedomRoute,
+    netWorthRoute,
+    portfolioRoute,
+    portfolioPositionsRoute,
+    portfolioAllocationRoute,
+    portfolioSavingsRoute,
+    portfolioMetricsRoute,
+    instrumentRoute,
+    savingsPlanRoute,
+    debtsRoute,
+    planGoalsRoute,
+    createRoute({
+      getParentRoute: () => shellRoute,
+      path: '/plan/prognose',
+      staticData: { meta: PLAN_PROGNOSE },
+      validateSearch: (search: Record<string, unknown>) => ({
+        ...validateReportSearch(search),
+        ...validateLiquiditySearch(search),
+      }),
+      component: lazyRouteComponent(() => import('./reports/liquidity-report'), 'PlanPrognosePage'),
+    }),
+    ...redirects,
+    settingsIndexRoute,
+    overviewRoute,
+    bookingsRoute,
+    contactsRoute,
+    inboxRoute,
+    inboxDetailRoute,
+    accountRoute,
+    reportsRoute,
+    reportGroupRoute,
+    reportRoute,
+    payrollHistoryRoute,
+    incomeExpenseSourcesRoute,
+  ]),
+  loginRoute,
+  setupRoute,
+  ...devRoutes,
+]);
+
+export const router = createRouter({
+  routeTree,
+  scrollRestoration: ({ location }) =>
+    location.pathname.startsWith('/plan/monat') ||
+    location.pathname.startsWith('/plan/sparziele') ||
+    location.pathname.startsWith('/einstellungen/kategorien') ||
+    location.pathname === '/reports/sparziele' ||
+    location.pathname.startsWith('/vermoegen/portfolio') ||
+    location.pathname.startsWith('/einstellungen/regelwerk') ||
+    location.pathname.startsWith('/reports/'),
+});
+
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router;
+  }
+}

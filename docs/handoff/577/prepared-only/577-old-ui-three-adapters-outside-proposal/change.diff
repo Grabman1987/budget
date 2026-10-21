@@ -1,0 +1,33 @@
+--- a/e2e/account-order.spec.ts
++++ b/e2e/account-order.spec.ts
+@@ -65,7 +65,7 @@
+   const tag = `T${info.project.name}${info.retry}${info.repeatEachIndex}`;
+   await seed(request, isolatedLedger.origin, tag);
+   await page.goto('/konten');
+-  await expect(page.getByTestId('net-worth')).toBeVisible();
++  await expect(page.getByTestId('budget-accounts-balance')).toBeVisible();
+   expect(await tableOrder(page, tag)).toEqual(NAMES);
+ 
+   await page.getByRole('button', { name: 'Reihenfolge ändern', exact: true }).click();
+--- a/e2e/sidebar-zerosum.spec.ts
++++ b/e2e/sidebar-zerosum.spec.ts
+@@ -26,7 +26,7 @@
+     expect(response.ok(), await response.text()).toBe(true);
+   }
+   await page.goto('/konten');
+-  await expect(page.getByTestId('net-worth')).toBeVisible();
++  await expect(page.getByTestId('budget-accounts-balance')).toBeVisible();
+   const sidebar = page.locator('.sidebar');
+   if (!isMobile) {
+     await expect(sidebar).toBeVisible();
+--- a/apps/web/src/ledger/account-review.test.tsx
++++ b/apps/web/src/ledger/account-review.test.tsx
+@@ -130,6 +130,8 @@
+     );
+     const user = userEvent.setup();
+     await screen.findByRole('link', { name: 'Muster stale' }, { timeout: 10000 });
++    for (const id of ['stale', 'fresh', 'quiet', 'never', 'value', 'asset'])
++      await user.click(screen.getByRole('button', { name: `Details zu Muster ${id}` }));
+     expect(screen.getByText('Fällig · geprüft am 06.09.2026').classList.contains('is-stale')).toBe(
+       true,
+     );

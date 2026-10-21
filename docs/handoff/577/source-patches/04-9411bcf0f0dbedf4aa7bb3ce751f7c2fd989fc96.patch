@@ -1,0 +1,82 @@
+diff --git a/apps/server/src/api/account-overview-quality-577.test.ts b/apps/server/src/api/account-overview-quality-577.test.ts
+index d7b282a6..04a067fd 100644
+--- a/apps/server/src/api/account-overview-quality-577.test.ts
++++ b/apps/server/src/api/account-overview-quality-577.test.ts
+@@ -31,7 +31,7 @@ beforeEach(() => {
+   db.insert(schema.security).values(['priced', 'cost', 'missing', 'foreign'].map((id) => ({
+     id, name: `Synthetic ${id}`, kind: 'etf' as const, currency: id === 'foreign' ? 'USD' : 'EUR',
+   }))).run();
+-  db.insert(schema.holding).values(['priced', 'cost', 'missing', 'foreign'].map((id) => ({
++  db.insert(schema.holding).values(['priced', 'cost', 'missing'].map((id) => ({
+     id: `h-${id}`, accountId: id, securityId: id, asOf: '2026-09-01', unitsE8: 100000000,
+     ...(id === 'cost' ? { costBasisCents: 700 } : {}),
+   }))).run();
+@@ -45,8 +45,9 @@ afterEach(() => opened.close());
+ 
+ async function batch(extra = ''): Promise<Batch> {
+   const response = await api.request(`/accounts/series?${range}${extra}`);
+-  expect(response.status).toBe(200);
+-  return response.json() as Promise<Batch>;
++  const payload: unknown = await response.json();
++  expect(response.status, JSON.stringify(payload)).toBe(200);
++  return payload as Batch;
+ }
+ 
+ it('adds opt-in sibling evidence while preserving every default batch/single series and all stored records', async () => {
+@@ -85,7 +86,22 @@ it('distinguishes not-yet-open, genuine zero, missing valuation and known native
+   expect(result.series['usd']?.points.at(-1)).toMatchObject({ balanceCents: 4321, valuation: { eurCents: null } });
+   expect(quality?.['usd']?.['2026-10-03']).toEqual({ source: 'native_cash', currency: 'USD', known: true, quality: 'exact', missing: null });
+   expect(quality?.['missing']?.['2026-10-03']).toMatchObject({ source: 'account_value_eur', known: false, missing: 'price' });
+-  expect(quality?.['foreign']?.['2026-10-03']).toMatchObject({ source: 'account_value_eur', known: false, missing: 'fx' });
++  // A foreign security without FX fails the existing entire series read closed;
++  // it cannot be a successful metadata fixture or a fabricated zero valuation.
++  opened.db.insert(schema.holding).values({
++    id: 'h-foreign', accountId: 'foreign', securityId: 'foreign',
++    asOf: '2026-09-01', unitsE8: 100000000,
++  }).run();
++  for (const extra of ['', '&quality=1']) {
++    const response = await api.request(`/accounts/series?${range}${extra}`);
++    const payload: unknown = await response.json();
++    expect(response.status, JSON.stringify(payload)).toBe(503);
++    expect(payload).toMatchObject({
++      error: 'valuation_unavailable', missingFxCurrencies: ['USD'], asOf: '2026-10-01',
++    });
++    expect(payload).not.toHaveProperty('series');
++    expect(payload).not.toHaveProperty('quality');
++  }
+ });
+ 
+ it('retains actual cost-estimate and carried-quote provenance instead of manufacturing exact quality', async () => {
+diff --git a/apps/web/src/ledger/account-overview-577.test.tsx b/apps/web/src/ledger/account-overview-577.test.tsx
+index c2a086e1..8c92d875 100644
+--- a/apps/web/src/ledger/account-overview-577.test.tsx
++++ b/apps/web/src/ledger/account-overview-577.test.tsx
+@@ -10,6 +10,7 @@ import { createLedgerApi } from '../../../server/src/api';
+ import { OverviewPage } from './overview-page';
+ import { accountsQuery, LEDGER_KEY, seriesBatchQuery } from './queries';
+ import type { AccountList } from './types';
++import type { AuthStatus } from '../auth/api';
+ 
+ const TODAY = '2026-10-21';
+ let opened: ReturnType<typeof createTestDatabase>;
+@@ -75,6 +76,7 @@ function mount(options: { holdAccounts?: boolean; omitReview?: boolean } = {}) {
+     const key = `${method} ${url.pathname}${url.search}`;
+     reads.push(key);
+     const allowed = method === 'GET' && (
++      (url.pathname === '/api/auth/status' && !url.search) ||
+       (url.pathname === '/api/accounts' && !url.search) ||
+       (url.pathname === '/api/portfolio/positions' && !url.search) ||
+       (url.pathname === '/api/accounts/series' && url.search === '?from=2026-09-21&to=2026-10-21&quality=1')
+@@ -83,6 +85,12 @@ function mount(options: { holdAccounts?: boolean; omitReview?: boolean } = {}) {
+       unexpected.push(key);
+       return Response.json({ error: 'unexpected_test_request' }, { status: 500 });
+     }
++    if (url.pathname === '/api/auth/status') {
++      const status = {
++        setupRequired: false, authenticated: true, stepUpValidUntil: null, viaRecovery: false,
++      } satisfies AuthStatus;
++      return Response.json(status);
++    }
+     if (url.pathname === '/api/accounts') await gate;
+     const response = await api.request(url.pathname.replace(/^\/api/, '') + url.search, init);
+     if (options.omitReview && url.pathname === '/api/accounts') {

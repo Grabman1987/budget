@@ -1,0 +1,11 @@
+[
+  {
+    "sourceLogName": "new-eleven.log",
+    "sha256": "3f337dd902dda75d3b72a0eac5088be9a99e99fdb90269146934e39846a6fc6f",
+    "summaryLines": [
+      "Test Files  2 failed | 1 passed (3)",
+      "Tests  8 failed | 3 passed (11)",
+      "Duration  8.39s (transform 57%, import 21%, tests 12%, environment 9%)"
+    ]
+  }
+]

@@ -1,0 +1,27 @@
+{
+  "head": "1543ddd98dd8ca714d0c45921d80dba453c178a7",
+  "patchSHA256": "30e1b82a0feb2edfdbc545b637af4ff0be0ea8c32ddb109dd8fd15f2f141788c",
+  "files": {
+    "apps/web/src/budget/plan-page.tsx": {
+      "before": "4671d3a1ead8eca3539caa033cd91a1ba6264c7775135dda9b4d6eeba49b1a48",
+      "after": "7b5ed98abc46c61caf4cd41541a777dfc163f995fc92adb33684f14ce7ac5d4a",
+      "wholeInverseExact": true,
+      "modeExact": true
+    },
+    "apps/web/src/reports/explorer-view-api.ts": {
+      "before": "39eb97865dd36e7ff9ec1338cc7e2910402d862d1b10bb618f33125d4ea46941",
+      "after": "172e3b551fe60f3d7a91ef53440c908c715752341025d3d8dd08ad6671694bee",
+      "wholeInverseExact": true,
+      "modeExact": true
+    },
+    "apps/web/src/router.tsx": {
+      "before": "83f09b7733c2f4b10c2419e1d15e3e6f14535870b116b74534ec6abff7fd7902",
+      "after": "7a6374b86a90f082c689cc9ae473ca8a3e2dff4091328e6614b9c0455e158049",
+      "wholeInverseExact": true,
+      "modeExact": true
+    }
+  },
+  "sourceOnly": true,
+  "runtimeExecuted": false,
+  "status": ""
+}

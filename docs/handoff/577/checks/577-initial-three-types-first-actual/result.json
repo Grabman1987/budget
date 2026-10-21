@@ -1,0 +1,14 @@
+{
+  "head": "8f4343f7f907942f59c9469bc48181ccbe585a86",
+  "phases": [
+    {
+      "name": "db-types",
+      "exit": 2,
+      "wallSeconds": 2.184
+    }
+  ],
+  "processGuard": 0,
+  "sourceGuard": 0,
+  "allPhases0": false,
+  "lockReleased": true
+}

@@ -1,0 +1,32 @@
+{
+  "manifestSHA256": "d37ca515eab1b7c4d4d0ceb74efa80fe975d4d4926a83c4c3df28e241db22167",
+  "base": "23a5748273a5088dff62630054882ca12b28d2eb",
+  "ownedFive": {
+    "packages/db/src/repos/portfolio.ts": {
+      "sha256": "42f8c906adc1b1e99e672b48b46bd2ebe64b64867de1e1d1fbb919a9130e5432",
+      "mode": 33152
+    },
+    "apps/server/src/api/accounts.ts": {
+      "sha256": "0323441c74107ae3a7ecf28d37be90a28a12715a26a18f97b113165f81c0b93b",
+      "mode": 33152
+    },
+    "apps/web/src/ledger/types.ts": {
+      "sha256": "681e69aaf401f0ce86a4470e920fc157e1626504121e9414b3025a04a870f956",
+      "mode": 33152
+    },
+    "apps/web/src/ledger/api.ts": {
+      "sha256": "b065e4476a16b16957dd70f9ee2f486cb29f134d962f59a937ea3b33cd5d4b9c",
+      "mode": 33152
+    },
+    "apps/web/src/ledger/queries.ts": {
+      "sha256": "3d091ba6537332dd274eb87ad4d10698e81c875d27090aa7ab2977a3c6b5dd26",
+      "mode": 33152
+    }
+  },
+  "allCurrentFrozenSHAAndModesExact": true,
+  "sharedSchemaExact": "13905d2d9415870ff58f69023e10004607db4e01e51be85b5628887672004844",
+  "wholePortfolioReconstructsExactlyAfterObserverOnlyRemoval": true,
+  "wholeAccountsReconstructsExactlyAfterOptInOnlyAndExecutorRemoval": true,
+  "legacyNoOptionsClientURLAndQueryKeyInspectedExact": true,
+  "scope": "early five-file source increment only; no tests/runtime/project execution"
+}

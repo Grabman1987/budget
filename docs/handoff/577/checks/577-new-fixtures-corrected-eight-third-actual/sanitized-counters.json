@@ -1,0 +1,11 @@
+[
+  {
+    "sourceLogName": "new-eight.log",
+    "sha256": "50a14aacf7b616dff2c460858df3a5dd074462f7c4fd11b970c9fd4e6e1ab6bc",
+    "summaryLines": [
+      "Test Files  2 passed (2)",
+      "Tests  8 passed (8)",
+      "Duration  8.57s (transform 62%, import 18%, tests 16%, environment 3%)"
+    ]
+  }
+]

@@ -1,0 +1,27 @@
+--- a/apps/web/src/wealth/price-history.test.tsx
++++ b/apps/web/src/wealth/price-history.test.tsx
+@@ -3,6 +3,7 @@
+ import { cleanup, render, screen } from '@testing-library/react';
+ import userEvent from '@testing-library/user-event';
+ import type { InstrumentHistory } from '@budget/db';
++import { eachDay } from '@budget/domain';
+ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+ import { PriceHistory, useInstrumentHistory } from './price-history';
+ 
+@@ -60,9 +61,14 @@
+       [null, '2026-08-17', '2026-03-17', '2025-09-17'].includes(from) &&
+       url.searchParams.getAll('to').length === 1 && url.searchParams.getAll('from').length <= 1 &&
+       [...url.searchParams.keys()].every((key) => key === 'from' || key === 'to')) {
++      const historyFrom = from ?? '2026-09-17';
+       const history = {
+-        securityId: 'synthetic', from: from ?? '2024-09-17', to: '2026-09-17',
+-        unit: 'EUR', position: null, costMethod: 'average', points: [], events: [], unavailable: null,
++        securityId: 'synthetic', from: historyFrom, to: '2026-09-17',
++        unit: 'EUR', position: null, costMethod: 'average',
++        points: eachDay(historyFrom, '2026-09-17').map((date) => ({
++          date, unitsE8: 0, valueCents: 0, quality: 'exact', missing: null, observations: [],
++        })),
++        events: [], unavailable: null,
+       } satisfies InstrumentHistory;
+       return Response.json({ history });
+     }

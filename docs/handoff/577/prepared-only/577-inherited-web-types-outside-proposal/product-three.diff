@@ -1,0 +1,48 @@
+--- a/apps/web/src/budget/plan-page.tsx
++++ b/apps/web/src/budget/plan-page.tsx
+@@ -230,7 +230,7 @@
+     void navigate({
+       to: '/plan/monat',
+       resetScroll: false,
+-      search: (previous) => ({
++      search: (previous: Record<string, unknown>) => ({
+         ...previous,
+         ansicht: undefined,
+         filter: next === 'all' ? undefined : next,
+--- a/apps/web/src/reports/explorer-view-api.ts
++++ b/apps/web/src/reports/explorer-view-api.ts
+@@ -4,16 +4,16 @@
+ import { EXPLORER_VIEWS_KEY } from './explorer-views';
+ 
+ export const SAVED_EXPLORER_KEY = ['explorer-saved-views'] as const;
+-export const savedExplorerViewsQuery = () =>
+-  queryOptions({
+-    queryKey: SAVED_EXPLORER_KEY,
+-    retry: false,
+-    queryFn: () => request<ExplorerViewsState>('GET', '/api/reports/saved-queries'),
+-  });
++const savedExplorerViewsOptions = () => ({
++  queryKey: SAVED_EXPLORER_KEY,
++  retry: false,
++  queryFn: () => request<ExplorerViewsState>('GET', '/api/reports/saved-queries'),
++});
++export const savedExplorerViewsQuery = () => queryOptions(savedExplorerViewsOptions());
+ /** A separate per-entry read prevents an earlier hub/editor cache from selecting an old query. */
+ export const savedExplorerEntryQuery = (id: string | undefined, entryKey: string) =>
+   queryOptions({
+-    ...savedExplorerViewsQuery(),
++    ...savedExplorerViewsOptions(),
+     queryKey: [...SAVED_EXPLORER_KEY, 'entry', id, entryKey],
+     enabled: Boolean(id),
+     gcTime: 0,
+--- a/apps/web/src/router.tsx
++++ b/apps/web/src/router.tsx
+@@ -460,7 +460,7 @@
+         ? search['handel']
+         : undefined,
+   });
+-const portfolioLegacyRedirect = ({ search, location }: { search: ReturnType<typeof portfolioRegisterSearch> & { zeitraum?: Period }; location: { pathname: string } }) => {
++const portfolioLegacyRedirect = ({ search, location }: { search: ReturnType<typeof portfolioRegisterSearch> & { zeitraum?: Period | undefined }; location: { pathname: string } }) => {
+     if (search.sparplan === 'neu' && location.pathname !== '/vermoegen/portfolio/sparplaene')
+       throw redirect({ to: '/vermoegen/portfolio/sparplaene', search });
+     if (search.sparplan && search.sparplan !== 'neu')

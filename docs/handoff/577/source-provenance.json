@@ -1,0 +1,75 @@
+{
+  "branch": "codex/577-account-overview",
+  "sourceHead": "9411bcf0f0dbedf4aa7bb3ce751f7c2fd989fc96",
+  "originalBaseBeforeOwnedCommits": "23a5748273a5088dff62630054882ca12b28d2eb",
+  "ownedCommits": [
+    {
+      "sha": "03d421b5685ed6703e63fd41ca98757b6428dce6",
+      "parentBase": "23a5748273a5088dff62630054882ca12b28d2eb",
+      "subject": "feat(ledger): add account overview and opt-in series quality (#577)",
+      "paths": [
+        "apps/server/src/api/accounts.ts",
+        "apps/web/src/ledger/api.ts",
+        "apps/web/src/ledger/mini-line.tsx",
+        "apps/web/src/ledger/overview-model.ts",
+        "apps/web/src/ledger/overview-page.tsx",
+        "apps/web/src/ledger/overview.css",
+        "apps/web/src/ledger/queries.ts",
+        "apps/web/src/ledger/types.ts",
+        "docs/ROADMAP.md",
+        "packages/db/src/repos/portfolio.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 03d421b5685ed6703e63fd41ca98757b6428dce6 > OWN_OUTPUT/03d421b5685ed6703e63fd41ca98757b6428dce6.patch"
+    },
+    {
+      "sha": "889edf4a5a0690ff4d53d2f54b06cdc4e2d7c95e",
+      "parentBase": "03d421b5685ed6703e63fd41ca98757b6428dce6",
+      "subject": "fix(ledger): retain due status on expanded account details (#577)",
+      "paths": [
+        "apps/web/src/ledger/overview-page.tsx"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 889edf4a5a0690ff4d53d2f54b06cdc4e2d7c95e > OWN_OUTPUT/889edf4a5a0690ff4d53d2f54b06cdc4e2d7c95e.patch"
+    },
+    {
+      "sha": "8f4343f7f907942f59c9469bc48181ccbe585a86",
+      "parentBase": "889edf4a5a0690ff4d53d2f54b06cdc4e2d7c95e",
+      "subject": "test(ledger): cover account overview scope and series quality (#577)",
+      "paths": [
+        "apps/server/src/api/account-overview-quality-577.test.ts",
+        "apps/web/src/ledger/account-overview-577.test.tsx",
+        "apps/web/src/ledger/mini-line-quality-577.test.tsx",
+        "e2e/issue-577-account-overview.spec.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 8f4343f7f907942f59c9469bc48181ccbe585a86 > OWN_OUTPUT/8f4343f7f907942f59c9469bc48181ccbe585a86.patch"
+    },
+    {
+      "sha": "9411bcf0f0dbedf4aa7bb3ce751f7c2fd989fc96",
+      "parentBase": "6079e70620488eb077bd3435b63775e93214c126",
+      "subject": "Use valid valuation and authentication fixtures in new overview tests",
+      "paths": [
+        "apps/server/src/api/account-overview-quality-577.test.ts",
+        "apps/web/src/ledger/account-overview-577.test.tsx"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 9411bcf0f0dbedf4aa7bb3ce751f7c2fd989fc96 > OWN_OUTPUT/9411bcf0f0dbedf4aa7bb3ce751f7c2fd989fc96.patch"
+    }
+  ],
+  "ownedPathSet": [
+    "apps/server/src/api/account-overview-quality-577.test.ts",
+    "apps/server/src/api/accounts.ts",
+    "apps/web/src/ledger/account-overview-577.test.tsx",
+    "apps/web/src/ledger/api.ts",
+    "apps/web/src/ledger/mini-line-quality-577.test.tsx",
+    "apps/web/src/ledger/mini-line.tsx",
+    "apps/web/src/ledger/overview-model.ts",
+    "apps/web/src/ledger/overview-page.tsx",
+    "apps/web/src/ledger/overview.css",
+    "apps/web/src/ledger/queries.ts",
+    "apps/web/src/ledger/types.ts",
+    "docs/ROADMAP.md",
+    "e2e/issue-577-account-overview.spec.ts",
+    "packages/db/src/repos/portfolio.ts"
+  ],
+  "containsMixedBatch": true,
+  "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+  "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+}

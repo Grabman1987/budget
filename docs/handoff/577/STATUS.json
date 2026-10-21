@@ -1,0 +1,8 @@
+{
+  "ticket": "577",
+  "testedSource": "9411bcf0f0dbedf4aa7bb3ce751f7c2fd989fc96",
+  "passed": "Targeted corrected NEW8 suite passed. See historical result records for other phases; no full green claim.",
+  "remaining": "UNINTEGRATED patch capsule. Reconstruct own source on current main, account for mapped shared type/dependency fixes; preserve OLD3 UI adapters. Full check/build/native/CI outstanding.",
+  "notLive": true,
+  "preparedDiffsApplied": false
+}

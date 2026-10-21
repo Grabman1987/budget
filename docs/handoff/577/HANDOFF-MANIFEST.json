@@ -1,0 +1,287 @@
+[
+  {
+    "path": "docs/handoff/577/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/577/README.md",
+    "size": 999,
+    "sha256": "dd3c58ee57a39f7bb6930956bcfe08fe1c48bb950d33ffd1f0c256ad88985ae5"
+  },
+  {
+    "path": "docs/handoff/577/STATUS.json",
+    "size": 460,
+    "sha256": "41db8524314fb3301456a141e9e4d1dbbb63dfc47f71ef8236694b6e83a08373"
+  },
+  {
+    "path": "docs/handoff/577/checks/577-base-db-corrected-three-types-third-actual/result.json",
+    "size": 335,
+    "sha256": "efddf82c6b56ebfe2179f7e267c25ef9e6d6739e9e7352faff6d7f702816a3d7"
+  },
+  {
+    "path": "docs/handoff/577/checks/577-base-db-corrected-web-type-continuation-actual/result.json",
+    "size": 248,
+    "sha256": "93c90953e12794b1113bb802de514ed2a2e7c0be96d87e883d56a681482c4576"
+  },
+  {
+    "path": "docs/handoff/577/checks/577-initial-three-types-first-actual/result.json",
+    "size": 246,
+    "sha256": "2a1dbe82a54d5d5c6d313bd68c5b119ffe445693bed1d3e9c4ec27be901c050b"
+  },
+  {
+    "path": "docs/handoff/577/checks/577-new-eleven-first-actual/result.json",
+    "size": 248,
+    "sha256": "5a11807c3b210a1b128a7f04848f67a7331788308f93d0c59cc8c9509bd2ef2e"
+  },
+  {
+    "path": "docs/handoff/577/checks/577-new-eleven-first-actual/sanitized-counters.json",
+    "size": 326,
+    "sha256": "4bf0f88e377db0df2cc21fde678fc473143f3d20ec29a9df528be5599ffd60c7"
+  },
+  {
+    "path": "docs/handoff/577/checks/577-new-fixtures-corrected-eight-third-actual/result.json",
+    "size": 246,
+    "sha256": "e98d642dbf805398d71781010e9390b8220f15bc7c90fc575f40666f38d32a26"
+  },
+  {
+    "path": "docs/handoff/577/checks/577-new-fixtures-corrected-eight-third-actual/sanitized-counters.json",
+    "size": 302,
+    "sha256": "c8a0de99b51ab0a432c91b4d0fb336fa2708940b68f621725c9c21037284a14c"
+  },
+  {
+    "path": "docs/handoff/577/checks/577-setup-corrected-new-eight-second-actual/result.json",
+    "size": 247,
+    "sha256": "ce6d30218de5ac2f3fb56fbc7dd2ea745d4d2984a64a75724ac6628651c2c0f3"
+  },
+  {
+    "path": "docs/handoff/577/checks/577-setup-corrected-new-eight-second-actual/sanitized-counters.json",
+    "size": 302,
+    "sha256": "bdfdc531e0b56934abd443c55185e26b52c0af840067e2c3fcbd726bee10032b"
+  },
+  {
+    "path": "docs/handoff/577/checks/577-syntax-corrected-three-types-second-actual/result.json",
+    "size": 247,
+    "sha256": "6d631fe8a0d17d6616a430c25330eb0162c82edc6e6a9532a7da3a8b0cc5546e"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-inherited-web-types-outside-proposal/NOTES.md",
+    "size": 902,
+    "sha256": "8022d963a424e46ff05623057719379bff0ce94e9545170a13d846563ee69a3b"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-inherited-web-types-outside-proposal/after/apps/web/src/budget/plan-page.tsx",
+    "size": 77827,
+    "sha256": "7b5ed98abc46c61caf4cd41541a777dfc163f995fc92adb33684f14ce7ac5d4a"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-inherited-web-types-outside-proposal/after/apps/web/src/reports/explorer-view-api.ts",
+    "size": 1765,
+    "sha256": "172e3b551fe60f3d7a91ef53440c908c715752341025d3d8dd08ad6671694bee"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-inherited-web-types-outside-proposal/after/apps/web/src/router.tsx",
+    "size": 33297,
+    "sha256": "7a6374b86a90f082c689cc9ae473ca8a3e2dff4091328e6614b9c0455e158049"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-inherited-web-types-outside-proposal/before/apps/web/src/budget/plan-page.tsx",
+    "size": 77802,
+    "sha256": "4671d3a1ead8eca3539caa033cd91a1ba6264c7775135dda9b4d6eeba49b1a48"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-inherited-web-types-outside-proposal/before/apps/web/src/reports/explorer-view-api.ts",
+    "size": 1702,
+    "sha256": "39eb97865dd36e7ff9ec1338cc7e2910402d862d1b10bb618f33125d4ea46941"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-inherited-web-types-outside-proposal/before/apps/web/src/router.tsx",
+    "size": 33285,
+    "sha256": "83f09b7733c2f4b10c2419e1d15e3e6f14535870b116b74534ec6abff7fd7902"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-inherited-web-types-outside-proposal/independent-product-three-proof.json",
+    "size": 1045,
+    "sha256": "5246d61f5f24141ff80825f922001b8cf7132a91d91c88765801ac163d764864"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-inherited-web-types-outside-proposal/independent-product-three-source-high.md",
+    "size": 1790,
+    "sha256": "1678e516a3fc5f63021087fc0ac4e61f06b7327d01333d6d114ba623cc461582"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-inherited-web-types-outside-proposal/manifest.json",
+    "size": 1047,
+    "sha256": "334e473da0b7068739632e67c6353e512b38bebb5eb6d8aa1c254f8fe1a0e2d0"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-inherited-web-types-outside-proposal/product-three.diff",
+    "size": 2192,
+    "sha256": "30e1b82a0feb2edfdbc545b637af4ff0be0ea8c32ddb109dd8fd15f2f141788c"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-old-price-history-source-valid-outside-adapter/NOTES.md",
+    "size": 2685,
+    "sha256": "4566b0e3e6f01bdca033e6905ea00cd8171fe671d97e148dfe1f3c766560b841"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-old-price-history-source-valid-outside-adapter/after/apps/web/src/wealth/price-history.test.tsx",
+    "size": 5100,
+    "sha256": "b8e4957290249431942497d16a71e1a2da793b7c33db7c981a5d7bf8b684f693"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-old-price-history-source-valid-outside-adapter/before/apps/web/src/wealth/price-history.test.tsx",
+    "size": 2610,
+    "sha256": "a08a0e97ffb0c7caff16930deb52911f1c1e188e9be5c0128f74987eca07740f"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-old-price-history-source-valid-outside-adapter/history-validity-only.diff",
+    "size": 1444,
+    "sha256": "af3574cea10fd4aaa1dcf98edda0fb003a6188009a3fb3f210565655f573bc3d"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-old-price-history-source-valid-outside-adapter/manifest.json",
+    "size": 592,
+    "sha256": "c2ee7afea4a39cf234b6aa795dd3f47142495ad376c9bbcdfd38b8189af455ac"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-old-price-history-source-valid-outside-adapter/price-history-adapter.diff",
+    "size": 5702,
+    "sha256": "f14e8e440e7d8e412a7330e50fb6eb24b0f2c92b610809c7a99580ab03dc92ec"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-old-ui-three-adapters-outside-proposal/MANIFEST.json",
+    "size": 1695,
+    "sha256": "cabbbbdd79af66f638ce3f6946c304986f7b7971f22f28ffa8db8f2894a575e5"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-old-ui-three-adapters-outside-proposal/PROPOSAL.md",
+    "size": 2855,
+    "sha256": "55b4a363859ff504b0c429f8434e3616576373d924a092821cc194ab4c2478d3"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-old-ui-three-adapters-outside-proposal/after/apps/web/src/ledger/account-review.test.tsx",
+    "size": 5529,
+    "sha256": "cd665a3c6285b87a2f1f0e8170f94558512bbc62c205db8f0c7f94226dd06063"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-old-ui-three-adapters-outside-proposal/after/e2e/account-order.spec.ts",
+    "size": 10867,
+    "sha256": "e4af00687c41b90f4b90bd3c6da5b76ba8cae761e65a89cabd30f4b769b1f70c"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-old-ui-three-adapters-outside-proposal/after/e2e/sidebar-zerosum.spec.ts",
+    "size": 6921,
+    "sha256": "37abf3cb5a42a152a2056fd26baa95a26e2b54d9e92c4f17ba7351e40cdcdf31"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-old-ui-three-adapters-outside-proposal/before/apps/web/src/ledger/account-review.test.tsx",
+    "size": 5363,
+    "sha256": "5a5ac15479f6b2c4180972872e016437f438a9355bc919ba265d80faeb15d619"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-old-ui-three-adapters-outside-proposal/before/e2e/account-order.spec.ts",
+    "size": 10853,
+    "sha256": "54e67711b02621fbb2429346758ffb9ba09b48f622327b7e5a740b4edaef9ba9"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-old-ui-three-adapters-outside-proposal/before/e2e/sidebar-zerosum.spec.ts",
+    "size": 6907,
+    "sha256": "742454276027ead89ce10643e78974227211ad7e4e661bdebb9f9ced3905d40d"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-old-ui-three-adapters-outside-proposal/change.diff",
+    "size": 1496,
+    "sha256": "312883d3bd0735297ef227d33a876ce462e801b7e3d670b3d0afe7270802ea25"
+  },
+  {
+    "path": "docs/handoff/577/prepared-only/577-old-ui-three-adapters-outside-proposal/product-class-preservation-proof.json",
+    "size": 498,
+    "sha256": "06281a42120b5ddce6e1a2967abb7a027e4ad487c87f96fa0b9f9912ffaf1160"
+  },
+  {
+    "path": "docs/handoff/577/reviews/577-early-five-independent-source-correspondence.json",
+    "size": 1349,
+    "sha256": "ba18abc3d9eb105958baad00d0d7e364f6044f52209853f131c072ec9376dd23"
+  },
+  {
+    "path": "docs/handoff/577/reviews/577-new-api-auth-two-independent-source-review.md",
+    "size": 2110,
+    "sha256": "b11e18289ae2c3646e851dd1b55895fad14e3c48ef71204ebbb01acfc534e5dd"
+  },
+  {
+    "path": "docs/handoff/577/reviews/577-new-four-final-independent-fixture-proof.json",
+    "size": 1245,
+    "sha256": "3bf2330c2c362786da20fefd9c7360125f4940a660faab7cfa170f6ee6b7f26e"
+  },
+  {
+    "path": "docs/handoff/577/reviews/577-new-four-final-independent-fixture-source-high.md",
+    "size": 4743,
+    "sha256": "d995dc1b4163d6956e3d9f8cace790b9ebf5ce81330280b2a77978bbbbe5523f"
+  },
+  {
+    "path": "docs/handoff/577/reviews/577-old-price-history-adapter-independent-review-pending-fixture.md",
+    "size": 3535,
+    "sha256": "889d8fc2410da6ce3a67e3e28c494439d0e895da03aaa723ba9f9f38a671e72f"
+  },
+  {
+    "path": "docs/handoff/577/reviews/577-old-price-history-source-valid-independent-closure.md",
+    "size": 2727,
+    "sha256": "4b23635cf23bc02ad933ded8fa058bd3f0a457a2b8893cfe33834604529f9467"
+  },
+  {
+    "path": "docs/handoff/577/reviews/577-old-ui-three-adapters-independent-source-review.md",
+    "size": 3799,
+    "sha256": "552f7a3f33d5061c0f05a801326868caaf0e63ecca779015358247d30ebd3cdd"
+  },
+  {
+    "path": "docs/handoff/577/reviews/577-opt-in-quality-early-five-independent-source-high.md",
+    "size": 4749,
+    "sha256": "dd47fc844ab2b2928e43ee6ef122372a12a7307e17fc9f31241497ca3272a477"
+  },
+  {
+    "path": "docs/handoff/577/reviews/577-overview-opt-in-quality-independent-contract-high.md",
+    "size": 3048,
+    "sha256": "ff8d83a4248ee4f691bcfa76c8bb4848775e40dd50b0b7aaf0c95157bb6da248"
+  },
+  {
+    "path": "docs/handoff/577/reviews/577-price-history-empty-product-guard-independent-source-review.md",
+    "size": 1349,
+    "sha256": "755b4ca8e1995d97e83463c32c7ddadb4dc77019273f58ad088f19364d3e5d56"
+  },
+  {
+    "path": "docs/handoff/577/reviews/577-whole-ten-final-independent-correspondence.json",
+    "size": 2345,
+    "sha256": "0f834206a5e45a81e304a34b73884d063a89f4bb9dc5d4e625347be71292ee7d"
+  },
+  {
+    "path": "docs/handoff/577/reviews/577-whole-ten-final-independent-source-high.md",
+    "size": 4013,
+    "sha256": "02547a22b6c2d291cceb7486fa9eea8d00fef001644e2697f0f9f995689ba141"
+  },
+  {
+    "path": "docs/handoff/577/source-patches/01-03d421b5685ed6703e63fd41ca98757b6428dce6.patch",
+    "size": 59935,
+    "sha256": "185949b9b31eb398197e5933453befc9a225a2c908cb7191ff40e917fb55c705"
+  },
+  {
+    "path": "docs/handoff/577/source-patches/02-889edf4a5a0690ff4d53d2f54b06cdc4e2d7c95e.patch",
+    "size": 1135,
+    "sha256": "497247201d8a78a235af418ad95ad9e712fc60b0a801dd74d6f0315ef81b8de1"
+  },
+  {
+    "path": "docs/handoff/577/source-patches/03-8f4343f7f907942f59c9469bc48181ccbe585a86.patch",
+    "size": 38176,
+    "sha256": "cc5c82ec48c7296565145eb08e12807f3182e62400db1565fc4004e2691eaf2b"
+  },
+  {
+    "path": "docs/handoff/577/source-patches/04-9411bcf0f0dbedf4aa7bb3ce751f7c2fd989fc96.patch",
+    "size": 4800,
+    "sha256": "940252497fdee419bb06334009015c0e79a712b1b89d376d98f1b307487d93bd"
+  },
+  {
+    "path": "docs/handoff/577/source-provenance.json",
+    "size": 3621,
+    "sha256": "89ff262524ad4eab49ec615ff2121ea8d341ea2cd33321c1898b1e9c0960e566"
+  }
+]

@@ -1,0 +1,28 @@
+{
+  "base": "03d421b5685ed6703e63fd41ca98757b6428dce6",
+  "status": "PROPOSED ONLY; not approved/applied/executed",
+  "runtime": false,
+  "paths": {
+    "e2e/account-order.spec.ts": {
+      "beforeSha256": "54e67711b02621fbb2429346758ffb9ba09b48f622327b7e5a740b4edaef9ba9",
+      "afterSha256": "e4af00687c41b90f4b90bd3c6da5b76ba8cae761e65a89cabd30f4b769b1f70c",
+      "inverseExact": true,
+      "scope": "One readiness-selector substitution only; toBeVisible and every remaining action/assertion unchanged."
+    },
+    "e2e/sidebar-zerosum.spec.ts": {
+      "beforeSha256": "742454276027ead89ce10643e78974227211ad7e4e661bdebb9f9ced3905d40d",
+      "afterSha256": "37abf3cb5a42a152a2056fd26baa95a26e2b54d9e92c4f17ba7351e40cdcdf31",
+      "inverseExact": true,
+      "scope": "One readiness-selector substitution only; toBeVisible and every remaining action/assertion unchanged."
+    },
+    "apps/web/src/ledger/account-review.test.tsx": {
+      "beforeSha256": "5a5ac15479f6b2c4180972872e016437f438a9355bc919ba265d80faeb15d619",
+      "afterSha256": "cd665a3c6285b87a2f1f0e8170f94558512bbc62c205db8f0c7f94226dd06063",
+      "inverseExact": true,
+      "scope": "Open exactly the six existing accounts\u2019 actual Details controls before unchanged date assertions. Known remaining class-contract conflict documented; no assertion changes."
+    }
+  },
+  "patchSha256": "312883d3bd0735297ef227d33a876ce462e801b7e3d670b3d0afe7270802ea25",
+  "feasibility": "Source-ready conditional on separately verified author product-class preservation b64dbbd5; OLD adapter approval/adoption/run still pending",
+  "productClassProofSha256": "06281a42120b5ddce6e1a2967abb7a027e4ad487c87f96fa0b9f9912ffaf1160"
+}

@@ -1,0 +1,14 @@
+{
+  "head": "b575bd69b83c97476d121d84e19de4ef017d9033",
+  "phases": [
+    {
+      "name": "web-types",
+      "exit": 2,
+      "wallSeconds": 52.038
+    }
+  ],
+  "processGuard": 0,
+  "sourceGuard": 0,
+  "allPhases0": false,
+  "lockReleased": true
+}

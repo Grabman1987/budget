@@ -1,0 +1,584 @@
+diff --git a/apps/server/src/api/account-overview-quality-577.test.ts b/apps/server/src/api/account-overview-quality-577.test.ts
+new file mode 100644
+index 00000000..d7b282a6
+--- /dev/null
++++ b/apps/server/src/api/account-overview-quality-577.test.ts
+@@ -0,0 +1,110 @@
++import { createTestDatabase, schema } from '@budget/db';
++import { afterEach, beforeEach, expect, it } from 'vitest';
++import { createLedgerApi } from './index';
++
++interface Series {
++  points: Array<{ date: string; balanceCents: number; valuation: { eurCents: number | null } }>;
++}
++interface Batch {
++  series: Record<string, Series>;
++  quality?: Record<string, Record<string, {
++    source: 'native_cash' | 'account_value_eur'; currency: string; known: boolean;
++    quality: 'exact' | 'stale' | 'estimated' | 'missing'; missing: 'price' | 'fx' | null;
++  }>>;
++}
++let opened: ReturnType<typeof createTestDatabase>;
++let api: ReturnType<typeof createLedgerApi>;
++const range = 'from=2026-10-01&to=2026-10-03';
++
++beforeEach(() => {
++  opened = createTestDatabase();
++  const { db } = opened;
++  db.insert(schema.account).values([
++    { id: 'cash', name: 'Synthetic cash', type: 'checking', role: 'budget', onBudget: true, openingDate: '2026-10-02', openingBalanceCents: 12000 },
++    { id: 'zero', name: 'Synthetic zero', type: 'checking', role: 'budget', onBudget: true, openingDate: '2026-10-01' },
++    { id: 'usd', name: 'Synthetic native USD', type: 'checking', role: 'investment', onBudget: false, currency: 'USD', openingDate: '2026-10-01', openingBalanceCents: 4321 },
++    ...['priced', 'cost', 'missing', 'foreign'].map((id) => ({
++      id, name: `Synthetic ${id}`, type: 'brokerage' as const, role: 'investment' as const,
++      onBudget: false, openingDate: '2026-09-01',
++    })),
++  ]).run();
++  db.insert(schema.security).values(['priced', 'cost', 'missing', 'foreign'].map((id) => ({
++    id, name: `Synthetic ${id}`, kind: 'etf' as const, currency: id === 'foreign' ? 'USD' : 'EUR',
++  }))).run();
++  db.insert(schema.holding).values(['priced', 'cost', 'missing', 'foreign'].map((id) => ({
++    id: `h-${id}`, accountId: id, securityId: id, asOf: '2026-09-01', unitsE8: 100000000,
++    ...(id === 'cost' ? { costBasisCents: 700 } : {}),
++  }))).run();
++  db.insert(schema.price).values([
++    { securityId: 'priced', date: '2026-10-01', priceMicro: 12000000, currency: 'EUR', source: 'manual' },
++    { securityId: 'foreign', date: '2026-10-01', priceMicro: 12000000, currency: 'USD', source: 'manual' },
++  ]).run();
++  api = createLedgerApi({ db, today: () => '2026-10-10', stepUp: async (_c, next) => next() });
++});
++afterEach(() => opened.close());
++
++async function batch(extra = ''): Promise<Batch> {
++  const response = await api.request(`/accounts/series?${range}${extra}`);
++  expect(response.status).toBe(200);
++  return response.json() as Promise<Batch>;
++}
++
++it('adds opt-in sibling evidence while preserving every default batch/single series and all stored records', async () => {
++  const before = {
++    accounts: opened.db.select().from(schema.account).all(),
++    bookings: opened.db.select().from(schema.booking).all(),
++    audit: opened.db.select().from(schema.auditLog).all(),
++  };
++  const legacy = await batch();
++  expect(Object.hasOwn(legacy, 'quality')).toBe(false);
++  const enriched = await batch('&quality=1');
++  expect(enriched.series).toEqual(legacy.series);
++  expect(Object.keys(enriched.quality ?? {}).sort()).toEqual(Object.keys(legacy.series).sort());
++  for (const id of Object.keys(legacy.series)) {
++    const response = await api.request(`/accounts/${id}/series?${range}`);
++    expect(response.status).toBe(200);
++    const single = await response.json() as Series;
++    expect(single.points).toEqual(legacy.series[id]?.points);
++    expect(Object.hasOwn(single, 'quality')).toBe(false);
++  }
++  expect(enriched.series['priced']?.points.map((p) => p.balanceCents)).toEqual([1200, 1200, 1200]);
++  expect({
++    accounts: opened.db.select().from(schema.account).all(),
++    bookings: opened.db.select().from(schema.booking).all(),
++    audit: opened.db.select().from(schema.auditLog).all(),
++  }).toEqual(before);
++});
++
++it('distinguishes not-yet-open, genuine zero, missing valuation and known native cash without EUR FX', async () => {
++  const result = await batch('&quality=1');
++  const quality = result.quality;
++  expect(quality?.['cash']?.['2026-10-01']).toMatchObject({ known: false, source: 'native_cash' });
++  expect(quality?.['cash']?.['2026-10-02']).toMatchObject({ known: true, currency: 'EUR' });
++  expect(result.series['zero']?.points.map((p) => p.balanceCents)).toEqual([0, 0, 0]);
++  expect(quality?.['zero']?.['2026-10-03']).toEqual({ source: 'native_cash', currency: 'EUR', known: true, quality: 'exact', missing: null });
++  expect(result.series['usd']?.points.at(-1)).toMatchObject({ balanceCents: 4321, valuation: { eurCents: null } });
++  expect(quality?.['usd']?.['2026-10-03']).toEqual({ source: 'native_cash', currency: 'USD', known: true, quality: 'exact', missing: null });
++  expect(quality?.['missing']?.['2026-10-03']).toMatchObject({ source: 'account_value_eur', known: false, missing: 'price' });
++  expect(quality?.['foreign']?.['2026-10-03']).toMatchObject({ source: 'account_value_eur', known: false, missing: 'fx' });
++});
++
++it('retains actual cost-estimate and carried-quote provenance instead of manufacturing exact quality', async () => {
++  const result = await batch('&quality=1');
++  expect(result.series['cost']?.points.map((p) => p.balanceCents)).toEqual([700, 700, 700]);
++  expect(result.quality?.['cost']?.['2026-10-03']).toMatchObject({ known: true, quality: 'estimated', missing: null });
++  expect(result.quality?.['priced']?.['2026-10-01']).toMatchObject({ known: true, quality: 'exact' });
++  expect(result.quality?.['priced']?.['2026-10-03']).toMatchObject({ known: true, quality: 'exact' });
++  const response = await api.request('/accounts/series?from=2026-10-09&to=2026-10-10&quality=1');
++  expect(response.status).toBe(200);
++  const carried = await response.json() as Batch;
++  expect(carried.quality?.['priced']?.['2026-10-09']).toMatchObject({ known: true, quality: 'stale' });
++});
++
++it('rejects malformed or repeated opt-in flags and unrecognised enriched keys', async () => {
++  for (const query of ['quality=', 'quality=0', 'quality=true', 'quality=1&quality=1', 'quality=1&quality=0', 'quality=1&unexpected=1']) {
++    const response = await api.request(`/accounts/series?${range}&${query}`);
++    expect(response.status, query).toBe(400);
++  }
++  const response = await api.request(`/accounts/series?${range}&quality=1`);
++  expect(response.status).toBe(200);
++});
+diff --git a/apps/web/src/ledger/account-overview-577.test.tsx b/apps/web/src/ledger/account-overview-577.test.tsx
+new file mode 100644
+index 00000000..c2a086e1
+--- /dev/null
++++ b/apps/web/src/ledger/account-overview-577.test.tsx
+@@ -0,0 +1,197 @@
++// @vitest-environment jsdom
++import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
++import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router';
++import { setAmountsHidden, ToastProvider } from '@budget/ui';
++import { createBooking, createTestDatabase, reconcileAccount, schema } from '@budget/db';
++import { afterEach, beforeEach, expect, it, vi } from 'vitest';
++import { createLedgerApi } from '../../../server/src/api';
++import { OverviewPage } from './overview-page';
++import { accountsQuery, LEDGER_KEY, seriesBatchQuery } from './queries';
++import type { AccountList } from './types';
++
++const TODAY = '2026-10-21';
++let opened: ReturnType<typeof createTestDatabase>;
++let client: QueryClient;
++let reads: string[];
++let unexpected: string[];
++let releaseAccounts: (() => void) | undefined;
++let originalShow: typeof HTMLDialogElement.prototype.showModal;
++let originalClose: typeof HTMLDialogElement.prototype.close;
++
++beforeEach(() => {
++  vi.useFakeTimers({ toFake: ['Date'] });
++  vi.setSystemTime(new Date(`${TODAY}T12:00:00Z`));
++  vi.stubGlobal('scrollTo', () => {});
++  vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
++  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
++  originalShow = HTMLDialogElement.prototype.showModal;
++  originalClose = HTMLDialogElement.prototype.close;
++  HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
++  HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
++  opened = createTestDatabase();
++  client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
++  reads = [];
++  unexpected = [];
++  const rows = [
++    { id: 'alpha', name: 'Synthetic Alpha', type: 'checking', role: 'budget', onBudget: true, openingBalanceCents: 12345 },
++    { id: 'bravo', name: 'Synthetic Bravo', type: 'checking', role: 'budget', onBudget: true, openingBalanceCents: -345 },
++    { id: 'card', name: 'Synthetic Card', type: 'credit_card', role: 'budget', onBudget: true, openingBalanceCents: -2000 },
++    { id: 'loan', name: 'Synthetic Loan', type: 'loan', role: 'debt', onBudget: false, openingBalanceCents: -6000 },
++    { id: 'manual', name: 'Synthetic Investment', type: 'p2p', role: 'investment', onBudget: false, openingBalanceCents: 15000 },
++    { id: 'reference', name: 'Synthetic Reference', type: 'checking', role: 'budget', onBudget: true, openingBalanceCents: 0 },
++    { id: 'closed', name: 'Synthetic Closed', type: 'checking', role: 'budget', onBudget: true, openingBalanceCents: 7777, closedAt: TODAY },
++  ] satisfies Array<Omit<typeof schema.account.$inferInsert, 'openingDate'>>;
++  opened.db.insert(schema.account).values(rows.map((row, sortOrder) => ({ ...row, openingDate: '2026-09-01', sortOrder }))).run();
++  for (const row of rows.slice(0, 4)) reconcileAccount(opened.db, {
++    accountId: row.id, date: TODAY, statementBalanceCents: row.openingBalanceCents, today: TODAY,
++  }, { actor: 'test' });
++  reconcileAccount(opened.db, { accountId: 'reference', date: '2026-09-01', statementBalanceCents: 0, today: TODAY }, { actor: 'test' });
++  for (const amountCents of [1, -1]) createBooking(opened.db, {
++    accountId: 'reference', date: '2026-09-02', amountCents, status: 'pending', splits: [{ amountCents }],
++  }, { actor: 'test' });
++});
++afterEach(() => {
++  releaseAccounts?.();
++  releaseAccounts = undefined;
++  cleanup();
++  client.clear();
++  opened.close();
++  HTMLDialogElement.prototype.showModal = originalShow;
++  HTMLDialogElement.prototype.close = originalClose;
++  act(() => setAmountsHidden(false));
++  vi.unstubAllGlobals();
++  vi.useRealTimers();
++  expect(unexpected).toEqual([]);
++});
++
++function mount(options: { holdAccounts?: boolean; omitReview?: boolean } = {}) {
++  const api = createLedgerApi({ db: opened.db, today: () => TODAY, stepUp: async (_c, next) => next() });
++  const gate = options.holdAccounts ? new Promise<void>((resolve) => { releaseAccounts = resolve; }) : undefined;
++  vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
++    const method = init?.method ?? 'GET';
++    const url = new URL(input, 'http://localhost');
++    const key = `${method} ${url.pathname}${url.search}`;
++    reads.push(key);
++    const allowed = method === 'GET' && (
++      (url.pathname === '/api/accounts' && !url.search) ||
++      (url.pathname === '/api/portfolio/positions' && !url.search) ||
++      (url.pathname === '/api/accounts/series' && url.search === '?from=2026-09-21&to=2026-10-21&quality=1')
++    );
++    if (!allowed) {
++      unexpected.push(key);
++      return Response.json({ error: 'unexpected_test_request' }, { status: 500 });
++    }
++    if (url.pathname === '/api/accounts') await gate;
++    const response = await api.request(url.pathname.replace(/^\/api/, '') + url.search, init);
++    if (options.omitReview && url.pathname === '/api/accounts') {
++      const list = await response.json() as AccountList;
++      return Response.json({ ...list, accounts: list.accounts.map((account) => {
++        if (account.id !== 'manual') return account;
++        const { reviewStatus: _review, ...oldCachedRow } = account;
++        return oldCachedRow;
++      }) });
++    }
++    return response;
++  });
++  const root = createRootRoute();
++  const router = createRouter({ routeTree: root.addChildren([
++    createRoute({ getParentRoute: () => root, path: '/konten', component: OverviewPage }),
++    createRoute({ getParentRoute: () => root, path: '/konten/$id', component: () => <p>Account destination</p> }),
++    createRoute({ getParentRoute: () => root, path: '/konten/pruefen', component: () => <p>Review destination</p> }),
++    createRoute({ getParentRoute: () => root, path: '/vermoegen/nettovermoegen', component: () => <p>Wealth destination</p> }),
++  ]), history: createMemoryHistory({ initialEntries: ['/konten'] }) });
++  return render(<QueryClientProvider client={client}><ToastProvider><RouterProvider router={router} /></ToastProvider></QueryClientProvider>);
++}
++
++it('shows literal Budget figures and the existing physical account groups once, excluding closed accounts', async () => {
++  const { container } = mount();
++  await screen.findByRole('link', { name: 'Synthetic Alpha' });
++  await waitFor(() => expect(screen.getByTestId('budget-accounts-balance').textContent).toBe('120,00 €'));
++  expect(screen.getByRole('link', { name: '4 von 6 Konten geprüft' })).toBeTruthy();
++  expect([...container.querySelectorAll('.grp-title')].map((node) => node.textContent)).toEqual(['Budget-Konten', 'Kreditkarten', 'Kredite', 'Investments']);
++  expect([...container.querySelectorAll('[data-testid="account-group-value"]')].map((node) => node.textContent)).toEqual(['120,00 €', '−20,00 €', '−60,00 €', '150,00 €']);
++  expect([...container.querySelectorAll('[data-account-id]')]
++    .filter((row) => row.querySelector('[data-review-state="checked"]'))
++    .map((row) => row.getAttribute('data-account-id'))).toEqual(['alpha', 'bravo', 'card', 'loan']);
++  expect([...container.querySelectorAll('[data-account-id] .kcheck')].map((node) => node.textContent)).toEqual(['geprüft', 'geprüft', 'Fällig', 'geprüft', 'geprüft', 'Noch kein Prüfstand']);
++  expect(container.querySelectorAll('[data-account-id]')).toHaveLength(6);
++  expect(container.querySelector('[data-account-id="closed"]')).toBeNull();
++  expect(screen.queryByText('Synthetic Closed')).toBeNull();
++  expect(container.querySelector('[data-account-id="card"] [data-testid="account-value"]')?.textContent).toBe('−20,00 €');
++  expect(container.querySelector('[data-account-id="loan"] [data-testid="account-value"]')?.textContent).toBe('−60,00 €');
++  expect(container.querySelector('[data-account-id="manual"] [data-testid="account-value"]')?.textContent).toBe('150,00 €');
++  expect(screen.getByRole('link', { name: 'Vermögen ansehen' }).getAttribute('href')).toBe('/vermoegen/nettovermoegen');
++  await userEvent.setup().click(screen.getByRole('button', { name: 'Details zu Synthetic Reference' }));
++  const fullStatus = screen.getByText('Fällig · geprüft am 01.09.2026');
++  expect(fullStatus.classList.contains('is-stale')).toBe(true);
++});
++
++it('waits for actual server asOf and uses a separate quality cache while preserving LEDGER invalidation', async () => {
++  mount({ holdAccounts: true, omitReview: true });
++  await waitFor(() => expect(reads).toContain('GET /api/accounts'));
++  expect(reads.some((entry) => entry.includes('/series'))).toBe(false);
++  act(() => releaseAccounts?.());
++  await screen.findByRole('link', { name: 'Synthetic Alpha' });
++  await waitFor(() => expect(reads).toContain('GET /api/accounts/series?from=2026-09-21&to=2026-10-21&quality=1'));
++  expect(screen.getByText('Prüfstatus für 1 Konto nicht verfügbar.')).toBeTruthy();
++  expect(screen.getByRole('link', { name: '4 von 6 Konten geprüft' })).toBeTruthy();
++  const legacy = seriesBatchQuery(30, { asOf: TODAY });
++  const enriched = seriesBatchQuery(30, { asOf: TODAY, quality: true });
++  expect(legacy.queryKey).toEqual(['ledger', 'series-batch', 30, TODAY]);
++  expect(enriched.queryKey).toEqual(['ledger', 'series-batch', 30, TODAY, 'quality-v1']);
++  await waitFor(() => expect(client.isFetching()).toBe(0));
++  const previousReads = reads.length;
++  await act(async () => { await client.invalidateQueries({ queryKey: LEDGER_KEY }); });
++  expect(reads.slice(previousReads)).toContain('GET /api/accounts');
++  expect(reads.slice(previousReads)).toContain('GET /api/accounts/series?from=2026-09-21&to=2026-10-21&quality=1');
++  expect(client.getQueryData(accountsQuery().queryKey)).toBeTruthy();
++});
++
++it('retains shared reference identity and group placement rather than duplicating platform cash accounts', async () => {
++  opened.db.insert(schema.account).values(['depot-a', 'depot-b'].map((id, index) => ({
++    id, name: `Synthetic ${id}`, type: 'brokerage' as const, role: 'investment' as const, onBudget: false,
++    referenceAccountId: 'reference', openingDate: '2026-09-01', sortOrder: 10 + index,
++  }))).run();
++  const { container } = mount();
++  await screen.findByRole('button', { name: 'Details zu Synthetic Reference' });
++  await waitFor(() => expect(client.isFetching()).toBe(0));
++  expect(container.querySelectorAll('[data-account-id="reference"]')).toHaveLength(1);
++  expect(container.querySelectorAll('[data-account-id]')).toHaveLength(8);
++  const ids = [...container.querySelectorAll('[data-account-id]')].map((node) => node.getAttribute('data-account-id'));
++  expect(ids).toEqual(['alpha', 'bravo', 'reference', 'card', 'loan', 'manual', 'depot-a', 'depot-b']);
++  await userEvent.setup().click(screen.getByRole('button', { name: 'Details zu Synthetic Reference' }));
++  const relationships = container.querySelector('.overview-platform-links');
++  expect(relationships).not.toBeNull();
++  expect(within(relationships as HTMLElement).getByRole('link', { name: 'Synthetic depot-a' }).getAttribute('href')).toBe('/konten/depot-a');
++  expect(within(relationships as HTMLElement).getByRole('link', { name: 'Synthetic depot-b' }).getAttribute('href')).toBe('/konten/depot-b');
++});
++
++it('masks new cash and pending FX text, embedded source money and a live account draft without changing its values', async () => {
++  opened.db.insert(schema.account).values({ id: 'usd', name: 'Synthetic 987,65 EUR', type: 'checking', role: 'investment', currency: 'USD', onBudget: false, openingDate: '2026-09-01', openingBalanceCents: 10000 }).run();
++  opened.db.insert(schema.fxRate).values({ date: TODAY, currency: 'USD', rateMicro: 1234567, source: 'Saldo 123,45 €' }).run();
++  createBooking(opened.db, { accountId: 'usd', date: TODAY, amountCents: -100, status: 'pending', splits: [{ amountCents: -100 }] }, { actor: 'test' });
++  const before = opened.db.select().from(schema.booking).all();
++  const { container } = mount();
++  const user = userEvent.setup();
++  await user.click(await screen.findByRole('button', { name: 'Details zu Synthetic 987,65 EUR' }));
++  expect(container.querySelector('.overview-detail')?.textContent).toContain('Saldo 123,45 €');
++  expect(container.querySelector('.overview-detail')?.textContent).toContain('1,234567 EUR');
++  await user.click(screen.getByRole('button', { name: 'Konto anlegen' }));
++  const dialog = screen.getByRole('dialog', { name: 'Konto anlegen' });
++  const name = within(dialog).getByLabelText('Name');
++  await user.click(name);
++  await user.paste('Synthetic draft');
++  act(() => setAmountsHidden(true));
++  const display = container.querySelector('.account-overview-577');
++  expect(display?.textContent).not.toMatch(/123,45|1,234567|987,65|99,00/);
++  const detail = container.querySelector('.overview-detail');
++  expect(detail?.textContent).toContain('•••');
++  expect(display?.querySelector('[aria-label*="987,65"]')).toBeNull();
++  expect((name as HTMLInputElement).value).toBe('Synthetic draft');
++  act(() => setAmountsHidden(false));
++  expect(detail?.textContent).toContain('Saldo 123,45 €');
++  expect(detail?.textContent).toContain('1,234567 EUR');
++  expect(opened.db.select().from(schema.booking).all()).toEqual(before);
++});
+diff --git a/apps/web/src/ledger/mini-line-quality-577.test.tsx b/apps/web/src/ledger/mini-line-quality-577.test.tsx
+new file mode 100644
+index 00000000..ea2c4f08
+--- /dev/null
++++ b/apps/web/src/ledger/mini-line-quality-577.test.tsx
+@@ -0,0 +1,73 @@
++// @vitest-environment jsdom
++import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
++import { setAmountsHidden } from '@budget/ui';
++import { afterEach, beforeEach, expect, it, vi } from 'vitest';
++import { MiniLine } from './mini-line';
++import type { AccountSeriesDayQuality, SeriesPoint } from './types';
++
++const points: SeriesPoint[] = [
++  { date: '2026-10-01', balanceCents: 1000 },
++  { date: '2026-10-02', balanceCents: 0 },
++  { date: '2026-10-03', balanceCents: 3000 },
++];
++const known: AccountSeriesDayQuality = { source: 'native_cash', currency: 'USD', known: true, quality: 'exact', missing: null };
++const quality = {
++  '2026-10-01': known,
++  '2026-10-02': { ...known, known: false, quality: 'missing', missing: 'fx' },
++  '2026-10-03': known,
++} satisfies Record<string, AccountSeriesDayQuality>;
++beforeEach(() => {
++  vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
++});
++afterEach(() => {
++  cleanup();
++  act(() => setAmountsHidden(false));
++  vi.unstubAllGlobals();
++});
++
++it('does not bridge a missing day or present its legacy numeric zero as a known value', () => {
++  const { container } = render(<MiniLine points={points} currency="USD" days={30} requireQuality quality={quality} label="Synthetic" table />);
++  expect(container.querySelectorAll('path.l-actual')).toHaveLength(0);
++  expect(container.querySelectorAll('circle.dot-actual').length).toBeGreaterThanOrEqual(2);
++  const chart = screen.getByRole('group', { name: 'Synthetic · Kontoverlauf der letzten 30 Tage' });
++  fireEvent.focus(chart);
++  expect(screen.getByRole('status').textContent).toContain('10,00');
++  expect(screen.getByRole('status').textContent).toContain('Buchungssaldo (USD)');
++  fireEvent.keyDown(chart, { key: 'ArrowRight' });
++  expect(screen.getByRole('status').textContent).toContain('Wechselkurs fehlt');
++  expect(screen.getByRole('status').textContent).not.toContain('0,00');
++  fireEvent.keyDown(chart, { key: 'ArrowRight' });
++  expect(screen.getByRole('status').textContent).toContain('30,00');
++  const rows = within(screen.getByRole('table', { hidden: true })).getAllByRole('row', { hidden: true });
++  expect(rows.find((row) => row.textContent?.includes('02.10.2026') && row.textContent.includes('Buchungssaldo'))?.textContent).toContain('–');
++  expect(rows.find((row) => row.textContent?.includes('03.10.2026') && row.textContent.includes('Buchungssaldo'))?.textContent).toContain('30,00');
++});
++
++it('fails closed for absent quality and distinguishes a genuine known zero from missing', () => {
++  const { container, rerender } = render(<MiniLine points={points} currency="USD" days={30} requireQuality label="Synthetic" />);
++  expect(container.querySelectorAll('path.l-actual, circle.dot-actual')).toHaveLength(0);
++  expect(screen.getByText('Nicht verfügbar')).toBeTruthy();
++  const chart = screen.getByRole('group', { name: 'Synthetic · Kontoverlauf der letzten 30 Tage' });
++  fireEvent.focus(chart);
++  expect(screen.getByRole('status').textContent).toContain('Qualität nicht verfügbar');
++  rerender(<MiniLine points={points} currency="USD" days={30} requireQuality label="Synthetic" quality={{ ...quality, '2026-10-02': known }} />);
++  fireEvent.keyDown(chart, { key: 'ArrowRight' });
++  expect(screen.getByRole('status').textContent).toContain('0,00');
++  expect(screen.getByRole('status').textContent).toContain('Bekannter Wert');
++  expect(container.querySelectorAll('path.l-actual')).toHaveLength(1);
++});
++
++it('labels EUR holding value separately and masks literal tooltip/table amounts without changing them', () => {
++  render(<MiniLine points={points} days={30} requireQuality label="Synthetic 123,45 EUR" quality={Object.fromEntries(points.map((point) => [point.date, { ...known, source: 'account_value_eur', currency: 'EUR' }]))} table />);
++  const chart = screen.getByRole('group', { name: 'Synthetic 123,45 EUR · Kontoverlauf der letzten 30 Tage' });
++  fireEvent.focus(chart);
++  expect(screen.getByRole('status').textContent).toContain('Kontowert inkl. Depot-Cash (EUR)');
++  expect(screen.getByRole('status').textContent).toContain('10,00 €');
++  act(() => setAmountsHidden(true));
++  expect(chart.getAttribute('aria-label')).not.toContain('123,45');
++  expect(screen.getByRole('status').textContent).not.toContain('10,00');
++  expect(screen.getByRole('table', { hidden: true }).textContent).not.toContain('30,00');
++  act(() => setAmountsHidden(false));
++  expect(screen.getByRole('status').textContent).toContain('10,00 €');
++  expect(screen.getByRole('table', { hidden: true }).textContent).toContain('30,00 €');
++});
+diff --git a/e2e/issue-577-account-overview.spec.ts b/e2e/issue-577-account-overview.spec.ts
+new file mode 100644
+index 00000000..ef0ac37f
+--- /dev/null
++++ b/e2e/issue-577-account-overview.spec.ts
+@@ -0,0 +1,180 @@
++import AxeBuilder from '@axe-core/playwright';
++import { openDatabase, reconcileAccount, schema } from '@budget/db';
++import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
++import { writeFile } from 'node:fs/promises';
++import { test } from './isolated-ledger';
++
++test.use({ ledgerToday: '2026-10-21' });
++
++function seed(databasePath: string) {
++  const opened = openDatabase(databasePath);
++  try {
++    const rows = [
++      { id: 'overview-alpha', name: 'Synthetic Alpha', type: 'checking', role: 'budget', onBudget: true, openingBalanceCents: 12345 },
++      { id: 'overview-bravo', name: 'Synthetic Bravo', type: 'checking', role: 'budget', onBudget: true, openingBalanceCents: -345 },
++      { id: 'overview-reference', name: 'Synthetic Reference', type: 'checking', role: 'budget', onBudget: true, openingBalanceCents: 0 },
++      { id: 'overview-card', name: 'Synthetic Card', type: 'credit_card', role: 'budget', onBudget: true, openingBalanceCents: -2000 },
++      { id: 'overview-loan', name: 'Synthetic Loan', type: 'loan', role: 'debt', onBudget: false, openingBalanceCents: -6000 },
++      { id: 'overview-manual', name: 'Synthetic Investment', type: 'p2p', role: 'investment', onBudget: false, openingBalanceCents: 15000 },
++      { id: 'overview-depot', name: 'Synthetic Depot', type: 'brokerage', role: 'investment', onBudget: false, referenceAccountId: 'overview-reference', openingBalanceCents: 0 },
++      { id: 'overview-usd', name: 'Synthetic USD', type: 'checking', role: 'investment', onBudget: false, currency: 'USD', openingBalanceCents: 4321 },
++      { id: 'overview-closed', name: 'Synthetic Closed', type: 'checking', role: 'budget', onBudget: true, openingBalanceCents: 7777, closedAt: '2026-10-21' },
++    ] satisfies Array<Omit<typeof schema.account.$inferInsert, 'openingDate'>>;
++    // Separate inserts retain the actual reference-account foreign-key order.
++    for (const [sortOrder, row] of rows.entries()) opened.db.insert(schema.account).values({ ...row, openingDate: '2026-09-01', sortOrder }).run();
++    opened.db.insert(schema.security).values({ id: 'overview-fund', name: 'Synthetic Fund', kind: 'etf', currency: 'EUR' }).run();
++    opened.db.insert(schema.holding).values({ id: 'overview-holding', accountId: 'overview-depot', securityId: 'overview-fund', asOf: '2026-09-20', unitsE8: 100000000 }).run();
++    opened.db.insert(schema.price).values({ securityId: 'overview-fund', date: '2026-10-20', priceMicro: 20000000, currency: 'EUR', source: 'manual' }).run();
++    opened.db.insert(schema.fxRate).values({ date: '2026-10-21', currency: 'USD', rateMicro: 1234567, source: 'Saldo 123,45 EUR' }).run();
++    for (const id of ['overview-alpha', 'overview-bravo', 'overview-card', 'overview-loan']) {
++      const amount = rows.find((row) => row.id === id)!.openingBalanceCents;
++      reconcileAccount(opened.db, { accountId: id, date: '2026-10-21', statementBalanceCents: amount, today: '2026-10-21' }, { actor: 'test' });
++    }
++  } finally {
++    opened.close();
++  }
++}
++
++async function contained(locator: Locator, minimum: number) {
++  await expect(locator).toBeVisible();
++  const metrics = await locator.evaluate((element) => {
++    const rect = element.getBoundingClientRect();
++    const centre = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
++    return {
++      left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
++      width: rect.width, height: rect.height, viewportWidth: innerWidth, viewportHeight: innerHeight,
++      owned: centre === element || (centre !== null && element.contains(centre)),
++    };
++  });
++  expect(metrics.left).toBeGreaterThanOrEqual(0);
++  expect(metrics.right).toBeLessThanOrEqual(metrics.viewportWidth);
++  expect(metrics.top).toBeGreaterThanOrEqual(0);
++  expect(metrics.bottom).toBeLessThanOrEqual(metrics.viewportHeight);
++  expect(metrics.width).toBeGreaterThanOrEqual(minimum);
++  expect(metrics.height).toBeGreaterThanOrEqual(minimum);
++  expect(metrics.owned).toBe(true);
++}
++
++async function scene(page: Page, info: TestInfo, profile: 'desktop' | 'configured', theme: 'light' | 'dark') {
++  await page.goto('/konten');
++  await page.evaluate((value) => { document.documentElement.dataset['theme'] = value; }, theme);
++  const scope = page.locator('.account-overview-577');
++  await expect(page.getByTestId('budget-accounts-balance')).toHaveText('120,00 €');
++  await expect(scope.getByRole('link', { name: '4 von 8 Konten geprüft' })).toBeVisible();
++  await expect(scope.locator('[data-account-id]')).toHaveCount(8);
++  await expect(scope.getByText('Synthetic Closed', { exact: true })).toHaveCount(0);
++  await expect(scope.locator('.grp-title')).toHaveText(['Budget-Konten', 'Kreditkarten', 'Kredite', 'Investments']);
++  await expect(scope.locator('[data-account-id="overview-card"] [data-testid="account-value"]')).toHaveText('−20,00 €');
++  await expect(scope.locator('[data-account-id="overview-loan"] [data-testid="account-value"]')).toHaveText('−60,00 €');
++  await expect(scope.locator('[data-account-id="overview-depot"] [data-testid="account-value"]')).toHaveText('20,00 €');
++  const initial = await scope.evaluate((element) => ({
++    viewport: { width: innerWidth, height: innerHeight },
++    coarse: matchMedia('(pointer: coarse)').matches,
++    scrollWidth: document.documentElement.scrollWidth,
++    rows: [...element.querySelectorAll('[data-account-id]')].map((row) => {
++      const rect = row.getBoundingClientRect();
++      return { id: row.getAttribute('data-account-id'), top: rect.top, bottom: rect.bottom, height: rect.height };
++    }),
++  }));
++  expect(initial.scrollWidth).toBeLessThanOrEqual(initial.viewport.width);
++  if (profile === 'desktop') {
++    expect(initial.viewport).toEqual({ width: 1440, height: 900 });
++    expect(initial.coarse).toBe(false);
++    for (const row of initial.rows) {
++      expect(row.height).toBeGreaterThanOrEqual(36);
++      expect(row.height).toBeLessThanOrEqual(44);
++      expect(row.top).toBeGreaterThanOrEqual(0);
++      expect(row.bottom).toBeLessThanOrEqual(900);
++    }
++  } else expect(initial.viewport.width).toBe(390);
++  // Actual targets, not hidden descendants with misleading layout boxes.
++  for (const target of await scope.locator('.overview-account-link, .overview-row-details .btn').all()) {
++    await target.scrollIntoViewIfNeeded();
++    await contained(target, profile === 'configured' ? 44 : 36);
++  }
++  const axe = await new AxeBuilder({ page }).include('.account-overview-577')
++    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
++  expect(axe.violations).toEqual([]);
++
++  const seriesResponse = await page.request.get('/api/accounts/series?from=2026-09-21&to=2026-10-21&quality=1');
++  expect(seriesResponse.status()).toBe(200);
++  const series = await seriesResponse.json() as {
++    quality: Record<string, Record<string, { known: boolean; missing: string | null }>>;
++  };
++  expect(series.quality['overview-depot']?.['2026-09-21']).toMatchObject({ known: false, missing: 'price' });
++  expect(series.quality['overview-depot']?.['2026-10-21']).toMatchObject({ known: true, missing: null });
++  await scope.getByRole('button', { name: 'Details zu Synthetic Depot' }).click();
++  const detail = scope.locator('.overview-detail');
++  await expect(detail.getByRole('link', { name: 'Synthetic Reference' })).toHaveAttribute('href', '/konten/overview-reference');
++  const chart = detail.getByRole('group', { name: 'Synthetic Depot · Kontoverlauf der letzten 30 Tage', exact: true });
++  await chart.focus();
++  await expect(page.locator('.chart-tooltip')).toContainText('Wertpapierkurs/Einstand fehlt');
++  // The shared chart uses bounded arrow navigation; inspect the actual final dated point.
++  for (let index = 0; index < 30; index += 1) await chart.press('ArrowRight');
++  await expect(page.locator('.chart-tooltip')).toContainText('20,00 €');
++  await expect(page.locator('.chart-tooltip')).toContainText('21.10.2026');
++  await detail.getByText('Tabelle anzeigen', { exact: true }).click();
++  const values = detail.getByRole('region', { name: /dargestellte Werte/ });
++  await expect(values).toContainText('Kontowert inkl. Depot-Cash (EUR)');
++  await expect(values).toContainText('20,00 €');
++  await chart.press('Escape');
++  await scope.getByRole('button', { name: 'Details zu Synthetic Depot' }).click();
++
++  await scope.getByRole('button', { name: 'Details zu Synthetic USD' }).click();
++  await expect(scope.locator('.overview-detail')).toContainText('Saldo 123,45 EUR');
++  await page.keyboard.press('Control+Shift+H');
++  await expect(page.getByTestId('budget-accounts-balance')).toContainText('•••');
++  const leaks = await scope.evaluate((element) => {
++    const pattern = /[+−-]?\d[\d.,\s]*(?:Mio\.\s*)?(€|EUR|USD)(?![A-Z])/g;
++    return [element.textContent ?? '', ...[...element.querySelectorAll('[aria-label], [title]')].map((node) => `${node.getAttribute('aria-label') ?? ''} ${node.getAttribute('title') ?? ''}`)]
++      .flatMap((text) => [...text.matchAll(pattern)].map((match) => match[0]));
++  });
++  expect(leaks).toEqual([]);
++  await page.keyboard.press('Control+Shift+H');
++  await expect(scope.locator('.overview-detail')).toContainText('Saldo 123,45 EUR');
++  await scope.getByRole('button', { name: 'Details zu Synthetic USD' }).click();
++
++  // A real audited order write and its actual grouped Undo, never a mocked transport.
++  await scope.getByRole('button', { name: 'Reihenfolge ändern', exact: true }).click();
++  const order = () => scope.locator('#kg-budget').locator('..').locator('[data-account-id] .kname').allTextContents();
++  expect(await order()).toEqual(['Synthetic Alpha', 'Synthetic Bravo', 'Synthetic Reference']);
++  await scope.getByRole('button', { name: 'Synthetic Alpha nach unten' }).click();
++  const toast = page.locator('.toast.is-open').filter({ hasText: 'Reihenfolge der Konten gespeichert.' });
++  await expect(toast).toBeVisible();
++  await expect.poll(order).toEqual(['Synthetic Bravo', 'Synthetic Alpha', 'Synthetic Reference']);
++  await toast.getByRole('button', { name: 'Rückgängig', exact: true }).click();
++  await expect.poll(order).toEqual(['Synthetic Alpha', 'Synthetic Bravo', 'Synthetic Reference']);
++  await scope.getByRole('button', { name: 'Fertig', exact: true }).click();
++  await page.reload();
++  await page.evaluate((value) => { document.documentElement.dataset['theme'] = value; }, theme);
++  await expect(page.getByTestId('budget-accounts-balance')).toHaveText('120,00 €');
++  await expect.poll(order).toEqual(['Synthetic Alpha', 'Synthetic Bravo', 'Synthetic Reference']);
++  await page.getByTestId('budget-accounts-balance').scrollIntoViewIfNeeded();
++  const screenshot = info.outputPath(`account-overview-${profile}-${theme}.png`);
++  await page.screenshot({ path: screenshot, fullPage: true, animations: 'disabled' });
++  await info.attach('Account overview', { path: screenshot, contentType: 'image/png' });
++  const metrics = info.outputPath(`account-overview-${profile}-${theme}.json`);
++  await writeFile(metrics, JSON.stringify({ ...initial, engine: page.context().browser()!.browserType().name(), project: info.project.name, profile, theme, transport: 'real API reorder and Undo' }, null, 2));
++  await info.attach('Account overview metrics', { path: metrics, contentType: 'application/json' });
++}
++
++for (const profile of ['desktop', 'configured'] as const) for (const theme of ['light', 'dark'] as const) {
++  test(`account overview ${profile} ${theme} preserves scope, quality, privacy and real order Undo`, async ({ page, browser, isolatedLedger, ledgerToday }, info) => {
++    seed(isolatedLedger.databasePath);
++    if (profile === 'configured') {
++      const inherited = page.viewportSize();
++      expect(inherited).not.toBeNull();
++      // Keep the canonical engine/input model and visible height; only desktop CI narrows to390.
++      await page.setViewportSize({ width: 390, height: inherited!.height });
++      await scene(page, info, profile, theme);
++      return;
++    }
++    const context = await browser.newContext({ baseURL: isolatedLedger.origin, storageState: isolatedLedger.storageState,
++      viewport: { width: 1440, height: 900 }, isMobile: false, hasTouch: false, deviceScaleFactor: 1, serviceWorkers: 'block' });
++    try {
++      const desktop = await context.newPage();
++      await desktop.clock.setFixedTime(new Date(`${ledgerToday}T12:00:00+02:00`));
++      await scene(desktop, info, profile, theme);
++    } finally { await context.close(); }
++  });
++}
