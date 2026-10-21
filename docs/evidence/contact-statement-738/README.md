@@ -45,10 +45,17 @@ errors retain their existing sanitization.
   Ordinary rows measured 50px on desktop and 60.328px on phones; repayment rows
   including their touch-sized allocation disclosure measured 74px and 104.328px.
   These are current measurements, not a measured before/after percentage.
-- Required AGE-enabled full check (two Vitest workers) and normal production build
-  are pending at this evidence checkpoint. Their exact-head results, required CI
-  and delivery status are recorded in the pull request; this document does not
-  claim a full check or LIVE acceptance in advance.
+- Required AGE-enabled full check on clean source checkpoint
+  `7169a0cba7ec70d0d25d8ed2bf24666d3142c5ee`: **584 test files and 5,192 tests
+  passed**, no failed or skipped tests; Vitest duration 500.20s, two workers,
+  Node 22.23.3 and age 1.2.1. Workspace types, lint/format and the subsequent
+  ordinary production build also passed. All 3,636 tracked source hashes/full
+  modes, HEAD and index were unchanged before/after; the earlier owner-batching
+  cancellation remains separate history.
+- These full results belong to the stated source checkpoint. Any later ordinary
+  Main inheritance is checked separately for exact feature bytes; fresh required
+  CI on the final joined head and verified deployment remain pending. No LIVE
+  acceptance or merged-head local rerun is claimed here.
 
 ## Original synthetic browser evidence
 
