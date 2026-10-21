@@ -14,6 +14,8 @@ export {
 } from './envelope';
 export {
   budgetMonths,
+  budgetActivity,
+  type BudgetActivityItem,
   cardBalanceCover,
   splitEffect,
   toBeAssignedFlow,

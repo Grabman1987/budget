@@ -457,6 +457,7 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
     path: `/api/budget/${month}/quick-assign`,
     body: { mode: 'target', categoryIds: [category.id] },
   });
+  await inspector.getByText('Geld verschieben', { selector: 'summary' }).click();
   await inspector.getByLabel('Nach', { exact: true }).selectOption(reserve.id);
   await inspector.getByLabel('Betrag', { exact: true }).fill('0,01');
   await inspector.getByRole('button', { name: 'Verschieben', exact: true }).click();

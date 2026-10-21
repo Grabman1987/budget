@@ -1,5 +1,8 @@
 import {
   planMonthViews,
+  planActivityView,
+  databaseStamp,
+  queryBookings,
   assignMany,
   quickAssignMany,
   categoryTree,
@@ -26,6 +29,7 @@ import {
 } from '@budget/db';
 import { addMonths } from '@budget/domain';
 import { Hono } from 'hono';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 import {
@@ -156,11 +160,101 @@ export function categoryRoutes(db: Db): Hono {
 export function budgetRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   const monthParam = (value: string) => month.parse(value);
+  const cursorEpoch = randomUUID();
 
   /** Several months at once: `{ months: { 'YYYY-MM': <the answer of GET /:month> } }`. */
   app.get('/months', (c) => {
     const { months, cardRule } = readQuery(c, budgetMonthsQuery);
     return c.json({ months: planMonthViews(db, months, cardRule ? { cardRule } : {}, today()) });
+  });
+
+  app.get('/:month/activity/:categoryId', (c) => {
+    const m = monthParam(c.req.param('month'));
+    const id = z.string().min(1).max(200).parse(c.req.param('categoryId'));
+    const query = readQuery(
+      c,
+      budgetQuery.extend({
+        limit: z.coerce.number().int().min(1).max(50).default(50),
+        cursor: z.string().min(1).max(1024).optional(),
+      }),
+    );
+    c.header('Cache-Control', 'no-store');
+    return c.json(
+      db.transaction((tx) => {
+        const stamp = databaseStamp(tx);
+        const basis = [m, id, query.cardRule ?? 'ynab', `${cursorEpoch}:${stamp}`];
+        let offset = 0;
+        if (query.cursor) {
+          let decoded: unknown;
+          try {
+            decoded = JSON.parse(Buffer.from(query.cursor, 'base64url').toString('utf8'));
+          } catch {
+            throw new ApiError(422, 'activity_cursor', 'Ungültige Fortsetzung.');
+          }
+          const parsed = z
+            .tuple([z.string(), z.string(), z.string(), z.string(), z.number().int().nonnegative()])
+            .safeParse(decoded);
+          if (!parsed.success) throw new ApiError(422, 'activity_cursor', 'Ungültige Fortsetzung.');
+          if (parsed.data.slice(0, 4).some((v, i) => v !== basis[i]))
+            throw new ApiError(
+              409,
+              'activity_changed',
+              'Der Plan hat sich geändert. Bitte neu laden.',
+            );
+          offset = parsed.data[4];
+        }
+        const view = planActivityView(
+          tx,
+          m,
+          id,
+          query.cardRule ? { cardRule: query.cardRule } : {},
+          today(),
+        );
+        if (!view)
+          throw new ApiError(404, 'category_missing', 'Diese Kategorie ist nicht vorhanden.');
+        const all = view.activityBreakdown.items;
+        if (offset > all.length)
+          throw new ApiError(422, 'activity_cursor', 'Ungültige Fortsetzung.');
+        const items = all.slice(offset, offset + query.limit);
+        const next = offset + items.length;
+        const ids = [...new Set(items.flatMap((item) => (item.bookingId ? [item.bookingId] : [])))];
+        const sources = new Map(
+          (ids.length ? queryBookings(tx, { ids, limit: 50 }).items : []).map((booking) => [
+            booking.id,
+            booking,
+          ]),
+        );
+        return {
+          ...view,
+          activityBreakdown: {
+            ...view.activityBreakdown,
+            items: items.map(({ cents, ...item }) => {
+              const source = item.bookingId ? sources.get(item.bookingId) : undefined;
+              if (item.bookingId && !source)
+                throw new Error('Budget activity source is unavailable.');
+              return {
+                ...item,
+                contributionCents: cents,
+                source: source
+                  ? {
+                      payeeName: source.payeeName,
+                      memo: source.memo,
+                      accountName: source.accountName,
+                      bookingAmountCents: source.amountCents,
+                    }
+                  : null,
+              };
+            }),
+            count: all.length,
+            pageCents: items.reduce((sum, item) => sum + item.cents, 0),
+            nextCursor:
+              next < all.length
+                ? Buffer.from(JSON.stringify([...basis, next])).toString('base64url')
+                : null,
+          },
+        };
+      }),
+    );
   });
 
   app.get('/:month', (c) => {

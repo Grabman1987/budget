@@ -1696,3 +1696,32 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
   (799.95s Vitest duration), then normal production build passed. Exact-head
   CI and serial LIVE remain pending. Net-only/difference
   reconciliation and uncertain partial credits remain OPEN; #727 is not marked complete.
+
+### #735 — Compact Plan inspector and exact category activity
+
+- [x] Keep goal, assignment and quick actions visible; fold routine money movement
+  without replacing drafts or existing financial handlers.
+- [x] Show exact contributing bookings from the same activity accumulator, with
+  actual source metadata and separately labelled card adjustments. Preserve Plan
+  state on Back and read future origins through the existing booking-ID GET.
+- [x] NEW literal domain/API/UI regressions and affected static checks passed at
+  their documented checkpoints. Final fresh-build canonical WebKit 9/9 passed
+  first attempt (66.968s reporter duration), including four explicit profile/theme
+  scenes, a future origin and multi-month navigation; no skips/retries/flaky cases.
+- [x] Preserve [eight synthetic originals and measured limits](evidence/plan-activity-735/README.md).
+  Same-fixture desktop inspector content is 790.578125px versus 1139.703125px before;
+  the first activity row is entirely visible initially on desktop and phone.
+- The first AGE full attempt passed types/lint/format but was stopped orderly by
+  Root when `/tmp` had zero free bytes. Existing fixtures had reported failures;
+  individual causes/aggregate results were not established. Source/compiled/process
+  guards passed; no normal build ran. This is an aborted attempt, not a full pass.
+- [x] After capacity repair, required AGE1/two-worker full check passed 579 files /
+  5,176 tests (470.39s Vitest duration) on freeze `dea6bb3e` / base `9baa582f`,
+  followed by normal production build0. Only factual result notes changed after
+  this check; no later Main join is claimed as locally tested.
+- [x] Owner explicitly approved exactly one disclosure-opening click in each of
+  the two existing financial E2E files; Root adopted both with all assertions intact.
+- [x] Execute the exact adapted band flow locally with three setup cases: 4/4
+  first-pass, 36.331s reporter duration, reusing the unchanged 166-file E2E build.
+- [ ] Exact-head Chromium CI must exercise the adapted inspector flow and band
+  flow; review, merge and LIVE verification remain pending.
