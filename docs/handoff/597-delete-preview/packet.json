@@ -1,0 +1,45 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/597-delete-preview",
+  "sourceHead": "aaeaf014c38304759311baf39fa60e0610c284da",
+  "originalBaseBeforeOwnedCommits": "b3b12a508b77180618e0595b78aa17fcc463d0fe",
+  "orderedCommits": [
+    {
+      "sha": "aaeaf014c38304759311baf39fa60e0610c284da",
+      "parentBase": "b3b12a508b77180618e0595b78aa17fcc463d0fe",
+      "subject": "feat(ledger): implement source-only delete preview (#597)",
+      "paths": [
+        "apps/server/src/api/bookings.ts",
+        "apps/server/src/api/schemas.ts",
+        "apps/web/src/ledger/api.ts",
+        "apps/web/src/ledger/booking-delete-preview.tsx",
+        "apps/web/src/ledger/booking-panel.tsx",
+        "apps/web/src/ledger/booking-selection-bar.tsx",
+        "apps/web/src/ledger/bookings-page.tsx",
+        "apps/web/src/ledger/capture-form.tsx",
+        "apps/web/src/ledger/ledger.css",
+        "apps/web/src/ledger/mutations.ts",
+        "packages/db/src/repos/booking-bulk-eligibility.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout aaeaf014c38304759311baf39fa60e0610c284da > OWN_OUTPUT/aaeaf014c38304759311baf39fa60e0610c284da.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-aaeaf014c38304759311baf39fa60e0610c284da.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/server/src/api/bookings.ts",
+    "apps/server/src/api/schemas.ts",
+    "apps/web/src/ledger/api.ts",
+    "apps/web/src/ledger/booking-delete-preview.tsx",
+    "apps/web/src/ledger/booking-panel.tsx",
+    "apps/web/src/ledger/booking-selection-bar.tsx",
+    "apps/web/src/ledger/bookings-page.tsx",
+    "apps/web/src/ledger/capture-form.tsx",
+    "apps/web/src/ledger/ledger.css",
+    "apps/web/src/ledger/mutations.ts",
+    "packages/db/src/repos/booking-bulk-eligibility.ts"
+  ],
+  "mixedSourceAncestry": true,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

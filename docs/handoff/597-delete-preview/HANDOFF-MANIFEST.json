@@ -1,0 +1,32 @@
+[
+  {
+    "path": "docs/handoff/597-delete-preview/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/597-delete-preview/README.md",
+    "size": 471,
+    "sha256": "153488c9ac6993b5e29763eeb71b604f30d14d411c189cb4eeca694bfc75c54f"
+  },
+  {
+    "path": "docs/handoff/597-delete-preview/owned/01-aaeaf014c38304759311baf39fa60e0610c284da.patch",
+    "size": 42875,
+    "sha256": "8c38839748ed75fe596039b5624db4e4119f76f4dae692da1b5f142868a8ad96"
+  },
+  {
+    "path": "docs/handoff/597-delete-preview/packet.json",
+    "size": 2061,
+    "sha256": "5e8bf7f96f128837c0eea26448db488e769e80cc4cf66319a35474ab79d82997"
+  },
+  {
+    "path": "docs/handoff/597-delete-preview/reviews/597-600-602-integration-8f2509c6-independent-source-boundary.md",
+    "size": 808,
+    "sha256": "045793fbf493ddbb8b246b417aa397209178c3ef6288a00d2acede7ee4f10e20"
+  },
+  {
+    "path": "docs/handoff/597-delete-preview/reviews/597-delete-preview-whole-eleven-independent-source-high.md",
+    "size": 2999,
+    "sha256": "d950c046de36ed1998f2906388f045374e032e8e66845e56203fe2ba2a3c2576"
+  }
+]

@@ -1,0 +1,736 @@
+diff --git a/apps/server/src/api/bookings.ts b/apps/server/src/api/bookings.ts
+index 07dbc8032e1c8173db6f5912ff01bb3f92dcd9b0..45e1fa6f358e1aff46e146183c0409039cd02a5b 100644
+--- a/apps/server/src/api/bookings.ts
++++ b/apps/server/src/api/bookings.ts
+@@ -14,6 +14,7 @@ import {
+   getBooking,
+   queryBookings,
+   readBookingBulkSelection,
++  readBookingDeletePreview,
+   type BookingBulkItem,
+   type BookingBulkReason,
+   ReconciledLockedError,
+@@ -32,7 +33,7 @@ import { createHash, randomUUID } from 'node:crypto';
+ import { z } from 'zod';
+ import { Hono } from 'hono';
+ import { ACTOR, ApiError, defined, errorAnswer, readBody, readQuery } from './http';
+-import { bookingDeleteQuery, bookingPatch, bookingQuery, bulkBody, createBody } from './schemas';
++import { bookingDeleteQuery, bookingDeletePreviewBody, bookingPatch, bookingQuery, bulkBody, createBody } from './schemas';
+ 
+ /** Why a bulk action left a booking out. */
+ type BulkSkipReason = BookingBulkReason | 'split' | 'transfer' | 'transfer_pair' | 'unchanged';
+@@ -302,18 +303,27 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
+ 
+   app.delete('/:id', (c) => {
+     const id = c.req.param('id');
+-    const { unlock } = readQuery(c, bookingDeleteQuery);
+-    if (!getBooking(db, id)) throw new ApiError(404, 'not_found', 'Booking not found');
++    const { unlock, previewRevision } = readQuery(c, bookingDeleteQuery);
+     const ctx = audit();
+-    deleteBooking(db, id, ctx, { unlockReconciled: unlock !== undefined });
++    runInTransaction(db, (tx) => {
++      if (!getBooking(tx, id)) throw new ApiError(404, 'not_found', 'Booking not found');
++      if (previewRevision && readBookingDeletePreview(tx, [id], 'single').revision !== previewRevision)
++        throw new ApiError(409, 'stale_delete_preview', 'Die Buchung wurde geändert. Bitte die Löschvorschau neu laden.');
++      deleteBooking(tx, id, ctx, { unlockReconciled: unlock !== undefined });
++    });
+     return c.json({ deleted: id, groupId: ctx.groupId });
+   });
+ 
++  app.post('/delete-preview', async (c) => {
++    const body = await readBody(c, bookingDeletePreviewBody);
++    return c.json(readBookingDeletePreview(db, body.ids, body.mode));
++  });
++
+   /**
+    * Bulk edit or delete for the multi-select: one audit group, so one undo. A booking that cannot
+    * take the change is skipped and reported with a reason code, the rest goes through. Both legs
+-   * of a transfer in one selection are one Umbuchung: a delete takes the pair once (the second leg
+-   * counts as changed), a category is refused for both with `transfer_pair`.
++   * of a transfer remain protected in bulk. A delete requires a confirmed source revision before
++   * any write; item-level rejection after a valid preview remains explicit partial success.
+    */
+   app.post('/link-transfer', async (c) => {
+     const body = await readBody(
+@@ -343,8 +353,11 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
+     runInTransaction(db, (tx) => {
+       // One locked transaction snapshot for the batch; metadata updates below cannot create
+       // cross-row financial owners. Ordinary writers still check current invariants per item.
+-      const selection = body.action === 'update' ? readBookingBulkSelection(tx, ids) : null;
+-      const eligibility = new Map(selection?.items.map((item) => [item.id, item]) ?? []);
++      const deletion = body.action === 'delete' ? readBookingDeletePreview(tx, ids) : null;
++      if (body.action === 'delete' && deletion?.revision !== body.previewRevision)
++        throw new ApiError(409, 'stale_delete_preview', 'Die Auswahl wurde geändert. Bitte die Löschvorschau neu laden.');
++      const selection = deletion?.selection ?? readBookingBulkSelection(tx, ids);
++      const eligibility = new Map(selection.items.map((item) => [item.id, item]));
+       for (const id of ids) {
+         if (goneWith.has(id)) {
+           changed.push(id);
+@@ -354,18 +367,15 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
+           runInTransaction(tx, (inner) => {
+             const current = getBooking(inner, id);
+             if (!current) throw new Skip('not_found', 'Booking not found');
+-            if (body.action === 'update') {
+-              const item = eligibility.get(id);
+-              if (!item) throw new Skip('not_found', 'Booking not found');
+-              if (item.reason) throw new Skip(item.reason, 'Protected or linked booking left unchanged');
+-            }
++            const item = eligibility.get(id);
++            if (!item) throw new Skip('not_found', 'Booking not found');
++            if (item.reason) throw new Skip(item.reason, 'Protected or linked booking left unchanged');
+             const partners = relatedTransferBookings(inner, id).filter((leg) => leg !== id);
+             const paired = partners.some((leg) => selected.has(leg));
+             if (paired && !pairedLegs.has(id)) transferPairs += 1;
+             if (paired) for (const leg of [id, ...partners]) pairedLegs.add(leg);
+-            const options = { unlockReconciled: body.unlockReconciled };
+             if (body.action === 'delete') {
+-              deleteBooking(inner, id, ctx, options);
++              deleteBooking(inner, id, ctx, { unlockReconciled: false });
+               for (const leg of partners) goneWith.add(leg);
+               return;
+             }
+diff --git a/apps/server/src/api/schemas.ts b/apps/server/src/api/schemas.ts
+index d568204b219fb432ffc2f42758a03fab6ba873ec..47adbb29558a8a24e7466120d74a086a9f1cb860 100644
+--- a/apps/server/src/api/schemas.ts
++++ b/apps/server/src/api/schemas.ts
+@@ -187,7 +187,9 @@ export const bookingPatch = z
+   })
+   .partial();
+ 
+-export const bookingDeleteQuery = z.object({ unlock: z.enum(['1', 'true']).optional() });
++export const bookingDeleteQuery = z.object({ unlock: z.enum(['1', 'true']).optional(), previewRevision: z.string().regex(/^[a-f0-9]{64}$/).optional() });
++export const bookingDeletePreviewBody = z.object({ ids: z.array(id).min(1).max(500), mode: z.enum(['bulk', 'single']).default('bulk') }).strict()
++  .refine((value) => value.mode !== 'single' || value.ids.length === 1, 'Single deletion takes one booking');
+ 
+ export const bulkBody = z.discriminatedUnion('action', [
+   z.object({
+@@ -202,6 +204,7 @@ export const bulkBody = z.discriminatedUnion('action', [
+   z.object({
+     action: z.literal('delete'),
+     ids: z.array(id).min(1).max(500),
++    previewRevision: z.string().regex(/^[a-f0-9]{64}$/),
+     unlockReconciled: z.boolean().default(false),
+   }),
+ ]);
+diff --git a/apps/web/src/ledger/api.ts b/apps/web/src/ledger/api.ts
+index 6c2eb620653b1539ed010d6dd2cde7b1413840a2..0b4d5606973f2d05f94b10689ac9b53c140e20c9 100644
+--- a/apps/web/src/ledger/api.ts
++++ b/apps/web/src/ledger/api.ts
+@@ -215,10 +215,10 @@ export const patchBooking = (id: string, patch: BookingPatch, key?: string) =>
+     key ? { 'Idempotency-Key': key } : undefined,
+   );
+ 
+-export const deleteBooking = (id: string, unlock = false) =>
++export const deleteBooking = (id: string, unlock = false, previewRevision?: string) =>
+   request<WriteResult>(
+     'DELETE',
+-    `/api/bookings/${encodeURIComponent(id)}${unlock ? '?unlock=1' : ''}`,
++    `/api/bookings/${encodeURIComponent(id)}${queryString({ unlock: unlock ? '1' : undefined, previewRevision })}`,
+   );
+ 
+ /** Why the server left a booking out of a bulk action. */
+@@ -248,8 +248,16 @@ export const bulkUpdateBookings = (
+   set: { categoryId?: string | null; flag?: BookingFlag | null; status?: 'pending' | 'confirmed'; projectId?: string | null },
+ ) => request<BulkResult>('POST', '/api/bookings/bulk', { action: 'update', ids, set });
+ 
+-export const bulkDeleteBookings = (ids: string[]) =>
+-  request<BulkResult>('POST', '/api/bookings/bulk', { action: 'delete', ids });
++export interface BookingDeletePreview {
++  mode: 'bulk' | 'single'; ids: string[]; affectedIds: string[]; selection: BulkSelection;
++  eligibleIds: string[]; skipped: { id: string; reason: BulkSkipReason; booking?: BulkSelectionItem }[];
++  eligibleTotals: BulkSelection['totals']; revision: string; protected: boolean;
++  requiresUnlock: boolean; blocked: 'not_found' | 'invalid' | 'protected_link' | null; expectedLinkCount: number;
++}
++export const readBookingDeletePreview = (ids: string[], mode: 'bulk' | 'single' = 'bulk') =>
++  request<BookingDeletePreview>('POST', '/api/bookings/delete-preview', { ids, mode });
++export const bulkDeleteBookings = (ids: string[], previewRevision: string) =>
++  request<BulkResult>('POST', '/api/bookings/bulk', { action: 'delete', ids, previewRevision });
+ 
+ export const undoGroup = (groupId: string) =>
+   request<WriteResult>('POST', '/api/undo', { groupId });
+diff --git a/apps/web/src/ledger/booking-delete-preview.tsx b/apps/web/src/ledger/booking-delete-preview.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..0e80efb6b1783c47156a4aeb20cdfb18a3de4b24
+--- /dev/null
++++ b/apps/web/src/ledger/booking-delete-preview.tsx
+@@ -0,0 +1,95 @@
++import { Button, useAmountPrivacy } from '@budget/ui';
++import { useQuery } from '@tanstack/react-query';
++import { useEffect, useId, useRef, useState } from 'react';
++import { ApiError } from '../api/http';
++import { readBookingDeletePreview, type BookingDeletePreview, type BulkSelectionItem } from './api';
++import { longDay, nativeCurrency } from './format';
++import { errorText, SKIP_REASON_LABEL } from './labels';
++import { ErrorNote, LoadingNote } from './states';
++
++/** Mounted inside the existing dialog; a preview never follows background cache invalidation. */
++export function BookingDeletePreviewPanel({ ids, mode = 'bulk', initialPreview, pending, onConfirm, onCancel }: {
++  ids: string[];
++  mode?: 'bulk' | 'single';
++  initialPreview?: BookingDeletePreview;
++  pending: boolean;
++  onConfirm: (preview: BookingDeletePreview, unlock: boolean) => Promise<void>;
++  onCancel: () => void;
++}) {
++  useAmountPrivacy();
++  const instance = useId(), heading = useRef<HTMLHeadingElement>(null);
++  const [fixedIds] = useState(() => [...new Set(ids)].sort());
++  const [busy, setBusy] = useState(false), [stale, setStale] = useState(false), [failure, setFailure] = useState('');
++  const [unlock, setUnlock] = useState(false);
++  const accepting = useRef(false);
++  const query = useQuery({
++    queryKey: ['booking-delete-preview', mode, instance],
++    queryFn: () => readBookingDeletePreview(fixedIds, mode),
++    ...(initialPreview ? { initialData: initialPreview } : {}),
++    enabled: false, staleTime: Infinity, gcTime: 0, retry: false,
++    refetchOnWindowFocus: false, refetchOnReconnect: false,
++  });
++  const { refetch } = query;
++  useEffect(() => { if (!initialPreview) void refetch(); }, [initialPreview, refetch]);
++  useEffect(() => { heading.current?.focus(); }, []);
++  const preview = query.data;
++  const matches = !!preview && preview.mode === mode && /^[a-f0-9]{64}$/.test(preview.revision) &&
++    preview.ids.length === fixedIds.length && preview.ids.every((id, index) => id === fixedIds[index]);
++  const waiting = pending || busy || query.isFetching;
++  const canDelete = !!preview && matches && !query.isError && !waiting && !stale && !preview.blocked && preview.eligibleIds.length > 0 &&
++    (!preview.requiresUnlock || unlock);
++  const reload = async () => {
++    if (accepting.current || pending) return;
++    setFailure(''); setUnlock(false);
++    const result = await query.refetch();
++    if (result.isSuccess) setStale(false);
++  };
++  const confirm = async () => {
++    if (!canDelete || !preview || accepting.current) return;
++    accepting.current = true; setBusy(true); setFailure('');
++    try { await onConfirm(preview, unlock); }
++    catch (error) {
++      if (error instanceof ApiError && error.code === 'stale_delete_preview') setStale(true);
++      setFailure(errorText(error));
++    } finally { accepting.current = false; setBusy(false); }
++  };
++  const row = (item: BulkSelectionItem) => <>
++    {item.description} · {longDay(item.date)} · {item.amountCents === null ? 'Betrag nicht verfügbar' : nativeCurrency(item.amountCents, item.currency, true)} · {item.accountName} · {item.id}
++  </>;
++  const totals = (values: BookingDeletePreview['eligibleTotals']) => values.length
++    ? values.map((total) => total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents, total.currency, true)).join(' · ')
++    : 'keine Buchungen';
++  return <form onSubmit={(event) => event.preventDefault()} className="bkform kdelete-preview" aria-labelledby={`${instance}-title`} aria-busy={waiting}>
++    <div className="bk-head"><h2 ref={heading} id={`${instance}-title`} tabIndex={-1}>Löschen bestätigen</h2></div>
++    <div className="bk-body">
++      {query.isPending && <LoadingNote what="Löschvorschau" />}
++      {query.isError && <ErrorNote what="Löschvorschau" error={query.error} onRetry={() => void reload()} />}
++      {matches && preview && <>
++        <p>{mode === 'bulk' ? `${fixedIds.length} ausgewählt` : 'Eine Buchung ausgewählt'} · {preview.eligibleIds.length} werden gelöscht · {mode === 'bulk' ? preview.skipped.length : preview.blocked ? preview.selection.items.length : 0} bleiben erhalten.</p>
++        <p>Summe der Auswahl{mode === 'single' && preview.affectedIds.length > 1 ? ' einschließlich verknüpfter Seiten' : ''}: {preview.selection.missingIds.length ? 'nicht vollständig verfügbar' : totals(preview.selection.totals)}</p>
++        <p>Summe der zu löschenden Buchungen: {totals(preview.eligibleTotals)}</p>
++        {mode === 'bulk' && <p>Gesperrte und verknüpfte Buchungen bleiben erhalten. Falls eine weitere Buchung beim Löschen abgelehnt wird, erscheint sie mit Grund im Ergebnis. Rückgängig stellt die tatsächlich gelöschten Buchungen gemeinsam wieder her.</p>}
++        {mode === 'single' && <>
++          {preview.affectedIds.length > 1 && <p>Die verknüpften Seiten der Umbuchung werden gemeinsam gelöscht und mit einer Aktion wiederhergestellt.</p>}
++          {preview.expectedLinkCount > 0 && <p>{preview.expectedLinkCount} Zuordnungen zu erwarteten Zahlungen werden gelöst und beim Rückgängig wiederhergestellt.</p>}
++          <ul>{preview.selection.items.map((item) => <li key={item.id}>{row(item)}{item.reason && <> · {SKIP_REASON_LABEL[item.reason]}</>}</li>)}</ul>
++          {preview.requiresUnlock && !preview.blocked && <label className="kcheck"><input type="checkbox" checked={unlock} disabled={waiting} onChange={(event) => setUnlock(event.target.checked)} />Geprüfte Buchungen ausdrücklich zum Löschen freigeben</label>}
++          {preview.blocked === 'protected_link' && <p role="alert">Die Buchung gehört zu einer geschützten Aktion. Nimm zuerst die zugehörige Aktion vollständig zurück. Diese Vorschau kann die Sperre nicht aufheben.</p>}
++          {preview.blocked === 'not_found' && <p role="alert">Die Buchung ist nicht mehr verfügbar.</p>}
++          {preview.blocked === 'invalid' && <p role="alert">Der Betrag ist nicht sicher darstellbar. Die Buchung wird nicht gelöscht.</p>}
++        </>}
++        {mode === 'bulk' && preview.skipped.length > 0 && <section aria-label="Übersprungene Buchungen"><h3>Bleiben erhalten</h3><ul>{preview.skipped.map((skip) => <li key={skip.id}>
++          {skip.booking ? row(skip.booking) : <>Buchung nicht mehr verfügbar · {skip.id}</>} · {SKIP_REASON_LABEL[skip.reason]}
++        </li>)}</ul></section>}
++      </>}
++      {preview && !matches && <p role="alert">Die Vorschau stimmt nicht mit der Auswahl überein. Bitte neu laden.</p>}
++      {failure && <p role="alert">{failure}</p>}
++      {stale && <p role="status">Die Auswahl wurde geändert. Lade die Vorschau neu und bestätige den neuen Stand ausdrücklich.</p>}
++    </div>
++    <div className="bk-foot">
++      <Button variant="ghost" disabled={waiting} onClick={onCancel}>Abbrechen</Button>
++      {(stale || query.isError || (!!preview && !matches)) && <Button variant="ghost" disabled={waiting} onClick={() => void reload()}>Vorschau neu laden</Button>}
++      <Button disabled={!canDelete} onClick={() => void confirm()}>Jetzt löschen</Button>
++    </div>
++  </form>;
++}
+diff --git a/apps/web/src/ledger/booking-panel.tsx b/apps/web/src/ledger/booking-panel.tsx
+index eb0469744684ec0da6c6417bc0aba68b65504643..7618a0a780d992940314771c7ae986355a422b0f 100644
+--- a/apps/web/src/ledger/booking-panel.tsx
++++ b/apps/web/src/ledger/booking-panel.tsx
+@@ -1,5 +1,5 @@
+ import { FormDialog } from '@budget/ui';
+-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
++import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
+ import { CaptureForm } from './capture-form';
+ import type { ListedBooking } from './types';
+ import { AssignmentLearnOffer } from '../assignment/review';
+@@ -25,6 +25,8 @@ export function BookingPanel({
+   onClose: () => void;
+ }) {
+   const dirty = useRef(false);
++  const deleteBusy = useRef(false);
++  const onDeleteBusy = useCallback((busy: boolean) => { deleteBusy.current = busy; }, []);
+   const [learnBookingId, setLearnBookingId] = useState<string | null>(null);
+   const [asking, setAsking] = useState(false);
+   const focusScope = useRef<HTMLDivElement>(null);
+@@ -35,7 +37,7 @@ export function BookingPanel({
+   }, [asking]);
+   const keepEditing = () => {
+     setAsking(false);
+-    resumeFocus.current?.focus();
++    requestAnimationFrame(() => resumeFocus.current?.focus());
+   };
+   // Native dialogs make the page inert, but Tab at the boundary can reach browser chrome.
+   const wrapFocus = (event: KeyboardEvent<HTMLDivElement>) => {
+@@ -88,9 +90,11 @@ export function BookingPanel({
+   const close = () => {
+     setAsking(false);
+     dirty.current = false;
++    deleteBusy.current = false;
+     onClose();
+   };
+   const beforeClose = () => {
++    if (deleteBusy.current) return false;
+     if (!dirty.current) return true;
+     if (!asking) resumeFocus.current = document.activeElement as HTMLElement | null;
+     setAsking(true);
+@@ -112,6 +116,7 @@ export function BookingPanel({
+             onDone={close}
+             onBankCategorized={setLearnBookingId}
+             dirtyRef={dirty}
++            onDeleteBusy={onDeleteBusy}
+             requestClose={() => beforeClose() && close()}
+             discard={{ asking, keep: keepEditing, discard: close }}
+           />
+diff --git a/apps/web/src/ledger/booking-selection-bar.tsx b/apps/web/src/ledger/booking-selection-bar.tsx
+index 35a165fa267debd4744d0136d4534b56248b4a1c..649192dbea833b12d98032697dda5476c7256ab3 100644
+--- a/apps/web/src/ledger/booking-selection-bar.tsx
++++ b/apps/web/src/ledger/booking-selection-bar.tsx
+@@ -24,6 +24,7 @@ export function BookingSelectionBar({ ids, pending, categories, projects, onAppl
+   const query = useQuery({ queryKey: [...LEDGER_KEY, 'bulk-selection', key], enabled: ids.length > 0 && ids.length <= 500,
+     queryFn: () => readBulkSelection(ordered),
+   });
++  // Display facts can refresh; only the separately mounted delete dialog owns a frozen revision.
+   const facts = query.data;
+   const accounted = facts ? [...facts.items.map((r) => r.id), ...facts.missingIds] : [];
+   const complete = !!facts && facts.selectedCount === ids.length && accounted.length === ids.length &&
+diff --git a/apps/web/src/ledger/bookings-page.tsx b/apps/web/src/ledger/bookings-page.tsx
+index f06f76f017bd69e38f5374d94388926b8db8569f..8ee80556299034ceec2608f4ec3819b42f591e43 100644
+--- a/apps/web/src/ledger/bookings-page.tsx
++++ b/apps/web/src/ledger/bookings-page.tsx
+@@ -6,6 +6,7 @@ import {
+   useAmountPrivacy,
+   useIsPhone,
+   BottomSheet,
++  FormDialog,
+   Button,
+   Field,
+   Select,
+@@ -22,6 +23,7 @@ import { PageFrame } from '../pages/placeholder-page';
+ import { BookingPanel, type BookingPanelState } from './booking-panel';
+ import { BookingTable, type Selection } from './booking-table';
+ import { BookingSelectionBar, type BulkOutcome } from './booking-selection-bar';
++import { BookingDeletePreviewPanel } from './booking-delete-preview';
+ import type { BulkSelection } from './api';
+ import type { BulkSet } from './cache';
+ import { BookingStatusChips } from './booking-status-chips';
+@@ -85,12 +87,11 @@ export function BookingsPage() {
+   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+   const [selecting, setSelecting] = useState(false), [outcome, setOutcome] = useState<BulkOutcome | null>(null);
+   const isPhone = useIsPhone(), pending = writes.bulk.isPending || linking;
+-  /** Bulk delete asks once more; any change of the selection withdraws the question. */
+-  const [confirmDelete, setConfirmDelete] = useState(false);
++  const [deleteIds, setDeleteIds] = useState<string[] | null>(null);
+   const [seenSelected, setSeenSelected] = useState(selected);
+   if (seenSelected !== selected) {
+     setSeenSelected(selected);
+-    setConfirmDelete(false);
++    setDeleteIds(null);
+   }
+ 
+   // A new filter shows another list: the selection would point at rows that are gone.
+@@ -99,6 +100,7 @@ export function BookingsPage() {
+   if (filterKey !== seenFilter) {
+     setSeenFilter(filterKey);
+     setSelected(new Set());
++    setDeleteIds(null);
+   }
+ 
+   const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
+@@ -141,14 +143,14 @@ export function BookingsPage() {
+         b.splits.every((s) => !s.transferId && !s.contactId),
+     );
+   const bulkDone = (completed = ids) => setSelected((prev) => new Set([...prev].filter((id) => !completed.includes(id))));
+-  const runBulk = async (vars: { ids: string[]; set: BulkSet } | { ids: string[]; remove: true }, submitted?: BulkSelection) => {
++  const runBulk = async (vars: { ids: string[]; set: BulkSet } | { ids: string[]; remove: true; previewRevision: string }, submitted?: BulkSelection, propagateError = false) => {
+     if (pending) return;
+     setOutcome(null);
+     try {
+       const result = await writes.bulk.mutateAsync(vars);
+       setOutcome({ action: 'remove' in vars ? 'delete' : 'update', result, ...(submitted ? { submitted } : {}) });
+       bulkDone(result.changed);
+-    } catch { /* The mutation reports failure; the selection and its context stay intact. */ }
++    } catch (error) { if (propagateError) throw error; /* Preserve the selection and operation context. */ }
+   };
+ 
+   const sortKey: BookingSort = filter.sort ?? 'date';
+@@ -309,29 +311,17 @@ export function BookingsPage() {
+                   Kategorien werden entfernt. Beide Buchungstage bleiben erhalten.
+                 </span>
+               )}
+-              {confirmDelete ? (
+-                <span className="kbulk-confirm" role="group" aria-label="Löschen bestätigen">
+-                  <span>{pluralBookings(ids.length)} löschen?</span>
+-                  <Button
+-                    size="sm"
+-                    disabled={pending}
+-                    onClick={() => {
+-                      void runBulk({ ids, remove: true }, facts);
+-                    }}
+-                  >
+-                    Ja, löschen
+-                  </Button>
+-                  <Button variant="ghost" size="sm" disabled={pending} onClick={() => setConfirmDelete(false)}>
+-                    Abbrechen
+-                  </Button>
+-                </span>
+-              ) : (
+-                <Button variant="ghost" size="sm" disabled={pending} onClick={() => setConfirmDelete(true)}>
+-                  Löschen
+-                </Button>
+-              )}
++              <Button variant="ghost" size="sm" disabled={pending || !facts} onClick={() => setDeleteIds([...ids])}>
++                Löschen …
++              </Button>
+           </>} />
+       </div>
++      {deleteIds && <FormDialog open title="Sammellöschen prüfen" onClose={() => { if (!pending) setDeleteIds(null); }} beforeClose={() => !pending}>
++        <BookingDeletePreviewPanel ids={deleteIds} pending={pending} onCancel={() => setDeleteIds(null)} onConfirm={async (preview) => {
++          await runBulk({ ids: [...preview.ids], remove: true, previewRevision: preview.revision }, preview.selection, true);
++          setDeleteIds(null);
++        }} />
++      </FormDialog>}
+       <BookingPanel state={panel} onClose={() => setPanel(null)} />
+     </PageFrame>
+   );
+diff --git a/apps/web/src/ledger/capture-form.tsx b/apps/web/src/ledger/capture-form.tsx
+index 6ded5c979a17160ef7312fb1da87fcf70157f9a1..0666a3460176ff924d68b83aaa8377a77403cf42 100644
+--- a/apps/web/src/ledger/capture-form.tsx
++++ b/apps/web/src/ledger/capture-form.tsx
+@@ -23,7 +23,8 @@ import {
+ } from 'react';
+ import { ApiError } from '../api/http';
+ import { budgetQuery } from '../budget/budget-api';
+-import { fetchBookings, createPayee, setPayeeDefaultCategory } from './api';
++import { fetchBookings, createPayee, setPayeeDefaultCategory, readBookingDeletePreview, type BookingDeletePreview } from './api';
++import { BookingDeletePreviewPanel } from './booking-delete-preview';
+ import {
+   buildCreate,
+   buildPatch,
+@@ -115,6 +116,7 @@ export function CaptureForm({
+   dirtyRef,
+   discard,
+   requestClose,
++  onDeleteBusy,
+   queued,
+ }: {
+   state: NonNullable<BookingPanelState>;
+@@ -124,6 +126,7 @@ export function CaptureForm({
+   dirtyRef: MutableRefObject<boolean>;
+   discard: DiscardAsk;
+   requestClose: () => void;
++  onDeleteBusy?: (busy: boolean) => void;
+   queued?: QueuedBooking;
+ }) {
+   useAmountPrivacy();
+@@ -179,8 +182,10 @@ export function CaptureForm({
+   }, []);
+   const [unlock, setUnlock] = useState(false);
+   const [busy, setBusy] = useState(false);
++  const [deletePreview, setDeletePreview] = useState<BookingDeletePreview | null>(null);
+   // Guards save() itself: held or repeated Ctrl+Enter must not send the booking twice.
+   const saving = useRef(false);
++  useEffect(() => () => { onDeleteBusy?.(false); }, [onDeleteBusy]);
+   const [moreOpen, setMoreOpen] = useState(Boolean(draft.projectId || draft.flag));
+   // The category the last chosen payee's default filled in; only that one is replaced by the next.
+   const appliedByPayee = useRef<string | null>(null);
+@@ -506,18 +511,16 @@ export function CaptureForm({
+   };
+ 
+   const remove = async () => {
+-    if (!editing) return;
+-    if (locked && !unlock)
+-      return setErrors({ form: 'Diese Buchung ist geprüft. Bestätige die Freigabe zum Löschen.' });
+-    setBusy(true);
++    if (!editing || saving.current || busy) return;
++    saving.current = true; setBusy(true); onDeleteBusy?.(true);
+     try {
+-      await writes.remove.mutateAsync({ id: editing.id, unlock });
++      const preview = await readBookingDeletePreview([editing.id], 'single');
++      if (preview.protected || preview.blocked) { setDeletePreview(preview); return; }
++      // Ordinary deletion is still immediate: no user confirmation for an unlinked open row.
++      await writes.remove.mutateAsync({ id: editing.id, unlock: false, previewRevision: preview.revision });
+       onDone();
+-    } catch (error) {
+-      setErrors({ form: errorText(error) });
+-    } finally {
+-      setBusy(false);
+-    }
++    } catch (error) { setErrors({ form: errorText(error) }); }
++    finally { saving.current = false; setBusy(false); onDeleteBusy?.(false); }
+   };
+ 
+   const onKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
+@@ -680,6 +683,37 @@ export function CaptureForm({
+     />
+   );
+ 
++  const discardQuestion = discard.asking && (
++        <div
++          className="kdiff is-bad bk-discard"
++          role="alertdialog"
++          aria-label="Eingaben verwerfen?"
++        >
++          <span>Eingaben verwerfen?</span>
++          <Button size="sm" variant="ghost" onClick={discard.keep}>
++            Weiter bearbeiten
++          </Button>
++          <Button size="sm" onClick={discard.discard}>
++            Verwerfen
++          </Button>
++        </div>
++      );
++
++  if (deletePreview && editing) return <>
++    <BookingDeletePreviewPanel
++    ids={[editing.id]} mode="single" initialPreview={deletePreview} pending={busy || writes.remove.isPending || discard.asking}
++    onCancel={() => { onDeleteBusy?.(false); setDeletePreview(null); requestAnimationFrame(() => formRef.current?.querySelector<HTMLButtonElement>('[data-booking-delete]')?.focus()); }}
++    onConfirm={async (preview, confirmedUnlock) => {
++      if (saving.current) return;
++      saving.current = true; setBusy(true); onDeleteBusy?.(true);
++      try {
++        await writes.remove.mutateAsync({ id: editing.id, unlock: confirmedUnlock, previewRevision: preview.revision });
++        onDone();
++      } finally { saving.current = false; setBusy(false); onDeleteBusy?.(false); }
++    }} />
++    {discardQuestion}
++  </>;
++
+   return (
+     // Keyboard flow is handled once for all fields of the form.
+     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+@@ -980,21 +1014,7 @@ export function CaptureForm({
+           {CAPTURE_SHORTCUT_HINT}
+         </p>
+       </div>
+-      {discard.asking && (
+-        <div
+-          className="kdiff is-bad bk-discard"
+-          role="alertdialog"
+-          aria-label="Eingaben verwerfen?"
+-        >
+-          <span>Eingaben verwerfen?</span>
+-          <Button size="sm" variant="ghost" onClick={discard.keep}>
+-            Weiter bearbeiten
+-          </Button>
+-          <Button size="sm" onClick={discard.discard}>
+-            Verwerfen
+-          </Button>
+-        </div>
+-      )}
++      {discardQuestion}
+       {blocked && (
+         <p id="booking-save-reason" className="bk-save-reason" role="status">
+           {lineProblem}
+@@ -1003,7 +1023,7 @@ export function CaptureForm({
+       <div className="bk-foot">
+         {editing && (
+           <div className="bk-foot-extra">
+-            <Button variant="ghost" onClick={() => void remove()} disabled={busy}>
++            <Button data-booking-delete variant="ghost" onClick={() => void remove()} disabled={busy}>
+               <Trash2 size={16} strokeWidth={1.75} aria-hidden="true" />
+               Löschen
+             </Button>
+diff --git a/apps/web/src/ledger/ledger.css b/apps/web/src/ledger/ledger.css
+index 8445de77a17122885e65860d29c919d4a0792caa..026b0140b344f3f290ac082b247bf5520d0fc771 100644
+--- a/apps/web/src/ledger/ledger.css
++++ b/apps/web/src/ledger/ledger.css
+@@ -2350,3 +2350,24 @@ button.kstatus-btn:focus-visible {
+     white-space: normal;
+   }
+ }
++
++/* Local destructive preview inside the existing form dialog; no shared modal or money policy. */
++.kdelete-preview .bk-body {
++  display: grid;
++  gap: 16px;
++  overflow-wrap: anywhere;
++}
++.kdelete-preview ul {
++  margin: 0;
++  padding-inline-start: 24px;
++}
++.kdelete-preview li + li {
++  margin-block-start: 8px;
++}
++.kdelete-preview .bk-foot {
++  flex-wrap: wrap;
++}
++.kdelete-preview .bk-foot .btn,
++.kdelete-preview .kcheck {
++  min-height: var(--touch);
++}
+diff --git a/apps/web/src/ledger/mutations.ts b/apps/web/src/ledger/mutations.ts
+index 1bbd1185120538e86db2d92a95d567d75106ca3b..6a9c955c51286823147d5c761d5f4f21193b2b07 100644
+--- a/apps/web/src/ledger/mutations.ts
++++ b/apps/web/src/ledger/mutations.ts
+@@ -140,19 +140,19 @@ export function useLedgerWrites() {
+   });
+ 
+   const remove = useMutation({
+-    mutationFn: ({ id, unlock }: { id: string; unlock?: boolean }) => deleteBooking(id, unlock),
++    mutationFn: ({ id, unlock, previewRevision }: { id: string; unlock?: boolean; previewRevision?: string }) => deleteBooking(id, unlock, previewRevision),
+     onMutate: ({ id }) => optimistic(qc, (b) => (b.id === id ? null : b)),
+     onError: (error, _vars, snapshot) => {
+       rollback(qc, snapshot);
+       failed('Löschen')(error);
+     },
+-    onSuccess: ({ groupId }: WriteResult) => offerUndo('Buchung gelöscht.', groupId),
++    onSuccess: ({ groupId }: WriteResult) => offerUndo('Gelöscht.', groupId),
+     onSettled: settled,
+   });
+ 
+   const bulk = useMutation({
+-    mutationFn: (vars: { ids: string[]; set: BulkSet } | { ids: string[]; remove: true }) =>
+-      'remove' in vars ? bulkDeleteBookings(vars.ids) : bulkUpdateBookings(vars.ids, vars.set),
++    mutationFn: (vars: { ids: string[]; set: BulkSet } | { ids: string[]; remove: true; previewRevision: string }) =>
++      'remove' in vars ? bulkDeleteBookings(vars.ids, vars.previewRevision) : bulkUpdateBookings(vars.ids, vars.set),
+     // Eligibility is authoritative on the server. Never optimistically alter skipped rows.
+     onMutate: () => qc.cancelQueries({ queryKey: BOOKINGS_KEY }),
+     onError: (error) => failed('Änderung')(error),
+diff --git a/packages/db/src/repos/booking-bulk-eligibility.ts b/packages/db/src/repos/booking-bulk-eligibility.ts
+index 554d6c45faea889f367de7b809c3ef33fcd84fa5..fbb9538c260b5e1d580cf2cc5b24f94bc7fe9d2e 100644
+--- a/packages/db/src/repos/booking-bulk-eligibility.ts
++++ b/packages/db/src/repos/booking-bulk-eligibility.ts
+@@ -1,6 +1,11 @@
++import { createHash } from 'node:crypto';
++import { assertContactBookingWrite } from './contact-invariants';
++import { assertStatementBookingWrite } from './statement-settlement-invariants';
++import { assertTradeSettlementBookingWrite, relatedTransferBookings } from './invariants';
++import { BookingInvariantError, ConflictError } from './errors';
+ import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+ import { account, auditLog, bankSyncCandidate, booking, bookingSplit, contactAllocation, contactSettlement,
+-  expectedOccurrence, payee, payslip, statementBonus, statementSettlement, trade } from '../schema';
++  expectedOccurrence, expectedPayment, payee, payslip, statementBonus, statementSettlement, trade } from '../schema';
+ import { statementAutomationRow } from '../schema/statement-automation';
+ import { hasStatementAutomation } from './statement-automation-invariants';
+ import { hasStatementSettlementFamily } from './statement-settlement-invariants';
+@@ -104,3 +109,112 @@ export function readBookingBulkSelection(db: Executor, requested: readonly strin
+       }) };
+   });
+ }
++
++export interface BookingDeletePreview {
++  mode: 'bulk' | 'single';
++  ids: string[];
++  affectedIds: string[];
++  selection: BookingBulkSelection;
++  eligibleIds: string[];
++  skipped: { id: string; reason: BookingBulkReason; booking?: BookingBulkItem }[];
++  eligibleTotals: BookingBulkSelection['totals'];
++  revision: string;
++  protected: boolean;
++  requiresUnlock: boolean;
++  blocked: 'not_found' | 'invalid' | 'protected_link' | null;
++  expectedLinkCount: number;
++}
++
++function deleteTotals(items: readonly BookingBulkItem[]): BookingBulkSelection['totals'] {
++  const groups = new Map<string, { count: number; total: bigint; unsafe: boolean }>();
++  for (const item of items) {
++    const g = groups.get(item.currency) ?? { count: 0, total: 0n, unsafe: false };
++    g.count++;
++    if (item.amountCents === null) g.unsafe = true; else g.total += BigInt(item.amountCents);
++    groups.set(item.currency, g);
++  }
++  const bound = BigInt(Number.MAX_SAFE_INTEGER);
++  return [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([currency, g]) => {
++    const unsafe = g.unsafe || g.total < -bound || g.total > bound;
++    return { currency, count: g.count, cents: unsafe ? null : Number(g.total), unavailable: unsafe ? 'unsafe_total' as const : null };
++  });
++}
++
++/** Read-only intent snapshot. No writer is run or rolled back to determine a preview. */
++export function readBookingDeletePreview(db: Executor, requested: readonly string[], mode: 'bulk' | 'single' = 'bulk'): BookingDeletePreview {
++  const ids = [...new Set(requested)].sort();
++  if (!ids.length || ids.length > 500 || (mode === 'single' && ids.length !== 1))
++    throw new RangeError('Invalid delete selection');
++  return runInTransaction(db, (tx) => {
++    const affectedIds = mode === 'single' ? [...new Set(relatedTransferBookings(tx, ids[0]!))].sort() : ids;
++    if (affectedIds.length > 500) throw new RangeError('At most500 affected bookings');
++    const selection = readBookingBulkSelection(tx, affectedIds);
++    const skipped: BookingDeletePreview['skipped'] = [
++      ...selection.items.flatMap((item) => item.reason ? [{ id: item.id, reason: item.reason, booking: item }] : []),
++      ...selection.missingIds.map((id) => ({ id, reason: 'not_found' as const })),
++    ];
++    let blocked: BookingDeletePreview['blocked'] = null;
++    if (mode === 'single') {
++      if (!selection.items.some((row) => row.id === ids[0])) blocked = 'not_found';
++      else if (selection.items.some((row) => row.amountCents === null)) blocked = 'invalid';
++      else {
++        try {
++          // These are the same read-only guards invoked by the ordinary delete writer. Bulk
++          // reasons alone do not grant or refuse ordinary single deletion (e.g. expected links).
++          for (const id of affectedIds) {
++            assertTradeSettlementBookingWrite(tx, id, 'delete');
++            assertContactBookingWrite(tx, id, 'delete');
++            assertStatementBookingWrite(tx, id, 'delete');
++          }
++        } catch (error) {
++          if (!(error instanceof BookingInvariantError) && !(error instanceof ConflictError)) throw error;
++          blocked = 'protected_link';
++        }
++      }
++    }
++    const eligible = mode === 'single' ? (blocked ? [] : selection.items) : selection.items.filter((item) => item.reason === null);
++    // Retain whole source state only inside this hash: no raw snapshots/audit JSON reach the DTO.
++    // Global audit head is a conservative ABA fence, including undo/redo and unrelated writes.
++    const head = tx.get<{ ordinal: string; id: string }>(sql`SELECT CAST(rowid AS TEXT) AS ordinal,id FROM audit_log ORDER BY rowid DESC LIMIT 1`) ?? null;
++    const source: unknown[] = [];
++    let expectedLinkCount = 0;
++    for (let at = 0; at < affectedIds.length; at += 200) {
++      const part = affectedIds.slice(at, at + 200);
++      const rows = tx.select().from(booking).where(inArray(booking.id, part)).orderBy(booking.id).all();
++      const splitRows = tx.select().from(bookingSplit).where(inArray(bookingSplit.bookingId, part)).orderBy(bookingSplit.id).all();
++      const accountIds = [...new Set(rows.map((row) => row.accountId))];
++      const accounts = accountIds.length ? tx.select().from(account).where(inArray(account.id, accountIds)).orderBy(account.id).all() : [];
++      const payeeIds = [...new Set(rows.flatMap((row) => row.payeeId ? [row.payeeId] : []))];
++      const payees = payeeIds.length ? tx.select({ id: payee.id, name: payee.name, deletedAt: payee.deletedAt }).from(payee).where(inArray(payee.id, payeeIds)).orderBy(payee.id).all() : [];
++      const occurrences = tx.select().from(expectedOccurrence).where(inArray(expectedOccurrence.bookingId, part)).orderBy(expectedOccurrence.id).all();
++      expectedLinkCount += tx.select({ id: expectedOccurrence.id }).from(expectedOccurrence)
++        .innerJoin(expectedPayment, eq(expectedPayment.id, expectedOccurrence.expectedPaymentId))
++        .where(and(inArray(expectedOccurrence.bookingId, part), isNull(expectedOccurrence.deletedAt), isNull(expectedPayment.deletedAt))).all().length;
++      const bankRows = tx.select({ bookingId: booking.id, candidate: bankSyncCandidate }).from(booking)
++        .innerJoin(bankSyncCandidate, and(eq(bankSyncCandidate.accountId, booking.accountId), sql`${booking.importKey} = 'bank-sync:' || ${bankSyncCandidate.dedupeKey}`))
++        .where(inArray(booking.id, part)).orderBy(booking.id, bankSyncCandidate.id).all();
++      const contactRows = tx.select().from(contactSettlement).where(inArray(contactSettlement.bookingId, part)).orderBy(contactSettlement.id).all();
++      const allocations = tx.select({ allocation: contactAllocation, settlement: contactSettlement }).from(contactAllocation)
++        .innerJoin(contactSettlement, eq(contactSettlement.id, contactAllocation.settlementId))
++        .innerJoin(bookingSplit, eq(bookingSplit.id, contactAllocation.outlaySplitId))
++        .where(inArray(bookingSplit.bookingId, part)).orderBy(contactAllocation.id).all();
++      const tradeRows = tx.select().from(trade).where(inArray(trade.bookingId, part)).orderBy(trade.id).all();
++      const salaryRows = tx.select({ id: payslip.id, bookingId: payslip.bookingId, deletedAt: payslip.deletedAt, updatedAt: payslip.updatedAt })
++        .from(payslip).where(inArray(payslip.bookingId, part)).orderBy(payslip.id).all();
++      source.push({ rows, splitRows, accounts, payees, occurrences, bankRows, contactRows, allocations, tradeRows, salaryRows });
++      if (hasStatementAutomation(tx)) source.push(tx.select({ id: statementAutomationRow.id, runId: statementAutomationRow.runId, bookingId: statementAutomationRow.bookingId, originalBookingId: statementAutomationRow.originalBookingId, accountId: statementAutomationRow.accountId, receiptId: statementAutomationRow.receiptId, actionGroupId: statementAutomationRow.actionGroupId, deletedAt: statementAutomationRow.deletedAt, updatedAt: statementAutomationRow.updatedAt }).from(statementAutomationRow)
++        .where(or(inArray(statementAutomationRow.bookingId, part), inArray(statementAutomationRow.originalBookingId, part))).orderBy(statementAutomationRow.id).all());
++      if (hasStatementSettlementFamily(tx)) {
++        source.push(tx.select({ id: statementSettlement.id, state: statementSettlement.state, fromBookingId: statementSettlement.fromBookingId, toBookingId: statementSettlement.toBookingId, actionGroupId: statementSettlement.actionGroupId, deletedAt: statementSettlement.deletedAt, updatedAt: statementSettlement.updatedAt }).from(statementSettlement).where(or(inArray(statementSettlement.fromBookingId, part), inArray(statementSettlement.toBookingId, part))).orderBy(statementSettlement.id).all());
++        // Selected-original identities are already checked by the authoritative read above;
++        // audited bonus changes are also covered by head, without copying unrelated history.
++        source.push(tx.select({ id: statementBonus.id, state: statementBonus.state, bookingId: statementBonus.bookingId, actionGroupId: statementBonus.actionGroupId, deletedAt: statementBonus.deletedAt, updatedAt: statementBonus.updatedAt }).from(statementBonus).where(inArray(statementBonus.bookingId, part)).orderBy(statementBonus.id).all());
++      }
++    }
++    const revision = createHash('sha256').update(JSON.stringify(['booking-delete-v1', mode, ids, affectedIds, head, source, selection, blocked])).digest('hex');
++    return { mode, ids, affectedIds, selection, eligibleIds: eligible.map((item) => item.id), skipped,
++      eligibleTotals: deleteTotals(eligible), revision,
++      protected: mode === 'single' && (affectedIds.length > 1 || selection.items.some((item) => item.reason !== null) || blocked !== null),
++      requiresUnlock: mode === 'single' && selection.items.some((item) => item.reason === 'reconciled_locked'), blocked, expectedLinkCount };
++  });
++}
