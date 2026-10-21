@@ -1,0 +1,316 @@
+diff --git a/apps/server/src/api/portfolio-performance.test.ts b/apps/server/src/api/portfolio-performance.test.ts
+index 8ef924d3320e1b8a80d2735f42baf637c9a3c309..53b7c73fe94f8425e41c625f360fcce6bcf3ffde 100644
+--- a/apps/server/src/api/portfolio-performance.test.ts
++++ b/apps/server/src/api/portfolio-performance.test.ts
+@@ -237,8 +237,8 @@ it('compares stored foreign quotes in EUR using quote-date FX without rounding p
+     "UPDATE price SET currency='USD' WHERE security_id='bench'; INSERT INTO fx_rate (currency,date,rate_micro) VALUES ('USD','2025-12-31',2000000),('USD','2026-01-01',1000000)",
+   );
+   const portfolio = await readPortfolio();
+-  expect(portfolio.performanceHistory?.benchmarkReturn).toBeCloseTo(1.205, 12);
+-  expect(portfolio.performanceHistory?.months[0]?.benchmarkRate).toBeCloseTo(1.1, 12);
++  expect(portfolio.performanceHistory?.benchmarkReturn).toBeCloseTo(-0.44875, 12);
++  expect(portfolio.performanceHistory?.months[0]?.benchmarkRate).toBeCloseTo(-0.475, 12);
+ });
+ 
+ it('allows Friday closes for exchange-traded benchmarks but requires the exact date for crypto', async () => {
+diff --git a/packages/db/src/repos/portfolio-depots.ts b/packages/db/src/repos/portfolio-depots.ts
+index 495b505161aea331897059ce82170e82751fb556..1143b8b2a267e0ce0f1eca44cbe80906437e93af 100644
+--- a/packages/db/src/repos/portfolio-depots.ts
++++ b/packages/db/src/repos/portfolio-depots.ts
+@@ -2,13 +2,14 @@ import { portfolioBenchmarks, type PortfolioBenchmarkSeries } from './portfolio-
+ import { cashValuer } from './cash-valuation';
+ import {
+   ExchangeRateUnavailableError,
+-  benchmarkIndexLine,
++  benchmarkQuotesInEur,
++  performanceReportSeries,
+   depotIndexLine,
+   periodWindow,
+   shareBps,
+   sumSeries,
+   windowPerformance,
+-  type BenchmarkLevel,
++  type ReportQuote,
+   type IndexPoint,
+   type Period,
+   type PerformanceInput,
+@@ -18,7 +19,7 @@ import {
+ import { and, asc, eq, isNull, lte } from 'drizzle-orm';
+ import { account, institution, price, security, valuation } from '../schema';
+ import { cashSeries, portfolioFlows, valuationSeries } from './portfolio';
+-import { firstDay, positionLines } from './portfolio-summary';
++import { firstDay, positionLines, ratesAsOf } from './portfolio-summary';
+ import type { Executor } from './types';
+ 
+ export interface DepotProduct {
+@@ -174,14 +175,16 @@ export function depotComparison(
+   const benchmarkSecurity = benchmarkSecurityId
+     ? db.select().from(security).where(eq(security.id, benchmarkSecurityId)).get()
+     : undefined;
+-  let levels: BenchmarkLevel[] = [];
+-  if (benchmarkSecurity)
+-    levels = db
+-      .select({ date: price.date, level: price.priceMicro })
++  let levels: ReportQuote[] = [];
++  if (benchmarkSecurity) {
++    const rows = db
++      .select()
+       .from(price)
+       .where(and(eq(price.securityId, benchmarkSecurity.id), lte(price.date, today)))
+       .orderBy(asc(price.date))
+       .all();
++    levels = benchmarkQuotesInEur(rows, ratesAsOf(db, today), benchmarkSecurity.kind);
++  }
+   const withBenchmark = (input: PerformanceInput): PerformanceInput =>
+     levels.length > 0 ? { ...input, benchmark: levels } : input;
+ 
+@@ -234,8 +237,16 @@ export function depotComparison(
+   };
+ 
+   const totalLine = depotIndexLine(totalInput, effective);
+-  const boundaryDays = totalLine.map((p) => p.date);
+-  const benchmarkIndex = levels.length > 0 ? benchmarkIndexLine(levels, boundaryDays) : null;
++  const benchmarkByDate = new Map(
++    performanceReportSeries(totalInput, effective, levels).dailyBenchmark.map((point) => [
++      point.date,
++      point.benchmark,
++    ]),
++  );
++  const benchmarkIndex =
++    levels.length > 0
++      ? totalLine.map(({ date }) => ({ date, level: benchmarkByDate.get(date) ?? null }))
++      : null;
+ 
+   // Closed zero-value accounts remain visible only when this period contains value or flows.
+   const accountIds = accounts
+diff --git a/packages/db/src/repos/portfolio-summary.ts b/packages/db/src/repos/portfolio-summary.ts
+index b6b966fd95f6f8decf38fb9e32a5f5140aa0079e..451e7fb8bc024f031615f6f963f565c4935b57e9 100644
+--- a/packages/db/src/repos/portfolio-summary.ts
++++ b/packages/db/src/repos/portfolio-summary.ts
+@@ -7,6 +7,7 @@ import {
+   addMonths,
+   addDays,
+   allocationStatus,
++  benchmarkQuotesInEur,
+   clusterRisk,
+   documentedCostOf,
+   documentedRealizedGain,
+@@ -28,7 +29,7 @@ import {
+   toEurCents,
+   type RateTable,
+   type AllocationStatus,
+-  type BenchmarkLevel,
++  type ReportQuote,
+   type ClusterRisk,
+   type IncomeSummary,
+   type Period,
+@@ -866,15 +867,16 @@ function portfolioSummaryInRange(db: Executor, options: PortfolioOptions): Portf
+     const performanceInput = { series: valuations, flows, returnFlows, irrFlows };
+ 
+     const benchmarkId = options.benchmarkSecurityId ?? lines[0]?.securityId;
+-    let levels: BenchmarkLevel[] | undefined;
++    let levels: ReportQuote[] | undefined;
+     const benchmarkSecurity = benchmarkId ? loaded.securities.get(benchmarkId) : undefined;
+     if (benchmarkSecurity) {
+-      levels = db
+-        .select({ date: price.date, level: price.priceMicro })
++      const rows = db
++        .select()
+         .from(price)
+         .where(and(eq(price.securityId, benchmarkSecurity.id), lte(price.date, today)))
+         .orderBy(asc(price.date))
+         .all();
++      levels = benchmarkQuotesInEur(rows, rates, benchmarkSecurity.kind);
+       if (levels.length > 0)
+         benchmark = { securityId: benchmarkSecurity.id, name: benchmarkSecurity.name };
+       else levels = undefined;
+@@ -900,19 +902,7 @@ function portfolioSummaryInRange(db: Executor, options: PortfolioOptions): Portf
+       const benchmarkKind = selected.securityId
+         ? loaded.securities.get(selected.securityId)?.kind
+         : undefined;
+-      const weekendCarry = ['etf', 'fund', 'stock', 'bond'].includes(benchmarkKind ?? '');
+-      const quotes = rows.map((p) => {
+-        try {
+-          const level =
+-            p.currency === 'EUR'
+-              ? p.priceMicro
+-              : (p.priceMicro * 1_000_000) / fxOn(rates, p.currency, p.date);
+-          return { date: p.date, level, reason: null, weekendCarry };
+-        } catch (error) {
+-          if (!(error instanceof ExchangeRateUnavailableError)) throw error;
+-          return { date: p.date, level: null, reason: 'missing_fx' as const, weekendCarry };
+-        }
+-      });
++      const quotes = benchmarkQuotesInEur(rows, rates, benchmarkKind);
+       const groups = [...loaded.classNames].map(([assetClassId, name]) => ({
+         assetClassId: assetClassId as string | null,
+         name,
+diff --git a/packages/domain/src/invest/index.ts b/packages/domain/src/invest/index.ts
+index f1dac3293a353a9f3693219f37f5368b9adf1f5c..59b76bb480ad148396fa91a48dd14e4a592f8629 100644
+--- a/packages/domain/src/invest/index.ts
++++ b/packages/domain/src/invest/index.ts
+@@ -8,3 +8,4 @@ export * from './trade-rules';
+ export * from './depot-compare';
+ export * from './costs-taxes';
+ export * from './performance-report';
++export * from './benchmark-quotes';
+diff --git a/packages/domain/src/invest/performance-report.ts b/packages/domain/src/invest/performance-report.ts
+index 23fa9e471c15acba281ae254b1a27762c6e29eb8..b7b1aeb4c677aadb23ad200787376e6c85d28c27 100644
+--- a/packages/domain/src/invest/performance-report.ts
++++ b/packages/domain/src/invest/performance-report.ts
+@@ -7,16 +7,8 @@ import {
+   type PerformanceInput,
+   type Window,
+ } from './performance';
+-
+-export type BenchmarkGap = 'missing_price' | 'missing_fx' | 'not_selected';
+-export interface ReportQuote {
+-  date: string;
+-  /** EUR price level, not stored money. Null means a stored quote lacks its historical FX. */
+-  level: number | null;
+-  reason: 'missing_fx' | null;
+-  /** Exchange-traded instruments can use Friday's close; daily/manual sources cannot. */
+-  weekendCarry?: boolean;
+-}
++import { benchmarkQuoteResolver, type BenchmarkGap, type ReportQuote } from './benchmark-quotes';
++export type { BenchmarkGap, ReportQuote } from './benchmark-quotes';
+ 
+ /** Report 4.4: one calendar partition of the existing daily TTWROR; no second return formula. */
+ export function performanceReportSeries(
+@@ -27,18 +19,7 @@ export function performanceReportSeries(
+   const effective = windowPerformance(input, window);
+   const { from, to } = effective;
+   const bounds = monthBoundaries(from, to);
+-  const ordered = [...(quotes ?? [])].sort((a, b) => a.date.localeCompare(b.date));
+-  const quoteOn = (day: string) => ordered.findLast((q) => q.date <= day);
+-  // Only a weekend can use Friday's close. No trading calendar is stored, so a missing
+-  // weekday/holiday close is an explicit gap, not an assumption of an unchanged price.
+-  const currentQuote = (day: string, quote: ReportQuote | undefined) => {
+-    const weekday = new Date(`${day}T00:00:00Z`).getUTCDay();
+-    const closeDay = addDays(
+-      day,
+-      quote?.weekendCarry !== false ? (weekday === 0 ? -2 : weekday === 6 ? -1 : 0) : 0,
+-    );
+-    return quote !== undefined && quote.date >= closeDay;
+-  };
++  const quoteOn = benchmarkQuoteResolver(quotes ?? []);
+   let portfolioLevel = 100;
+   const dailySeries = input.series.filter((v) => v.date >= from && v.date <= to);
+   const dailyRateByDate = new Map(
+@@ -50,8 +31,7 @@ export function performanceReportSeries(
+   const firstReturn = dailyRateByDate.keys().next().value;
+   const baseDate = firstReturn ? addDays(firstReturn, -1) : from;
+   const base = quoteOn(baseDate);
+-  const baseLevel =
+-    currentQuote(baseDate, base) && base?.level != null && base.level > 0 ? base.level : null;
++  const baseLevel = base.level !== null && base.level > 0 ? base.level : null;
+   const dailyValues = dailySeries.map((valuation) => {
+     const flows = input.flows.filter((f) => f.date === valuation.date && f.date > from);
+     return {
+@@ -95,20 +75,13 @@ export function performanceReportSeries(
+       const start = addDays(valuation.date, -1);
+       const quote = quoteOn(start);
+       benchmarkBase =
+-        currentQuote(start, quote) &&
+-        quote?.level != null &&
+-        quote.level > 0 &&
+-        lastBenchmarkLevel > 0
++        quote.level !== null && quote.level > 0 && lastBenchmarkLevel > 0
+           ? (100 * quote.level) / lastBenchmarkLevel
+           : null;
+     }
+     const quote = quoteOn(valuation.date);
+     const benchmark =
+-      valued &&
+-      benchmarkBase !== null &&
+-      currentQuote(valuation.date, quote) &&
+-      quote?.level != null &&
+-      quote.level >= 0
++      valued && benchmarkBase !== null && quote.level !== null && quote.level >= 0
+         ? (100 * quote.level) / benchmarkBase
+         : null;
+     dailyBenchmark.push({ date: valuation.date, benchmark });
+@@ -137,12 +110,10 @@ export function performanceReportSeries(
+         closing = quoteOn(part.to);
+       // Only the funded return days enter the comparison; later quotes never backfill a base.
+       const gap: BenchmarkGap | null =
+-        opening?.reason === 'missing_fx' || closing?.reason === 'missing_fx'
++        opening.gap === 'missing_fx' || closing.gap === 'missing_fx'
+           ? 'missing_fx'
+-          : !currentQuote(part.from, opening) ||
+-              !currentQuote(part.to, closing) ||
+-              opening?.level == null ||
+-              closing?.level == null ||
++          : opening.level === null ||
++              closing.level === null ||
+               opening.level <= 0 ||
+               closing.level < 0
+             ? 'missing_price'
+@@ -165,8 +136,8 @@ export function performanceReportSeries(
+       rate,
+       benchmarkRate,
+       benchmarkGap,
+-      startQuoteDate: a?.date ?? null,
+-      endQuoteDate: b?.date ?? null,
++      startQuoteDate: a.quote?.date ?? null,
++      endQuoteDate: b.quote?.date ?? null,
+     };
+   });
+   const compound = (values: (number | null)[]) =>
+diff --git a/packages/domain/src/invest/performance.ts b/packages/domain/src/invest/performance.ts
+index eeff9f826fc0ed3ce4c11a0d94776e1b104d23ea..d834b859219f6bad5e2953a75f3d50a3b0a5218c 100644
+--- a/packages/domain/src/invest/performance.ts
++++ b/packages/domain/src/invest/performance.ts
+@@ -1,6 +1,7 @@
+ import { calendarRangeWindow, isCalendarRange, type CalendarRange } from '../report-range';
+ import { addDays, addMonths, daysBetween, lastDayOfMonth } from '../date';
+ import { irr, modifiedDietz, periodReturn, type CashFlow, type Valuation } from './returns';
++import { benchmarkQuoteResolver, type BenchmarkQuote } from './benchmark-quotes';
+ 
+ /**
+  * Portfolio performance per window (P5.2, SPEC §6). Inputs are integer cents (values, flows); the
+@@ -223,8 +224,8 @@ export interface PerformanceInput {
+   returnFlows?: ReadonlyArray<CashFlow>;
+   /** PP XIRR converts net payments and tax separately; TTWROR converts pre-tax amounts. */
+   irrFlows?: ReadonlyArray<CashFlow>;
+-  /** Index levels (daily or monthly, carried forward); enables beta and the benchmark return. */
+-  benchmark?: ReadonlyArray<BenchmarkLevel>;
++  /** EUR index levels with the shared boundary freshness policy; enables beta/comparison. */
++  benchmark?: ReadonlyArray<BenchmarkQuote>;
+   riskFree?: number;
+ }
+ 
+@@ -257,12 +258,6 @@ function valueOn(series: ReadonlyArray<Valuation>, day: string): number {
+   return found;
+ }
+ 
+-function levelOn(levels: ReadonlyArray<BenchmarkLevel>, day: string): number | undefined {
+-  let found: number | undefined;
+-  for (const l of levels) if (l.date <= day) found = l.level;
+-  return found;
+-}
+-
+ /**
+  * All figures of one window. The series must cover `from … to`; `from` is moved to the first day
+  * of the series when it starts later. Monthly returns chain the daily returns of each calendar
+@@ -290,6 +285,7 @@ export function windowPerformance(input: PerformanceInput, window: Window): Wind
+   const months: number[] = [];
+   const benchmarkMonths: number[] = [];
+   let benchmarkOk = input.benchmark !== undefined && input.benchmark.length > 0;
++  const quoteOn = benchmarkQuoteResolver(input.benchmark ?? []);
+   for (let i = 1; i < bounds.length; i++) {
+     const a = bounds[i - 1] as string;
+     const b = bounds[i] as string;
+@@ -299,9 +295,9 @@ export function windowPerformance(input: PerformanceInput, window: Window): Wind
+     if (benchmarkOk) {
+       let level = 1;
+       for (const segment of returnWindows(valued)) {
+-        const la = levelOn(input.benchmark ?? [], segment.from);
+-        const lb = levelOn(input.benchmark ?? [], segment.to);
+-        if (la === undefined || lb === undefined || la <= 0) benchmarkOk = false;
++        const la = quoteOn(segment.from).level;
++        const lb = quoteOn(segment.to).level;
++        if (la === null || lb === null || la <= 0) benchmarkOk = false;
+         else level *= lb / la;
+       }
+       benchmarkMonths.push(level - 1);

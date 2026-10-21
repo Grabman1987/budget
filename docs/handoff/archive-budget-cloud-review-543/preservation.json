@@ -1,0 +1,24 @@
+{
+  "state": "ARCHIVED REVIEW / ALREADY DELIVERED \u2014 NOT NEW IMPLEMENTATION",
+  "worktree": "/workspace/budget-cloud-review-543",
+  "head": "e14932decc183919694aa5f4d24e03b4b6f54914",
+  "historicalContext": "Old detached review copy; #543\u2192PR696, #677\u2192PR693, Case002\u2192combined reference PR686. Preserve; do not treat as fresh ticket implementation.",
+  "trackedPaths": [
+    "apps/server/src/api/portfolio-performance.test.ts",
+    "packages/db/src/repos/portfolio-depots.ts",
+    "packages/db/src/repos/portfolio-summary.ts",
+    "packages/domain/src/invest/index.ts",
+    "packages/domain/src/invest/performance-report.ts",
+    "packages/domain/src/invest/performance.ts"
+  ],
+  "untrackedPaths": [
+    "apps/server/src/api/benchmark-quote-consistency-543.test.ts",
+    "docs/evidence/benchmark-quote-543/README.md",
+    "packages/db/src/repos/benchmark-quote-consistency-543.test.ts",
+    "packages/db/src/repos/benchmark-quote-fixture-543.ts",
+    "packages/db/src/repos/depot-benchmark-quote-543.test.ts",
+    "packages/domain/src/invest/benchmark-quote-rule-543.test.ts",
+    "packages/domain/src/invest/benchmark-quotes.ts"
+  ],
+  "originalsMutated": false
+}

@@ -1,0 +1,57 @@
+[
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-543/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-543/README.md",
+    "size": 497,
+    "sha256": "2904d80fd128c9153c8637339872819a0bd47754fd61f57110ed18e23b03b2a7"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-543/preservation.json",
+    "size": 1183,
+    "sha256": "65f4253309ed4f090e066ede443811866ceec9e0d2f3bf3dfe62dcaaf546687e"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-543/tracked-head.patch",
+    "size": 14797,
+    "sha256": "f745e8c48bb9e5b8dfa7648e3c9e1100d283cfcfa75a399c9065a7d3337e4299"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-543/untracked/apps/server/src/api/benchmark-quote-consistency-543.test.ts",
+    "size": 3232,
+    "sha256": "dc3e897b0bf3d22510a850140f6d004e6191d29930ea1ef1d2344f4cfd5c9bca"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-543/untracked/docs/evidence/benchmark-quote-543/README.md",
+    "size": 4879,
+    "sha256": "975c32825ee8ce6b1478ef914c535208ea87b848d7d35d97b216908dc41fa8b4"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-543/untracked/packages/db/src/repos/benchmark-quote-consistency-543.test.ts",
+    "size": 2009,
+    "sha256": "ce921de2eaaba113e393964e6148ad26a0e5e743613aa1966507feaad103ef61"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-543/untracked/packages/db/src/repos/benchmark-quote-fixture-543.ts",
+    "size": 1287,
+    "sha256": "12fcc1176f7d7089862433d256a9c1e5d27af6296bf8fc8d1bba2713ad940b44"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-543/untracked/packages/db/src/repos/depot-benchmark-quote-543.test.ts",
+    "size": 3586,
+    "sha256": "364a3adba9f6899a3f399b9e1c92c6de512bf3843c630449596d7bbf955ebb6e"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-543/untracked/packages/domain/src/invest/benchmark-quote-rule-543.test.ts",
+    "size": 9782,
+    "sha256": "ee5d61c576512e6ecd54fe08b919530dcc1f45aa676e36fa47a36336214585d4"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-543/untracked/packages/domain/src/invest/benchmark-quotes.ts",
+    "size": 2577,
+    "sha256": "849a0b4c536fa4b1694887f61f9b98ab1848f4c47bd70c4e33e413900e7374e5"
+  }
+]
