@@ -1,0 +1,116 @@
+[
+  {
+    "path": "/workspace/cloud-plan-separated-headings-481/test-results/issue-481-separated-group--2cceb--and-controls-desktop-light-webkit-iphone/separated-heading-geometry.json",
+    "sha256": "a0575b1f0fb77d58d0da64d4606444ecca5f02b1cde8a1dc2f1627aa15add105",
+    "profile": "desktop",
+    "theme": "light",
+    "browser": "webkit",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "dpr": 1,
+    "coarse": false,
+    "rawTouchPoints": 0,
+    "parents": 8,
+    "ordinaryCategories": 25,
+    "parentMax": 30,
+    "categoryMax": 33,
+    "pairMax": 63.0
+  },
+  {
+    "path": "/workspace/cloud-plan-separated-headings-481/test-results/issue-481-separated-group--5edee-y-and-controls-desktop-dark-webkit-iphone/separated-heading-geometry.json",
+    "sha256": "1cd484e2665bbf294d00d55f109f17a197523c84ea9ac8692be3d6fb95eb588a",
+    "profile": "desktop",
+    "theme": "dark",
+    "browser": "webkit",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "dpr": 1,
+    "coarse": false,
+    "rawTouchPoints": 0,
+    "parents": 8,
+    "ordinaryCategories": 25,
+    "parentMax": 30,
+    "categoryMax": 33,
+    "pairMax": 63.0
+  },
+  {
+    "path": "/workspace/cloud-plan-separated-headings-481/test-results/issue-481-separated-group--7a4c5-nd-controls-phone-tall-dark-webkit-iphone/separated-heading-geometry.json",
+    "sha256": "cfcbb77edf9b22dbd74c8b7df39dcc40445c0e15f41574d6cff639d2d90ac80c",
+    "profile": "phone-tall",
+    "theme": "dark",
+    "browser": "webkit",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "dpr": 3,
+    "coarse": true,
+    "rawTouchPoints": 0,
+    "parents": 8,
+    "ordinaryCategories": 25,
+    "parentMax": 71.390625,
+    "categoryMax": 75,
+    "pairMax": 146.390625
+  },
+  {
+    "path": "/workspace/cloud-plan-separated-headings-481/test-results/issue-481-separated-group--7fa8f-d-controls-phone-tall-light-webkit-iphone/separated-heading-geometry.json",
+    "sha256": "32dac67002a2ecb4301e8237e1ee7af5bca9fad757ddfeee5eefd39a12faa928",
+    "profile": "phone-tall",
+    "theme": "light",
+    "browser": "webkit",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "dpr": 3,
+    "coarse": true,
+    "rawTouchPoints": 0,
+    "parents": 8,
+    "ordinaryCategories": 25,
+    "parentMax": 71.390625,
+    "categoryMax": 75,
+    "pairMax": 146.390625
+  },
+  {
+    "path": "/workspace/cloud-plan-separated-headings-481/test-results/issue-481-separated-group--c595c-nd-controls-configured-dark-webkit-iphone/separated-heading-geometry.json",
+    "sha256": "a0b2a740b4ab24906e6645031a50ed55fffcb0b7ad70eb0b2d6cb5cb78767048",
+    "profile": "configured",
+    "theme": "dark",
+    "browser": "webkit",
+    "viewport": {
+      "width": 390,
+      "height": 664
+    },
+    "dpr": 3,
+    "coarse": true,
+    "rawTouchPoints": 0,
+    "parents": 8,
+    "ordinaryCategories": 25,
+    "parentMax": 71.390625,
+    "categoryMax": 75,
+    "pairMax": 146.390625
+  },
+  {
+    "path": "/workspace/cloud-plan-separated-headings-481/test-results/issue-481-separated-group--eb973-d-controls-configured-light-webkit-iphone/separated-heading-geometry.json",
+    "sha256": "6f79fbfdc33e9ca345958fcb967d62ff6bbe043c009a2470c5feeec86975f6f4",
+    "profile": "configured",
+    "theme": "light",
+    "browser": "webkit",
+    "viewport": {
+      "width": 390,
+      "height": 664
+    },
+    "dpr": 3,
+    "coarse": true,
+    "rawTouchPoints": 0,
+    "parents": 8,
+    "ordinaryCategories": 25,
+    "parentMax": 71.390625,
+    "categoryMax": 75,
+    "pairMax": 146.390625
+  }
+]

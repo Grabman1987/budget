@@ -1,0 +1,11 @@
+# 481 initial NEW RTL actual RED adjudication
+
+Source27f27866, product HEAD208cf9d10868c99044be2bf0ad81c6fe36712c51 unchanged. Actual71061 archive481-separated-final-new2-first-rtl-red-actual: npmci0 (10.964s), NEWRTL one file5collected/5failed, Vitest5.69s; wrapper1/unit1 as expected failure, sourceguard0/lock-release0. Complete pre/post snapshots identical and files/modes/head/dirty status match final freeze3479working/3477incoming. No old tests/product touched. No browser/native financial601/Undo executed or claimed.
+
+Meaningful direct public hierarchy REDs: case1 line96 actual parent is still a prow (fused category); case2 line117 clicking parent's available total actually selects firstcategory and renders ErsterPosten h2; case4 line152 after one->two response transition parent and original category still same tr. All fail real existing rendered Plan behavior, not absent imports/future APIs/providers or timeout configuration. Later monetary/readonly/interaction assertions after those first failures are unreached; do not relabel them passed.
+
+Case3 line130 retains captured old expanded toggle object after collapsing fused row, whose key/DOM gets replaced by standalone collapsed header. Expected false sees stale oldtrue. This is consistent with required future persistent separate parent identity/focus, not independent arithmetic or execution failure.
+
+Case5 is a NEW test selector issue, not product defect: global exactname Auswahlbeenden finds topbar and selectionbar controls. Group/category/all mixed membership and collapse assertions before that point reached successfully. Exit ariafalse, inline+dialog and final writes[] are unreached. Correct only selector to within actual regionKategorienauswahl exitbutton, preserving action and all following expectations; never use first(), remove assertions or change product labels.
+
+Three direct REDs establish intended separation regression and justify Root considering minimal existing band=singleBand predicate change. Keep CSS byte-exact until actual need, all money/590/Undo handlers and original oldtests protected. Any product or NEWselector patch remains Root-granted source-only followed by immutable diff review; this report does not grant unscheduled runtime or claim finance/full/browser acceptance. Reviewer inspected logs/snapshots only, no functional execution/repo edits.

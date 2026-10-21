@@ -1,0 +1,13 @@
+diff --git a/e2e/issue-481-theme-boundary.spec.ts b/e2e/issue-481-theme-boundary.spec.ts
+index bed0e37153ef48cdc75de597bf4a161eef6537e4..0000e88a8b6d1dde14b05665636f026da4fa206b 100644
+--- a/e2e/issue-481-theme-boundary.spec.ts
++++ b/e2e/issue-481-theme-boundary.spec.ts
+@@ -143,7 +143,7 @@ for (const profile of ['desktop', 'phone'] as const) {
+             expect(controlBox!.width).toBeGreaterThanOrEqual(44);
+             expect(controlBox!.height).toBeGreaterThanOrEqual(44);
+             await control.tap();
+-            await page.keyboard.press('Escape');
++            await summary.tap();
+             await expect(menu).toHaveJSProperty('open', false);
+           } else {
+             const control = page

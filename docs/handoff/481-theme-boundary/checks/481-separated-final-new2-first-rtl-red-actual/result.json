@@ -1,0 +1,16 @@
+{
+  "phases": {
+    "npm-ci": {
+      "exit": 0,
+      "wallSeconds": 10.964355632997467
+    },
+    "new-rtl": {
+      "exit": 1,
+      "wallSeconds": 6.076629923991277
+    }
+  },
+  "guard": 0,
+  "sourceChanged": false,
+  "productionEdited": false,
+  "nodeEnvironmentFile": "/workspace/.budget-tools/env.sh"
+}

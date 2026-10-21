@@ -1,0 +1,5 @@
+# 481 NEW native selection exit scope — HIGH STATIC CLEAR
+
+Freeze9335bb4a09ec6d5ddf56c572a6a3aafa622bb81799d798e1c5bc8212431d4e1a independently verified atHEAD208cf9d1. Sole delta versus0b473 is NEWnative exit selector: same exact Auswahlbeenden button now inside actual regionKategorienauswahl. Whole-file inverse restores exact saved before native18a6; currentnativeecf908f9fd6a069d55077a0e7f3ffe13304f4cce125ae12d401e6ced7a111b7f. All3479 working hashes/permissionmodes/HEAD/index/dirty status match; other3478 paths including product predicate2f5cfb46, testedRTL01a8e3b5, CSS/old4 unchanged. No financial601/payload/source/Undo/profile/geometry/44/Axe/timing assertion differs. Existing child selectedtrue count0 after exit remains strict.
+
+This resolves only the known source-proven ambiguous global exit selector by using the same user-facing selectionbar action. Current product+RTL actual5GREEN remains qualified0b473; NEWnative has not been collected/executed, and static/native/build/full need separate Root grants. No reviewer functional execution or source writes; Root ownership of existing tests and DESIGN/PRODUCT unchanged.

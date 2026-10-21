@@ -1,0 +1,81 @@
+{
+  "rootPersonallyOpenedAllFour": true,
+  "method": "view_image original; phone rendering was downscaled by client from1170x15153 to463x6000; original bytes unchanged",
+  "images": {
+    "desktop-light": {
+      "source": "/workspace/cloud-plan-separated-headings-481/test-results/issue-481-separated-group--2cceb--and-controls-desktop-light-webkit-iphone/separated-headings.png",
+      "sha256": "f64bfbe27196d0f55237a1be5bd52f0a3b441e5810175791d780070d5b43b07a",
+      "physicalPng": {
+        "width": 1440,
+        "height": 2224
+      },
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "dpr": 1,
+      "profile": "desktop",
+      "theme": "light",
+      "engine": "webkit",
+      "rawTouchPoints": 0
+    },
+    "desktop-dark": {
+      "source": "/workspace/cloud-plan-separated-headings-481/test-results/issue-481-separated-group--5edee-y-and-controls-desktop-dark-webkit-iphone/separated-headings.png",
+      "sha256": "3aa14f399199a37c113141a937a479ee3183e6ec8975b9574a483230ece366ee",
+      "physicalPng": {
+        "width": 1440,
+        "height": 2224
+      },
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "dpr": 1,
+      "profile": "desktop",
+      "theme": "dark",
+      "engine": "webkit",
+      "rawTouchPoints": 0
+    },
+    "phone-tall-light": {
+      "source": "/workspace/cloud-plan-separated-headings-481/test-results/issue-481-separated-group--7fa8f-d-controls-phone-tall-light-webkit-iphone/separated-headings.png",
+      "sha256": "5f1320c68de6201415ee43e2e3924735cc8ff2de012f56679f4b0a480696e5e5",
+      "physicalPng": {
+        "width": 1170,
+        "height": 15153
+      },
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "dpr": 3,
+      "profile": "phone-tall",
+      "theme": "light",
+      "engine": "webkit",
+      "rawTouchPoints": 0
+    },
+    "phone-tall-dark": {
+      "source": "/workspace/cloud-plan-separated-headings-481/test-results/issue-481-separated-group--7a4c5-nd-controls-phone-tall-dark-webkit-iphone/separated-headings.png",
+      "sha256": "f87e1505e57eb12e4efde3699bfdd759098b1aef74017e722ef4458dc0ea8639",
+      "physicalPng": {
+        "width": 1170,
+        "height": 15153
+      },
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "dpr": 3,
+      "profile": "phone-tall",
+      "theme": "dark",
+      "engine": "webkit",
+      "rawTouchPoints": 0
+    }
+  },
+  "findings": [
+    "Multi-category group headings are visibly separate from every category, including first child, in both themes and real1440/manual390 layouts. Single-category bands remain.",
+    "Desktop first category Miete retains keyboard focus outline after inspector return; ordinary category labels/status can ellipsize at constrained widths, consistent with unchanged ordinary-row CSS. No full-label visibility claim.",
+    "Phone full-page capture includes fixed bottom navigation and FAB near initial844CSS viewport; they cover part of the Strom/Internet region in this capture. It is not a wholly unoccluded viewport or per-point hit-test proof.",
+    "Physical full-page height and logical44 vs55 rows are different quantities. No physical20percent reduction claim."
+  ],
+  "runtimeBoundary": "All7NEW cases passed per actual running stream; full29 batch and source/process/archive/lock finalguards are still pending at this visual review."
+}

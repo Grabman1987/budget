@@ -1,0 +1,81 @@
+{
+  "startedAt": "2026-10-20T08:40:38.883098+00:00",
+  "sourceFreezeSha256": "d13759cba1a57d4b31ed1833b99e89a1f2616a90d73398e25f4d93be2e081eec",
+  "sourceWorkingPaths": 3485,
+  "ownedPaths": 16,
+  "environment": {
+    "BUDGET_REQUIRE_AGE": "1",
+    "VITEST_MAX_WORKERS": "2",
+    "sourceEnvFile": "/workspace/.budget-tools/env.sh"
+  },
+  "phases": [
+    {
+      "name": "required-age-check",
+      "command": [
+        "npm",
+        "run",
+        "check"
+      ],
+      "startedAt": "2026-10-20T08:40:39.886362+00:00",
+      "pid": 703972,
+      "pgid": 703972,
+      "exit": 0,
+      "finishedAt": "2026-10-20T08:51:31.263927+00:00",
+      "groupAfter": [
+        {
+          "pid": 704282,
+          "pgid": 703972,
+          "state": "Z",
+          "command": "esbuild"
+        },
+        {
+          "pid": 708449,
+          "pgid": 703972,
+          "state": "Z",
+          "command": "esbuild"
+        },
+        {
+          "pid": 708805,
+          "pgid": 703972,
+          "state": "Z",
+          "command": "esbuild"
+        },
+        {
+          "pid": 709984,
+          "pgid": 703972,
+          "state": "Z",
+          "command": "esbuild"
+        }
+      ]
+    },
+    {
+      "name": "normal-production-build",
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "startedAt": "2026-10-20T08:51:32.015143+00:00",
+      "pid": 712695,
+      "pgid": 712695,
+      "exit": 0,
+      "finishedAt": "2026-10-20T08:51:39.473811+00:00",
+      "groupAfter": [
+        {
+          "pid": 712727,
+          "pgid": 712695,
+          "state": "Z",
+          "command": "esbuild"
+        }
+      ]
+    }
+  ],
+  "normalProductionBuildOnlyAfterCheckZero": true,
+  "scope": "One required full npm run check followed only on0 by separate normal npm run build. No source/media/evidence writes, no npmci/browser/test config changes or auto-retry.",
+  "finishedAt": "2026-10-20T08:51:40.378606+00:00",
+  "sourceGuard": 0,
+  "processGuard": 0,
+  "archiveGuard": 0,
+  "wrapperExit": 0,
+  "lockReleaseExit": 0
+}

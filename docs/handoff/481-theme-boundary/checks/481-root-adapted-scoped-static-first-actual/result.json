@@ -1,0 +1,28 @@
+{
+  "phases": {
+    "new2-format": {
+      "exit": 0,
+      "seconds": 0.4532844159984961
+    },
+    "web-types": {
+      "exit": 0,
+      "seconds": 95.40280654300295
+    },
+    "scoped-eslint": {
+      "exit": 0,
+      "seconds": 4.784915968994028
+    },
+    "scoped-format-check": {
+      "exit": 0,
+      "seconds": 2.0704834619973553
+    },
+    "native-official-collection": {
+      "exit": 0,
+      "seconds": 10.738597646995913
+    }
+  },
+  "guard": 0,
+  "new2FormattingOnlyMutation": true,
+  "nativeExecuted": false,
+  "buildExecuted": false
+}

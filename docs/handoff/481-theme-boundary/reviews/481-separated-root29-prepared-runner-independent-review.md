@@ -1,0 +1,9 @@
+# Independent prepared-runner review: #481
+
+Verdict: HIGH STATIC CLEAR; no blocking finding. No execution performed or authorized by this review. Root explicit runtime grant remains required.
+
+Reviewed entire run-481-separated-root29-first-native.py, SHA256 01e69361130822355f52340d1949f8139d7d1ded46ebcd62c3285de6ec4fed39. Verified freeze 34cbc6a84981ae32c99c831aa003ef80041bbc427c4db4ce754402781c4f0bb9, official collection ebb9e31209e6d7f4c9edd0508c5a78610fef9c9788305c2797cbdd66a14a3055, and canonical helper 663c45b799d4da770396b9724636611238fa457727c51ee5e0aa9d0cb7ad5a26 against actual bytes. All 3479 current source hashes and S_IMODE permission values, HEAD 208cf9d10868c99044be2bf0ad81c6fe36712c51, status and index exactly match the reviewed post-static freeze.
+
+Runner performs one fresh npm run build:e2e; only exit 0 permits the unchanged five-spec canonical WebKit batch, one worker and unchanged test defaults. Official discovery is 29 tests in 8 files, not a runtime pass claim. The five exact specs are the new separated-heading regression plus existing issue-481-single-category-band, plan-compact-grid, issue-588-plan-menus and issue-590-phone-selection.
+
+Nonblocking shared lock, unique archive, pre/post complete source/mode/HEAD/index/status checks, fresh compiled fullset/hash/mode checks and pinned image/helper are present. Phase process groups are recorded before wait; cleanup targets only owned phase groups and containers mounting this exact worktree. Original nonzero phase results remain failures. Logs/results are archived before release, cleanup/source/archive guard failures fail the wrapper, and lock release is probed. No source PNG exception or baseline restoration is introduced: old issue-481 capture now uses outputPath. No source, test, browser or build command was run by the reviewer. Actual build/native/profile/images and any runtime failure remain future evidence.

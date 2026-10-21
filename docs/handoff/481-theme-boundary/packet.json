@@ -1,0 +1,41 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/481-theme-boundary",
+  "sourceHead": "3dc7338aa12f10946882b6b1476aeaf90b15ddbd",
+  "originalBaseBeforeOwnedCommits": "e74c4ef5134ef97ffecfd8c77bc19491ac8e016e",
+  "orderedCommits": [
+    {
+      "sha": "de8741ea7438f71e85293de7628f3d8f7a983194",
+      "parentBase": "e74c4ef5134ef97ffecfd8c77bc19491ac8e016e",
+      "subject": "fix(theme): bind application text to the normal ink role",
+      "paths": [
+        "apps/web/src/shell/shell.css",
+        "docs/evidence/theme-boundary-481-595/README.md",
+        "e2e/issue-481-theme-boundary.spec.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout de8741ea7438f71e85293de7628f3d8f7a983194 > OWN_OUTPUT/de8741ea7438f71e85293de7628f3d8f7a983194.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-de8741ea7438f71e85293de7628f3d8f7a983194.patch",
+      "copied": true
+    },
+    {
+      "sha": "3dc7338aa12f10946882b6b1476aeaf90b15ddbd",
+      "parentBase": "de8741ea7438f71e85293de7628f3d8f7a983194",
+      "subject": "test(theme): close the phone menu through its native summary",
+      "paths": [
+        "e2e/issue-481-theme-boundary.spec.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 3dc7338aa12f10946882b6b1476aeaf90b15ddbd > OWN_OUTPUT/3dc7338aa12f10946882b6b1476aeaf90b15ddbd.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/02-3dc7338aa12f10946882b6b1476aeaf90b15ddbd.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/web/src/shell/shell.css",
+    "docs/evidence/theme-boundary-481-595/README.md",
+    "e2e/issue-481-theme-boundary.spec.ts"
+  ],
+  "mixedSourceAncestry": false,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}
