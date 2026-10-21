@@ -1,0 +1,899 @@
+diff --git a/apps/server/src/api/cashflow-report.ts b/apps/server/src/api/cashflow-report.ts
+index 47be6e8675e75604fa6718c14ef0c6205550a1ed..2a41bfe95f89691aa8c1b4bb9818a38acc3ad0fb 100644
+--- a/apps/server/src/api/cashflow-report.ts
++++ b/apps/server/src/api/cashflow-report.ts
+@@ -4,7 +4,7 @@ import { Hono } from 'hono';
+ import { z } from 'zod';
+ import { readQuery } from './http';
+ 
+-const query = z.object({ period: reportPeriodSchema.default('1J') });
++const query = z.object({ period: reportPeriodSchema.default('1J'), projectId: z.string().min(1).max(64).optional() });
+ 
+ /**
+  * Report 3.2 Cashflow-Verlauf (`/api/cashflow?period=`): income, consumption and net cashflow per
+@@ -14,12 +14,13 @@ export function cashflowRoutes(db: Db, today: () => string): Hono {
+   const app = new Hono();
+   app.get('/', (c) => {
+     const asOf = today();
+-    const period = checkedReportPeriod(readQuery(c, query).period, asOf);
++    const input = readQuery(c, query);
++    const period = checkedReportPeriod(input.period, asOf);
+     // January has no completed month this year: use the existing to-date calendar range.
+     const month = asOf.slice(0, 7);
+     const window =
+       period === 'YTD' && month.endsWith('-01') ? (`${month}..${month}` as const) : period;
+-    return c.json({ ...cashflowReport(db, asOf, window), period });
++    return c.json({ ...cashflowReport(db, asOf, window, input.projectId), period });
+   });
+   return app;
+ }
+diff --git a/apps/server/src/api/report-tables.ts b/apps/server/src/api/report-tables.ts
+index 258e730bcaacbc35ab5e40f915d52984147d3a17..36d29c3badbb46367e85924ae9b5d22c896be8b1 100644
+--- a/apps/server/src/api/report-tables.ts
++++ b/apps/server/src/api/report-tables.ts
+@@ -19,6 +19,9 @@ export function reportTableRoutes(db: Db, today: () => string): Hono {
+     const { netWorth } = readQuery(c, monthsQuery);
+     return c.json(reportTables(db, { today: today(), withNetWorth: netWorth === '1' }));
+   });
+-  app.get('/income-expense', (c) => c.json(incomeExpenseReport(db, today())));
++  app.get('/income-expense', (c) => {
++    const { projectId } = readQuery(c, z.object({ projectId: z.string().min(1).max(64).optional() }));
++    return c.json(incomeExpenseReport(db, today(), projectId));
++  });
+   return app;
+ }
+diff --git a/apps/server/src/api/reports-month.ts b/apps/server/src/api/reports-month.ts
+index e0bf83d0d0f3a25b6809ef772434ece80e207379..9d56600791f274cf5bc92701d353fa3444567cdf 100644
+--- a/apps/server/src/api/reports-month.ts
++++ b/apps/server/src/api/reports-month.ts
+@@ -40,8 +40,8 @@ export function monthReportRoutes(db: Db, today: () => string): Hono {
+     return c.json(run(month, (day, m) => monthOnePager(db, day, m)));
+   });
+   app.get('/income', (c) => {
+-    const { month } = readQuery(c, query);
+-    return c.json(run(month, (day, m) => monthIncomeReport(db, day, m)));
++    const { month, projectId } = readQuery(c, query.extend({ projectId: z.string().min(1).max(64).optional() }));
++    return c.json(run(month, (day, m) => monthIncomeReport(db, day, m, projectId)));
+   });
+   app.get('/flow', (c) => {
+     const { month, span } = readQuery(c, query);
+diff --git a/apps/web/src/pages/reports-pages.tsx b/apps/web/src/pages/reports-pages.tsx
+index 0b16c9b194443d55113e804b416063ece1fd5d2c..2a01a70f8453ed2e84c9e5c2a437175a6c10feab 100644
+--- a/apps/web/src/pages/reports-pages.tsx
++++ b/apps/web/src/pages/reports-pages.tsx
+@@ -1,5 +1,5 @@
+ import { WholePictureReport } from '../reports/whole-picture-report';
+-import { IncomeExpenseReport } from '../reports/income-expense-report';
++import { IncomeCashflowReport } from '../reports/income-cashflow-report';
+ import { PayrollReport } from '../reports/payroll-report';
+ import { ProjectsReport } from '../reports/projects-report';
+ import { ReportTrendContext } from '@budget/ui';
+@@ -139,7 +139,7 @@ export function ReportPage({ reportId, detail = false }: { reportId: string; det
+   if (report.id === 'kategorien') return <CategoryReport report={report} meta={meta} />;
+   if (report.id === 'sparquote') return <SavingsReport report={report} meta={meta} />;
+   if (report.id === 'einnahmen-ausgaben')
+-    return <IncomeExpenseReport report={report} meta={meta} sources={detail} />;
++    return <IncomeCashflowReport report={report} meta={meta} sources={detail} />;
+   if (report.id === 'gesamttabelle') return <TotalTableReport report={report} meta={meta} />;
+   return (
+     <PlaceholderPage
+diff --git a/apps/web/src/reports/cashflow-api.ts b/apps/web/src/reports/cashflow-api.ts
+index c9c7d804aac1519b24a791bc1f698109353a7dc4..debff0f857c5caee7a83cddbfabb13ee1c537a7c 100644
+--- a/apps/web/src/reports/cashflow-api.ts
++++ b/apps/web/src/reports/cashflow-api.ts
+@@ -7,9 +7,9 @@ import { LEDGER_KEY } from '../ledger/queries';
+ export type { CashflowReport };
+ 
+ /** Under the ledger key: every booking write refreshes the cashflow as well. */
+-export const cashflowQuery = (period: Period) =>
++export const cashflowQuery = (period: Period, projectId?: string) =>
+   queryOptions({
+-    queryKey: [...LEDGER_KEY, 'cashflow-report', period],
++    queryKey: projectId ? [...LEDGER_KEY, 'cashflow-report', period, 'project', projectId] : [...LEDGER_KEY, 'cashflow-report', period],
+     retry: false,
+-    queryFn: () => request<CashflowReport>('GET', `/api/cashflow?period=${period}`),
++    queryFn: () => request<CashflowReport>('GET', `/api/cashflow?period=${period}${projectId ? `&projectId=${encodeURIComponent(projectId)}` : ''}`),
+   });
+diff --git a/apps/web/src/reports/cashflow-report.tsx b/apps/web/src/reports/cashflow-report.tsx
+index fb0cef800dcd4dd4e81c6c97a742571656b5e249..d4b92d916844aad95175fec7cd2339f9b487ad7d 100644
+--- a/apps/web/src/reports/cashflow-report.tsx
++++ b/apps/web/src/reports/cashflow-report.tsx
+@@ -1,4 +1,6 @@
+ import { ReportPeriodControl } from './period-quick-select';
++import type { ReactNode } from 'react';
++import { ReportProjectScopeNote } from './report-project-scope';
+ import { useAmountPrivacy, DimensionChain } from '@budget/ui';
+ import { cents, todayInVienna } from '@budget/domain';
+ import { useQuery } from '@tanstack/react-query';
+@@ -23,10 +25,12 @@ const long = (month: string) => `${monthName(`${month}-01`)} ${month.slice(0, 4)
+  * month. Kapitalerträge (dividends, interest) stand on their own line: they are not household
+  * income and not part of the net cashflow (owner decision 02.10.2026).
+  */
+-export function CashflowReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
++export function CashflowReportPage({ report, meta, projectId, viewControl }: {
++  report: ReportEntry; meta: PageMeta; projectId?: string | undefined; viewControl?: ReactNode;
++}) {
+   useAmountPrivacy();
+   const [period, setPeriod] = useZeitraum();
+-  const query = useQuery(cashflowQuery(period));
++  const query = useQuery(cashflowQuery(period, projectId));
+   const data = query.isSuccess ? query.data : undefined;
+   const window = data?.windowMonths ?? [];
+   return (
+@@ -58,6 +62,7 @@ export function CashflowReportPage({ report, meta }: { report: ReportEntry; meta
+             : 'wird geladen'
+       }
+       extraFields={[
++        ...(viewControl ? [{ label: 'Ansicht und Projekt', value: viewControl }] : []),
+         {
+           label: 'Zeitraum',
+           value: (
+@@ -74,6 +79,7 @@ export function CashflowReportPage({ report, meta }: { report: ReportEntry; meta
+       ]}
+     >
+       <div className="kview rf-report cashflow-report">
++        {data && !query.isFetching && !query.isError && <ReportProjectScopeNote project={data.project} asOf={data.asOf} view="cashflow" />}
+         {query.isPending && <LoadingNote what="Cashflow" />}
+         {query.isError && (
+           <ErrorNote what="Cashflow" error={query.error} onRetry={() => void query.refetch()} />
+diff --git a/apps/web/src/reports/income-cashflow-report.tsx b/apps/web/src/reports/income-cashflow-report.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..08807fd9bb5588e68dc0109bccc5dac955254a96
+--- /dev/null
++++ b/apps/web/src/reports/income-cashflow-report.tsx
+@@ -0,0 +1,78 @@
++import { maskMoneyText, Segmented, useAmountPrivacy } from '@budget/ui';
++import type { project } from '@budget/db';
++import { queryOptions, useQuery } from '@tanstack/react-query';
++import { useNavigate, useSearch } from '@tanstack/react-router';
++import { request } from '../api/http';
++import { LEDGER_KEY } from '../ledger/queries';
++import { ErrorNote, LoadingNote } from '../ledger/states';
++import type { PageMeta } from '../nav/pages';
++import type { ReportEntry } from '../nav/reports-catalog';
++import { AppLink } from '../shell/app-link';
++import { PageFrame } from '../pages/placeholder-page';
++import { IncomeReport } from './income-report';
++import { IncomeExpenseReport } from './income-expense-report';
++import { CashflowReportPage } from './cashflow-report';
++import './report-views.css';
++
++const INCOME_VIEWS = [
++  { value: 'income', label: 'Einnahmen' },
++  { value: 'overview', label: 'Einnahmen und Ausgaben' },
++  { value: 'cashflow', label: 'Cashflow' },
++] as const;
++const projectsQuery = queryOptions({
++  queryKey: [...LEDGER_KEY, 'project-management'],
++  retry: false,
++  queryFn: () => request<{ projects: (typeof project.$inferSelect)[] }>('GET', '/api/projects'),
++});
++
++/** The filter scopes existing readers; it never substitutes the separate full project results. */
++export function IncomeCashflowReport({ report, meta, sources = false }: {
++  report: ReportEntry; meta: PageMeta; sources?: boolean;
++}) {
++  useAmountPrivacy();
++  const search = useSearch({ strict: false }) as { darstellung?: unknown; projekt?: string; projektUngueltig?: boolean };
++  const navigate = useNavigate();
++  const projects = useQuery({ ...projectsQuery, enabled: !sources });
++  const view = search.darstellung === 'income' || search.darstellung === 'cashflow'
++    ? search.darstellung : 'overview';
++  const projectId = search.projekt;
++  const projectInvalid = search.projektUngueltig === true;
++  const current = projects.isSuccess && !projects.isFetching ? projects.data.projects : undefined;
++  const unknown = Boolean(projectId && !current?.some((item) => item.id === projectId));
++  const change = (patch: Record<string, unknown>) => void navigate({
++    to: '.', search: ((previous: Record<string, unknown>) => ({ ...previous, ...patch })) as never,
++  });
++  const heading = { ...report, name: 'Einnahmen und Cashflow' };
++  const controls = <div className="report-income-controls">
++    <Segmented className="report-view-switch" label="Ansicht von Einnahmen und Cashflow"
++      options={INCOME_VIEWS} value={view} onChange={(value) => change({ darstellung: value })} />
++    <label className="report-project-select"><span>Projekt</span>
++      <select aria-label="Projektfilter" value={projectInvalid ? '__invalid__' : projectId ?? ''}
++        disabled={!current}
++        onChange={(event) => change({ projekt: event.target.value || undefined, projektUngueltig: undefined, zelle: undefined, spalte: undefined })}>
++        <option value="">Alle Projekte</option>
++        {projectInvalid && <option value="__invalid__" disabled>Ungültiger Projektfilter</option>}
++        {unknown && <option value={projectId}>{projects.isFetching ? 'Ausgewähltes Projekt wird geladen' : 'Ausgewähltes Projekt nicht verfügbar'}</option>}
++        {current?.map((item) => <option key={item.id} value={item.id}>{maskMoneyText(item.name)}{item.archivedAt ? ' · archiviert' : ''}</option>)}
++      </select>
++    </label>
++    {(projectId || projectInvalid) && <button type="button" className="btn btn-ghost" onClick={() => change({ projekt: undefined, projektUngueltig: undefined, zelle: undefined, spalte: undefined })}>Alle Projekte zeigen</button>}
++  </div>;
++  const status = <div className="report-project-status">
++    {projects.isFetching && <LoadingNote what="Projekte" />}
++    {projects.isError && <ErrorNote what="Projekte" error={projects.error} onRetry={() => void projects.refetch()} />}
++    <AppLink className="report-project-results-link" to="/reports/projekte">Vollständige Projekt-Ergebnisse und Nebeneinkünfte</AppLink>
++  </div>;
++  if (projectInvalid) return <PageFrame meta={meta} title={heading.name} reportDataBasis="Projektfilter ungültig"
++    extraFields={[{ label: 'Ansicht und Projekt', value: controls }]}>
++    <p role="alert">Der Projektfilter ist ungültig. Wähle ein gültiges Projekt oder ausdrücklich „Alle Projekte zeigen“.</p>
++    {status}
++  </PageFrame>;
++  if (sources) return <IncomeExpenseReport report={heading} meta={meta} sources projectId={projectId} />;
++  return <>
++    {view === 'income' ? <IncomeReport report={heading} meta={meta} projectId={projectId} viewControl={controls} />
++      : view === 'cashflow' ? <CashflowReportPage report={heading} meta={meta} projectId={projectId} viewControl={controls} />
++      : <IncomeExpenseReport report={heading} meta={meta} projectId={projectId} viewControl={controls} />}
++    {status}
++  </>;
++}
+diff --git a/apps/web/src/reports/income-expense-report.tsx b/apps/web/src/reports/income-expense-report.tsx
+index 6c2f06d32d2e73f8592c5f0e0a191c6e0893052d..ad75f1b38cddd425cf5aae495fb1f9a1668cc020 100644
+--- a/apps/web/src/reports/income-expense-report.tsx
++++ b/apps/web/src/reports/income-expense-report.tsx
+@@ -8,7 +8,6 @@ import {
+   tableRowTotal,
+   tableRowAverage,
+   monthHouseholdIncome,
+-  type OverviewSplit,
+ } from '@budget/domain';
+ import {
+   AxisLine,
+@@ -35,29 +34,36 @@ import { ReportPeriodControl } from './period-quick-select';
+ import { RowsGrid } from './table-grid';
+ import { monthShort } from './table-format';
+ import { TableReportFrame } from './table-report-frame';
+-import type { ReportTables } from './table-reports-api';
++import type { IncomeExpenseReportData } from '@budget/db';
++import type { ReactNode } from 'react';
++import { ReportProjectScopeNote } from './report-project-scope';
+ 
+-const queryOptionsForReport = queryOptions({
+-  queryKey: [...LEDGER_KEY, 'income-expense'],
++const queryOptionsForReport = (projectId?: string) => queryOptions({
++  queryKey: projectId ? [...LEDGER_KEY, 'income-expense', 'project', projectId] : [...LEDGER_KEY, 'income-expense'],
+   retry: false,
+   queryFn: () =>
+-    request<ReportTables & { splits: OverviewSplit[] }>('GET', '/api/report-tables/income-expense'),
++    request<IncomeExpenseReportData>('GET', `/api/report-tables/income-expense${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
+ });
+ export function IncomeExpenseReport({
+   report,
+   meta,
+   sources = false,
++  projectId,
++  viewControl,
+ }: {
+   report: ReportEntry;
+   meta: PageMeta;
+   sources?: boolean;
++  projectId?: string | undefined;
++  viewControl?: ReactNode;
+ }) {
+   const [period, setPeriod] = useZeitraum();
+-  const query = useQuery(queryOptionsForReport);
+-  const { zelle, spalte, gruppen } = useSearch({ strict: false }) as {
++  const query = useQuery(queryOptionsForReport(projectId));
++  const { zelle, spalte, gruppen, monat } = useSearch({ strict: false }) as {
+     zelle?: string;
+     spalte?: string;
+     gruppen?: string[];
++    monat?: string;
+   };
+   const navigate = useNavigate();
+   const expanded = new Set(gruppen ?? []);
+@@ -88,7 +94,8 @@ export function IncomeExpenseReport({
+     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+     const a = document.createElement('a');
+     a.href = url;
+-    a.download = `einnahmen-ausgaben-${window[0]}-${window.at(-1)}.csv`;
++    const projectPart = data && 'project' in data ? `projekt-${encodeURIComponent(data.project.id)}-` : '';
++    a.download = `einnahmen-ausgaben-${projectPart}${window[0]}-${window.at(-1)}.csv`;
+     a.click();
+     setTimeout(() => URL.revokeObjectURL(url), 2000);
+   };
+@@ -97,7 +104,7 @@ export function IncomeExpenseReport({
+       {sources && (
+         <ReportDetailNav
+           to="/reports/einnahmen-ausgaben"
+-          search={{ zeitraum: period, gruppen }}
++          search={{ zeitraum: period, gruppen, ...(monat ? { monat } : {}), ...(projectId ? { projekt: projectId, darstellung: 'overview' } : {}) }}
+           report="Einnahmen und Ausgaben"
+           title="Buchungen"
+           backLabel="Zurück zu Einnahmen und Ausgaben"
+@@ -112,6 +119,7 @@ export function IncomeExpenseReport({
+         query={query}
+         className="income-expense-report"
+         extraFields={[
++          ...(viewControl ? [{ label: 'Ansicht und Projekt', value: viewControl }] : []),
+           {
+             label: 'Zeitraum',
+             value: (
+@@ -129,8 +137,9 @@ export function IncomeExpenseReport({
+         ]}
+       >
+         {() =>
+-          data &&
+-          (sources ? (
++          data && <>
++          {'project' in data && <ReportProjectScopeNote project={data.project} asOf={data.asOf} view="overview" />}
++          {sources ? (
+             <>
+               <section
+                 className="tr-card"
+@@ -167,6 +176,8 @@ export function IncomeExpenseReport({
+                                 zelle: zelle!,
+                                 spalte: spalte!,
+                                 ...(gruppen ? { gruppen: JSON.stringify(gruppen) } : {}),
++                                ...(monat ? { monat } : {}),
++                                ...(projectId ? { projekt: projectId, darstellung: 'overview' } : {}),
+                               }),
+                           }}
+                         >
+@@ -204,6 +215,8 @@ export function IncomeExpenseReport({
+                 cellLink={(row, column) => ({
+                   to: '/reports/einnahmen-ausgaben/buchungen',
+                   search: {
++                    ...(monat ? { monat } : {}),
++                    ...(projectId ? { projekt: projectId, darstellung: 'overview' } : {}),
+                     zeitraum: period,
+                     gruppen,
+                     zelle: row.key,
+@@ -246,13 +259,14 @@ export function IncomeExpenseReport({
+                 Der laufende Monat reicht bis heute.
+               </p>
+             </section>
+-          ))
++          )}
++          </>
+         }
+       </TableReportFrame>
+     </>
+   );
+ }
+-function IncomeExpenseChart({ data, months }: { data: ReportTables; months: string[] }) {
++function IncomeExpenseChart({ data, months }: { data: IncomeExpenseReportData; months: string[] }) {
+   useAmountPrivacy();
+   const points = data.months.filter((m) => months.includes(m.month));
+   const income = points.map((m) => monthHouseholdIncome(m, data));
+diff --git a/apps/web/src/reports/income-report.tsx b/apps/web/src/reports/income-report.tsx
+index 5acf2b37dda81f2d00378d06e4acb7a48c450dab..e806ad9aa700258cbec0d976d6aa8b90742d397a 100644
+--- a/apps/web/src/reports/income-report.tsx
++++ b/apps/web/src/reports/income-report.tsx
+@@ -1,4 +1,6 @@
+ import { useAmountPrivacy } from '@budget/ui';
++import type { ReactNode } from 'react';
++import { ReportProjectScopeNote } from './report-project-scope';
+ import type { IncomeLineStatus } from '@budget/domain';
+ import { useQuery } from '@tanstack/react-query';
+ import {
+@@ -40,11 +42,14 @@ const STATUS: Record<
+   unlinked: { icon: CircleDashed, label: 'nicht zugeordnet', tone: '' },
+ };
+ 
+-export function IncomeReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
++export function IncomeReport({ report, meta, projectId, viewControl }: {
++  report: ReportEntry; meta: PageMeta; projectId?: string | undefined; viewControl?: ReactNode;
++}) {
+   useAmountPrivacy();
+   const { month, shift, current } = useReportMonth();
+-  const query = useQuery(incomeReportQuery(month));
+-  const data = query.data;
++  const query = useQuery(incomeReportQuery(month, projectId));
++  // Preserve the legacy path; project facts fail closed while rereading or after a scoped error.
++  const data = projectId ? query.isSuccess && !query.isFetching ? query.data : undefined : query.data;
+   return (
+     <MonthReportFrame
+       verdict={
+@@ -74,9 +79,11 @@ export function IncomeReport({ report, meta }: { report: ReportEntry; meta: Page
+       firstMonth={data?.firstMonth}
+       asOf={data?.asOf}
+       basis={query.isError ? 'nicht verfügbar' : undefined}
++      extraFields={viewControl ? [{ label: 'Ansicht und Projekt', value: viewControl }] : []}
+     >
+       <div className="mrep income-report" data-testid="income-report">
+-        {query.isPending && <LoadingNote what="Einnahmen" />}
++        {data && !query.isFetching && !query.isError && 'project' in data && <ReportProjectScopeNote project={data.project} asOf={data.asOf} view="income" />}
++        {(query.isPending || (projectId && query.isFetching)) && <LoadingNote what="Einnahmen" />}
+         {query.isError && (
+           <ErrorNote what="Einnahmen" error={query.error} onRetry={() => void query.refetch()} />
+         )}
+@@ -113,7 +120,7 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
+         <div className="tbd-head">
+           <h2 id="inc-title">Einnahmen {title}</h2>
+           <span className="tbd-state">
+-            {expected.pendingCount > 0 ? (
++            {expected === null ? null : expected.pendingCount > 0 ? (
+               <span className="ink">
+                 <Clock className="icon icon-sm" size={16} strokeWidth={1.75} aria-hidden="true" />
+                 {expected.pendingCount} erwartet, {eur(expected.pendingCents, { cents: false })}
+@@ -196,6 +203,12 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
+         </section>
+       )}
+ 
++      {expected === null ? (
++        <section className="mr-card" aria-labelledby="inc-exp-title">
++          <div className="tbd-head"><h2 id="inc-exp-title">Erwartet gegen eingegangen</h2></div>
++          <p className="vnote">Erwartete Zahlungen sind keinem Projekt zugeordnet. Für diesen Projektfilter sind Erwartungswerte und Fehlend-Status daher nicht verfügbar; tatsächliche Einnahmen bleiben sichtbar.</p>
++        </section>
++      ) : (
+       <section className="mr-card" aria-labelledby="inc-exp-title">
+         <div className="tbd-head">
+           <h2 id="inc-exp-title">Erwartet gegen eingegangen</h2>
+@@ -258,11 +271,12 @@ function IncomeBody({ data }: { data: IncomeReportData }) {
+           {data.expectedMaterialised
+             ? 'Wiederkehrende Zahlungen ordnet der Nachtlauf automatisch zu; Abweichungen landen unter Prüfen.'
+             : 'Die wiederkehrenden Zahlungen stammen aus dem Zahlungsplan und sind für diesen Monat noch nicht zugeordnet; ob sie eingegangen sind, zeigt die Tabelle darunter.'}
+-          {data.foreignCurrencyCount > 0
++          {data.foreignCurrencyCount !== null && data.foreignCurrencyCount > 0
+             ? ` ${data.foreignCurrencyCount} wiederkehrende Zahlung${data.foreignCurrencyCount === 1 ? '' : 'en'} in Fremdwährung ${data.foreignCurrencyCount === 1 ? 'ist' : 'sind'} hier nicht enthalten.`
+             : ''}
+         </p>
+       </section>
++      )}
+ 
+       <section className="mr-card mr-wide" aria-labelledby="inc-type-title">
+         <div className="tbd-head">
+diff --git a/apps/web/src/reports/month-api.ts b/apps/web/src/reports/month-api.ts
+index e382449ad9ceafe4e19be396edb83c54ff8ddb2b..3c8b6255a27df39825a478da5abbc70b35ae34a9 100644
+--- a/apps/web/src/reports/month-api.ts
++++ b/apps/web/src/reports/month-api.ts
+@@ -12,14 +12,14 @@ export type FlowSpan = FlowReportData['span'];
+ 
+ const KEY = [...LEDGER_KEY, 'month-report'] as const;
+ 
+-export const incomeReportQuery = (month: string) =>
++export const incomeReportQuery = (month: string, projectId?: string) =>
+   queryOptions({
+-    queryKey: [...KEY, 'income', month],
++    queryKey: projectId ? [...KEY, 'income', month, 'project', projectId] : [...KEY, 'income', month],
+     retry: false,
+     queryFn: () =>
+       request<IncomeReportData>(
+         'GET',
+-        `/api/reports/month/income?month=${encodeURIComponent(month)}`,
++        `/api/reports/month/income?month=${encodeURIComponent(month)}${projectId ? `&projectId=${encodeURIComponent(projectId)}` : ''}`,
+       ),
+   });
+ 
+diff --git a/apps/web/src/reports/report-project-scope.tsx b/apps/web/src/reports/report-project-scope.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..7391cecf36e4dfe9e12654694bf943d50dd842c6
+--- /dev/null
++++ b/apps/web/src/reports/report-project-scope.tsx
+@@ -0,0 +1,21 @@
++import { maskMoneyText, useAmountPrivacy } from '@budget/ui';
++import { longDay } from '../ledger/format';
++
++export interface ReportProjectDescriptor { id: string; name: string; archived: boolean }
++
++/** Label the actual server scope; URL text alone never proves a resolved project. */
++export function ReportProjectScopeNote({ project, asOf, view }: {
++  project?: ReportProjectDescriptor | undefined;
++  asOf: string;
++  view: 'income' | 'overview' | 'cashflow';
++}) {
++  useAmountPrivacy();
++  if (!project) return null;
++  return <p className="report-project-note" data-project-id={project.id}>
++    <strong>Projekt: {maskMoneyText(project.name)}{project.archived ? ' · archiviert' : ''}.</strong>{' '}
++    Stand {longDay(asOf)} · tatsächlich zugeordnete Buchungen.
++    {view === 'income' && ' Erwartete Zahlungen sind nicht projektbezogen zuordenbar.'}
++    {view === 'overview' && ' Zuweisungen, Geldalter, Vermögen und Regelziele sind nicht projektbezogen verfügbar.'}
++    {view === 'cashflow' && ' Kapitalerträge bleiben getrennt vom Haushaltseinkommen und Netto-Cashflow.'}
++  </p>;
++}
+diff --git a/apps/web/src/reports/report-search.ts b/apps/web/src/reports/report-search.ts
+index 89f2b0842c4459f14bea2b9886f6360b53138d70..4cb281e76137c60e78f763e2bd819c417477078a 100644
+--- a/apps/web/src/reports/report-search.ts
++++ b/apps/web/src/reports/report-search.ts
+@@ -10,8 +10,10 @@ const ids = (value: unknown) =>
+ 
+ export const validateReportSearch = (search: Record<string, unknown>) => ({
+   ansicht: id(search['ansicht']),
+-  darstellung: ['gruppen', 'empfaenger', 'bilanz', 'verlauf', 'gesamt'].includes(search['darstellung'] as string)
+-    ? search['darstellung'] as 'gruppen' | 'empfaenger' | 'bilanz' | 'verlauf' | 'gesamt' : undefined,
++  projekt: id(search['projekt']),
++  projektUngueltig: search['projektUngueltig'] === true || (search['projekt'] !== undefined && id(search['projekt']) === undefined) ? true : undefined,
++  darstellung: ['gruppen', 'empfaenger', 'bilanz', 'verlauf', 'gesamt', 'income', 'overview', 'cashflow'].includes(search['darstellung'] as string)
++    ? search['darstellung'] as 'gruppen' | 'empfaenger' | 'bilanz' | 'verlauf' | 'gesamt' | 'income' | 'overview' | 'cashflow' : undefined,
+   empfaenger: id(search['empfaenger']),
+   exakt: search['exakt'] === true || search['exakt'] === 'true' ? true : undefined,
+   vorlage: isExplorerTemplate(search['vorlage']) ? search['vorlage'] : undefined,
+diff --git a/apps/web/src/reports/report-views.css b/apps/web/src/reports/report-views.css
+index 200dabaacdfccd1e9e54711692c6c5ed8df1f439..d67bdbc73bbdf646774dbfa38d03a925ef348abc 100644
+--- a/apps/web/src/reports/report-views.css
++++ b/apps/web/src/reports/report-views.css
+@@ -10,3 +10,13 @@
+   .report-view-switch.seg button { min-height: var(--touch); }
+ }
+ @media (pointer: coarse) { .report-view-switch.seg button { min-height: var(--touch); } }
++
++.report-income-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
++.report-project-select { display: grid; gap: 4px; min-width: 0; max-width: 100%; font-size: var(--fs-meta); }
++.report-project-select select { min-height: var(--touch); max-width: 100%; width: 16rem; }
++.report-project-note { grid-column: 1 / -1; margin: 8px 0 12px; color: var(--ink-2); font-size: var(--fs-table); line-height: var(--lh-table); overflow-wrap: anywhere; }
++.report-project-results-link { display: inline-flex; align-items: center; min-height: var(--touch); margin-bottom: 8px; }
++
++@media (pointer: coarse) {
++  .report-income-controls button, .report-project-status button { min-height: var(--touch); }
++}
+diff --git a/apps/web/src/reports/table-report-frame.tsx b/apps/web/src/reports/table-report-frame.tsx
+index 8d7ca0868b278b081f343a43de87e7d2c80ed0c8..c7cb221d0bab00b0a39749ad41673fc37fb1e1fb 100644
+--- a/apps/web/src/reports/table-report-frame.tsx
++++ b/apps/web/src/reports/table-report-frame.tsx
+@@ -11,6 +11,11 @@ import './table-reports.css';
+ import './table-print.css';
+ import { tableVerdictFacts } from './verdict-facts';
+ import { reportPeriodMonths, type Period } from '@budget/domain';
++import type { IncomeExpenseReportData } from '@budget/db';
++
++type FrameFacts = ReportTables | IncomeExpenseReportData;
++const fullTables = (tables: FrameFacts): tables is ReportTables =>
++  'targets' in tables && 'netWorth' in tables;
+ 
+ /** The one read of the monthly facts; reports call it for their title-block controls and pass it on. */
+ export const useReportTables = (netWorth = false): UseQueryResult<ReportTables> =>
+@@ -21,7 +26,7 @@ export const useReportTables = (netWorth = false): UseQueryResult<ReportTables>
+  * and empty states, and the one read of the monthly facts. `through` says which month the report
+  * ends at: the last complete month (all but the Gesamttabelle) or the running one.
+  */
+-export function TableReportFrame({
++export function TableReportFrame<T extends FrameFacts = ReportTables>({
+   report,
+   meta,
+   through,
+@@ -39,10 +44,10 @@ export function TableReportFrame({
+   meta: PageMeta;
+   through: 'full' | 'current';
+   currentAllowed?: boolean;
+-  query: UseQueryResult<ReportTables>;
++  query: UseQueryResult<T>;
+   extraFields?: Array<{ label: string; value: ReactNode }> | undefined;
+   className: string;
+-  children: (tables: ReportTables) => ReactNode;
++  children: (tables: T) => ReactNode;
+ }) {
+   const tables = query.data;
+   const end =
+@@ -66,7 +71,7 @@ export function TableReportFrame({
+   const sectionsRef = useCollapsibleSections(report.id);
+   const verdict = useMemo(
+     () =>
+-      tables && verdictMonth && !query.isFetching && !query.isError
++      tables && fullTables(tables) && verdictMonth && !query.isFetching && !query.isError
+         ? tableVerdictFacts(report.id, tables, verdictMonth)
+         : undefined,
+     [tables, verdictMonth, query.isFetching, query.isError, report.id],
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index bce73e3781b58202c6613961c262d8e1bdb630a0..a19d3b93c24e83b5e2b56202d212ab6c33c70715 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1817,3 +1817,11 @@ explicit reanalysis/review. Upload and reanalysis never post money.
+ - Added a URL-selected balance, history or whole-picture view under the existing Vermögen und Schulden route. Only the active original report mounts; its financial reader/body, valuation quality and unavailable states,≈marks, source links, period controls, detail tables and CSV behavior remain unchanged. Old direct report routes remain available until #620.
+ - View changes preserve the actual current period and selected month/search context. The original differing defaults (balanceAlles, historyYTD, whole-picture1J) are materialized only when switching views without a valid explicit period; no mount rewrite or financial/date formula changes. The existing scoped view selector provides labelled wrapping and coarse/phone44px controls.
+ - Validation is deferred by the owner’s implementation-first batching instruction: independent fixed-date legacy/new-view cent equivalence; exact period/default and selected-month identity on switching/refresh/BackForward; existing estimated/unknown valuation provenance,≈coverage, unavailable states, CSV and source drilldowns; privacy, keyboard/Axe,44px/390px/light-dark layouts and required full/native/CI/live gates. No tests were added or changed, and no acceptance criterion is marked verified.
++
++
++### #621 — Income, overview and cashflow with project scope (implementation pending batch validation)
++
++- Added three URL-selected views at Einnahmen und Cashflow, reusing the original actual-income/month history, income/expense table and cashflow readers and bodies. An ID-based project filter includes archived projects, scopes query identities/source rows/CSV and preserves view/date context. Unknown/deleted IDs stay scoped errors; malformed filters block report queries until an explicit valid selection/reset. No-filter query keys, URLs and financial source behavior remain unchanged.
++- Project income has unavailable expectations rather than global forecasts or fabricated zero/missing badges. The minimal scoped table omits assignments, money age, net worth and targets; the generic table frame generates the old verdict only from complete legacy tables. Scope notes identify the actual resolved project and read date. Existing distinct monthly/window/net meanings are retained, and the separate full ProjectsReport remains linked for tracking/off-budget results.
++- Root’s read-only backend filters already classified sources after transfer-partner resolution, including signed Zukunft set-aside and the separate capital source. No financial formula, schema, booking writer, audit or Undo rule changes. Report source/back links retain project scope; individual ledger links use actual filtered booking IDs, without claiming an unsupported ledger project filter.
++- Validation is deferred by the owner’s implementation-first batching instruction: literal no-filter parity; same-name/archived/invalid/empty project isolation, refunds, cross-project internal transfers and separate capital; unavailable expectations/global fields; reassignment/Undo/cache/source/CSV scope; view/month/window/BackForward, loading/error/privacy/44px/Axe/device geometry, and coherent full/native/CI/live gates. No tests were added or changed, and no acceptance criterion is marked verified.
+diff --git a/packages/db/src/repos/cashflow-report.ts b/packages/db/src/repos/cashflow-report.ts
+index 50b4e749b42ce3c003fe8d5f77bd98533a548555..c07b68339f5f65ea9bb7abec4ea2528e28c22f77 100644
+--- a/packages/db/src/repos/cashflow-report.ts
++++ b/packages/db/src/repos/cashflow-report.ts
+@@ -13,6 +13,7 @@ import {
+ import { and, eq, isNull } from 'drizzle-orm';
+ import { account, booking, bookingSplit, INCOME_TYPES } from '../schema';
+ import { reportTables } from './report-tables';
++import { reportProjectScope, type ReportProject } from './report-project-scope';
+ import type { Executor } from './types';
+ 
+ /**
+@@ -24,6 +25,7 @@ import type { Executor } from './types';
+  */
+ 
+ export interface CashflowReport {
++  project?: ReportProject;
+   period: Period;
+   /** Last day of the data: the running month is not part of it. */
+   asOf: string;
+@@ -36,7 +38,8 @@ export interface CashflowReport {
+   totals: CashflowTotals;
+ }
+ 
+-export function cashflowReport(db: Executor, today: string, period: Period): CashflowReport {
++export function cashflowReport(db: Executor, today: string, period: Period, projectId?: string): CashflowReport {
++  const scope = reportProjectScope(db, projectId);
+   const starts = db
+     .select({ openingDate: account.openingDate })
+     .from(account)
+@@ -45,6 +48,7 @@ export function cashflowReport(db: Executor, today: string, period: Period): Cas
+     .map((a) => monthOf(a.openingDate));
+   const firstMonth = starts.length ? starts.reduce((a, m) => (m < a ? m : a)) : null;
+   const empty: CashflowReport = {
++    ...(scope ? { project: scope.project } : {}),
+     period,
+     asOf: today,
+     firstMonth,
+@@ -63,7 +67,7 @@ export function cashflowReport(db: Executor, today: string, period: Period): Cas
+     chartMonths[chartMonths.length - 1] as string,
+   );
+ 
+-  const tables = reportTables(db, { today });
++  const tables = reportTables(db, { today, ...(scope ? { projectScope: scope } : {}) });
+   const source = new Map(tables.months.map((m) => [m.month, m]));
+   const classIds = (cls: 'need' | 'want' | 'future') =>
+     tables.categories.filter((c) => c.class === cls).map((c) => c.id);
+@@ -98,6 +102,7 @@ export function cashflowReport(db: Executor, today: string, period: Period): Cas
+         isNull(account.deletedAt),
+         isNull(booking.transferId),
+         isNull(bookingSplit.transferId),
++        scope ? eq(booking.projectId, scope.project.id) : undefined,
+       ),
+     )
+     .all();
+@@ -130,6 +135,7 @@ export function cashflowReport(db: Executor, today: string, period: Period): Cas
+     };
+   });
+   return {
++    ...(scope ? { project: scope.project } : {}),
+     period,
+     asOf: today,
+     firstMonth,
+diff --git a/packages/db/src/repos/month-reports.ts b/packages/db/src/repos/month-reports.ts
+index 578199c874d29fe1e5537ccff439a193cda0261c..08d6973bccb3e1c2e1f90cdf131471130870ca67 100644
+--- a/packages/db/src/repos/month-reports.ts
++++ b/packages/db/src/repos/month-reports.ts
+@@ -37,6 +37,7 @@ import {
+ import { categoryGroup, contact, incomeType, INCOME_TYPES, payee } from '../schema';
+ import { allocationMonth } from './allocation';
+ import { overviewData } from './report-ledger';
++import { projectOverviewData, reportProjectScope, type ReportProject, type ReportProjectScope } from './report-project-scope';
+ import { upcoming } from './expected';
+ import { availableSection, occurrencesBetween, paceOfMonth, type Heute } from './heute';
+ import type { HeuteUnavailable } from './heute';
+@@ -116,7 +117,7 @@ const monthsFrom = (f: Frame, from: string): string[] =>
+   monthsBetween(from < f.firstMonth ? f.firstMonth : from, f.month);
+ 
+ /** Income splits of the budget accounts up to `asOf`, with their type. */
+-function incomeFacts(db: Executor, f: Frame, fromMonth: string): IncomeFact[] {
++function incomeFacts(db: Executor, f: Frame, fromMonth: string, scope?: ReportProjectScope): IncomeFact[] {
+   const types = new Map(
+     db
+       .select()
+@@ -124,7 +125,7 @@ function incomeFacts(db: Executor, f: Frame, fromMonth: string): IncomeFact[] {
+       .all()
+       .map((t) => [t.id, t]),
+   );
+-  return overviewData(db).splits.flatMap((s): IncomeFact[] => {
++  return projectOverviewData(db, scope).splits.flatMap((s): IncomeFact[] => {
+     if (
+       s.kind !== 'income' ||
+       s.incomeTypeId === null ||
+@@ -286,21 +287,31 @@ function expectedOf(db: Executor, f: Frame, income: MonthIncome) {
+   };
+ }
+ 
++export type ProjectIncomeReport = Omit<IncomeReport, 'expected' | 'expectedMaterialised' | 'foreignCurrencyCount'> & {
++  project: ReportProject;
++  expected: null;
++  expectedMaterialised: null;
++  foreignCurrencyCount: null;
++  expectedUnavailable: 'not_project_attributed';
++};
++
+ /** Einnahmen: expected against received, by income type over twelve months, Kapitalerträge apart. */
+-export function monthIncomeReport(db: Executor, today: string, month: string): IncomeReport {
++export function monthIncomeReport(db: Executor, today: string, month: string): IncomeReport;
++export function monthIncomeReport(db: Executor, today: string, month: string, projectId: string | undefined): IncomeReport | ProjectIncomeReport;
++export function monthIncomeReport(db: Executor, today: string, month: string, projectId?: string): IncomeReport | ProjectIncomeReport {
++  const scope = reportProjectScope(db, projectId);
+   const f = frame(db, today, month);
+   const months = monthsFrom(f, addMonths(month, -11));
+-  const facts = incomeFacts(db, f, months[0] ?? month);
++  const facts = incomeFacts(db, f, months[0] ?? month, scope);
+   const income = monthIncomeOf(facts, month);
+-  const { expected, foreignCurrencyCount, materialised } = expectedOf(db, f, income);
+-  return {
++  const actual = {
+     month,
+     asOf: f.asOf,
+     partial: f.partial,
+     firstMonth: f.firstMonth,
+     beforeRecords: month < f.firstMonth,
+     income,
+-    contactWriteOffs: overviewData(db).splits.filter(
++    contactWriteOffs: projectOverviewData(db, scope).splits.filter(
+       (s) =>
+         s.kind === 'income' &&
+         s.incomeGroup === 'unclassified' &&
+@@ -308,11 +319,14 @@ export function monthIncomeReport(db: Executor, today: string, month: string): I
+         monthOf(s.date) === month &&
+         s.date <= f.asOf,
+     ),
+-    expected,
+-    expectedMaterialised: materialised,
+-    foreignCurrencyCount,
+     window: incomeWindow(months.map((m) => monthIncomeOf(facts, m))),
+   };
++  if (scope) return {
++    ...actual, project: scope.project, expected: null, expectedMaterialised: null,
++    foreignCurrencyCount: null, expectedUnavailable: 'not_project_attributed',
++  };
++  const { expected, foreignCurrencyCount, materialised } = expectedOf(db, f, income);
++  return { ...actual, expected, expectedMaterialised: materialised, foreignCurrencyCount };
+ }
+ 
+ // ---------------------------------------------------------------------------------------------
+diff --git a/packages/db/src/repos/report-project-scope.ts b/packages/db/src/repos/report-project-scope.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..6ef6da2366e697151aed4c4fe5c33cc7d82c659f
+--- /dev/null
++++ b/packages/db/src/repos/report-project-scope.ts
+@@ -0,0 +1,40 @@
++import { and, eq, isNull } from 'drizzle-orm';
++import type { OverviewData } from '@budget/domain';
++import { booking, project } from '../schema';
++import { EntityNotFoundError } from './errors';
++import { overviewData } from './report-ledger';
++import { memoizedShared } from './request-memo';
++import type { Executor } from './types';
++
++export interface ReportProject {
++  id: string;
++  name: string;
++  archived: boolean;
++}
++
++export interface ReportProjectScope {
++  project: ReportProject;
++  bookingIds: ReadonlySet<string>;
++}
++
++/** Attribution filters already-classified facts; it never removes a transfer's other leg first. */
++export function reportProjectScope(db: Executor, projectId?: string): ReportProjectScope | undefined {
++  if (projectId === undefined) return undefined;
++  if (!projectId || projectId.length > 64) throw new EntityNotFoundError('project', projectId);
++  return memoizedShared(db, `reportProjectScope:${projectId}`, () => {
++    const row = db.select().from(project)
++      .where(and(eq(project.id, projectId), isNull(project.deletedAt))).get();
++    if (!row) throw new EntityNotFoundError('project', projectId);
++    const ids = db.select({ id: booking.id }).from(booking)
++      .where(and(eq(booking.projectId, projectId), isNull(booking.deletedAt))).all();
++    return {
++      project: { id: row.id, name: row.name, archived: row.archivedAt !== null },
++      bookingIds: new Set(ids.map(({ id }) => id)),
++    };
++  });
++}
++
++export function projectOverviewData(db: Executor, scope?: ReportProjectScope): OverviewData {
++  const data = overviewData(db);
++  return scope ? { ...data, splits: data.splits.filter((s) => s.bookingId !== undefined && scope.bookingIds.has(s.bookingId)) } : data;
++}
+diff --git a/packages/db/src/repos/report-tables.ts b/packages/db/src/repos/report-tables.ts
+index f4e78449eebf6b6927bdbdd0dfca0d523cf93ab9..1c124af559fdc2da66c33136b59a8cd0859efcb0 100644
+--- a/packages/db/src/repos/report-tables.ts
++++ b/packages/db/src/repos/report-tables.ts
+@@ -14,6 +14,7 @@ import {
+   type TableCategory,
+   type TableIncomeType,
+   type TableMonth,
++  type IncomeExpenseMonth,
+ } from '@budget/domain';
+ import { and, asc, eq, isNull } from 'drizzle-orm';
+ import {
+@@ -27,7 +28,7 @@ import {
+   payee,
+   rule,
+ } from '../schema';
+-import { overviewData } from './report-ledger';
++import { projectOverviewData, reportProjectScope, type ReportProject, type ReportProjectScope } from './report-project-scope';
+ import { netWorthDaily, earliestAccountDate } from './portfolio';
+ import { budget, budgetLedger } from './queries';
+ import { referenceMonth } from './rule-inputs';
+@@ -89,7 +90,7 @@ function ruleTargets(db: Executor): ReportTables['targets'] {
+ 
+ export function reportTables(
+   db: Executor,
+-  options: { today: string; withNetWorth?: boolean; withSources?: boolean },
++  options: { today: string; withNetWorth?: boolean; withSources?: boolean; projectScope?: ReportProjectScope },
+ ): ReportTables {
+   const { today } = options;
+   const currentMonth = monthOf(today);
+@@ -164,7 +165,7 @@ export function reportTables(
+ 
+   const classOf = new Map(categories.map((c) => [c.id, c.class]));
+   // Shared ledger classification: cash date, system entries excluded, refunds netted once.
+-  const ledger = overviewData(db);
++  const ledger = projectOverviewData(db, options.projectScope);
+   const splits = ledger.splits
+     .filter((s) => s.date <= today)
+     .map((s) =>
+@@ -208,6 +209,7 @@ export function reportTables(
+   // budget accounts counts as spending of its Zukunft category here (Bedarf and Wunsch never do).
+   const setAside = new Map<string, Map<string, number>>();
+   for (const s of ledgerSplits) {
++    if (options.projectScope && (!s.bookingId || !options.projectScope.bookingIds.has(s.bookingId))) continue;
+     if (
+       !betweenBudgetAccounts(s) ||
+       s.categoryId === null ||
+@@ -310,6 +312,7 @@ export function reportTables(
+           eq(account.onBudget, true),
+           isNull(booking.transferId),
+           isNull(bookingSplit.transferId),
++          options.projectScope ? eq(booking.projectId, options.projectScope.project.id) : undefined,
+         ),
+       )
+       .all();
+@@ -345,8 +348,29 @@ export function reportTables(
+   };
+ }
+ 
++export type ProjectIncomeExpenseReport = Pick<ReportTables,
++  'asOf' | 'currentMonth' | 'firstMonth' | 'lastFullMonth' | 'categories' | 'incomeTypes' | 'payees'
++> & {
++  months: IncomeExpenseMonth[];
++  splits: OverviewSplit[];
++  project: ReportProject;
++  unavailable: readonly ['assigned', 'moneyAgeDays', 'netWorthCents', 'targets'];
++};
++export type IncomeExpenseReportData = (ReportTables & { splits: OverviewSplit[] }) | ProjectIncomeExpenseReport;
++
+ /** 1.10 uses the same category/month facts as 1.6/1.8, including Zukunft set-aside. */
+-export function incomeExpenseReport(db: Executor, today: string) {
+-  const tables = reportTables(db, { today, withSources: true });
+-  return { ...tables, splits: tables.splits ?? [] };
++export function incomeExpenseReport(db: Executor, today: string): ReportTables & { splits: OverviewSplit[] };
++export function incomeExpenseReport(db: Executor, today: string, projectId: string | undefined): IncomeExpenseReportData;
++export function incomeExpenseReport(db: Executor, today: string, projectId?: string): IncomeExpenseReportData {
++  const scope = reportProjectScope(db, projectId);
++  const tables = reportTables(db, { today, withSources: true, ...(scope ? { projectScope: scope } : {}) });
++  if (!scope) return { ...tables, splits: tables.splits ?? [] };
++  // Global assignments, rules, wealth and age are not attributable to a booking-level project.
++  return {
++    asOf: tables.asOf, currentMonth: tables.currentMonth, firstMonth: tables.firstMonth,
++    lastFullMonth: tables.lastFullMonth, categories: tables.categories, incomeTypes: tables.incomeTypes,
++    payees: tables.payees, splits: tables.splits ?? [],
++    months: tables.months.map(({ month, income, spending }) => ({ month, income, spending })),
++    project: scope.project, unavailable: ['assigned', 'moneyAgeDays', 'netWorthCents', 'targets'],
++  };
+ }
+diff --git a/packages/domain/src/report-tables/income-expense.ts b/packages/domain/src/report-tables/income-expense.ts
+index 4bbd6ebbaefe9fffc1f1148855bdf5b91318a924..1c091493b191efb2d9fbdc12b538f7c8d8e90b92 100644
+--- a/packages/domain/src/report-tables/income-expense.ts
++++ b/packages/domain/src/report-tables/income-expense.ts
+@@ -2,17 +2,19 @@ import { cents } from '../money';
+ import { householdIncomeCents, type OverviewSplit } from '../overview';
+ import { monthHouseholdIncome, type TableMeta, type TableMonth, type TableRow } from './tables';
+ 
+-export const monthTotalSpending = (m: TableMonth) =>
++export type IncomeExpenseMonth = Pick<TableMonth, 'month' | 'income' | 'spending'>;
++
++export const monthTotalSpending = (m: IncomeExpenseMonth) =>
+   cents(Object.values(m.spending).reduce((a, v) => a + v, 0));
+-export const incomeExpenseNet = (m: TableMonth, meta: TableMeta) =>
++export const incomeExpenseNet = (m: IncomeExpenseMonth, meta: TableMeta) =>
+   cents(monthHouseholdIncome(m, meta) - monthTotalSpending(m));
+ 
+ export function incomeExpenseRows(
+-  months: ReadonlyArray<TableMonth>,
++  months: ReadonlyArray<IncomeExpenseMonth>,
+   meta: TableMeta,
+   expanded: ReadonlySet<string>,
+ ): TableRow[] {
+-  const vals = (f: (m: TableMonth) => number) => months.map(f);
++  const vals = (f: (m: IncomeExpenseMonth) => number) => months.map(f);
+   const row = (
+     key: string,
+     label: string,
+diff --git a/packages/domain/src/report-tables/tables.ts b/packages/domain/src/report-tables/tables.ts
+index 37a9504e6606e355a568d3776f27506de6762f0c..62788e198d0ec3bcb993942754bed1e03ea560a6 100644
+--- a/packages/domain/src/report-tables/tables.ts
++++ b/packages/domain/src/report-tables/tables.ts
+@@ -85,7 +85,7 @@ export function monthIncomeOfRole(month: TableMonth, meta: TableMeta, role: Inco
+ }
+ 
+ /** Typed household income, shared with One-Pager, Sankey and the rules. */
+-export const monthHouseholdIncome = (month: TableMonth, meta: TableMeta): number =>
++export const monthHouseholdIncome = (month: Pick<TableMonth, 'income'>, meta: TableMeta): number =>
+   Object.entries(month.income).reduce((total, [id, cents]) => {
+     const role = typeRole(meta, id);
+     return total + householdIncomeCents(cents, id, role === 'income' ? 'household' : role);

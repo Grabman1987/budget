@@ -1,0 +1,32 @@
+[
+  {
+    "path": "docs/handoff/621-income-project-views/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/621-income-project-views/README.md",
+    "size": 477,
+    "sha256": "b36f510fe1cab0af47d76901e6d5eb6e0dbf5b56b102bc7430027420e2f664ed"
+  },
+  {
+    "path": "docs/handoff/621-income-project-views/owned/01-3e9e316895a01f86a2d7f26368b798c32b0d8e08.patch",
+    "size": 49399,
+    "sha256": "6daa46f720fa1a00dd479809e1584cf489440b86146657eba8063b7b2b487969"
+  },
+  {
+    "path": "docs/handoff/621-income-project-views/packet.json",
+    "size": 3107,
+    "sha256": "498fcc9c2913786390c7158806f8d5c7fdb56199c7e4841b2bff71c3e9d9a20e"
+  },
+  {
+    "path": "docs/handoff/621-income-project-views/reviews/621-root-backend-nine-independent-source-high.md",
+    "size": 2477,
+    "sha256": "1b31e395aa4b94deff4047776ae79cae8495f5f919f5d3d78c31f9d0f866ec5d"
+  },
+  {
+    "path": "docs/handoff/621-income-project-views/reviews/621-whole-twenty-one-ui-api-integration-independent-source-high.md",
+    "size": 7050,
+    "sha256": "e83e6858a453e391b0b5ff1bd826490bf82946d59a69f3b0d4cc9715433978a1"
+  }
+]
