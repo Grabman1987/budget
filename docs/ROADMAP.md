@@ -1830,3 +1830,13 @@ Desktop shows five columns; the phone layout shows booking metadata and amount.
 - [ ] Canonical Chromium CI, final required checks, serial integration and verified LIVE.
 
 No publication claim. This follow-up preserves the earlier #735 financial behavior.
+
+## #747 — Today savings action opens the task segment
+
+- [x] Identify the contextual-navigation defect: the generic inbox auto-selects movements while savings execution proposals belong to tasks.
+- [x] With one open movement and one savings proposal, the Today action opens `teil=aufgaben` and the matching confirmation dialog. Opening it creates no trade and preserves the literal account balances.
+- [x] Preserve and pass the existing portfolio execution, financial, Undo and Redo regression checks without modifying their expectations. New regression plus unchanged portfolio tests: system Chromium desktop/mobile 17/17 passed (including setup, 1.2 min). Before the one-line fix, the new desktop regression failed on the bare inbox URL and showed Umsätze selected; its trace was retained.
+- [x] Independent Codex full-diff review: no findings; existing tests, financial writers, locks, audit and Undo unchanged.
+- [x] Required full AGE-enabled check: typecheck, lint/format and 589 files / 5,213 tests passed (386.97 s Vitest); normal production build passed. Supplemental system Chromium is not canonical visual or WebKit evidence.
+- [ ] Exact-head canonical CI.
+- [ ] Protected serial integration, deployment and actual live-revision verification; only then close #747.
