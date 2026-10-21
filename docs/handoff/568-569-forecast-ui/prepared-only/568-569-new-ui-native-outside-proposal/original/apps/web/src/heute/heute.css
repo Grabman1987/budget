@@ -1,0 +1,1103 @@
+@layer pages {
+  /* Titelblatt on desktop: month switch left, "Monat | Bis Gehalt" right, "Stand" underneath it. */
+  @media (min-width: 768px) {
+    .titleblock-heute {
+      grid-auto-flow: row;
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .titleblock-heute .tb-title {
+      grid-row: 1 / span 2;
+    }
+    .titleblock-heute .tb-field:nth-child(3) {
+      grid-column: 2;
+      grid-row: 1;
+    }
+    .titleblock-heute .tb-field:nth-child(2) {
+      grid-column: 2;
+      grid-row: 2;
+      border-top: 1px solid var(--line-2);
+    }
+    /* Both right cells are one line each (label beside value), so the head keeps its height. */
+    .titleblock-heute .tb-field {
+      grid-auto-flow: column;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding-block: 4px;
+    }
+  }
+  .heute {
+    display: grid;
+    gap: 38px;
+    margin: -4px auto 0;
+    width: 100%;
+    max-width: var(--page-max);
+    padding-bottom: 36px;
+  }
+  .heute h2,
+  .heute h3,
+  .heute p {
+    margin-top: 0;
+  }
+  .heute-answer-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .heute-answer {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+    align-content: start;
+    padding: 12px 16px;
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: var(--card-shadow);
+  }
+  .heute-answer h2 {
+    margin: 0;
+    font-size: var(--fs-title);
+    line-height: 20px;
+    font-weight: 620;
+  }
+  .heute-answer a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .heute-answer-value {
+    display: block;
+    width: fit-content;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--on-good-soft);
+    font: inherit;
+    font-size: var(--fs-figure);
+    line-height: 1.1;
+    font-weight: 640;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  button.heute-answer-value {
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .heute-answer-value.heute-alert {
+    color: var(--red);
+  }
+  .heute-answer-value.is-nonpositive {
+    color: var(--ink);
+  }
+  .heute-answer :is(a, button):focus-visible {
+    outline: 2px solid var(--line);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .heute-answer p {
+    margin: 0;
+    font-size: var(--fs-meta);
+    line-height: 1.3;
+    color: var(--ink-2);
+    overflow-wrap: anywhere;
+  }
+  .heute-answer-bar {
+    position: relative;
+    height: var(--bar-progress);
+    background: var(--good);
+    border-radius: 4px;
+    margin: 4px 0;
+  }
+  .heute-answer-fill {
+    display: block;
+    height: 100%;
+    background: var(--rule-strong);
+    border-radius: inherit;
+  }
+  .heute-answer-bar.is-assets {
+    background: var(--rule-strong);
+  }
+  .heute-answer-bar.is-empty {
+    background: var(--rule-strong);
+  }
+  .is-assets .heute-answer-fill {
+    background: var(--good);
+  }
+  .heute-answer-marker {
+    position: absolute;
+    top: -3px;
+    height: 12px;
+    border-left: var(--stroke-hairline) solid var(--ink);
+    transform: translateX(-1px);
+  }
+  .heute-nearest-goal {
+    margin: 8px 0 0;
+    font-size: var(--fs-meta);
+  }
+  /* Kennzahlen (#571): label, value, bar and one context line; the explanation sits behind ⓘ. */
+  .heute-kennzahl {
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 8px;
+  }
+  .heute-kennzahl > :not(h2, .heute-info) {
+    grid-column: 1 / -1;
+  }
+  .heute-kennzahl .heute-answer-value {
+    font-family: var(--font-ui);
+  }
+  /* The three values share one line height, whether they are a link, a button or plain. */
+  .heute-kennzahl > a,
+  .heute-kennzahl > .heute-answer-value,
+  .heute-kennzahl > .heute-kennzahl-figure {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .heute-kennzahl-figure > a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .heute-info {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .heute-info:hover {
+    color: var(--ink);
+  }
+  .heute-info:focus-visible {
+    outline: 2px solid var(--line);
+    outline-offset: 2px;
+  }
+  .heute-answer .heute-kennzahl-line {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .heute-phone-only {
+    display: none;
+  }
+  .heute-lead > .heute-daily-budget {
+    position: relative;
+    inset: auto;
+    justify-content: start;
+  }
+  @media (max-width: 767px) {
+    .heute-answer-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
+    }
+    .heute-answer {
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 4px 8px;
+      padding: 8px 12px;
+    }
+    .heute-answer h2 {
+      align-self: center;
+      font-size: var(--fs-title);
+      line-height: 18px;
+    }
+    .heute-answer-value {
+      font-size: var(--fs-figure);
+      line-height: 28px;
+    }
+    .heute-answer > a {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+    }
+    /* Phone: a compact list, name left, amount right, ⓘ for the rest. */
+    .heute-kennzahl {
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      padding: 0 8px 0 12px;
+    }
+    .heute-kennzahl
+      > :not(
+        h2,
+        .heute-info,
+        .heute-answer-value,
+        .heute-kennzahl-figure,
+        a,
+        .heute-kennzahl-note,
+        .heute-kennzahl-missing,
+        .rev-empty
+      ) {
+      display: none;
+    }
+    .heute-kennzahl > a,
+    .heute-kennzahl > .heute-kennzahl-figure {
+      grid-column: auto;
+      min-height: 44px;
+    }
+    .heute-kennzahl .heute-info {
+      width: 44px;
+      height: 44px;
+    }
+    .heute-kennzahl > .heute-answer-value,
+    .heute-kennzahl > .heute-kennzahl-figure,
+    .heute-kennzahl > a {
+      order: 3;
+    }
+    .heute-kennzahl > .heute-info {
+      order: 2;
+    }
+    .heute-kennzahl > .heute-kennzahl-note {
+      display: block;
+      grid-column: 1 / -1;
+      order: 4;
+      padding-bottom: 8px;
+    }
+    .heute-kennzahl .heute-phone-only {
+      display: inline;
+    }
+    .heute-answer-bar,
+    .heute-answer p {
+      grid-column: 1 / -1;
+    }
+    .heute-answer-bar {
+      margin: 0;
+    }
+    .heute-answer p {
+      font-size: var(--fs-label);
+      line-height: 13px;
+    }
+  }
+  .heute-lead {
+    min-width: 0;
+  }
+  .heute-lead-head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .heute-lead-head h2 {
+    margin: 0 0 8px;
+    font-size: var(--fs-headline);
+    font-weight: 620;
+    line-height: 1.25;
+  }
+  .heute-lead-head p {
+    max-width: 56ch;
+    margin: 0;
+    color: var(--ink-2);
+  }
+  .heute-lead-head .btn {
+    flex: 0 0 auto;
+    min-height: 44px;
+  }
+  .heute-anchor {
+    display: block;
+    max-width: 56ch;
+    margin-top: 6px;
+    font-size: var(--fs-body);
+    font-weight: 560;
+    color: var(--ink);
+  }
+  .heute-month-note {
+    display: flex;
+    align-items: center;
+    gap: 4px 8px;
+    flex-wrap: wrap;
+    margin: 0;
+    font-size: var(--fs-body);
+    color: var(--ink-2);
+  }
+  .heute-month-note .btn {
+    min-height: 44px;
+  }
+  .heute-lead-figure {
+    position: absolute;
+    z-index: 1;
+    margin: 0;
+    padding: 0;
+    min-height: 44px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    text-align: left;
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: var(--fs-dimension);
+    font-weight: 640;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+  .heute-lead-figure small {
+    color: var(--ink-2);
+    font-size: var(--fs-figure);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .heute-lead-figure.is-negative,
+  .heute-lead-figure.is-negative small {
+    color: var(--red);
+  }
+  .heute-balance-drawing {
+    position: relative;
+  }
+  .heute-daily-budget {
+    position: absolute;
+    z-index: 2;
+    inset: 94px 8px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--ink-2);
+    font-size: var(--fs-table);
+    font-variant-numeric: tabular-nums;
+  }
+  .heute-daily-budget.is-alarm {
+    color: var(--red);
+  }
+  .heute-daily-budget button {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+  .heute-daily-budget button:focus-visible {
+    outline: 2px solid var(--line);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .heute-daily-help {
+    position: absolute;
+    z-index: 3;
+    inset: 100% 0 auto;
+    padding: 10px 12px;
+    border: 1px solid var(--rule-strong);
+    border-radius: 8px;
+    background: var(--raised);
+    color: var(--ink);
+    box-shadow: var(--card-shadow);
+    font-size: var(--fs-body);
+  }
+  .heute-balance-drawing.is-narrow .heute-daily-budget {
+    top: 58px;
+  }
+  .heute-lead-figure:focus-visible {
+    outline: 2px solid var(--line);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+  .heute-chart {
+    width: 100%;
+    min-height: 160px;
+    margin-top: 3px;
+  }
+  .heute-chart svg,
+  .heute-mini-chart svg {
+    display: block;
+    width: 100%;
+    overflow: visible;
+  }
+  .heute-chart .l-forecast {
+    stroke-dasharray: 7 5;
+  }
+  .heute-low-mark {
+    fill: var(--line);
+    stroke: var(--line);
+  }
+  .heute-salary-mark {
+    stroke: var(--line-2);
+    stroke-dasharray: 7 5;
+  }
+  .heute .ct-label {
+    color: var(--ink-2);
+  }
+  .heute-chain-area {
+    border-top: 1px solid var(--rule);
+    padding-top: 12px;
+  }
+  .heute-chain-area .chain-inline {
+    align-items: start;
+  }
+  .heute-chain-area .ct-term {
+    min-height: 44px;
+  }
+  .heute-note {
+    margin: 10px 0 0;
+    color: var(--ink-3);
+    font-size: var(--fs-meta);
+  }
+  .heute-breakdown {
+    margin-top: 12px;
+    border-top: 1px solid var(--rule);
+  }
+  .heute-breakdown h3 {
+    margin: 12px 0 2px;
+    font-size: var(--fs-body);
+  }
+  .heute-breakdown ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .heute-breakdown li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .heute-breakdown strong {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .heute-main-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 38px 28px;
+  }
+  .heute-detail-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+  }
+  .heute-detail-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .heute-dimension {
+    padding: 20px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .heute-breakdown a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .heute-section {
+    min-width: 0;
+  }
+  .heute-section .head {
+    margin-bottom: 12px;
+  }
+  .heute-section .head a {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    gap: 2px;
+    color: var(--ink-2);
+    text-decoration: none;
+  }
+  .heute-section .head a:hover,
+  .heute-section .head a:focus-visible {
+    color: var(--line);
+  }
+  .heute-figures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    margin: 0 0 8px;
+  }
+  .heute-figure {
+    display: grid;
+    min-width: 105px;
+    min-height: 64px;
+    padding: 5px 0;
+    align-content: start;
+    border: 0;
+    border-bottom: 1px dotted var(--line-2);
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+  }
+  .heute-figure span,
+  .heute-figure small {
+    font-size: var(--fs-meta);
+  }
+  .heute-figure strong {
+    color: var(--ink);
+    font-size: var(--fs-figure);
+    font-weight: 640;
+    font-variant-numeric: tabular-nums;
+  }
+  .heute-figure:focus-visible {
+    outline: 2px solid var(--line);
+    outline-offset: 2px;
+  }
+  .heute-figure-detail {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 10px 0;
+    border-block: 1px solid var(--rule);
+    font-variant-numeric: tabular-nums;
+  }
+  .heute-pace .heute-chart {
+    min-width: 0;
+    margin-top: 12px;
+  }
+  .heute-pace .legend {
+    margin-top: 8px;
+  }
+  .heute-alert {
+    color: var(--red);
+  }
+  .heute-good {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--line);
+  }
+  .heute-detail-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 36px 28px;
+  }
+  .heute-net-worth {
+    grid-column: auto;
+  }
+  .heute-delta {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0 0 8px;
+    color: var(--line);
+    font-size: var(--fs-body);
+    font-weight: 600;
+  }
+  .heute-net-composition {
+    margin-top: 12px;
+  }
+  .heute-net-composition.is-nonpositive .chain-minus text {
+    text-anchor: start;
+    transform: translate(10px, 16px);
+  }
+  .heute-net-composition.is-nonpositive .chain-svg > text:last-child {
+    text-anchor: start;
+  }
+  .heute-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .heute-envelope,
+  .heute-upcoming,
+  .heute-rule,
+  .heute-booking {
+    border-top: 1px solid var(--rule);
+    padding: 11px 0;
+  }
+  .he-envelope-main,
+  .heute-upcoming,
+  .heute-rule,
+  .heute-booking {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 4px 12px;
+  }
+  .he-envelope-main > div,
+  .heute-rule > div,
+  .heute-booking > div,
+  .heute-upcoming > div {
+    min-width: 0;
+  }
+  .he-envelope-main > div {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+  }
+  .he-envelope-main > strong,
+  .heute-amount-status > strong,
+  .heute-booking > div:last-child > strong {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .heute .class-tag {
+    font-size: var(--fs-label);
+  }
+  .he-envelope-bar {
+    height: var(--bar-progress);
+    margin: 8px 0 4px;
+    border: 1px solid var(--rule-strong);
+    background: var(--ground-2);
+  }
+  .he-envelope-bar span {
+    display: block;
+    height: 100%;
+  }
+  .heute .hatch-need {
+    background: var(--need);
+  }
+  .heute .hatch-want {
+    background: var(--hatch-want);
+    box-shadow: inset 0 0 0 1px var(--want);
+  }
+  .heute .hatch-future {
+    background: var(--hatch-future);
+    box-shadow: inset 0 0 0 1px var(--future);
+  }
+  .heute-envelope p {
+    margin: 0;
+    color: var(--ink-2);
+    font-size: var(--fs-meta);
+  }
+  .heute-upcoming {
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .heute-upcoming time {
+    color: var(--ink-2);
+    font-family: var(--font-tech);
+    font-size: var(--fs-label);
+  }
+  .heute-account-preview {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    overflow-wrap: anywhere;
+  }
+  .heute-upcoming strong,
+  .heute-upcoming span,
+  .heute-rule strong,
+  .heute-rule div > span,
+  .heute-booking strong,
+  .heute-booking div > span {
+    display: block;
+  }
+  .heute-upcoming div > span,
+  .heute-booking div > span,
+  .heute-rule div > span {
+    color: var(--ink-2);
+    font-size: var(--fs-meta);
+  }
+  .heute-amount-status {
+    text-align: right;
+    white-space: nowrap;
+  }
+  .heute-amount-status > .btn {
+    display: flex;
+    margin: 4px 0 0 auto;
+  }
+  .heute-amount-status > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: var(--ink-2);
+    font-size: var(--fs-label);
+  }
+  .heute-check-counts {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    gap: 2px 9px;
+    margin-bottom: 10px;
+  }
+  .heute-check-counts > strong {
+    font-size: var(--fs-display);
+    font-weight: 640;
+    font-variant-numeric: tabular-nums;
+  }
+  .heute-check-counts > span {
+    color: var(--ink-2);
+    font-size: var(--fs-label);
+  }
+  .heute-check-bar {
+    display: flex;
+    height: var(--bar-stacked);
+    grid-column: 1 / -1;
+    gap: 3px;
+    margin: 2px 0 4px;
+
+    opacity: var(--bar-tint);
+  }
+  .heute-check-bar i {
+    flex: 1;
+    border: 1px solid var(--line-2);
+  }
+  .heute-check-bar .is-ok {
+    background: var(--line);
+  }
+  .heute-check-bar .is-warn {
+    background: var(--line-2);
+  }
+  .heute-check-bar .is-bad {
+    border-color: var(--ink-2);
+    background: transparent;
+  }
+  .heute-check-bar .is-open {
+    border-style: dashed;
+    background: transparent;
+  }
+  .heute-check-counts p {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--ink-2);
+    font-size: var(--fs-label);
+  }
+  .heute-check-counts p a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .heute-rule {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .heute-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--ink-2);
+    font-size: var(--fs-meta);
+    white-space: nowrap;
+  }
+  .heute-state.is-ok {
+    color: var(--line);
+  }
+  .heute-booking {
+    grid-template-columns: 12px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .heute-booking-class {
+    width: 9px;
+    height: 9px;
+    border: 1px solid var(--line);
+    background: var(--line);
+  }
+  .heute-booking-class.is-want {
+    background: var(--hatch-want);
+  }
+  .heute-booking-class.is-future {
+    background: var(--hatch-future);
+  }
+  .heute-booking > div:last-child {
+    text-align: right;
+  }
+  .heute .rev-table {
+    width: 100%;
+  }
+  .heute .rev-row > td {
+    padding-block: 12px;
+  }
+  .heute .rev-act .btn {
+    min-height: 44px;
+  }
+  .heute .rev-empty {
+    border-top: 1px solid var(--rule);
+  }
+
+  @media (max-width: 1179px) {
+    .heute-detail-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .heute-net-worth {
+      grid-column: auto;
+    }
+  }
+  @media (max-width: 979px) {
+    .heute-main-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (max-width: 767px) {
+    .heute {
+      gap: 32px;
+      padding: 0 0 24px;
+    }
+    .heute-lead-head {
+      align-items: center;
+      gap: 8px;
+    }
+    .heute-lead-head h2 {
+      margin: 0;
+      font-size: var(--fs-headline);
+    }
+    .heute-lead-head p {
+      display: none;
+    }
+    .heute-lead-head .btn {
+      padding-inline: 6px;
+      font-size: var(--fs-label);
+    }
+    .heute-lead-figure {
+      font-size: var(--fs-dimension);
+    }
+    .heute-chart {
+      min-height: 170px;
+    }
+    .heute-main-grid,
+    .heute-detail-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 32px;
+    }
+    .heute-net-worth {
+      grid-column: auto;
+    }
+    .heute-figures {
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .heute-figure {
+      min-width: 0;
+      flex: 1 1 28%;
+    }
+    .heute-figure strong {
+      font-size: var(--fs-headline);
+    }
+    .heute-upcoming {
+      grid-template-columns: 44px minmax(0, 1fr);
+    }
+    .heute-amount-status {
+      grid-column: 2;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 8px;
+      text-align: left;
+    }
+    .heute-booking {
+      grid-template-columns: 12px minmax(0, 1fr);
+    }
+    .heute-booking > div:last-child {
+      grid-column: 2;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      text-align: left;
+    }
+    .heute .rev-table thead {
+      display: none;
+    }
+    .heute .rev-table,
+    .heute .rev-table tbody {
+      display: block;
+    }
+    .heute .rev-table tr {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 4px 8px;
+      padding: 10px 0;
+      border-top: 1px solid var(--rule);
+    }
+    .heute .rev-table td {
+      border: 0;
+      padding: 0;
+    }
+    .heute .rev-table .rev-mark {
+      grid-row: span 2;
+    }
+    .heute .rev-table .rev-act {
+      grid-column: 2;
+      text-align: left;
+    }
+  }
+}
+.heute-attention {
+  padding-block: 16px;
+  border-block: 1px solid var(--rule);
+}
+.heute-attention h2 {
+  font-size: var(--fs-title);
+  margin: 0 0 8px;
+}
+.attention-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 4px;
+  border-top: 1px solid var(--rule);
+}
+/* With the loan-terms row there are five rows; the 44 px links already space them so the list ends above the 900 px fold. */
+@media (min-width: 768px) {
+  .heute-attention.is-dense .attention-row {
+    padding-block: 0;
+  }
+}
+.attention-proposals {
+  flex-basis: 100%;
+  min-width: 0;
+}
+.attention-proposals summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+.attention-row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.attention-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+}
+.attention-row a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
+  flex-shrink: 0;
+}
+.attention-row.is-over,
+.attention-row.is-over a,
+.attention-envelopes a {
+  color: var(--red);
+}
+.attention-envelopes {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.attention-envelopes li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--red);
+}
+.attention-envelopes a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.heute-wealth-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding-block: 12px;
+  border-block: 1px solid var(--rule);
+}
+.heute-wealth-line h2 {
+  font-size: var(--fs-title);
+  margin: 0;
+}
+.heute-wealth-line a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  gap: 8px;
+}
+.heute-more > .btn {
+  width: 100%;
+  justify-content: space-between;
+}
+#heute-more-content:not([hidden]) {
+  display: grid;
+  gap: 32px;
+  margin-top: 24px;
+}
+@media (max-width: 767px) {
+  .heute-lead-head {
+    flex-wrap: wrap;
+  }
+  .attention-row {
+    flex-wrap: wrap;
+  }
+  .heute-wealth-line {
+    gap: 4px 12px;
+  }
+  .heute-wealth-line a {
+    font-size: var(--fs-body);
+  }
+}
+
+@media (max-width: 767px) {
+  .heute {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.forecast-step-labels {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.forecast-step-labels li {
+  display: flex;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: var(--fs-chart-label);
+}
+.forecast-step-labels span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.forecast-step-labels strong {
+  margin-inline-start: auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.heute-finance-check {
+  padding: 16px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sheet);
+  background: var(--surface);
+}
+.heute-finance-check a,
+.heute-upcoming .heute-amount-status > a,
+.heute-upcoming .btn {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Compact card uses the shared liquidity report, independent of the selected Heute month. */
+.heute-compact-forecast-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.heute-compact-forecast-head h2 {
+  margin: 0;
+  font-size: var(--fs-headline);
+}
+.heute-compact-forecast-head .btn {
+  min-height: 44px;
+}
+.heute-forecast-low {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  margin: 8px 0;
+  font-size: var(--fs-body);
+}
+.heute-forecast-low strong {
+  font-variant-numeric: tabular-nums;
+}

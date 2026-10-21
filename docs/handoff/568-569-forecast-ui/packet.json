@@ -1,0 +1,39 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/568-569-forecast-ui",
+  "sourceHead": "5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf",
+  "originalBaseBeforeOwnedCommits": "cadefe15230a977651351184739eafd46b721f3c",
+  "orderedCommits": [
+    {
+      "sha": "5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf",
+      "parentBase": "cadefe15230a977651351184739eafd46b721f3c",
+      "subject": "Implement compact forecast tools and shared 35-day card; validation pending",
+      "paths": [
+        "apps/web/src/heute/heute-page.tsx",
+        "apps/web/src/heute/heute.css",
+        "apps/web/src/reports/liquidity-chart.tsx",
+        "apps/web/src/reports/liquidity-report.tsx",
+        "apps/web/src/reports/liquidity-selection.ts",
+        "apps/web/src/reports/reports-future.css",
+        "apps/web/src/router.tsx",
+        "packages/domain/src/forecast/report.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf > OWN_OUTPUT/5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/web/src/heute/heute-page.tsx",
+    "apps/web/src/heute/heute.css",
+    "apps/web/src/reports/liquidity-chart.tsx",
+    "apps/web/src/reports/liquidity-report.tsx",
+    "apps/web/src/reports/liquidity-selection.ts",
+    "apps/web/src/reports/reports-future.css",
+    "apps/web/src/router.tsx",
+    "packages/domain/src/forecast/report.ts"
+  ],
+  "mixedSourceAncestry": false,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

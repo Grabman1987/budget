@@ -1,0 +1,87 @@
+{
+  "feature": "5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf",
+  "checkedLiveBase": "074282335ace136c5fe7f7d4b17c8fc44216da90",
+  "featurePins": [
+    {
+      "path": "apps/web/src/heute/heute-page.tsx",
+      "blob": "61a53f0c7d650a3541cf597aa364d65f3c4ef71e"
+    },
+    {
+      "path": "apps/web/src/heute/heute.css",
+      "blob": "af3b3b4d1bda08a3b89de099d2e18e08d7cce877"
+    },
+    {
+      "path": "apps/web/src/reports/liquidity-chart.tsx",
+      "blob": "705fdd192537c684bf1a19a307a0f12969ad4456"
+    },
+    {
+      "path": "apps/web/src/reports/liquidity-report.tsx",
+      "blob": "0659e7d44005f7386d8e9495efc2ce0fc5da5fd6"
+    },
+    {
+      "path": "apps/web/src/reports/liquidity-selection.ts",
+      "blob": "cb2813e6006bb9b7ab256bd5da73e41bcb3b8f23"
+    },
+    {
+      "path": "apps/web/src/reports/reports-future.css",
+      "blob": "fa8e9f0a5a829279116659af9f7798f6f84a0483"
+    },
+    {
+      "path": "apps/web/src/router.tsx",
+      "blob": "96c04d79bea93268550030748c9fab220ddd6e3d"
+    },
+    {
+      "path": "packages/domain/src/forecast/report.ts",
+      "blob": "914831fac2c3a37a4ef2ed373476d35c6f62af76"
+    }
+  ],
+  "readerSeams": [
+    {
+      "path": "apps/server/src/api/liquidity.ts",
+      "featureBlob": "f8d4f9f3cc175f41b149331418011a87f71d0195",
+      "baseBlob": "f8d4f9f3cc175f41b149331418011a87f71d0195"
+    },
+    {
+      "path": "packages/db/src/repos/liquidity-report.ts",
+      "featureBlob": "971bcfa3ea92a22938108c93b3b7a83495b7251a",
+      "baseBlob": "971bcfa3ea92a22938108c93b3b7a83495b7251a"
+    },
+    {
+      "path": "packages/db/src/repos/rule-inputs.ts",
+      "featureBlob": "ff8fc8f9589e1f8af1ae5395aa106bb526df7af7",
+      "baseBlob": "ff8fc8f9589e1f8af1ae5395aa106bb526df7af7"
+    },
+    {
+      "path": "apps/server/src/api/expected.ts",
+      "featureBlob": "05feebc0a8c30b058fb5c91130dcb8f1e2cd64aa",
+      "baseBlob": "05feebc0a8c30b058fb5c91130dcb8f1e2cd64aa"
+    },
+    {
+      "path": "apps/server/src/api/schemas.ts",
+      "featureBlob": "1b8b7bd028153f41558b49b0805489764a0f89f1",
+      "baseBlob": "1b8b7bd028153f41558b49b0805489764a0f89f1"
+    },
+    {
+      "path": "packages/db/src/client.ts",
+      "featureBlob": "dafd68d57a1450524c00d1c80a652bd28603e6c5",
+      "baseBlob": "dafd68d57a1450524c00d1c80a652bd28603e6c5"
+    },
+    {
+      "path": "packages/domain/src/forecast/liquidity.ts",
+      "featureBlob": "6159d92e87287a9a07dab60251148f3d7e6663a4",
+      "baseBlob": "6159d92e87287a9a07dab60251148f3d7e6663a4"
+    }
+  ],
+  "newFiles": {
+    "apps/server/src/api/liquidity-35d-568-569.test.ts": "4bdf95202686a67227c92f7277b8859712d156c7f2af66435993ac04d9346fc9",
+    "packages/domain/src/forecast/report-35d-568-569.test.ts": "ea6401247bd7f4d1b246a5c4249374703b29689b0c01f2ad5ff24244e4550cda"
+  },
+  "testCases": {
+    "domain": 3,
+    "api": 5
+  },
+  "diffSha256": "cb663c5808f431cd7fce21a547d86981a284e655bfddd3eff4d693b1c42be8db",
+  "reportSha256": "497aeedd71c2548973837ef4dedfa98c673ec32304ec99555636da5c7fc5a6ab",
+  "runtime": "NONE; source proposal only",
+  "repositoryEdits": false
+}

@@ -1,0 +1,672 @@
+/* Reports 3.1 to 3.3 (Zukunft und Vermögen): shared layout, figures, tables and legends.
+   White cards on the slate ground (DESIGN.md, Präzisionsschicht); no colour of its own. */
+@import './table-scroll.css';
+@import './mobile-report-header.css';
+
+.rf-report {
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 0;
+}
+.rf-report > * {
+  min-width: 0;
+}
+.rf-wide {
+  grid-column: 1 / -1;
+}
+.rf-main,
+.rf-side {
+  grid-column: 1 / -1;
+}
+.rf-card {
+  padding: 22px 24px 20px;
+}
+.rf-card .tbd-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+.rf-card .vnote {
+  max-width: 72ch;
+}
+
+/* Verdict: a plain sentence with a mark; red only when the money does not suffice. */
+.rf-verdict {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 14px 0 6px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--quiet-soft);
+  color: var(--ink);
+}
+.rf-verdict .icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.rf-verdict strong {
+  display: block;
+  font-size: var(--fs-title);
+  font-weight: 640;
+}
+.rf-verdict small {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-body);
+  color: var(--ink-2);
+}
+.rf-verdict.is-ok {
+  background: var(--good-soft);
+  color: var(--on-good-soft);
+}
+.rf-verdict.is-ok small {
+  color: var(--on-good-soft);
+}
+.rf-verdict.is-bad {
+  background: var(--red-soft);
+  color: var(--red);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 28%, transparent);
+}
+.rf-verdict.is-bad small {
+  color: var(--ink-2);
+}
+
+/* Four figures above a chart. */
+.rf-figs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px 20px;
+  margin: 14px 0 8px;
+}
+.rf-figs > div {
+  min-width: 0;
+}
+.rf-figs .tech {
+  display: block;
+  color: var(--ink-2);
+}
+.rf-figs strong {
+  display: block;
+  margin: 2px 0 0;
+  font-size: var(--fs-figure);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.rf-figs strong.is-alert {
+  color: var(--red);
+}
+.rf-figs small {
+  display: block;
+  font-size: var(--fs-chart-label);
+  color: var(--ink-2);
+}
+
+.rf-chart {
+  display: block;
+  width: 100%;
+  min-height: 260px;
+  margin: 4px 0 6px;
+}
+.rf-chart-lg {
+  min-height: 320px;
+}
+.lq-low-dot {
+  fill: var(--surface);
+  stroke: var(--line);
+  stroke-width: var(--stroke-measure);
+}
+.lq-low.is-alert .lq-low-dot {
+  stroke: var(--red);
+}
+.lq-low.is-alert text {
+  fill: var(--red);
+}
+.lq-halo {
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: calc(var(--stroke-active) * 2);
+  stroke-linejoin: round;
+}
+.lq-next h3 {
+  margin: 16px 0 4px;
+  font-size: var(--fs-measure);
+  font-weight: 600;
+}
+.lq-next ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lq-next li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: var(--stroke-hairline) solid var(--rule);
+  font-variant-numeric: tabular-nums;
+}
+.lq-next .lq-no {
+  color: var(--ink-3);
+}
+.lq-next .lq-what {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lq-next .lq-what small {
+  display: block;
+  font-size: var(--fs-chart-label);
+  color: var(--ink-2);
+}
+.ev-mark {
+  fill: var(--ink);
+  stroke: var(--surface);
+  stroke-width: var(--stroke-hairline);
+}
+
+.rf-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  list-style: none;
+  margin: 6px 0 8px;
+  padding: 0;
+  font-size: var(--fs-chart-label);
+  color: var(--ink-2);
+}
+.rf-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.rf-legend svg {
+  width: 26px;
+  height: 8px;
+  overflow: visible;
+}
+.rf-sq {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 1px;
+  flex: 0 0 auto;
+}
+.rf-sq-band {
+  background: var(--tint-2);
+  border: 1px dashed var(--line-2);
+}
+.rf-sq-event {
+  background: var(--ink);
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+}
+.rf-legend .rf-sq-event {
+  margin-right: 0;
+}
+.rf-sq-ink {
+  background: var(--line);
+}
+.rf-sq-pale {
+  background: var(--line-2);
+}
+.rf-sq-need {
+  background: var(--line);
+}
+.rf-sq-want {
+  background: var(--line-2);
+}
+
+/* Tables */
+.rf-scroll {
+  position: relative; /* keeps absolutely placed .sr-only cells inside the scroll area */
+  overflow-x: auto;
+  min-width: 0;
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
+  margin-top: 10px;
+}
+.rf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.rf-table th {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--line-2);
+  font-size: var(--fs-label);
+  white-space: nowrap;
+  color: var(--ink-2);
+  font-weight: 560;
+}
+.rf-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.rf-table .n {
+  text-align: right;
+  white-space: nowrap;
+}
+.rf-table td small,
+.rf-table th small {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-label);
+  font-weight: 400;
+  color: var(--ink-2);
+}
+.rf-table .is-muted td {
+  color: var(--ink-2);
+}
+.rf-table .is-alert {
+  color: var(--red);
+}
+.rf-table .is-short {
+  color: var(--minus-ink);
+}
+.rf-table .is-total td {
+  border-top: 1px solid var(--line-2);
+  font-weight: 620;
+}
+.rf-table .rf-grp th {
+  padding-top: 14px;
+  font-size: var(--fs-body);
+  color: var(--ink);
+  font-weight: 640;
+  border-bottom: 1px solid var(--rule-strong);
+}
+.rf-table .rf-grp td {
+  padding-top: 14px;
+  border-bottom: 1px solid var(--rule-strong);
+  font-weight: 620;
+}
+.rf-table .is-rest td {
+  color: var(--ink-2);
+}
+.rf-moves td:nth-child(2) {
+  min-width: 220px;
+}
+.rf-sw {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+  border-radius: 1px;
+  vertical-align: -1px;
+}
+
+/* Add form of the planned events */
+.rf-add {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+  margin-top: 18px;
+}
+.rf-add .rf-f:nth-child(1) {
+  grid-column: span 2;
+}
+.rf-add .rf-f:nth-child(4) {
+  grid-column: span 3;
+}
+.rf-add .rf-f {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.rf-add .field-row {
+  margin: 0;
+}
+.rf-add-error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.rf-pause-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.rf-pause-list > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px 18px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+}
+.rf-pause-source,
+.rf-pause-effect {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.rf-pause-source small,
+.rf-pause-effect small {
+  color: var(--ink-2);
+}
+.rf-pause-effect ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+.rf-pause-actions,
+.rf-pause-submit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rf-pause-action,
+.rf-pause-form .input,
+.rf-pause-form .select {
+  min-height: 44px;
+}
+.rf-pause-submit {
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+}
+.rf-pause-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.rf-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -10px -8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.rf-icon-btn:hover {
+  background: var(--tint);
+  color: var(--ink);
+}
+
+/* Levers */
+.rf-levers {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.rf-levers li {
+  border-top: 1px solid var(--rule);
+}
+.rf-levers li:first-child {
+  border-top: 0;
+}
+.rf-lever {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  min-height: 44px;
+  padding: 12px 0;
+  cursor: pointer;
+}
+.rf-lever input {
+  margin: 1px 0 0;
+}
+.rf-lever strong {
+  display: block;
+  font-weight: 620;
+}
+.rf-lever small {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-chart-label);
+  color: var(--ink-2);
+}
+.rf-gain {
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+
+/* Cashflow: figures beside the chain */
+.rf-figure {
+  font-size: var(--fs-dimension);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 10px 0 16px;
+  font-variant-numeric: tabular-nums;
+}
+.rf-note-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 14px 0 4px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.rf-note-row strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.rf-state {
+  margin: 10px 0 0;
+  color: var(--ink-2);
+}
+
+@media (max-width: 980px) {
+  .rf-main,
+  .rf-side {
+    grid-column: 1 / -1;
+  }
+  .rf-figs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .rf-add {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .rf-add .rf-f:nth-child(1),
+  .rf-add .rf-f:nth-child(4) {
+    grid-column: 1 / -1;
+  }
+  .rf-add > button {
+    justify-self: start;
+  }
+}
+@media (max-width: 767px) {
+  .rf-report {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .liquidity-report .rf-table tr > :first-child:not([colspan]) {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--surface);
+    box-shadow: inset -1px 0 var(--rule-strong);
+    min-width: 100px;
+    max-width: 150px;
+    overflow-wrap: anywhere;
+  }
+  .liquidity-report .rf-table th:first-child {
+    white-space: normal;
+  }
+  .rf-card {
+    padding: 16px;
+  }
+  .rf-figure {
+    font-size: var(--fs-dimension);
+  }
+  .rf-figs strong {
+    font-size: var(--fs-figure);
+  }
+  .rf-add {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rf-pause-list > li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .rf-pause-actions {
+    justify-content: flex-start;
+  }
+}
+
+/* 3.3 Vermögensverläufe: stacked areas in tones of one ink, debts as dashed outline */
+.rf-area {
+  stroke: var(--surface);
+  stroke-width: var(--stroke-hairline);
+}
+.rf-area-debt {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: var(--stroke-hairline);
+  stroke-dasharray: 5 4;
+}
+.rf-sq-debt {
+  background: transparent;
+  border: var(--stroke-hairline) dashed var(--ink-2);
+}
+.rf-chart .rf-nw-halo {
+  stroke: var(--surface);
+  stroke-width: var(--stroke-hairline);
+}
+.rf-chart .rf-nw-line {
+  stroke: var(--ink);
+}
+
+/* 3.2 Cashflow-Verlauf: two drawings stacked on one scale of months */
+.rf-chart-stack {
+  min-height: 0;
+}
+.rf-chart-stack .chart {
+  display: block;
+  max-width: 100%;
+}
+.rf-sq-want-hatch {
+  background: repeating-linear-gradient(135deg, var(--want) 0 2px, transparent 2px 5px);
+  border: 1px solid var(--want);
+}
+
+/* 3.6 Vermögen & Schulden: bars per month end, the selected month tinted, table as keyboard path */
+.rf-pick {
+  fill: var(--surface-2);
+}
+.rf-hit {
+  fill: transparent;
+  cursor: pointer;
+}
+.rf-hit:hover {
+  fill: var(--surface-2);
+  opacity: 0.6;
+}
+.rf-month-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 2px 0;
+  min-height: 24px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 560;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.rf-month-btn small {
+  margin-top: 0;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+.rf-month-btn[aria-pressed='true'] {
+  text-decoration-color: var(--ink);
+  text-decoration-thickness: 2px;
+}
+.rf-table tr.is-picked th,
+.rf-table tr.is-picked td {
+  background: var(--surface-2);
+}
+.rf-table tbody th[scope='row'] {
+  padding: 8px;
+  border-bottom: 1px solid var(--rule);
+  font-size: inherit;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+/* Strike action of a movement: a touch target, never wrapped away from its row. */
+.rf-moves .rf-act {
+  text-align: right;
+  white-space: nowrap;
+}
+/* The visually hidden header label is absolutely positioned; without a positioned cell its
+   containing block lies outside the scroll area and widens the whole page on a phone. */
+.rf-moves th.rf-act {
+  position: relative;
+}
+
+/* Forecast tools remain mounted while folded, retaining local drafts and existing write paths. */
+.rf-tools > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  min-height: 44px;
+  padding: 12px 24px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 620;
+}
+.rf-tools > summary::-webkit-details-marker {
+  display: none;
+}
+.rf-tools > summary small {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+  font-weight: 400;
+}
+.rf-tools > summary svg {
+  margin-left: auto;
+  flex: none;
+}
+.rf-tools[open] > summary svg {
+  transform: rotate(180deg);
+}
+.rf-tools-content > .rf-card {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.rf-moves .rf-strike {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px;
+}
+@media (max-width: 767px) {
+  .rf-tools > summary {
+    padding-inline: 12px;
+  }
+  .rf-tools > summary small {
+    flex-basis: 100%;
+    order: 1;
+  }
+}

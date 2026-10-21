@@ -1,0 +1,8 @@
+# #568/#569 source implementation; owner-deferred batch gates
+
+- Exact35-day pipeline has day0 plus35days afterstart, following existing90d convention. Compare literal domain/report API points, balances, lowcents/date, planned events and income pauses against existing90d/6m/12m outcomes; no new financial formula.
+- Heute fixed35d/no-levers read, shared query and chart versus explicit Details35d/empty-levers URL; nondefault persisted simulation must not leak. Reload/Back/Forward/default stored6m compatibility, unknown/oversized URL fields and empty lever serialization.
+- Original Heute month/payday/free/pace/chain values and other reports' BalanceChart remain unchanged; current card is labeled Stand heute separately. Empty/read-error/refetch privacy and genuine no-new-writes behavior need proof.
+- Tools disclosure retains mounted drafts/forms, existing income-pause/event/levers and large-movement rows. Genuine skip→same chart change→audited Undo/Redo/unskip, exact existing bodies/status/locks, icon keyboard focus and accessible tooltip/name require batch tests. No existing test was edited.
+- Actual page height at1440x900 (<=3screens with specified fixture), compact35 chart low/date/HEUTE/GEHALT legibility and no line-label overlap,390overflow/coarse44/light-dark/Axe and canonical WebKit/Chromium remain unproved until batch browser validation. No percentage/page-height or test-green claim.
+- Source-only independent review and formatting/types/tests remain required. No new tests authored or runtime invoked during this owner-directed implementation packet. No push/PR/merge/issue closure.

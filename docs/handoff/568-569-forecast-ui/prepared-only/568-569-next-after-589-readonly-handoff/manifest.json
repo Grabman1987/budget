@@ -1,0 +1,68 @@
+{
+  "feature": "5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf",
+  "parent": "cadefe15230a977651351184739eafd46b721f3c",
+  "liveMain074": "074282335ace136c5fe7f7d4b17c8fc44216da90",
+  "expected589Source": "376fe26ddc03f75b3c0399ea169b67ee47ec470d",
+  "sourcePaths": [
+    {
+      "path": "apps/web/src/heute/heute-page.tsx",
+      "beforeBlob": "36a3ac2d3628013920a136626e26f379a1d6d991",
+      "featureBlob": "61a53f0c7d650a3541cf597aa364d65f3c4ef71e",
+      "beforeMatchesLive074": true,
+      "beforeMatches589": true
+    },
+    {
+      "path": "apps/web/src/heute/heute.css",
+      "beforeBlob": "6310abe92c7c9fb9f753f2fbfe67f399fff79e6f",
+      "featureBlob": "af3b3b4d1bda08a3b89de099d2e18e08d7cce877",
+      "beforeMatchesLive074": true,
+      "beforeMatches589": true
+    },
+    {
+      "path": "apps/web/src/reports/liquidity-chart.tsx",
+      "beforeBlob": "9448377c3c09cad2ddf67bb5d7745f5993deba19",
+      "featureBlob": "705fdd192537c684bf1a19a307a0f12969ad4456",
+      "beforeMatchesLive074": true,
+      "beforeMatches589": true
+    },
+    {
+      "path": "apps/web/src/reports/liquidity-report.tsx",
+      "beforeBlob": "cea68ff042271a86ca2bd74127dd59c8280294bc",
+      "featureBlob": "0659e7d44005f7386d8e9495efc2ce0fc5da5fd6",
+      "beforeMatchesLive074": true,
+      "beforeMatches589": true
+    },
+    {
+      "path": "apps/web/src/reports/liquidity-selection.ts",
+      "beforeBlob": "b917aaa77987402bab2a0b2f8b7636792ad7b3ed",
+      "featureBlob": "cb2813e6006bb9b7ab256bd5da73e41bcb3b8f23",
+      "beforeMatchesLive074": true,
+      "beforeMatches589": true
+    },
+    {
+      "path": "apps/web/src/reports/reports-future.css",
+      "beforeBlob": "dbd8fd676564e2351c54e422bf24a2e598532dfb",
+      "featureBlob": "fa8e9f0a5a829279116659af9f7798f6f84a0483",
+      "beforeMatchesLive074": true,
+      "beforeMatches589": true
+    },
+    {
+      "path": "apps/web/src/router.tsx",
+      "beforeBlob": "0133a68e4f92989af7394eee5c41f3ffb7560c22",
+      "featureBlob": "96c04d79bea93268550030748c9fab220ddd6e3d",
+      "beforeMatchesLive074": true,
+      "beforeMatches589": false
+    },
+    {
+      "path": "packages/domain/src/forecast/report.ts",
+      "beforeBlob": "f259834fbec8c855cc79ae26b77f907210169670",
+      "featureBlob": "914831fac2c3a37a4ef2ed373476d35c6f62af76",
+      "beforeMatchesLive074": true,
+      "beforeMatches589": true
+    }
+  ],
+  "readonly": true,
+  "runtimeExecuted": false,
+  "oldEdits": false,
+  "handoffSha256": "33973146919f163cbf8feecee53335c7af4d71bfcc416e1e2e8734a0c394c24f"
+}

@@ -1,0 +1,60 @@
+--- a/e2e/income-pause.spec.ts
++++ b/e2e/income-pause.spec.ts
+@@ -111,6 +111,7 @@
+     expect(monthIncome(before, '2026-10')).toBe(520_123);
+     await assertScheduleAndNoBookings();
+     await page.goto('/reports/liquiditaet');
++    await page.locator('details.rf-tools > summary').click();
+ 
+     const pauseCard = page.locator('section[aria-labelledby="liq-pauses"]');
+     const source = pauseCard.getByLabel('Einnahmequelle');
+@@ -391,6 +392,7 @@
+     });
+     expect(removedSource.status(), await removedSource.text()).toBe(200);
+     await page.reload();
++    await page.locator('details.rf-tools > summary').click();
+     await expect(pauseCard).toContainText(`Synthetic deleted source ${info.project.name}`);
+     await expect(pauseCard).toContainText('Quelle gelöscht');
+   },
+--- a/e2e/liquidity-report.spec.ts
++++ b/e2e/liquidity-report.spec.ts
+@@ -93,6 +93,7 @@
+     await expect(forecastCard.getByText('Tiefpunkt im Grundplan', { exact: true })).toBeVisible();
+     await expect(basis).toContainText('Grundplan');
+     await expect(basis).toContainText('Noch keine geplanten Ereignisse eingerichtet');
++    await page.locator('details.rf-tools > summary').click();
+     const trimLever = page.getByRole('checkbox', { name: /Variable Ausgaben um 10 % senken/ });
+     await expect(trimLever).toBeVisible();
+     for (const theme of ['light', 'dark']) {
+@@ -186,6 +187,7 @@
+   await expect(rows).toHaveCount(report.months.length);
+   await expect(rows.first().locator('td').nth(1)).toHaveText(eur(report.startCents));
+   await expect(rows.last().locator('td').nth(6)).toContainText(eur(report.months.at(-1)!.endCents));
++  await page.locator('details.rf-tools > summary').click();
+   for (const e of view.events.filter((x) => x.status === 'in_horizon'))
+     await expect(page.getByTestId('liq-event').filter({ hasText: e.name })).toBeVisible();
+   await inspect(page, info, 'liquidity');
+@@ -201,6 +203,7 @@
+     page.getByRole('heading', { name: 'Budget-Konten · nächste 90 Tage' }),
+   ).toBeVisible();
+   await expect(page.getByTestId('liq-low')).toHaveText(eur(plain.low!.cents));
++  await page.locator('details.rf-tools > summary').click();
+   const gain = plain.levers.find((l) => l.id === 'trim-variable')!.gainCents;
+   await expect(page.getByTestId('lever-gain-trim-variable')).toContainText(
+     eur(gain, { cents: false, sign: true }),
+@@ -216,6 +219,7 @@
+ test('a planned event can be added, switched off and removed', async ({ page }, info) => {
+   const name = `E2E Ereignis ${info.project.name} ${Date.now()}`;
+   await page.goto('/reports/liquiditaet');
++  await page.locator('details.rf-tools > summary').click();
+   // beyond 12 months: stored, but the shared sample forecast stays as it is
+   await page.getByLabel('Ereignis', { exact: true }).fill(name);
+   await page.getByLabel('Datum').fill('2028-01-15');
+@@ -233,6 +237,7 @@
+ 
+ test('refuses an incomplete event', async ({ page }) => {
+   await page.goto('/reports/liquiditaet');
++  await page.locator('details.rf-tools > summary').click();
+   await page.getByRole('button', { name: 'Ereignis', exact: true }).click();
+   await expect(page.getByRole('alert').filter({ hasText: 'benennen' })).toBeVisible();
+ });

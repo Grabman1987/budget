@@ -1,0 +1,72 @@
+{
+  "featureHead": "5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf",
+  "originalEight": [
+    {
+      "path": "apps/web/src/heute/heute-page.tsx",
+      "sha256": "91a0b8e185dde7d897830ac5cc2ea7da02e0f4c9e9646984a22d77fa7b4d227b"
+    },
+    {
+      "path": "apps/web/src/heute/heute.css",
+      "sha256": "002d6051f0b05bcc35517d276e6d3533eb3f6fca6faae2271fc7a9c750765b19"
+    },
+    {
+      "path": "apps/web/src/reports/liquidity-chart.tsx",
+      "sha256": "7760be334fed8f4858e5031c9972d69633255a18768eddd26ba1c236f6412795"
+    },
+    {
+      "path": "apps/web/src/reports/liquidity-report.tsx",
+      "sha256": "f6d445990132c0bbdf95bac7c764743bf34053de429ffedb706ad55aa01485f1"
+    },
+    {
+      "path": "apps/web/src/reports/liquidity-selection.ts",
+      "sha256": "843569102b563d12c8cbd3fea9599ec7ddfe47943565607e7bf16f5c8e31300a"
+    },
+    {
+      "path": "apps/web/src/reports/reports-future.css",
+      "sha256": "4f9420cc3ef80f8ced0f06c47aae0caf96c2fa7328cc58e1b032cb2610de2ce5"
+    },
+    {
+      "path": "apps/web/src/router.tsx",
+      "sha256": "518783ee62c960d4463067c4496d92276828fb43276321ff7be0164ea7c0282b"
+    },
+    {
+      "path": "packages/domain/src/forecast/report.ts",
+      "sha256": "3a8a2fdf705c90ed75db12c0f01792b2423ff81578b2c259402edd98e6ba9af9"
+    }
+  ],
+  "toolsPrerequisite": {
+    "featureHead": "5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf",
+    "path": "apps/web/src/reports/liquidity-report.tsx",
+    "beforeSha256": "f6d445990132c0bbdf95bac7c764743bf34053de429ffedb706ad55aa01485f1",
+    "candidateSha256": "33d069e327e517118c4c311276211fd33b26d91dfbb091acff195951b50e14da",
+    "diffSha256": "17535c0cde38640c52c2e6eae0d888ac3d043286ce4b540d2f86044e5b4315b5",
+    "reportSha256": "5887b6766cb93e12ca7c9bffdeaed340e0c93542a666460a515a217aa07984ea",
+    "wholeInverseExact": true,
+    "runtime": "NONE; outside-only feature proposal"
+  },
+  "newFiles": [
+    {
+      "path": "apps/web/src/reports/forecast-tools-card-568-569.test.tsx",
+      "sha256": "bbc47515b678e88f7ea008c9b1bc89b95df367fe453d5a69ba53e9232081c550",
+      "mode": "0o600"
+    },
+    {
+      "path": "e2e/issue-568-569-forecast.spec.ts",
+      "sha256": "7ca1e00c03067fcd7b356ca30dabed47500c24560427ab5a7aa66239cd082b31",
+      "mode": "0o600"
+    }
+  ],
+  "uiCases": 4,
+  "nativeCases": 4,
+  "expectedFutureNativeArtifacts": {
+    "png": 8,
+    "json": 4
+  },
+  "unresolvedSourceGap": "Known salary below25000c is omitted from GEHALT marker because salaryDay uses filtered movements; literal9000c retained",
+  "diffSha256": "28bf5fcd02ae5dd01b6295aaef7a343f61612a5a0f8a957912c122616e8b787a",
+  "readmeSha256": "0646249e4bea9de6a0ee072490efc660ad31cb2c45a276253f0a5147ca50c7e6",
+  "repositoryEdits": false,
+  "runtime": "NONE; outside source proposal only",
+  "priorManifestSha256": "97fc91593d9798179f42c08daa5cabdd1ee3f04863b6e354c31796342b65ce95",
+  "phonePrivacyDeltaSha256": "67e0d0a4bec321ece143f37af0bb6f62889dea0b6c8a4f1fc28dea986964b56e"
+}

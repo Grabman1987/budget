@@ -1,0 +1,411 @@
+--- /dev/null
++++ b/apps/web/src/reports/forecast-tools-card-568-569.test.tsx
+@@ -0,0 +1,219 @@
++// @vitest-environment jsdom
++import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
++import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router';
++import { accounts, createTestDatabase, INCOME_TYPES, schema } from '@budget/db';
++import { setAmountsHidden, ToastProvider } from '@budget/ui';
++import { afterEach, beforeEach, expect, it, vi } from 'vitest';
++import { createLedgerApi } from '../../../server/src/api';
++import type { AuthStatus } from '../auth/api';
++import { HeutePage } from '../heute/heute-page';
++import { PaymentPage } from '../expected/payment-page';
++import { isMonth } from '../nav/month';
++import { LEDGER_KEY } from '../ledger/queries';
++import { PlanPrognosePage } from './liquidity-report';
++import { validateLiquiditySearch } from './liquidity-selection';
++
++const TODAY = '2026-09-17';
++const ACCOUNT = '56800000-0000-4000-8000-000000000001';
++const SELECTION = 'budget-liquidity-selection';
++let opened: ReturnType<typeof createTestDatabase>;
++let api: ReturnType<typeof createLedgerApi>;
++let client: QueryClient;
++let debitId: string;
++let unexpected: string[];
++let reads: string[];
++let writes: Array<{ path: string; body: unknown }>;
++let forecastGate: Promise<void> | undefined;
++let releaseForecast: (() => void) | undefined;
++let refuseForecast: boolean;
++
++async function seed<T>(path: string, body: unknown, method = 'POST'): Promise<T> {
++  const response = await api.request(path, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
++  expect(response.ok, await response.clone().text()).toBe(true);
++  return response.json() as Promise<T>;
++}
++beforeEach(async () => {
++  vi.useFakeTimers({ toFake: ['Date'] });
++  vi.setSystemTime(new Date(`${TODAY}T10:00:00Z`));
++  localStorage.clear();
++  vi.stubGlobal('scrollTo', () => {});
++  vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
++  // Layout only: the real chart/hook uses its measured width; forecast values stay real.
++  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
++    return new DOMRect(0, 0, this.classList.contains('rf-chart') ? 800 : 0, 0);
++  });
++  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
++  unexpected = []; reads = []; writes = []; forecastGate = undefined; refuseForecast = false;
++  opened = createTestDatabase();
++  client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
++  api = createLedgerApi({ db: opened.db, today: () => TODAY, stepUp: async (_c, next) => next() });
++  accounts.create(opened.db, { id: ACCOUNT, name: 'Synthetic forecast account', type: 'checking', role: 'budget', onBudget: true, currency: 'EUR', openingDate: TODAY, openingBalanceCents: 100000 }, { actor: 'synthetic-568-569' });
++  for (const [name, kind, date, dueDay, amountCents] of [
++    ['Synthetic debit', 'outflow', '2026-09-27', 27, 30000],
++    ['Synthetic salary', 'inflow', '2026-10-07', 7, 9000],
++  ] as const) {
++    const body = await seed<{ payment: { id: string } }>('/expected', { name, kind, accountId: ACCOUNT, rhythm: 'monthly', dueDay, startDate: date, endDate: date, validFrom: TODAY, dateShift: 'none', amountCents, ...(kind === 'inflow' ? { incomeTypeId: INCOME_TYPES.salary.id } : {}) });
++    if (kind === 'outflow') debitId = body.payment.id;
++  }
++});
++afterEach(async () => {
++  releaseForecast?.(); releaseForecast = undefined;
++  cleanup();
++  await client.cancelQueries(); client.clear(); opened.close();
++  act(() => setAmountsHidden(false));
++  localStorage.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers();
++  expect(unexpected).toEqual([]);
++});
++
++function mount(at = '/?monat=2026-09&period=month') {
++  vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
++    const url = new URL(input, 'http://localhost');
++    const method = init?.method ?? 'GET';
++    const key = `${method} ${url.pathname}${url.search}`;
++    const plain = new Set(['/api/auth/status', '/api/expected', '/api/savings-plans/execution-proposals', '/api/budget/2026-08', '/api/budget/2026-09']);
++    const forecast = url.pathname === '/api/liquidity' && ['35d', '90d', '6m', '12m'].includes(url.searchParams.get('horizon') ?? '') && [...url.searchParams.keys()].every((name) => name === 'horizon' || name === 'levers') && url.searchParams.getAll('horizon').length === 1 && url.searchParams.getAll('levers').length <= 1 && [null, '', 'trim-variable'].includes(url.searchParams.get('levers'));
++    const heute = url.pathname === '/api/heute' && ['?period=month&month=2026-08', '?period=month&month=2026-09'].includes(url.search);
++    const goals = url.pathname === '/api/goals' && ['?month=2026-08', '?month=2026-09'].includes(url.search);
++    const detail = [ `/api/expected/${debitId}/versions`, `/api/expected/${debitId}/detail` ].includes(url.pathname) && !url.search;
++    const skip = method === 'POST' && url.pathname === `/api/expected/${debitId}/skip` && !url.search;
++    const unskip = method === 'POST' && /^\/api\/expected\/occurrences\/[a-f0-9-]+\/unskip$/.test(url.pathname) && !url.search;
++    const undo = method === 'POST' && url.pathname === '/api/undo' && !url.search;
++    const allowed = (method === 'GET' && ((plain.has(url.pathname) && !url.search) || forecast || heute || goals || detail)) || skip || unskip || undo;
++    if (!allowed) { unexpected.push(key); return Response.json({ error: 'unexpected_test_request' }, { status: 500 }); }
++    if (method === 'GET') reads.push(key);
++    else writes.push({ path: url.pathname, body: init?.body ? JSON.parse(String(init.body)) as unknown : null });
++    if (url.pathname === '/api/auth/status') {
++      const status = { setupRequired: false, authenticated: true, stepUpValidUntil: null, viaRecovery: false } satisfies AuthStatus;
++      return Response.json(status);
++    }
++    if (forecast) {
++      await forecastGate;
++      if (refuseForecast) return Response.json({ error: 'synthetic_unavailable', message: 'Synthetic forecast read failed' }, { status: 503 });
++    }
++    return api.request(url.pathname.replace(/^\/api/, '') + url.search, init);
++  });
++  const history = createMemoryHistory({ initialEntries: [at] });
++  const root = createRootRoute({ validateSearch: (search: Record<string, unknown>) => ({ ...(isMonth(search['monat']) ? { monat: search['monat'] } : {}), ...(search['period'] === 'month' || search['period'] === 'payday' ? { period: search['period'] } : {}) }) });
++  const router = createRouter({ history, routeTree: root.addChildren([
++    createRoute({ getParentRoute: () => root, path: '/', component: HeutePage }),
++    createRoute({ getParentRoute: () => root, path: '/plan/prognose', validateSearch: validateLiquiditySearch, component: PlanPrognosePage }),
++    createRoute({ getParentRoute: () => root, path: '/plan/erwartet/$id', component: PaymentPage }),
++  ]) });
++  const view = render(<QueryClientProvider client={client}><ToastProvider><RouterProvider router={router} /></ToastProvider></QueryClientProvider>);
++  return { ...view, router, history };
++}
++const settled = () => waitFor(() => expect(client.isFetching()).toBe(0));
++const tools = () => screen.getByText('Werkzeuge', { selector: 'summary span' }).closest('details')!;
++const summary = () => tools().querySelector('summary')!;
++const card = () => screen.getByRole('region', { name: 'Kontoprognose · 35 Tage' });
++const movement = () => screen.getByRole('button', { name: 'Diesmal streichen: Synthetic debit, 27.09.' });
++function moneyState() {
++  return { bookings: opened.db.select().from(schema.booking).all(), rules: opened.db.select().from(schema.expectedPayment).all(), versions: opened.db.select().from(schema.expectedPaymentVersion).all() };
++}
++
++it('shares the real35d low/date from Heute to Details with explicit empty levers despite a saved scenario and another selected month', async () => {
++  localStorage.setItem(SELECTION, JSON.stringify({ horizon: '12m', levers: ['trim-variable'] }));
++  const before = moneyState();
++  const { router } = mount('/?monat=2026-08&period=month');
++  await waitFor(() => expect(card().querySelector('.heute-forecast-low')?.getAttribute('data-cents')).toBe('70000'));
++  expect(card().querySelector('.heute-forecast-low')?.getAttribute('data-day')).toBe('2026-09-27');
++  expect(card().textContent).toContain('700,00 €');
++  expect(card().textContent).toContain('27.09.2026');
++  expect(card().textContent).toContain('Stand heute · 17.09.2026 · ohne Stellschrauben');
++  expect(screen.getByTestId('heute-month-note').textContent).toContain('August');
++  // This small, real salary must have a marker too; do not raise it to the250€ movement threshold.
++  expect(within(card()).getByTestId('liquidity-mark-gehalt').textContent).toBe('GEHALT 07.10.');
++  await userEvent.setup().click(within(card()).getByRole('link', { name: 'Details zur Kontoprognose für 35 Tage' }));
++  await screen.findByRole('heading', { name: 'Budget-Konten · nächste 35 Tage' });
++  expect(router.state.location.pathname).toBe('/plan/prognose');
++  expect(router.state.location.search).toMatchObject({ horizon: '35d', levers: '' });
++  expect(screen.getByTestId('liq-low').textContent).toBe('700,00 €');
++  expect(screen.getByTestId('liquidity-lowpoint').getAttribute('data-day')).toBe('2026-09-27');
++  expect(screen.getByTestId('liq-scenario-basis').textContent).not.toContain('Vorschau mit aktiver Stellschraube');
++  expect(tools().open).toBe(false);
++  await settled();
++  expect(reads.filter((read) => read.startsWith('GET /api/liquidity'))).toEqual(['GET /api/liquidity?horizon=35d']);
++  expect(moneyState()).toEqual(before); expect(writes).toEqual([]);
++});
++
++it('retains tools open across an uncached lever read and retains a draft through collapse, privacy and same-key refetch', async () => {
++  // A genuine variable target makes the existing trim lever available; this fixture is separate
++  // from the literal zero-variable70000 case, whose financial baseline must remain unchanged.
++  const { group } = await seed<{ group: { id: string } }>('/categories/groups', { name: 'Synthetic variable group' });
++  const { category } = await seed<{ category: { id: string } }>('/categories', { name: 'Synthetic variable', groupId: group.id, class: 'need', kind: 'variable', stage: 2 });
++  await seed(`/categories/${category.id}/target`, { validFrom: '2026-09', target: { kind: 'monthly', amountCents: 3000 } }, 'PUT');
++  const before = moneyState();
++  const { router } = mount('/plan/prognose?horizon=35d&levers=');
++  await screen.findByTestId('liq-low');
++  const user = userEvent.setup();
++  await user.click(summary());
++  const lever = screen.getByRole('checkbox', { name: /Variable Ausgaben um 10 % senken/ });
++  expect((lever as HTMLInputElement).checked).toBe(false);
++  forecastGate = new Promise<void>((resolve) => { releaseForecast = resolve; });
++  await user.click(lever);
++  await waitFor(() => expect(reads).toContain('GET /api/liquidity?horizon=35d&levers=trim-variable'));
++  act(() => releaseForecast?.()); forecastGate = undefined;
++  await screen.findByTestId('lever-gain-trim-variable');
++  expect(tools().open).toBe(true);
++  expect(router.state.location.search).toMatchObject({ horizon: '35d', levers: 'trim-variable' });
++  expect((screen.getByRole('checkbox', { name: /Variable Ausgaben um 10 % senken/ }) as HTMLInputElement).checked).toBe(true);
++  expect(screen.getByTestId('liq-scenario-basis').textContent).toContain('Variable Ausgaben um 10 % senken');
++  const name = screen.getByRole('textbox', { name: 'Ereignis' });
++  await user.click(name); await user.paste('Synthetic draft');
++  await user.click(summary()); expect(tools().open).toBe(false);
++  await user.click(summary()); expect((screen.getByRole('textbox', { name: 'Ereignis' }) as HTMLInputElement).value).toBe('Synthetic draft');
++  act(() => setAmountsHidden(true));
++  expect(screen.getByTestId('liq-low').textContent).not.toMatch(/\d/);
++  expect((name as HTMLInputElement).value).toBe('Synthetic draft');
++  act(() => setAmountsHidden(false));
++  await act(async () => { await client.invalidateQueries({ queryKey: LEDGER_KEY }); });
++  await settled(); expect(tools().open).toBe(true);
++  expect((screen.getByRole('textbox', { name: 'Ereignis' }) as HTMLInputElement).value).toBe('Synthetic draft');
++  expect(moneyState()).toEqual(before); expect(writes).toEqual([]);
++});
++
++it('withholds the compact retained low during pending/error and retries the real read without writes', async () => {
++  mount();
++  await waitFor(() => expect(card().textContent).toContain('700,00 €'));
++  const before = moneyState();
++  forecastGate = new Promise<void>((resolve) => { releaseForecast = resolve; });
++  act(() => { void client.invalidateQueries({ queryKey: [...LEDGER_KEY, 'liquidity-report'] }); });
++  await waitFor(() => expect(card().querySelector('.heute-forecast-low')).toBeNull());
++  expect(card().textContent).not.toContain('700,00 €');
++  refuseForecast = true; act(() => releaseForecast?.()); forecastGate = undefined;
++  await waitFor(() => expect(within(card()).getByRole('button', { name: 'Erneut versuchen' })).toBeTruthy());
++  expect(card().querySelector('.heute-forecast-low')).toBeNull();
++  refuseForecast = false;
++  await userEvent.setup().click(within(card()).getByRole('button', { name: 'Erneut versuchen' }));
++  await waitFor(() => expect(card().textContent).toContain('700,00 €'));
++  expect(moneyState()).toEqual(before); expect(writes).toEqual([]);
++});
++
++it('uses real forecast skip, audit Undo and the existing PaymentPage unskip while preserving the rule and zero bookings', async () => {
++  const before = moneyState();
++  const { router } = mount('/plan/prognose?horizon=35d&levers=');
++  await screen.findByTestId('liq-low');
++  const user = userEvent.setup();
++  await user.click(summary()); await user.click(movement());
++  await waitFor(() => expect(screen.getByTestId('liq-low').textContent).toBe('1.000,00 €'));
++  expect(screen.queryByRole('button', { name: 'Diesmal streichen: Synthetic debit, 27.09.' })).toBeNull();
++  await user.click(screen.getByRole('button', { name: 'Rückgängig' }));
++  await waitFor(() => expect(screen.getByTestId('liq-low').textContent).toBe('700,00 €'));
++  expect(movement()).toBeTruthy();
++  expect(writes.slice(0, 2).map((row) => row.path)).toEqual([`/api/expected/${debitId}/skip`, '/api/undo']);
++  expect(writes[0]?.body).toEqual({ dueDate: '2026-09-27' });
++  expect(writes[1]?.body).toEqual({ groupId: expect.any(String) });
++  await user.click(movement());
++  await waitFor(() => expect(screen.getByTestId('liq-low').textContent).toBe('1.000,00 €'));
++  await act(async () => { await router.navigate({ to: `/plan/erwartet/${debitId}`, search: { monat: '2026-09' } }); });
++  await user.click(await screen.findByRole('button', { name: 'Wiederherstellen' }));
++  await waitFor(() => expect(writes).toHaveLength(4)); await settled();
++  expect(writes[3]?.path).toMatch(/^\/api\/expected\/occurrences\/[a-f0-9-]+\/unskip$/);
++  await act(async () => { await router.navigate({ to: '/plan/prognose', search: { horizon: '35d', levers: '' } }); });
++  await waitFor(() => expect(screen.getByTestId('liq-low').textContent).toBe('700,00 €'));
++  expect(screen.getByTestId('liquidity-lowpoint').getAttribute('data-day')).toBe('2026-09-27');
++  expect(moneyState()).toEqual(before);
++  expect(opened.db.select().from(schema.auditLog).all().length).toBeGreaterThan(0);
++});
+--- /dev/null
++++ b/e2e/issue-568-569-forecast.spec.ts
+@@ -0,0 +1,186 @@
++import AxeBuilder from '@axe-core/playwright';
++import { openDatabase, schema } from '@budget/db';
++import { expect, type APIRequestContext, type Locator, type Page, type TestInfo } from '@playwright/test';
++import { writeFile } from 'node:fs/promises';
++import { test } from './isolated-ledger';
++
++test.use({ ledgerToday: '2026-09-17' });
++const TODAY = '2026-09-17';
++interface Seed { accountId: string; debitId: string }
++async function seed(request: APIRequestContext, origin: string): Promise<Seed> {
++  async function post<T>(path: string, data: unknown): Promise<T> {
++    const response = await request.post(`${origin}/api${path}`, { headers: { origin }, data });
++    expect(response.ok(), await response.text()).toBe(true);
++    return response.json() as Promise<T>;
++  }
++  const { account } = await post<{ account: { id: string } }>('/accounts', { name: 'Synthetic forecast account', type: 'checking', openingDate: TODAY, openingBalanceCents: 100000 });
++  const { payment } = await post<{ payment: { id: string } }>('/expected', { name: 'Synthetic debit', kind: 'outflow', accountId: account.id, rhythm: 'monthly', dueDay: 27, startDate: '2026-09-27', endDate: '2026-09-27', validFrom: TODAY, dateShift: 'none', amountCents: 30000 });
++  await post('/expected', { name: 'Synthetic salary', kind: 'inflow', accountId: account.id, incomeTypeId: 'income-salary', rhythm: 'monthly', dueDay: 7, startDate: '2026-10-07', endDate: '2026-10-07', validFrom: TODAY, dateShift: 'none', amountCents: 9000 });
++  return { accountId: account.id, debitId: payment.id };
++}
++async function hit(target: Locator, minimum: number) {
++  await target.scrollIntoViewIfNeeded();
++  await expect(target).toBeVisible();
++  const r = await target.evaluate((element) => {
++    const b = element.getBoundingClientRect();
++    const owner = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
++    return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, width: b.width, height: b.height, viewportWidth: innerWidth, viewportHeight: innerHeight, owned: owner === element || (owner !== null && element.contains(owner)) };
++  });
++  expect(r.width).toBeGreaterThanOrEqual(minimum); expect(r.height).toBeGreaterThanOrEqual(minimum);
++  expect(r.left).toBeGreaterThanOrEqual(0); expect(r.right).toBeLessThanOrEqual(r.viewportWidth);
++  expect(r.top).toBeGreaterThanOrEqual(0); expect(r.bottom).toBeLessThanOrEqual(r.viewportHeight);
++  expect(r.owned).toBe(true);
++}
++async function chartGeometry(chart: Locator) {
++  await expect(chart.getByTestId('liquidity-mark-heute')).toHaveText('HEUTE');
++  // Small real salary9000 must not be suppressed by the25000c large-movement table cutoff.
++  await expect(chart.getByTestId('liquidity-mark-gehalt')).toHaveText('GEHALT 07.10.');
++  await expect(chart.getByTestId('liquidity-lowpoint')).toHaveAttribute('data-day', '2026-09-27');
++  await expect(chart.getByTestId('liquidity-lowpoint')).toHaveAttribute('data-cents', '70000');
++  const geometry = await chart.evaluate((element) => {
++    const rect = (node: Element) => { const r = node.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height }; };
++    const svg = element.querySelector('svg[data-testid="liquidity-chart"]')!;
++    const low = element.querySelector('[data-testid="liquidity-lowpoint"]')!;
++    return { svg: rect(svg), texts: [...low.querySelectorAll('text')].map(rect), dot: rect(low.querySelector('circle')!), markers: [...element.querySelectorAll('[data-testid="liquidity-mark-heute"], [data-testid="liquidity-mark-gehalt"]')].map(rect), forecast: rect(element.querySelector('.l-forecast')!) };
++  });
++  expect(geometry.texts).toHaveLength(2); expect(geometry.markers).toHaveLength(2);
++  for (const text of [...geometry.texts, ...geometry.markers]) {
++    expect(text.width).toBeGreaterThan(0); expect(text.height).toBeGreaterThan(0);
++    expect(text.left).toBeGreaterThanOrEqual(geometry.svg.left); expect(text.right).toBeLessThanOrEqual(geometry.svg.right);
++    expect(text.top).toBeGreaterThanOrEqual(geometry.svg.top); expect(text.bottom).toBeLessThanOrEqual(geometry.svg.bottom);
++  }
++  expect(geometry.texts[0]!.top).toBeGreaterThanOrEqual(geometry.dot.bottom);
++  expect(geometry.texts[0]!.top).toBeGreaterThanOrEqual(geometry.forecast.bottom);
++  expect(geometry.texts[1]!.top).toBeGreaterThanOrEqual(geometry.texts[0]!.bottom);
++  for (const marker of geometry.markers) expect(marker.bottom).toBeLessThanOrEqual(geometry.forecast.top);
++  const [today, salary] = geometry.markers;
++  expect(today!.right <= salary!.left || salary!.right <= today!.left || today!.bottom <= salary!.top || salary!.bottom <= today!.top).toBe(true);
++  return geometry;
++}
++function moneyState(databasePath: string) {
++  const opened = openDatabase(databasePath);
++  try {
++    return { bookings: opened.db.select().from(schema.booking).all(), rules: opened.db.select().from(schema.expectedPayment).all(), versions: opened.db.select().from(schema.expectedPaymentVersion).all() };
++  } finally { opened.close(); }
++}
++async function noOverflow(page: Page) {
++  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
++}
++async function photo(page: Page, scope: string, name: string, info: TestInfo) {
++  await expect(page.locator(scope)).toHaveCount(1);
++  expect((await new AxeBuilder({ page }).include(scope).analyze()).violations).toEqual([]);
++  await noOverflow(page);
++  await page.screenshot({ path: info.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' });
++}
++async function scene(page: Page, ids: Seed, databasePath: string, profile: 'desktop' | 'configured', theme: 'light' | 'dark', info: TestInfo) {
++  await page.addInitScript(() => {
++    localStorage.setItem('budget-liquidity-selection', JSON.stringify({ horizon: '12m', levers: ['trim-variable'] }));
++  });
++  const before = moneyState(databasePath);
++  const writes: Array<{ path: string; body: unknown }> = [];
++  page.on('request', (request) => {
++    if (request.method() !== 'GET' && new URL(request.url()).pathname.startsWith('/api/')) writes.push({ path: new URL(request.url()).pathname, body: request.postDataJSON() });
++  });
++  await page.goto('/?monat=2026-08&period=month');
++  await page.evaluate((value) => { document.documentElement.dataset['theme'] = value; }, theme);
++  const card = page.getByRole('region', { name: 'Kontoprognose · 35 Tage' });
++  await expect(card.locator('.heute-forecast-low')).toHaveAttribute('data-cents', '70000');
++  await expect(card.locator('.heute-forecast-low')).toHaveAttribute('data-day', '2026-09-27');
++  await expect(card.locator('.heute-forecast-low')).toContainText('700,00 €');
++  await expect(card).toContainText('Stand heute · 17.09.2026 · ohne Stellschrauben');
++  await expect(page.getByTestId('heute-month-note')).toContainText('August');
++  const compactGeometry = await chartGeometry(card.locator('.rf-chart'));
++  const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
++  const minimum = coarse ? 44 : 24;
++  await photo(page, '.heute-compact-forecast', `forecast-card-${profile}-${theme}`, info);
++  const details = card.getByRole('link', { name: 'Details zur Kontoprognose für 35 Tage' });
++  await hit(details, minimum); await details.click();
++  await expect(page).toHaveURL(/\/plan\/prognose\?.*horizon=35d/);
++  const search = new URL(page.url()).searchParams;
++  expect(search.get('horizon')).toBe('35d'); expect(search.has('levers')).toBe(true); expect(search.get('levers')).toBe('');
++  await expect(page.getByRole('heading', { name: 'Budget-Konten · nächste 35 Tage' })).toBeVisible();
++  await expect(page.getByTestId('liq-low')).toHaveText('700,00 €');
++  await expect(page.getByTestId('liq-scenario-basis')).not.toContainText('Vorschau mit aktiver Stellschraube');
++  const tools = page.locator('details.rf-tools');
++  const summary = tools.locator(':scope > summary');
++  await expect(tools).not.toHaveAttribute('open');
++  const detailGeometry = await chartGeometry(page.locator('.liquidity-report .rf-chart'));
++  const collapsed = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, documentHeight: document.documentElement.scrollHeight, scrollWidth: document.documentElement.scrollWidth, coarse: matchMedia('(pointer: coarse)').matches, rawTouch: navigator.maxTouchPoints }));
++  if (profile === 'desktop') { expect(collapsed.width).toBe(1440); expect(collapsed.height).toBe(900); expect(collapsed.documentHeight).toBeLessThanOrEqual(2700); }
++  else expect(collapsed.width).toBe(390);
++  const horizons = page.getByRole('group', { name: 'Prognosezeitraum' }).getByRole('button');
++  await expect(horizons).toHaveCount(4);
++  for (const horizon of await horizons.all()) await hit(horizon, minimum);
++  await photo(page, '.liquidity-report', `forecast-detail-${profile}-${theme}`, info);
++  expect(writes).toEqual([]);
++  await hit(summary, minimum); await summary.focus(); await page.keyboard.press('Enter');
++  await expect(tools).toHaveAttribute('open');
++  const draft = page.getByRole('textbox', { name: 'Ereignis', exact: true });
++  await hit(draft, minimum); await draft.fill('Synthetic draft');
++  await hit(summary, minimum); await summary.focus(); await page.keyboard.press('Enter');
++  await expect(tools).not.toHaveAttribute('open');
++  await page.keyboard.press('Enter'); await expect(tools).toHaveAttribute('open');
++  await expect(draft).toHaveValue('Synthetic draft');
++  const profileMenu = page.locator('.m-profile');
++  if (profile === 'configured') {
++    const profileSummary = profileMenu.locator(':scope > summary');
++    await hit(profileSummary, minimum); await profileSummary.click();
++    await expect(profileMenu).toHaveAttribute('open');
++  }
++  const privacy = page.getByRole('button', { name: 'Beträge verbergen', exact: true });
++  await hit(privacy, minimum); await privacy.click();
++  await expect(page.getByTestId('liq-low')).not.toContainText(/\d/);
++  await expect(draft).toHaveValue('Synthetic draft');
++  await privacy.click(); await expect(page.getByTestId('liq-low')).toHaveText('700,00 €');
++  if (profile === 'configured') {
++    await profileMenu.locator(':scope > summary').click();
++    await expect(profileMenu).not.toHaveAttribute('open');
++  }
++  const strike = page.getByRole('button', { name: 'Diesmal streichen: Synthetic debit, 27.09.', exact: true });
++  await hit(strike, minimum);
++  const skippedResponse = page.waitForResponse((response) => response.request().method() === 'POST' && new URL(response.url()).pathname === `/api/expected/${ids.debitId}/skip`);
++  await strike.click(); const skipped = await skippedResponse; expect(skipped.status()).toBe(200);
++  const skipResult = await skipped.json() as { groupId: string };
++  await expect(page.getByTestId('liq-low')).toHaveText('1.000,00 €');
++  const undo = page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig', exact: true });
++  await hit(undo, minimum);
++  const undoneResponse = page.waitForResponse((response) => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/undo');
++  await undo.click(); expect((await undoneResponse).status()).toBe(200);
++  await expect(page.getByTestId('liq-low')).toHaveText('700,00 €');
++  expect(writes).toEqual([{ path: `/api/expected/${ids.debitId}/skip`, body: { dueDate: '2026-09-27' } }, { path: '/api/undo', body: { groupId: skipResult.groupId } }]);
++  // Unskip is an existing PaymentPage action, not a fabricated forecast button.
++  await hit(strike, minimum); await strike.click();
++  await expect(page.getByTestId('liq-low')).toHaveText('1.000,00 €');
++  await page.goto(`/plan/erwartet/${ids.debitId}?monat=2026-09`);
++  await expect(page.getByRole('heading', { name: 'Synthetic debit', exact: true })).toBeVisible();
++  const restore = page.getByRole('button', { name: 'Wiederherstellen', exact: true });
++  await hit(restore, minimum);
++  const restoredResponse = page.waitForResponse((response) => response.request().method() === 'POST' && /\/api\/expected\/occurrences\/[a-f0-9-]+\/unskip$/.test(new URL(response.url()).pathname));
++  await restore.click(); expect((await restoredResponse).status()).toBe(200);
++  await page.goto('/plan/prognose?horizon=35d&levers=');
++  await expect(page.getByTestId('liq-low')).toHaveText('700,00 €');
++  await expect(page.getByTestId('liquidity-lowpoint')).toHaveAttribute('data-day', '2026-09-27');
++  expect(writes).toHaveLength(4);
++  expect(writes[2]).toEqual({ path: `/api/expected/${ids.debitId}/skip`, body: { dueDate: '2026-09-27' } });
++  expect(writes[3]?.path).toMatch(/^\/api\/expected\/occurrences\/[a-f0-9-]+\/unskip$/);
++  expect(moneyState(databasePath)).toEqual(before);
++  const opened = openDatabase(databasePath);
++  try { expect(opened.db.select().from(schema.auditLog).all().filter((row) => row.groupId === skipResult.groupId).length).toBeGreaterThan(0); }
++  finally { opened.close(); }
++  const artifact = info.outputPath(`forecast-${profile}-${theme}.json`);
++  await writeFile(artifact, JSON.stringify({ profile, theme, engine: page.context().browser()!.browserType().name(), project: info.project.name, ...collapsed, compactGeometry, detailGeometry, financial: { beforeCents: 70000, skippedCents: 100000, restoredCents: 70000, lowDay: '2026-09-27', ruleUnchanged: true, bookingCount: 0, skipGroupId: skipResult.groupId }, writes }, null, 2));
++  await info.attach('Forecast geometry and actual skip Undo unskip', { path: artifact, contentType: 'application/json' });
++}
++for (const profile of ['desktop', 'configured'] as const) for (const theme of ['light', 'dark'] as const) {
++  test(`Forecast35d ${profile} ${theme} retains real card/detail parity, controls and skip Undo unskip`, async ({ page, request, browser, isolatedLedger, ledgerToday }, info) => {
++    const ids = await seed(request, isolatedLedger.origin);
++    if (profile === 'configured') {
++      const inherited = page.viewportSize(); expect(inherited).not.toBeNull();
++      await page.setViewportSize({ width: 390, height: inherited!.height });
++      await scene(page, ids, isolatedLedger.databasePath, profile, theme, info); return;
++    }
++    const context = await browser.newContext({ baseURL: isolatedLedger.origin, storageState: isolatedLedger.storageState, viewport: { width: 1440, height: 900 }, isMobile: false, hasTouch: false, deviceScaleFactor: 1, serviceWorkers: 'block' });
++    try { const desktop = await context.newPage(); await desktop.clock.setFixedTime(new Date(`${ledgerToday}T12:00:00+02:00`)); await scene(desktop, ids, isolatedLedger.databasePath, profile, theme, info); }
++    finally { await context.close(); }
++  });
++}

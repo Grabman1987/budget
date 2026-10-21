@@ -1,0 +1,46 @@
+{
+  "issues": [
+    568,
+    569
+  ],
+  "branch": "codex/568-569-forecast-ui",
+  "base": "cadefe15230a977651351184739eafd46b721f3c",
+  "files": {
+    "apps/web/src/heute/heute-page.tsx": {
+      "sha256": "91a0b8e185dde7d897830ac5cc2ea7da02e0f4c9e9646984a22d77fa7b4d227b",
+      "mode": "0o600"
+    },
+    "apps/web/src/heute/heute.css": {
+      "sha256": "002d6051f0b05bcc35517d276e6d3533eb3f6fca6faae2271fc7a9c750765b19",
+      "mode": "0o600"
+    },
+    "apps/web/src/reports/liquidity-chart.tsx": {
+      "sha256": "7760be334fed8f4858e5031c9972d69633255a18768eddd26ba1c236f6412795",
+      "mode": "0o600"
+    },
+    "apps/web/src/reports/liquidity-report.tsx": {
+      "sha256": "f6d445990132c0bbdf95bac7c764743bf34053de429ffedb706ad55aa01485f1",
+      "mode": "0o600"
+    },
+    "apps/web/src/reports/liquidity-selection.ts": {
+      "sha256": "843569102b563d12c8cbd3fea9599ec7ddfe47943565607e7bf16f5c8e31300a",
+      "mode": "0o600"
+    },
+    "apps/web/src/reports/reports-future.css": {
+      "sha256": "4f9420cc3ef80f8ced0f06c47aae0caf96c2fa7328cc58e1b032cb2610de2ce5",
+      "mode": "0o600"
+    },
+    "apps/web/src/router.tsx": {
+      "sha256": "518783ee62c960d4463067c4496d92276828fb43276321ff7be0164ea7c0282b",
+      "mode": "0o600"
+    },
+    "packages/domain/src/forecast/report.ts": {
+      "sha256": "3a8a2fdf705c90ed75db12c0f01792b2423ff81578b2c259402edd98e6ba9af9",
+      "mode": "0o600"
+    }
+  },
+  "rootOwned": [
+    "packages/domain/src/forecast/report.ts"
+  ],
+  "validation": "Owner deferred: no tests, new tests, types, lint, format, build, native, CI or publication."
+}

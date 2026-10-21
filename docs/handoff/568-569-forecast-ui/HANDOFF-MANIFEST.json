@@ -1,0 +1,432 @@
+[
+  {
+    "path": "docs/handoff/568-569-forecast-ui/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/README.md",
+    "size": 472,
+    "sha256": "669b5ee78e8a769cf0aba379f9f2bb98ddc56a0fb371dde61d3052222a9377cd"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/owned/01-5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf.patch",
+    "size": 18848,
+    "sha256": "bf95d20c03e6710678abfed6a6c968027d1fbf04c611eda86feb04847e342be0"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/packet.json",
+    "size": 1793,
+    "sha256": "1fcdc122446d2c4b56307ddc54567f98a680d8d9a0fb89ffac917cc85ad1da56"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-controlled-tools-and-old-two-independent-source-high.md",
+    "size": 2128,
+    "sha256": "bd1c0d02da3f22d954247925b3cfdf70d6131139388629249cf32446b1ecdeae"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-eight-source-independent-high.md",
+    "size": 2566,
+    "sha256": "68b7cf2e1deaa0ea70f8dc2c3c42c731d941f2479bb0bfa7366fba97a3721d26"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-domain-api-independent-source-high.md",
+    "size": 4103,
+    "sha256": "1d63a07bd8be019010ee56516afc8ecac998268b3c4cfc1ba72f423e5b675f32"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-domain-api-outside-proposal/README.md",
+    "size": 2801,
+    "sha256": "497aeedd71c2548973837ef4dedfa98c673ec32304ec99555636da5c7fc5a6ab"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-domain-api-outside-proposal/candidate/apps/server/src/api/liquidity-35d-568-569.test.ts",
+    "size": 6146,
+    "sha256": "4bdf95202686a67227c92f7277b8859712d156c7f2af66435993ac04d9346fc9"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-domain-api-outside-proposal/candidate/packages/domain/src/forecast/report-35d-568-569.test.ts",
+    "size": 3214,
+    "sha256": "ea6401247bd7f4d1b246a5c4249374703b29689b0c01f2ad5ff24244e4550cda"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-domain-api-outside-proposal/manifest.json",
+    "size": 3064,
+    "sha256": "c34b6af470b7f6e8823256623a78d0112e642c3abc90e2efc3fa5d983d1a0c71"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-domain-api-outside-proposal/new-tests.diff",
+    "size": 9727,
+    "sha256": "cb663c5808f431cd7fce21a547d86981a284e655bfddd3eff4d693b1c42be8db"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-independent-source-review.md",
+    "size": 3272,
+    "sha256": "eb0284e8cf1a54981ac57f7d6b86586fc3202325015f86846595911b52dfdaf7"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/README.md",
+    "size": 4797,
+    "sha256": "0646249e4bea9de6a0ee072490efc660ad31cb2c45a276253f0a5147ca50c7e6"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/initial-97fc9159/README.md",
+    "size": 4739,
+    "sha256": "68133fe977e10796718ab5d4dd658553dd72c045d8821a7813de1a7dacab2452"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/initial-97fc9159/manifest.json",
+    "size": 2761,
+    "sha256": "97fc91593d9798179f42c08daa5cabdd1ee3f04863b6e354c31796342b65ce95"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/initial-97fc9159/new/apps/web/src/reports/forecast-tools-card-568-569.test.tsx",
+    "size": 15551,
+    "sha256": "bbc47515b678e88f7ea008c9b1bc89b95df367fe453d5a69ba53e9232081c550"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/initial-97fc9159/new/e2e/issue-568-569-forecast.spec.ts",
+    "size": 14145,
+    "sha256": "136298fe77b42e210815301dd59f395d8b32cfb5b48effa2978bd20d1f90252d"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/initial-97fc9159/new-tests.diff",
+    "size": 30260,
+    "sha256": "8b3abbd65da1bf7e5778b880b12098d141de1ed816f0e68d3418bdcc5b29d681"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/manifest.json",
+    "size": 2951,
+    "sha256": "26601e5d4d73ded9a33abe0c6788fedba98881ba721ab30bd7c01c03bcd46d4b"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/new/apps/web/src/reports/forecast-tools-card-568-569.test.tsx",
+    "size": 15551,
+    "sha256": "bbc47515b678e88f7ea008c9b1bc89b95df367fe453d5a69ba53e9232081c550"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/new/e2e/issue-568-569-forecast.spec.ts",
+    "size": 14582,
+    "sha256": "7ca1e00c03067fcd7b356ca30dabed47500c24560427ab5a7aa66239cd082b31"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/new-tests.diff",
+    "size": 30707,
+    "sha256": "28bf5fcd02ae5dd01b6295aaef7a343f61612a5a0f8a957912c122616e8b787a"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/original/apps/web/src/heute/heute-page.tsx",
+    "size": 29984,
+    "sha256": "91a0b8e185dde7d897830ac5cc2ea7da02e0f4c9e9646984a22d77fa7b4d227b"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/original/apps/web/src/heute/heute.css",
+    "size": 23682,
+    "sha256": "002d6051f0b05bcc35517d276e6d3533eb3f6fca6faae2271fc7a9c750765b19"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/original/apps/web/src/reports/liquidity-chart.tsx",
+    "size": 8503,
+    "sha256": "7760be334fed8f4858e5031c9972d69633255a18768eddd26ba1c236f6412795"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/original/apps/web/src/reports/liquidity-report.tsx",
+    "size": 42061,
+    "sha256": "f6d445990132c0bbdf95bac7c764743bf34053de429ffedb706ad55aa01485f1"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/original/apps/web/src/reports/liquidity-selection.ts",
+    "size": 3714,
+    "sha256": "843569102b563d12c8cbd3fea9599ec7ddfe47943565607e7bf16f5c8e31300a"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/original/apps/web/src/reports/reports-future.css",
+    "size": 13129,
+    "sha256": "4f9420cc3ef80f8ced0f06c47aae0caf96c2fa7328cc58e1b032cb2610de2ce5"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/original/apps/web/src/router.tsx",
+    "size": 31043,
+    "sha256": "518783ee62c960d4463067c4496d92276828fb43276321ff7be0164ea7c0282b"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/original/packages/domain/src/forecast/report.ts",
+    "size": 14620,
+    "sha256": "3a8a2fdf705c90ed75db12c0f01792b2423ff81578b2c259402edd98e6ba9af9"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-new-ui-native-outside-proposal/phone-profile-only.diff",
+    "size": 1429,
+    "sha256": "67e0d0a4bec321ece143f37af0bb6f62889dea0b6c8a4f1fc28dea986964b56e"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-next-after-589-readonly-handoff/HANDOFF.md",
+    "size": 3763,
+    "sha256": "33973146919f163cbf8feecee53335c7af4d71bfcc416e1e2e8734a0c394c24f"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-next-after-589-readonly-handoff/manifest.json",
+    "size": 2525,
+    "sha256": "b681f02c1edf757130f5ffc575daf7e753c2f7cf0c90a34b042fbbe7a40987e3"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-controlled-tools-outside-proposal/README.md",
+    "size": 1517,
+    "sha256": "1243605191323c8ca90e51f5bf9480a1e790f2eff755a066ea547640d5305d6d"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-controlled-tools-outside-proposal/before/e2e/income-pause.spec.ts",
+    "size": 16662,
+    "sha256": "573a604a977c3af514ec7587e361d7f43eccacbd71e87e7643ceb237fa7be2cb"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-controlled-tools-outside-proposal/before/e2e/liquidity-report.spec.ts",
+    "size": 10790,
+    "sha256": "73fe742b79f2ba3357b11f3958645e110afc348e7b91b3e30f9bfd9ef1b1f207"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-controlled-tools-outside-proposal/candidate/e2e/income-pause.spec.ts",
+    "size": 16786,
+    "sha256": "92da7858a87d5a73ec18d35d0c41b9bf335d67f367616c74491ff24d1d483144"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-controlled-tools-outside-proposal/candidate/e2e/liquidity-report.spec.ts",
+    "size": 11092,
+    "sha256": "1a48b76eec64fd1ac93f2ac2cef8512c3662097d2b077d8c085bc5688014680c"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-controlled-tools-outside-proposal/change.diff",
+    "size": 3188,
+    "sha256": "f7564554713a676b72cb1b8a75ed5caadf8e3e4828761b7fdf4b949c447a543c"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-controlled-tools-outside-proposal/manifest.json",
+    "size": 1507,
+    "sha256": "b608c7a336636b5c7f499441c0bc4692a701f867b1b978ce137a5d9339fb3bba"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-disclosure-corrected-independent-high.md",
+    "size": 1818,
+    "sha256": "7d3fa0ed6f7a2b2a884960848989802abe733e803f436ff45f8a4030129d4d53"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-disclosure-independent-review-hold.md",
+    "size": 2090,
+    "sha256": "f428db54ae1d429f8f93994cc004e6f617315ed651b5fda3626bce07ea8bb800"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-disclosure-outside-proposal/README.md",
+    "size": 2818,
+    "sha256": "28b702bc1f05650d8080d1f4fc8c16df67e9026b9c96869e3dc08d9533816dc7"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-disclosure-outside-proposal/before/e2e/income-pause.spec.ts",
+    "size": 16662,
+    "sha256": "573a604a977c3af514ec7587e361d7f43eccacbd71e87e7643ceb237fa7be2cb"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-disclosure-outside-proposal/before/e2e/liquidity-report.spec.ts",
+    "size": 10790,
+    "sha256": "73fe742b79f2ba3357b11f3958645e110afc348e7b91b3e30f9bfd9ef1b1f207"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-disclosure-outside-proposal/candidate/e2e/income-pause.spec.ts",
+    "size": 16786,
+    "sha256": "92da7858a87d5a73ec18d35d0c41b9bf335d67f367616c74491ff24d1d483144"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-disclosure-outside-proposal/candidate/e2e/liquidity-report.spec.ts",
+    "size": 11092,
+    "sha256": "2e5973b2e5abf796d87bed7a44d412d08a3ba96804df003b30056f274af24dda"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-disclosure-outside-proposal/change.diff",
+    "size": 3203,
+    "sha256": "bfc12012267dde5f26b43664df7f1f962a1e71711e8948602149d178e46d4d4c"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-disclosure-outside-proposal/manifest.json",
+    "size": 1302,
+    "sha256": "ef19d395536c2689b5600a63c6100e25c6fe428fc8d0223c49159585ee998d00"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-disclosure-remount-corrected-proposal/README.md",
+    "size": 3308,
+    "sha256": "2bb5cb505742d7ed6036d29419944415ca87ed7fada5ee987a06dd7245311722"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-disclosure-remount-corrected-proposal/before/e2e/income-pause.spec.ts",
+    "size": 16662,
+    "sha256": "573a604a977c3af514ec7587e361d7f43eccacbd71e87e7643ceb237fa7be2cb"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-disclosure-remount-corrected-proposal/before/e2e/liquidity-report.spec.ts",
+    "size": 10790,
+    "sha256": "73fe742b79f2ba3357b11f3958645e110afc348e7b91b3e30f9bfd9ef1b1f207"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-disclosure-remount-corrected-proposal/candidate/e2e/income-pause.spec.ts",
+    "size": 16786,
+    "sha256": "92da7858a87d5a73ec18d35d0c41b9bf335d67f367616c74491ff24d1d483144"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-disclosure-remount-corrected-proposal/candidate/e2e/liquidity-report.spec.ts",
+    "size": 11154,
+    "sha256": "baaad0e515be4d01e9332596ad17ba00a7e6339089252f118cb5802c92e51c30"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-disclosure-remount-corrected-proposal/change.diff",
+    "size": 3582,
+    "sha256": "d46cd13f72cc854a488fbed31d6f27267fc67b5beccf6d55cc7a24926b94ee61"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-old-two-disclosure-remount-corrected-proposal/manifest.json",
+    "size": 1395,
+    "sha256": "df83f323a6a200e9b4e62f86ebb07699649fbe77c2ec647fa5c71c216d91c7f5"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-salary-marker-outside-proposal/README.md",
+    "size": 4389,
+    "sha256": "34b119673bd68bfc73372fdb3c3be77eed462830c3901b60255eb431ed41cde3"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-salary-marker-outside-proposal/SHA256SUMS",
+    "size": 1090,
+    "sha256": "ee1c9c5eb725115678677800085854ad449234b7cda6e8c40b7b9939cfc45f89"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-salary-marker-outside-proposal/candidate/apps/web/src/reports/liquidity-salary-provenance-568-569.test.ts",
+    "size": 2760,
+    "sha256": "2e37ce832742efdf7d19cdf983e625a7066603d9c9515d93cf966514b0451dcb"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-salary-marker-outside-proposal/candidate/apps/web/src/reports/liquidity-selection.ts",
+    "size": 3665,
+    "sha256": "24f52eccc924e14530e64db1a0ca31e6589712239512df78c618e4bac389cf3c"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-salary-marker-outside-proposal/candidate/packages/domain/src/forecast/report.ts",
+    "size": 15130,
+    "sha256": "7915697f2e4af0ce3c00bf7e004036381939f1b182544ef85e26104a19addcff"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-salary-marker-outside-proposal/candidate.diff",
+    "size": 4812,
+    "sha256": "197db1e389a4fba58a58e1092c93160cc95e163e85043c0717d6efe7972b1003"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-salary-marker-outside-proposal/manifest.json",
+    "size": 2534,
+    "sha256": "3618ca8933934f2e376146d441b1ef568836ec9f162cd4b491fa77f03ad02f0b"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-salary-marker-outside-proposal/new-test.diff",
+    "size": 2931,
+    "sha256": "f9947aaea9f0f7f5191c6f2c24dde6a6515180bdc77f9fc29dbb27cc229dcef3"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-salary-marker-outside-proposal/original/apps/web/src/reports/liquidity-selection.ts",
+    "size": 3714,
+    "sha256": "843569102b563d12c8cbd3fea9599ec7ddfe47943565607e7bf16f5c8e31300a"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-salary-marker-outside-proposal/original/packages/domain/src/forecast/report.ts",
+    "size": 14620,
+    "sha256": "3a8a2fdf705c90ed75db12c0f01792b2423ff81578b2c259402edd98e6ba9af9"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-salary-marker-outside-proposal/source.diff",
+    "size": 1881,
+    "sha256": "a5d1cc2489faa855867c46d48900217bc27caba467db5bbc9ce6da4cb36e4ff3"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-salary-marker-outside-proposal/source.inverse.diff",
+    "size": 1881,
+    "sha256": "144dbc182416b3f3bedc76497f3ae85e6e2818fe2190f40b6fe2aeff7b3140f5"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-salary-marker-root-source-review.md",
+    "size": 1344,
+    "sha256": "270f7aa3eb79c6f08f9232179d6210596ac4595e5336d24d81f67f6f4446ccee"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-source-implemented-batch-pending/DEFERRED_VALIDATION.md",
+    "size": 1615,
+    "sha256": "9ceacd2b4fd7ef7dc4f0939e9697e8020f6293aa7f09b0e267d4d3119e6ace03"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-source-implemented-batch-pending/checkpoint.json",
+    "size": 205,
+    "sha256": "4b0d38dbaba5a54aa3a715e2453f75728cde9fb60112e5c13c605ea456f02f81"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-source-implemented-batch-pending/manifest.json",
+    "size": 1598,
+    "sha256": "55990551a92420e0910dd1d7b329c5117523e599df5401b036218e0a30f44cc3"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-source-implemented-batch-pending/source.diff",
+    "size": 18336,
+    "sha256": "c3067b55f2a3d885b66eb906be5bd244b8f48041d64a6c99552d9bf86446d5d8"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-tools-state-outside-proposal/README.md",
+    "size": 942,
+    "sha256": "5887b6766cb93e12ca7c9bffdeaed340e0c93542a666460a515a217aa07984ea"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-tools-state-outside-proposal/before.tsx",
+    "size": 42061,
+    "sha256": "f6d445990132c0bbdf95bac7c764743bf34053de429ffedb706ad55aa01485f1"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-tools-state-outside-proposal/candidate.tsx",
+    "size": 42206,
+    "sha256": "33d069e327e517118c4c311276211fd33b26d91dfbb091acff195951b50e14da"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-tools-state-outside-proposal/change.diff",
+    "size": 1050,
+    "sha256": "17535c0cde38640c52c2e6eae0d888ac3d043286ce4b540d2f86044e5b4315b5"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/prepared-only/568-569-tools-state-outside-proposal/manifest.json",
+    "size": 545,
+    "sha256": "90af259f94d5ddbb9c0b752d5fa0c34c81e6de24c1b65122bfdc456f5f78dc5d"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/reviews/568-569-controlled-tools-and-old-two-independent-source-high.md",
+    "size": 2128,
+    "sha256": "bd1c0d02da3f22d954247925b3cfdf70d6131139388629249cf32446b1ecdeae"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/reviews/568-569-eight-source-independent-high.md",
+    "size": 2566,
+    "sha256": "68b7cf2e1deaa0ea70f8dc2c3c42c731d941f2479bb0bfa7366fba97a3721d26"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/reviews/568-569-new-domain-api-independent-source-high.md",
+    "size": 4103,
+    "sha256": "1d63a07bd8be019010ee56516afc8ecac998268b3c4cfc1ba72f423e5b675f32"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/reviews/568-569-new-ui-native-independent-source-review.md",
+    "size": 3272,
+    "sha256": "eb0284e8cf1a54981ac57f7d6b86586fc3202325015f86846595911b52dfdaf7"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/reviews/568-569-old-two-disclosure-corrected-independent-high.md",
+    "size": 1818,
+    "sha256": "7d3fa0ed6f7a2b2a884960848989802abe733e803f436ff45f8a4030129d4d53"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/reviews/568-569-old-two-disclosure-independent-review-hold.md",
+    "size": 2090,
+    "sha256": "f428db54ae1d429f8f93994cc004e6f617315ed651b5fda3626bce07ea8bb800"
+  },
+  {
+    "path": "docs/handoff/568-569-forecast-ui/reviews/568-569-salary-marker-root-source-review.md",
+    "size": 1344,
+    "sha256": "270f7aa3eb79c6f08f9232179d6210596ac4595e5336d24d81f67f6f4446ccee"
+  }
+]

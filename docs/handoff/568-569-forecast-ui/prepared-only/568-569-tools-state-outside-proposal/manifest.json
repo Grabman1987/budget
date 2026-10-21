@@ -1,0 +1,10 @@
+{
+  "featureHead": "5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf",
+  "path": "apps/web/src/reports/liquidity-report.tsx",
+  "beforeSha256": "f6d445990132c0bbdf95bac7c764743bf34053de429ffedb706ad55aa01485f1",
+  "candidateSha256": "33d069e327e517118c4c311276211fd33b26d91dfbb091acff195951b50e14da",
+  "diffSha256": "17535c0cde38640c52c2e6eae0d888ac3d043286ce4b540d2f86044e5b4315b5",
+  "reportSha256": "5887b6766cb93e12ca7c9bffdeaed340e0c93542a666460a515a217aa07984ea",
+  "wholeInverseExact": true,
+  "runtime": "NONE; outside-only feature proposal"
+}

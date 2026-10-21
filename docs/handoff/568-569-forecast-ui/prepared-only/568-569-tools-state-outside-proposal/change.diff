@@ -1,0 +1,20 @@
+--- a/apps/web/src/reports/liquidity-report.tsx
++++ b/apps/web/src/reports/liquidity-report.tsx
+@@ -86,6 +86,7 @@
+ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+   useAmountPrivacy();
+   const { horizon, setHorizon, levers, setLevers } = useLiquiditySelection();
++  const [toolsOpen, setToolsOpen] = useState(false);
+   const query = useQuery(liquidityQuery(horizon, levers));
+   // Never mix cached figures with a failed or loading read of another horizon.
+   const view = query.isSuccess ? query.data : undefined;
+@@ -132,7 +133,8 @@
+               levers={levers}
+               stale={query.isFetching}
+             />
+-            <details className="card rf-tools rf-wide">
++            <details className="card rf-tools rf-wide" open={toolsOpen}
++              onToggle={(event) => setToolsOpen(event.currentTarget.open)}>
+               <summary>
+                 <span>Werkzeuge</span>
+                 <small>Einkommenspausen · Ereignisse · Stellschrauben · Buchungen streichen</small>

@@ -1,0 +1,42 @@
+{
+  "featureHead": "5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf",
+  "changedSources": [
+    {
+      "path": "packages/domain/src/forecast/report.ts",
+      "beforeSha256": "3a8a2fdf705c90ed75db12c0f01792b2423ff81578b2c259402edd98e6ba9af9",
+      "afterSha256": "7915697f2e4af0ce3c00bf7e004036381939f1b182544ef85e26104a19addcff"
+    },
+    {
+      "path": "apps/web/src/reports/liquidity-selection.ts",
+      "beforeSha256": "843569102b563d12c8cbd3fea9599ec7ddfe47943565607e7bf16f5c8e31300a",
+      "afterSha256": "24f52eccc924e14530e64db1a0ca31e6589712239512df78c618e4bac389cf3c"
+    }
+  ],
+  "newTests": [
+    {
+      "path": "apps/web/src/reports/liquidity-salary-provenance-568-569.test.ts",
+      "sha256": "2e37ce832742efdf7d19cdf983e625a7066603d9c9515d93cf966514b0451dcb",
+      "testDeclarations": 1,
+      "executed": false
+    }
+  ],
+  "priorUiNativeManifestSha256": "26601e5d4d73ded9a33abe0c6788fedba98881ba721ab30bd7c01c03bcd46d4b",
+  "originalEightPinnedHashesMatch": true,
+  "artifactSha256": {
+    "README.md": "34b119673bd68bfc73372fdb3c3be77eed462830c3901b60255eb431ed41cde3",
+    "candidate/apps/web/src/reports/liquidity-salary-provenance-568-569.test.ts": "2e37ce832742efdf7d19cdf983e625a7066603d9c9515d93cf966514b0451dcb",
+    "candidate/apps/web/src/reports/liquidity-selection.ts": "24f52eccc924e14530e64db1a0ca31e6589712239512df78c618e4bac389cf3c",
+    "candidate/packages/domain/src/forecast/report.ts": "7915697f2e4af0ce3c00bf7e004036381939f1b182544ef85e26104a19addcff",
+    "candidate.diff": "197db1e389a4fba58a58e1092c93160cc95e163e85043c0717d6efe7972b1003",
+    "new-test.diff": "f9947aaea9f0f7f5191c6f2c24dde6a6515180bdc77f9fc29dbb27cc229dcef3",
+    "original/apps/web/src/reports/liquidity-selection.ts": "843569102b563d12c8cbd3fea9599ec7ddfe47943565607e7bf16f5c8e31300a",
+    "original/packages/domain/src/forecast/report.ts": "3a8a2fdf705c90ed75db12c0f01792b2423ff81578b2c259402edd98e6ba9af9",
+    "source.diff": "a5d1cc2489faa855867c46d48900217bc27caba467db5bbc9ce6da4cb36e4ff3",
+    "source.inverse.diff": "144dbc182416b3f3bedc76497f3ae85e6e2818fe2190f40b6fe2aeff7b3140f5"
+  },
+  "repositoryEdits": false,
+  "adopted": false,
+  "runtime": "NONE; outside source proposal only; no tests/builds/types/lint/network",
+  "knownExistingTestAdapter": "apps/web/src/reports/liquidity-lowpoint.test.ts salaryDay handcrafted fixture must carry scheduledInflows; no existing test edited",
+  "risk": "Source-only; required API field and OLD fixture adapter require future independent review/adoption/verification"
+}

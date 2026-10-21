@@ -1,0 +1,53 @@
+--- a/packages/domain/src/forecast/report.ts
++++ b/packages/domain/src/forecast/report.ts
+@@ -144,8 +144,6 @@
+   verdict: LiquidityVerdict;
+   months: LiquidityMonthRow[];
+   movements: LiquidityMovementMonth[];
+-  /** Positive scheduled occurrences within the horizon, before the movement display cutoff. */
+-  scheduledInflows: { day: string; cents: number; ref: ForecastItemRef }[];
+   levers: LiquidityLever[];
+ }
+ 
+@@ -359,16 +357,6 @@
+     .map((e) => ({ day: e.day, label: e.label ?? 'Ereignis', cents: e.cents }))
+     .sort((a, b) => a.day.localeCompare(b.day));
+ 
+-  const scheduledInflows = withEvents.days
+-    .filter((d) => d.index <= hDays)
+-    .flatMap((d) =>
+-      d.items.flatMap((item) =>
+-        (item.kind === 'income' || item.kind === 'fixed') && item.cents > 0 && item.ref
+-          ? [{ day: d.day, cents: item.cents, ref: item.ref }]
+-          : [],
+-      ),
+-    );
+-
+   const low6 = lowIn(withEvents.days, vDays);
+   const lowBuffer6 = lowIn(buffered.days, vDays);
+   const targets = leverTargets(input);
+@@ -401,7 +389,6 @@
+     verdict: verdictOf(low6, lowBuffer6),
+     months: monthRows(withEvents.days, buffered.days, input.startCents, vDays),
+     movements: movementMonths(withEvents.days, input.startCents, hDays),
+-    scheduledInflows,
+     levers,
+   };
+ }
+--- a/apps/web/src/reports/liquidity-selection.ts
++++ b/apps/web/src/reports/liquidity-selection.ts
+@@ -93,8 +93,11 @@
+   report: LiquidityReport,
+   salaryPaymentIds: ReadonlySet<string>,
+ ): string | null {
+-  const row = report.scheduledInflows.find(
+-    (r) => r.day > report.startDay && r.cents > 0 && salaryPaymentIds.has(r.ref.paymentId),
+-  );
++  const row = report.movements
++    .flatMap((m) => m.rows)
++    .find(
++      (r) =>
++        r.day > report.startDay && r.cents > 0 && !!r.ref && salaryPaymentIds.has(r.ref.paymentId),
++    );
+   return row?.day ?? null;
+ }

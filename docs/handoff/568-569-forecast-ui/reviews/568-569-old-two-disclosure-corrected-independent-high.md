@@ -1,0 +1,9 @@
+# #568/#569 corrected OLD2 disclosure adapters — technical HIGH CLEAR
+
+Bound to corrected outside manifest df83f323a6a200e9b4e62f86ebb07699649fbe77c2ec647fa5c71c216d91c7f5 against feature5a6f6bcd. Prior HOLD f428db54 is closed by exactly one additional normal Werkzeug summary click after the existing active-basis assertions and before original trimLever.uncheck. This handles the actual uncached-lever-query default-closed details remount. No production change or financial assertion alteration is required.
+
+Independently verified both before files remain identical to the first reviewed feature/LIVE baseline and both corrected candidate hashes match the manifest. Removing only the eight added normal summary-click lines reconstructs both entire OLD files exactly: income-pause2 clicks candidate92da7858a87d5a73ec18d35d0c41b9bf335d67f367616c74491ff24d1d483144; liquidity-report6 clicks candidatebaaad0e515be4d01e9332596ad17ba00a7e6339089252f118cb5802c92e51c30. Every original amount/date/ID/API assertion, expected no-booking snapshot, action/Undo, privacy/Axe, timeout and slow-mode setting is unchanged. Exact corrected diff d46cd13f72cc854a488fbed31d6f27267fc67b5beccf6d55cc7a24926b94ee61.
+
+Source relocation is real: pause/event/lever/movement controls now live in one closed native Werkzeug details; ordinary summary clicks are the user access path. Corrected positions account for initial navigation, final reload and uncached horizon/lever remounts without force/hidden operations or assertion weakening. Runtime success is unproved by this review.
+
+Technical SOURCE CLEAR only, not owner authorization. These remain protected existing financial browser tests; specific owner approval of exact final OLD2 is required before Root applies. No edits, runtime, adoption or integration performed by reviewer.

@@ -1,0 +1,24 @@
+--- a/e2e/issue-568-569-forecast.spec.ts
++++ b/e2e/issue-568-569-forecast.spec.ts
+@@ -121,11 +121,21 @@
+   await expect(tools).not.toHaveAttribute('open');
+   await page.keyboard.press('Enter'); await expect(tools).toHaveAttribute('open');
+   await expect(draft).toHaveValue('Synthetic draft');
++  const profileMenu = page.locator('.m-profile');
++  if (profile === 'configured') {
++    const profileSummary = profileMenu.locator(':scope > summary');
++    await hit(profileSummary, minimum); await profileSummary.click();
++    await expect(profileMenu).toHaveAttribute('open');
++  }
+   const privacy = page.getByRole('button', { name: 'Beträge verbergen', exact: true });
+   await hit(privacy, minimum); await privacy.click();
+   await expect(page.getByTestId('liq-low')).not.toContainText(/\d/);
+   await expect(draft).toHaveValue('Synthetic draft');
+   await privacy.click(); await expect(page.getByTestId('liq-low')).toHaveText('700,00 €');
++  if (profile === 'configured') {
++    await profileMenu.locator(':scope > summary').click();
++    await expect(profileMenu).not.toHaveAttribute('open');
++  }
+   const strike = page.getByRole('button', { name: 'Diesmal streichen: Synthetic debit, 27.09.', exact: true });
+   await hit(strike, minimum);
+   const skippedResponse = page.waitForResponse((response) => response.request().method() === 'POST' && new URL(response.url()).pathname === `/api/expected/${ids.debitId}/skip`);

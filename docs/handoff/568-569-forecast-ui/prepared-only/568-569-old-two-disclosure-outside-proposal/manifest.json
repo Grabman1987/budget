@@ -1,0 +1,28 @@
+{
+  "featureHead": "5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf",
+  "handoffManifestSha256": "b681f02c1edf757130f5ffc575daf7e753c2f7cf0c90a34b042fbbe7a40987e3",
+  "verifiedEightSourcePins": true,
+  "files": [
+    {
+      "path": "e2e/income-pause.spec.ts",
+      "beforeBlob": "9ba0feb7825747d60f3c8758c87c05b225f3a572",
+      "beforeSha256": "573a604a977c3af514ec7587e361d7f43eccacbd71e87e7643ceb237fa7be2cb",
+      "candidateSha256": "92da7858a87d5a73ec18d35d0c41b9bf335d67f367616c74491ff24d1d483144",
+      "addedSummaryClicks": 2,
+      "wholeInverseExact": true,
+      "matchesCurrentLive074": true
+    },
+    {
+      "path": "e2e/liquidity-report.spec.ts",
+      "beforeBlob": "de12abcc985af97d79b81cf05182345a7ed205f3",
+      "beforeSha256": "73fe742b79f2ba3357b11f3958645e110afc348e7b91b3e30f9bfd9ef1b1f207",
+      "candidateSha256": "2e5973b2e5abf796d87bed7a44d412d08a3ba96804df003b30056f274af24dda",
+      "addedSummaryClicks": 5,
+      "wholeInverseExact": true,
+      "matchesCurrentLive074": true
+    }
+  ],
+  "diffSha256": "bfc12012267dde5f26b43664df7f1f962a1e71711e8948602149d178e46d4d4c",
+  "reportSha256": "28b702bc1f05650d8080d1f4fc8c16df67e9026b9c96869e3dc08d9533816dc7",
+  "scope": "outside-only OLD2 protected disclosure proposal; not applied, runtime none, owner approval pending"
+}
