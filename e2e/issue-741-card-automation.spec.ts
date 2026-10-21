@@ -87,10 +87,21 @@ for (const profile of ['desktop', 'phone'] as const)
         const laterId = createBooking(opened.db, { accountId: card, date: '2031-01-06', amountCents: -2300,
           status: 'confirmed', memo: 'Synthetic later purchase', splits: [{ categoryId: category, amountCents: -2300 }] }, ctx);
         const protectedRows = [originalId, laterId].map((id) => ({ id, row: getBooking(opened.db, id), audit: history(opened.db, 'booking', id) }));
-        context = await browser.newContext({ baseURL: origin, storageState: await page.context().storageState(),
-          viewport: profile === 'desktop' ? { width: 1440, height: 900 } : { width: 390, height: 844 },
-          isMobile: profile === 'phone', hasTouch: profile === 'phone', deviceScaleFactor: 1 });
-        const active = await context.newPage();
+        const configuredViewport = page.viewportSize();
+        expect(configuredViewport).not.toBeNull();
+        let active = page;
+        if (profile === 'desktop') {
+          context = await browser.newContext({ baseURL: origin, storageState: isolatedLedger.storageState,
+            viewport: { width: 1440, height: 900 }, isMobile: false, hasTouch: false,
+            deviceScaleFactor: 1, serviceWorkers: 'block' });
+          active = await context.newPage();
+        } else {
+          // Use the actual configured context: WebKit retains the iPhone13's390x664,
+          // user agent, touch and scale. Only a non-phone project's geometry is narrowed.
+          if (configuredViewport!.width !== 390)
+            await active.setViewportSize({ width: 390, height: configuredViewport!.height });
+          else expect(active.viewportSize()).toEqual(configuredViewport);
+        }
         await active.clock.setFixedTime(new Date('2031-01-10T12:00:00+01:00'));
         const previousPdf = await syntheticColumnarPayslipPdf(rows(true), '');
         const previousResponse = await active.request.post('/api/statement-intake/upload', {
@@ -161,7 +172,67 @@ for (const profile of ['desktop', 'phone'] as const)
         expect(await balances()).toEqual([50000, -12300]);
         expect(opened.sqlite.prepare('SELECT count(*) AS n FROM statement_automation_run').get()).toEqual({ n: 1 });
         expect(opened.sqlite.pragma('foreign_key_check')).toEqual([]);
+        let manualRecovery = false;
+        if (profile === 'phone') {
+          const unconfiguredCard = randomUUID();
+          accounts.create(opened.db, { id: unconfiguredCard, name: 'Muster Karte ohne Einrichtung',
+            type: 'credit_card', role: 'budget', onBudget: true, openingDate: '2030-11-01',
+            openingBalanceCents: 0 }, ctx);
+          const financialRows = () => JSON.stringify(['booking', 'booking_split', 'transfer',
+            'statement_settlement', 'statement_bonus'].map((table) =>
+            opened.sqlite.prepare(`SELECT * FROM ${table} ORDER BY id`).all()));
+          const unchangedMoney = financialRows();
+          const unconfiguredPdf = await syntheticColumnarPayslipPdf(rows(false).map((line) =>
+            line.map((entry) => entry.text === '1111' ? { ...entry, text: '2222' } : entry)), '');
+          await active.goto(`/konten/${unconfiguredCard}`);
+          await setTheme(active, selectedTheme);
+          await active.getByRole('button', { name: 'Abrechnung hochladen', exact: true }).click();
+          const unresolvedUpload = active.waitForResponse((response) =>
+            response.url().endsWith('/api/statement-intake/upload') && response.request().method() === 'POST');
+          await active.getByLabel('Abrechnungs-PDF auswählen').setInputFiles({
+            name: 'synthetic-unconfigured-741.pdf', mimeType: 'application/pdf', buffer: unconfiguredPdf });
+          const unresolvedResponse = await unresolvedUpload;
+          expect(unresolvedResponse.status()).toBe(201);
+          const unresolved = await unresolvedResponse.json() as { intake: StatementIntakeView; automation: StatementAutomationOutcome };
+          expect(unresolved.automation).toMatchObject({ status: 'review', runId: null, created: 0,
+            matched: 0, credits: 0, receiptLinks: 0 });
+          expect(unresolved.automation.reasons).toContain('automation_not_configured');
+          const manualDialog = active.getByRole('dialog', { name: 'Abrechnung prüfen' });
+          await expect(manualDialog.getByRole('region', { name: 'Automatisches Verarbeitungsergebnis' }))
+            .toContainText('Automatische Verarbeitung ist noch nicht eingerichtet.');
+          expect(financialRows()).toBe(unchangedMoney);
+          // A manual document review is explicit and remains nonmonetary. It does not enable
+          // automatic configuration or pretend the unresolved source created any booking.
+          for (const [label, value] of [
+            ['Abrechnungsnummer', 'SYNTHETIC-MANUAL-741'], ['Ausstellungsdatum', '04.01.2031'],
+            ['Zeitraum von', '04.12.2030'], ['Zeitraum bis', '04.01.2031'],
+            ['Einzugsdatum', '12.01.2031'], ['Abrechnungsbetrag', '170,00'], ['Währung', 'EUR'],
+          ] as const) await manualDialog.getByLabel(label, { exact: true }).fill(value);
+          const saveReview = manualDialog.getByRole('button', { name: 'Als geprüft speichern', exact: true });
+          await expect(saveReview).toBeEnabled();
+          await hit(saveReview);
+          const reviewedResponse = active.waitForResponse((response) =>
+            new URL(response.url()).pathname === `/api/statement-intake/${unresolved.intake.id}/review` &&
+            response.request().method() === 'PUT');
+          await saveReview.click();
+          const savedReview = await reviewedResponse;
+          expect(savedReview.status()).toBe(200);
+          const reviewed = await savedReview.json() as { intake: StatementIntakeView };
+          expect(reviewed.intake.status).toBe('reviewed');
+          expect(reviewed.intake.reviewed!.fields.reference).toMatchObject({
+            value: 'SYNTHETIC-MANUAL-741', origin: 'owner' });
+          await expect(manualDialog).toContainText('Dokumentstand gespeichert. Keine Zahlung oder Buchung erstellt.');
+          expect(financialRows()).toBe(unchangedMoney);
+          expect(await balances()).toEqual([50000, -12300]);
+          expect(opened.sqlite.prepare('SELECT * FROM statement_automation_config WHERE account_id=?').all(unconfiguredCard)).toEqual([]);
+          const retainedUnresolved = await active.request.get(`/api/receipts/${unresolved.intake.receiptId}/download`);
+          expect(retainedUnresolved.status()).toBe(200);
+          expect((await retainedUnresolved.body()).equals(unconfiguredPdf)).toBe(true);
+          manualRecovery = true;
+        }
         await writeFile(info.outputPath('evidence.json'), JSON.stringify({ profile, selectedTheme,
+          project: info.project.name, configuredViewport, actualViewport: active.viewportSize(),
+          actualUserAgent: await active.evaluate(() => navigator.userAgent), manualRecovery, bookingLinkDestinationExercised: false,
           realWorker: true, issuedCents: 17000, laterExpenseCents: 2300, postedCents: [-17000, -7000, 17000],
           balancesAfterPosting: [33000, -2300], balancesAfterUndo: [50000, -12300], protectedHistoryUnchanged: true,
           retainedSourceBytesEqual: true, undoGeometry, privacyScope: 'untouched editable amount presentation',
