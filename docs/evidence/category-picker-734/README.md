@@ -11,8 +11,9 @@ hides its popup; Enter reveals the field without choosing an invisible option.
 
 ## Current browser evidence
 
-Canonical WebKit passed **7/7**: four feature cases (both themes, true desktop
-1440 × 900 and configured phone 390 × 664) plus three setup cases. Each feature
+Canonical WebKit passed **9/9**: four feature cases (both themes, true desktop
+1440 × 900 and configured phone 390 × 664), two unchanged capture-dialog
+regressions, and three setup cases. Each feature
 case reached grouped IDs, contacts last, 63 entries, manual list scrolling,
 keyboard traversal beyond entry 60, twelve upward steps below the sticky heading,
 viewport resize, active-option visibility,
@@ -21,7 +22,7 @@ Desktop DPR is 1 with a fine pointer. Phone DPR is 3 with a coarse pointer;
 `maxTouchPoints` was 0. This is browser emulation, not physical-device evidence.
 
 The initial desktop popup was 466 pixels high; phone was 320 pixels. The phone
-capture below follows the resize/reveal stress and has a confined 146-pixel
+capture below follows the resize/reveal stress and has a confined 185-pixel
 popup. These captures show the scrolled list tail, not every option at once.
 The sticky availability heading can cover the preceding partly scrolled row;
 the active contact remains visible. The popup overlays lower form fields. A wrapped
@@ -57,22 +58,51 @@ The product now uses the actual heading boundary and outward-rounded list-only
 scroll targets; no visibility tolerance was added. Twelve real ArrowUp steps to
 literal category 49 and twelve ArrowDown steps back to the same contact pass.
 
-At a fixed phone height of 450 pixels the anchor legitimately leaves the dialog
-clip. The test explicitly requires hiding and Enter recovery with the same draft,
-selection and no extra POST. Desktop retains the visible-resize assertion; both
-contexts also retain the later deliberate manual-hide/reopen checks.
-The current **7/7** reuses the exact 166 compiled files from the fresh E2E build
-of the final product source after this NEW-test-only phone fixture correction.
-Historical pass totals are not added together. An earlier full check was
-intentionally stopped when review found the heading defect; it has no completed
-unit aggregate or normal-build result. The final required full check on base `9baa582f` with this feature's reviewed
-source (freeze `4a22a00d`) passed **578 files / 5,162 tests** (832.22s
-Vitest duration) with AGE1 and one worker. `npm run check` and the subsequent
-normal `npm run build` both exited 0. Only factual result text in this guide and
-the Roadmap changed afterwards; exact-head CI and LIVE remain pending.
+PR #736's first exact-head CI exposed capture interaction regressions despite the
+historical focused 7/7 and full-check checkpoint. Two unchanged capture-dialog
+cases reproduced locally: a newly focused second split was below the scroller,
+and native scroll alignment left a suggestion chip partly clipped. Fresh focus
+now reveals its anchor once; subsequent manual scrolling still hides an offscreen
+popup. The viewport owns the root clip independently of document scrolling.
+A one-pixel scroller scroll-padding reserves real alignment clearance: the measured
+native scroll moved from 14 to 15 pixels and the unchanged strict visibility ratio
+reached exactly 1. Ineffective target scroll-margin attempts are retained in the
+outside diagnostic history, not the product. A NEW root-viewport regression fails
+with only the old root clipping loop restored and passes with the correction.
+
+After resizing to height 450px, the phone test first verifies unchanged body scroll,
+then explicitly arranges and proves a fully offscreen anchor before requiring
+hidden/Enter recovery with the same draft, selection and no extra POST. A partly
+visible anchor may correctly retain its popup. Desktop retains visible-resize
+checks; both contexts retain the later deliberate manual-hide/reopen checks.
+
+The current **9/9** reuses the exact 166 compiled files from fresh E2E build 62562
+on the corrected product. Combined run 42762 performs no rebuild. It includes the
+previously failing unchanged capture-dialog cases and all four NEW feature cases;
+historical and focused pass totals are not added together. The earlier full check
+on base `9baa582f` plus feature freeze `4a22a00d` passed **578 files / 5,162 tests**
+(832.22s Vitest duration, AGE1/one worker) and normal production build. That is a
+historical checkpoint before these interaction corrections. An even earlier
+interrupted check has no completed unit aggregate or normal-build result.
+The current AGE1/two-worker check on base `9baa582f`, parent `a216d438` and
+corrected source/evidence freeze `b8e60568` completed with **577 files passed /
+1 failed** (578 total), and **5,162 tests passed / 1 failed** (5,163 total), in
+521.57s Vitest duration.
+
+The sole failure is the unchanged server test
+`statement-settlement-727.test.ts:202` exceeding its existing 5,000ms limit; no
+numerical mismatch was reported. The check exited 1, so its pipeline did not run
+a production build. A separately invoked normal `npm run build` then exited 0
+(Vite 7.57s; esbuild 547ms). This independent build does not make the required
+check green.
+
+Only factual result prose in this guide and the Roadmap changed afterwards; no
+retry, timeout change or old-test edit was made. Exact new-head
+Chromium/required CI and serial LIVE remain pending;
+the failed first PR head is not represented as accepted.
 
 - [x] Independent source review and four original screenshot review
-- [x] Canonical local WebKit 7/7, no skips, retries or flaky cases
-- [x] Required AGE full check and normal production build on final source
+- [x] Canonical local WebKit 9/9, no skips, retries or flaky cases
+- [ ] Required AGE full check and normal production build on current corrected source
 - [ ] Exact-head Chromium/required CI
 - [ ] Serial merge and verified LIVE revision

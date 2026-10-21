@@ -132,7 +132,12 @@ export function Combobox({
       let bottom = top + (viewport?.height ?? window.innerHeight);
       let left = viewport?.offsetLeft ?? 0;
       let right = left + (viewport?.width ?? window.innerWidth);
-      for (let node = field.parentElement; node; node = node.parentElement) {
+      // visualViewport already defines the root clip; the root document rect scrolls.
+      for (
+        let node = field.parentElement;
+        node && node !== document.documentElement;
+        node = node.parentElement
+      ) {
         const style = getComputedStyle(node);
         const box = node.getBoundingClientRect();
         if (/(auto|scroll|hidden|clip)/.test(style.overflowY)) {
@@ -234,6 +239,12 @@ export function Combobox({
             value={value}
             placeholder={placeholder}
             onFocus={(e) => {
+              // A newly focused split row can be outside the sheet after it grows. Reveal the
+              // anchor once; later manual scrolling still hides an offscreen picker.
+              if (captureCategory) {
+                e.currentTarget.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+                setAnchorVisible(true);
+              }
               setFocused(true);
               setDismissed(false);
               onFocusChange?.(true);

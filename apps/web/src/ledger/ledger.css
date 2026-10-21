@@ -1537,6 +1537,8 @@
   font-size: var(--fs-title);
 }
 .bk-body {
+  /* Keep native scroll alignment clear of fractional clipping at the sheet edge. */
+  scroll-padding-block: 1px;
   min-height: 0;
   overflow: auto;
   padding: 16px 20px 12px;

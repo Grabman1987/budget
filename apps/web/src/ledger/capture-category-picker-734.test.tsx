@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '@budget/ui';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { SplitEditor, captureLines } from './split-editor';
 import { buildCreate, emptyDraft, type BookingDraft } from './booking-model';
 import { Combobox } from './combobox';
@@ -151,4 +151,35 @@ it('preserves the default payee combobox cap and prefix matching', async () => {
     'Muster Anfang',
     'Vorher Muster',
   ]);
+});
+
+it('keeps a focused category picker visible when the root document is scrolled behind its modal', async () => {
+  const oldOverflowX = document.documentElement.style.overflowX;
+  const oldOverflowY = document.documentElement.style.overflowY;
+  document.documentElement.style.overflowX = 'hidden';
+  document.documentElement.style.overflowY = 'hidden';
+  expect(getComputedStyle(document.documentElement).overflowX).toBe('hidden');
+  expect(getComputedStyle(document.documentElement).overflowY).toBe('hidden');
+  const rect = vi
+    .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+    .mockReturnValue(new DOMRect(16, 100, 233, 44));
+  const rootRect = vi
+    .spyOn(document.documentElement, 'getBoundingClientRect')
+    .mockReturnValue(new DOMRect(0, -1000, 390, 3000));
+  const rootHeight = vi.spyOn(document.documentElement, 'clientHeight', 'get').mockReturnValue(768);
+  try {
+    const user = mount([category('cat-root', 'Kategorie sichtbar', 'Gruppe A')]);
+    const field = screen.getByRole('combobox', { name: 'Kategorie' });
+    await user.click(field);
+    act(() => window.dispatchEvent(new Event('resize')));
+    expect(field.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('option', { name: 'Kategorie sichtbar' })).toBeTruthy();
+    expect(screen.getByRole('listbox').hidden).toBe(false);
+  } finally {
+    rootHeight.mockRestore();
+    rootRect.mockRestore();
+    rect.mockRestore();
+    document.documentElement.style.overflowX = oldOverflowX;
+    document.documentElement.style.overflowY = oldOverflowY;
+  }
 });

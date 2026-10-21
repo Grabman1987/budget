@@ -1700,19 +1700,29 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
 
 ### #734 — Grouped, reachable category pickers
 
-- Bank review retains the exact eligible category IDs in native category groups;
-  capture places categories before contacts, including filtered matches. The
-  capture-only popup removes the 60-result cap, uses actual viewport/dialog bounds
-  and preserves compact fine-pointer rows and coarse targets of at least 44px.
-- [x] Independent source review; synthetic desktop/phone light/dark originals
-  and [qualified local evidence](evidence/category-picker-734/README.md).
-- [x] Current canonical WebKit 7/7 (four feature cases plus three setup): strict
-  sticky-heading bounds, twelve upward steps, outward-rounded scrolling, resize,
-  phone450 hidden/recovery, both-context manual hide/reopen, Axe and real capture
-  split/save/Undo. Bank confirmation transport alone is synthetic with exact
-  request/no-real-write oracles; no real bank-confirmation/Undo claim. Phone is
-  390×664 CSS pixels, DPR3, raw touch count0. Earlier interrupted full is not green.
-- [x] Required AGE1/one-worker full check: 578 files / 5,162 tests passed
-  (832.22s Vitest duration), then normal production build passed; base `9baa582f`
-  plus reviewed feature freeze `4a22a00d`. Only factual result docs changed after that checkpoint.
-- [ ] Exact-head Chromium/required CI, serial merge and verified LIVE.
+- Bank review retains exact eligible category IDs in native groups. Capture places
+  categories before contacts, including filtered matches, removes its 60-result
+  cap, bounds the popup to viewport/dialog clips and retains compact fine-pointer
+  rows and coarse targets of at least 44px. Other consumers retain their defaults.
+- [x] Independent source and original desktop/phone light/dark review;
+      [qualified current evidence](evidence/category-picker-734/README.md).
+- [x] Current canonical WebKit 9/9: four feature cases, two unchanged capture-dialog
+      regressions and three setup cases. New-focus recovery, root viewport clipping,
+      real one-pixel native-scroll clearance, strict header-aware upward traversal,
+      explicit phone 450px hidden/Enter recovery, manual hide/reopen, Axe and real
+      capture split/save/Undo passed. Bank confirmation transport alone is synthetic;
+      no real bank-confirmation/Undo claim. Phone 390 × 664, DPR 3, raw touch count 0;
+      current poststress popup 185px, initial 320px. Combined run reused exact 166 files
+      from the corrected fresh E2E build, with no rebuild or added historical totals.
+- Historical AGE1/one-worker full: 578 files / 5,162 tests and normal build passed on
+  base `9baa582f` plus freeze `4a22a00d`, before the PR736 interaction corrections.
+- [ ] Current required AGE1/two-worker check: 577 files passed / 1 failed (578
+      total), 5,162 tests passed / 1 failed (5,163 total), 521.57s Vitest
+      duration. The unchanged #727 server test
+      `statement-settlement-727.test.ts:202` timed out at its existing 5,000ms
+      limit. Check exited 1; no pipeline build ran. Independent normal
+      production build subsequently passed (Vite 7.57s, esbuild 547ms); the
+      required full check remains failed. Base `9baa582f`, parent `a216d438`,
+      corrected freeze `b8e60568`. No retry/old-test edit; only factual result
+      prose changed afterwards.
+- [ ] Exact new-head Chromium/required CI, serial merge and verified LIVE.

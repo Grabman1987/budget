@@ -387,8 +387,20 @@ for (const profile of ['configured', 'desktop1440'] as const) {
             .toBeLessThan(initialBounds.clipBottom - initialBounds.clipTop);
           expect(await scroller.evaluate((el) => el.scrollTop)).toBe(scrollBefore);
           if (actual.coarse) {
-            // At this fixed phone height the field leaves the dialog's clipping region.
-            // Its popup must hide until an explicit key brings the field back into view.
+            // Fresh focus can scroll the anchor before resize. Arrange a fully hidden
+            // anchor explicitly; a partially visible field may correctly keep its popup.
+            await scroller.evaluate((el) => {
+              el.scrollTop = 0;
+            });
+            await expect
+              .poll(() =>
+                field.evaluate((el) => {
+                  const clip = el.closest('.bk-body')!.getBoundingClientRect(),
+                    box = el.getBoundingClientRect();
+                  return box.bottom <= clip.top || box.top >= clip.bottom;
+                }),
+              )
+              .toBe(true);
             await expect(list).toBeHidden();
             await expect(field).toHaveAttribute('aria-expanded', 'false');
             await field.press('Enter');
