@@ -1,68 +1,65 @@
 # Plan category filters — #589
 
-Synthetic evidence from source `376fe26ddc03f75b3c0399ea169b67ee47ec470d`.
-The current canonical WebKit run passed **7/7**: three setup cases and four
-feature cases, with no skips, retries or flaky results (60.745s). A fresh E2E
-build passed; all 166 compiled files and source/Git remained unchanged during
-native execution. Owned processes and containers were cleaned up.
+Current synthetic evidence uses source `193f78b5c9dc96384ea8624f56aac0e926395a95`.
+Canonical WebKit passed **7/7**: three setup and four feature cases, no skips,
+retries or flaky results (69.953s). A fresh E2E build passed; source/Git and all
+166 compiled files stayed unchanged during native execution. Owned processes
+and containers were cleaned up.
 
 ## Current original images
 
-| Profile | Light | Dark | Actual viewport | Pointer |
-| --- | --- | --- | --- | --- |
-| Desktop-shaped WebKit | [Original](desktop-light.png) | [Original](desktop-dark.png) | 1440 × 900 | Fine |
-| Configured WebKit iPhone | [Original](phone-light.png) | [Original](phone-dark.png) | 390 × 664 | Coarse |
+| Profile | Light | Dark | Viewport | Pointer | Before grid |
+| --- | --- | --- | --- | --- | --- |
+| Desktop-shaped WebKit | [Original](desktop-light.png) | [Original](desktop-dark.png) | 1440 × 900 | Fine | 114px |
+| Configured WebKit iPhone | [Original](phone-light.png) | [Original](phone-dark.png) | 390 × 664 | Coarse | 330px |
 
-These four files are byte-identical copies from the current run, without image
-editing. The desktop images show the clarified “2 vorgemerkt / ohne Kategorie”
-union beside the strict “Ohne Kategorie (1)” filter. The union counts a pending
-classified booking and a pending uncategorized booking once each; the strict
-filter includes only the latter. Counts, existing popover and financial data
-remain unchanged. The union chip lies beyond the initial phone header horizontal
-scroll; phone PNGs therefore match prior image bytes. Current DOM assertions
-verify the new text/title, not initial phone visibility of that chip.
+All four are byte-identical copies from the current run, without editing.
+Desktop search, segments and Optionen share one row with the inspector open;
+the measured table offset114px meets the unchanged120px desktop boundary.
+This measurement uses the NEW synthetic scene, not a claimed rerun of the old
+18-row browser fixture. Phone still wraps at44px target height; the desktop120px
+bound is not applied to its330px offset. Both desktop-shaped scenes use WebKit.
 
-Desktop search, segments and Optionen share one row with the inspector open.
-On phone they wrap without horizontal document overflow (scrollWidth 390).
-The seven new phone controls have 44px height and passed individual scroll/reveal,
-viewport bounds and centre-hit ownership checks. Their initial recorded positions
-follow selection-triggered scrolling, so this is not proof that all seven controls
-fit simultaneously in the visible viewport. Full-page phone PNGs include content
-below the fixed navigation; this is configured browser evidence, not a physical
-device or whole-page touch-target certification.
+The header union “2 vorgemerkt / ohne Kategorie” remains distinct from strict
+“Ohne Kategorie (1)”. On phone that union chip lies beyond the initial header
+horizontal scroll. Phone originals therefore retain earlier image bytes, but
+were copied and verified from this current archive; DOM assertions verify the
+label/title, not initial phone visibility of the chip.
 
-## Interaction and financial evidence
+## Current interactions and focused checks
 
-All four current feature cases passed keyboard/menu and selected-state checks,
-changed-region Axe, search/filter URL navigation, Back/Forward/reload, actual
-source-booking links and privacy. The real existing UI cover action moved donor
-10000/recipient−3000 cents to 7000/0. Its persisted audit group and real Undo
-restored 10000/−3000, while the account remained 96850 cents. No synthetic success
-transport replaced these financial writes.
+All four current native cases passed legacy triage→Gruppen and triage→Zeit
+navigation, keyboard/selected state, changed-region Axe, search/filter URL
+Back/Forward/reload, source links and privacy. The real UI cover action moved
+donor10000/recipient−3000 cents to7000/0; its persisted audit group and real Undo
+restored10000/−3000, with account96850 unchanged. No mocked financial transport
+replaced these writes.
 
-Separate focused runs passed NEW pure 3, real API 3 and current Router UI 5, including
-exact 51 booking IDs, 50+1 paging, cursor refusal, read-only state conservation and
-the literal 52 union versus 51 strict count/dedup case. Eight unchanged compatibility
-files / 70 tests passed. DB/server/Web types and scoped lint/format/CSS checks passed;
-latest label-related static/UI checks ran on the current source. Existing tests,
-financial writers and formulas are unchanged.
+On the current source, NEW RouterUI7, eight unchanged compatibility files/70 tests,
+Web types, scoped ESLint/Prettier and CSS scale all passed. New Router cases cover
+legacy grouping, view changes, explicit filters, All and stale saved-triage state;
+ordinary/time-view row eligibility remains unchanged. Earlier pure3/API3 pass
+receipts remain separate, including exact51 IDs/50+1/cursor/no-write assertions.
+No existing test, financial writer or formula changed.
 
-## Limits and remaining gates
+## Historical results and pending gates
 
-- Chromium desktop/mobile acceptance is **pending required exact-head CI**. The
-  earlier local combined run had seven passes and four Chromium failures before
-  launch because canonical headless shell1248 was absent; no Chromium product
-  assertion ran. Both desktop-shaped images here still use WebKit.
-- Required `BUDGET_REQUIRE_AGE=1 npm run check` passed on source/evidence checkpoint
-  `f40e03370d9d2d7613c7be5730c767f281f9b7e2`: 589 files / 5211 tests, no failures
-  or skips; normal production build passed. All 3650 source hashes and modes,
-  HEAD, index and process guards stayed unchanged. This later documentation-only
-  result update does not change product or test code.
-- Exact-head required CI, serial integration and verified LIVE remain pending.
-- The existing phone floating plus partly overlaps Monat abschließen; existing
-  category-name ellipses and fixed-navigation full-page screenshot behavior are
-  outside this filter packet and do not certify those controls.
+- The earlier AGE-required full check and normal production build passed on
+  `f40e03370d9d2d7613c7be5730c767f281f9b7e2`:589 files/5211 tests, zero failures
+  or skips. That was before the compactness/legacy-triage correction; it is **not**
+  a required-full result on the current193f source.
+- First PR744 CI on329d failed real unchanged browser contracts: desktop table
+  offset194px exceeded120px; legacy triage grouping/view transitions failed on
+  desktop/mobile/WebKit. Those failures remain archived. Current targeted/new
+  WebKit success is not an unchanged-OLD-browser or current-green-CI claim.
+- Corrected exact-head Chromium desktop/mobile and required CI, any further
+  required validation/build, serial integration and verified LIVE remain pending.
+  An older local run also had four Chromium prelaunch failures from absent
+  canonical shell1248; that environment gap does not explain the later CI defects.
 
-The initial invalid contact/transfer API fixture, first custom-input label lint
-failure and earlier unclarified-header images remain historical receipts. They
-are not counted as extra successful tests or substituted for these current images.
+Phone scrollWidth is390 with no horizontal document overflow. Individual new
+controls passed scroll/reveal, viewport and centre-hit checks; their initial raw
+positions follow selection scroll, so not all seven are claimed simultaneously
+visible. Full-page phone images include content below fixed navigation and are
+not physical-device/whole-page target proof. Existing FAB/month-close overlap
+and category-name ellipses remain outside this packet.

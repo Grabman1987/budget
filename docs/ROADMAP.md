@@ -1795,19 +1795,16 @@ explicit reanalysis/review. Upload and reanalysis never post money.
 
 ## #589 — URL-backed Plan filters: isolated acceptance packet
 
-Category-name search and five URL-backed filters share count/list predicates.
-“Überzogen” retains the existing cover controls above the list; “Ohne Kategorie”
-links actual source bookings with bounded paging. The older header now labels its
-separate “vorgemerkt / ohne Kategorie” union. Financial writers, formulas and all
-existing tests are unchanged.
+URL-backed category search/counts and the strict missing-category reader retain
+existing financial writers/formulas. The separate header union is explicitly
+labelled “vorgemerkt / ohne Kategorie”. Compact fine-pointer controls and legacy
+triage/view transitions are corrected without changing any existing test.
 
-- [x] NEW pure3, corrected real API3 and current RouterUI5 passed in separate focused runs: literal counts/IDs, hidden and multi-month predicates, exact51/50+1 paging, cursor refusal, URL/history/search, selection/collapse and no-write conservation.
-- [x] Eight unchanged compatibility files/70 tests, affected types and scoped lint/format/CSS passed. Current header wording has a literal52-versus51 union/dedup regression.
-- [x] Current canonical WebKit7/7 (setup3 + feature4), no skips/retries/flaky cases: desktop1440×900/configured390×664 in both themes, individual phone44px targets, keyboard, Axe, source links and real cover/audit/Undo. [Four original images and evidence limits](evidence/plan-filters-589/README.md).
-- [ ] Chromium desktop/mobile required exact-head CI. Earlier local Chromium4 failed before launch because the canonical browser was absent; no product assertion ran.
-- [x] Required AGE-enabled full check and normal production build on `f40e0337`: 589 files / 5211 tests passed, zero failures/skips; all 3650 source hashes/modes, HEAD/index and process guards stayed exact.
-- [ ] Exact-head required CI, serial integration and verified LIVE; no queue-completion claim.
+- [x] Earlier NEW pure3/API3 passed with literal counts/IDs, hidden/multi-month predicates, exact51/50+1 paging, cursor refusal and read-only conservation.
+- [x] Current193f NEW RouterUI7 and unchanged compatibility8files/70tests passed; Web types and scoped lint/format/CSS passed. Legacy entry/view/All/explicit-filter and saved-state cases are covered.
+- [x] Current WebKit7/7 (setup3 + feature4), no skips/retries/flaky cases: both themes, desktop1440×900 table offset114px≤120 and configured390×664 with44px targets/no overflow; legacy triage roundtrips, keyboard/Axe/source links and real cover/audit/Undo passed. [Four current original images and limits](evidence/plan-filters-589/README.md).
+- [x] Historical required AGE full check and normal production build passed onf40e0337:589 files/5211 tests, before the current compact/legacy correction; this is not a full-run result on193f.
+- [ ] Corrected exact-head required Chromium/CI, remaining required validation/build, serial integration and verified LIVE.
 
-Current WebKit source is `376fe26d`; its fresh E2E build and unchanged166-file
-compiled proof precede the successful full/build checkpoint `f40e0337`. Later
-result documentation changes no product or test code. Chromium CI/LIVE remain open.
+First329d CI's unchanged compact/triage browser failures remain archived; current
+targeted/WebKit results do not claim those old browser cases or current CI green.
