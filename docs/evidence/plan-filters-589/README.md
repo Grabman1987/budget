@@ -1,8 +1,8 @@
 # Plan category filters — #589
 
-Current synthetic evidence uses source `193f78b5c9dc96384ea8624f56aac0e926395a95`.
+Current synthetic evidence uses source `4d558ef94ae269e845cc18c6a102e52c432412dc`.
 Canonical WebKit passed **7/7**: three setup and four feature cases, no skips,
-retries or flaky results (69.953s). A fresh E2E build passed; source/Git and all
+retries or flaky results (80.325s). A fresh E2E build passed; source/Git and all
 166 compiled files stayed unchanged during native execution. Owned processes
 and containers were cleaned up.
 
@@ -13,11 +13,13 @@ and containers were cleaned up.
 | Desktop-shaped WebKit | [Original](desktop-light.png) | [Original](desktop-dark.png) | 1440 × 900 | Fine | 114px |
 | Configured WebKit iPhone | [Original](phone-light.png) | [Original](phone-dark.png) | 390 × 664 | Coarse | 330px |
 
-All four are byte-identical copies from the current run, without editing.
+All four match the current run byte-for-byte; no image replacement was needed.
 Desktop search, segments and Optionen share one row with the inspector open;
 the measured table offset114px meets the unchanged120px desktop boundary.
 This measurement uses the NEW synthetic scene, not a claimed rerun of the old
-18-row browser fixture. Phone still wraps at44px target height; the desktop120px
+18-row desktop browser fixture. Separately, the unchanged OLD WebKit compact
+case plus setup3 passed4/4 on193f (46.582s), reaching all18 rows/two groups and
+its unchanged76px row/group and152px band bounds, cents, keyboard and multi-month assertions. Phone still wraps at44px target height; the desktop120px
 bound is not applied to its330px offset. Both desktop-shaped scenes use WebKit.
 
 The header union “2 vorgemerkt / ohne Kategorie” remains distinct from strict
@@ -35,8 +37,9 @@ donor10000/recipient−3000 cents to7000/0; its persisted audit group and real U
 restored10000/−3000, with account96850 unchanged. No mocked financial transport
 replaced these writes.
 
-On the current source, NEW RouterUI7, eight unchanged compatibility files/70 tests,
-Web types, scoped ESLint/Prettier and CSS scale all passed. New Router cases cover
+On predecessor193f, NEW RouterUI7, eight unchanged compatibility files/70 tests,
+Web types, scoped ESLint/Prettier and CSS scale all passed. Current4d558 scoped
+ESLint/Prettier/CSS also passed. New Router cases cover
 legacy grouping, view changes, explicit filters, All and stale saved-triage state;
 ordinary/time-view row eligibility remains unchanged. Earlier pure3/API3 pass
 receipts remain separate, including exact51 IDs/50+1/cursor/no-write assertions.
@@ -47,11 +50,16 @@ No existing test, financial writer or formula changed.
 - The earlier AGE-required full check and normal production build passed on
   `f40e03370d9d2d7613c7be5730c767f281f9b7e2`:589 files/5211 tests, zero failures
   or skips. That was before the compactness/legacy-triage correction; it is **not**
-  a required-full result on the current193f source.
+  a required-full result on the current4d558 source.
 - First PR744 CI on329d failed real unchanged browser contracts: desktop table
   offset194px exceeded120px; legacy triage grouping/view transitions failed on
   desktop/mobile/WebKit. Those failures remain archived. Current targeted/new
   WebKit success is not an unchanged-OLD-browser or current-green-CI claim.
+- CI on4dbab then reported unchanged Sparziele light/dark visual failures. The
+  compact rules had matched its shared plan/ptoolbar classes. Current4d558 restricts
+  the entire added block to the month-only root, retaining declarations/media and
+  leaving all baseline images untouched. Goals visual acceptance needs updated CI;
+  this current month-only WebKit run is not a Goals browser proof.
 - Corrected exact-head Chromium desktop/mobile and required CI, any further
   required validation/build, serial integration and verified LIVE remain pending.
   An older local run also had four Chromium prelaunch failures from absent
