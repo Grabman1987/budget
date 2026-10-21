@@ -1,0 +1,47 @@
+[
+  {
+    "path": "docs/handoff/700-offline-receipt-ui/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/700-offline-receipt-ui/README.md",
+    "size": 488,
+    "sha256": "338144d5c20230d0beb95c86364c8c5771511916f60dd7cdd4742da7809474bb"
+  },
+  {
+    "path": "docs/handoff/700-offline-receipt-ui/preservation.json",
+    "size": 897,
+    "sha256": "adfb531e6d37d81abf34dd31bc85bd28b63ca238dc83872b5d4f9d9a168a2ec2"
+  },
+  {
+    "path": "docs/handoff/700-offline-receipt-ui/tracked-head.patch",
+    "size": 16755,
+    "sha256": "5f5144bd294dc6e91eefdb85433ff218a7bc50b322e8a4abc6f9e572ac50ba44"
+  },
+  {
+    "path": "docs/handoff/700-offline-receipt-ui/untracked/apps/web/src/auth/login-receipt-privacy.test.tsx",
+    "size": 5659,
+    "sha256": "39824795b1034f31a87abde3c1759b65c078082612d6db87aff41d553aa52aa0"
+  },
+  {
+    "path": "docs/handoff/700-offline-receipt-ui/untracked/apps/web/src/pages/security-receipt-privacy.test.tsx",
+    "size": 3855,
+    "sha256": "977d1ab9f07087d86b19b3be71b3b905b60b86e8992836f25f66f0d95527ff88"
+  },
+  {
+    "path": "docs/handoff/700-offline-receipt-ui/untracked/apps/web/src/pwa/receipt-privacy-observer.test.ts",
+    "size": 3286,
+    "sha256": "a39f5c4450f0486d4e4bd681482d18b7daef1834dd40da1cdd9276cde4171015"
+  },
+  {
+    "path": "docs/handoff/700-offline-receipt-ui/untracked/apps/web/src/pwa/receipt-queue-ui.test.tsx",
+    "size": 9773,
+    "sha256": "ba833b6e31e0f12b8f925dfff8cf4ff012aa9cfaa4353b3b86bce0056c922ba3"
+  },
+  {
+    "path": "docs/handoff/700-offline-receipt-ui/untracked/apps/web/src/pwa/receipt-queue-ui.tsx",
+    "size": 17452,
+    "sha256": "d37deacde03c365c40435517c66d446a6619441626e5ef568f6c269ae6a23847"
+  }
+]

@@ -1,0 +1,444 @@
+diff --git a/apps/web/src/auth/login-page.tsx b/apps/web/src/auth/login-page.tsx
+index 6c7c96eeb762be2de57ac26201f470dd8782d7ef..3ba6acd6c841efa54f5501fb7e44effd8fc8e836 100644
+--- a/apps/web/src/auth/login-page.tsx
++++ b/apps/web/src/auth/login-page.tsx
+@@ -1,6 +1,7 @@
+ import { Button, Field, TextInput } from '@budget/ui';
+-import { useState, type FormEvent } from 'react';
++import { useEffect, useRef, useState, type FormEvent } from 'react';
+ import { recoveryLogin } from './api';
++import { prepareReceiptLogin, finishReceiptLogin } from '../pwa/receipt-queue-ui';
+ import { AuthLayout } from './auth-layout';
+ import { authenticateWithPasskey, authErrorMessage } from './webauthn';
+ 
+@@ -11,6 +12,15 @@ export interface LoginPageProps {
+ 
+ /** Usernameless sign-in with a passkey; the recovery code is the quiet fallback. */
+ export function LoginPage({ onAuthenticated }: LoginPageProps) {
++  const mounted = useRef(false);
++  const attempt = useRef(0);
++  useEffect(() => {
++    mounted.current = true;
++    return () => {
++      mounted.current = false;
++      attempt.current++;
++    };
++  }, []);
+   const [recovery, setRecovery] = useState(false);
+   const [code, setCode] = useState('');
+   const [busy, setBusy] = useState(false);
+@@ -19,10 +29,17 @@ export function LoginPage({ onAuthenticated }: LoginPageProps) {
+   const run = async (action: () => Promise<void>, context: 'login' | 'recovery') => {
+     setBusy(true);
+     setError(undefined);
++    const current = ++attempt.current;
++    const active = () => mounted.current && current === attempt.current;
+     try {
++      const receiptTicket = await prepareReceiptLogin();
++      if (!active()) return;
+       await action();
+-      await onAuthenticated();
++      if (!active()) return;
++      await finishReceiptLogin(context === 'login' ? 'new-login' : 'new-recovery', receiptTicket);
++      if (active()) await onAuthenticated();
+     } catch (caught) {
++      if (!active()) return;
+       setError(authErrorMessage(caught, context));
+       setBusy(false);
+     }
+diff --git a/apps/web/src/main.tsx b/apps/web/src/main.tsx
+index dcdba289b2dad3f4419cbf7e8dc2b8cb06ed5ef2..c3a51010417040c334faab924a62be4667f89452 100644
+--- a/apps/web/src/main.tsx
++++ b/apps/web/src/main.tsx
+@@ -9,6 +9,8 @@ import './styles.css';
+ import { PwaShell } from './pwa/pwa';
+ import { ToastProvider } from '@budget/ui';
+ import { QueueProvider } from './pwa/queue-ui';
++import { ReceiptQueueProvider } from './pwa/receipt-queue-ui';
++import { LoginPage } from './auth/login-page';
+ 
+ initAmountPrivacy();
+ 
+@@ -20,9 +22,13 @@ createRoot(container).render(
+     <QueryClientProvider client={queryClient}>
+       <ToastProvider>
+         <QueueProvider>
+-          <PwaShell>
+-            <RouterProvider router={router} />
+-          </PwaShell>
++          <ReceiptQueueProvider
++            renderReauthentication={(done) => <LoginPage onAuthenticated={done} />}
++          >
++            <PwaShell>
++              <RouterProvider router={router} />
++            </PwaShell>
++          </ReceiptQueueProvider>
+         </QueueProvider>
+       </ToastProvider>
+     </QueryClientProvider>
+diff --git a/apps/web/src/pages/security-page.tsx b/apps/web/src/pages/security-page.tsx
+index 77e74537d954fa31506db4dc33afcd776238650a..99d56e105089e3c948f80847600a985b882de1a2 100644
+--- a/apps/web/src/pages/security-page.tsx
++++ b/apps/web/src/pages/security-page.tsx
+@@ -26,6 +26,7 @@ import { SECURITY_META } from '../nav/pages';
+ import { PageFrame } from './placeholder-page';
+ import { clearDeviceFinancialData } from '../pwa/local-data';
+ import { StorageStatus } from '../pwa/storage-status';
++import { startReceiptSignOut } from '../pwa/receipt-queue-ui';
+ 
+ const RECOVERY_CODE_COUNT = 10;
+ 
+@@ -117,13 +118,18 @@ export function SecurityPanel({ onLoggedOut }: SecurityPanelProps) {
+ 
+   const signOut = () =>
+     run(async () => {
++      const finishReceiptSignOut = startReceiptSignOut();
+       try {
+         await logout();
+       } finally {
+         // Also when the server could not be reached: the data must not stay on a device the user
+         // meant to sign out of. The error stays visible; the hand-over happens only on success.
+         queryClient.clear();
+-        await clearDeviceFinancialData();
++        try {
++          await clearDeviceFinancialData();
++        } finally {
++          await finishReceiptSignOut();
++        }
+       }
+       onLoggedOut();
+     });
+@@ -282,6 +288,11 @@ export function SecurityPanel({ onLoggedOut }: SecurityPanelProps) {
+           <Button variant="ghost" disabled={busy} onClick={() => void signOut()}>
+             Abmelden
+           </Button>
++          <p className="field-hint">
++            Abmelden löscht wartende Belegdateien auf diesem Gerät, auch wenn der Server nicht
++            erreichbar ist. Nicht gesendete Buchungstexte bleiben unverändert. Eine nur abgelaufene
++            Sitzung behält die Dateien für die erneute Anmeldung.
++          </p>
+         </div>
+       </section>
+     </div>
+diff --git a/apps/web/src/pwa/pwa.tsx b/apps/web/src/pwa/pwa.tsx
+index 0216f99a0f7eaa5ade1096dcd228562856a14f0b..78f2e583bcc0660a70af312c70e82883876b4ce2 100644
+--- a/apps/web/src/pwa/pwa.tsx
++++ b/apps/web/src/pwa/pwa.tsx
+@@ -4,6 +4,7 @@ import { ApiError } from '../api/http';
+ import { AUTH_STATUS_KEY, queryClient } from '../auth/status-query';
+ import './pwa.css';
+ import { QueueCapture, QueueList } from './queue-ui';
++import { ReceiptQueueAccess } from './receipt-queue-ui';
+ 
+ function subscribeAuthStatus(setHasConnected: (connected: boolean) => void) {
+   return queryClient.getQueryCache().subscribe(({ query }) => {
+@@ -113,6 +114,9 @@ export function PwaShell({ children }: { children: ReactNode }) {
+           Offline · Angezeigte Daten können veraltet sein. Neue Buchungen warten auf diesem Gerät.
+         </div>
+       )}
++      <div className="receipt-device-entry">
++        <ReceiptQueueAccess />
++      </div>
+       {hasConnected ? (
+         children
+       ) : (
+diff --git a/apps/web/src/pwa/receipt-queue-store.ts b/apps/web/src/pwa/receipt-queue-store.ts
+index a3f91b80a8e09960d3eafbd6b5f180a447cfd650..673149bbff9e583d2ce5ccea4a1f8dd4cd3c07d8 100644
+--- a/apps/web/src/pwa/receipt-queue-store.ts
++++ b/apps/web/src/pwa/receipt-queue-store.ts
+@@ -35,6 +35,27 @@ const STORAGE_PROBE = 'budget-receipt-queue-storage-capability-check.';
+ const TIMEOUT = 3000;
+ const LIMIT = 15 * 1024 * 1024;
+ const listeners = new Set<() => void>();
++export type ReceiptQueuePrivacyReason = 'intent' | 'fence';
++const privacyListeners = new Set<(reason: ReceiptQueuePrivacyReason) => void>();
++function notifyPrivacy(reason: ReceiptQueuePrivacyReason) {
++  for (const listener of privacyListeners) {
++    try {
++      listener(reason);
++    } catch {
++      /* UI failure cannot prevent native privacy fencing. */
++    }
++  }
++}
++/** Privacy-only presentation notifications; never authorization, storage repair or a timer. */
++export function subscribeReceiptQueuePrivacy(
++  listener: (reason: ReceiptQueuePrivacyReason) => void,
++) {
++  observe();
++  privacyListeners.add(listener);
++  return () => {
++    privacyListeners.delete(listener);
++  };
++}
+ const knownHolds = new Set<string>();
+ let generation = 0;
+ let observing = false;
+@@ -64,12 +85,13 @@ function listChanged() {
+     /* Persistence, not notification, establishes durability. */
+   }
+ }
+-function invalidate() {
++function invalidate(privacy?: ReceiptQueuePrivacyReason) {
+   generation++;
++  if (privacy) notifyPrivacy(privacy);
+   notifyListeners();
+ }
+ function announce() {
+-  invalidate();
++  invalidate('fence');
+   try {
+     channel?.postMessage('changed');
+   } catch {
+@@ -79,18 +101,28 @@ function announce() {
+ function observeCurrentFence() {
+   try {
+     const current = localStorage.getItem(SIGNAL);
++    const privacy =
++      held() ||
++      (observedEpoch !== undefined && observedEpoch !== null && current !== observedEpoch);
+     if (held() || current !== observedEpoch) {
+       observedEpoch = current;
+-      invalidate();
++      invalidate(privacy ? 'fence' : undefined);
+     }
+   } catch {
+-    invalidate();
++    invalidate('fence');
+   }
+ }
+ function observe() {
+   if (observing) return;
+   observing = true;
+   window.addEventListener('storage', (event) => {
++    // Preserve the queued intent event even if a fast sibling already removed its marker.
++    if (event.key?.startsWith(HOLD) && event.newValue === 'pending') notifyPrivacy('intent');
++    if (
++      event.key === null ||
++      (event.key === SIGNAL && event.oldValue !== null && event.newValue !== event.oldValue)
++    )
++      notifyPrivacy('fence');
+     if (event.key === null || event.key === SIGNAL || event.key?.startsWith(HOLD))
+       observeCurrentFence();
+   });
+@@ -100,7 +132,10 @@ function observe() {
+       channel.onmessage = (event: MessageEvent<unknown>) => {
+         const data = event.data;
+         if (data === 'list') notifyListeners();
+-        else if (typeof data === 'object' && data !== null && 'kind' in data) {
++        else if (data === 'changed') {
++          notifyPrivacy('fence');
++          observeCurrentFence();
++        } else if (typeof data === 'object' && data !== null && 'kind' in data) {
+           if (
+             data.kind === 'hold' &&
+             'id' in data &&
+@@ -109,7 +144,7 @@ function observe() {
+           ) {
+             if (!knownHolds.has(data.id)) {
+               knownHolds.add(data.id);
+-              invalidate();
++              invalidate('intent');
+             }
+           } else if (data.kind === 'release' && 'ids' in data && Array.isArray(data.ids)) {
+             let changed = false;
+@@ -270,6 +305,7 @@ export async function beginReceiptQueue(): Promise<ReceiptQueueToken> {
+     const meta = tx.objectStore('meta');
+     nativeHolds(tx, (holds) => {
+       if (holds.length) {
++        notifyPrivacy('fence');
+         tx.abort();
+         return;
+       }
+@@ -316,6 +352,7 @@ async function guarded<T>(
+   const result = await access<T>(mode, (tx, finish) => {
+     nativeHolds(tx, (holds) => {
+       if (holds.length) {
++        notifyPrivacy('fence');
+         tx.abort();
+         return;
+       }
+@@ -507,7 +544,7 @@ function receiptQueueHold(recovery?: RecoverySnapshot) {
+   observe();
+   const id = `${HOLD}${crypto.randomUUID()}`;
+   knownHolds.add(id);
+-  invalidate();
++  invalidate('intent');
+   let localStorageFence = false;
+   try {
+     localStorage.setItem(id, 'pending');
+diff --git a/apps/web/src/receipts/receipt-section.tsx b/apps/web/src/receipts/receipt-section.tsx
+index e10ad8773f25a5fccee3cb92b7a9cc4275139498..aac3d73228e80d57f64dc72538c60d7a4cce3e76 100644
+--- a/apps/web/src/receipts/receipt-section.tsx
++++ b/apps/web/src/receipts/receipt-section.tsx
+@@ -1,11 +1,16 @@
+-import { Button, SectionHead, useToast } from '@budget/ui';
++import { Button, SectionHead } from '@budget/ui';
+ import { useQuery } from '@tanstack/react-query';
+-import { useId, useRef, useState } from 'react';
+-import { ApiError, notifyApiWrite, request } from '../api/http';
++import { useId, useState } from 'react';
++import { request } from '../api/http';
+ import { useBudgetWrite } from '../budget/use-category-writes';
+ import { nativeCurrency } from '../ledger/format';
+ import { bookingsQuery, LEDGER_KEY } from '../ledger/queries';
+ import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
++import {
++  ReceiptSelection,
++  ReceiptPendingList,
++  ReceiptDeviceDisclosure,
++} from '../pwa/receipt-queue-ui';
+ import './receipts.css';
+ 
+ interface Receipt {
+@@ -26,53 +31,12 @@ const receiptQuery = (bookingId?: string) => ({
+ 
+ /** Attach to a saved booking, or capture first into the inbox. All writes use shared undo toasts. */
+ export function ReceiptSection({ bookingId }: { bookingId?: string }) {
+-  const heading = useId(),
+-    uploadId = useId(),
+-    cameraId = useId();
+-  const picker = useRef<HTMLInputElement>(null),
+-    camera = useRef<HTMLInputElement>(null);
++  const heading = useId();
+   const [busy, setBusy] = useState(false),
+     [linking, setLinking] = useState<string | null>(null);
+   const receipts = useQuery(receiptQuery(bookingId));
+   const unlinked = useQuery({ ...receiptQuery(), enabled: Boolean(bookingId) });
+-  const write = useBudgetWrite(),
+-    toast = useToast();
+-  const upload = async (file: File | undefined) => {
+-    if (!file || busy) return;
+-    if (file.size > 15 * 1024 * 1024) {
+-      toast.show({ message: 'Ein Beleg darf höchstens 15 MB groß sein.' });
+-      return;
+-    }
+-    setBusy(true);
+-    await write(
+-      async () => {
+-        const data = new FormData();
+-        data.set('file', file);
+-        if (bookingId) data.set('bookingId', bookingId);
+-        let response: Response;
+-        try {
+-          response = await fetch('/api/receipts', {
+-            method: 'POST',
+-            credentials: 'same-origin',
+-            body: data,
+-          });
+-        } catch {
+-          throw new ApiError(0, 'network');
+-        }
+-        const result = (await response.json().catch(() => ({}))) as {
+-          groupId: string;
+-          error?: string;
+-          message?: string;
+-        };
+-        if (!response.ok)
+-          throw new ApiError(response.status, result.error ?? 'unknown', result.message);
+-        notifyApiWrite();
+-        return result;
+-      },
+-      () => (bookingId ? 'Beleg angehängt.' : 'Beleg unter Prüfen gespeichert.'),
+-    );
+-    setBusy(false);
+-  };
++  const write = useBudgetWrite();
+   const change = async (run: () => Promise<{ groupId: string }>, message: string) => {
+     if (busy) return;
+     setBusy(true);
+@@ -82,47 +46,9 @@ export function ReceiptSection({ bookingId }: { bookingId?: string }) {
+   return (
+     <section className="receipt-section" aria-labelledby={heading} aria-busy={busy}>
+       <SectionHead id={heading} title={bookingId ? 'Beleg' : 'Beleg ohne Buchung'} />
+-      <div className="receipt-actions">
+-        <input
+-          ref={picker}
+-          id={uploadId}
+-          className="sr-only"
+-          tabIndex={-1}
+-          type="file"
+-          accept="image/*,application/pdf"
+-          aria-label="Belegdatei auswählen"
+-          disabled={busy}
+-          onChange={(e) => {
+-            void upload(e.target.files?.[0]);
+-            e.target.value = '';
+-          }}
+-        />
+-        <input
+-          ref={camera}
+-          id={cameraId}
+-          className="sr-only"
+-          tabIndex={-1}
+-          type="file"
+-          accept="image/*,application/pdf"
+-          capture="environment"
+-          aria-label="Beleg fotografieren"
+-          disabled={busy}
+-          onChange={(e) => {
+-            void upload(e.target.files?.[0]);
+-            e.target.value = '';
+-          }}
+-        />
+-        <Button variant="ghost" disabled={busy} onClick={() => picker.current?.click()}>
+-          Datei anhängen
+-        </Button>
+-        <Button variant="ghost" disabled={busy} onClick={() => camera.current?.click()}>
+-          Foto aufnehmen
+-        </Button>
+-      </div>
+-      <p className="receipt-hint">
+-        JPEG, PNG, WebP, HEIC/HEIF oder PDF · höchstens 15 MB.{' '}
+-        {busy ? 'Wird gespeichert …' : 'HEIC/HEIF und PDF behalten ihre Metadaten.'}
+-      </p>
++      <ReceiptSelection disabled={busy} {...(bookingId ? { bookingId } : {})} />
++      <ReceiptDeviceDisclosure />
++      <ReceiptPendingList {...(bookingId ? { bookingId } : {})} />
+       {receipts.isPending && <LoadingNote what="Belege" />}
+       {receipts.isError && (
+         <ErrorNote what="Belege" error={receipts.error} onRetry={() => void receipts.refetch()} />
+diff --git a/apps/web/src/receipts/receipts.css b/apps/web/src/receipts/receipts.css
+index f825da356abb551fe78d0797bf54faa35e298be1..2289126024fb0f2ffd5ef0e29b0dca21f7591103 100644
+--- a/apps/web/src/receipts/receipts.css
++++ b/apps/web/src/receipts/receipts.css
+@@ -68,3 +68,39 @@
+   color: var(--ink);
+   padding-inline: 12px;
+ }
++.receipt-pending {
++  padding-block: 16px;
++  border-block: 1px solid var(--rule);
++  margin-block: 16px;
++}
++.receipt-pending h3 {
++  font-size: var(--fs-title);
++  margin: 0;
++  align-self: center;
++  overflow-wrap: anywhere;
++}
++.receipt-pending .receipt-actions {
++  align-items: center;
++}
++.receipt-device-warning {
++  padding: 12px 16px;
++  margin: 0;
++  color: var(--ink);
++  background: var(--raised);
++  border-bottom: 1px solid var(--rule);
++  overflow-wrap: anywhere;
++}
++.receipt-pending .btn {
++  min-height: 44px;
++}
++
++.receipt-device-entry {
++  display: flex;
++  justify-content: flex-end;
++  padding: 8px 16px;
++  border-bottom: 1px solid var(--rule);
++}
++.receipt-device-entry .btn {
++  min-height: 44px;
++  white-space: normal;
++}

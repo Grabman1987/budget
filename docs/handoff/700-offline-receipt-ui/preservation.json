@@ -1,0 +1,23 @@
+{
+  "state": "UNCOMMITTED WIP",
+  "worktree": "/workspace/cloud-receipt-ui-700",
+  "head": "922253a8aedad116ad84672cdb22b0011388e4f2",
+  "historicalContext": "Actual unpublished #700 UI/privacy WIP on a dependency checkpoint; preserve every dirty path separately.",
+  "trackedPaths": [
+    "apps/web/src/auth/login-page.tsx",
+    "apps/web/src/main.tsx",
+    "apps/web/src/pages/security-page.tsx",
+    "apps/web/src/pwa/pwa.tsx",
+    "apps/web/src/pwa/receipt-queue-store.ts",
+    "apps/web/src/receipts/receipt-section.tsx",
+    "apps/web/src/receipts/receipts.css"
+  ],
+  "untrackedPaths": [
+    "apps/web/src/auth/login-receipt-privacy.test.tsx",
+    "apps/web/src/pages/security-receipt-privacy.test.tsx",
+    "apps/web/src/pwa/receipt-privacy-observer.test.ts",
+    "apps/web/src/pwa/receipt-queue-ui.test.tsx",
+    "apps/web/src/pwa/receipt-queue-ui.tsx"
+  ],
+  "originalsMutated": false
+}
