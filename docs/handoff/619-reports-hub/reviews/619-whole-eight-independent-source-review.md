@@ -1,0 +1,24 @@
+# #619 — independent whole-eight source review
+
+**HOLD: one concrete P2 mobile navigation finding.** Reviewed all eight frozen files and complete diffs versus stack base `c12c67e08407412105a3d8bd578863291e5b23fa`; manifest SHA-256 `abe7cac99baef095163bcf8cfe46ee2f19c02d170ae8c9ba38447e267d2f5270`. All eight current SHA/modes match that manifest. Fresh public #619 and owner #487 comment6212523787 read. No repository edits, tests, application/runtime, formatting, builds or remote writes.
+
+## P2 — report switcher hidden by mobile title-block ancestors
+
+`report-navigation.tsx` adds the searchable switcher inside the existing `AreaHead` title node (`pages/area-head.tsx:166–170`). `AreaHead` keeps `titleOnMobile=false` for Reports. Shared `packages/ui/src/styles/components.css:214` hides `.titleblock-compact:not(.titleblock-title-mobile) .tb-title` below768px; its line273 hides the whole compact header if no visible fields remain. Existing `reports/period-quick-select.css:139–192` only restores the report title/navigation on desktop (`min-width:768px`). New `.report-heading`/`.report-navigation` mobile flex rules do not override either hidden ancestor. Therefore a390px user loses report registers and cannot see the requested replacement switcher. This is a source-determined visibility failure, not a browser result.
+
+Recommended bounded correction: make the report navigation visible through a reports-scoped mobile title/header rule or separate navigation placement, including headers with no remaining visible metadata cells. Preserve the single existing mobile app-header h1 (do not create a duplicate visible title), existing period controls, other areas' compact headers, keyboard/Escape behavior and44px targets. No shared global TitleBlock behavior needs changing. Sent directly to Case002 and Root.
+
+## Whole-scope source checks otherwise clear
+
+- Catalog has exactly16 unique canonical IDs, continuous1–16 numbers and the four groups matching the explicit owner34→16 mapping. Name/question filtering composes with selected group; native search input has a label and empty/result-count states. Merging the named financial report bodies and redirecting old slugs remain explicitly separate #620–623 work.
+- `ReportPage` dispatch and all financial report bodies/DTOs/queries/writers are unchanged. Old direct report and group routes remain live; group routes map to new filter context rather than becoming dead links. Report switching preserves only the existing period/trend/month scope whitelist, dropping source-specific saved-view/category parameters. Existing adjacent reports/shortcut logic is retained.
+- Report-only `AREAS.registers=[]` and removal of local ReportRegisters remove both PageFrame and hub register rows without modifying other areas. No direct register-index assumptions found in callers.
+- Session recents store at most three whitelisted actual visited catalog IDs; bounded1024-character parsing, deduplication and storage failure handling contain no report query, amount, name or financial payload. Old report IDs remain valid because old URLs/bodies are deliberately retained. Hub mount reads recents; names come from the static catalog, not private report contents.
+- #628 `SavedExplorerLinks` is reused immediately AFTER recents, before catalog; its independently reviewed server freshness/privacy/error/ID-only entry logic is unchanged. Hub/nav strings are static escaped React text; no new financial values, persistence writes, audit/Undo paths or provider calls.
+- Native details/summary and actual links provide keyboard operation; Escape closes/focuses summary, input has an accessible label. New controls specify44px mobile/coarse targets and use existing tokens. CSS list layout/wrapping/menu width is plausible but desktop one-screen geometry, clipping/focus/overflow/Axe and all phone/theme behavior remain unverified until later coherent-batch validation. Saved chips remain scrollable to bound hub height; no claim that every saved view or16rows were actually measured in one viewport.
+
+## Deferred existing-test compatibility, not an executed failure
+
+`reports/report-navigation.test.tsx` mocks `@tanstack/react-router` with ONLY `useNavigate`. The new nested `AppLink` requires `useLinkProps`, absent from that old fixture. When validation resumes, the coordinator should review a precise router-mock adaptation preserving every original adjacent destination and keyboard/typing/dialog guard assertion. No OLD test was edited or run, no budget raised. New validation remains owner-deferred.
+
+The Roadmap correctly records source implementation with every validation/CI/LIVE gate pending; this review does not close #619/#487 or approve redirects/financial consolidation. All unchanged portions can carry forward after the one bounded mobile correction; no broad reimplementation is required.

@@ -1,0 +1,39 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/619-reports-hub",
+  "sourceHead": "ceca8664db4384303634e5f6274d37e1393d3f88",
+  "originalBaseBeforeOwnedCommits": "c12c67e08407412105a3d8bd578863291e5b23fa",
+  "orderedCommits": [
+    {
+      "sha": "ceca8664db4384303634e5f6274d37e1393d3f88",
+      "parentBase": "c12c67e08407412105a3d8bd578863291e5b23fa",
+      "subject": "feat(reports): add the 16-entry searchable hub (validation pending)",
+      "paths": [
+        "apps/web/src/nav/areas.ts",
+        "apps/web/src/pages/reports-pages.tsx",
+        "apps/web/src/reports/report-hub-model.ts",
+        "apps/web/src/reports/report-hub.css",
+        "apps/web/src/reports/report-hub.tsx",
+        "apps/web/src/reports/report-navigation.css",
+        "apps/web/src/reports/report-navigation.tsx",
+        "docs/ROADMAP.md"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout ceca8664db4384303634e5f6274d37e1393d3f88 > OWN_OUTPUT/ceca8664db4384303634e5f6274d37e1393d3f88.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-ceca8664db4384303634e5f6274d37e1393d3f88.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/web/src/nav/areas.ts",
+    "apps/web/src/pages/reports-pages.tsx",
+    "apps/web/src/reports/report-hub-model.ts",
+    "apps/web/src/reports/report-hub.css",
+    "apps/web/src/reports/report-hub.tsx",
+    "apps/web/src/reports/report-navigation.css",
+    "apps/web/src/reports/report-navigation.tsx",
+    "docs/ROADMAP.md"
+  ],
+  "mixedSourceAncestry": false,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

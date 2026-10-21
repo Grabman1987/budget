@@ -1,0 +1,32 @@
+[
+  {
+    "path": "docs/handoff/619-reports-hub/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/619-reports-hub/README.md",
+    "size": 468,
+    "sha256": "e4a6ed663baab9c37f49b660868d857583221d4572316b6dd1f87581d282a4c8"
+  },
+  {
+    "path": "docs/handoff/619-reports-hub/owned/01-ceca8664db4384303634e5f6274d37e1393d3f88.patch",
+    "size": 26929,
+    "sha256": "9115f16980ac471aefb3350bae8df32e6457d88b03f260649fb294b319da3309"
+  },
+  {
+    "path": "docs/handoff/619-reports-hub/packet.json",
+    "size": 1751,
+    "sha256": "0583667f527d23f41adea2b69c3e8fcbcabf86b7256c15d2aae297c29027f90f"
+  },
+  {
+    "path": "docs/handoff/619-reports-hub/reviews/619-mobile-switcher-v2-whole-eight-independent-source-high.md",
+    "size": 2052,
+    "sha256": "2005c98a147689cce4e2fe7b588d2ae53fe5401b37fbe772497e675333afdb31"
+  },
+  {
+    "path": "docs/handoff/619-reports-hub/reviews/619-whole-eight-independent-source-review.md",
+    "size": 4868,
+    "sha256": "a532727d3997d70cecbf9e514e7eca40f47f5b1617759cfc705d7cc81a1158cf"
+  }
+]

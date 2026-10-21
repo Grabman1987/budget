@@ -1,0 +1,470 @@
+diff --git a/apps/web/src/nav/areas.ts b/apps/web/src/nav/areas.ts
+index 42b8f0cbfa8ac76b3809edc8d87a3097c00331d6..d96086680064797c6e7cf1559cd93f2ebf0e4b12 100644
+--- a/apps/web/src/nav/areas.ts
++++ b/apps/web/src/nav/areas.ts
+@@ -67,14 +67,7 @@ export const AREAS: ReadonlyArray<AreaDef> = [
+     no: '05',
+     to: '/reports',
+     icon: BarChart3,
+-    registers: [
+-      { id: 'katalog', label: 'Katalog', to: '/reports' },
+-      { id: 'monat', label: 'Monat', to: '/reports/gruppe/monat' },
+-      { id: 'ausgaben', label: 'Ausgaben', to: '/reports/gruppe/ausgaben' },
+-      { id: 'zukunft', label: 'Zukunft', to: '/reports/gruppe/zukunft' },
+-      { id: 'portfolio', label: 'Portfolio', to: '/reports/gruppe/portfolio' },
+-      { id: 'ueberblick', label: 'Überblick', to: '/reports/gruppe/ueberblick' },
+-    ],
++    registers: [],
+   },
+   {
+     id: 'einstellungen',
+diff --git a/apps/web/src/pages/reports-pages.tsx b/apps/web/src/pages/reports-pages.tsx
+index 9a43cefc16367119e6ed4d4a20555101ea5329f7..ca8885297690ed2de487dee74dd09599273ae0d9 100644
+--- a/apps/web/src/pages/reports-pages.tsx
++++ b/apps/web/src/pages/reports-pages.tsx
+@@ -1,23 +1,20 @@
+-import '../nav/registers.css';
+ import { WholePictureReport } from '../reports/whole-picture-report';
+ import { IncomeExpenseReport } from '../reports/income-expense-report';
+ import { PayrollReport } from '../reports/payroll-report';
+ import { ProjectsReport } from '../reports/projects-report';
+ import { ReportTrendContext } from '@budget/ui';
+ import { useSearch } from '@tanstack/react-router';
+-import { Registers, SectionHead, type RegisterItem } from '@budget/ui';
+-import { ChevronRight, Printer } from 'lucide-react';
++import { SectionHead } from '@budget/ui';
++import { useEffect } from 'react';
++import { Printer } from 'lucide-react';
+ import { BookRuleMetric } from '../rules/book-rule-metric';
+-import { areaById } from '../nav/areas';
+ import { REPORTS_CATALOG, REPORT_GROUP_PAGES, type PageMeta } from '../nav/pages';
+ import {
+-  REPORTS,
+-  REPORT_GROUPS,
+   findReport,
+   findReportGroup,
+   type ReportEntry,
+ } from '../nav/reports-catalog';
+-import { useNavigate, useParams } from '@tanstack/react-router';
++import { useParams } from '@tanstack/react-router';
+ import { AppLink } from '../shell/app-link';
+ import { AreaHead } from './area-head';
+ import { PlaceholderPage } from './placeholder-page';
+@@ -37,7 +34,8 @@ import { FinanzcheckReport } from '../reports/finanzcheck-report';
+ import { CompareReport } from '../reports/compare-report';
+ import { JahresreportPage } from '../reports/jahresreport-page';
+ import { ExplorerReportPage } from '../reports/explorer-report';
+-import { SavedExplorerLinks } from '../reports/saved-explorer-links';
++import { ReportHub } from '../reports/report-hub';
++import { rememberReport, type HubGroup } from '../reports/report-hub-model';
+ import { SpendingAnalysisReport } from '../reports/spending-analysis-report';
+ import { BudgetAdherenceReportPage } from '../reports/budget-adherence-report';
+ import { PlanningAccuracyReportPage } from '../reports/planning-accuracy-report';
+@@ -70,118 +68,28 @@ function Controls({ report }: { report: ReportEntry }) {
+   );
+ }
+ 
+-function ReportRegisters({ current }: { current: string }) {
+-  const items: RegisterItem[] = areaById('reports').registers.map((r) => ({
+-    id: r.id,
+-    label: r.label,
+-    href: r.to,
+-  }));
+-  return (
+-    <Registers
+-      label="Register von Reports"
+-      items={items}
+-      current={current}
+-      renderLink={(item, props) => (
+-        <AppLink to={item.href ?? '/reports'} {...props}>
+-          {item.label}
+-        </AppLink>
+-      )}
+-    />
+-  );
+-}
+-
+-/**
+- * Report catalog (Zeichnungsverzeichnis) as in the prototype: one table, a quiet heading row per
+- * assembly, positions 1.1 … 5.5. The name is the link; the whole row is a larger click target.
+- * On the phone the rows stack (position, name, question, chart form).
+- */
+-function ReportCatalogTable({
+-  groups,
+-  caption,
+-}: {
+-  groups: ReadonlyArray<(typeof REPORT_GROUPS)[number]>;
+-  caption: string;
+-}) {
+-  const navigate = useNavigate();
+-  return (
+-    <section className="rcat-wrap" aria-label={caption}>
+-      <table className="rcat">
+-        <thead>
+-          <tr>
+-            <th className="tech col-pos">Pos</th>
+-            <th className="tech">Report</th>
+-            <th className="tech">Frage</th>
+-            <th className="tech">Diagrammform</th>
+-            <th className="tech">Steuerung</th>
+-            <th>
+-              <span className="sr-only">Öffnen</span>
+-            </th>
+-          </tr>
+-        </thead>
+-        {groups.map((group) => (
+-          <tbody key={group.slug}>
+-            <tr className="rcat-grp">
+-              <td className="col-pos">{group.no}</td>
+-              <td colSpan={5}>
+-                <strong>{group.name}</strong>
+-                <span className="rcat-count">{group.items.length} Reports</span>
+-              </td>
+-            </tr>
+-            {group.items.map((report) => (
+-              <tr
+-                key={report.id}
+-                className="rcat-row"
+-                onClick={(event) => {
+-                  if ((event.target as HTMLElement).closest('a')) return;
+-                  void navigate({ to: `/reports/${report.id}` });
+-                }}
+-              >
+-                <td className="col-pos">{report.pos}</td>
+-                <td className="rcat-name">
+-                  <AppLink to={`/reports/${report.id}`}>{report.name}</AppLink>
+-                </td>
+-                <td className="rcat-q">{report.question}</td>
+-                <td className="rcat-form tech">{report.form}</td>
+-                <td className="rcat-ctl">
+-                  <Controls report={report} />
+-                </td>
+-                <td className="rcat-go" aria-hidden="true">
+-                  <ChevronRight size={16} strokeWidth={1.75} />
+-                </td>
+-              </tr>
+-            ))}
+-          </tbody>
+-        ))}
+-      </table>
+-    </section>
+-  );
+-}
+-
+-/** Report catalog: all five assemblies. */
++/** The canonical hub preserves report bodies and old direct links. */
+ export function ReportsCatalogPage() {
+   return (
+     <>
+-      <AreaHead
+-        meta={REPORTS_CATALOG}
+-        subtitle={`${REPORTS.length} Zeichnungen aus einem Hauptbuch`}
+-      />
+-      <ReportRegisters current="katalog" />
+-      <SavedExplorerLinks />
+-      <ReportCatalogTable groups={REPORT_GROUPS} caption="Katalog der Reports" />
++      <AreaHead meta={REPORTS_CATALOG} subtitle="16 Berichte aus einem Hauptbuch" />
++      <ReportHub />
+     </>
+   );
+ }
+ 
+-/** One register of the report catalog: the drawings of one assembly. */
++/** Existing group URLs remain useful without retaining the old register navigation. */
+ export function ReportGroupPage({ slug }: { slug: string }) {
+   const group = findReportGroup(slug);
+   const page = REPORT_GROUP_PAGES.find((p) => p.slug === slug);
+   if (!group || !page) return <ReportNotFound />;
++  const initial: Record<string, HubGroup> = {
++    monat: 'income', ausgaben: 'income', zukunft: 'wealth', portfolio: 'portfolio', ueberblick: 'reports',
++  };
+   return (
+     <>
+-      <AreaHead meta={REPORTS_CATALOG} subtitle={group.name} />
+-      <ReportRegisters current={slug} />
+-      <ReportCatalogTable groups={[group]} caption={`Reports der Baugruppe ${group.name}`} />
++      <AreaHead meta={REPORTS_CATALOG} subtitle="16 Berichte aus einem Hauptbuch" />
++      <ReportHub key={slug} initialGroup={initial[slug]} />
+     </>
+   );
+ }
+@@ -268,6 +176,7 @@ export function ReportGroupRoute() {
+ export function ReportRoute() {
+   const { reportId } = useParams({ strict: false }) as { reportId: string };
+   const search = useSearch({ strict: false }) as { trend?: boolean };
++  useEffect(() => { rememberReport(reportId); }, [reportId]);
+   return (
+     <ReportTrendContext.Provider
+       value={
+diff --git a/apps/web/src/reports/report-hub-model.ts b/apps/web/src/reports/report-hub-model.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..40d87dd27138cc1054c40d385d95353b23db5e53
+--- /dev/null
++++ b/apps/web/src/reports/report-hub-model.ts
+@@ -0,0 +1,65 @@
++import { findReport, type ReportEntry } from '../nav/reports-catalog';
++
++/** Navigation only: report bodies and their financial queries remain independent. */
++export const HUB_GROUPS = [
++  { id: 'income', name: 'Einnahmen/Ausgaben' },
++  { id: 'wealth', name: 'Vermögen' },
++  { id: 'portfolio', name: 'Portfolio' },
++  { id: 'reports', name: 'Berichte' },
++] as const;
++export type HubGroup = (typeof HUB_GROUPS)[number]['id'];
++export interface HubReport {
++  id: string;
++  no: number;
++  group: HubGroup;
++  name: string;
++  question: string;
++  sources: readonly string[];
++}
++
++/** Owner mapping in #487; content consolidation belongs to #621–623, not this catalog. */
++export const HUB_REPORTS: readonly HubReport[] = [
++  { id: 'einnahmen-ausgaben', no: 1, group: 'income', name: 'Einnahmen und Cashflow', question: 'Woher kommt das Geld, und was bleibt nach den Ausgaben?', sources: ['einnahmen', 'einnahmen-ausgaben', 'cashflow', 'projekte'] },
++  { id: 'ausgaben', no: 2, group: 'income', name: 'Ausgabenanalyse', question: 'Wofür und bei wem geben wir Geld aus?', sources: ['ausgaben', 'empfaenger'] },
++  { id: 'gehalt', no: 3, group: 'income', name: 'Gehalt', question: 'Was bleibt vom Brutto, und wie hat es sich entwickelt?', sources: ['gehalt'] },
++  { id: 'geldfluss', no: 4, group: 'income', name: 'Geldfluss', question: 'Wohin fließt das Geld?', sources: ['geldfluss'] },
++  { id: 'sparquote', no: 5, group: 'income', name: 'Sparquote und Geldalter', question: 'Wie viel bleibt, und wie alt ist das ausgegebene Geld?', sources: ['sparquote'] },
++  { id: 'budgettreue', no: 6, group: 'income', name: 'Budgettreue', question: 'Halten wir den Plan, und wie treffsicher ist die Prognose?', sources: ['budgettreue', 'planungstreue'] },
++  { id: 'abos', no: 7, group: 'income', name: 'Verträge und Kosten', question: 'Welche Verträge binden uns, und was kostet uns das Geld?', sources: ['abos', 'kosten'] },
++  { id: 'inflation', no: 8, group: 'income', name: 'Persönliche Inflation', question: 'Wie stark steigen unsere Preise?', sources: ['inflation'] },
++  { id: 'vermoegen-schulden', no: 9, group: 'wealth', name: 'Vermögen und Schulden', question: 'Was besitzen wir, was schulden wir, und wie entwickelt sich der Saldo?', sources: ['vermoegen', 'vermoegen-schulden', 'gesamtuebersicht'] },
++  { id: 'pdepots', no: 10, group: 'portfolio', name: 'Depots im Vergleich', question: 'Wie schlägt sich jedes Depot?', sources: ['pdepots'] },
++  { id: 'pallocation', no: 11, group: 'portfolio', name: 'Portfolio-Auswertung', question: 'Wie entwickeln sich Aufteilung, Einzahlungen, Wert und Rendite?', sources: ['pallocation', 'peinzahlungen', 'prendite'] },
++  { id: 'psteuern', no: 12, group: 'portfolio', name: 'Kosten, Steuern, Erträge', question: 'Was bleibt nach Gebühren und Steuern?', sources: ['psteuern'] },
++  { id: 'explorer', no: 13, group: 'reports', name: 'Auswertung', question: 'Wie verhalten sich Kategorien und Monate in einer eigenen Tabelle?', sources: ['explorer', 'kategorien', 'jahresansicht', 'gesamttabelle'] },
++  { id: 'vergleich', no: 14, group: 'reports', name: 'Zeitraumvergleich', question: 'Was hat sich gegenüber damals geändert?', sources: ['vergleich'] },
++  { id: 'onepager', no: 15, group: 'reports', name: 'Monatsbericht', question: 'Wie lief der Monat, auf einem Blatt?', sources: ['onepager'] },
++  { id: 'jahresreport', no: 16, group: 'reports', name: 'Jahresbericht', question: 'Wie lief das Jahr?', sources: ['jahresreport'] },
++];
++
++export const hubReport = (id: string) => HUB_REPORTS.find((report) => report.sources.includes(id));
++export const matchingHubReports = (search: string, group?: HubGroup) => {
++  const query = search.trim().toLocaleLowerCase('de-AT');
++  return HUB_REPORTS.filter((report) => (!group || report.group === group) &&
++    `${report.name} ${report.question}`.toLocaleLowerCase('de-AT').includes(query));
++};
++const RECENTS_KEY = 'budget.reports.recent.v1';
++
++/** Store at most three public catalog IDs, never query parameters or report data. */
++export function recentReports(): ReportEntry[] {
++  try {
++    const raw = sessionStorage.getItem(RECENTS_KEY);
++    if (!raw || raw.length > 1024) return [];
++    const parsed: unknown = JSON.parse(raw);
++    if (!Array.isArray(parsed)) return [];
++    const ids = [...new Set(parsed.filter((id): id is string => typeof id === 'string' && Boolean(findReport(id))))].slice(0, 3);
++    return ids.flatMap((id) => findReport(id) ?? []);
++  } catch { return []; }
++}
++export function rememberReport(id: string) {
++  const report = findReport(id);
++  if (!report) return;
++  try {
++    sessionStorage.setItem(RECENTS_KEY, JSON.stringify([report.id, ...recentReports().filter((item) => item.id !== report.id).map((item) => item.id)].slice(0, 3)));
++  } catch { /* Navigation also works when browser storage is unavailable. */ }
++}
+diff --git a/apps/web/src/reports/report-hub.css b/apps/web/src/reports/report-hub.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..95c598edc30c12372b1aee461628728ec0b830c2
+--- /dev/null
++++ b/apps/web/src/reports/report-hub.css
+@@ -0,0 +1,38 @@
++.report-hub { display: grid; gap: 8px; min-width: 0; }
++.report-hub h2 { margin: 0; font-size: var(--fs-title); line-height: var(--lh-title); }
++.report-hub p { margin: 4px 0; color: var(--ink-2); }
++.report-hub-recent { display: grid; grid-template-columns: 10rem minmax(0, 1fr); align-items: center; gap: 12px; }
++.report-hub-recent nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
++.report-hub-recent a { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; min-width: 0; padding: 4px 12px; border: 1px solid var(--rule-strong); border-radius: var(--radius-md); color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
++.report-hub-recent svg { flex: none; }
++.report-hub .saved-explorer-links { display: grid; grid-template-columns: 10rem minmax(0, 1fr); gap: 12px; align-items: center; min-height: 44px; }
++.report-hub .saved-explorer-links h2 { margin: 0; font-size: var(--fs-title); }
++.report-hub .saved-explorer-chips { max-height: 44px; overflow-y: auto; padding-inline: 2px; }
++.report-hub .saved-explorer-links p { margin: 0; }
++.report-hub-search { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
++.report-hub-search label { max-width: 100%; width: 24rem; }
++.report-hub-search input { width: 100%; min-width: 0; min-height: 44px; }
++.report-hub-groups { display: flex; flex-wrap: wrap; gap: 4px; margin-block: 4px; }
++.report-hub-groups button { min-height: 32px; padding: 4px 12px; border: 1px solid var(--rule-strong); border-radius: var(--radius-md); background: transparent; color: var(--ink); font-size: var(--fs-table); }
++.report-hub-groups button[aria-pressed='true'] { background: var(--primary); color: var(--on-primary); }
++.report-hub-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule-strong); }
++.report-hub-list li { border-bottom: 1px solid var(--rule); }
++.report-hub-list a { display: grid; grid-template-columns: 2ch minmax(12rem, 1fr) minmax(0, 1.7fr) 9rem 16px; align-items: center; gap: 12px; min-height: 32px; padding: 4px 8px; color: var(--ink); text-decoration: none; font-size: var(--fs-table); line-height: var(--lh-table); }
++.report-hub-number { font-variant-numeric: tabular-nums; color: var(--ink-3); }
++.report-hub-question, .report-hub-group { color: var(--ink-2); }
++.report-hub-group { font-size: var(--fs-meta); }
++.report-hub-list a:hover, .report-hub-recent a:hover { background: var(--tint); }
++@media (max-width: 1100px) { .report-hub-list a { grid-template-columns: 2ch minmax(10rem, 1fr) minmax(0, 1.7fr) 16px; } .report-hub-group { display: none; } }
++@media (max-width: 767px) {
++  .report-hub-search { align-items: stretch; flex-direction: column; gap: 4px; }
++  .report-hub-search label { width: 100%; }
++  .report-hub-recent, .report-hub .saved-explorer-links { grid-template-columns: 1fr; gap: 4px; }
++  .report-hub-recent nav { grid-template-columns: 1fr; }
++  .report-hub .saved-explorer-chips { max-height: 96px; }
++  .report-hub-groups button { min-height: 44px; }
++  .report-hub-list a { grid-template-columns: 2ch minmax(0, 1fr) 16px; gap: 4px 8px; min-height: 44px; padding-block: 8px; }
++  .report-hub-list strong { overflow-wrap: anywhere; }
++  .report-hub-question { grid-column: 2; grid-row: 2; }
++  .report-hub-list svg { grid-column: 3; grid-row: 1 / span 2; }
++}
++@media (pointer: coarse) { .report-hub-groups button, .report-hub-list a { min-height: 44px; } }
+diff --git a/apps/web/src/reports/report-hub.tsx b/apps/web/src/reports/report-hub.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..3f945480d267724eaa40808bc78921090966aa06
+--- /dev/null
++++ b/apps/web/src/reports/report-hub.tsx
+@@ -0,0 +1,52 @@
++import { useState } from 'react';
++import { ChevronRight } from 'lucide-react';
++import { AppLink } from '../shell/app-link';
++import { HUB_GROUPS, matchingHubReports, recentReports, type HubGroup } from './report-hub-model';
++import { SavedExplorerLinks } from './saved-explorer-links';
++import './report-hub.css';
++
++export function ReportHub({ initialGroup }: { initialGroup?: HubGroup | undefined }) {
++  const [group, setGroup] = useState<HubGroup | undefined>(initialGroup);
++  const [search, setSearch] = useState('');
++  const [recent] = useState(recentReports);
++  const reports = matchingHubReports(search, group);
++  return (
++    <div className="report-hub">
++      <section className="report-hub-recent" aria-labelledby="recent-reports-title">
++        <h2 id="recent-reports-title">Zuletzt geöffnet</h2>
++        {recent.length === 0 ? <p>Noch kein Bericht in dieser Sitzung geöffnet.</p> : (
++          <nav aria-label="Zuletzt geöffnete Berichte">
++            {recent.map((report) => <AppLink key={report.id} to={`/reports/${report.id}`}><span>{report.name}</span><ChevronRight size={16} aria-hidden="true" /></AppLink>)}
++          </nav>
++        )}
++      </section>
++      <SavedExplorerLinks />
++      <section className="report-hub-catalog" aria-labelledby="report-catalog-title">
++        <div className="report-hub-search">
++          <h2 id="report-catalog-title">Alle Berichte</h2>
++          <label><span className="sr-only">Berichte nach Name oder Frage suchen</span><input type="search" placeholder="Name oder Frage suchen" value={search} maxLength={160} autoComplete="off" onChange={(event) => setSearch(event.target.value)} /></label>
++        </div>
++        <div className="report-hub-groups" role="group" aria-label="Berichtsgruppen">
++          <button type="button" aria-pressed={!group} onClick={() => setGroup(undefined)}>Alle</button>
++          {HUB_GROUPS.map((item) => <button key={item.id} type="button" aria-pressed={group === item.id} onClick={() => setGroup(item.id)}>{item.name}</button>)}
++        </div>
++        <p className="sr-only" role="status">{reports.length} von 16 Berichten</p>
++        {reports.length === 0 ? <p>Kein Bericht passt zu dieser Suche und Gruppe.</p> : (
++          <ol className="report-hub-list" aria-label="Katalog der Reports">
++            {reports.map((report) => (
++              <li key={report.id} value={report.no}>
++                <AppLink to={`/reports/${report.id}`}>
++                  <span className="report-hub-number" aria-hidden="true">{report.no}</span>
++                  <strong>{report.name}</strong>
++                  <span className="report-hub-question">{report.question}</span>
++                  <span className="report-hub-group">{HUB_GROUPS.find((item) => item.id === report.group)?.name}</span>
++                  <ChevronRight size={16} aria-hidden="true" />
++                </AppLink>
++              </li>
++            ))}
++          </ol>
++        )}
++      </section>
++    </div>
++  );
++}
+diff --git a/apps/web/src/reports/report-navigation.css b/apps/web/src/reports/report-navigation.css
+index 71640d9f0f72bccfe7f69b8abf634f93f27724d3..4dc153f40416f7b202c26709aa32846c4d8d5a1e 100644
+--- a/apps/web/src/reports/report-navigation.css
++++ b/apps/web/src/reports/report-navigation.css
+@@ -22,3 +22,31 @@
+     display: none;
+   }
+ }
++
++.report-switcher { position: relative; min-width: 0; }
++.report-switcher summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 4px 8px; cursor: pointer; list-style: none; border: 1px solid var(--rule-strong); border-radius: var(--radius-md); font-size: var(--fs-table); }
++.report-switcher summary::-webkit-details-marker { display: none; }
++.report-switcher-menu { position: absolute; z-index: 20; right: 0; top: calc(100% + 4px); width: min(24rem, calc(100vw - 48px)); max-height: min(32rem, 65vh); overflow: auto; padding: 8px; border: 1px solid var(--rule-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); }
++.report-switcher-menu label, .report-switcher-menu input { display: block; width: 100%; min-width: 0; }
++.report-switcher-menu input { min-height: 44px; }
++.report-switcher-menu ul { list-style: none; margin: 4px 0 0; padding: 0; }
++.report-switcher-menu a { display: flex; align-items: center; min-height: 44px; padding: 4px 8px; color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
++.report-switcher-menu a[aria-current='page'], .report-switcher-menu a:hover { background: var(--tint); }
++.report-switcher-menu p { margin: 8px; }
++@media (max-width: 767px) {
++  /* Reports need their switcher even when the compact shared title block hides all fields.
++     Keep the report title in the existing phone app header, not a second visible h1. */
++  .titleblock.titleblock-report.titleblock-compact {
++    grid-auto-flow: row;
++    grid-template-columns: minmax(0, 1fr);
++  }
++  .titleblock.titleblock-report.titleblock-compact:not(.titleblock-title-mobile):not(:has(.tb-field:not(.tb-hide-mobile))) {
++    display: grid;
++  }
++  .titleblock.titleblock-report.titleblock-compact:not(.titleblock-title-mobile) .tb-title {
++    display: block;
++  }
++  .titleblock-report .report-heading h1 { display: none; }
++  .report-navigation { width: 100%; justify-content: flex-end; }
++  .report-switcher { flex: 1; }
++}
+diff --git a/apps/web/src/reports/report-navigation.tsx b/apps/web/src/reports/report-navigation.tsx
+index fbd47fb21ba076c0cd708214a1d3d80e8f009932..3903c9d938f2a35f78c29bad0bc336a13e410ce5 100644
+--- a/apps/web/src/reports/report-navigation.tsx
++++ b/apps/web/src/reports/report-navigation.tsx
+@@ -1,6 +1,8 @@
+-import { useEffect } from 'react';
++import { useEffect, useRef, useState } from 'react';
+ import { useNavigate } from '@tanstack/react-router';
+-import { ChevronLeft, ChevronRight } from 'lucide-react';
++import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
++import { AppLink } from '../shell/app-link';
++import { matchingHubReports } from './report-hub-model';
+ import { REPORTS } from '../nav/reports-catalog';
+ import './report-navigation.css';
+ 
+@@ -15,6 +17,9 @@ export function adjacentReports(id: string) {
+ /** Catalog order also crosses group boundaries. Alt+Shift avoids browser history shortcuts. */
+ export function ReportNavigation({ id }: { id: string }) {
+   const navigate = useNavigate();
++  const [search, setSearch] = useState('');
++  const switcher = useRef<HTMLDetailsElement>(null);
++  const matches = matchingHubReports(search);
+   const { previous, next } = adjacentReports(id);
+   const go = (reportId: string) =>
+     void navigate({
+@@ -56,6 +61,22 @@ export function ReportNavigation({ id }: { id: string }) {
+   }, [navigate, previous, next]);
+   return (
+     <nav className="report-navigation" aria-label="Weitere Berichte">
++      <details className="report-switcher" ref={switcher} onKeyDown={(event) => {
++        if (event.key === 'Escape' && switcher.current?.open) {
++          event.preventDefault();
++          switcher.current.open = false;
++          switcher.current.querySelector('summary')?.focus();
++        }
++      }}>
++        <summary aria-label="Bericht wechseln">Bericht wechseln <ChevronDown size={16} aria-hidden="true" /></summary>
++        <div className="report-switcher-menu">
++          <label><span className="sr-only">Bericht nach Name oder Frage suchen</span><input type="search" value={search} maxLength={160} autoComplete="off" placeholder="Name oder Frage suchen" onChange={(event) => setSearch(event.target.value)} /></label>
++          <ul>
++            {matches.map((report) => <li key={report.id}><AppLink to={`/reports/${report.id}`} aria-current={id === report.id ? 'page' : undefined} search={(prev) => ({ zeitraum: prev['zeitraum'], trend: prev['trend'], monat: prev['monat'] })} onClick={() => { if (switcher.current) switcher.current.open = false; setSearch(''); }}>{report.no}. {report.name}</AppLink></li>)}
++          </ul>
++          {matches.length === 0 && <p role="status">Kein passender Bericht.</p>}
++        </div>
++      </details>
+       <button
+         type="button"
+         className="icon-btn"
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index ce52f8a9249fc5efafc307fca52732e8a711a29c..0776a9a5689215484a3c923a0345b265b8e33bac 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1768,3 +1768,10 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
+       actual full results and required CI are tracked in
+       [PR #736](https://github.com/Grabman1987/budget/pull/736).
+ - [ ] Exact new-head Chromium/required CI, serial merge and verified LIVE.
++
++
++### #619 / #628 — Reports hub navigation and saved-view entry (implementation pending batch validation)
++
++- Implemented the owner’s 16-entry / four-group catalog, name/question search, session-only recent report IDs and a searchable report switch. Report group registers are removed; old report URLs and financial bodies remain available. Redirects and financial report consolidation (#620–623) remain separate work.
++- “Meine Auswertungen” reads the existing shared saved-view document below recent reports. ID-only links open a fresh exact Explorer view; unresolved, deleted or unavailable views block default results and saving. Existing persistence, audited writes and Undo remain unchanged.
++- Validation is deferred under the owner’s implementation-first batching instruction: catalog/mapping/search, bounded session storage, exact saved-view entry and retry/CAS behavior; desktop one-screen geometry, 390 px overflow, light/dark, keyboard, Axe and 44 px touch targets; full checks, CI and live acceptance. No acceptance criterion is marked verified here.
