@@ -1,0 +1,7 @@
+# #611/#612 final whole-five SOURCE HIGH CLEAR
+
+Bound exact paired-source-v2 manifest0d5434edacf54663a30509c08c2ffc911b4b94142e59fe0dba74b809af53ad26; NEW live file1f654dcb05045d28d5d9651d248fa93ef663a43b813712a92b7509b2b24b40de. All five immutable copies/current bytes/modes verified; other four byte-exact priorbcc5. type Outcome through EOF (engine adapter/draft math/chart/results/tables) byte-exact. Prior whole-five review674b102b carries for all remaining scope.
+
+The sole P2 is closed: one LEDGER-prefixed query publishes only a completed Promise.allSettled pair of the SAME two existing GETs. Incoming cannot adopt one independently updated saved-plan cache. Refetch loads the pair together; account/asOf/current observation/balance validation remain. Plan failure publishes no new basis; missing/mismatched history publishes no previous-generation observations and stays explicitly unavailable. Captured old basis/draft and deliberate rebase remain unchanged. No atomic cross-request DB-snapshot claim is made or inferred.
+
+No further confirmed source finding. Financial engine, full dated rates, native selected-account history, current-anchor/model separation, payoff/table/hover schedule identity, aggregate lead/history/saved operations and privacy source review carry. No tests/runtime/type/lint/format/native/full/CI/LIVE acceptance: all remain owner-deferred, including dated V16 oracle and actual mobile geometry. Read-only reviewer; no repository writes.

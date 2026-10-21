@@ -1,0 +1,33 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/611-612-loan-live-scenario",
+  "sourceHead": "4f9090f1f16613727c3172ab14065e9f3233e5ce",
+  "originalBaseBeforeOwnedCommits": "bcf5dabc63c1d5798d12f065f61e9eaaf26a13e7",
+  "orderedCommits": [
+    {
+      "sha": "4f9090f1f16613727c3172ab14065e9f3233e5ce",
+      "parentBase": "bcf5dabc63c1d5798d12f065f61e9eaaf26a13e7",
+      "subject": "feat(wealth): add selected loan live repayment scenario (refs #611 #612)",
+      "paths": [
+        "apps/web/src/wealth/debt-live-scenario.tsx",
+        "apps/web/src/wealth/debts-chart.tsx",
+        "apps/web/src/wealth/debts-page.tsx",
+        "apps/web/src/wealth/debts.css",
+        "docs/ROADMAP.md"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 4f9090f1f16613727c3172ab14065e9f3233e5ce > OWN_OUTPUT/4f9090f1f16613727c3172ab14065e9f3233e5ce.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-4f9090f1f16613727c3172ab14065e9f3233e5ce.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/web/src/wealth/debt-live-scenario.tsx",
+    "apps/web/src/wealth/debts-chart.tsx",
+    "apps/web/src/wealth/debts-page.tsx",
+    "apps/web/src/wealth/debts.css",
+    "docs/ROADMAP.md"
+  ],
+  "mixedSourceAncestry": true,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

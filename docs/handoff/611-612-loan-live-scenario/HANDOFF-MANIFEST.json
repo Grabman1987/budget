@@ -1,0 +1,37 @@
+[
+  {
+    "path": "docs/handoff/611-612-loan-live-scenario/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/611-612-loan-live-scenario/README.md",
+    "size": 479,
+    "sha256": "2581b8cc3972051a940d37f61ea2e65df5fe623d58c191d25f5c5c81ec5984ea"
+  },
+  {
+    "path": "docs/handoff/611-612-loan-live-scenario/owned/01-4f9090f1f16613727c3172ab14065e9f3233e5ce.patch",
+    "size": 54925,
+    "sha256": "4a9395147978043ffc4fdb1008a975b265c63a96cad3ae8f9d128a3c58658b8b"
+  },
+  {
+    "path": "docs/handoff/611-612-loan-live-scenario/packet.json",
+    "size": 1476,
+    "sha256": "b344274161a5c3575e0789bcc27e2e22d92579eac600a1c8962848c040ce8c4b"
+  },
+  {
+    "path": "docs/handoff/611-612-loan-live-scenario/reviews/611-612-integration-ac5fd756-independent-source-boundary.md",
+    "size": 875,
+    "sha256": "f3f09d09d1f1da3e1d3e22b08b0222c1bb47653b5bb08b7b4ffd0d48ab5d0993"
+  },
+  {
+    "path": "docs/handoff/611-612-loan-live-scenario/reviews/611-612-paired-read-final-independent-source-high.md",
+    "size": 1474,
+    "sha256": "70b2334469ec2b7e5ef1cb6abef41a46ecf3a9d038d5e4c865a5c3ada4039248"
+  },
+  {
+    "path": "docs/handoff/611-612-loan-live-scenario/reviews/611-612-whole-five-independent-source-review.md",
+    "size": 4437,
+    "sha256": "674b102b90f0db4a750eb66e94d557193a3e6bd2a1bd2bfcbae9c277366742b6"
+  }
+]

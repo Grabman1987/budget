@@ -1,0 +1,1140 @@
+diff --git a/apps/web/src/wealth/debt-live-scenario.tsx b/apps/web/src/wealth/debt-live-scenario.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..0f6f18ea9e3c4030888601b4b9de521a72f21408
+--- /dev/null
++++ b/apps/web/src/wealth/debt-live-scenario.tsx
+@@ -0,0 +1,260 @@
++import {
++  addMonths,
++  lastDayOfMonth,
++  loanMeasureSchema,
++  loanMonthSchema,
++  parseAmount,
++  PaymentBelowInterestError,
++  simulateLoan,
++  type LoanMeasure,
++  type LoanSchedule,
++  type LoanTermsInput,
++} from '@budget/domain';
++import { Button, Field, TextInput, maskMoneyText, useAmountPrivacy } from '@budget/ui';
++import { useQuery } from '@tanstack/react-query';
++import { useMemo, useState, type ReactNode } from 'react';
++import { request } from '../api/http';
++import { fetchSeries } from '../ledger/api';
++import { longDay, nativeCurrency } from '../ledger/format';
++import { LEDGER_KEY } from '../ledger/queries';
++import { ErrorNote, LoadingNote } from '../ledger/states';
++import type { SeriesPoint } from '../ledger/types';
++import { monthLabel } from '../nav/month';
++import { ScrollRegion } from '../reports/spending-shared';
++import { AppLink } from '../shell/app-link';
++import { DebtChart } from './debts-chart';
++import type { DebtAccount } from './debts-api';
++import { DebtLiquidityCheck } from './debt-liquidity-check';
++import { MoneyInput, ERROR_TEXT, rateText } from './loan-planning';
++import type { LoanPlanView } from './loan-planning-api';
++
++type Basis = {
++  plan: LoanPlanView;
++  history: SeriesPoint[];
++  missingHistory: boolean;
++  expectedHistory: number;
++};
++const basisKey = (basis: Basis) => JSON.stringify({
++  accountId: basis.plan.accountId,
++  name: basis.plan.name,
++  currency: basis.plan.currency,
++  asOf: basis.plan.asOf,
++  startMonth: basis.plan.startMonth,
++  balanceCents: basis.plan.balanceCents,
++  terms: basis.plan.terms,
++  rateChanges: basis.plan.rateChanges,
++  history: basis.history.map((point) => [point.date, point.balanceCents]),
++  missingHistory: basis.missingHistory,
++  expectedHistory: basis.expectedHistory,
++});
++
++/** Read and capture a loan basis. Refetches never replace a live draft without an explicit action. */
++export function DebtLiveScenario({ loan, asOf, choice }: {
++  loan: DebtAccount;
++  asOf: string;
++  choice: ReactNode;
++}) {
++  useAmountPrivacy();
++  const monthEnds = Array.from({ length: 12 }, (_, i) =>
++    lastDayOfMonth(addMonths(asOf.slice(0, 7), i - 12)),
++  ).filter((date) => date >= loan.openingDate);
++  const from = monthEnds[0] ?? loan.openingDate;
++  // One query publishes only a completed read pair. The saved-plan editor's independent cache
++  // cannot replace one side. The two existing GETs are not an atomic database snapshot.
++  const pair = useQuery({
++    queryKey: [...LEDGER_KEY, 'loan-live-basis', loan.id, loan.openingDate, from, asOf],
++    retry: false,
++    queryFn: async () => {
++      const [plan, series] = await Promise.allSettled([
++        request<LoanPlanView>('GET', `/api/wealth/debts/${encodeURIComponent(loan.id)}/plan?asOf=${asOf}`),
++        fetchSeries(loan.id, from, asOf),
++      ]);
++      if (plan.status === 'rejected') throw plan.reason;
++      if (plan.value.accountId !== loan.id || plan.value.asOf !== asOf)
++        throw new Error('The loan basis does not match the selected account and date.');
++      const currentObservation = series.status === 'fulfilled'
++        ? series.value.points.find((point) => point.date === asOf) : undefined;
++      const usableSeries = series.status === 'fulfilled' && series.value.accountId === loan.id &&
++        !series.value.unavailableCurrencies?.length && currentObservation !== undefined &&
++        Math.max(0, -currentObservation.balanceCents) === plan.value.balanceCents;
++      const basis: Basis = {
++        plan: plan.value,
++        history: usableSeries && series.status === 'fulfilled'
++          ? series.value.points.filter((point) => monthEnds.includes(point.date)).sort((a, b) => a.date.localeCompare(b.date)) : [],
++        missingHistory: !usableSeries,
++        expectedHistory: monthEnds.length,
++      };
++      return {
++        basis,
++        historyError: series.status === 'rejected' ? series.reason as unknown : null,
++        historyMismatch: series.status === 'fulfilled' && !usableSeries,
++      };
++    },
++  });
++  const readyPair = pair.isSuccess && !pair.isFetching ? pair.data : null;
++  const incoming = readyPair?.basis ?? null;
++  const [capture, setCapture] = useState<{ basis: Basis; version: number } | null>(null);
++  if (!capture && incoming) setCapture({ basis: incoming, version: 0 });
++  const changed = Boolean(capture && incoming && basisKey(capture.basis) !== basisKey(incoming));
++  const reload = () => void pair.refetch();
++  return (
++    <section className="vcomp debt-full debt-live" aria-labelledby="debt-live-title">
++      <div className="head">
++        <h2 id="debt-live-title">Kredit und Sondertilgung</h2>
++        <span className="aside">Ungespeicherte Rechnung · keine Zahlung</span>
++      </div>
++      {choice}
++      {pair.isFetching && <LoadingNote what="Kreditbasis und Monatsverlauf" />}
++      {pair.isError && <ErrorNote what="Kreditbasis und Monatsverlauf" error={pair.error} onRetry={reload} />}
++      {readyPair?.historyError != null && <ErrorNote what="Kreditverlauf" error={readyPair.historyError} onRetry={reload} />}
++      {readyPair?.historyMismatch && <div role="alert">
++        <p>Der Kontoverlauf ist unvollständig oder passt nicht zur geladenen Kreditbasis. Er wird nicht mit dem Modell verbunden.</p>
++        <Button variant="ghost" onClick={reload}>Basis und Verlauf erneut laden</Button>
++      </div>}
++      {changed && capture && incoming && (
++        <div className="debt-live-refresh" role="status">
++          <p>Kontostand, Verlauf oder Konditionen haben sich geändert. Die Rechnung unten behält ihre geladene Basis und deine Eingaben.</p>
++          <Button variant="ghost" onClick={() => setCapture({ basis: incoming, version: capture.version + 1 })}>
++            Neue Basis übernehmen und Eingaben zurücksetzen
++          </Button>
++        </div>
++      )}
++      {capture && (pair.isError || pair.isFetching || readyPair?.historyError != null) && (
++        <p className="vnote">Darunter steht die zuletzt geladene Modellbasis. Laufende Eingaben bleiben erhalten.</p>
++      )}
++      {capture && <LiveLoan key={capture.version} basis={capture.basis} />}
++    </section>
++  );
++}
++
++type Outcome = { schedule: LoanSchedule; error: null } | { schedule: null; error: string };
++const attempt = (terms: LoanTermsInput, measures: readonly LoanMeasure[] = []): Outcome => {
++  try {
++    return { schedule: simulateLoan(terms, measures), error: null };
++  } catch (error) {
++    if (error instanceof PaymentBelowInterestError) return { schedule: null, error: ERROR_TEXT.payment_below_interest };
++    if (error instanceof RangeError) return { schedule: null, error: /Not repaid/.test(error.message) ? ERROR_TEXT.horizon : ERROR_TEXT.limit };
++    throw error;
++  }
++};
++const termsOf = (plan: LoanPlanView): LoanTermsInput | null => {
++  const { rateBp, installmentCents, monthlyFeeCents } = plan.terms;
++  if (plan.missing.length || rateBp === null || installmentCents === null || monthlyFeeCents === null) return null;
++  return {
++    balanceCents: plan.balanceCents,
++    startMonth: plan.startMonth,
++    rateBp,
++    installmentCents,
++    monthlyFeeCents,
++    rateChanges: plan.rateChanges.map((change) => ({ month: change.validFrom.slice(0, 7), rateBp: change.rateBp })),
++  };
++};
++
++function LiveLoan({ basis }: { basis: Basis }) {
++  useAmountPrivacy();
++  const { plan } = basis;
++  const [monthly, setMonthly] = useState('0');
++  const [oneOff, setOneOff] = useState('0');
++  const [oneOffMonth, setOneOffMonth] = useState('');
++  const terms = useMemo(() => termsOf(plan), [plan]);
++  const baseline = useMemo(() => terms ? attempt(terms) : null, [terms]);
++  const draft = useMemo((): { measures: LoanMeasure[]; error: string | null } => {
++    const recurring = parseAmount(monthly), once = parseAmount(oneOff);
++    if (!recurring.ok || recurring.cents < 0 || !once.ok || once.cents < 0)
++      return { measures: [], error: 'Bitte beide Sondertilgungen ausdrücklich als gültigen Betrag ab 0 eingeben.' };
++    const raw: LoanMeasure[] = [];
++    if (recurring.cents > 0) raw.push({ kind: 'recurring', fromMonth: plan.startMonth, toMonth: null, everyMonths: 1, amountCents: recurring.cents });
++    if (once.cents > 0) {
++      if (!loanMonthSchema.safeParse(oneOffMonth).success || oneOffMonth < plan.startMonth)
++        return { measures: [], error: 'Für die Einmalzahlung bitte einen gültigen Monat ab Modellbeginn auswählen.' };
++      raw.push({ kind: 'one_off', month: oneOffMonth, amountCents: once.cents });
++    }
++    const parsed = loanMeasureSchema.array().safeParse(raw);
++    return parsed.success ? { measures: parsed.data, error: null }
++      : { measures: [], error: 'Die Sondertilgung überschreitet den zulässigen Modellbetrag.' };
++  }, [monthly, oneOff, oneOffMonth, plan.startMonth]);
++  const scenario = useMemo(() => terms && !draft.error && draft.measures.length ? attempt(terms, draft.measures) : null, [terms, draft]);
++  const base = baseline?.schedule ?? null;
++  const extra = scenario?.schedule ?? null;
++  const chosen = extra ?? base;
++  const money = (value: number) => nativeCurrency(value, plan.currency);
++  const payoff = (value: string | null) => value ? monthLabel(value) : 'bereits getilgt';
++  const monthsEarlier = base && extra ? base.months - extra.months : null;
++  const interestSaved = base && extra ? base.totalInterestCents - extra.totalInterestCents : null;
++  const noEffect = extra && draft.measures.some((m) => m.kind === 'one_off' && extra.payoffMonth && m.month > extra.payoffMonth);
++  return (
++    <>
++      <p className="vnote">{maskMoneyText(plan.name)} · {plan.currency} · erfasste Modellbasis {longDay(plan.asOf)}. Erste Modellzahlung: {monthLabel(plan.startMonth)}.</p>
++      <fieldset className="debt-live-inputs" disabled={!terms || plan.balanceCents === 0}>
++        <legend className="sr-only">Lokale Sondertilgung des ausgewählten Kredits</legend>
++        <MoneyInput label="Sondertilgung / Monat" value={monthly} onChange={setMonthly} currency={plan.currency} hint="Ab Modellbeginn jeden Monat zusätzlich; 0 lässt die Monatsrate unverändert." />
++        <MoneyInput label="Einmalige Sondertilgung" value={oneOff} onChange={setOneOff} currency={plan.currency} hint="0 bedeutet keine Einmalzahlung." />
++        <Field label="Monat der Einmalzahlung" hint="Nur bei einem positiven Einmalbetrag; kein Monat wird angenommen.">
++          {({ id, describedBy }) => <TextInput id={id} type="month" min={plan.startMonth} value={oneOffMonth} onChange={(event) => setOneOffMonth(event.target.value)} aria-describedby={describedBy} />}
++        </Field>
++      </fieldset>
++      <p className="vnote">Die Felder ändern nur diese lokale Rechnung. Es wird nichts gespeichert, gebucht oder als Zahlung eingerichtet.</p>
++      {plan.balanceCents === 0 && <p role="status">Dieser Kredit hat zum geladenen Stichtag keine offene Restschuld.</p>}
++      {!terms && <p role="status">Konditionen fehlen: {plan.missing.map((key) => ({ rate: 'Jahreszins', installment: 'Monatsrate', fee: 'monatliche Gebühr' })[key]).join(', ')}. <AppLink to="/einstellungen/konten">Konditionen pflegen</AppLink></p>}
++      {draft.error && <p role="alert" className="field-error">{draft.error} Die Basisrechnung bleibt davon getrennt.</p>}
++      {baseline?.error && <p role="status">Basis ohne Sondertilgung: {baseline.error}</p>}
++      {scenario?.error && <p role="alert">Szenario nicht berechenbar: {scenario.error}</p>}
++      {monthsEarlier !== null && interestSaved !== null ? (
++        <div className="debt-live-result" aria-live="polite">
++          <h3>{monthsEarlier > 0 ? `${monthsEarlier} ${monthsEarlier === 1 ? 'Monat' : 'Monate'} früher schuldenfrei` : monthsEarlier < 0 ? `${-monthsEarlier} Monate später schuldenfrei` : 'Zum gleichen Zeitpunkt schuldenfrei'}</h3>
++          <p><strong>{money(interestSaved)}</strong> Zinsen gespart gegenüber derselben Basis.</p>
++        </div>
++      ) : (
++        <p className="vnote" aria-live="polite">{!terms ? 'Ohne vollständige Konditionen gibt es kein Tilgungsmodell.' : draft.error || scenario?.error ? 'Kein gültiger Szenariovergleich für die aktuellen Eingaben.' : extra ? 'Das Szenario ist berechenbar; ohne gültige Basis ist kein Zins- oder Laufzeitvergleich möglich.' : 'Ohne zusätzliche Sondertilgung zeigt die Rechnung die gespeicherte Basis.'}</p>
++      )}
++      {noEffect && <p className="vnote">Der gewählte Einmalmonat liegt nach der Modelltilgung. Diese Einmalzahlung wird im Modell nicht mehr ausgeführt.</p>}
++      <DebtChart basis={plan} history={basis.history} baseline={base} scenario={extra} />
++      {(basis.missingHistory || basis.history.length < basis.expectedHistory) && <p className="vnote">{basis.missingHistory ? 'Der erfasste Monatsverlauf fehlt in dieser Modellbasis.' : `Nur ${basis.history.length} von ${basis.expectedHistory} möglichen Monatsenden sind verfügbar.`} Fehlende Beobachtungen werden nicht ersetzt oder interpoliert.</p>}
++      <p className="vnote">Durchgezogen: tatsächliche Monatsenden und separat der Kontostand zum Stichtag. Gestrichelt: Modellzahlungen zum Monatsende, in {plan.currency}; negative Ist-Restschuld bedeutet Guthaben.</p>
++      {(base || extra) && (
++        <ScrollRegion className="debt-live-scroll" label="Vergleich der Kreditmodelle">
++        <table className="vtable debt-live-summary">
++          <caption>Tilgungsplan für {maskMoneyText(plan.name)} · {plan.currency}</caption>
++          <thead><tr><th scope="col">Modell</th><th scope="col">Schuldenfrei</th><th scope="col">Zinsen gesamt</th><th scope="col">Gebühren gesamt</th></tr></thead>
++          <tbody>{([['Ohne Sondertilgung', base], ['Live-Szenario', extra]] as const).map(([label, schedule]) => {
++            return schedule && <tr key={label}><th scope="row">{label}</th><td>{payoff(schedule.payoffMonth)}</td><td>{money(schedule.totalInterestCents)}</td><td>{money(schedule.totalFeeCents)}</td></tr>;
++          })}</tbody>
++        </table>
++        </ScrollRegion>
++      )}
++      {chosen && <ScheduleTables schedule={chosen} currency={plan.currency} scenario={Boolean(extra)} />}
++      <details className="debt-live-method">
++        <summary>Modellbasis und Finanzierbarkeit</summary>
++        <p className="vnote">Erfasste Restschuld {money(plan.balanceCents)}; Monatsrate {plan.terms.installmentCents === null ? 'unbekannt' : money(plan.terms.installmentCents)}; Jahreszins {plan.terms.rateBp === null ? 'unbekannt' : rateText(plan.terms.rateBp)}; Gebühr {plan.terms.monthlyFeeCents === null ? 'unbekannt' : money(plan.terms.monthlyFeeCents)}.</p>
++        <p className="vnote">Gespeicherte Zinsänderungen gelten wie im bestehenden Tilgungsplan ab ihrem Monat. Monatszinsen werden dort auf Cent gerundet; die Schlusszahlung wird begrenzt. Keine taggenaue Verzinsung oder Vorfälligkeitskosten. Kein Modell ersetzt fehlende Konditionen durch 0.</p>
++        {plan.rateChanges.length > 0 && <ul>{plan.rateChanges.map((change) => <li key={change.id}>{longDay(change.validFrom)}: {rateText(change.rateBp)}</li>)}</ul>}
++        <DebtLiquidityCheck />
++      </details>
++    </>
++  );
++}
++
++function ScheduleTables({ schedule, currency, scenario }: { schedule: LoanSchedule; currency: string; scenario: boolean }) {
++  const [monthlyOpen, setMonthlyOpen] = useState(false);
++  const money = (value: number) => nativeCurrency(value, currency);
++  return (
++    <>
++      <h3>Zins und Tilgung je Jahr · {scenario ? 'Live-Szenario' : 'Basis'}</h3>
++      <ScrollRegion className="debt-live-scroll" label="Zins und Tilgung je Jahr">
++        <table className="vtable">
++          <caption>Modellzahlungen in {currency}, keine eingerichteten Zahlungen</caption>
++          <thead><tr>{['Jahr', 'Zinsen', 'Gebühren', 'Tilgung', 'Zahlungen'].map((label) => <th scope="col" key={label}>{label}</th>)}</tr></thead>
++          <tbody>{schedule.perYear.map((row) => <tr key={row.year}><th scope="row">{row.year}</th>{(['interestCents', 'feeCents', 'principalCents', 'paymentCents'] as const).map((key) => <td key={key}>{money(row[key])}</td>)}</tr>)}</tbody>
++        </table>
++      </ScrollRegion>
++      <details className="debt-live-method" onToggle={(event) => setMonthlyOpen(event.currentTarget.open)}>
++        <summary>Jede Modellzahlung monatlich ansehen</summary>
++        {monthlyOpen && <ScrollRegion className="debt-live-scroll" label="Jede monatliche Modellzahlung"><table className="vtable">
++          <caption>Monatliche Modellzahlungen · {scenario ? 'Live-Szenario' : 'Basis'} · {currency}</caption>
++          <thead><tr>{['Monat', 'Zins', 'Gebühr', 'Regulär', 'Zusätzlich', 'Zahlung', 'Restschuld'].map((label) => <th scope="col" key={label}>{label}</th>)}</tr></thead>
++          <tbody>{schedule.rows.map((row) => <tr key={row.month}><th scope="row">{monthLabel(row.month)}</th>{(['interestCents', 'feeCents', 'regularCents', 'extraCents', 'paymentCents', 'closingCents'] as const).map((key) => <td key={key}>{money(row[key])}</td>)}</tr>)}</tbody>
++        </table></ScrollRegion>}
++      </details>
++    </>
++  );
++}
+diff --git a/apps/web/src/wealth/debts-chart.tsx b/apps/web/src/wealth/debts-chart.tsx
+index c56f6e7ec606d5d31b2627944869ad0b2470ceb2..039ecdd3ef1a6ad9c34514cdd1e047ce112a3b9a 100644
+--- a/apps/web/src/wealth/debts-chart.tsx
++++ b/apps/web/src/wealth/debts-chart.tsx
+@@ -1,141 +1,115 @@
+-import { chartPoints } from '../charts/tooltip-data';
+-import { useAmountPrivacy, ChartSvg, Graticule, Line, type Point } from '@budget/ui';
+-import { addDays, addMonths } from '@budget/domain';
++import {
++  AxisLine,
++  ChartSvg,
++  Graticule,
++  Line,
++  LineLegend,
++  TodayLine,
++  XTicks,
++  maskMoneyText,
++  useAmountPrivacy,
++  type ChartTooltipPoint,
++  type Point,
++} from '@budget/ui';
++import { lastDayOfMonth, type LoanSchedule } from '@budget/domain';
+ import { useElementWidth } from '../charts/use-element-width';
+ import type { SeriesPoint } from '../ledger/types';
+-import type { DebtAccount, DebtProjection } from './debts-api';
+-import { nativeCurrency } from '../ledger/format';
++import { longDay, nativeCurrency } from '../ledger/format';
++import type { LoanPlanView } from './loan-planning-api';
+ import { kfmt, yTicks } from './networth-model';
+ 
+-/** Geometry only: actual balances and model rows are authoritative API values. */
+-export function DebtChart({
+-  loan,
+-  asOf,
+-  history,
+-  result,
+-}: {
+-  loan: DebtAccount;
+-  asOf: string;
+-  history: SeriesPoint[];
+-  result: DebtProjection | null;
++type Observation = { date: string; amount: number };
++const dayNumber = (date: string) => Date.parse(`${date}T00:00:00Z`);
++const monthNumber = (date: string) => Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7));
++
++/** Geometry only: exact selected-account observations and the canonical monthly schedules. */
++export function DebtChart({ basis, history, baseline, scenario }: {
++  basis: LoanPlanView;
++  history: readonly SeriesPoint[];
++  baseline: LoanSchedule | null;
++  scenario: LoanSchedule | null;
+ }) {
+   useAmountPrivacy();
+   const [ref, width] = useElementWidth<HTMLDivElement>();
+-  const dateNumber = (date: string) => Date.parse(`${date.slice(0, 10)}T00:00:00Z`);
+-  const actual = history.map((p) => ({ date: p.date, amount: -p.balanceCents }));
+-  const model = (rows: DebtProjection['plan']['base']['rows']) =>
+-    result
+-      ? [
+-          {
+-            date: `${result.startMonth}-01` < asOf ? asOf : `${result.startMonth}-01`,
+-            amount: result.balanceCents,
+-          },
+-          ...rows.map((r) => ({
+-            date: addDays(`${addMonths(r.month, 1)}-01`, -1),
+-            amount: r.closingCents,
+-          })),
+-        ]
+-      : [];
+-  const base = model(result?.plan.base.rows ?? []);
+-  const extra = model(result?.plan.withExtra.rows ?? []);
+-  const points = [...actual, ...base, ...extra];
+-  const from = Math.min(...points.map((p) => dateNumber(p.date)), dateNumber(asOf));
+-  const to = Math.max(...points.map((p) => dateNumber(p.date)), dateNumber(asOf));
+-  const low = Math.min(0, ...points.map((p) => p.amount));
+-  const high = Math.max(-loan.balanceCents, ...points.map((p) => p.amount), 1) * 1.08;
+-  const height = width < 500 ? 220 : 260;
+-  const x = (date: string) => 56 + ((dateNumber(date) - from) / (to - from || 1)) * (width - 72);
+-  const y = (amount: number) => height - 30 - ((amount - low) / (high - low)) * (height - 48);
+-  const line = (p: typeof actual): Point[] => p.map((p) => [x(p.date), y(p.amount)]);
++  const anchor = { date: basis.asOf, amount: basis.balanceCents };
++  const actual = [...history.map((point) => ({ date: point.date, amount: -point.balanceCents })), anchor];
++  const model = (schedule: LoanSchedule | null): Observation[] => schedule
++    ? [anchor, ...schedule.rows.map((row) => ({ date: lastDayOfMonth(row.month), amount: row.closingCents }))]
++    : [];
++  const base = model(baseline);
++  const extra = model(scenario);
++  const all = [...actual, ...base, ...extra];
++  const from = Math.min(...all.map((point) => dayNumber(point.date)));
++  const to = Math.max(...all.map((point) => dayNumber(point.date)));
++  const low = Math.min(0, ...all.map((point) => point.amount));
++  const high = Math.max(1, ...all.map((point) => point.amount)) * 1.08;
++  const height = width < 500 ? 240 : 280;
++  const left = 56, right = Math.max(left + 1, width - 16);
++  const x = (date: string) => left + ((dayNumber(date) - from) / (to - from || 1)) * (right - left);
++  const y = (amount: number) => height - 34 - ((amount - low) / (high - low)) * (height - 60);
++  const line = (points: readonly Observation[]): Point[] => points.map((point) => [x(point.date), y(point.amount)]);
++  const segments: Observation[][] = [];
++  for (const point of actual) {
++    const segment = segments.at(-1);
++    if (!segment || monthNumber(point.date) - monthNumber(segment.at(-1)!.date) > 1)
++      segments.push([point]);
++    else segment.push(point);
++  }
++  // One inspection target per date retains every current/start/month-end value at coincident dates.
++  const byDate = new Map<string, ChartTooltipPoint>();
++  const add = (point: Observation, name: string) => {
++    const known = byDate.get(point.date);
++    byDate.set(point.date, {
++      date: point.date,
++      x: x(point.date),
++      series: [...(known?.series ?? []), { name, value: nativeCurrency(point.amount, basis.currency) }],
++    });
++  };
++  history.forEach((point) => add({ date: point.date, amount: -point.balanceCents }, 'Ist · tatsächliches Monatsende'));
++  add(anchor, 'Aktuelle Restschuld · Stichtag, vor Modellzahlungen');
++  for (const [label, schedule] of [['Basis', baseline], ['Live-Szenario', scenario]] as const) {
++    if (!schedule) continue;
++    add(anchor, `${label} · Ausgangspunkt`);
++    schedule.rows.forEach((row) => add({ date: lastDayOfMonth(row.month), amount: row.closingCents }, `${label} · nach Modellzahlung am Monatsende`));
++  }
++  const inspection = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
++  const ticks = [from, from + (to - from) / 2, to].filter((value, i, values) => values.indexOf(value) === i);
+   return (
+     <div ref={ref} className="debt-chart">
+       {width > 0 && (
+-        <ChartSvg
+-          width={width}
+-          height={height}
+-          label={`Restschuld ${loan.name} in ${loan.currency}: erfasste Kontohistorie${result ? ', Modell ohne und mit monatlicher Sondertilgung' : ', noch kein Modell berechnet'}.`}
+-          testId="debt-chart"
+-          points={chartPoints(
+-            [...new Set(points.map((p) => p.date))].sort(),
+-            (i) => x([...new Set(points.map((p) => p.date))].sort()[i]!),
+-            [
+-              {
+-                name: 'Restschuld',
+-                values: [...new Set(points.map((p) => p.date))]
+-                  .sort()
+-                  .map((date) => actual.find((p) => p.date === date)?.amount),
+-                color: 'var(--line)',
+-                format: (v) => nativeCurrency(v, loan.currency),
+-              },
+-              {
+-                name: 'Ohne Sondertilgung',
+-                values: [...new Set(points.map((p) => p.date))]
+-                  .sort()
+-                  .map((date) => base.find((p) => p.date === date)?.amount),
+-                color: 'var(--line-2)',
+-                format: (v) => nativeCurrency(v, loan.currency),
+-              },
+-              {
+-                name: 'Mit Sondertilgung',
+-                values: [...new Set(points.map((p) => p.date))]
+-                  .sort()
+-                  .map((date) => extra.find((p) => p.date === date)?.amount),
+-                color: 'var(--line)',
+-                format: (v) => nativeCurrency(v, loan.currency),
+-              },
+-            ],
+-          )}
+-        >
+-          <Graticule
+-            x1={56}
+-            x2={width - 16}
+-            lines={yTicks(low / 100, high / 100).map((v) => ({ y: y(v * 100), label: kfmt(v) }))}
+-          />
+-          {actual.length > 1 && <Line points={line(actual)} kind="actual" />}
+-          <circle cx={x(asOf)} cy={y(-loan.balanceCents)} r={3} fill="var(--line)" />
+-          {base.length > 1 && <Line points={line(base)} kind="plan" />}
+-          {extra.length > 1 && <Line points={line(extra)} kind="forecast" />}
+-          {result &&
+-            (
+-              [
+-                ['ohne', result.plan.base],
+-                ['mit', result.plan.withExtra],
+-              ] as const
+-            ).map(([label, plan], i) => {
+-              const last = plan.rows.at(-1);
+-              if (!last) return null;
+-              const px = x(addDays(`${addMonths(last.month, 1)}-01`, -1));
+-              const baseline = y(0);
+-              return (
+-                <g key={label}>
+-                  <path d={`M${px - 5},${baseline - 10}h10l-5,9Z`} className="kote" />
+-                  <text
+-                    x={px}
+-                    y={baseline - 16 - i * 16}
+-                    textAnchor={px > width - 100 ? 'end' : 'middle'}
+-                    className="svg-label"
+-                  >
+-                    {label}: {last.month.slice(5)}.{last.month.slice(0, 4)}
+-                  </text>
+-                </g>
+-              );
+-            })}
+-          {[0, 1, 2].map((i) => {
+-            const date = new Date(from + ((to - from) * i) / 2).toISOString().slice(0, 7);
+-            return (
+-              <text
+-                key={i}
+-                x={56 + ((width - 72) * i) / 2}
+-                y={height - 6}
+-                textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'}
+-                className="svg-label"
+-              >
+-                {date.slice(5, 7)}.{date.slice(0, 4)}
++        <ChartSvg width={width} height={height}
++          label={`Restschuld ${maskMoneyText(basis.name)} in ${basis.currency}: tatsächliche Monatsenden, Kontostand ${longDay(basis.asOf)} und getrennte monatliche Tilgungsmodelle.`}
++          testId="debt-chart" points={inspection} table
++          tooltipNote="Ist sind echte Monatsendwerte. Der Stichtag ist vor Modellzahlungen; am gleichen Datum kann daneben eine Modellzahlung zum Monatsende stehen. Zwischen beobachteten Werten werden keine neuen Finanzdaten berechnet.">
++          <Graticule x1={left} x2={right} lines={yTicks(low / 100, high / 100).map((value) => ({ y: y(value * 100), label: kfmt(value) }))} />
++          <AxisLine x1={left} x2={right} y={y(0)} />
++          <TodayLine x={x(basis.asOf)} y1={16} y2={height - 34} />
++          {segments.map((segment) => <Line key={segment[0]!.date} points={line(segment)} kind="actual" draw={false} />)}
++          {actual.map((point) => <circle key={point.date} cx={x(point.date)} cy={y(point.amount)} r={3} fill="var(--ink)" />)}
++          {base.length > 1 && <Line points={line(base)} kind="plan" draw={false} />}
++          {extra.length > 1 && <Line points={line(extra)} kind="forecast" draw={false} />}
++          {([['Basis', baseline], ['Szenario', scenario]] as const).map(([label, schedule], index) => {
++            if (!schedule?.payoffMonth) return null;
++            const date = lastDayOfMonth(schedule.payoffMonth);
++            const position = x(date);
++            return <g key={label}>
++              <path d={`M${position - 5},${y(0) - 9}h10l-5,8Z`} className="kote" />
++              <text x={position} y={y(0) - 16 - index * 16} textAnchor={position > right - 80 ? 'end' : 'start'} className="svg-label">
++                {label}: {schedule.payoffMonth.slice(5)}.{schedule.payoffMonth.slice(0, 4)}
+               </text>
+-            );
++            </g>;
+           })}
++          <XTicks y={height - 8} ticks={ticks.map((value) => ({
++            x: left + ((value - from) / (to - from || 1)) * (right - left),
++            label: new Intl.DateTimeFormat('de-AT', { month: 'short', year: '2-digit', timeZone: 'UTC' }).format(new Date(value)),
++          }))} />
+         </ChartSvg>
+       )}
++      <LineLegend items={[
++        { kind: 'actual', label: 'Ist des ausgewählten Kredits' },
++        ...(baseline ? [{ kind: 'plan' as const, label: 'Basis ohne Sondertilgung' }] : []),
++        ...(scenario ? [{ kind: 'forecast' as const, label: 'Live-Szenario mit Sondertilgung' }] : []),
++      ]} />
+     </div>
+   );
+ }
+diff --git a/apps/web/src/wealth/debts-page.tsx b/apps/web/src/wealth/debts-page.tsx
+index 6ea13c1431df89f3219f0788033a2eebef31b223..e73aaefb1b8061e1393a4eab06390714d217e26a 100644
+--- a/apps/web/src/wealth/debts-page.tsx
++++ b/apps/web/src/wealth/debts-page.tsx
+@@ -1,32 +1,24 @@
+-import { useAmountPrivacy, Button, DimensionChain, maskMoneyText } from '@budget/ui';
+-import { addDays, cents, formatDecimal, parseAmount } from '@budget/domain';
++import { useAmountPrivacy, DimensionChain, maskMoneyText } from '@budget/ui';
++import { cents } from '@budget/domain';
+ import { useQuery } from '@tanstack/react-query';
+ import { useNavigate, useSearch } from '@tanstack/react-router';
+-import { useId, useState, type ReactNode, type FormEvent } from 'react';
+-import { ApiError } from '../api/http';
+-import { fetchSeries } from '../ledger/api';
+-import { eur, eurParts, longDay, monthName, nativeCurrency } from '../ledger/format';
++import { eur, eurParts, longDay, nativeCurrency } from '../ledger/format';
+ import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
+ import { VERMOEGEN_SCHULDEN_META } from '../nav/pages';
+ import { PageFrame } from '../pages/placeholder-page';
+ import { AppLink } from '../shell/app-link';
+ import {
+   debtsQuery,
+-  projectDebt,
+   type DebtAccount,
+-  type DebtProjection,
+   type DebtsView,
+ } from './debts-api';
+-import { DebtChart } from './debts-chart';
++import { DebtLiveScenario } from './debt-live-scenario';
+ import { DebtOverview } from './debt-overview';
+ import { DebtStrategies } from './debt-strategies';
+-import { DebtLiquidityCheck } from './debt-liquidity-check';
+ import { LoanPlanning } from './loan-planning';
+ import { DebtHistory } from './debt-history';
+ import './debts.css';
+ 
+-const modelMonthText = (month: string | null) =>
+-  month ? `${monthName(month)} ${month.slice(0, 4)}` : 'bereits getilgt';
+ export function DebtsPage() {
+   useAmountPrivacy();
+   const query = useQuery(debtsQuery());
+@@ -35,12 +27,10 @@ export function DebtsPage() {
+   const view = query.data;
+   const loans = view?.accounts.filter((a) => a.type === 'loan' && a.balanceCents < 0) ?? [];
+   const loan = search.kredit ? loans.find((a) => a.id === search.kredit) : loans[0];
+-  const [busy, setBusy] = useState(false);
+   const choice = (
+     <label className="debt-choice">
+       Kredit für das Modell
+       <select
+-        disabled={busy}
+         value={loan?.id ?? ''}
+         onChange={(e) =>
+           void navigate({
+@@ -55,7 +45,7 @@ export function DebtsPage() {
+         {!loan && <option value="">Kredit auswählen</option>}
+         {loans.map((a) => (
+           <option key={a.id} value={a.id}>
+-            {a.name}
++            {maskMoneyText(a.name)}
+           </option>
+         ))}
+       </select>
+@@ -71,47 +61,32 @@ export function DebtsPage() {
+         {view && (
+           <>
+             <DebtLead view={view} />
+-            <DebtHistory />
++            {loan ? (
++              <DebtLiveScenario key={`${loan.id}:${view.asOf}`} loan={loan} asOf={view.asOf} choice={choice} />
++            ) : (
++              <section className="vcomp debt-full" aria-labelledby="scenario-title">
++                <h2 id="scenario-title">Kreditmodell</h2>
++                {loans.length ? choice : <EmptyNote>Kein Kredit mit offener Restschuld. Karten und andere Verbindlichkeiten stehen in der Kontoliste.</EmptyNote>}
++                {search.kredit && <p className="vnote">Der ausgewählte Kredit hat keine offene Restschuld oder ist nicht verfügbar.</p>}
++              </section>
++            )}
++            {!loan && <DebtHistory />}
+             <DebtOverview view={view} />
+             <details className="debt-rechenweg debt-full">
+               <summary>Rechenweg</summary>
+               <p className="vnote">
+-                Konstante Konditionen: Jahreszins ÷ 12, monatlich auf Cent gerundet; danach Gebühren
+-                und Tilgung. Keine taggenaue Verzinsung, künftigen Zinsänderungen oder
+-                Vorfälligkeitskosten. Die Vorschau erzeugt keine Zahlung. Gespeicherte
+-                Zinsänderungen und Szenarien stehen in der Detailplanung.
++                Die ausgewählte Kreditrechnung verwendet gespeicherte Konditionen und datierte
++                Zinsänderungen, Monatszins und Cent-Rundung des bestehenden Tilgungsplans. Keine
++                taggenaue Verzinsung oder Vorfälligkeitskosten. Die Vorschau erzeugt keine Zahlung.
++                Gespeicherte Szenarien und Konditionen bleiben hier verfügbar.
+               </p>
+               <div className="kview vview">
+-                {loan ? (
++                {loan && (
+                   <>
+-                    <Scenario
+-                      key={`${loan.id}:${loan.balanceCents}:${view.asOf}:${loan.interestRateBp}:${loan.monthlyFeeCents}:${loan.installmentCents}`}
+-                      loan={loan}
+-                      asOf={view.asOf}
+-                      onBusy={setBusy}
+-                      choice={choice}
+-                    />
++                    <p className="vnote">Gesamter tatsächlicher Schuldenverlauf in EUR, getrennt vom ausgewählten Kreditmodell:</p>
++                    <DebtHistory />
+                     <LoanPlanning loanId={loan.id} asOf={view.asOf} />
+                   </>
+-                ) : (
+-                  <section className="vcomp" aria-labelledby="scenario-title">
+-                    <div className="tbd-head">
+-                      <h2 id="scenario-title">Sondertilgung</h2>
+-                    </div>
+-                    {loans.length ? (
+-                      choice
+-                    ) : (
+-                      <EmptyNote>
+-                        Kein Kredit mit offener Restschuld. Karten und andere Verbindlichkeiten
+-                        stehen in der Kontoliste.
+-                      </EmptyNote>
+-                    )}
+-                    {search.kredit && (
+-                      <p className="vnote">
+-                        Der ausgewählte Kredit hat keine offene Restschuld oder ist nicht verfügbar.
+-                      </p>
+-                    )}
+-                  </section>
+                 )}
+                 <DebtStrategies asOf={view.asOf} />
+                 <section className="debt-accounts" aria-labelledby="debt-accounts-title">
+@@ -243,387 +218,3 @@ function DebtLead({ view }: { view: DebtsView }) {
+     </section>
+   );
+ }
+-
+-function Amount({
+-  label,
+-  currency,
+-  value,
+-  onChange,
+-}: {
+-  label: string;
+-  currency: string;
+-  value: string;
+-  onChange: (value: string) => void;
+-}) {
+-  const hidden = useAmountPrivacy();
+-  const id = useId();
+-  return (
+-    <div className="field-row debt-amount">
+-      <label htmlFor={id}>
+-        {label} ({currency})
+-      </label>
+-      <input
+-        type={hidden ? 'password' : 'text'}
+-        id={id}
+-        inputMode="decimal"
+-        autoComplete="off"
+-        value={value}
+-        onChange={(e) => onChange(e.target.value)}
+-        onKeyDown={(e) => {
+-          if (e.key === 'Enter') {
+-            e.preventDefault();
+-            const parsed = parseAmount(value);
+-            if (parsed.ok) onChange(formatDecimal(parsed.cents));
+-          }
+-        }}
+-        aria-describedby={`${id}-hint`}
+-      />
+-      <span id={`${id}-hint`} className="amount-hint">
+-        Rechnen erlaubt, z. B. 300+50. Enter rechnet aus.
+-      </span>
+-    </div>
+-  );
+-}
+-
+-function Scenario({
+-  loan,
+-  asOf,
+-  onBusy,
+-  choice,
+-}: {
+-  loan: DebtAccount;
+-  asOf: string;
+-  onBusy: (busy: boolean) => void;
+-  choice: ReactNode;
+-}) {
+-  useAmountPrivacy();
+-  const [payment, setPayment] = useState(
+-    loan.installmentCents === null ? '' : formatDecimal(cents(loan.installmentCents)),
+-  );
+-  const [extra, setExtra] = useState('0');
+-  const [rate, setRate] = useState(
+-    loan.interestRateBp === null ? '' : formatDecimal(cents(loan.interestRateBp)),
+-  );
+-  const [fee, setFee] = useState(
+-    loan.monthlyFeeCents === null ? '' : formatDecimal(cents(loan.monthlyFeeCents)),
+-  );
+-  const [start, setStart] = useState(asOf.slice(0, 7));
+-  const [result, setResult] = useState<DebtProjection | null>(null);
+-  const [error, setError] = useState('');
+-  const [pending, setPending] = useState(false);
+-  const series = useQuery({
+-    queryKey: ['ledger', 'debt-series', loan.id, asOf],
+-    retry: false,
+-    queryFn: () =>
+-      fetchSeries(
+-        loan.id,
+-        loan.openingDate > addDays(asOf, -365) ? loan.openingDate : addDays(asOf, -365),
+-        asOf,
+-      ),
+-  });
+-  const change = (setter: (value: string) => void) => (value: string) => {
+-    setter(value);
+-    setResult(null);
+-    setError('');
+-  };
+-  const submit = async (e: FormEvent) => {
+-    e.preventDefault();
+-    const amounts = [payment, extra, rate, fee].map(parseAmount);
+-    if (amounts.some((a) => !a.ok || a.cents < 0)) {
+-      setError('Bitte Rate, Sondertilgung, Zins und Gebühr ausdrücklich ab 0 eingeben.');
+-      return;
+-    }
+-    const [paymentCents, extraCents, rateBp, monthlyFeeCents] = amounts.map((a) =>
+-      a.ok ? a.cents : 0,
+-    );
+-    setPending(true);
+-    onBusy(true);
+-    setError('');
+-    setResult(null);
+-    try {
+-      setResult(
+-        await projectDebt(loan.id, {
+-          asOf,
+-          startMonth: start,
+-          paymentCents: paymentCents!,
+-          extraCents: extraCents!,
+-          rateBp: rateBp!,
+-          monthlyFeeCents: monthlyFeeCents!,
+-        }),
+-      );
+-    } catch (error) {
+-      setError(
+-        error instanceof ApiError && error.detail
+-          ? error.detail
+-          : 'Die Modellrechnung ist nicht verfügbar. Bitte erneut versuchen.',
+-      );
+-    } finally {
+-      setPending(false);
+-      onBusy(false);
+-    }
+-  };
+-  return (
+-    <>
+-      <section className="vcomp debt-assumptions" aria-labelledby="assumptions-title">
+-        <div className="head">
+-          <h2 id="assumptions-title">Sondertilgung</h2>
+-          <span className="aside">
+-            Restschuld {nativeCurrency(-loan.balanceCents, loan.currency)}
+-          </span>
+-        </div>
+-        {choice}
+-        <LoanTerms loan={loan} />
+-        <DebtLiquidityCheck />
+-        <p className="vnote">
+-          Ungespeichertes Modell. Keine Vertragsänderung oder Zahlung; Annahmen werden beim Neuladen
+-          verworfen.
+-        </p>
+-        <form onSubmit={(e) => void submit(e)}>
+-          <fieldset disabled={pending}>
+-            <legend className="sr-only">Ungespeicherte Modellannahmen</legend>
+-            <div className="debt-inputs">
+-              <Amount
+-                label="Monatsrate"
+-                currency={loan.currency}
+-                value={payment}
+-                onChange={change(setPayment)}
+-              />
+-              <Amount
+-                label="Sondertilgung pro Monat"
+-                currency={loan.currency}
+-                value={extra}
+-                onChange={change(setExtra)}
+-              />
+-              <Amount
+-                label="Monatliche Gebühr"
+-                currency={loan.currency}
+-                value={fee}
+-                onChange={change(setFee)}
+-              />
+-              <label className="field-row">
+-                Nominaler Jahreszins (%)
+-                <input
+-                  inputMode="decimal"
+-                  value={rate}
+-                  onChange={(e) => change(setRate)(e.target.value)}
+-                />
+-              </label>
+-              <label className="field-row">
+-                Erster Modellmonat
+-                <input
+-                  type="month"
+-                  min={asOf.slice(0, 7)}
+-                  max="9899-12"
+-                  required
+-                  value={start}
+-                  onChange={(e) => change(setStart)(e.target.value)}
+-                />
+-              </label>
+-            </div>
+-            <Button variant="primary" type="submit">
+-              {pending ? 'Wird berechnet …' : 'Modell berechnen'}
+-            </Button>
+-          </fieldset>
+-          {error && (
+-            <p role="alert" className="field-error">
+-              {maskMoneyText(error)}
+-            </p>
+-          )}
+-        </form>
+-        <p className="vnote">
+-          Konstante Monatsrate und Konditionen: Zinsen = Jahreszins ÷ 12, je Monat auf Cent
+-          gerundet; danach Gebühr und Tilgung. Keine taggenaue Verzinsung, Zinsänderung oder
+-          Vorfälligkeitskosten. Maximal 1.200 Monate.
+-        </p>
+-        <p className="vnote">
+-          Der erfasste Kontosaldo zum {longDay(asOf)} ist der Startwert; der gewählte Monat ist die
+-          erste Modellzahlung. Fehlende Konditionen bitte ausdrücklich eingeben, auch 0. Keine
+-          Buchung wird erzeugt.
+-        </p>
+-        {result && <Comparison result={result} />}
+-      </section>
+-      {series.isPending && (
+-        <div className="debt-full">
+-          <LoadingNote what="Kontoverlauf" />
+-        </div>
+-      )}
+-      {series.isError && (
+-        <div className="debt-full">
+-          <ErrorNote
+-            what="Kontoverlauf"
+-            error={series.error}
+-            onRetry={() => void series.refetch()}
+-          />
+-        </div>
+-      )}
+-      <section className="debt-full" aria-labelledby="debt-course-title">
+-        <div className="head">
+-          <h2 id="debt-course-title">Restschuld</h2>
+-          <span className="aside">
+-            {loan.name} · {loan.currency}
+-          </span>
+-        </div>
+-        <DebtChart loan={loan} asOf={asOf} history={series.data?.points ?? []} result={result} />
+-        <div className="legend">
+-          <span>
+-            <svg viewBox="0 0 26 8">
+-              <path className="l-actual" d="M0 4h26" />
+-            </svg>
+-            erfasster Kontosaldo
+-          </span>
+-          <span>
+-            <svg viewBox="0 0 26 8">
+-              <path className="l-plan" d="M0 4h26" />
+-            </svg>
+-            Modell ohne Sondertilgung
+-          </span>
+-          <span>
+-            <svg viewBox="0 0 26 8">
+-              <path className="l-forecast" d="M0 4h26" />
+-            </svg>
+-            Modell mit Sondertilgung
+-          </span>
+-        </div>
+-        {!result && (
+-          <p className="vnote">
+-            Modellpfade erscheinen nach der Berechnung. Vergangenheit stammt ausschließlich aus dem
+-            Konto.
+-          </p>
+-        )}
+-      </section>
+-      {result && <Results result={result} />}
+-    </>
+-  );
+-}
+-/** The loan terms stored in Einstellungen › Konten; they pre-fill the model below. */
+-function LoanTerms({ loan }: { loan: DebtAccount }) {
+-  useAmountPrivacy();
+-  const parts = [
+-    loan.interestRateBp !== null
+-      ? `Zins ${formatDecimal(cents(loan.interestRateBp))} %${
+-          loan.interestKind ? (loan.interestKind === 'fixed' ? ' fix' : ' variabel') : ''
+-        }`
+-      : loan.interestKind
+-        ? loan.interestKind === 'fixed'
+-          ? 'Zins fix'
+-          : 'Zins variabel'
+-        : null,
+-    loan.installmentCents !== null
+-      ? `Monatsrate ${nativeCurrency(loan.installmentCents, loan.currency)}`
+-      : null,
+-    loan.monthlyFeeCents !== null
+-      ? `Gebühr ${nativeCurrency(loan.monthlyFeeCents, loan.currency)} im Monat`
+-      : null,
+-    loan.termStart || loan.termEnd
+-      ? `Laufzeit ${loan.termStart ? `ab ${longDay(loan.termStart)}` : ''}${
+-          loan.termStart && loan.termEnd ? ' ' : ''
+-        }${loan.termEnd ? `bis ${longDay(loan.termEnd)}` : ''}`
+-      : null,
+-    loan.originalAmountCents !== null
+-      ? `ursprünglich ${nativeCurrency(loan.originalAmountCents, loan.currency)}`
+-      : null,
+-  ].filter((part): part is string => part !== null);
+-  return (
+-    <p className="vnote" data-testid="loan-terms">
+-      {parts.length > 0 ? (
+-        <>Konditionen aus Einstellungen › Konten: {parts.join(' · ')}. </>
+-      ) : (
+-        <>Für diesen Kredit sind keine Konditionen hinterlegt. </>
+-      )}
+-      <AppLink to="/einstellungen/konten">Konditionen pflegen</AppLink>
+-    </p>
+-  );
+-}
+-
+-function Results({ result }: { result: DebtProjection }) {
+-  useAmountPrivacy();
+-  const { withExtra } = result.plan;
+-  const money = (v: number) => nativeCurrency(v, result.currency);
+-  return (
+-    <>
+-      <section className="debt-full" aria-labelledby="debt-years-title">
+-        <div className="head">
+-          <h2 id="debt-years-title">Zins und Tilgung je Jahr</h2>
+-          <span className="aside">Modell mit Sondertilgung</span>
+-        </div>
+-        <table className="ktable vtable debt-years">
+-          <caption className="sr-only">
+-            Modellzahlungen je Kalenderjahr in {result.currency}
+-          </caption>
+-          <thead>
+-            <tr>
+-              {['Jahr', 'Zinsen', 'Gebühren', 'Tilgung', 'Zahlungen'].map((s) => (
+-                <th scope="col" className="tech" key={s}>
+-                  {s}
+-                </th>
+-              ))}
+-            </tr>
+-          </thead>
+-          <tbody>
+-            {withExtra.perYear.map((y) => (
+-              <tr key={y.year}>
+-                <th scope="row">{y.year}</th>
+-                {(['interestCents', 'feeCents', 'principalCents', 'paymentCents'] as const).map(
+-                  (k, i) => (
+-                    <td
+-                      className="num"
+-                      data-label={['Zinsen', 'Gebühren', 'Tilgung', 'Zahlungen'][i]}
+-                      key={k}
+-                    >
+-                      {money(y[k])}
+-                    </td>
+-                  ),
+-                )}
+-              </tr>
+-            ))}
+-          </tbody>
+-        </table>
+-      </section>
+-    </>
+-  );
+-}
+-
+-function Comparison({ result }: { result: DebtProjection }) {
+-  useAmountPrivacy();
+-  const { base, withExtra } = result.plan;
+-  const money = (v: number) => nativeCurrency(v, result.currency);
+-  return (
+-    <section className="debt-comparison" aria-labelledby="comparison-title" aria-live="polite">
+-      <div className="head">
+-        <h2 id="comparison-title">Modellvergleich</h2>
+-        <span className="aside">Ungespeichert · {result.currency}</span>
+-      </div>
+-      <table className="ktable vtable">
+-        <caption className="sr-only">Ohne und mit monatlicher Sondertilgung</caption>
+-        <thead>
+-          <tr>
+-            <th scope="col">Modell</th>
+-            <th scope="col">Ohne Sondertilgung</th>
+-            <th scope="col">Mit {money(result.extraCents)} / Monat</th>
+-          </tr>
+-        </thead>
+-        <tbody>
+-          <tr>
+-            <th scope="row">Schuldenfrei</th>
+-            <td>{modelMonthText(base.payoffMonth)}</td>
+-            <td>{modelMonthText(withExtra.payoffMonth)}</td>
+-          </tr>
+-          <tr>
+-            <th scope="row">Zinsen gesamt</th>
+-            <td>{money(base.totalInterestCents)}</td>
+-            <td>{money(withExtra.totalInterestCents)}</td>
+-          </tr>
+-          <tr>
+-            <th scope="row">Gebühren gesamt</th>
+-            <td>{money(base.totalFeeCents)}</td>
+-            <td>{money(withExtra.totalFeeCents)}</td>
+-          </tr>
+-        </tbody>
+-      </table>
+-      <div className="kv vsave">
+-        <span>{result.plan.monthsEarlier} Monate früher frei</span>
+-        <strong>{money(result.plan.interestSavedCents)} Zinsen gespart</strong>
+-      </div>
+-    </section>
+-  );
+-}
+diff --git a/apps/web/src/wealth/debts.css b/apps/web/src/wealth/debts.css
+index aa946a9b6b7c131913e8039dd26d9eede411cf37..6dbf400dfb8e8703f8c47a28ce3e6e5d70b719e3 100644
+--- a/apps/web/src/wealth/debts.css
++++ b/apps/web/src/wealth/debts.css
+@@ -310,3 +310,93 @@
+     white-space: normal;
+   }
+ }
++
++
++/* Read-only selected-loan scenario; aggregate debt and saved planning stay separate. */
++.debt-live {
++  min-width: 0;
++}
++.debt-live .debt-live-inputs {
++  display: grid;
++  grid-template-columns: repeat(3, minmax(0, 1fr));
++  gap: 16px;
++  margin-block: 20px;
++}
++.debt-live-inputs > * {
++  min-width: 0;
++}
++.debt-live .btn,
++.debt-live-method > summary {
++  min-height: 44px;
++}
++.debt-live .btn {
++  max-width: 100%;
++  white-space: normal;
++}
++.debt-live-result,
++.debt-live-refresh {
++  margin-block: 20px;
++  padding-block: 12px;
++  border-block: 1px solid var(--rule-strong);
++}
++.debt-live-result h3 {
++  font-size: var(--fs-headline);
++  margin: 0 0 8px;
++}
++.debt-live-result p,
++.debt-live-refresh p {
++  margin-block: 8px;
++}
++.debt-live-result strong {
++  font-size: var(--fs-figure);
++  font-variant-numeric: tabular-nums;
++}
++.debt-live-method {
++  border-top: 1px solid var(--rule);
++  margin-top: 16px;
++}
++.debt-live-method > summary {
++  cursor: pointer;
++  align-content: center;
++}
++.debt-live-method > summary:focus-visible,
++.debt-live-scroll:focus-visible {
++  outline: 2px solid var(--line);
++  outline-offset: 2px;
++}
++.debt-live-scroll {
++  overflow-x: auto;
++  max-width: 100%;
++  margin-block: 12px 24px;
++}
++.debt-live-scroll .vtable {
++  display: table;
++  min-width: 100%;
++  width: max-content;
++  font-variant-numeric: tabular-nums;
++}
++.debt-live-scroll .vtable thead {
++  display: table-header-group;
++}
++.debt-live-scroll .vtable tbody {
++  display: table-row-group;
++}
++.debt-live-scroll .vtable tr {
++  display: table-row;
++}
++.debt-live-scroll .vtable th,
++.debt-live-scroll .vtable td {
++  display: table-cell;
++  white-space: nowrap;
++}
++.debt-live-scroll td {
++  text-align: right;
++}
++.debt-live .chart-data-scroll {
++  max-width: 100%;
++}
++@media (max-width: 767px) {
++  .debt-live .debt-live-inputs {
++    grid-template-columns: minmax(0, 1fr);
++  }
++}
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index 807be739c281097247347be79eabf14e2029bcc6..a73ea0e0ef4e3aaf1e37274f073b0452c01a2c93 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1879,3 +1879,11 @@ explicit reanalysis/review. Upload and reanalysis never post money.
+ - The year-end lead, monthly stepped chart, low point and December value reuse the existing `planYearScenario` amounts and the same local event selection, including years without events. Saved current stands remain distinct from future event effects; dated event markers expose real dates and amounts without inventing daily cash balances or income assumptions. Historical report income/consumption remain qualified secondary context.
+ - Replaced the event-by-month matrix with a compact dated event list and existing edit actions. Groups in the year table start collapsed, including newly loaded groups; the three existing metrics, group sums, sticky first column and phone month projection remain. Explanations and the event list can be expanded; shared chart keyboard/tooltip/data-table controls expose exact values.
+ - Validation is deferred by the owner's implementation-first batching instruction: independent literal lead/chart/December and toggle parity, zero-event years, current/future boundary, signed low points and real date spacing; preserved event Save/Undo and old financial assertions; privacy, long labels, light/dark 1440/390/WebKit, keyboard/Axe/44px, collapsed two-screen geometry and no page overflow, then required full/native/CI/live. No acceptance criterion is marked verified here.
++
++
++### #611 / #612 — Selected-loan history and live scenario (implementation pending batch validation)
++
++- Added a clearly scoped native-currency loan panel and chart while preserving the independent aggregate debt lead, overview and actual EUR history. The chart samples exact last-twelve completed month ends from the existing selected-account series, retains a separately labelled current anchor, leaves missing observations missing and distinguishes monthly model payments at coincident dates.
++- Monthly and explicitly dated one-off extra-payment inputs update only local state and the existing canonical `simulateLoan` schedules. Stored rates are mapped exactly as the existing loan-plan reader does; no missing terms become zero. The same schedules supply chart points, payoff/interest comparison and monthly/year tables. Saved scenarios/rate management remain explicit operations under Rechenweg; local what-if input performs no save, preview POST, booking or audit action.
++- A captured account/as-of basis isolates drafts across selection changes. Same-loan source refresh preserves inputs and the old labelled basis until explicit rebase/reset. Invalid inputs withdraw the scenario instead of displaying a previous result; baseline, missing-condition, nonpayable, horizon, limit and out-of-window states remain explicit. Model currency is never summed with unrelated accounts or converted for this chart.
++- Validation is deferred by the owner's implementation-first batching instruction: independently literal month-end/current/schedule/payoff/interest/rounding/final-payment parity, rate changes, monthly/one-off/combined/zero cases, missing/unpayable inputs, no writers/audit, source-switch/rebase draft safety, native-currency privacy and shared hover/table equality, keyboard/Axe/44px/light-dark/1440/390/WebKit and full/CI/live gates. The V16 3,263-cent interest-saving oracle lacks its one-off month; no date is inferred and that acceptance remains unproved. No acceptance criterion is marked verified here.
