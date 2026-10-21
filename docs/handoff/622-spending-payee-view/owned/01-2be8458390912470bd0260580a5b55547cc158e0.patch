@@ -1,0 +1,211 @@
+diff --git a/apps/web/src/pages/payee-analysis-report.tsx b/apps/web/src/pages/payee-analysis-report.tsx
+index 872bf2f094c8abee2696107d355bae9b663de2e5..8ee5fd57ef22fc05e8432d18f82c9597af6f439c 100644
+--- a/apps/web/src/pages/payee-analysis-report.tsx
++++ b/apps/web/src/pages/payee-analysis-report.tsx
+@@ -103,11 +103,22 @@ const statusName: Record<string, string> = {
+ };
+ const bookingDetailId = 'payee-booking-detail';
+ 
+-export function PayeeAnalysisReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
++export function PayeeAnalysisReport({ report, meta, viewControl, selection }: {
++  report: ReportEntry;
++  meta: PageMeta;
++  viewControl?: React.ReactNode;
++  selection?: {
++    id: string | null;
++    onChange: (id: string | null) => void;
++    onPeriodChange: (period: ReportPeriod) => void;
++  };
++}) {
+   useAmountPrivacy();
+   const [period, setPeriod] = useReportPeriod();
+   const query = useQuery(reportQuery(period));
+-  const [selected, setSelected] = React.useState<string | null>(null);
++  const [localSelected, setLocalSelected] = React.useState<string | null>(null);
++  const selected = selection ? selection.id : localSelected;
++  const setSelected = selection ? selection.onChange : setLocalSelected;
+   const data = !query.isFetching && query.isSuccess ? query.data : undefined;
+   const range =
+     data?.from && data.to
+@@ -144,6 +155,7 @@ export function PayeeAnalysisReport({ report, meta }: { report: ReportEntry; met
+             : 'wird geladen',
+       }}
+       extraFields={[
++        ...(viewControl ? [{ label: 'Ansicht', value: viewControl }] : []),
+         {
+           label: 'Zeitraum',
+           value: (
+@@ -153,8 +165,11 @@ export function PayeeAnalysisReport({ report, meta }: { report: ReportEntry; met
+               options={PERIODS.map((value) => ({ value, label: value }))}
+               value={period}
+               onChange={(value) => {
+-                setSelected(null);
+-                setPeriod(value as ReportPeriod);
++                if (selection) selection.onPeriodChange(value as ReportPeriod);
++                else {
++                  setLocalSelected(null);
++                  setPeriod(value as ReportPeriod);
++                }
+               }}
+               className="seg-period"
+             />
+diff --git a/apps/web/src/pages/reports-pages.tsx b/apps/web/src/pages/reports-pages.tsx
+index c3c4faf9b998a013ad88624d97052b01643a7d43..af96633cce9156f473c083835dac60f879ff5717 100644
+--- a/apps/web/src/pages/reports-pages.tsx
++++ b/apps/web/src/pages/reports-pages.tsx
+@@ -37,7 +37,7 @@ import { FinanzcheckReport } from '../reports/finanzcheck-report';
+ import { CompareReport } from '../reports/compare-report';
+ import { JahresreportPage } from '../reports/jahresreport-page';
+ import { ExplorerReportPage } from '../reports/explorer-report';
+-import { SpendingAnalysisReport } from '../reports/spending-analysis-report';
++import { SpendingReportViews } from '../reports/spending-report-views';
+ import { BudgetAdherenceReportPage } from '../reports/budget-adherence-report';
+ import { PlanningAccuracyReportPage } from '../reports/planning-accuracy-report';
+ import { ContractsReportPage } from '../reports/contracts-report';
+@@ -199,7 +199,7 @@ export function ReportPage({ reportId, detail = false }: { reportId: string; det
+   if (report.id === 'cashflow') return <CashflowReportPage report={report} meta={meta} />;
+   if (report.id === 'vermoegen') return <WealthHistoryReport report={report} meta={meta} />;
+   if (report.id === 'vermoegen-schulden') return <AssetsDebtsReport report={report} meta={meta} />;
+-  if (report.id === 'ausgaben') return <SpendingAnalysisReport report={report} meta={meta} />;
++  if (report.id === 'ausgaben') return <SpendingReportViews report={report} meta={meta} />;
+   if (report.id === 'budgettreue') return <BudgetAdherenceReportPage report={report} meta={meta} />;
+   if (report.id === 'planungstreue')
+     return <PlanningAccuracyReportPage report={report} meta={meta} />;
+diff --git a/apps/web/src/reports/report-search.ts b/apps/web/src/reports/report-search.ts
+index 8a85f37c8830e7c287cd5f971f207b976bede662..35e9a3cf423c397a8aa1c20cc0bd58bd5e1bffa4 100644
+--- a/apps/web/src/reports/report-search.ts
++++ b/apps/web/src/reports/report-search.ts
+@@ -9,6 +9,8 @@ const ids = (value: unknown) =>
+     : undefined;
+ 
+ export const validateReportSearch = (search: Record<string, unknown>) => ({
++  darstellung: search['darstellung'] === 'gruppen' || search['darstellung'] === 'empfaenger' ? search['darstellung'] : undefined,
++  empfaenger: id(search['empfaenger']),
+   exakt: search['exakt'] === true || search['exakt'] === 'true' ? true : undefined,
+   vorlage: isExplorerTemplate(search['vorlage']) ? search['vorlage'] : undefined,
+   kategorien: ids(search['kategorien']),
+diff --git a/apps/web/src/reports/report-views.css b/apps/web/src/reports/report-views.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..200dabaacdfccd1e9e54711692c6c5ed8df1f439
+--- /dev/null
++++ b/apps/web/src/reports/report-views.css
+@@ -0,0 +1,12 @@
++.report-view-switch.seg { max-width: 100%; flex-wrap: wrap; }
++.report-view-switch button { overflow-wrap: anywhere; }
++.titleblock-report:has(.report-view-switch) { flex-wrap: wrap; }
++@media (min-width: 768px) {
++  .titleblock-report:has(.report-view-switch) .tb-title { flex-basis: 20rem; }
++}
++@media (max-width: 767px) {
++  .titleblock.titleblock-report:has(.report-view-switch) { grid-auto-flow: row; grid-template-columns: minmax(0, 1fr); }
++  .titleblock-report:has(.report-view-switch) .tb-field { border-left: 0; }
++  .report-view-switch.seg button { min-height: var(--touch); }
++}
++@media (pointer: coarse) { .report-view-switch.seg button { min-height: var(--touch); } }
+diff --git a/apps/web/src/reports/spending-analysis-report.tsx b/apps/web/src/reports/spending-analysis-report.tsx
+index d735a79f5e7bd08ccdeddf46524a41d65b9cf694..08daf123fd23665311872c894028874a6b48747d 100644
+--- a/apps/web/src/reports/spending-analysis-report.tsx
++++ b/apps/web/src/reports/spending-analysis-report.tsx
+@@ -2,7 +2,7 @@ import { ChartValue, ClassSwatch, DimensionChain, maskMoneyText, useAmountPrivac
+ import { cents, type SpendRow, type SpendingPeriod } from '@budget/domain';
+ import type { SpendingReport } from '@budget/db';
+ import { queryOptions, useQuery } from '@tanstack/react-query';
+-import { useState, type CSSProperties } from 'react';
++import { useState, type CSSProperties, type ReactNode } from 'react';
+ import { ChevronDown } from 'lucide-react';
+ import { request } from '../api/http';
+ import { eur, longDay } from '../ledger/format';
+@@ -24,7 +24,12 @@ const analysisQuery = (period: SpendingPeriod) => queryOptions({
+ const DEFAULT_COLLAPSED = ['sa-moves', 'sa-classes', 'sa-explorer'] as const;
+ 
+ /** The pilot report reuses the shared report controls and authoritative spending figures. */
+-export function SpendingAnalysisReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
++export function SpendingAnalysisReport({ report, meta, viewControl, onPeriodChange }: {
++  report: ReportEntry;
++  meta: PageMeta;
++  viewControl?: ReactNode;
++  onPeriodChange?: (period: SpendingPeriod) => void;
++}) {
+   useAmountPrivacy();
+   const [period, setPeriod] = useReportPeriod();
+   const query = useQuery(analysisQuery(period));
+@@ -34,7 +39,10 @@ export function SpendingAnalysisReport({ report, meta }: { report: ReportEntry;
+     <PageFrame meta={meta} title={report.name} subtitle={`${report.pos} · ${report.question}`}
+       reportDataBasis={query.isError ? 'nicht verfügbar' : data ? data.from && data.to ? `${longDay(data.from)} bis ${longDay(data.to)}` : 'keine Monatsdaten' : 'wird geladen'}
+       reportStand={{ label: 'Stichtag', value: data?.to ? longDay(data.to) : '–' }}
+-      extraFields={[{ label: 'Zeitraum', value: <PeriodSwitch period={period} onChange={setPeriod} /> }]}
++      extraFields={[
++        ...(viewControl ? [{ label: 'Ansicht', value: viewControl }] : []),
++        { label: 'Zeitraum', value: <PeriodSwitch period={period} onChange={onPeriodChange ?? setPeriod} /> },
++      ]}
+     >
+       <div ref={sections} className="kview sr spending-analysis" data-testid="spending-analysis">
+         <ReportQuery query={query} what="Ausgabenanalyse">{(result) => <Body data={result} />}</ReportQuery>
+diff --git a/apps/web/src/reports/spending-report-views.tsx b/apps/web/src/reports/spending-report-views.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..02bfd19aeced2cc6100e514421390c631f0a97c2
+--- /dev/null
++++ b/apps/web/src/reports/spending-report-views.tsx
+@@ -0,0 +1,47 @@
++import { Segmented } from '@budget/ui';
++import type { SpendingPeriod } from '@budget/domain';
++import { useNavigate, useSearch } from '@tanstack/react-router';
++import type { PageMeta } from '../nav/pages';
++import type { ReportEntry } from '../nav/reports-catalog';
++import { PayeeAnalysisReport } from '../pages/payee-analysis-report';
++import { SpendingAnalysisReport } from './spending-analysis-report';
++import './report-views.css';
++
++const SPENDING_VIEWS = [
++  { value: 'gruppen', label: 'Gruppen und Kategorien' },
++  { value: 'empfaenger', label: 'Empfänger' },
++] as const;
++
++/** One active report body, using the existing readers and their unchanged financial figures. */
++export function SpendingReportViews({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
++  const search = useSearch({ strict: false }) as {
++    darstellung?: 'gruppen' | 'empfaenger';
++    empfaenger?: string;
++  };
++  const navigate = useNavigate();
++  const view = search.darstellung === 'empfaenger' ? 'empfaenger' : 'gruppen';
++  const update = (patch: Record<string, unknown>, replace = false) =>
++    void navigate({
++      to: '.',
++      search: ((previous: Record<string, unknown>) => ({ ...previous, ...patch })) as never,
++      replace,
++    });
++  const changePeriod = (period: SpendingPeriod) =>
++    update({ zeitraum: period, empfaenger: undefined }, true);
++  const control = <Segmented
++    className="report-view-switch"
++    label="Ansicht der Ausgabenanalyse"
++    options={SPENDING_VIEWS}
++    value={view}
++    onChange={(value) => update({ darstellung: value })}
++  />;
++  return view === 'empfaenger' ? (
++    <PayeeAnalysisReport report={report} meta={meta} viewControl={control}
++      selection={{
++        id: search.empfaenger ?? null,
++        onChange: (id) => update({ empfaenger: id ?? undefined }),
++        onPeriodChange: changePeriod,
++      }}
++    />
++  ) : <SpendingAnalysisReport report={report} meta={meta} viewControl={control} onPeriodChange={changePeriod} />;
++}
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index 01937b55dd7c4916ad96922fa2679a4d6017fa6f..827b71738b856951d3a315824a5d24daf9bddbef 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1776,3 +1776,10 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
+ - Replaced the primary chart with signed need/want groups keyed by stable group IDs, expandable categories, exact prior ticks/deltas and cent-precision booking links. Group links use a narrow read-only category-group filter over the existing classified spending contributions; refunds stay signed and Zukunft stays outside consumption. Existing financial writers and legacy analysis fields remain unchanged.
+ - Secondary sections 02–04 start collapsed and remember explicit choices through the existing section mechanism. The removed embedded heatmap links to an opt-in exact-window Explorer projection with the same signed categories; existing template defaults remain unchanged. The separate saved-view work in #628 must be retained during integration.
+ - All validation is deferred by the owner’s implementation-first batching instruction: independent literal cent totals, signed refunds/zero/prior availability, duplicate group labels, exact day coverage, group/category booking contributions, exact-window Explorer parity and preserved default templates; existing disclosure compatibility, privacy, keyboard/Axe, 44 px targets, 390 px overflow and desktop two-screen geometry; required full/native/CI/live gates. No acceptance criterion is marked verified here.
++
++
++### #622 — Empfänger view in Ausgabenanalyse (implementation pending batch validation)
++
++- Added a URL-selected groups/categories or Empfänger view under the existing Ausgabenanalyse route. Only the active existing report body mounts; the payee reader, monetary content, classifications, refund handling and paginated booking detail remain unchanged. The old direct Empfänger route remains available until #620.
++- View changes preserve the selected period and a bounded payee-detail ID, including refresh and Back/Forward. Explicit period changes atomically clear that detail selection, retaining the previous behavior; the legacy direct report retains its original local-state default. The view selector is scoped, labelled and wraps with phone/coarse44px targets.
++- Validation is deferred by the owner’s implementation-first batching instruction: independently literal legacy/new-view cent equivalence, period/detail URL restoration, malformed selectors, existing loading/error/retry/detail pagination, privacy, keyboard/Axe,44px/390px/light-dark layout and the required full/native/CI/live gates. No tests were added or changed, and no acceptance criterion is marked verified.

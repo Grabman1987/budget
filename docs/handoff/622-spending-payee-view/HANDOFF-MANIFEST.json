@@ -1,0 +1,27 @@
+[
+  {
+    "path": "docs/handoff/622-spending-payee-view/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/622-spending-payee-view/README.md",
+    "size": 476,
+    "sha256": "6b991944c32b93ea22764338c734e668d1e2fbfd68f631563f6a93c0af16117e"
+  },
+  {
+    "path": "docs/handoff/622-spending-payee-view/owned/01-2be8458390912470bd0260580a5b55547cc158e0.patch",
+    "size": 13427,
+    "sha256": "355f5ef476c56ee0d402f86c17a37db3b7b017abf14e149ec719ed8e8e01408b"
+  },
+  {
+    "path": "docs/handoff/622-spending-payee-view/packet.json",
+    "size": 1735,
+    "sha256": "5ca55252a5a15088c7c9ae003ca930855e18af268de0f652f1e7a3f2826593af"
+  },
+  {
+    "path": "docs/handoff/622-spending-payee-view/reviews/622-whole-seven-spending-payee-view-independent-source-high.md",
+    "size": 4692,
+    "sha256": "93f11c51b8a446837f187058d6172546c46e7fdb9608d58713daf7c91f30a357"
+  }
+]

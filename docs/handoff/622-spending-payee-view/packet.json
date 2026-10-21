@@ -1,0 +1,37 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/622-spending-payee-view",
+  "sourceHead": "2be8458390912470bd0260580a5b55547cc158e0",
+  "originalBaseBeforeOwnedCommits": "28c5a2124e99a9ec3bee1a2911a07143a9652492",
+  "orderedCommits": [
+    {
+      "sha": "2be8458390912470bd0260580a5b55547cc158e0",
+      "parentBase": "28c5a2124e99a9ec3bee1a2911a07143a9652492",
+      "subject": "feat(reports): add the payee view to spending analysis (validation pending)",
+      "paths": [
+        "apps/web/src/pages/payee-analysis-report.tsx",
+        "apps/web/src/pages/reports-pages.tsx",
+        "apps/web/src/reports/report-search.ts",
+        "apps/web/src/reports/report-views.css",
+        "apps/web/src/reports/spending-analysis-report.tsx",
+        "apps/web/src/reports/spending-report-views.tsx",
+        "docs/ROADMAP.md"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 2be8458390912470bd0260580a5b55547cc158e0 > OWN_OUTPUT/2be8458390912470bd0260580a5b55547cc158e0.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-2be8458390912470bd0260580a5b55547cc158e0.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/web/src/pages/payee-analysis-report.tsx",
+    "apps/web/src/pages/reports-pages.tsx",
+    "apps/web/src/reports/report-search.ts",
+    "apps/web/src/reports/report-views.css",
+    "apps/web/src/reports/spending-analysis-report.tsx",
+    "apps/web/src/reports/spending-report-views.tsx",
+    "docs/ROADMAP.md"
+  ],
+  "mixedSourceAncestry": false,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}
