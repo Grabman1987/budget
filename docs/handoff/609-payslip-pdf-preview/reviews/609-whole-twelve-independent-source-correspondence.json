@@ -1,0 +1,74 @@
+{
+  "manifestSHA256": "086a2f672864666136d7850fb249960c52851105c351ab272e5defc61fe98942",
+  "owned12": {
+    "apps/server/src/receipts/pdf-preview.ts": {
+      "sha256": "da8e3c1ee1aa5b3e668571d9e05440c5e10ee11c8483aac04fabeba1484a54f1",
+      "mode": 33152,
+      "beforeSha256": null
+    },
+    "apps/server/src/receipts/pdf-preview-thread.mjs": {
+      "sha256": "2c73316cf0d9aca89df59d398cea9817f1715b5beb56876c901f4b12d741e9e9",
+      "mode": 33152,
+      "beforeSha256": null
+    },
+    "apps/server/src/api/receipts.ts": {
+      "sha256": "57fd2f4a4be57e3b1c0a59a17a4ea183ebd4b442ed2895913803363428bedd9d",
+      "mode": 33152,
+      "beforeSha256": "57485cdc2e03bdedbe6d2005a909ae87d26af04432a76db080b1e671674924c4"
+    },
+    "apps/server/package.json": {
+      "sha256": "c592d70f164b302140e256a274c01fb9a8ab737c025b6aad046cc0236daf53cb",
+      "mode": 33152,
+      "beforeSha256": "3628fccdf1ae320220adb1c173ae71ed47b773873f892a7d2a629e1e178a7b06"
+    },
+    "Dockerfile": {
+      "sha256": "195467f69095ad6b2ebc02149a0a744d79cfadbdce9ae12fbaef441507e2647f",
+      "mode": 33152,
+      "beforeSha256": "8ba6a271575919bf52d9132bbd67ff8a03c463db6efee09a451a043984d30aa4"
+    },
+    "apps/web/src/receipts/pdf-preview.tsx": {
+      "sha256": "20f2d9799d9ce4ddf05fd29ed333455537e6cd60733937ed810318925238c7c6",
+      "mode": 33152,
+      "beforeSha256": null
+    },
+    "apps/web/src/receipts/pdf-preview.css": {
+      "sha256": "9f67c12ac21fe4dfa699b076fcb6a51c8d955bfc3be70c668b8a9120b45490a8",
+      "mode": 33152,
+      "beforeSha256": null
+    },
+    "apps/web/src/reports/payslip-intake.tsx": {
+      "sha256": "3b0b8a7e473b8d6e4a669384e8a385bdf9fa38c7c1a8c7c62f784f830d9ab0a8",
+      "mode": 33152,
+      "beforeSha256": "384e2af88d02ef7058fad8ec5062a777333364fa586131af3240f74910886521"
+    },
+    "apps/web/src/reports/payslip-intake.css": {
+      "sha256": "c58db1ac7cfd2a515ca65ce0fbfb079b878df940d26736e40ef999eecfcb3ccd",
+      "mode": 33152,
+      "beforeSha256": "154bf3c8e525047d239577989a8d295a9442128e5b6cc087be32a8cc66a2c5d0"
+    },
+    "docs/receipts.md": {
+      "sha256": "e1fee0c25c73c2ca4b73eb4ddacece7c105e461e1dce95286ed09ba654d5f96d",
+      "mode": 33152,
+      "beforeSha256": "e4b6bfd8c9c32b619ba5e469355881d1dfabaa19e8b815c53b25a6776cfc6c2b"
+    },
+    "docs/payslip-intake.md": {
+      "sha256": "09a82fe10c8bf7fcffa308a8d50ec4059cb31f42570a504f408123e1e3d15a31",
+      "mode": 33152,
+      "beforeSha256": "d15e32ecb8377fd30466a033e662bdac2b67fd7b3abcf6dd4a85b447530c5af1"
+    },
+    "docs/ROADMAP.md": {
+      "sha256": "d945fd966719236ff2a5b5329221d725f1918ddb8809b112b9e41a3a99e5557c",
+      "mode": 33152,
+      "beforeSha256": "13daeca34510f10b6cf6839abb975a6dcc1347fa524256c2ab904fbe4a6ae3da"
+    }
+  },
+  "allCurrentFrozenSHAAndModesExact": true,
+  "originalWholePayslipReviewReconstructsExactly": true,
+  "serverPackageOnlyBuildEntry": true,
+  "dockerOnlyWorkerCopy": true,
+  "securityServiceWorker29baExact": true,
+  "apiDeltaOnlyBoundedByteCopy": true,
+  "roadmapFullPrefixBytes": 263335,
+  "finalOnlyAccountBoundaryKeyVsC6": true,
+  "validation": "read-only source/Git comparison; no project runtime/private PDFs"
+}

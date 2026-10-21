@@ -1,0 +1,33 @@
+{
+  "base": "759464abc050195c5d6dc285190efbadbe55de6b",
+  "scope": "READ_ONLY_FEASIBILITY",
+  "review_sha256": "9ec0230a9bacfe12599a4a90572f660eb69cc40303de361b44bb885456ae0eb8",
+  "proposal_sha256": "019d6b6b6b5c40fdef37c0c3b384edb7b45442874e7710b34577dda29214bb67",
+  "source_sha256": {
+    "apps/server/package.json": "3628fccdf1ae320220adb1c173ae71ed47b773873f892a7d2a629e1e178a7b06",
+    "package-lock.json": "97ec4209092a3bb86069ec86e852a5fcd487196abe75de349cc4c5b8902d7c44",
+    "Dockerfile": "8ba6a271575919bf52d9132bbd67ff8a03c463db6efee09a451a043984d30aa4",
+    "apps/server/src/app.ts": "9cf410054838fb37d9a9ed0cdd700decfc70b49228710ab32b63ba6026e32a0e",
+    "apps/server/src/api/index.ts": "0652387a05167ff4972da522e5ab43813a034ab4c91c1f54592e8b4744b754cf",
+    "apps/server/src/api/receipts.ts": "57485cdc2e03bdedbe6d2005a909ae87d26af04432a76db080b1e671674924c4",
+    "apps/server/src/receipts/files.ts": "1c57b27aaaf086a8b2a4449ae04e94d74d51b1c784d9e01a0073caec25b0be62",
+    "apps/server/src/payslips/service.ts": "9c076252c5aa6a45458045c7f4cda46b51e7df61dd70722a95d7144925f6ee95",
+    "apps/server/src/payslips/pdf-thread.mjs": "46402c532e45d1adf18a250cc22d00909ee7884d0054dda7a754aa42246ee559",
+    "apps/server/src/payslips/password.ts": "77fd0c8ee38afa66a8a3b30070ccc2b0b6d6d0a959e4dc907e6b98063bbf946b",
+    "packages/db/src/repos/payslip-intake.ts": "66bb11c0b0611dffd8a188f94959d9cfa2784bd07708dc77f09a1ffddb16fc6b",
+    "packages/domain/src/reports/payslip-automation.ts": "8594786f53c991af2c4e3aa0efdfd7d10229edee932a0106970ad43d0dbe3347",
+    "packages/db/src/schema/bookings.ts": "cbe3190ee007929edec82b13d3c45305fe686d2e598d06a48c2a7432c78a2ddb",
+    "packages/db/src/schema/imports.ts": "88575f2b90ccaf9d8fa50833bf0033b9eaa8700a4c487591cfd195aa91e5cf5e",
+    "packages/db/src/repos/audit.ts": "21777b88918b8e0e874e8a4ba6ced0cccad594276d60fa34d68aeba30b4bc102",
+    "packages/db/src/repos/bookings.ts": "7ac8a632873a1b1a362ffa70a97eea564f703291b8582bfcdbcbd11ad45cef15",
+    "apps/server/src/imports/commit.ts": "61f2d26bbd995a8189ac20a0d64368442a2d95a369011b701b54c7f53f046f17",
+    "apps/web/src/reports/payslip-intake.tsx": "384e2af88d02ef7058fad8ec5062a777333364fa586131af3240f74910886521",
+    "docs/receipts.md": "e4b6bfd8c9c32b619ba5e469355881d1dfabaa19e8b815c53b25a6776cfc6c2b",
+    "docs/payslip-intake.md": "d15e32ecb8377fd30466a033e662bdac2b67fd7b3abcf6dd4a85b447530c5af1",
+    "SPEC.md": "75c7bc10e17dbc5ca4c2d10f5f1b1d5c22f64646c534dd7419fc97333643a44d"
+  },
+  "private_pdf_access": false,
+  "runtime": false,
+  "repository_edits": false,
+  "remote_mutations": false
+}

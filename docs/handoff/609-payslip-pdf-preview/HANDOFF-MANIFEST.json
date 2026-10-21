@@ -1,0 +1,52 @@
+[
+  {
+    "path": "docs/handoff/609-payslip-pdf-preview/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/609-payslip-pdf-preview/README.md",
+    "size": 476,
+    "sha256": "7b7ade77a392fffd9c1807c3435c124559c96c9c55e720fd8ee3f2304a77bab2"
+  },
+  {
+    "path": "docs/handoff/609-payslip-pdf-preview/owned/01-621f1edfdf201199b2c244465557b65bcd0f41c3.patch",
+    "size": 42661,
+    "sha256": "54a43a724450d56251a27d8c116ace7d775a02332a45c7b35e2d945144fdfe31"
+  },
+  {
+    "path": "docs/handoff/609-payslip-pdf-preview/packet.json",
+    "size": 2004,
+    "sha256": "ba415583e2928934ee7c37b98abd49ddd96d512a16028121c7260867dec89918"
+  },
+  {
+    "path": "docs/handoff/609-payslip-pdf-preview/reviews/609-safe-pdf-preview-independent-review.freeze.json",
+    "size": 2609,
+    "sha256": "675b730d7d8e101f46854b1b403e313eac82df9df5610c033b34b1ab5806dd7f"
+  },
+  {
+    "path": "docs/handoff/609-payslip-pdf-preview/reviews/609-safe-pdf-preview-independent-review.md",
+    "size": 11993,
+    "sha256": "9ec0230a9bacfe12599a4a90572f660eb69cc40303de361b44bb885456ae0eb8"
+  },
+  {
+    "path": "docs/handoff/609-payslip-pdf-preview/reviews/609-security-three-independent-correspondence.json",
+    "size": 803,
+    "sha256": "7b6fa1c87436b87c5d417292a6a8470517f10c36993b88f18e9a8bc6c9e4ba5a"
+  },
+  {
+    "path": "docs/handoff/609-payslip-pdf-preview/reviews/609-server-worker-api-three-independent-security-source-high.md",
+    "size": 5724,
+    "sha256": "cf3eb74225304ec3ef39301cd6c324b9c8bc8fd4c0fbee33c49b19459d73757b"
+  },
+  {
+    "path": "docs/handoff/609-payslip-pdf-preview/reviews/609-whole-twelve-independent-security-ui-source-high.md",
+    "size": 6200,
+    "sha256": "7979dfd1d1487b10fd05035c73c802e52dcfe380881aa44ae7984da32f7d09bd"
+  },
+  {
+    "path": "docs/handoff/609-payslip-pdf-preview/reviews/609-whole-twelve-independent-source-correspondence.json",
+    "size": 3166,
+    "sha256": "d40478291cdf68404b62a5837212e5a6da1ff7826b371a790ff96ff4b6863ab8"
+  }
+]

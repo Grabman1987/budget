@@ -1,0 +1,845 @@
+diff --git a/Dockerfile b/Dockerfile
+index c90963f36dbe11ccb9c01a0738558a825b11b8ba..500e704a72f5e7511f1cae087d072e4527c7b8e9 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -67,6 +67,7 @@ COPY --from=build /repo/apps/server/dist/index.js ./server.js
+ COPY --from=build /repo/apps/server/dist/import-worker.js ./import-worker.js
+ COPY --from=build /repo/apps/server/dist/bank-sync-worker.js ./bank-sync-worker.js
+ COPY --from=build /repo/apps/server/dist/pdf-thread.js ./pdf-thread.js
++COPY --from=build /repo/apps/server/dist/pdf-preview-thread.js ./pdf-preview-thread.js
+ # PDF.js loads its own worker module and Node polyfills at runtime; keep them outside esbuild.
+ COPY --from=build /repo/node_modules/pdfjs-dist ./node_modules/pdfjs-dist
+ COPY --from=build /repo/node_modules/@napi-rs ./node_modules/@napi-rs
+diff --git a/apps/server/package.json b/apps/server/package.json
+index 8f274a7964b9bc844e4f21123a65db0f7ef85196..c28030e331adab49dbb28b0ed89f2817f85be9b3 100644
+--- a/apps/server/package.json
++++ b/apps/server/package.json
+@@ -5,7 +5,7 @@
+   "type": "module",
+   "scripts": {
+     "dev": "tsx watch src/dev.ts",
+-    "build": "esbuild src/index.ts src/payslips/pdf-thread.mjs ../worker/src/bank-sync-worker.ts src/imports/import-worker.ts src/imports/migrate-cli.ts src/imports/migrate-pp-cli.ts --bundle --platform=node --format=esm --target=node22 --external:better-sqlite3 --external:pdfjs-dist/* --outdir=dist --entry-names=[name] --banner:js=\"import{createRequire}from'node:module';const require=createRequire(import.meta.url);\"",
++    "build": "esbuild src/index.ts src/payslips/pdf-thread.mjs src/receipts/pdf-preview-thread.mjs ../worker/src/bank-sync-worker.ts src/imports/import-worker.ts src/imports/migrate-cli.ts src/imports/migrate-pp-cli.ts --bundle --platform=node --format=esm --target=node22 --external:better-sqlite3 --external:pdfjs-dist/* --outdir=dist --entry-names=[name] --banner:js=\"import{createRequire}from'node:module';const require=createRequire(import.meta.url);\"",
+     "typecheck": "tsc -p tsconfig.json"
+   },
+   "dependencies": {
+diff --git a/apps/server/src/api/receipts.ts b/apps/server/src/api/receipts.ts
+index 783e19587871f2649ef26d4126f15487a8c7d6e3..0ce32dccdf968902e4d5f65c750f4114deb5d888 100644
+--- a/apps/server/src/api/receipts.ts
++++ b/apps/server/src/api/receipts.ts
+@@ -26,6 +26,17 @@ import {
+   verifyReceiptFile,
+ } from '../receipts/files';
+ import { ACTOR, ApiError, readBody, readQuery } from './http';
++import { PdfPreviewError, receiptPdfPreview, type PdfPreviewCode } from '../receipts/pdf-preview';
++
++const previewMessages: Record<PdfPreviewCode, string> = {
++  password: 'Das PDF benötigt ein anderes Passwort.',
++  page: 'Diese PDF-Seite ist nicht vorhanden.',
++  limit: 'Die PDF-Vorschau überschreitet ein Verarbeitungslimit. Das Original bleibt verfügbar.',
++  busy: 'Eine PDF-Vorschau wird gerade erstellt. Bitte erneut versuchen.',
++  unavailable: 'Für dieses PDF ist keine Vorschau verfügbar. Das Original bleibt verfügbar.',
++  source_changed: 'Der Beleg ist nicht mehr unverändert verfügbar. Bitte neu öffnen.',
++  aborted: 'Die PDF-Vorschau wurde abgebrochen.',
++};
+ 
+ const id = z.string().uuid();
+ type UploadReply = ReturnType<typeof addReceipt>;
+@@ -137,6 +148,35 @@ export function receiptRoutes(db: Db, dir: string) {
+   api.delete('/:id', (c) =>
+     c.json(removeReceipt(db, id.parse(c.req.param('id')), { actor: ACTOR })),
+   );
++  // Read-only POST keeps transient passwords out of URLs; ordinary auth/origin/body guards apply.
++  api.post('/:id/pdf-preview', async (c) => {
++    const receiptId = id.parse(c.req.param('id'));
++    const input = await readBody(c, z.object({
++      page: z.number().int().min(1).max(30),
++      preset: z.enum(['fit', 'detail']).default('fit'),
++      password: z.string().max(1024).optional(),
++    }).strict());
++    try {
++      const preview = await receiptPdfPreview(db, dir, receiptId, {
++        page: input.page,
++        preset: input.preset,
++        ...(input.password !== undefined ? { password: input.password } : {}),
++      }, c.req.raw.signal);
++      c.header('Content-Type', 'image/png');
++      c.header('X-Content-Type-Options', 'nosniff');
++      c.header('Content-Length', String(preview.png.length));
++      c.header('X-PDF-Page', String(preview.page));
++      c.header('X-PDF-Pages', String(preview.pages));
++      c.header('X-PDF-Width', String(preview.width));
++      c.header('X-PDF-Height', String(preview.height));
++      return c.body(new Uint8Array(preview.png));
++    } catch (error) {
++      if (!(error instanceof PdfPreviewError)) throw error;
++      const status = error.code === 'busy' || error.code === 'unavailable' ? 503
++        : error.code === 'source_changed' ? 409 : error.code === 'aborted' ? 400 : 422;
++      return c.json({ error: `pdf_preview_${error.code}`, message: previewMessages[error.code] }, status);
++    }
++  });
+   api.get('/:id/:mode', async (c) => {
+     const mode = z.enum(['download', 'preview']).parse(c.req.param('mode'));
+     const row = getReceipt(db, id.parse(c.req.param('id')));
+diff --git a/apps/server/src/receipts/pdf-preview-thread.mjs b/apps/server/src/receipts/pdf-preview-thread.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..7d79b93ad60cc82f4bde4efa50e360d9a6ec47a9
+--- /dev/null
++++ b/apps/server/src/receipts/pdf-preview-thread.mjs
+@@ -0,0 +1,126 @@
++import { createHash } from 'node:crypto';
++import { dirname, resolve, sep } from 'node:path';
++import { fileURLToPath } from 'node:url';
++import { parentPort, workerData } from 'node:worker_threads';
++
++// Per-surface and tracked live-pixel limits are not a native RSS or decoder-memory sandbox.
++const SIDE = 2048;
++const PIXELS = 4_194_304;
++const LIVE_PIXELS = 16_777_216;
++const OUTPUT = 8 * 1024 * 1024;
++class PreviewLimit extends Error {}
++class PreviewPage extends Error {}
++
++function boundedFactory(factory) {
++  if (!factory || !['create', 'reset', 'destroy'].every((key) => typeof factory[key] === 'function'))
++    throw new Error('renderer');
++  const create = factory.create.bind(factory);
++  const reset = factory.reset.bind(factory);
++  const destroy = factory.destroy.bind(factory);
++  const live = new Map();
++  let total = 0;
++  function size(width, height, previous = 0) {
++    if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width <= 0 || height <= 0 ||
++      width > SIDE || height > SIDE || width * height > PIXELS ||
++      total - previous + width * height > LIVE_PIXELS) throw new PreviewLimit();
++    return width * height;
++  }
++  // Wrap the public PDFDocumentProxy factory instance, not a private/non-exported class.
++  // PDF.js uses this same instance for output, masks, patterns and transparency surfaces.
++  factory.create = (width, height) => {
++    const pixels = size(width, height);
++    const entry = create(width, height);
++    live.set(entry.canvas, pixels);
++    total += pixels;
++    return entry;
++  };
++  factory.reset = (entry, width, height) => {
++    const previous = live.get(entry.canvas);
++    if (previous === undefined) throw new PreviewLimit();
++    const pixels = size(width, height, previous);
++    reset(entry, width, height);
++    live.set(entry.canvas, pixels);
++    total += pixels - previous;
++  };
++  factory.destroy = (entry) => {
++    const canvas = entry.canvas;
++    const pixels = live.get(canvas);
++    if (pixels === undefined) {
++      if (canvas?.width === 0 && canvas?.height === 0) return;
++      throw new PreviewLimit();
++    }
++    destroy(entry);
++    live.delete(canvas);
++    total -= pixels;
++  };
++  return () => {
++    for (const canvas of live.keys()) destroy({ canvas, context: null });
++    live.clear();
++    total = 0;
++  };
++}
++
++let task;
++let page;
++let release;
++try {
++  const { bytes, sha256, password, preset, page: number } = workerData;
++  if (!(bytes instanceof Uint8Array) || bytes.length > 15 * 1024 * 1024 ||
++    !/^[a-f0-9]{64}$/.test(sha256) || createHash('sha256').update(bytes).digest('hex') !== sha256 ||
++    !Number.isSafeInteger(number) || number < 1 || number > 30 ||
++    !['fit', 'detail'].includes(preset) || (password !== undefined &&
++      (typeof password !== 'string' || password.length > 1024))) throw new PreviewLimit();
++  const { getDocument, AnnotationMode } = await import('pdfjs-dist/legacy/build/pdf.mjs');
++  const root = dirname(fileURLToPath(import.meta.resolve('pdfjs-dist/package.json')));
++  task = getDocument({
++    data: bytes,
++    password,
++    isEvalSupported: false,
++    enableXfa: false,
++    enableHWA: false,
++    disableFontFace: true,
++    useSystemFonts: false,
++    useWorkerFetch: false,
++    isOffscreenCanvasSupported: false,
++    isImageDecoderSupported: false,
++    maxImageSize: PIXELS,
++    canvasMaxAreaInBytes: PIXELS * 4,
++    stopAtErrors: true,
++    standardFontDataUrl: resolve(root, 'standard_fonts') + sep,
++    cMapUrl: resolve(root, 'cmaps') + sep,
++    cMapPacked: true,
++    wasmUrl: resolve(root, 'wasm') + sep,
++    verbosity: 0,
++  });
++  const pdf = await task.promise;
++  if (!Number.isSafeInteger(pdf.numPages) || pdf.numPages > 30) throw new PreviewLimit();
++  if (number > pdf.numPages) throw new PreviewPage();
++  release = boundedFactory(pdf.canvasFactory);
++  page = await pdf.getPage(number);
++  if (!Number.isInteger(page.rotate) || page.rotate % 90 !== 0) throw new PreviewLimit();
++  const raw = page.getViewport({ scale: 1 });
++  if (!Number.isFinite(raw.width) || !Number.isFinite(raw.height) || raw.width <= 0 || raw.height <= 0)
++    throw new PreviewLimit();
++  const scale = Math.min((preset === 'detail' ? 1536 : 960) / raw.width, SIDE / raw.height);
++  const viewport = page.getViewport({ scale });
++  const width = Math.ceil(viewport.width), height = Math.ceil(viewport.height);
++  const entry = pdf.canvasFactory.create(width, height);
++  await page.render({
++    canvas: entry.canvas,
++    viewport,
++    annotationMode: AnnotationMode.DISABLE,
++    background: 'rgb(255,255,255)',
++  }).promise;
++  if (typeof entry.canvas.toBuffer !== 'function') throw new Error('renderer');
++  const png = entry.canvas.toBuffer('image/png');
++  if (!png.length || png.length > OUTPUT) throw new PreviewLimit();
++  const transfer = Uint8Array.from(png);
++  parentPort.postMessage({ png: transfer, page: number, pages: pdf.numPages, width, height }, [transfer.buffer]);
++} catch (error) {
++  parentPort.postMessage({ error: error?.name === 'PasswordException' ? 'password'
++    : error instanceof PreviewPage ? 'page' : error instanceof PreviewLimit ? 'limit' : 'unavailable' });
++} finally {
++  try { release?.(); } catch { /* No library diagnostics may leave this worker. */ }
++  try { page?.cleanup(); } catch { /* Parent owns final termination. */ }
++  try { await task?.destroy(); } catch { /* Parent owns final termination. */ }
++}
+diff --git a/apps/server/src/receipts/pdf-preview.ts b/apps/server/src/receipts/pdf-preview.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..3afa0588fefedc80f4583e80368ec44c78346e8d
+--- /dev/null
++++ b/apps/server/src/receipts/pdf-preview.ts
+@@ -0,0 +1,162 @@
++import { getReceipt, type Db } from '@budget/db';
++import { existsSync } from 'node:fs';
++import { open } from 'node:fs/promises';
++import { resolve } from 'node:path';
++import { Worker } from 'node:worker_threads';
++import { digest, receiptPath, RECEIPT_LIMIT } from './files';
++
++export type PdfPreviewCode =
++  | 'password'
++  | 'page'
++  | 'limit'
++  | 'busy'
++  | 'unavailable'
++  | 'source_changed'
++  | 'aborted';
++export type PdfPreviewInput = { page: number; preset: 'fit' | 'detail'; password?: string };
++export type PdfPreview = { png: Uint8Array; page: number; pages: number; width: number; height: number };
++export class PdfPreviewError extends Error {
++  constructor(readonly code: PdfPreviewCode) {
++    super('PDF preview unavailable');
++  }
++}
++
++const OUTPUT_LIMIT = 8 * 1024 * 1024;
++const TIME_LIMIT = 20_000;
++// Process-wide admission, acquired before file I/O. There is deliberately no waiting queue.
++let active = false;
++const aborted = (signal: AbortSignal) => {
++  if (signal.aborted) throw signal.reason instanceof PdfPreviewError
++    ? signal.reason : new PdfPreviewError('aborted');
++};
++
++/** Read at most the recorded size + one byte, then verify THAT buffer, not an earlier file. */
++async function sourceBytes(dir: string, sha256: string, size: number, signal: AbortSignal) {
++  if (!Number.isSafeInteger(size) || size <= 0 || size > RECEIPT_LIMIT)
++    throw new PdfPreviewError('limit');
++  const file = await open(receiptPath(dir, sha256), 'r');
++  let bytes: Buffer | undefined;
++  try {
++    aborted(signal);
++    const metadata = await file.stat();
++    aborted(signal);
++    if (!metadata.isFile() || metadata.size !== size) throw new PdfPreviewError('unavailable');
++    bytes = Buffer.alloc(size + 1);
++    let used = 0;
++    while (used < bytes.length) {
++      aborted(signal);
++      const read = await file.read(bytes, used, bytes.length - used, used);
++      if (!read.bytesRead) break;
++      used += read.bytesRead;
++    }
++    aborted(signal);
++    if (used !== size || digest(bytes.subarray(0, used)) !== sha256)
++      throw new PdfPreviewError('unavailable');
++    return bytes.subarray(0, used);
++  } catch (error) {
++    bytes?.fill(0);
++    throw error;
++  } finally {
++    await file.close();
++  }
++}
++
++function render(bytes: Uint8Array, sha256: string, input: PdfPreviewInput, signal: AbortSignal) {
++  aborted(signal);
++  const built = resolve(import.meta.dirname, 'pdf-preview-thread.js');
++  const worker = new Worker(
++    existsSync(built) ? built : resolve(import.meta.dirname, 'pdf-preview-thread.mjs'),
++    {
++      workerData: { bytes, sha256, ...input },
++      resourceLimits: { maxOldGenerationSizeMb: 128 },
++      stdout: true,
++      stderr: true,
++    },
++  );
++  // PDF/native diagnostics can contain private document data. Never forward them.
++  worker.stdout?.resume();
++  worker.stderr?.resume();
++  return new Promise<PdfPreview>((done, fail) => {
++    let finishing = false;
++    const finish = (result: PdfPreview | PdfPreviewError) => {
++      if (finishing) return;
++      finishing = true;
++      signal.removeEventListener('abort', cancel);
++      // Capacity stays held until the actual worker has exited, including timeout/abort paths.
++      void worker.terminate().then(
++        () => result instanceof PdfPreviewError ? fail(result) : done(result),
++        () => {
++          // A failed termination request must not release admission while a worker is alive.
++          if (worker.threadId === -1) fail(new PdfPreviewError('unavailable'));
++          else worker.once('exit', () => fail(new PdfPreviewError('unavailable')));
++        },
++      );
++    };
++    const cancel = () => finish(signal.reason instanceof PdfPreviewError
++      ? signal.reason : new PdfPreviewError('aborted'));
++    worker.once('message', (message: unknown) => {
++      if (!message || typeof message !== 'object') return finish(new PdfPreviewError('unavailable'));
++      const data = message as Record<string, unknown>;
++      if (['password', 'page', 'limit', 'unavailable'].includes(String(data['error'])))
++        return finish(new PdfPreviewError(data['error'] as PdfPreviewCode));
++      const { png, page, pages, width, height } = data;
++      if (
++        !(png instanceof Uint8Array) || !png.length || png.length > OUTPUT_LIMIT ||
++        page !== input.page || !Number.isInteger(pages) || Number(pages) < input.page || Number(pages) > 30 ||
++        !Number.isInteger(width) || !Number.isInteger(height) ||
++        Number(width) <= 0 || Number(height) <= 0 || Number(width) > 2048 || Number(height) > 2048 ||
++        png.length < 24 || Buffer.from(png.subarray(0, 8)).toString('hex') !== '89504e470d0a1a0a' ||
++        Buffer.from(png.subarray(16, 24)).readUInt32BE(0) !== width ||
++        Buffer.from(png.subarray(16, 24)).readUInt32BE(4) !== height
++      ) return finish(new PdfPreviewError('unavailable'));
++      finish({ png, page: Number(page), pages: Number(pages), width: Number(width), height: Number(height) });
++    });
++    worker.once('error', () => finish(new PdfPreviewError('unavailable')));
++    worker.once('exit', () => finish(new PdfPreviewError('unavailable')));
++    signal.addEventListener('abort', cancel, { once: true });
++    if (signal.aborted) cancel();
++  });
++}
++
++/** Read-only inert pixels; no extraction, password retention, receipt mutation or audit write. */
++export async function receiptPdfPreview(
++  db: Db,
++  dir: string,
++  id: string,
++  input: PdfPreviewInput,
++  signal: AbortSignal,
++): Promise<PdfPreview> {
++  aborted(signal);
++  if (active) throw new PdfPreviewError('busy');
++  active = true;
++  const deadline = new AbortController();
++  const timer = setTimeout(() => deadline.abort(new PdfPreviewError('limit')), TIME_LIMIT);
++  const requestSignal = AbortSignal.any([signal, deadline.signal]);
++  let bytes: Buffer | undefined;
++  try {
++    const source = getReceipt(db, id);
++    if (source.mime !== 'application/pdf') throw new PdfPreviewError('unavailable');
++    try {
++      bytes = await sourceBytes(dir, source.sha256!, source.sizeBytes, requestSignal);
++    } catch (error) {
++      throw error instanceof PdfPreviewError ? error : new PdfPreviewError('unavailable');
++    }
++    const result = await render(bytes, source.sha256!, input, requestSignal);
++    aborted(requestSignal);
++    // Rendering awaited I/O: never publish a source removed or replaced in the meantime.
++    try {
++      const live = getReceipt(db, id);
++      if (live.sha256 !== source.sha256 || live.sizeBytes !== source.sizeBytes || live.mime !== source.mime)
++        throw new PdfPreviewError('source_changed');
++    } catch {
++      result.png.fill(0);
++      throw new PdfPreviewError('source_changed');
++    }
++    return result;
++  } finally {
++    clearTimeout(timer);
++    bytes?.fill(0);
++    // A pending bounded filesystem operation also completes/closes before this slot is freed.
++    active = false;
++  }
++}
+diff --git a/apps/web/src/receipts/pdf-preview.css b/apps/web/src/receipts/pdf-preview.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..252a68a8280f4bb6361929a4de7c27e797c3eaf9
+--- /dev/null
++++ b/apps/web/src/receipts/pdf-preview.css
+@@ -0,0 +1,60 @@
++.receipt-pdf-preview {
++  min-width: 0;
++  overflow-wrap: anywhere;
++}
++.receipt-pdf-preview h3 {
++  margin-block: 0 12px;
++  font-size: var(--fs-title);
++}
++.receipt-pdf-controls {
++  display: flex;
++  align-items: center;
++  flex-wrap: wrap;
++  gap: 8px;
++  margin-block-end: 12px;
++}
++.receipt-pdf-controls > span {
++  font-size: var(--fs-meta);
++  font-variant-numeric: tabular-nums;
++}
++.receipt-pdf-preview .btn,
++.receipt-pdf-preview .input {
++  min-height: 44px;
++  max-width: 100%;
++  white-space: normal;
++}
++.receipt-pdf-frame {
++  width: 100%;
++  min-width: 0;
++  max-height: 64dvh;
++  overflow: auto;
++  overscroll-behavior: contain;
++  border: 1px solid var(--rule-strong);
++  background: var(--surface-2);
++  margin-block-end: 12px;
++}
++.receipt-pdf-frame > p {
++  margin: 12px;
++}
++.receipt-pdf-frame:focus-visible {
++  outline: 2px solid var(--primary);
++  outline-offset: 2px;
++}
++.receipt-pdf-frame img {
++  display: block;
++  height: auto;
++}
++.receipt-pdf-fit {
++  width: 100%;
++  max-width: 100%;
++}
++.receipt-pdf-detail {
++  width: auto;
++  min-width: 100%;
++  max-width: none;
++}
++@media (max-width: 767px) {
++  .receipt-pdf-frame {
++    max-height: 45dvh;
++  }
++}
+diff --git a/apps/web/src/receipts/pdf-preview.tsx b/apps/web/src/receipts/pdf-preview.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..3922bd219701fa617783287b378fd97e7fe76c5f
+--- /dev/null
++++ b/apps/web/src/receipts/pdf-preview.tsx
+@@ -0,0 +1,190 @@
++import { Button, Field, TextInput, useAmountPrivacy } from '@budget/ui';
++import { useEffect, useRef, useState } from 'react';
++import './pdf-preview.css';
++
++const BYTE_LIMIT = 8 * 1024 * 1024;
++const messages: Record<string, string> = {
++  pdf_preview_password: 'Bitte das PDF-Passwort eingeben oder korrigieren und erneut versuchen.',
++  pdf_preview_page: 'Diese Seite ist nicht vorhanden. Bitte eine andere Seite wählen.',
++  pdf_preview_limit: 'Für dieses PDF wurde ein Verarbeitungslimit erreicht. Das Original bleibt verfügbar.',
++  pdf_preview_busy: 'Eine Vorschau wird gerade erstellt. Bitte gleich erneut versuchen.',
++  pdf_preview_source_changed: 'Der Beleg ist nicht mehr unverändert verfügbar. Bitte die Prüfung neu öffnen.',
++};
++const unavailable = 'Die Vorschau ist nicht verfügbar. Du kannst das Original herunterladen und die Angaben weiter prüfen.';
++type Selection = { page: number; preset: 'fit' | 'detail'; password: string; attempt: number };
++type PageView = { status: 'loading' } | { status: 'error'; message: string }
++  | { status: 'ready'; image: string; width: number; height: number };
++
++async function pngBlob(response: Response, signal: AbortSignal) {
++  if (response.headers.get('content-type')?.split(';')[0] !== 'image/png' || !response.body)
++    throw new Error('preview');
++  const announced = response.headers.get('content-length');
++  if (announced !== null && (!/^\d+$/.test(announced) || Number(announced) > BYTE_LIMIT))
++    throw new Error('preview');
++  const reader = response.body.getReader();
++  const chunks: ArrayBuffer[] = [];
++  let length = 0;
++  try {
++    for (;;) {
++      if (signal.aborted) throw new Error('aborted');
++      const { done, value } = await reader.read();
++      if (done) break;
++      length += value.byteLength;
++      if (length > BYTE_LIMIT) throw new Error('preview');
++      chunks.push(Uint8Array.from(value).buffer);
++    }
++    if (!length) throw new Error('preview');
++    return new Blob(chunks, { type: 'image/png' });
++  } finally {
++    await reader.cancel().catch(() => undefined);
++    reader.releaseLock();
++  }
++}
++
++function imageUrl(blob: Blob, signal: AbortSignal): Promise<string> {
++  return new Promise((done, fail) => {
++    const reader = new FileReader();
++    const cancel = () => reader.abort();
++    const finish = () => signal.removeEventListener('abort', cancel);
++    reader.onload = () => {
++      finish();
++      if (typeof reader.result === 'string') done(reader.result);
++      else fail(new Error('preview'));
++    };
++    reader.onerror = reader.onabort = () => { finish(); fail(new Error('preview')); };
++    signal.addEventListener('abort', cancel, { once: true });
++    if (signal.aborted) { finish(); fail(new Error('aborted')); return; }
++    reader.readAsDataURL(blob);
++  });
++}
++
++/** All pixels/passwords live only in this mounted session, outside persistent query caches. */
++function PdfPage({ receiptId, onClose }: { receiptId: string; onClose: () => void }) {
++  const [password, setPassword] = useState('');
++  const [selection, setSelection] = useState<Selection>({ page: 1, preset: 'fit', password: '', attempt: 0 });
++  const [view, setView] = useState<PageView>({ status: 'loading' });
++  const [pages, setPages] = useState<number | null>(null);
++  useEffect(() => {
++    const controller = new AbortController();
++    let current = true;
++    const timer = setTimeout(() => {
++      if (current) setView({ status: 'error', message: unavailable });
++      controller.abort();
++    }, 25_000);
++    void (async () => {
++      try {
++        const response = await fetch(`/api/receipts/${encodeURIComponent(receiptId)}/pdf-preview`, {
++          method: 'POST',
++          credentials: 'same-origin',
++          cache: 'no-store',
++          signal: controller.signal,
++          headers: { 'content-type': 'application/json' },
++          body: JSON.stringify({ page: selection.page, preset: selection.preset,
++            ...(selection.password ? { password: selection.password } : {}) }),
++        });
++        if (!response.ok) {
++          const payload: unknown = await response.json().catch(() => undefined);
++          const code = payload && typeof payload === 'object' && 'error' in payload
++            ? String(payload.error) : '';
++          if (current) setView({ status: 'error', message: messages[code] ?? unavailable });
++          return;
++        }
++        const page = Number(response.headers.get('X-PDF-Page'));
++        const count = Number(response.headers.get('X-PDF-Pages'));
++        const width = Number(response.headers.get('X-PDF-Width'));
++        const height = Number(response.headers.get('X-PDF-Height'));
++        if (page !== selection.page || !Number.isInteger(count) || count < page || count > 30 ||
++          !Number.isInteger(width) || !Number.isInteger(height) ||
++          width <= 0 || height <= 0 || width > 2048 || height > 2048) throw new Error('preview');
++        const image = await imageUrl(await pngBlob(response, controller.signal), controller.signal);
++        if (current) {
++          setPages(count);
++          setView({ status: 'ready', image, width, height });
++        }
++      } catch {
++        if (current && !controller.signal.aborted) setView({ status: 'error', message: unavailable });
++      } finally {
++        clearTimeout(timer);
++      }
++    })();
++    return () => {
++      current = false;
++      clearTimeout(timer);
++      controller.abort();
++    };
++  }, [receiptId, selection]);
++  const busy = view.status === 'loading';
++  function load(page: number, preset = selection.preset) {
++    setView({ status: 'loading' }); // Remove old pixels before requesting the next page/generation.
++    setSelection({ page, preset, password, attempt: selection.attempt + 1 });
++  }
++  return (
++    <>
++      <div className="receipt-pdf-controls">
++        <Button variant="ghost" disabled={busy || selection.page === 1}
++          onClick={() => load(selection.page - 1)}>Vorherige Seite</Button>
++        <span role="status" aria-live="polite">Seite {selection.page}{pages ? ` von ${pages}` : ''}</span>
++        <Button variant="ghost" disabled={busy || pages === null || selection.page >= pages}
++          onClick={() => load(selection.page + 1)}>Nächste Seite</Button>
++        <Button variant="ghost" disabled={busy} aria-pressed={selection.preset === 'detail'}
++          onClick={() => load(selection.page, selection.preset === 'fit' ? 'detail' : 'fit')}>
++          {selection.preset === 'fit' ? 'Vergrößern' : 'An Breite anpassen'}
++        </Button>
++        <Button variant="ghost" onClick={onClose}>Vorschau schließen</Button>
++      </div>
++      <div className="receipt-pdf-frame" tabIndex={view.status === 'ready' ? 0 : undefined}
++        role="region" aria-label="PDF-Seitenansicht" aria-busy={busy}>
++        {busy && <p role="status">PDF-Seite wird erstellt …</p>}
++        {view.status === 'error' && <p role="alert">{view.message}</p>}
++        {view.status === 'ready' && <img src={view.image} alt={`Originalbeleg, Seite ${selection.page}`}
++          width={view.width} height={view.height}
++          onError={() => setView({ status: 'error', message: unavailable })}
++          className={selection.preset === 'detail' ? 'receipt-pdf-detail' : 'receipt-pdf-fit'} />}
++      </div>
++      <Field label="PDF-Passwort für diese Vorschau"
++        hint="Nur während der geöffneten Vorschau. Es wird nicht gespeichert.">
++        {({ id, describedBy }) => <TextInput id={id} aria-describedby={describedBy} type="password"
++          autoComplete="off" maxLength={1024} disabled={busy} value={password}
++          onChange={(event) => setPassword(event.target.value)} />}
++      </Field>
++      <Button variant="ghost" disabled={busy} onClick={() => load(selection.page)}>
++        Vorschau erneut laden
++      </Button>
++    </>
++  );
++}
++
++function PreviewSession({ receiptId }: { receiptId: string }) {
++  const [open, setOpen] = useState(false);
++  const opener = useRef<HTMLButtonElement>(null);
++  const restoreFocus = useRef(false);
++  useEffect(() => {
++    if (!open && restoreFocus.current) {
++      restoreFocus.current = false;
++      opener.current?.focus({ preventScroll: true });
++    }
++  }, [open]);
++  return open ? <PdfPage receiptId={receiptId} onClose={() => {
++    restoreFocus.current = true;
++    setOpen(false);
++  }} /> : (
++    <>
++      <p>Die Vorschau zeigt eine Seite des Originals als Bild. Deine Prüfangaben bleiben erhalten.</p>
++      <button ref={opener} type="button" className="btn btn-ghost"
++        onClick={() => setOpen(true)}>PDF-Vorschau öffnen</button>
++    </>
++  );
++}
++
++/** Privacy/source/visibility changes unmount the entire session, including pixels and passwords. */
++export function ReceiptPdfPreview({ receiptId, visible }: { receiptId: string; visible: boolean }) {
++  const hidden = useAmountPrivacy();
++  if (!visible) return null;
++  return (
++    <section className="receipt-pdf-preview" aria-label="Original-PDF">
++      <h3>Original-PDF</h3>
++      {hidden ? <p>Die PDF-Vorschau ist im Datenschutzmodus ausgeblendet.</p>
++        : <PreviewSession key={receiptId} receiptId={receiptId} />}
++    </section>
++  );
++}
+diff --git a/apps/web/src/reports/payslip-intake.css b/apps/web/src/reports/payslip-intake.css
+index 8293983cc981bc9b7556bb4ef5860de44665858c..ef5d4cb6310213d8397db9c5e91d3a74ce15af00 100644
+--- a/apps/web/src/reports/payslip-intake.css
++++ b/apps/web/src/reports/payslip-intake.css
+@@ -20,6 +20,22 @@
+   width: min(100%, 920px);
+   max-width: 920px;
+ }
++.payslip-document-review {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
++  align-items: start;
++  gap: 24px;
++}
++.payslip-document-original,
++.payslip-document-fields {
++  min-width: 0;
++}
++@media (max-width: 767px) {
++  .payslip-document-review {
++    grid-template-columns: minmax(0, 1fr);
++    gap: 16px;
++  }
++}
+ .payslip-intake-review {
+   max-width: 100%;
+   text-align: left;
+diff --git a/apps/web/src/reports/payslip-intake.tsx b/apps/web/src/reports/payslip-intake.tsx
+index 069a96933f4cec2a6141c80f4f8c43c206cde761..210d352edd5dc36e81fe1bd57cfe6a8e5a91b216 100644
+--- a/apps/web/src/reports/payslip-intake.tsx
++++ b/apps/web/src/reports/payslip-intake.tsx
+@@ -14,6 +14,7 @@ import { eur, longDay } from '../ledger/format';
+ import { errorText } from '../ledger/labels';
+ import { ErrorNote, LoadingNote } from '../ledger/states';
+ import type { AccountRow } from '../ledger/types';
++import { ReceiptPdfPreview } from '../receipts/pdf-preview';
+ import './payslip-intake.css';
+ 
+ const PATH = '/api/payslip-intake';
+@@ -665,6 +666,16 @@ export function PayslipIntakeDetail({
+       )}
+     </>
+   );
++  const documentReview = (
++    <div className="payslip-document-review">
++      <div className="payslip-document-original">
++        {data && <ReceiptPdfPreview
++          key={`${id}:${data.receiptId}:${accountId ?? data.payoutAccountId ?? ''}`}
++          receiptId={data.receiptId} visible={inline || dialogOpen} />}
++      </div>
++      <div className="payslip-document-fields">{review}</div>
++    </div>
++  );
+   if (inline)
+     return (
+       <section className="payslip-intake-review" aria-label="Gehaltszettelprüfung">
+@@ -672,7 +683,7 @@ export function PayslipIntakeDetail({
+           <p role="status">Duplikat erkannt. Die bestehende Abrechnung wird angezeigt.</p>
+         )}
+         {!duplicate && <p role="status">{data?.status === 'confirmed' ? 'Gehaltszettel gespeichert.' : 'PDF gespeichert. Offene Angaben bitte prüfen.'}</p>}
+-        {review}
++        {documentReview}
+       </section>
+     );
+   return (
+@@ -686,7 +697,7 @@ export function PayslipIntakeDetail({
+         title="Gehaltszettel prüfen"
+         beforeClose={() => !busy}
+       >
+-        <div className="payslip-review-dialog">{review}</div>
++        <div className="payslip-review-dialog">{documentReview}</div>
+       </WideDialog>
+     </>
+   );
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index d0d5713b2c516c11cdd6d829897cdfa1f74212cc..3cc8ac583ce1e8549a3038e7f98dfcf0b88c59d0 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1920,3 +1920,11 @@ explicit reanalysis/review. Upload and reanalysis never post money.
+ - Instrument detail now defaults to Wert € with a separate native-currency Kurs mode, existing range choices, actual dated trade events and a labelled dashed Stichtag-Einstand reference when documented. The same response supplies historical chart and visible position/basis; existing writer/form dates and dirty/busy/trade controllers remain separate and unchanged. Source observations, units and gaps are available through the same hover/keyboard/table points.
+ - Added a twelve-month savings strip from retained explicit savingsMonth/plan-version links only. Adjacent posting dates retain their saved month; manual/inferred buys do not become executions. Existing version-aware next execution, manual-inclusive purchase total, proposal logic and writers are unchanged. Purchases start collapsed. Shared trade history shows the last twelve with All access; existing instrument edit control is reused through native keyboard action and pointer-row delegation, while savings purchases remain read-only as required by the bounded scope.
+ - [ ] Source-only checkpoint: no existing tests were edited and no new tests, execution, formatter, typecheck, lint, build, native/visual/Axe or CI ran. Financial read/selector source review is available; independent whole-source review and later literal dated endpoint/basis/FX/cent rounding, event/units, explicit-link/version/manual-extra/Undo and original editor regression proofs remain required, followed by actual responsive/touch/privacy/Axe, required checks and LIVE acceptance. Neither issue is complete from this source checkpoint.
++
++
++### #609 — Inert original-PDF preview beside payroll review (source-only progress)
++
++- Added a receipt-local explicit single-page PNG preview using the existing pinned PDF.js Node factory; raw PDF downloads, CSP, dependencies, auth and all payout/ledger writers remain unchanged. Wide review shows the original on the left and existing fields on the right; narrow screens stack them.
++- Added process-wide admission 1/no queue, bounded same-buffer SHA verification and post-await live source check, request cancellation/actual worker termination, finite page/preset/surface/live-pixel/image/output bounds and fixed private-safe errors. No hard native RSS or 20-second wall-clock guarantee is claimed.
++- Preview pixels/passwords remain transient; close/source switch/privacy unmount the session and abort its request. Preview failures retain the original download and existing review fields. No payout normalization or automatic financial action is part of this packet.
++- [ ] Synthetic renderer/platform/limit/auth/abort/source-race verification, privacy/draft/keyboard/Axe and 1440/390 light/dark browser evidence; all types/lint/format/tests/build/full/CI/live acceptance remain deferred. Source-only implementation and independent source review are not runtime acceptance. See [receipt preview limits](receipts.md#inert-pdf-page-preview-609-source-implementation-validation-pending) and [payroll review](payslip-intake.md#original-page-beside-payroll-review-609-validation-pending).
+diff --git a/docs/payslip-intake.md b/docs/payslip-intake.md
+index 51d4da7137c42bf1783044d95aa16f9a7e826cae..3d637bc333e6d9e83f55f39c97aca5158ec77345 100644
+--- a/docs/payslip-intake.md
++++ b/docs/payslip-intake.md
+@@ -120,9 +120,35 @@ PDF.js extracts text in a bounded worker thread (20 seconds, 128 MiB JavaScript
+ heap, 30 pages, 200,000 text characters). Evaluation and font rendering are disabled;
+ library diagnostics are discarded. The password and extracted text never enter
+ the database, application logs or client responses. Original bytes use the existing
+-content-addressed `RECEIPTS_DIR`, outside static hosting. PDFs are download-only.
++content-addressed `RECEIPTS_DIR`, outside static hosting. Raw PDFs remain download-only;
++the separate inert page-preview path below does not change text extraction.
+ No decrypted PDF is written. Plain PDFs remain plain on the protected volume.
+ 
++### Original page beside payroll review (#609, validation pending)
++
++The existing wide upload/review dialog and the inbox review share a receipt-local
++PDF preview on the left, with the existing review on the right. On narrow screens
++they stack. Explicit **PDF-Vorschau öffnen** requests one protected PNG page;
++previous/next page and fit/detail controls never embed the PDF itself. Zoom pans
++inside the bounded page region. **Vorschau schließen** removes its image/password
++and aborts pending work; closing the review or changing its source does the same.
++
++An encrypted PDF can use **PDF-Passwort für diese Vorschau**, kept only for that
++open preview session. It is not remembered or retrieved from the payroll password
++store. Preview failure, a wrong password, busy renderer or a processing limit does
++not discard review fields, reanalyse the document, change payout eligibility or
++disable the existing original download/manual review. It never confirms a payout
++or changes an existing allocation. Privacy mode removes the entire image/session
++and requires an explicit new open after privacy is turned off.
++
++The [receipt preview contract](receipts.md#inert-pdf-page-preview-609-source-implementation-validation-pending)
++documents finite page/surface/image/output limits, process-wide admission and the
++distinction between the cancellation deadline, V8 heap and unbounded native RSS.
++No private document has been used for this source-only implementation. Actual
++synthetic rendering, platform/limit/security checks and 1440/390 light/dark,
++keyboard/touch/privacy/draft verification are still pending. Existing payout
++split normalization is deliberately outside this preview packet.
++
+ The pure adapter interface accepts extracted text plus owner mappings. The Austrian
+ wage-line adapter supports LGV/BMD/ZFA2-style labels, final amount columns, signed
+ amounts, regular/SZ SV-DN and Lohnsteuer, separate signed Aufrollung lines, other
+diff --git a/docs/receipts.md b/docs/receipts.md
+index 31401767cc685c6c90fd279d5e8f49f132d6e757..db08e7207c8ff0db096a90bcce629569edf5d5b7 100644
+--- a/docs/receipts.md
++++ b/docs/receipts.md
+@@ -46,7 +46,8 @@ recompressing pixels. This removes standard EXIF GPS containers and orientation
+ metadata; there is no pixel reorientation. Verify orientation on the real phone. **HEIC/HEIF and
+ PDF metadata are retained**: reliable removal requires a decoder/parser beyond
+ this dependency-free slice. The UI discloses this limitation. PDF active contents
+-are never rendered inside the app; there is no PDF/HEIF inline preview.
++are never embedded inside the app. Payroll review can request an inert PNG of one
++PDF page; the raw PDF and HEIF remain download-only.
+ 
+ Downloads use `application/octet-stream`, `Content-Disposition: attachment`, a
+ sanitized RFC 5987 filename, `nosniff` and `Cache-Control: no-store`. Authenticated
+@@ -62,6 +63,54 @@ receipts. `POST /api/receipts` accepts multipart `file`, optional `bookingId`.
+ unlinks. `DELETE /api/receipts/:id` removes an unlinked receipt.
+ `GET .../:id/download` downloads; `GET .../:id/preview` supplies raster thumbnails.
+ 
++## Inert PDF page preview (#609, source implementation; validation pending)
++
++`POST /api/receipts/:id/pdf-preview` is a read-only, session- and same-origin-guarded
++request with strict JSON `{page, preset?, password?}`. Page is 1–30, preset is `fit`
++(default) or `detail`, and the transient password is at most 1,024 characters. The
++ordinary body limit and import hold apply. This POST does not notify financial
++write listeners, reparse a document, retain a password, create an audit entry or
++change a receipt/booking. Existing image and opaque download routes are unchanged.
++
++The service verifies the live PDF receipt's size and SHA-256 against the same
++bounded buffer passed to the renderer, which verifies the digest again. It
++rechecks the live receipt identity after rendering. No caller path or URL enters
++the worker. Responses contain only PNG bytes and finite `X-PDF-Page`,
++`X-PDF-Pages`, `X-PDF-Width` and `X-PDF-Height` headers, with `no-store` and `nosniff`.
++Wrong password, unavailable page, source change, busy renderer and processing limits
++have fixed messages; library diagnostics and private source content are discarded.
++
++One server-wide renderer slot per process has no waiting queue; admission precedes
++file loading. A 20-second cancellation deadline covers source reading and rendering.
++Abort/deadline stops subsequent work and terminates the worker, but in-progress
++filesystem operations must finish/close and worker termination must complete before
++the slot is released. It is not a hard wall-clock guarantee. There is no generated
++image cache, new file, external asset fetch, PDF viewer, annotation/XFA layer or CSP
++change. PDF.js uses only its packaged fonts/cMaps/wasm and its own optional Node
++canvas facility; application code does not import the optional renderer directly.
++
++Limits are 15 MiB source, 30 document pages, one page per request, 2,048 pixels per
++surface side, 4,194,304 pixels per surface/image, 16,777,216 simultaneously tracked
++canvas pixels and 8 MiB encoded PNG. Both factory create/reset paths enforce the
++surface budget; oversized images fail instead of being silently omitted. These
++limits do not bound all decoded image/font buffers or PNG encoder peak allocation.
++`canvasMaxAreaInBytes` is only an image-resizer setting; the worker’s 128 MiB limit
++covers V8 old-generation heap, not native Canvas/Skia or total process RSS. No hard
++native-memory isolation or cross-instance renderer quota is claimed. Optional
++native-renderer failure leaves preview unavailable and the original downloadable.
++
++The receipt-local view keeps only current-page pixels and a transient preview
++password in component memory. Page/zoom changes remove previous pixels; source
++switch, close, unmount and privacy mode remove the entire session and abort its
++request. There is no persistent React Query, offline or browser-storage entry.
++Privacy mode covers the whole image, because text masking cannot conceal amounts
++inside pixels. The existing explicit original download remains available and is
++not privacy-masked. Garbage collection is not a claim of forensic memory erasure.
++
++This source-only checkpoint has not executed rendering, native-platform loading,
++limit/abort/source-race tests, accessibility or desktop/phone verification. Those
++gates remain pending; payout normalization is a separate task.
++
+ ## Backup and owner acceptance
+ 
+ The nightly age backup now seals a TAR containing a consistent `budget.sqlite`

@@ -1,0 +1,22 @@
+{
+  "manifestSHA256": "29ba616393a467055841e873d621b7450c33859d8cda1902c5716791120deb12",
+  "owned3": {
+    "apps/server/src/receipts/pdf-preview.ts": {
+      "sha256": "da8e3c1ee1aa5b3e668571d9e05440c5e10ee11c8483aac04fabeba1484a54f1",
+      "mode": 33152
+    },
+    "apps/server/src/receipts/pdf-preview-thread.mjs": {
+      "sha256": "2c73316cf0d9aca89df59d398cea9817f1715b5beb56876c901f4b12d741e9e9",
+      "mode": 33152
+    },
+    "apps/server/src/api/receipts.ts": {
+      "sha256": "8cb0d5f0a7e1d99f97069e3d12410a428cf41db99058d1bbdf305c941dacb6a6",
+      "mode": 33152
+    }
+  },
+  "changedVsFirst3": [
+    "apps/server/src/receipts/pdf-preview.ts"
+  ],
+  "currentCheckout": "/workspace/cloud-allocation-provenance-521",
+  "scope": "read-only source/SHA/mode review; no runtime/private files"
+}

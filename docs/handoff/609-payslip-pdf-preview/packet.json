@@ -1,0 +1,47 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/609-payslip-pdf-preview",
+  "sourceHead": "621f1edfdf201199b2c244465557b65bcd0f41c3",
+  "originalBaseBeforeOwnedCommits": "649e6171b90ee2f3c0727cea7fcd50c613fbad98",
+  "orderedCommits": [
+    {
+      "sha": "621f1edfdf201199b2c244465557b65bcd0f41c3",
+      "parentBase": "649e6171b90ee2f3c0727cea7fcd50c613fbad98",
+      "subject": "feat: add inert payroll PDF page preview (validation pending)",
+      "paths": [
+        "Dockerfile",
+        "apps/server/package.json",
+        "apps/server/src/api/receipts.ts",
+        "apps/server/src/receipts/pdf-preview-thread.mjs",
+        "apps/server/src/receipts/pdf-preview.ts",
+        "apps/web/src/receipts/pdf-preview.css",
+        "apps/web/src/receipts/pdf-preview.tsx",
+        "apps/web/src/reports/payslip-intake.css",
+        "apps/web/src/reports/payslip-intake.tsx",
+        "docs/ROADMAP.md",
+        "docs/payslip-intake.md",
+        "docs/receipts.md"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 621f1edfdf201199b2c244465557b65bcd0f41c3 > OWN_OUTPUT/621f1edfdf201199b2c244465557b65bcd0f41c3.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-621f1edfdf201199b2c244465557b65bcd0f41c3.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "Dockerfile",
+    "apps/server/package.json",
+    "apps/server/src/api/receipts.ts",
+    "apps/server/src/receipts/pdf-preview-thread.mjs",
+    "apps/server/src/receipts/pdf-preview.ts",
+    "apps/web/src/receipts/pdf-preview.css",
+    "apps/web/src/receipts/pdf-preview.tsx",
+    "apps/web/src/reports/payslip-intake.css",
+    "apps/web/src/reports/payslip-intake.tsx",
+    "docs/ROADMAP.md",
+    "docs/payslip-intake.md",
+    "docs/receipts.md"
+  ],
+  "mixedSourceAncestry": true,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}
