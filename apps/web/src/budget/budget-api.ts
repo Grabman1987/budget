@@ -1,10 +1,11 @@
 import type {
   budgetAccountMoney,
+  BudgetActivityItem,
   IncomeTargets,
   QuickAssignFigures,
   QuickAssignMode,
 } from '@budget/domain';
-import { queryOptions } from '@tanstack/react-query';
+import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import type { WriteResult } from '../ledger/types';
 import type { CategoryRow, GroupRow, TargetRow } from './api';
@@ -110,3 +111,36 @@ export const coverAll = (month: string, fromId?: string | null) =>
     `${path(month)}/move`,
     { coverAll: true, ...(fromId !== undefined && { fromId }) },
   );
+
+export interface BudgetActivityPage extends BudgetMonthView {
+  activityBreakdown: {
+    totalCents: number;
+    count: number;
+    pageCents: number;
+    nextCursor: string | null;
+    items: Array<
+      Omit<BudgetActivityItem, 'cents'> & {
+        key: string;
+        contributionCents: number;
+        source: {
+          payeeName: string | null;
+          memo: string | null;
+          accountName: string;
+          bookingAmountCents: number;
+        } | null;
+      }
+    >;
+  };
+}
+
+export const budgetActivityQuery = (month: string, id: string) =>
+  infiniteQueryOptions({
+    queryKey: [...BUDGET_KEY, month, 'activity', id],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) =>
+      request<BudgetActivityPage>(
+        'GET',
+        `${path(month)}/activity/${encodeURIComponent(id)}${pageParam ? `?cursor=${encodeURIComponent(pageParam)}` : ''}`,
+      ),
+    getNextPageParam: (lastPage) => lastPage.activityBreakdown.nextCursor ?? undefined,
+  });

@@ -1697,7 +1697,43 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
   CI and serial LIVE remain pending. Net-only/difference
   reconciliation and uncertain partial credits remain OPEN; #727 is not marked complete.
 
+### #735 — Compact Plan inspector and exact category activity
 
+- [x] Keep goal, assignment and quick actions visible; fold routine money movement
+  without replacing drafts or existing financial handlers.
+- [x] Show exact contributing bookings from the same activity accumulator, with
+  actual source metadata and separately labelled card adjustments. Preserve Plan
+  state on Back and read future origins through the existing booking-ID GET.
+- [x] NEW literal domain/API/UI regressions and affected static checks passed at
+  their documented checkpoints. Final fresh-build canonical WebKit 9/9 passed
+  first attempt (66.968s reporter duration), including four explicit profile/theme
+  scenes, a future origin and multi-month navigation; no skips/retries/flaky cases.
+- [x] Preserve [eight synthetic originals and measured limits](evidence/plan-activity-735/README.md).
+  Same-fixture desktop inspector content is 790.578125px versus 1139.703125px before;
+  the first activity row is entirely visible initially on desktop and phone.
+- The first AGE full attempt passed types/lint/format but was stopped orderly by
+  Root when `/tmp` had zero free bytes. Existing fixtures had reported failures;
+  individual causes/aggregate results were not established. Source/compiled/process
+  guards passed; no normal build ran. This is an aborted attempt, not a full pass.
+- [x] Before the later comparator-only follow-up, after capacity repair, required
+  AGE1/two-worker full check passed 579 files /
+  5,176 tests (470.39s Vitest duration) on freeze `dea6bb3e` / base `9baa582f`,
+  followed by normal production build0. Commit `438ace6c` retained that product
+  source with factual result notes; later assertion-only changes have a separate
+  checkpoint below. No later Main join is claimed as locally tested.
+- [x] Owner explicitly approved exactly one disclosure-opening click in each of
+  the two existing financial E2E files; Root adopted both with all assertions intact.
+- [x] Execute the exact adapted band flow locally with three setup cases: 4/4
+  first-pass, 36.331s reporter duration, reusing the unchanged 166-file E2E build.
+- [x] Owner separately approved exactly four full-buffer equality substitutions in
+  three existing financial-conservation test files; every byte and all other
+  assertions/timeouts remain checked. Targeted three files passed 20/20 tests
+  (7.609s command elapsed). Previous CI timeout causality remains unproven.
+- [ ] Subsequent exact-head AGE1/two-worker full/build evidence after that
+  assertion-only follow-up is recorded in PR #737 before merge. The earlier full
+  pass is not used as a pass of the changed assertions.
+- [ ] Exact-head Chromium CI must exercise the adapted inspector flow and band
+  flow; review, merge and LIVE verification remain pending.
 ### #734 — Grouped, reachable category pickers
 
 - Bank review retains exact eligible category IDs in native groups. Capture places
@@ -1716,13 +1752,19 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
       from the corrected fresh E2E build, with no rebuild or added historical totals.
 - Historical AGE1/one-worker full: 578 files / 5,162 tests and normal build passed on
   base `9baa582f` plus freeze `4a22a00d`, before the PR736 interaction corrections.
-- [ ] Current required AGE1/two-worker check: 577 files passed / 1 failed (578
-      total), 5,162 tests passed / 1 failed (5,163 total), 521.57s Vitest
-      duration. The unchanged #727 server test
-      `statement-settlement-727.test.ts:202` timed out at its existing 5,000ms
-      limit. Check exited 1; no pipeline build ran. Independent normal
-      production build subsequently passed (Vite 7.57s, esbuild 547ms); the
-      required full check remains failed. Base `9baa582f`, parent `a216d438`,
-      corrected freeze `b8e60568`. No retry/old-test edit; only factual result
-      prose changed afterwards.
+- Pre-inheritance AGE1/two-worker check: 577 files passed / 1 failed (578
+  total), 5,162 tests passed / 1 failed (5,163 total), 521.57s Vitest
+  duration. The unchanged #727 server test
+  `statement-settlement-727.test.ts:202` timed out at its existing 5,000ms
+  limit. Check exited 1; no pipeline build ran. Independent normal
+  production build subsequently passed (Vite 7.57s, esbuild 547ms); the
+  required full check remains failed. Base `9baa582f`, parent `a216d438`,
+  corrected freeze `b8e60568`. No retry/old-test edit; only factual result
+  prose changed afterwards.
+- [ ] Joined-head required AGE1/two-worker check and normal build: pending at this
+      checkpoint after ordinary inheritance of verified LIVE Main `a83855c7`,
+      including its owner-approved four existing #727 byte comparisons and #735
+      changes. The #734 product/NEW tests/images/profiles carry byte-exactly;
+      actual full results and required CI are tracked in
+      [PR #736](https://github.com/Grabman1987/budget/pull/736).
 - [ ] Exact new-head Chromium/required CI, serial merge and verified LIVE.

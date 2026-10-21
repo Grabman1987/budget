@@ -205,7 +205,7 @@ it('proves existing reviewed-source and literal account APIs without any settlem
   await reviewedSource(10000);
   const before = opened.sqlite.serialize();
   expect(await balances()).toEqual({ fund: 50000, card: -13000 });
-  expect(opened.sqlite.serialize()).toEqual(before);
+  expect(opened.sqlite.serialize().equals(before)).toBe(true);
 });
 
 it('pays the issued10000 rather than current13000 and leaves the newer3000 tuple/revision unchanged', async () => {

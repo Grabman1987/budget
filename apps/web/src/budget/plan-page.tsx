@@ -43,6 +43,7 @@ import { AppLink } from '../shell/app-link';
 import { lastDayOfMonth } from '@budget/domain';
 import { setMonthSpan, useIsPhone, useMonthSpan } from './month-span';
 import { MultiTable } from './plan-multi';
+import { ActivityLink } from './activity-link';
 import { AssignCell, assignGhost, ghostSource } from './assign-cell';
 import { OptionenMenu, VerteilenMenu } from './plan-menus';
 import {
@@ -94,6 +95,19 @@ const RAIL_LABEL = {
   class: 'Klassen',
   triage: 'Triage',
 };
+
+declare module '@tanstack/history' {
+  interface HistoryState {
+    planActivityReturn?: {
+      month: string;
+      view: PlanView;
+      selectedIds: string[];
+      collapsedKeys: string[];
+      inspector: { id: string; month: string } | null;
+      phoneSelection: boolean;
+    };
+  }
+}
 
 /**
  * Plan › Monat (port of `design/prototype/plan.html`): "Zu verteilen" with its dimension chain and
@@ -173,10 +187,23 @@ function PlanBody({
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
   const expected = useQuery(expectedQuery()).data;
   const search = useSearch({ strict: false }) as { ansicht?: 'triage'; kategorie?: string };
-  const [view, setView] = useState<PlanView>(search.ansicht ?? 'group');
+  const savedPlan = useLocation({ select: (location) => location.state.planActivityReturn });
+  const restoredPlan = savedPlan?.month === month ? savedPlan : null;
+  const liveIds = new Set(data.categories.map((category) => category.id));
+  const [view, setView] = useState<PlanView>(restoredPlan?.view ?? search.ansicht ?? 'group');
   const phone = useIsPhone();
   const [distribute, setDistribute] = useState(false);
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => {
+    const keys = new Set(
+      planGroups(months.length > 1 ? 'group' : view, planRows(data), data, {
+        month,
+        today: todayInVienna(),
+        cardName: () => 'Kreditkarte',
+        ...(expected && { expected: expectedDues(expected) }),
+      }).map((group) => group.key),
+    );
+    return new Set(restoredPlan?.collapsedKeys.filter((key) => keys.has(key)) ?? []);
+  });
   const groupFocusAfterToggle = useRef<string | null>(null);
   useLayoutEffect(() => {
     const key = groupFocusAfterToggle.current;
@@ -190,12 +217,26 @@ function PlanBody({
   }, [collapsed]);
   const [editing, setEditing] = useState<string | null>(null);
   const savedInspector = useLocation({ select: (location) => location.state.planInspector });
-  const restored = savedInspector && months.includes(savedInspector.month) ? savedInspector : null;
+  const candidateInspector = restoredPlan ? restoredPlan.inspector : savedInspector;
+  const restored =
+    candidateInspector &&
+    months.includes(candidateInspector.month) &&
+    liveIds.has(candidateInspector.id)
+      ? candidateInspector
+      : null;
   const [selected, setSelected] = useState<ReadonlySet<string>>(
-    new Set(restored ? [restored.id] : []),
+    new Set(
+      restoredPlan
+        ? restoredPlan.selectedIds.filter((id) => liveIds.has(id))
+        : restored
+          ? [restored.id]
+          : [],
+    ),
   );
   const [open, setOpen] = useState<{ id: string; month: string } | null>(restored);
-  const [phoneSelection, setPhoneSelection] = useState(false);
+  const [phoneSelection, setPhoneSelection] = useState(
+    phone && Boolean(restoredPlan?.phoneSelection),
+  );
   const selectionReturn = useRef<string | null>(null);
   const selectionBar = useRef<HTMLElement>(null);
   const [selectionHeight, setSelectionHeight] = useState(0);
@@ -234,9 +275,10 @@ function PlanBody({
     setOpen({ id, month: selectedMonth });
   };
   const clearSelection = (focus = false) => {
-    if (window.history.state?.planInspector) {
+    if (window.history.state?.planInspector || window.history.state?.planActivityReturn) {
       const state = { ...window.history.state };
       delete state.planInspector;
+      delete state.planActivityReturn;
       window.history.replaceState(state, '');
     }
     if (focus) {
@@ -485,6 +527,32 @@ function PlanBody({
 
   return (
     <div
+      onClickCapture={(event) => {
+        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)
+          return;
+        const anchor = event.target instanceof Element ? event.target.closest('a') : null;
+        if (!anchor) return;
+        const target = new URL(anchor.href);
+        if (
+          target.origin !== window.location.origin ||
+          !target.pathname.startsWith('/plan/monat/envelope/')
+        )
+          return;
+        window.history.replaceState(
+          {
+            ...window.history.state,
+            planActivityReturn: {
+              month,
+              view,
+              selectedIds: [...selected],
+              collapsedKeys: [...collapsed],
+              inspector: open,
+              phoneSelection,
+            },
+          },
+          '',
+        );
+      }}
       className={cx(
         'plan-grid',
         multi && 'is-wide',
@@ -1644,7 +1712,7 @@ function EnvelopeRow({
           event.target instanceof Element &&
           (band || event.target.closest('.col-name')) &&
           !event.target.closest(
-            'button, input, label, .band-parent, .band-total, .band-parent-totals',
+            'a, button, input, label, .band-parent, .band-total, .band-parent-totals',
           )
         )
           openRow();
@@ -1760,7 +1828,7 @@ function EnvelopeRow({
           <BandTotal group={band!.title} metric="Aktivität" value={bandSummary.activity} />
         )}
         <BandValue combined={!!bandHeading} kind="activity">
-          {r.activityCents ? eur(r.activityCents) : <span className="muted">{eur(0)}</span>}
+          <ActivityLink month={ctx.month} id={r.id} name={r.name} cents={r.activityCents} />
         </BandValue>
       </td>
       <td className="col-num col-avail" data-label="Verfügbar">

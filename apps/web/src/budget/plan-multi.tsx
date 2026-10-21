@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { currentMonth } from '../shell/use-month';
 import { eur } from '../ledger/format';
 import { AssignCell } from './assign-cell';
+import { ActivityLink } from './activity-link';
 import { assign, type BudgetMonthView } from './budget-api';
 import { CategoryIcon } from './category-icon';
 import { groupStatus, isCashOver, monthCells, type MultiGroup, type PlanRow } from './plan-model';
@@ -180,11 +181,12 @@ export function MultiTable({
                             />
                           </td>,
                           <td key={`${m}-b`} className="col-num col-act" data-label="Aktivität">
-                            {cell.activityCents ? (
-                              eur(cell.activityCents)
-                            ) : (
-                              <span className="muted">{eur(0)}</span>
-                            )}
+                            <ActivityLink
+                              month={m}
+                              id={r.id}
+                              name={r.name}
+                              cents={cell.activityCents}
+                            />
                           </td>,
                           <td key={`${m}-c`} className="col-num col-avail" data-label="Verfügbar">
                             <span

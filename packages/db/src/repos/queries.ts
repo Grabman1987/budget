@@ -1,5 +1,6 @@
 import {
   budgetMonths,
+  budgetActivity,
   monthOf,
   monthsBetween,
   type BudgetInput,
@@ -93,6 +94,7 @@ function readBudgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
   const rows = db
     .select({
       bookingId: booking.id,
+      splitId: bookingSplit.id,
       payeeId: booking.payeeId,
       status: booking.status,
       accountId: booking.accountId,
@@ -125,6 +127,7 @@ function readBudgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
       : (legs.get(transferId)?.find((l) => l.bookingId !== bookingId)?.accountId ?? null);
   const splits: LedgerSplit[] = rows.map((r) => ({
     bookingId: r.bookingId,
+    splitId: r.splitId,
     payeeId: r.payeeId,
     status: r.status,
     accountId: r.accountId,
@@ -170,16 +173,8 @@ export function budgetOfLedger(
   months: string[],
   options: { cardRule?: CardRule; asOf?: string } = {},
 ): BudgetMonth[] {
-  const ledger = options.asOf
-    ? { ...source, splits: source.splits.filter((s) => s.date <= options.asOf!) }
-    : source;
-  const first = months[0];
-  if (first === undefined) return [];
-  const start = ledger.accounts
-    .filter((a) => a.onBudget)
-    .map((a) => monthOf(a.openingDate))
-    .reduce((a, m) => (m < a ? m : a), first);
-  const all = monthsBetween(start, months[months.length - 1] as string);
+  if (months.length === 0) return [];
+  const { ledger, all } = budgetRange(source, months, options);
   // The budget is computed from its start through the last requested month. Readers of one ledger
   // object (one request) that ask for the same span and options share that computation.
   const key = `${all[0]}|${all[all.length - 1]}|${options.cardRule ?? ''}|${options.asOf ?? ''}`;
@@ -191,6 +186,32 @@ export function budgetOfLedger(
     computed.set(key, result);
   }
   return result.filter((m) => months.includes(m.month));
+}
+
+function budgetRange(
+  source: Omit<BudgetInput, 'months'>,
+  months: string[],
+  options: { cardRule?: CardRule; asOf?: string },
+) {
+  const ledger = options.asOf
+    ? { ...source, splits: source.splits.filter((s) => s.date <= options.asOf!) }
+    : source;
+  const first = months[0]!;
+  const start = ledger.accounts
+    .filter((a) => a.onBudget)
+    .map((a) => monthOf(a.openingDate))
+    .reduce((a, m) => (m < a ? m : a), first);
+  return { ledger, all: monthsBetween(start, months[months.length - 1]!) };
+}
+
+export function budgetActivityOfLedger(
+  source: Omit<BudgetInput, 'months'>,
+  month: string,
+  categoryId: string,
+  options: { cardRule?: CardRule } = {},
+) {
+  const { ledger, all } = budgetRange(source, [month], options);
+  return budgetActivity({ ...ledger, months: all, ...options }, month, categoryId);
 }
 
 const budgetResults = new WeakMap<object, Map<string, BudgetMonth[]>>();

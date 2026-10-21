@@ -216,7 +216,7 @@ it('upgrades only a genuine through45 synthetic COPY, round-trips empty46 rollba
   expect(rows(copy)).toBe(before);
   expect(copy.sqlite.pragma('foreign_key_check')).toEqual([]);
   expect(copy.sqlite.pragma('integrity_check')).toEqual([{ integrity_check: 'ok' }]);
-  expect(readFileSync(join(dir, 'original.sqlite'))).toEqual(originalBytes);
+  expect(readFileSync(join(dir, 'original.sqlite')).equals(originalBytes)).toBe(true);
 });
 async function representedFixture() {
   const dir = temp(),

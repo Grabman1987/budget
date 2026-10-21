@@ -84,7 +84,7 @@ on base `9baa582f` plus feature freeze `4a22a00d` passed **578 files / 5,162 tes
 (832.22s Vitest duration, AGE1/one worker) and normal production build. That is a
 historical checkpoint before these interaction corrections. An even earlier
 interrupted check has no completed unit aggregate or normal-build result.
-The current AGE1/two-worker check on base `9baa582f`, parent `a216d438` and
+The pre-inheritance AGE1/two-worker check on base `9baa582f`, parent `a216d438` and
 corrected source/evidence freeze `b8e60568` completed with **577 files passed /
 1 failed** (578 total), and **5,162 tests passed / 1 failed** (5,163 total), in
 521.57s Vitest duration.
@@ -100,6 +100,19 @@ Only factual result prose in this guide and the Roadmap changed afterwards; no
 retry, timeout change or old-test edit was made. Exact new-head
 Chromium/required CI and serial LIVE remain pending;
 the failed first PR head is not represented as accepted.
+
+## Main inheritance checkpoint
+
+Verified LIVE Main `a83855c7` is incorporated by ordinary merge. It carries the
+owner-approved four existing byte-comparison corrections for the #727 test and
+the independent #735 changes. The #734 product, NEW tests, original images and
+profiles carry forward byte-exactly. The failed check above remains historical;
+it is not relabeled as a pass. The required AGE1/two-worker full check and normal
+build on the joined immutable head are pending at this documentation checkpoint.
+Their actual result and the exact-head required CI are tracked in
+[PR #736](https://github.com/Grabman1987/budget/pull/736). No post-full product or
+test change is planned. The combined local native9/9 evidence above predates
+this Main join; no additional native run is claimed for the join.
 
 - [x] Independent source review and four original screenshot review
 - [x] Canonical local WebKit 9/9, no skips, retries or flaky cases
