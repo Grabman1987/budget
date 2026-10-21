@@ -1,0 +1,13 @@
+diff --git a/apps/web/src/router.tsx b/apps/web/src/router.tsx
+index 976be3d6bb3658c5e883ebbbdc9ea2f394f8eae7..a3dfb1de456aa3264e458e99c69b53b931608d79 100644
+--- a/apps/web/src/router.tsx
++++ b/apps/web/src/router.tsx
+@@ -460,7 +460,7 @@ const portfolioRegisterSearch = (search: Record<string, unknown>) => ({
+         ? search['handel']
+         : undefined,
+   });
+-const portfolioLegacyRedirect = ({ search, location }: { search: ReturnType<typeof portfolioRegisterSearch> & { zeitraum?: Period }; location: { pathname: string } }) => {
++const portfolioLegacyRedirect = ({ search, location }: { search: ReturnType<typeof portfolioRegisterSearch> & { zeitraum?: Period | undefined }; location: { pathname: string } }) => {
+     if (search.sparplan === 'neu' && location.pathname !== '/vermoegen/portfolio/sparplaene')
+       throw redirect({ to: '/vermoegen/portfolio/sparplaene', search });
+     if (search.sparplan && search.sparplan !== 'neu')

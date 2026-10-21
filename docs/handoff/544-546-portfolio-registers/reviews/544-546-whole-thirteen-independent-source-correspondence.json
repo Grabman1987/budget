@@ -1,0 +1,81 @@
+{
+  "verdict": "HIGH CLEAR \u2014 source only",
+  "base": "2af45b4a874ed14076e12f0a81e41044dc1cf223",
+  "manifestSha256": "742c9b3d845759dfccda309f8f685e97e2ca2c4155b9e2f9b5e7c226c678d03e",
+  "files": {
+    "apps/server/src/api/invest.ts": {
+      "sha256": "710f108a55ee53fb7eca5bfa059947c0e97d751a6a94a1ed3e262430aa22b40d",
+      "mode": 33152,
+      "beforeSha256": "b84934b1c42bd2a27a44ab175721d8f882a1561b36c8c24d7772e388ed97f86e"
+    },
+    "apps/web/src/pages/portfolio-performance-report.tsx": {
+      "sha256": "0787647692001bef943bdf7f01cb96b259d8380137036524cf953c92b814714f",
+      "mode": 33152,
+      "beforeSha256": "560bbe42f5071fbd5f930cda446c3627925e4481310c389d5f3fd185beb539c6"
+    },
+    "apps/web/src/router.tsx": {
+      "sha256": "83f09b7733c2f4b10c2419e1d15e3e6f14535870b116b74534ec6abff7fd7902",
+      "mode": 33152,
+      "beforeSha256": "abb7101afc6ecd870af61cef491cb70c9e74aa441a904ccaf6df63c169a09e96"
+    },
+    "apps/web/src/wealth/allocation.css": {
+      "sha256": "ec957528b625d77bfcab4ab28516a1c6ab8ba8584a9aad56205c957ba2a0362c",
+      "mode": 33152,
+      "beforeSha256": "228460cd107ff4ef0060a36d2dd623863dfe558f996e6e3e3f4836cc2db4a761"
+    },
+    "apps/web/src/wealth/portfolio-api.ts": {
+      "sha256": "7ddf744dd517124dce0a26757bdc110ec6f25270553eb38e4081a9d6ae6159c1",
+      "mode": 33152,
+      "beforeSha256": "43921a21abfda116dc9f94eabe50af426386badec3bb31c08eef5e7019344ae9"
+    },
+    "apps/web/src/wealth/portfolio-detail-page.tsx": {
+      "sha256": "3ac2ac73ebf9ffd654b4b33f17319ddeaaa4077c9bf1321d0d80aadd586a7ab5",
+      "mode": 33152,
+      "beforeSha256": "a63cd026ae380df24d0e51cd8e7e7c0d8f20966e51ce2ff57cc4efc2052f8c1a"
+    },
+    "apps/web/src/wealth/portfolio-metrics.tsx": {
+      "sha256": "94f6168c888e3d6348269d153888562d2e713a30ac7d73773eb64bcc99314054",
+      "mode": 33152,
+      "beforeSha256": null
+    },
+    "apps/web/src/wealth/portfolio-overview.tsx": {
+      "sha256": "bc8bb6b23f099178c524fc5c7cccaf8b3552964c0586eea4077b7a42f33839ff",
+      "mode": 33152,
+      "beforeSha256": "41bf114c4a8c99240d02eb17ffe1769677034cb8c57c54c2c8a38d7446a76d50"
+    },
+    "apps/web/src/wealth/portfolio-page.tsx": {
+      "sha256": "e7d8727646f412ed081f0cfbb2b75205d6bb862027bb223f4b50ed941ee3d400",
+      "mode": 33152,
+      "beforeSha256": "7acada7f10b92f52ee00cabd794ba01cf53e48d6dcea959ab7efed74fcd4f983"
+    },
+    "apps/web/src/wealth/portfolio-registers.tsx": {
+      "sha256": "107bdc9103f0bdcd5418fb073bf7a3be094c356bf8f8d1b5d44551e8b11971d6",
+      "mode": 33152,
+      "beforeSha256": null
+    },
+    "apps/web/src/wealth/portfolio.css": {
+      "sha256": "99885943cdf5b8f6bb9df903e5043705514c78a34f5e1eb40bc9972b1fde95b0",
+      "mode": 33152,
+      "beforeSha256": "c9c14b1682567a8c32310a8da017c73e9eb6ea8143ecab389e71d6d9c06c3d3b"
+    },
+    "apps/web/src/wealth/savings-section.tsx": {
+      "sha256": "8ee4c80074bc2cbfa912c7760f3f7d8318d520df8862838cf191fefa4072ce66",
+      "mode": 33152,
+      "beforeSha256": "6ee374bc400689be34d655c350ad1c1bc4d98ed3af9eca35dec71597013d8940"
+    },
+    "docs/ROADMAP.md": {
+      "sha256": "db4f05f0c04f1d5b9d351c3a8eca4c0af4436dd6741a0504706f7ff337d0a658",
+      "mode": 33152,
+      "beforeSha256": "f0143d9c20fb42c0bb70a5679ecbb0b6560b66889f3351527577a25849f51579"
+    }
+  },
+  "lastDeltaOnly": [
+    "apps/web/src/wealth/portfolio-metrics.tsx"
+  ],
+  "lastCopyWholeInverseExact": true,
+  "savingsDefaultWholeInverseExact": true,
+  "serverWriterWholeInverseExact": true,
+  "roadmapPrefixBytes": 251054,
+  "runtimeExecuted": false,
+  "reportSha256": "53fa609abc35740c8e69bb420a578bfb1fe2cd2d3b0cdb1dd8f1adffcc3a9a20"
+}

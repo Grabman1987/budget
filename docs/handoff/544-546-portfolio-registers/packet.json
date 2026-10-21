@@ -1,0 +1,49 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/544-546-portfolio-registers",
+  "sourceHead": "80c43a631a276df0a06c74bbdc690f3bc97fe521",
+  "originalBaseBeforeOwnedCommits": "2af45b4a874ed14076e12f0a81e41044dc1cf223",
+  "orderedCommits": [
+    {
+      "sha": "80c43a631a276df0a06c74bbdc690f3bc97fe521",
+      "parentBase": "2af45b4a874ed14076e12f0a81e41044dc1cf223",
+      "subject": "feat(portfolio): checkpoint routed registers and shared metrics; validation pending",
+      "paths": [
+        "apps/server/src/api/invest.ts",
+        "apps/web/src/pages/portfolio-performance-report.tsx",
+        "apps/web/src/router.tsx",
+        "apps/web/src/wealth/allocation.css",
+        "apps/web/src/wealth/portfolio-api.ts",
+        "apps/web/src/wealth/portfolio-detail-page.tsx",
+        "apps/web/src/wealth/portfolio-metrics.tsx",
+        "apps/web/src/wealth/portfolio-overview.tsx",
+        "apps/web/src/wealth/portfolio-page.tsx",
+        "apps/web/src/wealth/portfolio-registers.tsx",
+        "apps/web/src/wealth/portfolio.css",
+        "apps/web/src/wealth/savings-section.tsx",
+        "docs/ROADMAP.md"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 80c43a631a276df0a06c74bbdc690f3bc97fe521 > OWN_OUTPUT/80c43a631a276df0a06c74bbdc690f3bc97fe521.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-80c43a631a276df0a06c74bbdc690f3bc97fe521.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/server/src/api/invest.ts",
+    "apps/web/src/pages/portfolio-performance-report.tsx",
+    "apps/web/src/router.tsx",
+    "apps/web/src/wealth/allocation.css",
+    "apps/web/src/wealth/portfolio-api.ts",
+    "apps/web/src/wealth/portfolio-detail-page.tsx",
+    "apps/web/src/wealth/portfolio-metrics.tsx",
+    "apps/web/src/wealth/portfolio-overview.tsx",
+    "apps/web/src/wealth/portfolio-page.tsx",
+    "apps/web/src/wealth/portfolio-registers.tsx",
+    "apps/web/src/wealth/portfolio.css",
+    "apps/web/src/wealth/savings-section.tsx",
+    "docs/ROADMAP.md"
+  ],
+  "mixedSourceAncestry": true,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

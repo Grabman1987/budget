@@ -1,0 +1,636 @@
+diff --git a/apps/server/src/api/invest.ts b/apps/server/src/api/invest.ts
+index 75d4c23a5bfd12d0f98b6f0d629c85865c0c908a..c4e417d08c86d0e765cd31f9b4398cecd166c11a 100644
+--- a/apps/server/src/api/invest.ts
++++ b/apps/server/src/api/invest.ts
+@@ -658,7 +658,12 @@ const depotsQuery = z.object({
+ 
+ export function portfolioRoutes(db: Db, today: () => string): Hono {
+   const app = new Hono();
+-  app.get('/positions', (c) => c.json(portfolioPositions(db, today())));
++  app.get('/positions', (c) => {
++    const { asOf } = readQuery(c, z.object({ asOf: exposureDay.optional() }));
++    if (asOf !== undefined && asOf > today())
++      throw new ApiError(400, 'invalid', 'Der Stichtag darf nicht in der Zukunft liegen.');
++    return c.json(portfolioPositions(db, asOf ?? today()));
++  });
+   app.get('/benchmarks', (c) => c.json(benchmarkSelection(db)));
+   app.patch('/benchmarks', async (c) => {
+     const { ids } = await readBody(
+diff --git a/apps/web/src/pages/portfolio-performance-report.tsx b/apps/web/src/pages/portfolio-performance-report.tsx
+index c10ad4d59ddc7780f6d75d540e4ec1dc87e45427..320eec6a51ef7ba77705088a5bb88a490c42049c 100644
+--- a/apps/web/src/pages/portfolio-performance-report.tsx
++++ b/apps/web/src/pages/portfolio-performance-report.tsx
+@@ -124,9 +124,10 @@ export function PortfolioPerformanceReport({
+             incomplete={query.data.incomplete}
+             onOpenPortfolio={() =>
+               void navigate({
+-                to: '/vermoegen/portfolio',
++                to: '/vermoegen/portfolio/kennzahlen',
+                 search: ((previous: Record<string, unknown>) => ({
+                   ...previous,
++                  zeitraum: period,
+                   produkt: undefined,
+                 })) as never,
+               })
+@@ -279,7 +280,7 @@ function PerformanceBody({
+       )}
+       <div className="performance-links">
+         <Button variant="ghost" onClick={onOpenPortfolio}>
+-          Portfolio öffnen
++          Portfolio-Kennzahlen öffnen
+         </Button>
+       </div>
+     </>
+diff --git a/apps/web/src/router.tsx b/apps/web/src/router.tsx
+index 9d8d80cff3ad48f9318b4ed2bd5e625cb3a6e5e4..976be3d6bb3658c5e883ebbbdc9ea2f394f8eae7 100644
+--- a/apps/web/src/router.tsx
++++ b/apps/web/src/router.tsx
+@@ -445,11 +445,7 @@ const netWorthRoute = createRoute({
+   staticData: { meta: VERMOEGEN_NETTO_META },
+   component: lazyRouteComponent(() => import('./wealth/networth-page'), 'NetWorthPage'),
+ });
+-const portfolioRoute = createRoute({
+-  getParentRoute: () => shellRoute,
+-  path: '/vermoegen/portfolio',
+-  staticData: { meta: VERMOEGEN_PORTFOLIO_META },
+-  validateSearch: (search: Record<string, unknown>) => ({
++const portfolioRegisterSearch = (search: Record<string, unknown>) => ({
+     sparplan:
+       typeof search['sparplan'] === 'string' && search['sparplan'].length <= 64
+         ? search['sparplan']
+@@ -463,8 +459,10 @@ const portfolioRoute = createRoute({
+       typeof search['handel'] === 'string' && search['handel'].length <= 64
+         ? search['handel']
+         : undefined,
+-  }),
+-  beforeLoad: ({ search }) => {
++  });
++const portfolioLegacyRedirect = ({ search, location }: { search: ReturnType<typeof portfolioRegisterSearch> & { zeitraum?: Period }; location: { pathname: string } }) => {
++    if (search.sparplan === 'neu' && location.pathname !== '/vermoegen/portfolio/sparplaene')
++      throw redirect({ to: '/vermoegen/portfolio/sparplaene', search });
+     if (search.sparplan && search.sparplan !== 'neu')
+       throw redirect({
+         to: '/vermoegen/portfolio/sparplan/$id',
+@@ -477,9 +475,47 @@ const portfolioRoute = createRoute({
+         params: { id: search.produkt },
+         search: { zeitraum: search.zeitraum, handel: search.handel },
+       });
+-  },
++  };
++const portfolioRoute = createRoute({
++  getParentRoute: () => shellRoute,
++  path: '/vermoegen/portfolio',
++  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Portfolio' } },
++  validateSearch: portfolioRegisterSearch,
++  beforeLoad: portfolioLegacyRedirect,
+   component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioPage'),
+ });
++const portfolioPositionsRoute = createRoute({
++  getParentRoute: () => shellRoute,
++  path: '/vermoegen/portfolio/positionen',
++  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Positionen' } },
++  validateSearch: portfolioRegisterSearch,
++  beforeLoad: portfolioLegacyRedirect,
++  component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioPositionsPage'),
++});
++const portfolioAllocationRoute = createRoute({
++  getParentRoute: () => shellRoute,
++  path: '/vermoegen/portfolio/allokation',
++  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Allokation' } },
++  validateSearch: portfolioRegisterSearch,
++  beforeLoad: portfolioLegacyRedirect,
++  component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioAllocationPage'),
++});
++const portfolioSavingsRoute = createRoute({
++  getParentRoute: () => shellRoute,
++  path: '/vermoegen/portfolio/sparplaene',
++  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Sparpläne' } },
++  validateSearch: portfolioRegisterSearch,
++  beforeLoad: portfolioLegacyRedirect,
++  component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioSavingsPage'),
++});
++const portfolioMetricsRoute = createRoute({
++  getParentRoute: () => shellRoute,
++  path: '/vermoegen/portfolio/kennzahlen',
++  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Kennzahlen' } },
++  validateSearch: portfolioRegisterSearch,
++  beforeLoad: portfolioLegacyRedirect,
++  component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioMetricsPage'),
++});
+ const instrumentRoute = createRoute({
+   getParentRoute: () => shellRoute,
+   path: '/vermoegen/portfolio/instrument/$id',
+@@ -776,6 +812,10 @@ const routeTree = rootRoute.addChildren([
+     freedomRoute,
+     netWorthRoute,
+     portfolioRoute,
++    portfolioPositionsRoute,
++    portfolioAllocationRoute,
++    portfolioSavingsRoute,
++    portfolioMetricsRoute,
+     instrumentRoute,
+     savingsPlanRoute,
+     debtsRoute,
+diff --git a/apps/web/src/wealth/allocation.css b/apps/web/src/wealth/allocation.css
+index 291cf006828cbb854040f46b74c665cd166f6bc3..6ef4f8b369e2de5284043c6f9512e351bac22dc5 100644
+--- a/apps/web/src/wealth/allocation.css
++++ b/apps/web/src/wealth/allocation.css
+@@ -61,7 +61,7 @@
+   background: var(--line);
+ }
+ .is-out .va-ist {
+-  background: var(--red);
++  background: var(--minus-ink);
+ }
+ .va-soll {
+   position: absolute;
+@@ -70,7 +70,7 @@
+   border-left: var(--stroke-hairline) solid var(--ink);
+ }
+ .is-out .va-val strong {
+-  color: var(--red);
++  color: var(--minus-ink);
+ }
+ .va-val {
+   text-align: right;
+diff --git a/apps/web/src/wealth/portfolio-api.ts b/apps/web/src/wealth/portfolio-api.ts
+index 295ff0da9b1f105bf5958463a6cef0cc591fac6e..2877fa7df48d3c4ea8f29e239dcb7fb26747f52e 100644
+--- a/apps/web/src/wealth/portfolio-api.ts
++++ b/apps/web/src/wealth/portfolio-api.ts
+@@ -25,12 +25,12 @@ export const portfolioPerformanceQuery = (period: Period) =>
+         `/api/portfolio?period=${period}&view=securities&history=performance&provenance=valuation-v1`,
+       ),
+   });
+-export const portfolioPositionsQuery = () =>
++export const portfolioPositionsQuery = (asOf?: string) =>
+   queryOptions({
+-    queryKey: [...LEDGER_KEY, 'portfolio-positions'],
++    queryKey: [...LEDGER_KEY, 'portfolio-positions', ...(asOf ? [asOf] : [])],
+     retry: false,
+     queryFn: () =>
+-      request<PortfolioPositionsView & WithValuationNotes>('GET', '/api/portfolio/positions'),
++      request<PortfolioPositionsView & WithValuationNotes>('GET', `/api/portfolio/positions${asOf ? `?asOf=${encodeURIComponent(asOf)}` : ''}`),
+   });
+ export const instrumentQuery = (id: string) =>
+   queryOptions({
+diff --git a/apps/web/src/wealth/portfolio-detail-page.tsx b/apps/web/src/wealth/portfolio-detail-page.tsx
+index e9a4d01a9638b28d5f1e06e7d5049236d7fc7b4e..8291bc090611c5c911625383e496dc5eb1505f8a 100644
+--- a/apps/web/src/wealth/portfolio-detail-page.tsx
++++ b/apps/web/src/wealth/portfolio-detail-page.tsx
+@@ -19,7 +19,8 @@ import { SavingsDetail } from './savings-detail';
+ import './portfolio.css';
+ import './savings.css';
+ 
+-function PortfolioDetailBack({ title }: { title: string }) {
++function PortfolioDetailBack({ title, savings = false }: { title: string; savings?: boolean }) {
++  const fallback = savings ? '/vermoegen/portfolio/sparplaene' : '/vermoegen/portfolio/positionen';
+   const router = useRouter();
+   const openedInApp = useLocation({ select: (location) => location.state.wealthDetailOpenedInApp });
+   const { zeitraum } = useSearch({ strict: false }) as { zeitraum?: Period };
+@@ -30,14 +31,14 @@ function PortfolioDetailBack({ title }: { title: string }) {
+           Vermögen
+         </AppLink>
+         {' › '}
+-        <AppLink to="/vermoegen/portfolio" search={{ zeitraum }}>
++        <AppLink to={fallback} search={{ zeitraum }}>
+           Portfolio
+         </AppLink>
+         {' › '}
+         <span aria-current="page">{title}</span>
+       </nav>
+       <AppLink
+-        to="/vermoegen/portfolio"
++        to={fallback}
+         search={{ zeitraum }}
+         onClick={(event) => {
+           if (openedInApp && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
+@@ -78,7 +79,7 @@ export function InstrumentPage() {
+             state: { wealthDetailOpenedInApp: state.wealthDetailOpenedInApp === true },
+             replace: !!handel,
+           }
+-        : { to: '/vermoegen/portfolio', search: { zeitraum } },
++        : { to: '/vermoegen/portfolio/positionen', search: { zeitraum } },
+     );
+   };
+   const trade = (target?: string) => {
+@@ -144,7 +145,7 @@ export function SavingsPlanPage() {
+   return (
+     <PageFrame meta={VERMOEGEN_PORTFOLIO_META} title={`Sparplan · ${name}`}>
+       <div className="portfolio-detail">
+-        <PortfolioDetailBack title={`Sparplan · ${name}`} />
++        <PortfolioDetailBack title={`Sparplan · ${name}`} savings />
+         {[
+           { query: plans, what: 'Sparpläne' },
+           { query: accounts, what: 'Konten' },
+diff --git a/apps/web/src/wealth/portfolio-metrics.tsx b/apps/web/src/wealth/portfolio-metrics.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..42606db14f29401988183ca30938e17f0604f2e6
+--- /dev/null
++++ b/apps/web/src/wealth/portfolio-metrics.tsx
+@@ -0,0 +1,71 @@
++import { useId, type ReactNode } from 'react';
++import { useQuery } from '@tanstack/react-query';
++import { maskMoneyText, privateAmount, useAmountPrivacy } from '@budget/ui';
++import { ErrorNote, LoadingNote } from '../ledger/states';
++import { eur, longDay } from '../ledger/format';
++import { AppLink } from '../shell/app-link';
++import { Term } from '../reports/term';
++import { HistoricalBasisCue, historicalBasisReasons, PortfolioCalculationDisclosure } from '../reports/portfolio-calculation-disclosure-512';
++import { percentText, ppText } from '../pages/portfolio-report-shared';
++import { portfolioPerformanceQuery } from './portfolio-api';
++import { ZeitraumSwitch } from './frame';
++import { useZeitraum } from './zeitraum';
++
++/** The same query and unrounded metrics as the report; no independent performance calculation. */
++export function PortfolioMetrics() {
++  useAmountPrivacy();
++  const [period] = useZeitraum();
++  const query = useQuery(portfolioPerformanceQuery(period));
++  const summary = query.isError ? undefined : query.data?.portfolio;
++  const performance = summary?.performance;
++  const basisId = useId();
++  const sourceId = useId();
++  const reasons = summary ? historicalBasisReasons(summary) : [];
++  const flows = summary?.performanceHistory?.dailyValues.filter((row) => row.depositsCents !== 0 || row.withdrawalsCents !== 0) ?? [];
++  return <section className="portfolio-metrics" aria-labelledby="portfolio-metrics-title">
++    <div className="head"><h2 id="portfolio-metrics-title">Kennzahlen</h2><ZeitraumSwitch /></div>
++    <p className="vnote">Renditebasis: Wertpapiere ohne Depot-Bargeld · nach Gebühren, vor Steuern</p>
++    {query.isPending && <LoadingNote what="Kennzahlen" />}
++    {query.isError && <ErrorNote what="Kennzahlen" error={query.error} onRetry={() => void query.refetch()} />}
++    {summary && <>
++      {performance ? <>
++        <p className="vnote">{longDay(performance.from)} bis {longDay(performance.to)} · {performance.days} Tage</p>
++        <div className="portfolio-metrics-lead"><span><Term>TTWROR</Term> im Zeitraum</span><strong aria-describedby={reasons.length ? basisId : undefined}>{privateAmount(percentText(performance.ttwror, { sign: true }))}</strong></div>
++        <HistoricalBasisCue reasons={reasons} id={basisId} sourceId={sourceId} />
++        <dl className="portfolio-metrics-grid">
++          <Metric label={<><Term>TTWROR</Term> p. a.</>} value={privateAmount(percentText(performance.ttwrorAnnualised, { sign: true }))} />
++          <Metric label={<><Term>XIRR</Term> p. a.</>} value={privateAmount(percentText(performance.xirr, { sign: true }))} />
++          <Metric label={<><Term>Volatilität</Term> p. a.</>} value={privateAmount(percentText(performance.volatility))} />
++          <Metric label={<Term>Max. Rückgang</Term>} value={privateAmount(percentText(performance.maxDrawdown, { sign: true }))} />
++          <Metric label={<Term>Sharpe</Term>} value={performance.volatility !== null && performance.volatility >= 0.005 && performance.sharpe !== null
++            ? privateAmount(new Intl.NumberFormat('de-AT', { maximumFractionDigits: 2 }).format(performance.sharpe)) : '–'} />
++        </dl>
++        <p className="vnote">TTWROR neutralisiert Ein- und Auszahlungen; XIRR berücksichtigt deren Zeitpunkt (actual/365). Annualisierte Werte können bei kurzen Zeiträumen stark schwanken. Sharpe: sicherer Zins 2,5 %; unter 0,5 % Volatilität nicht verfügbar.</p>
++        <h3>Vergleich</h3>
++        {summary.benchmarks.length === 0 ? <p className="vnote">Keine Benchmark gewählt. <AppLink to="/einstellungen/depots" hash="benchmark-settings-title">Benchmarks auswählen</AppLink></p> :
++          <table className="portfolio-metrics-table"><caption>Kursindex, ohne Ausschüttungen · gleicher Zeitraum und gleiche Startbasis</caption>
++            <thead><tr><th scope="col">Benchmark</th><th scope="col">Rendite</th><th scope="col">Differenz Portfolio</th></tr></thead>
++            <tbody>{summary.benchmarks.map((benchmark) => <tr key={benchmark.id}>
++              <th scope="row">{maskMoneyText(benchmark.name)}</th>
++              <td>{privateAmount(percentText(benchmark.benchmarkReturn, { sign: true }))}</td>
++              <td>{privateAmount(ppText(performance.ttwror === null || benchmark.benchmarkReturn === null ? null : performance.ttwror - benchmark.benchmarkReturn))}</td>
++            </tr>)}</tbody>
++          </table>}
++        {summary.benchmarks.some((benchmark) => benchmark.benchmarkReturn === null) && <p className="vnote">Kurs- oder Wechselkurslücke: Der betroffene Vergleich ist nicht verfügbar. Lücken werden nicht interpoliert.</p>}
++        <details className="portfolio-flow-table"><summary>Tatsächliche Zahlungsströme nach Steuern anzeigen</summary>
++          <p className="vnote">Diese Tabelle zeigt tatsächliche Geldflüsse nach Steuern, nicht die Rendite-Zahlungsströme: TTWROR verwendet Zuflüsse vor Steuern, XIRR seine eigene Zahlungsstrombasis nach Portfolio Performance. Tagesanfang enthält auch negative Rückflüsse; Tagesende zeigt Entnahmen als positive Abflüsse. Die Werte sind je Tag zusammengefasst, keine Liste einzelner Bankbuchungen.</p>
++          {flows.length === 0 ? <p className="vnote">Keine Zahlungsströme im gewählten Zeitraum.</p> :
++            <table className="portfolio-metrics-table"><caption>Tatsächliche Geldflüsse nach Steuern im gewählten Zeitraum</caption>
++              <thead><tr><th scope="col">Datum</th><th scope="col">Tagesanfang</th><th scope="col">Tagesende</th></tr></thead>
++              <tbody>{flows.map((row) => <tr key={row.date}><th scope="row">{longDay(row.date)}</th><td>{eur(row.depositsCents, { sign: true })}</td><td>{eur(row.withdrawalsCents)}</td></tr>)}</tbody>
++            </table>}
++        </details>
++      </> : <p className="vnote" role="status">Keine vollständige Renditehistorie im gewählten Zeitraum. Nicht verfügbare Renditen werden nicht als null angenommen.</p>}
++      <PortfolioCalculationDisclosure summary={summary} incomplete={query.data?.incomplete} sourceId={sourceId} />
++      <AppLink className="vlook" to="/reports/prendite" search={{ zeitraum: period }}>Portfolio-Auswertung öffnen</AppLink>
++    </>}
++  </section>;
++}
++function Metric({ label, value }: { label: ReactNode; value: string }) {
++  return <div><dt>{label}</dt><dd>{value}</dd></div>;
++}
+diff --git a/apps/web/src/wealth/portfolio-overview.tsx b/apps/web/src/wealth/portfolio-overview.tsx
+index 5f4996c896ee275670b35267beb6303d56627e3c..14b494ccd0240cb780cf107c16f71002b441c7ab 100644
+--- a/apps/web/src/wealth/portfolio-overview.tsx
++++ b/apps/web/src/wealth/portfolio-overview.tsx
+@@ -348,8 +348,8 @@ export function PortfolioOverview() {
+           fortgeschrieben sein.
+         </p>
+       )}
+-      <AppLink className="vlook" to="/reports/gruppe/portfolio">
+-        Reportkatalog Portfolio öffnen
++      <AppLink className="vlook" to="/reports/prendite" search={{ zeitraum: period }}>
++        Portfolio-Auswertung öffnen
+       </AppLink>
+     </section>
+   );
+diff --git a/apps/web/src/wealth/portfolio-page.tsx b/apps/web/src/wealth/portfolio-page.tsx
+index 3b1183a7d648cb291025c7bebb3245f5ff07e264..6734984ad8e423a12abb000017dfb57b12e24bab 100644
+--- a/apps/web/src/wealth/portfolio-page.tsx
++++ b/apps/web/src/wealth/portfolio-page.tsx
+@@ -1,6 +1,6 @@
+-import { useAmountPrivacy, Button, DimensionChain } from '@budget/ui';
++import { useAmountPrivacy, maskMoneyText, Button, DimensionChain } from '@budget/ui';
+ import { useQuery } from '@tanstack/react-query';
+-import { ratioBp, type Period } from '@budget/domain';
++import { periodWindow, ratioBp, type Period } from '@budget/domain';
+ import { useNavigate, useSearch } from '@tanstack/react-router';
+ import { VERMOEGEN_PORTFOLIO_META } from '../nav/pages';
+ import { PageFrame } from '../pages/placeholder-page';
+@@ -9,6 +9,7 @@ import { ValuationHint } from '../ledger/valuation-hint';
+ import { eurParts, eurWhole, longDay } from '../ledger/format';
+ import {
+   portfolioPositionsQuery,
++  portfolioPerformanceQuery,
+   instrumentsQuery,
+   type PortfolioPosition,
+   type PortfolioPositionsView,
+@@ -28,17 +29,35 @@ import { TradePanel } from './trade-panel';
+ import './portfolio.css';
+ import { PortfolioAllocation } from './allocation-section';
+ import { PortfolioOverview } from './portfolio-overview';
++import { PortfolioMetrics } from './portfolio-metrics';
++import { PortfolioRegisters, portfolioRegisterPath, type PortfolioRegister } from './portfolio-registers';
++import { useZeitraum } from './zeitraum';
++import { ZeitraumSwitch } from './frame';
+ 
+-export function PortfolioPage() {
++export function PortfolioPositionsPage() { return <PortfolioPage register="positions" />; }
++export function PortfolioAllocationPage() { return <PortfolioPage register="allocation" />; }
++export function PortfolioSavingsPage() { return <PortfolioPage register="savings" />; }
++export function PortfolioMetricsPage() { return <PortfolioPage register="metrics" />; }
++
++export function PortfolioPage({ register = 'overview' }: { register?: PortfolioRegister }) {
+   useAmountPrivacy();
+-  const query = useQuery(portfolioPositionsQuery());
+-  const instruments = useQuery(instrumentsQuery());
++  const [period] = useZeitraum();
+   const search = useSearch({ strict: false }) as {
+     produkt?: string;
+     handel?: string;
+     sparplan?: string;
+     zeitraum?: Period;
+   };
++  const datedPositions = register === 'overview' || register === 'positions';
++  const performance = useQuery({ ...portfolioPerformanceQuery(period), enabled: datedPositions });
++  // Keep the existing current-position read usable if only historical performance is unavailable.
++  // A successful period read selects the identical historical endpoint for the lead and table.
++  const selectedEnd = performance.data ? performance.data.portfolio.performance?.to
++    ?? periodWindow(period, performance.data.portfolio.asOf).to : undefined;
++  const query = useQuery({ ...portfolioPositionsQuery(selectedEnd),
++    enabled: datedPositions || search.produkt === 'neu' || !!search.handel });
++  const path = portfolioRegisterPath(register);
++  const instruments = useQuery(instrumentsQuery());
+   const navigate = useNavigate();
+   const select = (produkt?: string, replace = false) =>
+     void navigate(
+@@ -51,13 +70,13 @@ export function PortfolioPage() {
+             replace,
+           }
+         : {
+-            to: '/vermoegen/portfolio',
++            to: path,
+             search: { zeitraum: search.zeitraum, produkt },
+           },
+     );
+   const trade = (handel?: string, produkt = search.produkt) =>
+     void navigate({
+-      to: '/vermoegen/portfolio',
++      to: path,
+       search: ((prev: Record<string, unknown>) => ({
+         ...prev,
+         produkt,
+@@ -66,26 +85,37 @@ export function PortfolioPage() {
+         sparplan: undefined,
+       })) as never,
+     });
+-  const view = query.data;
++  const view = datedPositions && performance.isPending ? undefined : query.data;
+   const held = new Set(view?.classes.flatMap((group) => group.positions.map((p) => p.securityId)));
+   const unheld = instruments.data?.securities.filter((security) => !held.has(security.id));
+   return (
+     <PageFrame meta={VERMOEGEN_PORTFOLIO_META}>
++      <PortfolioRegisters current={register} period={period} />
+       <div className="kview vview portfolio-view">
+-        {query.isPending && <LoadingNote what="Positionen" />}
++        {datedPositions && performance.isError && <ErrorNote what="Portfoliozeitraum" error={performance.error} onRetry={() => void performance.refetch()} />}
++        {datedPositions && performance.isPending && <LoadingNote what="Portfoliozeitraum" />}
++        {datedPositions && <>
++        {query.isPending && !performance.isPending && <LoadingNote what="Positionen" />}
+         {query.isError && (
+           <ErrorNote what="Positionen" error={query.error} onRetry={() => void query.refetch()} />
+         )}
+         <ValuationHint incomplete={query.data?.incomplete} />
+         {view && <PortfolioLead view={view} />}
+-        <PortfolioOverview />
++        {view && performance.isError && <p className="vnote">Die Zeitraum-Auswertung ist nicht verfügbar. Der separat bewertete Bestand oben gilt für {longDay(view.asOf)}; ein Vergleich mit einem fehlenden Kurvenendpunkt ist nicht möglich.</p>}
++        {register === 'positions' && <ZeitraumSwitch />}
++        </>}
++        {register === 'overview' && <><PortfolioOverview />{view && <section className="portfolio-class-summary" aria-labelledby="portfolio-classes-title">
++          <div className="head"><h2 id="portfolio-classes-title">Anlageklassen kurz</h2></div>
++          <ul>{view.classes.map((group) => <li key={group.id ?? 'none'}><span>{maskMoneyText(group.name)}</span><span>{moneyText(group.valueCents)}</span></li>)}</ul>
++        </section>}</>}
++        {register === 'positions' && <>
+         <div className="instrument-actions">
+           <Button variant="ghost" onClick={() => select('neu')}>
+             Instrument anlegen
+           </Button>
+           <Button onClick={() => trade('neu', undefined)}>Handel erfassen</Button>
+         </div>
+-        <PortfolioAllocation />
++
+         {view && (
+           <>
+             {view.classes.length === 0 ? (
+@@ -152,7 +182,7 @@ export function PortfolioPage() {
+             )}
+           </>
+         )}
+-        <SavingsSection />
++
+         {instruments.isPending && <LoadingNote what="Instrumente" />}
+         {instruments.isError && (
+           <ErrorNote
+@@ -200,6 +230,10 @@ export function PortfolioPage() {
+             </table>
+           </details>
+         )}
++        </>}
++        {register === 'allocation' && <PortfolioAllocation />}
++        {register === 'savings' && <SavingsSection navigationPath="/vermoegen/portfolio/sparplaene" />}
++        {register === 'metrics' && <PortfolioMetrics />}
+       </div>
+       {search.sparplan ? null : search.handel ? (
+         <TradePanel
+@@ -245,6 +279,7 @@ function PortfolioLead({ view }: { view: PortfolioPositionsView }) {
+           <span className="portfolio-unavailable">Bewertung unvollständig</span>
+         )}
+       </div>
++      <p className="vnote">Wertpapiere ohne Depot-Bargeld</p>
+       <p className="portfolio-lead-gain" data-testid="portfolio-gain">
+         Gewinn seit Kauf {moneyText(view.gainCents)} ·{' '}
+         {percentText(
+diff --git a/apps/web/src/wealth/portfolio-registers.tsx b/apps/web/src/wealth/portfolio-registers.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..b869adb7dc1766feffc40043a582d5b8469a9481
+--- /dev/null
++++ b/apps/web/src/wealth/portfolio-registers.tsx
+@@ -0,0 +1,24 @@
++import type { Period } from '@budget/domain';
++import { AppLink } from '../shell/app-link';
++
++export const PORTFOLIO_REGISTERS = [
++  { key: 'overview', label: 'Übersicht', path: '/vermoegen/portfolio' },
++  { key: 'positions', label: 'Positionen', path: '/vermoegen/portfolio/positionen' },
++  { key: 'allocation', label: 'Allokation', path: '/vermoegen/portfolio/allokation' },
++  { key: 'savings', label: 'Sparpläne', path: '/vermoegen/portfolio/sparplaene' },
++  { key: 'metrics', label: 'Kennzahlen', path: '/vermoegen/portfolio/kennzahlen' },
++] as const;
++export type PortfolioRegister = (typeof PORTFOLIO_REGISTERS)[number]['key'];
++export function portfolioRegisterPath(key: PortfolioRegister) {
++  return PORTFOLIO_REGISTERS.find((entry) => entry.key === key)!.path;
++}
++
++/** Real routes: reload/back work independently of the selected register. */
++export function PortfolioRegisters({ current, period }: { current: PortfolioRegister; period: Period }) {
++  return <nav className="portfolio-registers" aria-label="Portfolio-Register">
++    {PORTFOLIO_REGISTERS.map((entry) => <AppLink key={entry.key} to={entry.path}
++      search={{ zeitraum: period }} aria-current={entry.key === current ? 'page' : undefined}>
++      {entry.label}
++    </AppLink>)}
++  </nav>;
++}
+diff --git a/apps/web/src/wealth/portfolio.css b/apps/web/src/wealth/portfolio.css
+index c2acf8a7fa3a44e981ebe2de7098298797d9f96e..e9e0e37ff12517ae501031bfbced1ebd2b4fa6db 100644
+--- a/apps/web/src/wealth/portfolio.css
++++ b/apps/web/src/wealth/portfolio.css
+@@ -429,3 +429,100 @@
+     min-height: 44px;
+   }
+ }
++
++/* Five real portfolio routes, sharing the original controls and source reads. */
++.portfolio-registers {
++  display: grid;
++  grid-template-columns: repeat(5, minmax(0, 1fr));
++  gap: 4px;
++  margin-block: 8px 16px;
++}
++.portfolio-registers a {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  min-height: 44px;
++  padding: 8px 4px;
++  text-align: center;
++  overflow-wrap: anywhere;
++  color: var(--ink-2);
++  text-decoration: none;
++  border-bottom: 1px solid var(--rule);
++}
++.portfolio-registers a[aria-current='page'] {
++  color: var(--line);
++  border-bottom: 2px solid var(--line);
++}
++.portfolio-class-summary,
++.portfolio-metrics {
++  grid-column: 1 / -1;
++  min-width: 0;
++}
++.portfolio-class-summary ul {
++  padding: 0;
++  margin: 8px 0;
++  list-style: none;
++}
++.portfolio-class-summary li {
++  display: flex;
++  justify-content: space-between;
++  flex-wrap: wrap;
++  gap: 8px;
++  padding-block: 8px;
++  border-top: 1px solid var(--rule);
++}
++.portfolio-class-summary li > span:first-child {
++  overflow-wrap: anywhere;
++}
++.portfolio-metrics-lead {
++  display: grid;
++  gap: 4px;
++  margin-block: 16px;
++}
++.portfolio-metrics-lead strong {
++  font-size: var(--fs-figure);
++  font-variant-numeric: tabular-nums;
++}
++.portfolio-metrics-grid {
++  display: grid;
++  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
++  gap: 16px;
++  margin-block: 16px;
++}
++.portfolio-metrics-grid dt {
++  color: var(--ink-2);
++}
++.portfolio-metrics-grid dd {
++  margin: 4px 0 0;
++  font-variant-numeric: tabular-nums;
++}
++.portfolio-metrics-table {
++  width: 100%;
++  border-collapse: collapse;
++  table-layout: fixed;
++}
++.portfolio-metrics-table :is(th, td) {
++  padding: 8px 4px;
++  border-bottom: 1px solid var(--rule);
++  text-align: right;
++  overflow-wrap: anywhere;
++  font-variant-numeric: tabular-nums;
++}
++.portfolio-metrics-table :is(th, td):first-child {
++  text-align: left;
++}
++.portfolio-metrics-table caption {
++  text-align: left;
++  padding-block: 8px;
++  color: var(--ink-2);
++}
++.portfolio-flow-table summary {
++  min-height: 44px;
++  padding-block: 12px;
++  cursor: pointer;
++}
++@media (max-width: 600px) {
++  .portfolio-registers {
++    grid-template-columns: repeat(3, minmax(0, 1fr));
++  }
++}
+diff --git a/apps/web/src/wealth/savings-section.tsx b/apps/web/src/wealth/savings-section.tsx
+index 5c5187402196d6a532caafafd38045fee1c4660b..39b51d28e6000cf17b0285836c75c82c188c3302 100644
+--- a/apps/web/src/wealth/savings-section.tsx
++++ b/apps/web/src/wealth/savings-section.tsx
+@@ -12,7 +12,7 @@ import { BANK_NOTE, currentRates, planGroups } from './savings-model';
+ import { SavingsPanel } from './savings-panel';
+ import './savings.css';
+ 
+-export function SavingsSection() {
++export function SavingsSection({ navigationPath = '/vermoegen/portfolio' }: { navigationPath?: '/vermoegen/portfolio' | '/vermoegen/portfolio/sparplaene' }) {
+   useAmountPrivacy();
+   const plans = useQuery(savingsPlansQuery());
+   const accounts = useQuery(accountsQuery());
+@@ -28,7 +28,7 @@ export function SavingsSection() {
+       to:
+         sparplan && sparplan !== 'neu'
+           ? '/vermoegen/portfolio/sparplan/$id'
+-          : '/vermoegen/portfolio',
++          : navigationPath,
+       params: { id: sparplan ?? '' },
+       state: { wealthDetailOpenedInApp: true },
+       search: ((prev: Record<string, unknown>) => ({
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index 445f23cf48d399b5d5ac8d5d6c095ee1c886ef50..ee63576510974911705136ec814825f6ca9187ef 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1865,3 +1865,12 @@ explicit reanalysis/review. Upload and reanalysis never post money.
+ - Clarified the existing report explanation: FIFO within each eligible budget-account outflow, amount weighting within that outflow, then equal weighting of up to ten outflow ages. Positive opening balances and internal budget-account transfers are explicitly distinguished; unavailable age remains unavailable.
+ - Replaced the unsupported claim that reaching a day target proves living on the previous month's money with a neutral comparison target and the distinction between historical age and future bill coverage. Existing Plan, pace, free-until-payday, forecast and financial producers are unchanged; no optional numeric runway was introduced.
+ - Scope is explanation only. Source correspondence was checked against the current domain/repository read model. Existing tests remain unchanged; runtime checks, browser acceptance and delivery are deferred with the owner's implementation batch. Dependencies #513/#517 and the full #518 closing gates remain open.
++
++
++### #544 / #546 — five portfolio registers and shared-source metrics (source checkpoint, 2026-10-21)
++
++- Added real Übersicht, Positionen, Allokation, Sparpläne and Kennzahlen routes with a wrapping native-link register. Existing instrument/savings detail URLs, legacy query entries, period selection, original editors and their dirty/busy/Undo controls remain the control paths; the savings navigation default stays compatible.
++- Relocated existing grouped positions, allocation and savings content rather than introducing parallel financial handlers. Overview retains the existing value/return chart and saved benchmark rules, with compact class amounts. The two out-of-band allocation colors now use the existing orange token; this does not complete every #465 acceptance criterion.
++- Added a compact Kennzahlen view from the exact performance-report query: TTWROR period/p.a., XIRR p.a., benchmark differences, risk explanations and a collapsed table of the already-produced daily calculation flows. Report and register links preserve the selected period. No Modified Dietz, new benchmark convention or financial formula is introduced.
++- Added an optional validated past asOf to the existing positions GET, reusing the same dated producer. Successful historical performance selects its identical endpoint for the lead and position values. If only performance history is unavailable, the separately dated current-position facts remain visible with an explicit unavailable-comparison note rather than being relabelled a historical endpoint.
++- [ ] Source-only checkpoint: existing tests are unchanged, and no new tests, execution, formatter, typecheck, build, native/visual/Axe or CI ran for this packet. Independent whole-source review and later literal same-period parity/100+100→220=10%/dated endpoint/router/dialog/privacy tests plus actual desktop/phone layouts, two-screen bounds, 44px/Axe, required checks and LIVE acceptance remain pending. #543 calculations are reused, not claimed as newly implemented; #487/#547/#548 depth/detail redesigns remain separate.
