@@ -53,8 +53,11 @@ financial writers and formulas are unchanged.
   earlier local combined run had seven passes and four Chromium failures before
   launch because canonical headless shell1248 was absent; no Chromium product
   assertion ran. Both desktop-shaped images here still use WebKit.
-- Required AGE-enabled full check and normal production build are pending on the
-  final source/evidence checkpoint; this README makes no full-green claim.
+- Required `BUDGET_REQUIRE_AGE=1 npm run check` passed on source/evidence checkpoint
+  `f40e03370d9d2d7613c7be5730c767f281f9b7e2`: 589 files / 5211 tests, no failures
+  or skips; normal production build passed. All 3650 source hashes and modes,
+  HEAD, index and process guards stayed unchanged. This later documentation-only
+  result update does not change product or test code.
 - Exact-head required CI, serial integration and verified LIVE remain pending.
 - The existing phone floating plus partly overlaps Monat abschließen; existing
   category-name ellipses and fixed-navigation full-page screenshot behavior are

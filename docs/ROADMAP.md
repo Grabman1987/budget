@@ -1805,8 +1805,9 @@ existing tests are unchanged.
 - [x] Eight unchanged compatibility files/70 tests, affected types and scoped lint/format/CSS passed. Current header wording has a literal52-versus51 union/dedup regression.
 - [x] Current canonical WebKit7/7 (setup3 + feature4), no skips/retries/flaky cases: desktop1440×900/configured390×664 in both themes, individual phone44px targets, keyboard, Axe, source links and real cover/audit/Undo. [Four original images and evidence limits](evidence/plan-filters-589/README.md).
 - [ ] Chromium desktop/mobile required exact-head CI. Earlier local Chromium4 failed before launch because the canonical browser was absent; no product assertion ran.
-- [ ] Required AGE-enabled full check and normal production build on the final source/evidence checkpoint.
+- [x] Required AGE-enabled full check and normal production build on `f40e0337`: 589 files / 5211 tests passed, zero failures/skips; all 3650 source hashes/modes, HEAD/index and process guards stayed exact.
 - [ ] Exact-head required CI, serial integration and verified LIVE; no queue-completion claim.
 
 Current WebKit source is `376fe26d`; its fresh E2E build and unchanged166-file
-compiled proof are separate from the still-pending normal production/full gates.
+compiled proof precede the successful full/build checkpoint `f40e0337`. Later
+result documentation changes no product or test code. Chromium CI/LIVE remain open.
