@@ -1665,3 +1665,34 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
   output cases passed. Actual Windows refusal and fresh exact-head aggregate CI
   and serial LIVE remain pending. Actual production receipt-volume/owner
   backup-restore verification is still open; #726 remains a partial delivery.
+
+
+### #727 — Issued card settlement and explicit expense-credit stage
+
+- Opt-in account-local review keeps the previous issued payable, newer purchases,
+  explicit bonus evidence and actual payment/credit representations separate.
+  Gross purchases stay unchanged; an already-net bonus decision is nonposting.
+  No bank order or automatic difference-derived credit is created.
+- Source/configuration/monetary CAS, replay-first idempotency, independent grouped
+  Undo and account-scoped finite candidate pages protect explicit selections.
+  Backend acknowledged source reassessment preserves the same represented credit;
+  its UI editor remains OPEN.
+- Focused domain/DB/API, reassessment, candidate-read and copied-0046/AGE-backup
+  checkpoints passed separately. Projection cases passed across two checkpoints,
+  retaining the initial zero-currency-shape failures. Current UI 15/15 and
+  fresh-build canonical 7/7 (four manually configured desktop/phone-theme scenes
+  plus three setup cases) passed. Other focused results
+  remain checkpoint-specific; no summed aggregate is claimed.
+- Owner-approved integrity-726 setup now limits its disposable database through
+  0045 (“Ja, nur diesen Testaufbau begrenzen”), preserving every assertion. New
+  0046 upgrade/empty rollback/re-upgrade, populated refusal and encrypted restore
+  have independent synthetic coverage.
+- [Feature guide](statement-settlement.md) and [four synthetic originals with
+  photographic limits](evidence/statement-settlement-727/README.md). Full-page
+  captures include internal scroll/background and toast-overlapped prose; strict
+  action 44px/text/hit checks passed. Empty-draft privacy is scoped. The first integrated check stopped before units on generated 0046 JSON
+  formatting; no normal build ran. Later integrated AGE1/one-worker full check
+  at `5c1855e0` passed 575 files / 5,157 tests
+  (799.95s Vitest duration), then normal production build passed. Exact-head
+  CI and serial LIVE remain pending. Net-only/difference
+  reconciliation and uncertain partial credits remain OPEN; #727 is not marked complete.

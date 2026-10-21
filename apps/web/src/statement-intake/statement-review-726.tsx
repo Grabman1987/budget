@@ -17,6 +17,7 @@ import { errorText } from '../ledger/labels';
 import { longDay, nativeCurrency } from '../ledger/format';
 import { accountsQuery, LEDGER_KEY } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
+import { StatementSettlementReview } from './statement-settlement-727';
 import './statement-review-726.css';
 
 const PATH = '/api/statement-intake';
@@ -76,7 +77,11 @@ function AccountStatements({ accountId }: { accountId: string }) {
   });
   const picker = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false),
-    [busy, setBusy] = useState(false);
+    [documentBusy, setBusy] = useState(false);
+  const [settlementOpen, setSettlementOpen] = useState(false);
+  const [settlementDirty, setSettlementDirty] = useState(false);
+  const [settlementBusy, setSettlementBusy] = useState(false);
+  const busy = documentBusy || settlementBusy;
   const [current, setCurrent] = useState<StatementIntakeView | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null),
     [saved, setSaved] = useState<Draft | null>(null);
@@ -85,7 +90,8 @@ function AccountStatements({ accountId }: { accountId: string }) {
   const [error, setError] = useState(''),
     [conflict, setConflict] = useState(false),
     [note, setNote] = useState('');
-  const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
+  const documentDirty = JSON.stringify(draft) !== JSON.stringify(saved);
+  const dirty = documentDirty || settlementDirty;
   const write = useBudgetWrite();
   const blocker = useBlocker({
     shouldBlockFn: () => open && (busy || dirty || password !== ''),
@@ -307,6 +313,7 @@ function AccountStatements({ accountId }: { accountId: string }) {
         disabled={!readyAccount || busy}
         onClick={() => {
           if (!mayDiscard()) return;
+          setSettlementOpen(false);
           setCurrent(null);
           setDraft(null);
           setSaved(null);
@@ -327,291 +334,336 @@ function AccountStatements({ accountId }: { accountId: string }) {
       )}
       <WideDialog
         open={open}
-        title={current ? 'Abrechnung prüfen' : 'Abrechnung hochladen'}
+        title={
+          settlementOpen
+            ? 'Abrechnungsausgleich'
+            : current
+              ? 'Abrechnung prüfen'
+              : 'Abrechnung hochladen'
+        }
         beforeClose={mayDiscard}
         onClose={() => {
           setOpen(false);
+          setSettlementOpen(false);
           setPassword('');
         }}
       >
         <div className="statement-dialog-726" aria-busy={busy}>
-          <p>
-            Konto: <strong>{account?.name ?? 'Nicht verfügbar'}</strong>
-          </p>
-          <p>
-            Hier werden nur Dokumentangaben gespeichert. Es wird keine Zahlung oder Buchung
-            erstellt.
-          </p>
-          {busy && <LoadingNote what="Abrechnungsdaten" />}
-          {note && <p role="status">{note}</p>}
-          {error && (
-            <div role="alert">
-              <p>{error}</p>
-              <Button
-                variant="ghost"
-                disabled={busy}
-                onClick={() => {
-                  if (current) void openView(current);
-                  else void list.refetch();
-                }}
-              >
-                {current ? 'Stand neu laden' : 'Liste neu laden'}
-              </Button>
-            </div>
-          )}
-          {!current && (
-            <>
-              <input
-                ref={picker}
-                type="file"
-                accept="application/pdf,.pdf"
-                className="sr-only"
-                tabIndex={-1}
-                aria-label="Abrechnungs-PDF auswählen"
-                disabled={busy}
-                onChange={(event) => {
-                  const selected = event.currentTarget.files?.[0];
-                  if (event.currentTarget.files?.length === 1 && selected) void upload(selected);
-                  event.currentTarget.value = '';
-                }}
-              />
-              <p>Eine PDF-Datei · höchstens 15 MB</p>
-              <Button disabled={busy || !readyAccount} onClick={() => picker.current?.click()}>
-                PDF auswählen
-              </Button>
-              {file && error && (
-                <Button variant="ghost" disabled={busy} onClick={() => void upload(file)}>
-                  PDF erneut hochladen
-                </Button>
-              )}
-            </>
-          )}
-          {!current && !list.isError && !mismatch && Boolean(list.data?.intakes.length) && (
-            <details className="statement-history-726">
-              <summary>Abrechnungen · {list.data?.intakes.length}</summary>
-              <ul>
-                {list.data?.intakes.map((view) => {
-                  const shown = factsFromView(view);
-                  return (
-                    <li key={view.id}>
-                      <Button
-                        variant="ghost"
-                        disabled={busy || !readyAccount}
-                        onClick={() => void openView(view)}
-                      >
-                        {shown.reference ||
-                          (shown.issueDate ? longDay(shown.issueDate) : 'Abrechnung ohne Nummer')}
-                        {' · '}
-                        {STATUS[view.status]}
-                        {shown.payableCents !== null && shown.currency && (
-                          <> · {nativeCurrency(shown.payableCents, shown.currency)}</>
-                        )}
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-              {list.data?.intakes.length === 50 && (
-                <p>Die 50 zuletzt aufgenommenen Abrechnungen werden angezeigt.</p>
-              )}
-            </details>
-          )}
-          {current && draft && (
+          {settlementOpen && current ? (
+            <StatementSettlementReview
+              accountId={accountId}
+              initialSource={current}
+              onSourceAdopt={adopt}
+              onDirty={setSettlementDirty}
+              onBusy={setSettlementBusy}
+              onBack={() => {
+                if (!mayDiscard()) return;
+                setSettlementOpen(false);
+                setSettlementDirty(false);
+              }}
+              onManual={() => {
+                if (!mayDiscard()) return false;
+                setOpen(false);
+                setSettlementOpen(false);
+                return true;
+              }}
+            />
+          ) : (
             <>
               <p>
-                <strong>{current.deletedAt ? 'Entfernt' : STATUS[current.status]}</strong> ·
-                Dokumentprüfung, keine Zahlungsbestätigung
+                Konto: <strong>{account?.name ?? 'Nicht verfügbar'}</strong>
               </p>
-              {!current.deletedAt && (
-                <a
-                  className="btn btn-ghost"
-                  href={`/api/receipts/${encodeURIComponent(current.receiptId)}/download`}
-                >
-                  Original-PDF herunterladen
-                </a>
-              )}
-              {current.proposal.extraction !== 'parsed' && (
-                <p role="status">
-                  {current.proposal.extraction === 'password_required'
-                    ? 'Das PDF benötigt ein Passwort. Das Original bleibt gespeichert.'
-                    : current.proposal.extraction === 'unreadable_or_limit'
-                      ? 'Das PDF konnte nicht gelesen werden. Original herunterladen oder Angaben manuell prüfen.'
-                      : 'Nicht alle Angaben wurden erkannt. Bitte anhand des Originals prüfen.'}
-                </p>
-              )}
-              {warnings.includes('debit_date_required') && (
-                <p role="status">
-                  Im PDF wurde kein eindeutiges Einzugsdatum erkannt. Ausstellungsdatum und
-                  Zahlungsbedingungen ersetzen es nicht.
-                </p>
-              )}
-              {otherWarnings && (
-                <p role="status">
-                  Das PDF enthält unklare, widersprüchliche oder nicht unterstützte Angaben. Bitte
-                  die betroffenen Felder anhand des Originals prüfen.
-                </p>
-              )}
-              {current.proposal.relatedIntakeIds.length > 0 && (
-                <p role="status">
-                  Mögliche weitere Fassung einer vorhandenen Abrechnung. Es wurde nichts ersetzt
-                  oder zusammengeführt.
-                </p>
-              )}
-              <div className="statement-fields-726">
-                {TEXT_FIELDS.map(([key, label]) => (
-                  <Field
-                    key={key}
-                    label={label}
-                    hint={
-                      (isDateField(key) ? dateIso(draft[key]) : draft[key]) !==
-                        String(
-                          (current.reviewed?.fields[key] ?? current.proposal.fields[key]).value ??
-                            '',
-                        ) || current.reviewed?.fields[key].origin === 'owner'
-                        ? 'Eigene Angabe'
-                        : current.proposal.fields[key].candidates.length > 1
-                          ? 'Mehrere Angaben im PDF; bitte einen eindeutigen Wert manuell eintragen'
-                          : current.proposal.fields[key].origin === 'printed'
-                            ? `PDF${current.proposal.fields[key].evidence.line ? ' · Zeile ' + current.proposal.fields[key].evidence.line : ''}`
-                            : 'Nicht erkannt; bleibt ohne manuelle Angabe unbekannt'
-                    }
-                  >
-                    {({ id, describedBy, invalid }) => (
-                      <TextInput
-                        id={id}
-                        aria-describedby={describedBy}
-                        aria-invalid={invalid}
-                        type="text"
-                        inputMode="text"
-                        placeholder={isDateField(key) ? 'TT.MM.JJJJ' : undefined}
-                        value={draft[key]}
-                        maxLength={128}
-                        disabled={!pending || busy}
-                        onChange={(event) => update(key, event.target.value)}
-                      />
-                    )}
-                  </Field>
-                ))}
-                <Field
-                  label="Abrechnungsbetrag"
-                  hint={`${amountConflict ? 'Betragsangaben im PDF sind nicht eindeutig. Eigene Angabe anhand des Originals prüfen. ' : ''}Exakt laut Abrechnung; leer bedeutet unbekannt, 0,00 bedeutet ausdrücklich null.`}
-                >
-                  {({ id, describedBy, invalid }) => (
-                    <TextInput
-                      id={id}
-                      aria-describedby={describedBy}
-                      aria-invalid={invalid}
-                      money
-                      inputMode="decimal"
-                      value={draft.amount}
-                      disabled={!pending || busy}
-                      onChange={(event) => update('amount', event.target.value)}
-                    />
-                  )}
-                </Field>
-                <Field
-                  label="Währung"
-                  hint={`${currencyConflict ? 'Währungsangaben im PDF sind nicht eindeutig. Eigene Angabe anhand des Originals prüfen. ' : ''}Keine Umrechnung und keine Ableitung aus dem Kontosaldo.`}
-                >
-                  {({ id, describedBy, invalid }) => (
-                    <TextInput
-                      id={id}
-                      aria-describedby={describedBy}
-                      aria-invalid={invalid}
-                      value={draft.currency}
-                      maxLength={3}
-                      disabled={!pending || busy}
-                      onChange={(event) => update('currency', event.target.value.toUpperCase())}
-                    />
-                  )}
-                </Field>
-              </div>
-              {pending && !valid && (
-                <p role="alert">
-                  Bitte gültige Kalenderdaten, Betrag, Währung und einen maskierten Kartenhinweis
-                  (****1234) eingeben oder unbekannte Felder leer lassen.
-                </p>
-              )}
-              {pending && !complete && (
-                <p>
-                  Als geprüft speicherbar mit Nummer oder vollständigem Zeitraum, Ausstellungsdatum,
-                  Betrag, Währung und ausdrücklich angegebenem Einzugsdatum.
-                </p>
-              )}
-              <div className="statement-actions-726">
-                {pending ? (
-                  <>
-                    <Button
-                      disabled={busy || conflict || !complete || !valid}
-                      onClick={() => void act('review')}
-                    >
-                      Als geprüft speichern
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      disabled={busy || conflict || !valid}
-                      onClick={() => void act('pending')}
-                    >
-                      Entwurf speichern
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      disabled={busy || conflict}
-                      onClick={() => void act('reparse')}
-                    >
-                      Erneut auswerten
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      disabled={busy || conflict}
-                      onClick={() => void act('reject')}
-                    >
-                      Ablehnen
-                    </Button>
-                  </>
-                ) : current.deletedAt ? (
-                  <Button disabled={busy || conflict} onClick={() => void act('restore')}>
-                    Wiederherstellen
-                  </Button>
-                ) : (
-                  <Button disabled={busy || conflict} onClick={() => void act('reopen')}>
-                    Prüfung wieder öffnen
-                  </Button>
-                )}
-                {!current.deletedAt && (
+              <p>
+                Hier werden nur Dokumentangaben gespeichert. Es wird keine Zahlung oder Buchung
+                erstellt.
+              </p>
+              {busy && <LoadingNote what="Abrechnungsdaten" />}
+              {note && <p role="status">{note}</p>}
+              {error && (
+                <div role="alert">
+                  <p>{error}</p>
                   <Button
                     variant="ghost"
-                    disabled={busy || conflict}
-                    onClick={() => void act('delete')}
+                    disabled={busy}
+                    onClick={() => {
+                      if (current) void openView(current);
+                      else void list.refetch();
+                    }}
                   >
-                    Dokument entfernen
+                    {current ? 'Stand neu laden' : 'Liste neu laden'}
                   </Button>
-                )}
-                <Button variant="ghost" disabled={busy} onClick={() => void openView(current)}>
-                  Stand neu laden
-                </Button>
-              </div>
-            </>
-          )}
-          {(!current || pending) && (
-            <Field
-              label="PDF-Passwort (optional)"
-              hint="Nur für diese Auswertung; wird nicht gespeichert."
-            >
-              {({ id, describedBy, invalid }) => (
-                <TextInput
-                  id={id}
-                  aria-describedby={describedBy}
-                  aria-invalid={invalid}
-                  type="password"
-                  autoComplete="off"
-                  maxLength={256}
-                  value={password}
-                  disabled={busy}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
+                </div>
               )}
-            </Field>
+              {!current && (
+                <>
+                  <input
+                    ref={picker}
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    className="sr-only"
+                    tabIndex={-1}
+                    aria-label="Abrechnungs-PDF auswählen"
+                    disabled={busy}
+                    onChange={(event) => {
+                      const selected = event.currentTarget.files?.[0];
+                      if (event.currentTarget.files?.length === 1 && selected)
+                        void upload(selected);
+                      event.currentTarget.value = '';
+                    }}
+                  />
+                  <p>Eine PDF-Datei · höchstens 15 MB</p>
+                  <Button disabled={busy || !readyAccount} onClick={() => picker.current?.click()}>
+                    PDF auswählen
+                  </Button>
+                  {file && error && (
+                    <Button variant="ghost" disabled={busy} onClick={() => void upload(file)}>
+                      PDF erneut hochladen
+                    </Button>
+                  )}
+                </>
+              )}
+              {!current && !list.isError && !mismatch && Boolean(list.data?.intakes.length) && (
+                <details className="statement-history-726">
+                  <summary>Abrechnungen · {list.data?.intakes.length}</summary>
+                  <ul>
+                    {list.data?.intakes.map((view) => {
+                      const shown = factsFromView(view);
+                      return (
+                        <li key={view.id}>
+                          <Button
+                            variant="ghost"
+                            disabled={busy || !readyAccount}
+                            onClick={() => void openView(view)}
+                          >
+                            {shown.reference ||
+                              (shown.issueDate
+                                ? longDay(shown.issueDate)
+                                : 'Abrechnung ohne Nummer')}
+                            {' · '}
+                            {STATUS[view.status]}
+                            {shown.payableCents !== null && shown.currency && (
+                              <> · {nativeCurrency(shown.payableCents, shown.currency)}</>
+                            )}
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {list.data?.intakes.length === 50 && (
+                    <p>Die 50 zuletzt aufgenommenen Abrechnungen werden angezeigt.</p>
+                  )}
+                </details>
+              )}
+              {current && draft && (
+                <>
+                  <p>
+                    <strong>{current.deletedAt ? 'Entfernt' : STATUS[current.status]}</strong> ·
+                    Dokumentprüfung, keine Zahlungsbestätigung
+                  </p>
+                  {!current.deletedAt && (
+                    <a
+                      className="btn btn-ghost"
+                      href={`/api/receipts/${encodeURIComponent(current.receiptId)}/download`}
+                    >
+                      Original-PDF herunterladen
+                    </a>
+                  )}
+                  {!current.deletedAt && current.status === 'reviewed' && (
+                    <Button
+                      disabled={busy || conflict}
+                      onClick={() => {
+                        if (!mayDiscard()) return;
+                        if (documentDirty) setDraft(saved);
+                        setSettlementOpen(true);
+                      }}
+                    >
+                      Abrechnungsausgleich
+                    </Button>
+                  )}
+                  {current.proposal.extraction !== 'parsed' && (
+                    <p role="status">
+                      {current.proposal.extraction === 'password_required'
+                        ? 'Das PDF benötigt ein Passwort. Das Original bleibt gespeichert.'
+                        : current.proposal.extraction === 'unreadable_or_limit'
+                          ? 'Das PDF konnte nicht gelesen werden. Original herunterladen oder Angaben manuell prüfen.'
+                          : 'Nicht alle Angaben wurden erkannt. Bitte anhand des Originals prüfen.'}
+                    </p>
+                  )}
+                  {warnings.includes('debit_date_required') && (
+                    <p role="status">
+                      Im PDF wurde kein eindeutiges Einzugsdatum erkannt. Ausstellungsdatum und
+                      Zahlungsbedingungen ersetzen es nicht.
+                    </p>
+                  )}
+                  {otherWarnings && (
+                    <p role="status">
+                      Das PDF enthält unklare, widersprüchliche oder nicht unterstützte Angaben.
+                      Bitte die betroffenen Felder anhand des Originals prüfen.
+                    </p>
+                  )}
+                  {current.proposal.relatedIntakeIds.length > 0 && (
+                    <p role="status">
+                      Mögliche weitere Fassung einer vorhandenen Abrechnung. Es wurde nichts ersetzt
+                      oder zusammengeführt.
+                    </p>
+                  )}
+                  <div className="statement-fields-726">
+                    {TEXT_FIELDS.map(([key, label]) => (
+                      <Field
+                        key={key}
+                        label={label}
+                        hint={
+                          (isDateField(key) ? dateIso(draft[key]) : draft[key]) !==
+                            String(
+                              (current.reviewed?.fields[key] ?? current.proposal.fields[key])
+                                .value ?? '',
+                            ) || current.reviewed?.fields[key].origin === 'owner'
+                            ? 'Eigene Angabe'
+                            : current.proposal.fields[key].candidates.length > 1
+                              ? 'Mehrere Angaben im PDF; bitte einen eindeutigen Wert manuell eintragen'
+                              : current.proposal.fields[key].origin === 'printed'
+                                ? `PDF${current.proposal.fields[key].evidence.line ? ' · Zeile ' + current.proposal.fields[key].evidence.line : ''}`
+                                : 'Nicht erkannt; bleibt ohne manuelle Angabe unbekannt'
+                        }
+                      >
+                        {({ id, describedBy, invalid }) => (
+                          <TextInput
+                            id={id}
+                            aria-describedby={describedBy}
+                            aria-invalid={invalid}
+                            type="text"
+                            inputMode="text"
+                            placeholder={isDateField(key) ? 'TT.MM.JJJJ' : undefined}
+                            value={draft[key]}
+                            maxLength={128}
+                            disabled={!pending || busy}
+                            onChange={(event) => update(key, event.target.value)}
+                          />
+                        )}
+                      </Field>
+                    ))}
+                    <Field
+                      label="Abrechnungsbetrag"
+                      hint={`${amountConflict ? 'Betragsangaben im PDF sind nicht eindeutig. Eigene Angabe anhand des Originals prüfen. ' : ''}Exakt laut Abrechnung; leer bedeutet unbekannt, 0,00 bedeutet ausdrücklich null.`}
+                    >
+                      {({ id, describedBy, invalid }) => (
+                        <TextInput
+                          id={id}
+                          aria-describedby={describedBy}
+                          aria-invalid={invalid}
+                          money
+                          inputMode="decimal"
+                          value={draft.amount}
+                          disabled={!pending || busy}
+                          onChange={(event) => update('amount', event.target.value)}
+                        />
+                      )}
+                    </Field>
+                    <Field
+                      label="Währung"
+                      hint={`${currencyConflict ? 'Währungsangaben im PDF sind nicht eindeutig. Eigene Angabe anhand des Originals prüfen. ' : ''}Keine Umrechnung und keine Ableitung aus dem Kontosaldo.`}
+                    >
+                      {({ id, describedBy, invalid }) => (
+                        <TextInput
+                          id={id}
+                          aria-describedby={describedBy}
+                          aria-invalid={invalid}
+                          value={draft.currency}
+                          maxLength={3}
+                          disabled={!pending || busy}
+                          onChange={(event) => update('currency', event.target.value.toUpperCase())}
+                        />
+                      )}
+                    </Field>
+                  </div>
+                  {pending && !valid && (
+                    <p role="alert">
+                      Bitte gültige Kalenderdaten, Betrag, Währung und einen maskierten
+                      Kartenhinweis (****1234) eingeben oder unbekannte Felder leer lassen.
+                    </p>
+                  )}
+                  {pending && !complete && (
+                    <p>
+                      Als geprüft speicherbar mit Nummer oder vollständigem Zeitraum,
+                      Ausstellungsdatum, Betrag, Währung und ausdrücklich angegebenem Einzugsdatum.
+                    </p>
+                  )}
+                  <div className="statement-actions-726">
+                    {pending ? (
+                      <>
+                        <Button
+                          disabled={busy || conflict || !complete || !valid}
+                          onClick={() => void act('review')}
+                        >
+                          Als geprüft speichern
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          disabled={busy || conflict || !valid}
+                          onClick={() => void act('pending')}
+                        >
+                          Entwurf speichern
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          disabled={busy || conflict}
+                          onClick={() => void act('reparse')}
+                        >
+                          Erneut auswerten
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          disabled={busy || conflict}
+                          onClick={() => void act('reject')}
+                        >
+                          Ablehnen
+                        </Button>
+                      </>
+                    ) : current.deletedAt ? (
+                      <Button disabled={busy || conflict} onClick={() => void act('restore')}>
+                        Wiederherstellen
+                      </Button>
+                    ) : (
+                      <Button disabled={busy || conflict} onClick={() => void act('reopen')}>
+                        Prüfung wieder öffnen
+                      </Button>
+                    )}
+                    {!current.deletedAt && (
+                      <Button
+                        variant="ghost"
+                        disabled={busy || conflict}
+                        onClick={() => void act('delete')}
+                      >
+                        Dokument entfernen
+                      </Button>
+                    )}
+                    <Button variant="ghost" disabled={busy} onClick={() => void openView(current)}>
+                      Stand neu laden
+                    </Button>
+                  </div>
+                </>
+              )}
+              {(!current || pending) && (
+                <Field
+                  label="PDF-Passwort (optional)"
+                  hint="Nur für diese Auswertung; wird nicht gespeichert."
+                >
+                  {({ id, describedBy, invalid }) => (
+                    <TextInput
+                      id={id}
+                      aria-describedby={describedBy}
+                      aria-invalid={invalid}
+                      type="password"
+                      autoComplete="off"
+                      maxLength={256}
+                      value={password}
+                      disabled={busy}
+                      onChange={(event) => setPassword(event.target.value)}
+                    />
+                  )}
+                </Field>
+              )}
+            </>
           )}
         </div>
       </WideDialog>

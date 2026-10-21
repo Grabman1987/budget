@@ -46,6 +46,7 @@ it('upgrades a synthetic database COPY without changing old rows, round-trips an
   const journal = JSON.parse(readFileSync(join(m, 'meta/_journal.json'), 'utf8')) as {
     entries: { idx: number }[];
   };
+  const through45 = journal.entries.filter((e) => e.idx <= 45);
   journal.entries = journal.entries.filter((e) => e.idx < 45);
   writeFileSync(join(m, 'meta/_journal.json'), JSON.stringify(journal));
   const source = openDatabase(join(d, 'original.sqlite'));
@@ -54,6 +55,8 @@ it('upgrades a synthetic database COPY without changing old rows, round-trips an
   source.sqlite.pragma('wal_checkpoint(TRUNCATE)');
   copyFileSync(source.sqlite.name, join(d, 'copy.sqlite'));
   source.close();
+  journal.entries = through45;
+  writeFileSync(join(m, 'meta/_journal.json'), JSON.stringify(journal));
   const copy = openDatabase(join(d, 'copy.sqlite'));
   try {
     const tables = copy.sqlite
@@ -66,7 +69,7 @@ it('upgrades a synthetic database COPY without changing old rows, round-trips an
         tables.map((t) => copy.sqlite.prepare(`SELECT * FROM "${t.name}" ORDER BY rowid`).all()),
       );
     const before = rows();
-    migrateDatabase(copy.db);
+    migrateDatabase(copy.db, m);
     expect(rows()).toBe(before);
     expect(copy.sqlite.pragma('foreign_key_check')).toEqual([]);
     const down = readFileSync(
@@ -75,7 +78,7 @@ it('upgrades a synthetic database COPY without changing old rows, round-trips an
     );
     copy.sqlite.transaction(() => copy.sqlite.exec(down))();
     expect(rows()).toBe(before);
-    migrateDatabase(copy.db);
+    migrateDatabase(copy.db, m);
     stageStatementIntake(
       copy.db,
       {
