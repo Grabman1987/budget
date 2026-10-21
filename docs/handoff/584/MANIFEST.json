@@ -1,0 +1,227 @@
+[
+  {
+    "path": "docs/evidence/capture-transition-584/README.md",
+    "sha256": "e225974defcebb7f1df6deec62c2f358f955f0e06abdb8cad1bb290850a32761",
+    "size": 3375
+  },
+  {
+    "path": "docs/evidence/capture-transition-584/one-after-configured-dark.png",
+    "sha256": "51f70ab8c2561cc03cc5464158d55970730309bf5b8e65798ac7baad99368f8e",
+    "size": 200582
+  },
+  {
+    "path": "docs/evidence/capture-transition-584/one-after-configured-light.png",
+    "sha256": "20f225efada9efca05b571fe75ab8036f5f1d84cdfede7e5b4efff907363d599",
+    "size": 200241
+  },
+  {
+    "path": "docs/evidence/capture-transition-584/one-after-desktop-dark.png",
+    "sha256": "1d0042085eae788fba04a28a026c4c7e029943270164a12c231ebd5ae24339f4",
+    "size": 123651
+  },
+  {
+    "path": "docs/evidence/capture-transition-584/one-after-desktop-light.png",
+    "sha256": "2fa06607e0d05088f150f60db33fdf1e9116e2851926a5fa84218fca0b8480b1",
+    "size": 127838
+  },
+  {
+    "path": "docs/handoff/584/CURRENT-AUTHORIZATION.md",
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1",
+    "size": 1204
+  },
+  {
+    "path": "docs/handoff/584/README.md",
+    "sha256": "088e4ceb028a336c363a2ce38b2dfbcebcf1e2950de212a6d5a48e8a88fc995a",
+    "size": 915
+  },
+  {
+    "path": "docs/handoff/584/STATUS.json",
+    "sha256": "4905eaed555860e4b3345ecf723775ace4dd19797ae2debd545f9838d88e4c28",
+    "size": 376
+  },
+  {
+    "path": "docs/handoff/584/checks/584-canonical-webkit-seven-first-actual/counts.json",
+    "sha256": "497a65c099072bdb0c8ba50741ea42396f06447740231cc3a487d6041855bbb4",
+    "size": 137
+  },
+  {
+    "path": "docs/handoff/584/checks/584-canonical-webkit-seven-first-actual/guards.json",
+    "sha256": "1e6721895338c0a9c8567547427715e5838235f4f18f8b00ae4ad324680cb948",
+    "size": 126
+  },
+  {
+    "path": "docs/handoff/584/checks/584-canonical-webkit-seven-first-actual/result.json",
+    "sha256": "db786adba3034cade92300c1bcbaae50dd2ef9adf71340e333cca658eb3a1474",
+    "size": 151
+  },
+  {
+    "path": "docs/handoff/584/checks/584-new-spec-static-first-actual/result.json",
+    "sha256": "8c9bcc893c00bbd331d1a1a29abdcd9bad084f2a76a5d39f6ddefb86dfb54e36",
+    "size": 340
+  },
+  {
+    "path": "docs/handoff/584/checks/584-required-full-and-build-first-actual/result.json",
+    "sha256": "a6def4dd583b7a3019a34ed9a97f14cad5714bb8174d49f8f415cb3829f91d78",
+    "size": 483
+  },
+  {
+    "path": "docs/handoff/584/checks/584-required-full-and-build-first-actual/sanitized-counters.json",
+    "sha256": "768fcaab631db94cbee3afc090f1fe9c63b85a1fafb879a91ccb4784f61dc10a",
+    "size": 328
+  },
+  {
+    "path": "docs/handoff/584/checks/584-stale-error-scoped-static-second-actual/result.json",
+    "sha256": "8216119a6172777d866bbe73f1b55646cd63c8ed5981f0d4760ff7182d8c0665",
+    "size": 328
+  },
+  {
+    "path": "docs/handoff/584/checks/584-stale-error-webkit-seven-second-actual/counts.json",
+    "sha256": "2131f375ac5f20984cc8702aa84f2df85312c72a4a7233b020d86518ebf4d167",
+    "size": 137
+  },
+  {
+    "path": "docs/handoff/584/checks/584-stale-error-webkit-seven-second-actual/guards.json",
+    "sha256": "1e6721895338c0a9c8567547427715e5838235f4f18f8b00ae4ad324680cb948",
+    "size": 126
+  },
+  {
+    "path": "docs/handoff/584/checks/584-stale-error-webkit-seven-second-actual/result.json",
+    "sha256": "b3baa9e8d8beea13f8a822129d69f23701743f7ddb20785742cb87371520c754",
+    "size": 154
+  },
+  {
+    "path": "docs/handoff/584/native-tested-revision.json",
+    "sha256": "12930a5966aa4545c06afc666951a12d3115d60dcd64bd0d5ec97961006c8432",
+    "size": 269
+  },
+  {
+    "path": "docs/handoff/584/prepared-only/ROADMAP-append.md",
+    "sha256": "119d59a54a2fa4e09fa2cde77c3c8506075910d53257910b395244802a4e1644",
+    "size": 1485
+  },
+  {
+    "path": "docs/handoff/584/reviews/584-corrected-v2-outside-candidate-independent-high.md",
+    "sha256": "fe9449bb722989d2fb7822e1554fe8ba9b6dff6f7069d7c4d1693e4e66465814",
+    "size": 2959
+  },
+  {
+    "path": "docs/handoff/584/reviews/584-current-single-split-candidate-independent-preparation-review.md",
+    "sha256": "58c803ab25a39b1d65b4be1d3b53cd824fc15747638b83f772983857de1bf47a",
+    "size": 4013
+  },
+  {
+    "path": "docs/handoff/584/reviews/584-new-spec-independent-root-review.json",
+    "sha256": "cf0bc2accd249516dc99b777ca4292d72a8024d96750d83652d6d9f1109d0875",
+    "size": 839
+  },
+  {
+    "path": "docs/handoff/584/reviews/584-stale-remainder-independent-root-review.json",
+    "sha256": "fd5468f53fadc3cb03edd17ba9411a5ba061a53a4b19de1e53b382b62836f1b1",
+    "size": 750
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/584-capture-transitions-configured-dark.json",
+    "sha256": "0a7166fe97c09aa11a396c540f4ccc9d632727f0d1d13e7d30aff8c772721a6f",
+    "size": 527
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/584-capture-transitions-configured-light.json",
+    "sha256": "95f534e1ed117484f55f370cf0b476a4369f5fb137acbc12ed06f4558c27e729",
+    "size": 528
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/584-capture-transitions-desktop-dark.json",
+    "sha256": "0c1287e49af3e015e50e2b557d32825d33bbd17bd500e84fb4d154438a69d196",
+    "size": 528
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/584-capture-transitions-desktop-light.json",
+    "sha256": "a7143461582a0912e699102a34ed31c2c3c9d7406e1a5a23a0ec0ef5a1985fff",
+    "size": 529
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/issue-584-capture-transiti-0c71f-re-transitions-desktop-dark-webkit-iphone/attachments/one-after-0357c2f1c5240660e60c9acde0a52818a09cad59.png",
+    "sha256": "1d0042085eae788fba04a28a026c4c7e029943270164a12c231ebd5ae24339f4",
+    "size": 123651
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/issue-584-capture-transiti-0c71f-re-transitions-desktop-dark-webkit-iphone/attachments/one-before-cf79df93ff4e927da4154ed0c3940ba41d04440c.png",
+    "sha256": "986970f0e81c68205e76ab69ac7d7fc13512c4193506dba5726af51156615e00",
+    "size": 124097
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/issue-584-capture-transiti-0c71f-re-transitions-desktop-dark-webkit-iphone/attachments/three-exact-334-333-333-8f2a6dc0e98934603f5d8b709775ea8edfc73bb5.png",
+    "sha256": "e0e89006728561c85270784f2e74c0c7a8ddf027c693f82969f9dce17454f5ec",
+    "size": 143315
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/issue-584-capture-transiti-0c71f-re-transitions-desktop-dark-webkit-iphone/attachments/two-nonzero-rest-beae39b39eab19bc75a375abcfe64f4a6d8e69b2.png",
+    "sha256": "51d3b8aa4fbc18663f12b94576e7ce081ea07bc8f3656b3717776297d7cc8ac2",
+    "size": 161964
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/issue-584-capture-transiti-1f616-ransitions-configured-light-webkit-iphone/attachments/one-after-0672b48fae78c64abc0a06e552c50c26922b9a34.png",
+    "sha256": "20f225efada9efca05b571fe75ab8036f5f1d84cdfede7e5b4efff907363d599",
+    "size": 200241
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/issue-584-capture-transiti-1f616-ransitions-configured-light-webkit-iphone/attachments/one-before-a0c309fd01fbf6ca9195d86d3ef833e9b8bc4d61.png",
+    "sha256": "b9cf9827378a23d0e97e6ef0c1c99bd4aa1a81386f19b551950ea251862b1fa3",
+    "size": 202190
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/issue-584-capture-transiti-1f616-ransitions-configured-light-webkit-iphone/attachments/three-exact-334-333-333-77287ba25ec94d70df178edd18136eb590856f33.png",
+    "sha256": "5a84b766a7c222537686c3fe072342d28bb1ab00ff882efdb94860f0d179890d",
+    "size": 160222
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/issue-584-capture-transiti-1f616-ransitions-configured-light-webkit-iphone/attachments/two-nonzero-rest-48531a1e351977c76be1efccba0fad0234ef5e65.png",
+    "sha256": "12502aa1d3ec84782f927c4414308b467400283f3ce8637db79f7d4d19028de7",
+    "size": 202205
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/issue-584-capture-transiti-4de80-transitions-configured-dark-webkit-iphone/attachments/one-after-40574a0ef19ef8598c64270060be5cf470727e19.png",
+    "sha256": "51f70ab8c2561cc03cc5464158d55970730309bf5b8e65798ac7baad99368f8e",
+    "size": 200582
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/issue-584-capture-transiti-4de80-transitions-configured-dark-webkit-iphone/attachments/one-before-9a21768217e2007a33e093fbe0eabd4ac8f2e7b4.png",
+    "sha256": "cc022e2eb6a198a27e66436375e0ea89211dc4462daa7ede70ed10db2843975f",
+    "size": 202585
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/issue-584-capture-transiti-4de80-transitions-configured-dark-webkit-iphone/attachments/three-exact-334-333-333-b416fa58892ef02ac05296bb2186e2ebebd5967d.png",
+    "sha256": "11a6a6499d5d5ec78402f78143a5dd5358c882b714b393c2cbe73aee63d5298b",
+    "size": 160242
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/issue-584-capture-transiti-4de80-transitions-configured-dark-webkit-iphone/attachments/two-nonzero-rest-ce6429ef51a9061305a0ca5e98d620b4268b3aa8.png",
+    "sha256": "eef3f8aafe4eadef2bd04a42568499709029c42befbb9710c759a609bb18d807",
+    "size": 206309
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/issue-584-capture-transiti-81f7b-e-transitions-desktop-light-webkit-iphone/attachments/one-after-761226f23b382aa9e89f61cc0266a1c94ad719ea.png",
+    "sha256": "2fa06607e0d05088f150f60db33fdf1e9116e2851926a5fa84218fca0b8480b1",
+    "size": 127838
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/issue-584-capture-transiti-81f7b-e-transitions-desktop-light-webkit-iphone/attachments/one-before-c46d10437985afd59e59e7aed0a500f59d156812.png",
+    "sha256": "dcb98ac7aaaa0f8dbadc0cf8307a7d7e7dd7dc2b26422646edbf135c064acd18",
+    "size": 128432
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/issue-584-capture-transiti-81f7b-e-transitions-desktop-light-webkit-iphone/attachments/three-exact-334-333-333-4d259b3017572427d89c7ed6d9f869501915bef1.png",
+    "sha256": "12b34de1d5ec17b0b1a3fbc380cdec8ada19fff4dc5bd41513166b0593d22e9f",
+    "size": 146573
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts/issue-584-capture-transiti-81f7b-e-transitions-desktop-light-webkit-iphone/attachments/two-nonzero-rest-244a8f81ef7ad4442f1e6452d7f22784ca6618ea.png",
+    "sha256": "72c14e01c080090fea92ab63b8713735f28cb1557b6090be72ea771aa8951cfc",
+    "size": 165735
+  },
+  {
+    "path": "docs/handoff/584/synthetic-artifacts-index.json",
+    "sha256": "bdcee8acf5a7cd5a53f9497e29f4516b25729f71692425b1cf41c6bf1f66655b",
+    "size": 7435
+  }
+]

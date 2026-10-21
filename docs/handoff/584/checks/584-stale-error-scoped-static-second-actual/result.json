@@ -1,0 +1,19 @@
+{
+  "head": "3a1210cc3ddb229f00094cd6e851280335ae224c",
+  "phases": [
+    {
+      "name": "eslint2",
+      "exit": 0,
+      "wallSeconds": 3.038
+    },
+    {
+      "name": "prettier2",
+      "exit": 0,
+      "wallSeconds": 0.519
+    }
+  ],
+  "processGuard": 0,
+  "sourceGuard": 0,
+  "allPhases0": true,
+  "lockReleased": true
+}
