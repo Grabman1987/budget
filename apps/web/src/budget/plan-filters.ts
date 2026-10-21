@@ -1,7 +1,13 @@
 import { overspentEnvelopes } from '@budget/domain';
 import type { PlanRow } from './plan-model';
 
-export const PLAN_FILTERS = ['all', 'underfunded', 'overspent', 'available', 'uncategorized'] as const;
+export const PLAN_FILTERS = [
+  'all',
+  'underfunded',
+  'overspent',
+  'available',
+  'uncategorized',
+] as const;
 export type PlanFilter = (typeof PLAN_FILTERS)[number];
 export interface PlanFilterSearch {
   filter?: PlanFilter | undefined;

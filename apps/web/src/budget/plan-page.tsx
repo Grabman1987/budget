@@ -454,23 +454,21 @@ function PlanBody({
   const idsFor = (value: PlanFilter) =>
     new Set(
       namedEntries
-        .filter((row) =>
-          row.cells.some((cell) => cell && filterPlanRows([cell], value).length > 0),
-        )
+        .filter((row) => row.cells.some((cell) => cell && filterPlanRows([cell], value).length > 0))
         .map((row) => row.id),
     );
   const uncategorizedLoading = uncategorized.isFetching && !uncategorized.isFetchingNextPage;
-  const uncategorizedPages = uncategorizedLoading || uncategorized.isError
-    ? []
-    : uncategorized.data?.pages ?? [];
+  const uncategorizedPages =
+    uncategorizedLoading || uncategorized.isError ? [] : (uncategorized.data?.pages ?? []);
   const counts = {
     all: idsFor('all').size,
     underfunded: idsFor('underfunded').size,
     overspent: idsFor('overspent').size,
     available: idsFor('available').size,
-    uncategorized: filter === 'uncategorized' && !uncategorizedLoading && !uncategorized.isError
-      ? uncategorizedPages[0]?.total ?? data.summary.uncategorizedCount ?? null
-      : data.summary.uncategorizedCount ?? null,
+    uncategorized:
+      filter === 'uncategorized' && !uncategorizedLoading && !uncategorized.isError
+        ? (uncategorizedPages[0]?.total ?? data.summary.uncategorizedCount ?? null)
+        : (data.summary.uncategorizedCount ?? null),
   };
   const matchingIds = idsFor(filter);
   const narrowed = filter !== 'all' || Boolean(nameQuery.trim());
@@ -617,70 +615,67 @@ function PlanBody({
     window.setTimeout(() => row.classList.remove('is-flash'), 900);
   };
 
-  const coverControls =
-    (urgent.length > 0 || tba < 0) && (
-      <section className="triage" aria-labelledby="triage-title">
-        <div className="head">
-          <h2 id="triage-title">
-            {urgent.length} Envelopes überzogen ·{' '}
-            {eur(rows.reduce((sum, r) => sum + r.overspentCents, 0))} zu decken
-          </h2>
+  const coverControls = (urgent.length > 0 || tba < 0) && (
+    <section className="triage" aria-labelledby="triage-title">
+      <div className="head">
+        <h2 id="triage-title">
+          {urgent.length} Envelopes überzogen ·{' '}
+          {eur(rows.reduce((sum, r) => sum + r.overspentCents, 0))} zu decken
+        </h2>
+      </div>
+      <p className="panel-sub">
+        Decken verschiebt freies Geld zwischen Envelopes; die Summe auf deinen Konten bleibt gleich.
+      </p>
+      {missing > 0 && (
+        <div className="cover-missing" role="note">
+          <p>
+            Es fehlen {eur(missing)} – Geld kommt nur durch Einnahmen oder Umbuchungen auf ein
+            Budget-Konto (z. B. aus Tagesgeld oder Depot).
+          </p>
+          <p>
+            Überziehungen werden im laufenden Monat gedeckt: Einnahme buchen oder Geld aus
+            Tagesgeld/Depot auf ein Budget-Konto umbuchen. Ungedeckte Barüberziehungen mindern sonst
+            im Folgemonat „Zu verteilen“; ungedeckte Kartenausgaben bleiben Kartenschuld.
+          </p>
         </div>
-        <p className="panel-sub">
-          Decken verschiebt freies Geld zwischen Envelopes; die Summe auf deinen Konten
-          bleibt gleich.
-        </p>
-        {missing > 0 && (
-          <div className="cover-missing" role="note">
-            <p>
-              Es fehlen {eur(missing)} – Geld kommt nur durch Einnahmen oder Umbuchungen auf
-              ein Budget-Konto (z. B. aus Tagesgeld oder Depot).
-            </p>
-            <p>
-              Überziehungen werden im laufenden Monat gedeckt: Einnahme buchen oder Geld aus
-              Tagesgeld/Depot auf ein Budget-Konto umbuchen. Ungedeckte Barüberziehungen
-              mindern sonst im Folgemonat „Zu verteilen“; ungedeckte Kartenausgaben bleiben
-              Kartenschuld.
-            </p>
-          </div>
-        )}
-        {urgent.length > 0 && (
-          <div className="cover-all-controls">
-            <label className="sr-only" htmlFor="cover-all-source">
-              Quelle für alle Überziehungen
-            </label>
-            <Select
-              id="cover-all-source"
-              value={source}
-              onChange={(e) => setBulkSource(e.target.value)}
-            >
-              <option value="suggested">Vorschläge · größtes Guthaben zuerst</option>
-              {tba > 0 && <option value="">Zu verteilen · {eur(tba)}</option>}
-              {coverPool.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {coverSourceLabel(r)}
-                </option>
-              ))}
-            </Select>
-            <Button
-              variant="ghost"
-              disabled={covering || (!coverPool.length && tba <= 0)}
-              onClick={() => void coverMonth()}
-            >
-              Alle aus {coverLabel} decken
-            </Button>
-          </div>
-        )}
-        {tba < 0 && (
-          <div className="cover-all-controls">
-            <strong>Zu viel zugewiesen · {eur(-tba)} fehlen</strong>
-            <Button variant="ghost" onClick={unassign}>
-              Zurücknehmen
-            </Button>
-          </div>
-        )}
-      </section>
-    );
+      )}
+      {urgent.length > 0 && (
+        <div className="cover-all-controls">
+          <label className="sr-only" htmlFor="cover-all-source">
+            Quelle für alle Überziehungen
+          </label>
+          <Select
+            id="cover-all-source"
+            value={source}
+            onChange={(e) => setBulkSource(e.target.value)}
+          >
+            <option value="suggested">Vorschläge · größtes Guthaben zuerst</option>
+            {tba > 0 && <option value="">Zu verteilen · {eur(tba)}</option>}
+            {coverPool.map((r) => (
+              <option key={r.id} value={r.id}>
+                {coverSourceLabel(r)}
+              </option>
+            ))}
+          </Select>
+          <Button
+            variant="ghost"
+            disabled={covering || (!coverPool.length && tba <= 0)}
+            onClick={() => void coverMonth()}
+          >
+            Alle aus {coverLabel} decken
+          </Button>
+        </div>
+      )}
+      {tba < 0 && (
+        <div className="cover-all-controls">
+          <strong>Zu viel zugewiesen · {eur(-tba)} fehlen</strong>
+          <Button variant="ghost" onClick={unassign}>
+            Zurücknehmen
+          </Button>
+        </div>
+      )}
+    </section>
+  );
   return (
     <div
       onClickCapture={(event) => {
@@ -751,13 +746,15 @@ function PlanBody({
               />
             </label>
             <div className="seg plan-filter-segments" role="group" aria-label="Kategoriefilter">
-              {([
-                ['all', 'Alle', counts.all],
-                ['underfunded', 'Unterfinanziert', counts.underfunded],
-                ['overspent', 'Überzogen', counts.overspent],
-                ['available', 'Verfügbar', counts.available],
-                ['uncategorized', 'Ohne Kategorie', counts.uncategorized],
-              ] as const).map(([value, label, count]) => (
+              {(
+                [
+                  ['all', 'Alle', counts.all],
+                  ['underfunded', 'Unterfinanziert', counts.underfunded],
+                  ['overspent', 'Überzogen', counts.overspent],
+                  ['available', 'Verfügbar', counts.available],
+                  ['uncategorized', 'Ohne Kategorie', counts.uncategorized],
+                ] as const
+              ).map(([value, label, count]) => (
                 <button
                   key={value}
                   type="button"

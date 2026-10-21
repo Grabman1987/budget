@@ -2,7 +2,13 @@
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router';
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router';
 import { setAmountsHidden, ToastProvider } from '@budget/ui';
 import { createTestDatabase, schema } from '@budget/db';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -26,8 +32,18 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-15T12:00:00Z'));
   vi.stubGlobal('scrollTo', () => {});
-  vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
-  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener() {},
+    removeEventListener() {},
+  }));
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
   setMonthSpan(1);
   opened = createTestDatabase();
   client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
@@ -36,22 +52,74 @@ beforeEach(() => {
   pageGate = undefined;
   refusePage = false;
   const { db } = opened;
-  db.insert(schema.account).values({ id: 'budget', name: 'Synthetic budget', type: 'checking', role: 'budget', onBudget: true, openingDate: '2026-10-01', openingBalanceCents: 100000 }).run();
+  db.insert(schema.account)
+    .values({
+      id: 'budget',
+      name: 'Synthetic budget',
+      type: 'checking',
+      role: 'budget',
+      onBudget: true,
+      openingDate: '2026-10-01',
+      openingBalanceCents: 100000,
+    })
+    .run();
   db.insert(schema.categoryGroup).values({ id: 'group', name: 'Synthetic group' }).run();
-  db.insert(schema.category).values(['A', 'B', 'C', 'E', 'hidden'].map((id, sortOrder) => ({
-    id, name: id === 'A' ? 'Äpfel & Gemüse' : `Synthetic ${id}`, groupId: 'group', class: 'need' as const,
-    kind: 'variable' as const, stage: 2, sortOrder,
-    openingAvailableCents: id === 'B' ? 200 : 0, hiddenAt: id === 'hidden' ? '2026-09-01' : null,
-  }))).run();
-  db.insert(schema.categoryTarget).values({ id: 'target', categoryId: 'A', kind: 'monthly', amountCents: 500, validFrom: '2026-10' }).run();
-  for (const [id, amountCents] of [['A', -300], ['E', -100]] as const) {
-    db.insert(schema.booking).values({ id: `spent-${id}`, accountId: 'budget', date: '2026-10-10', amountCents, status: 'confirmed' }).run();
-    db.insert(schema.bookingSplit).values({ id: `spent-${id}-split`, bookingId: `spent-${id}`, categoryId: id, amountCents }).run();
+  db.insert(schema.category)
+    .values(
+      ['A', 'B', 'C', 'E', 'hidden'].map((id, sortOrder) => ({
+        id,
+        name: id === 'A' ? 'Äpfel & Gemüse' : `Synthetic ${id}`,
+        groupId: 'group',
+        class: 'need' as const,
+        kind: 'variable' as const,
+        stage: 2,
+        sortOrder,
+        openingAvailableCents: id === 'B' ? 200 : 0,
+        hiddenAt: id === 'hidden' ? '2026-09-01' : null,
+      })),
+    )
+    .run();
+  db.insert(schema.categoryTarget)
+    .values({
+      id: 'target',
+      categoryId: 'A',
+      kind: 'monthly',
+      amountCents: 500,
+      validFrom: '2026-10',
+    })
+    .run();
+  for (const [id, amountCents] of [
+    ['A', -300],
+    ['E', -100],
+  ] as const) {
+    db.insert(schema.booking)
+      .values({
+        id: `spent-${id}`,
+        accountId: 'budget',
+        date: '2026-10-10',
+        amountCents,
+        status: 'confirmed',
+      })
+      .run();
+    db.insert(schema.bookingSplit)
+      .values({ id: `spent-${id}-split`, bookingId: `spent-${id}`, categoryId: id, amountCents })
+      .run();
   }
   for (let index = 0; index < 51; index += 1) {
     const id = `missing-${String(index).padStart(3, '0')}`;
-    db.insert(schema.booking).values({ id, accountId: 'budget', date: '2026-10-10', amountCents: -100, status: 'pending', memo: `Synthetic ${id}` }).run();
-    db.insert(schema.bookingSplit).values({ id: `${id}-split`, bookingId: id, amountCents: -100 }).run();
+    db.insert(schema.booking)
+      .values({
+        id,
+        accountId: 'budget',
+        date: '2026-10-10',
+        amountCents: -100,
+        status: 'pending',
+        memo: `Synthetic ${id}`,
+      })
+      .run();
+    db.insert(schema.bookingSplit)
+      .values({ id: `${id}-split`, bookingId: id, amountCents: -100 })
+      .run();
   }
 });
 afterEach(async () => {
@@ -61,51 +129,116 @@ afterEach(async () => {
   cleanup();
   client.clear();
   opened.close();
-  act(() => { setAmountsHidden(false); setMonthSpan(1); });
+  act(() => {
+    setAmountsHidden(false);
+    setMonthSpan(1);
+  });
   vi.unstubAllGlobals();
   vi.useRealTimers();
   expect(unexpected).toEqual([]);
 });
 
 function mount(at = '/plan/monat?monat=2026-10') {
-  const api = createLedgerApi({ db: opened.db, today: () => '2026-10-15', stepUp: async (_c, next) => next() });
+  const api = createLedgerApi({
+    db: opened.db,
+    today: () => '2026-10-15',
+    stepUp: async (_c, next) => next(),
+  });
   vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
     const url = new URL(input, 'http://localhost');
     const method = init?.method ?? 'GET';
     const key = `${method} ${url.pathname}${url.search}`;
     reads.push(key);
-    const plain = new Set(['/api/auth/status', '/api/accounts', '/api/expected', '/api/categories', '/api/budget/2026-10', '/api/budget/2026-11']);
-    const uncategorized = url.pathname === '/api/budget/2026-10/uncategorized' &&
-      [...url.searchParams.keys()].every((name) => name === 'cursor') && url.searchParams.getAll('cursor').length <= 1;
-    const allowed = method === 'GET' && ((plain.has(url.pathname) && !url.search) || uncategorized ||
-      (url.pathname === '/api/budget/months' && url.search === '?months=2026-10,2026-11'));
+    const plain = new Set([
+      '/api/auth/status',
+      '/api/accounts',
+      '/api/expected',
+      '/api/categories',
+      '/api/budget/2026-10',
+      '/api/budget/2026-11',
+    ]);
+    const uncategorized =
+      url.pathname === '/api/budget/2026-10/uncategorized' &&
+      [...url.searchParams.keys()].every((name) => name === 'cursor') &&
+      url.searchParams.getAll('cursor').length <= 1;
+    const allowed =
+      method === 'GET' &&
+      ((plain.has(url.pathname) && !url.search) ||
+        uncategorized ||
+        (url.pathname === '/api/budget/months' && url.search === '?months=2026-10,2026-11'));
     if (!allowed) {
       unexpected.push(key);
       return Response.json({ error: 'unexpected_test_request' }, { status: 500 });
     }
     if (url.pathname === '/api/auth/status') {
-      const status = { setupRequired: false, authenticated: true, stepUpValidUntil: null, viaRecovery: false } satisfies AuthStatus;
+      const status = {
+        setupRequired: false,
+        authenticated: true,
+        stepUpValidUntil: null,
+        viaRecovery: false,
+      } satisfies AuthStatus;
       return Response.json(status);
     }
     if (uncategorized) {
       await pageGate;
-      if (refusePage) return Response.json({ error: 'uncategorized_changed', message: 'Synthetic conflict' }, { status: 409 });
+      if (refusePage)
+        return Response.json(
+          { error: 'uncategorized_changed', message: 'Synthetic conflict' },
+          { status: 409 },
+        );
     }
     return api.request(url.pathname.replace(/^\/api/, '') + url.search, init);
   });
   const history = createMemoryHistory({ initialEntries: [at] });
-  const root = createRootRoute({ validateSearch: (search: Record<string, unknown>) => ({ monat: isMonth(search['monat']) ? search['monat'] : undefined }) });
-  const route = createRoute({ getParentRoute: () => root, path: '/plan/monat', validateSearch: validatePlanFilterSearch, component: PlanMonthPage });
-  const router = createRouter({ routeTree: root.addChildren([route,
-    createRoute({ getParentRoute: () => root, path: '/konten/buchungen', component: () => <p>Ledger destination</p> }),
-    createRoute({ getParentRoute: () => root, path: '/plan/monat/envelope/$id', component: () => <p>Category history destination</p> }),
-  ]), history });
-  const view = render(<QueryClientProvider client={client}><ToastProvider><RouterProvider router={router} /></ToastProvider></QueryClientProvider>);
+  const root = createRootRoute({
+    validateSearch: (search: Record<string, unknown>) => ({
+      monat: isMonth(search['monat']) ? search['monat'] : undefined,
+    }),
+  });
+  const route = createRoute({
+    getParentRoute: () => root,
+    path: '/plan/monat',
+    validateSearch: validatePlanFilterSearch,
+    component: PlanMonthPage,
+  });
+  const router = createRouter({
+    routeTree: root.addChildren([
+      route,
+      createRoute({
+        getParentRoute: () => root,
+        path: '/konten/buchungen',
+        component: () => <p>Ledger destination</p>,
+      }),
+      createRoute({
+        getParentRoute: () => root,
+        path: '/plan/monat/envelope/$id',
+        component: () => <p>Category history destination</p>,
+      }),
+    ]),
+    history,
+  });
+  const view = render(
+    <QueryClientProvider client={client}>
+      <ToastProvider>
+        <RouterProvider router={router} />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
   return { ...view, history, router };
 }
-const rowIds = (container: HTMLElement) => [...container.querySelectorAll('.pname[data-category-id]')].map((node) => node.getAttribute('data-category-id'));
-const statuses = () => screen.getAllByRole('status').map((node) => node.textContent).join(' ');
-const segment = (label: string) => within(screen.getByRole('group', { name: 'Kategoriefilter' })).getByRole('button', { name: label });
+const rowIds = (container: HTMLElement) =>
+  [...container.querySelectorAll('.pname[data-category-id]')].map((node) =>
+    node.getAttribute('data-category-id'),
+  );
+const statuses = () =>
+  screen
+    .getAllByRole('status')
+    .map((node) => node.textContent)
+    .join(' ');
+const segment = (label: string) =>
+  within(screen.getByRole('group', { name: 'Kategoriefilter' })).getByRole('button', {
+    name: label,
+  });
 
 it('binds five literal segment counts to real category IDs, alternate views, functional collapse and cover placement', async () => {
   const { container } = mount();
@@ -126,10 +259,15 @@ it('binds five literal segment counts to real category IDs, alternate views, fun
   const cover = container.querySelector('.plan-filter-cover');
   expect(cover?.textContent).toContain('4,00 €');
   expect(cover).not.toBeNull();
-  expect(cover!.compareDocumentPosition(container.querySelector('.pname')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(
+    cover!.compareDocumentPosition(container.querySelector('.pname')!) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
   for (const name of ['Wasserfall', 'Zeit', 'Klassen', 'Gruppen']) {
     await user.click(screen.getByText('Optionen', { selector: 'summary' }));
-    await user.click(within(screen.getByRole('group', { name: 'Ansicht' })).getByRole('button', { name }));
+    await user.click(
+      within(screen.getByRole('group', { name: 'Ansicht' })).getByRole('button', { name }),
+    );
     expect(rowIds(container)).toEqual(['A', 'E']);
     expect(segment('Überzogen (2)').getAttribute('aria-pressed')).toBe('true');
   }
@@ -176,7 +314,9 @@ it('reproduces a shared URL and uses the same multi-month ANY predicate once per
   const { container, unmount } = mount('/plan/monat?monat=2026-10&filter=overspent&q=synthetic');
   await screen.findByRole('button', { name: 'Überzogen (1)' });
   expect(rowIds(container)).toEqual(['E']);
-  expect((screen.getByRole('searchbox', { name: 'Kategorie suchen' }) as HTMLInputElement).value).toBe('synthetic');
+  expect(
+    (screen.getByRole('searchbox', { name: 'Kategorie suchen' }) as HTMLInputElement).value,
+  ).toBe('synthetic');
   unmount();
   client.clear();
   const second = mount('/plan/monat?monat=2026-10&filter=overspent&q=synthetic');
@@ -190,7 +330,11 @@ it('reproduces a shared URL and uses the same multi-month ANY predicate once per
   expect(statuses()).toContain('1 passende Kategorie.');
   await userEvent.setup().click(segment('Verfügbar (1)'));
   expect(rowIds(second.container)).toEqual(['B']);
-  expect([...second.container.querySelectorAll('.ptable-multi .prow [data-label="Verfügbar"]')].map((cell) => cell.textContent)).toEqual(['2,00 €', '2,00 €']);
+  expect(
+    [...second.container.querySelectorAll('.ptable-multi .prow [data-label="Verfügbar"]')].map(
+      (cell) => cell.textContent,
+    ),
+  ).toEqual(['2,00 €', '2,00 €']);
 });
 
 it('announces50of51 then51of51, withholds retained pages during refresh/conflict and retries without any UI write', async () => {
@@ -199,13 +343,21 @@ it('announces50of51 then51of51, withholds retained pages during refresh/conflict
   await waitFor(() => expect(statuses()).toContain('50 von 51 Buchungen ohne Kategorie geladen.'));
   const section = screen.getByRole('region', { name: 'Buchungen ohne Kategorie' });
   expect(within(section).getAllByRole('link')).toHaveLength(50);
-  expect((screen.getByRole('searchbox', { name: 'Kategorie suchen' }) as HTMLInputElement).disabled).toBe(true);
+  expect(
+    (screen.getByRole('searchbox', { name: 'Kategorie suchen' }) as HTMLInputElement).disabled,
+  ).toBe(true);
   await user.click(within(section).getByRole('button', { name: 'Weitere Buchungen' }));
   await waitFor(() => expect(statuses()).toContain('51 von 51 Buchungen ohne Kategorie geladen.'));
   expect(within(section).getAllByRole('link')).toHaveLength(51);
-  expect(within(section).getByRole('link', { name: 'Synthetic missing-050' }).getAttribute('href')).toContain('buchung=missing-050');
-  pageGate = new Promise<void>((resolve) => { releasePages = resolve; });
-  act(() => { void client.invalidateQueries({ queryKey: [...BUDGET_KEY, '2026-10', 'uncategorized'] }); });
+  expect(
+    within(section).getByRole('link', { name: 'Synthetic missing-050' }).getAttribute('href'),
+  ).toContain('buchung=missing-050');
+  pageGate = new Promise<void>((resolve) => {
+    releasePages = resolve;
+  });
+  act(() => {
+    void client.invalidateQueries({ queryKey: [...BUDGET_KEY, '2026-10', 'uncategorized'] });
+  });
   await waitFor(() => expect(statuses()).toContain('Buchungen ohne Kategorie werden geladen.'));
   expect(within(section).queryAllByRole('link')).toHaveLength(0);
   refusePage = true;

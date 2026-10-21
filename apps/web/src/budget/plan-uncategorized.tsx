@@ -47,15 +47,16 @@ export function PlanUncategorizedRows({
             {items.map((booking) => (
               <tr key={booking.id}>
                 <td>
-                  <AppLink
-                    to="/konten/buchungen"
-                    search={{ buchung: booking.id, monat: month }}
-                  >
+                  <AppLink to="/konten/buchungen" search={{ buchung: booking.id, monat: month }}>
                     {maskMoneyText(
-                      booking.payeeName?.trim() || booking.memo?.trim() || 'Buchung ohne Zahlungspartner',
+                      booking.payeeName?.trim() ||
+                        booking.memo?.trim() ||
+                        'Buchung ohne Zahlungspartner',
                     )}
                   </AppLink>
-                  <small>{longDay(booking.date)} · {maskMoneyText(booking.accountName)}</small>
+                  <small>
+                    {longDay(booking.date)} · {maskMoneyText(booking.accountName)}
+                  </small>
                 </td>
                 <td>{nativeCurrency(booking.amountCents, booking.currency, true)}</td>
               </tr>
