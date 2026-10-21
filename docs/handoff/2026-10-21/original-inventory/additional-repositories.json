@@ -1,0 +1,214 @@
+[
+  {
+    "representative": "/workspace/budget-cloud-review-543",
+    "commonGitDir": "/workspace/cloud-benchmark-543/.git",
+    "cachedMain": "e14932decc183919694aa5f4d24e03b4b6f54914",
+    "heads": [
+      {
+        "branch": "codex/543-benchmark-quote-consistency",
+        "sourceHead": "e1647ca7fd38fbd30c44d7b4c65447e5f76a8eaa",
+        "subject": "fix(portfolio): share benchmark freshness and EUR quote rules",
+        "cachedRemotesContainingTip": [
+          "origin/codex/543-benchmark-quote-consistency"
+        ]
+      },
+      {
+        "branch": "work",
+        "sourceHead": "6ba00fa0445a4515a6fbea5850cb7b91f9d6c4f9",
+        "subject": "feat(contacts): open contacts first, balance in words and colour, Ausgleichen in menu (#598) (#683)",
+        "cachedRemotesContainingTip": [
+          "origin",
+          "origin/codex/481-cloud-handoff",
+          "origin/codex/543-benchmark-quote-consistency",
+          "origin/codex/555-chart-accessibility",
+          "origin/codex/556-table-report-print",
+          "origin/codex/560-isolated-recovery-proof",
+          "origin/codex/649-local-prettier-api",
+          "origin/codex/694-codex-review-policy",
+          "origin/main",
+          "origin/work"
+        ]
+      }
+    ],
+    "worktrees": [
+      {
+        "worktree": "/workspace/cloud-benchmark-543",
+        "HEAD": "e1647ca7fd38fbd30c44d7b4c65447e5f76a8eaa",
+        "branch": "refs/heads/codex/543-benchmark-quote-consistency",
+        "dirtyPathLines": []
+      },
+      {
+        "worktree": "/workspace/budget-cloud-review-543",
+        "HEAD": "e14932decc183919694aa5f4d24e03b4b6f54914",
+        "detached": "",
+        "dirtyPathLines": [
+          "M apps/server/src/api/portfolio-performance.test.ts",
+          " M packages/db/src/repos/portfolio-depots.ts",
+          " M packages/db/src/repos/portfolio-summary.ts",
+          " M packages/domain/src/invest/index.ts",
+          " M packages/domain/src/invest/performance-report.ts",
+          " M packages/domain/src/invest/performance.ts",
+          "?? apps/server/src/api/benchmark-quote-consistency-543.test.ts",
+          "?? docs/evidence/benchmark-quote-543/README.md",
+          "?? packages/db/src/repos/benchmark-quote-consistency-543.test.ts",
+          "?? packages/db/src/repos/benchmark-quote-fixture-543.ts",
+          "?? packages/db/src/repos/depot-benchmark-quote-543.test.ts",
+          "?? packages/domain/src/invest/benchmark-quote-rule-543.test.ts",
+          "?? packages/domain/src/invest/benchmark-quotes.ts"
+        ]
+      }
+    ],
+    "cachedRemotes": [
+      "origin 6ba00fa0445a4515a6fbea5850cb7b91f9d6c4f9",
+      "origin/codex/481-cloud-handoff e51eeeee6fc74f0cc8d7fdece485fb4cd4315216",
+      "origin/codex/543-benchmark-quote-consistency e1647ca7fd38fbd30c44d7b4c65447e5f76a8eaa",
+      "origin/codex/555-chart-accessibility e8785a62658260d8dc51b881c7a4ca9c72f4844e",
+      "origin/codex/556-table-report-print fa10e48c47fba221c1f91dfad0abb508352b98d8",
+      "origin/codex/560-isolated-recovery-proof 886fd5477920df8018af870b483d281768fdd2d8",
+      "origin/codex/649-local-prettier-api 9364c73742f35ebd72ef878886fcb89736e22d99",
+      "origin/codex/694-codex-review-policy e14932decc183919694aa5f4d24e03b4b6f54914",
+      "origin/main e14932decc183919694aa5f4d24e03b4b6f54914",
+      "origin/work 6ba00fa0445a4515a6fbea5850cb7b91f9d6c4f9"
+    ]
+  },
+  {
+    "representative": "/workspace/review-pr-686",
+    "commonGitDir": "/workspace/review-pr-686/.git",
+    "cachedMain": null,
+    "heads": [
+      {
+        "branch": "work",
+        "sourceHead": "6ba00fa0445a4515a6fbea5850cb7b91f9d6c4f9",
+        "subject": "feat(contacts): open contacts first, balance in words and colour, Ausgleichen in menu (#598) (#683)",
+        "cachedRemotesContainingTip": [
+          "origin",
+          "origin/codex/481-cloud-handoff",
+          "origin/work"
+        ]
+      }
+    ],
+    "worktrees": [
+      {
+        "worktree": "/workspace/review-pr-686",
+        "HEAD": "ba8f301f379faebe1020eb02cfb468443f01771f",
+        "detached": "",
+        "dirtyPathLines": []
+      }
+    ],
+    "cachedRemotes": [
+      "origin 6ba00fa0445a4515a6fbea5850cb7b91f9d6c4f9",
+      "origin/codex/481-cloud-handoff 18725a634f02314c38c053935c600625629f3466",
+      "origin/work 6ba00fa0445a4515a6fbea5850cb7b91f9d6c4f9"
+    ]
+  },
+  {
+    "representative": "/workspace/cloud-case-002",
+    "commonGitDir": "/workspace/cloud-case-002/.git",
+    "cachedMain": "e14932decc183919694aa5f4d24e03b4b6f54914",
+    "heads": [
+      {
+        "branch": "codex/509-case-002-overspending",
+        "sourceHead": "54e026475ad49b9cf621750498b9095df8519717",
+        "subject": "test(ledger): prove CASE-002 cash carry and undo",
+        "cachedRemotesContainingTip": [
+          "origin/codex/509-case-002-overspending"
+        ]
+      },
+      {
+        "branch": "work",
+        "sourceHead": "6ba00fa0445a4515a6fbea5850cb7b91f9d6c4f9",
+        "subject": "feat(contacts): open contacts first, balance in words and colour, Ausgleichen in menu (#598) (#683)",
+        "cachedRemotesContainingTip": [
+          "origin",
+          "origin/codex/481-cloud-handoff",
+          "origin/codex/509-case-002-overspending",
+          "origin/codex/649-local-prettier-api",
+          "origin/main",
+          "origin/work"
+        ]
+      }
+    ],
+    "worktrees": [
+      {
+        "worktree": "/workspace/cloud-case-002",
+        "HEAD": "54e026475ad49b9cf621750498b9095df8519717",
+        "branch": "refs/heads/codex/509-case-002-overspending",
+        "dirtyPathLines": []
+      },
+      {
+        "worktree": "/workspace/budget-cloud-review-case002",
+        "HEAD": "e14932decc183919694aa5f4d24e03b4b6f54914",
+        "detached": "",
+        "dirtyPathLines": [
+          "?? apps/server/src/api/case-002.test.ts",
+          "?? docs/evidence/reference-adoption/wp-001-case-002-cash-2026-10-19.md",
+          "?? packages/db/src/repos/case-002.test.ts"
+        ]
+      }
+    ],
+    "cachedRemotes": [
+      "origin 6ba00fa0445a4515a6fbea5850cb7b91f9d6c4f9",
+      "origin/codex/481-cloud-handoff e51eeeee6fc74f0cc8d7fdece485fb4cd4315216",
+      "origin/codex/509-case-002-overspending 54e026475ad49b9cf621750498b9095df8519717",
+      "origin/codex/649-local-prettier-api 6ba00fa0445a4515a6fbea5850cb7b91f9d6c4f9",
+      "origin/main e14932decc183919694aa5f4d24e03b4b6f54914",
+      "origin/work 6ba00fa0445a4515a6fbea5850cb7b91f9d6c4f9"
+    ]
+  },
+  {
+    "representative": "/workspace/budget-cloud-review-677",
+    "commonGitDir": "/workspace/cloud-register-677/.git",
+    "cachedMain": "e14932decc183919694aa5f4d24e03b4b6f54914",
+    "heads": [
+      {
+        "branch": "codex/677-first-booking-register",
+        "sourceHead": "7dfcda84a0904683a5755b010574af9ccefd0f60",
+        "subject": "fix(ledger): refresh first capture after pending empty read",
+        "cachedRemotesContainingTip": [
+          "origin/codex/677-first-booking-register"
+        ]
+      },
+      {
+        "branch": "work",
+        "sourceHead": "6ba00fa0445a4515a6fbea5850cb7b91f9d6c4f9",
+        "subject": "feat(contacts): open contacts first, balance in words and colour, Ausgleichen in menu (#598) (#683)",
+        "cachedRemotesContainingTip": [
+          "origin",
+          "origin/codex/481-cloud-handoff",
+          "origin/codex/555-chart-accessibility",
+          "origin/codex/649-local-prettier-api",
+          "origin/codex/677-first-booking-register",
+          "origin/main",
+          "origin/work"
+        ]
+      }
+    ],
+    "worktrees": [
+      {
+        "worktree": "/workspace/cloud-register-677",
+        "HEAD": "7dfcda84a0904683a5755b010574af9ccefd0f60",
+        "branch": "refs/heads/codex/677-first-booking-register",
+        "dirtyPathLines": []
+      },
+      {
+        "worktree": "/workspace/budget-cloud-review-677",
+        "HEAD": "e14932decc183919694aa5f4d24e03b4b6f54914",
+        "detached": "",
+        "dirtyPathLines": [
+          "M apps/web/src/ledger/mutations.ts",
+          " M docs/ROADMAP.md",
+          "?? apps/web/src/ledger/first-booking-register-677.test.tsx"
+        ]
+      }
+    ],
+    "cachedRemotes": [
+      "origin 6ba00fa0445a4515a6fbea5850cb7b91f9d6c4f9",
+      "origin/codex/481-cloud-handoff e51eeeee6fc74f0cc8d7fdece485fb4cd4315216",
+      "origin/codex/555-chart-accessibility e14932decc183919694aa5f4d24e03b4b6f54914",
+      "origin/codex/649-local-prettier-api 9364c73742f35ebd72ef878886fcb89736e22d99",
+      "origin/codex/677-first-booking-register 7dfcda84a0904683a5755b010574af9ccefd0f60",
+      "origin/main e14932decc183919694aa5f4d24e03b4b6f54914",
+      "origin/work 6ba00fa0445a4515a6fbea5850cb7b91f9d6c4f9"
+    ]
+  }
+]

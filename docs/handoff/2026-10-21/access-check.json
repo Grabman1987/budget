@@ -1,0 +1,20 @@
+{
+  "checkedAtUTC": "2026-10-21T19:08:18.018731+00:00",
+  "scope": "Current environment only; new chat credentials not independently observable",
+  "githubExit": 0,
+  "healthExit": 0,
+  "github": {
+    "full_name": "Grabman1987/budget",
+    "permissions": {
+      "admin": true,
+      "maintain": true,
+      "pull": true,
+      "push": true,
+      "triage": true
+    }
+  },
+  "health": {
+    "status": "ok",
+    "revision": "3ad87db1e82e57d2291379db9292f5927330366e"
+  }
+}

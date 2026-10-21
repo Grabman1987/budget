@@ -1,0 +1,377 @@
+[
+  {
+    "worktree": "/workspace/budget-cloud-review-624",
+    "head": "e037acead749623271b62b70fcc4b9dfe8eabec3",
+    "dirtyPaths": [
+      {
+        "status": " M",
+        "path": "apps/server/src/api/index.ts"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/reports/explorer-report.tsx"
+      },
+      {
+        "status": " M",
+        "path": "e2e/explorer-report.spec.ts"
+      },
+      {
+        "status": " M",
+        "path": "packages/db/src/repos/index.ts"
+      },
+      {
+        "status": " M",
+        "path": "packages/domain/src/index.ts"
+      },
+      {
+        "status": "??",
+        "path": "apps/server/src/api/explorer-views.test.ts"
+      },
+      {
+        "status": "??",
+        "path": "apps/server/src/api/explorer-views.ts"
+      },
+      {
+        "status": "??",
+        "path": "apps/web/src/reports/explorer-promotion.test.ts"
+      },
+      {
+        "status": "??",
+        "path": "apps/web/src/reports/explorer-view-api.ts"
+      },
+      {
+        "status": "??",
+        "path": "apps/web/src/reports/use-explorer-views.test.tsx"
+      },
+      {
+        "status": "??",
+        "path": "apps/web/src/reports/use-explorer-views.ts"
+      },
+      {
+        "status": "??",
+        "path": "e2e/issue-624-explorer-persistence.spec.ts"
+      },
+      {
+        "status": "??",
+        "path": "packages/db/src/repos/explorer-views.test.ts"
+      },
+      {
+        "status": "??",
+        "path": "packages/db/src/repos/explorer-views.ts"
+      },
+      {
+        "status": "??",
+        "path": "packages/domain/src/overview/explorer-saved-views.test.ts"
+      },
+      {
+        "status": "??",
+        "path": "packages/domain/src/overview/explorer-saved-views.ts"
+      }
+    ],
+    "historicalContext": "#624 persistence delivered in PR701; detached old review copy, retain without republishing it."
+  },
+  {
+    "worktree": "/workspace/cloud-receipt-ui-700",
+    "head": "922253a8aedad116ad84672cdb22b0011388e4f2",
+    "dirtyPaths": [
+      {
+        "status": " M",
+        "path": "apps/web/src/auth/login-page.tsx"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/main.tsx"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/pages/security-page.tsx"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/pwa/pwa.tsx"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/pwa/receipt-queue-store.ts"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/receipts/receipt-section.tsx"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/receipts/receipts.css"
+      },
+      {
+        "status": "??",
+        "path": "apps/web/src/auth/login-receipt-privacy.test.tsx"
+      },
+      {
+        "status": "??",
+        "path": "apps/web/src/pages/security-receipt-privacy.test.tsx"
+      },
+      {
+        "status": "??",
+        "path": "apps/web/src/pwa/receipt-privacy-observer.test.ts"
+      },
+      {
+        "status": "??",
+        "path": "apps/web/src/pwa/receipt-queue-ui.test.tsx"
+      },
+      {
+        "status": "??",
+        "path": "apps/web/src/pwa/receipt-queue-ui.tsx"
+      }
+    ],
+    "historicalContext": "Actual unpublished #700 UI/privacy WIP on a dependency checkpoint; preserve every dirty path separately."
+  },
+  {
+    "worktree": "/workspace/cloud-review-481-expanded",
+    "head": "151a4ca6c26b52ec2854b2e18cfb1e6fe0670710",
+    "dirtyPaths": [
+      {
+        "status": " M",
+        "path": "apps/web/src/budget/plan.css"
+      },
+      {
+        "status": " M",
+        "path": "docs/evidence/plan-single-category-481/README.md"
+      },
+      {
+        "status": " M",
+        "path": "docs/evidence/plan-single-category-481/webkit-iphone-dark.png"
+      },
+      {
+        "status": " M",
+        "path": "docs/evidence/plan-single-category-481/webkit-iphone-rows.json"
+      },
+      {
+        "status": " M",
+        "path": "e2e/issue-481-single-category-band.spec.ts"
+      },
+      {
+        "status": "??",
+        "path": "e2e/issue-481-desktop-diagnostic-review.spec.ts"
+      },
+      {
+        "status": "??",
+        "path": "e2e/issue-481-desktop-geometry-review.spec.ts"
+      },
+      {
+        "status": "??",
+        "path": "e2e/issue-481-independent-review.spec.ts"
+      }
+    ],
+    "historicalContext": "#481 combined bands delivered PR688, separated headings PR721; detached diagnostic/old-test edits, not new accepted source."
+  },
+  {
+    "worktree": "/workspace/cloud-review-freedom-615",
+    "head": "0e17fe05a90b15d677956b8be96a5b8658bffe5b",
+    "dirtyPaths": [
+      {
+        "status": " M",
+        "path": "apps/server/src/api/wealth.ts"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/wealth/freedom-api.ts"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/wealth/freedom-chart.tsx"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/wealth/freedom-page.tsx"
+      },
+      {
+        "status": " M",
+        "path": "docs/ROADMAP.md"
+      },
+      {
+        "status": " M",
+        "path": "packages/db/src/repos/allocation-inputs.ts"
+      },
+      {
+        "status": " M",
+        "path": "packages/db/src/repos/freedom-inputs.ts"
+      },
+      {
+        "status": " M",
+        "path": "packages/db/src/repos/freedom.ts"
+      },
+      {
+        "status": " M",
+        "path": "packages/db/src/repos/index.ts"
+      },
+      {
+        "status": " M",
+        "path": "packages/db/src/repos/rule-inputs.ts"
+      },
+      {
+        "status": " M",
+        "path": "packages/db/src/repos/rules.ts"
+      },
+      {
+        "status": " M",
+        "path": "packages/domain/src/rules/evaluate.ts"
+      },
+      {
+        "status": " M",
+        "path": "packages/domain/src/rules/index.ts"
+      },
+      {
+        "status": "??",
+        "path": "apps/server/src/api/freedom-history-616.test.ts"
+      },
+      {
+        "status": "??",
+        "path": "apps/server/src/api/freedom-universe-615.test.ts"
+      },
+      {
+        "status": "??",
+        "path": "apps/web/src/wealth/freedom-history-616.test.tsx"
+      },
+      {
+        "status": "??",
+        "path": "apps/web/src/wealth/freedom-history-model-616.test.ts"
+      },
+      {
+        "status": "??",
+        "path": "apps/web/src/wealth/freedom-history-model.ts"
+      },
+      {
+        "status": "??",
+        "path": "apps/web/src/wealth/freedom-universe-615.test.tsx"
+      },
+      {
+        "status": "??",
+        "path": "docs/evidence/reference-adoption/wp-010-freedom-universe-615.md"
+      },
+      {
+        "status": "??",
+        "path": "e2e/issue-615-freedom-universe.spec.ts"
+      },
+      {
+        "status": "??",
+        "path": "e2e/issue-616-freedom-history.spec.ts"
+      },
+      {
+        "status": "??",
+        "path": "packages/db/src/repos/freedom-history-616.test.ts"
+      },
+      {
+        "status": "??",
+        "path": "packages/db/src/repos/freedom-history.ts"
+      },
+      {
+        "status": "??",
+        "path": "packages/db/src/repos/freedom-universe-615.test.ts"
+      },
+      {
+        "status": "??",
+        "path": "packages/db/src/repos/freedom-universe-fixture-615.ts"
+      },
+      {
+        "status": "??",
+        "path": "packages/domain/src/rules/freedom-preview-615.test.ts"
+      }
+    ],
+    "historicalContext": "#615 universe PR704 and #616 history PR706 delivered; detached old review copy with both work streams."
+  },
+  {
+    "worktree": "/workspace/cloud-review-receipt-698",
+    "head": "74abab012ee0d99f8a846fd7317f59272759a52f",
+    "dirtyPaths": [
+      {
+        "status": " M",
+        "path": "apps/server/src/api/overview-reports.ts"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/reports/explorer-report.tsx"
+      },
+      {
+        "status": " M",
+        "path": "apps/web/src/reports/overview-api.ts"
+      },
+      {
+        "status": " M",
+        "path": "docs/ROADMAP.md"
+      },
+      {
+        "status": " M",
+        "path": "packages/domain/src/overview/index.ts"
+      },
+      {
+        "status": "??",
+        "path": "apps/server/src/api/explorer-csv-627.test.ts"
+      },
+      {
+        "status": "??",
+        "path": "apps/web/src/reports/explorer-csv-627.test.ts"
+      },
+      {
+        "status": "??",
+        "path": "apps/web/src/reports/explorer-csv-ui-627.test.tsx"
+      },
+      {
+        "status": "??",
+        "path": "docs/evidence/reference-adoption/wp-009-explorer-csv-627.md"
+      },
+      {
+        "status": "??",
+        "path": "e2e/issue-627-explorer-csv.spec.ts"
+      },
+      {
+        "status": "??",
+        "path": "packages/domain/src/overview/explorer-csv-627.test.ts"
+      },
+      {
+        "status": "??",
+        "path": "packages/domain/src/overview/explorer-csv.ts"
+      }
+    ],
+    "historicalContext": "Dirty paths implement #627 CSV, delivered PR709; directory label698 is misleading."
+  },
+  {
+    "worktree": "/workspace/budget-cloud-review-543",
+    "head": "e14932decc183919694aa5f4d24e03b4b6f54914",
+    "dirtyPathLines": [
+      "M apps/server/src/api/portfolio-performance.test.ts",
+      " M packages/db/src/repos/portfolio-depots.ts",
+      " M packages/db/src/repos/portfolio-summary.ts",
+      " M packages/domain/src/invest/index.ts",
+      " M packages/domain/src/invest/performance-report.ts",
+      " M packages/domain/src/invest/performance.ts",
+      "?? apps/server/src/api/benchmark-quote-consistency-543.test.ts",
+      "?? docs/evidence/benchmark-quote-543/README.md",
+      "?? packages/db/src/repos/benchmark-quote-consistency-543.test.ts",
+      "?? packages/db/src/repos/benchmark-quote-fixture-543.ts",
+      "?? packages/db/src/repos/depot-benchmark-quote-543.test.ts",
+      "?? packages/domain/src/invest/benchmark-quote-rule-543.test.ts",
+      "?? packages/domain/src/invest/benchmark-quotes.ts"
+    ],
+    "historicalContext": "Old detached review copy; #543\u2192PR696, #677\u2192PR693, Case002\u2192combined reference PR686. Preserve; do not treat as fresh ticket implementation."
+  },
+  {
+    "worktree": "/workspace/budget-cloud-review-case002",
+    "head": "e14932decc183919694aa5f4d24e03b4b6f54914",
+    "dirtyPathLines": [
+      "?? apps/server/src/api/case-002.test.ts",
+      "?? docs/evidence/reference-adoption/wp-001-case-002-cash-2026-10-19.md",
+      "?? packages/db/src/repos/case-002.test.ts"
+    ],
+    "historicalContext": "Old detached review copy; #543\u2192PR696, #677\u2192PR693, Case002\u2192combined reference PR686. Preserve; do not treat as fresh ticket implementation."
+  },
+  {
+    "worktree": "/workspace/budget-cloud-review-677",
+    "head": "e14932decc183919694aa5f4d24e03b4b6f54914",
+    "dirtyPathLines": [
+      "M apps/web/src/ledger/mutations.ts",
+      " M docs/ROADMAP.md",
+      "?? apps/web/src/ledger/first-booking-register-677.test.tsx"
+    ],
+    "historicalContext": "Old detached review copy; #543\u2192PR696, #677\u2192PR693, Case002\u2192combined reference PR686. Preserve; do not treat as fresh ticket implementation."
+  }
+]

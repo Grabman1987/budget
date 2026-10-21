@@ -1,0 +1,194 @@
+{
+  "packets": [
+    {
+      "packetDir": "469-product-glossary",
+      "branch": "codex/469-product-glossary",
+      "sourceHead": "e35363cb98b15f4d99126aa37d0846ecb56a5088",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "481-theme-boundary",
+      "branch": "codex/481-theme-boundary",
+      "sourceHead": "3dc7338aa12f10946882b6b1476aeaf90b15ddbd",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "518-metric-explanation",
+      "branch": "codex/518-metric-explanation",
+      "sourceHead": "2de6820a1ff66c5a43c456552411e14bc45a6804",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "521-allocation-provenance",
+      "branch": "codex/521-allocation-provenance",
+      "sourceHead": "b5158ef6e1375987b8128f97e1ccb379a49c5501",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "544-546-portfolio-registers",
+      "branch": "codex/544-546-portfolio-registers",
+      "sourceHead": "80c43a631a276df0a06c74bbdc690f3bc97fe521",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "547-548-instrument-savings-detail",
+      "branch": "codex/547-548-instrument-savings-detail",
+      "sourceHead": "addda5986563c9421d20e2efe5b57b410d45d55b",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "550-551-asset-composition",
+      "branch": "codex/550-551-asset-composition",
+      "sourceHead": "da796a63853fb4a1266ab700468b37f5afdaf7b1",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "553-554-spending-report",
+      "branch": "codex/553-554-spending-report",
+      "sourceHead": "28c5a2124e99a9ec3bee1a2911a07143a9652492",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "558-protected-offline-snapshots",
+      "branch": "codex/558-protected-offline-snapshots",
+      "sourceHead": "4529f40454a46379e8846e22f72570863624c3d5",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "568-569-forecast-ui",
+      "branch": "codex/568-569-forecast-ui",
+      "sourceHead": "5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "573-603-heute-ui",
+      "branch": "codex/573-603-heute-ui",
+      "sourceHead": "9b1240c6fd199e803f55eed525684f04baca7c3f",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "573-603-month-close-reminders",
+      "branch": "codex/573-603-month-close-reminders",
+      "sourceHead": "286b008a6c1525f5481efb178e756f80bbad7db0",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "591-593-plan-inspector",
+      "branch": "codex/591-593-plan-inspector",
+      "sourceHead": "d785b65eef4f01d17389c5697af76c903aeb181a",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "596-ledger-bulk-bar",
+      "branch": "codex/596-ledger-bulk-bar",
+      "sourceHead": "1295652f3bcf7928677cc04041642a60a218f18c",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "597-delete-preview",
+      "branch": "codex/597-delete-preview",
+      "sourceHead": "aaeaf014c38304759311baf39fa60e0610c284da",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "599-contact-reminders",
+      "branch": "codex/599-contact-reminders",
+      "sourceHead": "b4e1f558a7d92beab192fc8eaf3769579e2c2ce3",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "600-602-month-close",
+      "branch": "codex/600-602-month-close",
+      "sourceHead": "fc6d51be781fd68203e509c172b7c216162a979d",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "601-unchanged-account-confirmation",
+      "branch": "codex/601-unchanged-account-confirmation",
+      "sourceHead": "7cf615bde670bb321d15b8f2469c6ab6c8298676",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "604-goal-funding-lifecycle",
+      "branch": "codex/604-goal-funding-lifecycle",
+      "sourceHead": "1858cffc04262063865f7043c2c39b7e02782212",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "608-year-scenario",
+      "branch": "codex/608-year-scenario",
+      "sourceHead": "81a68a9381ce20cf09179b46ed188e38bd77222c",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "609-payslip-pdf-preview",
+      "branch": "codex/609-payslip-pdf-preview",
+      "sourceHead": "621f1edfdf201199b2c244465557b65bcd0f41c3",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "611-612-loan-live-scenario",
+      "branch": "codex/611-612-loan-live-scenario",
+      "sourceHead": "4f9090f1f16613727c3172ab14065e9f3233e5ce",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "619-reports-hub",
+      "branch": "codex/619-reports-hub",
+      "sourceHead": "ceca8664db4384303634e5f6274d37e1393d3f88",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "621-income-project-views",
+      "branch": "codex/621-income-project-views",
+      "sourceHead": "3e9e316895a01f86a2d7f26368b798c32b0d8e08",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "622-spending-payee-view",
+      "branch": "codex/622-spending-payee-view",
+      "sourceHead": "2be8458390912470bd0260580a5b55547cc158e0",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "623-wealth-report-views",
+      "branch": "codex/623-wealth-report-views",
+      "sourceHead": "8286d82cc689addd5a71b939ec599e5f89122ae9",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "626-explorer-chart",
+      "branch": "codex/626-explorer-chart",
+      "sourceHead": "1aacdcea934aafb0a8236b305c9c5d1e4af0eb6e",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "628-reports-saved-views",
+      "branch": "codex/628-reports-saved-views",
+      "sourceHead": "c12c67e08407412105a3d8bd578863291e5b23fa",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "699-device-receipt-queue",
+      "branch": "codex/699-device-receipt-queue",
+      "sourceHead": "83505ed18d90cf18677d4a98614a6d86efb89d70",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "740-statement-receipt-links",
+      "branch": "codex/740-statement-receipt-links",
+      "sourceHead": "aac07204a865f53fff36afa8e5ebae8b498da9e4",
+      "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption"
+    },
+    {
+      "packetDir": "shared-integration-WIP",
+      "branch": "codex/source-batch-integration-20261021",
+      "sourceHead": "5e0f4f1e0b5b9cfe788b00f78a02825c62667814",
+      "state": "WIP / UNINTEGRATED shared source artifacts"
+    }
+  ],
+  "dirtyWorktreeDirectory": "dirty-worktrees",
+  "outsideProposalDirectory": "outside-proposals",
+  "rootOwns": "577/607/584/745/741 handled separately",
+  "technicalTestAuthorization": "NOW GRANTED; pending historical documents remain historical; no tests executed."
+}

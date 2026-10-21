@@ -1,0 +1,62 @@
+[
+  {
+    "path": "docs/handoff/2026-10-21/CURRENT-AUTHORIZATION.md",
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/2026-10-21/README.md",
+    "sha256": "13b03896921d27e014b30f6ea4700f5a6cb8550373591c9296e791196553a778"
+  },
+  {
+    "path": "docs/handoff/2026-10-21/access-check.json",
+    "sha256": "01f9034fbc1814d918d9f43fd2fcd946fe1eeffe32ce2ec831319a7278ef9e03"
+  },
+  {
+    "path": "docs/handoff/2026-10-21/capsule-commits.json",
+    "sha256": "9c88d0e0123a1c6de8a7a78560a72963c75d3511b60080644559844e2602190b"
+  },
+  {
+    "path": "docs/handoff/2026-10-21/original-inventory/README.md",
+    "sha256": "086216c6b7839c7a7e57074f1c75f92ad70ff02724de7e2ff334bceb72b4afa4"
+  },
+  {
+    "path": "docs/handoff/2026-10-21/original-inventory/additional-repositories.json",
+    "sha256": "0fb9a4dda36c84ee78cdb6702f1ad1f11980033618986f9c9761c0260303971a"
+  },
+  {
+    "path": "docs/handoff/2026-10-21/original-inventory/dirty-work-preservation.json",
+    "sha256": "7aff056628babdfd13578dd3ecbfeecfe41ddac1fd58c83c89e00c8ed663bba5"
+  },
+  {
+    "path": "docs/handoff/2026-10-21/original-inventory/inventory.json",
+    "sha256": "5ed2ca5baea08fe7af35f857b0c22de828d647f628b320594dceee483ef55918"
+  },
+  {
+    "path": "docs/handoff/2026-10-21/original-inventory/source-batch-integration-fixes.json",
+    "sha256": "3445b9ea3a9d63af776483a480ef5efaacbae2e2f0db317403cb0d3704b6c945"
+  },
+  {
+    "path": "docs/handoff/2026-10-21/original-inventory/ticket-owned-source.json",
+    "sha256": "0c3f026e184e7deab931ff02ef097bd14aba5ad99ddb8fa8ad33b9989fcc5848"
+  },
+  {
+    "path": "docs/handoff/2026-10-21/original-packet-map.json",
+    "sha256": "21e4d2ab3b9659b4611fea14cd1a03f6f8f667b763e40083706661728e8d1313"
+  },
+  {
+    "path": "docs/handoff/2026-10-21/original-staging-manifest.json",
+    "sha256": "e28eaf7f734eebee7a2903b6523b0c5e5503d78a9b3b332e533cd7aa3a0ee9cc"
+  },
+  {
+    "path": "docs/handoff/2026-10-21/primary-commits.json",
+    "sha256": "edfb7f5febe4a242866548bbae18d019b615fca650eb0dc8990989ed96e312ac"
+  },
+  {
+    "path": "docs/handoff/2026-10-21/remote-packages.json",
+    "sha256": "570bed9b5a9f234e71597d9b68d9862035dcb6071a8704a8cd4b2a2c5ffc7e61"
+  },
+  {
+    "path": "docs/handoff/2026-10-21/remote-verification.json",
+    "sha256": "58d2196493e26019ee9e8ed310b7931911f74753d8031bdf6516d7003a6cd59b"
+  }
+]

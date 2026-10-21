@@ -1,0 +1,3483 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 NOT APPLIED, COMMITTED OR PUSHED",
+  "createdUtc": "2026-10-21T19:07:42.144211+00:00",
+  "ownedTicketPacketCount": 30,
+  "dirtyWorktreeCount": 8,
+  "files": [
+    {
+      "path": "469-product-glossary/owned/01-e35363cb98b15f4d99126aa37d0846ecb56a5088.patch",
+      "bytes": 6349,
+      "sha256": "fcb441149fa77eb65816bfee0e276f38933b7b33b445b9dd67e999e9ece51935",
+      "source": "git:211291473f2848eb9a17116908aa86d399b2d3d2..e35363cb98b15f4d99126aa37d0846ecb56a5088",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "469-product-glossary/packet.json",
+      "bytes": 1127,
+      "sha256": "4c824a8b8f5d6a0f2131a09ce948a393af57bb80e266d30f3de7b712fb8cfd2a",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "469-product-glossary/README.md",
+      "bytes": 473,
+      "sha256": "9369370aad84face8d3e0af93d2d592052c18c1fed90dda51766ccbbdb4691f3",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "481-theme-boundary/owned/01-de8741ea7438f71e85293de7628f3d8f7a983194.patch",
+      "bytes": 12011,
+      "sha256": "99a79e149bcaa172b711d363444109f309273f26d66f6244c6d02f3f08f7b86a",
+      "source": "git:e74c4ef5134ef97ffecfd8c77bc19491ac8e016e..de8741ea7438f71e85293de7628f3d8f7a983194",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "481-theme-boundary/owned/02-3dc7338aa12f10946882b6b1476aeaf90b15ddbd.patch",
+      "bytes": 718,
+      "sha256": "eb6261489ca810229ff1442e0b6a5b88ab77b23d06d2bda3213077a4122cced3",
+      "source": "git:de8741ea7438f71e85293de7628f3d8f7a983194..3dc7338aa12f10946882b6b1476aeaf90b15ddbd",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "481-theme-boundary/packet.json",
+      "bytes": 1913,
+      "sha256": "46e2fe4edcb8109c5b78afdc78f15475107accab3302681f9d052e7d63988799",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "481-theme-boundary/README.md",
+      "bytes": 471,
+      "sha256": "0f6e255f5633941808c273512bd34689264cc75cadf4257ec70e643514c7a8d1",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "518-metric-explanation/owned/01-e763c8944c6ceb0d87cd73531198db301de13c08.patch",
+      "bytes": 4324,
+      "sha256": "92abd7e09c5eae410e203b73de543fe69380b21b89af41940455cc55e6b35c32",
+      "source": "git:37d4f3f5493e581b234378d07d6fddd40fe674be..e763c8944c6ceb0d87cd73531198db301de13c08",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "518-metric-explanation/owned/02-2de6820a1ff66c5a43c456552411e14bc45a6804.patch",
+      "bytes": 892,
+      "sha256": "80b3597e42023291d7ac7a6f125df1461bf335d870fc41c4a04ce92f77fed11f",
+      "source": "git:e763c8944c6ceb0d87cd73531198db301de13c08..2de6820a1ff66c5a43c456552411e14bc45a6804",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "518-metric-explanation/packet.json",
+      "bytes": 1783,
+      "sha256": "9e916ead5656f108108388e6fb71899b28edb9a0dfbac0fe1128101b6cf56bcf",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "518-metric-explanation/README.md",
+      "bytes": 475,
+      "sha256": "a9cb319675810c546982560c897c3d4c028f6e3774343b5b95e145de8c30ab4d",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "521-allocation-provenance/owned/01-b5158ef6e1375987b8128f97e1ccb379a49c5501.patch",
+      "bytes": 12825,
+      "sha256": "f26b43df2ddc3f69861e5cb2c75c87a8b819af33951fda0edba9b7c2ec6b975f",
+      "source": "git:211291473f2848eb9a17116908aa86d399b2d3d2..b5158ef6e1375987b8128f97e1ccb379a49c5501",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "521-allocation-provenance/packet.json",
+      "bytes": 1507,
+      "sha256": "67d26fb29d940139d8543c9cbdbd37cad0c7a3f620e7a6bb229fd4218d7ddb12",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "521-allocation-provenance/README.md",
+      "bytes": 478,
+      "sha256": "ac6e3bc4f2341037656b07e79a27a284aa89d6795e354f75ebab361812cc8ebc",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "544-546-portfolio-registers/owned/01-80c43a631a276df0a06c74bbdc690f3bc97fe521.patch",
+      "bytes": 33540,
+      "sha256": "c4c41e637d17fdad414a0d493049afeff48fd16d6dc637b107bcbf8df2e97dfb",
+      "source": "git:2af45b4a874ed14076e12f0a81e41044dc1cf223..80c43a631a276df0a06c74bbdc690f3bc97fe521",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "544-546-portfolio-registers/packet.json",
+      "bytes": 2276,
+      "sha256": "0e67e386440176875de3d5d15a95d871bbbc0f426b641970195006127d962eba",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "544-546-portfolio-registers/README.md",
+      "bytes": 480,
+      "sha256": "62f63e172541bc7b3188cd4e5b52d1dba37b6f8c06fe001dad4de7ee8ccab6e4",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "547-548-instrument-savings-detail/owned/01-addda5986563c9421d20e2efe5b57b410d45d55b.patch",
+      "bytes": 46027,
+      "sha256": "7c96b14b7d8eafa0e71ff0c1fdd0ed2d471accbe069479948e1e2c6f42745857",
+      "source": "git:759464abc050195c5d6dc285190efbadbe55de6b..addda5986563c9421d20e2efe5b57b410d45d55b",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "547-548-instrument-savings-detail/packet.json",
+      "bytes": 2252,
+      "sha256": "e7639a40a65e661e9f6899cd7f9e321bba44f91022a29c2c1ba606a9d16398f2",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "547-548-instrument-savings-detail/README.md",
+      "bytes": 486,
+      "sha256": "c8ad7e00aa9515fd200f95603fa9015d4582cf7cc4926821831310c4450682ab",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "550-551-asset-composition/owned/01-da796a63853fb4a1266ab700468b37f5afdaf7b1.patch",
+      "bytes": 40168,
+      "sha256": "596aea73532be1765067cbc24a28e28f377401140fffcef257808a5ddafcdaf8",
+      "source": "git:5d63e9c226af6463401d7a45b00f6c359baaa249..da796a63853fb4a1266ab700468b37f5afdaf7b1",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "550-551-asset-composition/packet.json",
+      "bytes": 2174,
+      "sha256": "71f5de15a338d0be46437eb6c043edf5e7449cddaf8553ca9c95c6233d901053",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "550-551-asset-composition/README.md",
+      "bytes": 478,
+      "sha256": "92f2c48c17906cd77d1cc38eeef6395067369a3b82d7acaa93eee627d97f6a75",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "553-554-spending-report/owned/01-28c5a2124e99a9ec3bee1a2911a07143a9652492.patch",
+      "bytes": 57089,
+      "sha256": "56f9bd857ab0e3fda6d524bba7a72139e509a0bd56acfa39562aaf8ebcd84646",
+      "source": "git:cadefe15230a977651351184739eafd46b721f3c..28c5a2124e99a9ec3bee1a2911a07143a9652492",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "553-554-spending-report/packet.json",
+      "bytes": 2675,
+      "sha256": "2cb5d9cae0f23ac21e80a226e033b70f61b29736a558c13f6d3a9d9becf11121",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "553-554-spending-report/README.md",
+      "bytes": 476,
+      "sha256": "200975806d227af4238b151b2f3b1b7816b93fc525657c604002168c7e080e4d",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "558-protected-offline-snapshots/owned/01-4529f40454a46379e8846e22f72570863624c3d5.patch",
+      "bytes": 50769,
+      "sha256": "ea4579e0a37dec851e03ed55303e38c3c43b2ddcda2b73186deb6076d9f66cc6",
+      "source": "git:e14932decc183919694aa5f4d24e03b4b6f54914..4529f40454a46379e8846e22f72570863624c3d5",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "558-protected-offline-snapshots/packet.json",
+      "bytes": 1739,
+      "sha256": "47e6e160281fb0863a73e6c15df5fadf8e0abdd9526faa223a368a1eb5e4ede3",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "558-protected-offline-snapshots/README.md",
+      "bytes": 484,
+      "sha256": "cb6adc479e299351c0a04ae108a0c1964fd87465be81969e7c00cee3fd612833",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "568-569-forecast-ui/owned/01-5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf.patch",
+      "bytes": 18848,
+      "sha256": "bf95d20c03e6710678abfed6a6c968027d1fbf04c611eda86feb04847e342be0",
+      "source": "git:cadefe15230a977651351184739eafd46b721f3c..5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "568-569-forecast-ui/packet.json",
+      "bytes": 1793,
+      "sha256": "1fcdc122446d2c4b56307ddc54567f98a680d8d9a0fb89ffac917cc85ad1da56",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "568-569-forecast-ui/README.md",
+      "bytes": 472,
+      "sha256": "669b5ee78e8a769cf0aba379f9f2bb98ddc56a0fb371dde61d3052222a9377cd",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "573-603-month-close-reminders/owned/01-286b008a6c1525f5481efb178e756f80bbad7db0.patch",
+      "bytes": 41231,
+      "sha256": "ae2819d332524da91fa487abc08fcd340d0e6e7393ce5c968b172458943f9b1a",
+      "source": "git:759464abc050195c5d6dc285190efbadbe55de6b..286b008a6c1525f5481efb178e756f80bbad7db0",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "573-603-month-close-reminders/packet.json",
+      "bytes": 1836,
+      "sha256": "261358a1dab862944c82cc5b12a9ad8358fa6fbfa9b97ba5e7bc3446e6ba1961",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "573-603-month-close-reminders/README.md",
+      "bytes": 482,
+      "sha256": "dc4c569a7bb0291134757176c1783292db03c440b4f036c07a23443ce8191ed5",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "573-603-heute-ui/owned/01-9b1240c6fd199e803f55eed525684f04baca7c3f.patch",
+      "bytes": 31739,
+      "sha256": "bdee6f491d75d9f0b94d5a645bd64f7f250e448a21b1e85e99cb1502b3a0f6a1",
+      "source": "git:0b9bbb658865239197de37ad98e06eededc25f12..9b1240c6fd199e803f55eed525684f04baca7c3f",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "573-603-heute-ui/packet.json",
+      "bytes": 1451,
+      "sha256": "97a24c8fbc520eb8bec7b7e700341f64d87955112675dad80db57e7c438ab4d7",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "573-603-heute-ui/README.md",
+      "bytes": 469,
+      "sha256": "93d3e41da2e481ad3c7942950cfeb620ae4a73c47c07fbba2c9df964e6507241",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "591-593-plan-inspector/owned/01-d785b65eef4f01d17389c5697af76c903aeb181a.patch",
+      "bytes": 47172,
+      "sha256": "a34c7f39a51bdfce54d87893a70104c79c9a22506795b405de6490bafb28f9b6",
+      "source": "git:f81c206d47dbb851e59a07db396d10fc4512270e..d785b65eef4f01d17389c5697af76c903aeb181a",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "591-593-plan-inspector/packet.json",
+      "bytes": 1836,
+      "sha256": "d1d519fd166ef39980309455137b701553c55a9f3f023b9bcf9bff10e7cb3c57",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "591-593-plan-inspector/README.md",
+      "bytes": 475,
+      "sha256": "badf762dd1bedb4e00496376e5353f29dff3ee604060753a9e6dab7f9950fc62",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "596-ledger-bulk-bar/owned/01-1295652f3bcf7928677cc04041642a60a218f18c.patch",
+      "bytes": 52697,
+      "sha256": "158a8fc02b67b5473f736216fb815994cd3243936f4d3d64b856fee015e387a6",
+      "source": "git:211291473f2848eb9a17116908aa86d399b2d3d2..1295652f3bcf7928677cc04041642a60a218f18c",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "596-ledger-bulk-bar/packet.json",
+      "bytes": 2096,
+      "sha256": "36a8180050f7d9e97b4c25da4998292508d989e95a2d2bf011114ec27fde037f",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "596-ledger-bulk-bar/README.md",
+      "bytes": 472,
+      "sha256": "1124988461e9c96a038b5914267a16bf3ffce4a54629e2bd6e73adff28b95c5c",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "597-delete-preview/owned/01-aaeaf014c38304759311baf39fa60e0610c284da.patch",
+      "bytes": 42875,
+      "sha256": "8c38839748ed75fe596039b5624db4e4119f76f4dae692da1b5f142868a8ad96",
+      "source": "git:b3b12a508b77180618e0595b78aa17fcc463d0fe..aaeaf014c38304759311baf39fa60e0610c284da",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "597-delete-preview/packet.json",
+      "bytes": 2061,
+      "sha256": "5e8bf7f96f128837c0eea26448db488e769e80cc4cf66319a35474ab79d82997",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "597-delete-preview/README.md",
+      "bytes": 471,
+      "sha256": "153488c9ac6993b5e29763eeb71b604f30d14d411c189cb4eeca694bfc75c54f",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "599-contact-reminders/owned/01-b4e1f558a7d92beab192fc8eaf3769579e2c2ce3.patch",
+      "bytes": 6947,
+      "sha256": "5c0565aa8e29f746d38bf6acb272fb16dcaf197db1c254b0ce804dec722172e3",
+      "source": "git:cadefe15230a977651351184739eafd46b721f3c..b4e1f558a7d92beab192fc8eaf3769579e2c2ce3",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "599-contact-reminders/packet.json",
+      "bytes": 1381,
+      "sha256": "f6bf4494f12b4388663645b8c576d129f4a107b183a25215abb07f927597fa61",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "599-contact-reminders/README.md",
+      "bytes": 474,
+      "sha256": "db5f06f7a8529d58b2f55f23b140554fec397a1586243d7fff8a0d55fb3ea88d",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "600-602-month-close/owned/01-fc6d51be781fd68203e509c172b7c216162a979d.patch",
+      "bytes": 49193,
+      "sha256": "9e7f3d32bf9301bde7e2cae4e6dec5659ad88c5bcb415eb46fb7c2f2fcc5d032",
+      "source": "git:b3b12a508b77180618e0595b78aa17fcc463d0fe..fc6d51be781fd68203e509c172b7c216162a979d",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "600-602-month-close/packet.json",
+      "bytes": 1946,
+      "sha256": "7b731cda457c314c652ca25b947fae76e11f7d5c88e252d0a12b952e821881e1",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "600-602-month-close/README.md",
+      "bytes": 472,
+      "sha256": "ca81d8d4e76c5bab5ac971ddb1c696f76382ca938cd4fd0fdfd777ef7cdc8d51",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "601-unchanged-account-confirmation/owned/01-7cf615bde670bb321d15b8f2469c6ab6c8298676.patch",
+      "bytes": 40258,
+      "sha256": "74005f5ddaef27a9d11a71789d08fd213dd37d854d5f5872b309e78a37974fc1",
+      "source": "git:8f2509c683fcbe6959976127c50ce455574c7221..7cf615bde670bb321d15b8f2469c6ab6c8298676",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "601-unchanged-account-confirmation/packet.json",
+      "bytes": 1878,
+      "sha256": "2e3792f17e80965a08121c19199b15ea17860ec72f634cc4300deeccdec3c8ad",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "601-unchanged-account-confirmation/README.md",
+      "bytes": 487,
+      "sha256": "b3acf8915f484b40bf1ba63ca032f3655a02b81595cebc050a0cbbb82580676d",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "604-goal-funding-lifecycle/owned/01-63eb5ff3e549781fbea791e601830dd0dcf4fae5.patch",
+      "bytes": 359434,
+      "sha256": "30077d10d8408e4a995f87e8255a3e1642736057302b68668af724e0194bf808",
+      "source": "git:5960e51cba63d509cdc9f24262103ab16d3dfead..63eb5ff3e549781fbea791e601830dd0dcf4fae5",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "604-goal-funding-lifecycle/owned/02-1858cffc04262063865f7043c2c39b7e02782212.patch",
+      "bytes": 29855,
+      "sha256": "c1488be4f7b7a77e4e2450c50ee244e4e4c10e16389d460b5c0b7f9d2ed25ee6",
+      "source": "git:63eb5ff3e549781fbea791e601830dd0dcf4fae5..1858cffc04262063865f7043c2c39b7e02782212",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "604-goal-funding-lifecycle/packet.json",
+      "bytes": 3852,
+      "sha256": "54f88691cc4519b6e366c4e6b4a8d639b8a47c41526fb4285085deea03958c00",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "604-goal-funding-lifecycle/README.md",
+      "bytes": 479,
+      "sha256": "3b3b2e09db19d6c9aba1f6aa27ea0a6a80fb88a81c8079177a6747eb83224eab",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "608-year-scenario/owned/01-81a68a9381ce20cf09179b46ed188e38bd77222c.patch",
+      "bytes": 39026,
+      "sha256": "6f3b0947f0130d070120296f58127fc684ed5edb3067d78a6b8d8f57c0963636",
+      "source": "git:f3821c17e34279fc0083b1ac58c6215789904ef7..81a68a9381ce20cf09179b46ed188e38bd77222c",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "608-year-scenario/packet.json",
+      "bytes": 1469,
+      "sha256": "31a769fa73794316f8cdf9694c548a26a4a8aa0f8627a1ee5baac7a305dc4922",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "608-year-scenario/README.md",
+      "bytes": 470,
+      "sha256": "1e01fb082132345e0c746ee6d454670898bc9f49c9046ee3925bb19b36e8ee8e",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "609-payslip-pdf-preview/owned/01-621f1edfdf201199b2c244465557b65bcd0f41c3.patch",
+      "bytes": 42661,
+      "sha256": "54a43a724450d56251a27d8c116ace7d775a02332a45c7b35e2d945144fdfe31",
+      "source": "git:649e6171b90ee2f3c0727cea7fcd50c613fbad98..621f1edfdf201199b2c244465557b65bcd0f41c3",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "609-payslip-pdf-preview/packet.json",
+      "bytes": 2004,
+      "sha256": "ba415583e2928934ee7c37b98abd49ddd96d512a16028121c7260867dec89918",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "609-payslip-pdf-preview/README.md",
+      "bytes": 476,
+      "sha256": "7b7ade77a392fffd9c1807c3435c124559c96c9c55e720fd8ee3f2304a77bab2",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "611-612-loan-live-scenario/owned/01-4f9090f1f16613727c3172ab14065e9f3233e5ce.patch",
+      "bytes": 54925,
+      "sha256": "4a9395147978043ffc4fdb1008a975b265c63a96cad3ae8f9d128a3c58658b8b",
+      "source": "git:bcf5dabc63c1d5798d12f065f61e9eaaf26a13e7..4f9090f1f16613727c3172ab14065e9f3233e5ce",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "611-612-loan-live-scenario/packet.json",
+      "bytes": 1476,
+      "sha256": "b344274161a5c3575e0789bcc27e2e22d92579eac600a1c8962848c040ce8c4b",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "611-612-loan-live-scenario/README.md",
+      "bytes": 479,
+      "sha256": "2581b8cc3972051a940d37f61ea2e65df5fe623d58c191d25f5c5c81ec5984ea",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "619-reports-hub/owned/01-ceca8664db4384303634e5f6274d37e1393d3f88.patch",
+      "bytes": 26929,
+      "sha256": "9115f16980ac471aefb3350bae8df32e6457d88b03f260649fb294b319da3309",
+      "source": "git:c12c67e08407412105a3d8bd578863291e5b23fa..ceca8664db4384303634e5f6274d37e1393d3f88",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "619-reports-hub/packet.json",
+      "bytes": 1751,
+      "sha256": "0583667f527d23f41adea2b69c3e8fcbcabf86b7256c15d2aae297c29027f90f",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "619-reports-hub/README.md",
+      "bytes": 468,
+      "sha256": "e4a6ed663baab9c37f49b660868d857583221d4572316b6dd1f87581d282a4c8",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "621-income-project-views/owned/01-3e9e316895a01f86a2d7f26368b798c32b0d8e08.patch",
+      "bytes": 49399,
+      "sha256": "6daa46f720fa1a00dd479809e1584cf489440b86146657eba8063b7b2b487969",
+      "source": "git:211291473f2848eb9a17116908aa86d399b2d3d2..3e9e316895a01f86a2d7f26368b798c32b0d8e08",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "621-income-project-views/packet.json",
+      "bytes": 3107,
+      "sha256": "498fcc9c2913786390c7158806f8d5c7fdb56199c7e4841b2bff71c3e9d9a20e",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "621-income-project-views/README.md",
+      "bytes": 477,
+      "sha256": "b36f510fe1cab0af47d76901e6d5eb6e0dbf5b56b102bc7430027420e2f664ed",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "622-spending-payee-view/owned/01-2be8458390912470bd0260580a5b55547cc158e0.patch",
+      "bytes": 13427,
+      "sha256": "355f5ef476c56ee0d402f86c17a37db3b7b017abf14e149ec719ed8e8e01408b",
+      "source": "git:28c5a2124e99a9ec3bee1a2911a07143a9652492..2be8458390912470bd0260580a5b55547cc158e0",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "622-spending-payee-view/packet.json",
+      "bytes": 1735,
+      "sha256": "5ca55252a5a15088c7c9ae003ca930855e18af268de0f652f1e7a3f2826593af",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "622-spending-payee-view/README.md",
+      "bytes": 476,
+      "sha256": "6b991944c32b93ea22764338c734e668d1e2fbfd68f631563f6a93c0af16117e",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "623-wealth-report-views/owned/01-8286d82cc689addd5a71b939ec599e5f89122ae9.patch",
+      "bytes": 12450,
+      "sha256": "256b3f6b14c3e6e1f6ce73292e99c5654daf59c4b94291bb1d31ff9e8883a8f6",
+      "source": "git:2be8458390912470bd0260580a5b55547cc158e0..8286d82cc689addd5a71b939ec599e5f89122ae9",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "623-wealth-report-views/packet.json",
+      "bytes": 1733,
+      "sha256": "7aad00777e0a4c9ce0e71c3534725e579c781cd9a7ad1b0ed4380bc3ead90746",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "623-wealth-report-views/README.md",
+      "bytes": 476,
+      "sha256": "5dd102e5402b004e2198a46c22e0f0ed01ec77f3b8739e972c8ab5d0f22b5ef5",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "626-explorer-chart/owned/01-c8d43a3bafdad3983ac41543358e5b7bfaf9c665.patch",
+      "bytes": 107711,
+      "sha256": "32aaf38a1b412eb32b3b8b980b1092d006f1f44ce68c3a1908330567c7c414c6",
+      "source": "git:cb087a2639f5e367aa3af4aa2b692725f169e76c..c8d43a3bafdad3983ac41543358e5b7bfaf9c665",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "626-explorer-chart/owned/03-1aacdcea934aafb0a8236b305c9c5d1e4af0eb6e.patch",
+      "bytes": 6887,
+      "sha256": "d3caa3f60d6f6b813183bcc188be46db5364b0f83895272d7a47a19848c98bde",
+      "source": "git:2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6..1aacdcea934aafb0a8236b305c9c5d1e4af0eb6e",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "626-explorer-chart/README.md",
+      "bytes": 471,
+      "sha256": "b45faa8fc0b5640b8ddc3b17bd6e9b9695f5ed62d375087fed7e99437b979641",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "628-reports-saved-views/owned/01-c12c67e08407412105a3d8bd578863291e5b23fa.patch",
+      "bytes": 14405,
+      "sha256": "c105d9c2c46eeabb74aa54751bed17124f77756c1ccffc0893af862511ec6bd2",
+      "source": "git:cadefe15230a977651351184739eafd46b721f3c..c12c67e08407412105a3d8bd578863291e5b23fa",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "628-reports-saved-views/packet.json",
+      "bytes": 1774,
+      "sha256": "bdc069c652330778e6ca5b0259080e6861834a3618b343f64cca5c0f9c54ef99",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "628-reports-saved-views/README.md",
+      "bytes": 476,
+      "sha256": "8b4d63546e807b90b1ee9bb580576c9512935b3bf84ed5e2f9187eed0d84787e",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "699-device-receipt-queue/owned/01-a1293464aaada9ddd2a966d646d4152029aefb6e.patch",
+      "bytes": 70628,
+      "sha256": "245e562c7faddf74d14ea4575beb632ccf5dd0fb59af2160a542b7dc2e48679a",
+      "source": "git:297a574c4937616af9566f44954658e2ac43f750..a1293464aaada9ddd2a966d646d4152029aefb6e",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "699-device-receipt-queue/owned/02-83505ed18d90cf18677d4a98614a6d86efb89d70.patch",
+      "bytes": 57615,
+      "sha256": "ab1eaa49f56d3976e188a192aedb9b9d028c6a6e22668319caee9a38a2b15827",
+      "source": "git:ae37ea510b7fe4e3e2d7f007d66b2c6d89e6f43b..83505ed18d90cf18677d4a98614a6d86efb89d70",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "699-device-receipt-queue/packet.json",
+      "bytes": 2356,
+      "sha256": "752536389cc5ef49aa287102c182aa19c1a70b61a89f38ba064ff381d5343f71",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "699-device-receipt-queue/README.md",
+      "bytes": 477,
+      "sha256": "8ea6f50643a9132dd719cb2ac939a60f874722081f7aace04f00a6f39e510a85",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "740-statement-receipt-links/owned/01-aac07204a865f53fff36afa8e5ebae8b498da9e4.patch",
+      "bytes": 29806,
+      "sha256": "1efb2185ca7192832e962b931d111280c3f7f55b950172823e948fee89727880",
+      "source": "git:7f0bb50f87da6f1adf0deceeee1d2dae7eab1a52..aac07204a865f53fff36afa8e5ebae8b498da9e4",
+      "kind": "owned-commit-binary-diff"
+    },
+    {
+      "path": "740-statement-receipt-links/packet.json",
+      "bytes": 1807,
+      "sha256": "0fbcace3c1e075719848a76b8b0a74a8f3606449fadd99755814d201c5e5403b",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "740-statement-receipt-links/README.md",
+      "bytes": 480,
+      "sha256": "63cea7a3c69d6d85668b75838b60f50a30e0bc2e89900a3427c285e1c3ddd150",
+      "source": "generated packet label",
+      "kind": "documentation"
+    },
+    {
+      "path": "573-603-month-close-reminders/integration/a25ffd011d491d3ee5d16b0e626ffe6c1ba50790.patch",
+      "bytes": 672,
+      "sha256": "93ca78c30af0ca78dc5a8264f1e4bd9edf611660d7b3346ecf8d936500f4eac7",
+      "source": "git:87bddde58afff83461d6a7d821bea32baf140016..a25ffd011d491d3ee5d16b0e626ffe6c1ba50790 scoped:packages/db/src/repos/month-close-reminders.ts",
+      "kind": "scoped-integration-diff"
+    },
+    {
+      "path": "573-603-month-close-reminders/integration/a25ffd011d491d3ee5d16b0e626ffe6c1ba50790.json",
+      "bytes": 378,
+      "sha256": "f03f25bda9f955d895a65911b3c7abf2becf08966708cfd99b2ae5d864fcbeb1",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "604-goal-funding-lifecycle/integration/1d0c7b1af8d67dab7dcb1a8c567c20c3f44a1c48.patch",
+      "bytes": 794,
+      "sha256": "cb5abb13860c21d52434b6fb6626d3c1969eb61ad87aad5e6b538727656c3134",
+      "source": "git:a25ffd011d491d3ee5d16b0e626ffe6c1ba50790..1d0c7b1af8d67dab7dcb1a8c567c20c3f44a1c48 scoped:packages/db/src/repos/goal-lifecycle.ts",
+      "kind": "scoped-integration-diff"
+    },
+    {
+      "path": "604-goal-funding-lifecycle/integration/1d0c7b1af8d67dab7dcb1a8c567c20c3f44a1c48.json",
+      "bytes": 363,
+      "sha256": "1160229609d1323e550fdb519d46881b3d9e0631cb6c4c9a876e12e898fba6f8",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "740-statement-receipt-links/integration/1d0c7b1af8d67dab7dcb1a8c567c20c3f44a1c48.patch",
+      "bytes": 1849,
+      "sha256": "6a014e80430ac37319c4d4d62240a039b635418067d1bc355bcf94180f402785",
+      "source": "git:a25ffd011d491d3ee5d16b0e626ffe6c1ba50790..1d0c7b1af8d67dab7dcb1a8c567c20c3f44a1c48 scoped:packages/db/src/repos/statement-receipt-links.ts",
+      "kind": "scoped-integration-diff"
+    },
+    {
+      "path": "740-statement-receipt-links/integration/1d0c7b1af8d67dab7dcb1a8c567c20c3f44a1c48.json",
+      "bytes": 372,
+      "sha256": "8dcb325d8f32a07805de6670d58dff7ff80fc4b10a4adbec273b2046cfac4166",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "740-statement-receipt-links/integration/221e607c8937d7e3cdcb318e3ca13a8b90b8914d.patch",
+      "bytes": 1002,
+      "sha256": "95bc0364c1c091134f3c54eeae0ff8a6b3f8d925558ed0fecd922fb0c3f820ac",
+      "source": "git:581b79b6d7e0ac94a82dd15436fa03cce0f80d6f..221e607c8937d7e3cdcb318e3ca13a8b90b8914d scoped:apps/server/src/api/statement-intake.ts",
+      "kind": "scoped-integration-diff"
+    },
+    {
+      "path": "740-statement-receipt-links/integration/221e607c8937d7e3cdcb318e3ca13a8b90b8914d.json",
+      "bytes": 368,
+      "sha256": "062bc53b354f61ba3b111195b0df9dfd3224cc7a4fc8bd662dad6fb2e155dc60",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "591-593-plan-inspector/integration/6097312929c84ea8bd827bc5895e6f4e85f87cf2.patch",
+      "bytes": 565,
+      "sha256": "39479e18ccb5eb2c56ef82de13b885cb46e1c523c0cef2330acf065bc1ca292a",
+      "source": "git:1543ddd98dd8ca714d0c45921d80dba453c178a7..6097312929c84ea8bd827bc5895e6f4e85f87cf2 scoped:apps/web/src/budget/plan-page.tsx",
+      "kind": "scoped-integration-diff"
+    },
+    {
+      "path": "591-593-plan-inspector/integration/6097312929c84ea8bd827bc5895e6f4e85f87cf2.json",
+      "bytes": 371,
+      "sha256": "7948eac55b2995eb1e715e0b5f4d606e2fa4c9575df763ba266c0d9a9d50cf7b",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "628-reports-saved-views/integration/6097312929c84ea8bd827bc5895e6f4e85f87cf2.patch",
+      "bytes": 1341,
+      "sha256": "820ff6d283236f3455fc3f93bd7de0895cfae75d90d7af6b96f81449ed833205",
+      "source": "git:1543ddd98dd8ca714d0c45921d80dba453c178a7..6097312929c84ea8bd827bc5895e6f4e85f87cf2 scoped:apps/web/src/reports/explorer-view-api.ts",
+      "kind": "scoped-integration-diff"
+    },
+    {
+      "path": "628-reports-saved-views/integration/6097312929c84ea8bd827bc5895e6f4e85f87cf2.json",
+      "bytes": 379,
+      "sha256": "607ea062958575d8edcff6b64d36aef16f4c3226705776f24b572efbee58d457",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "544-546-portfolio-registers/integration/6097312929c84ea8bd827bc5895e6f4e85f87cf2.patch",
+      "bytes": 950,
+      "sha256": "4c627e1a1848398253fa54cb121fd70a36981a92e4e4bc2e5972236acc343fd8",
+      "source": "git:1543ddd98dd8ca714d0c45921d80dba453c178a7..6097312929c84ea8bd827bc5895e6f4e85f87cf2 scoped:apps/web/src/router.tsx",
+      "kind": "scoped-integration-diff"
+    },
+    {
+      "path": "544-546-portfolio-registers/integration/6097312929c84ea8bd827bc5895e6f4e85f87cf2.json",
+      "bytes": 361,
+      "sha256": "63df66be983ae9e690035e5a431436dce06d7be5c530f881c242ac39afb6a10c",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "547-548-instrument-savings-detail/integration/2bc11152a13ccacb528a11fac3d6fc45c8356904.patch",
+      "bytes": 1583,
+      "sha256": "791b20968b680bb20634adb11bdd74c4798eda435d3bf5e5367e82144cdbca0c",
+      "source": "git:6097312929c84ea8bd827bc5895e6f4e85f87cf2..2bc11152a13ccacb528a11fac3d6fc45c8356904 scoped:apps/web/src/wealth/price-history.tsx",
+      "kind": "scoped-integration-diff"
+    },
+    {
+      "path": "547-548-instrument-savings-detail/integration/2bc11152a13ccacb528a11fac3d6fc45c8356904.json",
+      "bytes": 367,
+      "sha256": "2ccc8056d53a4797b8f67db113e49bba318f15eded48238d284e0fc033e3835a",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-624/tracked-head.patch",
+      "bytes": 13479,
+      "sha256": "fa773bc671b356f1e579d4f50c6fde247026f8114394bdacfffeaa701140189f",
+      "source": "/workspace/budget-cloud-review-624 HEAD:e037acead749623271b62b70fcc4b9dfe8eabec3",
+      "kind": "dirty-tracked-HEAD-binary-diff"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-624/untracked/apps/server/src/api/explorer-views.test.ts",
+      "bytes": 3109,
+      "sha256": "fcbfced18af210630474a15743d82da4e33d64ffaab5236b9b68c1ba3c67781f",
+      "source": "/workspace/budget-cloud-review-624/apps/server/src/api/explorer-views.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-624/untracked/apps/server/src/api/explorer-views.ts",
+      "bytes": 1663,
+      "sha256": "1302309968f5a1042213a4097733a8d95e84016a109c0d4626fdea9ecb81fafe",
+      "source": "/workspace/budget-cloud-review-624/apps/server/src/api/explorer-views.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-624/untracked/apps/web/src/reports/explorer-promotion.test.ts",
+      "bytes": 2074,
+      "sha256": "24da1186d9873cdb6448372a6c743cedf3c8eec24d8a3f06f211ae099e032542",
+      "source": "/workspace/budget-cloud-review-624/apps/web/src/reports/explorer-promotion.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-624/untracked/apps/web/src/reports/explorer-view-api.ts",
+      "bytes": 1318,
+      "sha256": "557d5351b1459cf3ec4566fd4b100797491dccf0751c3d71be377aefae383483",
+      "source": "/workspace/budget-cloud-review-624/apps/web/src/reports/explorer-view-api.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-624/untracked/apps/web/src/reports/use-explorer-views.test.tsx",
+      "bytes": 2799,
+      "sha256": "c870a52dd7e1f531613a059617549668492e3e0994a376d4009c9a99b9326961",
+      "source": "/workspace/budget-cloud-review-624/apps/web/src/reports/use-explorer-views.test.tsx",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-624/untracked/apps/web/src/reports/use-explorer-views.ts",
+      "bytes": 4976,
+      "sha256": "b078a9e07ddc5a750b17079cb3400b31b7e758c6d0b572ae5b425f67f996eaa5",
+      "source": "/workspace/budget-cloud-review-624/apps/web/src/reports/use-explorer-views.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-624/untracked/e2e/issue-624-explorer-persistence.spec.ts",
+      "bytes": 7216,
+      "sha256": "a9b00c6b528bba23e2e94c2d9ddcd89a467fef07a2c7fa3b9aa9c2ebdc8c6eaa",
+      "source": "/workspace/budget-cloud-review-624/e2e/issue-624-explorer-persistence.spec.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-624/untracked/packages/db/src/repos/explorer-views.test.ts",
+      "bytes": 6882,
+      "sha256": "e0736b102f6fbf29f29dbaaae7f45f733ea7b6b1effc5c150ce05a93b6884501",
+      "source": "/workspace/budget-cloud-review-624/packages/db/src/repos/explorer-views.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-624/untracked/packages/db/src/repos/explorer-views.ts",
+      "bytes": 5837,
+      "sha256": "b3eea70aba1ef6d23677b1cea1041168a6e300b9274c038b98aa600e307fe612",
+      "source": "/workspace/budget-cloud-review-624/packages/db/src/repos/explorer-views.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-624/untracked/packages/domain/src/overview/explorer-saved-views.test.ts",
+      "bytes": 2214,
+      "sha256": "7c6d32bf3184f6d6d6cdfd6e4a169311bfda3e15db430c261d7b22388f4f9b37",
+      "source": "/workspace/budget-cloud-review-624/packages/domain/src/overview/explorer-saved-views.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-624/untracked/packages/domain/src/overview/explorer-saved-views.ts",
+      "bytes": 4031,
+      "sha256": "1519b71b8e5279d20fb7928d82d357d3b072eb40532a38b6df493b4d6d9db3cc",
+      "source": "/workspace/budget-cloud-review-624/packages/domain/src/overview/explorer-saved-views.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-624/preservation.json",
+      "bytes": 1161,
+      "sha256": "1313c219d59100ab79f7875fb7c9e86464052b3c180365cb5dc073cd11e17815",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "dirty-worktrees/cloud-receipt-ui-700/tracked-head.patch",
+      "bytes": 16755,
+      "sha256": "5f5144bd294dc6e91eefdb85433ff218a7bc50b322e8a4abc6f9e572ac50ba44",
+      "source": "/workspace/cloud-receipt-ui-700 HEAD:922253a8aedad116ad84672cdb22b0011388e4f2",
+      "kind": "dirty-tracked-HEAD-binary-diff"
+    },
+    {
+      "path": "dirty-worktrees/cloud-receipt-ui-700/untracked/apps/web/src/auth/login-receipt-privacy.test.tsx",
+      "bytes": 5659,
+      "sha256": "39824795b1034f31a87abde3c1759b65c078082612d6db87aff41d553aa52aa0",
+      "source": "/workspace/cloud-receipt-ui-700/apps/web/src/auth/login-receipt-privacy.test.tsx",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-receipt-ui-700/untracked/apps/web/src/pages/security-receipt-privacy.test.tsx",
+      "bytes": 3855,
+      "sha256": "977d1ab9f07087d86b19b3be71b3b905b60b86e8992836f25f66f0d95527ff88",
+      "source": "/workspace/cloud-receipt-ui-700/apps/web/src/pages/security-receipt-privacy.test.tsx",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-receipt-ui-700/untracked/apps/web/src/pwa/receipt-privacy-observer.test.ts",
+      "bytes": 3286,
+      "sha256": "a39f5c4450f0486d4e4bd681482d18b7daef1834dd40da1cdd9276cde4171015",
+      "source": "/workspace/cloud-receipt-ui-700/apps/web/src/pwa/receipt-privacy-observer.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-receipt-ui-700/untracked/apps/web/src/pwa/receipt-queue-ui.test.tsx",
+      "bytes": 9773,
+      "sha256": "ba833b6e31e0f12b8f925dfff8cf4ff012aa9cfaa4353b3b86bce0056c922ba3",
+      "source": "/workspace/cloud-receipt-ui-700/apps/web/src/pwa/receipt-queue-ui.test.tsx",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-receipt-ui-700/untracked/apps/web/src/pwa/receipt-queue-ui.tsx",
+      "bytes": 17452,
+      "sha256": "d37deacde03c365c40435517c66d446a6619441626e5ef568f6c269ae6a23847",
+      "source": "/workspace/cloud-receipt-ui-700/apps/web/src/pwa/receipt-queue-ui.tsx",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-receipt-ui-700/preservation.json",
+      "bytes": 897,
+      "sha256": "adfb531e6d37d81abf34dd31bc85bd28b63ca238dc83872b5d4f9d9a168a2ec2",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-481-expanded/tracked-head.patch",
+      "bytes": 8482,
+      "sha256": "cf150dd0090c13111c37ed2e1160277b4e6328e7a9960ff494c0b10e005295ae",
+      "source": "/workspace/cloud-review-481-expanded HEAD:151a4ca6c26b52ec2854b2e18cfb1e6fe0670710",
+      "kind": "dirty-tracked-HEAD-binary-diff"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-481-expanded/untracked/e2e/issue-481-desktop-diagnostic-review.spec.ts",
+      "bytes": 3546,
+      "sha256": "1f4f8e879d6572a326c7692c47d10985b8bb4153d519cf3c5d3dffc69f0f475a",
+      "source": "/workspace/cloud-review-481-expanded/e2e/issue-481-desktop-diagnostic-review.spec.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-481-expanded/untracked/e2e/issue-481-desktop-geometry-review.spec.ts",
+      "bytes": 2204,
+      "sha256": "cc0dbc54f17a6f075a7a1578c2d55257a2fcac5c9c59800f49674a5dee8e2890",
+      "source": "/workspace/cloud-review-481-expanded/e2e/issue-481-desktop-geometry-review.spec.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-481-expanded/untracked/e2e/issue-481-independent-review.spec.ts",
+      "bytes": 3833,
+      "sha256": "54286aae2f49a50a6a6a739a26fe3e053a9e5523adbec0e16eebdefc9b3f6c9d",
+      "source": "/workspace/cloud-review-481-expanded/e2e/issue-481-independent-review.spec.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-481-expanded/preservation.json",
+      "bytes": 718,
+      "sha256": "52285a604d4e996e25b1726d5be9a8bde550b90d3f05deaa32277fe4428b47e6",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-freedom-615/tracked-head.patch",
+      "bytes": 29338,
+      "sha256": "dbdafe8f68765a1e15d97e700bd825c271cc1d140c56c89028ecd4b24286ab88",
+      "source": "/workspace/cloud-review-freedom-615 HEAD:0e17fe05a90b15d677956b8be96a5b8658bffe5b",
+      "kind": "dirty-tracked-HEAD-binary-diff"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-freedom-615/untracked/apps/server/src/api/freedom-history-616.test.ts",
+      "bytes": 1496,
+      "sha256": "97d3dfc6eb9a7a687bfef70e656b41d1f5ebd1513a7eacaaddcb104c1199116c",
+      "source": "/workspace/cloud-review-freedom-615/apps/server/src/api/freedom-history-616.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-freedom-615/untracked/apps/server/src/api/freedom-universe-615.test.ts",
+      "bytes": 4385,
+      "sha256": "ceb93358c2874477051965a7347cab45a1a6b1376c7b3e95f6619193a51e2aae",
+      "source": "/workspace/cloud-review-freedom-615/apps/server/src/api/freedom-universe-615.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-freedom-615/untracked/apps/web/src/wealth/freedom-history-616.test.tsx",
+      "bytes": 3452,
+      "sha256": "bd71eae89e4cb3e1e9aa1b337e8556325a8d013a6f1c248abe911cc476955074",
+      "source": "/workspace/cloud-review-freedom-615/apps/web/src/wealth/freedom-history-616.test.tsx",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-freedom-615/untracked/apps/web/src/wealth/freedom-history-model-616.test.ts",
+      "bytes": 2712,
+      "sha256": "acd58f04795cf67a188f1a4fbb35cd97c03ae694f77e2e749a5460996b840e97",
+      "source": "/workspace/cloud-review-freedom-615/apps/web/src/wealth/freedom-history-model-616.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-freedom-615/untracked/apps/web/src/wealth/freedom-history-model.ts",
+      "bytes": 1864,
+      "sha256": "6afc1e88298d09f864cca190c11c5e1f28d16c4a21a729df7e06a07f0581f7ca",
+      "source": "/workspace/cloud-review-freedom-615/apps/web/src/wealth/freedom-history-model.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-freedom-615/untracked/apps/web/src/wealth/freedom-universe-615.test.tsx",
+      "bytes": 2428,
+      "sha256": "54e34dde96f65682b630fdc10b8b06efcd635d1ce5d2a0188a969373cae8822e",
+      "source": "/workspace/cloud-review-freedom-615/apps/web/src/wealth/freedom-universe-615.test.tsx",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-freedom-615/untracked/docs/evidence/reference-adoption/wp-010-freedom-universe-615.md",
+      "bytes": 7969,
+      "sha256": "15f999345605748c3ca10766d2a07b6e21160cbb75fe500e67721037376aad41",
+      "source": "/workspace/cloud-review-freedom-615/docs/evidence/reference-adoption/wp-010-freedom-universe-615.md",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-freedom-615/untracked/e2e/issue-615-freedom-universe.spec.ts",
+      "bytes": 3914,
+      "sha256": "ca6356d22786b1eecbc0c61cd5a78132601d84a5c78adc984ab0d7c727694057",
+      "source": "/workspace/cloud-review-freedom-615/e2e/issue-615-freedom-universe.spec.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-freedom-615/untracked/e2e/issue-616-freedom-history.spec.ts",
+      "bytes": 7496,
+      "sha256": "a4f8e19bab2764f85243263e3bee9f855cefc8192e35091aa5659e58975e4909",
+      "source": "/workspace/cloud-review-freedom-615/e2e/issue-616-freedom-history.spec.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-freedom-615/untracked/packages/db/src/repos/freedom-history-616.test.ts",
+      "bytes": 4959,
+      "sha256": "9785a979869a66e1a08f1d533961224faa4b9da2d64e1fe858985dbd2331b0c7",
+      "source": "/workspace/cloud-review-freedom-615/packages/db/src/repos/freedom-history-616.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-freedom-615/untracked/packages/db/src/repos/freedom-history.ts",
+      "bytes": 2165,
+      "sha256": "4c53c8574716b8f68141b42175643eaab9785fae54011cae3191a3976b1f1d14",
+      "source": "/workspace/cloud-review-freedom-615/packages/db/src/repos/freedom-history.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-freedom-615/untracked/packages/db/src/repos/freedom-universe-615.test.ts",
+      "bytes": 11691,
+      "sha256": "4f7dd2b2384c2e6d9cefee6f0bbf03e77fecb3085ef2a99a74879f2a32a09a16",
+      "source": "/workspace/cloud-review-freedom-615/packages/db/src/repos/freedom-universe-615.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-freedom-615/untracked/packages/db/src/repos/freedom-universe-fixture-615.ts",
+      "bytes": 1621,
+      "sha256": "3b62f9a86eeb1f17330c8a4f127a7afd67e418c3c624a765f4bd42fa949954f5",
+      "source": "/workspace/cloud-review-freedom-615/packages/db/src/repos/freedom-universe-fixture-615.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-freedom-615/untracked/packages/domain/src/rules/freedom-preview-615.test.ts",
+      "bytes": 777,
+      "sha256": "f93de884ab88bbcfe67c97829650afb2d3780bf9df7fadd87a29ad8cbac14c63",
+      "source": "/workspace/cloud-review-freedom-615/packages/domain/src/rules/freedom-preview-615.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-freedom-615/preservation.json",
+      "bytes": 1717,
+      "sha256": "e5d00ed7c8e6b8d1ae3453d3733e9e13e5aa1e4356d0a89478b9471bcc4cc7f2",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-receipt-698/tracked-head.patch",
+      "bytes": 13259,
+      "sha256": "8edd689a6bf8891073861aeda7ae31c9171daa445f592ce39151201da67d6268",
+      "source": "/workspace/cloud-review-receipt-698 HEAD:74abab012ee0d99f8a846fd7317f59272759a52f",
+      "kind": "dirty-tracked-HEAD-binary-diff"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-receipt-698/untracked/apps/server/src/api/explorer-csv-627.test.ts",
+      "bytes": 8963,
+      "sha256": "360deaf7b5e3792c3bdc813afb771a9e32db16caccb32927b4fbdee1370451f5",
+      "source": "/workspace/cloud-review-receipt-698/apps/server/src/api/explorer-csv-627.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-receipt-698/untracked/apps/web/src/reports/explorer-csv-627.test.ts",
+      "bytes": 4508,
+      "sha256": "fb515662f71e09121323d827000b415039f6aaf76f9092e537cd037000aba1d4",
+      "source": "/workspace/cloud-review-receipt-698/apps/web/src/reports/explorer-csv-627.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-receipt-698/untracked/apps/web/src/reports/explorer-csv-ui-627.test.tsx",
+      "bytes": 8089,
+      "sha256": "f04d451fa96a3f1e27a5b3e20852a84682bb48af95b6844b0b0d09f4e43a483f",
+      "source": "/workspace/cloud-review-receipt-698/apps/web/src/reports/explorer-csv-ui-627.test.tsx",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-receipt-698/untracked/docs/evidence/reference-adoption/wp-009-explorer-csv-627.md",
+      "bytes": 6414,
+      "sha256": "51666a78299e8374d15745010f7d42195b9a00806bfcd6e883dab47a4cdffc7e",
+      "source": "/workspace/cloud-review-receipt-698/docs/evidence/reference-adoption/wp-009-explorer-csv-627.md",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-receipt-698/untracked/e2e/issue-627-explorer-csv.spec.ts",
+      "bytes": 6937,
+      "sha256": "880b855de7266d083e992004a8e5c79d4dd04f09f8679207e343ce5b33ea15af",
+      "source": "/workspace/cloud-review-receipt-698/e2e/issue-627-explorer-csv.spec.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-receipt-698/untracked/packages/domain/src/overview/explorer-csv-627.test.ts",
+      "bytes": 4867,
+      "sha256": "4ec1d3f570ff51a66b7fd55cabddfd94a0a3122225c8aa50ea9407481fdffbf7",
+      "source": "/workspace/cloud-review-receipt-698/packages/domain/src/overview/explorer-csv-627.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-receipt-698/untracked/packages/domain/src/overview/explorer-csv.ts",
+      "bytes": 3138,
+      "sha256": "2f9a594cc4cfad39f562cf20d073814c912816d12297ea32ab944ac8a147119c",
+      "source": "/workspace/cloud-review-receipt-698/packages/domain/src/overview/explorer-csv.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/cloud-review-receipt-698/preservation.json",
+      "bytes": 969,
+      "sha256": "b101c6174bc383a8e3c9d4a1979c409c3574bd83c65f79e8c35572402e7b12b8",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-543/tracked-head.patch",
+      "bytes": 14797,
+      "sha256": "f745e8c48bb9e5b8dfa7648e3c9e1100d283cfcfa75a399c9065a7d3337e4299",
+      "source": "/workspace/budget-cloud-review-543 HEAD:e14932decc183919694aa5f4d24e03b4b6f54914",
+      "kind": "dirty-tracked-HEAD-binary-diff"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-543/untracked/apps/server/src/api/benchmark-quote-consistency-543.test.ts",
+      "bytes": 3232,
+      "sha256": "dc3e897b0bf3d22510a850140f6d004e6191d29930ea1ef1d2344f4cfd5c9bca",
+      "source": "/workspace/budget-cloud-review-543/apps/server/src/api/benchmark-quote-consistency-543.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-543/untracked/docs/evidence/benchmark-quote-543/README.md",
+      "bytes": 4879,
+      "sha256": "975c32825ee8ce6b1478ef914c535208ea87b848d7d35d97b216908dc41fa8b4",
+      "source": "/workspace/budget-cloud-review-543/docs/evidence/benchmark-quote-543/README.md",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-543/untracked/packages/db/src/repos/benchmark-quote-consistency-543.test.ts",
+      "bytes": 2009,
+      "sha256": "ce921de2eaaba113e393964e6148ad26a0e5e743613aa1966507feaad103ef61",
+      "source": "/workspace/budget-cloud-review-543/packages/db/src/repos/benchmark-quote-consistency-543.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-543/untracked/packages/db/src/repos/benchmark-quote-fixture-543.ts",
+      "bytes": 1287,
+      "sha256": "12fcc1176f7d7089862433d256a9c1e5d27af6296bf8fc8d1bba2713ad940b44",
+      "source": "/workspace/budget-cloud-review-543/packages/db/src/repos/benchmark-quote-fixture-543.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-543/untracked/packages/db/src/repos/depot-benchmark-quote-543.test.ts",
+      "bytes": 3586,
+      "sha256": "364a3adba9f6899a3f399b9e1c92c6de512bf3843c630449596d7bbf955ebb6e",
+      "source": "/workspace/budget-cloud-review-543/packages/db/src/repos/depot-benchmark-quote-543.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-543/untracked/packages/domain/src/invest/benchmark-quote-rule-543.test.ts",
+      "bytes": 9782,
+      "sha256": "ee5d61c576512e6ecd54fe08b919530dcc1f45aa676e36fa47a36336214585d4",
+      "source": "/workspace/budget-cloud-review-543/packages/domain/src/invest/benchmark-quote-rule-543.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-543/untracked/packages/domain/src/invest/benchmark-quotes.ts",
+      "bytes": 2577,
+      "sha256": "849a0b4c536fa4b1694887f61f9b98ab1848f4c47bd70c4e33e413900e7374e5",
+      "source": "/workspace/budget-cloud-review-543/packages/domain/src/invest/benchmark-quotes.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-543/preservation.json",
+      "bytes": 1183,
+      "sha256": "65f4253309ed4f090e066ede443811866ceec9e0d2f3bf3dfe62dcaaf546687e",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-case002/untracked/apps/server/src/api/case-002.test.ts",
+      "bytes": 5643,
+      "sha256": "dff4d1e059bd10b7b950e340d2f414644f588d79ff52db50a3728df21b860ed6",
+      "source": "/workspace/budget-cloud-review-case002/apps/server/src/api/case-002.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-case002/untracked/docs/evidence/reference-adoption/wp-001-case-002-cash-2026-10-19.md",
+      "bytes": 4451,
+      "sha256": "98e02542b0daf72391d59322af3d19c035e17eeaec86168ed95af4eb4da06410",
+      "source": "/workspace/budget-cloud-review-case002/docs/evidence/reference-adoption/wp-001-case-002-cash-2026-10-19.md",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-case002/untracked/packages/db/src/repos/case-002.test.ts",
+      "bytes": 3819,
+      "sha256": "d83cb2e676028f432658467251f86748bdab4374d46d60acfb4359ebca847742",
+      "source": "/workspace/budget-cloud-review-case002/packages/db/src/repos/case-002.test.ts",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-case002/preservation.json",
+      "bytes": 615,
+      "sha256": "917c4abccd0f994a668a22d7daf31c524b0aad91021e6295772dfedbd2fceaa7",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-677/tracked-head.patch",
+      "bytes": 3257,
+      "sha256": "f1a608f7ecb296abf13ab8fb63a25ea7aff162452f245cda0833c49aac1d0606",
+      "source": "/workspace/budget-cloud-review-677 HEAD:e14932decc183919694aa5f4d24e03b4b6f54914",
+      "kind": "dirty-tracked-HEAD-binary-diff"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-677/untracked/apps/web/src/ledger/first-booking-register-677.test.tsx",
+      "bytes": 5982,
+      "sha256": "9833affaaa4a9a3d698559050b6d66d4ac947519787617d6e2201c7b69a08365",
+      "source": "/workspace/budget-cloud-review-677/apps/web/src/ledger/first-booking-register-677.test.tsx",
+      "kind": "dirty-untracked-source"
+    },
+    {
+      "path": "dirty-worktrees/budget-cloud-review-677/preservation.json",
+      "bytes": 574,
+      "sha256": "10109e4bf51a68cbca1511d3a2ec25977cfa4404bd8447beef8e7a4a0ba55328",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "outside-proposals/604-new-pure-and-migration-v2-independent-source-high.md",
+      "bytes": 5360,
+      "sha256": "3682f7be9410d581edba8b3bd4a51afaa01a4d8bac1fc81632dc2696d2530de2",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-pure-and-migration-v2-independent-source-high.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-audit-lifecycle-adapter-first-independent-source-hold.md",
+      "bytes": 3519,
+      "sha256": "d2abbf62d0066a457d021e2c8033f8550fe27658d97f9613e0ce9a37dc2cfbc1",
+      "source": "/workspace/.budget-tools/cloud-control/604-audit-lifecycle-adapter-first-independent-source-hold.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-concrete-lifecycle-dataflow.md",
+      "bytes": 11127,
+      "sha256": "c2e211d294128793c3d42007bafd2fe997d9947d42f4bf538b09f8f2e4bb5ba8",
+      "source": "/workspace/.budget-tools/cloud-control/604-concrete-lifecycle-dataflow.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-migration48-intent-independent-source-high.md",
+      "bytes": 2604,
+      "sha256": "55e9715423676e4f094ed085e1558739e32cd2af2de23333b9145ade343a9595",
+      "source": "/workspace/.budget-tools/cloud-control/604-migration48-intent-independent-source-high.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-migration48-intent-independent-correspondence.json",
+      "bytes": 1160,
+      "sha256": "aa57db35c6e9a166a57f0257e75cda29050da551807935aaf5caf0c0a40491d8",
+      "source": "/workspace/.budget-tools/cloud-control/604-migration48-intent-independent-correspondence.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-seven-independent-source-high.md",
+      "bytes": 3014,
+      "sha256": "3f328e5c553ed510a50f1d1b2133218ad5bb42c43fbf573d4104f0e157332ab6",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-seven-independent-source-high.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-first-source/change.diff",
+      "bytes": 24146,
+      "sha256": "d2063fc75620dfac0165ba6fc696434893584127774f47f906f458c051c7f14b",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-first-source/change.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-first-source/manifest.json",
+      "bytes": 1134,
+      "sha256": "ec4ad4d2f844527d3e126f5b63be7f13e08d68f79db40246fa6e2d0c6dfbbc94",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-first-source/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-first-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "bytes": 702,
+      "sha256": "f4250e2490cc14af45c6564d2faf7d75d9f45945bbf4abaa419e1c1300dd8ecc",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-first-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-first-source/files/packages/db/src/schema/budget.ts",
+      "bytes": 15786,
+      "sha256": "621fbd19ae0fa65e7c7dcc289fb8c385c72a5a403bb6c0e0689af317edd870b0",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-first-source/files/packages/db/src/schema/budget.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-first-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "bytes": 22480,
+      "sha256": "030a60fd042fda77c0cf241c2448d2f5a452e768b6f58ade141613570f586e15",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-first-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-first-source/files/packages/db/src/repos/goals.ts",
+      "bytes": 22745,
+      "sha256": "ddb364aaa5b83d5ab0774ddbc03dd9d6d1b248ba01eb4a1ed5aa29cf4db2d8fd",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-first-source/files/packages/db/src/repos/goals.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-first-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "bytes": 1202,
+      "sha256": "eadcf08b4df0fea328bf72ed9c3acc58dc12c33434febbc43aa356b77a9f84fc",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-first-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-first-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "bytes": 272389,
+      "sha256": "d1869c6fd3fb2b27037ada22271d0bd7f70f74ad6f24ac710454fba334f7e422",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-first-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-whole-source/change.diff",
+      "bytes": 27829,
+      "sha256": "1e6c13df6e5919d3c28e2153573eae626f83a8be6b42113734b1ad64db99ffee",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-whole-source/change.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-whole-source/manifest.json",
+      "bytes": 1383,
+      "sha256": "71736cc9a96717d4ba564b7f529c1d2961c92dc319cd72865adc45044831d322",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-whole-source/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-whole-source/files/docs/ROADMAP.md",
+      "bytes": 252922,
+      "sha256": "57b248252d8936531b09cfded5f85317b878d32640a57d3e56f23cb93bde54f4",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-whole-source/files/docs/ROADMAP.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-whole-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "bytes": 702,
+      "sha256": "f4250e2490cc14af45c6564d2faf7d75d9f45945bbf4abaa419e1c1300dd8ecc",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-whole-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-whole-source/files/packages/db/src/schema/budget.ts",
+      "bytes": 15786,
+      "sha256": "621fbd19ae0fa65e7c7dcc289fb8c385c72a5a403bb6c0e0689af317edd870b0",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-whole-source/files/packages/db/src/schema/budget.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-whole-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "bytes": 22820,
+      "sha256": "a851b3fcabab268a88580c2bc58621398e499c7a693919e6790625c314e56b9b",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-whole-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-whole-source/files/packages/db/src/repos/goals.ts",
+      "bytes": 23054,
+      "sha256": "cb742b471c31f6c066d7938e0c4d03e0c7ba8f48e1423429efde5bdd656adbe0",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-whole-source/files/packages/db/src/repos/goals.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-whole-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "bytes": 1202,
+      "sha256": "eadcf08b4df0fea328bf72ed9c3acc58dc12c33434febbc43aa356b77a9f84fc",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-whole-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-whole-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "bytes": 272389,
+      "sha256": "d1869c6fd3fb2b27037ada22271d0bd7f70f74ad6f24ac710454fba334f7e422",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-whole-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-740-exact-optional-type-fixes.diff",
+      "bytes": 2515,
+      "sha256": "2075b660577f187ae38f3ee48f08caff2a5eb65aecf974997342f61accf2797d",
+      "source": "/workspace/.budget-tools/cloud-control/604-740-exact-optional-type-fixes.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-migration48-one-new-test-outside/manifest.json",
+      "bytes": 3178,
+      "sha256": "723ffb2e4405df4bc4ce4098359ceba1f5f765fe6a4e07f8f4ec6a1950c20722",
+      "source": "/workspace/.budget-tools/cloud-control/604-migration48-one-new-test-outside/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-migration48-one-new-test-outside/packages/db/src/goal-lifecycle-migration-604.test.ts",
+      "bytes": 18766,
+      "sha256": "6d1a4b213c5083c8c5bd3d65244711002d0eb47a98c2d9cc2f58f6da786be6f4",
+      "source": "/workspace/.budget-tools/cloud-control/604-migration48-one-new-test-outside/packages/db/src/goal-lifecycle-migration-604.test.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-controlled-tools-outside-proposal/README.md",
+      "bytes": 1517,
+      "sha256": "1243605191323c8ca90e51f5bf9480a1e790f2eff755a066ea547640d5305d6d",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-controlled-tools-outside-proposal/README.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-controlled-tools-outside-proposal/change.diff",
+      "bytes": 3188,
+      "sha256": "f7564554713a676b72cb1b8a75ed5caadf8e3e4828761b7fdf4b949c447a543c",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-controlled-tools-outside-proposal/change.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-controlled-tools-outside-proposal/manifest.json",
+      "bytes": 1507,
+      "sha256": "b608c7a336636b5c7f499441c0bc4692a701f867b1b978ce137a5d9339fb3bba",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-controlled-tools-outside-proposal/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-controlled-tools-outside-proposal/candidate/e2e/income-pause.spec.ts",
+      "bytes": 16786,
+      "sha256": "92da7858a87d5a73ec18d35d0c41b9bf335d67f367616c74491ff24d1d483144",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-controlled-tools-outside-proposal/candidate/e2e/income-pause.spec.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-controlled-tools-outside-proposal/candidate/e2e/liquidity-report.spec.ts",
+      "bytes": 11092,
+      "sha256": "1a48b76eec64fd1ac93f2ac2cef8512c3662097d2b077d8c085bc5688014680c",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-controlled-tools-outside-proposal/candidate/e2e/liquidity-report.spec.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-controlled-tools-outside-proposal/before/e2e/income-pause.spec.ts",
+      "bytes": 16662,
+      "sha256": "573a604a977c3af514ec7587e361d7f43eccacbd71e87e7643ceb237fa7be2cb",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-controlled-tools-outside-proposal/before/e2e/income-pause.spec.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-controlled-tools-outside-proposal/before/e2e/liquidity-report.spec.ts",
+      "bytes": 10790,
+      "sha256": "73fe742b79f2ba3357b11f3958645e110afc348e7b91b3e30f9bfd9ef1b1f207",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-controlled-tools-outside-proposal/before/e2e/liquidity-report.spec.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-readonly-lifecycle-adapter-source/manifest.json",
+      "bytes": 617,
+      "sha256": "38575ca9419db3173fa2f626d89d5ccb1cca65f3b3a7c69dc28acde0be3eaeb0",
+      "source": "/workspace/.budget-tools/cloud-control/604-readonly-lifecycle-adapter-source/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-readonly-lifecycle-adapter-source/files/packages/domain/src/index.ts",
+      "bytes": 1822,
+      "sha256": "58dbcb797924042017eaaee21ae39cdbfcdad4392aef4b9ea9894733c002c8ee",
+      "source": "/workspace/.budget-tools/cloud-control/604-readonly-lifecycle-adapter-source/files/packages/domain/src/index.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-readonly-lifecycle-adapter-source/files/packages/domain/src/goals/lifecycle.ts",
+      "bytes": 3394,
+      "sha256": "0c1c1c3f4a63d2e3ad6365421c4b2a0cb8fef3adbea594c1577c516d51461a86",
+      "source": "/workspace/.budget-tools/cloud-control/604-readonly-lifecycle-adapter-source/files/packages/domain/src/goals/lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-readonly-lifecycle-adapter-source/files/packages/db/src/repos/budget-ledger-input.ts",
+      "bytes": 2319,
+      "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c",
+      "source": "/workspace/.budget-tools/cloud-control/604-readonly-lifecycle-adapter-source/files/packages/db/src/repos/budget-ledger-input.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-readonly-lifecycle-adapter-source/files/packages/db/src/repos/queries.ts",
+      "bytes": 7291,
+      "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7",
+      "source": "/workspace/.budget-tools/cloud-control/604-readonly-lifecycle-adapter-source/files/packages/db/src/repos/queries.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-readonly-lifecycle-adapter-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "bytes": 11559,
+      "sha256": "ced092a2acc633f99d89bf15eff9d55dd5ab807c76a281519a2bdd52a7147be1",
+      "source": "/workspace/.budget-tools/cloud-control/604-readonly-lifecycle-adapter-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-independent-source-review.md",
+      "bytes": 3272,
+      "sha256": "eb0284e8cf1a54981ac57f7d6b86586fc3202325015f86846595911b52dfdaf7",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-independent-source-review.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-disclosure-independent-review-hold.md",
+      "bytes": 2090,
+      "sha256": "f428db54ae1d429f8f93994cc004e6f617315ed651b5fda3626bce07ea8bb800",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-disclosure-independent-review-hold.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-disclosure-remount-corrected-proposal/README.md",
+      "bytes": 3308,
+      "sha256": "2bb5cb505742d7ed6036d29419944415ca87ed7fada5ee987a06dd7245311722",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-disclosure-remount-corrected-proposal/README.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-disclosure-remount-corrected-proposal/change.diff",
+      "bytes": 3582,
+      "sha256": "d46cd13f72cc854a488fbed31d6f27267fc67b5beccf6d55cc7a24926b94ee61",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-disclosure-remount-corrected-proposal/change.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-disclosure-remount-corrected-proposal/manifest.json",
+      "bytes": 1395,
+      "sha256": "df83f323a6a200e9b4e62f86ebb07699649fbe77c2ec647fa5c71c216d91c7f5",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-disclosure-remount-corrected-proposal/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-disclosure-remount-corrected-proposal/candidate/e2e/income-pause.spec.ts",
+      "bytes": 16786,
+      "sha256": "92da7858a87d5a73ec18d35d0c41b9bf335d67f367616c74491ff24d1d483144",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-disclosure-remount-corrected-proposal/candidate/e2e/income-pause.spec.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-disclosure-remount-corrected-proposal/candidate/e2e/liquidity-report.spec.ts",
+      "bytes": 11154,
+      "sha256": "baaad0e515be4d01e9332596ad17ba00a7e6339089252f118cb5802c92e51c30",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-disclosure-remount-corrected-proposal/candidate/e2e/liquidity-report.spec.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-disclosure-remount-corrected-proposal/before/e2e/income-pause.spec.ts",
+      "bytes": 16662,
+      "sha256": "573a604a977c3af514ec7587e361d7f43eccacbd71e87e7643ceb237fa7be2cb",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-disclosure-remount-corrected-proposal/before/e2e/income-pause.spec.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-disclosure-remount-corrected-proposal/before/e2e/liquidity-report.spec.ts",
+      "bytes": 10790,
+      "sha256": "73fe742b79f2ba3357b11f3958645e110afc348e7b91b3e30f9bfd9ef1b1f207",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-disclosure-remount-corrected-proposal/before/e2e/liquidity-report.spec.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-rollback48-later-journal-product-outside-proposal/README.md",
+      "bytes": 2904,
+      "sha256": "25c932e504cb7c6a132b304777da42ff7bf2c93205bdc3002a342e3174e2b0d3",
+      "source": "/workspace/.budget-tools/cloud-control/604-rollback48-later-journal-product-outside-proposal/README.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-rollback48-later-journal-product-outside-proposal/inverse-proof.json",
+      "bytes": 851,
+      "sha256": "a90fe1efb8091bbb1222931e07f89a71dc8e86c4a8e2353c9b3244a01988c0a8",
+      "source": "/workspace/.budget-tools/cloud-control/604-rollback48-later-journal-product-outside-proposal/inverse-proof.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-rollback48-later-journal-product-outside-proposal/change.diff",
+      "bytes": 986,
+      "sha256": "21990c601dbfb66c4443bef0fbda87107a4d8921f210b3efb9ffd447d20f0260",
+      "source": "/workspace/.budget-tools/cloud-control/604-rollback48-later-journal-product-outside-proposal/change.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-rollback48-later-journal-product-outside-proposal/manifest.json",
+      "bytes": 1756,
+      "sha256": "224863212b7cf5c644c9c23a27eb1d286230f150d506f2ec629dace63831a493",
+      "source": "/workspace/.budget-tools/cloud-control/604-rollback48-later-journal-product-outside-proposal/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-rollback48-later-journal-product-outside-proposal/candidate/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "bytes": 1385,
+      "sha256": "6d2b4cbc3d525afeff41781738c28dbde0dd06e9e4d9559791fd9638a90ca17a",
+      "source": "/workspace/.budget-tools/cloud-control/604-rollback48-later-journal-product-outside-proposal/candidate/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-rollback48-later-journal-product-outside-proposal/reference/packages/db/drizzle/rollback/0047_statement_automation.sql",
+      "bytes": 5535,
+      "sha256": "2463e7edc919a57e2c3a2264679a9ea1a2728df2217e45a494a29f55c9564b7b",
+      "source": "/workspace/.budget-tools/cloud-control/604-rollback48-later-journal-product-outside-proposal/reference/packages/db/drizzle/rollback/0047_statement_automation.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-rollback48-later-journal-product-outside-proposal/before/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "bytes": 1202,
+      "sha256": "eadcf08b4df0fea328bf72ed9c3acc58dc12c33434febbc43aa356b77a9f84fc",
+      "source": "/workspace/.budget-tools/cloud-control/604-rollback48-later-journal-product-outside-proposal/before/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-domain-api-independent-source-high.md",
+      "bytes": 4103,
+      "sha256": "1d63a07bd8be019010ee56516afc8ecac998268b3c4cfc1ba72f423e5b675f32",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-domain-api-independent-source-high.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-pure-lifecycle-outside-proposal/README.md",
+      "bytes": 3058,
+      "sha256": "6ded72da0cad6034f6dae5305c43795a779e1f991ea0adeec83e9b504e0b6dd8",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-pure-lifecycle-outside-proposal/README.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-pure-lifecycle-outside-proposal/change.diff",
+      "bytes": 8337,
+      "sha256": "a53eaaf07155f04e7d476ab388cd5cafa24f43374b306a25a903e45b82459267",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-pure-lifecycle-outside-proposal/change.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-pure-lifecycle-outside-proposal/manifest.json",
+      "bytes": 1928,
+      "sha256": "b70497fc670aecfeb5648e5546decdbe60b6870e61423503291633513e3e5127",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-pure-lifecycle-outside-proposal/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-pure-lifecycle-outside-proposal/candidate/packages/domain/src/goals/lifecycle-604.test.ts",
+      "bytes": 8082,
+      "sha256": "85f588b9137658ef9ee0398c119af9c40b58a9db33f1a7ad95c6b96dd6fc272a",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-pure-lifecycle-outside-proposal/candidate/packages/domain/src/goals/lifecycle-604.test.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-pure-lifecycle-outside-proposal/source-pins/packages/domain/src/goals/lifecycle.ts",
+      "bytes": 3591,
+      "sha256": "82c34702cd69c59dc3e4496baeb1edbdfebff05eefe5900261ee879c25aa9387",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-pure-lifecycle-outside-proposal/source-pins/packages/domain/src/goals/lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-pure-lifecycle-outside-proposal/source-pins/packages/domain/src/goals/goals.ts",
+      "bytes": 6127,
+      "sha256": "2889f405eb66bb302938771d6ecadd330cdb534d60fbc33dd0efa30e6a01e68b",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-pure-lifecycle-outside-proposal/source-pins/packages/domain/src/goals/goals.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-pure-lifecycle-outside-proposal/source-pins/packages/domain/src/ledger/targets.ts",
+      "bytes": 4607,
+      "sha256": "735480839f512071f15985bf69bb747196a70a7375e4217bccd7f5aff9db0845",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-pure-lifecycle-outside-proposal/source-pins/packages/domain/src/ledger/targets.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-pure-lifecycle-outside-proposal/source-pins/packages/db/src/repos/goal-lifecycle.ts",
+      "bytes": 23978,
+      "sha256": "b0078f78fbb8dfe33fbdf92261bcfa92549c8a1e4864e7ffbe50a55db9e92116",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-pure-lifecycle-outside-proposal/source-pins/packages/db/src/repos/goal-lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-pure-lifecycle-outside-proposal/source-pins/packages/db/src/repos/goals.ts",
+      "bytes": 23268,
+      "sha256": "96a6af187f582096fd128e2051b848781483238d6bcc43e696b055052fff794c",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-pure-lifecycle-outside-proposal/source-pins/packages/db/src/repos/goals.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-canonical-lifecycle-independent-source-review.md",
+      "bytes": 2069,
+      "sha256": "76aa26c1da003872238893fb77d8c69ac1209eec2355835e4a1619250fddf172",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-canonical-lifecycle-independent-source-review.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-whole22-final-independent-source-high.md",
+      "bytes": 5690,
+      "sha256": "a47fe2fe5932b646c93c4c5ec3040a970b4de2ec49c17b286194b9e5775eb54a",
+      "source": "/workspace/.budget-tools/cloud-control/604-whole22-final-independent-source-high.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-corrected-provenance-adapter-independent-source-high.md",
+      "bytes": 2941,
+      "sha256": "176b935345be9526906856d8d90d8b9578028c948933393853e900a39bd235c1",
+      "source": "/workspace/.budget-tools/cloud-control/604-corrected-provenance-adapter-independent-source-high.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-local-integration-section-replacement.json",
+      "bytes": 629,
+      "sha256": "82a938aa37a25af938a91c134259781d6d9807d2040c67ef7e0ab63bc0c60049",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-local-integration-section-replacement.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/manifest.json",
+      "bytes": 3615,
+      "sha256": "92bf1874b4b57c93b53911f16848681810a557b62db0ba912658a54c57f42412",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/SPEC.md",
+      "bytes": 51766,
+      "sha256": "b08704a5e9e48cf7223bebf81d5775e8b543c1bb41e0b564d5c40345d1e09c42",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/SPEC.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/docs/ROADMAP.md",
+      "bytes": 252468,
+      "sha256": "f77ddbe81a9335a159b611e1e1c50150053f6a00509b06d620043b0cfb2add5f",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/docs/ROADMAP.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/apps/web/src/pages/goals-progress-report.tsx",
+      "bytes": 18093,
+      "sha256": "8202eca1a57077788e23498d45b90fc69e10153fd1d1dd6b9002b924cf785106",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/apps/web/src/pages/goals-progress-report.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/apps/web/src/budget/goals-model.ts",
+      "bytes": 3793,
+      "sha256": "221ca9d3d9c000b4ad260a0814d85148d732f5b89640572d1374ae46508d93a3",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/apps/web/src/budget/goals-model.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/apps/web/src/budget/goals.css",
+      "bytes": 3511,
+      "sha256": "cd7b83c7286c41030b1dafd13e05928d5ece7b46a3146b5923f2e80f78a8ab1c",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/apps/web/src/budget/goals.css",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/apps/web/src/budget/goals-panel.tsx",
+      "bytes": 10823,
+      "sha256": "d678971541c7e8e26b67384c2b84559fe439eaad3e47682dcc960d9cc2668e68",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/apps/web/src/budget/goals-panel.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/apps/web/src/budget/goals-page.tsx",
+      "bytes": 11719,
+      "sha256": "49e55ee3539a08935f01dcb4781ae914d7a3b6d66e96de5de76b7ef626c73acc",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/apps/web/src/budget/goals-page.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/apps/web/src/budget/plan-panel-pages.tsx",
+      "bytes": 9228,
+      "sha256": "4f3979691f8bf0bc15074295c32d50f7c11c95b0b7bbafd139beee07709f8ab9",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/apps/web/src/budget/plan-panel-pages.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/apps/web/src/budget/goals-api.ts",
+      "bytes": 2763,
+      "sha256": "28e269c07af76d1e2545aba42c95d7d518e31e9c5453336309504fee1fc55b9e",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/apps/web/src/budget/goals-api.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/apps/server/src/api/schemas.ts",
+      "bytes": 15244,
+      "sha256": "aa56edeeb2c551bd40e07d6ac2892a025b112149a1278c59cb2927c768f1070d",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/apps/server/src/api/schemas.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/apps/server/src/api/goals.ts",
+      "bytes": 3136,
+      "sha256": "a1743db149e4d6317c2b14ebc6c16a6c25c676ff36bd32a9505d8b7f6e2790a7",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/apps/server/src/api/goals.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/packages/domain/src/index.ts",
+      "bytes": 1822,
+      "sha256": "58dbcb797924042017eaaee21ae39cdbfcdad4392aef4b9ea9894733c002c8ee",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/packages/domain/src/index.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/packages/domain/src/goals/lifecycle.ts",
+      "bytes": 3591,
+      "sha256": "82c34702cd69c59dc3e4496baeb1edbdfebff05eefe5900261ee879c25aa9387",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/packages/domain/src/goals/lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "bytes": 451,
+      "sha256": "38315a73c9c07da0e89e0b77ce6a0e6b724ba0e328e70934b513fd0ed8e2e9da",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/packages/db/src/schema/budget.ts",
+      "bytes": 15477,
+      "sha256": "96f15acd478900da0ac2bfd362c82c2efdb1028f40a7ec5434de8c455e123410",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/packages/db/src/schema/budget.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/packages/db/src/repos/budget-ledger-input.ts",
+      "bytes": 2319,
+      "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/packages/db/src/repos/budget-ledger-input.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/packages/db/src/repos/queries.ts",
+      "bytes": 7291,
+      "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/packages/db/src/repos/queries.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "bytes": 13986,
+      "sha256": "4141c1819b06b44c35a342f2ed3c47defc5290fe6e1f4a6bb7abd7adb3d3e787",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/packages/db/src/repos/goals.ts",
+      "bytes": 21500,
+      "sha256": "c14af63f07fbb24e8112a2c19f19ee3b47ad38c3eacb6f47b0cba4a257830ea1",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/packages/db/src/repos/goals.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "bytes": 971,
+      "sha256": "14eb89462c1ef2e5a4220d42dbe13cf6e794a7a919fd8dfdc80da7c90b2d51be",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/packages/db/drizzle/meta/_journal.json",
+      "bytes": 7221,
+      "sha256": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/packages/db/drizzle/meta/_journal.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-completed-target-ownership-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "bytes": 271874,
+      "sha256": "b6d942e2cce708db2cf913d8f40430dbcbc7c9caf6b389b2dd702577d36e5f24",
+      "source": "/workspace/.budget-tools/cloud-control/604-completed-target-ownership-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/manifest.json",
+      "bytes": 3744,
+      "sha256": "85f2724d4c8c3413261210f5aca02a3bbfea1e62208727823aed3a7052f9ec7c",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/SPEC.md",
+      "bytes": 51766,
+      "sha256": "b08704a5e9e48cf7223bebf81d5775e8b543c1bb41e0b564d5c40345d1e09c42",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/SPEC.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/docs/ROADMAP.md",
+      "bytes": 252262,
+      "sha256": "e1b9dd8dcb182ee785eb3201366ad40c6bd23bfb791432c971396f97bfccbc5d",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/docs/ROADMAP.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/apps/web/src/pages/goals-progress-report.tsx",
+      "bytes": 18076,
+      "sha256": "3f284437bfd76c155c86878360371b71571197c28892c76aa1d190545e9e385d",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/apps/web/src/pages/goals-progress-report.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/apps/web/src/budget/goals-model.ts",
+      "bytes": 3355,
+      "sha256": "1647739b66fb2b8b5025f4707f4a83b6e59f5bd60e46d49364be0f79b625f5d5",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/apps/web/src/budget/goals-model.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/apps/web/src/budget/goals.css",
+      "bytes": 3511,
+      "sha256": "cd7b83c7286c41030b1dafd13e05928d5ece7b46a3146b5923f2e80f78a8ab1c",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/apps/web/src/budget/goals.css",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/apps/web/src/budget/goals-panel.tsx",
+      "bytes": 10635,
+      "sha256": "250c5d1ba5e7bc32d845993d6c9df7456c4fa6977c7844976129ce5bf2dc4d90",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/apps/web/src/budget/goals-panel.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/apps/web/src/budget/goals-page.tsx",
+      "bytes": 11597,
+      "sha256": "3108c02b463ac9a9dd67ac39efa9ad220fdb500dfa1feaab402c70069541a4f2",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/apps/web/src/budget/goals-page.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/apps/web/src/budget/plan-panel-pages.tsx",
+      "bytes": 9201,
+      "sha256": "e97c54dca493ae4681543242c38d54ad9ce60ca5a6425d309cff942227f8ccf8",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/apps/web/src/budget/plan-panel-pages.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/apps/web/src/budget/goals-api.ts",
+      "bytes": 2704,
+      "sha256": "9eabe770db8cd81f1ddbcee4d5239d574fa44e27a6be05c8e16f41a15c8c34cb",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/apps/web/src/budget/goals-api.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/apps/server/src/api/schemas.ts",
+      "bytes": 15153,
+      "sha256": "3314a7cf3e77540a9a6d93e295231a499fa64abb8b14fb39e9692ea97f48768d",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/apps/server/src/api/schemas.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/apps/server/src/api/goals.ts",
+      "bytes": 3042,
+      "sha256": "57eda91b335e24f92b2a310f476ec9939b744ed70bdab1d719d8a38a43b1012d",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/apps/server/src/api/goals.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/packages/domain/src/index.ts",
+      "bytes": 1822,
+      "sha256": "58dbcb797924042017eaaee21ae39cdbfcdad4392aef4b9ea9894733c002c8ee",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/packages/domain/src/index.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/packages/domain/src/goals/lifecycle.ts",
+      "bytes": 3591,
+      "sha256": "82c34702cd69c59dc3e4496baeb1edbdfebff05eefe5900261ee879c25aa9387",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/packages/domain/src/goals/lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "bytes": 451,
+      "sha256": "38315a73c9c07da0e89e0b77ce6a0e6b724ba0e328e70934b513fd0ed8e2e9da",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/packages/db/src/schema/budget.ts",
+      "bytes": 15477,
+      "sha256": "96f15acd478900da0ac2bfd362c82c2efdb1028f40a7ec5434de8c455e123410",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/packages/db/src/schema/budget.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/packages/db/src/repos/budget-ledger-input.ts",
+      "bytes": 2319,
+      "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/packages/db/src/repos/budget-ledger-input.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/packages/db/src/repos/queries.ts",
+      "bytes": 7291,
+      "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/packages/db/src/repos/queries.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "bytes": 13986,
+      "sha256": "4141c1819b06b44c35a342f2ed3c47defc5290fe6e1f4a6bb7abd7adb3d3e787",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/packages/db/src/repos/goals.ts",
+      "bytes": 19195,
+      "sha256": "cf107286161bd67cd572e8d64899110eedb2b4523fa7c4f01f93be6778f84198",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/packages/db/src/repos/goals.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "bytes": 971,
+      "sha256": "14eb89462c1ef2e5a4220d42dbe13cf6e794a7a919fd8dfdc80da7c90b2d51be",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/packages/db/drizzle/meta/_journal.json",
+      "bytes": 7221,
+      "sha256": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/packages/db/drizzle/meta/_journal.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-provenance-date-corrections-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "bytes": 271874,
+      "sha256": "b6d942e2cce708db2cf913d8f40430dbcbc7c9caf6b389b2dd702577d36e5f24",
+      "source": "/workspace/.budget-tools/cloud-control/604-provenance-date-corrections-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/change.diff",
+      "bytes": 45649,
+      "sha256": "852a9410f4859ffd680dd498d162be5175fe309ef3b5664e4105a86ec2c49a93",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/change.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/manifest.json",
+      "bytes": 3570,
+      "sha256": "c31df06d0e67bc5d4b6956200c76e38a9914736e609b46b6f3b95ccba3c25310",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/SPEC.md",
+      "bytes": 51766,
+      "sha256": "b08704a5e9e48cf7223bebf81d5775e8b543c1bb41e0b564d5c40345d1e09c42",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/SPEC.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/docs/ROADMAP.md",
+      "bytes": 252262,
+      "sha256": "e1b9dd8dcb182ee785eb3201366ad40c6bd23bfb791432c971396f97bfccbc5d",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/docs/ROADMAP.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/apps/web/src/pages/goals-progress-report.tsx",
+      "bytes": 18076,
+      "sha256": "3f284437bfd76c155c86878360371b71571197c28892c76aa1d190545e9e385d",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/apps/web/src/pages/goals-progress-report.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/apps/web/src/budget/goals-model.ts",
+      "bytes": 3355,
+      "sha256": "1647739b66fb2b8b5025f4707f4a83b6e59f5bd60e46d49364be0f79b625f5d5",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/apps/web/src/budget/goals-model.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/apps/web/src/budget/goals.css",
+      "bytes": 3511,
+      "sha256": "cd7b83c7286c41030b1dafd13e05928d5ece7b46a3146b5923f2e80f78a8ab1c",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/apps/web/src/budget/goals.css",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/apps/web/src/budget/goals-panel.tsx",
+      "bytes": 10635,
+      "sha256": "250c5d1ba5e7bc32d845993d6c9df7456c4fa6977c7844976129ce5bf2dc4d90",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/apps/web/src/budget/goals-panel.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/apps/web/src/budget/goals-page.tsx",
+      "bytes": 11597,
+      "sha256": "3108c02b463ac9a9dd67ac39efa9ad220fdb500dfa1feaab402c70069541a4f2",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/apps/web/src/budget/goals-page.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/apps/web/src/budget/plan-panel-pages.tsx",
+      "bytes": 9201,
+      "sha256": "e97c54dca493ae4681543242c38d54ad9ce60ca5a6425d309cff942227f8ccf8",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/apps/web/src/budget/plan-panel-pages.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/apps/web/src/budget/goals-api.ts",
+      "bytes": 2704,
+      "sha256": "9eabe770db8cd81f1ddbcee4d5239d574fa44e27a6be05c8e16f41a15c8c34cb",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/apps/web/src/budget/goals-api.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/apps/server/src/api/schemas.ts",
+      "bytes": 15153,
+      "sha256": "3314a7cf3e77540a9a6d93e295231a499fa64abb8b14fb39e9692ea97f48768d",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/apps/server/src/api/schemas.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/apps/server/src/api/goals.ts",
+      "bytes": 2976,
+      "sha256": "4b35ecf47f020c4776200f8857f066f0d6a3bf1de026dfeeff63941fb3a6567f",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/apps/server/src/api/goals.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/packages/domain/src/index.ts",
+      "bytes": 1822,
+      "sha256": "58dbcb797924042017eaaee21ae39cdbfcdad4392aef4b9ea9894733c002c8ee",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/packages/domain/src/index.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/packages/domain/src/goals/lifecycle.ts",
+      "bytes": 3368,
+      "sha256": "da7819a306821f893470019b1413e869166c7f601ed1c9cc9a7a43360dd07c67",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/packages/domain/src/goals/lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "bytes": 451,
+      "sha256": "38315a73c9c07da0e89e0b77ce6a0e6b724ba0e328e70934b513fd0ed8e2e9da",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/packages/db/src/schema/budget.ts",
+      "bytes": 15477,
+      "sha256": "96f15acd478900da0ac2bfd362c82c2efdb1028f40a7ec5434de8c455e123410",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/packages/db/src/schema/budget.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/packages/db/src/repos/budget-ledger-input.ts",
+      "bytes": 2319,
+      "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/packages/db/src/repos/budget-ledger-input.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/packages/db/src/repos/queries.ts",
+      "bytes": 7291,
+      "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/packages/db/src/repos/queries.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "bytes": 12692,
+      "sha256": "cd28b6da982b57deb84f896cfd91aaea1c75ed6c1b046d9be5283a9e1db48245",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/packages/db/src/repos/goals.ts",
+      "bytes": 18743,
+      "sha256": "1639daaae2f6a3b757b3faee9e9a7ea6ad31988a857d35cdb222d9ae7eeeb20e",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/packages/db/src/repos/goals.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "bytes": 971,
+      "sha256": "14eb89462c1ef2e5a4220d42dbe13cf6e794a7a919fd8dfdc80da7c90b2d51be",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/packages/db/drizzle/meta/_journal.json",
+      "bytes": 7221,
+      "sha256": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/packages/db/drizzle/meta/_journal.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-whole-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "bytes": 271874,
+      "sha256": "b6d942e2cce708db2cf913d8f40430dbcbc7c9caf6b389b2dd702577d36e5f24",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-whole-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-helper-contract.md",
+      "bytes": 4569,
+      "sha256": "d8369a7b0aaea26366e3d867fd518a01ea3ac7ed889c94b1f26882e7bab6871e",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-helper-contract.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-canonical-lifecycle-source/manifest.json",
+      "bytes": 600,
+      "sha256": "c8ae70e8aabb2a933b4eb77d52302d036b3870c0bd62c594a09e6fe541122905",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-canonical-lifecycle-source/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-canonical-lifecycle-source/files/packages/domain/src/goals/lifecycle.ts",
+      "bytes": 3270,
+      "sha256": "b53e70358c55b2ec5094a17a5e1378da580f4b644c65e07dc2bdf1846e72e03d",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-canonical-lifecycle-source/files/packages/domain/src/goals/lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-canonical-lifecycle-source/files/packages/db/src/repos/budget-ledger-input.ts",
+      "bytes": 2319,
+      "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-canonical-lifecycle-source/files/packages/db/src/repos/budget-ledger-input.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-first-canonical-lifecycle-source/files/packages/db/src/repos/queries.ts",
+      "bytes": 7291,
+      "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7",
+      "source": "/workspace/.budget-tools/cloud-control/604-first-canonical-lifecycle-source/files/packages/db/src/repos/queries.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-salary-marker-outside-proposal/README.md",
+      "bytes": 4389,
+      "sha256": "34b119673bd68bfc73372fdb3c3be77eed462830c3901b60255eb431ed41cde3",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-salary-marker-outside-proposal/README.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-salary-marker-outside-proposal/candidate.diff",
+      "bytes": 4812,
+      "sha256": "197db1e389a4fba58a58e1092c93160cc95e163e85043c0717d6efe7972b1003",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-salary-marker-outside-proposal/candidate.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-salary-marker-outside-proposal/source.inverse.diff",
+      "bytes": 1881,
+      "sha256": "144dbc182416b3f3bedc76497f3ae85e6e2818fe2190f40b6fe2aeff7b3140f5",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-salary-marker-outside-proposal/source.inverse.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-salary-marker-outside-proposal/source.diff",
+      "bytes": 1881,
+      "sha256": "a5d1cc2489faa855867c46d48900217bc27caba467db5bbc9ce6da4cb36e4ff3",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-salary-marker-outside-proposal/source.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-salary-marker-outside-proposal/new-test.diff",
+      "bytes": 2931,
+      "sha256": "f9947aaea9f0f7f5191c6f2c24dde6a6515180bdc77f9fc29dbb27cc229dcef3",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-salary-marker-outside-proposal/new-test.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-salary-marker-outside-proposal/manifest.json",
+      "bytes": 2534,
+      "sha256": "3618ca8933934f2e376146d441b1ef568836ec9f162cd4b491fa77f03ad02f0b",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-salary-marker-outside-proposal/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-salary-marker-outside-proposal/original/apps/web/src/reports/liquidity-selection.ts",
+      "bytes": 3714,
+      "sha256": "843569102b563d12c8cbd3fea9599ec7ddfe47943565607e7bf16f5c8e31300a",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-salary-marker-outside-proposal/original/apps/web/src/reports/liquidity-selection.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-salary-marker-outside-proposal/original/packages/domain/src/forecast/report.ts",
+      "bytes": 14620,
+      "sha256": "3a8a2fdf705c90ed75db12c0f01792b2423ff81578b2c259402edd98e6ba9af9",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-salary-marker-outside-proposal/original/packages/domain/src/forecast/report.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-salary-marker-outside-proposal/candidate/apps/web/src/reports/liquidity-selection.ts",
+      "bytes": 3665,
+      "sha256": "24f52eccc924e14530e64db1a0ca31e6589712239512df78c618e4bac389cf3c",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-salary-marker-outside-proposal/candidate/apps/web/src/reports/liquidity-selection.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-salary-marker-outside-proposal/candidate/apps/web/src/reports/liquidity-salary-provenance-568-569.test.ts",
+      "bytes": 2760,
+      "sha256": "2e37ce832742efdf7d19cdf983e625a7066603d9c9515d93cf966514b0451dcb",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-salary-marker-outside-proposal/candidate/apps/web/src/reports/liquidity-salary-provenance-568-569.test.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-salary-marker-outside-proposal/candidate/packages/domain/src/forecast/report.ts",
+      "bytes": 15130,
+      "sha256": "7915697f2e4af0ce3c00bf7e004036381939f1b182544ef85e26104a19addcff",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-salary-marker-outside-proposal/candidate/packages/domain/src/forecast/report.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-tools-state-outside-proposal/README.md",
+      "bytes": 942,
+      "sha256": "5887b6766cb93e12ca7c9bffdeaed340e0c93542a666460a515a217aa07984ea",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-tools-state-outside-proposal/README.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-tools-state-outside-proposal/candidate.tsx",
+      "bytes": 42206,
+      "sha256": "33d069e327e517118c4c311276211fd33b26d91dfbb091acff195951b50e14da",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-tools-state-outside-proposal/candidate.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-tools-state-outside-proposal/change.diff",
+      "bytes": 1050,
+      "sha256": "17535c0cde38640c52c2e6eae0d888ac3d043286ce4b540d2f86044e5b4315b5",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-tools-state-outside-proposal/change.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-tools-state-outside-proposal/manifest.json",
+      "bytes": 545,
+      "sha256": "90af259f94d5ddbb9c0b752d5fa0c34c81e6de24c1b65122bfdc456f5f78dc5d",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-tools-state-outside-proposal/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-tools-state-outside-proposal/before.tsx",
+      "bytes": 42061,
+      "sha256": "f6d445990132c0bbdf95bac7c764743bf34053de429ffedb706ad55aa01485f1",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-tools-state-outside-proposal/before.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-final-whole22-independent-correspondence.json",
+      "bytes": 3755,
+      "sha256": "dc47b01889fd7e926ee3deb95e7845e7cc9660d26ab7b41c2fc424737b4cc5af",
+      "source": "/workspace/.budget-tools/cloud-control/604-final-whole22-independent-correspondence.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-proposal.md",
+      "bytes": 5623,
+      "sha256": "41e1f328b885b18b2895c90918d3b152abbb475147b73c0616feaf4f76f1e1d8",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-proposal.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-eight-source-independent-high.md",
+      "bytes": 2566,
+      "sha256": "68b7cf2e1deaa0ea70f8dc2c3c42c731d941f2479bb0bfa7366fba97a3721d26",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-eight-source-independent-high.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/manifest.json",
+      "bytes": 3979,
+      "sha256": "a962bc3efeda2293ee3d65c791e087f1e1817eed47f7d93f285a127141019c2c",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/SPEC.md",
+      "bytes": 51766,
+      "sha256": "b08704a5e9e48cf7223bebf81d5775e8b543c1bb41e0b564d5c40345d1e09c42",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/SPEC.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/docs/ROADMAP.md",
+      "bytes": 252468,
+      "sha256": "f77ddbe81a9335a159b611e1e1c50150053f6a00509b06d620043b0cfb2add5f",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/docs/ROADMAP.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/apps/web/src/pages/goals-progress-report.tsx",
+      "bytes": 18093,
+      "sha256": "8202eca1a57077788e23498d45b90fc69e10153fd1d1dd6b9002b924cf785106",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/apps/web/src/pages/goals-progress-report.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/goals-model.ts",
+      "bytes": 3793,
+      "sha256": "221ca9d3d9c000b4ad260a0814d85148d732f5b89640572d1374ae46508d93a3",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/goals-model.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/goals.css",
+      "bytes": 3511,
+      "sha256": "cd7b83c7286c41030b1dafd13e05928d5ece7b46a3146b5923f2e80f78a8ab1c",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/goals.css",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/goals-panel.tsx",
+      "bytes": 10823,
+      "sha256": "d678971541c7e8e26b67384c2b84559fe439eaad3e47682dcc960d9cc2668e68",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/goals-panel.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/goals-page.tsx",
+      "bytes": 11719,
+      "sha256": "49e55ee3539a08935f01dcb4781ae914d7a3b6d66e96de5de76b7ef626c73acc",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/goals-page.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/plan-panel-pages.tsx",
+      "bytes": 9228,
+      "sha256": "4f3979691f8bf0bc15074295c32d50f7c11c95b0b7bbafd139beee07709f8ab9",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/plan-panel-pages.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/goals-api.ts",
+      "bytes": 2763,
+      "sha256": "28e269c07af76d1e2545aba42c95d7d518e31e9c5453336309504fee1fc55b9e",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/apps/web/src/budget/goals-api.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/apps/server/src/api/schemas.ts",
+      "bytes": 15244,
+      "sha256": "aa56edeeb2c551bd40e07d6ac2892a025b112149a1278c59cb2927c768f1070d",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/apps/server/src/api/schemas.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/apps/server/src/api/goals.ts",
+      "bytes": 3136,
+      "sha256": "a1743db149e4d6317c2b14ebc6c16a6c25c676ff36bd32a9505d8b7f6e2790a7",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/apps/server/src/api/goals.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/packages/domain/src/index.ts",
+      "bytes": 1822,
+      "sha256": "58dbcb797924042017eaaee21ae39cdbfcdad4392aef4b9ea9894733c002c8ee",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/packages/domain/src/index.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/packages/domain/src/goals/lifecycle.ts",
+      "bytes": 3591,
+      "sha256": "82c34702cd69c59dc3e4496baeb1edbdfebff05eefe5900261ee879c25aa9387",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/packages/domain/src/goals/lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "bytes": 451,
+      "sha256": "38315a73c9c07da0e89e0b77ce6a0e6b724ba0e328e70934b513fd0ed8e2e9da",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/packages/db/src/schema/budget.ts",
+      "bytes": 15477,
+      "sha256": "96f15acd478900da0ac2bfd362c82c2efdb1028f40a7ec5434de8c455e123410",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/packages/db/src/schema/budget.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/packages/db/src/repos/budget-ledger-input.ts",
+      "bytes": 2319,
+      "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/packages/db/src/repos/budget-ledger-input.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/packages/db/src/repos/queries.ts",
+      "bytes": 7291,
+      "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/packages/db/src/repos/queries.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "bytes": 13986,
+      "sha256": "4141c1819b06b44c35a342f2ed3c47defc5290fe6e1f4a6bb7abd7adb3d3e787",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/packages/db/src/repos/goals.ts",
+      "bytes": 20064,
+      "sha256": "186ab9633d341757867691d870cef8bb084c8a5a021f2d351cf786683db82923",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/packages/db/src/repos/goals.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "bytes": 971,
+      "sha256": "14eb89462c1ef2e5a4220d42dbe13cf6e794a7a919fd8dfdc80da7c90b2d51be",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/packages/db/drizzle/meta/_journal.json",
+      "bytes": 7221,
+      "sha256": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/packages/db/drizzle/meta/_journal.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-reviewed-rate-and-editor-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "bytes": 271874,
+      "sha256": "b6d942e2cce708db2cf913d8f40430dbcbc7c9caf6b389b2dd702577d36e5f24",
+      "source": "/workspace/.budget-tools/cloud-control/604-reviewed-rate-and-editor-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-independent-source-high.md",
+      "bytes": 5126,
+      "sha256": "1473c84808ef330f8c98941b7e90f5f46c7e5fb2eb4bae589f6116be6025ae04",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-independent-source-high.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-next-after-589-readonly-handoff/manifest.json",
+      "bytes": 2525,
+      "sha256": "b681f02c1edf757130f5ffc575daf7e753c2f7cf0c90a34b042fbbe7a40987e3",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-next-after-589-readonly-handoff/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-next-after-589-readonly-handoff/HANDOFF.md",
+      "bytes": 3763,
+      "sha256": "33973146919f163cbf8feecee53335c7af4d71bfcc416e1e2e8734a0c394c24f",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-next-after-589-readonly-handoff/HANDOFF.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-local-integration-append-union.json",
+      "bytes": 627,
+      "sha256": "a30015de9b5a11492db952ac03a4ffa319755725b089b7831334e8d16c588db9",
+      "source": "/workspace/.budget-tools/cloud-control/604-local-integration-append-union.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-readonly-goals-contract.md",
+      "bytes": 17486,
+      "sha256": "8a629a61b82f880b0045eedd2bce3a41a8966b13b6ee66893235038123c78f6d",
+      "source": "/workspace/.budget-tools/cloud-control/604-readonly-goals-contract.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-source-implemented-batch-pending/DEFERRED_VALIDATION.md",
+      "bytes": 1615,
+      "sha256": "9ceacd2b4fd7ef7dc4f0939e9697e8020f6293aa7f09b0e267d4d3119e6ace03",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-source-implemented-batch-pending/DEFERRED_VALIDATION.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-source-implemented-batch-pending/checkpoint.json",
+      "bytes": 205,
+      "sha256": "4b0d38dbaba5a54aa3a715e2453f75728cde9fb60112e5c13c605ea456f02f81",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-source-implemented-batch-pending/checkpoint.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-source-implemented-batch-pending/source.diff",
+      "bytes": 18336,
+      "sha256": "c3067b55f2a3d885b66eb906be5bd244b8f48041d64a6c99552d9bf86446d5d8",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-source-implemented-batch-pending/source.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-source-implemented-batch-pending/manifest.json",
+      "bytes": 1598,
+      "sha256": "55990551a92420e0910dd1d7b329c5117523e599df5401b036218e0a30f44cc3",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-source-implemented-batch-pending/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-disclosure-outside-proposal/README.md",
+      "bytes": 2818,
+      "sha256": "28b702bc1f05650d8080d1f4fc8c16df67e9026b9c96869e3dc08d9533816dc7",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-disclosure-outside-proposal/README.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-disclosure-outside-proposal/change.diff",
+      "bytes": 3203,
+      "sha256": "bfc12012267dde5f26b43664df7f1f962a1e71711e8948602149d178e46d4d4c",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-disclosure-outside-proposal/change.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-disclosure-outside-proposal/manifest.json",
+      "bytes": 1302,
+      "sha256": "ef19d395536c2689b5600a63c6100e25c6fe428fc8d0223c49159585ee998d00",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-disclosure-outside-proposal/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-disclosure-outside-proposal/candidate/e2e/income-pause.spec.ts",
+      "bytes": 16786,
+      "sha256": "92da7858a87d5a73ec18d35d0c41b9bf335d67f367616c74491ff24d1d483144",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-disclosure-outside-proposal/candidate/e2e/income-pause.spec.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-disclosure-outside-proposal/candidate/e2e/liquidity-report.spec.ts",
+      "bytes": 11092,
+      "sha256": "2e5973b2e5abf796d87bed7a44d412d08a3ba96804df003b30056f274af24dda",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-disclosure-outside-proposal/candidate/e2e/liquidity-report.spec.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-disclosure-outside-proposal/before/e2e/income-pause.spec.ts",
+      "bytes": 16662,
+      "sha256": "573a604a977c3af514ec7587e361d7f43eccacbd71e87e7643ceb237fa7be2cb",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-disclosure-outside-proposal/before/e2e/income-pause.spec.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-disclosure-outside-proposal/before/e2e/liquidity-report.spec.ts",
+      "bytes": 10790,
+      "sha256": "73fe742b79f2ba3357b11f3958645e110afc348e7b91b3e30f9bfd9ef1b1f207",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-disclosure-outside-proposal/before/e2e/liquidity-report.spec.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/README.md",
+      "bytes": 4797,
+      "sha256": "0646249e4bea9de6a0ee072490efc660ad31cb2c45a276253f0a5147ca50c7e6",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/README.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/phone-profile-only.diff",
+      "bytes": 1429,
+      "sha256": "67e0d0a4bec321ece143f37af0bb6f62889dea0b6c8a4f1fc28dea986964b56e",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/phone-profile-only.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/new-tests.diff",
+      "bytes": 30707,
+      "sha256": "28bf5fcd02ae5dd01b6295aaef7a343f61612a5a0f8a957912c122616e8b787a",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/new-tests.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/manifest.json",
+      "bytes": 2951,
+      "sha256": "26601e5d4d73ded9a33abe0c6788fedba98881ba721ab30bd7c01c03bcd46d4b",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/initial-97fc9159/README.md",
+      "bytes": 4739,
+      "sha256": "68133fe977e10796718ab5d4dd658553dd72c045d8821a7813de1a7dacab2452",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/initial-97fc9159/README.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/initial-97fc9159/new-tests.diff",
+      "bytes": 30260,
+      "sha256": "8b3abbd65da1bf7e5778b880b12098d141de1ed816f0e68d3418bdcc5b29d681",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/initial-97fc9159/new-tests.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/initial-97fc9159/manifest.json",
+      "bytes": 2761,
+      "sha256": "97fc91593d9798179f42c08daa5cabdd1ee3f04863b6e354c31796342b65ce95",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/initial-97fc9159/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/original/apps/web/src/router.tsx",
+      "bytes": 31043,
+      "sha256": "518783ee62c960d4463067c4496d92276828fb43276321ff7be0164ea7c0282b",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/original/apps/web/src/router.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/original/apps/web/src/reports/liquidity-selection.ts",
+      "bytes": 3714,
+      "sha256": "843569102b563d12c8cbd3fea9599ec7ddfe47943565607e7bf16f5c8e31300a",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/original/apps/web/src/reports/liquidity-selection.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/original/apps/web/src/reports/liquidity-chart.tsx",
+      "bytes": 8503,
+      "sha256": "7760be334fed8f4858e5031c9972d69633255a18768eddd26ba1c236f6412795",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/original/apps/web/src/reports/liquidity-chart.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/original/apps/web/src/reports/reports-future.css",
+      "bytes": 13129,
+      "sha256": "4f9420cc3ef80f8ced0f06c47aae0caf96c2fa7328cc58e1b032cb2610de2ce5",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/original/apps/web/src/reports/reports-future.css",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/original/apps/web/src/reports/liquidity-report.tsx",
+      "bytes": 42061,
+      "sha256": "f6d445990132c0bbdf95bac7c764743bf34053de429ffedb706ad55aa01485f1",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/original/apps/web/src/reports/liquidity-report.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/original/apps/web/src/heute/heute.css",
+      "bytes": 23682,
+      "sha256": "002d6051f0b05bcc35517d276e6d3533eb3f6fca6faae2271fc7a9c750765b19",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/original/apps/web/src/heute/heute.css",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/original/apps/web/src/heute/heute-page.tsx",
+      "bytes": 29984,
+      "sha256": "91a0b8e185dde7d897830ac5cc2ea7da02e0f4c9e9646984a22d77fa7b4d227b",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/original/apps/web/src/heute/heute-page.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/original/packages/domain/src/forecast/report.ts",
+      "bytes": 14620,
+      "sha256": "3a8a2fdf705c90ed75db12c0f01792b2423ff81578b2c259402edd98e6ba9af9",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/original/packages/domain/src/forecast/report.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/new/e2e/issue-568-569-forecast.spec.ts",
+      "bytes": 14582,
+      "sha256": "7ca1e00c03067fcd7b356ca30dabed47500c24560427ab5a7aa66239cd082b31",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/new/e2e/issue-568-569-forecast.spec.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/new/apps/web/src/reports/forecast-tools-card-568-569.test.tsx",
+      "bytes": 15551,
+      "sha256": "bbc47515b678e88f7ea008c9b1bc89b95df367fe453d5a69ba53e9232081c550",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/new/apps/web/src/reports/forecast-tools-card-568-569.test.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/initial-97fc9159/new/e2e/issue-568-569-forecast.spec.ts",
+      "bytes": 14145,
+      "sha256": "136298fe77b42e210815301dd59f395d8b32cfb5b48effa2978bd20d1f90252d",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/initial-97fc9159/new/e2e/issue-568-569-forecast.spec.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-ui-native-outside-proposal/initial-97fc9159/new/apps/web/src/reports/forecast-tools-card-568-569.test.tsx",
+      "bytes": 15551,
+      "sha256": "bbc47515b678e88f7ea008c9b1bc89b95df367fe453d5a69ba53e9232081c550",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-ui-native-outside-proposal/initial-97fc9159/new/apps/web/src/reports/forecast-tools-card-568-569.test.tsx",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-snapshot-future-source/change.diff",
+      "bytes": 25005,
+      "sha256": "5b84a8df4b5dfb25e5016f5e198a3cfdfd8a32ea0cfb6b01293b9e6dcb5a88b2",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-snapshot-future-source/change.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-snapshot-future-source/manifest.json",
+      "bytes": 1235,
+      "sha256": "836a575728c514cd37c25b3aaf30d3867b70ade954d1d4cd7f14b3874f3d61e3",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-snapshot-future-source/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-snapshot-future-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "bytes": 702,
+      "sha256": "f4250e2490cc14af45c6564d2faf7d75d9f45945bbf4abaa419e1c1300dd8ecc",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-snapshot-future-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-snapshot-future-source/files/packages/db/src/schema/budget.ts",
+      "bytes": 15786,
+      "sha256": "621fbd19ae0fa65e7c7dcc289fb8c385c72a5a403bb6c0e0689af317edd870b0",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-snapshot-future-source/files/packages/db/src/schema/budget.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-snapshot-future-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "bytes": 22820,
+      "sha256": "a851b3fcabab268a88580c2bc58621398e499c7a693919e6790625c314e56b9b",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-snapshot-future-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-snapshot-future-source/files/packages/db/src/repos/goals.ts",
+      "bytes": 23054,
+      "sha256": "cb742b471c31f6c066d7938e0c4d03e0c7ba8f48e1423429efde5bdd656adbe0",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-snapshot-future-source/files/packages/db/src/repos/goals.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-snapshot-future-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "bytes": 1202,
+      "sha256": "eadcf08b4df0fea328bf72ed9c3acc58dc12c33434febbc43aa356b77a9f84fc",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-snapshot-future-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-snapshot-future-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "bytes": 272389,
+      "sha256": "d1869c6fd3fb2b27037ada22271d0bd7f70f74ad6f24ac710454fba334f7e422",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-snapshot-future-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-740-exact-optional-independent-source-review.md",
+      "bytes": 2084,
+      "sha256": "7eb9d56f5781b80a328e7f1b996533a25af2b04316d426206a6a96f492e1dedc",
+      "source": "/workspace/.budget-tools/cloud-control/604-740-exact-optional-independent-source-review.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-salary-marker-root-source-review.md",
+      "bytes": 1344,
+      "sha256": "270f7aa3eb79c6f08f9232179d6210596ac4595e5336d24d81f67f6f4446ccee",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-salary-marker-root-source-review.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-domain-api-outside-proposal/README.md",
+      "bytes": 2801,
+      "sha256": "497aeedd71c2548973837ef4dedfa98c673ec32304ec99555636da5c7fc5a6ab",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-domain-api-outside-proposal/README.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-domain-api-outside-proposal/new-tests.diff",
+      "bytes": 9727,
+      "sha256": "cb663c5808f431cd7fce21a547d86981a284e655bfddd3eff4d693b1c42be8db",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-domain-api-outside-proposal/new-tests.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-domain-api-outside-proposal/manifest.json",
+      "bytes": 3064,
+      "sha256": "c34b6af470b7f6e8823256623a78d0112e642c3abc90e2efc3fa5d983d1a0c71",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-domain-api-outside-proposal/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-domain-api-outside-proposal/candidate/apps/server/src/api/liquidity-35d-568-569.test.ts",
+      "bytes": 6146,
+      "sha256": "4bdf95202686a67227c92f7277b8859712d156c7f2af66435993ac04d9346fc9",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-domain-api-outside-proposal/candidate/apps/server/src/api/liquidity-35d-568-569.test.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-new-domain-api-outside-proposal/candidate/packages/domain/src/forecast/report-35d-568-569.test.ts",
+      "bytes": 3214,
+      "sha256": "ea6401247bd7f4d1b246a5c4249374703b29689b0c01f2ad5ff24244e4550cda",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-new-domain-api-outside-proposal/candidate/packages/domain/src/forecast/report-35d-568-569.test.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-migration48-one-new-test-outside-v2/manifest.json",
+      "bytes": 3721,
+      "sha256": "ece96c6aeb6973d95b59229223592fec2d5aae29d0e664f2329cf7e232bdff41",
+      "source": "/workspace/.budget-tools/cloud-control/604-migration48-one-new-test-outside-v2/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-migration48-one-new-test-outside-v2/packages/db/src/goal-lifecycle-migration-604.test.ts",
+      "bytes": 19990,
+      "sha256": "983681d51c5b65484158e263d47dcd12a414ca72ecc3bcc596e18f5aec61b649",
+      "source": "/workspace/.budget-tools/cloud-control/604-migration48-one-new-test-outside-v2/packages/db/src/goal-lifecycle-migration-604.test.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-integration-0b9bbb65-independent-source-boundary.md",
+      "bytes": 1338,
+      "sha256": "b9a61c5ef5196ed28ba5affbff087d0521c0c7eecef24a385042ce83f978b3af",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-integration-0b9bbb65-independent-source-boundary.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-complete-fresh-group-source/change.diff",
+      "bytes": 29407,
+      "sha256": "fce246165785108db6b63b7a173b114cfd2ea5f79aea8eddb7efc6d93cab8985",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-complete-fresh-group-source/change.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-complete-fresh-group-source/manifest.json",
+      "bytes": 1372,
+      "sha256": "3ba85060b52724270db0f565e6fee8c7efe74bf20e70f36edb183e31e5820586",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-complete-fresh-group-source/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-complete-fresh-group-source/files/docs/ROADMAP.md",
+      "bytes": 252922,
+      "sha256": "57b248252d8936531b09cfded5f85317b878d32640a57d3e56f23cb93bde54f4",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-complete-fresh-group-source/files/docs/ROADMAP.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-complete-fresh-group-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "bytes": 702,
+      "sha256": "f4250e2490cc14af45c6564d2faf7d75d9f45945bbf4abaa419e1c1300dd8ecc",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-complete-fresh-group-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-complete-fresh-group-source/files/packages/db/src/schema/budget.ts",
+      "bytes": 15786,
+      "sha256": "621fbd19ae0fa65e7c7dcc289fb8c385c72a5a403bb6c0e0689af317edd870b0",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-complete-fresh-group-source/files/packages/db/src/schema/budget.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-complete-fresh-group-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "bytes": 23978,
+      "sha256": "b0078f78fbb8dfe33fbdf92261bcfa92549c8a1e4864e7ffbe50a55db9e92116",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-complete-fresh-group-source/files/packages/db/src/repos/goal-lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-complete-fresh-group-source/files/packages/db/src/repos/goals.ts",
+      "bytes": 23268,
+      "sha256": "96a6af187f582096fd128e2051b848781483238d6bcc43e696b055052fff794c",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-complete-fresh-group-source/files/packages/db/src/repos/goals.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-complete-fresh-group-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "bytes": 1202,
+      "sha256": "eadcf08b4df0fea328bf72ed9c3acc58dc12c33434febbc43aa356b77a9f84fc",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-complete-fresh-group-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-anchor-complete-fresh-group-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "bytes": 272389,
+      "sha256": "d1869c6fd3fb2b27037ada22271d0bd7f70f74ad6f24ac710454fba334f7e422",
+      "source": "/workspace/.budget-tools/cloud-control/604-anchor-complete-fresh-group-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-rollback48-later-journal-independent-source-high.md",
+      "bytes": 1644,
+      "sha256": "7c8d98221289fa519f524da2f6579f8cda8075d0ace34c777c6c55d268171623",
+      "source": "/workspace/.budget-tools/cloud-control/604-rollback48-later-journal-independent-source-high.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-controlled-tools-and-old-two-independent-source-high.md",
+      "bytes": 2128,
+      "sha256": "bd1c0d02da3f22d954247925b3cfdf70d6131139388629249cf32446b1ecdeae",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-controlled-tools-and-old-two-independent-source-high.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-goal48-isolated-delivery-readonly-prerequisites.md",
+      "bytes": 9647,
+      "sha256": "f872aba7ad1754ce8c45c9f98e0519c82de3020ba92add40339b90e0970f18f1",
+      "source": "/workspace/.budget-tools/cloud-control/604-goal48-isolated-delivery-readonly-prerequisites.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-integration-f81c206d-independent-source-boundary.md",
+      "bytes": 855,
+      "sha256": "e6f4c80d292cad0485ca01cf5c7cd0c5565d779c368f6142ac86b9df50802d5f",
+      "source": "/workspace/.budget-tools/cloud-control/604-integration-f81c206d-independent-source-boundary.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-prospective-anchor-independent-contract-review.md",
+      "bytes": 4927,
+      "sha256": "a897e410d9c2254562c7a13d076c7ca1c2928c37ad21e3ad67721b6aa256fb3d",
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-independent-contract-review.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/568-569-old-two-disclosure-corrected-independent-high.md",
+      "bytes": 1818,
+      "sha256": "7d3fa0ed6f7a2b2a884960848989802abe733e803f436ff45f8a4030129d4d53",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-old-two-disclosure-corrected-independent-high.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-migration-intent-source/manifest.json",
+      "bytes": 670,
+      "sha256": "c4a4406790ae0e8dbda62603988533336477ae44441a8af9e1ac1304b2cb0414",
+      "source": "/workspace/.budget-tools/cloud-control/604-migration-intent-source/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-migration-intent-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "bytes": 451,
+      "sha256": "38315a73c9c07da0e89e0b77ce6a0e6b724ba0e328e70934b513fd0ed8e2e9da",
+      "source": "/workspace/.budget-tools/cloud-control/604-migration-intent-source/files/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-migration-intent-source/files/packages/db/src/schema/budget.ts",
+      "bytes": 15477,
+      "sha256": "96f15acd478900da0ac2bfd362c82c2efdb1028f40a7ec5434de8c455e123410",
+      "source": "/workspace/.budget-tools/cloud-control/604-migration-intent-source/files/packages/db/src/schema/budget.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-migration-intent-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "bytes": 971,
+      "sha256": "14eb89462c1ef2e5a4220d42dbe13cf6e794a7a919fd8dfdc80da7c90b2d51be",
+      "source": "/workspace/.budget-tools/cloud-control/604-migration-intent-source/files/packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-migration-intent-source/files/packages/db/drizzle/meta/_journal.json",
+      "bytes": 7221,
+      "sha256": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42",
+      "source": "/workspace/.budget-tools/cloud-control/604-migration-intent-source/files/packages/db/drizzle/meta/_journal.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-migration-intent-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "bytes": 271874,
+      "sha256": "b6d942e2cce708db2cf913d8f40430dbcbc7c9caf6b389b2dd702577d36e5f24",
+      "source": "/workspace/.budget-tools/cloud-control/604-migration-intent-source/files/packages/db/drizzle/meta/0048_snapshot.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/README.md",
+      "bytes": 5205,
+      "sha256": "ebf1f7fb99fb23cc73985c27d32a915ec7b2a9623d7e756c4f09fae807fde8b0",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/README.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/clock-and-tombstone-only.diff",
+      "bytes": 1579,
+      "sha256": "4e8e0398511662100bb0c6d8241158f48c8039c8c47d6ade9286748624dc7a71",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/clock-and-tombstone-only.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/change.diff",
+      "bytes": 14551,
+      "sha256": "665fe5613cb9d32b802ebeaa5d28b28800690373b8b77e6c182ecf6c7d4b61bd",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/change.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/manifest.json",
+      "bytes": 6768,
+      "sha256": "6988bdf6c29d4b1b5f87d73392ca33a904ba2aff1e8c3a148d5695fc665c5586",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/initial-7b5f1f78/README.md",
+      "bytes": 4876,
+      "sha256": "15a30fa7abf16cc33604a4abd9835f0d62351a14932c8d6de9766aabdb9fb2d3",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/initial-7b5f1f78/README.md",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/initial-7b5f1f78/change.diff",
+      "bytes": 14064,
+      "sha256": "f28b2d1beaa38055c4dbd5de2976d694c540e9fcdb584a0e8ca7793612a0aa6e",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/initial-7b5f1f78/change.diff",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/initial-7b5f1f78/manifest.json",
+      "bytes": 6028,
+      "sha256": "7b5f1f78613f443c68261f3a6120babb752cb59827666d26b90d57c09f7b5d17",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/initial-7b5f1f78/manifest.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/initial-7b5f1f78/goal-lifecycle-plan-rate-604.test.ts",
+      "bytes": 13771,
+      "sha256": "d461dd1f66d83b84163bdb634e368b24829eb89d3a3ca4f3bda0f16ca8e4e016",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/initial-7b5f1f78/goal-lifecycle-plan-rate-604.test.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/candidate/packages/db/src/repos/goal-lifecycle-plan-rate-604.test.ts",
+      "bytes": 14251,
+      "sha256": "c7cd4ed850a8271686244154adc246564049c3ca6e3d89efa518d207bbdbb1a0",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/candidate/packages/db/src/repos/goal-lifecycle-plan-rate-604.test.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/domain/src/goals/lifecycle.ts",
+      "bytes": 3591,
+      "sha256": "82c34702cd69c59dc3e4496baeb1edbdfebff05eefe5900261ee879c25aa9387",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/domain/src/goals/lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/domain/src/goals/goals.ts",
+      "bytes": 6127,
+      "sha256": "2889f405eb66bb302938771d6ecadd330cdb534d60fbc33dd0efa30e6a01e68b",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/domain/src/goals/goals.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/domain/src/ledger/targets.ts",
+      "bytes": 4607,
+      "sha256": "735480839f512071f15985bf69bb747196a70a7375e4217bccd7f5aff9db0845",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/domain/src/ledger/targets.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/client.ts",
+      "bytes": 3057,
+      "sha256": "5e80ac5f1715611cee546d3ffeec908eabb5a09405959fe9da29943cf5f97e6e",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/client.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "bytes": 702,
+      "sha256": "f4250e2490cc14af45c6564d2faf7d75d9f45945bbf4abaa419e1c1300dd8ecc",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/drizzle/0048_goal_lifecycle.sql",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/schema/budget.ts",
+      "bytes": 15786,
+      "sha256": "621fbd19ae0fa65e7c7dcc289fb8c385c72a5a403bb6c0e0689af317edd870b0",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/schema/budget.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/schema/common.ts",
+      "bytes": 1757,
+      "sha256": "3430e3681c302cfeceeb304ddc76fc53900bcd3f147dec49b6839e0b1060ca9b",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/schema/common.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/budget-ledger-input.ts",
+      "bytes": 2319,
+      "sha256": "fd4eafb95be3d04a2e9632474d74218e57caee70d4df9558d2d4f4bc88fcd62c",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/budget-ledger-input.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/audit.ts",
+      "bytes": 36114,
+      "sha256": "21777b88918b8e0e874e8a4ba6ced0cccad594276d60fa34d68aeba30b4bc102",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/audit.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/budget.ts",
+      "bytes": 12687,
+      "sha256": "23b98187e59d3085ba46e1241848bdb65728ff23f5dc96a0f7f070cf7cb5f648",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/budget.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/queries.ts",
+      "bytes": 7291,
+      "sha256": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/queries.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/bookings.ts",
+      "bytes": 44585,
+      "sha256": "7ac8a632873a1b1a362ffa70a97eea564f703291b8582bfcdbcbd11ad45cef15",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/bookings.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/plan-months.ts",
+      "bytes": 5411,
+      "sha256": "509fed5d097d8f8be5683ff9791c8a73be2954e587e20a203fcac489c9c8ba1d",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/plan-months.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/entities.ts",
+      "bytes": 9677,
+      "sha256": "611eb370ae5c1e434c3009c1d5fec1f1dddcddef0265f4f436e3dbbae89cc2da",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/entities.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/envelopes.ts",
+      "bytes": 2603,
+      "sha256": "c605675e6be4155e6eb979a3f2d63127e3bc80e706425a320b1707100ca7cc44",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/envelopes.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/categories.ts",
+      "bytes": 20829,
+      "sha256": "ea2e043f30be99273324078ea9ce9727eea597ba599c1a828a1410463f519a7e",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/categories.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/goal-lifecycle.ts",
+      "bytes": 23927,
+      "sha256": "1e74aec7be50497a032b584c82722885c99468be433018a5468be7584c6fddd5",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/goal-lifecycle.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/goals.ts",
+      "bytes": 23268,
+      "sha256": "96a6af187f582096fd128e2051b848781483238d6bcc43e696b055052fff794c",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/src/repos/goals.ts",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/drizzle/meta/_journal.json",
+      "bytes": 7221,
+      "sha256": "558a3a48ae2bbe49a5dfd6678ea696de39e85b526300da0b9bef2a4f149c2a42",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/drizzle/meta/_journal.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/drizzle/meta/0047_snapshot.json",
+      "bytes": 271053,
+      "sha256": "d5f908d357ad1c1095e8b05c985a8e2e484ffe1312be5fc5ee1931b27c642dad",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/drizzle/meta/0047_snapshot.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "outside-proposals/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/drizzle/meta/0048_snapshot.json",
+      "bytes": 272389,
+      "sha256": "d1869c6fd3fb2b27037ada22271d0bd7f70f74ad6f24ac710454fba334f7e422",
+      "source": "/workspace/.budget-tools/cloud-control/604-new-canonical-plan-db-writer-outside-proposal/source-pins/packages/db/drizzle/meta/0048_snapshot.json",
+      "kind": "outside-source-proposal-or-review"
+    },
+    {
+      "path": "626-explorer-chart/owned/02-2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6.patch",
+      "bytes": 9746,
+      "sha256": "5f7ea0818d989430e0eefe1ad966fc87755428e6216acbc3592683fce1b9c7b8",
+      "source": "git:37e85f52a248414a8f2775c26946fbc27655bdea..2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6 textual source/docs slice",
+      "kind": "owned-source-diff-artifacts-excluded"
+    },
+    {
+      "path": "626-explorer-chart/packet.json",
+      "bytes": 6466,
+      "sha256": "ceb77b03b445646027301fc96c050125f75346d39d0055f01fa2f5bce2131cb2",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "shared-integration-WIP/owned/fa5936a790dbb721d70d8c8eb1f837613b6c0290.patch",
+      "bytes": 7343,
+      "sha256": "5e2d26d6634f822dd88e89dd0b1086a1ca62f2d2214a84ecc005ef51f005e9a5",
+      "source": "git:16614d41ca11d7065bcdbe6f72949bffd5471382..fa5936a790dbb721d70d8c8eb1f837613b6c0290",
+      "kind": "shared-single-commit-integration-diff"
+    },
+    {
+      "path": "shared-integration-WIP/owned/0b9bbb658865239197de37ad98e06eededc25f12.patch",
+      "bytes": 6003,
+      "sha256": "2e245220bd50d75491fb7384d9e44283e7ab9d8a56f020c81daf496844895960",
+      "source": "git:e24864fa74a71adbce35ef50109faa44b3777db5..0b9bbb658865239197de37ad98e06eededc25f12",
+      "kind": "shared-single-commit-integration-diff"
+    },
+    {
+      "path": "shared-integration-WIP/owned/1543ddd98dd8ca714d0c45921d80dba453c178a7.patch",
+      "bytes": 969,
+      "sha256": "94c0e8a88baedb16cbec193d65cd6ff9ada28eb2ad13552edfb95ba451ec1b05",
+      "source": "git:221e607c8937d7e3cdcb318e3ca13a8b90b8914d..1543ddd98dd8ca714d0c45921d80dba453c178a7",
+      "kind": "shared-single-commit-integration-diff"
+    },
+    {
+      "path": "shared-integration-WIP/owned/6097312929c84ea8bd827bc5895e6f4e85f87cf2.patch",
+      "bytes": 2856,
+      "sha256": "894ebf6c41a23a2092325f156a37f1dd6292baaf0867ace65ca19e6cba1af673",
+      "source": "git:1543ddd98dd8ca714d0c45921d80dba453c178a7..6097312929c84ea8bd827bc5895e6f4e85f87cf2",
+      "kind": "shared-single-commit-integration-diff"
+    },
+    {
+      "path": "shared-integration-WIP/packet.json",
+      "bytes": 3122,
+      "sha256": "fa175eaaa064f98517f0c68d0b8b81d5daaaf60c35316017fb26e56a1403e470",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "shared-integration-WIP/README.md",
+      "bytes": 316,
+      "sha256": "df4af182161e984a694e4a0dc072f4553e4e4722da86f46016739d95a84a221c",
+      "source": "generated preservation metadata",
+      "kind": "documentation"
+    },
+    {
+      "path": "outside-proposals/568-569-salary-marker-outside-proposal/SHA256SUMS",
+      "bytes": 1090,
+      "sha256": "ee1c9c5eb725115678677800085854ad449234b7cda6e8c40b7b9939cfc45f89",
+      "source": "/workspace/.budget-tools/cloud-control/568-569-salary-marker-outside-proposal/SHA256SUMS",
+      "kind": "source-checksum-manifest"
+    },
+    {
+      "path": "PACKET-MAP.json",
+      "bytes": 8782,
+      "sha256": "21e4d2ab3b9659b4611fea14cd1a03f6f8f667b763e40083706661728e8d1313",
+      "source": "generated preservation metadata",
+      "kind": "metadata"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1812,
+      "sha256": "4567b4f791b27a226cd442e34f51ba8349f46b061d82b89404a6d957fc17d4d0",
+      "source": "generated preservation metadata",
+      "kind": "documentation"
+    }
+  ],
+  "exclusions": [
+    {
+      "source": "codex/577-account-overview",
+      "reason": "Root owns its packet; not exported here"
+    },
+    {
+      "source": "codex/607-payment-lifecycle",
+      "reason": "Root owns its packet; not exported here"
+    },
+    {
+      "source": "git:37e85f52a248414a8f2775c26946fbc27655bdea..2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6",
+      "reason": "over 2MiB source limit"
+    },
+    {
+      "source": "git:03d421b5685ed6703e63fd41ca98757b6428dce6",
+      "reason": "Root-owned577/607/741 or shared historical Roadmap restoration; excluded from other-ticket integration patches"
+    },
+    {
+      "source": "git:889edf4a5a0690ff4d53d2f54b06cdc4e2d7c95e",
+      "reason": "Root-owned577/607/741 or shared historical Roadmap restoration; excluded from other-ticket integration patches"
+    },
+    {
+      "source": "git:f15c958574b9d7784ad590f44271abeb633e1649",
+      "reason": "Root-owned577/607/741 or shared historical Roadmap restoration; excluded from other-ticket integration patches"
+    },
+    {
+      "source": "git:581b79b6d7e0ac94a82dd15436fa03cce0f80d6f",
+      "reason": "Root-owned577/607/741 or shared historical Roadmap restoration; excluded from other-ticket integration patches"
+    },
+    {
+      "source": "git:8d03389ea8f6efc5c91b2f404c3eed62b1a83390",
+      "reason": "Root-owned577/607/741 or shared historical Roadmap restoration; excluded from other-ticket integration patches"
+    },
+    {
+      "source": "git:b9d8e87900a76028782f7d28fc4f832f5de0921e",
+      "reason": "Root-owned577/607/741 or shared historical Roadmap restoration; excluded from other-ticket integration patches"
+    },
+    {
+      "source": "git:4fd8dda0ad64f08d19e1321bbd931de1246d5d5a",
+      "reason": "Root-owned577/607/741 or shared historical Roadmap restoration; excluded from other-ticket integration patches"
+    },
+    {
+      "source": "git:dcced75133f4297a4d9b6a96d0008acc9fae6427",
+      "reason": "Root-owned577/607/741 or shared historical Roadmap restoration; excluded from other-ticket integration patches"
+    },
+    {
+      "source": "git:5e0f4f1e0b5b9cfe788b00f78a02825c62667814",
+      "reason": "Root-owned577/607/741 or shared historical Roadmap restoration; excluded from other-ticket integration patches"
+    },
+    {
+      "source": "/workspace/cloud-review-481-expanded/docs/evidence/plan-single-category-481/webkit-iphone-dark.png",
+      "reason": "non-source/artifact extension or symlink; not copied"
+    },
+    {
+      "source": "/workspace/cloud-review-481-expanded/docs/evidence/plan-single-category-481/webkit-iphone-rows.json",
+      "reason": "runtime/geometry/auth-state artifact; not copied"
+    },
+    {
+      "source": "/workspace/.budget-tools/cloud-control/604-owner-questions-pending.json",
+      "reason": "runtime/checkpoint/authorization record; not a source proposal"
+    },
+    {
+      "source": "/workspace/.budget-tools/cloud-control/604-source-checkpoint-actual.json",
+      "reason": "runtime/checkpoint/authorization record; not a source proposal"
+    },
+    {
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-checkpoint-actual.json",
+      "reason": "runtime/checkpoint/authorization record; not a source proposal"
+    },
+    {
+      "source": "/workspace/.budget-tools/cloud-control/604-prospective-anchor-root-authorization.json",
+      "reason": "runtime/checkpoint/authorization record; not a source proposal"
+    },
+    {
+      "source": "git:2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6:docs/evidence/explorer-chart-626/configured-custom-dark.png",
+      "reason": "large historical screenshot/runtime artifact omitted; source/docs retained"
+    },
+    {
+      "source": "git:2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6:docs/evidence/explorer-chart-626/configured-custom-light.png",
+      "reason": "large historical screenshot/runtime artifact omitted; source/docs retained"
+    },
+    {
+      "source": "git:2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6:docs/evidence/explorer-chart-626/configured-heatmap-dark.png",
+      "reason": "large historical screenshot/runtime artifact omitted; source/docs retained"
+    },
+    {
+      "source": "git:2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6:docs/evidence/explorer-chart-626/configured-heatmap-light.png",
+      "reason": "large historical screenshot/runtime artifact omitted; source/docs retained"
+    },
+    {
+      "source": "git:2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6:docs/evidence/explorer-chart-626/configured-total-dark.png",
+      "reason": "large historical screenshot/runtime artifact omitted; source/docs retained"
+    },
+    {
+      "source": "git:2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6:docs/evidence/explorer-chart-626/configured-total-light.png",
+      "reason": "large historical screenshot/runtime artifact omitted; source/docs retained"
+    },
+    {
+      "source": "git:2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6:docs/evidence/explorer-chart-626/desktop1440-custom-dark.png",
+      "reason": "large historical screenshot/runtime artifact omitted; source/docs retained"
+    },
+    {
+      "source": "git:2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6:docs/evidence/explorer-chart-626/desktop1440-custom-light.png",
+      "reason": "large historical screenshot/runtime artifact omitted; source/docs retained"
+    },
+    {
+      "source": "git:2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6:docs/evidence/explorer-chart-626/desktop1440-heatmap-dark.png",
+      "reason": "large historical screenshot/runtime artifact omitted; source/docs retained"
+    },
+    {
+      "source": "git:2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6:docs/evidence/explorer-chart-626/desktop1440-heatmap-light.png",
+      "reason": "large historical screenshot/runtime artifact omitted; source/docs retained"
+    },
+    {
+      "source": "git:2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6:docs/evidence/explorer-chart-626/desktop1440-total-dark.png",
+      "reason": "large historical screenshot/runtime artifact omitted; source/docs retained"
+    },
+    {
+      "source": "git:2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6:docs/evidence/explorer-chart-626/desktop1440-total-light.png",
+      "reason": "large historical screenshot/runtime artifact omitted; source/docs retained"
+    },
+    {
+      "source": "git:2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6:docs/evidence/explorer-chart-626/runtime-proof.json",
+      "reason": "large historical screenshot/runtime artifact omitted; source/docs retained"
+    }
+  ],
+  "highConfidenceCredentialFlags": [],
+  "literalAssignmentReviewLocations": [
+    {
+      "path": "609-payslip-pdf-preview/owned/01-621f1edfdf201199b2c244465557b65bcd0f41c3.patch",
+      "literalCredentialAssignmentPatternCount": 2,
+      "review": "May be synthetic fixture strings; Root privacy review required; values not printed."
+    }
+  ],
+  "scanLimits": "Pattern scan is not a privacy guarantee. Root must review before remote publication. No private financial data, runtime logs, auth/session state, DB/PDF/trace archives intentionally included.",
+  "currentTechnicalTestAuthorization": "NOW GRANTED by user, according to Root. Older pending documents remain historical. Current task only saves artifacts; no tests/adoption."
+}

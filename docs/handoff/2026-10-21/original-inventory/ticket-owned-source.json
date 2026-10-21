@@ -1,0 +1,1443 @@
+[
+  {
+    "branch": "codex/469-product-glossary",
+    "sourceHead": "e35363cb98b15f4d99126aa37d0846ecb56a5088",
+    "originalBaseBeforeOwnedCommits": "211291473f2848eb9a17116908aa86d399b2d3d2",
+    "ownedCommits": [
+      {
+        "sha": "e35363cb98b15f4d99126aa37d0846ecb56a5088",
+        "parentBase": "211291473f2848eb9a17116908aa86d399b2d3d2",
+        "subject": "docs: record canonical UI terminology (Refs #469)",
+        "paths": [
+          "PRODUCT.md",
+          "docs/ROADMAP.md"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout e35363cb98b15f4d99126aa37d0846ecb56a5088 > OWN_OUTPUT/e35363cb98b15f4d99126aa37d0846ecb56a5088.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "PRODUCT.md",
+      "docs/ROADMAP.md"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/481-theme-boundary",
+    "sourceHead": "3dc7338aa12f10946882b6b1476aeaf90b15ddbd",
+    "originalBaseBeforeOwnedCommits": "e74c4ef5134ef97ffecfd8c77bc19491ac8e016e",
+    "ownedCommits": [
+      {
+        "sha": "de8741ea7438f71e85293de7628f3d8f7a983194",
+        "parentBase": "e74c4ef5134ef97ffecfd8c77bc19491ac8e016e",
+        "subject": "fix(theme): bind application text to the normal ink role",
+        "paths": [
+          "apps/web/src/shell/shell.css",
+          "docs/evidence/theme-boundary-481-595/README.md",
+          "e2e/issue-481-theme-boundary.spec.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout de8741ea7438f71e85293de7628f3d8f7a983194 > OWN_OUTPUT/de8741ea7438f71e85293de7628f3d8f7a983194.patch"
+      },
+      {
+        "sha": "3dc7338aa12f10946882b6b1476aeaf90b15ddbd",
+        "parentBase": "de8741ea7438f71e85293de7628f3d8f7a983194",
+        "subject": "test(theme): close the phone menu through its native summary",
+        "paths": [
+          "e2e/issue-481-theme-boundary.spec.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 3dc7338aa12f10946882b6b1476aeaf90b15ddbd > OWN_OUTPUT/3dc7338aa12f10946882b6b1476aeaf90b15ddbd.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/web/src/shell/shell.css",
+      "docs/evidence/theme-boundary-481-595/README.md",
+      "e2e/issue-481-theme-boundary.spec.ts"
+    ],
+    "containsMixedBatch": false,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/518-metric-explanation",
+    "sourceHead": "2de6820a1ff66c5a43c456552411e14bc45a6804",
+    "originalBaseBeforeOwnedCommits": "37d4f3f5493e581b234378d07d6fddd40fe674be",
+    "ownedCommits": [
+      {
+        "sha": "e763c8944c6ceb0d87cd73531198db301de13c08",
+        "parentBase": "37d4f3f5493e581b234378d07d6fddd40fe674be",
+        "subject": "docs: clarify existing money age calculation (Refs #518)",
+        "paths": [
+          "apps/web/src/reports/savings-report.tsx",
+          "docs/ROADMAP.md"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout e763c8944c6ceb0d87cd73531198db301de13c08 > OWN_OUTPUT/e763c8944c6ceb0d87cd73531198db301de13c08.patch"
+      },
+      {
+        "sha": "2de6820a1ff66c5a43c456552411e14bc45a6804",
+        "parentBase": "e763c8944c6ceb0d87cd73531198db301de13c08",
+        "subject": "docs: distinguish historical money age dates (Refs #518)",
+        "paths": [
+          "apps/web/src/reports/savings-report.tsx"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 2de6820a1ff66c5a43c456552411e14bc45a6804 > OWN_OUTPUT/2de6820a1ff66c5a43c456552411e14bc45a6804.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/web/src/reports/savings-report.tsx",
+      "docs/ROADMAP.md"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/521-allocation-provenance",
+    "sourceHead": "b5158ef6e1375987b8128f97e1ccb379a49c5501",
+    "originalBaseBeforeOwnedCommits": "211291473f2848eb9a17116908aa86d399b2d3d2",
+    "ownedCommits": [
+      {
+        "sha": "b5158ef6e1375987b8128f97e1ccb379a49c5501",
+        "parentBase": "211291473f2848eb9a17116908aa86d399b2d3d2",
+        "subject": "feat: explain effective allocation provenance (#521)",
+        "paths": [
+          "apps/web/src/wealth/allocation-section.tsx",
+          "apps/web/src/wealth/networth-page.tsx",
+          "docs/ROADMAP.md",
+          "packages/db/src/repos/allocation-inputs.ts",
+          "packages/db/src/repos/portfolio-allocation.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout b5158ef6e1375987b8128f97e1ccb379a49c5501 > OWN_OUTPUT/b5158ef6e1375987b8128f97e1ccb379a49c5501.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/web/src/wealth/allocation-section.tsx",
+      "apps/web/src/wealth/networth-page.tsx",
+      "docs/ROADMAP.md",
+      "packages/db/src/repos/allocation-inputs.ts",
+      "packages/db/src/repos/portfolio-allocation.ts"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/544-546-portfolio-registers",
+    "sourceHead": "80c43a631a276df0a06c74bbdc690f3bc97fe521",
+    "originalBaseBeforeOwnedCommits": "2af45b4a874ed14076e12f0a81e41044dc1cf223",
+    "ownedCommits": [
+      {
+        "sha": "80c43a631a276df0a06c74bbdc690f3bc97fe521",
+        "parentBase": "2af45b4a874ed14076e12f0a81e41044dc1cf223",
+        "subject": "feat(portfolio): checkpoint routed registers and shared metrics; validation pending",
+        "paths": [
+          "apps/server/src/api/invest.ts",
+          "apps/web/src/pages/portfolio-performance-report.tsx",
+          "apps/web/src/router.tsx",
+          "apps/web/src/wealth/allocation.css",
+          "apps/web/src/wealth/portfolio-api.ts",
+          "apps/web/src/wealth/portfolio-detail-page.tsx",
+          "apps/web/src/wealth/portfolio-metrics.tsx",
+          "apps/web/src/wealth/portfolio-overview.tsx",
+          "apps/web/src/wealth/portfolio-page.tsx",
+          "apps/web/src/wealth/portfolio-registers.tsx",
+          "apps/web/src/wealth/portfolio.css",
+          "apps/web/src/wealth/savings-section.tsx",
+          "docs/ROADMAP.md"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 80c43a631a276df0a06c74bbdc690f3bc97fe521 > OWN_OUTPUT/80c43a631a276df0a06c74bbdc690f3bc97fe521.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/server/src/api/invest.ts",
+      "apps/web/src/pages/portfolio-performance-report.tsx",
+      "apps/web/src/router.tsx",
+      "apps/web/src/wealth/allocation.css",
+      "apps/web/src/wealth/portfolio-api.ts",
+      "apps/web/src/wealth/portfolio-detail-page.tsx",
+      "apps/web/src/wealth/portfolio-metrics.tsx",
+      "apps/web/src/wealth/portfolio-overview.tsx",
+      "apps/web/src/wealth/portfolio-page.tsx",
+      "apps/web/src/wealth/portfolio-registers.tsx",
+      "apps/web/src/wealth/portfolio.css",
+      "apps/web/src/wealth/savings-section.tsx",
+      "docs/ROADMAP.md"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/547-548-instrument-savings-detail",
+    "sourceHead": "addda5986563c9421d20e2efe5b57b410d45d55b",
+    "originalBaseBeforeOwnedCommits": "759464abc050195c5d6dc285190efbadbe55de6b",
+    "ownedCommits": [
+      {
+        "sha": "addda5986563c9421d20e2efe5b57b410d45d55b",
+        "parentBase": "759464abc050195c5d6dc285190efbadbe55de6b",
+        "subject": "feat: add instrument history and explicit savings detail sources (validation pending)",
+        "paths": [
+          "apps/server/src/api/invest.ts",
+          "apps/web/src/wealth/portfolio-api.ts",
+          "apps/web/src/wealth/portfolio-detail-page.tsx",
+          "apps/web/src/wealth/portfolio-panel.tsx",
+          "apps/web/src/wealth/price-history.css",
+          "apps/web/src/wealth/price-history.tsx",
+          "apps/web/src/wealth/savings-detail.tsx",
+          "apps/web/src/wealth/savings-model.ts",
+          "apps/web/src/wealth/savings.css",
+          "apps/web/src/wealth/trade-history.tsx",
+          "docs/ROADMAP.md",
+          "packages/db/src/repos/index.ts",
+          "packages/db/src/repos/instrument-history.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout addda5986563c9421d20e2efe5b57b410d45d55b > OWN_OUTPUT/addda5986563c9421d20e2efe5b57b410d45d55b.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/server/src/api/invest.ts",
+      "apps/web/src/wealth/portfolio-api.ts",
+      "apps/web/src/wealth/portfolio-detail-page.tsx",
+      "apps/web/src/wealth/portfolio-panel.tsx",
+      "apps/web/src/wealth/price-history.css",
+      "apps/web/src/wealth/price-history.tsx",
+      "apps/web/src/wealth/savings-detail.tsx",
+      "apps/web/src/wealth/savings-model.ts",
+      "apps/web/src/wealth/savings.css",
+      "apps/web/src/wealth/trade-history.tsx",
+      "docs/ROADMAP.md",
+      "packages/db/src/repos/index.ts",
+      "packages/db/src/repos/instrument-history.ts"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/550-551-asset-composition",
+    "sourceHead": "da796a63853fb4a1266ab700468b37f5afdaf7b1",
+    "originalBaseBeforeOwnedCommits": "5d63e9c226af6463401d7a45b00f6c359baaa249",
+    "ownedCommits": [
+      {
+        "sha": "da796a63853fb4a1266ab700468b37f5afdaf7b1",
+        "parentBase": "5d63e9c226af6463401d7a45b00f6c359baaa249",
+        "subject": "feat(wealth): checkpoint asset composition source; validation pending",
+        "paths": [
+          "SPEC.md",
+          "apps/server/src/api/wealth.ts",
+          "apps/web/src/wealth/api.ts",
+          "apps/web/src/wealth/asset-composition-chart.tsx",
+          "apps/web/src/wealth/asset-composition.tsx",
+          "apps/web/src/wealth/networth-page.tsx",
+          "apps/web/src/wealth/wealth.css",
+          "docs/ROADMAP.md",
+          "packages/db/src/repos/index.ts",
+          "packages/db/src/repos/networth-composition.ts",
+          "packages/db/src/repos/portfolio.ts",
+          "packages/domain/src/ledger/index.ts",
+          "packages/domain/src/ledger/networth-composition.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout da796a63853fb4a1266ab700468b37f5afdaf7b1 > OWN_OUTPUT/da796a63853fb4a1266ab700468b37f5afdaf7b1.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "SPEC.md",
+      "apps/server/src/api/wealth.ts",
+      "apps/web/src/wealth/api.ts",
+      "apps/web/src/wealth/asset-composition-chart.tsx",
+      "apps/web/src/wealth/asset-composition.tsx",
+      "apps/web/src/wealth/networth-page.tsx",
+      "apps/web/src/wealth/wealth.css",
+      "docs/ROADMAP.md",
+      "packages/db/src/repos/index.ts",
+      "packages/db/src/repos/networth-composition.ts",
+      "packages/db/src/repos/portfolio.ts",
+      "packages/domain/src/ledger/index.ts",
+      "packages/domain/src/ledger/networth-composition.ts"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/553-554-spending-report",
+    "sourceHead": "28c5a2124e99a9ec3bee1a2911a07143a9652492",
+    "originalBaseBeforeOwnedCommits": "cadefe15230a977651351184739eafd46b721f3c",
+    "ownedCommits": [
+      {
+        "sha": "28c5a2124e99a9ec3bee1a2911a07143a9652492",
+        "parentBase": "cadefe15230a977651351184739eafd46b721f3c",
+        "subject": "feat(reports): add exact spending answers and grouped analysis (validation pending)",
+        "paths": [
+          "apps/server/src/api/schemas.ts",
+          "apps/web/src/ledger/api.ts",
+          "apps/web/src/ledger/bookings-page.tsx",
+          "apps/web/src/ledger/bookings-search.ts",
+          "apps/web/src/ledger/types.ts",
+          "apps/web/src/reports/explorer-report.tsx",
+          "apps/web/src/reports/month-frame.tsx",
+          "apps/web/src/reports/report-answer.css",
+          "apps/web/src/reports/report-answer.tsx",
+          "apps/web/src/reports/report-search.ts",
+          "apps/web/src/reports/spending-analysis-report.css",
+          "apps/web/src/reports/spending-analysis-report.tsx",
+          "docs/ROADMAP.md",
+          "packages/db/src/repos/ledger-queries.ts",
+          "packages/db/src/repos/spending-report.ts",
+          "packages/domain/src/overview/explorer-templates.ts",
+          "packages/domain/src/spending/analysis.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 28c5a2124e99a9ec3bee1a2911a07143a9652492 > OWN_OUTPUT/28c5a2124e99a9ec3bee1a2911a07143a9652492.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/server/src/api/schemas.ts",
+      "apps/web/src/ledger/api.ts",
+      "apps/web/src/ledger/bookings-page.tsx",
+      "apps/web/src/ledger/bookings-search.ts",
+      "apps/web/src/ledger/types.ts",
+      "apps/web/src/reports/explorer-report.tsx",
+      "apps/web/src/reports/month-frame.tsx",
+      "apps/web/src/reports/report-answer.css",
+      "apps/web/src/reports/report-answer.tsx",
+      "apps/web/src/reports/report-search.ts",
+      "apps/web/src/reports/spending-analysis-report.css",
+      "apps/web/src/reports/spending-analysis-report.tsx",
+      "docs/ROADMAP.md",
+      "packages/db/src/repos/ledger-queries.ts",
+      "packages/db/src/repos/spending-report.ts",
+      "packages/domain/src/overview/explorer-templates.ts",
+      "packages/domain/src/spending/analysis.ts"
+    ],
+    "containsMixedBatch": false,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/558-protected-offline-snapshots",
+    "sourceHead": "4529f40454a46379e8846e22f72570863624c3d5",
+    "originalBaseBeforeOwnedCommits": "e14932decc183919694aa5f4d24e03b4b6f54914",
+    "ownedCommits": [
+      {
+        "sha": "4529f40454a46379e8846e22f72570863624c3d5",
+        "parentBase": "e14932decc183919694aa5f4d24e03b4b6f54914",
+        "subject": "feat(pwa): add protected read-snapshot infrastructure",
+        "paths": [
+          "apps/web/src/api/http-offline-security.test.ts",
+          "apps/web/src/api/http.ts",
+          "apps/web/src/pages/security-page.tsx",
+          "apps/web/src/pwa/local-data.ts",
+          "apps/web/src/pwa/read-snapshot-store.ts",
+          "docs/evidence/reference-adoption/wp-014-offline-558.md",
+          "e2e/issue-558-offline-store-security.spec.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 4529f40454a46379e8846e22f72570863624c3d5 > OWN_OUTPUT/4529f40454a46379e8846e22f72570863624c3d5.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/web/src/api/http-offline-security.test.ts",
+      "apps/web/src/api/http.ts",
+      "apps/web/src/pages/security-page.tsx",
+      "apps/web/src/pwa/local-data.ts",
+      "apps/web/src/pwa/read-snapshot-store.ts",
+      "docs/evidence/reference-adoption/wp-014-offline-558.md",
+      "e2e/issue-558-offline-store-security.spec.ts"
+    ],
+    "containsMixedBatch": false,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/568-569-forecast-ui",
+    "sourceHead": "5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf",
+    "originalBaseBeforeOwnedCommits": "cadefe15230a977651351184739eafd46b721f3c",
+    "ownedCommits": [
+      {
+        "sha": "5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf",
+        "parentBase": "cadefe15230a977651351184739eafd46b721f3c",
+        "subject": "Implement compact forecast tools and shared 35-day card; validation pending",
+        "paths": [
+          "apps/web/src/heute/heute-page.tsx",
+          "apps/web/src/heute/heute.css",
+          "apps/web/src/reports/liquidity-chart.tsx",
+          "apps/web/src/reports/liquidity-report.tsx",
+          "apps/web/src/reports/liquidity-selection.ts",
+          "apps/web/src/reports/reports-future.css",
+          "apps/web/src/router.tsx",
+          "packages/domain/src/forecast/report.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf > OWN_OUTPUT/5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/web/src/heute/heute-page.tsx",
+      "apps/web/src/heute/heute.css",
+      "apps/web/src/reports/liquidity-chart.tsx",
+      "apps/web/src/reports/liquidity-report.tsx",
+      "apps/web/src/reports/liquidity-selection.ts",
+      "apps/web/src/reports/reports-future.css",
+      "apps/web/src/router.tsx",
+      "packages/domain/src/forecast/report.ts"
+    ],
+    "containsMixedBatch": false,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/573-603-month-close-reminders",
+    "sourceHead": "286b008a6c1525f5481efb178e756f80bbad7db0",
+    "originalBaseBeforeOwnedCommits": "759464abc050195c5d6dc285190efbadbe55de6b",
+    "ownedCommits": [
+      {
+        "sha": "286b008a6c1525f5481efb178e756f80bbad7db0",
+        "parentBase": "759464abc050195c5d6dc285190efbadbe55de6b",
+        "subject": "feat: derive month-close reminder backend from canonical reader",
+        "paths": [
+          "apps/server/src/api/heute.ts",
+          "apps/server/src/api/month-close.ts",
+          "apps/web/src/heute/api.ts",
+          "docs/ROADMAP.md",
+          "packages/db/src/repos/index.ts",
+          "packages/db/src/repos/month-close-read.ts",
+          "packages/db/src/repos/month-close-reminders.ts",
+          "packages/db/src/repos/month-close-state.ts",
+          "packages/db/src/repos/request-memo.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 286b008a6c1525f5481efb178e756f80bbad7db0 > OWN_OUTPUT/286b008a6c1525f5481efb178e756f80bbad7db0.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/server/src/api/heute.ts",
+      "apps/server/src/api/month-close.ts",
+      "apps/web/src/heute/api.ts",
+      "docs/ROADMAP.md",
+      "packages/db/src/repos/index.ts",
+      "packages/db/src/repos/month-close-read.ts",
+      "packages/db/src/repos/month-close-reminders.ts",
+      "packages/db/src/repos/month-close-state.ts",
+      "packages/db/src/repos/request-memo.ts"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/573-603-heute-ui",
+    "sourceHead": "9b1240c6fd199e803f55eed525684f04baca7c3f",
+    "originalBaseBeforeOwnedCommits": "0b9bbb658865239197de37ad98e06eededc25f12",
+    "ownedCommits": [
+      {
+        "sha": "9b1240c6fd199e803f55eed525684f04baca7c3f",
+        "parentBase": "0b9bbb658865239197de37ad98e06eededc25f12",
+        "subject": "feat(heute): present complete task pool and optional pinned envelopes",
+        "paths": [
+          "apps/web/src/heute/attention-bar.tsx",
+          "apps/web/src/heute/attention-model.ts",
+          "apps/web/src/heute/heute-page.tsx",
+          "apps/web/src/heute/heute.css",
+          "docs/ROADMAP.md"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 9b1240c6fd199e803f55eed525684f04baca7c3f > OWN_OUTPUT/9b1240c6fd199e803f55eed525684f04baca7c3f.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/web/src/heute/attention-bar.tsx",
+      "apps/web/src/heute/attention-model.ts",
+      "apps/web/src/heute/heute-page.tsx",
+      "apps/web/src/heute/heute.css",
+      "docs/ROADMAP.md"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/577-account-overview",
+    "sourceHead": "9411bcf0f0dbedf4aa7bb3ce751f7c2fd989fc96",
+    "originalBaseBeforeOwnedCommits": "23a5748273a5088dff62630054882ca12b28d2eb",
+    "ownedCommits": [
+      {
+        "sha": "03d421b5685ed6703e63fd41ca98757b6428dce6",
+        "parentBase": "23a5748273a5088dff62630054882ca12b28d2eb",
+        "subject": "feat(ledger): add account overview and opt-in series quality (#577)",
+        "paths": [
+          "apps/server/src/api/accounts.ts",
+          "apps/web/src/ledger/api.ts",
+          "apps/web/src/ledger/mini-line.tsx",
+          "apps/web/src/ledger/overview-model.ts",
+          "apps/web/src/ledger/overview-page.tsx",
+          "apps/web/src/ledger/overview.css",
+          "apps/web/src/ledger/queries.ts",
+          "apps/web/src/ledger/types.ts",
+          "docs/ROADMAP.md",
+          "packages/db/src/repos/portfolio.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 03d421b5685ed6703e63fd41ca98757b6428dce6 > OWN_OUTPUT/03d421b5685ed6703e63fd41ca98757b6428dce6.patch"
+      },
+      {
+        "sha": "889edf4a5a0690ff4d53d2f54b06cdc4e2d7c95e",
+        "parentBase": "03d421b5685ed6703e63fd41ca98757b6428dce6",
+        "subject": "fix(ledger): retain due status on expanded account details (#577)",
+        "paths": [
+          "apps/web/src/ledger/overview-page.tsx"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 889edf4a5a0690ff4d53d2f54b06cdc4e2d7c95e > OWN_OUTPUT/889edf4a5a0690ff4d53d2f54b06cdc4e2d7c95e.patch"
+      },
+      {
+        "sha": "8f4343f7f907942f59c9469bc48181ccbe585a86",
+        "parentBase": "889edf4a5a0690ff4d53d2f54b06cdc4e2d7c95e",
+        "subject": "test(ledger): cover account overview scope and series quality (#577)",
+        "paths": [
+          "apps/server/src/api/account-overview-quality-577.test.ts",
+          "apps/web/src/ledger/account-overview-577.test.tsx",
+          "apps/web/src/ledger/mini-line-quality-577.test.tsx",
+          "e2e/issue-577-account-overview.spec.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 8f4343f7f907942f59c9469bc48181ccbe585a86 > OWN_OUTPUT/8f4343f7f907942f59c9469bc48181ccbe585a86.patch"
+      },
+      {
+        "sha": "9411bcf0f0dbedf4aa7bb3ce751f7c2fd989fc96",
+        "parentBase": "6079e70620488eb077bd3435b63775e93214c126",
+        "subject": "Use valid valuation and authentication fixtures in new overview tests",
+        "paths": [
+          "apps/server/src/api/account-overview-quality-577.test.ts",
+          "apps/web/src/ledger/account-overview-577.test.tsx"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 9411bcf0f0dbedf4aa7bb3ce751f7c2fd989fc96 > OWN_OUTPUT/9411bcf0f0dbedf4aa7bb3ce751f7c2fd989fc96.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/server/src/api/account-overview-quality-577.test.ts",
+      "apps/server/src/api/accounts.ts",
+      "apps/web/src/ledger/account-overview-577.test.tsx",
+      "apps/web/src/ledger/api.ts",
+      "apps/web/src/ledger/mini-line-quality-577.test.tsx",
+      "apps/web/src/ledger/mini-line.tsx",
+      "apps/web/src/ledger/overview-model.ts",
+      "apps/web/src/ledger/overview-page.tsx",
+      "apps/web/src/ledger/overview.css",
+      "apps/web/src/ledger/queries.ts",
+      "apps/web/src/ledger/types.ts",
+      "docs/ROADMAP.md",
+      "e2e/issue-577-account-overview.spec.ts",
+      "packages/db/src/repos/portfolio.ts"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/591-593-plan-inspector",
+    "sourceHead": "d785b65eef4f01d17389c5697af76c903aeb181a",
+    "originalBaseBeforeOwnedCommits": "f81c206d47dbb851e59a07db396d10fc4512270e",
+    "ownedCommits": [
+      {
+        "sha": "d785b65eef4f01d17389c5697af76c903aeb181a",
+        "parentBase": "f81c206d47dbb851e59a07db396d10fc4512270e",
+        "subject": "feat(plan): compact inspector with canonical assignment previews",
+        "paths": [
+          "apps/server/src/api/schemas.ts",
+          "apps/web/src/budget/envelope-panel.tsx",
+          "apps/web/src/budget/plan-inspector.tsx",
+          "apps/web/src/budget/plan-model.ts",
+          "apps/web/src/budget/plan-page.tsx",
+          "apps/web/src/budget/plan.css",
+          "apps/web/src/budget/quick-assign-actions.tsx",
+          "docs/ROADMAP.md",
+          "packages/domain/src/ledger/quick-assign.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout d785b65eef4f01d17389c5697af76c903aeb181a > OWN_OUTPUT/d785b65eef4f01d17389c5697af76c903aeb181a.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/server/src/api/schemas.ts",
+      "apps/web/src/budget/envelope-panel.tsx",
+      "apps/web/src/budget/plan-inspector.tsx",
+      "apps/web/src/budget/plan-model.ts",
+      "apps/web/src/budget/plan-page.tsx",
+      "apps/web/src/budget/plan.css",
+      "apps/web/src/budget/quick-assign-actions.tsx",
+      "docs/ROADMAP.md",
+      "packages/domain/src/ledger/quick-assign.ts"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/596-ledger-bulk-bar",
+    "sourceHead": "1295652f3bcf7928677cc04041642a60a218f18c",
+    "originalBaseBeforeOwnedCommits": "211291473f2848eb9a17116908aa86d399b2d3d2",
+    "ownedCommits": [
+      {
+        "sha": "1295652f3bcf7928677cc04041642a60a218f18c",
+        "parentBase": "211291473f2848eb9a17116908aa86d399b2d3d2",
+        "subject": "feat(ledger): implement source-only bulk selection bar (#596)",
+        "paths": [
+          "apps/server/src/api/bookings.ts",
+          "apps/server/src/api/schemas.ts",
+          "apps/web/src/ledger/api.ts",
+          "apps/web/src/ledger/booking-selection-bar.tsx",
+          "apps/web/src/ledger/booking-table.tsx",
+          "apps/web/src/ledger/bookings-page.tsx",
+          "apps/web/src/ledger/cache.ts",
+          "apps/web/src/ledger/labels.ts",
+          "apps/web/src/ledger/ledger.css",
+          "apps/web/src/ledger/mutations.ts",
+          "packages/db/src/repos/booking-bulk-eligibility.ts",
+          "packages/db/src/repos/index.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 1295652f3bcf7928677cc04041642a60a218f18c > OWN_OUTPUT/1295652f3bcf7928677cc04041642a60a218f18c.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/server/src/api/bookings.ts",
+      "apps/server/src/api/schemas.ts",
+      "apps/web/src/ledger/api.ts",
+      "apps/web/src/ledger/booking-selection-bar.tsx",
+      "apps/web/src/ledger/booking-table.tsx",
+      "apps/web/src/ledger/bookings-page.tsx",
+      "apps/web/src/ledger/cache.ts",
+      "apps/web/src/ledger/labels.ts",
+      "apps/web/src/ledger/ledger.css",
+      "apps/web/src/ledger/mutations.ts",
+      "packages/db/src/repos/booking-bulk-eligibility.ts",
+      "packages/db/src/repos/index.ts"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/597-delete-preview",
+    "sourceHead": "aaeaf014c38304759311baf39fa60e0610c284da",
+    "originalBaseBeforeOwnedCommits": "b3b12a508b77180618e0595b78aa17fcc463d0fe",
+    "ownedCommits": [
+      {
+        "sha": "aaeaf014c38304759311baf39fa60e0610c284da",
+        "parentBase": "b3b12a508b77180618e0595b78aa17fcc463d0fe",
+        "subject": "feat(ledger): implement source-only delete preview (#597)",
+        "paths": [
+          "apps/server/src/api/bookings.ts",
+          "apps/server/src/api/schemas.ts",
+          "apps/web/src/ledger/api.ts",
+          "apps/web/src/ledger/booking-delete-preview.tsx",
+          "apps/web/src/ledger/booking-panel.tsx",
+          "apps/web/src/ledger/booking-selection-bar.tsx",
+          "apps/web/src/ledger/bookings-page.tsx",
+          "apps/web/src/ledger/capture-form.tsx",
+          "apps/web/src/ledger/ledger.css",
+          "apps/web/src/ledger/mutations.ts",
+          "packages/db/src/repos/booking-bulk-eligibility.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout aaeaf014c38304759311baf39fa60e0610c284da > OWN_OUTPUT/aaeaf014c38304759311baf39fa60e0610c284da.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/server/src/api/bookings.ts",
+      "apps/server/src/api/schemas.ts",
+      "apps/web/src/ledger/api.ts",
+      "apps/web/src/ledger/booking-delete-preview.tsx",
+      "apps/web/src/ledger/booking-panel.tsx",
+      "apps/web/src/ledger/booking-selection-bar.tsx",
+      "apps/web/src/ledger/bookings-page.tsx",
+      "apps/web/src/ledger/capture-form.tsx",
+      "apps/web/src/ledger/ledger.css",
+      "apps/web/src/ledger/mutations.ts",
+      "packages/db/src/repos/booking-bulk-eligibility.ts"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/599-contact-reminders",
+    "sourceHead": "b4e1f558a7d92beab192fc8eaf3769579e2c2ce3",
+    "originalBaseBeforeOwnedCommits": "cadefe15230a977651351184739eafd46b721f3c",
+    "ownedCommits": [
+      {
+        "sha": "b4e1f558a7d92beab192fc8eaf3769579e2c2ce3",
+        "parentBase": "cadefe15230a977651351184739eafd46b721f3c",
+        "subject": "feat(contacts): derive current overdue outlay reminders for 599",
+        "paths": [
+          "apps/web/src/heute/api.ts",
+          "apps/web/src/heute/attention-bar.tsx",
+          "packages/db/src/repos/contacts.ts",
+          "packages/db/src/repos/heute.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout b4e1f558a7d92beab192fc8eaf3769579e2c2ce3 > OWN_OUTPUT/b4e1f558a7d92beab192fc8eaf3769579e2c2ce3.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/web/src/heute/api.ts",
+      "apps/web/src/heute/attention-bar.tsx",
+      "packages/db/src/repos/contacts.ts",
+      "packages/db/src/repos/heute.ts"
+    ],
+    "containsMixedBatch": false,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/600-602-month-close",
+    "sourceHead": "fc6d51be781fd68203e509c172b7c216162a979d",
+    "originalBaseBeforeOwnedCommits": "b3b12a508b77180618e0595b78aa17fcc463d0fe",
+    "ownedCommits": [
+      {
+        "sha": "fc6d51be781fd68203e509c172b7c216162a979d",
+        "parentBase": "b3b12a508b77180618e0595b78aa17fcc463d0fe",
+        "subject": "feat(month-close): skip empty steps and retain reviewed results",
+        "paths": [
+          "apps/server/src/api/month-close.ts",
+          "apps/web/src/month-close/api.ts",
+          "apps/web/src/month-close/month-close-page.tsx",
+          "apps/web/src/month-close/month-close.css",
+          "apps/web/src/month-close/month-review.tsx",
+          "apps/web/src/month-close/stepper.tsx",
+          "docs/ROADMAP.md",
+          "packages/db/src/repos/index.ts",
+          "packages/db/src/repos/month-close-state.ts",
+          "packages/domain/src/month-close.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout fc6d51be781fd68203e509c172b7c216162a979d > OWN_OUTPUT/fc6d51be781fd68203e509c172b7c216162a979d.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/server/src/api/month-close.ts",
+      "apps/web/src/month-close/api.ts",
+      "apps/web/src/month-close/month-close-page.tsx",
+      "apps/web/src/month-close/month-close.css",
+      "apps/web/src/month-close/month-review.tsx",
+      "apps/web/src/month-close/stepper.tsx",
+      "docs/ROADMAP.md",
+      "packages/db/src/repos/index.ts",
+      "packages/db/src/repos/month-close-state.ts",
+      "packages/domain/src/month-close.ts"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/601-unchanged-account-confirmation",
+    "sourceHead": "7cf615bde670bb321d15b8f2469c6ab6c8298676",
+    "originalBaseBeforeOwnedCommits": "8f2509c683fcbe6959976127c50ce455574c7221",
+    "ownedCommits": [
+      {
+        "sha": "7cf615bde670bb321d15b8f2469c6ab6c8298676",
+        "parentBase": "8f2509c683fcbe6959976127c50ce455574c7221",
+        "subject": "feat(month-close): prepare unchanged account confirmation (#601)",
+        "paths": [
+          "apps/server/src/api/accounts.ts",
+          "apps/server/src/api/month-close.ts",
+          "apps/web/src/ledger/reconcile-panel.tsx",
+          "apps/web/src/month-close/api.ts",
+          "apps/web/src/month-close/month-close-page.tsx",
+          "apps/web/src/month-close/month-close.css",
+          "docs/ROADMAP.md",
+          "packages/db/src/repos/index.ts",
+          "packages/db/src/repos/month-close-reconciliation.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 7cf615bde670bb321d15b8f2469c6ab6c8298676 > OWN_OUTPUT/7cf615bde670bb321d15b8f2469c6ab6c8298676.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/server/src/api/accounts.ts",
+      "apps/server/src/api/month-close.ts",
+      "apps/web/src/ledger/reconcile-panel.tsx",
+      "apps/web/src/month-close/api.ts",
+      "apps/web/src/month-close/month-close-page.tsx",
+      "apps/web/src/month-close/month-close.css",
+      "docs/ROADMAP.md",
+      "packages/db/src/repos/index.ts",
+      "packages/db/src/repos/month-close-reconciliation.ts"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/604-goal-funding-lifecycle",
+    "sourceHead": "1858cffc04262063865f7043c2c39b7e02782212",
+    "originalBaseBeforeOwnedCommits": "5960e51cba63d509cdc9f24262103ab16d3dfead",
+    "ownedCommits": [
+      {
+        "sha": "63eb5ff3e549781fbea791e601830dd0dcf4fae5",
+        "parentBase": "5960e51cba63d509cdc9f24262103ab16d3dfead",
+        "subject": "feat(goals): add reviewed funding and lifecycle source",
+        "paths": [
+          "SPEC.md",
+          "apps/server/src/api/goals.ts",
+          "apps/server/src/api/schemas.ts",
+          "apps/web/src/budget/goals-api.ts",
+          "apps/web/src/budget/goals-model.ts",
+          "apps/web/src/budget/goals-page.tsx",
+          "apps/web/src/budget/goals-panel.tsx",
+          "apps/web/src/budget/goals.css",
+          "apps/web/src/budget/plan-panel-pages.tsx",
+          "apps/web/src/pages/goals-progress-report.tsx",
+          "docs/ROADMAP.md",
+          "packages/db/drizzle/0048_goal_lifecycle.sql",
+          "packages/db/drizzle/meta/0048_snapshot.json",
+          "packages/db/drizzle/meta/_journal.json",
+          "packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+          "packages/db/src/repos/budget-ledger-input.ts",
+          "packages/db/src/repos/goal-lifecycle.ts",
+          "packages/db/src/repos/goals.ts",
+          "packages/db/src/repos/queries.ts",
+          "packages/db/src/schema/budget.ts",
+          "packages/domain/src/goals/lifecycle.ts",
+          "packages/domain/src/index.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 63eb5ff3e549781fbea791e601830dd0dcf4fae5 > OWN_OUTPUT/63eb5ff3e549781fbea791e601830dd0dcf4fae5.patch"
+      },
+      {
+        "sha": "1858cffc04262063865f7043c2c39b7e02782212",
+        "parentBase": "63eb5ff3e549781fbea791e601830dd0dcf4fae5",
+        "subject": "feat(goals): anchor prospective lifecycle evidence",
+        "paths": [
+          "docs/ROADMAP.md",
+          "packages/db/drizzle/0048_goal_lifecycle.sql",
+          "packages/db/drizzle/meta/0048_snapshot.json",
+          "packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+          "packages/db/src/repos/goal-lifecycle.ts",
+          "packages/db/src/repos/goals.ts",
+          "packages/db/src/schema/budget.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 1858cffc04262063865f7043c2c39b7e02782212 > OWN_OUTPUT/1858cffc04262063865f7043c2c39b7e02782212.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "SPEC.md",
+      "apps/server/src/api/goals.ts",
+      "apps/server/src/api/schemas.ts",
+      "apps/web/src/budget/goals-api.ts",
+      "apps/web/src/budget/goals-model.ts",
+      "apps/web/src/budget/goals-page.tsx",
+      "apps/web/src/budget/goals-panel.tsx",
+      "apps/web/src/budget/goals.css",
+      "apps/web/src/budget/plan-panel-pages.tsx",
+      "apps/web/src/pages/goals-progress-report.tsx",
+      "docs/ROADMAP.md",
+      "packages/db/drizzle/0048_goal_lifecycle.sql",
+      "packages/db/drizzle/meta/0048_snapshot.json",
+      "packages/db/drizzle/meta/_journal.json",
+      "packages/db/drizzle/rollback/0048_goal_lifecycle.sql",
+      "packages/db/src/repos/budget-ledger-input.ts",
+      "packages/db/src/repos/goal-lifecycle.ts",
+      "packages/db/src/repos/goals.ts",
+      "packages/db/src/repos/queries.ts",
+      "packages/db/src/schema/budget.ts",
+      "packages/domain/src/goals/lifecycle.ts",
+      "packages/domain/src/index.ts"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/607-payment-lifecycle",
+    "sourceHead": "42d26f3aff97440ef96194484f931bedde85718e",
+    "originalBaseBeforeOwnedCommits": "49402a1af32ec506696abb9e9225fae7b3c50fe4",
+    "ownedCommits": [
+      {
+        "sha": "4ca52ccf52d9101bcff9ef9b0744b04a4419b48a",
+        "parentBase": "49402a1af32ec506696abb9e9225fae7b3c50fe4",
+        "subject": "feat(expected): preserve recurring-payment pause and end history (Refs #607)",
+        "paths": [
+          "apps/server/src/api/expected-lifecycle-607.test.ts",
+          "apps/server/src/api/expected.ts",
+          "apps/server/src/api/schemas.ts",
+          "apps/web/src/expected/api.ts",
+          "apps/web/src/expected/expected.css",
+          "apps/web/src/expected/payment-draft.ts",
+          "apps/web/src/expected/payment-form.tsx",
+          "apps/web/src/expected/payment-panel.tsx",
+          "docs/ROADMAP.md",
+          "packages/db/drizzle/0049_expected_payment_pause.sql",
+          "packages/db/drizzle/meta/0049_snapshot.json",
+          "packages/db/drizzle/meta/_journal.json",
+          "packages/db/drizzle/rollback/0049_expected_payment_pause.sql",
+          "packages/db/src/payment-pause-migration-607.test.ts",
+          "packages/db/src/repos/audit.ts",
+          "packages/db/src/repos/expected-detail.ts",
+          "packages/db/src/repos/expected-lifecycle-607.test.ts",
+          "packages/db/src/repos/expected-lifecycle-invariants.ts",
+          "packages/db/src/repos/expected.ts",
+          "packages/db/src/repos/income-targets.ts",
+          "packages/db/src/repos/payments-preview.ts",
+          "packages/db/src/repos/rule-inputs.ts",
+          "packages/db/src/schema/budget.ts",
+          "packages/domain/src/schedule/due-dates.ts",
+          "packages/domain/src/schedule/payment-lifecycle-607.test.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 4ca52ccf52d9101bcff9ef9b0744b04a4419b48a > OWN_OUTPUT/4ca52ccf52d9101bcff9ef9b0744b04a4419b48a.patch"
+      },
+      {
+        "sha": "5131ebc9a26b556c7e0fd4750a230c9ee4845637",
+        "parentBase": "4ca52ccf52d9101bcff9ef9b0744b04a4419b48a",
+        "subject": "test(expected): cover lifecycle dialogs and native Undo for #607",
+        "paths": [
+          "apps/web/src/expected/payment-lifecycle-607.test.tsx",
+          "e2e/issue-607-payment-lifecycle.spec.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 5131ebc9a26b556c7e0fd4750a230c9ee4845637 > OWN_OUTPUT/5131ebc9a26b556c7e0fd4750a230c9ee4845637.patch"
+      },
+      {
+        "sha": "c4f510b9d313158782fe0c64cf0a8900fcde5227",
+        "parentBase": "6768321be143a62279d8961fe776d8e7e9c59926",
+        "subject": "Delete each synthetic lifecycle fixture by its own primary key",
+        "paths": [
+          "packages/db/src/repos/expected-lifecycle-607.test.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout c4f510b9d313158782fe0c64cf0a8900fcde5227 > OWN_OUTPUT/c4f510b9d313158782fe0c64cf0a8900fcde5227.patch"
+      },
+      {
+        "sha": "327f59a8ffd9018dbfff28ef31f7736fde2eedf7",
+        "parentBase": "c4f510b9d313158782fe0c64cf0a8900fcde5227",
+        "subject": "style(expected): format reviewed lifecycle source and new tests",
+        "paths": [
+          "apps/server/src/api/expected-lifecycle-607.test.ts",
+          "apps/server/src/api/expected.ts",
+          "apps/server/src/api/schemas.ts",
+          "apps/web/src/expected/payment-draft.ts",
+          "apps/web/src/expected/payment-form.tsx",
+          "apps/web/src/expected/payment-lifecycle-607.test.tsx",
+          "apps/web/src/expected/payment-panel.tsx",
+          "e2e/issue-607-payment-lifecycle.spec.ts",
+          "packages/db/src/payment-pause-migration-607.test.ts",
+          "packages/db/src/repos/audit.ts",
+          "packages/db/src/repos/expected-detail.ts",
+          "packages/db/src/repos/expected-lifecycle-607.test.ts",
+          "packages/db/src/repos/expected-lifecycle-invariants.ts",
+          "packages/db/src/repos/expected.ts",
+          "packages/db/src/repos/payments-preview.ts",
+          "packages/db/src/repos/rule-inputs.ts",
+          "packages/db/src/schema/budget.ts",
+          "packages/domain/src/schedule/due-dates.ts",
+          "packages/domain/src/schedule/payment-lifecycle-607.test.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 327f59a8ffd9018dbfff28ef31f7736fde2eedf7 > OWN_OUTPUT/327f59a8ffd9018dbfff28ef31f7736fde2eedf7.patch"
+      },
+      {
+        "sha": "a552bbda39655c0eac862aefdd5d44c2d14ccab1",
+        "parentBase": "327f59a8ffd9018dbfff28ef31f7736fde2eedf7",
+        "subject": "Complete synthetic payment lifecycle cache fixtures",
+        "paths": [
+          "apps/web/src/expected/payment-lifecycle-607.test.tsx"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout a552bbda39655c0eac862aefdd5d44c2d14ccab1 > OWN_OUTPUT/a552bbda39655c0eac862aefdd5d44c2d14ccab1.patch"
+      },
+      {
+        "sha": "42d26f3aff97440ef96194484f931bedde85718e",
+        "parentBase": "a552bbda39655c0eac862aefdd5d44c2d14ccab1",
+        "subject": "Use named request type in new payment lifecycle browser tests",
+        "paths": [
+          "e2e/issue-607-payment-lifecycle.spec.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 42d26f3aff97440ef96194484f931bedde85718e > OWN_OUTPUT/42d26f3aff97440ef96194484f931bedde85718e.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/server/src/api/expected-lifecycle-607.test.ts",
+      "apps/server/src/api/expected.ts",
+      "apps/server/src/api/schemas.ts",
+      "apps/web/src/expected/api.ts",
+      "apps/web/src/expected/expected.css",
+      "apps/web/src/expected/payment-draft.ts",
+      "apps/web/src/expected/payment-form.tsx",
+      "apps/web/src/expected/payment-lifecycle-607.test.tsx",
+      "apps/web/src/expected/payment-panel.tsx",
+      "docs/ROADMAP.md",
+      "e2e/issue-607-payment-lifecycle.spec.ts",
+      "packages/db/drizzle/0049_expected_payment_pause.sql",
+      "packages/db/drizzle/meta/0049_snapshot.json",
+      "packages/db/drizzle/meta/_journal.json",
+      "packages/db/drizzle/rollback/0049_expected_payment_pause.sql",
+      "packages/db/src/payment-pause-migration-607.test.ts",
+      "packages/db/src/repos/audit.ts",
+      "packages/db/src/repos/expected-detail.ts",
+      "packages/db/src/repos/expected-lifecycle-607.test.ts",
+      "packages/db/src/repos/expected-lifecycle-invariants.ts",
+      "packages/db/src/repos/expected.ts",
+      "packages/db/src/repos/income-targets.ts",
+      "packages/db/src/repos/payments-preview.ts",
+      "packages/db/src/repos/rule-inputs.ts",
+      "packages/db/src/schema/budget.ts",
+      "packages/domain/src/schedule/due-dates.ts",
+      "packages/domain/src/schedule/payment-lifecycle-607.test.ts"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/608-year-scenario",
+    "sourceHead": "81a68a9381ce20cf09179b46ed188e38bd77222c",
+    "originalBaseBeforeOwnedCommits": "f3821c17e34279fc0083b1ac58c6215789904ef7",
+    "ownedCommits": [
+      {
+        "sha": "81a68a9381ce20cf09179b46ed188e38bd77222c",
+        "parentBase": "f3821c17e34279fc0083b1ac58c6215789904ef7",
+        "subject": "feat(plan): surface the calendar-year event scenario",
+        "paths": [
+          "apps/web/src/budget/plan-year-page.tsx",
+          "apps/web/src/budget/plan-year.css",
+          "apps/web/src/budget/year-planning.tsx",
+          "apps/web/src/budget/year-scenario-chart.tsx",
+          "docs/ROADMAP.md"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 81a68a9381ce20cf09179b46ed188e38bd77222c > OWN_OUTPUT/81a68a9381ce20cf09179b46ed188e38bd77222c.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/web/src/budget/plan-year-page.tsx",
+      "apps/web/src/budget/plan-year.css",
+      "apps/web/src/budget/year-planning.tsx",
+      "apps/web/src/budget/year-scenario-chart.tsx",
+      "docs/ROADMAP.md"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/609-payslip-pdf-preview",
+    "sourceHead": "621f1edfdf201199b2c244465557b65bcd0f41c3",
+    "originalBaseBeforeOwnedCommits": "649e6171b90ee2f3c0727cea7fcd50c613fbad98",
+    "ownedCommits": [
+      {
+        "sha": "621f1edfdf201199b2c244465557b65bcd0f41c3",
+        "parentBase": "649e6171b90ee2f3c0727cea7fcd50c613fbad98",
+        "subject": "feat: add inert payroll PDF page preview (validation pending)",
+        "paths": [
+          "Dockerfile",
+          "apps/server/package.json",
+          "apps/server/src/api/receipts.ts",
+          "apps/server/src/receipts/pdf-preview-thread.mjs",
+          "apps/server/src/receipts/pdf-preview.ts",
+          "apps/web/src/receipts/pdf-preview.css",
+          "apps/web/src/receipts/pdf-preview.tsx",
+          "apps/web/src/reports/payslip-intake.css",
+          "apps/web/src/reports/payslip-intake.tsx",
+          "docs/ROADMAP.md",
+          "docs/payslip-intake.md",
+          "docs/receipts.md"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 621f1edfdf201199b2c244465557b65bcd0f41c3 > OWN_OUTPUT/621f1edfdf201199b2c244465557b65bcd0f41c3.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "Dockerfile",
+      "apps/server/package.json",
+      "apps/server/src/api/receipts.ts",
+      "apps/server/src/receipts/pdf-preview-thread.mjs",
+      "apps/server/src/receipts/pdf-preview.ts",
+      "apps/web/src/receipts/pdf-preview.css",
+      "apps/web/src/receipts/pdf-preview.tsx",
+      "apps/web/src/reports/payslip-intake.css",
+      "apps/web/src/reports/payslip-intake.tsx",
+      "docs/ROADMAP.md",
+      "docs/payslip-intake.md",
+      "docs/receipts.md"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/611-612-loan-live-scenario",
+    "sourceHead": "4f9090f1f16613727c3172ab14065e9f3233e5ce",
+    "originalBaseBeforeOwnedCommits": "bcf5dabc63c1d5798d12f065f61e9eaaf26a13e7",
+    "ownedCommits": [
+      {
+        "sha": "4f9090f1f16613727c3172ab14065e9f3233e5ce",
+        "parentBase": "bcf5dabc63c1d5798d12f065f61e9eaaf26a13e7",
+        "subject": "feat(wealth): add selected loan live repayment scenario (refs #611 #612)",
+        "paths": [
+          "apps/web/src/wealth/debt-live-scenario.tsx",
+          "apps/web/src/wealth/debts-chart.tsx",
+          "apps/web/src/wealth/debts-page.tsx",
+          "apps/web/src/wealth/debts.css",
+          "docs/ROADMAP.md"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 4f9090f1f16613727c3172ab14065e9f3233e5ce > OWN_OUTPUT/4f9090f1f16613727c3172ab14065e9f3233e5ce.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/web/src/wealth/debt-live-scenario.tsx",
+      "apps/web/src/wealth/debts-chart.tsx",
+      "apps/web/src/wealth/debts-page.tsx",
+      "apps/web/src/wealth/debts.css",
+      "docs/ROADMAP.md"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/619-reports-hub",
+    "sourceHead": "ceca8664db4384303634e5f6274d37e1393d3f88",
+    "originalBaseBeforeOwnedCommits": "c12c67e08407412105a3d8bd578863291e5b23fa",
+    "ownedCommits": [
+      {
+        "sha": "ceca8664db4384303634e5f6274d37e1393d3f88",
+        "parentBase": "c12c67e08407412105a3d8bd578863291e5b23fa",
+        "subject": "feat(reports): add the 16-entry searchable hub (validation pending)",
+        "paths": [
+          "apps/web/src/nav/areas.ts",
+          "apps/web/src/pages/reports-pages.tsx",
+          "apps/web/src/reports/report-hub-model.ts",
+          "apps/web/src/reports/report-hub.css",
+          "apps/web/src/reports/report-hub.tsx",
+          "apps/web/src/reports/report-navigation.css",
+          "apps/web/src/reports/report-navigation.tsx",
+          "docs/ROADMAP.md"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout ceca8664db4384303634e5f6274d37e1393d3f88 > OWN_OUTPUT/ceca8664db4384303634e5f6274d37e1393d3f88.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/web/src/nav/areas.ts",
+      "apps/web/src/pages/reports-pages.tsx",
+      "apps/web/src/reports/report-hub-model.ts",
+      "apps/web/src/reports/report-hub.css",
+      "apps/web/src/reports/report-hub.tsx",
+      "apps/web/src/reports/report-navigation.css",
+      "apps/web/src/reports/report-navigation.tsx",
+      "docs/ROADMAP.md"
+    ],
+    "containsMixedBatch": false,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/621-income-project-views",
+    "sourceHead": "3e9e316895a01f86a2d7f26368b798c32b0d8e08",
+    "originalBaseBeforeOwnedCommits": "211291473f2848eb9a17116908aa86d399b2d3d2",
+    "ownedCommits": [
+      {
+        "sha": "3e9e316895a01f86a2d7f26368b798c32b0d8e08",
+        "parentBase": "211291473f2848eb9a17116908aa86d399b2d3d2",
+        "subject": "feat(reports): add project-scoped income and cashflow views",
+        "paths": [
+          "apps/server/src/api/cashflow-report.ts",
+          "apps/server/src/api/report-tables.ts",
+          "apps/server/src/api/reports-month.ts",
+          "apps/web/src/pages/reports-pages.tsx",
+          "apps/web/src/reports/cashflow-api.ts",
+          "apps/web/src/reports/cashflow-report.tsx",
+          "apps/web/src/reports/income-cashflow-report.tsx",
+          "apps/web/src/reports/income-expense-report.tsx",
+          "apps/web/src/reports/income-report.tsx",
+          "apps/web/src/reports/month-api.ts",
+          "apps/web/src/reports/report-project-scope.tsx",
+          "apps/web/src/reports/report-search.ts",
+          "apps/web/src/reports/report-views.css",
+          "apps/web/src/reports/table-report-frame.tsx",
+          "docs/ROADMAP.md",
+          "packages/db/src/repos/cashflow-report.ts",
+          "packages/db/src/repos/month-reports.ts",
+          "packages/db/src/repos/report-project-scope.ts",
+          "packages/db/src/repos/report-tables.ts",
+          "packages/domain/src/report-tables/income-expense.ts",
+          "packages/domain/src/report-tables/tables.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 3e9e316895a01f86a2d7f26368b798c32b0d8e08 > OWN_OUTPUT/3e9e316895a01f86a2d7f26368b798c32b0d8e08.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/server/src/api/cashflow-report.ts",
+      "apps/server/src/api/report-tables.ts",
+      "apps/server/src/api/reports-month.ts",
+      "apps/web/src/pages/reports-pages.tsx",
+      "apps/web/src/reports/cashflow-api.ts",
+      "apps/web/src/reports/cashflow-report.tsx",
+      "apps/web/src/reports/income-cashflow-report.tsx",
+      "apps/web/src/reports/income-expense-report.tsx",
+      "apps/web/src/reports/income-report.tsx",
+      "apps/web/src/reports/month-api.ts",
+      "apps/web/src/reports/report-project-scope.tsx",
+      "apps/web/src/reports/report-search.ts",
+      "apps/web/src/reports/report-views.css",
+      "apps/web/src/reports/table-report-frame.tsx",
+      "docs/ROADMAP.md",
+      "packages/db/src/repos/cashflow-report.ts",
+      "packages/db/src/repos/month-reports.ts",
+      "packages/db/src/repos/report-project-scope.ts",
+      "packages/db/src/repos/report-tables.ts",
+      "packages/domain/src/report-tables/income-expense.ts",
+      "packages/domain/src/report-tables/tables.ts"
+    ],
+    "containsMixedBatch": true,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/622-spending-payee-view",
+    "sourceHead": "2be8458390912470bd0260580a5b55547cc158e0",
+    "originalBaseBeforeOwnedCommits": "28c5a2124e99a9ec3bee1a2911a07143a9652492",
+    "ownedCommits": [
+      {
+        "sha": "2be8458390912470bd0260580a5b55547cc158e0",
+        "parentBase": "28c5a2124e99a9ec3bee1a2911a07143a9652492",
+        "subject": "feat(reports): add the payee view to spending analysis (validation pending)",
+        "paths": [
+          "apps/web/src/pages/payee-analysis-report.tsx",
+          "apps/web/src/pages/reports-pages.tsx",
+          "apps/web/src/reports/report-search.ts",
+          "apps/web/src/reports/report-views.css",
+          "apps/web/src/reports/spending-analysis-report.tsx",
+          "apps/web/src/reports/spending-report-views.tsx",
+          "docs/ROADMAP.md"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 2be8458390912470bd0260580a5b55547cc158e0 > OWN_OUTPUT/2be8458390912470bd0260580a5b55547cc158e0.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/web/src/pages/payee-analysis-report.tsx",
+      "apps/web/src/pages/reports-pages.tsx",
+      "apps/web/src/reports/report-search.ts",
+      "apps/web/src/reports/report-views.css",
+      "apps/web/src/reports/spending-analysis-report.tsx",
+      "apps/web/src/reports/spending-report-views.tsx",
+      "docs/ROADMAP.md"
+    ],
+    "containsMixedBatch": false,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/623-wealth-report-views",
+    "sourceHead": "8286d82cc689addd5a71b939ec599e5f89122ae9",
+    "originalBaseBeforeOwnedCommits": "2be8458390912470bd0260580a5b55547cc158e0",
+    "ownedCommits": [
+      {
+        "sha": "8286d82cc689addd5a71b939ec599e5f89122ae9",
+        "parentBase": "2be8458390912470bd0260580a5b55547cc158e0",
+        "subject": "feat(reports): combine the wealth report views (validation pending)",
+        "paths": [
+          "apps/web/src/pages/reports-pages.tsx",
+          "apps/web/src/reports/assets-debts-report.tsx",
+          "apps/web/src/reports/report-search.ts",
+          "apps/web/src/reports/wealth-history-report.tsx",
+          "apps/web/src/reports/wealth-report-views.tsx",
+          "apps/web/src/reports/whole-picture-report.tsx",
+          "docs/ROADMAP.md"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 8286d82cc689addd5a71b939ec599e5f89122ae9 > OWN_OUTPUT/8286d82cc689addd5a71b939ec599e5f89122ae9.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/web/src/pages/reports-pages.tsx",
+      "apps/web/src/reports/assets-debts-report.tsx",
+      "apps/web/src/reports/report-search.ts",
+      "apps/web/src/reports/wealth-history-report.tsx",
+      "apps/web/src/reports/wealth-report-views.tsx",
+      "apps/web/src/reports/whole-picture-report.tsx",
+      "docs/ROADMAP.md"
+    ],
+    "containsMixedBatch": false,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/626-explorer-chart",
+    "sourceHead": "1aacdcea934aafb0a8236b305c9c5d1e4af0eb6e",
+    "originalBaseBeforeOwnedCommits": "cb087a2639f5e367aa3af4aa2b692725f169e76c",
+    "ownedCommits": [
+      {
+        "sha": "c8d43a3bafdad3983ac41543358e5b7bfaf9c665",
+        "parentBase": "cb087a2639f5e367aa3af4aa2b692725f169e76c",
+        "subject": "feat(reports): add same-source Explorer chart views (#626)",
+        "paths": [
+          "apps/web/src/reports/explorer-chart-626.test.tsx",
+          "apps/web/src/reports/explorer-chart-626.tsx",
+          "apps/web/src/reports/explorer-chart-model-626.test.ts",
+          "apps/web/src/reports/explorer-chart-model-626.ts",
+          "apps/web/src/reports/explorer-report.css",
+          "apps/web/src/reports/explorer-report.tsx",
+          "apps/web/src/reports/explorer-table-inspector-626.tsx",
+          "apps/web/src/reports/explorer-templates.tsx",
+          "apps/web/src/reports/explorer-toggle-626.test.tsx",
+          "e2e/issue-626-explorer-chart-toggle.spec.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout c8d43a3bafdad3983ac41543358e5b7bfaf9c665 > OWN_OUTPUT/c8d43a3bafdad3983ac41543358e5b7bfaf9c665.patch"
+      },
+      {
+        "sha": "2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6",
+        "parentBase": "37e85f52a248414a8f2775c26946fbc27655bdea",
+        "subject": "docs(reports): record Explorer chart verification",
+        "paths": [
+          "docs/ROADMAP.md",
+          "docs/evidence/explorer-chart-626/README.md",
+          "docs/evidence/explorer-chart-626/configured-custom-dark.png",
+          "docs/evidence/explorer-chart-626/configured-custom-light.png",
+          "docs/evidence/explorer-chart-626/configured-heatmap-dark.png",
+          "docs/evidence/explorer-chart-626/configured-heatmap-light.png",
+          "docs/evidence/explorer-chart-626/configured-total-dark.png",
+          "docs/evidence/explorer-chart-626/configured-total-light.png",
+          "docs/evidence/explorer-chart-626/desktop1440-custom-dark.png",
+          "docs/evidence/explorer-chart-626/desktop1440-custom-light.png",
+          "docs/evidence/explorer-chart-626/desktop1440-heatmap-dark.png",
+          "docs/evidence/explorer-chart-626/desktop1440-heatmap-light.png",
+          "docs/evidence/explorer-chart-626/desktop1440-total-dark.png",
+          "docs/evidence/explorer-chart-626/desktop1440-total-light.png",
+          "docs/evidence/explorer-chart-626/runtime-proof.json"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6 > OWN_OUTPUT/2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6.patch"
+      },
+      {
+        "sha": "1aacdcea934aafb0a8236b305c9c5d1e4af0eb6e",
+        "parentBase": "2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6",
+        "subject": "test(reports): hover exposed Explorer table cells",
+        "paths": [
+          "docs/evidence/explorer-chart-626/README.md",
+          "e2e/issue-626-explorer-chart-toggle.spec.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 1aacdcea934aafb0a8236b305c9c5d1e4af0eb6e > OWN_OUTPUT/1aacdcea934aafb0a8236b305c9c5d1e4af0eb6e.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/web/src/reports/explorer-chart-626.test.tsx",
+      "apps/web/src/reports/explorer-chart-626.tsx",
+      "apps/web/src/reports/explorer-chart-model-626.test.ts",
+      "apps/web/src/reports/explorer-chart-model-626.ts",
+      "apps/web/src/reports/explorer-report.css",
+      "apps/web/src/reports/explorer-report.tsx",
+      "apps/web/src/reports/explorer-table-inspector-626.tsx",
+      "apps/web/src/reports/explorer-templates.tsx",
+      "apps/web/src/reports/explorer-toggle-626.test.tsx",
+      "docs/ROADMAP.md",
+      "docs/evidence/explorer-chart-626/README.md",
+      "docs/evidence/explorer-chart-626/configured-custom-dark.png",
+      "docs/evidence/explorer-chart-626/configured-custom-light.png",
+      "docs/evidence/explorer-chart-626/configured-heatmap-dark.png",
+      "docs/evidence/explorer-chart-626/configured-heatmap-light.png",
+      "docs/evidence/explorer-chart-626/configured-total-dark.png",
+      "docs/evidence/explorer-chart-626/configured-total-light.png",
+      "docs/evidence/explorer-chart-626/desktop1440-custom-dark.png",
+      "docs/evidence/explorer-chart-626/desktop1440-custom-light.png",
+      "docs/evidence/explorer-chart-626/desktop1440-heatmap-dark.png",
+      "docs/evidence/explorer-chart-626/desktop1440-heatmap-light.png",
+      "docs/evidence/explorer-chart-626/desktop1440-total-dark.png",
+      "docs/evidence/explorer-chart-626/desktop1440-total-light.png",
+      "docs/evidence/explorer-chart-626/runtime-proof.json",
+      "e2e/issue-626-explorer-chart-toggle.spec.ts"
+    ],
+    "containsMixedBatch": false,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/628-reports-saved-views",
+    "sourceHead": "c12c67e08407412105a3d8bd578863291e5b23fa",
+    "originalBaseBeforeOwnedCommits": "cadefe15230a977651351184739eafd46b721f3c",
+    "ownedCommits": [
+      {
+        "sha": "c12c67e08407412105a3d8bd578863291e5b23fa",
+        "parentBase": "cadefe15230a977651351184739eafd46b721f3c",
+        "subject": "feat(reports): open saved Explorer views from the hub (validation pending)",
+        "paths": [
+          "apps/web/src/pages/reports-pages.tsx",
+          "apps/web/src/reports/explorer-report.css",
+          "apps/web/src/reports/explorer-report.tsx",
+          "apps/web/src/reports/explorer-view-api.ts",
+          "apps/web/src/reports/report-search.ts",
+          "apps/web/src/reports/saved-explorer-links.css",
+          "apps/web/src/reports/saved-explorer-links.tsx"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout c12c67e08407412105a3d8bd578863291e5b23fa > OWN_OUTPUT/c12c67e08407412105a3d8bd578863291e5b23fa.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/web/src/pages/reports-pages.tsx",
+      "apps/web/src/reports/explorer-report.css",
+      "apps/web/src/reports/explorer-report.tsx",
+      "apps/web/src/reports/explorer-view-api.ts",
+      "apps/web/src/reports/report-search.ts",
+      "apps/web/src/reports/saved-explorer-links.css",
+      "apps/web/src/reports/saved-explorer-links.tsx"
+    ],
+    "containsMixedBatch": false,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/699-device-receipt-queue",
+    "sourceHead": "83505ed18d90cf18677d4a98614a6d86efb89d70",
+    "originalBaseBeforeOwnedCommits": "297a574c4937616af9566f44954658e2ac43f750",
+    "ownedCommits": [
+      {
+        "sha": "a1293464aaada9ddd2a966d646d4152029aefb6e",
+        "parentBase": "297a574c4937616af9566f44954658e2ac43f750",
+        "subject": "feat(pwa): add fenced device receipt upload storage",
+        "paths": [
+          "apps/web/src/pwa/receipt-queue-store.ts",
+          "docs/evidence/reference-adoption/wp-014-receipt-queue-699.md",
+          "e2e/issue-699-receipt-queue-store.spec.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout a1293464aaada9ddd2a966d646d4152029aefb6e > OWN_OUTPUT/a1293464aaada9ddd2a966d646d4152029aefb6e.patch"
+      },
+      {
+        "sha": "83505ed18d90cf18677d4a98614a6d86efb89d70",
+        "parentBase": "ae37ea510b7fe4e3e2d7f007d66b2c6d89e6f43b",
+        "subject": "feat: deliver durable offline receipt upload intents (refs #699)",
+        "paths": [
+          "apps/web/src/api/http.ts",
+          "apps/web/src/pwa/receipt-queue-store.ts",
+          "apps/web/src/pwa/receipt-queue.test.ts",
+          "apps/web/src/pwa/receipt-queue.ts",
+          "docs/evidence/reference-adoption/wp-014-receipt-queue-699.md",
+          "e2e/issue-699-receipt-queue-store.spec.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout 83505ed18d90cf18677d4a98614a6d86efb89d70 > OWN_OUTPUT/83505ed18d90cf18677d4a98614a6d86efb89d70.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/web/src/api/http.ts",
+      "apps/web/src/pwa/receipt-queue-store.ts",
+      "apps/web/src/pwa/receipt-queue.test.ts",
+      "apps/web/src/pwa/receipt-queue.ts",
+      "docs/evidence/reference-adoption/wp-014-receipt-queue-699.md",
+      "e2e/issue-699-receipt-queue-store.spec.ts"
+    ],
+    "containsMixedBatch": false,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  },
+  {
+    "branch": "codex/740-statement-receipt-links",
+    "sourceHead": "aac07204a865f53fff36afa8e5ebae8b498da9e4",
+    "originalBaseBeforeOwnedCommits": "7f0bb50f87da6f1adf0deceeee1d2dae7eab1a52",
+    "ownedCommits": [
+      {
+        "sha": "aac07204a865f53fff36afa8e5ebae8b498da9e4",
+        "parentBase": "7f0bb50f87da6f1adf0deceeee1d2dae7eab1a52",
+        "subject": "feat(statements): select retained PDF booking links with atomic CAS",
+        "paths": [
+          "apps/server/src/api/statement-intake.ts",
+          "apps/web/src/statement-intake/statement-booking-links.tsx",
+          "apps/web/src/statement-intake/statement-review-726.tsx",
+          "packages/db/src/repos/index.ts",
+          "packages/db/src/repos/statement-receipt-links.ts",
+          "packages/domain/src/index.ts",
+          "packages/domain/src/statement-receipt-links.ts"
+        ],
+        "exportCommand": "git format-patch -1 --binary --stdout aac07204a865f53fff36afa8e5ebae8b498da9e4 > OWN_OUTPUT/aac07204a865f53fff36afa8e5ebae8b498da9e4.patch"
+      }
+    ],
+    "ownedPathSet": [
+      "apps/server/src/api/statement-intake.ts",
+      "apps/web/src/statement-intake/statement-booking-links.tsx",
+      "apps/web/src/statement-intake/statement-review-726.tsx",
+      "packages/db/src/repos/index.ts",
+      "packages/db/src/repos/statement-receipt-links.ts",
+      "packages/domain/src/index.ts",
+      "packages/domain/src/statement-receipt-links.ts"
+    ],
+    "containsMixedBatch": false,
+    "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+    "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+  }
+]

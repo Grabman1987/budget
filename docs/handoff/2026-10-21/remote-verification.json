@@ -1,0 +1,58 @@
+{
+  "verifiedAtUTC": "2026-10-21T19:16:24.499003+00:00",
+  "remoteBranches": 47,
+  "allRemoteSHAsMatch": true,
+  "originalDirtyWorktrees": [
+    {
+      "worktree": "cloud-review-481-expanded",
+      "head": "151a4ca6c26b52ec2854b2e18cfb1e6fe0670710",
+      "trackedAndUntrackedSourceUnchanged": true,
+      "restoredExtraSyntheticArtifacts": 0
+    },
+    {
+      "worktree": "budget-cloud-review-543",
+      "head": "e14932decc183919694aa5f4d24e03b4b6f54914",
+      "trackedAndUntrackedSourceUnchanged": true,
+      "restoredExtraSyntheticArtifacts": 0
+    },
+    {
+      "worktree": "budget-cloud-review-624",
+      "head": "e037acead749623271b62b70fcc4b9dfe8eabec3",
+      "trackedAndUntrackedSourceUnchanged": true,
+      "restoredExtraSyntheticArtifacts": 0
+    },
+    {
+      "worktree": "cloud-review-freedom-615",
+      "head": "0e17fe05a90b15d677956b8be96a5b8658bffe5b",
+      "trackedAndUntrackedSourceUnchanged": true,
+      "restoredExtraSyntheticArtifacts": 0
+    },
+    {
+      "worktree": "budget-cloud-review-677",
+      "head": "e14932decc183919694aa5f4d24e03b4b6f54914",
+      "trackedAndUntrackedSourceUnchanged": true,
+      "restoredExtraSyntheticArtifacts": 0
+    },
+    {
+      "worktree": "cloud-review-receipt-698",
+      "head": "74abab012ee0d99f8a846fd7317f59272759a52f",
+      "trackedAndUntrackedSourceUnchanged": true,
+      "restoredExtraSyntheticArtifacts": 0
+    },
+    {
+      "worktree": "budget-cloud-review-case002",
+      "head": "e14932decc183919694aa5f4d24e03b4b6f54914",
+      "trackedAndUntrackedSourceUnchanged": true,
+      "restoredExtraSyntheticArtifacts": 0
+    },
+    {
+      "worktree": "cloud-receipt-ui-700",
+      "head": "922253a8aedad116ad84672cdb22b0011388e4f2",
+      "trackedAndUntrackedSourceUnchanged": true,
+      "restoredExtraSyntheticArtifacts": 0
+    }
+  ],
+  "noForcePush": true,
+  "noMergeOrDeployment": true,
+  "noNewImplementationOrTests": true
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "ticket": "584",
+    "branch": "codex/584-capture-transition-evidence",
+    "commit": "de52be21dfe86b1bea40c9933a1b852c273ccb93",
+    "previousHead": "3a1210cc3ddb229f00094cd6e851280335ae224c",
+    "kind": "existing product branch plus docs-only handoff",
+    "handoffPath": "docs/handoff/584/README.md"
+  },
+  {
+    "ticket": "745",
+    "branch": "codex/745-activity-table",
+    "commit": "91faeaac646bc3ba4f86c8ab6b68b384876d2ff2",
+    "previousHead": "c650ab934608a74e8dfe1fb7e53c94acb42a61ec",
+    "kind": "existing product branch plus docs-only handoff",
+    "handoffPath": "docs/handoff/745/README.md"
+  },
+  {
+    "ticket": "741",
+    "branch": "codex/741-card-automation-delivery",
+    "commit": "c6ad9776e810ddd125c6b7172e6669088a990467",
+    "previousHead": "f8bf4d0b97d148efb91ed51b7eaff83f8574c5de",
+    "kind": "existing product branch plus docs-only handoff",
+    "handoffPath": "docs/handoff/741/README.md"
+  }
+]
