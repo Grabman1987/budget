@@ -1,0 +1,10 @@
+{
+  "state": "WIP / UNINTEGRATED",
+  "sha": "221e607c8937d7e3cdcb318e3ca13a8b90b8914d",
+  "parentBase": "581b79b6d7e0ac94a82dd15436fa03cce0f80d6f",
+  "subject": "Preserve defined statement receipt query options",
+  "paths": [
+    "apps/server/src/api/statement-intake.ts"
+  ],
+  "scope": "Exact per-path diff; no unrelated file, branch ancestor or full batch diff."
+}

@@ -1,0 +1,47 @@
+[
+  {
+    "path": "docs/handoff/740-statement-receipt-links/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/740-statement-receipt-links/README.md",
+    "size": 480,
+    "sha256": "63cea7a3c69d6d85668b75838b60f50a30e0bc2e89900a3427c285e1c3ddd150"
+  },
+  {
+    "path": "docs/handoff/740-statement-receipt-links/integration/1d0c7b1af8d67dab7dcb1a8c567c20c3f44a1c48.json",
+    "size": 372,
+    "sha256": "8dcb325d8f32a07805de6670d58dff7ff80fc4b10a4adbec273b2046cfac4166"
+  },
+  {
+    "path": "docs/handoff/740-statement-receipt-links/integration/1d0c7b1af8d67dab7dcb1a8c567c20c3f44a1c48.patch",
+    "size": 1849,
+    "sha256": "6a014e80430ac37319c4d4d62240a039b635418067d1bc355bcf94180f402785"
+  },
+  {
+    "path": "docs/handoff/740-statement-receipt-links/integration/221e607c8937d7e3cdcb318e3ca13a8b90b8914d.json",
+    "size": 368,
+    "sha256": "062bc53b354f61ba3b111195b0df9dfd3224cc7a4fc8bd662dad6fb2e155dc60"
+  },
+  {
+    "path": "docs/handoff/740-statement-receipt-links/integration/221e607c8937d7e3cdcb318e3ca13a8b90b8914d.patch",
+    "size": 1002,
+    "sha256": "95bc0364c1c091134f3c54eeae0ff8a6b3f8d925558ed0fecd922fb0c3f820ac"
+  },
+  {
+    "path": "docs/handoff/740-statement-receipt-links/owned/01-aac07204a865f53fff36afa8e5ebae8b498da9e4.patch",
+    "size": 29806,
+    "sha256": "1efb2185ca7192832e962b931d111280c3f7f55b950172823e948fee89727880"
+  },
+  {
+    "path": "docs/handoff/740-statement-receipt-links/packet.json",
+    "size": 1807,
+    "sha256": "0fbcace3c1e075719848a76b8b0a74a8f3606449fadd99755814d201c5e5403b"
+  },
+  {
+    "path": "docs/handoff/740-statement-receipt-links/reviews/740-manual-receipt-links-whole-seven-independent-source-high.md",
+    "size": 3197,
+    "sha256": "f61b296c6b1184439f43240ac9c1b85540fdb501b0eb06003276a063b3cefef0"
+  }
+]
