@@ -1,0 +1,17 @@
+{
+  "state": "ARCHIVED REVIEW / ALREADY DELIVERED \u2014 NOT NEW IMPLEMENTATION",
+  "worktree": "/workspace/cloud-review-481-expanded",
+  "head": "151a4ca6c26b52ec2854b2e18cfb1e6fe0670710",
+  "historicalContext": "#481 combined bands delivered PR688, separated headings PR721; detached diagnostic/old-test edits, not new accepted source.",
+  "trackedPaths": [
+    "apps/web/src/budget/plan.css",
+    "docs/evidence/plan-single-category-481/README.md",
+    "e2e/issue-481-single-category-band.spec.ts"
+  ],
+  "untrackedPaths": [
+    "e2e/issue-481-desktop-diagnostic-review.spec.ts",
+    "e2e/issue-481-desktop-geometry-review.spec.ts",
+    "e2e/issue-481-independent-review.spec.ts"
+  ],
+  "originalsMutated": false
+}

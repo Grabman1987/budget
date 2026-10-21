@@ -1,0 +1,47 @@
+[
+  {
+    "path": "docs/handoff/archive-cloud-review-481-expanded/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-481-expanded/README.md",
+    "size": 499,
+    "sha256": "595d8f868b9ee00dda024e60a72c33a9440ac8678d1e4c7f028637339ef198a5"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-481-expanded/preservation.json",
+    "size": 718,
+    "sha256": "52285a604d4e996e25b1726d5be9a8bde550b90d3f05deaa32277fe4428b47e6"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-481-expanded/synthetic-evidence/webkit-iphone-dark.png",
+    "size": 1797237,
+    "sha256": "4094095f323fc6c8570addc6c3fcd2a411113695485a011d3177b40bc22d6a88"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-481-expanded/synthetic-evidence/webkit-iphone-rows.json",
+    "size": 276,
+    "sha256": "1f81d4b3dbfff4bf27fbeb065459a0901c81ff3e3d5d0f5b283c2d714902e31b"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-481-expanded/tracked-head.patch",
+    "size": 8482,
+    "sha256": "cf150dd0090c13111c37ed2e1160277b4e6328e7a9960ff494c0b10e005295ae"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-481-expanded/untracked/e2e/issue-481-desktop-diagnostic-review.spec.ts",
+    "size": 3546,
+    "sha256": "1f4f8e879d6572a326c7692c47d10985b8bb4153d519cf3c5d3dffc69f0f475a"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-481-expanded/untracked/e2e/issue-481-desktop-geometry-review.spec.ts",
+    "size": 2204,
+    "sha256": "cc0dbc54f17a6f075a7a1578c2d55257a2fcac5c9c59800f49674a5dee8e2890"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-481-expanded/untracked/e2e/issue-481-independent-review.spec.ts",
+    "size": 3833,
+    "sha256": "54286aae2f49a50a6a6a739a26fe3e053a9e5523adbec0e16eebdefc9b3f6c9d"
+  }
+]
