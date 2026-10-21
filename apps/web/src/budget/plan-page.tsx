@@ -228,7 +228,11 @@ function PlanBody({
   const restoredPlan = savedPlan?.month === month ? savedPlan : null;
   const liveIds = new Set(data.categories.map((category) => category.id));
   const [view, setView] = useState<PlanView>(
-    legacyTriage ? 'triage' : restoredPlan?.view === 'triage' ? 'group' : (restoredPlan?.view ?? 'group'),
+    legacyTriage
+      ? 'triage'
+      : restoredPlan?.view === 'triage'
+        ? 'group'
+        : (restoredPlan?.view ?? 'group'),
   );
   const phone = useIsPhone();
   const [distribute, setDistribute] = useState(false);
@@ -450,7 +454,8 @@ function PlanBody({
   const unfilteredGroups = planGroups(shownView, rows, data, ctx);
   const multiGroups = views ? planMulti(views) : [];
   // Legacy triage's All segment exits triage; other layouts retain their original row universe.
-  const filterRows = shownView === 'triage' ? rows : unfilteredGroups.flatMap((group) => group.rows);
+  const filterRows =
+    shownView === 'triage' ? rows : unfilteredGroups.flatMap((group) => group.rows);
   // Multi-month rows match once when any visible month matches; their cells stay unchanged.
   const entries = multi
     ? multiGroups.flatMap((group) => group.rows)

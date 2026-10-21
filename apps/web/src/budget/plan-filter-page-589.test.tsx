@@ -191,9 +191,17 @@ function mount(at = '/plan/monat?monat=2026-10', restoredTriage = false) {
     return api.request(url.pathname.replace(/^\/api/, '') + url.search, init);
   });
   const history = createMemoryHistory({ initialEntries: [at] });
-  if (restoredTriage) history.replace(at, {
-    planActivityReturn: { month: '2026-10', view: 'triage', selectedIds: [], collapsedKeys: [], inspector: null, phoneSelection: false },
-  });
+  if (restoredTriage)
+    history.replace(at, {
+      planActivityReturn: {
+        month: '2026-10',
+        view: 'triage',
+        selectedIds: [],
+        collapsedKeys: [],
+        inspector: null,
+        phoneSelection: false,
+      },
+    });
   const root = createRootRoute({
     validateSearch: (search: Record<string, unknown>) => ({
       monat: isMonth(search['monat']) ? search['monat'] : undefined,
@@ -403,24 +411,28 @@ it('distinguishes the52 pending-or-unclassified header union from51 strictly unc
   expect(snapshot()).toEqual(before);
 });
 
-
 it('preserves legacy triage groups and exits only its implicit filter on view or All changes', async () => {
   const { container, history, router } = mount('/plan/monat?monat=2026-10&ansicht=triage');
   const user = userEvent.setup();
   const options = () => screen.getByText('Optionen', { selector: 'summary' });
-  const view = (name: string) => within(screen.getByRole('group', { name: 'Ansicht' })).getByRole('button', { name });
+  const view = (name: string) =>
+    within(screen.getByRole('group', { name: 'Ansicht' })).getByRole('button', { name });
   await screen.findByRole('button', { name: 'Alle (4)' });
   expect(container.querySelector('.pgroup .grp-title')?.textContent).toBe('Überzogen');
   expect(rowIds(container)).toEqual(['A', 'E']);
   expect(segment('Überzogen (2)').getAttribute('aria-pressed')).toBe('true');
   await user.click(options());
-  expect(screen.getByRole('group', { name: 'Ansicht' }).querySelectorAll('[aria-pressed="true"]')).toHaveLength(0);
+  expect(
+    screen.getByRole('group', { name: 'Ansicht' }).querySelectorAll('[aria-pressed="true"]'),
+  ).toHaveLength(0);
   await user.click(view('Gruppen'));
   await waitFor(() => expect(router.state.location.search.ansicht).toBeUndefined());
   expect(router.state.location.search.filter).toBeUndefined();
   expect(rowIds(container)).toEqual(['A', 'B', 'C', 'E']);
   act(() => history.back());
-  await waitFor(() => expect(container.querySelector('.pgroup .grp-title')?.textContent).toBe('Überzogen'));
+  await waitFor(() =>
+    expect(container.querySelector('.pgroup .grp-title')?.textContent).toBe('Überzogen'),
+  );
   expect(rowIds(container)).toEqual(['A', 'E']);
   await user.click(options());
   await user.click(view('Zeit'));
@@ -432,12 +444,13 @@ it('preserves legacy triage groups and exits only its implicit filter on view or
   expect(router.state.location.search.filter).toBe('overspent');
   expect(rowIds(container)).toEqual(['A', 'E']);
   act(() => history.push('/plan/monat?monat=2026-10&ansicht=triage'));
-  await waitFor(() => expect(container.querySelector('.pgroup .grp-title')?.textContent).toBe('Überzogen'));
+  await waitFor(() =>
+    expect(container.querySelector('.pgroup .grp-title')?.textContent).toBe('Überzogen'),
+  );
   await user.click(segment('Alle (4)'));
   expect(rowIds(container)).toEqual(['A', 'B', 'C', 'E']);
   expect(router.state.location.search.ansicht).toBeUndefined();
 });
-
 
 it('does not let a saved legacy triage layout narrow an explicit all-category URL', async () => {
   const { container } = mount('/plan/monat?monat=2026-10', true);

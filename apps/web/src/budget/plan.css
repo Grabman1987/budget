@@ -2878,7 +2878,6 @@
   }
 }
 
-
 /* Fine-pointer desktop retains the original compact worksheet budget with the added filters.
    The financial rail can scroll horizontally instead of growing another line; its popovers
    remain outside the scroll container. Phone/coarse controls retain their 44px rules. */

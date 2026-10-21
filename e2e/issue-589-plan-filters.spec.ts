@@ -165,7 +165,9 @@ async function scene(
     viewport: { width: innerWidth, height: innerHeight },
     pointerCoarse: matchMedia('(pointer: coarse)').matches,
     scrollWidth: document.documentElement.scrollWidth,
-    beforeGrid: element.closest('.plan')!.querySelector('.ptable')!.getBoundingClientRect().top - element.closest('.plan')!.getBoundingClientRect().top,
+    beforeGrid:
+      element.closest('.plan')!.querySelector('.ptable')!.getBoundingClientRect().top -
+      element.closest('.plan')!.getBoundingClientRect().top,
     controls: [...element.querySelectorAll('input, .plan-filter-segments button, summary')].map(
       (control) => {
         const rect = control.getBoundingClientRect();
@@ -205,7 +207,9 @@ async function scene(
   await info.attach('Plan filter controls', { path: image, contentType: 'image/png' });
 
   await page.goto('/plan/monat?monat=2026-10&ansicht=triage');
-  await page.evaluate((value) => { document.documentElement.dataset['theme'] = value; }, theme);
+  await page.evaluate((value) => {
+    document.documentElement.dataset['theme'] = value;
+  }, theme);
   await expect(page.locator('tr.pgroup .grp-title')).toHaveText('Überzogen');
   await expect(page.locator('.ptable .pname')).toHaveCount(1);
   await options.click();
@@ -215,7 +219,9 @@ async function scene(
   await expect(page.locator('.ptable .pname')).toHaveCount(3);
   expect(new URL(page.url()).searchParams.has('ansicht')).toBe(false);
   await page.goto('/plan/monat?monat=2026-10&ansicht=triage');
-  await page.evaluate((value) => { document.documentElement.dataset['theme'] = value; }, theme);
+  await page.evaluate((value) => {
+    document.documentElement.dataset['theme'] = value;
+  }, theme);
   await expect(page.locator('tr.pgroup .grp-title')).toHaveText('Überzogen');
   await options.click();
   await views.getByRole('button', { name: 'Zeit', exact: true }).click();
