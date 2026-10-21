@@ -118,7 +118,9 @@ async function get<T>(page: Page, path: string): Promise<T> {
 }
 
 async function target44(target: Locator) {
-  await target.scrollIntoViewIfNeeded();
+  await target.evaluate((element) =>
+    element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }),
+  );
   await expect(target).toBeVisible();
   const box = await target.evaluate((element) => {
     const r = element.getBoundingClientRect();
