@@ -1,0 +1,57 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/553-554-spending-report",
+  "sourceHead": "28c5a2124e99a9ec3bee1a2911a07143a9652492",
+  "originalBaseBeforeOwnedCommits": "cadefe15230a977651351184739eafd46b721f3c",
+  "orderedCommits": [
+    {
+      "sha": "28c5a2124e99a9ec3bee1a2911a07143a9652492",
+      "parentBase": "cadefe15230a977651351184739eafd46b721f3c",
+      "subject": "feat(reports): add exact spending answers and grouped analysis (validation pending)",
+      "paths": [
+        "apps/server/src/api/schemas.ts",
+        "apps/web/src/ledger/api.ts",
+        "apps/web/src/ledger/bookings-page.tsx",
+        "apps/web/src/ledger/bookings-search.ts",
+        "apps/web/src/ledger/types.ts",
+        "apps/web/src/reports/explorer-report.tsx",
+        "apps/web/src/reports/month-frame.tsx",
+        "apps/web/src/reports/report-answer.css",
+        "apps/web/src/reports/report-answer.tsx",
+        "apps/web/src/reports/report-search.ts",
+        "apps/web/src/reports/spending-analysis-report.css",
+        "apps/web/src/reports/spending-analysis-report.tsx",
+        "docs/ROADMAP.md",
+        "packages/db/src/repos/ledger-queries.ts",
+        "packages/db/src/repos/spending-report.ts",
+        "packages/domain/src/overview/explorer-templates.ts",
+        "packages/domain/src/spending/analysis.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 28c5a2124e99a9ec3bee1a2911a07143a9652492 > OWN_OUTPUT/28c5a2124e99a9ec3bee1a2911a07143a9652492.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-28c5a2124e99a9ec3bee1a2911a07143a9652492.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/server/src/api/schemas.ts",
+    "apps/web/src/ledger/api.ts",
+    "apps/web/src/ledger/bookings-page.tsx",
+    "apps/web/src/ledger/bookings-search.ts",
+    "apps/web/src/ledger/types.ts",
+    "apps/web/src/reports/explorer-report.tsx",
+    "apps/web/src/reports/month-frame.tsx",
+    "apps/web/src/reports/report-answer.css",
+    "apps/web/src/reports/report-answer.tsx",
+    "apps/web/src/reports/report-search.ts",
+    "apps/web/src/reports/spending-analysis-report.css",
+    "apps/web/src/reports/spending-analysis-report.tsx",
+    "docs/ROADMAP.md",
+    "packages/db/src/repos/ledger-queries.ts",
+    "packages/db/src/repos/spending-report.ts",
+    "packages/domain/src/overview/explorer-templates.ts",
+    "packages/domain/src/spending/analysis.ts"
+  ],
+  "mixedSourceAncestry": false,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

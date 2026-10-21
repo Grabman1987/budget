@@ -1,0 +1,1091 @@
+diff --git a/apps/server/src/api/schemas.ts b/apps/server/src/api/schemas.ts
+index 1b8b7bd028153f41558b49b0805489764a0f89f1..99cd519c3be7620cf00e3f3b90d58850cf50e2ac 100644
+--- a/apps/server/src/api/schemas.ts
++++ b/apps/server/src/api/schemas.ts
+@@ -213,6 +213,7 @@ export const bookingQuery = z.object({
+   from: day.optional(),
+   to: day.optional(),
+   categoryId: id.optional(),
++  categoryGroupId: id.optional(),
+   payeeId: id.optional(),
+   status: z.enum(BOOKING_STATUSES).optional(),
+   flag: z.enum([...BOOKING_FLAGS, 'none']).optional(),
+diff --git a/apps/web/src/ledger/api.ts b/apps/web/src/ledger/api.ts
+index 9f3f1b0de47d8de61115f11cb4f3de796591ab60..4eacb20dbda943bbd5b6a51f1fe82fd119aead25 100644
+--- a/apps/web/src/ledger/api.ts
++++ b/apps/web/src/ledger/api.ts
+@@ -26,6 +26,7 @@ const filterParams = (filter: BookingFilter) => ({
+   from: filter.from,
+   to: filter.to,
+   categoryId: filter.categoryId,
++  categoryGroupId: filter.categoryGroupId,
+   payeeId: filter.payeeId,
+   status: filter.status,
+   flag: filter.flag,
+diff --git a/apps/web/src/ledger/bookings-page.tsx b/apps/web/src/ledger/bookings-page.tsx
+index 4c8a41ddd82949ebb3ee85258748ed1066d52ea6..21d90abe102c90d831ec8a6bfe40971483a75cc0 100644
+--- a/apps/web/src/ledger/bookings-page.tsx
++++ b/apps/web/src/ledger/bookings-page.tsx
+@@ -274,7 +274,7 @@ export function BookingsPage() {
+             <p className="ksum" aria-live="polite">
+               {pluralBookings(first.total)} ·{' '}
+               {first.categorySpendingCents !== undefined
+-                ? `Kategorie netto ${eur(first.categorySpendingCents)} (Ausgaben − Erstattungen)`
++                ? `${search.kategoriegruppe ? 'Gruppe' : 'Kategorie'} netto ${eur(first.categorySpendingCents)} (Ausgaben − Erstattungen)`
+                 : filteredAccount
+                   ? `Summe ${valuedMovement(first.sumCents, filteredAccount.currency, first.sumEurCents)}`
+                   : onlyEurAccounts
+@@ -303,6 +303,7 @@ export function BookingsPage() {
+                       konto: undefined,
+                       buchung: undefined,
+                       kategorie: undefined,
++                      kategoriegruppe: undefined,
+                       empfaenger: undefined,
+                       status: undefined,
+                       markierung: undefined,
+@@ -505,6 +506,8 @@ function filterChipLabel(
+       return `Konto: ${accounts.find((a) => a.id === value)?.name ?? 'ausgewählt'}`;
+     case 'kategorie':
+       return `Kategorie: ${value === 'none' ? 'ohne Kategorie' : (lookups?.categories.find((c) => c.id === value)?.name ?? 'ausgewählt')}`;
++    case 'kategoriegruppe':
++      return `Gruppe: ${lookups?.groups.find((g) => g.id === value)?.name ?? 'ausgewählt'} · Bedarf und Wunsch`;
+     case 'empfaenger':
+       return 'Ausgewählter Empfänger';
+     case 'status':
+diff --git a/apps/web/src/ledger/bookings-search.ts b/apps/web/src/ledger/bookings-search.ts
+index 5ddb566552ef8ee0771d5fcc8576fec095ae8617..e164951d8fc0903eb18fc1c7d4c7717c1fde6f56 100644
+--- a/apps/web/src/ledger/bookings-search.ts
++++ b/apps/web/src/ledger/bookings-search.ts
+@@ -7,6 +7,7 @@ export interface BookingsSearch {
+   buchung?: string | undefined;
+   konto?: string | undefined;
+   kategorie?: string | undefined;
++  kategoriegruppe?: string | undefined;
+   empfaenger?: string | undefined;
+   status?: string | undefined;
+   markierung?: string | undefined;
+@@ -21,6 +22,7 @@ const FILTER_KEYS = [
+   'buchung',
+   'konto',
+   'kategorie',
++  'kategoriegruppe',
+   'empfaenger',
+   'status',
+   'markierung',
+@@ -74,6 +76,7 @@ export function validateBookingsSearch(search: Record<string, unknown>): Booking
+     buchung: id(search['buchung']),
+     konto: id(search['konto']),
+     kategorie: id(search['kategorie']),
++    kategoriegruppe: id(search['kategoriegruppe']),
+     empfaenger: id(search['empfaenger']),
+     status: oneOf(search['status'], BOOKING_STATUSES),
+     markierung: oneOf(search['markierung'], [...BOOKING_FLAGS, 'none'] as const),
+@@ -88,10 +91,11 @@ export function validateBookingsSearch(search: Record<string, unknown>): Booking
+ /** The API filter belonging to the URL parameters. */
+ export function filterFromSearch(search: BookingsSearch): BookingFilter {
+   return {
+-    basis: search.kategorie ? search.basis : undefined,
++    basis: search.kategoriegruppe ? 'category-spending' : search.kategorie ? search.basis : undefined,
+     id: search.buchung,
+     accountId: search.konto,
+     categoryId: search.kategorie,
++    categoryGroupId: search.kategoriegruppe,
+     payeeId: search.empfaenger,
+     status: oneOf(search.status, BOOKING_STATUSES),
+     flag: oneOf(search.markierung, [...BOOKING_FLAGS, 'none'] as const),
+@@ -109,6 +113,7 @@ export const hasFilter = (search: BookingsSearch): boolean =>
+     search.buchung ||
+     search.konto ||
+     search.kategorie ||
++    search.kategoriegruppe ||
+     search.empfaenger ||
+     search.status ||
+     search.markierung ||
+diff --git a/apps/web/src/ledger/types.ts b/apps/web/src/ledger/types.ts
+index 12fcbc7ef1a7f3ea97f129f8d1c52d6f64103c27..1fd753e11d971e111c138b207976c84ec91f4c96 100644
+--- a/apps/web/src/ledger/types.ts
++++ b/apps/web/src/ledger/types.ts
+@@ -160,6 +160,7 @@ export interface BookingFilter {
+   from?: string | undefined;
+   to?: string | undefined;
+   categoryId?: string | undefined;
++  categoryGroupId?: string | undefined;
+   payeeId?: string | undefined;
+   status?: BookingStatus | undefined;
+   flag?: BookingFlag | 'none' | undefined;
+diff --git a/apps/web/src/reports/explorer-report.tsx b/apps/web/src/reports/explorer-report.tsx
+index 135776620a36a0b3d0a69f43c314900e7e7e9e07..e062c3a346638f4855e8ff4a2d850d92106aa11e 100644
+--- a/apps/web/src/reports/explorer-report.tsx
++++ b/apps/web/src/reports/explorer-report.tsx
+@@ -61,6 +61,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+   const toast = useToast();
+   const search = useSearch({ strict: false }) as {
+     vorlage?: unknown;
++    exakt?: boolean;
+     kategorien?: string[];
+     zelle?: string;
+     spalte?: string;
+@@ -75,6 +76,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+   const chooseTemplate = (id: typeof template) =>
+     changeTemplateSearch({
+       vorlage: id,
++      exakt: undefined,
+       zelle: undefined,
+       spalte: undefined,
+       ...(id
+@@ -90,11 +92,12 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+         ? explorerTemplate(templateRead.data, {
+             id: template,
+             period: templatePeriod,
++            ...(template === 'heatmap' && search.exakt ? { exactWindow: true } : {}),
+             ...(templateCategory ? { categoryId: templateCategory } : {}),
+             ...(templatePeriod.includes('..') ? { year: Number(templatePeriod.slice(0, 4)) } : {}),
+           })
+         : undefined,
+-    [template, templateRead.data, templatePeriod, templateCategory],
++    [template, templateRead.data, templatePeriod, templateCategory, search.exakt],
+   );
+   const [query, setQuery] = useState<ExplorerQuery>(DEFAULT_EXPLORER_QUERY);
+   const saved = useExplorerViews();
+diff --git a/apps/web/src/reports/month-frame.tsx b/apps/web/src/reports/month-frame.tsx
+index 0cdac4732f629eb36a640c95854a6554d1889415..34ed89e84b33ff930fcf91d15fbe70efea0c3058 100644
+--- a/apps/web/src/reports/month-frame.tsx
++++ b/apps/web/src/reports/month-frame.tsx
+@@ -13,12 +13,16 @@ import type { VerdictFacts } from '@budget/domain';
+ /** Per page, not per report: `/reports/gehalt` and `/reports/gehalt/historie` have their own sections. */
+ const sectionsKey = () => `budget.report-sections.${location.pathname}`;
+ 
+-function collapsedSections(): Set<string> {
++const NO_COLLAPSED_SECTIONS: readonly string[] = [];
++
++function collapsedSections(initial: readonly string[] = NO_COLLAPSED_SECTIONS): Set<string> {
+   try {
+-    const stored: unknown = JSON.parse(localStorage.getItem(sectionsKey()) ?? '[]');
+-    return new Set(Array.isArray(stored) ? stored.filter((k) => typeof k === 'string') : []);
++    const raw = localStorage.getItem(sectionsKey());
++    if (raw === null) return new Set(initial);
++    const stored: unknown = JSON.parse(raw);
++    return new Set(Array.isArray(stored) ? stored.filter((k) => typeof k === 'string') : initial);
+   } catch {
+-    return new Set(); // no storage or a damaged value: everything stays expanded
++    return new Set(initial); // Existing callers keep their expanded default.
+   }
+ }
+ 
+@@ -30,7 +34,7 @@ function collapsedSections(): Set<string> {
+  * Collapsing hides everything but the marked head by stylesheet.
+  * A section is keyed by its heading id, else by its position (ponytail: shifts if sections come and go).
+  */
+-export function useCollapsibleSections(slug: string) {
++export function useCollapsibleSections(slug: string, initial: readonly string[] = NO_COLLAPSED_SECTIONS) {
+   const ref = useRef<HTMLDivElement>(null);
+   useLayoutEffect(() => {
+     const root = ref.current;
+@@ -63,11 +67,11 @@ export function useCollapsibleSections(slug: string) {
+           if (open) section.removeAttribute('data-collapsed');
+           else section.setAttribute('data-collapsed', 'true');
+         };
+-        show(!collapsedSections().has(key));
++        show(!collapsedSections(initial).has(key));
+         button.addEventListener('click', () => {
+           const open = button.getAttribute('aria-expanded') !== 'true';
+           show(open);
+-          const collapsed = collapsedSections(); // re-read: other instances may have written
++          const collapsed = collapsedSections(initial); // re-read: other instances may have written
+           if (open) collapsed.delete(key);
+           else collapsed.add(key);
+           try {
+@@ -84,7 +88,7 @@ export function useCollapsibleSections(slug: string) {
+     const observer = new MutationObserver(enhance);
+     observer.observe(root, { childList: true, subtree: true });
+     return () => observer.disconnect();
+-  }, [slug]);
++  }, [slug, initial]);
+   return ref;
+ }
+ 
+diff --git a/apps/web/src/reports/report-answer.css b/apps/web/src/reports/report-answer.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..7e5f1b02ea34f1a206e89c37179877c0a33e972b
+--- /dev/null
++++ b/apps/web/src/reports/report-answer.css
+@@ -0,0 +1,5 @@
++.report-answer { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-block: 8px 12px; }
++.report-answer p { flex: 1 1 30rem; margin: 0; color: var(--ink); font-size: var(--fs-body); line-height: var(--lh-body); overflow-wrap: anywhere; }
++.report-answer-chip { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px 8px; border: 1px solid currentcolor; border-radius: var(--radius-md); color: var(--ink-2); font-size: var(--fs-meta); font-variant-numeric: tabular-nums; }
++.report-answer-chip.is-favourable { color: var(--plus-ink); }
++.report-answer-chip.is-unfavourable { color: var(--minus-ink); }
+diff --git a/apps/web/src/reports/report-answer.tsx b/apps/web/src/reports/report-answer.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..44b0257624eed162bfa0b0ead98356df340b862d
+--- /dev/null
++++ b/apps/web/src/reports/report-answer.tsx
+@@ -0,0 +1,46 @@
++import { maskMoneyText, useAmountPrivacy } from '@budget/ui';
++import { eur } from '../ledger/format';
++import './report-answer.css';
++
++export interface ReportAnswerFacts {
++  totalCents: number;
++  previousCents: number | null;
++  favourable: 'up' | 'down';
++  metric: 'expenses' | 'income';
++  biggestRiser?: { name: string; changeCents: number } | undefined;
++}
++
++/** Presentation from supplied integer-cent figures; an unavailable prior period is not zero. */
++export function reportAnswer(facts: ReportAnswerFacts) {
++  if (facts.previousCents === null) return null;
++  const changeCents = facts.totalCents - facts.previousCents;
++  if (![facts.totalCents, facts.previousCents, changeCents].every(Number.isSafeInteger))
++    throw new RangeError('Report answer requires safe integer cents');
++  const direction = changeCents > 0 ? 'mehr' : changeCents < 0 ? 'weniger' : 'gleich viel';
++  return {
++    totalCents: facts.totalCents,
++    previousCents: facts.previousCents,
++    changeCents,
++    direction,
++    favourable: changeCents !== 0 && (facts.favourable === 'up' ? changeCents > 0 : changeCents < 0),
++    neutral: changeCents === 0,
++  };
++}
++
++export function ReportAnswer({ facts }: { facts: ReportAnswerFacts }) {
++  useAmountPrivacy();
++  const answer = reportAnswer(facts);
++  if (!answer) return null;
++  return (
++    <div className="report-answer">
++      <p data-testid="report-answer">
++        Du hast {eur(answer.totalCents)} {facts.metric === 'expenses' ? 'netto ausgegeben' : 'eingenommen'}, {' '}
++        {answer.changeCents === 0 ? 'gleich viel' : `${eur(Math.abs(answer.changeCents))} ${answer.direction}`} als im gleich langen Vorzeitraum.
++        {facts.biggestRiser && facts.biggestRiser.changeCents > 0 && <> Den größten Anstieg gab es bei {maskMoneyText(facts.biggestRiser.name)}: {eur(facts.biggestRiser.changeCents, { sign: true })}.</>}
++      </p>
++      <span className={`report-answer-chip${answer.neutral ? '' : answer.favourable ? ' is-favourable' : ' is-unfavourable'}`}>
++        Vorzeitraum {eur(answer.previousCents)} · {eur(answer.changeCents, { sign: true })}
++      </span>
++    </div>
++  );
++}
+diff --git a/apps/web/src/reports/report-search.ts b/apps/web/src/reports/report-search.ts
+index 80f621e43f81bf611340935b8b619ad9b23e16a2..8a85f37c8830e7c287cd5f971f207b976bede662 100644
+--- a/apps/web/src/reports/report-search.ts
++++ b/apps/web/src/reports/report-search.ts
+@@ -9,6 +9,7 @@ const ids = (value: unknown) =>
+     : undefined;
+ 
+ export const validateReportSearch = (search: Record<string, unknown>) => ({
++  exakt: search['exakt'] === true || search['exakt'] === 'true' ? true : undefined,
+   vorlage: isExplorerTemplate(search['vorlage']) ? search['vorlage'] : undefined,
+   kategorien: ids(search['kategorien']),
+   gruppen: ids(search['gruppen']),
+diff --git a/apps/web/src/reports/spending-analysis-report.css b/apps/web/src/reports/spending-analysis-report.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..ae83028975d3ef49f4a3304375165818e97bd396
+--- /dev/null
++++ b/apps/web/src/reports/spending-analysis-report.css
+@@ -0,0 +1,32 @@
++.spending-analysis.sr { grid-template-columns: minmax(0, 1fr); gap: 12px; }
++.spending-analysis .sr-card { padding: 16px; }
++.sa-comparison { margin: 4px 0 12px; color: var(--ink-2); font-size: var(--fs-meta); }
++.sa-groups, .sa-category-rows, .sa-moves { list-style: none; margin: 0; padding: 0; }
++.sa-groups > li { border-top: 1px solid var(--rule); }
++.sa-row { display: grid; grid-template-columns: minmax(10rem, 1fr) minmax(5rem, 1.1fr) 9rem 8rem; align-items: center; gap: 8px; min-height: 44px; }
++.sa-group-name { display: flex; align-items: center; gap: 6px; min-height: 44px; min-width: 0; padding: 4px 0; border: 0; background: transparent; color: var(--ink); text-align: left; font-size: var(--fs-body); overflow-wrap: anywhere; }
++.sa-group-name svg { flex: none; transform: rotate(-90deg); }
++.sa-group-name[aria-expanded='true'] svg { transform: none; }
++.sa-amount { display: flex; align-items: center; justify-content: flex-end; min-height: 44px; padding: 4px; border: 0; background: transparent; color: var(--ink); font: inherit; font-variant-numeric: tabular-nums; text-align: right; text-decoration: underline; text-underline-offset: 3px; }
++.sa-delta { color: var(--ink-2); font-size: var(--fs-meta); font-variant-numeric: tabular-nums; text-align: right; }
++.sa-category-rows { padding-left: 22px; }
++.sa-category-name { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--fs-table); overflow-wrap: anywhere; }
++.spending-analysis .sa-row > .chart-interactive { display: flex; align-items: center; min-height: 44px; }
++.sa-track { display: block; position: relative; width: 100%; height: 12px; background: var(--tint); }
++.sa-track::before { position: absolute; top: -3px; bottom: -3px; left: var(--sa-zero); width: 1px; background: var(--ink-3); content: ''; }
++.sa-track i { position: absolute; top: 0; bottom: 0; background: var(--line); }
++.sa-track i.is-refund { border: 1px dashed var(--line); background: transparent; }
++.sa-prior-tick { position: absolute; top: -4px; bottom: -4px; border-left: 2px solid var(--ink-3); }
++.sa-moves li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 16px; border-bottom: 1px solid var(--rule); }
++.sa-moves a, .sa-explorer-link { display: inline-flex; align-items: center; min-height: 44px; }
++.sa-moves span { color: var(--ink-2); }
++.sa-moves strong { font-variant-numeric: tabular-nums; }
++@media (max-width: 767px) {
++  .sa-row { grid-template-columns: minmax(0, 1fr) minmax(6rem, auto); gap: 0 8px; }
++  .sa-row > :nth-child(2) { grid-column: 1; grid-row: 2; padding-block: 6px; }
++  .sa-row .sa-amount { grid-column: 2; grid-row: 1; }
++  .sa-row .sa-delta { grid-column: 2; grid-row: 2; }
++  .sa-category-rows { padding-left: 12px; }
++  .sa-moves li { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
++  .sa-moves li span { grid-column: 1 / -1; }
++}
+diff --git a/apps/web/src/reports/spending-analysis-report.tsx b/apps/web/src/reports/spending-analysis-report.tsx
+index 352d11a470302b953e1eaf20de30d48d4c2d05da..d735a79f5e7bd08ccdeddf46524a41d65b9cf694 100644
+--- a/apps/web/src/reports/spending-analysis-report.tsx
++++ b/apps/web/src/reports/spending-analysis-report.tsx
+@@ -1,10 +1,9 @@
+-import { chartShare } from '../charts/tooltip-data';
+-import { ChartValue, ChartValues } from '@budget/ui';
+-import { useAmountPrivacy, ClassSwatch, DimensionChain } from '@budget/ui';
+-import { cents, heatCells } from '@budget/domain';
++import { ChartValue, ClassSwatch, DimensionChain, maskMoneyText, useAmountPrivacy } from '@budget/ui';
++import { cents, type SpendRow, type SpendingPeriod } from '@budget/domain';
+ import type { SpendingReport } from '@budget/db';
+ import { queryOptions, useQuery } from '@tanstack/react-query';
+-import type { CSSProperties } from 'react';
++import { useState, type CSSProperties } from 'react';
++import { ChevronDown } from 'lucide-react';
+ import { request } from '../api/http';
+ import { eur, longDay } from '../ledger/format';
+ import { LEDGER_KEY } from '../ledger/queries';
+@@ -12,383 +11,150 @@ import type { PageMeta } from '../nav/pages';
+ import type { ReportEntry } from '../nav/reports-catalog';
+ import { PageFrame } from '../pages/placeholder-page';
+ import { AppLink } from '../shell/app-link';
+-import { categoryMonthSearch } from './category-trend';
+-import {
+-  bpText,
+-  monthShort,
+-  PeriodSwitch,
+-  periodName,
+-  ReportQuery,
+-  ScrollRegion,
+-  useReportPeriod,
+-} from './spending-shared';
+-import type { SpendingPeriod } from '@budget/domain';
++import { ReportAnswer } from './report-answer';
++import { useCollapsibleSections } from './month-frame';
++import { PeriodSwitch, periodName, ReportQuery, useReportPeriod } from './spending-shared';
++import './spending-analysis-report.css';
+ 
+-const analysisQuery = (period: SpendingPeriod) =>
+-  queryOptions({
+-    queryKey: [...LEDGER_KEY, 'spending-analysis', period],
+-    retry: false,
+-    queryFn: () =>
+-      request<SpendingReport>('GET', `/api/reports/spending/analysis?period=${period}`),
+-  });
++const analysisQuery = (period: SpendingPeriod) => queryOptions({
++  queryKey: [...LEDGER_KEY, 'spending-analysis', period],
++  retry: false,
++  queryFn: () => request<SpendingReport>('GET', `/api/reports/spending/analysis?period=${period}`),
++});
++const DEFAULT_COLLAPSED = ['sa-moves', 'sa-classes', 'sa-explorer'] as const;
+ 
+-const CLASS_NAME = { need: 'Bedarf', want: 'Wunsch', future: 'Zukunft' } as const;
+-
+-/** 2.1 Ausgabenanalyse: Wofür geben wir Geld aus? */
++/** The pilot report reuses the shared report controls and authoritative spending figures. */
+ export function SpendingAnalysisReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+   useAmountPrivacy();
+   const [period, setPeriod] = useReportPeriod();
+   const query = useQuery(analysisQuery(period));
+   const data = query.data && !query.isFetching ? query.data : undefined;
++  const sections = useCollapsibleSections(report.id, DEFAULT_COLLAPSED);
+   return (
+-    <PageFrame
+-      verdict={
+-        data && !query.isError
+-          ? {
+-              reportId: report.id,
+-              period: `${data.from}..${data.to}`,
+-              metric: { label: 'Konsum', value: data.consumptionCents, unit: 'money' },
+-            }
+-          : undefined
+-      }
+-      meta={meta}
+-      title={report.name}
+-      subtitle={`${report.pos} · ${report.question}`}
+-      reportDataBasis={
+-        query.isError
+-          ? 'nicht verfügbar'
+-          : data
+-            ? data.from && data.to
+-              ? `${longDay(data.from)} bis ${longDay(data.to)}`
+-              : 'keine geschlossenen Monate'
+-            : 'wird geladen'
+-      }
+-      reportStand={{
+-        label: 'Stichtag',
+-        value: data?.to ? `${longDay(data.to)} · Monatsende` : 'Monatsende',
+-      }}
+-      extraFields={[
+-        {
+-          label: 'Zeitraum',
+-          value: <PeriodSwitch period={period} onChange={setPeriod} />,
+-        },
+-      ]}
++    <PageFrame meta={meta} title={report.name} subtitle={`${report.pos} · ${report.question}`}
++      reportDataBasis={query.isError ? 'nicht verfügbar' : data ? data.from && data.to ? `${longDay(data.from)} bis ${longDay(data.to)}` : 'keine Monatsdaten' : 'wird geladen'}
++      reportStand={{ label: 'Stichtag', value: data?.to ? longDay(data.to) : '–' }}
++      extraFields={[{ label: 'Zeitraum', value: <PeriodSwitch period={period} onChange={setPeriod} /> }]}
+     >
+-      <div className="kview sr" data-testid="spending-analysis">
+-        <ReportQuery query={query} what="Ausgabenanalyse">
+-          {(report) => <Body data={report} />}
+-        </ReportQuery>
++      <div ref={sections} className="kview sr spending-analysis" data-testid="spending-analysis">
++        <ReportQuery query={query} what="Ausgabenanalyse">{(result) => <Body data={result} />}</ReportQuery>
+       </div>
+     </PageFrame>
+   );
+ }
+ 
+-function Body({ data }: { data: SpendingReport }) {
+-  useAmountPrivacy();
+-  if (data.months.length === 0)
+-    return (
+-      <section className="sr-card sr-wide" aria-labelledby="sa-empty">
+-        <div className="sr-head">
+-          <h2 id="sa-empty">Noch keine geschlossenen Monate</h2>
+-        </div>
+-        <p className="sr-empty" role="status">
+-          Sobald ein Budgetkonto einen vollen Monat Buchungen hat, erscheint hier die
+-          Ausgabenanalyse.
+-        </p>
+-      </section>
+-    );
+-  const total = data.consumptionCents + data.futureCents;
+-  const range = `${longDay(data.from as string)} bis ${longDay(data.to as string)}`;
+-  const parts = [
+-    { id: 'need', cents: data.needCents, pct: data.classShares.need },
+-    { id: 'want', cents: data.wantCents, pct: data.classShares.want },
+-    { id: 'future', cents: data.futureCents, pct: data.classShares.future },
+-  ] as const;
+-  const maxRow = Math.max(1, ...data.rows.map((r) => r.cents));
+-  const maxMove = Math.max(1, ...data.moves.map((m) => Math.abs(m.changeCents)));
+-  const heatLabels = data.heatMonths.map(monthShort);
+-  const drill = (id: string) => ({
+-    kategorie: id,
+-    von: data.from as string,
+-    bis: data.to as string,
+-  });
+-  return (
+-    <>
+-      <section className="sr-card" aria-labelledby="sa-main">
+-        <div className="sr-head">
+-          <h2 id="sa-main">Konsum · {periodName(data.period, data.months)}</h2>
+-          <span className="sr-state">
+-            Ø {eur(data.averagePerMonthCents, { cents: false })} je Monat
+-          </span>
+-        </div>
+-        <p className="sr-range">{range}</p>
+-        <div className="sr-fig">
+-          <span>Bedarf und Wunsch, netto</span>
+-          <strong data-testid="sa-consumption">{eur(data.consumptionCents)}</strong>
+-        </div>
+-        <DimensionChain
+-          label="Maßkette Konsum"
+-          precision="cent"
+-          terms={[
+-            { label: 'Bedarf', value: cents(data.needCents) },
+-            { label: 'Wunsch', op: '+', value: cents(data.wantCents) },
+-            { label: 'Konsum', op: '=', value: cents(data.consumptionCents), result: true },
+-          ]}
+-        />
+-        {total > 0 ? (
+-          <>
+-            <ChartValue
+-              label={`Bedarf ${data.classShares.need} %, Wunsch ${data.classShares.want} %, Zukunft ${data.classShares.future} %`}
+-              date={`${data.from} · ${data.to}`}
+-              series={[
+-                ...parts.map((p) => ({
+-                  name: CLASS_NAME[p.id],
+-                  value: `${eur(p.cents)} · ${chartShare(p.cents, total)}`,
+-                  color: `var(--${p.id})`,
+-                })),
+-              ]}
+-            >
+-              <div className="sr-seg">
+-                {parts.map((p) => (
+-                  <span
+-                    key={p.id}
+-                    className={`sw-${p.id}`}
+-                    style={{ width: `${(Math.max(0, p.cents) / total) * 100}%` }}
+-                  />
+-                ))}
+-              </div>
+-            </ChartValue>
+-            <ul className="sr-seg-leg">
+-              {parts.map((p) => (
+-                <li key={p.id}>
+-                  <ClassSwatch kind={p.id} />
+-                  {CLASS_NAME[p.id]} <strong>{p.pct} %</strong> {eur(p.cents, { cents: false })}
+-                </li>
+-              ))}
+-            </ul>
+-          </>
+-        ) : null}
+-        <p className="sr-note">
+-          Anteile an allem, was abgeflossen ist; Zukunft bleibt im Vermögen und zählt nicht zum
+-          Konsum. Erstattungen mindern die Kategorie, die sie erstatten; sie zählen nicht als
+-          Einkommen.
+-        </p>
+-      </section>
++interface CategoryRow extends SpendRow { previous: number | null; change: number | null }
++interface SpendingGroup { id: string; name: string; rows: CategoryRow[]; cents: number; previous: number | null }
++const checkedSum = (values: number[]) => {
++  let total = 0;
++  for (const amount of values) {
++    total += amount;
++    if (!Number.isSafeInteger(amount) || !Number.isSafeInteger(total))
++      throw new RangeError('Spending display exceeds safe integer cents');
++  }
++  return total;
++};
+ 
+-      <section className="sr-card" aria-labelledby="sa-moves">
+-        <div className="sr-head">
+-          <h2 id="sa-moves">Größte Veränderungen</h2>
+-          {data.changeCents !== null && (
+-            <span className={`sr-state ${data.changeCents <= 0 ? 'is-good' : 'is-bad'}`}>
+-              {eur(data.changeCents, { cents: false, sign: true })}
+-              {data.changeBp !== null ? ` · ${bpText(data.changeBp, { sign: true })}` : ''}
+-            </span>
+-          )}
+-        </div>
+-        {data.previousFrom && data.previousTo ? (
+-          data.moves.length ? (
+-            <>
+-              <ul className="sr-bars sr-moves" aria-label="Veränderung gegen die Vorperiode">
+-                {data.moves.map((m) => (
+-                  <li key={m.id}>
+-                    <span className="sr-name">
+-                      <ClassSwatch kind={m.class} />
+-                      <span>{m.name}</span>
+-                    </span>
+-                    <ChartValue
+-                      label="Veränderung zur Vorperiode"
+-                      date={`${data.from} · ${data.to}`}
+-                      series={[
+-                        { name: 'Veränderung', value: eur(m.changeCents), color: 'var(--red)' },
+-                        {
+-                          name: 'Vorperiode',
+-                          value: eur(m.previousCents ?? 0),
+-                          color: 'var(--ink-3)',
+-                        },
+-                        { name: 'Aktuell', value: eur(m.cents), color: 'var(--line)' },
+-                      ]}
+-                    >
+-                      <span className="sr-track" aria-hidden="true">
+-                        <i
+-                          className={m.changeCents < 0 ? 'is-less' : 'is-more'}
+-                          style={{ width: `${(Math.abs(m.changeCents) / maxMove) * 50}%` }}
+-                        />
+-                      </span>
+-                    </ChartValue>
+-                    <span className="sr-val">
+-                      <strong className={m.changeCents <= 0 ? 'is-better' : 'is-worse'}>
+-                        {eur(m.changeCents, { cents: false, sign: true })}
+-                      </strong>
+-                      <small>
+-                        {eur(m.previousCents ?? 0, { cents: false })} →{' '}
+-                        {eur(m.cents, { cents: false })}
+-                      </small>
+-                    </span>
+-                  </li>
+-                ))}
+-              </ul>
+-              <p className="sr-note">
+-                Gegen die gleich lange Vorperiode ({longDay(data.previousFrom)} bis{' '}
+-                {longDay(data.previousTo)}); rechts mehr, links weniger ausgegeben.
+-              </p>
+-            </>
+-          ) : (
+-            <p className="sr-empty">Keine Veränderung gegen die Vorperiode.</p>
+-          )
+-        ) : (
+-          <p className="sr-empty" role="status">
+-            Für diesen Zeitraum gibt es keine gleich lange Vorperiode.
+-          </p>
+-        )}
+-      </section>
++/** Group only the supplied signed rows; previous figures belong to the exact-day comparison. */
++export function spendingGroups(data: SpendingReport): SpendingGroup[] {
++  const previous = new Map(data.answerComparison.rows.map((row) => [row.id, row.previousCents]));
++  const groups = new Map<string, SpendingGroup>();
++  for (const row of data.breakdown) {
++    const prior = previous.get(row.id) ?? null;
++    // Older metadata without an ID stays separate, never merged by a nonunique label.
++    const key = row.groupId ?? `category:${row.id}`;
++    const group = groups.get(key) ?? { id: key, name: row.groupName, rows: [], cents: 0, previous: null };
++    group.rows.push({ ...row, previous: prior, change: prior === null ? null : checkedSum([row.cents, -prior]) });
++    groups.set(key, group);
++  }
++  for (const group of groups.values()) {
++    group.cents = checkedSum(group.rows.map((row) => row.cents));
++    group.previous = group.rows.every((row) => row.previous !== null)
++      ? checkedSum(group.rows.map((row) => row.previous!)) : null;
++    group.rows.sort((a, b) => b.cents - a.cents || a.id.localeCompare(b.id));
++  }
++  const result = [...groups.values()].sort((a, b) => b.cents - a.cents || a.id.localeCompare(b.id));
++  if (checkedSum(result.map((group) => group.cents)) !== data.consumptionCents)
++    throw new Error('Spending groups do not match the supplied report total');
++  return result;
++}
+ 
+-      <section className="sr-card sr-wide" aria-labelledby="sa-cats">
+-        <div className="sr-head">
+-          <h2 id="sa-cats">Nach Kategorie</h2>
+-          <span className="sr-state">{data.rows.length} Kategorien</span>
+-        </div>
+-        {data.rows.length === 0 ? (
+-          <p className="sr-empty" role="status">
+-            In diesem Zeitraum gibt es keine Ausgaben in Bedarf oder Wunsch.
+-          </p>
+-        ) : (
+-          <ul className="sr-bars is-cols" aria-label="Kategorien nach Ausgaben sortiert">
+-            {data.rows.map((r) => (
+-              <li key={r.id}>
+-                <AppLink to="/konten/buchungen" search={drill(r.id)} className="sr-name">
+-                  <ClassSwatch kind={r.class} />
+-                  <span>{r.name}</span>
+-                </AppLink>
+-                <ChartValue
+-                  label="Ausgaben nach Kategorie"
+-                  date={`${data.from} · ${data.to}`}
+-                  series={[{ name: 'Ausgaben', value: eur(r.cents), color: 'var(--line)' }]}
+-                >
+-                  <span className="sr-track" aria-hidden="true">
+-                    <i
+-                      className={`sw-${r.class}`}
+-                      style={{ width: `${(r.cents / maxRow) * 100}%` }}
+-                    />
+-                  </span>
+-                </ChartValue>
+-                <span className="sr-val">
+-                  {eur(r.cents, { cents: false })}
+-                  {r.previousCents ? (
+-                    <small
+-                      className={r.cents <= r.previousCents ? 'is-better' : 'is-worse'}
+-                      aria-label="Veränderung zur Vorperiode"
+-                    >
+-                      {bpText(
+-                        Math.round(((r.cents - r.previousCents) / r.previousCents) * 10_000),
+-                        {
+-                          sign: true,
+-                          digits: 0,
+-                        },
+-                      )}
+-                    </small>
+-                  ) : null}
+-                </span>
+-              </li>
+-            ))}
+-          </ul>
+-        )}
+-        <p className="sr-note">Jede Zeile öffnet die zugehörigen Buchungen des Zeitraums.</p>
+-      </section>
++function SignedBar({ current, previous, minimum, maximum, label, date }: {
++  current: number; previous: number | null; minimum: number; maximum: number; label: string; date: string;
++}) {
++  const width = maximum - minimum || 1;
++  const point = (value: number) => ((value - minimum) / width) * 100;
++  const left = point(Math.min(0, current));
++  return <ChartValue label={label} date={date} series={[
++    { name: 'Aktuell', value: eur(current), color: 'var(--line)' },
++    ...(previous === null ? [] : [{ name: 'Vorzeitraum', value: eur(previous), color: 'var(--ink-3)' }]),
++  ]}>
++    <span className="sa-track" aria-hidden="true" style={{ '--sa-zero': `${point(0)}%` } as CSSProperties}>
++      <i className={current < 0 ? 'is-refund' : undefined} style={{ left: `${left}%`, width: `${Math.abs(current) / width * 100}%` }} />
++      {previous !== null && <b className="sa-prior-tick" style={{ left: `${point(previous)}%` }} />}
++    </span>
++  </ChartValue>;
++}
+ 
+-      <section className="sr-card sr-wide" aria-labelledby="sa-heat">
+-        <div className="sr-head">
+-          <h2 id="sa-heat">Heatmap Kategorie × Monat</h2>
+-          <span className="sr-state">
+-            {heatLabels[0]} bis {heatLabels[heatLabels.length - 1]}
+-          </span>
+-        </div>
+-        {data.heatRows.length === 0 ? (
+-          <p className="sr-empty">Keine Ausgaben für die Heatmap.</p>
+-        ) : (
+-          <ChartValues
+-            label="Ausgaben je Kategorie und Monat"
+-            points={data.heatRows.flatMap((row) =>
+-              row.values.map((v, i) => ({
+-                x: 50,
+-                date: data.heatMonths[i] ?? '',
+-                series: [
+-                  { name: row.name, value: eur(v), color: v < 0 ? 'var(--red)' : 'var(--line)' },
+-                ],
+-              })),
+-            )}
+-          >
+-            <ScrollRegion label="Heatmap Kategorie mal Monat, bei Bedarf horizontal verschiebbar">
+-              <table className="sr-table sr-heat">
+-                <caption className="sr-only">
+-                  Ausgaben je Kategorie und Monat, eingefärbt gegen den Durchschnitt der Zeile
+-                </caption>
+-                <thead>
+-                  <tr>
+-                    <th scope="col">Kategorie</th>
+-                    {heatLabels.map((label) => (
+-                      <th key={label} scope="col" className="n">
+-                        {label}
+-                      </th>
+-                    ))}
+-                    <th scope="col" className="n">
+-                      Summe
+-                    </th>
+-                  </tr>
+-                </thead>
+-                <tbody>
+-                  {data.heatRows.map((row, rowIndex) => {
+-                    const cells = heatCells(row.values, 'low');
+-                    return (
+-                      <tr key={row.id}>
+-                        <th scope="row" title={row.name}>
+-                          <span className="sr-name">
+-                            <ClassSwatch kind={row.class} />
+-                            <span>{row.name}</span>
+-                          </span>
+-                        </th>
+-                        {row.values.map((v, i) => {
+-                          const cell = cells[i];
+-                          const tone =
+-                            cell?.tone === 'bad'
+-                              ? 'is-red'
+-                              : cell?.tone === 'good'
+-                                ? 'is-green'
+-                                : '';
+-                          return (
+-                            <td
+-                              key={data.heatMonths[i]}
+-                              data-chart-point={rowIndex * data.heatMonths.length + i}
+-                              className={`n ${tone}${v < 0 ? ' is-refund' : ''}`}
+-                              style={{ '--h': cell?.level.toFixed(2) ?? '0' } as CSSProperties}
+-                            >
+-                              <AppLink
+-                                className="category-month-link"
+-                                to="/konten/buchungen"
+-                                search={categoryMonthSearch(row.id, data.heatMonths[i]!)}
+-                                aria-label={`${row.name} · ${monthShort(data.heatMonths[i]!)} · ${eur(v)}`}
+-                              >
+-                                {v === 0 ? <span aria-label="nichts ausgegeben">·</span> : eur(v)}
+-                              </AppLink>
+-                            </td>
+-                          );
+-                        })}
+-                        <td className="n">
+-                          <strong>{eur(row.totalCents, { cents: false })}</strong>
+-                        </td>
+-                      </tr>
+-                    );
+-                  })}
+-                </tbody>
+-              </table>
+-            </ScrollRegion>
+-          </ChartValues>
+-        )}
+-        <p className="sr-note">
+-          Farbe je Zeile gegen den Durchschnitt der Kategorie: Rot = teurer Monat, Grün = günstiger;
+-          innerhalb von 8 % bleibt die Zelle neutral. Eine gestrichelte Umrandung markiert einen
+-          Monat mit Netto-Erstattung. So fallen Saisonmuster auf.
+-        </p>
+-      </section>
+-    </>
+-  );
++function Body({ data }: { data: SpendingReport }) {
++  useAmountPrivacy();
++  const [expanded, setExpanded] = useState<Set<string>>(new Set());
++  if (data.months.length === 0) return <section className="sr-card sr-wide" aria-labelledby="sa-empty"><div className="sr-head"><h2 id="sa-empty">Noch keine Monatsdaten</h2></div><p role="status">Sobald Monatswerte eines Budgetkontos vorliegen, erscheint hier die Ausgabenanalyse.</p></section>;
++  const groups = spendingGroups(data);
++  const rows = groups.flatMap((group) => group.rows);
++  const riser = rows.filter((row) => row.change !== null && row.change > 0).sort((a, b) => b.change! - a.change! || a.id.localeCompare(b.id))[0];
++  const moves = rows.filter((row) => row.change !== null && row.change !== 0).sort((a, b) => Math.abs(b.change!) - Math.abs(a.change!) || a.id.localeCompare(b.id)).slice(0, 6);
++  const amounts = groups.flatMap((group) => [group.cents, group.previous ?? 0, ...group.rows.flatMap((row) => [row.cents, row.previous ?? 0])]);
++  const minimum = Math.min(0, ...amounts);
++  const maximum = Math.max(1, ...amounts);
++  const toggle = (id: string) => setExpanded((old) => { const next = new Set(old); if (next.has(id)) next.delete(id); else next.add(id); return next; });
++  const drill = (id: string) => ({ kategorie: id, basis: 'category-spending', von: data.from, bis: data.to });
++  const comparison = data.answerComparison;
++  const date = data.from && data.to ? `${data.from} · ${data.to}` : '';
++  return <>
++    <section className="sr-card sr-wide" aria-labelledby="sa-main">
++      <div className="sr-head"><h2 id="sa-main">01 · Konsum nach Gruppe</h2><span className="sr-state">{periodName(data.period, data.months)}</span></div>
++      <p className="sr-range">{data.from && data.to ? `${longDay(data.from)} bis ${longDay(data.to)}` : 'Zeitraum nicht verfügbar'}</p>
++      <div className="sr-fig"><span>Bedarf und Wunsch, netto</span><strong data-testid="sa-consumption">{eur(data.consumptionCents)}</strong></div>
++      <ReportAnswer facts={{ totalCents: data.consumptionCents, previousCents: comparison.previousCents, favourable: 'down', metric: 'expenses', ...(riser ? { biggestRiser: { name: riser.name, changeCents: riser.change! } } : {}) }} />
++      {comparison.previousFrom && comparison.previousTo ? <p className="sa-comparison">Vorzeitraum: {longDay(comparison.previousFrom)} bis {longDay(comparison.previousTo)} · jeweils {comparison.days} Tage. Der Strich markiert den Vorzeitraum.</p> : <p className="sa-comparison">Für diesen Zeitraum ist kein vollständig abgedeckter, gleich langer Vorzeitraum verfügbar.</p>}
++      <ul className="sa-groups" aria-label="Konsum nach Kategoriegruppe">
++        {groups.map((group, index) => {
++          const open = expanded.has(group.id);
++          const detailId = `sa-group-${index}`;
++          return <li key={group.id}>
++            <div className="sa-row sa-group-row">
++              <button type="button" className="sa-group-name" aria-expanded={open} aria-controls={detailId} onClick={() => toggle(group.id)}><ChevronDown size={16} aria-hidden="true" /><strong>{maskMoneyText(group.name)}</strong></button>
++              <SignedBar current={group.cents} previous={group.previous} minimum={minimum} maximum={maximum} label={group.name} date={date} />
++              <AppLink className="sa-amount" to="/konten/buchungen" search={group.rows[0]?.groupId ? { kategoriegruppe: group.rows[0].groupId, basis: 'category-spending', von: data.from, bis: data.to } : drill(group.rows[0]!.id)} aria-label={`${maskMoneyText(group.name)} · ${eur(group.cents)} · Buchungen öffnen`}>{eur(group.cents)}</AppLink>
++              <span className="sa-delta">{group.previous === null ? '–' : eur(checkedSum([group.cents, -group.previous]), { sign: true })}</span>
++            </div>
++            <ul id={detailId} className="sa-category-rows" hidden={!open}>
++              {group.rows.map((row) => <li key={row.id} className="sa-row">
++                <span className="sa-category-name"><ClassSwatch kind={row.class} />{maskMoneyText(row.name)}</span>
++                <SignedBar current={row.cents} previous={row.previous} minimum={minimum} maximum={maximum} label={row.name} date={date} />
++                <AppLink className="sa-amount" to="/konten/buchungen" search={drill(row.id)} aria-label={`${maskMoneyText(row.name)} · ${eur(row.cents)} · Buchungen öffnen`}>{eur(row.cents)}</AppLink>
++                <span className="sa-delta">{row.change === null ? '–' : eur(row.change, { sign: true })}</span>
++              </li>)}
++            </ul>
++          </li>;
++        })}
++      </ul>
++      <p className="sr-note">Konsum ist Bedarf plus Wunsch. Erstattungen mindern die jeweilige Kategorie; Zukunft bleibt im Vermögen. Beträge an den Kategorien öffnen die Buchungen dieses Zeitraums.</p>
++    </section>
++    <section className="sr-card sr-wide" aria-labelledby="sa-moves">
++      <div className="sr-head"><h2 id="sa-moves">02 · Größte Veränderungen</h2></div>
++      {comparison.previousCents === null ? <p>Kein gleich langer Vorzeitraum verfügbar.</p> : moves.length === 0 ? <p>Keine Veränderung zum Vorzeitraum.</p> : <ul className="sa-moves">{moves.map((row) => <li key={row.id}><AppLink to="/konten/buchungen" search={drill(row.id)}>{maskMoneyText(row.name)}</AppLink><span>{eur(row.previous!)} → {eur(row.cents)}</span><strong>{eur(row.change!, { sign: true })}</strong></li>)}</ul>}
++    </section>
++    <section className="sr-card sr-wide" aria-labelledby="sa-classes">
++      <div className="sr-head"><h2 id="sa-classes">03 · Klassen und Zukunft</h2></div>
++      <DimensionChain label="Maßkette Konsum" precision="cent" terms={[{ label: 'Bedarf', value: cents(data.needCents) }, { label: 'Wunsch', op: '+', value: cents(data.wantCents) }, { label: 'Konsum', op: '=', value: cents(data.consumptionCents), result: true }]} />
++      <p>Zukunft, außerhalb Konsum: {eur(data.futureCents)}.</p>
++    </section>
++    <section className="sr-card sr-wide" aria-labelledby="sa-explorer">
++      <div className="sr-head"><h2 id="sa-explorer">04 · Auswertung</h2></div>
++      <p>Die Kategorie×Monat-Tabelle zeigt denselben Zeitraum und dieselben Netto-Ausgaben einschließlich Erstattungen.</p>
++      <AppLink className="sa-explorer-link" to="/reports/explorer" search={{ vorlage: 'heatmap', exakt: true, zeitraum: `${data.months[0]}..${data.months.at(-1)}` }}>In Auswertung öffnen</AppLink>
++    </section>
++  </>;
+ }
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index ce52f8a9249fc5efafc307fca52732e8a711a29c..01937b55dd7c4916ad96922fa2679a4d6017fa6f 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1768,3 +1768,11 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
+       actual full results and required CI are tracked in
+       [PR #736](https://github.com/Grabman1987/budget/pull/736).
+ - [ ] Exact new-head Chromium/required CI, serial merge and verified LIVE.
++
++
++### #553 / #554 — Spending answer and grouped analysis (implementation pending batch validation)
++
++- Added a deterministic, privacy-aware answer and prior-period chip from the supplied cent figures and explicit favourable direction. Missing prior coverage produces no sentence; a covered zero remains a valid comparison. The read model supplies a contiguous, equally long elapsed-day prior window, including partial current periods.
++- Replaced the primary chart with signed need/want groups keyed by stable group IDs, expandable categories, exact prior ticks/deltas and cent-precision booking links. Group links use a narrow read-only category-group filter over the existing classified spending contributions; refunds stay signed and Zukunft stays outside consumption. Existing financial writers and legacy analysis fields remain unchanged.
++- Secondary sections 02–04 start collapsed and remember explicit choices through the existing section mechanism. The removed embedded heatmap links to an opt-in exact-window Explorer projection with the same signed categories; existing template defaults remain unchanged. The separate saved-view work in #628 must be retained during integration.
++- All validation is deferred by the owner’s implementation-first batching instruction: independent literal cent totals, signed refunds/zero/prior availability, duplicate group labels, exact day coverage, group/category booking contributions, exact-window Explorer parity and preserved default templates; existing disclosure compatibility, privacy, keyboard/Axe, 44 px targets, 390 px overflow and desktop two-screen geometry; required full/native/CI/live gates. No acceptance criterion is marked verified here.
+diff --git a/packages/db/src/repos/ledger-queries.ts b/packages/db/src/repos/ledger-queries.ts
+index 442a5028ff34979882072621b046488a14e9210a..b1302530d491a91c6d92529813f522a408ae815e 100644
+--- a/packages/db/src/repos/ledger-queries.ts
++++ b/packages/db/src/repos/ledger-queries.ts
+@@ -198,6 +198,8 @@ export interface BookingQuery {
+   to?: string;
+   /** A category id, or `'none'` for bookings with an uncategorised split. */
+   categoryId?: string;
++  /** Report group drill-down: Bedarf/Wunsch categories only, with classified net contributions. */
++  categoryGroupId?: string;
+   /** Report drill-down: classified net category spending, rather than whole cash movements. */
+   basis?: 'category-spending';
+   payeeId?: string;
+@@ -314,10 +316,16 @@ export function queryBookings(
+ 
+   const conditions: (SQL | undefined)[] = [isNull(booking.deletedAt), isNull(account.deletedAt)];
+   const contributions =
+-    query.basis === 'category-spending' && query.categoryId ? new Map<string, number>() : null;
++    (query.basis === 'category-spending' && query.categoryId) || query.categoryGroupId
++      ? new Map<string, number>() : null;
+   if (contributions) {
+-    for (const s of reportTables(db, { today, withSources: true }).splits ?? []) {
+-      if (s.kind === 'spend' && s.categoryId === query.categoryId)
++    const facts = reportTables(db, { today, withSources: true });
++    const groupCategories = query.categoryGroupId ? new Set(facts.categories
++      .filter((c) => c.groupId === query.categoryGroupId && c.class !== 'future').map((c) => c.id)) : null;
++    for (const s of facts.splits ?? []) {
++      if (s.kind === 'spend' && s.categoryId !== null &&
++        (!query.categoryId || s.categoryId === query.categoryId) &&
++        (!groupCategories || groupCategories.has(s.categoryId)))
+         contributions.set(s.bookingId, (contributions.get(s.bookingId) ?? 0) + s.amountCents);
+     }
+     conditions.push(inArray(booking.id, [...contributions.keys()]));
+diff --git a/packages/db/src/repos/spending-report.ts b/packages/db/src/repos/spending-report.ts
+index 0134d95852dfeafcf08b747784c9a3ee3dc2eed9..d1265c47734a432728ae07bc68fd598965b23fd5 100644
+--- a/packages/db/src/repos/spending-report.ts
++++ b/packages/db/src/repos/spending-report.ts
+@@ -1,9 +1,13 @@
+ import {
++  addDays,
++  daysBetween,
+   isCalendarRange,
+   analyseSpending,
+   lastDayOfMonth,
+   monthOf,
+   monthsBetween,
++  overviewMonthlyFigures,
++  sumOverviewMonths,
+   previousWindow,
+   windowMonths,
+   type BudgetMonth,
+@@ -16,6 +20,7 @@ import { asc, isNull } from 'drizzle-orm';
+ import { account, category, categoryGroup } from '../schema';
+ import { reportTables, type ReportTables } from './report-tables';
+ import { referenceMonth } from './rule-inputs';
++import { overviewData } from './report-ledger';
+ import { budget } from './queries';
+ import type { Executor } from './types';
+ 
+@@ -75,6 +80,7 @@ export function spendCategories(db: Executor): SpendCategory[] {
+             {
+               id: c.id,
+               name: c.name,
++              groupId: c.groupId,
+               groupName: groups.get(c.groupId) ?? 'Ohne Gruppe',
+               class: c.class,
+               kind: c.kind,
+@@ -118,11 +124,51 @@ export interface SpendingReport extends SpendingAnalysis {
+   availableFrom: string | null;
+   availableTo: string | null;
+   availableMonths: number;
++  /** Exact elapsed-day comparison for the answer and group bars; legacy month fields stay intact. */
++  answerComparison: {
++    from: string | null;
++    to: string | null;
++    days: number;
++    previousFrom: string | null;
++    previousTo: string | null;
++    previousCents: number | null;
++    rows: { id: string; previousCents: number | null }[];
++  };
+ }
+ 
+ const firstDay = (month: string) => `${month}-01`;
+ const lastDay = lastDayOfMonth;
+ 
++function answerComparison(
++  db: Executor,
++  from: string | null,
++  to: string | null,
++  categories: SpendCategory[],
++): SpendingReport['answerComparison'] {
++  const days = from && to && to >= from ? daysBetween(from, to) + 1 : 0;
++  const before = from && days ? addDays(from, -1) : null;
++  const start = before ? addDays(before, 1 - days) : null;
++  const first = db.select({ day: account.openingDate, onBudget: account.onBudget })
++    .from(account).where(isNull(account.deletedAt)).all()
++    .filter((a) => a.onBudget).map((a) => a.day).sort()[0];
++  const eligible = categories.filter((c) => c.class !== 'future');
++  // A covered period with no movements is a valid zero, unlike unavailable ledger history.
++  if (!start || !before || !first || start < first) return {
++    from, to, days, previousFrom: null, previousTo: null, previousCents: null,
++    rows: eligible.map((c) => ({ id: c.id, previousCents: null })),
++  };
++  const data = overviewData(db);
++  const figures = overviewMonthlyFigures({ ...data,
++    splits: data.splits.filter((s) => s.date >= start && s.date <= before),
++  });
++  const totals = sumOverviewMonths(figures, monthsBetween(monthOf(start), monthOf(before)));
++  const rows = eligible.map((c) => ({ id: c.id, previousCents: totals.byCategory[c.id] ?? 0 }));
++  if (!Number.isSafeInteger(totals.consumptionCents) || rows.some((r) => !Number.isSafeInteger(r.previousCents)))
++    throw new RangeError('Spending comparison exceeds safe integer cents');
++  return { from, to, days, previousFrom: start, previousTo: before,
++    previousCents: totals.consumptionCents, rows };
++}
++
+ /** Ausgabenanalyse (2.1): net consumption per category for the selected period. */
+ export function spendingReport(
+   db: Executor,
+@@ -141,15 +187,14 @@ export function spendingReport(
+   const lastOf = (list: string[] | null) =>
+     list && list.length ? (list[list.length - 1] as string) : null;
+   const firstOf = (list: string[] | null) => (list && list.length ? (list[0] as string) : null);
++  const from = firstOf(months) ? firstDay(firstOf(months) as string) : null;
++  const to = lastOf(months) ? (lastDay(lastOf(months) as string) < today ? lastDay(lastOf(months) as string) : today) : null;
+   return {
+     ...analysis,
+     period,
+-    from: firstOf(months) ? firstDay(firstOf(months) as string) : null,
+-    to: lastOf(months)
+-      ? lastDay(lastOf(months) as string) < today
+-        ? lastDay(lastOf(months) as string)
+-        : today
+-      : null,
++    from,
++    to,
++    answerComparison: answerComparison(db, from, to, categories),
+     previousFrom: firstOf(previousMonths) ? firstDay(firstOf(previousMonths) as string) : null,
+     previousTo: lastOf(previousMonths) ? lastDay(lastOf(previousMonths) as string) : null,
+     availableFrom: firstOf(available) ? firstDay(firstOf(available) as string) : null,
+diff --git a/packages/domain/src/overview/explorer-templates.ts b/packages/domain/src/overview/explorer-templates.ts
+index 5cd03102414181e8c5941f6d256b13ceaa0eb32a..a326c926bc34169a7f0235647a62490c3abdada4 100644
+--- a/packages/domain/src/overview/explorer-templates.ts
++++ b/packages/domain/src/overview/explorer-templates.ts
+@@ -38,6 +38,8 @@ export interface ExplorerTemplateChoice {
+   period: Period;
+   year?: number;
+   categoryId?: string;
++  /** Explicit spending-report handoff only; existing heatmap defaults remain unchanged. */
++  exactWindow?: boolean;
+ }
+ export interface ExplorerTemplateModel {
+   id: ExplorerTemplateId;
+@@ -99,6 +101,25 @@ export function explorerTemplate(
+       previousMonths: null,
+       available,
+     });
++    if (choice.exactWindow) {
++      const selected = new Map(facts.months.map((month) => [month.month, month]));
++      return {
++        ...model,
++        months: window,
++        rows: analysis.breakdown.map((row): TableRow => ({
++          key: `cat:${row.id}`,
++          label: row.name,
++          kind: 'category',
++          level: 0,
++          swatch: row.class,
++          good: 'low',
++          vals: window.map((month) => {
++            const source = selected.get(month);
++            return source ? source.spending[row.id] ?? 0 : null;
++          }),
++        })),
++      };
++    }
+     return {
+       ...model,
+       months: analysis.heatMonths,
+diff --git a/packages/domain/src/spending/analysis.ts b/packages/domain/src/spending/analysis.ts
+index bda232fa4fb0f11542b77f651a1e37e6972bc7aa..7d68244f0bf70d481da18b82a0cc455ebf95ee80 100644
+--- a/packages/domain/src/spending/analysis.ts
++++ b/packages/domain/src/spending/analysis.ts
+@@ -5,6 +5,7 @@ import { wholePercents } from './period';
+ export interface SpendCategory {
+   id: string;
+   name: string;
++  groupId?: string;
+   groupName: string;
+   class: SpendClass;
+   /** Category kind (`periodic`, `fixed`, `variable` …) where the source knows it. */
+@@ -17,6 +18,7 @@ export type SpendByMonth = Readonly<Record<string, Readonly<Record<string, numbe
+ export interface SpendRow {
+   id: string;
+   name: string;
++  groupId?: string;
+   groupName: string;
+   class: SpendClass;
+   cents: number;
+@@ -54,6 +56,8 @@ export interface SpendingAnalysis {
+   /** Whole percentages of Bedarf, Wunsch, Zukunft: add up to 100 (or all 0 without spending). */
+   classShares: { need: number; want: number; future: number };
+   rows: SpendRow[];
++  /** Complete signed consumption breakdown, including refunds and zero-current categories. */
++  breakdown: SpendRow[];
+   moves: SpendMove[];
+   heatMonths: string[];
+   heatRows: SpendHeatRow[];
+@@ -97,6 +101,7 @@ export function analyseSpending(input: {
+   const rowOf = (c: SpendCategory): SpendRow => ({
+     id: c.id,
+     name: c.name,
++    ...(c.groupId === undefined ? {} : { groupId: c.groupId }),
+     groupName: c.groupName,
+     class: c.class,
+     cents: sum(spend, months, [c.id]),
+@@ -151,6 +156,7 @@ export function analyseSpending(input: {
+         : null,
+     classShares: { need, want, future },
+     rows,
++    breakdown: all,
+     moves,
+     heatMonths,
+     heatRows,

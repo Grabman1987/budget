@@ -1,0 +1,37 @@
+[
+  {
+    "path": "docs/handoff/553-554-spending-report/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/553-554-spending-report/README.md",
+    "size": 476,
+    "sha256": "200975806d227af4238b151b2f3b1b7816b93fc525657c604002168c7e080e4d"
+  },
+  {
+    "path": "docs/handoff/553-554-spending-report/owned/01-28c5a2124e99a9ec3bee1a2911a07143a9652492.patch",
+    "size": 57089,
+    "sha256": "56f9bd857ab0e3fda6d524bba7a72139e509a0bd56acfa39562aaf8ebcd84646"
+  },
+  {
+    "path": "docs/handoff/553-554-spending-report/packet.json",
+    "size": 2675,
+    "sha256": "2cb5d9cae0f23ac21e80a226e033b70f61b29736a558c13f6d3a9d9becf11121"
+  },
+  {
+    "path": "docs/handoff/553-554-spending-report/reviews/553-554-root-additive-spending-readmodel-independent-source-high.md",
+    "size": 4851,
+    "sha256": "aafaa9011049d3065c529e66b4b91854a19a8a57d19637c6c2d8081f2498df37"
+  },
+  {
+    "path": "docs/handoff/553-554-spending-report/reviews/553-554-whole-seventeen-integration-independent-source-high.md",
+    "size": 7006,
+    "sha256": "6e62f43bffc5f5f74526f37085a2107bd020e9cb570029e3566a525ead7c8cbf"
+  },
+  {
+    "path": "docs/handoff/553-554-spending-report/reviews/554-six-file-group-booking-drilldown-independent-source-high.md",
+    "size": 4086,
+    "sha256": "01e27e3cf4473107242bb26405e20f0f59ecbc8acb547742a243b399260c6082"
+  }
+]
