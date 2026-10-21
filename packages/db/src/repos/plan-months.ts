@@ -15,6 +15,7 @@ import { planIncomeTargets } from './income-targets';
 import { budgetLedger, budgetOfLedger, budgetActivityOfLedger } from './queries';
 import { loadFacts } from './rule-inputs';
 import { reportTables } from './report-tables';
+import { planUncategorizedCount } from './plan-uncategorized';
 import type { Executor } from './types';
 
 /**
@@ -88,6 +89,7 @@ export function planMonthViews(
         }),
       })),
       unclassified: unclassifiedMonth(ledger, month),
+      uncategorizedCount: planUncategorizedCount(db, month),
     };
     // Facts as `loadFacts(db, lastDayOfMonth(month))` would read them: only the first month differs.
     const monthFacts = {
