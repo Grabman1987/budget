@@ -1795,16 +1795,18 @@ explicit reanalysis/review. Upload and reanalysis never post money.
 
 ## #589 — URL-backed Plan filters: isolated acceptance packet
 
-The reviewed filter implementation is isolated from the deferred source batch.
-The Plan search reducer receives its reviewed type annotation only; financial
-writers, calculation rules and all existing tests remain unchanged.
+Category-name search and five URL-backed filters share count/list predicates.
+“Überzogen” retains the existing cover controls above the list; “Ohne Kategorie”
+links actual source bookings with bounded paging. The older header now labels its
+separate “vorgemerkt / ohne Kategorie” union. Financial writers, formulas and all
+existing tests are unchanged.
 
-- [ ] NEW literal filter/URL and actual hidden-category/multi-month predicate tests pass.
-- [ ] NEW real-API classification, 50+1 pagination, cursor-refusal and read-only conservation tests pass.
-- [ ] NEW Router tests verify counts, search/history, selection reset, collapse, cover placement and fresh/error pagination states.
-- [ ] Native desktop1440/configured390, both themes, keyboard,44px touch targets, Axe and real cover/Undo evidence accepted.
-- [ ] Required static checks, AGE-enabled full check and normal production build pass.
-- [ ] Exact-head CI and serial LIVE verification.
+- [x] NEW pure3, corrected real API3 and current RouterUI5 passed in separate focused runs: literal counts/IDs, hidden and multi-month predicates, exact51/50+1 paging, cursor refusal, URL/history/search, selection/collapse and no-write conservation.
+- [x] Eight unchanged compatibility files/70 tests, affected types and scoped lint/format/CSS passed. Current header wording has a literal52-versus51 union/dedup regression.
+- [x] Current canonical WebKit7/7 (setup3 + feature4), no skips/retries/flaky cases: desktop1440×900/configured390×664 in both themes, individual phone44px targets, keyboard, Axe, source links and real cover/audit/Undo. [Four original images and evidence limits](evidence/plan-filters-589/README.md).
+- [ ] Chromium desktop/mobile required exact-head CI. Earlier local Chromium4 failed before launch because the canonical browser was absent; no product assertion ran.
+- [ ] Required AGE-enabled full check and normal production build on the final source/evidence checkpoint.
+- [ ] Exact-head required CI, serial integration and verified LIVE; no queue-completion claim.
 
-Acceptance tests are being authored; no new runtime or verified acceptance is
-claimed by this source checkpoint. Browser evidence remains pending.
+Current WebKit source is `376fe26d`; its fresh E2E build and unchanged166-file
+compiled proof are separate from the still-pending normal production/full gates.
