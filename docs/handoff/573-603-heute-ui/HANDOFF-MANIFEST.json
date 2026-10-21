@@ -1,0 +1,47 @@
+[
+  {
+    "path": "docs/handoff/573-603-heute-ui/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/573-603-heute-ui/README.md",
+    "size": 469,
+    "sha256": "93d3e41da2e481ad3c7942950cfeb620ae4a73c47c07fbba2c9df964e6507241"
+  },
+  {
+    "path": "docs/handoff/573-603-heute-ui/owned/01-9b1240c6fd199e803f55eed525684f04baca7c3f.patch",
+    "size": 31739,
+    "sha256": "bdee6f491d75d9f0b94d5a645bd64f7f250e448a21b1e85e99cb1502b3a0f6a1"
+  },
+  {
+    "path": "docs/handoff/573-603-heute-ui/packet.json",
+    "size": 1451,
+    "sha256": "97a24c8fbc520eb8bec7b7e700341f64d87955112675dad80db57e7c438ab4d7"
+  },
+  {
+    "path": "docs/handoff/573-603-heute-ui/reviews/573-603-backend-whole-nine-independent-source-high.md",
+    "size": 3448,
+    "sha256": "73892a496a35f90483c8900f7c8de22102a33dfd1cecc86e6fd0f3087c4a03ef"
+  },
+  {
+    "path": "docs/handoff/573-603-heute-ui/reviews/573-603-batch-cache-early-independent-source-high.md",
+    "size": 1937,
+    "sha256": "623c06b7ddf71931c5c44a0810336d8892ef16ac9c00e47dd7d23fd11fdde198"
+  },
+  {
+    "path": "docs/handoff/573-603-heute-ui/reviews/573-603-canonical-reader-extraction-independent-source-review.md",
+    "size": 1421,
+    "sha256": "7e2cb817facf948cc0f6af895462e82b81c07d24a2d16d6b4358732fc0a4ac71"
+  },
+  {
+    "path": "docs/handoff/573-603-heute-ui/reviews/573-603-whole-five-heute-ui-independent-source-high.md",
+    "size": 5328,
+    "sha256": "5814c611d14325174c00cd544814ce53789e8ad8f3ec752bd5d6249a76125296"
+  },
+  {
+    "path": "docs/handoff/573-603-heute-ui/reviews/573-month-close-parenthesis-independent-source-review.md",
+    "size": 1151,
+    "sha256": "269c319a3a0ca4616369ed4511306f3f80272713a62d9598ba7e44133d7351c3"
+  }
+]

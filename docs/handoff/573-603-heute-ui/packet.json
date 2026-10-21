@@ -1,0 +1,33 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/573-603-heute-ui",
+  "sourceHead": "9b1240c6fd199e803f55eed525684f04baca7c3f",
+  "originalBaseBeforeOwnedCommits": "0b9bbb658865239197de37ad98e06eededc25f12",
+  "orderedCommits": [
+    {
+      "sha": "9b1240c6fd199e803f55eed525684f04baca7c3f",
+      "parentBase": "0b9bbb658865239197de37ad98e06eededc25f12",
+      "subject": "feat(heute): present complete task pool and optional pinned envelopes",
+      "paths": [
+        "apps/web/src/heute/attention-bar.tsx",
+        "apps/web/src/heute/attention-model.ts",
+        "apps/web/src/heute/heute-page.tsx",
+        "apps/web/src/heute/heute.css",
+        "docs/ROADMAP.md"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 9b1240c6fd199e803f55eed525684f04baca7c3f > OWN_OUTPUT/9b1240c6fd199e803f55eed525684f04baca7c3f.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-9b1240c6fd199e803f55eed525684f04baca7c3f.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/web/src/heute/attention-bar.tsx",
+    "apps/web/src/heute/attention-model.ts",
+    "apps/web/src/heute/heute-page.tsx",
+    "apps/web/src/heute/heute.css",
+    "docs/ROADMAP.md"
+  ],
+  "mixedSourceAncestry": true,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}
