@@ -1,0 +1,52 @@
+diff --git a/apps/web/src/ledger/mutations.ts b/apps/web/src/ledger/mutations.ts
+index 7374090a0aca0b9ac18b2a4209f22b58fb1311f7..8af71d8024037c862a1915b42f6ca8f3e7ca7700 100644
+--- a/apps/web/src/ledger/mutations.ts
++++ b/apps/web/src/ledger/mutations.ts
+@@ -65,16 +65,21 @@ export function useLedgerWrites() {
+   const toast = useToast();
+   // A booking moves account balances (ledger) and the Available of its category (budget).
+   const settled = () => {
+-    // Restart cursor lists after a write, rather than refetching every older page.
+-    qc.setQueriesData<InfiniteData<BookingPage>>(
+-      { queryKey: [...BOOKINGS_KEY, 'infinite'] },
+-      (data) => data && { pages: data.pages.slice(0, 1), pageParams: data.pageParams.slice(0, 1) },
+-    );
+-    // Active figures refresh in the background; inactive wealth stays stale for its next visit.
+-    // Returning immediately keeps every refetch (including a visible wealth page) off save's path.
+-    void qc.invalidateQueries({ queryKey: LEDGER_KEY });
+-    void qc.invalidateQueries({ queryKey: BUDGET_KEY });
+-    void qc.invalidateQueries({ queryKey: ['expected'] });
++    // Invalidation reuses an initial pending fetch with no data. Discard pre-write booking reads
++    // first, or an empty account's old response can satisfy the refresh after its first capture.
++    void qc.cancelQueries({ queryKey: BOOKINGS_KEY }).then(() => {
++      // Restart cursor lists after a write, rather than refetching every older page.
++      qc.setQueriesData<InfiniteData<BookingPage>>(
++        { queryKey: [...BOOKINGS_KEY, 'infinite'] },
++        (data) =>
++          data && { pages: data.pages.slice(0, 1), pageParams: data.pageParams.slice(0, 1) },
++      );
++      // Active figures refresh in the background; inactive wealth stays stale for its next visit.
++      // Returning immediately keeps every refetch (including a visible wealth page) off save's path.
++      void qc.invalidateQueries({ queryKey: LEDGER_KEY });
++      void qc.invalidateQueries({ queryKey: BUDGET_KEY });
++      void qc.invalidateQueries({ queryKey: ['expected'] });
++    });
+   };
+ 
+   const offerUndo = (message: string, groupId: string) =>
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index f40cf505da98647f87e0da7558d72d87ee749d75..fdac6fca39dca67b84ff977695466e1f6d3cd8fe 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1,5 +1,11 @@
+ # Roadmap
+ 
++### #677 — first-booking register refresh (2026-10-19)
++
++- [x] Cancel pre-write booking reads before scheduling ledger invalidation so a pending initial empty response cannot satisfy the refresh after the first capture.
++- [x] Deterministic register regression covers out-of-order empty/fresh responses, nonblocking save completion and undo; existing nonblocking edit and cache tests remain unchanged and pass.
++- [ ] Exact-head CI, `ledger.spec.ts:217` with `--repeat-each=5`, controlled integration and live verification remain required. Do not close #677 from unit evidence alone.
++
+ ### WP-001 — CASE-001 reference assurance, first bounded slice (#509, 2026-10-17)
+ 
+ - [x] Inventory existing CASE-001–007 domain/repository tests; document coverage, boundary and missing API proof in `docs/evidence/reference-adoption/wp-001-case-audit-2026-10-17.md`.

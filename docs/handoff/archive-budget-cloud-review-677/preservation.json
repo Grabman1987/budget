@@ -1,0 +1,14 @@
+{
+  "state": "ARCHIVED REVIEW / ALREADY DELIVERED \u2014 NOT NEW IMPLEMENTATION",
+  "worktree": "/workspace/budget-cloud-review-677",
+  "head": "e14932decc183919694aa5f4d24e03b4b6f54914",
+  "historicalContext": "Old detached review copy; #543\u2192PR696, #677\u2192PR693, Case002\u2192combined reference PR686. Preserve; do not treat as fresh ticket implementation.",
+  "trackedPaths": [
+    "apps/web/src/ledger/mutations.ts",
+    "docs/ROADMAP.md"
+  ],
+  "untrackedPaths": [
+    "apps/web/src/ledger/first-booking-register-677.test.tsx"
+  ],
+  "originalsMutated": false
+}

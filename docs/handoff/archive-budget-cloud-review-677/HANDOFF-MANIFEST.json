@@ -1,0 +1,27 @@
+[
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-677/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-677/README.md",
+    "size": 497,
+    "sha256": "7351c1accad30b077672328c3aa778f70a3e164a0e16d1e3ef14b4156df7f255"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-677/preservation.json",
+    "size": 574,
+    "sha256": "10109e4bf51a68cbca1511d3a2ec25977cfa4404bd8447beef8e7a4a0ba55328"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-677/tracked-head.patch",
+    "size": 3257,
+    "sha256": "f1a608f7ecb296abf13ab8fb63a25ea7aff162452f245cda0833c49aac1d0606"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-677/untracked/apps/web/src/ledger/first-booking-register-677.test.tsx",
+    "size": 5982,
+    "sha256": "9833affaaa4a9a3d698559050b6d66d4ac947519787617d6e2201c7b69a08365"
+  }
+]
