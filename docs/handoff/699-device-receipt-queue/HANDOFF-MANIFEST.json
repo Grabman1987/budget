@@ -1,0 +1,27 @@
+[
+  {
+    "path": "docs/handoff/699-device-receipt-queue/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/699-device-receipt-queue/README.md",
+    "size": 477,
+    "sha256": "8ea6f50643a9132dd719cb2ac939a60f874722081f7aace04f00a6f39e510a85"
+  },
+  {
+    "path": "docs/handoff/699-device-receipt-queue/owned/01-a1293464aaada9ddd2a966d646d4152029aefb6e.patch",
+    "size": 70628,
+    "sha256": "245e562c7faddf74d14ea4575beb632ccf5dd0fb59af2160a542b7dc2e48679a"
+  },
+  {
+    "path": "docs/handoff/699-device-receipt-queue/owned/02-83505ed18d90cf18677d4a98614a6d86efb89d70.patch",
+    "size": 57615,
+    "sha256": "ab1eaa49f56d3976e188a192aedb9b9d028c6a6e22668319caee9a38a2b15827"
+  },
+  {
+    "path": "docs/handoff/699-device-receipt-queue/packet.json",
+    "size": 2356,
+    "sha256": "752536389cc5ef49aa287102c182aa19c1a70b61a89f38ba064ff381d5343f71"
+  }
+]

@@ -1,0 +1,1844 @@
+diff --git a/apps/web/src/pwa/receipt-queue-store.ts b/apps/web/src/pwa/receipt-queue-store.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..1cc80489d9d1d05f6504f3ef4776e1788b9f69c9
+--- /dev/null
++++ b/apps/web/src/pwa/receipt-queue-store.ts
+@@ -0,0 +1,639 @@
++/** Device-only raw files, not encrypted storage or proof of an authenticated session. */
++export type ReceiptUploadFailure =
++  'offline' | 'login' | 'server' | 'conflict' | 'rejected' | 'cleanup';
++export interface QueuedReceiptUpload {
++  id: string;
++  createdAt: number;
++  blob: Blob;
++  filename: string;
++  mime: string;
++  bookingId?: string;
++  uncertain: boolean;
++  failure?: ReceiptUploadFailure;
++}
++export interface ReceiptQueueToken {
++  epoch: string;
++  generation: number;
++}
++
++declare const recoveryTicketBrand: unique symbol;
++/** Opaque, one-use, in-memory privacy snapshot; no raw files or authentication material. */
++export interface ReceiptQueueRecoveryTicket {
++  readonly [recoveryTicketBrand]: true;
++}
++interface RecoverySnapshot {
++  pending: string[];
++  completed: string[];
++  epoch: unknown;
++}
++const recoveryTickets = new WeakMap<ReceiptQueueRecoveryTicket, RecoverySnapshot>();
++
++const DATABASE = 'budget-receipt-uploads';
++const SIGNAL = 'budget-receipt-queue-epoch';
++const HOLD = 'budget-receipt-queue-signout.';
++const STORAGE_PROBE = 'budget-receipt-queue-storage-capability-check.';
++const TIMEOUT = 3000;
++const LIMIT = 15 * 1024 * 1024;
++const listeners = new Set<() => void>();
++const knownHolds = new Set<string>();
++let generation = 0;
++let observing = false;
++let observedEpoch: string | null | undefined;
++let channel: BroadcastChannel | undefined;
++let pending: Promise<unknown> = Promise.resolve();
++const unavailable = () =>
++  new Error(
++    'Beleg nicht auf dem Gerät gespeichert. Lass die Dateiauswahl geöffnet und versuch es erneut.',
++  );
++const fenced = () =>
++  new Error('Der Belegspeicher wird gerade geleert. Es wurde kein Beleg gespeichert.');
++function notifyListeners() {
++  for (const listener of listeners) {
++    try {
++      listener();
++    } catch {
++      /* A failed render cannot bypass a storage fence. */
++    }
++  }
++}
++function listChanged() {
++  notifyListeners();
++  try {
++    channel?.postMessage('list');
++  } catch {
++    /* Persistence, not notification, establishes durability. */
++  }
++}
++function invalidate() {
++  generation++;
++  notifyListeners();
++}
++function announce() {
++  invalidate();
++  try {
++    channel?.postMessage('changed');
++  } catch {
++    /* Storage events independently fence other tabs. */
++  }
++}
++function observeCurrentFence() {
++  try {
++    const current = localStorage.getItem(SIGNAL);
++    if (held() || current !== observedEpoch) {
++      observedEpoch = current;
++      invalidate();
++    }
++  } catch {
++    invalidate();
++  }
++}
++function observe() {
++  if (observing) return;
++  observing = true;
++  window.addEventListener('storage', (event) => {
++    if (event.key === null || event.key === SIGNAL || event.key?.startsWith(HOLD))
++      observeCurrentFence();
++  });
++  try {
++    if ('BroadcastChannel' in globalThis) {
++      channel = new BroadcastChannel(DATABASE);
++      channel.onmessage = (event: MessageEvent<unknown>) => {
++        const data = event.data;
++        if (data === 'list') notifyListeners();
++        else if (typeof data === 'object' && data !== null && 'kind' in data) {
++          if (
++            data.kind === 'hold' &&
++            'id' in data &&
++            typeof data.id === 'string' &&
++            data.id.startsWith(HOLD)
++          ) {
++            if (!knownHolds.has(data.id)) {
++              knownHolds.add(data.id);
++              invalidate();
++            }
++          } else if (data.kind === 'release' && 'ids' in data && Array.isArray(data.ids)) {
++            let changed = false;
++            for (const id of data.ids)
++              if (typeof id === 'string') changed = knownHolds.delete(id) || changed;
++            if (changed) invalidate();
++          }
++        } else observeCurrentFence();
++      };
++    }
++  } catch {
++    /* Durable nonfinancial storage markers remain required. */
++  }
++}
++function held() {
++  return knownHolds.size > 0 || Object.keys(localStorage).some((key) => key.startsWith(HOLD));
++}
++function marker() {
++  try {
++    if (held()) throw fenced();
++    // Readable storage alone cannot guarantee that the next logout can fence raw files.
++    const probe = `${STORAGE_PROBE}${crypto.randomUUID()}`;
++    localStorage.setItem(probe, 'pending');
++    try {
++      if (localStorage.getItem(probe) !== 'pending') throw fenced();
++    } finally {
++      localStorage.removeItem(probe);
++    }
++    return localStorage.getItem(SIGNAL);
++  } catch {
++    throw fenced();
++  }
++}
++export function subscribeReceiptQueue(listener: () => void) {
++  observe();
++  listeners.add(listener);
++  return () => {
++    listeners.delete(listener);
++  };
++}
++function database(): Promise<IDBDatabase> {
++  return new Promise((resolve, reject) => {
++    let settled = false;
++    let request: IDBOpenDBRequest;
++    const timer = setTimeout(fail, TIMEOUT);
++    function fail() {
++      if (settled) return;
++      settled = true;
++      clearTimeout(timer);
++      reject(unavailable());
++    }
++    try {
++      request = indexedDB.open(DATABASE, 1);
++    } catch {
++      fail();
++      return;
++    }
++    request.onupgradeneeded = () => {
++      request.result.createObjectStore('intents', { keyPath: 'id' });
++      request.result.createObjectStore('meta');
++    };
++    request.onerror = request.onblocked = fail;
++    request.onsuccess = () => {
++      if (settled) {
++        request.result.close();
++        return;
++      }
++      settled = true;
++      clearTimeout(timer);
++      resolve(request.result);
++    };
++  });
++}
++async function access<T>(
++  mode: IDBTransactionMode,
++  operation: (tx: IDBTransaction, finish: (value: T) => void) => void,
++): Promise<T> {
++  const db = await database();
++  try {
++    return await new Promise<T>((resolve, reject) => {
++      const tx = db.transaction(['meta', 'intents'], mode);
++      let value: T;
++      let failure: unknown;
++      const timer = setTimeout(() => tx.abort(), TIMEOUT);
++      tx.oncomplete = () => {
++        clearTimeout(timer);
++        resolve(value);
++      };
++      tx.onerror = tx.onabort = () => {
++        clearTimeout(timer);
++        reject(failure ?? unavailable());
++      };
++      try {
++        operation(tx, (result) => {
++          value = result;
++        });
++      } catch (error) {
++        failure = error;
++        tx.abort();
++      }
++    });
++  } finally {
++    db.close();
++  }
++}
++
++/** Native holds remain authoritative when LS failed. Completed IDs fence delayed reservations. */
++function nativeHoldState(
++  tx: IDBTransaction,
++  done: (pending: string[], completed: Set<string>) => void,
++) {
++  const pending: string[] = [],
++    completed = new Set<string>();
++  const request = tx.objectStore('meta').openCursor();
++  request.onsuccess = () => {
++    try {
++      const cursor = request.result;
++      if (!cursor) {
++        done(pending, completed);
++        return;
++      }
++      if (typeof cursor.key === 'string' && cursor.key.startsWith(HOLD)) {
++        if (cursor.value === 'pending') pending.push(cursor.key);
++        if (cursor.value === 'complete') completed.add(cursor.key);
++      }
++      cursor.continue();
++    } catch {
++      tx.abort();
++    }
++  };
++}
++function nativeHolds(tx: IDBTransaction, done: (ids: string[]) => void) {
++  nativeHoldState(tx, (pending) => done(pending));
++}
++function publishHold(id: string) {
++  try {
++    channel?.postMessage({ kind: 'hold', id });
++  } catch {
++    /* Native/LS holds remain independent. */
++  }
++}
++function releaseKnown(ids: string[]) {
++  let changed = false;
++  for (const id of ids) changed = knownHolds.delete(id) || changed;
++  if (changed) invalidate();
++  try {
++    channel?.postMessage({ kind: 'release', ids });
++  } catch {
++    /* Native/LS holds govern raw access. */
++  }
++}
++
++/** Initialize/repair only this queue. Lost wipe markers never authorize old files. */
++export async function beginReceiptQueue(): Promise<ReceiptQueueToken> {
++  observe();
++  marker(); // Unavailable durable cross-tab fences disable persistence, rather than claim success.
++  const epoch = await access<string>('readwrite', (tx, finish) => {
++    const meta = tx.objectStore('meta');
++    nativeHolds(tx, (holds) => {
++      if (holds.length) {
++        tx.abort();
++        return;
++      }
++      const request = meta.get('epoch');
++      request.onsuccess = () => {
++        try {
++          const signal = marker();
++          const previous: unknown = request.result;
++          if (typeof previous === 'string' && previous === signal) {
++            finish(previous);
++            return;
++          }
++          // New storage, missing marker or a wipe that did not commit: discard old provenance.
++          const next = crypto.randomUUID();
++          localStorage.setItem(SIGNAL, next);
++          tx.objectStore('intents').clear();
++          meta.delete('lastCreatedAt');
++          meta.put(next, 'epoch');
++          invalidate();
++          finish(next);
++        } catch {
++          tx.abort();
++        }
++      };
++    });
++  });
++  if (marker() !== epoch) throw fenced();
++  observedEpoch = epoch;
++  return { epoch, generation };
++}
++export function receiptQueueTokenCurrent(token: ReceiptQueueToken): boolean {
++  try {
++    return token.generation === generation && marker() === token.epoch;
++  } catch {
++    return false;
++  }
++}
++async function guarded<T>(
++  token: ReceiptQueueToken,
++  mode: IDBTransactionMode,
++  operation: (store: IDBObjectStore, finish: (value: T) => void) => void,
++): Promise<T> {
++  if (!receiptQueueTokenCurrent(token)) throw fenced();
++  const result = await access<T>(mode, (tx, finish) => {
++    nativeHolds(tx, (holds) => {
++      if (holds.length) {
++        tx.abort();
++        return;
++      }
++      const request = tx.objectStore('meta').get('epoch');
++      request.onsuccess = () => {
++        if (request.result !== token.epoch || !receiptQueueTokenCurrent(token)) {
++          tx.abort();
++          return;
++        }
++        try {
++          operation(tx.objectStore('intents'), finish);
++        } catch {
++          tx.abort();
++        }
++      };
++    });
++  });
++  if (!receiptQueueTokenCurrent(token)) throw fenced();
++  return result;
++}
++
++/** An explicit selection commits a fresh immutable payload before transport is permitted. */
++export async function enqueueReceiptUpload(
++  file: File,
++  bookingId?: string,
++): Promise<QueuedReceiptUpload> {
++  if (!(file instanceof File) || !file.size) throw new Error('Bitte einen Beleg auswählen.');
++  if (file.size > LIMIT) throw new Error('Ein Beleg darf höchstens 15 MB groß sein.');
++  if (bookingId !== undefined && (!bookingId || bookingId.length > 128))
++    throw new Error('Ungültige Buchung für den Beleg.');
++  const token = await beginReceiptQueue();
++  const item: QueuedReceiptUpload = {
++    id: crypto.randomUUID(),
++    createdAt: Date.now(),
++    blob: file.slice(0, file.size, file.type),
++    filename: file.name,
++    mime: file.type,
++    ...(bookingId === undefined ? {} : { bookingId }),
++    uncertain: false,
++  };
++  await guarded<void>(token, 'readwrite', (store, finish) => {
++    const meta = store.transaction.objectStore('meta');
++    const last = meta.get('lastCreatedAt');
++    last.onsuccess = () => {
++      try {
++        item.createdAt = Math.max(
++          Date.now(),
++          typeof last.result === 'number' ? last.result + 1 : 0,
++        );
++        store.add(item);
++        meta.put(item.createdAt, 'lastCreatedAt');
++        finish(undefined);
++      } catch {
++        store.transaction.abort();
++      }
++    };
++  });
++  // A list refresh does not invalidate a concurrent request's provenance.
++  listChanged();
++  return item;
++}
++export async function listReceiptUploads(): Promise<QueuedReceiptUpload[]> {
++  const token = await beginReceiptQueue();
++  return guarded(token, 'readonly', (store, finish) => {
++    const request = store.getAll();
++    request.onsuccess = () =>
++      finish(
++        (request.result as QueuedReceiptUpload[]).sort(
++          (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id),
++        ),
++      );
++  });
++}
++
++/** Status changes cannot replace bytes, filename, target or key; uncertainty never rolls back. */
++export async function updateReceiptUploadStatus(
++  token: ReceiptQueueToken,
++  id: string,
++  failure?: ReceiptUploadFailure,
++) {
++  await guarded<void>(token, 'readwrite', (store, finish) => {
++    const request = store.get(id);
++    request.onsuccess = () => {
++      const current = request.result as QueuedReceiptUpload | undefined;
++      if (!current) {
++        finish(undefined);
++        return;
++      }
++      const { failure: previous, ...rest } = current;
++      void previous;
++      try {
++        store.put({ ...rest, uncertain: true, ...(failure === undefined ? {} : { failure }) });
++        finish(undefined);
++      } catch {
++        store.transaction.abort();
++      }
++    };
++  });
++  listChanged();
++}
++export async function acknowledgeReceiptUpload(token: ReceiptQueueToken, id: string) {
++  await guarded<void>(token, 'readwrite', (store, finish) => {
++    store.delete(id);
++    finish(undefined);
++  });
++  listChanged();
++}
++
++/** Separate from the text-booking lock. Server idempotency guards cross-tab fallback delivery. */
++export function withReceiptQueueLock<T>(fn: () => Promise<T>): Promise<T> {
++  if (navigator.locks) return navigator.locks.request(DATABASE, fn);
++  const next = pending.then(fn, fn);
++  pending = next.catch(() => undefined);
++  return next;
++}
++
++/**
++ * Explicit intent fences this context synchronously and starts native persistence immediately.
++ * Caller starts clear immediately, independently of logout HTTP; await ready/clear, then release
++ * only after HTTP settles. Native fallback remains authoritative if the LS fence cannot be written.
++ * Session expiry never calls this. Failed native persistence/clear is never reported successful.
++ */
++export function holdReceiptQueueForSignOut() {
++  return receiptQueueHold();
++}
++function receiptQueueHold(recovery?: RecoverySnapshot) {
++  observe();
++  const id = `${HOLD}${crypto.randomUUID()}`;
++  knownHolds.add(id);
++  invalidate();
++  let localStorageFence = false;
++  try {
++    localStorage.setItem(id, 'pending');
++    localStorageFence = true;
++  } catch {
++    /* Immediate intent broadcast and native metadata persist independently below. */
++  }
++  publishHold(id);
++  const ready = access<boolean>('readwrite', (tx, finish) => {
++    const meta = tx.objectStore('meta'),
++      request = meta.get(id);
++    request.onsuccess = () => {
++      try {
++        if (request.result === 'complete') {
++          finish(false);
++          return;
++        }
++        meta.put('pending', id);
++        finish(true);
++      } catch {
++        tx.abort();
++      }
++    };
++  }).then((active) =>
++    active
++      ? { localStorageFence, nativeFence: true as const }
++      : { localStorageFence, nativeFence: false as const, recovered: true as const },
++  );
++  void ready.catch(() => undefined); // The returned ready/clear/release still reject explicitly.
++  let cleared = false;
++  return {
++    ready,
++    async clear() {
++      await ready;
++      const result = await access<
++        { stale: true; completed: string[] } | { stale: false; localMarkerUpdated: boolean }
++      >('readwrite', (tx, finish) => {
++        const meta = tx.objectStore('meta');
++        const own = meta.get(id);
++        own.onsuccess = () => {
++          try {
++            if (own.result !== 'pending') {
++              tx.abort();
++              return;
++            }
++            function wipe() {
++              const epoch = crypto.randomUUID();
++              let localMarkerUpdated = false;
++              try {
++                localStorage.setItem(SIGNAL, epoch);
++                localMarkerUpdated = true;
++              } catch {
++                /* Native epoch and ALL newer native holds remain durable. */
++              }
++              tx.objectStore('intents').clear();
++              meta.delete('lastCreatedAt');
++              meta.put(epoch, 'epoch');
++              // Completion and erase share this transaction; late reservations cannot resurrect IDs.
++              for (const captured of recovery?.pending ?? []) meta.put('complete', captured);
++              finish({ stale: false, localMarkerUpdated });
++            }
++            if (!recovery) {
++              wipe();
++              return;
++            }
++            const epoch = meta.get('epoch');
++            epoch.onsuccess = () => {
++              let stale = epoch.result !== recovery.epoch;
++              const completed: string[] = [];
++              let remaining = recovery.pending.length;
++              const checked = () => {
++                if (remaining) return;
++                if (stale) {
++                  // Retire ONLY this unused recovery reservation. Never erase on a stale ticket.
++                  meta.put('complete', id);
++                  finish({ stale: true, completed });
++                } else wipe();
++              };
++              for (const captured of recovery.pending) {
++                const request = meta.get(captured);
++                request.onsuccess = () => {
++                  if (request.result === 'complete') {
++                    completed.push(captured);
++                    stale = true;
++                  } else if (request.result !== undefined && request.result !== 'pending') {
++                    stale = true;
++                  }
++                  remaining--;
++                  checked();
++                };
++              }
++              checked();
++            };
++          } catch {
++            tx.abort();
++          }
++        };
++      });
++      if (result.stale) {
++        for (const completed of [id, ...result.completed]) localStorage.removeItem(completed);
++        releaseKnown([id, ...result.completed]);
++        throw fenced();
++      }
++      cleared = true;
++      announce();
++      return { nativeCleared: true as const, localMarkerUpdated: result.localMarkerUpdated };
++    },
++    async release() {
++      await ready;
++      // A completed explicit recovery may already have cleared this old intent.
++      const present = await access<boolean>('readonly', (tx, finish) => {
++        const request = tx.objectStore('meta').get(id);
++        request.onsuccess = () => finish(request.result === 'pending');
++      });
++      if (present && !cleared) throw fenced();
++      try {
++        if (localStorage.getItem(id) !== null) localStorage.removeItem(id);
++      } catch {
++        throw fenced();
++      }
++      if (present)
++        await access<void>('readwrite', (tx, finish) => {
++          tx.objectStore('meta').put('complete', id);
++          finish(undefined);
++        });
++      releaseKnown([id]);
++    },
++  };
++}
++
++/**
++ * Prepare BEFORE starting a login/recovery/logout request. Native snapshot completion is the
++ * capture boundary: every privacy intent created after this ticket is ready remains newer.
++ * Optional preparation failure must not block login; without a ticket no queue repair is allowed.
++ */
++export async function prepareReceiptQueueRecovery(): Promise<ReceiptQueueRecoveryTicket> {
++  observe();
++  let captured: string[];
++  try {
++    captured = [...knownHolds, ...Object.keys(localStorage).filter((key) => key.startsWith(HOLD))];
++  } catch {
++    throw fenced();
++  }
++  const state = await access<RecoverySnapshot>('readonly', (tx, finish) =>
++    nativeHoldState(tx, (ids, completed) => {
++      const epoch = tx.objectStore('meta').get('epoch');
++      epoch.onsuccess = () =>
++        finish({
++          pending: [...new Set([...captured.filter((id) => !completed.has(id)), ...ids])],
++          completed: captured.filter((id) => completed.has(id)),
++          epoch: epoch.result,
++        });
++    }),
++  );
++  const ticket = Object.freeze({}) as ReceiptQueueRecoveryTicket;
++  recoveryTickets.set(ticket, state);
++  return ticket;
++}
++
++/**
++ * Consume ONLY after the prepared request actually confirms a new ceremony or completed logout.
++ * Never merge later native/LS IDs: pending/unknown/newer holds survive async-open gaps.
++ * Ordinary no-hold reauthentication retains bytes/key/epoch. Authenticated status is not a ceremony.
++ */
++export async function recoverReceiptQueueAfterConfirmedAction(
++  action: 'new-login' | 'new-recovery' | 'completed-logout',
++  ticket: ReceiptQueueRecoveryTicket,
++) {
++  if (!['new-login', 'new-recovery', 'completed-logout'].includes(action)) throw fenced();
++  const state = recoveryTickets.get(ticket);
++  if (!state) throw fenced();
++  recoveryTickets.delete(ticket); // One-use even when later storage work fails.
++  // Native-confirmed tombstones also repair a crash between native completion and LS cleanup.
++  for (const id of state.completed) localStorage.removeItem(id);
++  releaseKnown(state.completed);
++  const previousHolds = state.pending;
++  if (action !== 'completed-logout' && previousHolds.length === 0) {
++    marker();
++    return; // No erase or epoch change on ordinary no-hold reauthentication.
++  }
++  const recovery = receiptQueueHold(state);
++  await recovery.clear();
++  try {
++    for (const id of previousHolds)
++      if (localStorage.getItem(id) !== null) localStorage.removeItem(id);
++  } catch {
++    throw fenced();
++  }
++  releaseKnown(previousHolds);
++  await recovery.release();
++}
+diff --git a/docs/evidence/reference-adoption/wp-014-receipt-queue-699.md b/docs/evidence/reference-adoption/wp-014-receipt-queue-699.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..0905c322530a6303b54e49a81f565883946839e8
+--- /dev/null
++++ b/docs/evidence/reference-adoption/wp-014-receipt-queue-699.md
+@@ -0,0 +1,140 @@
++# Device-only receipt queue store (#699, partial infrastructure)
++
++Refs #699, dependent on upload-intent API #698. Parent #559 owner decision:
++“Ja: Offline-Belegdateien mit separatem Retry ergänzen”. These three new files
++supply a separate IndexedDB Blob store and eight positive native storage cases and an explicit ephemeral-capability case.
++No receipt UI, multipart transport, auth or logout integration is wired yet;
++#699, #700 and parent #559 remain incomplete.
++
++An explicit selection commits a fresh key, immutable original Blob, filename,
++possibly empty camera MIME and optional already-saved booking target before
++transport may use it. Status functions require request-start epoch/generation
++provenance and cannot replace the payload/key. Uncertainty remains set until a
++validated acknowledgment deletes the intent. Cleanup failure retains it. A
++separate file-delivery Web Lock leaves the text-booking queue/lock untouched;
++its page-local fallback relies on server #698 idempotency across tabs. Existing
++nonempty/15 MiB bounds apply; server signature/type/metadata stripping remains
++authoritative. No cookie, token, raw file, filename or booking target enters
++localStorage or Cache Storage. This is plaintext same-origin device storage,
++not encryption or a cached authentication claim.
++
++## Explicit privacy intents and storage failures
++
++Every public raw-access guard verifies localStorage write/read/remove capability,
++not merely a readable matching epoch. Only random nonfinancial probe/epoch/hold
++markers use that storage. A late notification for an epoch already observed by
++a fresh token is harmless; new epochs/holds still fence old callbacks.
++
++`holdReceiptQueueForSignOut()` invalidates the current context synchronously,
++broadcasts an intent and immediately starts a uniquely owned native hold in the
++existing `meta` store. Its awaitable `ready` reports native persistence and
++whether the independent localStorage fence succeeded. Every initialization and
++raw-read/write transaction checks native pending holds, so a cold sibling that
++missed the broadcast cannot access old files after localStorage becomes writable
++again. A failed LS marker never claims a durable LS fence. Native metadata is the
++fallback, with no extra database or auth protocol.
++
++The #700 caller must start `clear()` immediately on explicit logout intent,
++independently of HTTP. Clear erases raw intents and advances the native epoch in
++one transaction while preserving **all** privacy holds. It reports actual native
++commit and whether the LS epoch updated. After clear and HTTP completion, await
++`release()` to complete only this handle's hold. Failed/crashed native fences or
++clears remain failed/held; no TTL releases them. If both durable writes are denied,
++no physical erasure or persistent fence is promised and no successful cleanup or
++recovery may be reported. Existing text capture, preferences and other databases
++are outside this wipe.
++
++#700 must call `prepareReceiptQueueRecovery()` **before starting** login, recovery
++or logout HTTP. Its completed native snapshot defines captured old IDs. The
++returned ticket is opaque, one-use and in memory only, with no raw files or auth
++material. Only a confirmed successful action consumes it; absent, forged, failed
++or reused tickets cannot authorize wipe/release. Recovery never unions native IDs
++that appeared later, even during a delayed open. Captured native epoch and captured
++ID states are revalidated inside the same readwrite transaction that erases files
++and completes old IDs. A stale second ticket retires only its own reservation and
++rejects without erasing fresh selections or advancing their epoch. Completed-ID
++cleanup also repairs a crash after native completion but before LS marker removal. Optional preparation failure
++must not block login availability; queue repair remains unavailable/fails closed.
++No caller/auth/UI wiring is implemented here.
++
++Normal session-expiry reauthentication (`new-login`/`new-recovery`) with no privacy
++holds retains pending files, key, uncertainty and failure status. The explicit
++ceremony API uses only the prepared nonfinancial metadata in this case and never clears
++the queue or advances its epoch. Ordinary authenticated-status responses never
++invoke privacy recovery. Only captured orphan logout/wipe holds, or a completed
++explicit logout, trigger a fresh transactional wipe before captured old holds are
++completed. Later holds survive. Nonfinancial completed-ID markers prevent a late
++old native-fence reservation or clear callback from wiping a fresh selection.
++Those markers contain random intent IDs/states, no session or financial material.
++At this explicit ceremony boundary only, native-confirmed completed IDs are also
++reconciled out of the in-memory hold cache after a missed release notification.
++Pending, unknown and newer holds stay fenced; a completed stale notification can
++be repaired without erasing fresh files or advancing their epoch.
++
++## Verification and remaining gates
++
++The eight positive native cases cover Blob/reload/offline/blank MIME and exact raw bytes, read
++copy isolation, fresh ordered keys, uncertainty/cleanup/quota/size failures,
++ordinary login/recovery retention, cross-tab wipe with untouched text capture,
++failed-wipe reload denial, readable-but-write-blocked LS with native fallback and
++fresh sibling protection after LS restoration, both durable writes denied,
++separate locks, pre-ceremony ticket/newer native-only hold open-gap recovery, ticket rejection, same-epoch notifications and a delayed
++real native-open callback arriving after recovery, plus a real late BroadcastChannel
++hold notification whose missed release is repaired without losing fresh bytes/key. They use native IDB requests;
++there is no fake IndexedDB or substitute browser/configuration. An additional
++two-ticket case preserves literal fresh bytes, key, filename, target and epoch
++after a delayed successful callback; an interleaved second recovery and native
++transaction-identity assertions verify epoch/ID checks share the actual wipe transaction.
++
++A focused notification-only probe reproduced stale-event invalidation and the
++readable/set-throws token bug before correction; its corrected run passes. That
++probe does not establish native durability. The earlier no-IDB ordinary-reauth
++probe predates native hold inspection and is historical, not final acceptance:
++final byte/key retention is covered by the subsequently passing native case.
++
++The first actual canonical WebKit run failed all eight new cases at first enqueue;
++three setup cases passed. Production code remained unchanged. A separate synthetic
++native diagnostic reproduced Blob put failing with `UnknownError` independently
++of the production store, while Uint8Array writes and production initialization passed.
++A controlled comparison with the same pinned WebKit/iPhone13/origin/source showed
++native Blob and production enqueue fail in `browser.newContext` (fixed native
++Blob-preparation diagnostic), while all phases pass in a fresh persistent profile.
++This establishes a context-mode capability difference, not a general Blob-store
++implementation failure or an authentication assurance claim.
++
++Owner-coordinated correction is limited to this NEW suite: each of the eight
++positive WebKit cases now gets an independently fresh temporary persistent profile.
++Playwright applies the unchanged canonical project options/trace hooks; the fixture
++also preserves the canonical synthetic setup state and asserts viewport, screen,
++scale, touch and user-agent parity with the default context. It closes the context
++before removing only its own profile. Chromium keeps its default context exactly.
++No project config, flags, auth policy, storage format or positive assertion changed.
++The ninth NEW case explicitly uses the original ephemeral context: if native Blob
++storage fails, production enqueue must return the exact not-saved error and leave
++no queue row; if native Blob storage works, it must persist and return exact bytes
++and the same key. There is no skip or unconditional expected engine failure.
++
++Existing web TypeScript passed before this fixture-only change. Strict new-spec
++TypeScript, scoped ESLint, formatting and diff checks passed on the corrected
++freeze. Independent HIGH whole-source and fixture/evidence delta reviews are CLEAR.
++The actual corrected canonical pinned WebKit run passed **12/12**: all eight
++positive cases, the actual ephemeral-capability case and three setup cases,
++27.6 seconds, no skips or flaky/unexpected outcomes. The capability-dependent ephemeral contract passed; the controlled comparison
++probe separately established the unsupported ephemeral outcome. The passing test
++log does not record which conditional branch ran. All three pre/post source hashes matched;
++the production source remained byte-identical across the fixture correction.
++Per-test persistent close/cleanup completed without error. The unchanged runner
++retains traces on failure, so this all-pass run generated no passing traces;
++complete test-results/logs/exits/hash evidence is preserved externally.
++Full check/production build, exact-head Chromium/WebKit CI and deployed
++verification remain pending. These are store-only proofs; neither the persistent
++diagnostic nor this passing suite proves multipart/UI/auth integration. After the coordinator grants the host slot, build
++with `npm run build:e2e`, then use the unchanged canonical project:
++
++```sh
++/workspace/.budget-tools/cloud-control/run-webkit.sh /workspace/cloud-receipt-queue-699 test e2e/issue-699-receipt-queue-store.spec.ts --project=webkit-iphone --workers=1
++```
++
++These are synthetic store-only proofs, not actual multipart delivery, real auth
++ceremonies or combined booking-then-file acceptance. No existing tests, manifests,
++configurations, product callers or production data/storage are changed.
+diff --git a/e2e/issue-699-receipt-queue-store.spec.ts b/e2e/issue-699-receipt-queue-store.spec.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..a40c8a315cd558e6cf695d788e0a3280471ebab8
+--- /dev/null
++++ b/e2e/issue-699-receipt-queue-store.spec.ts
+@@ -0,0 +1,1047 @@
++import { expect, test as base, type BrowserContext, type Page } from '@playwright/test';
++import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++import ts from 'typescript';
++import type * as Store from '../apps/web/src/pwa/receipt-queue-store';
++
++// WebKit's ephemeral context rejects even a primitive Blob put in this pinned engine.
++// Positive PWA persistence cases use a fresh real profile; the base test below covers ephemeral
++// capability truthfully. Playwright retains canonical project options/tracing on custom contexts.
++const test = base.extend({
++  context: async ({ context, browserName, playwright }, use) => {
++    if (browserName !== 'webkit') {
++      await use(context); // Chromium retains the canonical default context unchanged.
++      return;
++    }
++    const profile = mkdtempSync(join(tmpdir(), 'budget-699-native-profile-'));
++    let persistent: BrowserContext | undefined;
++    try {
++      persistent = await playwright.webkit.launchPersistentContext(profile);
++      // Persistent launch does not load storageState: preserve the canonical synthetic setup.
++      await persistent.setStorageState(await context.storageState());
++      const reference = await context.newPage();
++      const settings = (page: Page) =>
++        page.evaluate(() => ({
++          agent: navigator.userAgent,
++          width: innerWidth,
++          height: innerHeight,
++          screenWidth: screen.width,
++          screenHeight: screen.height,
++          scale: devicePixelRatio,
++          touch: navigator.maxTouchPoints,
++        }));
++      expect(await settings(persistent.pages()[0]!)).toEqual(await settings(reference));
++      await reference.close();
++      await use(persistent);
++    } finally {
++      try {
++        await persistent?.close();
++      } finally {
++        rmSync(profile, { recursive: true, force: true });
++      }
++    }
++  },
++});
++
++// Real native IndexedDB/Blob/locks/broadcast behavior, no API or cached-auth assurance.
++const source = ts.transpileModule(
++  readFileSync(new URL('../apps/web/src/pwa/receipt-queue-store.ts', import.meta.url), 'utf8'),
++  { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } },
++).outputText;
++declare global {
++  interface Window {
++    receiptQueueStore: typeof Store;
++    receiptQueueToken: Store.ReceiptQueueToken;
++    receiptQueueHold: ReturnType<typeof Store.holdReceiptQueueForSignOut>;
++    receiptQueueClearing: ReturnType<ReturnType<typeof Store.holdReceiptQueueForSignOut>['clear']>;
++    restoreReceiptStorage: () => void;
++  }
++}
++const bytes = [37, 80, 68, 70, 45, 49, 46, 55, 10, 115, 121, 110, 116, 104, 101, 116, 105, 99];
++async function install(page: Page) {
++  await page.evaluate(async (source) => {
++    const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
++    try {
++      window.receiptQueueStore = await import(url);
++    } finally {
++      URL.revokeObjectURL(url);
++    }
++  }, source);
++}
++async function harness(page: Page) {
++  await page.route('**/__receipt_queue_security__', (route) =>
++    route.fulfill({
++      status: 200,
++      contentType: 'text/html',
++      body: '<!doctype html><title>Synthetic file queue proof</title>',
++    }),
++  );
++  await page.goto('/__receipt_queue_security__');
++  await install(page);
++}
++async function add(page: Page, name = 'synthetic-camera.pdf') {
++  return page.evaluate(
++    async ({ bytes, name }) => {
++      const item = await window.receiptQueueStore.enqueueReceiptUpload(
++        new File([new Uint8Array(bytes)], name, { type: '' }),
++        'saved-synthetic-booking',
++      );
++      return { ...item, blob: undefined };
++    },
++    { bytes, name },
++  );
++}
++async function list(page: Page) {
++  return page.evaluate(async () =>
++    Promise.all(
++      (await window.receiptQueueStore.listReceiptUploads()).map(async (item) => ({
++        ...item,
++        blob: undefined,
++        bytes: [...new Uint8Array(await item.blob.arrayBuffer())],
++      })),
++    ),
++  );
++}
++
++test('native Blob, blank camera MIME, exact immutable payload and one uncertain key survive offline and reload', async ({
++  page,
++  context,
++}) => {
++  await harness(page);
++  await context.setOffline(true);
++  const item = await add(page);
++  expect(item).toMatchObject({
++    filename: 'synthetic-camera.pdf',
++    mime: '',
++    bookingId: 'saved-synthetic-booking',
++    uncertain: false,
++  });
++  await page.evaluate(async (id) => {
++    const store = window.receiptQueueStore;
++    const token = await store.beginReceiptQueue();
++    await store.updateReceiptUploadStatus(token, id, 'offline');
++    const entries = await store.listReceiptUploads();
++    entries[0]!.filename = 'changed-only-returned-copy';
++    entries[0]!.id = 'changed-only-returned-copy';
++  }, item.id);
++  await context.setOffline(false);
++  await page.reload();
++  await install(page);
++  expect(await list(page)).toEqual([{ ...item, uncertain: true, failure: 'offline', bytes }]);
++  // Session expiry has no store callback: it cannot silently wipe or replace a pending upload.
++  await page.evaluate(
++    async (id) =>
++      window.receiptQueueStore.updateReceiptUploadStatus(
++        await window.receiptQueueStore.beginReceiptQueue(),
++        id,
++        'login',
++      ),
++    item.id,
++  );
++  expect((await list(page))[0]).toMatchObject({
++    id: item.id,
++    failure: 'login',
++    uncertain: true,
++    bytes,
++  });
++  for (const action of ['new-login', 'new-recovery'] as const) {
++    await page.evaluate(async (action) => {
++      const store = window.receiptQueueStore;
++      const ticket = await store.prepareReceiptQueueRecovery();
++      await store.recoverReceiptQueueAfterConfirmedAction(action, ticket);
++    }, action);
++    expect(await list(page)).toEqual([{ ...item, uncertain: true, failure: 'login', bytes }]);
++  }
++  expect(
++    await page.evaluate(() =>
++      Object.values(localStorage).some(
++        (value) => value.includes('synthetic-camera') || value.includes('saved-synthetic-booking'),
++      ),
++    ),
++  ).toBe(false);
++  expect(await page.evaluate(async () => caches.keys())).toEqual([]);
++});
++
++test('fresh deliberate selections use new ordered intents, while cleanup failure retains the original uncertain bytes and key', async ({
++  page,
++}) => {
++  await harness(page);
++  const first = await add(page);
++  const second = await add(page);
++  expect(second.id).not.toBe(first.id);
++  expect(second.createdAt).toBeGreaterThan(first.createdAt);
++  await page.evaluate(async (id) => {
++    const store = window.receiptQueueStore;
++    const token = await store.beginReceiptQueue();
++    await store.updateReceiptUploadStatus(token, id);
++    const original = IDBObjectStore.prototype.delete;
++    IDBObjectStore.prototype.delete = function () {
++      throw new DOMException('synthetic cleanup failure', 'UnknownError');
++    };
++    try {
++      try {
++        await store.acknowledgeReceiptUpload(token, id);
++        throw new Error('must not claim deletion');
++      } catch (error) {
++        if (error instanceof Error && error.message === 'must not claim deletion') throw error;
++      }
++    } finally {
++      IDBObjectStore.prototype.delete = original;
++    }
++  }, first.id);
++  expect(await list(page)).toEqual([
++    { ...first, uncertain: true, bytes },
++    { ...second, bytes },
++  ]);
++  await page.evaluate(
++    async (id) =>
++      window.receiptQueueStore.acknowledgeReceiptUpload(
++        await window.receiptQueueStore.beginReceiptQueue(),
++        id,
++      ),
++    first.id,
++  );
++  expect(await list(page)).toEqual([{ ...second, bytes }]);
++});
++
++test('quota failure and empty/oversize selection never claim a durable file; later retry gets a fresh successful intent', async ({
++  page,
++}) => {
++  await harness(page);
++  const results = await page.evaluate(async () => {
++    const store = window.receiptQueueStore;
++    await store.beginReceiptQueue();
++    const original = IDBObjectStore.prototype.add;
++    IDBObjectStore.prototype.add = function () {
++      throw new DOMException('synthetic full device', 'QuotaExceededError');
++    };
++    const rejected = async (file: File) => {
++      try {
++        await store.enqueueReceiptUpload(file);
++        return false;
++      } catch {
++        return true;
++      }
++    };
++    let quota: boolean;
++    try {
++      quota = await rejected(new File(['synthetic'], 'synthetic.pdf'));
++    } finally {
++      IDBObjectStore.prototype.add = original;
++    }
++    return {
++      quota,
++      empty: await rejected(new File([], 'empty.pdf')),
++      oversized: await rejected(new File([new Uint8Array(15 * 1024 * 1024 + 1)], 'oversized.pdf')),
++      rows: await store.listReceiptUploads(),
++    };
++  });
++  expect(results).toEqual({ quota: true, empty: true, oversized: true, rows: [] });
++  await add(page);
++  expect(await list(page)).toHaveLength(1);
++});
++
++test('explicit cross-tab sign-out holds new selections and fences late status/ack callbacks; text capture and unrelated preferences survive', async ({
++  page,
++  context,
++}) => {
++  await harness(page);
++  const other = await context.newPage();
++  await harness(other);
++  const item = await add(page);
++  await other.evaluate(async () => {
++    window.receiptQueueToken = await window.receiptQueueStore.beginReceiptQueue();
++  });
++  await page.evaluate(async () => {
++    localStorage.setItem('budget-capture-memory', 'synthetic-existing-text-preference');
++    await new Promise<void>((resolve, reject) => {
++      const request = indexedDB.open('budget-capture', 1);
++      request.onupgradeneeded = () => {
++        request.result.createObjectStore('bookings', { keyPath: 'id' });
++        request.result.createObjectStore('choices');
++      };
++      request.onerror = () => reject(request.error);
++      request.onsuccess = () => {
++        const db = request.result;
++        const tx = db.transaction('bookings', 'readwrite');
++        tx.objectStore('bookings').put({ id: 'synthetic-text-capture', amountCents: -1375 });
++        tx.oncomplete = () => {
++          db.close();
++          resolve();
++        };
++      };
++    });
++    window.receiptQueueHold = window.receiptQueueStore.holdReceiptQueueForSignOut();
++  });
++  expect(
++    await other.evaluate(async () => {
++      try {
++        await window.receiptQueueStore.enqueueReceiptUpload(new File(['new'], 'new.pdf'));
++        return 'unsafe';
++      } catch {
++        return 'held';
++      }
++    }),
++  ).toBe('held');
++  await page.evaluate(async () => window.receiptQueueHold.clear());
++  await page.evaluate(() => window.receiptQueueHold.release());
++  const late = await other.evaluate(async (id) => {
++    const store = window.receiptQueueStore;
++    const rejected = async (fn: () => Promise<void>) => {
++      try {
++        await fn();
++        return false;
++      } catch {
++        return true;
++      }
++    };
++    return [
++      await rejected(() => store.updateReceiptUploadStatus(window.receiptQueueToken, id, 'server')),
++      await rejected(() => store.acknowledgeReceiptUpload(window.receiptQueueToken, id)),
++    ];
++  }, item.id);
++  expect(late).toEqual([true, true]);
++  expect(await list(other)).toEqual([]);
++  expect(await page.evaluate(() => localStorage.getItem('budget-capture-memory'))).toBe(
++    'synthetic-existing-text-preference',
++  );
++  expect(
++    await page.evaluate(
++      () =>
++        new Promise((resolve) => {
++          const request = indexedDB.open('budget-capture', 1);
++          request.onsuccess = () => {
++            const db = request.result;
++            const tx = db.transaction('bookings', 'readonly');
++            const rows = tx.objectStore('bookings').getAll();
++            tx.oncomplete = () => {
++              db.close();
++              resolve(rows.result);
++            };
++          };
++        }),
++    ),
++  ).toEqual([{ id: 'synthetic-text-capture', amountCents: -1375 }]);
++  await page.reload();
++  await install(page);
++  expect(await list(page)).toEqual([]);
++});
++
++test('failed wipe stays durably held across reload and does not claim bytes erased', async ({
++  page,
++}) => {
++  await harness(page);
++  await add(page);
++  const result = await page.evaluate(async () => {
++    const store = window.receiptQueueStore;
++    const setItem = Storage.prototype.setItem,
++      put = IDBObjectStore.prototype.put;
++    Storage.prototype.setItem = function () {
++      throw new DOMException('synthetic denied LS fence', 'QuotaExceededError');
++    };
++    IDBObjectStore.prototype.put = function () {
++      throw new DOMException('synthetic denied native fence', 'UnknownError');
++    };
++    const denied = store.holdReceiptQueueForSignOut();
++    let readyDenied = false,
++      clearDenied = false,
++      releaseDenied = false;
++    try {
++      try {
++        await denied.ready;
++      } catch {
++        readyDenied = true;
++      }
++      try {
++        await denied.clear();
++      } catch {
++        clearDenied = true;
++      }
++      try {
++        await denied.release();
++      } catch {
++        releaseDenied = true;
++      }
++    } finally {
++      Storage.prototype.setItem = setItem;
++      IDBObjectStore.prototype.put = put;
++    }
++    if (!readyDenied || !clearDenied || !releaseDenied)
++      throw new Error('both denied durable fences must not claim success');
++    await store.recoverReceiptQueueAfterConfirmedAction(
++      'new-login',
++      await store.prepareReceiptQueueRecovery(),
++    );
++    await store.enqueueReceiptUpload(
++      new File(['synthetic after explicit privacy repair'], 'synthetic.pdf'),
++    );
++    const hold = store.holdReceiptQueueForSignOut();
++    const original = IDBObjectStore.prototype.clear;
++    IDBObjectStore.prototype.clear = function () {
++      throw new DOMException('synthetic wipe blocked', 'UnknownError');
++    };
++    let clearRejected = false,
++      releaseRejected = false;
++    try {
++      await hold.clear();
++    } catch {
++      clearRejected = true;
++    } finally {
++      IDBObjectStore.prototype.clear = original;
++    }
++    try {
++      await hold.release();
++    } catch {
++      releaseRejected = true;
++    }
++    return { clearRejected, releaseRejected };
++  });
++  expect(result).toEqual({ clearRejected: true, releaseRejected: true });
++  await page.reload();
++  await install(page);
++  expect(
++    await page.evaluate(async () => {
++      try {
++        await window.receiptQueueStore.listReceiptUploads();
++        return 'unsafe';
++      } catch {
++        return 'held';
++      }
++    }),
++  ).toBe('held');
++});
++
++test('LS fence failure starts native hold immediately; restored storage and a fresh sibling stay fenced until clear/release', async ({
++  page,
++  context,
++}) => {
++  await harness(page);
++  const item = await add(page);
++  const sibling = await context.newPage();
++  await harness(sibling);
++  await page.evaluate(async () => {
++    window.receiptQueueToken = await window.receiptQueueStore.beginReceiptQueue();
++  });
++  for (const tab of [page, sibling])
++    await tab.evaluate(() => {
++      const original = Storage.prototype.setItem;
++      Storage.prototype.setItem = function () {
++        throw new DOMException('synthetic readable but readonly storage', 'QuotaExceededError');
++      };
++      window.restoreReceiptStorage = () => {
++        Storage.prototype.setItem = original;
++      };
++    });
++  try {
++    expect(
++      await page.evaluate(async () => {
++        const store = window.receiptQueueStore;
++        const getWorks = localStorage.getItem('budget-receipt-queue-epoch') !== null;
++        const oldTokenDenied = !store.receiptQueueTokenCurrent(window.receiptQueueToken);
++        let readDenied = false;
++        try {
++          await store.listReceiptUploads();
++        } catch {
++          readDenied = true;
++        }
++        window.receiptQueueHold = store.holdReceiptQueueForSignOut();
++        // Clear starts at intent, independently of HTTP or restoring LS.
++        window.receiptQueueClearing = window.receiptQueueHold.clear();
++        let readySettled = false;
++        void window.receiptQueueHold.ready.then(() => {
++          readySettled = true;
++        });
++        return { getWorks, oldTokenDenied, readDenied, readyPendingAtIntent: !readySettled };
++      }),
++    ).toEqual({
++      getWorks: true,
++      oldTokenDenied: true,
++      readDenied: true,
++      readyPendingAtIntent: true,
++    });
++    expect(
++      await sibling.evaluate(async () => {
++        const store = window.receiptQueueStore;
++        let readDenied = false,
++          writeDenied = false;
++        try {
++          await store.listReceiptUploads();
++        } catch {
++          readDenied = true;
++        }
++        try {
++          await store.enqueueReceiptUpload(new File(['synthetic'], 'must-not-persist.pdf'));
++        } catch {
++          writeDenied = true;
++        }
++        return {
++          getWorks: localStorage.getItem('budget-receipt-queue-epoch') !== null,
++          readDenied,
++          writeDenied,
++        };
++      }),
++    ).toEqual({ getWorks: true, readDenied: true, writeDenied: true });
++    expect(await page.evaluate(() => window.receiptQueueHold.ready)).toEqual({
++      localStorageFence: false,
++      nativeFence: true,
++    });
++    expect(await page.evaluate(() => window.receiptQueueClearing)).toEqual({
++      nativeCleared: true,
++      localMarkerUpdated: false,
++    });
++  } finally {
++    for (const tab of [page, sibling]) await tab.evaluate(() => window.restoreReceiptStorage());
++  }
++  // This fresh module missed the intent broadcast and sees restored, writable LS. Native holds govern it.
++  const fresh = await context.newPage();
++  await harness(fresh);
++  expect(
++    await fresh.evaluate(async () => {
++      try {
++        await window.receiptQueueStore.listReceiptUploads();
++        return false;
++      } catch {
++        return true;
++      }
++    }),
++  ).toBe(true);
++  expect(
++    await page.evaluate(async (id) => {
++      try {
++        await window.receiptQueueStore.updateReceiptUploadStatus(window.receiptQueueToken, id);
++        return false;
++      } catch {
++        return true;
++      }
++    }, item.id),
++  ).toBe(true);
++  expect(await page.evaluate(() => window.receiptQueueHold.clear())).toEqual({
++    nativeCleared: true,
++    localMarkerUpdated: true,
++  });
++  expect(
++    await fresh.evaluate(async () => {
++      try {
++        await window.receiptQueueStore.listReceiptUploads();
++        return false;
++      } catch {
++        return true;
++      }
++    }),
++  ).toBe(true);
++  await page.evaluate(() => window.receiptQueueHold.release());
++  expect(await list(fresh)).toEqual([]);
++  const extra = await fresh.evaluate(async () => {
++    const store = window.receiptQueueStore;
++    const getItem = Storage.prototype.getItem;
++    Storage.prototype.getItem = function () {
++      throw new DOMException('synthetic unreadable storage', 'SecurityError');
++    };
++    let unreadableDenied = false;
++    try {
++      await store.listReceiptUploads();
++    } catch {
++      unreadableDenied = true;
++    } finally {
++      Storage.prototype.getItem = getItem;
++    }
++    const order: string[] = [];
++    await Promise.all([
++      store.withReceiptQueueLock(async () => {
++        order.push('first-start');
++        await new Promise((resolve) => setTimeout(resolve, 20));
++        order.push('first-end');
++      }),
++      store.withReceiptQueueLock(async () => {
++        order.push('second');
++      }),
++    ]);
++    return { order, unreadableDenied };
++  });
++  expect(extra).toEqual({ order: ['first-start', 'first-end', 'second'], unreadableDenied: true });
++});
++
++test('pre-ceremony tickets preserve newer native holds through delayed recovery opens, late reservations and missed release notifications', async ({
++  page,
++  context,
++}) => {
++  await harness(page);
++  await add(page);
++  const sibling = await context.newPage();
++  await harness(sibling);
++  await sibling.evaluate(() => {
++    const control = new BroadcastChannel('synthetic-699-peer-control');
++    control.onmessage = async (event: MessageEvent<{ action: string }>) => {
++      try {
++        if (event.data.action === 'hold') {
++          const original = Storage.prototype.setItem;
++          Storage.prototype.setItem = function () {
++            throw new DOMException(
++              'synthetic newer native-only sibling intent',
++              'QuotaExceededError',
++            );
++          };
++          let result;
++          try {
++            window.receiptQueueHold = window.receiptQueueStore.holdReceiptQueueForSignOut();
++            result = await window.receiptQueueHold.ready;
++          } finally {
++            Storage.prototype.setItem = original;
++          }
++          control.postMessage({ action: 'hold', result });
++        } else if (event.data.action === 'release') {
++          await window.receiptQueueHold.clear();
++          await window.receiptQueueHold.release();
++          control.postMessage({ action: 'release', result: {} });
++        }
++      } catch {
++        control.postMessage({ action: event.data.action, failed: true });
++      }
++    };
++  });
++  const result = await page.evaluate(async () => {
++    const store = window.receiptQueueStore;
++    const peer = new BroadcastChannel('synthetic-699-peer-control');
++    const askPeer = (action: 'hold' | 'release') =>
++      new Promise<{ nativeFence?: boolean; localStorageFence?: boolean }>((resolve, reject) => {
++        const receive = (
++          event: MessageEvent<{
++            action: string;
++            failed?: boolean;
++            result: { nativeFence?: boolean; localStorageFence?: boolean };
++          }>,
++        ) => {
++          if (event.data.action !== action) return;
++          peer.removeEventListener('message', receive);
++          if (event.data.failed) reject(new Error('synthetic sibling privacy action failed'));
++          else resolve(event.data.result);
++        };
++        peer.addEventListener('message', receive);
++        peer.postMessage({ action });
++      });
++    function pauseNextNativeOpen() {
++      const open = indexedDB.open.bind(indexedDB);
++      let release: (() => void) | undefined;
++      let captured!: () => void;
++      const ready = new Promise<void>((resolve) => {
++        captured = resolve;
++      });
++      indexedDB.open = function (...args) {
++        indexedDB.open = open;
++        const request = open(...args);
++        let success: ((this: IDBOpenDBRequest, event: Event) => unknown) | null = null;
++        Object.defineProperty(request, 'onsuccess', {
++          configurable: true,
++          set(handler) {
++            success = handler;
++          },
++        });
++        request.addEventListener('success', () => {
++          release = () => {
++            success?.call(request, new Event('success'));
++          };
++          captured();
++        });
++        return request;
++      };
++      return {
++        ready,
++        resume() {
++          if (!release) throw new Error('missing real native open callback');
++          release();
++        },
++      };
++    }
++    const old = store.holdReceiptQueueForSignOut();
++    await old.ready;
++    const ticket = await store.prepareReceiptQueueRecovery(); // BEFORE the confirmed ceremony request.
++    const gap = pauseNextNativeOpen();
++    const recovering = store.recoverReceiptQueueAfterConfirmedAction('new-login', ticket);
++    await gap.ready;
++    const laterReady = await askPeer('hold');
++    gap.resume();
++    await recovering;
++    let newerHeld = false;
++    try {
++      await store.listReceiptUploads();
++    } catch {
++      newerHeld = true;
++    }
++    const siblingReleased = new Promise<void>((resolve) => {
++      const unsubscribe = store.subscribeReceiptQueue(() => {
++        void store.listReceiptUploads().then(
++          () => {
++            unsubscribe();
++            resolve();
++          },
++          () => undefined,
++        );
++      });
++    });
++    await askPeer('release');
++    await siblingReleased;
++    peer.close();
++    const empty = await store.listReceiptUploads();
++    const fresh = await store.enqueueReceiptUpload(
++      new File(['synthetic new selection'], 'fresh.pdf'),
++    );
++    const freshToken = await store.beginReceiptQueue();
++    let oldClearRejected = false;
++    try {
++      await old.clear();
++    } catch {
++      oldClearRejected = true;
++    }
++    await old.release();
++    const freshTokenCurrent = store.receiptQueueTokenCurrent(freshToken);
++    const ids = (await store.listReceiptUploads()).map((item) => item.id);
++    window.dispatchEvent(
++      new StorageEvent('storage', {
++        key: 'budget-receipt-queue-epoch',
++        newValue: localStorage.getItem('budget-receipt-queue-epoch'),
++      }),
++    );
++    const sameEpochTokenCurrent = store.receiptQueueTokenCurrent(freshToken);
++    const newest = store.holdReceiptQueueForSignOut();
++    const newerHoldFenced = !store.receiptQueueTokenCurrent(freshToken);
++    await newest.clear();
++    await newest.release();
++    const newestToken = await store.beginReceiptQueue();
++    const afterNewWipe = await store.listReceiptUploads();
++    const pause = pauseNextNativeOpen();
++    const delayed = store.holdReceiptQueueForSignOut();
++    await pause.ready;
++    const delayedTicket = await store.prepareReceiptQueueRecovery();
++    await store.recoverReceiptQueueAfterConfirmedAction('new-recovery', delayedTicket);
++    const afterRecovery = await store.enqueueReceiptUpload(
++      new File(['synthetic preserved late-reservation bytes'], 'late-proof.pdf'),
++    );
++    pause.resume();
++    const lateReady = await delayed.ready;
++    let lateClearRejected = false;
++    try {
++      await delayed.clear();
++    } catch {
++      lateClearRejected = true;
++    }
++    await delayed.release();
++    const nativeCompletedId = await new Promise<string>((resolve, reject) => {
++      const request = indexedDB.open('budget-receipt-uploads', 1);
++      request.onerror = () => reject(request.error);
++      request.onsuccess = () => {
++        const db = request.result,
++          tx = db.transaction('meta', 'readonly'),
++          meta = tx.objectStore('meta');
++        const keys = meta.getAllKeys(),
++          values = meta.getAll();
++        tx.oncomplete = () => {
++          db.close();
++          const index = keys.result.findIndex(
++            (key, i) =>
++              typeof key === 'string' &&
++              key.startsWith('budget-receipt-queue-signout.') &&
++              values.result[i] === 'complete',
++          );
++          if (index < 0) reject(new Error('missing real completed native hold'));
++          else resolve(String(keys.result[index]));
++        };
++        tx.onabort = tx.onerror = () => {
++          db.close();
++          reject(new Error('native meta lookup failed'));
++        };
++      };
++    });
++    const retainedToken = await store.beginReceiptQueue();
++    const staleDelivered = new Promise<void>((resolve) => {
++      const unsubscribe = store.subscribeReceiptQueue(() => {
++        if (!store.receiptQueueTokenCurrent(retainedToken)) {
++          unsubscribe();
++          resolve();
++        }
++      });
++    });
++    const notifier = new BroadcastChannel('budget-receipt-uploads');
++    notifier.postMessage({ kind: 'hold', id: nativeCompletedId });
++    await staleDelivered;
++    notifier.close();
++    let staleKnownDenied = false;
++    try {
++      await store.listReceiptUploads();
++    } catch {
++      staleKnownDenied = true;
++    }
++    const repairTicket = await store.prepareReceiptQueueRecovery();
++    await store.recoverReceiptQueueAfterConfirmedAction('new-login', repairTicket);
++    const retainedAfterRepair = await store.listReceiptUploads(),
++      retainedEpoch = await store.beginReceiptQueue();
++    let reusedDenied = false,
++      absentDenied = false,
++      forgedDenied = false;
++    try {
++      await store.recoverReceiptQueueAfterConfirmedAction('new-login', repairTicket);
++    } catch {
++      reusedDenied = true;
++    }
++    try {
++      await Reflect.apply(store.recoverReceiptQueueAfterConfirmedAction, undefined, ['new-login']);
++    } catch {
++      absentDenied = true;
++    }
++    try {
++      await store.recoverReceiptQueueAfterConfirmedAction(
++        'new-login',
++        {} as Parameters<typeof store.recoverReceiptQueueAfterConfirmedAction>[1],
++      );
++    } catch {
++      forgedDenied = true;
++    }
++    return {
++      newerHeld,
++      laterNativeFallback:
++        laterReady.nativeFence === true && laterReady.localStorageFence === false,
++      empty,
++      oldClearRejected,
++      freshTokenCurrent,
++      freshId: fresh.id,
++      ids,
++      sameEpochTokenCurrent,
++      newerHoldFenced,
++      newerEpochFenced:
++        newestToken.epoch !== freshToken.epoch && !store.receiptQueueTokenCurrent(freshToken),
++      afterNewWipe,
++      lateReadyCancelled: lateReady.nativeFence === false,
++      lateClearRejected,
++      lateRetainedId: afterRecovery.id,
++      lateRetainedIds: retainedAfterRepair.map((item) => item.id),
++      staleKnownDenied,
++      repairedEpochUnchanged: retainedEpoch.epoch === retainedToken.epoch,
++      repairedLiteralBytes: await retainedAfterRepair[0]!.blob.text(),
++      reusedDenied,
++      absentDenied,
++      forgedDenied,
++      idsAfterRejectedTickets: (await store.listReceiptUploads()).map((item) => item.id),
++    };
++  });
++  expect(result).toEqual({
++    newerHeld: true,
++    laterNativeFallback: true,
++    empty: [],
++    oldClearRejected: true,
++    freshTokenCurrent: true,
++    freshId: result.freshId,
++    ids: [result.freshId],
++    sameEpochTokenCurrent: true,
++    newerHoldFenced: true,
++    newerEpochFenced: true,
++    afterNewWipe: [],
++    lateReadyCancelled: true,
++    lateClearRejected: true,
++    lateRetainedId: result.lateRetainedId,
++    lateRetainedIds: [result.lateRetainedId],
++    staleKnownDenied: true,
++    repairedEpochUnchanged: true,
++    repairedLiteralBytes: 'synthetic preserved late-reservation bytes',
++    reusedDenied: true,
++    absentDenied: true,
++    forgedDenied: true,
++    idsAfterRejectedTickets: [result.lateRetainedId],
++  });
++});
++
++test('a late second ceremony ticket cannot erase fresh bytes and recovery validation shares the native wipe transaction', async ({
++  page,
++}) => {
++  await harness(page);
++  await add(page);
++  const result = await page.evaluate(async () => {
++    const store = window.receiptQueueStore;
++    const old = store.holdReceiptQueueForSignOut();
++    await old.ready;
++    const delayedTicket = await store.prepareReceiptQueueRecovery();
++    const winningTicket = await store.prepareReceiptQueueRecovery();
++    await store.recoverReceiptQueueAfterConfirmedAction('new-login', winningTicket);
++    const fresh = await store.enqueueReceiptUpload(
++      new File(['literal fresh bytes after winning ceremony'], 'kept-after-login.pdf'),
++      'synthetic-saved-booking',
++    );
++    const freshEpoch = (await store.beginReceiptQueue()).epoch;
++    let staleDenied = false;
++    try {
++      await store.recoverReceiptQueueAfterConfirmedAction('new-login', delayedTicket);
++    } catch {
++      staleDenied = true;
++    }
++    const retained = await store.listReceiptUploads();
++    const retainedEpoch = (await store.beginReceiptQueue()).epoch;
++    const retainedBytes = await retained[0]!.blob.text();
++    const secondOld = store.holdReceiptQueueForSignOut();
++    await secondOld.ready;
++    const capturedId = Object.keys(localStorage).find((key) =>
++      key.startsWith('budget-receipt-queue-signout.'),
++    );
++    if (!capturedId) throw new Error('missing synthetic hold');
++    const firstTicket = await store.prepareReceiptQueueRecovery();
++    const competingTicket = await store.prepareReceiptQueueRecovery();
++    const get = IDBObjectStore.prototype.get;
++    const clear = IDBObjectStore.prototype.clear;
++    const reads = new Map<IDBTransaction, Set<IDBValidKey | IDBKeyRange>>();
++    let atomicValidation = false;
++    let wipes = 0;
++    let competing: Promise<void> | undefined;
++    IDBObjectStore.prototype.get = function (key) {
++      if (this.name === 'meta' && this.transaction.mode === 'readwrite') {
++        const keys = reads.get(this.transaction) ?? new Set<IDBValidKey | IDBKeyRange>();
++        keys.add(key);
++        reads.set(this.transaction, keys);
++      }
++      return get.call(this, key);
++    };
++    IDBObjectStore.prototype.clear = function () {
++      if (this.name === 'intents') {
++        wipes++;
++        const keys = reads.get(this.transaction);
++        atomicValidation = keys?.has('epoch') === true && keys.has(capturedId);
++        // A second real recovery starts before the first native wipe transaction commits.
++        competing = store.recoverReceiptQueueAfterConfirmedAction('new-recovery', competingTicket);
++        void competing.catch(() => undefined);
++      }
++      return clear.call(this);
++    };
++    let competingDenied = false;
++    try {
++      await store.recoverReceiptQueueAfterConfirmedAction('new-login', firstTicket);
++      if (!competing) throw new Error('missing interleaved synthetic ceremony');
++      try {
++        await competing;
++      } catch {
++        competingDenied = true;
++      }
++    } finally {
++      IDBObjectStore.prototype.get = get;
++      IDBObjectStore.prototype.clear = clear;
++    }
++    const afterConcurrent = await store.enqueueReceiptUpload(
++      new File(['literal bytes after interleaved ceremonies'], 'kept-after-race.pdf'),
++    );
++    const final = await store.listReceiptUploads();
++    return {
++      staleDenied,
++      originalKey: fresh.id,
++      retainedKeys: retained.map((item) => item.id),
++      retainedBytes,
++      retainedFilename: retained[0]!.filename,
++      retainedTarget: retained[0]!.bookingId,
++      epochUnchanged: freshEpoch === retainedEpoch,
++      atomicValidation,
++      wipes,
++      competingDenied,
++      finalKey: afterConcurrent.id,
++      finalKeys: final.map((item) => item.id),
++      finalBytes: await final[0]!.blob.text(),
++    };
++  });
++  expect(result).toEqual({
++    staleDenied: true,
++    originalKey: result.originalKey,
++    retainedKeys: [result.originalKey],
++    retainedBytes: 'literal fresh bytes after winning ceremony',
++    retainedFilename: 'kept-after-login.pdf',
++    retainedTarget: 'synthetic-saved-booking',
++    epochUnchanged: true,
++    atomicValidation: true,
++    wipes: 1,
++    competingDenied: true,
++    finalKey: result.finalKey,
++    finalKeys: [result.finalKey],
++    finalBytes: 'literal bytes after interleaved ceremonies',
++  });
++});
++
++base(
++  'ephemeral native Blob capability yields either exact durable bytes or truthful not-saved with no queue row',
++  async ({ page }) => {
++    await harness(page);
++    const result = await page.evaluate(async (bytes) => {
++      const baseline = await new Promise<IDBDatabase>((resolve, reject) => {
++        const request = indexedDB.open('synthetic-699-ephemeral-capability', 1);
++        request.onupgradeneeded = () => request.result.createObjectStore('values');
++        request.onsuccess = () => resolve(request.result);
++        request.onerror = () => reject(request.error);
++      });
++      let nativeError: string | undefined;
++      let nativeSupported: boolean;
++      let baselineBytes: number[] = [];
++      try {
++        nativeSupported = await new Promise<boolean>((resolve) => {
++          const tx = baseline.transaction('values', 'readwrite');
++          tx.oncomplete = () => resolve(true);
++          tx.onabort = () => {
++            nativeError ??= tx.error?.name ?? 'AbortError';
++            resolve(false);
++          };
++          try {
++            const request = tx
++              .objectStore('values')
++              .put(new Blob([new Uint8Array(bytes)], { type: '' }), 'synthetic-blob');
++            request.onerror = () => {
++              nativeError = request.error?.name ?? 'UnknownError';
++            };
++          } catch (error) {
++            nativeError = error instanceof Error ? error.name : 'UnknownError';
++            tx.abort();
++          }
++        });
++        if (nativeSupported) {
++          const blob = await new Promise<Blob>((resolve, reject) => {
++            const tx = baseline.transaction('values', 'readonly');
++            const request = tx.objectStore('values').get('synthetic-blob');
++            tx.oncomplete = () => resolve(request.result as Blob);
++            tx.onabort = () => reject(tx.error);
++          });
++          baselineBytes = [...new Uint8Array(await blob.arrayBuffer())];
++        }
++      } finally {
++        baseline.close();
++      }
++      const store = window.receiptQueueStore;
++      let savedKey: string | undefined;
++      let errorMessage: string | undefined;
++      try {
++        savedKey = (
++          await store.enqueueReceiptUpload(
++            new File([new Uint8Array(bytes)], 'synthetic-ephemeral.pdf', { type: '' }),
++          )
++        ).id;
++      } catch (error) {
++        errorMessage = error instanceof Error ? error.message : 'UnknownError';
++      }
++      const rows = await store.listReceiptUploads();
++      return {
++        nativeSupported,
++        nativeError,
++        baselineBytes,
++        savedKey,
++        errorMessage,
++        keys: rows.map((row) => row.id),
++        storedBytes: rows[0] ? [...new Uint8Array(await rows[0].blob.arrayBuffer())] : [],
++      };
++    }, bytes);
++    if (result.nativeSupported) {
++      expect(result.nativeError).toBeUndefined();
++      expect(result.baselineBytes).toEqual(bytes);
++      expect(result.errorMessage).toBeUndefined();
++      expect(result.savedKey).toEqual(expect.any(String));
++      expect(result.keys).toEqual([result.savedKey]);
++      expect(result.storedBytes).toEqual(bytes);
++    } else {
++      expect(result.nativeError).toEqual(expect.any(String));
++      expect(result.savedKey).toBeUndefined();
++      expect(result.errorMessage).toBe(
++        'Beleg nicht auf dem Gerät gespeichert. Lass die Dateiauswahl geöffnet und versuch es erneut.',
++      );
++      expect(result.keys).toEqual([]);
++      expect(result.storedBytes).toEqual([]);
++    }
++  },
++);

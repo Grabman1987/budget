@@ -1,0 +1,1312 @@
+diff --git a/apps/web/src/api/http.ts b/apps/web/src/api/http.ts
+index 475d1bc4eb1bc6e5fea2b884055ce7239104bf55..66e949311b2dd3167da6cdfa40f95c3180e21171 100644
+--- a/apps/web/src/api/http.ts
++++ b/apps/web/src/api/http.ts
+@@ -1,3 +1,9 @@
++import {
++  claimedReceiptUpload,
++  receiptQueueTokenCurrent,
++  type ReceiptQueueToken,
++} from '../pwa/receipt-queue-store';
++
+ /** Error of an API call: HTTP status plus the machine-readable `error` code of the body. */
+ export class ApiError extends Error {
+   readonly status: number;
+@@ -97,3 +103,68 @@ export function queryString(params: Record<string, string | number | undefined>)
+   const text = search.toString();
+   return text ? `?${text}` : '';
+ }
++
++export interface ReceiptUploadAcknowledgment {
++  receipt: { id: string };
++  groupId: string;
++}
++
++/**
++ * Exact online queued-capture capability, including while viewing a saved read-only snapshot.
++ * It accepts only a claimed native intent; callers cannot select a URL, method or replacement
++ * payload. Existing JSON/auth/read guards remain separate and the server authorizes every POST.
++ */
++export async function queuedReceiptUpload(
++  token: ReceiptQueueToken,
++  id: string,
++): Promise<ReceiptUploadAcknowledgment> {
++  const item = await claimedReceiptUpload(token, id);
++  if (!item || item.id !== id || !/^[a-zA-Z0-9-]{16,80}$/.test(id))
++    throw new ApiError(0, 'queued_receipt_not_ready');
++  const body = new FormData();
++  body.set('file', item.blob, item.filename);
++  body.set('uploadIntent', item.id);
++  if (item.bookingId !== undefined) body.set('bookingId', item.bookingId);
++  if (navigator.onLine === false || !receiptQueueTokenCurrent(token))
++    throw new ApiError(0, 'offline_readonly');
++  let response: Response;
++  try {
++    response = await fetch('/api/receipts', {
++      method: 'POST',
++      credentials: 'same-origin',
++      headers: { 'Idempotency-Key': item.id },
++      body,
++    });
++  } catch {
++    throw new ApiError(0, 'network');
++  }
++  const payload: unknown = await response.json().catch(() => undefined);
++  if (!response.ok) {
++    // Never forward server details, filenames or unbounded diagnostic strings into queue state.
++    const code =
++      typeof payload === 'object' &&
++      payload !== null &&
++      'error' in payload &&
++      payload.error === 'idempotency_conflict'
++        ? 'idempotency_conflict'
++        : 'receipt_rejected';
++    throw new ApiError(response.status, code);
++  }
++  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
++  if (
++    response.status !== 201 ||
++    typeof payload !== 'object' ||
++    payload === null ||
++    !('groupId' in payload) ||
++    typeof payload.groupId !== 'string' ||
++    !uuid.test(payload.groupId) ||
++    !('receipt' in payload) ||
++    typeof payload.receipt !== 'object' ||
++    payload.receipt === null ||
++    !('id' in payload.receipt) ||
++    typeof payload.receipt.id !== 'string' ||
++    !uuid.test(payload.receipt.id)
++  )
++    throw new ApiError(0, 'invalid_receipt_ack');
++  return { receipt: { id: payload.receipt.id }, groupId: payload.groupId };
++}
+diff --git a/apps/web/src/pwa/receipt-queue-store.ts b/apps/web/src/pwa/receipt-queue-store.ts
+index 1cc80489d9d1d05f6504f3ef4776e1788b9f69c9..a3f91b80a8e09960d3eafbd6b5f180a447cfd650 100644
+--- a/apps/web/src/pwa/receipt-queue-store.ts
++++ b/apps/web/src/pwa/receipt-queue-store.ts
+@@ -390,6 +390,68 @@ export async function listReceiptUploads(): Promise<QueuedReceiptUpload[]> {
+   });
+ }
+ 
++/** Claim and cancellation serialize in the same native store, even without Web Locks. */
++export async function claimReceiptUpload(token: ReceiptQueueToken, id: string) {
++  const claimed = await guarded<boolean>(token, 'readwrite', (store, finish) => {
++    const request = store.get(id);
++    request.onsuccess = () => {
++      const current = request.result as QueuedReceiptUpload | undefined;
++      if (!current) {
++        finish(false);
++        return;
++      }
++      try {
++        store.put({ ...current, uncertain: true });
++        finish(true);
++      } catch {
++        store.transaction.abort();
++      }
++    };
++  });
++  if (claimed) listChanged();
++  return claimed;
++}
++
++/** The sealed multipart helper reads the durable payload, never a caller-supplied replacement. */
++export function claimedReceiptUpload(token: ReceiptQueueToken, id: string) {
++  return guarded<QueuedReceiptUpload | undefined>(token, 'readonly', (store, finish) => {
++    const request = store.get(id);
++    request.onsuccess = () => {
++      const current = request.result as QueuedReceiptUpload | undefined;
++      finish(current?.uncertain ? current : undefined);
++    };
++  });
++}
++
++/** Never use an acknowledgment to cancel: an uncertain intent must check its server result first. */
++export async function cancelUnsentReceiptUpload(id: string) {
++  const token = await beginReceiptQueue();
++  const outcome = await guarded<'missing' | 'cancelled' | 'uncertain'>(
++    token,
++    'readwrite',
++    (store, finish) => {
++      const request = store.get(id);
++      request.onsuccess = () => {
++        const current = request.result as QueuedReceiptUpload | undefined;
++        if (!current) finish('missing');
++        else if (current.uncertain) finish('uncertain');
++        else {
++          try {
++            store.delete(id);
++            finish('cancelled');
++          } catch {
++            store.transaction.abort();
++          }
++        }
++      };
++    },
++  );
++  if (outcome === 'uncertain')
++    throw new Error('Serverempfang unklar. Bitte zuerst mit demselben Beleg erneut senden.');
++  if (outcome === 'cancelled') listChanged();
++  return outcome === 'cancelled';
++}
++
+ /** Status changes cannot replace bytes, filename, target or key; uncertainty never rolls back. */
+ export async function updateReceiptUploadStatus(
+   token: ReceiptQueueToken,
+diff --git a/apps/web/src/pwa/receipt-queue.test.ts b/apps/web/src/pwa/receipt-queue.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..f228ed34a8d83c053ea17790514db6c0e73be875
+--- /dev/null
++++ b/apps/web/src/pwa/receipt-queue.test.ts
+@@ -0,0 +1,405 @@
++import {
++  accountSummaries,
++  createBooking,
++  createTestDatabase,
++  schema,
++  type OpenedDatabase,
++} from '@budget/db';
++import { Hono } from 'hono';
++import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
++import { seedBasics } from '../../../../packages/db/src/repos/test-helpers';
++import { errorResponse } from '../../../server/src/api/http';
++import { undoRoutes } from '../../../server/src/api/lookups';
++import { receiptRoutes } from '../../../server/src/api/receipts';
++import { PNG } from '../../../server/src/receipts/testing';
++import { queuedReceiptUpload } from '../api/http';
++import { sendReceiptQueue, receiptQueueReason } from './receipt-queue';
++import type {
++  QueuedReceiptUpload,
++  ReceiptQueueToken,
++  ReceiptUploadFailure,
++} from './receipt-queue-store';
++
++// Device adapter only; actual transport, multipart, Hono receipt/undo routes and SQLite execute.
++// Native Blob/locks/epochs/cancel atomicity have separate real-browser proofs. This known signed-in
++// route fixture does not claim new authentication, CSRF, WebAuthn or browser-cookie assurances.
++const device = vi.hoisted(() => ({
++  rows: [] as QueuedReceiptUpload[],
++  epoch: 'synthetic-epoch',
++  deletesFail: 0,
++  claimFails: false,
++  invalidateRead: false,
++  cancelBeforeClaim: false,
++  lock: Promise.resolve() as Promise<unknown>,
++}));
++vi.mock('./receipt-queue-store', () => {
++  const current = (token: ReceiptQueueToken) => token.epoch === device.epoch;
++  const guard = (token: ReceiptQueueToken) => {
++    if (!current(token)) throw new Error('synthetic stale token');
++  };
++  return {
++    receiptQueueTokenCurrent: current,
++    beginReceiptQueue: async () => ({ epoch: device.epoch, generation: 0 }),
++    listReceiptUploads: async () => structuredClone(device.rows),
++    claimReceiptUpload: async (token: ReceiptQueueToken, id: string) => {
++      guard(token);
++      if (device.claimFails) throw new Error('synthetic claim failure');
++      if (device.cancelBeforeClaim) device.rows = device.rows.filter((row) => row.id !== id);
++      const item = device.rows.find((row) => row.id === id);
++      if (!item) return false;
++      item.uncertain = true;
++      return true;
++    },
++    claimedReceiptUpload: async (token: ReceiptQueueToken, id: string) => {
++      guard(token);
++      const item = device.rows.find((row) => row.id === id && row.uncertain);
++      const snapshot = item ? structuredClone(item) : undefined;
++      if (device.invalidateRead) device.epoch = 'synthetic-newer-wipe';
++      return snapshot;
++    },
++    acknowledgeReceiptUpload: async (token: ReceiptQueueToken, id: string) => {
++      guard(token);
++      if (device.deletesFail-- > 0) throw new Error('synthetic cleanup failure');
++      device.rows = device.rows.filter((row) => row.id !== id);
++    },
++    updateReceiptUploadStatus: async (
++      token: ReceiptQueueToken,
++      id: string,
++      failure: ReceiptUploadFailure,
++    ) => {
++      guard(token);
++      const item = device.rows.find((row) => row.id === id);
++      if (item) {
++        item.uncertain = true;
++        item.failure = failure;
++      }
++    },
++    withReceiptQueueLock: <T>(run: () => Promise<T>) => {
++      const result = device.lock.then(run, run);
++      device.lock = result.catch(() => undefined);
++      return result;
++    },
++  };
++});
++
++const KEY = 'synthetic-queued-receipt-0001';
++const HASH = '3fd24bcfdb17a6027c5f3ed896d17a020d6ff9d9e4d06362461a9b44b6ac1b52';
++let opened: OpenedDatabase;
++let folder: string;
++let app: Hono;
++let bookingId: string;
++let lost = 0;
++let truncated = false;
++let unexpectedStatus = false;
++let invalidAck = false;
++let forced = 0;
++let wipeAfterResponse = false;
++let requests: {
++  key: string | null;
++  marker: unknown;
++  target: unknown;
++  name: string;
++  bytes: number[];
++}[];
++let replies: { groupId: string; receipt: { id: string } }[];
++
++function item(id = KEY, target: string | undefined = bookingId): QueuedReceiptUpload {
++  return {
++    id,
++    createdAt: device.rows.length,
++    blob: new Blob([new Uint8Array(PNG)], { type: '' }),
++    filename: 'synthetic-original.png',
++    mime: '',
++    ...(target === undefined ? {} : { bookingId: target }),
++    uncertain: false,
++  };
++}
++const balance = () =>
++  accountSummaries(opened.db, '2026-10-19').find((row) => row.id === 'giro')!.balanceCents;
++const bookingRows = () => ({
++  bookings: opened.db.select().from(schema.booking).all(),
++  splits: opened.db.select().from(schema.bookingSplit).all(),
++});
++const counts = () => ({
++  receipts: opened.db.select().from(schema.receipt).all().length,
++  links: opened.db.select().from(schema.bookingReceipt).all().length,
++  intents: opened.db.select().from(schema.receiptDelivery).all().length,
++});
++
++beforeEach(() => {
++  opened = createTestDatabase();
++  seedBasics(opened.db);
++  folder = mkdtempSync(join(tmpdir(), 'budget-device-receipt-protocol-'));
++  bookingId = createBooking(
++    opened.db,
++    {
++      accountId: 'giro',
++      date: '2026-10-19',
++      amountCents: -1375,
++      splits: [
++        { amountCents: -1000, categoryId: 'essen' },
++        { amountCents: -375, categoryId: 'miete' },
++      ],
++    },
++    { actor: 'synthetic-owner' },
++  );
++  app = new Hono()
++    .use('*', async (_c, next) => next())
++    .route('/api/receipts', receiptRoutes(opened.db, folder))
++    .route('/api/undo', undoRoutes(opened.db));
++  app.onError(errorResponse);
++  Object.assign(device, {
++    rows: [],
++    epoch: 'synthetic-epoch',
++    deletesFail: 0,
++    claimFails: false,
++    invalidateRead: false,
++    cancelBeforeClaim: false,
++    lock: Promise.resolve(),
++  });
++  lost = 0;
++  truncated = false;
++  unexpectedStatus = false;
++  invalidAck = false;
++  forced = 0;
++  wipeAfterResponse = false;
++  requests = [];
++  replies = [];
++  vi.stubGlobal('navigator', { onLine: true });
++  vi.stubGlobal(
++    'fetch',
++    vi.fn<typeof fetch>(async (input, init) => {
++      expect(input).toBe('/api/receipts');
++      expect(init?.method).toBe('POST');
++      expect(init?.credentials).toBe('same-origin');
++      const headers = new Headers(init?.headers);
++      expect(headers.has('content-type')).toBe(false);
++      const body = init?.body as FormData;
++      const file = body.get('file') as File;
++      const key = headers.get('Idempotency-Key');
++      expect(device.rows.find((row) => row.id === key)?.uncertain).toBe(true);
++      requests.push({
++        key,
++        marker: body.get('uploadIntent'),
++        target: body.get('bookingId'),
++        name: file.name,
++        bytes: [...new Uint8Array(await file.arrayBuffer())],
++      });
++      if (forced)
++        return new Response(
++          JSON.stringify({
++            error: 'synthetic-private-filename',
++            message: 'synthetic financial diagnostic',
++          }),
++          { status: forced },
++        );
++      const response = await app.request('/api/receipts', {
++        ...init,
++        headers: { ...Object.fromEntries(headers), origin: 'http://localhost:3000' },
++      });
++      if (!response.ok) return response;
++      expect(response.status).toBe(201);
++      replies.push(await response.clone().json());
++      if (wipeAfterResponse) {
++        device.rows = [];
++        device.epoch = 'synthetic-wiped';
++      }
++      if (lost-- > 0) throw new Error('synthetic lost committed response');
++      if (invalidAck)
++        return new Response(
++          JSON.stringify({ receipt: { id: 'invalid' }, groupId: replies.at(-1)!.groupId }),
++          { status: 201 },
++        );
++      if (truncated) return new Response('{"receipt":', { status: 201 });
++      if (unexpectedStatus) return new Response(await response.text(), { status: 200 });
++      return response;
++    }),
++  );
++});
++afterEach(() => {
++  vi.unstubAllGlobals();
++  opened.close();
++  rmSync(folder, { recursive: true, force: true });
++});
++
++async function undo(groupId: string) {
++  const result = await app.request('/api/undo', {
++    method: 'POST',
++    headers: { 'content-type': 'application/json' },
++    body: JSON.stringify({ groupId }),
++  });
++  expect(result.status).toBe(200);
++  return (await result.json()) as { groupId: string };
++}
++
++describe('queued physical receipt protocol (#699)', () => {
++  it('keeps the exact original native intent across two lost ACKs and creates one real receipt/link without changing literal cents', async () => {
++    device.rows = [item()];
++    lost = 2;
++    const before = bookingRows();
++    expect(await sendReceiptQueue()).toEqual({ sent: 0, blocked: 'offline' });
++    const audits = opened.db.select().from(schema.auditLog).all();
++    expect(await sendReceiptQueue()).toEqual({ sent: 0, blocked: 'offline' });
++    const sent = vi.fn();
++    expect(await sendReceiptQueue(sent)).toEqual({ sent: 1 });
++    expect(device.rows).toEqual([]);
++    expect(sent).toHaveBeenCalledTimes(1);
++    expect(replies[1]).toEqual(replies[0]);
++    expect(replies[2]).toEqual(replies[0]);
++    expect(requests).toEqual(
++      Array.from({ length: 3 }, () => ({
++        key: KEY,
++        marker: KEY,
++        target: bookingId,
++        name: 'synthetic-original.png',
++        bytes: [...PNG],
++      })),
++    );
++    expect(counts()).toEqual({ receipts: 1, links: 1, intents: 1 });
++    expect(opened.db.select().from(schema.auditLog).all()).toEqual(audits);
++    expect(bookingRows()).toEqual(before);
++    expect(balance()).toBe(98625);
++    expect(readdirSync(folder)).toEqual([HASH]);
++    expect(readFileSync(join(folder, HASH))).toEqual(PNG);
++  });
++  it('retains a successful but uncleared intent for same-key retry, and late ACK after undo never revives receipt or changes booking', async () => {
++    device.rows = [item()];
++    device.deletesFail = 1;
++    const before = bookingRows();
++    expect(await sendReceiptQueue()).toEqual({ sent: 0, blocked: 'cleanup' });
++    expect(device.rows[0]).toMatchObject({ id: KEY, uncertain: true, failure: 'cleanup' });
++    const undone = await undo(replies[0]!.groupId);
++    expect(
++      (await (await app.request(`/api/receipts?bookingId=${bookingId}`)).json()).receipts,
++    ).toEqual([]);
++    expect(await sendReceiptQueue()).toEqual({ sent: 1 });
++    expect(replies[1]).toEqual(replies[0]);
++    expect(
++      (await (await app.request(`/api/receipts?bookingId=${bookingId}`)).json()).receipts,
++    ).toEqual([]);
++    expect(counts()).toEqual({ receipts: 1, links: 1, intents: 1 });
++    expect(device.rows).toEqual([]);
++    await undo(undone.groupId);
++    expect(
++      (await (await app.request(`/api/receipts?bookingId=${bookingId}`)).json()).receipts,
++    ).toHaveLength(1);
++    expect(bookingRows()).toEqual(before);
++    expect(balance()).toBe(98625);
++  });
++  it.each(['truncated', 'unexpected-status', 'invalid-shape'] as const)(
++    'retains a committed %s response under the original key until an exact201 acknowledgment',
++    async (mode) => {
++      device.rows = [item()];
++      truncated = mode === 'truncated';
++      unexpectedStatus = mode === 'unexpected-status';
++      invalidAck = mode === 'invalid-shape';
++      expect(await sendReceiptQueue()).toEqual({ sent: 0, blocked: 'server' });
++      expect(device.rows[0]).toMatchObject({ id: KEY, uncertain: true });
++      truncated = false;
++      unexpectedStatus = false;
++      invalidAck = false;
++      expect(await sendReceiptQueue()).toEqual({ sent: 1 });
++      expect(replies[1]).toEqual(replies[0]);
++      expect(counts()).toEqual({ receipts: 1, links: 1, intents: 1 });
++    },
++  );
++  it.each([
++    [401, 'login'],
++    [503, 'server'],
++    [400, 'rejected'],
++  ] as const)(
++    'retains immutable files on HTTP%s and never copies private server diagnostics',
++    async (status, failure) => {
++      device.rows = [item()];
++      forced = status;
++      const before = bookingRows();
++      expect(await sendReceiptQueue()).toEqual({ sent: 0, blocked: failure });
++      expect(device.rows[0]).toMatchObject({
++        id: KEY,
++        uncertain: true,
++        failure,
++        bookingId,
++        filename: 'synthetic-original.png',
++      });
++      expect(await device.rows[0]!.blob.arrayBuffer()).toEqual(Uint8Array.from(PNG).buffer);
++      expect(receiptQueueReason(failure)).not.toContain('synthetic');
++      expect(counts()).toEqual({ receipts: 0, links: 0, intents: 0 });
++      expect(bookingRows()).toEqual(before);
++      expect(balance()).toBe(98625);
++      forced = 0;
++      expect(await sendReceiptQueue()).toEqual({ sent: 1 });
++      expect(requests[1]).toEqual(requests[0]);
++    },
++  );
++  it('retains a server-known key conflict without altering the already-saved booking', async () => {
++    device.rows = [item()];
++    expect(await sendReceiptQueue()).toEqual({ sent: 1 });
++    const before = bookingRows();
++    const audits = opened.db.select().from(schema.auditLog).all();
++    // Disposable conflicting device state: the public immutable store never edits an intent.
++    device.rows = [{ ...item(), filename: 'synthetic-conflicting-intent.png' }];
++    expect(await sendReceiptQueue()).toEqual({ sent: 0, blocked: 'conflict' });
++    expect(device.rows[0]).toMatchObject({ id: KEY, uncertain: true, failure: 'conflict' });
++    expect(counts()).toEqual({ receipts: 1, links: 1, intents: 1 });
++    expect(opened.db.select().from(schema.auditLog).all()).toEqual(audits);
++    expect(bookingRows()).toEqual(before);
++    expect(balance()).toBe(98625);
++  });
++  it('separately serializes concurrent passes while deliberate identical selections keep two metadata actions and one blob', async () => {
++    device.rows = [item(), item('synthetic-queued-receipt-0002')];
++    const runs = await Promise.all([sendReceiptQueue(), sendReceiptQueue()]);
++    expect(runs.map((run) => run.sent)).toEqual([2, 0]);
++    expect(requests).toHaveLength(2);
++    expect(counts()).toEqual({ receipts: 2, links: 2, intents: 2 });
++    expect(readdirSync(folder)).toEqual([HASH]);
++    expect(balance()).toBe(98625);
++  });
++  it('keeps offline captures untouched, stops FIFO on the first blocked file, and never sends a cancelled native claim', async () => {
++    device.rows = [item(), item('synthetic-queued-receipt-0002')];
++    vi.stubGlobal('navigator', { onLine: false });
++    expect(await sendReceiptQueue()).toEqual({ sent: 0 });
++    expect(requests).toEqual([]);
++    expect(device.rows.every((row) => !row.uncertain)).toBe(true);
++    vi.stubGlobal('navigator', { onLine: true });
++    forced = 401;
++    expect(await sendReceiptQueue()).toEqual({ sent: 0, blocked: 'login' });
++    expect(requests).toHaveLength(1);
++    expect(device.rows[1]!.uncertain).toBe(false);
++    forced = 0;
++    device.cancelBeforeClaim = true;
++    expect(await sendReceiptQueue()).toEqual({ sent: 0 });
++    expect(requests).toHaveLength(1);
++  });
++  it('cannot use a stale provenance token or unclaimed caller payload as a raw multipart escape', async () => {
++    device.rows = [item()];
++    await expect(
++      queuedReceiptUpload({ epoch: device.epoch, generation: 0 }, KEY),
++    ).rejects.toMatchObject({ code: 'queued_receipt_not_ready' });
++    expect(requests).toEqual([]);
++    device.invalidateRead = true;
++    expect(await sendReceiptQueue()).toEqual({ sent: 0, blocked: 'cleanup' });
++    expect(requests).toEqual([]);
++  });
++  it('never recreates files or status after a newer wipe invalidates a late server ACK', async () => {
++    device.rows = [item()];
++    wipeAfterResponse = true;
++    expect(await sendReceiptQueue()).toEqual({ sent: 0, blocked: 'cleanup' });
++    expect(device.rows).toEqual([]);
++    expect(counts()).toEqual({ receipts: 1, links: 1, intents: 1 });
++    expect(balance()).toBe(98625);
++  });
++  it('does not treat a UI notification failure as a reason to recreate or resend an acknowledged file', async () => {
++    device.rows = [item()];
++    expect(
++      await sendReceiptQueue(() => {
++        throw new Error('synthetic failed render');
++      }),
++    ).toEqual({ sent: 1 });
++    expect(await sendReceiptQueue()).toEqual({ sent: 0 });
++    expect(requests).toHaveLength(1);
++    expect(device.rows).toEqual([]);
++  });
++});
+diff --git a/apps/web/src/pwa/receipt-queue.ts b/apps/web/src/pwa/receipt-queue.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..8e3719213302439e1c07986d2a90ac1289793717
+--- /dev/null
++++ b/apps/web/src/pwa/receipt-queue.ts
+@@ -0,0 +1,76 @@
++import {
++  ApiError,
++  notifyApiWrite,
++  queuedReceiptUpload,
++  type ReceiptUploadAcknowledgment,
++} from '../api/http';
++import {
++  acknowledgeReceiptUpload,
++  beginReceiptQueue,
++  claimReceiptUpload,
++  listReceiptUploads,
++  updateReceiptUploadStatus,
++  withReceiptQueueLock,
++  type ReceiptUploadFailure,
++} from './receipt-queue-store';
++
++function failureReason(error: unknown): ReceiptUploadFailure {
++  if (!(error instanceof ApiError)) return 'cleanup';
++  if (error.status === 401) return 'login';
++  if (error.code === 'idempotency_conflict') return 'conflict';
++  if (error.status >= 500 || error.code === 'invalid_receipt_ack') return 'server';
++  if (error.status === 0) return 'offline';
++  return 'rejected';
++}
++
++/** Fixed UI text only: no server detail, filename, request contents or financial diagnostics. */
++export function receiptQueueReason(reason: ReceiptUploadFailure) {
++  const messages: Record<ReceiptUploadFailure, string> = {
++    offline: 'Keine Verbindung. Der Beleg bleibt auf diesem Gerät.',
++    login: 'Bitte erneut anmelden. Der Beleg bleibt auf diesem Gerät.',
++    server: 'Serverempfang unklar. Bitte denselben Beleg erneut senden.',
++    conflict: 'Der Sendeschlüssel ist bereits anders belegt. Bitte den Serverstand prüfen.',
++    rejected: 'Der Server hat den Beleg abgelehnt. Datei und Buchungsziel prüfen.',
++    cleanup: 'Der Belegspeicher ist nicht verfügbar. Bitte denselben Eintrag erneut prüfen.',
++  };
++  return messages[reason];
++}
++
++/**
++ * One bounded FIFO pass; a blocked file stops only this file queue, never saved bookings/text
++ * capture. Callers may wake it on online/focus/manual retry. No loop or background auth claim.
++ */
++export const sendReceiptQueue = (
++  onSent: (result: ReceiptUploadAcknowledgment) => void = () => undefined,
++) =>
++  withReceiptQueueLock(async () => {
++    let sent = 0;
++    if (navigator.onLine === false) return { sent };
++    for (const item of await listReceiptUploads()) {
++      const token = await beginReceiptQueue();
++      // Native atomic claim loses to an earlier cancellation; no POST follows a missing row.
++      if (!(await claimReceiptUpload(token, item.id))) continue;
++      let result: ReceiptUploadAcknowledgment;
++      try {
++        result = await queuedReceiptUpload(token, item.id);
++        await acknowledgeReceiptUpload(token, item.id);
++      } catch (error) {
++        const blocked = failureReason(error);
++        try {
++          await updateReceiptUploadStatus(token, item.id, blocked);
++        } catch {
++          // A newer privacy fence must never be bypassed to recreate a failure/old payload.
++          return { sent, blocked: 'cleanup' as const };
++        }
++        return { sent, blocked };
++      }
++      sent++;
++      try {
++        notifyApiWrite();
++        onSent(result);
++      } catch {
++        /* A failed refresh/render cannot retry an already acknowledged and removed intent. */
++      }
++    }
++    return { sent };
++  });
+diff --git a/docs/evidence/reference-adoption/wp-014-receipt-queue-699.md b/docs/evidence/reference-adoption/wp-014-receipt-queue-699.md
+index 0905c322530a6303b54e49a81f565883946839e8..fca9160a75c5c031cd4bfa91fc51899f27102565 100644
+--- a/docs/evidence/reference-adoption/wp-014-receipt-queue-699.md
++++ b/docs/evidence/reference-adoption/wp-014-receipt-queue-699.md
+@@ -1,10 +1,12 @@
+-# Device-only receipt queue store (#699, partial infrastructure)
++# Device receipt queue and delivery (#699; UI #700 remains separate)
+ 
+ Refs #699, dependent on upload-intent API #698. Parent #559 owner decision:
+-“Ja: Offline-Belegdateien mit separatem Retry ergänzen”. These three new files
+-supply a separate IndexedDB Blob store and eight positive native storage cases and an explicit ephemeral-capability case.
+-No receipt UI, multipart transport, auth or logout integration is wired yet;
+-#699, #700 and parent #559 remain incomplete.
++“Ja: Offline-Belegdateien mit separatem Retry ergänzen”. This issue supplies
++a separate IndexedDB Blob store and native storage proofs. The same issue
++now also adds sealed multipart transport and safe never-attempted cancellation.
++No receipt UI, auth or logout integration is wired yet; those callers belong to
++#700. Current final transport/native/full/CI/live verification remains incomplete;
++parent #559 stays open.
+ 
+ An explicit selection commits a fresh key, immutable original Blob, filename,
+ possibly empty camera MIME and optional already-saved booking target before
+@@ -71,6 +73,37 @@ reconciled out of the in-memory hold cache after a missed release notification.
+ Pending, unknown and newer holds stay fenced; a completed stale notification can
+ be repaired without erasing fresh files or advancing their epoch.
+ 
++## Sealed delivery and safe cancellation
++
++`sendReceiptQueue` performs one bounded FIFO pass under the separate file lock.
++It atomically claims the still-present native intent and persists uncertainty
++before a POST. Cancellation and claim inspect/change the same native intent
++transaction: cancellation wins before claim or refuses an uncertain item; a
++cancelled/missing claim cannot send. Only never-attempted intents are cancellable;
++uncertain intents retain their exact key/Blob/target until the original server
++result is resolved. No payload editing, booking transaction, text queue or
++financial write is introduced.
++
++The exact `queuedReceiptUpload(token, id)` HTTP capability loads only the claimed
++native intent, checks online/current provenance immediately before POST, and uses
++only `/api/receipts`, same-origin credentials, original Blob/name/optional saved
++booking target, and matching multipart `uploadIntent` plus `Idempotency-Key`.
++Callers cannot supply a replacement payload, URL, method or arbitrary headers.
++The existing JSON `request` function is unchanged. The held #558 owner reviewed
++this exact online queued-capture exception as compatible with its future saved
++viewer guard; frozen #558 files remain untouched, with no unfinished dependency
++cycle or broad raw-fetch/auth bypass.
++
++Only an actual201 response with valid physical receipt UUID/group UUID is an ACK.
++Lost/truncated/malformed/unexpected-status replies, local cleanup failure,401,
++5xx, conflicts and permanent rejection retain the same immutable uncertain intent.
++Fixed German reason labels never persist/forward raw server details or filenames.
++A blocked file stops only the file FIFO; an already-saved booking and the text
++queue are untouched. New privacy epochs prevent late ACK/failure callbacks from
++recreating rows. After confirmed deletion, read invalidation/undo notification
++failure cannot recreate or resend the intent. Online/focus/manual UI wakeups,
++pickers, retry presentation and actual auth/logout wiring remain #700 scope.
++
+ ## Verification and remaining gates
+ 
+ The eight positive native cases cover Blob/reload/offline/blank MIME and exact raw bytes, read
+@@ -117,7 +150,8 @@ and the same key. There is no skip or unconditional expected engine failure.
+ Existing web TypeScript passed before this fixture-only change. Strict new-spec
+ TypeScript, scoped ESLint, formatting and diff checks passed on the corrected
+ freeze. Independent HIGH whole-source and fixture/evidence delta reviews are CLEAR.
+-The actual corrected canonical pinned WebKit run passed **12/12**: all eight
++The store-only commit `a1293464` corrected canonical pinned WebKit run passed
++**12/12**: all eight
+ positive cases, the actual ephemeral-capability case and three setup cases,
+ 27.6 seconds, no skips or flaky/unexpected outcomes. The capability-dependent ephemeral contract passed; the controlled comparison
+ probe separately established the unsupported ephemeral outcome. The passing test
+@@ -126,15 +160,95 @@ the production source remained byte-identical across the fixture correction.
+ Per-test persistent close/cleanup completed without error. The unchanged runner
+ retains traces on failure, so this all-pass run generated no passing traces;
+ complete test-results/logs/exits/hash evidence is preserved externally.
+-Full check/production build, exact-head Chromium/WebKit CI and deployed
+-verification remain pending. These are store-only proofs; neither the persistent
+-diagnostic nor this passing suite proves multipart/UI/auth integration. After the coordinator grants the host slot, build
+-with `npm run build:e2e`, then use the unchanged canonical project:
++That passing run predates the new claim/cancel/transport additions and does not
++validate their final source. Local normal merges added main `e74c4ef5` and API
++#698 final `2c0982c`; all three own files and eight API hashes matched immediately
++after merging. No dependency/API/schema/existing-test edits were made.
++
++The new protocol test executes actual client multipart/queue decisions, Hono
++receipt/undo routes and SQLite against a disposable known signed-in route fixture;
++only device storage is an injected adapter. Its14 cases plus three unchanged
++API/WebAuthn/text-queue files passed43/43. It proves two lost ACKs, cleanup failure,
++truncated/unexpected/malformed ACKs,401/503/400, conflict, FIFO/offline/claim
++cancellation, same-byte deliberate independent uploads, immutable key/name/bytes/
++target, newer wipe suppression, literal98625 balance and receipt undo/redo. It
++checks the independent literal PNG digest and bytes, exact receipt/link/cache
++counts and unchanged booking/audit rows. This is not new native-storage or auth
++middleware assurance.
++
++Four NEW native additions exercise the bundled real production transport:
++physical upload with two actual lost committed responses, failed native cleanup,
++exact receipt/link/download digest and saved-booking98625/undo/late replay; actual
++cross-tab cancellation/claim serialization;401/5xx retention and a real physical
++late ACK after cross-tab device clear; and a separate uninhibited browser upload
++with no response interception or replay. Existing eight positive cases and the
++capability case remain. Independent whole-source/security review found no blocking
++finding and its own protocol run passed14/14. These13 new cases plus three
++canonical setup cases passed16/16 in the corrected actual pinned-WebKit run
++described below; the older12/12 result is only historical store evidence. The required
++full check and normal production build subsequently passed as described below;
++exact-head Chromium/WebKit CI, deployed acceptance and #700 UI/auth integration
++remain open. The successful existing `npm run build:e2e`
++output was reused after verifying unchanged product/API sources and compiled bundles;
++only this new spec/evidence changed. Use the unchanged canonical project:
+ 
+ ```sh
+ /workspace/.budget-tools/cloud-control/run-webkit.sh /workspace/cloud-receipt-queue-699 test e2e/issue-699-receipt-queue-store.spec.ts --project=webkit-iphone --workers=1
+ ```
+ 
+-These are synthetic store-only proofs, not actual multipart delivery, real auth
+-ceremonies or combined booking-then-file acceptance. No existing tests, manifests,
+-configurations, product callers or production data/storage are changed.
++The first final-transport run rebuilt the actual app successfully, then passed
++13/15: original store/capability cases, native cancellation race and setup passed.
++Both physical-upload cases failed at their intercepted `route.fetch` request:
++actual server400 `invalid`/empty-file message, with a zero-byte multipart file in
++the archived forwarded request. All six own and eight API hashes matched; the
++compiled server includes the reviewed #698 marker/cache implementation. Thus
++lost-ACK, cleanup, download/hash/undo and post-commit cross-tab assertions remained
++unreached in that first run; no product fix was inferred from its failure.
++
++Only this NEW fixture is corrected: captured original browser fetch receives the
++unchanged input/init/FormData/headers/credentials synchronously. The wrapper reads
++only `response.clone()` and injects response loss/status/delay only AFTER actual
++201 and exact body/key/target/filename/PNG SHA/size/UUID validation; unexpected real
++responses flow through unchanged and fail ordinary assertions. It restores the
++original fetch in teardown. Synthetic401/503 faults now occur after a valid real
++commit/cache reply, demonstrating uncertain-response retention rather than new
++authentication middleware behavior. All previous exact bytes/hash/key/cents/undo
++and native-privacy assertions remain. An additional uninhibited upload case must
++independently verify direct browser/IndexedDB Blob delivery and downloaded literal
++bytes/digest without the wrapper or multipart replay. This distinguishes fixture
++reconstruction from a real product upload defect; it passed in the corrected run.
++
++The corrected canonical pinned WebKit/iPhone13 run passed **16/16** (13 new cases
++plus three setup),32.0 seconds, zero skipped/flaky/unexpected outcomes, actual
++process exit0. All formerly unreached physical-upload assertions now passed:
++two lost committed ACKs, failed local cleanup, exact downloaded bytes/digest,
++unchanged98625 booking balance and booking payload, receipt undo/redo, and
++post-commit cross-tab late-ACK suppression. The separate uninhibited browser
++upload/download also passed. The capability-dependent ephemeral contract passed;
++the log does not identify which conditional branch ran. All eight original
++store/privacy cases and native cancellation/claim serialization passed.
++
++All six reviewed source/test/doc and eight dependency API pre/post hashes matched;
++all169 recorded compiled-output hashes remained unchanged. Per-test persistent
++context close/owned-profile cleanup completed without error. Complete results,
++log, actual exit and hash evidence were copied externally before resetting any
++artifacts; `.last-run.json` reports passed with no failed tests. Retain-on-failure
++generated no passing traces; the two failed first-transport traces are preserved
++separately. Independent whole-source and fixture-delta HIGH reviews are CLEAR;
++this actual-results-only evidence delta still requires its final recheck.
++
++The historical native12/12 proof covers store/privacy behavior; the current14-case
++protocol proof executes actual multipart delivery through Hono/SQLite with a
++device-storage adapter and known signed-in route precondition; the final16/16
++proof additionally covers actual browser multipart/native transport and saved
++booking retention. The final required full check ran once with `BUDGET_REQUIRE_AGE=1` and
++`VITEST_MAX_WORKERS=2` under the shared exclusive host lock: **508 test files,
++4529 tests passed**,416.69 seconds, `npm run check` exit0. The subsequent normal
++`npm run build` exited0. All six own and eight dependency hashes and HEAD matched
++before/after; the process exited and the lock was released. Output retains one
++unused-eslint-disable warning in unchanged `packages/ui/src/components/panel.tsx`,
++DOM `scrollTo` not-implemented notices and bundle-size warnings; no rule or test
++was changed or skipped. Independent final result-only evidence review remains
++pending; exact-head CI/live and actual #700 UI/auth ceremony integration remain
++open. No existing tests, manifests, configurations,
++product callers or production data/storage are changed by this authored scope.
+diff --git a/e2e/issue-699-receipt-queue-store.spec.ts b/e2e/issue-699-receipt-queue-store.spec.ts
+index a40c8a315cd558e6cf695d788e0a3280471ebab8..a15d3d752ae5baffdd941f76c3e60791f38fbe9f 100644
+--- a/e2e/issue-699-receipt-queue-store.spec.ts
++++ b/e2e/issue-699-receipt-queue-store.spec.ts
+@@ -3,7 +3,18 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+ import { tmpdir } from 'node:os';
+ import { join } from 'node:path';
+ import ts from 'typescript';
++import { buildSync } from 'esbuild';
++import { createHash } from 'node:crypto';
++import { fileURLToPath } from 'node:url';
++import { MAIN_URL } from '../playwright.config';
++import { PNG } from '../apps/server/src/receipts/testing';
+ import type * as Store from '../apps/web/src/pwa/receipt-queue-store';
++import type * as Delivery from '../apps/web/src/pwa/receipt-queue';
++
++async function restoreReceiptFetch(context: BrowserContext) {
++  for (const page of context.pages())
++    if (!page.isClosed()) await page.evaluate(() => window.restoreReceiptTransport?.());
++}
+ 
+ // WebKit's ephemeral context rejects even a primitive Blob put in this pinned engine.
+ // Positive PWA persistence cases use a fresh real profile; the base test below covers ephemeral
+@@ -11,7 +22,11 @@ import type * as Store from '../apps/web/src/pwa/receipt-queue-store';
+ const test = base.extend({
+   context: async ({ context, browserName, playwright }, use) => {
+     if (browserName !== 'webkit') {
+-      await use(context); // Chromium retains the canonical default context unchanged.
++      try {
++        await use(context); // Chromium retains the canonical default context unchanged.
++      } finally {
++        await restoreReceiptFetch(context);
++      }
+       return;
+     }
+     const profile = mkdtempSync(join(tmpdir(), 'budget-699-native-profile-'));
+@@ -36,9 +51,13 @@ const test = base.extend({
+       await use(persistent);
+     } finally {
+       try {
+-        await persistent?.close();
++        if (persistent) await restoreReceiptFetch(persistent);
+       } finally {
+-        rmSync(profile, { recursive: true, force: true });
++        try {
++          await persistent?.close();
++        } finally {
++          rmSync(profile, { recursive: true, force: true });
++        }
+       }
+     }
+   },
+@@ -49,9 +68,38 @@ const source = ts.transpileModule(
+   readFileSync(new URL('../apps/web/src/pwa/receipt-queue-store.ts', import.meta.url), 'utf8'),
+   { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } },
+ ).outputText;
++const deliverySource = buildSync({
++  stdin: {
++    contents: "export * from './receipt-queue-store'; export * from './receipt-queue';",
++    resolveDir: fileURLToPath(new URL('../apps/web/src/pwa/', import.meta.url)),
++    loader: 'ts',
++  },
++  bundle: true,
++  platform: 'browser',
++  format: 'esm',
++  target: 'es2022',
++  write: false,
++}).outputFiles[0]!.text;
+ declare global {
+   interface Window {
+     receiptQueueStore: typeof Store;
++    receiptQueueDelivery: typeof Delivery;
++    receiptTransportProof: {
++      seen: {
++        key: string | null;
++        marker: FormDataEntryValue | null;
++        target: FormDataEntryValue | null;
++        bytes: number[];
++      }[];
++      replies: { receipt: { id: string }; groupId: string }[];
++      validated: boolean[];
++      serverStatuses: number[];
++      losses: number;
++      held: boolean;
++    };
++    receiptTransportFault: 'lose-two' | '401' | '503' | 'hold' | 'none';
++    releaseReceiptReply: () => void;
++    restoreReceiptTransport: () => void;
+     receiptQueueToken: Store.ReceiptQueueToken;
+     receiptQueueHold: ReturnType<typeof Store.holdReceiptQueueForSignOut>;
+     receiptQueueClearing: ReturnType<ReturnType<typeof Store.holdReceiptQueueForSignOut>['clear']>;
+@@ -59,15 +107,17 @@ declare global {
+   }
+ }
+ const bytes = [37, 80, 68, 70, 45, 49, 46, 55, 10, 115, 121, 110, 116, 104, 101, 116, 105, 99];
+-async function install(page: Page) {
++async function install(page: Page, code = source) {
+   await page.evaluate(async (source) => {
+     const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+     try {
+-      window.receiptQueueStore = await import(url);
++      const loaded = await import(url);
++      window.receiptQueueStore = loaded;
++      if ('sendReceiptQueue' in loaded) window.receiptQueueDelivery = loaded;
+     } finally {
+       URL.revokeObjectURL(url);
+     }
+-  }, source);
++  }, code);
+ }
+ async function harness(page: Page) {
+   await page.route('**/__receipt_queue_security__', (route) =>
+@@ -1045,3 +1095,377 @@ base(
+     }
+   },
+ );
++
++/** Inject only the returned response AFTER unchanged browser fetch committed/validated201.
++ * Playwright route.fetch replays a multipart request with a zero-byte file in this WebKit.
++ * The actual browser retains original FormData/headers/credentials and native Blob encoding.
++ */
++async function installReceiptResponseFault(
++  page: Page,
++  expected: { id: string; target: string | null; filename: string },
++  fault: Window['receiptTransportFault'],
++) {
++  await page.evaluate(
++    ({ expected, fault, bytes }) => {
++      const original = window.fetch;
++      window.restoreReceiptTransport = () => {
++        window.fetch = original;
++      };
++      const proof: Window['receiptTransportProof'] = (window.receiptTransportProof = {
++        seen: [],
++        replies: [],
++        validated: [],
++        serverStatuses: [],
++        losses: 2,
++        held: false,
++      });
++      window.receiptTransportFault = fault;
++      window.fetch = async (input, init) => {
++        // Start the actual network synchronously, preserving the product's last token-check boundary.
++        const network = original.call(window, input, init);
++        if (input !== '/api/receipts' || init?.method !== 'POST') return network;
++        const body = init.body;
++        const file = body instanceof FormData ? body.get('file') : null;
++        const sentBytes = file instanceof Blob ? [...new Uint8Array(await file.arrayBuffer())] : [];
++        const key = new Headers(init.headers).get('Idempotency-Key');
++        const marker = body instanceof FormData ? body.get('uploadIntent') : null;
++        const target = body instanceof FormData ? body.get('bookingId') : null;
++        proof.seen.push({ key, marker, target, bytes: sentBytes });
++        const response = await network;
++        proof.serverStatuses.push(response.status);
++        const reply = await response
++          .clone()
++          .json()
++          .catch(() => undefined);
++        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
++        const valid =
++          response.status === 201 &&
++          init.credentials === 'same-origin' &&
++          !new Headers(init.headers).has('content-type') &&
++          file instanceof File &&
++          file.name === expected.filename &&
++          key === expected.id &&
++          marker === expected.id &&
++          target === expected.target &&
++          JSON.stringify(sentBytes) === JSON.stringify(bytes) &&
++          typeof reply?.groupId === 'string' &&
++          uuid.test(reply.groupId) &&
++          typeof reply?.receipt?.id === 'string' &&
++          uuid.test(reply.receipt.id) &&
++          reply.receipt.sha256 ===
++            '3fd24bcfdb17a6027c5f3ed896d17a020d6ff9d9e4d06362461a9b44b6ac1b52' &&
++          reply.receipt.sizeBytes === 68;
++        proof.validated.push(valid);
++        if (!valid) return response; // No synthetic fault may hide an unexpected real response/body.
++        proof.replies.push(reply);
++        if (window.receiptTransportFault === 'lose-two' && proof.losses-- > 0)
++          throw new TypeError('synthetic lost committed upload acknowledgment');
++        if (window.receiptTransportFault === '401' || window.receiptTransportFault === '503')
++          return new Response(JSON.stringify({ error: 'synthetic response fault' }), {
++            status: Number(window.receiptTransportFault),
++            headers: { 'content-type': 'application/json' },
++          });
++        if (window.receiptTransportFault === 'hold') {
++          proof.held = true;
++          await new Promise<void>((resolve) => {
++            window.releaseReceiptReply = resolve;
++          });
++        }
++        return response;
++      };
++    },
++    { expected, fault, bytes: [...PNG] },
++  );
++}
++
++test('real native queue retries two lost physical upload ACKs and failed local cleanup; saved booking cents and receipt undo remain exact', async ({
++  page,
++  request,
++}, info) => {
++  const headers = { origin: MAIN_URL };
++  const tag = `Synthetic699 ${info.project.name} ${info.workerIndex} ${info.retry}`;
++  const createdAccount = await request.post('/api/accounts', {
++    headers,
++    data: { name: tag, type: 'checking', openingDate: '2026-09-01', openingBalanceCents: 100000 },
++  });
++  expect(createdAccount.status()).toBe(201);
++  const account = (await createdAccount.json()).account as { id: string };
++  const createdBooking = await request.post('/api/bookings', {
++    headers,
++    data: {
++      type: 'booking',
++      accountId: account.id,
++      date: '2026-09-01',
++      amountCents: -1375,
++      splits: [{ amountCents: -1000 }, { amountCents: -375 }],
++      memo: tag,
++    },
++  });
++  expect(createdBooking.status()).toBe(201);
++  const booking = (await createdBooking.json()) as { id: string };
++  const bookingBefore = await (await request.get(`/api/bookings/${booking.id}`)).json();
++  const balance = async () => {
++    const result = await (await request.get('/api/accounts')).json();
++    return result.accounts.find((row: { id: string }) => row.id === account.id).balanceCents;
++  };
++  expect(await balance()).toBe(98625);
++  await harness(page);
++  await install(page, deliverySource);
++  const id = await page.evaluate(
++    async ({ data, target }) =>
++      (
++        await window.receiptQueueStore.enqueueReceiptUpload(
++          new File([new Uint8Array(data)], 'synthetic-native699.png', { type: '' }),
++          target,
++        )
++      ).id,
++    { data: [...PNG], target: booking.id },
++  );
++  await installReceiptResponseFault(
++    page,
++    { id, target: booking.id, filename: 'synthetic-native699.png' },
++    'lose-two',
++  );
++  let replies: { receipt: { id: string }; groupId: string }[] = [];
++  let seen: {
++    key: string | null;
++    marker: FormDataEntryValue | null;
++    target: FormDataEntryValue | null;
++    bytes: number[];
++  }[] = [];
++  const send = () => page.evaluate(() => window.receiptQueueDelivery.sendReceiptQueue());
++  expect(await send()).toEqual({ sent: 0, blocked: 'offline' });
++  expect(await send()).toEqual({ sent: 0, blocked: 'offline' });
++  await page.evaluate(() => {
++    const original = IDBObjectStore.prototype.delete;
++    IDBObjectStore.prototype.delete = function (key) {
++      if (this.name === 'intents')
++        throw new DOMException('synthetic native cleanup failure', 'QuotaExceededError');
++      return original.call(this, key);
++    };
++    window.restoreReceiptStorage = () => {
++      IDBObjectStore.prototype.delete = original;
++    };
++  });
++  expect(await send()).toEqual({ sent: 0, blocked: 'cleanup' });
++  await page.evaluate(() => window.restoreReceiptStorage());
++  expect((await list(page))[0]).toMatchObject({ id, uncertain: true, failure: 'cleanup' });
++  ({ replies, seen } = await page.evaluate(() => window.receiptTransportProof));
++  const uploaded = await (await request.get(`/api/receipts?bookingId=${booking.id}`)).json();
++  expect(uploaded.receipts).toHaveLength(1);
++  expect(uploaded.receipts[0].id).toBe(replies[0]!.receipt.id);
++  const download = await request.get(`/api/receipts/${replies[0]!.receipt.id}/download`);
++  expect(download.status()).toBe(200);
++  expect(
++    createHash('sha256')
++      .update(await download.body())
++      .digest('hex'),
++  ).toBe('3fd24bcfdb17a6027c5f3ed896d17a020d6ff9d9e4d06362461a9b44b6ac1b52');
++  expect(await download.body()).toEqual(PNG);
++  const undone = await request.post('/api/undo', {
++    headers,
++    data: { groupId: replies[0]!.groupId },
++  });
++  expect(undone.status()).toBe(200);
++  expect(
++    (await (await request.get(`/api/receipts?bookingId=${booking.id}`)).json()).receipts,
++  ).toEqual([]);
++  expect(await send()).toEqual({ sent: 1 });
++  expect(await list(page)).toEqual([]);
++  expect(
++    (await (await request.get(`/api/receipts?bookingId=${booking.id}`)).json()).receipts,
++  ).toEqual([]);
++  const redo = await request.post('/api/undo', {
++    headers,
++    data: { groupId: (await undone.json()).groupId },
++  });
++  expect(redo.status()).toBe(200);
++  expect(
++    (await (await request.get(`/api/receipts?bookingId=${booking.id}`)).json()).receipts,
++  ).toHaveLength(1);
++  expect(await (await request.get(`/api/bookings/${booking.id}`)).json()).toEqual(bookingBefore);
++  expect(await balance()).toBe(98625);
++  const finalProof = await page.evaluate(() => window.receiptTransportProof);
++  ({ replies, seen } = finalProof);
++  expect(finalProof.validated).toEqual([true, true, true, true]);
++  expect(finalProof.serverStatuses).toEqual([201, 201, 201, 201]);
++  expect(replies).toEqual(Array.from({ length: 4 }, () => replies[0]));
++  expect(seen).toEqual(
++    Array.from({ length: 4 }, () => ({ key: id, marker: id, target: booking.id, bytes: [...PNG] })),
++  );
++});
++
++test('native cancel and send claims serialize across tabs; cancellation never removes an uncertain immutable intent', async ({
++  page,
++  context,
++}) => {
++  await harness(page);
++  const sibling = await context.newPage();
++  await harness(sibling);
++  const cancelled = await add(page);
++  expect(
++    await sibling.evaluate(
++      (id) => window.receiptQueueStore.cancelUnsentReceiptUpload(id),
++      cancelled.id,
++    ),
++  ).toBe(true);
++  expect(
++    await page.evaluate(
++      async (id) =>
++        window.receiptQueueStore.claimReceiptUpload(
++          await window.receiptQueueStore.beginReceiptQueue(),
++          id,
++        ),
++      cancelled.id,
++    ),
++  ).toBe(false);
++  const claimed = await add(page);
++  expect(
++    await page.evaluate(
++      async (id) =>
++        window.receiptQueueStore.claimReceiptUpload(
++          await window.receiptQueueStore.beginReceiptQueue(),
++          id,
++        ),
++      claimed.id,
++    ),
++  ).toBe(true);
++  await expect(
++    sibling.evaluate((id) => window.receiptQueueStore.cancelUnsentReceiptUpload(id), claimed.id),
++  ).rejects.toThrow('Serverempfang unklar');
++  expect((await list(page))[0]).toMatchObject({ id: claimed.id, uncertain: true, bytes });
++  const concurrent = await add(page, 'synthetic-race.pdf');
++  const [cancel, claim] = await Promise.allSettled([
++    sibling.evaluate((id) => window.receiptQueueStore.cancelUnsentReceiptUpload(id), concurrent.id),
++    page.evaluate(
++      async (id) =>
++        window.receiptQueueStore.claimReceiptUpload(
++          await window.receiptQueueStore.beginReceiptQueue(),
++          id,
++        ),
++      concurrent.id,
++    ),
++  ]);
++  const rows = await list(page);
++  if (cancel.status === 'fulfilled' && cancel.value) {
++    expect(claim).toMatchObject({ status: 'fulfilled', value: false });
++    expect(rows.some((row) => row.id === concurrent.id)).toBe(false);
++  } else {
++    expect(cancel.status).toBe('rejected');
++    expect(claim).toMatchObject({ status: 'fulfilled', value: true });
++    expect(rows.find((row) => row.id === concurrent.id)).toMatchObject({ uncertain: true, bytes });
++  }
++});
++
++test('native transport retains401/5xx files and late physical ACK cannot repopulate after cross-tab privacy clear', async ({
++  page,
++  context,
++}) => {
++  await harness(page);
++  await install(page, deliverySource);
++  const id = await page.evaluate(
++    async (data) =>
++      (
++        await window.receiptQueueStore.enqueueReceiptUpload(
++          new File([new Uint8Array(data)], 'synthetic-native-late.png', { type: '' }),
++        )
++      ).id,
++    [...PNG],
++  );
++  await installReceiptResponseFault(
++    page,
++    { id, target: null, filename: 'synthetic-native-late.png' },
++    '401',
++  );
++  expect(await page.evaluate(() => window.receiptQueueDelivery.sendReceiptQueue())).toEqual({
++    sent: 0,
++    blocked: 'login',
++  });
++  expect((await list(page))[0]).toMatchObject({
++    id,
++    uncertain: true,
++    failure: 'login',
++    bytes: [...PNG],
++  });
++  await page.evaluate(() => {
++    window.receiptTransportFault = '503';
++  });
++  expect(await page.evaluate(() => window.receiptQueueDelivery.sendReceiptQueue())).toEqual({
++    sent: 0,
++    blocked: 'server',
++  });
++  expect((await list(page))[0]).toMatchObject({
++    id,
++    uncertain: true,
++    failure: 'server',
++    bytes: [...PNG],
++  });
++  await page.evaluate(() => {
++    window.receiptTransportFault = 'hold';
++  });
++  const sending = page.evaluate(() => window.receiptQueueDelivery.sendReceiptQueue());
++  await expect.poll(() => page.evaluate(() => window.receiptTransportProof.held)).toBe(true);
++  const sibling = await context.newPage();
++  await harness(sibling);
++  await sibling.evaluate(async () => {
++    const hold = window.receiptQueueStore.holdReceiptQueueForSignOut();
++    await hold.clear();
++    await hold.release();
++  });
++  await page.evaluate(() => window.releaseReceiptReply());
++  expect(await sending).toEqual({ sent: 0, blocked: 'cleanup' });
++  await expect
++    .poll(async () => {
++      try {
++        return await list(page);
++      } catch {
++        return 'held';
++      }
++    })
++    .toEqual([]);
++  const proof = await page.evaluate(() => window.receiptTransportProof);
++  expect(proof.validated).toEqual([true, true, true]);
++  expect(proof.serverStatuses).toEqual([201, 201, 201]);
++  expect(proof.replies).toEqual(Array.from({ length: 3 }, () => proof.replies[0]));
++  expect(proof.seen).toEqual(
++    Array.from({ length: 3 }, () => ({ key: id, marker: id, target: null, bytes: [...PNG] })),
++  );
++});
++
++test('uninhibited browser fetch uploads the original IndexedDB Blob without multipart replay or response interception', async ({
++  page,
++  request,
++}, info) => {
++  await harness(page);
++  await install(page, deliverySource);
++  const filename = `synthetic-uninhibited-${info.project.name}-${info.workerIndex}-${info.retry}.png`;
++  const id = await page.evaluate(
++    async ({ data, filename }) =>
++      (
++        await window.receiptQueueStore.enqueueReceiptUpload(
++          new File([new Uint8Array(data)], filename, { type: '' }),
++        )
++      ).id,
++    { data: [...PNG], filename },
++  );
++  expect(await list(page)).toEqual([
++    expect.objectContaining({ id, filename, uncertain: false, bytes: [...PNG] }),
++  ]);
++  // No receipt route, fetch wrapper or alternate body participates in this proof.
++  expect(await page.evaluate(() => window.receiptQueueDelivery.sendReceiptQueue())).toEqual({
++    sent: 1,
++  });
++  expect(await list(page)).toEqual([]);
++  const physical = (await (await request.get('/api/receipts')).json()).receipts.filter(
++    (row: { originalFilename: string }) => row.originalFilename === filename,
++  );
++  expect(physical).toHaveLength(1);
++  const downloaded = await request.get(`/api/receipts/${physical[0].id}/download`);
++  expect(downloaded.status()).toBe(200);
++  expect(await downloaded.body()).toEqual(PNG);
++  expect(
++    createHash('sha256')
++      .update(await downloaded.body())
++      .digest('hex'),
++  ).toBe('3fd24bcfdb17a6027c5f3ed896d17a020d6ff9d9e4d06362461a9b44b6ac1b52');
++});

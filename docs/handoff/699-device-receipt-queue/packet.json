@@ -1,0 +1,49 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/699-device-receipt-queue",
+  "sourceHead": "83505ed18d90cf18677d4a98614a6d86efb89d70",
+  "originalBaseBeforeOwnedCommits": "297a574c4937616af9566f44954658e2ac43f750",
+  "orderedCommits": [
+    {
+      "sha": "a1293464aaada9ddd2a966d646d4152029aefb6e",
+      "parentBase": "297a574c4937616af9566f44954658e2ac43f750",
+      "subject": "feat(pwa): add fenced device receipt upload storage",
+      "paths": [
+        "apps/web/src/pwa/receipt-queue-store.ts",
+        "docs/evidence/reference-adoption/wp-014-receipt-queue-699.md",
+        "e2e/issue-699-receipt-queue-store.spec.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout a1293464aaada9ddd2a966d646d4152029aefb6e > OWN_OUTPUT/a1293464aaada9ddd2a966d646d4152029aefb6e.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-a1293464aaada9ddd2a966d646d4152029aefb6e.patch",
+      "copied": true
+    },
+    {
+      "sha": "83505ed18d90cf18677d4a98614a6d86efb89d70",
+      "parentBase": "ae37ea510b7fe4e3e2d7f007d66b2c6d89e6f43b",
+      "subject": "feat: deliver durable offline receipt upload intents (refs #699)",
+      "paths": [
+        "apps/web/src/api/http.ts",
+        "apps/web/src/pwa/receipt-queue-store.ts",
+        "apps/web/src/pwa/receipt-queue.test.ts",
+        "apps/web/src/pwa/receipt-queue.ts",
+        "docs/evidence/reference-adoption/wp-014-receipt-queue-699.md",
+        "e2e/issue-699-receipt-queue-store.spec.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 83505ed18d90cf18677d4a98614a6d86efb89d70 > OWN_OUTPUT/83505ed18d90cf18677d4a98614a6d86efb89d70.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/02-83505ed18d90cf18677d4a98614a6d86efb89d70.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/web/src/api/http.ts",
+    "apps/web/src/pwa/receipt-queue-store.ts",
+    "apps/web/src/pwa/receipt-queue.test.ts",
+    "apps/web/src/pwa/receipt-queue.ts",
+    "docs/evidence/reference-adoption/wp-014-receipt-queue-699.md",
+    "e2e/issue-699-receipt-queue-store.spec.ts"
+  ],
+  "mixedSourceAncestry": false,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}
