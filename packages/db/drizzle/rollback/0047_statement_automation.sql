@@ -4,6 +4,8 @@
 -- foreign_keys in the caller's finally block after commit/rollback. Never run on a live database.
 CREATE TEMP TABLE statement_auto_rollback_guard(n INTEGER CHECK(n=0));
 INSERT INTO statement_auto_rollback_guard SELECT foreign_keys FROM pragma_foreign_keys;
+-- An older rollback must never cross a later applied migration.
+INSERT INTO statement_auto_rollback_guard SELECT count(*) FROM __drizzle_migrations WHERE created_at > 1792510000000;
 INSERT INTO statement_auto_rollback_guard SELECT count(*) FROM statement_automation_config;
 INSERT INTO statement_auto_rollback_guard SELECT count(*) FROM statement_automation_run;
 INSERT INTO statement_auto_rollback_guard SELECT count(*) FROM statement_automation_row;
