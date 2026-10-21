@@ -222,6 +222,14 @@ async function scene(
   await picture(page, dialog, 'two-nonzero-rest', info);
   await dialog.getByLabel('Betrag 2', { exact: true }).fill('4,00');
   await expect(dialog.getByText('Rest: 0,00 €', { exact: false })).toBeVisible();
+  await expect(
+    dialog.getByText('Speichern geht erst, wenn der Rest 0,00 € ist.', { exact: true }),
+  ).toHaveCount(0);
+  for (const label of ['Kategorie 1', 'Kategorie 2'])
+    await expect(dialog.getByLabel(label, { exact: true })).not.toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
   await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled();
   await dialog.getByRole('button', { name: 'Zeile 2 entfernen', exact: true }).click();
   await expect(head).toHaveValue('10,00');
@@ -229,6 +237,13 @@ async function scene(
   await expect(dialog.locator('input.amount-input')).toHaveCount(1);
   await expect(dialog.getByLabel(/^Betrag \d+$/)).toHaveCount(0);
   await expect(dialog.getByText(/^Rest:/)).toHaveCount(0);
+  await expect(
+    dialog.getByText('Speichern geht erst, wenn der Rest 0,00 € ist.', { exact: true }),
+  ).toHaveCount(0);
+  await expect(dialog.getByLabel('Kategorie', { exact: true })).not.toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
   await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeEnabled();
   await picture(page, dialog, 'one-after', info);
   const single = await saveAndUndo(dialog, [
