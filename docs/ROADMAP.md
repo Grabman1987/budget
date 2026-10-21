@@ -1781,3 +1781,20 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
 Unknown reference/period remain manual; the next-notice date is never used as
 identity, period or debit-date fallback. Existing retained documents require
 explicit reanalysis/review. Upload and reanalysis never post money.
+
+
+## #589 — URL-backed Plan filters: isolated acceptance packet
+
+The reviewed filter implementation is isolated from the deferred source batch.
+The Plan search reducer receives its reviewed type annotation only; financial
+writers, calculation rules and all existing tests remain unchanged.
+
+- [ ] NEW literal filter/URL and actual hidden-category/multi-month predicate tests pass.
+- [ ] NEW real-API classification, 50+1 pagination, cursor-refusal and read-only conservation tests pass.
+- [ ] NEW Router tests verify counts, search/history, selection reset, collapse, cover placement and fresh/error pagination states.
+- [ ] Native desktop1440/configured390, both themes, keyboard,44px touch targets, Axe and real cover/Undo evidence accepted.
+- [ ] Required static checks, AGE-enabled full check and normal production build pass.
+- [ ] Exact-head CI and serial LIVE verification.
+
+Acceptance tests are being authored; no new runtime or verified acceptance is
+claimed by this source checkpoint. Browser evidence remains pending.

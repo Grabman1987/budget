@@ -214,7 +214,7 @@ function PlanBody({
     void navigate({
       to: '/plan/monat',
       resetScroll: false,
-      search: (previous) => ({
+      search: (previous: Record<string, unknown>) => ({
         ...previous,
         ansicht: undefined,
         filter: next === 'all' ? undefined : next,
