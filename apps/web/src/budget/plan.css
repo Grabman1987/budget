@@ -2788,18 +2788,20 @@
   .plan .activity-table td {
     padding-inline: 4px;
   }
-  .plan .activity-table .activity-date {
-    width: 4.75rem;
-  }
   .plan .activity-table .activity-amount {
     width: 7.25rem;
   }
+  .plan .activity-table .activity-date,
   .plan .activity-table .activity-account,
   .plan .activity-table .activity-status {
     display: none;
   }
-  .plan .activity-mobile-meta {
+  .plan .activity-mobile-meta,
+  .plan .activity-mobile-account {
     display: block;
+  }
+  .plan .activity-mobile-date {
+    white-space: nowrap;
   }
 }
 

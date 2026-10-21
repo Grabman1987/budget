@@ -228,7 +228,25 @@ async function scene(
     rows: [...element.querySelectorAll('tbody tr')].map((row) => {
       const button = row.querySelector<HTMLElement>('.activity-source-button')!;
       const description = row.querySelector<HTMLElement>('.activity-description')!;
+      const visibleDates = [...row.querySelectorAll('time')].filter((date) =>
+        date.checkVisibility(),
+      );
+      const date = visibleDates[0];
+      const range = document.createRange();
+      if (date) range.selectNodeContents(date);
+      const dateRect = date?.getBoundingClientRect();
+      const dateCellRect = date?.closest('td')?.getBoundingClientRect();
       return {
+        visibleDateCount: visibleDates.length,
+        dateLineCount: date
+          ? [...range.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0).length
+          : 0,
+        dateInsideCell: Boolean(
+          dateRect &&
+          dateCellRect &&
+          dateRect.left >= dateCellRect.left &&
+          dateRect.right <= dateCellRect.right,
+        ),
         rowHeight: row.getBoundingClientRect().height,
         descriptionWidth: description.getBoundingClientRect().width,
         buttonWidth: button.getBoundingClientRect().width,
@@ -246,11 +264,27 @@ async function scene(
     expect(row.clippedVertically).toBe(false);
   }
   if (profile === 'configured') {
-    await expect(table.getByRole('columnheader')).toHaveCount(3);
-    await expect(rows.first().locator('.activity-mobile-meta')).toHaveText(
-      'Konto: 745 Girokonto · Status: Vorgemerkt',
-    );
-    await expect(rows.first().locator('.activity-mobile-meta')).toBeVisible();
+    await expect(table.getByRole('columnheader')).toHaveText([
+      'Buchung / Empfänger',
+      'Anteil dieser Kategorie',
+    ]);
+    for (const row of geometry.rows) {
+      expect(row.descriptionWidth).toBeGreaterThanOrEqual(180);
+      expect(row.rowHeight).toBeLessThanOrEqual(160);
+      expect(row.visibleDateCount).toBe(1);
+      expect(row.dateLineCount).toBe(1);
+      expect(row.dateInsideCell).toBe(true);
+    }
+    for (const [index, row] of (await rows.all()).entries()) {
+      const meta = row.locator('.activity-mobile-meta');
+      await expect(meta).toBeVisible();
+      await expect(meta.locator('.activity-mobile-date time')).toHaveText(
+        index < 2 ? '05.10.2026' : '06.10.2026',
+      );
+      await expect(meta).toContainText(index < 2 ? '· Vorgemerkt' : '· Bestätigt');
+      await expect(meta.locator('.activity-mobile-account')).toHaveText('Konto: 745 Girokonto');
+      await expect(meta.locator('.activity-mobile-account')).toBeVisible();
+    }
   } else await expect(table.getByRole('columnheader')).toHaveCount(5);
   await table.scrollIntoViewIfNeeded();
   const fullImage = info.outputPath(`activity-table-${profile}-${theme}.png`);

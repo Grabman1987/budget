@@ -111,7 +111,16 @@ export function ActivityContributions({
                   </span>
                 )}
                 <span className="activity-mobile-meta">
-                  Konto: {item.source?.accountName ?? '—'} · Status: {statusLabel(item)}
+                  <span className="activity-mobile-date">
+                    <span className="sr-only">{item.date ? 'Datum: ' : 'Monat: '}</span>
+                    {item.date ? <time dateTime={item.date}>{longDay(item.date)}</time> : month}
+                  </span>
+                  {' · '}
+                  {statusLabel(item)}
+                  <span className="activity-mobile-account">
+                    <span className="sr-only">Konto: </span>
+                    {item.source?.accountName ?? '—'}
+                  </span>
                 </span>
                 {item.source && item.source.bookingAmountCents !== item.sourceAmountCents && (
                   <small className="activity-detail">
