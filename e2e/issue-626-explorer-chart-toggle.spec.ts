@@ -177,16 +177,29 @@ async function proof(
   let pan = 0;
   if (regionSize.scrollWidth > regionSize.width) {
     await region.focus();
+    await region.evaluate((scroller) => {
+      scroller.removeAttribute('data-native-pan-complete');
+      scroller.addEventListener(
+        'scrollend',
+        () => scroller.setAttribute('data-native-pan-complete', 'true'),
+        { once: true },
+      );
+    });
     await region.press('ArrowRight');
+    await expect(region).toHaveAttribute('data-native-pan-complete', 'true');
     await expect.poll(() => region.evaluate((e) => e.scrollLeft)).toBeGreaterThan(0);
     pan = await region.evaluate((e) => e.scrollLeft);
   }
   const originalCell = sourceRow.locator('td[data-chart-point]').first();
   if (view === 'custom' && regionSize.scrollWidth > regionSize.width) {
-    // A native horizontal pan may put the cell centre behind the sticky row header.
-    // Hover the exposed part of the SAME January cell; public hover still performs
-    // its normal vertical scrolling and hit checks.
+    // Centre the SAME January cell vertically without changing its native horizontal pan.
+    // Measure after scrolling; move the real pointer without another automatic scroll.
     const exposed = await originalCell.evaluate((cell) => {
+      const before = cell.getBoundingClientRect();
+      window.scrollBy({
+        top: before.top + before.height / 2 - innerHeight / 2,
+        behavior: 'instant',
+      });
       const scroller = cell.closest('.ex-scroll')!;
       const box = cell.getBoundingClientRect();
       const scrollBox = scroller.getBoundingClientRect();
@@ -198,7 +211,12 @@ async function proof(
         innerWidth,
       );
       const borderLeft = parseFloat(getComputedStyle(cell).borderLeftWidth) || 0;
+      const pointerX = (left + right) / 2;
+      const pointerY = box.top + box.height / 2;
       return {
+        pointerX,
+        pointerY,
+        hitsOriginalCell: cell.contains(document.elementFromPoint(pointerX, pointerY)),
         exposedWidth: right - left,
         x: (left + right) / 2 - box.left - borderLeft,
         y: cell.clientHeight / 2,
@@ -221,7 +239,8 @@ async function proof(
     expect(Number.isFinite(exposed.x)).toBe(true);
     expect(exposed.x).toBeGreaterThanOrEqual(0);
     expect(exposed.x).toBeLessThan(exposed.cellWidth);
-    await originalCell.hover({ position: { x: exposed.x, y: exposed.y } });
+    expect(exposed.hitsOriginalCell).toBe(true);
+    await page.mouse.move(exposed.pointerX, exposed.pointerY);
   } else {
     await originalCell.hover();
   }
