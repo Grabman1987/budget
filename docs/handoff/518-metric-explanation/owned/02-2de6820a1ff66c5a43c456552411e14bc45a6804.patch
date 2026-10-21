@@ -1,0 +1,14 @@
+diff --git a/apps/web/src/reports/savings-report.tsx b/apps/web/src/reports/savings-report.tsx
+index c88f9a9b81f829aef655e92486c05f276368083f..1f25cc410766638071fc8fba3b61803f5472c4d7 100644
+--- a/apps/web/src/reports/savings-report.tsx
++++ b/apps/web/src/reports/savings-report.tsx
+@@ -321,7 +321,8 @@ function SavingsBody({
+             nicht. Ohne bewertbare Abflüsse bleibt das Geldalter offen.
+           </p>
+           <p className="vnote">
+-            Vergleichsziel: {days(goal)}. Der letzte Punkt ist der Stand heute. Das Geldalter
++            Vergleichsziel: {days(goal)}. Die Monatsstände gelten zum Monatsende, im laufenden
++            Monat bis heute. Das Geldalter
+             beschreibt vergangene Abflüsse; ob kommende Rechnungen gedeckt sind, zeigen Plan und
+             Kontoprognose. Verfügbar und Frei bis Gehalt behalten ihre eigene Berechnung.
+           </p>

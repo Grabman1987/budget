@@ -1,0 +1,39 @@
+diff --git a/apps/web/src/reports/savings-report.tsx b/apps/web/src/reports/savings-report.tsx
+index 97fb53f5f0161c29b405083abca7326fd765a453..c88f9a9b81f829aef655e92486c05f276368083f 100644
+--- a/apps/web/src/reports/savings-report.tsx
++++ b/apps/web/src/reports/savings-report.tsx
+@@ -314,9 +314,16 @@ function SavingsBody({
+             </p>
+           )}
+           <p className="vnote">
+-            Geldalter = wie viele Tage ein ausgegebener Euro im Schnitt auf dem Konto lag (zuerst
+-            eingegangenes Geld wird zuerst ausgegeben, Durchschnitt der letzten zehn Ausgaben). Ab{' '}
+-            {days(goal)} lebt ihr vom Geld des Vormonats. Der letzte Punkt ist der Stand heute.
++            Geldalter betrachtet die letzten bis zu zehn bewertbaren Abflüsse auf Budgetkonten.
++            Zuerst eingegangenes Geld wird zuerst verbraucht. Innerhalb jedes Abflusses zählt das
++            Alter nach Betrag; anschließend zählt jeder dieser Abflüsse gleich viel im Durchschnitt.
++            Positive Anfangssalden zählen ab dem Eröffnungstag, Umbuchungen zwischen Budgetkonten
++            nicht. Ohne bewertbare Abflüsse bleibt das Geldalter offen.
++          </p>
++          <p className="vnote">
++            Vergleichsziel: {days(goal)}. Der letzte Punkt ist der Stand heute. Das Geldalter
++            beschreibt vergangene Abflüsse; ob kommende Rechnungen gedeckt sind, zeigen Plan und
++            Kontoprognose. Verfügbar und Frei bis Gehalt behalten ihre eigene Berechnung.
+           </p>
+         </section>
+       </div>
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index 9084c35487f32e1c55fe90de93558f43d9e46a79..445f23cf48d399b5d5ac8d5d6c095ee1c886ef50 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1858,3 +1858,10 @@ explicit reanalysis/review. Upload and reanalysis never post money.
+ - The confirmed owner convention uses signed net worth for shares: complete current values and at least 10,000 cents are required; debts remain negative, shares can exceed 100%, and smaller/incomplete net worth shows euros only. The exact BigInt multiplication helper supplies basis points. A new display-group calculation limit is explicit and cannot turn an otherwise valid legacy wealth read into an error.
+ - Added the default grouped view with expandable account contributions and a whole-account mode. Added a separate monthly composition view with true month-end samples, explicit period-start/as-of anchors, signed areas and the source net-worth line; the existing daily Gesamt view is retained. Tooltip/table points share the dated source values, with no interpolation across unavailable data. Historical values use current account/instrument grouping metadata, which is disclosed in the UI.
+ - [ ] Source-only checkpoint: independent whole-diff review and all later acceptance remain pending. No new tests, test execution, formatter, typecheck, build, native/visual/Axe evidence or CI was run for this packet. Source controls for privacy, native expansion, responsive widths and 44px actions are implemented but are not a claim of rendered acceptance. Literal conservation/rounding/shares/transfer+Undo/gaps and monthly endpoint tests remain required, followed by the required checks, browser evidence, exact-head CI and LIVE verification.
++
++
++### #518 — precise existing money-age explanation (source only)
++
++- Clarified the existing report explanation: FIFO within each eligible budget-account outflow, amount weighting within that outflow, then equal weighting of up to ten outflow ages. Positive opening balances and internal budget-account transfers are explicitly distinguished; unavailable age remains unavailable.
++- Replaced the unsupported claim that reaching a day target proves living on the previous month's money with a neutral comparison target and the distinction between historical age and future bill coverage. Existing Plan, pace, free-until-payday, forecast and financial producers are unchanged; no optional numeric runway was introduced.
++- Scope is explanation only. Source correspondence was checked against the current domain/repository read model. Existing tests remain unchanged; runtime checks, browser acceptance and delivery are deferred with the owner's implementation batch. Dependencies #513/#517 and the full #518 closing gates remain open.

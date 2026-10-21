@@ -1,0 +1,32 @@
+[
+  {
+    "path": "docs/handoff/518-metric-explanation/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/518-metric-explanation/README.md",
+    "size": 475,
+    "sha256": "a9cb319675810c546982560c897c3d4c028f6e3774343b5b95e145de8c30ab4d"
+  },
+  {
+    "path": "docs/handoff/518-metric-explanation/owned/01-e763c8944c6ceb0d87cd73531198db301de13c08.patch",
+    "size": 4324,
+    "sha256": "92abd7e09c5eae410e203b73de543fe69380b21b89af41940455cc55e6b35c32"
+  },
+  {
+    "path": "docs/handoff/518-metric-explanation/owned/02-2de6820a1ff66c5a43c456552411e14bc45a6804.patch",
+    "size": 892,
+    "sha256": "80b3597e42023291d7ac7a6f125df1461bf335d870fc41c4a04ce92f77fed11f"
+  },
+  {
+    "path": "docs/handoff/518-metric-explanation/packet.json",
+    "size": 1783,
+    "sha256": "9e916ead5656f108108388e6fb71899b28edb9a0dfbac0fe1128101b6cf56bcf"
+  },
+  {
+    "path": "docs/handoff/518-metric-explanation/reviews/518-final-copy-source-review.json",
+    "size": 418,
+    "sha256": "6bed0be82798bb9726f0d99a549dabb6d23f5aa322e891761265ba9038272281"
+  }
+]

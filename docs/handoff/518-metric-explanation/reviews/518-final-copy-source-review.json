@@ -1,0 +1,10 @@
+{
+  "checkpoint": "2de6820a1ff66c5a43c456552411e14bc45a6804",
+  "integration": "5960e51cba63d509cdc9f24262103ab16d3dfead",
+  "independent_reviewer": "valuation_aggregate_review",
+  "scope": "two source files: existing money-age note and own roadmap appendix",
+  "finding_fixed": "historical month-end versus current-month today statement",
+  "result": "source clear only",
+  "tests_run": false,
+  "published": false
+}

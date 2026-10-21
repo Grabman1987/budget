@@ -1,0 +1,39 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/518-metric-explanation",
+  "sourceHead": "2de6820a1ff66c5a43c456552411e14bc45a6804",
+  "originalBaseBeforeOwnedCommits": "37d4f3f5493e581b234378d07d6fddd40fe674be",
+  "orderedCommits": [
+    {
+      "sha": "e763c8944c6ceb0d87cd73531198db301de13c08",
+      "parentBase": "37d4f3f5493e581b234378d07d6fddd40fe674be",
+      "subject": "docs: clarify existing money age calculation (Refs #518)",
+      "paths": [
+        "apps/web/src/reports/savings-report.tsx",
+        "docs/ROADMAP.md"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout e763c8944c6ceb0d87cd73531198db301de13c08 > OWN_OUTPUT/e763c8944c6ceb0d87cd73531198db301de13c08.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-e763c8944c6ceb0d87cd73531198db301de13c08.patch",
+      "copied": true
+    },
+    {
+      "sha": "2de6820a1ff66c5a43c456552411e14bc45a6804",
+      "parentBase": "e763c8944c6ceb0d87cd73531198db301de13c08",
+      "subject": "docs: distinguish historical money age dates (Refs #518)",
+      "paths": [
+        "apps/web/src/reports/savings-report.tsx"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 2de6820a1ff66c5a43c456552411e14bc45a6804 > OWN_OUTPUT/2de6820a1ff66c5a43c456552411e14bc45a6804.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/02-2de6820a1ff66c5a43c456552411e14bc45a6804.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/web/src/reports/savings-report.tsx",
+    "docs/ROADMAP.md"
+  ],
+  "mixedSourceAncestry": true,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}
