@@ -1,0 +1,47 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/596-ledger-bulk-bar",
+  "sourceHead": "1295652f3bcf7928677cc04041642a60a218f18c",
+  "originalBaseBeforeOwnedCommits": "211291473f2848eb9a17116908aa86d399b2d3d2",
+  "orderedCommits": [
+    {
+      "sha": "1295652f3bcf7928677cc04041642a60a218f18c",
+      "parentBase": "211291473f2848eb9a17116908aa86d399b2d3d2",
+      "subject": "feat(ledger): implement source-only bulk selection bar (#596)",
+      "paths": [
+        "apps/server/src/api/bookings.ts",
+        "apps/server/src/api/schemas.ts",
+        "apps/web/src/ledger/api.ts",
+        "apps/web/src/ledger/booking-selection-bar.tsx",
+        "apps/web/src/ledger/booking-table.tsx",
+        "apps/web/src/ledger/bookings-page.tsx",
+        "apps/web/src/ledger/cache.ts",
+        "apps/web/src/ledger/labels.ts",
+        "apps/web/src/ledger/ledger.css",
+        "apps/web/src/ledger/mutations.ts",
+        "packages/db/src/repos/booking-bulk-eligibility.ts",
+        "packages/db/src/repos/index.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 1295652f3bcf7928677cc04041642a60a218f18c > OWN_OUTPUT/1295652f3bcf7928677cc04041642a60a218f18c.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-1295652f3bcf7928677cc04041642a60a218f18c.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/server/src/api/bookings.ts",
+    "apps/server/src/api/schemas.ts",
+    "apps/web/src/ledger/api.ts",
+    "apps/web/src/ledger/booking-selection-bar.tsx",
+    "apps/web/src/ledger/booking-table.tsx",
+    "apps/web/src/ledger/bookings-page.tsx",
+    "apps/web/src/ledger/cache.ts",
+    "apps/web/src/ledger/labels.ts",
+    "apps/web/src/ledger/ledger.css",
+    "apps/web/src/ledger/mutations.ts",
+    "packages/db/src/repos/booking-bulk-eligibility.ts",
+    "packages/db/src/repos/index.ts"
+  ],
+  "mixedSourceAncestry": true,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

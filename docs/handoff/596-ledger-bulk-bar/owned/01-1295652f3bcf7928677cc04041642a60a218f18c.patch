@@ -1,0 +1,1043 @@
+diff --git a/apps/server/src/api/bookings.ts b/apps/server/src/api/bookings.ts
+index cb8935e84dce0dbd03a302a89b73577439e292e0..07dbc8032e1c8173db6f5912ff01bb3f92dcd9b0 100644
+--- a/apps/server/src/api/bookings.ts
++++ b/apps/server/src/api/bookings.ts
+@@ -13,6 +13,9 @@ import {
+   ensureAdvanceCategory,
+   getBooking,
+   queryBookings,
++  readBookingBulkSelection,
++  type BookingBulkItem,
++  type BookingBulkReason,
+   ReconciledLockedError,
+   relatedTransferBookings,
+   runInTransaction,
+@@ -32,8 +35,7 @@ import { ACTOR, ApiError, defined, errorAnswer, readBody, readQuery } from './ht
+ import { bookingDeleteQuery, bookingPatch, bookingQuery, bulkBody, createBody } from './schemas';
+ 
+ /** Why a bulk action left a booking out. */
+-type BulkSkipReason =
+-  'not_found' | 'reconciled_locked' | 'split' | 'transfer' | 'transfer_pair' | 'invalid';
++type BulkSkipReason = BookingBulkReason | 'split' | 'transfer' | 'transfer_pair' | 'unchanged';
+ 
+ class Skip extends Error {
+   constructor(
+@@ -321,18 +323,28 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
+     return c.json(linkBookings(db, body.ids, audit()));
+   });
+ 
++  // Complete native selected-row facts; this does not authorize a later write or preview deletion.
++  app.post('/selection', async (c) => {
++    const body = await readBody(c, z.object({ ids: z.array(z.string().min(1).max(200)).min(1).max(500) }).strict());
++    return c.json(readBookingBulkSelection(db, body.ids));
++  });
++
+   app.post('/bulk', async (c) => {
+     const body = await readBody(c, bulkBody);
+     const ctx = audit();
+     const ids = [...new Set(body.ids)];
+     const selected = new Set(ids);
+     const changed: string[] = [];
+-    const skipped: { id: string; reason: BulkSkipReason; message: string }[] = [];
++    const skipped: { id: string; reason: BulkSkipReason; message: string; booking?: BookingBulkItem }[] = [];
+     /** Legs deleted together with an earlier id of this request. */
+     const goneWith = new Set<string>();
+     const pairedLegs = new Set<string>();
+     let transferPairs = 0;
+     runInTransaction(db, (tx) => {
++      // One locked transaction snapshot for the batch; metadata updates below cannot create
++      // cross-row financial owners. Ordinary writers still check current invariants per item.
++      const selection = body.action === 'update' ? readBookingBulkSelection(tx, ids) : null;
++      const eligibility = new Map(selection?.items.map((item) => [item.id, item]) ?? []);
+       for (const id of ids) {
+         if (goneWith.has(id)) {
+           changed.push(id);
+@@ -342,6 +354,11 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
+           runInTransaction(tx, (inner) => {
+             const current = getBooking(inner, id);
+             if (!current) throw new Skip('not_found', 'Booking not found');
++            if (body.action === 'update') {
++              const item = eligibility.get(id);
++              if (!item) throw new Skip('not_found', 'Booking not found');
++              if (item.reason) throw new Skip(item.reason, 'Protected or linked booking left unchanged');
++            }
+             const partners = relatedTransferBookings(inner, id).filter((leg) => leg !== id);
+             const paired = partners.some((leg) => selected.has(leg));
+             if (paired && !pairedLegs.has(id)) transferPairs += 1;
+@@ -352,8 +369,12 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
+               for (const leg of partners) goneWith.add(leg);
+               return;
+             }
+-            const { categoryId, flag, status } = body.set;
+-            const patch: BookingPatch = defined({ flag, status });
++            const { categoryId, flag, status, projectId } = body.set;
++            const patch: BookingPatch = defined({
++              flag: flag !== current.flag ? flag : undefined,
++              status: status !== current.status ? status : undefined,
++              projectId: projectId !== current.projectId ? projectId : undefined,
++            });
+             if (categoryId !== undefined) {
+               const [only] = current.splits;
+               if (current.transferId || current.splits.some((s) => s.transferId)) {
+@@ -364,7 +385,7 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
+               }
+               if (!only || current.splits.length !== 1)
+                 throw new Skip('split', 'Only single-split bookings take a category');
+-              patch.splits = [
++              if (only.categoryId !== categoryId) patch.splits = [
+                 {
+                   categoryId,
+                   amountCents: only.amountCents,
+@@ -374,7 +395,9 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
+                 },
+               ];
+             }
+-            updateBooking(inner, id, patch, ctx, options);
++            if (Object.keys(patch).length === 0) throw new Skip('unchanged', 'Already in the requested state');
++            // Bulk has no unlock path, even for otherwise free metadata such as flags.
++            updateBooking(inner, id, patch, ctx, { unlockReconciled: false });
+           });
+           changed.push(id);
+         } catch (error) {
+@@ -388,6 +411,7 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
+             id,
+             reason,
+             message: error instanceof Skip ? error.message : errorAnswer(error).body.message,
++            ...(eligibility.get(id) ? { booking: eligibility.get(id)! } : {}),
+           });
+         }
+       }
+diff --git a/apps/server/src/api/schemas.ts b/apps/server/src/api/schemas.ts
+index 99cd519c3be7620cf00e3f3b90d58850cf50e2ac..d568204b219fb432ffc2f42758a03fab6ba873ec 100644
+--- a/apps/server/src/api/schemas.ts
++++ b/apps/server/src/api/schemas.ts
+@@ -194,7 +194,7 @@ export const bulkBody = z.discriminatedUnion('action', [
+     action: z.literal('update'),
+     ids: z.array(id).min(1).max(500),
+     set: z
+-      .object({ categoryId: id.nullable(), flag: flag.nullable(), status: writableStatus })
++      .object({ categoryId: id.nullable(), flag: flag.nullable(), status: writableStatus, projectId: id.nullable() })
+       .partial()
+       .refine((s) => Object.keys(s).length > 0, 'Nothing to set'),
+     unlockReconciled: z.boolean().default(false),
+diff --git a/apps/web/src/ledger/api.ts b/apps/web/src/ledger/api.ts
+index 4eacb20dbda943bbd5b6a51f1fe82fd119aead25..6c2eb620653b1539ed010d6dd2cde7b1413840a2 100644
+--- a/apps/web/src/ledger/api.ts
++++ b/apps/web/src/ledger/api.ts
+@@ -223,18 +223,29 @@ export const deleteBooking = (id: string, unlock = false) =>
+ 
+ /** Why the server left a booking out of a bulk action. */
+ export type BulkSkipReason =
+-  'not_found' | 'reconciled_locked' | 'split' | 'transfer' | 'transfer_pair' | 'invalid';
++  'not_found' | 'reconciled_locked' | 'split' | 'transfer' | 'transfer_pair' | 'invalid' | 'unchanged' |
++  'linked_transfer' | 'linked_contact' | 'linked_expected' | 'linked_trade' | 'linked_payroll' |
++  'linked_statement' | 'linked_document' | 'linked_bank';
++export interface BulkSelectionItem {
++  id: string; date: string; description: string; accountId: string; accountName: string;
++  amountCents: number | null; currency: string; projectId: string | null; reason: BulkSkipReason | null;
++}
++export interface BulkSelection {
++  selectedCount: number; items: BulkSelectionItem[]; missingIds: string[];
++  totals: { currency: string; count: number; cents: number | null; unavailable: 'unsafe_total' | null }[];
++}
++export const readBulkSelection = (ids: string[]) => request<BulkSelection>('POST', '/api/bookings/selection', { ids });
+ 
+ export interface BulkResult extends WriteResult {
+   changed: string[];
+-  skipped: { id: string; reason: BulkSkipReason; message: string }[];
++  skipped: { id: string; reason: BulkSkipReason; message: string; booking?: BulkSelectionItem }[];
+   /** Transfers with both legs in the selection (one Umbuchung each). */
+   transferPairs: number;
+ }
+ 
+ export const bulkUpdateBookings = (
+   ids: string[],
+-  set: { categoryId?: string | null; flag?: BookingFlag | null; status?: 'pending' | 'confirmed' },
++  set: { categoryId?: string | null; flag?: BookingFlag | null; status?: 'pending' | 'confirmed'; projectId?: string | null },
+ ) => request<BulkResult>('POST', '/api/bookings/bulk', { action: 'update', ids, set });
+ 
+ export const bulkDeleteBookings = (ids: string[]) =>
+diff --git a/apps/web/src/ledger/booking-selection-bar.tsx b/apps/web/src/ledger/booking-selection-bar.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..35a165fa267debd4744d0136d4534b56248b4a1c
+--- /dev/null
++++ b/apps/web/src/ledger/booking-selection-bar.tsx
+@@ -0,0 +1,99 @@
++import { Button, Select, useAmountPrivacy } from '@budget/ui';
++import { useQuery } from '@tanstack/react-query';
++import { useEffect, useRef, useState, type ReactNode } from 'react';
++import { readBulkSelection, type BulkResult, type BulkSelection } from './api';
++import type { BulkSet } from './cache';
++import { longDay, nativeCurrency } from './format';
++import { FLAG_LABEL, SKIP_REASON_LABEL } from './labels';
++import { LEDGER_KEY } from './queries';
++import { ErrorNote, LoadingNote } from './states';
++import { BOOKING_FLAGS } from './types';
++
++export interface BulkOutcome { action: 'update' | 'delete'; result: BulkResult; submitted?: BulkSelection }
++export function BookingSelectionBar({ ids, pending, categories, projects, onApply, onClear, extra, outcome }: {
++  ids: string[]; pending: boolean;
++  categories: { id: string; name: string }[];
++  projects: { id: string; name: string; archivedAt?: string | null }[];
++  onApply: (set: BulkSet, facts: BulkSelection) => void;
++  onClear: () => void;
++  extra: (facts: BulkSelection | undefined) => ReactNode;
++  outcome: BulkOutcome | null;
++}) {
++  useAmountPrivacy();
++  const ordered = [...ids].sort(), key = ordered.join('|');
++  const query = useQuery({ queryKey: [...LEDGER_KEY, 'bulk-selection', key], enabled: ids.length > 0 && ids.length <= 500,
++    queryFn: () => readBulkSelection(ordered),
++  });
++  const facts = query.data;
++  const accounted = facts ? [...facts.items.map((r) => r.id), ...facts.missingIds] : [];
++  const complete = !!facts && facts.selectedCount === ids.length && accounted.length === ids.length &&
++    new Set(accounted).size === ids.length && accounted.every((id) => ids.includes(id));
++  const locked = pending || query.isFetching || !complete || ids.length > 500;
++  const bar = useRef<HTMLDivElement>(null), [height, setHeight] = useState(0);
++  const visible = ids.length > 0;
++  useEffect(() => {
++    if (!bar.current || !visible || typeof ResizeObserver === 'undefined') return;
++    const observer = new ResizeObserver(([entry]) => { if (entry) setHeight(Math.ceil(entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height)); });
++    observer.observe(bar.current);
++    return () => observer.disconnect();
++  }, [visible]);
++  const apply = (set: BulkSet) => { if (!locked && facts) onApply(set, facts); };
++  const result = (outcome && <section className="kbulk-result" aria-label={outcome.action === 'update' ? 'Ergebnis der Sammeländerung' : 'Löschergebnis'}>
++      <p role="status">{outcome.result.changed.length} {outcome.action === 'update' ? 'geändert' : 'gelöscht'} · {outcome.result.skipped.length} übersprungen.</p>
++      {outcome.result.skipped.length > 0 && <ul>{outcome.result.skipped.map((skip) => {
++        const current = skip.booking, row = current ?? outcome.submitted?.items.find((r) => r.id === skip.id);
++        return <li key={skip.id}>
++          {row ? <><a href={`/konten/buchungen?buchung=${encodeURIComponent(row.id)}&konto=${encodeURIComponent(row.accountId)}`}>{row.description}</a>{!current && ' (Stand bei Auswahl)'} · {longDay(row.date)} · {row.amountCents === null ? 'Betrag nicht verfügbar' : nativeCurrency(row.amountCents, row.currency, true)} · {row.accountName} · </> : 'Buchung nicht mehr verfügbar · '}
++          {skip.id}: {SKIP_REASON_LABEL[skip.reason]}
++        </li>;
++      })}</ul>}
++    </section>);
++  return <>
++    {visible && <>
++      <div className="kselection-reserve" style={{ height }} aria-hidden="true" />
++      <div ref={bar} className="kbulk kselection-bar" role="group" aria-label="Auswahl bearbeiten" aria-busy={pending || query.isFetching}>
++        <div className="kselection-summary">
++          <strong>{ids.length} ausgewählt</strong>
++          {!complete || !!facts?.missingIds.length ? <span>Summe nicht vollständig verfügbar</span> :
++            <span>Summe: {facts!.totals.map((t) => t.cents === null ? `${t.currency}: nicht darstellbar` : nativeCurrency(t.cents, t.currency, true)).join(' · ')}</span>}
++          {facts?.missingIds.length ? <span>{facts.missingIds.length} nicht mehr verfügbar: {facts.missingIds.join(', ')}</span> : null}
++          <Button variant="ghost" disabled={pending} onClick={onClear}>Auswahl aufheben</Button>
++        </div>
++        {ids.length > 500 && <p role="alert">Höchstens 500 Buchungen pro Sammeländerung auswählen.</p>}
++        {query.isFetching && <LoadingNote what="Ausgewählte Buchungen" />}
++        {query.isError && <ErrorNote what="Ausgewählte Buchungen" error={query.error} onRetry={() => void query.refetch()} />}
++        <fieldset className="kbulk-controls" disabled={locked}>
++          <legend className="sr-only">Sammeländerung</legend>
++          <Select className="select-sm" aria-label="Kategorie für die Auswahl setzen" value="" onChange={(e) => {
++            if (e.target.value) apply({ categoryId: e.target.value === 'none' ? null : e.target.value });
++          }}>
++            <option value="">Kategorie setzen …</option><option value="none">ohne Kategorie</option>
++            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
++          </Select>
++          <Select className="select-sm" aria-label="Status für die Auswahl setzen" value="" onChange={(e) => {
++            if (e.target.value === 'pending' || e.target.value === 'confirmed') apply({ status: e.target.value });
++          }}>
++            <option value="">Status setzen …</option><option value="pending">Vorgemerkt</option><option value="confirmed">Bestätigt</option>
++          </Select>
++          <Select className="select-sm" aria-label="Markierung für die Auswahl setzen" value="" onChange={(e) => {
++            const value = e.target.value;
++            if (value === 'none') apply({ flag: null }); else if (BOOKING_FLAGS.includes(value as typeof BOOKING_FLAGS[number])) apply({ flag: value as typeof BOOKING_FLAGS[number] });
++          }}>
++            <option value="">Markierung setzen …</option><option value="none">Markierung entfernen</option>
++            {BOOKING_FLAGS.map((flag) => <option key={flag} value={flag}>{FLAG_LABEL[flag]}</option>)}
++          </Select>
++          <Select className="select-sm" aria-label="Projekt für die Auswahl setzen" value="" onChange={(e) => {
++            if (e.target.value) apply({ projectId: e.target.value === 'none' ? null : e.target.value });
++          }}>
++            <option value="">Projekt setzen …</option><option value="none">Projekt entfernen</option>
++            {projects.filter((p) => !p.archivedAt).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
++          </Select>
++          <details><summary>Weitere Aktionen</summary><div className="kbulk-controls">{extra(complete ? facts : undefined)}</div></details>
++        </fieldset>
++        {result}
++      </div>
++    </>}
++    {!visible && result}
++
++  </>;
++}
+diff --git a/apps/web/src/ledger/booking-table.tsx b/apps/web/src/ledger/booking-table.tsx
+index 48732af43269b0c453e18a50e9c91717c0dbb31a..db7ea8dec8968deabf657a68a63bd606e6078ada 100644
+--- a/apps/web/src/ledger/booking-table.tsx
++++ b/apps/web/src/ledger/booking-table.tsx
+@@ -7,6 +7,8 @@ import { ArrowDown, ArrowUp, CalendarDays, ChevronDown, Pencil } from 'lucide-re
+ import { Fragment, useId, useState, type ReactNode } from 'react';
+ import { CategoryCell, FlagCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
+ import { BookingLegend } from './booking-legend';
++import { FlagGlyph } from './flag-picker';
++import { FLAG_LABEL } from './labels';
+ import { dayHeading, nativeCurrency, valuedCurrency, shortDay, upcomingDate, eur } from './format';
+ import { ScheduledRegisterRow } from './scheduled-register-row';
+ import { upcomingEntries, upcomingSummary, type UpcomingModel } from './upcoming-register';
+@@ -17,6 +19,9 @@ import type { BookingFlag, BookingSort, ListedBooking } from './types';
+ 
+ export interface Selection {
+   selected: ReadonlySet<string>;
++  disabled?: boolean;
++  /** Explicit phone selection mode; metadata stays read-only while choosing rows. */
++  mode?: boolean;
+   toggle: (id: string) => void;
+   toggleAll: (ids: string[]) => void;
+ }
+@@ -57,6 +62,7 @@ export function BookingTable({
+   const writes = useLedgerWrites();
+   const lookups = useQuery(lookupsQuery());
+   const setCategory = (b: ListedBooking, categoryId: string | null) => {
++    if (selection?.disabled || selection?.mode) return;
+     if ((b.splits[0]?.categoryId ?? null) === categoryId) return;
+     writes.patch.mutate({
+       id: b.id,
+@@ -65,6 +71,7 @@ export function BookingTable({
+   };
+   // A flag is saved at once, with the usual undo toast.
+   const setFlag = (b: ListedBooking, flag: BookingFlag | null) => {
++    if (selection?.disabled || selection?.mode) return;
+     if ((b.flag ?? null) === flag) return;
+     writes.patch.mutate({ id: b.id, patch: { flag } });
+   };
+@@ -156,7 +163,9 @@ export function BookingTable({
+           groups={lookups.data?.groups ?? []}
+           onCategory={setCategory}
+           onFlag={setFlag}
+-          onPatch={(patch) => writes.patch.mutateAsync({ id: b.id, patch })}
++          onPatch={(patch) => selection?.disabled || selection?.mode
++            ? Promise.reject(new Error('Bitte die laufende Auswahl zuerst beenden.'))
++            : writes.patch.mutateAsync({ id: b.id, patch })}
+           busy={writes.patch.isPending}
+         />
+       ))}
+@@ -172,6 +181,7 @@ export function BookingTable({
+             <input
+               type="checkbox"
+               checked={items.length > 0 && items.every((b) => selection.selected.has(b.id))}
++              disabled={selection.disabled}
+               onChange={() => selection.toggleAll(items.map((b) => b.id))}
+             />
+             Alle sichtbaren auswählen
+@@ -201,7 +211,8 @@ export function BookingTable({
+                   type="checkbox"
+                   aria-label="Alle sichtbaren Buchungen auswählen"
+                   checked={items.length > 0 && items.every((b) => selection.selected.has(b.id))}
+-                  onChange={() => selection.toggleAll(items.map((b) => b.id))}
++                  disabled={selection.disabled}
++              onChange={() => selection.toggleAll(items.map((b) => b.id))}
+                 />
+               </th>
+             )}
+@@ -348,6 +359,7 @@ function Row({
+   const flashing = useFlashing(b.id);
+   const [editing, setEditing] = useState(false);
+   const checked = selection?.selected.has(b.id) ?? false;
++  const selectionMode = selection?.mode === true;
+   const label = `${b.payeeName ?? 'Buchung'} am ${shortDay(b.date)}`;
+   return (
+     // Individual cell controls handle keyboard access; the rest of the row opens the dialog.
+@@ -371,27 +383,32 @@ function Row({
+             type="checkbox"
+             aria-label={`${label} auswählen`}
+             checked={checked}
++            disabled={selection.disabled}
+             onChange={() => selection.toggle(b.id)}
+           />
+         </td>
+       )}
+       <td className="kc-flag kx-flag">
+-        <FlagCell
++        {selectionMode ? <span className="kflag" role="img" aria-label={b.flag ? `Markierung ${FLAG_LABEL[b.flag]}` : 'Keine Markierung'}>
++          <FlagGlyph flag={b.flag} size={16} />
++        </span> : <FlagCell
+           booking={b}
+           label={label}
+-          onChange={(flag) => onFlag(b, flag === '' ? null : flag)}
+-        />
++          onChange={(flag) => { if (!selection?.disabled) onFlag(b, flag === '' ? null : flag); }}
++        />}
+       </td>
+       <td className="kc-date kx-date">
+-        <InlineBookingCell booking={b} field="date" onSave={onPatch} onOpen={() => onOpen(b)}>
+-          {upcomingToday ? upcomingDate(b.date, upcomingToday) : shortDay(b.date)}
+-        </InlineBookingCell>
++        {selectionMode ? <span>{upcomingToday ? upcomingDate(b.date, upcomingToday) : shortDay(b.date)}</span> :
++          <InlineBookingCell booking={b} field="date" onSave={onPatch} onOpen={() => onOpen(b)}>
++            {upcomingToday ? upcomingDate(b.date, upcomingToday) : shortDay(b.date)}
++          </InlineBookingCell>}
+       </td>
+       <td className="kx-payee">
+         <button
+           type="button"
+           className="kname-btn"
+-          aria-label={`${label} bearbeiten`}
++          aria-label={selectionMode ? `${label} ${checked ? 'abwählen' : 'auswählen'}` : `${label} bearbeiten`}
++          disabled={selection?.disabled}
+           onClick={() => onOpen(b)}
+         >
+           <PayeeCell
+@@ -426,7 +443,7 @@ function Row({
+       )}
+       {variant === 'all' && <td className="kc-acct kx-acct">{b.accountName}</td>}
+       <td className="kx-cat">
+-        {editing ? (
++        {editing && !selectionMode ? (
+           <select
+             className="select select-sm"
+             aria-label={`Kategorie für ${label}`}
+@@ -461,7 +478,7 @@ function Row({
+                 </option>
+               ))}
+           </select>
+-        ) : canEditCategory(b) ? (
++        ) : canEditCategory(b) && !selectionMode ? (
+           <button
+             type="button"
+             className="kcat-btn"
+@@ -476,6 +493,7 @@ function Row({
+         )}
+       </td>
+       <td className="kc-num kx-amount">
++        {selectionMode ? <span>{valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}</span> : (
+         <InlineBookingCell
+           booking={b}
+           field="amountCents"
+@@ -491,6 +509,7 @@ function Row({
+             {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
+           </span>
+         </InlineBookingCell>
++        )}
+         {b.categorySpendingCents !== undefined && (
+           <small className="kmeta">Kategorie netto {eur(b.categorySpendingCents)}</small>
+         )}
+@@ -529,7 +548,7 @@ function Row({
+             iconOnly
+             disabled={busy}
+             onToggle={
+-              b.status === 'reconciled'
++              b.status === 'reconciled' || selectionMode
+                 ? undefined
+                 : () => {
+                     void onPatch({
+diff --git a/apps/web/src/ledger/bookings-page.tsx b/apps/web/src/ledger/bookings-page.tsx
+index 21d90abe102c90d831ec8a6bfe40971483a75cc0..f06f76f017bd69e38f5374d94388926b8db8569f 100644
+--- a/apps/web/src/ledger/bookings-page.tsx
++++ b/apps/web/src/ledger/bookings-page.tsx
+@@ -21,6 +21,9 @@ import { KONTEN_BUCHUNGEN_META } from '../nav/pages';
+ import { PageFrame } from '../pages/placeholder-page';
+ import { BookingPanel, type BookingPanelState } from './booking-panel';
+ import { BookingTable, type Selection } from './booking-table';
++import { BookingSelectionBar, type BulkOutcome } from './booking-selection-bar';
++import type { BulkSelection } from './api';
++import type { BulkSet } from './cache';
+ import { BookingStatusChips } from './booking-status-chips';
+ import { useRegisterToday, useUpcomingRegister } from './upcoming-register';
+ import { CategoryCombobox } from './category-picker';
+@@ -52,7 +55,8 @@ export function BookingsPage() {
+   useAmountPrivacy();
+   const search = useSearch({ strict: false }) as BookingsSearch;
+   const navigate = useNavigate();
+-  const setSearch = (patch: Partial<BookingsSearch>) =>
++  const setSearch = (patch: Partial<BookingsSearch>) => {
++    if (writes.bulk.isPending || linking) return;
+     void navigate({
+       to: '.',
+       search: ((prev: Record<string, unknown>) => {
+@@ -63,6 +67,7 @@ export function BookingsPage() {
+       }) as never,
+       replace: true,
+     });
++  };
+ 
+   const filter = useMemo(() => filterFromSearch(search), [search]);
+   const today = useRegisterToday();
+@@ -78,6 +83,8 @@ export function BookingsPage() {
+   const [linking, setLinking] = useState(false);
+   const [panel, setPanel] = useState<BookingPanelState>(null);
+   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
++  const [selecting, setSelecting] = useState(false), [outcome, setOutcome] = useState<BulkOutcome | null>(null);
++  const isPhone = useIsPhone(), pending = writes.bulk.isPending || linking;
+   /** Bulk delete asks once more; any change of the selection withdraws the question. */
+   const [confirmDelete, setConfirmDelete] = useState(false);
+   const [seenSelected, setSeenSelected] = useState(selected);
+@@ -100,15 +107,25 @@ export function BookingsPage() {
+   const onlyEurAccounts = accounts.data?.accounts.every((a) => a.currency === 'EUR');
+   const selection: Selection = {
+     selected,
+-    toggle: (id) =>
++    disabled: pending,
++    mode: isPhone && selecting,
++    toggle: (id) => {
++      if (pending) return;
+       setSelected((prev) => {
+         const next = new Set(prev);
+         if (next.has(id)) next.delete(id);
+         else next.add(id);
+         return next;
+-      }),
+-    toggleAll: (ids) =>
+-      setSelected((prev) => (ids.every((id) => prev.has(id)) ? new Set() : new Set(ids))),
++      });
++    },
++    toggleAll: (ids) => {
++      if (pending || !ids.length) return;
++      setSelected((prev) => {
++        const next = new Set(prev), all = ids.every((id) => prev.has(id));
++        for (const id of ids) { if (all) next.delete(id); else next.add(id); }
++        return next;
++      });
++    },
+   };
+   const ids = [...selected];
+   const pair = items.filter((b) => selected.has(b.id));
+@@ -123,7 +140,16 @@ export function BookingsPage() {
+         !b.originalCurrency &&
+         b.splits.every((s) => !s.transferId && !s.contactId),
+     );
+-  const bulkDone = () => setSelected(new Set());
++  const bulkDone = (completed = ids) => setSelected((prev) => new Set([...prev].filter((id) => !completed.includes(id))));
++  const runBulk = async (vars: { ids: string[]; set: BulkSet } | { ids: string[]; remove: true }, submitted?: BulkSelection) => {
++    if (pending) return;
++    setOutcome(null);
++    try {
++      const result = await writes.bulk.mutateAsync(vars);
++      setOutcome({ action: 'remove' in vars ? 'delete' : 'update', result, ...(submitted ? { submitted } : {}) });
++      bulkDone(result.changed);
++    } catch { /* The mutation reports failure; the selection and its context stay intact. */ }
++  };
+ 
+   const sortKey: BookingSort = filter.sort ?? 'date';
+   const direction = filter.direction ?? (sortKey === 'date' ? 'desc' : 'asc');
+@@ -143,7 +169,10 @@ export function BookingsPage() {
+           </AppLink>
+         )}
+         <div className="kbar">
+-          <Button size="sm" onClick={() => setPanel({ mode: 'create', accountId: search.konto })}>
++          {isPhone && <Button variant="ghost" disabled={pending} aria-pressed={selecting} onClick={() => {
++            setSelecting((value) => !value); setSelected(new Set());
++          }}>{selecting ? 'Auswahl beenden' : 'Auswählen'}</Button>}
++          <Button size="sm" disabled={pending} onClick={() => setPanel({ mode: 'create', accountId: search.konto })}>
+             <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
+             Buchung erfassen
+           </Button>
+@@ -152,6 +181,8 @@ export function BookingsPage() {
+           <h2 className="sr-only" id="filter-title">
+             Filter
+           </h2>
++          <fieldset className="kbulk-readonly-surface" disabled={pending}>
++          <legend className="sr-only">Buchungsfilter</legend>
+           <FilterRow
+             sortValue={`${sortKey}-${direction}`}
+             onSortValue={(value) => {
+@@ -164,112 +195,8 @@ export function BookingsPage() {
+             lookups={lookups.data}
+           />
+           <BookingStatusChips value={filter.status} onChange={(status) => setSearch({ status })} />
+-          {selected.size > 0 && (
+-            <div className="kbulk" role="group" aria-label="Auswahl bearbeiten">
+-              <strong>{selected.size} ausgewählt</strong>
+-              <Select
+-                className="select-sm"
+-                aria-label="Kategorie für die Auswahl setzen"
+-                value=""
+-                onChange={(e) => {
+-                  const value = e.target.value;
+-                  if (!value) return;
+-                  writes.bulk.mutate({ ids, set: { categoryId: value === 'none' ? null : value } });
+-                  bulkDone();
+-                }}
+-              >
+-                <option value="">Kategorie setzen …</option>
+-                <option value="none">ohne Kategorie</option>
+-                {(lookups.data?.categories ?? []).map((c) => (
+-                  <option key={c.id} value={c.id}>
+-                    {c.name}
+-                  </option>
+-                ))}
+-              </Select>
+-              <Select
+-                className="select-sm"
+-                aria-label="Markierung für die Auswahl setzen"
+-                value=""
+-                onChange={(e) => {
+-                  const value = e.target.value;
+-                  if (!value) return;
+-                  writes.bulk.mutate({
+-                    ids,
+-                    set: { flag: value === 'none' ? null : (value as BookingFlag) },
+-                  });
+-                  bulkDone();
+-                }}
+-              >
+-                <option value="">Markierung setzen …</option>
+-                <option value="none">Markierung entfernen</option>
+-                {BOOKING_FLAGS.map((f) => (
+-                  <option key={f} value={f}>
+-                    {FLAG_LABEL[f]}
+-                  </option>
+-                ))}
+-              </Select>
+-              <Button
+-                variant="ghost"
+-                size="sm"
+-                onClick={() => {
+-                  writes.bulk.mutate({ ids, set: { status: 'confirmed' } });
+-                  bulkDone();
+-                }}
+-              >
+-                Als bestätigt markieren
+-              </Button>
+-              {canLink && (
+-                <Button
+-                  className="bank-link-action"
+-                  size="sm"
+-                  variant="ghost"
+-                  disabled={linking}
+-                  onClick={() => {
+-                    setLinking(true);
+-                    void write(
+-                      () =>
+-                        request<{ groupId: string }>('POST', '/api/bookings/link-transfer', {
+-                          ids,
+-                        }),
+-                      () => 'Als Umbuchung verbunden; Kategorien entfernt.',
+-                    )
+-                      .then((result) => {
+-                        if (result) bulkDone();
+-                      })
+-                      .finally(() => setLinking(false));
+-                  }}
+-                >
+-                  Als Umbuchung verbinden
+-                </Button>
+-              )}
+-              {canLink && (
+-                <span className="kmeta">
+-                  Kategorien werden entfernt. Beide Buchungstage bleiben erhalten.
+-                </span>
+-              )}
+-              {confirmDelete ? (
+-                <span className="kbulk-confirm" role="group" aria-label="Löschen bestätigen">
+-                  <span>{pluralBookings(ids.length)} löschen?</span>
+-                  <Button
+-                    size="sm"
+-                    onClick={() => {
+-                      writes.bulk.mutate({ ids, remove: true });
+-                      bulkDone();
+-                    }}
+-                  >
+-                    Ja, löschen
+-                  </Button>
+-                  <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
+-                    Abbrechen
+-                  </Button>
+-                </span>
+-              ) : (
+-                <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(true)}>
+-                  Löschen
+-                </Button>
+-              )}
+-            </div>
+-          )}
++          </fieldset>
++
+           {first && (
+             <p className="ksum" aria-live="polite">
+               {pluralBookings(first.total)} ·{' '}
+@@ -327,15 +254,18 @@ export function BookingsPage() {
+         )}
+         {(items.length > 0 || hasUpcoming) && (
+           <>
++            <fieldset className="kbulk-readonly-surface" disabled={pending}>
++            <legend className="sr-only">Buchungen</legend>
+             <BookingTable
+               items={items}
+               caption="Alle Buchungen nach Tag"
+               variant="all"
+               upcoming={upcoming.model}
+-              selection={selection}
++              {...(!isPhone || selecting ? { selection } : {})}
+               sort={{ key: sortKey, direction, onSort }}
+-              onOpen={(booking) => setPanel({ mode: 'edit', booking })}
++              onOpen={(booking) => { if (pending) return; if (isPhone && selecting) selection.toggle(booking.id); else setPanel({ mode: 'edit', booking }); }}
+             />
++            </fieldset>
+             {list.hasNextPage && (
+               <LoadOlder
+                 fetching={list.isFetching}
+@@ -345,6 +275,62 @@ export function BookingsPage() {
+             )}
+           </>
+         )}
++        <BookingSelectionBar ids={ids} pending={pending}
++          categories={lookups.data?.categories ?? []} projects={lookups.data?.projects ?? []}
++          onApply={(set, facts) => void runBulk({ ids: [...ids], set }, facts)}
++          onClear={() => { if (!pending) setSelected(new Set()); }} outcome={outcome}
++          extra={(facts) => <>
++              {canLink && (
++                <Button
++                  className="bank-link-action"
++                  size="sm"
++                  variant="ghost"
++                  disabled={pending}
++                  onClick={() => {
++                    setLinking(true);
++                    void write(
++                      () =>
++                        request<{ groupId: string }>('POST', '/api/bookings/link-transfer', {
++                          ids,
++                        }),
++                      () => 'Als Umbuchung verbunden; Kategorien entfernt.',
++                    )
++                      .then((result) => {
++                        if (result) bulkDone();
++                      })
++                      .finally(() => setLinking(false));
++                  }}
++                >
++                  Als Umbuchung verbinden
++                </Button>
++              )}
++              {canLink && (
++                <span className="kmeta">
++                  Kategorien werden entfernt. Beide Buchungstage bleiben erhalten.
++                </span>
++              )}
++              {confirmDelete ? (
++                <span className="kbulk-confirm" role="group" aria-label="Löschen bestätigen">
++                  <span>{pluralBookings(ids.length)} löschen?</span>
++                  <Button
++                    size="sm"
++                    disabled={pending}
++                    onClick={() => {
++                      void runBulk({ ids, remove: true }, facts);
++                    }}
++                  >
++                    Ja, löschen
++                  </Button>
++                  <Button variant="ghost" size="sm" disabled={pending} onClick={() => setConfirmDelete(false)}>
++                    Abbrechen
++                  </Button>
++                </span>
++              ) : (
++                <Button variant="ghost" size="sm" disabled={pending} onClick={() => setConfirmDelete(true)}>
++                  Löschen
++                </Button>
++              )}
++          </>} />
+       </div>
+       <BookingPanel state={panel} onClose={() => setPanel(null)} />
+     </PageFrame>
+diff --git a/apps/web/src/ledger/cache.ts b/apps/web/src/ledger/cache.ts
+index b4ab07ba8566d8f23f098417ce2d78d06718d5fb..2754d76eabb076d75ae19ce183c5539ee4ccd3d5 100644
+--- a/apps/web/src/ledger/cache.ts
++++ b/apps/web/src/ledger/cache.ts
+@@ -19,6 +19,7 @@ export function patchListed(b: ListedBooking, patch: BookingPatch, names: Names)
+   if (patch.memo !== undefined) next.memo = patch.memo;
+   if (patch.status !== undefined) next.status = patch.status;
+   if (patch.flag !== undefined) next.flag = patch.flag;
++  if (patch.projectId !== undefined) next.projectId = patch.projectId;
+   if (patch.payeeId !== undefined) {
+     next.payeeId = patch.payeeId;
+     next.payeeName = names.payee(patch.payeeId);
+@@ -47,12 +48,14 @@ export interface BulkSet {
+   categoryId?: string | null;
+   flag?: BookingFlag | null;
+   status?: 'pending' | 'confirmed';
++  projectId?: string | null;
+ }
+ 
+ export const patchOfBulk = (set: BulkSet): BookingPatch => {
+   const patch: BookingPatch = {};
+   if (set.flag !== undefined) patch.flag = set.flag;
+   if (set.status !== undefined) patch.status = set.status;
++  if (set.projectId !== undefined) patch.projectId = set.projectId;
+   return patch;
+ };
+ 
+diff --git a/apps/web/src/ledger/labels.ts b/apps/web/src/ledger/labels.ts
+index c605b11daa5f4b78e52f9d7f458a74f8c152a743..04928c258eb2409ca7b537c392ecf0aeb9ea775f 100644
+--- a/apps/web/src/ledger/labels.ts
++++ b/apps/web/src/ledger/labels.ts
+@@ -145,13 +145,22 @@ export function errorText(
+   return fallback;
+ }
+ 
+-const SKIP_REASON_LABEL: Record<BulkSkipReason, string> = {
++export const SKIP_REASON_LABEL: Record<BulkSkipReason, string> = {
+   split: 'Aufteilung',
+   transfer: 'Umbuchung',
+   transfer_pair: 'Umbuchung (beide Seiten)',
+   reconciled_locked: 'geprüft',
+   not_found: 'nicht mehr vorhanden',
+   invalid: 'nicht möglich',
++  unchanged: 'bereits im gewünschten Stand',
++  linked_transfer: 'verknüpfte Umbuchung',
++  linked_contact: 'verknüpfte Kontaktauslage',
++  linked_expected: 'zugeordnete erwartete Zahlung',
++  linked_trade: 'Wertpapierabrechnung',
++  linked_payroll: 'erfasste Gehaltsabrechnung',
++  linked_statement: 'angenommener Abrechnungsnachweis',
++  linked_document: 'automatische Dokumentbuchung',
++  linked_bank: 'zugeordnete Bankbewegung',
+ };
+ 
+ const transfers = (n: number) => `${n} ${n === 1 ? 'Umbuchung' : 'Umbuchungen'}`;
+@@ -164,7 +173,9 @@ export function bulkSummary(result: BulkResult, verb: 'gelöscht' | 'geändert')
+   const skippedPairs = Math.floor(
+     result.skipped.filter((s) => s.reason === 'transfer_pair').length / 2,
+   );
+-  const changedPairs = Math.max(0, result.transferPairs - skippedPairs);
++  // Partial legacy results do not identify which attempted pair actually changed.
++  // Keep the actual changed-row count; only claim a paired effect when every item succeeded.
++  const changedPairs = result.skipped.length === 0 ? Math.max(0, result.transferPairs - skippedPairs) : 0;
+   let text = `${pluralBookings(result.changed.length)} ${verb}`;
+   text += changedPairs > 0 ? `, davon ${transfers(changedPairs)} (beide Seiten).` : '.';
+   if (result.skipped.length > 0) {
+diff --git a/apps/web/src/ledger/ledger.css b/apps/web/src/ledger/ledger.css
+index 89b573c60e08e4c95f5c03c48dafaee12c4fff17..8445de77a17122885e65860d29c919d4a0792caa 100644
+--- a/apps/web/src/ledger/ledger.css
++++ b/apps/web/src/ledger/ledger.css
+@@ -2273,3 +2273,80 @@ button.kstatus-btn:focus-visible {
+     align-items: end;
+   }
+ }
++
++/* Account-local bulk surface: immutable ordinary row writers remain in their own controls. */
++.kbulk-readonly-surface,
++.kbulk-controls {
++  border: 0;
++  padding: 0;
++  margin: 0;
++  min-width: 0;
++}
++.kselection-bar {
++  position: fixed;
++  z-index: 30;
++  inset-inline-start: calc(var(--sidebar) + 28px);
++  inset-inline-end: 28px;
++  bottom: 16px;
++  margin: 0;
++  max-height: 50dvh;
++  overflow: auto;
++  align-items: stretch;
++  background: var(--raised);
++}
++.kselection-summary {
++  display: flex;
++  align-items: center;
++  flex-wrap: wrap;
++  gap: 8px 16px;
++  width: 100%;
++  overflow-wrap: anywhere;
++}
++.kbulk-controls {
++  display: flex;
++  align-items: center;
++  flex-wrap: wrap;
++  gap: 8px;
++  width: 100%;
++}
++.kselection-bar .btn,
++.kselection-bar select,
++.kselection-bar summary {
++  min-height: var(--touch);
++  min-width: var(--touch);
++}
++.kselection-bar summary {
++  display: flex;
++  align-items: center;
++  cursor: pointer;
++}
++.kbulk-result {
++  width: 100%;
++  min-width: 0;
++  overflow-wrap: anywhere;
++}
++.kbulk-result ul {
++  margin: 0;
++  padding-inline-start: 20px;
++}
++.kbulk-result a {
++  display: inline-flex;
++  align-items: center;
++  min-height: var(--touch);
++  min-width: var(--touch);
++}
++@media (max-width: 767px) {
++  .kselection-bar {
++    inset-inline: 16px;
++    /* Keep both the safe-area-aware tab bar and the existing capture FAB reachable. */
++    bottom: calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 8px);
++  }
++  .kselection-bar select {
++    flex: 1 1 44%;
++    min-width: 0;
++    max-width: 100%;
++  }
++  .kselection-bar .btn {
++    white-space: normal;
++  }
++}
+diff --git a/apps/web/src/ledger/mutations.ts b/apps/web/src/ledger/mutations.ts
+index 8af71d8024037c862a1915b42f6ca8f3e7ca7700..1bbd1185120538e86db2d92a95d567d75106ca3b 100644
+--- a/apps/web/src/ledger/mutations.ts
++++ b/apps/web/src/ledger/mutations.ts
+@@ -153,21 +153,20 @@ export function useLedgerWrites() {
+   const bulk = useMutation({
+     mutationFn: (vars: { ids: string[]; set: BulkSet } | { ids: string[]; remove: true }) =>
+       'remove' in vars ? bulkDeleteBookings(vars.ids) : bulkUpdateBookings(vars.ids, vars.set),
+-    onMutate: (vars) => {
+-      const ids = new Set(vars.ids);
+-      const names = namesFrom(qc);
+-      if (!('remove' in vars)) flashRows(vars.ids);
+-      return optimistic(qc, (b) => {
+-        if (!ids.has(b.id)) return b;
+-        return 'remove' in vars ? null : applyBulk(b, vars.set, names);
+-      });
+-    },
+-    onError: (error, _vars, snapshot) => {
+-      rollback(qc, snapshot);
+-      failed('Änderung')(error);
++    // Eligibility is authoritative on the server. Never optimistically alter skipped rows.
++    onMutate: () => qc.cancelQueries({ queryKey: BOOKINGS_KEY }),
++    onError: (error) => failed('Änderung')(error),
++    onSuccess: (result: BulkResult, vars) => {
++      const changed = new Set(result.changed), names = namesFrom(qc);
++      qc.setQueriesData({ queryKey: BOOKINGS_KEY }, (data) => mapCachedBookings(
++        data as Parameters<typeof mapCachedBookings>[0], (b) => changed.has(b.id)
++          ? ('remove' in vars ? null : applyBulk(b, vars.set, names)) : b,
++      ));
++      if (result.changed.length) {
++        flashRows(result.changed);
++        offerUndo(bulkSummary(result, 'remove' in vars ? 'gelöscht' : 'geändert'), result.groupId);
++      } else toast.show({ message: bulkSummary(result, 'remove' in vars ? 'gelöscht' : 'geändert') });
+     },
+-    onSuccess: (result: BulkResult, vars) =>
+-      offerUndo(bulkSummary(result, 'remove' in vars ? 'gelöscht' : 'geändert'), result.groupId),
+     onSettled: settled,
+   });
+ 
+diff --git a/packages/db/src/repos/booking-bulk-eligibility.ts b/packages/db/src/repos/booking-bulk-eligibility.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..554d6c45faea889f367de7b809c3ef33fcd84fa5
+--- /dev/null
++++ b/packages/db/src/repos/booking-bulk-eligibility.ts
+@@ -0,0 +1,106 @@
++import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
++import { account, auditLog, bankSyncCandidate, booking, bookingSplit, contactAllocation, contactSettlement,
++  expectedOccurrence, payee, payslip, statementBonus, statementSettlement, trade } from '../schema';
++import { statementAutomationRow } from '../schema/statement-automation';
++import { hasStatementAutomation } from './statement-automation-invariants';
++import { hasStatementSettlementFamily } from './statement-settlement-invariants';
++import { runInTransaction, type Executor } from './types';
++
++export type BookingBulkReason = 'not_found' | 'reconciled_locked' | 'linked_transfer' | 'linked_contact' |
++  'linked_expected' | 'linked_trade' | 'linked_payroll' | 'linked_statement' | 'linked_document' | 'linked_bank' | 'invalid';
++export interface BookingBulkItem {
++  id: string; date: string; description: string; accountId: string; accountName: string;
++  amountCents: number | null; currency: string; projectId: string | null; reason: BookingBulkReason | null;
++}
++export interface BookingBulkSelection {
++  selectedCount: number;
++  items: BookingBulkItem[];
++  missingIds: string[];
++  totals: { currency: string; count: number; cents: number | null; unavailable: 'unsafe_total' | null }[];
++}
++
++/** Stricter BULK-only ownership policy. Ordinary metadata writers keep their existing exceptions. */
++export function readBookingBulkSelection(db: Executor, requested: readonly string[]): BookingBulkSelection {
++  const ids = [...new Set(requested)];
++  if (ids.length > 500) throw new RangeError('At most500 selected bookings');
++  return runInTransaction(db, (tx) => {
++    const items: BookingBulkItem[] = [];
++    const settlementFamily = hasStatementSettlementFamily(tx), automationFamily = hasStatementAutomation(tx);
++    // Bounded SQL parameters, minimal audit identity projections, no private history snapshots returned.
++    for (let at = 0; at < ids.length; at += 200) {
++      const part = ids.slice(at, at + 200), wanted = new Set(part);
++      const rows = tx.select({ b: booking, a: account, p: payee }).from(booking)
++        .innerJoin(account, eq(account.id, booking.accountId)).leftJoin(payee, eq(payee.id, booking.payeeId))
++        .where(and(inArray(booking.id, part), isNull(booking.deletedAt), isNull(account.deletedAt))).all();
++      const splits = tx.select({ bookingId: bookingSplit.bookingId, transferId: bookingSplit.transferId, contactId: bookingSplit.contactId })
++        .from(bookingSplit).where(inArray(bookingSplit.bookingId, part)).all();
++      const contacts = new Set(tx.select({ id: contactSettlement.bookingId }).from(contactSettlement)
++        .where(inArray(contactSettlement.bookingId, part)).all().map((r) => r.id));
++      for (const row of tx.select({ id: bookingSplit.bookingId }).from(contactAllocation)
++        .innerJoin(contactSettlement, eq(contactSettlement.id, contactAllocation.settlementId))
++        .innerJoin(bookingSplit, eq(bookingSplit.id, contactAllocation.outlaySplitId))
++        .where(and(inArray(bookingSplit.bookingId, part), isNull(contactAllocation.deletedAt), isNull(contactSettlement.deletedAt))).all()) contacts.add(row.id);
++      const expected = new Set(tx.select({ id: expectedOccurrence.bookingId }).from(expectedOccurrence)
++        .where(and(inArray(expectedOccurrence.bookingId, part), isNull(expectedOccurrence.deletedAt))).all().map((r) => r.id));
++      const trades = new Set(tx.select({ id: trade.bookingId }).from(trade).where(inArray(trade.bookingId, part)).all().map((r) => r.id));
++      const before = sql<string | null>`json_extract(${auditLog.beforeJson}, '$.booking_id')`, after = sql<string | null>`json_extract(${auditLog.afterJson}, '$.booking_id')`;
++      for (const row of tx.select({ before, after }).from(auditLog).where(and(eq(auditLog.entityType, 'trade'), or(inArray(before, part), inArray(after, part)))).all()) {
++        if (row.before && wanted.has(row.before)) trades.add(row.before);
++        if (row.after && wanted.has(row.after)) trades.add(row.after);
++      }
++      const payroll = new Set(tx.select({ id: payslip.bookingId }).from(payslip)
++        .where(and(inArray(payslip.bookingId, part), isNull(payslip.deletedAt))).all().map((r) => r.id));
++      const statements = new Set<string>(), documents = new Set<string>();
++      if (settlementFamily) {
++        for (const row of tx.select({ from: statementSettlement.fromBookingId, to: statementSettlement.toBookingId }).from(statementSettlement)
++          .where(and(isNull(statementSettlement.deletedAt), eq(statementSettlement.state, 'represented'),
++            or(inArray(statementSettlement.fromBookingId, part), inArray(statementSettlement.toBookingId, part)))).all()) {
++          if (row.from && wanted.has(row.from)) statements.add(row.from);
++          if (row.to && wanted.has(row.to)) statements.add(row.to);
++        }
++        for (const row of tx.select({ id: statementBonus.bookingId }).from(statementBonus)
++          .where(and(isNull(statementBonus.deletedAt), sql`${statementBonus.state} NOT IN ('withdrawn','superseded')`, inArray(statementBonus.bookingId, part))).all())
++          if (row.id) statements.add(row.id);
++        const parameters = sql.join(part.map((id) => sql`${id}`), sql`, `);
++        for (const row of tx.all<{ id: string }>(sql`SELECT json_extract(j.value,'$.bookingId') AS id FROM statement_bonus sb, json_each(sb.evidence_json,'$.selectedOriginals') j WHERE sb.deleted_at IS NULL AND sb.state NOT IN ('withdrawn','superseded') AND json_extract(j.value,'$.bookingId') IN (${parameters})`)) statements.add(row.id);
++      }
++      if (automationFamily) {
++        for (const row of tx.select({ id: statementAutomationRow.bookingId, original: statementAutomationRow.originalBookingId }).from(statementAutomationRow)
++          .where(and(isNull(statementAutomationRow.deletedAt), or(inArray(statementAutomationRow.bookingId, part), inArray(statementAutomationRow.originalBookingId, part)))).all()) {
++          if (wanted.has(row.id)) documents.add(row.id);
++          if (row.original && wanted.has(row.original)) documents.add(row.original);
++        }
++      }
++      const bank = new Set(tx.select({ id: booking.id }).from(booking).innerJoin(bankSyncCandidate,
++        and(eq(bankSyncCandidate.accountId, booking.accountId), sql`${booking.importKey} = 'bank-sync:' || ${bankSyncCandidate.dedupeKey}`))
++        .where(inArray(booking.id, part)).all().map((r) => r.id));
++      for (const { b, a, p } of rows) {
++        const own = splits.filter((s) => s.bookingId === b.id);
++        const reason: BookingBulkReason | null = b.status === 'reconciled' ? 'reconciled_locked'
++          : b.transferId || own.some((s) => s.transferId) ? 'linked_transfer'
++          : contacts.has(b.id) || own.some((s) => s.contactId) ? 'linked_contact'
++          : expected.has(b.id) ? 'linked_expected' : trades.has(b.id) ? 'linked_trade'
++          : payroll.has(b.id) ? 'linked_payroll' : documents.has(b.id) ? 'linked_document'
++          : statements.has(b.id) ? 'linked_statement' : bank.has(b.id) ? 'linked_bank'
++          : !Number.isSafeInteger(b.amountCents) ? 'invalid' : null;
++        items.push({ id: b.id, date: b.date, description: b.bankRawPayee || (p && !p.deletedAt ? p.name : '') || b.memo || 'Buchung',
++          accountId: b.accountId, accountName: a.name, amountCents: Number.isSafeInteger(b.amountCents) ? b.amountCents : null,
++          currency: b.currency, projectId: b.projectId, reason });
++      }
++    }
++    const byId = new Map(items.map((r) => [r.id, r]));
++    const groups = new Map<string, { count: number; total: bigint; unsafe: boolean }>();
++    for (const item of items) {
++      const group = groups.get(item.currency) ?? { count: 0, total: 0n, unsafe: false };
++      group.count += 1;
++      if (item.amountCents === null) group.unsafe = true; else group.total += BigInt(item.amountCents);
++      groups.set(item.currency, group);
++    }
++    const bound = BigInt(Number.MAX_SAFE_INTEGER);
++    return { selectedCount: ids.length, items: ids.flatMap((id) => byId.has(id) ? [byId.get(id)!] : []), missingIds: ids.filter((id) => !byId.has(id)),
++      totals: [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([currency, value]) => {
++        const unsafe = value.unsafe || value.total > bound || value.total < -bound;
++        return { currency, count: value.count, cents: unsafe ? null : Number(value.total), unavailable: unsafe ? 'unsafe_total' as const : null };
++      }) };
++  });
++}
+diff --git a/packages/db/src/repos/index.ts b/packages/db/src/repos/index.ts
+index ad88165cfcc5e5b704aa45c6b48ec5fd9b3a0d72..8576aed8f874ded2b40d1b92ca4f935e384e329c 100644
+--- a/packages/db/src/repos/index.ts
++++ b/packages/db/src/repos/index.ts
+@@ -99,3 +99,4 @@ export * from './statement-settlement-invariants';
+ export * from './statement-settlement-read';
+ export * from './statement-automation';
+ export * from './statement-receipt-links';
++export * from './booking-bulk-eligibility';

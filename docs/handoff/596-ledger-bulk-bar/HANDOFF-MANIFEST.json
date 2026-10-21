@@ -1,0 +1,27 @@
+[
+  {
+    "path": "docs/handoff/596-ledger-bulk-bar/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/596-ledger-bulk-bar/README.md",
+    "size": 472,
+    "sha256": "1124988461e9c96a038b5914267a16bf3ffce4a54629e2bd6e73adff28b95c5c"
+  },
+  {
+    "path": "docs/handoff/596-ledger-bulk-bar/owned/01-1295652f3bcf7928677cc04041642a60a218f18c.patch",
+    "size": 52697,
+    "sha256": "158a8fc02b67b5473f736216fb815994cd3243936f4d3d64b856fee015e387a6"
+  },
+  {
+    "path": "docs/handoff/596-ledger-bulk-bar/packet.json",
+    "size": 2096,
+    "sha256": "36a8180050f7d9e97b4c25da4998292508d989e95a2d2bf011114ec27fde037f"
+  },
+  {
+    "path": "docs/handoff/596-ledger-bulk-bar/reviews/596-bulk-bar-whole-twelve-independent-source-high.md",
+    "size": 3299,
+    "sha256": "f70536016383b9a944a1112c246d51e5bdc1e0babb7738e4901960761c656a32"
+  }
+]
