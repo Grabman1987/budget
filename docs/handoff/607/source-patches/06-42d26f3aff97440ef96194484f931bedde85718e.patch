@@ -1,0 +1,22 @@
+diff --git a/e2e/issue-607-payment-lifecycle.spec.ts b/e2e/issue-607-payment-lifecycle.spec.ts
+index 8822f781..97e6ee46 100644
+--- a/e2e/issue-607-payment-lifecycle.spec.ts
++++ b/e2e/issue-607-payment-lifecycle.spec.ts
+@@ -1,7 +1,7 @@
+ import { writeFile } from 'node:fs/promises';
+ import AxeBuilder from '@axe-core/playwright';
+ import { addDays, addMonths, todayInVienna } from '@budget/domain';
+-import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
++import { expect, type Locator, type Page, type Request, type TestInfo } from '@playwright/test';
+ import { test } from './isolated-ledger';
+ 
+ // Audit timestamps use the real SQLite clock. Pin both application clocks to the actual
+@@ -296,7 +296,7 @@ async function inspect(
+   await expect(page.locator('.xp-big')).toContainText('−12,34 €');
+   const before = await detail(page, id);
+   const paymentWrites: string[] = [];
+-  const observe = (request: import('@playwright/test').Request) => {
++  const observe = (request: Request) => {
+     if (new URL(request.url()).pathname.startsWith('/api/expected') && request.method() !== 'GET')
+       paymentWrites.push(request.method());
+   };

@@ -1,0 +1,457 @@
+diff --git a/apps/web/src/expected/payment-lifecycle-607.test.tsx b/apps/web/src/expected/payment-lifecycle-607.test.tsx
+new file mode 100644
+index 00000000..126d3f2c
+--- /dev/null
++++ b/apps/web/src/expected/payment-lifecycle-607.test.tsx
+@@ -0,0 +1,177 @@
++// @vitest-environment jsdom
++import type { ReactNode } from 'react';
++import type * as BudgetDomain from '@budget/domain';
++import { ToastProvider, setAmountsHidden } from '@budget/ui';
++import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
++import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
++import { afterEach, beforeEach, expect, it, vi } from 'vitest';
++import { accountsQuery, lookupsQuery, payeesQuery } from '../ledger/queries';
++import { expectedQuery, paymentDetailQuery, versionsQuery, type ExpectedPayment } from './api';
++import { PaymentPanel } from './payment-panel';
++
++vi.mock('@budget/domain', async (original) => ({
++  ...(await original<typeof BudgetDomain>()),
++  todayInVienna: () => '2026-09-17',
++}));
++vi.mock('../shell/app-link', () => ({
++  AppLink: ({ children }: { children: ReactNode }) => <span>{children}</span>,
++}));
++
++const clients: QueryClient[] = [];
++const dialogDescriptors = new Map(
++  ['showModal', 'close'].map((key) => [key, Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, key)]),
++);
++beforeEach(() => {
++  setAmountsHidden(false);
++  vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
++  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
++    configurable: true,
++    value(this: HTMLDialogElement) { this.open = true; },
++  });
++  Object.defineProperty(HTMLDialogElement.prototype, 'close', {
++    configurable: true,
++    value(this: HTMLDialogElement) { this.open = false; },
++  });
++});
++afterEach(() => {
++  cleanup();
++  clients.splice(0).forEach((client) => client.clear());
++  for (const [key, descriptor] of dialogDescriptors) {
++    if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, key, descriptor);
++    else Reflect.deleteProperty(HTMLDialogElement.prototype, key);
++  }
++  vi.unstubAllGlobals();
++});
++
++function payment(): ExpectedPayment {
++  return {
++    id: 'synthetic-payment-607', name: 'Synthetic payment', kind: 'outflow',
++    accountId: null, payeeId: null, contactId: null, categoryId: null, incomeTypeId: null,
++    contactShareBp: 0, amountToleranceCents: 0, dateWindowDays: 3, rhythm: 'monthly',
++    intervalWeeks: null, dueDay: 20, dueMonth: null, dateShift: 'none',
++    startDate: '2026-01-01', endDate: '2026-12-31', note: null, deletedAt: null,
++    version: { id: 'synthetic-version-607', validFrom: '2026-01-01', amountCents: 1234, amountMaxCents: null, currency: 'EUR' },
++    amountCents: -1234, nextDueDate: '2026-09-20', monthlyEquivalentCents: -1234,
++    yearlyEquivalentCents: -14808,
++    lifecycle: { pauses: [], endedFrom: null, endEvidence: 'none', deletion: 'neverAssigned', reviewToken: 'reviewed-token-A' },
++  };
++}
++
++function show(initial = payment(), creating = false) {
++  let current = initial;
++  const writes: Array<{ method: string; path: string; body: unknown }> = [];
++  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
++  clients.push(client);
++  const detail = { paymentId: initial.id, asOf: '2026-09-17', history: [], future: [], sparseHistory: true, hasEarlierRecorded: false, hasFurtherFuture: false };
++  const versions = [{ ...initial.version!, expectedPaymentId: initial.id, note: null }];
++  const lookups = { categories: [], contacts: [], incomeTypes: [] };
++  client.setQueryData(expectedQuery().queryKey, [current]);
++  client.setQueryData(paymentDetailQuery(initial.id, '2026-09-17').queryKey, detail);
++  client.setQueryData(versionsQuery(initial.id).queryKey, versions);
++  client.setQueryData(accountsQuery().queryKey, { accounts: [] });
++  client.setQueryData(lookupsQuery().queryKey, lookups);
++  client.setQueryData(payeesQuery().queryKey, { payees: [] });
++  vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
++    const reply = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
++    if (init?.method !== 'GET') {
++      writes.push({ method: init?.method ?? '', path, body: JSON.parse(String(init?.body ?? '{}')) });
++      // Real HTTP transport and error handling; the separate real-API suite proves CAS itself.
++      if (path.endsWith('/pause') || path.endsWith('/end')) return reply({ error: 'conflict', message: 'Zahlung wurde geändert. Bitte neu prüfen.' }, 409);
++      if (init?.method === 'PATCH' && path === `/api/expected/${initial.id}`) return reply({ groupId: 'synthetic-group' });
++      throw new Error(`Unexpected mutation: ${init?.method} ${path}`);
++    }
++    if (path === '/api/expected') return reply({ payments: [current] });
++    if (path === `/api/expected/${initial.id}/detail`) return reply(detail);
++    if (path === `/api/expected/${initial.id}/versions`) return reply({ versions });
++    if (path === '/api/accounts') return reply({ accounts: [] });
++    if (path === '/api/lookups') return reply(lookups);
++    if (path === '/api/payees') return reply({ payees: [] });
++    throw new Error(`Unexpected read: ${path}`);
++  }));
++  render(<QueryClientProvider client={client}><ToastProvider>
++    <PaymentPanel state={creating ? { mode: 'create' } : { mode: 'view', id: initial.id }} onClose={() => {}} />
++  </ToastProvider></QueryClientProvider>);
++  return {
++    writes,
++    async refetch(next: ExpectedPayment) {
++      current = next;
++      await act(async () => { await client.refetchQueries({ queryKey: expectedQuery().queryKey }); });
++    },
++  };
++}
++
++it('keeps the existing inclusive end read-only and explains the protected action and Undo', () => {
++  show();
++  fireEvent.click(screen.getByRole('button', { name: 'Bearbeiten' }));
++  const dialog = within(screen.getByRole('dialog', { name: 'Zahlung bearbeiten' }));
++  const input = dialog.getByLabelText('Letzte Fälligkeit einschließlich') as HTMLInputElement;
++  expect(input.readOnly).toBe(true);
++  expect(input.value).toBe('31.12.2026');
++  expect(dialog.getByText(/Zum Ändern die Aktion „Beenden ab“/).textContent).toContain('Rückgängig');
++});
++
++it('leaves the inclusive end editable when creating a new payment', () => {
++  show(payment(), true);
++  const input = screen.getByLabelText('Letzte Fälligkeit einschließlich') as HTMLInputElement;
++  expect(input.readOnly).toBe(false);
++  fireEvent.change(input, { target: { value: '31.12.2026' } });
++  expect(input.value).toBe('31.12.2026');
++});
++
++for (const action of [
++  { open: 'Pausieren bis', title: 'Zahlung pausieren', label: 'Pausieren bis einschließlich', submit: 'Pause speichern', endpoint: 'pause', field: 'throughDate' },
++  { open: 'Beenden ab', title: 'Zahlung beenden', label: 'Beenden ab', submit: 'Beenden bestätigen', endpoint: 'end', field: 'fromDate' },
++] as const) {
++  it(`${action.endpoint} submits the captured review token after a real query refetch and retains the date on refusal`, async () => {
++    const original = payment();
++    const fixture = show(original);
++    fireEvent.click(screen.getByRole('button', { name: action.open }));
++    const dialog = within(screen.getByRole('dialog', { name: action.title }));
++    const input = dialog.getByLabelText(action.label) as HTMLInputElement;
++    fireEvent.change(input, { target: { value: '30.11.2026' } });
++    await fixture.refetch({ ...original, dueDay: 25, lifecycle: { ...original.lifecycle!, reviewToken: 'changed-token-B' } });
++    fireEvent.click(dialog.getByRole('button', { name: action.submit }));
++    await waitFor(() => expect(fixture.writes).toEqual([{
++      method: 'POST', path: `/api/expected/${original.id}/${action.endpoint}`,
++      body: { [action.field]: '2026-11-30', reviewToken: 'reviewed-token-A' },
++    }]));
++    await screen.findByText('Zahlung wurde geändert. Bitte neu prüfen.');
++    expect(input.value).toBe('30.11.2026');
++    expect(screen.getByRole('dialog', { name: action.title })).toBeTruthy();
++  });
++}
++
++for (const deletion of ['everAssigned', 'unavailable'] as const) {
++  it(`does not offer deletion for ${deletion}`, () => {
++    const original = payment();
++    show({ ...original, lifecycle: { ...original.lifecycle!, deletion } });
++    expect(screen.queryByRole('button', { name: 'Löschen' })).toBeNull();
++    expect(screen.getByText(/der Verlauf bleibt erhalten/)).toBeTruthy();
++  });
++}
++
++it('disables lifecycle writes when no trustworthy review token is available', () => {
++  const original = payment();
++  const { writes } = show({ ...original, lifecycle: { ...original.lifecycle!, reviewToken: null } });
++  for (const name of ['Pausieren bis', 'Beenden ab', 'Löschen']) {
++    const button = screen.getByRole('button', { name }) as HTMLButtonElement;
++    expect(button.disabled).toBe(true);
++    fireEvent.click(button);
++  }
++  expect(screen.getByText(/derzeit nicht sicher prüfbar/)).toBeTruthy();
++  expect(writes).toEqual([]);
++});
++
++it('a rename after background refresh cannot accidentally rewrite the old source, start or end', async () => {
++  const original = payment();
++  const fixture = show(original);
++  fireEvent.click(screen.getByRole('button', { name: 'Bearbeiten' }));
++  const dialog = within(screen.getByRole('dialog', { name: 'Zahlung bearbeiten' }));
++  fireEvent.change(dialog.getByLabelText('Name'), { target: { value: 'Renamed synthetic payment' } });
++  await fixture.refetch({ ...original, accountId: 'other-source', startDate: '2026-02-01', endDate: '2026-11-30' });
++  fireEvent.click(dialog.getByRole('button', { name: 'Speichern' }));
++  await waitFor(() => expect(fixture.writes).toEqual([{
++    method: 'PATCH', path: `/api/expected/${original.id}`, body: { name: 'Renamed synthetic payment' },
++  }]));
++  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Zahlung bearbeiten' })).toBeNull());
++});
+diff --git a/e2e/issue-607-payment-lifecycle.spec.ts b/e2e/issue-607-payment-lifecycle.spec.ts
+new file mode 100644
+index 00000000..e38e11af
+--- /dev/null
++++ b/e2e/issue-607-payment-lifecycle.spec.ts
+@@ -0,0 +1,268 @@
++import { writeFile } from 'node:fs/promises';
++import AxeBuilder from '@axe-core/playwright';
++import { addDays, addMonths, todayInVienna } from '@budget/domain';
++import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
++import { test } from './isolated-ledger';
++
++// Audit timestamps use the real SQLite clock. Pin both application clocks to the actual
++// Vienna day, rather than pretending a past fixture day proves a forward audited cutoff.
++const TODAY = todayInVienna();
++const MONTH = TODAY.slice(0, 7);
++const START = `${addMonths(MONTH, -2)}-01`;
++const PAST = `${addMonths(MONTH, -1)}-25`;
++const ASSIGNED = `${addMonths(MONTH, 1)}-25`;
++const THROUGH = `${addMonths(MONTH, 2)}-28`;
++const END_FROM = `${addMonths(MONTH, 1)}-01`;
++test.use({ ledgerToday: TODAY });
++const displayDay = (day: string) => day.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3.$2.$1');
++
++interface DetailRow {
++  occurrenceId: string | null;
++  dueDate: string;
++  expectedAmountCents: number;
++  status: string;
++  booking: { id: string; amountCents: number; date: string } | null;
++}
++interface Detail { history: DetailRow[]; future: DetailRow[] }
++interface Listed {
++  id: string;
++  accountId: string | null;
++  endDate: string | null;
++  lifecycle: {
++    pauses: Array<{ fromDate: string; throughDate: string }>;
++    endedFrom: string | null;
++    endEvidence: string;
++    deletion: string;
++    reviewToken: string | null;
++  };
++}
++async function post<T>(page: Page, origin: string, path: string, data: unknown, status = 200) {
++  const response = await page.request.post(origin + '/api' + path, { data, headers: { origin } });
++  expect(response.status(), await response.text()).toBe(status);
++  return response.json() as Promise<T>;
++}
++async function detail(page: Page, id: string): Promise<Detail> {
++  const response = await page.request.get(`/api/expected/${id}/detail`);
++  expect(response.status()).toBe(200);
++  expect(response.headers()['cache-control']).toBe('no-store');
++  return response.json() as Promise<Detail>;
++}
++async function listed(page: Page, id: string) {
++  const response = await page.request.get('/api/expected');
++  expect(response.status()).toBe(200);
++  const body = await response.json() as { payments: Listed[] };
++  const found = body.payments.find((payment) => payment.id === id);
++  expect(found).toBeTruthy();
++  return found!;
++}
++async function account(page: Page, origin: string, name: string) {
++  return (await post<{ account: { id: string } }>(page, origin, '/accounts', {
++    name, type: 'checking', onBudget: true, openingDate: START, openingBalanceCents: 100000,
++  }, 201)).account.id;
++}
++async function seed(page: Page, origin: string) {
++  const accountId = await account(page, origin, 'Synthetic lifecycle account');
++  const { payment } = await post<{ payment: { id: string } }>(page, origin, '/expected', {
++    name: 'Synthetic lifecycle payment', kind: 'outflow', accountId,
++    amountCents: 1234, rhythm: 'monthly', dueDay: 25, dateShift: 'none',
++    startDate: START, validFrom: START,
++  }, 201);
++  const before = await detail(page, payment.id);
++  for (const day of [PAST, ASSIGNED]) {
++    const occurrence = [...before.history, ...before.future].find((row) => row.dueDate === day);
++    expect(occurrence?.occurrenceId).toBeTruthy();
++    const booked = await post<{ id: string }>(page, origin, '/bookings', {
++      type: 'booking', accountId, date: day, amountCents: -1334, status: 'confirmed',
++    }, 201);
++    await post(page, origin, `/expected/occurrences/${occurrence!.occurrenceId}/link`, { bookingId: booked.id });
++  }
++  return { paymentId: payment.id, accountId };
++}
++async function undoToast(page: Page) {
++  await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig', exact: true }).click();
++  await expect(page.locator('.toast.is-open')).toContainText('Rückgängig gemacht.');
++}
++async function openAction(page: Page, kind: 'pause' | 'end') {
++  const opener = page.getByRole('button', { name: kind === 'pause' ? 'Pausieren bis' : 'Beenden ab', exact: true });
++  await opener.focus();
++  await expect(opener).toBeFocused();
++  await opener.press('Enter');
++  const dialog = page.getByRole('dialog', { name: kind === 'pause' ? 'Zahlung pausieren' : 'Zahlung beenden', exact: true });
++  await expect(dialog).toBeVisible();
++  return { opener, dialog };
++}
++
++test('real pause/end and whole Undo preserve assigned cents, identities and history; stale explicit end refuses a changed source', async ({ page, isolatedLedger }) => {
++  test.setTimeout(60_000); // Two audited mutations, two real whole-group Undo actions and a stale editor.
++  const { paymentId } = await seed(page, isolatedLedger.origin);
++  const before = await detail(page, paymentId);
++  const originalAssigned = before.future.find((row) => row.dueDate === ASSIGNED)!;
++  expect(originalAssigned).toMatchObject({ expectedAmountCents: -1234, booking: { amountCents: -1334 } });
++  expect(before.history.find((row) => row.dueDate === PAST)).toMatchObject({ expectedAmountCents: -1234, booking: { amountCents: -1334 } });
++  await page.goto(`/plan/erwartet/${paymentId}`);
++  await expect(page.getByRole('button', { name: 'Löschen', exact: true })).toHaveCount(0);
++  const pause = await openAction(page, 'pause');
++  const pausePosts: string[] = [];
++  page.on('request', (request) => {
++    if (new URL(request.url()).pathname === `/api/expected/${paymentId}/pause` && request.method() === 'POST') pausePosts.push(request.postData() ?? '');
++  });
++  const pauseInput = pause.dialog.getByLabel('Pausieren bis einschließlich', { exact: true });
++  await pauseInput.fill(displayDay(addDays(TODAY, -1)));
++  await expect.poll(() => pauseInput.evaluate((element) => (element as HTMLInputElement).validity.valid)).toBe(false);
++  await pause.dialog.getByRole('button', { name: 'Pause speichern', exact: true }).click();
++  await expect(pause.dialog.getByText('Bitte heute oder einen späteren Tag wählen.')).toBeVisible();
++  expect(pausePosts).toEqual([]);
++  await pauseInput.fill(displayDay(THROUGH));
++  await pause.dialog.getByRole('button', { name: 'Pause speichern', exact: true }).click();
++  await expect(pause.dialog).toBeHidden();
++  expect(pausePosts).toHaveLength(1);
++  expect(JSON.parse(pausePosts[0]!)).toMatchObject({ throughDate: THROUGH });
++  expect((await listed(page, paymentId)).lifecycle.pauses).toEqual([{ fromDate: TODAY, throughDate: THROUGH }]);
++  const paused = await detail(page, paymentId);
++  expect(paused.history).toEqual(before.history);
++  expect(paused.future.find((row) => row.dueDate === ASSIGNED)).toEqual(originalAssigned);
++  expect(paused.future.filter((row) => row.booking === null && row.dueDate <= THROUGH)).toEqual([]);
++  await undoToast(page);
++  expect(await detail(page, paymentId)).toEqual(before);
++  expect((await listed(page, paymentId)).lifecycle.pauses).toEqual([]);
++
++  const end = await openAction(page, 'end');
++  await end.dialog.getByLabel('Beenden ab', { exact: true }).fill(displayDay(END_FROM));
++  await end.dialog.getByRole('button', { name: 'Beenden bestätigen', exact: true }).click();
++  await expect(end.dialog).toBeHidden();
++  expect((await listed(page, paymentId)).lifecycle).toMatchObject({ endedFrom: END_FROM, endEvidence: 'proven' });
++  const ended = await detail(page, paymentId);
++  expect(ended.history).toEqual(before.history);
++  expect(ended.future.find((row) => row.dueDate === ASSIGNED)).toEqual(originalAssigned);
++  expect(ended.future.filter((row) => row.booking === null && row.dueDate >= END_FROM)).toEqual([]);
++  await undoToast(page);
++  expect(await detail(page, paymentId)).toEqual(before);
++  expect((await listed(page, paymentId)).endDate).toBeNull();
++
++  await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
++  const edit = page.getByRole('dialog', { name: 'Zahlung bearbeiten', exact: true });
++  await expect(edit.getByLabel('Letzte Fälligkeit einschließlich')).toHaveJSProperty('readOnly', true);
++  await expect(edit).toContainText('„Beenden ab“');
++  await edit.getByRole('button', { name: 'Abbrechen', exact: true }).click();
++
++  const stale = await openAction(page, 'end');
++  const reviewedToken = (await listed(page, paymentId)).lifecycle.reviewToken;
++  const otherAccount = await account(page, isolatedLedger.origin, 'Synthetic changed source');
++  const changed = await page.request.patch(`/api/expected/${paymentId}`, {
++    data: { accountId: otherAccount }, headers: { origin: isolatedLedger.origin },
++  });
++  expect(changed.status(), await changed.text()).toBe(200);
++  const afterIndependentEdit = await detail(page, paymentId);
++  const listedAfterEdit = await listed(page, paymentId);
++  expect(listedAfterEdit.lifecycle.reviewToken).not.toBe(reviewedToken);
++  await stale.dialog.getByLabel('Beenden ab', { exact: true }).fill(displayDay(END_FROM));
++  const response = page.waitForResponse((reply) => new URL(reply.url()).pathname === `/api/expected/${paymentId}/end` && reply.request().method() === 'POST');
++  await stale.dialog.getByRole('button', { name: 'Beenden bestätigen', exact: true }).click();
++  const refused = await response;
++  expect(refused.status()).toBe(409);
++  expect(refused.request().postDataJSON()).toEqual({ fromDate: END_FROM, reviewToken: reviewedToken });
++  await expect(stale.dialog).toBeVisible();
++  await expect(stale.dialog.getByLabel('Beenden ab', { exact: true })).toHaveValue(displayDay(END_FROM));
++  expect(await detail(page, paymentId)).toEqual(afterIndependentEdit);
++  expect(await listed(page, paymentId)).toEqual(listedAfterEdit);
++});
++
++async function theme(page: Page, value: 'light' | 'dark') {
++  const resolved = () => page.evaluate(() => document.documentElement.dataset['theme'] === 'dark' ||
++    (document.documentElement.dataset['theme'] !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
++  if (await resolved() !== value) {
++    if (page.viewportSize()!.width < 768) {
++      const summary = page.locator('.m-profile > summary');
++      await summary.click();
++      await page.locator('.m-profile').getByRole('button', { name: value === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm', exact: true }).click();
++      await summary.click();
++    } else await page.locator('.sidebar-foot').getByRole('button', { name: 'Hell/Dunkel umschalten', exact: true }).click();
++  }
++  await expect.poll(resolved).toBe(value);
++}
++async function target44(locator: Locator) {
++  await locator.scrollIntoViewIfNeeded();
++  const box = await locator.boundingBox();
++  expect(box).not.toBeNull();
++  expect(box!.width).toBeGreaterThanOrEqual(44);
++  expect(box!.height).toBeGreaterThanOrEqual(44);
++}
++async function inspect(page: Page, info: TestInfo, id: string, value: 'light' | 'dark', profile: string) {
++  await page.goto(`/plan/erwartet/${id}`);
++  await theme(page, value);
++  await expect(page.locator('.xp-big')).toContainText('−12,34 €');
++  const before = await detail(page, id);
++  const paymentWrites: string[] = [];
++  const observe = (request: import('@playwright/test').Request) => {
++    if (new URL(request.url()).pathname.startsWith('/api/expected') && request.method() !== 'GET') paymentWrites.push(request.method());
++  };
++  page.on('request', observe);
++  try {
++    for (const kind of ['pause', 'end'] as const) {
++      const { dialog, opener } = await openAction(page, kind);
++      const input = dialog.getByLabel(kind === 'pause' ? 'Pausieren bis einschließlich' : 'Beenden ab', { exact: true });
++      await input.focus();
++      await expect(input).toBeFocused();
++      await input.fill(displayDay(addDays(TODAY, -1)));
++      await expect.poll(() => input.evaluate((element) => (element as HTMLInputElement).validity.valid)).toBe(false);
++      await input.fill(displayDay(kind === 'pause' ? THROUGH : END_FROM));
++      await expect(input).toHaveValue(displayDay(kind === 'pause' ? THROUGH : END_FROM));
++      await expect.poll(() => input.evaluate((element) => (element as HTMLInputElement).validity.valid)).toBe(true);
++      await target44(input);
++      for (const button of await dialog.locator('.xp-lifecycle button').all()) await target44(button);
++      await page.evaluate(() => document.fonts.ready);
++      const violations = (await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations;
++      expect(violations).toEqual([]);
++      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
++      await input.press('Tab');
++      expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
++      await page.screenshot({ path: info.outputPath(`lifecycle-${profile}-${value}-${kind}.png`), animations: 'disabled' });
++      await page.keyboard.press('Escape');
++      await expect(dialog).toBeHidden();
++      await expect(opener).toBeFocused();
++      await target44(opener);
++    }
++    await page.keyboard.press('Control+Shift+H');
++    await expect(page.locator('.xp-big')).toContainText('•••');
++    const text = await page.locator('.xp-panel').innerText();
++    expect(text).not.toContain('12,34');
++    expect(text).not.toContain('13,34');
++    await page.screenshot({ path: info.outputPath(`lifecycle-${profile}-${value}-privacy.png`), animations: 'disabled' });
++    await page.keyboard.press('Control+Shift+H');
++    await expect(page.locator('.xp-big')).toContainText('−12,34 €');
++    expect(await detail(page, id)).toEqual(before);
++    expect(paymentWrites).toEqual([]);
++    const path = info.outputPath(`lifecycle-${profile}-${value}-runtime.json`);
++    await writeFile(path, JSON.stringify({
++      engine: page.context().browser()!.browserType().name(), project: info.project.name,
++      profile, theme: value, viewport: page.viewportSize(), synthetic: true,
++      scopedAxe: 'both open lifecycle dialogs, all rules enabled', paymentWrites,
++      ...(await page.evaluate(() => ({ coarse: matchMedia('(pointer: coarse)').matches, maxTouchPoints: navigator.maxTouchPoints, dpr: devicePixelRatio }))),
++    }, null, 2));
++    await info.attach(`lifecycle-${profile}-${value}-runtime`, { path, contentType: 'application/json' });
++  } finally {
++    page.off('request', observe);
++  }
++}
++
++for (const value of ['light', 'dark'] as const) {
++  test(`${value}: lifecycle controls preserve keyboard focus, date input, touch targets and privacy on the actual engine`, async ({ page, browser, isolatedLedger }, info) => {
++    test.setTimeout(60_000); // WebKit additionally inspects the genuine desktop-layout context.
++    const { paymentId } = await seed(page, isolatedLedger.origin);
++    await inspect(page, info, paymentId, value, info.project.name);
++    if (browser.browserType().name() === 'webkit') {
++      const context = await browser.newContext({
++        baseURL: isolatedLedger.origin, storageState: isolatedLedger.storageState,
++        viewport: { width: 1440, height: 900 }, isMobile: false, hasTouch: false,
++        deviceScaleFactor: 1, reducedMotion: 'reduce', serviceWorkers: 'block',
++      });
++      try {
++        const desktop = await context.newPage();
++        await desktop.clock.setFixedTime(new Date(`${TODAY}T12:00:00+02:00`));
++        await inspect(desktop, info, paymentId, value, 'webkit-desktop-layout1440');
++      } finally {
++        await context.close();
++      }
++    }
++  });
++}

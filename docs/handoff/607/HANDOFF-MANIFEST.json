@@ -1,0 +1,167 @@
+[
+  {
+    "path": "docs/handoff/607/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/607/README.md",
+    "size": 1093,
+    "sha256": "3aa37dee1d6b8602d9c05d76a280cd776a0c99f4ece24ba8c07ee82d0b306985"
+  },
+  {
+    "path": "docs/handoff/607/STATUS.json",
+    "size": 554,
+    "sha256": "2210b222500c6a6d047a8a94e730bfb942eb5a837104106c6a75a3d9a7a72dad"
+  },
+  {
+    "path": "docs/handoff/607/checks/607-first-three-types-actual/result.json",
+    "size": 418,
+    "sha256": "556196e864df93cc1a5df8ec570dbd56cf2302698dba07ef85824c502275f2ae"
+  },
+  {
+    "path": "docs/handoff/607/checks/607-native-import-two-static-fourth-actual/result.json",
+    "size": 340,
+    "sha256": "646cf05ca32c1fa58035e67b018999af8e7540a465b0a06e8e82c86ca8c7508f"
+  },
+  {
+    "path": "docs/handoff/607/checks/607-new-db19-and-old-nine-second-actual/result.json",
+    "size": 343,
+    "sha256": "108349f9dda39246ecb219e022aee6624cc6a562945d8d12c98a006a7bcda09b"
+  },
+  {
+    "path": "docs/handoff/607/checks/607-new-db19-and-old-nine-second-actual/sanitized-counters.json",
+    "size": 588,
+    "sha256": "4c80ec4a3620d6036e6b8df62dd6679fa34cf5dfb295eb77fdef162b152623c4"
+  },
+  {
+    "path": "docs/handoff/607/checks/607-new-five-first-actual/result.json",
+    "size": 246,
+    "sha256": "d74ad72f1f6c89956e5c1ffb6987d2a1bca737bf83a087a68118dbc47bbd36bc"
+  },
+  {
+    "path": "docs/handoff/607/checks/607-new-five-first-actual/sanitized-counters.json",
+    "size": 325,
+    "sha256": "8332400951d1c581d8524a5cea87bd78e990ca97040c19efdc9d991be37679c2"
+  },
+  {
+    "path": "docs/handoff/607/checks/607-web-ui-and-owned-static-third-actual/result.json",
+    "size": 580,
+    "sha256": "af4c2a0c2fbf45e9d818dc647fdea7c5d89cdc3a37f9032b908146e1a000ddfe"
+  },
+  {
+    "path": "docs/handoff/607/checks/607-web-ui-and-owned-static-third-actual/sanitized-counters.json",
+    "size": 301,
+    "sha256": "a223dbd28ef550aecb8f41d8a04fde10165c531597c717d54ab0a234176f8a05"
+  },
+  {
+    "path": "docs/handoff/607/reviews/607-action-relative-lifecycle-independent-contract-high.md",
+    "size": 4574,
+    "sha256": "896c463ed984f136940556bc4d3f8fa949ef1e45ffd1612eb1c4247e36b682d8"
+  },
+  {
+    "path": "docs/handoff/607/reviews/607-final-new-four-test-source-independent-append.md",
+    "size": 1905,
+    "sha256": "0506420deb9a33e7b8739d454a5f39001d64087cb109b82280d5397864c7b233"
+  },
+  {
+    "path": "docs/handoff/607/reviews/607-final-preview-shape-independent-source-high-append.md",
+    "size": 1089,
+    "sha256": "7a734f7ae648d13a00b69f73e5f93297a630fb8d2fa8a75cf1b2046af9501656"
+  },
+  {
+    "path": "docs/handoff/607/reviews/607-helper-final-four-independent-source-high.md",
+    "size": 3157,
+    "sha256": "42bb0c9cfbfed57347c415ad5e7cb9db9fbaba8d66b6011fc5c2c594e2c5a82b"
+  },
+  {
+    "path": "docs/handoff/607/reviews/607-migration-five-independent-proof.json",
+    "size": 1095,
+    "sha256": "4dfabd1ed2c11cd1dec7d059e7edf70fbb6b8722a993cd8ea42416bf2e1ceff4"
+  },
+  {
+    "path": "docs/handoff/607/reviews/607-migration-five-independent-source-high.md",
+    "size": 2409,
+    "sha256": "0eb539d52136c34d0d29353904b146e72684cd7f26555b2aa7b53eac001d0bf9"
+  },
+  {
+    "path": "docs/handoff/607/reviews/607-native-request-type-import-independent-source-review.md",
+    "size": 826,
+    "sha256": "d7840aa05c05b90b6451663eee26e0b09a9c1ca9e2e98b50dda7dc0f2eeec744"
+  },
+  {
+    "path": "docs/handoff/607/reviews/607-new-deleted-row-fixture-correction-independent-source-high.md",
+    "size": 2591,
+    "sha256": "1765dee191221fa85f94718d51c5a277ceb9a04858e186cb03baa9a388115d13"
+  },
+  {
+    "path": "docs/handoff/607/reviews/607-new-two-ui-native-independent-source-high.md",
+    "size": 3461,
+    "sha256": "636a1b1b43e13b9592d13890442bcacf5ddda61b2a10031f6da3d31f0a23c934"
+  },
+  {
+    "path": "docs/handoff/607/reviews/607-new-ui-complete-dto-independent-source-high.md",
+    "size": 1914,
+    "sha256": "d683a0c3528e9ad8415be9ed3b4e7eb8465e08afc7a5a2b52916347b67066978"
+  },
+  {
+    "path": "docs/handoff/607/reviews/607-new-ui-dto-independent-proof.json",
+    "size": 200,
+    "sha256": "c16c02ecfdd9e76fec3883b818f53b7e81eb07320d84af0724f858b0dcd13980"
+  },
+  {
+    "path": "docs/handoff/607/reviews/607-root87bddde5-independent-integration-boundary.md",
+    "size": 1172,
+    "sha256": "09da53bbb67e3ecd6b98d77ae644cd70c1210559c44716a00fc56574965e3a28"
+  },
+  {
+    "path": "docs/handoff/607/reviews/607-scoped-format-independent-proof.json",
+    "size": 4556,
+    "sha256": "99b89f809242169cc445b28f84b3114b95e5baa71e07310e871936af15e6f8ba"
+  },
+  {
+    "path": "docs/handoff/607/reviews/607-scoped-format-independent-source-high.md",
+    "size": 2233,
+    "sha256": "a7583102c60a0390938ae119e0c72a3f72660368aa3beeed18aa7ae3ac13760f"
+  },
+  {
+    "path": "docs/handoff/607/reviews/607-whole-twenty-one-corrected-independent-source-high.md",
+    "size": 4924,
+    "sha256": "0b0bf9974dcfc13c743bb4f561d80adcf86c842fa7847e2d3f03234dba45c3a0"
+  },
+  {
+    "path": "docs/handoff/607/source-patches/01-4ca52ccf52d9101bcff9ef9b0744b04a4419b48a.patch",
+    "size": 396548,
+    "sha256": "65df19f17ed798023f5b73deb329080cef07777d4e4f7eb0b4abdf593f598300"
+  },
+  {
+    "path": "docs/handoff/607/source-patches/02-5131ebc9a26b556c7e0fd4750a230c9ee4845637.patch",
+    "size": 25743,
+    "sha256": "c424ec81088cf8646dbdbad81034d4b466fc4078af5d4b98e76766c55ea78f70"
+  },
+  {
+    "path": "docs/handoff/607/source-patches/03-c4f510b9d313158782fe0c64cf0a8900fcde5227.patch",
+    "size": 1960,
+    "sha256": "83b0063b3a72b5cf6093fd52fc8aff8c615966f3744d028474369c7ec1bc693f"
+  },
+  {
+    "path": "docs/handoff/607/source-patches/04-327f59a8ffd9018dbfff28ef31f7736fde2eedf7.patch",
+    "size": 163570,
+    "sha256": "d367e8adf7817ef9226e9b681d4690090cfcb9f71214184b072ab3cbb279dc8a"
+  },
+  {
+    "path": "docs/handoff/607/source-patches/05-a552bbda39655c0eac862aefdd5d44c2d14ccab1.patch",
+    "size": 2531,
+    "sha256": "66b49d52ce70dd43a4850bf478e03a351d20a04d730134b7caef01b897d6d020"
+  },
+  {
+    "path": "docs/handoff/607/source-patches/06-42d26f3aff97440ef96194484f931bedde85718e.patch",
+    "size": 1177,
+    "sha256": "6f969a3aef9fcbda2ebfddebd4a0061a5908f9a3acc3e75fbeaaa0b9211c22bd"
+  },
+  {
+    "path": "docs/handoff/607/source-provenance.json",
+    "size": 6886,
+    "sha256": "1430de6e94cba62dbdf75fd853105c8b423cb8e31064db612aa1341b0fed6b36"
+  }
+]

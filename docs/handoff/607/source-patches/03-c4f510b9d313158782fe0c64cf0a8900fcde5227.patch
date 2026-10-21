@@ -1,0 +1,34 @@
+diff --git a/packages/db/src/repos/expected-lifecycle-607.test.ts b/packages/db/src/repos/expected-lifecycle-607.test.ts
+index 9f9024c0..03d42487 100644
+--- a/packages/db/src/repos/expected-lifecycle-607.test.ts
++++ b/packages/db/src/repos/expected-lifecycle-607.test.ts
+@@ -205,11 +205,25 @@ describe('#607 atomic lifecycle and retained financial history', () => {
+     linkOccurrence(db, assigned.id, book(), ctx);
+     const manual = skipOccurrence(db, p.id, '2026-05-25', ctx, TODAY).occurrence;
+     const past = row(p.id, '2026-02-25');
+-    updateTracked(db, expectedOccurrence, [assigned.id, manual.id, past.id], { deletedAt: TODAY + 'T12:00:00.000Z' }, ctx, 'delete');
++    const retained = [
++      { kind: 'assigned', old: row(p.id, assigned.dueDate) },
++      { kind: 'manual', old: manual },
++      { kind: 'past', old: past },
++    ];
++    const deletedAt = TODAY + 'T12:00:00.000Z';
++    // updateTracked accepts one row's primary key, not an array of row identities.
++    for (const { old } of retained)
++      updateTracked(db, expectedOccurrence, [old.id], { deletedAt }, ctx, 'delete');
++    for (const { kind, old } of retained)
++      expect(row(p.id, old.dueDate), `${kind} fixture must be a retained tombstone`).toMatchObject({
++        id: old.id, deletedAt, status: old.status, bookingId: old.bookingId,
++        expectedAmountCents: old.expectedAmountCents, contactShareCents: old.contactShareCents,
++      });
+     const before = opened.sqlite.serialize();
+-    for (const old of [assigned, manual, past])
+-      expect(() => skipOccurrence(db, p.id, old.dueDate, ctx, TODAY)).toThrow(ConflictError);
+-    unchanged(before);
++    for (const { kind, old } of retained) {
++      expect(() => skipOccurrence(db, p.id, old.dueDate, ctx, TODAY), `${kind}: ${old.dueDate}`).toThrow(ConflictError);
++      unchanged(before);
++    }
+   });
+ 
+   it('preserves repeated explicit skip of its own Undo tombstone with the same identity', () => {

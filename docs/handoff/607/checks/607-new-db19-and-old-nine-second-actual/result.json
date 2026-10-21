@@ -1,0 +1,19 @@
+{
+  "head": "c4f510b9d313158782fe0c64cf0a8900fcde5227",
+  "phases": [
+    {
+      "name": "new-db19",
+      "exit": 0,
+      "wallSeconds": 4.132
+    },
+    {
+      "name": "old-nine-compatibility",
+      "exit": 0,
+      "wallSeconds": 10.894
+    }
+  ],
+  "processGuard": 0,
+  "sourceGuard": 0,
+  "allPhases0": true,
+  "lockReleased": true
+}

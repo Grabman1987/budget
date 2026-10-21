@@ -1,0 +1,34 @@
+{
+  "head": "a552bbda39655c0eac862aefdd5d44c2d14ccab1",
+  "phases": [
+    {
+      "name": "web-types",
+      "exit": 2,
+      "wallSeconds": 42.142
+    },
+    {
+      "name": "new-ui8",
+      "exit": 0,
+      "wallSeconds": 4.047
+    },
+    {
+      "name": "prettier22",
+      "exit": 0,
+      "wallSeconds": 1.954
+    },
+    {
+      "name": "eslint21",
+      "exit": 1,
+      "wallSeconds": 3.842
+    },
+    {
+      "name": "css-one",
+      "exit": 0,
+      "wallSeconds": 0.065
+    }
+  ],
+  "processGuard": 0,
+  "sourceGuard": 0,
+  "allPhases0": false,
+  "lockReleased": true
+}

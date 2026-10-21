@@ -1,0 +1,11 @@
+[
+  {
+    "sourceLogName": "new-ui8.log",
+    "sha256": "acf12dd7801b19a42dff014bb32b2ceffa5bbbb5d6d9420f9ae64fbd908622ae",
+    "summaryLines": [
+      "Test Files  1 passed (1)",
+      "Tests  8 passed (8)",
+      "Duration  3.58s (transform 42%, tests 29%, import 15%, environment 14%)"
+    ]
+  }
+]

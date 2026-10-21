@@ -1,0 +1,5 @@
+# #607 final preview-shape independent source HIGH append
+
+Final whole25 SOURCE CLEAR bound to manifest 2a2a8ce39cad903ab80349ad619f25d4dbfb0105e48cae68c87f01827be93b06. All 25 immutable copy SHAs verified. The only difference from reviewed2413 is payments-preview.ts: after the effective-open filter has consumed storedBookingId, destructuring removes that private auxiliary input before the original downstream stored-row mapping/statement-replacement concat. No numeric, matching, timing or projection rule changes; existing downstream/public row shape is restored. Other20 product paths and all four NEW tests are exact their reviewed predecessors.
+
+Whole21 HIGH0b0bf997, NEW-four append0506420d and separate migration5 source HIGH0eb539d5 carry to this final pin. No remaining concrete source blocker identified. All reviews are source-only: no tests, migration copy, formatter, browser/native, full/build/CI/live or production restore result inferred. Root retains runtime and delivery grants. Existing tests remain unchanged, including OLD826 skip-create/Undo/repeat compatibility.

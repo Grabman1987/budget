@@ -1,0 +1,24 @@
+{
+  "head": "c4f510b9d313158782fe0c64cf0a8900fcde5227",
+  "phases": [
+    {
+      "name": "db-types",
+      "exit": 0,
+      "wallSeconds": 13.985
+    },
+    {
+      "name": "server-types",
+      "exit": 0,
+      "wallSeconds": 22.123
+    },
+    {
+      "name": "web-types",
+      "exit": 2,
+      "wallSeconds": 42.7
+    }
+  ],
+  "processGuard": 0,
+  "sourceGuard": 0,
+  "allPhases0": false,
+  "lockReleased": true
+}

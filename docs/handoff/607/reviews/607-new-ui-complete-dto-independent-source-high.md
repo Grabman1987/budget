@@ -1,0 +1,9 @@
+# #607 NEW UI complete DTO fixture — independent SOURCE HIGH CLEAR
+
+Reviewed separate outside manifest02a8f358614855f6dbb011f3073a05068c9517c64345407440c09159e3a37439, diff1c9026f5ad61a7b90aa389ca8223d5eeba3a9a4dfd1064eff278ec0d244a1761, candidate14475e6ff1ace14af54905349e4638087308e6b806c53431d1a88c128fabc2ce. All file pins exact. Proposal before exactly equals independently reviewed pure-format after-copyf01287b7 for this NEW file. Whole inverse proves only typed fixture object completion/import/cache+same HTTP object change; all eight scenarios, assertions, monetary/date literals, write paths and existing mocks/limits remain byte-exact.
+
+Existing actual AccountList requires asOf/accounts/netWorthEurCents/missingFxCurrencies/missingPriceSecurityIds; Lookups requires groups/categories/projects/incomeTypes/contacts/institutions. Candidate supplies every required field with existing DTO imports rather than casts or weaker types. Empty actual fixture universe is consistently0 known net worth/no missing inputs and empty collections. Its2026-09-17 matches the already mocked application day. Query cache and every corresponding account/lookup GET use the SAME complete objects, including later refreshes, so no typed-cache-versus-HTTP divergence is introduced. No source account, booking, lifecycle/CAS/Undo logic or financial oracle changes.
+
+No concrete source blocker found. Keep adoption/commit separate from pure formatting. Actual post-correction web typecheck and UI8 run are still Root-scheduled future evidence; this review does not infer their exits or that an inherited OLD price-history error is the sole remaining diagnostic. No OLD file/product/schema/test configuration was changed by this proposal or reviewer. Reviewer did not apply, format or execute tests/typechecks.
+
+Proof607-new-ui-dto-independent-proof.json SHAc16c02ecfdd9e76fec3883b818f53b7e81eb07320d84af0724f858b0dcd13980.

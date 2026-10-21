@@ -1,0 +1,43 @@
+{
+  "packages/db/src/schema/budget.ts": {
+    "frozen_pin": true,
+    "live_bytes": true,
+    "mode": true
+  },
+  "packages/db/drizzle/0049_expected_payment_pause.sql": {
+    "frozen_pin": true,
+    "live_bytes": true,
+    "mode": true
+  },
+  "packages/db/drizzle/meta/0049_snapshot.json": {
+    "frozen_pin": true,
+    "live_bytes": true,
+    "mode": true
+  },
+  "packages/db/drizzle/meta/_journal.json": {
+    "frozen_pin": true,
+    "live_bytes": true,
+    "mode": true
+  },
+  "packages/db/drizzle/rollback/0049_expected_payment_pause.sql": {
+    "frozen_pin": true,
+    "live_bytes": true,
+    "mode": true
+  },
+  "snapshot_prev": true,
+  "snapshot_other_exact": true,
+  "journal_prior_exact": true,
+  "journal_append": {
+    "idx": 49,
+    "version": "6",
+    "when": 1792530000000,
+    "tag": "0049_expected_payment_pause",
+    "breakpoints": true
+  },
+  "schema_inverse_exact": true,
+  "old48_exact": {
+    "packages/db/drizzle/0048_goal_lifecycle.sql": true,
+    "packages/db/drizzle/meta/0048_snapshot.json": true,
+    "packages/db/drizzle/rollback/0048_goal_lifecycle.sql": true
+  }
+}

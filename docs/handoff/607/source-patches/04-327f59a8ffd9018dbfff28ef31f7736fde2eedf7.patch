@@ -1,0 +1,3457 @@
+diff --git a/apps/server/src/api/expected-lifecycle-607.test.ts b/apps/server/src/api/expected-lifecycle-607.test.ts
+index f5ff0e3e..76c11a09 100644
+--- a/apps/server/src/api/expected-lifecycle-607.test.ts
++++ b/apps/server/src/api/expected-lifecycle-607.test.ts
+@@ -8,8 +8,10 @@ import { createApp, type AuthGate } from '../app';
+ 
+ const TODAY = '2026-03-20';
+ const auth: AuthGate = {
+-  originGuard: async (_c, next) => next(), requireSession: async (_c, next) => next(),
+-  requireStepUp: async (_c, next) => next(), routes: new Hono(),
++  originGuard: async (_c, next) => next(),
++  requireSession: async (_c, next) => next(),
++  requireStepUp: async (_c, next) => next(),
++  routes: new Hono(),
+ };
+ let opened: OpenedDatabase;
+ let app: ReturnType<typeof createApp>;
+@@ -28,7 +30,10 @@ interface Listed {
+ }
+ async function call(method: string, path: string, body?: unknown) {
+   return app.request('/api' + path, {
+-    method, ...(body === undefined ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
++    method,
++    ...(body === undefined
++      ? {}
++      : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
+   });
+ }
+ async function listed() {
+@@ -42,44 +47,86 @@ beforeEach(async () => {
+   vi.setSystemTime(new Date(TODAY + 'T12:00:00Z'));
+   opened = createTestDatabase();
+   opened.sqlite.function('strftime', { varargs: true }, (...args) => {
+-    if (args.length !== 2 || args[0] !== '%Y-%m-%dT%H:%M:%fZ' || args[1] !== 'now') throw new Error('Unexpected synthetic clock request');
++    if (args.length !== 2 || args[0] !== '%Y-%m-%dT%H:%M:%fZ' || args[1] !== 'now')
++      throw new Error('Unexpected synthetic clock request');
+     return new Date().toISOString();
+   });
+-  accounts.create(opened.db, {
+-    id: 'synthetic-607-account', name: 'Synthetic account', type: 'checking', role: 'budget', onBudget: true, openingDate: '2026-01-01',
+-  }, { actor: 'synthetic-607' });
++  accounts.create(
++    opened.db,
++    {
++      id: 'synthetic-607-account',
++      name: 'Synthetic account',
++      type: 'checking',
++      role: 'budget',
++      onBudget: true,
++      openingDate: '2026-01-01',
++    },
++    { actor: 'synthetic-607' },
++  );
+   webDir = mkdtempSync(join(tmpdir(), 'synthetic-api-607-'));
+   writeFileSync(join(webDir, 'index.html'), '<!doctype html><title>Synthetic</title>');
+   app = createApp({ webDir, auth, ledger: { db: opened.db, today: () => TODAY } });
+   const created = await call('POST', '/expected', {
+-    name: 'Synthetic payment', kind: 'outflow', accountId: 'synthetic-607-account',
+-    rhythm: 'monthly', dueDay: 25, dateShift: 'none', startDate: '2026-01-01',
+-    validFrom: '2026-01-01', amountCents: 1234,
++    name: 'Synthetic payment',
++    kind: 'outflow',
++    accountId: 'synthetic-607-account',
++    rhythm: 'monthly',
++    dueDay: 25,
++    dateShift: 'none',
++    startDate: '2026-01-01',
++    validFrom: '2026-01-01',
++    amountCents: 1234,
+   });
+   expect(created.status).toBe(201);
+   id = ((await created.json()) as { payment: { id: string } }).payment.id;
+ });
+-afterEach(() => { opened.close(); rmSync(webDir, { recursive: true, force: true }); vi.useRealTimers(); });
++afterEach(() => {
++  opened.close();
++  rmSync(webDir, { recursive: true, force: true });
++  vi.useRealTimers();
++});
+ 
+ describe('#607 protected explicit lifecycle routes', () => {
+   it('returns only the public lifecycle fields, with a stable read token and no GET mutation', async () => {
+     const before = opened.sqlite.serialize();
+     const first = await listed();
+-    expect(Object.keys(first.lifecycle).sort()).toEqual(['deletion', 'endEvidence', 'endedFrom', 'pauses', 'reviewToken']);
+-    expect(first.lifecycle).toMatchObject({ deletion: 'neverAssigned', pauses: [], endedFrom: null, endEvidence: 'none' });
++    expect(Object.keys(first.lifecycle).sort()).toEqual([
++      'deletion',
++      'endEvidence',
++      'endedFrom',
++      'pauses',
++      'reviewToken',
++    ]);
++    expect(first.lifecycle).toMatchObject({
++      deletion: 'neverAssigned',
++      pauses: [],
++      endedFrom: null,
++      endEvidence: 'none',
++    });
+     expect(first.lifecycle.reviewToken).toMatch(/^[a-f0-9]{64}$/);
+     expect((await listed()).lifecycle.reviewToken).toBe(first.lifecycle.reviewToken);
+     expect(opened.sqlite.serialize().equals(before)).toBe(true);
+   });
+ 
+   it('stores an inclusive pause then an exclusive end through real validated actions', async () => {
+-    const pause = await call('POST', `/expected/${id}/pause`, { throughDate: '2026-04-25', reviewToken: (await listed()).lifecycle.reviewToken });
++    const pause = await call('POST', `/expected/${id}/pause`, {
++      throughDate: '2026-04-25',
++      reviewToken: (await listed()).lifecycle.reviewToken,
++    });
+     expect(pause.status, await pause.clone().text()).toBe(200);
+     expect((await pause.json()) as object).toHaveProperty('groupId');
+-    expect((await listed()).lifecycle.pauses).toEqual([{ fromDate: TODAY, throughDate: '2026-04-25' }]);
+-    const end = await call('POST', `/expected/${id}/end`, { fromDate: '2026-05-01', reviewToken: (await listed()).lifecycle.reviewToken });
++    expect((await listed()).lifecycle.pauses).toEqual([
++      { fromDate: TODAY, throughDate: '2026-04-25' },
++    ]);
++    const end = await call('POST', `/expected/${id}/end`, {
++      fromDate: '2026-05-01',
++      reviewToken: (await listed()).lifecycle.reviewToken,
++    });
+     expect(end.status, await end.clone().text()).toBe(200);
+-    expect(await listed()).toMatchObject({ endDate: '2026-04-30', lifecycle: { endedFrom: '2026-05-01', endEvidence: 'proven' } });
++    expect(await listed()).toMatchObject({
++      endDate: '2026-04-30',
++      lifecycle: { endedFrom: '2026-05-01', endEvidence: 'proven' },
++    });
+   });
+ 
+   it('rejects malformed, missing-token and backdated actions without any database change', async () => {
+@@ -89,17 +136,28 @@ describe('#607 protected explicit lifecycle routes', () => {
+       { throughDate: '2026-04-31', reviewToken },
+       { throughDate: '2026-04-30' },
+       { throughDate: '2026-04-30', reviewToken, bookingId: 'synthetic-injected' },
+-    ]) expect((await call('POST', `/expected/${id}/pause`, body)).status).toBe(400);
+-    expect((await call('POST', `/expected/${id}/pause`, { throughDate: '2026-03-19', reviewToken })).status).toBe(409);
+-    expect((await call('POST', `/expected/${id}/end`, { fromDate: '2026-03-19', reviewToken })).status).toBe(409);
++    ])
++      expect((await call('POST', `/expected/${id}/pause`, body)).status).toBe(400);
++    expect(
++      (await call('POST', `/expected/${id}/pause`, { throughDate: '2026-03-19', reviewToken }))
++        .status,
++    ).toBe(409);
++    expect(
++      (await call('POST', `/expected/${id}/end`, { fromDate: '2026-03-19', reviewToken })).status,
++    ).toBe(409);
+     expect(opened.sqlite.serialize().equals(before)).toBe(true);
+   });
+ 
+   it('refuses an end from the stale reviewed editor after a source change', async () => {
+     const reviewToken = (await listed()).lifecycle.reviewToken;
+-    expect((await call('PATCH', `/expected/${id}`, { categoryId: null, dueDay: 26 })).status).toBe(200);
++    expect((await call('PATCH', `/expected/${id}`, { categoryId: null, dueDay: 26 })).status).toBe(
++      200,
++    );
+     const before = opened.sqlite.serialize();
+-    const response = await call('POST', `/expected/${id}/end`, { fromDate: '2026-04-01', reviewToken });
++    const response = await call('POST', `/expected/${id}/end`, {
++      fromDate: '2026-04-01',
++      reviewToken,
++    });
+     expect(response.status).toBe(409);
+     expect(opened.sqlite.serialize().equals(before)).toBe(true);
+     expect((await listed()).endDate).toBeNull();
+diff --git a/apps/server/src/api/expected.ts b/apps/server/src/api/expected.ts
+index a5366b55..ca40a240 100644
+--- a/apps/server/src/api/expected.ts
++++ b/apps/server/src/api/expected.ts
+@@ -257,13 +257,27 @@ export function expectedRoutes(db: Db, today: () => string): Hono {
+   });
+   app.post('/:id/pause', async (c) => {
+     const { throughDate, reviewToken } = await readBody(c, expectedPauseBody);
+-    return c.json(pauseExpectedPayment(db, c.req.param('id'), throughDate, reviewToken, audit(), today()));
++    return c.json(
++      pauseExpectedPayment(db, c.req.param('id'), throughDate, reviewToken, audit(), today()),
++    );
+   });
+   app.post('/:id/end', async (c) => {
+     const { fromDate, reviewToken } = await readBody(c, expectedEndBody);
+-    return c.json(endExpectedPayment(db, c.req.param('id'), fromDate, reviewToken, audit(), today()));
++    return c.json(
++      endExpectedPayment(db, c.req.param('id'), fromDate, reviewToken, audit(), today()),
++    );
+   });
+-  app.delete('/:id', (c) => c.json(deleteExpectedPayment(db, c.req.param('id'), audit(), today(), readQuery(c, expectedDeleteQuery).reviewToken)));
++  app.delete('/:id', (c) =>
++    c.json(
++      deleteExpectedPayment(
++        db,
++        c.req.param('id'),
++        audit(),
++        today(),
++        readQuery(c, expectedDeleteQuery).reviewToken,
++      ),
++    ),
++  );
+   app.post('/:id/restore', (c) =>
+     c.json(restoreExpectedPayment(db, c.req.param('id'), audit(), today())),
+   );
+diff --git a/apps/server/src/api/schemas.ts b/apps/server/src/api/schemas.ts
+index 19ddb21c..3f0aff9b 100644
+--- a/apps/server/src/api/schemas.ts
++++ b/apps/server/src/api/schemas.ts
+@@ -187,16 +187,32 @@ export const bookingPatch = z
+   })
+   .partial();
+ 
+-export const bookingDeleteQuery = z.object({ unlock: z.enum(['1', 'true']).optional(), previewRevision: z.string().regex(/^[a-f0-9]{64}$/).optional() });
+-export const bookingDeletePreviewBody = z.object({ ids: z.array(id).min(1).max(500), mode: z.enum(['bulk', 'single']).default('bulk') }).strict()
+-  .refine((value) => value.mode !== 'single' || value.ids.length === 1, 'Single deletion takes one booking');
++export const bookingDeleteQuery = z.object({
++  unlock: z.enum(['1', 'true']).optional(),
++  previewRevision: z
++    .string()
++    .regex(/^[a-f0-9]{64}$/)
++    .optional(),
++});
++export const bookingDeletePreviewBody = z
++  .object({ ids: z.array(id).min(1).max(500), mode: z.enum(['bulk', 'single']).default('bulk') })
++  .strict()
++  .refine(
++    (value) => value.mode !== 'single' || value.ids.length === 1,
++    'Single deletion takes one booking',
++  );
+ 
+ export const bulkBody = z.discriminatedUnion('action', [
+   z.object({
+     action: z.literal('update'),
+     ids: z.array(id).min(1).max(500),
+     set: z
+-      .object({ categoryId: id.nullable(), flag: flag.nullable(), status: writableStatus, projectId: id.nullable() })
++      .object({
++        categoryId: id.nullable(),
++        flag: flag.nullable(),
++        status: writableStatus,
++        projectId: id.nullable(),
++      })
+       .partial()
+       .refine((s) => Object.keys(s).length > 0, 'Nothing to set'),
+     unlockReconciled: z.boolean().default(false),
+@@ -399,9 +415,18 @@ export const expectedOccurrencesQuery = z.object({
+ export const expectedIncomeQuery = z.object({ month });
+ export const expectedLinkBody = z.object({ bookingId: id });
+ export const expectedSkipBody = z.object({ dueDate: day });
+-export const expectedPauseBody = z.object({ throughDate: day, reviewToken: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
+-export const expectedEndBody = z.object({ fromDate: day, reviewToken: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
+-export const expectedDeleteQuery = z.object({ reviewToken: z.string().regex(/^[a-f0-9]{64}$/).optional() });
++export const expectedPauseBody = z
++  .object({ throughDate: day, reviewToken: z.string().regex(/^[a-f0-9]{64}$/) })
++  .strict();
++export const expectedEndBody = z
++  .object({ fromDate: day, reviewToken: z.string().regex(/^[a-f0-9]{64}$/) })
++  .strict();
++export const expectedDeleteQuery = z.object({
++  reviewToken: z
++    .string()
++    .regex(/^[a-f0-9]{64}$/)
++    .optional(),
++});
+ 
+ // ---------- savings goals ----------
+ const goalFields = {
+diff --git a/apps/web/src/expected/payment-draft.ts b/apps/web/src/expected/payment-draft.ts
+index fa6796e6..7bcac1bb 100644
+--- a/apps/web/src/expected/payment-draft.ts
++++ b/apps/web/src/expected/payment-draft.ts
+@@ -212,8 +212,12 @@ export function readDraft(d: PaymentDraft, creating: boolean, original?: Payment
+     errors.startDate = 'Bitte das erste Fälligkeitsdatum wählen.';
+   if (d.startDate && !isDay(d.startDate)) errors.startDate = 'Bitte ein Datum wählen.';
+   if (d.endDate && !isDay(d.endDate)) errors.endDate = 'Bitte ein Datum wählen.';
+-  if (d.startDate && d.endDate && d.endDate < d.startDate &&
+-    (creating || !original || d.startDate !== original.startDate || d.endDate !== original.endDate))
++  if (
++    d.startDate &&
++    d.endDate &&
++    d.endDate < d.startDate &&
++    (creating || !original || d.startDate !== original.startDate || d.endDate !== original.endDate)
++  )
+     errors.endDate = 'Das Ende liegt vor dem Start.';
+ 
+   let version: ReadResult['version'];
+diff --git a/apps/web/src/expected/payment-form.tsx b/apps/web/src/expected/payment-form.tsx
+index b6102fc4..a3838561 100644
+--- a/apps/web/src/expected/payment-form.tsx
++++ b/apps/web/src/expected/payment-form.tsx
+@@ -242,9 +242,17 @@ export function PaymentForm({
+         {pick('dateShift', 'Wochenende und Feiertag', SHIFTS)}
+         <div className="kform-pair">
+           {text('startDate', 'Start', { type: 'date' })}
+-          {text('endDate', 'Letzte Fälligkeit einschließlich', { type: 'date', readOnly: !creating })}
++          {text('endDate', 'Letzte Fälligkeit einschließlich', {
++            type: 'date',
++            readOnly: !creating,
++          })}
+         </div>
+-        {!creating && <p className="field-hint">Das bestehende Enddatum ist hier schreibgeschützt. Zum Ändern die Aktion „Beenden ab“ verwenden; eine solche Endaktion lässt sich über „Rückgängig“ zurücknehmen.</p>}
++        {!creating && (
++          <p className="field-hint">
++            Das bestehende Enddatum ist hier schreibgeschützt. Zum Ändern die Aktion „Beenden ab“
++            verwenden; eine solche Endaktion lässt sich über „Rückgängig“ zurücknehmen.
++          </p>
++        )}
+       </fieldset>
+       <fieldset className="kform-set xp-set">
+         <legend>Abgleich mit Buchungen</legend>
+diff --git a/apps/web/src/expected/payment-lifecycle-607.test.tsx b/apps/web/src/expected/payment-lifecycle-607.test.tsx
+index 126d3f2c..72358dbd 100644
+--- a/apps/web/src/expected/payment-lifecycle-607.test.tsx
++++ b/apps/web/src/expected/payment-lifecycle-607.test.tsx
+@@ -19,18 +19,29 @@ vi.mock('../shell/app-link', () => ({
+ 
+ const clients: QueryClient[] = [];
+ const dialogDescriptors = new Map(
+-  ['showModal', 'close'].map((key) => [key, Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, key)]),
++  ['showModal', 'close'].map((key) => [
++    key,
++    Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, key),
++  ]),
+ );
+ beforeEach(() => {
+   setAmountsHidden(false);
+-  vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
++  vi.stubGlobal('matchMedia', () => ({
++    matches: false,
++    addEventListener() {},
++    removeEventListener() {},
++  }));
+   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+     configurable: true,
+-    value(this: HTMLDialogElement) { this.open = true; },
++    value(this: HTMLDialogElement) {
++      this.open = true;
++    },
+   });
+   Object.defineProperty(HTMLDialogElement.prototype, 'close', {
+     configurable: true,
+-    value(this: HTMLDialogElement) { this.open = false; },
++    value(this: HTMLDialogElement) {
++      this.open = false;
++    },
+   });
+ });
+ afterEach(() => {
+@@ -45,24 +56,63 @@ afterEach(() => {
+ 
+ function payment(): ExpectedPayment {
+   return {
+-    id: 'synthetic-payment-607', name: 'Synthetic payment', kind: 'outflow',
+-    accountId: null, payeeId: null, contactId: null, categoryId: null, incomeTypeId: null,
+-    contactShareBp: 0, amountToleranceCents: 0, dateWindowDays: 3, rhythm: 'monthly',
+-    intervalWeeks: null, dueDay: 20, dueMonth: null, dateShift: 'none',
+-    startDate: '2026-01-01', endDate: '2026-12-31', note: null, deletedAt: null,
+-    version: { id: 'synthetic-version-607', validFrom: '2026-01-01', amountCents: 1234, amountMaxCents: null, currency: 'EUR' },
+-    amountCents: -1234, nextDueDate: '2026-09-20', monthlyEquivalentCents: -1234,
++    id: 'synthetic-payment-607',
++    name: 'Synthetic payment',
++    kind: 'outflow',
++    accountId: null,
++    payeeId: null,
++    contactId: null,
++    categoryId: null,
++    incomeTypeId: null,
++    contactShareBp: 0,
++    amountToleranceCents: 0,
++    dateWindowDays: 3,
++    rhythm: 'monthly',
++    intervalWeeks: null,
++    dueDay: 20,
++    dueMonth: null,
++    dateShift: 'none',
++    startDate: '2026-01-01',
++    endDate: '2026-12-31',
++    note: null,
++    deletedAt: null,
++    version: {
++      id: 'synthetic-version-607',
++      validFrom: '2026-01-01',
++      amountCents: 1234,
++      amountMaxCents: null,
++      currency: 'EUR',
++    },
++    amountCents: -1234,
++    nextDueDate: '2026-09-20',
++    monthlyEquivalentCents: -1234,
+     yearlyEquivalentCents: -14808,
+-    lifecycle: { pauses: [], endedFrom: null, endEvidence: 'none', deletion: 'neverAssigned', reviewToken: 'reviewed-token-A' },
++    lifecycle: {
++      pauses: [],
++      endedFrom: null,
++      endEvidence: 'none',
++      deletion: 'neverAssigned',
++      reviewToken: 'reviewed-token-A',
++    },
+   };
+ }
+ 
+ function show(initial = payment(), creating = false) {
+   let current = initial;
+   const writes: Array<{ method: string; path: string; body: unknown }> = [];
+-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
++  const client = new QueryClient({
++    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
++  });
+   clients.push(client);
+-  const detail = { paymentId: initial.id, asOf: '2026-09-17', history: [], future: [], sparseHistory: true, hasEarlierRecorded: false, hasFurtherFuture: false };
++  const detail = {
++    paymentId: initial.id,
++    asOf: '2026-09-17',
++    history: [],
++    future: [],
++    sparseHistory: true,
++    hasEarlierRecorded: false,
++    hasFurtherFuture: false,
++  };
+   const versions = [{ ...initial.version!, expectedPaymentId: initial.id, note: null }];
+   const lookups = { categories: [], contacts: [], incomeTypes: [] };
+   client.setQueryData(expectedQuery().queryKey, [current]);
+@@ -71,31 +121,56 @@ function show(initial = payment(), creating = false) {
+   client.setQueryData(accountsQuery().queryKey, { accounts: [] });
+   client.setQueryData(lookupsQuery().queryKey, lookups);
+   client.setQueryData(payeesQuery().queryKey, { payees: [] });
+-  vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
+-    const reply = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
+-    if (init?.method !== 'GET') {
+-      writes.push({ method: init?.method ?? '', path, body: JSON.parse(String(init?.body ?? '{}')) });
+-      // Real HTTP transport and error handling; the separate real-API suite proves CAS itself.
+-      if (path.endsWith('/pause') || path.endsWith('/end')) return reply({ error: 'conflict', message: 'Zahlung wurde geändert. Bitte neu prüfen.' }, 409);
+-      if (init?.method === 'PATCH' && path === `/api/expected/${initial.id}`) return reply({ groupId: 'synthetic-group' });
+-      throw new Error(`Unexpected mutation: ${init?.method} ${path}`);
+-    }
+-    if (path === '/api/expected') return reply({ payments: [current] });
+-    if (path === `/api/expected/${initial.id}/detail`) return reply(detail);
+-    if (path === `/api/expected/${initial.id}/versions`) return reply({ versions });
+-    if (path === '/api/accounts') return reply({ accounts: [] });
+-    if (path === '/api/lookups') return reply(lookups);
+-    if (path === '/api/payees') return reply({ payees: [] });
+-    throw new Error(`Unexpected read: ${path}`);
+-  }));
+-  render(<QueryClientProvider client={client}><ToastProvider>
+-    <PaymentPanel state={creating ? { mode: 'create' } : { mode: 'view', id: initial.id }} onClose={() => {}} />
+-  </ToastProvider></QueryClientProvider>);
++  vi.stubGlobal(
++    'fetch',
++    vi.fn(async (path: string, init?: RequestInit) => {
++      const reply = (value: unknown, status = 200) =>
++        new Response(JSON.stringify(value), {
++          status,
++          headers: { 'content-type': 'application/json' },
++        });
++      if (init?.method !== 'GET') {
++        writes.push({
++          method: init?.method ?? '',
++          path,
++          body: JSON.parse(String(init?.body ?? '{}')),
++        });
++        // Real HTTP transport and error handling; the separate real-API suite proves CAS itself.
++        if (path.endsWith('/pause') || path.endsWith('/end'))
++          return reply(
++            { error: 'conflict', message: 'Zahlung wurde geändert. Bitte neu prüfen.' },
++            409,
++          );
++        if (init?.method === 'PATCH' && path === `/api/expected/${initial.id}`)
++          return reply({ groupId: 'synthetic-group' });
++        throw new Error(`Unexpected mutation: ${init?.method} ${path}`);
++      }
++      if (path === '/api/expected') return reply({ payments: [current] });
++      if (path === `/api/expected/${initial.id}/detail`) return reply(detail);
++      if (path === `/api/expected/${initial.id}/versions`) return reply({ versions });
++      if (path === '/api/accounts') return reply({ accounts: [] });
++      if (path === '/api/lookups') return reply(lookups);
++      if (path === '/api/payees') return reply({ payees: [] });
++      throw new Error(`Unexpected read: ${path}`);
++    }),
++  );
++  render(
++    <QueryClientProvider client={client}>
++      <ToastProvider>
++        <PaymentPanel
++          state={creating ? { mode: 'create' } : { mode: 'view', id: initial.id }}
++          onClose={() => {}}
++        />
++      </ToastProvider>
++    </QueryClientProvider>,
++  );
+   return {
+     writes,
+     async refetch(next: ExpectedPayment) {
+       current = next;
+-      await act(async () => { await client.refetchQueries({ queryKey: expectedQuery().queryKey }); });
++      await act(async () => {
++        await client.refetchQueries({ queryKey: expectedQuery().queryKey });
++      });
+     },
+   };
+ }
+@@ -107,7 +182,9 @@ it('keeps the existing inclusive end read-only and explains the protected action
+   const input = dialog.getByLabelText('Letzte Fälligkeit einschließlich') as HTMLInputElement;
+   expect(input.readOnly).toBe(true);
+   expect(input.value).toBe('31.12.2026');
+-  expect(dialog.getByText(/Zum Ändern die Aktion „Beenden ab“/).textContent).toContain('Rückgängig');
++  expect(dialog.getByText(/Zum Ändern die Aktion „Beenden ab“/).textContent).toContain(
++    'Rückgängig',
++  );
+ });
+ 
+ it('leaves the inclusive end editable when creating a new payment', () => {
+@@ -119,8 +196,22 @@ it('leaves the inclusive end editable when creating a new payment', () => {
+ });
+ 
+ for (const action of [
+-  { open: 'Pausieren bis', title: 'Zahlung pausieren', label: 'Pausieren bis einschließlich', submit: 'Pause speichern', endpoint: 'pause', field: 'throughDate' },
+-  { open: 'Beenden ab', title: 'Zahlung beenden', label: 'Beenden ab', submit: 'Beenden bestätigen', endpoint: 'end', field: 'fromDate' },
++  {
++    open: 'Pausieren bis',
++    title: 'Zahlung pausieren',
++    label: 'Pausieren bis einschließlich',
++    submit: 'Pause speichern',
++    endpoint: 'pause',
++    field: 'throughDate',
++  },
++  {
++    open: 'Beenden ab',
++    title: 'Zahlung beenden',
++    label: 'Beenden ab',
++    submit: 'Beenden bestätigen',
++    endpoint: 'end',
++    field: 'fromDate',
++  },
+ ] as const) {
+   it(`${action.endpoint} submits the captured review token after a real query refetch and retains the date on refusal`, async () => {
+     const original = payment();
+@@ -129,12 +220,21 @@ for (const action of [
+     const dialog = within(screen.getByRole('dialog', { name: action.title }));
+     const input = dialog.getByLabelText(action.label) as HTMLInputElement;
+     fireEvent.change(input, { target: { value: '30.11.2026' } });
+-    await fixture.refetch({ ...original, dueDay: 25, lifecycle: { ...original.lifecycle!, reviewToken: 'changed-token-B' } });
++    await fixture.refetch({
++      ...original,
++      dueDay: 25,
++      lifecycle: { ...original.lifecycle!, reviewToken: 'changed-token-B' },
++    });
+     fireEvent.click(dialog.getByRole('button', { name: action.submit }));
+-    await waitFor(() => expect(fixture.writes).toEqual([{
+-      method: 'POST', path: `/api/expected/${original.id}/${action.endpoint}`,
+-      body: { [action.field]: '2026-11-30', reviewToken: 'reviewed-token-A' },
+-    }]));
++    await waitFor(() =>
++      expect(fixture.writes).toEqual([
++        {
++          method: 'POST',
++          path: `/api/expected/${original.id}/${action.endpoint}`,
++          body: { [action.field]: '2026-11-30', reviewToken: 'reviewed-token-A' },
++        },
++      ]),
++    );
+     await screen.findByText('Zahlung wurde geändert. Bitte neu prüfen.');
+     expect(input.value).toBe('30.11.2026');
+     expect(screen.getByRole('dialog', { name: action.title })).toBeTruthy();
+@@ -152,7 +252,10 @@ for (const deletion of ['everAssigned', 'unavailable'] as const) {
+ 
+ it('disables lifecycle writes when no trustworthy review token is available', () => {
+   const original = payment();
+-  const { writes } = show({ ...original, lifecycle: { ...original.lifecycle!, reviewToken: null } });
++  const { writes } = show({
++    ...original,
++    lifecycle: { ...original.lifecycle!, reviewToken: null },
++  });
+   for (const name of ['Pausieren bis', 'Beenden ab', 'Löschen']) {
+     const button = screen.getByRole('button', { name }) as HTMLButtonElement;
+     expect(button.disabled).toBe(true);
+@@ -167,11 +270,26 @@ it('a rename after background refresh cannot accidentally rewrite the old source
+   const fixture = show(original);
+   fireEvent.click(screen.getByRole('button', { name: 'Bearbeiten' }));
+   const dialog = within(screen.getByRole('dialog', { name: 'Zahlung bearbeiten' }));
+-  fireEvent.change(dialog.getByLabelText('Name'), { target: { value: 'Renamed synthetic payment' } });
+-  await fixture.refetch({ ...original, accountId: 'other-source', startDate: '2026-02-01', endDate: '2026-11-30' });
++  fireEvent.change(dialog.getByLabelText('Name'), {
++    target: { value: 'Renamed synthetic payment' },
++  });
++  await fixture.refetch({
++    ...original,
++    accountId: 'other-source',
++    startDate: '2026-02-01',
++    endDate: '2026-11-30',
++  });
+   fireEvent.click(dialog.getByRole('button', { name: 'Speichern' }));
+-  await waitFor(() => expect(fixture.writes).toEqual([{
+-    method: 'PATCH', path: `/api/expected/${original.id}`, body: { name: 'Renamed synthetic payment' },
+-  }]));
+-  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Zahlung bearbeiten' })).toBeNull());
++  await waitFor(() =>
++    expect(fixture.writes).toEqual([
++      {
++        method: 'PATCH',
++        path: `/api/expected/${original.id}`,
++        body: { name: 'Renamed synthetic payment' },
++      },
++    ]),
++  );
++  await waitFor(() =>
++    expect(screen.queryByRole('dialog', { name: 'Zahlung bearbeiten' })).toBeNull(),
++  );
+ });
+diff --git a/apps/web/src/expected/payment-panel.tsx b/apps/web/src/expected/payment-panel.tsx
+index 65223480..64dcddcc 100644
+--- a/apps/web/src/expected/payment-panel.tsx
++++ b/apps/web/src/expected/payment-panel.tsx
+@@ -179,32 +179,75 @@ function ViewBody({ payment: p, onDone }: { payment: ExpectedPayment; onDone: ()
+           {!p.nextDueDate && ' · keine Fälligkeit im Vorschauzeitraum'}
+         </p>
+       </div>
+-      {p.lifecycle?.pauses.map((pause) => <p className="field-hint" key={pause.fromDate}>
+-        Pause von {longDay(pause.fromDate)} bis einschließlich {longDay(pause.throughDate)}.
+-      </p>)}
+-      {p.lifecycle?.endedFrom && <p className="field-hint">Beendet ab {longDay(p.lifecycle.endedFrom)}. Der bisherige Verlauf bleibt erhalten.</p>}
+-      {!reviewToken && <p className="field-hint">Pausieren und Beenden sind derzeit nicht sicher prüfbar. Bitte die Zahlung neu laden.</p>}
++      {p.lifecycle?.pauses.map((pause) => (
++        <p className="field-hint" key={pause.fromDate}>
++          Pause von {longDay(pause.fromDate)} bis einschließlich {longDay(pause.throughDate)}.
++        </p>
++      ))}
++      {p.lifecycle?.endedFrom && (
++        <p className="field-hint">
++          Beendet ab {longDay(p.lifecycle.endedFrom)}. Der bisherige Verlauf bleibt erhalten.
++        </p>
++      )}
++      {!reviewToken && (
++        <p className="field-hint">
++          Pausieren und Beenden sind derzeit nicht sicher prüfbar. Bitte die Zahlung neu laden.
++        </p>
++      )}
+       <VersionsSection payment={p} />
+       <OccurrencesSection payment={p} />
+       <div className="panel-actions">
+         <Button variant="ghost" onClick={() => setEditing(true)}>
+           Bearbeiten
+         </Button>
+-        <Button variant="ghost" disabled={!reviewToken} onClick={() => reviewToken && setAction({ kind: 'pause', reviewToken })}>
++        <Button
++          variant="ghost"
++          disabled={!reviewToken}
++          onClick={() => reviewToken && setAction({ kind: 'pause', reviewToken })}
++        >
+           Pausieren bis
+         </Button>
+-        <Button variant="ghost" disabled={!reviewToken} onClick={() => reviewToken && setAction({ kind: 'end', reviewToken })}>
++        <Button
++          variant="ghost"
++          disabled={!reviewToken}
++          onClick={() => reviewToken && setAction({ kind: 'end', reviewToken })}
++        >
+           Beenden ab
+         </Button>
+-        {p.lifecycle?.deletion === 'neverAssigned' && <Button variant="ghost" disabled={!reviewToken} onClick={() => reviewToken && setDeleting(reviewToken)}>
+-          Löschen
+-        </Button>}
++        {p.lifecycle?.deletion === 'neverAssigned' && (
++          <Button
++            variant="ghost"
++            disabled={!reviewToken}
++            onClick={() => reviewToken && setDeleting(reviewToken)}
++          >
++            Löschen
++          </Button>
++        )}
+       </div>
+-      {p.lifecycle?.deletion !== 'neverAssigned' && <p className="field-hint">
+-        {p.lifecycle?.deletion === 'everAssigned' ? 'Dieser Zahlung war bereits eine Buchung zugeordnet.' : 'Eine durchgehend leere Zuordnungshistorie ist nicht belegt.'} Bitte „Beenden ab“ verwenden; der Verlauf bleibt erhalten.
+-      </p>}
+-      <PaymentDialog open={action !== null} title={action?.kind === 'pause' ? 'Zahlung pausieren' : 'Zahlung beenden'} busy={busy} onClose={() => setAction(null)}>
+-        {action && <LifecycleAction payment={p} action={action} write={write} busy={busy} setBusy={setBusy} onDone={() => setAction(null)} />}
++      {p.lifecycle?.deletion !== 'neverAssigned' && (
++        <p className="field-hint">
++          {p.lifecycle?.deletion === 'everAssigned'
++            ? 'Dieser Zahlung war bereits eine Buchung zugeordnet.'
++            : 'Eine durchgehend leere Zuordnungshistorie ist nicht belegt.'}{' '}
++          Bitte „Beenden ab“ verwenden; der Verlauf bleibt erhalten.
++        </p>
++      )}
++      <PaymentDialog
++        open={action !== null}
++        title={action?.kind === 'pause' ? 'Zahlung pausieren' : 'Zahlung beenden'}
++        busy={busy}
++        onClose={() => setAction(null)}
++      >
++        {action && (
++          <LifecycleAction
++            payment={p}
++            action={action}
++            write={write}
++            busy={busy}
++            setBusy={setBusy}
++            onDone={() => setAction(null)}
++          />
++        )}
+       </PaymentDialog>
+       <PaymentDialog open={editing} title="Zahlung bearbeiten" onClose={() => setEditing(false)}>
+         {editing && <EditSection payment={p} onDone={() => setEditing(false)} write={write} />}
+@@ -241,7 +284,14 @@ function ViewBody({ payment: p, onDone }: { payment: ExpectedPayment; onDone: ()
+ }
+ 
+ /** The reviewed token stays with this dialog, even if background data refreshes. */
+-function LifecycleAction({ payment, action, write, busy, setBusy, onDone }: {
++function LifecycleAction({
++  payment,
++  action,
++  write,
++  busy,
++  setBusy,
++  onDone,
++}: {
+   payment: ExpectedPayment;
+   action: { kind: 'pause' | 'end'; reviewToken: string };
+   write: ReturnType<typeof useBudgetWrite>;
+@@ -250,35 +300,73 @@ function LifecycleAction({ payment, action, write, busy, setBusy, onDone }: {
+   onDone: () => void;
+ }) {
+   const [today] = useState(todayInVienna);
+-  const [day, setDay] = useState(() => action.kind === 'pause' ? addDays(today, 30) : today);
++  const [day, setDay] = useState(() => (action.kind === 'pause' ? addDays(today, 30) : today));
+   const [error, setError] = useState<string>();
+   const pause = action.kind === 'pause';
+   const submit = async () => {
+     const time = Date.parse(day + 'T12:00:00Z');
+-    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(time) || new Date(time).toISOString().slice(0, 10) !== day || day < today) {
++    if (
++      !/^\d{4}-\d{2}-\d{2}$/.test(day) ||
++      !Number.isFinite(time) ||
++      new Date(time).toISOString().slice(0, 10) !== day ||
++      day < today
++    ) {
+       setError('Bitte heute oder einen späteren Tag wählen.');
+       return;
+     }
+     setError(undefined);
+     setBusy(true);
+     const done = await write(
+-      () => pause ? pausePayment(payment.id, day, action.reviewToken) : endPayment(payment.id, day, action.reviewToken),
+-      () => `${payment.name}: ${pause ? 'pausiert bis einschließlich' : 'beendet ab'} ${longDay(day)}`,
++      () =>
++        pause
++          ? pausePayment(payment.id, day, action.reviewToken)
++          : endPayment(payment.id, day, action.reviewToken),
++      () =>
++        `${payment.name}: ${pause ? 'pausiert bis einschließlich' : 'beendet ab'} ${longDay(day)}`,
+     );
+     setBusy(false);
+     if (done) onDone();
+   };
+-  return <form className="kform xp-lifecycle" noValidate onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+-    <p>{pause ? 'Ab heute entfallen noch offene Termine bis einschließlich zum gewählten Tag. Danach gilt wieder der bisherige Rhythmus.' : 'Ab dem gewählten Tag entstehen keine neuen offenen Termine mehr.'} Vergangene Termine und bestehende Buchungszuordnungen bleiben erhalten.</p>
+-    <Field label={pause ? 'Pausieren bis einschließlich' : 'Beenden ab'} error={error}>
+-      {({ id, describedBy, invalid }) => <TextInput id={id} type="date" min={today} value={day} disabled={busy} aria-describedby={describedBy} aria-invalid={invalid} onChange={(event) => setDay(event.target.value)} />}
+-    </Field>
+-    <p className="field-hint">Die gesamte Aktion kann über „Rückgängig“ zurückgenommen werden.</p>
+-    <div className="panel-actions">
+-      <Button type="submit" disabled={busy}>{pause ? 'Pause speichern' : 'Beenden bestätigen'}</Button>
+-      <Button variant="ghost" disabled={busy} onClick={onDone}>Abbrechen</Button>
+-    </div>
+-  </form>;
++  return (
++    <form
++      className="kform xp-lifecycle"
++      noValidate
++      onSubmit={(event) => {
++        event.preventDefault();
++        void submit();
++      }}
++    >
++      <p>
++        {pause
++          ? 'Ab heute entfallen noch offene Termine bis einschließlich zum gewählten Tag. Danach gilt wieder der bisherige Rhythmus.'
++          : 'Ab dem gewählten Tag entstehen keine neuen offenen Termine mehr.'}{' '}
++        Vergangene Termine und bestehende Buchungszuordnungen bleiben erhalten.
++      </p>
++      <Field label={pause ? 'Pausieren bis einschließlich' : 'Beenden ab'} error={error}>
++        {({ id, describedBy, invalid }) => (
++          <TextInput
++            id={id}
++            type="date"
++            min={today}
++            value={day}
++            disabled={busy}
++            aria-describedby={describedBy}
++            aria-invalid={invalid}
++            onChange={(event) => setDay(event.target.value)}
++          />
++        )}
++      </Field>
++      <p className="field-hint">Die gesamte Aktion kann über „Rückgängig“ zurückgenommen werden.</p>
++      <div className="panel-actions">
++        <Button type="submit" disabled={busy}>
++          {pause ? 'Pause speichern' : 'Beenden bestätigen'}
++        </Button>
++        <Button variant="ghost" disabled={busy} onClick={onDone}>
++          Abbrechen
++        </Button>
++      </div>
++    </form>
++  );
+ }
+ 
+ // ---------- Versionen ----------
+diff --git a/e2e/issue-607-payment-lifecycle.spec.ts b/e2e/issue-607-payment-lifecycle.spec.ts
+index e38e11af..8822f781 100644
+--- a/e2e/issue-607-payment-lifecycle.spec.ts
++++ b/e2e/issue-607-payment-lifecycle.spec.ts
+@@ -23,7 +23,10 @@ interface DetailRow {
+   status: string;
+   booking: { id: string; amountCents: number; date: string } | null;
+ }
+-interface Detail { history: DetailRow[]; future: DetailRow[] }
++interface Detail {
++  history: DetailRow[];
++  future: DetailRow[];
++}
+ interface Listed {
+   id: string;
+   accountId: string | null;
+@@ -50,65 +53,125 @@ async function detail(page: Page, id: string): Promise<Detail> {
+ async function listed(page: Page, id: string) {
+   const response = await page.request.get('/api/expected');
+   expect(response.status()).toBe(200);
+-  const body = await response.json() as { payments: Listed[] };
++  const body = (await response.json()) as { payments: Listed[] };
+   const found = body.payments.find((payment) => payment.id === id);
+   expect(found).toBeTruthy();
+   return found!;
+ }
+ async function account(page: Page, origin: string, name: string) {
+-  return (await post<{ account: { id: string } }>(page, origin, '/accounts', {
+-    name, type: 'checking', onBudget: true, openingDate: START, openingBalanceCents: 100000,
+-  }, 201)).account.id;
++  return (
++    await post<{ account: { id: string } }>(
++      page,
++      origin,
++      '/accounts',
++      {
++        name,
++        type: 'checking',
++        onBudget: true,
++        openingDate: START,
++        openingBalanceCents: 100000,
++      },
++      201,
++    )
++  ).account.id;
+ }
+ async function seed(page: Page, origin: string) {
+   const accountId = await account(page, origin, 'Synthetic lifecycle account');
+-  const { payment } = await post<{ payment: { id: string } }>(page, origin, '/expected', {
+-    name: 'Synthetic lifecycle payment', kind: 'outflow', accountId,
+-    amountCents: 1234, rhythm: 'monthly', dueDay: 25, dateShift: 'none',
+-    startDate: START, validFrom: START,
+-  }, 201);
++  const { payment } = await post<{ payment: { id: string } }>(
++    page,
++    origin,
++    '/expected',
++    {
++      name: 'Synthetic lifecycle payment',
++      kind: 'outflow',
++      accountId,
++      amountCents: 1234,
++      rhythm: 'monthly',
++      dueDay: 25,
++      dateShift: 'none',
++      startDate: START,
++      validFrom: START,
++    },
++    201,
++  );
+   const before = await detail(page, payment.id);
+   for (const day of [PAST, ASSIGNED]) {
+     const occurrence = [...before.history, ...before.future].find((row) => row.dueDate === day);
+     expect(occurrence?.occurrenceId).toBeTruthy();
+-    const booked = await post<{ id: string }>(page, origin, '/bookings', {
+-      type: 'booking', accountId, date: day, amountCents: -1334, status: 'confirmed',
+-    }, 201);
+-    await post(page, origin, `/expected/occurrences/${occurrence!.occurrenceId}/link`, { bookingId: booked.id });
++    const booked = await post<{ id: string }>(
++      page,
++      origin,
++      '/bookings',
++      {
++        type: 'booking',
++        accountId,
++        date: day,
++        amountCents: -1334,
++        status: 'confirmed',
++      },
++      201,
++    );
++    await post(page, origin, `/expected/occurrences/${occurrence!.occurrenceId}/link`, {
++      bookingId: booked.id,
++    });
+   }
+   return { paymentId: payment.id, accountId };
+ }
+ async function undoToast(page: Page) {
+-  await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig', exact: true }).click();
++  await page
++    .locator('.toast.is-open')
++    .getByRole('button', { name: 'Rückgängig', exact: true })
++    .click();
+   await expect(page.locator('.toast.is-open')).toContainText('Rückgängig gemacht.');
+ }
+ async function openAction(page: Page, kind: 'pause' | 'end') {
+-  const opener = page.getByRole('button', { name: kind === 'pause' ? 'Pausieren bis' : 'Beenden ab', exact: true });
++  const opener = page.getByRole('button', {
++    name: kind === 'pause' ? 'Pausieren bis' : 'Beenden ab',
++    exact: true,
++  });
+   await opener.focus();
+   await expect(opener).toBeFocused();
+   await opener.press('Enter');
+-  const dialog = page.getByRole('dialog', { name: kind === 'pause' ? 'Zahlung pausieren' : 'Zahlung beenden', exact: true });
++  const dialog = page.getByRole('dialog', {
++    name: kind === 'pause' ? 'Zahlung pausieren' : 'Zahlung beenden',
++    exact: true,
++  });
+   await expect(dialog).toBeVisible();
+   return { opener, dialog };
+ }
+ 
+-test('real pause/end and whole Undo preserve assigned cents, identities and history; stale explicit end refuses a changed source', async ({ page, isolatedLedger }) => {
++test('real pause/end and whole Undo preserve assigned cents, identities and history; stale explicit end refuses a changed source', async ({
++  page,
++  isolatedLedger,
++}) => {
+   test.setTimeout(60_000); // Two audited mutations, two real whole-group Undo actions and a stale editor.
+   const { paymentId } = await seed(page, isolatedLedger.origin);
+   const before = await detail(page, paymentId);
+   const originalAssigned = before.future.find((row) => row.dueDate === ASSIGNED)!;
+-  expect(originalAssigned).toMatchObject({ expectedAmountCents: -1234, booking: { amountCents: -1334 } });
+-  expect(before.history.find((row) => row.dueDate === PAST)).toMatchObject({ expectedAmountCents: -1234, booking: { amountCents: -1334 } });
++  expect(originalAssigned).toMatchObject({
++    expectedAmountCents: -1234,
++    booking: { amountCents: -1334 },
++  });
++  expect(before.history.find((row) => row.dueDate === PAST)).toMatchObject({
++    expectedAmountCents: -1234,
++    booking: { amountCents: -1334 },
++  });
+   await page.goto(`/plan/erwartet/${paymentId}`);
+   await expect(page.getByRole('button', { name: 'Löschen', exact: true })).toHaveCount(0);
+   const pause = await openAction(page, 'pause');
+   const pausePosts: string[] = [];
+   page.on('request', (request) => {
+-    if (new URL(request.url()).pathname === `/api/expected/${paymentId}/pause` && request.method() === 'POST') pausePosts.push(request.postData() ?? '');
++    if (
++      new URL(request.url()).pathname === `/api/expected/${paymentId}/pause` &&
++      request.method() === 'POST'
++    )
++      pausePosts.push(request.postData() ?? '');
+   });
+   const pauseInput = pause.dialog.getByLabel('Pausieren bis einschließlich', { exact: true });
+   await pauseInput.fill(displayDay(addDays(TODAY, -1)));
+-  await expect.poll(() => pauseInput.evaluate((element) => (element as HTMLInputElement).validity.valid)).toBe(false);
++  await expect
++    .poll(() => pauseInput.evaluate((element) => (element as HTMLInputElement).validity.valid))
++    .toBe(false);
+   await pause.dialog.getByRole('button', { name: 'Pause speichern', exact: true }).click();
+   await expect(pause.dialog.getByText('Bitte heute oder einen späteren Tag wählen.')).toBeVisible();
+   expect(pausePosts).toEqual([]);
+@@ -117,7 +180,9 @@ test('real pause/end and whole Undo preserve assigned cents, identities and hist
+   await expect(pause.dialog).toBeHidden();
+   expect(pausePosts).toHaveLength(1);
+   expect(JSON.parse(pausePosts[0]!)).toMatchObject({ throughDate: THROUGH });
+-  expect((await listed(page, paymentId)).lifecycle.pauses).toEqual([{ fromDate: TODAY, throughDate: THROUGH }]);
++  expect((await listed(page, paymentId)).lifecycle.pauses).toEqual([
++    { fromDate: TODAY, throughDate: THROUGH },
++  ]);
+   const paused = await detail(page, paymentId);
+   expect(paused.history).toEqual(before.history);
+   expect(paused.future.find((row) => row.dueDate === ASSIGNED)).toEqual(originalAssigned);
+@@ -130,7 +195,10 @@ test('real pause/end and whole Undo preserve assigned cents, identities and hist
+   await end.dialog.getByLabel('Beenden ab', { exact: true }).fill(displayDay(END_FROM));
+   await end.dialog.getByRole('button', { name: 'Beenden bestätigen', exact: true }).click();
+   await expect(end.dialog).toBeHidden();
+-  expect((await listed(page, paymentId)).lifecycle).toMatchObject({ endedFrom: END_FROM, endEvidence: 'proven' });
++  expect((await listed(page, paymentId)).lifecycle).toMatchObject({
++    endedFrom: END_FROM,
++    endEvidence: 'proven',
++  });
+   const ended = await detail(page, paymentId);
+   expect(ended.history).toEqual(before.history);
+   expect(ended.future.find((row) => row.dueDate === ASSIGNED)).toEqual(originalAssigned);
+@@ -141,7 +209,10 @@ test('real pause/end and whole Undo preserve assigned cents, identities and hist
+ 
+   await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+   const edit = page.getByRole('dialog', { name: 'Zahlung bearbeiten', exact: true });
+-  await expect(edit.getByLabel('Letzte Fälligkeit einschließlich')).toHaveJSProperty('readOnly', true);
++  await expect(edit.getByLabel('Letzte Fälligkeit einschließlich')).toHaveJSProperty(
++    'readOnly',
++    true,
++  );
+   await expect(edit).toContainText('„Beenden ab“');
+   await edit.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+ 
+@@ -149,34 +220,60 @@ test('real pause/end and whole Undo preserve assigned cents, identities and hist
+   const reviewedToken = (await listed(page, paymentId)).lifecycle.reviewToken;
+   const otherAccount = await account(page, isolatedLedger.origin, 'Synthetic changed source');
+   const changed = await page.request.patch(`/api/expected/${paymentId}`, {
+-    data: { accountId: otherAccount }, headers: { origin: isolatedLedger.origin },
++    data: { accountId: otherAccount },
++    headers: { origin: isolatedLedger.origin },
+   });
+   expect(changed.status(), await changed.text()).toBe(200);
+   const afterIndependentEdit = await detail(page, paymentId);
+   const listedAfterEdit = await listed(page, paymentId);
+   expect(listedAfterEdit.lifecycle.reviewToken).not.toBe(reviewedToken);
+   await stale.dialog.getByLabel('Beenden ab', { exact: true }).fill(displayDay(END_FROM));
+-  const response = page.waitForResponse((reply) => new URL(reply.url()).pathname === `/api/expected/${paymentId}/end` && reply.request().method() === 'POST');
++  const response = page.waitForResponse(
++    (reply) =>
++      new URL(reply.url()).pathname === `/api/expected/${paymentId}/end` &&
++      reply.request().method() === 'POST',
++  );
+   await stale.dialog.getByRole('button', { name: 'Beenden bestätigen', exact: true }).click();
+   const refused = await response;
+   expect(refused.status()).toBe(409);
+-  expect(refused.request().postDataJSON()).toEqual({ fromDate: END_FROM, reviewToken: reviewedToken });
++  expect(refused.request().postDataJSON()).toEqual({
++    fromDate: END_FROM,
++    reviewToken: reviewedToken,
++  });
+   await expect(stale.dialog).toBeVisible();
+-  await expect(stale.dialog.getByLabel('Beenden ab', { exact: true })).toHaveValue(displayDay(END_FROM));
++  await expect(stale.dialog.getByLabel('Beenden ab', { exact: true })).toHaveValue(
++    displayDay(END_FROM),
++  );
+   expect(await detail(page, paymentId)).toEqual(afterIndependentEdit);
+   expect(await listed(page, paymentId)).toEqual(listedAfterEdit);
+ });
+ 
+ async function theme(page: Page, value: 'light' | 'dark') {
+-  const resolved = () => page.evaluate(() => document.documentElement.dataset['theme'] === 'dark' ||
+-    (document.documentElement.dataset['theme'] !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
+-  if (await resolved() !== value) {
++  const resolved = () =>
++    page.evaluate(() =>
++      document.documentElement.dataset['theme'] === 'dark' ||
++      (document.documentElement.dataset['theme'] !== 'light' &&
++        matchMedia('(prefers-color-scheme: dark)').matches)
++        ? 'dark'
++        : 'light',
++    );
++  if ((await resolved()) !== value) {
+     if (page.viewportSize()!.width < 768) {
+       const summary = page.locator('.m-profile > summary');
+       await summary.click();
+-      await page.locator('.m-profile').getByRole('button', { name: value === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm', exact: true }).click();
++      await page
++        .locator('.m-profile')
++        .getByRole('button', {
++          name: value === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm',
++          exact: true,
++        })
++        .click();
+       await summary.click();
+-    } else await page.locator('.sidebar-foot').getByRole('button', { name: 'Hell/Dunkel umschalten', exact: true }).click();
++    } else
++      await page
++        .locator('.sidebar-foot')
++        .getByRole('button', { name: 'Hell/Dunkel umschalten', exact: true })
++        .click();
+   }
+   await expect.poll(resolved).toBe(value);
+ }
+@@ -187,36 +284,59 @@ async function target44(locator: Locator) {
+   expect(box!.width).toBeGreaterThanOrEqual(44);
+   expect(box!.height).toBeGreaterThanOrEqual(44);
+ }
+-async function inspect(page: Page, info: TestInfo, id: string, value: 'light' | 'dark', profile: string) {
++async function inspect(
++  page: Page,
++  info: TestInfo,
++  id: string,
++  value: 'light' | 'dark',
++  profile: string,
++) {
+   await page.goto(`/plan/erwartet/${id}`);
+   await theme(page, value);
+   await expect(page.locator('.xp-big')).toContainText('−12,34 €');
+   const before = await detail(page, id);
+   const paymentWrites: string[] = [];
+   const observe = (request: import('@playwright/test').Request) => {
+-    if (new URL(request.url()).pathname.startsWith('/api/expected') && request.method() !== 'GET') paymentWrites.push(request.method());
++    if (new URL(request.url()).pathname.startsWith('/api/expected') && request.method() !== 'GET')
++      paymentWrites.push(request.method());
+   };
+   page.on('request', observe);
+   try {
+     for (const kind of ['pause', 'end'] as const) {
+       const { dialog, opener } = await openAction(page, kind);
+-      const input = dialog.getByLabel(kind === 'pause' ? 'Pausieren bis einschließlich' : 'Beenden ab', { exact: true });
++      const input = dialog.getByLabel(
++        kind === 'pause' ? 'Pausieren bis einschließlich' : 'Beenden ab',
++        { exact: true },
++      );
+       await input.focus();
+       await expect(input).toBeFocused();
+       await input.fill(displayDay(addDays(TODAY, -1)));
+-      await expect.poll(() => input.evaluate((element) => (element as HTMLInputElement).validity.valid)).toBe(false);
++      await expect
++        .poll(() => input.evaluate((element) => (element as HTMLInputElement).validity.valid))
++        .toBe(false);
+       await input.fill(displayDay(kind === 'pause' ? THROUGH : END_FROM));
+       await expect(input).toHaveValue(displayDay(kind === 'pause' ? THROUGH : END_FROM));
+-      await expect.poll(() => input.evaluate((element) => (element as HTMLInputElement).validity.valid)).toBe(true);
++      await expect
++        .poll(() => input.evaluate((element) => (element as HTMLInputElement).validity.valid))
++        .toBe(true);
+       await target44(input);
+-      for (const button of await dialog.locator('.xp-lifecycle button').all()) await target44(button);
++      for (const button of await dialog.locator('.xp-lifecycle button').all())
++        await target44(button);
+       await page.evaluate(() => document.fonts.ready);
+-      const violations = (await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations;
++      const violations = (await new AxeBuilder({ page }).include('dialog[open]').analyze())
++        .violations;
+       expect(violations).toEqual([]);
+-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
++      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
++        true,
++      );
+       await input.press('Tab');
+-      expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+-      await page.screenshot({ path: info.outputPath(`lifecycle-${profile}-${value}-${kind}.png`), animations: 'disabled' });
++      expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(
++        true,
++      );
++      await page.screenshot({
++        path: info.outputPath(`lifecycle-${profile}-${value}-${kind}.png`),
++        animations: 'disabled',
++      });
+       await page.keyboard.press('Escape');
+       await expect(dialog).toBeHidden();
+       await expect(opener).toBeFocused();
+@@ -227,34 +347,65 @@ async function inspect(page: Page, info: TestInfo, id: string, value: 'light' |
+     const text = await page.locator('.xp-panel').innerText();
+     expect(text).not.toContain('12,34');
+     expect(text).not.toContain('13,34');
+-    await page.screenshot({ path: info.outputPath(`lifecycle-${profile}-${value}-privacy.png`), animations: 'disabled' });
++    await page.screenshot({
++      path: info.outputPath(`lifecycle-${profile}-${value}-privacy.png`),
++      animations: 'disabled',
++    });
+     await page.keyboard.press('Control+Shift+H');
+     await expect(page.locator('.xp-big')).toContainText('−12,34 €');
+     expect(await detail(page, id)).toEqual(before);
+     expect(paymentWrites).toEqual([]);
+     const path = info.outputPath(`lifecycle-${profile}-${value}-runtime.json`);
+-    await writeFile(path, JSON.stringify({
+-      engine: page.context().browser()!.browserType().name(), project: info.project.name,
+-      profile, theme: value, viewport: page.viewportSize(), synthetic: true,
+-      scopedAxe: 'both open lifecycle dialogs, all rules enabled', paymentWrites,
+-      ...(await page.evaluate(() => ({ coarse: matchMedia('(pointer: coarse)').matches, maxTouchPoints: navigator.maxTouchPoints, dpr: devicePixelRatio }))),
+-    }, null, 2));
+-    await info.attach(`lifecycle-${profile}-${value}-runtime`, { path, contentType: 'application/json' });
++    await writeFile(
++      path,
++      JSON.stringify(
++        {
++          engine: page.context().browser()!.browserType().name(),
++          project: info.project.name,
++          profile,
++          theme: value,
++          viewport: page.viewportSize(),
++          synthetic: true,
++          scopedAxe: 'both open lifecycle dialogs, all rules enabled',
++          paymentWrites,
++          ...(await page.evaluate(() => ({
++            coarse: matchMedia('(pointer: coarse)').matches,
++            maxTouchPoints: navigator.maxTouchPoints,
++            dpr: devicePixelRatio,
++          }))),
++        },
++        null,
++        2,
++      ),
++    );
++    await info.attach(`lifecycle-${profile}-${value}-runtime`, {
++      path,
++      contentType: 'application/json',
++    });
+   } finally {
+     page.off('request', observe);
+   }
+ }
+ 
+ for (const value of ['light', 'dark'] as const) {
+-  test(`${value}: lifecycle controls preserve keyboard focus, date input, touch targets and privacy on the actual engine`, async ({ page, browser, isolatedLedger }, info) => {
++  test(`${value}: lifecycle controls preserve keyboard focus, date input, touch targets and privacy on the actual engine`, async ({
++    page,
++    browser,
++    isolatedLedger,
++  }, info) => {
+     test.setTimeout(60_000); // WebKit additionally inspects the genuine desktop-layout context.
+     const { paymentId } = await seed(page, isolatedLedger.origin);
+     await inspect(page, info, paymentId, value, info.project.name);
+     if (browser.browserType().name() === 'webkit') {
+       const context = await browser.newContext({
+-        baseURL: isolatedLedger.origin, storageState: isolatedLedger.storageState,
+-        viewport: { width: 1440, height: 900 }, isMobile: false, hasTouch: false,
+-        deviceScaleFactor: 1, reducedMotion: 'reduce', serviceWorkers: 'block',
++        baseURL: isolatedLedger.origin,
++        storageState: isolatedLedger.storageState,
++        viewport: { width: 1440, height: 900 },
++        isMobile: false,
++        hasTouch: false,
++        deviceScaleFactor: 1,
++        reducedMotion: 'reduce',
++        serviceWorkers: 'block',
+       });
+       try {
+         const desktop = await context.newPage();
+diff --git a/packages/db/src/payment-pause-migration-607.test.ts b/packages/db/src/payment-pause-migration-607.test.ts
+index f6c7587e..ca4e2b51 100644
+--- a/packages/db/src/payment-pause-migration-607.test.ts
++++ b/packages/db/src/payment-pause-migration-607.test.ts
+@@ -2,13 +2,24 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSy
+ import { tmpdir } from 'node:os';
+ import { join } from 'node:path';
+ import { expect, it } from 'vitest';
+-import { defaultMigrationsFolder, migrateDatabase, openDatabase, type OpenedDatabase } from './client';
++import {
++  defaultMigrationsFolder,
++  migrateDatabase,
++  openDatabase,
++  type OpenedDatabase,
++} from './client';
+ import { createBooking } from './repos/bookings';
+ import { createEntity, softDeleteEntity } from './repos/entities';
+ import { createGoal } from './repos/goals';
+ import { accountSummaries } from './repos/ledger-queries';
+ import { seedBasics, testCtx as ctx } from './repos/test-helpers';
+-import { expectedOccurrence, expectedPayment, expectedPaymentPause, expectedPaymentVersion, savingsGoal } from './schema';
++import {
++  expectedOccurrence,
++  expectedPayment,
++  expectedPaymentPause,
++  expectedPaymentVersion,
++  savingsGoal,
++} from './schema';
+ 
+ it('#607 migrates a real disposable amended48 copy, preserves all previous data and anchors, and refuses lossy rollback atomically', () => {
+   const folder = mkdtempSync(join(tmpdir(), 'synthetic-payment-pause-607-'));
+@@ -16,58 +27,136 @@ it('#607 migrates a real disposable amended48 copy, preserves all previous data
+   const journal = JSON.parse(readFileSync(join(source, 'meta', '_journal.json'), 'utf8')) as {
+     entries: Array<{ idx: number; tag: string; when: number }>;
+   };
+-  const position = journal.entries.findIndex((entry) => entry.tag === '0049_expected_payment_pause');
++  const position = journal.entries.findIndex(
++    (entry) => entry.tag === '0049_expected_payment_pause',
++  );
+   expect(position).toBe(49);
+   const stages = [48, 49].map((last) => {
+     const target = join(folder, `through-${last}`);
+     mkdirSync(join(target, 'meta'), { recursive: true });
+     const entries = journal.entries.slice(0, last + 1);
+     writeFileSync(join(target, 'meta', '_journal.json'), JSON.stringify({ ...journal, entries }));
+-    for (const entry of entries) copyFileSync(join(source, entry.tag + '.sql'), join(target, entry.tag + '.sql'));
++    for (const entry of entries)
++      copyFileSync(join(source, entry.tag + '.sql'), join(target, entry.tag + '.sql'));
+     return target;
+   });
+   const originalPath = join(folder, 'synthetic-original.sqlite');
+   const copiedPath = join(folder, 'disposable-copy.sqlite');
+-  const rollback = readFileSync(join(source, 'rollback', '0049_expected_payment_pause.sql'), 'utf8');
++  const rollback = readFileSync(
++    join(source, 'rollback', '0049_expected_payment_pause.sql'),
++    'utf8',
++  );
+   let original: OpenedDatabase | undefined;
+   let copy: OpenedDatabase | undefined;
+   try {
+     original = openDatabase(originalPath);
+     migrateDatabase(original.db, stages[0]!);
+     seedBasics(original.db);
+-    const bookingId = createBooking(original.db, {
+-      accountId: 'giro', date: '2026-03-25', amountCents: -1234,
+-      splits: [{ categoryId: 'miete', amountCents: -1234 }],
+-    }, ctx);
++    const bookingId = createBooking(
++      original.db,
++      {
++        accountId: 'giro',
++        date: '2026-03-25',
++        amountCents: -1234,
++        splits: [{ categoryId: 'miete', amountCents: -1234 }],
++      },
++      ctx,
++    );
+     // Use the unchanged48 entities, not the new49-dependent payment writer, for predecessor data.
+-    const payment = createEntity(original.db, expectedPayment, {
+-      id: 'synthetic-607-predecessor', name: 'Synthetic prior payment', accountId: 'giro', dueDay: 25,
+-      startDate: '2026-01-01',
+-    }, ctx);
+-    createEntity(original.db, expectedPaymentVersion, {
+-      expectedPaymentId: payment.id, validFrom: '2026-01-01', amountCents: 1234,
+-    }, ctx);
+-    createEntity(original.db, expectedOccurrence, {
+-      expectedPaymentId: payment.id, dueDate: '2026-03-25', expectedAmountCents: -1234,
+-      status: 'received', bookingId,
+-    }, ctx);
+-    const currentGoal = createGoal(original.db, {
+-      name: 'Synthetic retained goal', categoryId: 'reise', targetCents: 12345, startMonth: '2026-03',
+-    }, ctx, '2026-03', '2026-03-20').goal;
+-    const deletedGoal = createGoal(original.db, {
+-      name: 'Synthetic deleted goal', categoryId: 'essen', targetCents: 23456, startMonth: '2026-03',
+-    }, ctx, '2026-03', '2026-03-20').goal;
++    const payment = createEntity(
++      original.db,
++      expectedPayment,
++      {
++        id: 'synthetic-607-predecessor',
++        name: 'Synthetic prior payment',
++        accountId: 'giro',
++        dueDay: 25,
++        startDate: '2026-01-01',
++      },
++      ctx,
++    );
++    createEntity(
++      original.db,
++      expectedPaymentVersion,
++      {
++        expectedPaymentId: payment.id,
++        validFrom: '2026-01-01',
++        amountCents: 1234,
++      },
++      ctx,
++    );
++    createEntity(
++      original.db,
++      expectedOccurrence,
++      {
++        expectedPaymentId: payment.id,
++        dueDate: '2026-03-25',
++        expectedAmountCents: -1234,
++        status: 'received',
++        bookingId,
++      },
++      ctx,
++    );
++    const currentGoal = createGoal(
++      original.db,
++      {
++        name: 'Synthetic retained goal',
++        categoryId: 'reise',
++        targetCents: 12345,
++        startMonth: '2026-03',
++      },
++      ctx,
++      '2026-03',
++      '2026-03-20',
++    ).goal;
++    const deletedGoal = createGoal(
++      original.db,
++      {
++        name: 'Synthetic deleted goal',
++        categoryId: 'essen',
++        targetCents: 23456,
++        startMonth: '2026-03',
++      },
++      ctx,
++      '2026-03',
++      '2026-03-20',
++    ).goal;
+     softDeleteEntity(original.db, savingsGoal, deletedGoal.id, ctx);
+-    const anchors = original.sqlite.prepare('SELECT id,lifecycle_anchor_json,deleted_at FROM savings_goal ORDER BY id').all() as Array<{ id: string; lifecycle_anchor_json: string | null; deleted_at: string | null }>;
+-    expect(anchors.find((row) => row.id === currentGoal.id)?.lifecycle_anchor_json).toEqual(expect.any(String));
+-    expect(anchors.find((row) => row.id === deletedGoal.id)?.deleted_at).toEqual(expect.any(String));
+-    const tables = (original.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all() as Array<{ name: string }>).map((row) => row.name);
+-    const rows = (opened: OpenedDatabase) => Object.fromEntries(tables.map((name) => [name,
+-      opened.sqlite.prepare(`SELECT * FROM "${name.replaceAll('"', '""')}" ORDER BY rowid`).all(),
+-    ]));
++    const anchors = original.sqlite
++      .prepare('SELECT id,lifecycle_anchor_json,deleted_at FROM savings_goal ORDER BY id')
++      .all() as Array<{
++      id: string;
++      lifecycle_anchor_json: string | null;
++      deleted_at: string | null;
++    }>;
++    expect(anchors.find((row) => row.id === currentGoal.id)?.lifecycle_anchor_json).toEqual(
++      expect.any(String),
++    );
++    expect(anchors.find((row) => row.id === deletedGoal.id)?.deleted_at).toEqual(
++      expect.any(String),
++    );
++    const tables = (
++      original.sqlite
++        .prepare(
++          "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
++        )
++        .all() as Array<{ name: string }>
++    ).map((row) => row.name);
++    const rows = (opened: OpenedDatabase) =>
++      Object.fromEntries(
++        tables.map((name) => [
++          name,
++          opened.sqlite
++            .prepare(`SELECT * FROM "${name.replaceAll('"', '""')}" ORDER BY rowid`)
++            .all(),
++        ]),
++      );
+     const before = rows(original);
+-    expect(accountSummaries(original.db, '2026-03-25').find((a) => a.id === 'giro')?.balanceCents).toBe(98766);
+-    original.close(); original = undefined;
++    expect(
++      accountSummaries(original.db, '2026-03-25').find((a) => a.id === 'giro')?.balanceCents,
++    ).toBe(98766);
++    original.close();
++    original = undefined;
+     copyFileSync(originalPath, copiedPath);
+     copy = openDatabase(copiedPath);
+     migrateDatabase(copy.db, stages[1]!);
+@@ -79,11 +168,22 @@ it('#607 migrates a real disposable amended48 copy, preserves all previous data
+     // Only a disposable copy with no retained pause intent may use the caller transaction.
+     copy.sqlite.transaction(() => copy!.sqlite.exec(rollback))();
+     expect(rows(copy)).toEqual(before);
+-    expect(copy.sqlite.prepare("SELECT name FROM sqlite_master WHERE name='expected_payment_pause'").get()).toBeUndefined();
++    expect(
++      copy.sqlite
++        .prepare("SELECT name FROM sqlite_master WHERE name='expected_payment_pause'")
++        .get(),
++    ).toBeUndefined();
+     migrateDatabase(copy.db, stages[1]!);
+-    const pause = createEntity(copy.db, expectedPaymentPause, {
+-      expectedPaymentId: payment.id, fromDate: '2026-04-01', throughDate: '2026-04-30',
+-    }, ctx);
++    const pause = createEntity(
++      copy.db,
++      expectedPaymentPause,
++      {
++        expectedPaymentId: payment.id,
++        fromDate: '2026-04-01',
++        throughDate: '2026-04-30',
++      },
++      ctx,
++    );
+     const assertRefusal = () => {
+       const bytes = copy!.sqlite.serialize();
+       expect(() => copy!.sqlite.transaction(() => copy!.sqlite.exec(rollback))()).toThrow();
+@@ -96,13 +196,24 @@ it('#607 migrates a real disposable amended48 copy, preserves all previous data
+     // Even if a synthetic cache repair removed the physical tombstone, retained audit intent refuses downgrade.
+     copy.sqlite.prepare('DELETE FROM expected_payment_pause WHERE id=?').run(pause.id);
+     assertRefusal();
+-    expect(accountSummaries(copy.db, '2026-03-25').find((a) => a.id === 'giro')?.balanceCents).toBe(98766);
+-    expect(copy.sqlite.prepare('SELECT id,lifecycle_anchor_json,deleted_at FROM savings_goal ORDER BY id').all()).toEqual(anchors);
++    expect(accountSummaries(copy.db, '2026-03-25').find((a) => a.id === 'giro')?.balanceCents).toBe(
++      98766,
++    );
++    expect(
++      copy.sqlite
++        .prepare('SELECT id,lifecycle_anchor_json,deleted_at FROM savings_goal ORDER BY id')
++        .all(),
++    ).toEqual(anchors);
+     original = openDatabase(originalPath);
+     expect(rows(original)).toEqual(before);
+-    expect(original.sqlite.prepare("SELECT name FROM sqlite_master WHERE name='expected_payment_pause'").get()).toBeUndefined();
++    expect(
++      original.sqlite
++        .prepare("SELECT name FROM sqlite_master WHERE name='expected_payment_pause'")
++        .get(),
++    ).toBeUndefined();
+   } finally {
+-    copy?.close(); original?.close();
++    copy?.close();
++    original?.close();
+     rmSync(folder, { recursive: true, force: true });
+   }
+ });
+diff --git a/packages/db/src/repos/audit.ts b/packages/db/src/repos/audit.ts
+index 28b4c90b..cf388ad0 100644
+--- a/packages/db/src/repos/audit.ts
++++ b/packages/db/src/repos/audit.ts
+@@ -2,7 +2,10 @@ import { assertExposureInvariants } from './asset-exposure';
+ import { assertAssetClassName, assertAssetTargetInvariants } from './securities';
+ import { assertLoanPlanInvariants } from './loan-planning';
+ import { assertIncomePauseInvariants } from './income-pause-invariants';
+-import { preparePaymentLifecycleUndo, assertPaymentLifecycleUndo } from './expected-lifecycle-invariants';
++import {
++  preparePaymentLifecycleUndo,
++  assertPaymentLifecycleUndo,
++} from './expected-lifecycle-invariants';
+ import { assertContactName, assertContactUndoDependencies } from './contact-invariants';
+ import { isDuplicatePayslip } from '@budget/domain';
+ import { assertReceiptUndo } from './receipts';
+diff --git a/packages/db/src/repos/expected-detail.ts b/packages/db/src/repos/expected-detail.ts
+index 3a4cfe56..39a8882b 100644
+--- a/packages/db/src/repos/expected-detail.ts
++++ b/packages/db/src/repos/expected-detail.ts
+@@ -33,7 +33,11 @@ import { getEntity } from './entities';
+ import { ConflictError, EntityNotFoundError } from './errors';
+ import { listExpectedVersions, schedulePayment, scheduleVersion } from './expected';
+ import { runInTransaction, type Executor } from './types';
+-import { readPaymentLifecycles, paymentOpenSuppressed, isPaymentLifecycleDay } from './expected-lifecycle-invariants';
++import {
++  readPaymentLifecycles,
++  paymentOpenSuppressed,
++  isPaymentLifecycleDay,
++} from './expected-lifecycle-invariants';
+ 
+ const HISTORY_COUNT = 12;
+ const FUTURE_COUNT = 12;
+@@ -287,14 +291,29 @@ function readPaymentDetailInSnapshot(db: Executor, paymentId: string, asOf: stri
+     .limit(HISTORY_COUNT + 1)
+     .all();
+   const suppressedDates = or(
+-    ...(lifecycle?.pauses ?? []).map((p) => and(gte(expectedOccurrence.dueDate, p.fromDate), lte(expectedOccurrence.dueDate, p.throughDate))),
++    ...(lifecycle?.pauses ?? []).map((p) =>
++      and(
++        gte(expectedOccurrence.dueDate, p.fromDate),
++        lte(expectedOccurrence.dueDate, p.throughDate),
++      ),
++    ),
+     lifecycle?.endedFrom ? gte(expectedOccurrence.dueDate, lifecycle.endedFrom) : undefined,
+   );
+   // Filter before the limit so retained hidden obligations cannot hide later real assignments.
+-  const suppressedOpen = suppressedDates && and(suppressedDates,
+-    sql`((${expectedOccurrence.status}='expected' AND ${expectedOccurrence.bookingId} IS NULL) OR (${expectedOccurrence.bookingId} IS NOT NULL AND ${booking.id} IS NULL))`);
++  const suppressedOpen =
++    suppressedDates &&
++    and(
++      suppressedDates,
++      sql`((${expectedOccurrence.status}='expected' AND ${expectedOccurrence.bookingId} IS NULL) OR (${expectedOccurrence.bookingId} IS NOT NULL AND ${booking.id} IS NULL))`,
++    );
+   const storedFuture = selectStored()
+-    .where(and(live, gt(expectedOccurrence.dueDate, asOf), suppressedOpen ? not(suppressedOpen) : undefined))
++    .where(
++      and(
++        live,
++        gt(expectedOccurrence.dueDate, asOf),
++        suppressedOpen ? not(suppressedOpen) : undefined,
++      ),
++    )
+     .orderBy(asc(expectedOccurrence.dueDate), asc(expectedOccurrence.id))
+     .limit(FUTURE_COUNT + 1)
+     .all();
+@@ -349,11 +368,21 @@ function readPaymentDetailInSnapshot(db: Executor, paymentId: string, asOf: stri
+     };
+   };
+ 
+-  const future = new Map(storedFuture.filter((row) => !paymentOpenSuppressed(lifecycle, {
+-    dueDate: row.occurrence.dueDate,
+-    status: row.occurrence.bookingId !== null && !row.linked?.id ? 'expected' : row.occurrence.status,
+-    bookingId: row.linked?.id ?? null,
+-  })).map((row) => [row.occurrence.dueDate, storedRow(row)]));
++  const future = new Map(
++    storedFuture
++      .filter(
++        (row) =>
++          !paymentOpenSuppressed(lifecycle, {
++            dueDate: row.occurrence.dueDate,
++            status:
++              row.occurrence.bookingId !== null && !row.linked?.id
++                ? 'expected'
++                : row.occurrence.status,
++            bookingId: row.linked?.id ?? null,
++          }),
++      )
++      .map((row) => [row.occurrence.dueDate, storedRow(row)]),
++  );
+   if (versions.length > 0) {
+     // Start at the first possible current-rule date, including a far-future first version.
+     const from = [addDays(asOf, 1), payment.startDate ?? '', versions[0]!.validFrom].sort().at(-1)!;
+@@ -366,21 +395,42 @@ function readPaymentDetailInSnapshot(db: Executor, paymentId: string, asOf: stri
+       const projected: ReturnType<typeof occurrences> = [];
+       let cursor = from;
+       const collect = (segmentEnd?: string) => {
+-        if (projected.length > FUTURE_COUNT || (payment.endDate !== null && cursor > payment.endDate)) return;
++        if (
++          projected.length > FUTURE_COUNT ||
++          (payment.endDate !== null && cursor > payment.endDate)
++        )
++          return;
+         const horizonMonth = addMonths(monthOf(cursor), months);
+-        if (!/^\d{4}-\d{2}$/.test(horizonMonth)) throw new ConflictError('Die nächste Fälligkeit liegt außerhalb des unterstützten Kalenderbereichs.');
++        if (!/^\d{4}-\d{2}$/.test(horizonMonth))
++          throw new ConflictError(
++            'Die nächste Fälligkeit liegt außerhalb des unterstützten Kalenderbereichs.',
++          );
+         const horizon = lastDayOfMonth(horizonMonth);
+-        if (!isPaymentLifecycleDay(horizon)) throw new ConflictError('Die nächste Fälligkeit liegt außerhalb des unterstützten Kalenderbereichs.');
++        if (!isPaymentLifecycleDay(horizon))
++          throw new ConflictError(
++            'Die nächste Fälligkeit liegt außerhalb des unterstützten Kalenderbereichs.',
++          );
+         const to = [horizon, segmentEnd ?? horizon, payment.endDate ?? horizon].sort()[0]!;
+         if (to < cursor) return;
+-        projected.push(...occurrences(schedulePayment(payment, lifecycle), versions.map(scheduleVersion), cursor, to)
+-          .slice(0, FUTURE_COUNT + 1 - projected.length));
++        projected.push(
++          ...occurrences(
++            schedulePayment(payment, lifecycle),
++            versions.map(scheduleVersion),
++            cursor,
++            to,
++          ).slice(0, FUTURE_COUNT + 1 - projected.length),
++        );
+       };
+       // Jump excluded intervals; never iterate every month of a potentially very long pause.
+-      for (const pause of [...(lifecycle?.pauses ?? [])].sort((a, b) => a.fromDate.localeCompare(b.fromDate))) {
++      for (const pause of [...(lifecycle?.pauses ?? [])].sort((a, b) =>
++        a.fromDate.localeCompare(b.fromDate),
++      )) {
+         if (pause.throughDate < cursor || projected.length > FUTURE_COUNT) continue;
+         if (pause.fromDate > cursor) collect(addDays(pause.fromDate, -1));
+-        if (pause.throughDate === '9999-12-31') { cursor = ''; break; }
++        if (pause.throughDate === '9999-12-31') {
++          cursor = '';
++          break;
++        }
+         cursor = addDays(pause.throughDate, 1);
+       }
+       if (cursor) collect();
+diff --git a/packages/db/src/repos/expected-lifecycle-607.test.ts b/packages/db/src/repos/expected-lifecycle-607.test.ts
+index 03d42487..a510dc14 100644
+--- a/packages/db/src/repos/expected-lifecycle-607.test.ts
++++ b/packages/db/src/repos/expected-lifecycle-607.test.ts
+@@ -1,14 +1,30 @@
+ import { and, eq } from 'drizzle-orm';
+ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+ import { createTestDatabase, type OpenedDatabase } from '../client';
+-import { auditLog, expectedOccurrence, expectedPayment, expectedPaymentPause, INCOME_TYPES } from '../schema';
++import {
++  auditLog,
++  expectedOccurrence,
++  expectedPayment,
++  expectedPaymentPause,
++  INCOME_TYPES,
++} from '../schema';
+ import { undo, updateTracked } from './audit';
+ import { createBooking, deleteBooking } from './bookings';
+ import { AuditError, ConflictError } from './errors';
+ import {
+-  addExpectedVersion, createExpectedPayment, deleteExpectedPayment, endExpectedPayment, linkOccurrence, matchOccurrences,
+-  listExpectedPayments, pauseExpectedPayment, refreshOccurrences, skipOccurrence,
+-  unlinkOccurrence, updateExpectedPayment, upcoming,
++  addExpectedVersion,
++  createExpectedPayment,
++  deleteExpectedPayment,
++  endExpectedPayment,
++  linkOccurrence,
++  matchOccurrences,
++  listExpectedPayments,
++  pauseExpectedPayment,
++  refreshOccurrences,
++  skipOccurrence,
++  unlinkOccurrence,
++  updateExpectedPayment,
++  upcoming,
+ } from './expected';
+ import { readPaymentDetail } from './expected-detail';
+ import { budgetSummary } from './budget';
+@@ -34,22 +50,50 @@ beforeEach(() => {
+   db = opened.db;
+   seedBasics(db);
+ });
+-afterEach(() => { opened.close(); vi.useRealTimers(); });
+-const make = (dueDay = 25) => createExpectedPayment(db, {
+-  name: 'Synthetic recurring payment', accountId: 'giro', categoryId: 'miete',
+-  dueDay, startDate: '2026-01-01',
+-}, { validFrom: '2026-01-01', amountCents: 1234 }, ctx, TODAY).payment;
+-const row = (id: string, date: string) => db.select().from(expectedOccurrence).where(and(
+-  eq(expectedOccurrence.expectedPaymentId, id), eq(expectedOccurrence.dueDate, date),
+-)).get()!;
++afterEach(() => {
++  opened.close();
++  vi.useRealTimers();
++});
++const make = (dueDay = 25) =>
++  createExpectedPayment(
++    db,
++    {
++      name: 'Synthetic recurring payment',
++      accountId: 'giro',
++      categoryId: 'miete',
++      dueDay,
++      startDate: '2026-01-01',
++    },
++    { validFrom: '2026-01-01', amountCents: 1234 },
++    ctx,
++    TODAY,
++  ).payment;
++const row = (id: string, date: string) =>
++  db
++    .select()
++    .from(expectedOccurrence)
++    .where(and(eq(expectedOccurrence.expectedPaymentId, id), eq(expectedOccurrence.dueDate, date)))
++    .get()!;
+ const facts = (id: string) => readPaymentLifecycles(db, [id]).get(id)!;
+-const token = (id: string) => { const value = facts(id).reviewToken; expect(value).toMatch(/^[a-f0-9]{64}$/); return value!; };
+-const book = (date = '2026-04-25') => createBooking(db, {
+-  accountId: 'giro', date, amountCents: -1234,
+-  splits: [{ categoryId: 'miete', amountCents: -1234 }],
+-}, ctx);
++const token = (id: string) => {
++  const value = facts(id).reviewToken;
++  expect(value).toMatch(/^[a-f0-9]{64}$/);
++  return value!;
++};
++const book = (date = '2026-04-25') =>
++  createBooking(
++    db,
++    {
++      accountId: 'giro',
++      date,
++      amountCents: -1234,
++      splits: [{ categoryId: 'miete', amountCents: -1234 }],
++    },
++    ctx,
++  );
+ const unchanged = (before: Buffer) => expect(opened.sqlite.serialize().equals(before)).toBe(true);
+-const changes = () => (opened.sqlite.prepare('SELECT total_changes() AS n').get() as { n: number }).n;
++const changes = () =>
++  (opened.sqlite.prepare('SELECT total_changes() AS n').get() as { n: number }).n;
+ 
+ describe('#607 atomic lifecycle and retained financial history', () => {
+   it('suppresses only forward open rows, preserves cents/identities, and requires whole-action Undo', () => {
+@@ -59,11 +103,25 @@ describe('#607 atomic lifecycle and retained financial history', () => {
+     const april = row(p.id, '2026-04-25');
+     const paused = pauseExpectedPayment(db, p.id, '2026-04-25', token(p.id), ctx, TODAY);
+     expect(row(p.id, past.dueDate)).toEqual(past);
+-    for (const old of [march, april]) expect(row(p.id, old.dueDate)).toMatchObject({
+-      id: old.id, expectedAmountCents: -1234, bookingId: null, status: 'expected', deletedAt: expect.any(String),
+-    });
++    for (const old of [march, april])
++      expect(row(p.id, old.dueDate)).toMatchObject({
++        id: old.id,
++        expectedAmountCents: -1234,
++        bookingId: null,
++        status: 'expected',
++        deletedAt: expect.any(String),
++      });
+     expect(row(p.id, '2026-05-25')).toMatchObject({ deletedAt: null, expectedAmountCents: -1234 });
+-    const pauseAudit = db.select().from(auditLog).where(and(eq(auditLog.groupId, paused.groupId), eq(auditLog.entityType, 'expected_payment_pause'))).get()!;
++    const pauseAudit = db
++      .select()
++      .from(auditLog)
++      .where(
++        and(
++          eq(auditLog.groupId, paused.groupId),
++          eq(auditLog.entityType, 'expected_payment_pause'),
++        ),
++      )
++      .get()!;
+     const beforePartial = opened.sqlite.serialize();
+     for (const force of [false, true]) {
+       expect(() => undo(db, { auditId: pauseAudit.id }, ctx, { force })).toThrow(AuditError);
+@@ -71,7 +129,11 @@ describe('#607 atomic lifecycle and retained financial history', () => {
+     }
+     const restored = undo(db, { groupId: paused.groupId }, ctx);
+     expect(facts(p.id).pauses).toEqual([]);
+-    expect(row(p.id, april.dueDate)).toMatchObject({ id: april.id, expectedAmountCents: -1234, deletedAt: null });
++    expect(row(p.id, april.dueDate)).toMatchObject({
++      id: april.id,
++      expectedAmountCents: -1234,
++      deletedAt: null,
++    });
+     undo(db, { groupId: restored.groupId }, ctx);
+     expect(facts(p.id).pauses).toEqual([{ fromDate: TODAY, throughDate: '2026-04-25' }]);
+     const beforeBranch = opened.sqlite.serialize();
+@@ -86,13 +148,19 @@ describe('#607 atomic lifecycle and retained financial history', () => {
+     const reviewed = token(a.id);
+     updateExpectedPayment(db, a.id, { note: 'Synthetic changed intent' }, ctx, TODAY);
+     const before = opened.sqlite.serialize();
+-    expect(() => pauseExpectedPayment(db, a.id, '2026-04-25', reviewed, ctx, TODAY)).toThrow(ConflictError);
+-    expect(() => endExpectedPayment(db, a.id, '2026-04-01', reviewed, ctx, TODAY)).toThrow(ConflictError);
++    expect(() => pauseExpectedPayment(db, a.id, '2026-04-25', reviewed, ctx, TODAY)).toThrow(
++      ConflictError,
++    );
++    expect(() => endExpectedPayment(db, a.id, '2026-04-01', reviewed, ctx, TODAY)).toThrow(
++      ConflictError,
++    );
+     unchanged(before);
+     const reviewedVersion = token(a.id);
+     addExpectedVersion(db, a.id, { validFrom: '2026-04-01', amountCents: 2345 }, ctx, TODAY);
+     const afterVersion = opened.sqlite.serialize();
+-    expect(() => endExpectedPayment(db, a.id, '2026-04-01', reviewedVersion, ctx, TODAY)).toThrow(ConflictError);
++    expect(() => endExpectedPayment(db, a.id, '2026-04-01', reviewedVersion, ctx, TODAY)).toThrow(
++      ConflictError,
++    );
+     unchanged(afterVersion);
+     expect(row(a.id, '2026-04-25').expectedAmountCents).toBe(-2345);
+   });
+@@ -105,7 +173,9 @@ describe('#607 atomic lifecycle and retained financial history', () => {
+     expect(db.select().from(expectedPayment).where(eq(expectedPayment.id, p.id)).get()).toEqual(p);
+     expect(token(p.id)).not.toBe(reviewed);
+     const before = opened.sqlite.serialize();
+-    expect(() => endExpectedPayment(db, p.id, '2026-04-01', reviewed, ctx, TODAY)).toThrow(ConflictError);
++    expect(() => endExpectedPayment(db, p.id, '2026-04-01', reviewed, ctx, TODAY)).toThrow(
++      ConflictError,
++    );
+     unchanged(before);
+   });
+ 
+@@ -132,57 +202,104 @@ describe('#607 atomic lifecycle and retained financial history', () => {
+ 
+   it('returns no mutation token for corrupt evidence, while clean legacy absence may still end forward', () => {
+     const corrupt = make();
+-    opened.sqlite.prepare("UPDATE audit_log SET after_json='invalid-json' WHERE entity_type='expected_payment' AND entity_id=?").run(corrupt.id);
++    opened.sqlite
++      .prepare(
++        "UPDATE audit_log SET after_json='invalid-json' WHERE entity_type='expected_payment' AND entity_id=?",
++      )
++      .run(corrupt.id);
+     expect(facts(corrupt.id)).toMatchObject({ reviewToken: null, deletion: 'unavailable' });
+     const before = opened.sqlite.serialize();
+-    expect(() => pauseExpectedPayment(db, corrupt.id, '2026-04-01', 'a'.repeat(64), ctx, TODAY)).toThrow(ConflictError);
++    expect(() =>
++      pauseExpectedPayment(db, corrupt.id, '2026-04-01', 'a'.repeat(64), ctx, TODAY),
++    ).toThrow(ConflictError);
+     unchanged(before);
+     const legacy = make(26);
+-    opened.sqlite.prepare("DELETE FROM audit_log WHERE entity_type='expected_payment' AND entity_id=?").run(legacy.id);
++    opened.sqlite
++      .prepare("DELETE FROM audit_log WHERE entity_type='expected_payment' AND entity_id=?")
++      .run(legacy.id);
+     expect(facts(legacy.id).deletion).toBe('unavailable');
+     endExpectedPayment(db, legacy.id, '2026-04-01', token(legacy.id), ctx, TODAY);
+     expect(facts(legacy.id)).toMatchObject({ endedFrom: '2026-04-01', endEvidence: 'proven' });
+-    expect(db.select().from(expectedPayment).where(eq(expectedPayment.id, legacy.id)).get()?.endDate).toBe('2026-03-31');
++    expect(
++      db.select().from(expectedPayment).where(eq(expectedPayment.id, legacy.id)).get()?.endDate,
++    ).toBe('2026-03-31');
+   });
+ 
+-  it.each(['pause', 'end'] as const)('keeps a future assignment through %s, hides later link loss even after due day, and preserves booking Undo/redo', (kind) => {
+-    const p = make();
+-    const occurrence = row(p.id, '2026-04-25');
+-    const bookingId = book();
+-    linkOccurrence(db, occurrence.id, bookingId, ctx);
+-    const assigned = row(p.id, occurrence.dueDate);
+-    if (kind === 'pause') pauseExpectedPayment(db, p.id, '2026-04-30', token(p.id), ctx, TODAY);
+-    else endExpectedPayment(db, p.id, '2026-04-01', token(p.id), ctx, TODAY);
+-    expect(row(p.id, occurrence.dueDate)).toEqual(assigned);
+-    const groupId = 'synthetic-607-booking-delete';
+-    deleteBooking(db, bookingId, { ...ctx, groupId });
+-    expect(row(p.id, occurrence.dueDate)).toMatchObject({ id: occurrence.id, status: 'expected', bookingId: null, deletedAt: null, expectedAmountCents: -1234 });
+-    const beforeReads = opened.sqlite.serialize();
+-    const beforeChanges = changes();
+-    expect(upcoming(db, '2026-04-01', '2026-04-30').some((r) => r.occurrenceId === occurrence.id)).toBe(false);
+-    expect(readPaymentsPreview(db, TODAY).rows.flatMap((r) => r.events).some((e) => e.paymentId === p.id && e.dueDate === '2026-04-25')).toBe(false);
+-    vi.setSystemTime(new Date('2026-05-20T12:00:00Z'));
+-    expect(upcoming(db, '2026-04-01', '2026-04-30').some((r) => r.occurrenceId === occurrence.id)).toBe(false);
+-    expect(readPaymentDetail(db, p.id, '2026-05-20').history.find((r) => r.occurrenceId === occurrence.id)).toMatchObject({ dueDate: '2026-04-25', expectedAmountCents: -1234 });
+-    unchanged(beforeReads);
+-    expect(changes()).toBe(beforeChanges);
+-    const restored = undo(db, { groupId }, ctx);
+-    expect(row(p.id, occurrence.dueDate)).toMatchObject({ id: occurrence.id, bookingId, status: 'received', expectedAmountCents: -1234 });
+-    undo(db, { groupId: restored.groupId }, ctx);
+-    expect(upcoming(db, '2026-04-01', '2026-04-30').some((r) => r.occurrenceId === occurrence.id)).toBe(false);
+-    expect(facts(p.id).deletion).toBe('everAssigned');
+-  });
++  it.each(['pause', 'end'] as const)(
++    'keeps a future assignment through %s, hides later link loss even after due day, and preserves booking Undo/redo',
++    (kind) => {
++      const p = make();
++      const occurrence = row(p.id, '2026-04-25');
++      const bookingId = book();
++      linkOccurrence(db, occurrence.id, bookingId, ctx);
++      const assigned = row(p.id, occurrence.dueDate);
++      if (kind === 'pause') pauseExpectedPayment(db, p.id, '2026-04-30', token(p.id), ctx, TODAY);
++      else endExpectedPayment(db, p.id, '2026-04-01', token(p.id), ctx, TODAY);
++      expect(row(p.id, occurrence.dueDate)).toEqual(assigned);
++      const groupId = 'synthetic-607-booking-delete';
++      deleteBooking(db, bookingId, { ...ctx, groupId });
++      expect(row(p.id, occurrence.dueDate)).toMatchObject({
++        id: occurrence.id,
++        status: 'expected',
++        bookingId: null,
++        deletedAt: null,
++        expectedAmountCents: -1234,
++      });
++      const beforeReads = opened.sqlite.serialize();
++      const beforeChanges = changes();
++      expect(
++        upcoming(db, '2026-04-01', '2026-04-30').some((r) => r.occurrenceId === occurrence.id),
++      ).toBe(false);
++      expect(
++        readPaymentsPreview(db, TODAY)
++          .rows.flatMap((r) => r.events)
++          .some((e) => e.paymentId === p.id && e.dueDate === '2026-04-25'),
++      ).toBe(false);
++      vi.setSystemTime(new Date('2026-05-20T12:00:00Z'));
++      expect(
++        upcoming(db, '2026-04-01', '2026-04-30').some((r) => r.occurrenceId === occurrence.id),
++      ).toBe(false);
++      expect(
++        readPaymentDetail(db, p.id, '2026-05-20').history.find(
++          (r) => r.occurrenceId === occurrence.id,
++        ),
++      ).toMatchObject({ dueDate: '2026-04-25', expectedAmountCents: -1234 });
++      unchanged(beforeReads);
++      expect(changes()).toBe(beforeChanges);
++      const restored = undo(db, { groupId }, ctx);
++      expect(row(p.id, occurrence.dueDate)).toMatchObject({
++        id: occurrence.id,
++        bookingId,
++        status: 'received',
++        expectedAmountCents: -1234,
++      });
++      undo(db, { groupId: restored.groupId }, ctx);
++      expect(
++        upcoming(db, '2026-04-01', '2026-04-30').some((r) => r.occurrenceId === occurrence.id),
++      ).toBe(false);
++      expect(facts(p.id).deletion).toBe('everAssigned');
++    },
++  );
+ 
+-  it.each(['pause', 'end'] as const)('refuses independent skip Undo under %s atomically, including force', (kind) => {
+-    const p = make();
+-    const skipped = skipOccurrence(db, p.id, '2026-04-25', ctx, TODAY);
+-    if (kind === 'pause') pauseExpectedPayment(db, p.id, '2026-04-30', token(p.id), ctx, TODAY);
+-    else endExpectedPayment(db, p.id, '2026-04-01', token(p.id), ctx, TODAY);
+-    const before = opened.sqlite.serialize();
+-    expect(() => undo(db, { groupId: skipped.groupId }, ctx, { force: true })).toThrow(AuditError);
+-    unchanged(before);
+-    expect(row(p.id, '2026-04-25')).toMatchObject({ id: skipped.occurrence.id, status: 'skipped', expectedAmountCents: -1234 });
+-  });
++  it.each(['pause', 'end'] as const)(
++    'refuses independent skip Undo under %s atomically, including force',
++    (kind) => {
++      const p = make();
++      const skipped = skipOccurrence(db, p.id, '2026-04-25', ctx, TODAY);
++      if (kind === 'pause') pauseExpectedPayment(db, p.id, '2026-04-30', token(p.id), ctx, TODAY);
++      else endExpectedPayment(db, p.id, '2026-04-01', token(p.id), ctx, TODAY);
++      const before = opened.sqlite.serialize();
++      expect(() => undo(db, { groupId: skipped.groupId }, ctx, { force: true })).toThrow(
++        AuditError,
++      );
++      unchanged(before);
++      expect(row(p.id, '2026-04-25')).toMatchObject({
++        id: skipped.occurrence.id,
++        status: 'skipped',
++        expectedAmountCents: -1234,
++      });
++    },
++  );
+ 
+   it('retains lifetime assignment after link Undo and forbids delete redo despite current null', () => {
+     const p = make();
+@@ -216,12 +333,19 @@ describe('#607 atomic lifecycle and retained financial history', () => {
+       updateTracked(db, expectedOccurrence, [old.id], { deletedAt }, ctx, 'delete');
+     for (const { kind, old } of retained)
+       expect(row(p.id, old.dueDate), `${kind} fixture must be a retained tombstone`).toMatchObject({
+-        id: old.id, deletedAt, status: old.status, bookingId: old.bookingId,
+-        expectedAmountCents: old.expectedAmountCents, contactShareCents: old.contactShareCents,
++        id: old.id,
++        deletedAt,
++        status: old.status,
++        bookingId: old.bookingId,
++        expectedAmountCents: old.expectedAmountCents,
++        contactShareCents: old.contactShareCents,
+       });
+     const before = opened.sqlite.serialize();
+     for (const { kind, old } of retained) {
+-      expect(() => skipOccurrence(db, p.id, old.dueDate, ctx, TODAY), `${kind}: ${old.dueDate}`).toThrow(ConflictError);
++      expect(
++        () => skipOccurrence(db, p.id, old.dueDate, ctx, TODAY),
++        `${kind}: ${old.dueDate}`,
++      ).toThrow(ConflictError);
+       unchanged(before);
+     }
+   });
+@@ -229,34 +353,59 @@ describe('#607 atomic lifecycle and retained financial history', () => {
+   it('preserves repeated explicit skip of its own Undo tombstone with the same identity', () => {
+     const p = make();
+     // Match the unchanged OLD826 compatibility case: no materialized row at this due date.
+-    opened.sqlite.prepare('DELETE FROM expected_occurrence WHERE expected_payment_id=? AND due_date=?').run(p.id, '2026-05-25');
++    opened.sqlite
++      .prepare('DELETE FROM expected_occurrence WHERE expected_payment_id=? AND due_date=?')
++      .run(p.id, '2026-05-25');
+     const first = skipOccurrence(db, p.id, '2026-05-25', ctx, TODAY);
+     undo(db, { groupId: first.groupId }, ctx);
+     addExpectedVersion(db, p.id, { validFrom: '2026-04-01', amountCents: 2345 }, ctx, TODAY);
+     const repeated = skipOccurrence(db, p.id, '2026-05-25', ctx, TODAY);
+-    expect(repeated.occurrence).toMatchObject({ id: first.occurrence.id, status: 'skipped', bookingId: null, expectedAmountCents: -1234, deletedAt: null });
++    expect(repeated.occurrence).toMatchObject({
++      id: first.occurrence.id,
++      status: 'skipped',
++      bookingId: null,
++      expectedAmountCents: -1234,
++      deletedAt: null,
++    });
+     undo(db, { groupId: repeated.groupId }, ctx);
+-    expect(skipOccurrence(db, p.id, '2026-05-25', ctx, TODAY).occurrence.id).toBe(first.occurrence.id);
++    expect(skipOccurrence(db, p.id, '2026-05-25', ctx, TODAY).occurrence.id).toBe(
++      first.occurrence.id,
++    );
+   });
+ 
+-  it.each(['pause', 'end'] as const)('does not automatically rematch or mark an aged suppressed %s row after link loss', (kind) => {
+-    const p = make();
+-    const occurrence = row(p.id, '2026-04-25');
+-    const bookingId = book();
+-    linkOccurrence(db, occurrence.id, bookingId, ctx);
+-    if (kind === 'pause') pauseExpectedPayment(db, p.id, '2026-04-30', token(p.id), ctx, TODAY);
+-    else endExpectedPayment(db, p.id, '2026-04-01', token(p.id), ctx, TODAY);
+-    vi.setSystemTime(new Date('2026-05-20T12:00:00Z'));
+-    deleteBooking(db, bookingId, ctx);
+-    const alternativeBookingId = book();
+-    refreshOccurrences(db, '2026-05-20');
+-    const retained = row(p.id, occurrence.dueDate);
+-    expect(retained).toMatchObject({ id: occurrence.id, status: 'expected', bookingId: null, deletedAt: null, expectedAmountCents: -1234 });
+-    matchOccurrences(db, '2026-05-20');
+-    expect(row(p.id, occurrence.dueDate)).toEqual(retained);
+-    expect(db.select().from(expectedOccurrence).where(eq(expectedOccurrence.bookingId, alternativeBookingId)).all()).toEqual([]);
+-    expect(upcoming(db, '2026-04-01', '2026-04-30')).toEqual([]);
+-  });
++  it.each(['pause', 'end'] as const)(
++    'does not automatically rematch or mark an aged suppressed %s row after link loss',
++    (kind) => {
++      const p = make();
++      const occurrence = row(p.id, '2026-04-25');
++      const bookingId = book();
++      linkOccurrence(db, occurrence.id, bookingId, ctx);
++      if (kind === 'pause') pauseExpectedPayment(db, p.id, '2026-04-30', token(p.id), ctx, TODAY);
++      else endExpectedPayment(db, p.id, '2026-04-01', token(p.id), ctx, TODAY);
++      vi.setSystemTime(new Date('2026-05-20T12:00:00Z'));
++      deleteBooking(db, bookingId, ctx);
++      const alternativeBookingId = book();
++      refreshOccurrences(db, '2026-05-20');
++      const retained = row(p.id, occurrence.dueDate);
++      expect(retained).toMatchObject({
++        id: occurrence.id,
++        status: 'expected',
++        bookingId: null,
++        deletedAt: null,
++        expectedAmountCents: -1234,
++      });
++      matchOccurrences(db, '2026-05-20');
++      expect(row(p.id, occurrence.dueDate)).toEqual(retained);
++      expect(
++        db
++          .select()
++          .from(expectedOccurrence)
++          .where(eq(expectedOccurrence.bookingId, alternativeBookingId))
++          .all(),
++      ).toEqual([]);
++      expect(upcoming(db, '2026-04-01', '2026-04-30')).toEqual([]);
++    },
++  );
+ 
+   it('refuses overlap restoration and retains every row and audit after refusal', () => {
+     const p = make();
+@@ -273,10 +422,20 @@ describe('#607 atomic lifecycle and retained financial history', () => {
+     const p = make();
+     pauseExpectedPayment(db, p.id, '2030-06-30', token(p.id), ctx, TODAY);
+     const before = opened.sqlite.serialize();
+-    expect(readPaymentDetail(db, p.id, TODAY).future.slice(0, 3).map((r) => [r.dueDate, r.expectedAmountCents])).toEqual([
+-      ['2030-07-25', -1234], ['2030-08-25', -1234], ['2030-09-25', -1234],
++    expect(
++      readPaymentDetail(db, p.id, TODAY)
++        .future.slice(0, 3)
++        .map((r) => [r.dueDate, r.expectedAmountCents]),
++    ).toEqual([
++      ['2030-07-25', -1234],
++      ['2030-08-25', -1234],
++      ['2030-09-25', -1234],
+     ]);
+-    expect(listExpectedPayments(db, TODAY)[0]).toMatchObject({ nextDueDate: null, monthlyEquivalentCents: -1234, yearlyEquivalentCents: -14808 });
++    expect(listExpectedPayments(db, TODAY)[0]).toMatchObject({
++      nextDueDate: null,
++      monthlyEquivalentCents: -1234,
++      yearlyEquivalentCents: -14808,
++    });
+     expect(scheduled(loadFacts(db, '2026-04-30'), '2026-04-01', '2026-04-30', TODAY)).toEqual([]);
+     unchanged(before);
+     refreshOccurrences(db, TODAY);
+@@ -284,17 +443,36 @@ describe('#607 atomic lifecycle and retained financial history', () => {
+   });
+ 
+   it('uses the same paused and resumed income dates in Plan targets and the shared rules', () => {
+-    const p = createExpectedPayment(db, {
+-      name: 'Synthetic income', kind: 'inflow', accountId: 'giro', incomeTypeId: INCOME_TYPES.salary.id,
+-      dueDay: 25, startDate: '2026-01-01',
+-    }, { validFrom: '2026-01-01', amountCents: 10000 }, ctx, TODAY).payment;
++    const p = createExpectedPayment(
++      db,
++      {
++        name: 'Synthetic income',
++        kind: 'inflow',
++        accountId: 'giro',
++        incomeTypeId: INCOME_TYPES.salary.id,
++        dueDay: 25,
++        startDate: '2026-01-01',
++      },
++      { validFrom: '2026-01-01', amountCents: 10000 },
++      ctx,
++      TODAY,
++    ).payment;
+     pauseExpectedPayment(db, p.id, '2026-04-30', token(p.id), ctx, TODAY);
+     const before = opened.sqlite.serialize();
+     const beforeChanges = changes();
+     expect(scheduled(loadFacts(db, '2026-04-30'), '2026-04-01', '2026-04-30', TODAY)).toEqual([]);
+-    expect(scheduled(loadFacts(db, '2026-05-31'), '2026-05-01', '2026-05-31', TODAY).map((item) => [item.dueDate, item.cents])).toEqual([['2026-05-25', 10000]]);
+-    expect(planIncomeTargets(db, budgetSummary(db, '2026-04').summary, TODAY).expectedCents).toBe(0);
+-    expect(planIncomeTargets(db, budgetSummary(db, '2026-05').summary, TODAY).expectedCents).toBe(10000);
++    expect(
++      scheduled(loadFacts(db, '2026-05-31'), '2026-05-01', '2026-05-31', TODAY).map((item) => [
++        item.dueDate,
++        item.cents,
++      ]),
++    ).toEqual([['2026-05-25', 10000]]);
++    expect(planIncomeTargets(db, budgetSummary(db, '2026-04').summary, TODAY).expectedCents).toBe(
++      0,
++    );
++    expect(planIncomeTargets(db, budgetSummary(db, '2026-05').summary, TODAY).expectedCents).toBe(
++      10000,
++    );
+     unchanged(before);
+     expect(changes()).toBe(beforeChanges);
+   });
+@@ -306,6 +484,11 @@ describe('#607 atomic lifecycle and retained financial history', () => {
+     unlinkOccurrence(db, occurrence.id, ctx);
+     expect(facts(p.id).deletion).toBe('everAssigned');
+     pauseExpectedPayment(db, p.id, '2026-04-30', token(p.id), ctx, TODAY);
+-    expect(row(p.id, occurrence.dueDate)).toMatchObject({ status: 'missed', bookingId: null, deletedAt: null, expectedAmountCents: -1234 });
++    expect(row(p.id, occurrence.dueDate)).toMatchObject({
++      status: 'missed',
++      bookingId: null,
++      deletedAt: null,
++      expectedAmountCents: -1234,
++    });
+   });
+ });
+diff --git a/packages/db/src/repos/expected-lifecycle-invariants.ts b/packages/db/src/repos/expected-lifecycle-invariants.ts
+index 361a02a5..03df8c8b 100644
+--- a/packages/db/src/repos/expected-lifecycle-invariants.ts
++++ b/packages/db/src/repos/expected-lifecycle-invariants.ts
+@@ -15,8 +15,14 @@ export interface ExpectedLifecycleEntry {
+   groupId: string | null;
+   undoOfId: string | null;
+ }
+-interface Entry extends ExpectedLifecycleEntry { sequence: number; ts: string }
+-export interface PaymentPauseRange { fromDate: string; throughDate: string }
++interface Entry extends ExpectedLifecycleEntry {
++  sequence: number;
++  ts: string;
++}
++export interface PaymentPauseRange {
++  fromDate: string;
++  throughDate: string;
++}
+ export type PaymentDeletion = 'neverAssigned' | 'everAssigned' | 'unavailable';
+ export interface PaymentLifecycle {
+   pauses: PaymentPauseRange[];
+@@ -29,35 +35,73 @@ export interface PaymentLifecycle {
+   revivableSkippedOccurrenceIds: Set<string>;
+ }
+ const LIMIT = 20000;
+-const relationTypes = new Set(['expected_payment', 'expected_payment_pause', 'expected_occurrence']);
+-const validDay = (value: unknown): value is string => typeof value === 'string' &&
+-  /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value + 'T12:00:00Z')) &&
++const relationTypes = new Set([
++  'expected_payment',
++  'expected_payment_pause',
++  'expected_occurrence',
++]);
++const validDay = (value: unknown): value is string =>
++  typeof value === 'string' &&
++  /^\d{4}-\d{2}-\d{2}$/.test(value) &&
++  Number.isFinite(Date.parse(value + 'T12:00:00Z')) &&
+   new Date(value + 'T12:00:00Z').toISOString().slice(0, 10) === value;
+ export const isPaymentLifecycleDay = validDay;
+-const stable = (value: unknown): string => JSON.stringify(value, (_key, v: unknown) =>
+-  v && typeof v === 'object' && !Array.isArray(v)
+-    ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) : v);
++const stable = (value: unknown): string =>
++  JSON.stringify(value, (_key, v: unknown) =>
++    v && typeof v === 'object' && !Array.isArray(v)
++      ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
++      : v,
++  );
+ const digest = (value: unknown) => createHash('sha256').update(stable(value)).digest('hex');
+-const placeholders = (ids: readonly string[]) => sql.join(ids.map((id) => sql`${id}`), sql`, `);
++const placeholders = (ids: readonly string[]) =>
++  sql.join(
++    ids.map((id) => sql`${id}`),
++    sql`, `,
++  );
+ const snapshot = (raw: unknown): Snapshot | null => {
+   if (raw === null) return null;
+   if (typeof raw !== 'string') throw new Error('Missing lifecycle history');
+   const value: unknown = JSON.parse(raw);
+-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid lifecycle history');
++  if (!value || typeof value !== 'object' || Array.isArray(value))
++    throw new Error('Invalid lifecycle history');
+   return value as Snapshot;
+ };
+ function parse(row: Snapshot): Entry {
+-  if (!Number.isSafeInteger(row.sequence) || typeof row.id !== 'string' || typeof row.ts !== 'string' ||
+-      typeof row.entity_type !== 'string' || typeof row.entity_id !== 'string' || typeof row.action !== 'string' ||
+-      !(row.group_id === null || typeof row.group_id === 'string') ||
+-      !(row.undo_of_id === null || typeof row.undo_of_id === 'string')) throw new Error('Invalid lifecycle history');
+-  return { id: row.id, sequence: row.sequence as number, ts: row.ts, entityType: row.entity_type,
+-    entityId: row.entity_id, action: row.action, groupId: row.group_id, undoOfId: row.undo_of_id,
+-    before: snapshot(row.before_json), after: snapshot(row.after_json) };
++  if (
++    !Number.isSafeInteger(row.sequence) ||
++    typeof row.id !== 'string' ||
++    typeof row.ts !== 'string' ||
++    typeof row.entity_type !== 'string' ||
++    typeof row.entity_id !== 'string' ||
++    typeof row.action !== 'string' ||
++    !(row.group_id === null || typeof row.group_id === 'string') ||
++    !(row.undo_of_id === null || typeof row.undo_of_id === 'string')
++  )
++    throw new Error('Invalid lifecycle history');
++  return {
++    id: row.id,
++    sequence: row.sequence as number,
++    ts: row.ts,
++    entityType: row.entity_type,
++    entityId: row.entity_id,
++    action: row.action,
++    groupId: row.group_id,
++    undoOfId: row.undo_of_id,
++    before: snapshot(row.before_json),
++    after: snapshot(row.after_json),
++  };
+ }
+-const auditColumns = sql.raw('rowid AS sequence, id, ts, action, entity_type, entity_id, before_json, after_json, group_id, undo_of_id');
++const auditColumns = sql.raw(
++  'rowid AS sequence, id, ts, action, entity_type, entity_id, before_json, after_json, group_id, undo_of_id',
++);
+ function coherent(entries: Entry[], current: Snapshot | undefined): boolean {
+-  if (!entries.length || entries[0]!.before !== null || entries[0]!.action !== 'create' || entries[0]!.undoOfId !== null) return false;
++  if (
++    !entries.length ||
++    entries[0]!.before !== null ||
++    entries[0]!.action !== 'create' ||
++    entries[0]!.undoOfId !== null
++  )
++    return false;
+   return coherentSuffix(entries, current);
+ }
+ /** A new end may witness a legacy row now; this does not prove its earlier assignment history. */
+@@ -70,14 +114,26 @@ function coherentSuffix(entries: Entry[], current: Snapshot | undefined): boolea
+   }
+   return stable(previous) === stable(current ?? null);
+ }
+-function endProof(payment: Snapshot, events: Entry[]): Pick<PaymentLifecycle, 'endedFrom' | 'endEvidence'> {
++function endProof(
++  payment: Snapshot,
++  events: Entry[],
++): Pick<PaymentLifecycle, 'endedFrom' | 'endEvidence'> {
+   if (payment.end_date === null) return { endedFrom: null, endEvidence: 'none' };
+   const unknown = { endedFrom: null, endEvidence: 'unavailable' as const };
+   if (!validDay(payment.end_date) || !coherentSuffix(events, payment)) return unknown;
+-  const active = activeGoalAuditEntries(events.map((e) => ({ id: e.id, sequence: e.sequence, undoOfId: e.undoOfId })));
++  const active = activeGoalAuditEntries(
++    events.map((e) => ({ id: e.id, sequence: e.sequence, undoOfId: e.undoOfId })),
++  );
+   if (!active) return unknown;
+-  const last = events.filter((e) => e.undoOfId === null && active.has(e.id) && e.before !== null &&
+-    e.before.end_date !== e.after?.end_date).at(-1);
++  const last = events
++    .filter(
++      (e) =>
++        e.undoOfId === null &&
++        active.has(e.id) &&
++        e.before !== null &&
++        e.before.end_date !== e.after?.end_date,
++    )
++    .at(-1);
+   if (!last || last.after?.end_date !== payment.end_date) return unknown;
+   const when = new Date(last.ts);
+   if (!Number.isFinite(when.getTime())) return unknown;
+@@ -90,38 +146,83 @@ function endProof(payment: Snapshot, events: Entry[]): Pick<PaymentLifecycle, 'e
+ function skipUndoTombstone(events: Entry[], current: Snapshot | undefined): boolean {
+   const birth = events[0]?.after;
+   const latest = events.at(-1);
+-  if (!birth || birth.status !== 'skipped' || birth.booking_id !== null || birth.deleted_at !== null ||
+-    !current || current.deleted_at === null || latest?.action !== 'undo' || !latest.undoOfId ||
+-    latest.before?.deleted_at !== null || latest.after?.deleted_at == null) return false;
+-  const keys = ['expected_payment_id', 'due_date', 'expected_amount_cents', 'contact_share_cents', 'status', 'booking_id'] as const;
++  if (
++    !birth ||
++    birth.status !== 'skipped' ||
++    birth.booking_id !== null ||
++    birth.deleted_at !== null ||
++    !current ||
++    current.deleted_at === null ||
++    latest?.action !== 'undo' ||
++    !latest.undoOfId ||
++    latest.before?.deleted_at !== null ||
++    latest.after?.deleted_at == null
++  )
++    return false;
++  const keys = [
++    'expected_payment_id',
++    'due_date',
++    'expected_amount_cents',
++    'contact_share_cents',
++    'status',
++    'booking_id',
++  ] as const;
+   const seen = new Map<string, Entry>();
+   const consumed = new Set<string>();
+   for (const [index, event] of events.entries()) {
+-    if ([event.before, event.after].some((side) => side !== null && keys.some((key) => side[key] !== birth[key]))) return false;
++    if (
++      [event.before, event.after].some(
++        (side) => side !== null && keys.some((key) => side[key] !== birth[key]),
++      )
++    )
++      return false;
+     if (index === 0) {
+-      if (event.action !== 'create' || event.before !== null || event.undoOfId !== null) return false;
++      if (event.action !== 'create' || event.before !== null || event.undoOfId !== null)
++        return false;
+     } else if (event.undoOfId !== null) {
+       const parent = seen.get(event.undoOfId);
+-      if (event.action !== 'undo' || !parent || consumed.has(parent.id) ||
+-        parent.entityType !== event.entityType || parent.entityId !== event.entityId) return false;
++      if (
++        event.action !== 'undo' ||
++        !parent ||
++        consumed.has(parent.id) ||
++        parent.entityType !== event.entityType ||
++        parent.entityId !== event.entityId
++      )
++        return false;
+       consumed.add(parent.id);
+-    } else if (event.action !== 'restore' || event.before?.deleted_at == null || event.after?.deleted_at !== null ||
+-      events[index - 1]?.action !== 'undo') return false;
++    } else if (
++      event.action !== 'restore' ||
++      event.before?.deleted_at == null ||
++      event.after?.deleted_at !== null ||
++      events[index - 1]?.action !== 'undo'
++    )
++      return false;
+     seen.set(event.id, event);
+   }
+   return !consumed.has(latest.id);
+ }
+ 
+ /** One bounded batch for the requested identities. Raw rows/audits stay inside the repository. */
+-export function readPaymentLifecycles(db: Executor, paymentIds: readonly string[]): Map<string, PaymentLifecycle> {
++export function readPaymentLifecycles(
++  db: Executor,
++  paymentIds: readonly string[],
++): Map<string, PaymentLifecycle> {
+   const result = new Map<string, PaymentLifecycle>();
+   const ids = [...new Set(paymentIds)];
+   for (let offset = 0; offset < ids.length; offset += 100) {
+     const part = ids.slice(offset, offset + 100);
+-    const payments = db.all<Snapshot>(sql`SELECT * FROM expected_payment WHERE id IN (${placeholders(part)}) ORDER BY id`);
+-    const occurrences = db.all<Snapshot>(sql`SELECT * FROM expected_occurrence WHERE expected_payment_id IN (${placeholders(part)}) ORDER BY id LIMIT ${LIMIT + 1}`);
+-    const pauses = db.all<Snapshot>(sql`SELECT * FROM expected_payment_pause WHERE expected_payment_id IN (${placeholders(part)}) ORDER BY expected_payment_id, from_date, id LIMIT ${LIMIT + 1}`);
+-    const versions = db.all<Snapshot>(sql`SELECT * FROM expected_payment_version WHERE expected_payment_id IN (${placeholders(part)}) ORDER BY id LIMIT ${LIMIT + 1}`);
++    const payments = db.all<Snapshot>(
++      sql`SELECT * FROM expected_payment WHERE id IN (${placeholders(part)}) ORDER BY id`,
++    );
++    const occurrences = db.all<Snapshot>(
++      sql`SELECT * FROM expected_occurrence WHERE expected_payment_id IN (${placeholders(part)}) ORDER BY id LIMIT ${LIMIT + 1}`,
++    );
++    const pauses = db.all<Snapshot>(
++      sql`SELECT * FROM expected_payment_pause WHERE expected_payment_id IN (${placeholders(part)}) ORDER BY expected_payment_id, from_date, id LIMIT ${LIMIT + 1}`,
++    );
++    const versions = db.all<Snapshot>(
++      sql`SELECT * FROM expected_payment_version WHERE expected_payment_id IN (${placeholders(part)}) ORDER BY id LIMIT ${LIMIT + 1}`,
++    );
+     let raw = db.all<Snapshot>(sql`SELECT ${auditColumns} FROM audit_log WHERE
+       (entity_type='expected_payment' AND entity_id IN (${placeholders(part)})) OR
+       (entity_type IN ('expected_occurrence','expected_payment_pause') AND (
+@@ -130,48 +231,84 @@ export function readPaymentLifecycles(db: Executor, paymentIds: readonly string[
+         CASE WHEN json_valid(after_json) THEN json_extract(after_json,'$.expected_payment_id') END IN (${placeholders(part)})
+       )) ORDER BY rowid LIMIT ${LIMIT + 1}`);
+     let events: Entry[] = [];
+-    let complete = occurrences.length <= LIMIT && pauses.length <= LIMIT && versions.length <= LIMIT && raw.length <= LIMIT;
++    let complete =
++      occurrences.length <= LIMIT &&
++      pauses.length <= LIMIT &&
++      versions.length <= LIMIT &&
++      raw.length <= LIMIT;
+     try {
+       // Historical parent identities may have moved; load their entire retained chain once,
+       // so another payment in this batch cannot change the first payment's review token.
+       const initial = raw.map(parse);
+-      const knownIds = [...new Set([...occurrences.map((o) => String(o.id)),
+-        ...initial.filter((e) => e.entityType === 'expected_occurrence').map((e) => e.entityId)])];
++      const knownIds = [
++        ...new Set([
++          ...occurrences.map((o) => String(o.id)),
++          ...initial.filter((e) => e.entityType === 'expected_occurrence').map((e) => e.entityId),
++        ]),
++      ];
+       const additional: Snapshot[] = [];
+       for (let i = 0; i < knownIds.length; i += 400) {
+-        additional.push(...db.all<Snapshot>(sql`SELECT ${auditColumns} FROM audit_log
++        additional.push(
++          ...db.all<Snapshot>(sql`SELECT ${auditColumns} FROM audit_log
+           WHERE entity_type='expected_occurrence' AND entity_id IN (${placeholders(knownIds.slice(i, i + 400))})
+-          ORDER BY rowid LIMIT ${LIMIT + 1}`));
+-        if (additional.length > LIMIT) { complete = false; break; }
++          ORDER BY rowid LIMIT ${LIMIT + 1}`),
++        );
++        if (additional.length > LIMIT) {
++          complete = false;
++          break;
++        }
+       }
+-      raw = [...new Map([...raw, ...additional].map((r) => [String(r.id), r])).values()]
+-        .sort((a, b) => Number(a.sequence) - Number(b.sequence));
++      raw = [...new Map([...raw, ...additional].map((r) => [String(r.id), r])).values()].sort(
++        (a, b) => Number(a.sequence) - Number(b.sequence),
++      );
+       if (raw.length > LIMIT) complete = false;
+       events = raw.map(parse);
+-    } catch { complete = false; }
++    } catch {
++      complete = false;
++    }
+     for (const p of payments) {
+       const id = String(p.id);
+       const own = occurrences.filter((o) => o.expected_payment_id === id);
+       const ownPauses = pauses.filter((v) => v.expected_payment_id === id);
+-      if (ownPauses.length > LIMIT) throw new ConflictError('Zu viele Pausen für eine sichere Terminansicht.');
+-      const ranges = ownPauses.filter((v) => v.deleted_at === null).map((v) => {
+-        if (!validDay(v.from_date) || !validDay(v.through_date) || v.from_date > v.through_date)
+-          throw new ConflictError('Die gespeicherte Zahlungspause braucht eine Prüfung.');
+-        return { fromDate: v.from_date, throughDate: v.through_date };
+-      });
++      if (ownPauses.length > LIMIT)
++        throw new ConflictError('Zu viele Pausen für eine sichere Terminansicht.');
++      const ranges = ownPauses
++        .filter((v) => v.deleted_at === null)
++        .map((v) => {
++          if (!validDay(v.from_date) || !validDay(v.through_date) || v.from_date > v.through_date)
++            throw new ConflictError('Die gespeicherte Zahlungspause braucht eine Prüfung.');
++          return { fromDate: v.from_date, throughDate: v.through_date };
++        });
+       // A truncated pause set cannot safely feed any calendar projection.
+-      if (pauses.length > LIMIT) throw new ConflictError('Die Zahlungspausen sind für diese Ansicht zu umfangreich.');
+-      const paymentEvents = events.filter((e) => e.entityType === 'expected_payment' && e.entityId === id);
++      if (pauses.length > LIMIT)
++        throw new ConflictError('Die Zahlungspausen sind für diese Ansicht zu umfangreich.');
++      const paymentEvents = events.filter(
++        (e) => e.entityType === 'expected_payment' && e.entityId === id,
++      );
+       const occurrenceIds = new Set(own.map((o) => String(o.id)));
+-      for (const e of events) if (e.entityType === 'expected_occurrence' &&
+-        (e.before?.expected_payment_id === id || e.after?.expected_payment_id === id)) occurrenceIds.add(e.entityId);
+-      const relevant = events.filter((e) => e.entityType === 'expected_occurrence' && occurrenceIds.has(e.entityId));
+-      const ownAudit = events.filter((e) => (e.entityType === 'expected_payment' && e.entityId === id) ||
+-        (e.entityType === 'expected_occurrence' && occurrenceIds.has(e.entityId)) ||
+-        (e.entityType === 'expected_payment_pause' && (e.before?.expected_payment_id === id || e.after?.expected_payment_id === id)));
+-      const assigned = own.some((o) => o.booking_id !== null) || relevant.some((e) =>
+-        (e.before?.expected_payment_id === id && e.before.booking_id != null) ||
+-        (e.after?.expected_payment_id === id && e.after.booking_id != null));
++      for (const e of events)
++        if (
++          e.entityType === 'expected_occurrence' &&
++          (e.before?.expected_payment_id === id || e.after?.expected_payment_id === id)
++        )
++          occurrenceIds.add(e.entityId);
++      const relevant = events.filter(
++        (e) => e.entityType === 'expected_occurrence' && occurrenceIds.has(e.entityId),
++      );
++      const ownAudit = events.filter(
++        (e) =>
++          (e.entityType === 'expected_payment' && e.entityId === id) ||
++          (e.entityType === 'expected_occurrence' && occurrenceIds.has(e.entityId)) ||
++          (e.entityType === 'expected_payment_pause' &&
++            (e.before?.expected_payment_id === id || e.after?.expected_payment_id === id)),
++      );
++      const assigned =
++        own.some((o) => o.booking_id !== null) ||
++        relevant.some(
++          (e) =>
++            (e.before?.expected_payment_id === id && e.before.booking_id != null) ||
++            (e.after?.expected_payment_id === id && e.after.booking_id != null),
++        );
+       let proven = complete && coherent(paymentEvents, p);
+       const revivable = new Set<string>();
+       const revivableSkipped = new Set<string>();
+@@ -180,17 +317,39 @@ export function readPaymentLifecycles(db: Executor, paymentIds: readonly string[
+         const history = relevant.filter((e) => e.entityId === occurrenceId);
+         const known = coherent(history, row);
+         if (!known) proven = false;
+-        if (complete && known && skipUndoTombstone(history, row)) revivableSkipped.add(occurrenceId);
+-        if (complete && known && row?.deleted_at !== null && row?.status === 'expected' && row?.booking_id === null &&
+-          history.every((e) => [e.before, e.after].every((s) => s === null ||
+-            (s.expected_payment_id === id && s.status === 'expected' && s.booking_id === null)))) revivable.add(occurrenceId);
++        if (complete && known && skipUndoTombstone(history, row))
++          revivableSkipped.add(occurrenceId);
++        if (
++          complete &&
++          known &&
++          row?.deleted_at !== null &&
++          row?.status === 'expected' &&
++          row?.booking_id === null &&
++          history.every((e) =>
++            [e.before, e.after].every(
++              (s) =>
++                s === null ||
++                (s.expected_payment_id === id && s.status === 'expected' && s.booking_id === null),
++            ),
++          )
++        )
++          revivable.add(occurrenceId);
+       }
+       result.set(id, {
+         pauses: ranges,
+-        ...(complete ? endProof(p, paymentEvents) : { endedFrom: null, endEvidence: 'unavailable' as const }),
++        ...(complete
++          ? endProof(p, paymentEvents)
++          : { endedFrom: null, endEvidence: 'unavailable' as const }),
+         deletion: assigned ? 'everAssigned' : proven ? 'neverAssigned' : 'unavailable',
+-        reviewToken: complete ? digest({ p, own, pauses: ownPauses, versions: versions.filter((v) => v.expected_payment_id === id),
+-          audit: ownAudit }) : null,
++        reviewToken: complete
++          ? digest({
++              p,
++              own,
++              pauses: ownPauses,
++              versions: versions.filter((v) => v.expected_payment_id === id),
++              audit: ownAudit,
++            })
++          : null,
+         revivableOccurrenceIds: revivable,
+         revivableSkippedOccurrenceIds: revivableSkipped,
+       });
+@@ -200,41 +359,70 @@ export function readPaymentLifecycles(db: Executor, paymentIds: readonly string[
+ }
+ 
+ export function paymentDateSuppressed(facts: PaymentLifecycle | undefined, day: string): boolean {
+-  return !!facts && (facts.pauses.some((p) => p.fromDate <= day && day <= p.throughDate) ||
+-    (facts.endedFrom !== null && day >= facts.endedFrom));
++  return (
++    !!facts &&
++    (facts.pauses.some((p) => p.fromDate <= day && day <= p.throughDate) ||
++      (facts.endedFrom !== null && day >= facts.endedFrom))
++  );
+ }
+ /** A retained assignment remains real; only the now-unassigned open obligation is suppressed. */
+-export function paymentOpenSuppressed(facts: PaymentLifecycle | undefined, row: {
+-  dueDate: string; status: string; bookingId: string | null;
+-}): boolean {
+-  return row.status === 'expected' && row.bookingId === null && paymentDateSuppressed(facts, row.dueDate);
++export function paymentOpenSuppressed(
++  facts: PaymentLifecycle | undefined,
++  row: {
++    dueDate: string;
++    status: string;
++    bookingId: string | null;
++  },
++): boolean {
++  return (
++    row.status === 'expected' && row.bookingId === null && paymentDateSuppressed(facts, row.dueDate)
++  );
+ }
+ export function assertPaymentDeletable(facts: PaymentLifecycle | undefined): void {
+   if (facts?.deletion === 'neverAssigned') return;
+-  throw new ConflictError(facts?.deletion === 'everAssigned'
+-    ? 'Dieser Zahlung war bereits eine Buchung zugeordnet. Bitte „Beenden“ verwenden; der Verlauf bleibt erhalten.'
+-    : 'Die vollständige Zuordnungshistorie ist nicht belegt. Bitte „Beenden“ verwenden; der Verlauf bleibt erhalten.');
++  throw new ConflictError(
++    facts?.deletion === 'everAssigned'
++      ? 'Dieser Zahlung war bereits eine Buchung zugeordnet. Bitte „Beenden“ verwenden; der Verlauf bleibt erhalten.'
++      : 'Die vollständige Zuordnungshistorie ist nicht belegt. Bitte „Beenden“ verwenden; der Verlauf bleibt erhalten.',
++  );
+ }
+-export function assertPaymentReview(facts: PaymentLifecycle | undefined, reviewToken: string): void {
+-  if (!facts?.reviewToken) throw new ConflictError('Die Zahlungshistorie ist beschädigt oder für eine sichere Änderung zu umfangreich.');
+-  if (facts.reviewToken !== reviewToken) throw new ConflictError('Die Zahlung wurde inzwischen verändert. Bitte neu laden und erneut prüfen.');
++export function assertPaymentReview(
++  facts: PaymentLifecycle | undefined,
++  reviewToken: string,
++): void {
++  if (!facts?.reviewToken)
++    throw new ConflictError(
++      'Die Zahlungshistorie ist beschädigt oder für eine sichere Änderung zu umfangreich.',
++    );
++  if (facts.reviewToken !== reviewToken)
++    throw new ConflictError(
++      'Die Zahlung wurde inzwischen verändert. Bitte neu laden und erneut prüfen.',
++    );
+ }
+ export function assertPaymentPauseRanges(facts: PaymentLifecycle | undefined): void {
+   const ranges = [...(facts?.pauses ?? [])].sort((a, b) => a.fromDate.localeCompare(b.fromDate));
+-  for (let i = 1; i < ranges.length; i++) if (ranges[i]!.fromDate <= ranges[i - 1]!.throughDate)
+-    throw new AuditError('Pausen derselben Zahlung dürfen sich nicht überschneiden.');
++  for (let i = 1; i < ranges.length; i++)
++    if (ranges[i]!.fromDate <= ranges[i - 1]!.throughDate)
++      throw new AuditError('Pausen derselben Zahlung dürfen sich nicht überschneiden.');
+ }
+ 
+-interface Root { entry: ExpectedLifecycleEntry; depth: number; chain: string[] }
++interface Root {
++  entry: ExpectedLifecycleEntry;
++  depth: number;
++  chain: string[];
++}
+ function rootOf(db: Executor, initial: ExpectedLifecycleEntry): Root {
+   let entry = initial;
+   let depth = 0;
+   const seen = new Set<string>();
+   const chain = [entry.id];
+   while (entry.undoOfId !== null) {
+-    if (seen.has(entry.id) || depth++ >= 128) throw new AuditError('Die Zuordnung dieser Rückgängig-Aktion ist nicht vollständig belegt.');
++    if (seen.has(entry.id) || depth++ >= 128)
++      throw new AuditError('Die Zuordnung dieser Rückgängig-Aktion ist nicht vollständig belegt.');
+     seen.add(entry.id);
+-    const row = db.get<Snapshot>(sql`SELECT ${auditColumns} FROM audit_log WHERE id=${entry.undoOfId}`);
++    const row = db.get<Snapshot>(
++      sql`SELECT ${auditColumns} FROM audit_log WHERE id=${entry.undoOfId}`,
++    );
+     if (!row) throw new AuditError('Die ursprüngliche Zahlungsaktion fehlt.');
+     const parent = parse(row);
+     if (parent.entityType !== entry.entityType || parent.entityId !== entry.entityId)
+@@ -244,12 +432,21 @@ function rootOf(db: Executor, initial: ExpectedLifecycleEntry): Root {
+   }
+   return { entry, depth, chain };
+ }
+-const parents = (e: ExpectedLifecycleEntry): string[] => e.entityType === 'expected_payment' ? [e.entityId] :
+-  [...new Set([e.before?.expected_payment_id, e.after?.expected_payment_id])].filter((id): id is string => typeof id === 'string');
+-const lifecycleRoot = (e: ExpectedLifecycleEntry) => e.entityType === 'expected_payment_pause' ||
+-  (e.entityType === 'expected_payment' && e.before !== null && e.after !== null &&
+-    (e.before.end_date !== e.after.end_date || (e.action === 'delete' && e.before.deleted_at === null && e.after.deleted_at !== null)));
+-const openRaw = (row: Snapshot | undefined) => !!row && row.deleted_at === null && row.status === 'expected' && row.booking_id === null;
++const parents = (e: ExpectedLifecycleEntry): string[] =>
++  e.entityType === 'expected_payment'
++    ? [e.entityId]
++    : [...new Set([e.before?.expected_payment_id, e.after?.expected_payment_id])].filter(
++        (id): id is string => typeof id === 'string',
++      );
++const lifecycleRoot = (e: ExpectedLifecycleEntry) =>
++  e.entityType === 'expected_payment_pause' ||
++  (e.entityType === 'expected_payment' &&
++    e.before !== null &&
++    e.after !== null &&
++    (e.before.end_date !== e.after.end_date ||
++      (e.action === 'delete' && e.before.deleted_at === null && e.after.deleted_at !== null)));
++const openRaw = (row: Snapshot | undefined) =>
++  !!row && row.deleted_at === null && row.status === 'expected' && row.booking_id === null;
+ export interface PaymentUndoContext {
+   parents: string[];
+   before: Map<string, Snapshot | undefined>;
+@@ -258,8 +455,17 @@ export interface PaymentUndoContext {
+ }
+ 
+ /** Narrow adapter for the existing Undo transaction; no audit/writer imports or corrective writes. */
+-export function preparePaymentLifecycleUndo(db: Executor, selected: readonly ExpectedLifecycleEntry[], today = todayInVienna()): PaymentUndoContext {
+-  const context: PaymentUndoContext = { parents: [], before: new Map(), maintenance: new Set(), today };
++export function preparePaymentLifecycleUndo(
++  db: Executor,
++  selected: readonly ExpectedLifecycleEntry[],
++  today = todayInVienna(),
++): PaymentUndoContext {
++  const context: PaymentUndoContext = {
++    parents: [],
++    before: new Map(),
++    maintenance: new Set(),
++    today,
++  };
+   const candidates = selected.filter((e) => relationTypes.has(e.entityType));
+   if (!candidates.length) return context;
+   const roots = new Map(selected.map((e) => [e.id, rootOf(db, e)]));
+@@ -272,35 +478,73 @@ export function preparePaymentLifecycleUndo(db: Executor, selected: readonly Exp
+     let group: ExpectedLifecycleEntry[] = [root];
+     if (root.groupId) {
+       if (!groups.has(root.groupId)) {
+-        const rows = db.all<Snapshot>(sql`SELECT ${auditColumns} FROM audit_log WHERE group_id=${root.groupId} ORDER BY rowid LIMIT ${LIMIT + 1}`);
+-        if (rows.length > LIMIT) throw new AuditError('Die Zahlungsaktion ist zu umfangreich für eine sichere Rücknahme.');
++        const rows = db.all<Snapshot>(
++          sql`SELECT ${auditColumns} FROM audit_log WHERE group_id=${root.groupId} ORDER BY rowid LIMIT ${LIMIT + 1}`,
++        );
++        if (rows.length > LIMIT)
++          throw new AuditError('Die Zahlungsaktion ist zu umfangreich für eine sichere Rücknahme.');
+         groups.set(root.groupId, rows.map(parse));
+       }
+       group = groups.get(root.groupId)!;
+     }
+-    const relevantParents = new Set(group.filter((e) => e.undoOfId === null && lifecycleRoot(e)).flatMap(parents));
+-    const coupled = group.filter((e) => e.undoOfId === null && relationTypes.has(e.entityType) && parents(e).some((id) => relevantParents.has(id)));
++    const relevantParents = new Set(
++      group.filter((e) => e.undoOfId === null && lifecycleRoot(e)).flatMap(parents),
++    );
++    const coupled = group.filter(
++      (e) =>
++        e.undoOfId === null &&
++        relationTypes.has(e.entityType) &&
++        parents(e).some((id) => relevantParents.has(id)),
++    );
+     if (parents(root).some((id) => relevantParents.has(id))) {
+       const depth = roots.get(candidate.id)!.depth;
+       if (coupled.some((e) => !selectedRoots.has(e.id) || selectedRoots.get(e.id)!.depth !== depth))
+-        throw new AuditError('Pausieren, Beenden und zugehörige Termine bitte gemeinsam rückgängig machen.');
++        throw new AuditError(
++          'Pausieren, Beenden und zugehörige Termine bitte gemeinsam rückgängig machen.',
++        );
+       const chains = coupled.flatMap((e) => selectedRoots.get(e.id)!.chain);
+-      const childCounts = db.all<{ parent: string; n: number }>(sql`SELECT undo_of_id AS parent, count(*) AS n FROM audit_log
++      const childCounts = db.all<{
++        parent: string;
++        n: number;
++      }>(sql`SELECT undo_of_id AS parent, count(*) AS n FROM audit_log
+         WHERE undo_of_id IN (${placeholders(chains)}) GROUP BY undo_of_id`);
+       const tips = new Set(coupled.map((e) => selectedRoots.get(e.id)!.chain[0]!));
+       if (childCounts.some((row) => row.n > 1 || tips.has(row.parent)))
+-        throw new AuditError('Diese Zahlungsaktion hat bereits eine andere Rückgängig-Folge. Bitte die aktuelle vollständige Aktion verwenden.');
++        throw new AuditError(
++          'Diese Zahlungsaktion hat bereits eine andere Rückgängig-Folge. Bitte die aktuelle vollständige Aktion verwenden.',
++        );
+     }
+-    if (root.entityType === 'expected_payment' && root.action === 'delete' && root.before?.deleted_at === null &&
+-      root.after?.deleted_at != null && candidate.before?.deleted_at != null) {
+-      try { assertPaymentDeletable(readPaymentLifecycles(db, [root.entityId]).get(root.entityId)); }
+-      catch { throw new AuditError('Diese Zahlung hatte inzwischen eine Zuordnung. Löschen kann nicht wiederhergestellt werden; bitte „Beenden“ verwenden.'); }
++    if (
++      root.entityType === 'expected_payment' &&
++      root.action === 'delete' &&
++      root.before?.deleted_at === null &&
++      root.after?.deleted_at != null &&
++      candidate.before?.deleted_at != null
++    ) {
++      try {
++        assertPaymentDeletable(readPaymentLifecycles(db, [root.entityId]).get(root.entityId));
++      } catch {
++        throw new AuditError(
++          'Diese Zahlung hatte inzwischen eine Zuordnung. Löschen kann nicht wiederhergestellt werden; bitte „Beenden“ verwenden.',
++        );
++      }
+     }
+     if (candidate.entityType === 'expected_occurrence') {
+-      context.before.set(candidate.entityId, db.get<Snapshot>(sql`SELECT * FROM expected_occurrence WHERE id=${candidate.entityId}`));
+-      const bookingIds = [root.before?.booking_id, root.after?.booking_id].filter((id): id is string => typeof id === 'string');
+-      const related = group.filter((e) => e.undoOfId === null && e.entityType === 'booking' && bookingIds.includes(e.entityId));
+-      if (!group.some(lifecycleRoot) && related.length > 0 && related.every((e) => selectedRoots.has(e.id)))
++      context.before.set(
++        candidate.entityId,
++        db.get<Snapshot>(sql`SELECT * FROM expected_occurrence WHERE id=${candidate.entityId}`),
++      );
++      const bookingIds = [root.before?.booking_id, root.after?.booking_id].filter(
++        (id): id is string => typeof id === 'string',
++      );
++      const related = group.filter(
++        (e) => e.undoOfId === null && e.entityType === 'booking' && bookingIds.includes(e.entityId),
++      );
++      if (
++        !group.some(lifecycleRoot) &&
++        related.length > 0 &&
++        related.every((e) => selectedRoots.has(e.id))
++      )
+         context.maintenance.add(candidate.entityId);
+     }
+   }
+@@ -316,8 +560,16 @@ export function assertPaymentLifecycleUndo(db: Executor, context: PaymentUndoCon
+   for (const [id, before] of context.before) {
+     if (context.maintenance.has(id) || openRaw(before)) continue;
+     const after = db.get<Snapshot>(sql`SELECT * FROM expected_occurrence WHERE id=${id}`);
+-    if (!openRaw(after) || !after || typeof after.due_date !== 'string' || after.due_date < context.today) continue;
++    if (
++      !openRaw(after) ||
++      !after ||
++      typeof after.due_date !== 'string' ||
++      after.due_date < context.today
++    )
++      continue;
+     if (paymentDateSuppressed(facts.get(String(after.expected_payment_id)), after.due_date))
+-      throw new AuditError('Dieser Termin ist pausiert oder beendet. Bitte zuerst die zugehörige Zahlungsaktion rückgängig machen.');
++      throw new AuditError(
++        'Dieser Termin ist pausiert oder beendet. Bitte zuerst die zugehörige Zahlungsaktion rückgängig machen.',
++      );
+   }
+ }
+diff --git a/packages/db/src/repos/expected.ts b/packages/db/src/repos/expected.ts
+index f2af93f0..a6f2c4f7 100644
+--- a/packages/db/src/repos/expected.ts
++++ b/packages/db/src/repos/expected.ts
+@@ -47,8 +47,14 @@ import { ConflictError, EntityNotFoundError } from './errors';
+ import { bookedAmountIn, expectedLinkPatches, expectedLinkedStatus } from './expected-links';
+ import { runInTransaction, type Executor } from './types';
+ import {
+-  readPaymentLifecycles, assertPaymentDeletable, assertPaymentReview, assertPaymentPauseRanges,
+-  isPaymentLifecycleDay, paymentDateSuppressed, paymentOpenSuppressed, type PaymentLifecycle,
++  readPaymentLifecycles,
++  assertPaymentDeletable,
++  assertPaymentReview,
++  assertPaymentPauseRanges,
++  isPaymentLifecycleDay,
++  paymentDateSuppressed,
++  paymentOpenSuppressed,
++  type PaymentLifecycle,
+ } from './expected-lifecycle-invariants';
+ 
+ export { bookedAmountIn } from './expected-links';
+@@ -210,8 +216,13 @@ function replanPayment(
+         ctx,
+       );
+       result.created++;
+-    } else if (row.deletedAt !== null && row.dueDate >= today && row.bookingId === null &&
+-      row.status === 'expected' && lifecycle?.revivableOccurrenceIds.has(row.id)) {
++    } else if (
++      row.deletedAt !== null &&
++      row.dueDate >= today &&
++      row.bookingId === null &&
++      row.status === 'expected' &&
++      lifecycle?.revivableOccurrenceIds.has(row.id)
++    ) {
+       updateTracked(
+         tx,
+         expectedOccurrence,
+@@ -282,7 +293,10 @@ export function refreshOccurrences(
+     for (const { id, patch } of expectedLinkPatches(tx))
+       updateTracked(tx, expectedOccurrence, [id], patch, grouped);
+     const payments = tx.select().from(expectedPayment).all();
+-    const lifecycle = readPaymentLifecycles(tx, payments.map((p) => p.id));
++    const lifecycle = readPaymentLifecycles(
++      tx,
++      payments.map((p) => p.id),
++    );
+     for (const payment of payments) {
+       // Soft-deleted payments only matter while they still have future rows to remove.
+       if (payment.deletedAt !== null) {
+@@ -397,17 +411,33 @@ export function updateExpectedPayment(
+   return runInTransaction(db, (tx) => {
+     const before = livePayment(tx, id);
+     const changedEnd = patch.endDate !== undefined && patch.endDate !== before.endDate;
+-    if (changedEnd && patch.endDate !== null &&
+-      (!isPaymentLifecycleDay(patch.endDate) || addDays(patch.endDate, 1) < today))
+-      throw new ConflictError('Beenden ist nur ab heute möglich. Vergangene Termine bleiben erhalten.');
++    if (
++      changedEnd &&
++      patch.endDate !== null &&
++      (!isPaymentLifecycleDay(patch.endDate) || addDays(patch.endDate, 1) < today)
++    )
++      throw new ConflictError(
++        'Beenden ist nur ab heute möglich. Vergangene Termine bleiben erhalten.',
++      );
+     if (changedEnd) {
+       const lifecycle = readPaymentLifecycles(tx, [id]).get(id);
+       // Legacy generic PATCH is not a reviewed-token API. New UI end actions use /end.
+       if (!lifecycle?.reviewToken)
+-        throw new ConflictError('Die Zahlungshistorie ist für eine sichere Änderung nicht vollständig lesbar.');
+-      const scheduleKeys = ['rhythm', 'dueDay', 'dueMonth', 'dateShift', 'startDate', 'intervalWeeks'] as const;
++        throw new ConflictError(
++          'Die Zahlungshistorie ist für eine sichere Änderung nicht vollständig lesbar.',
++        );
++      const scheduleKeys = [
++        'rhythm',
++        'dueDay',
++        'dueMonth',
++        'dateShift',
++        'startDate',
++        'intervalWeeks',
++      ] as const;
+       if (scheduleKeys.some((key) => patch[key] !== undefined && patch[key] !== before[key]))
+-        throw new ConflictError('Bitte zuerst den Rhythmus speichern und den Endtermin danach separat ändern.');
++        throw new ConflictError(
++          'Bitte zuerst den Rhythmus speichern und den Endtermin danach separat ändern.',
++        );
+     }
+     const clean = patch.name === undefined ? patch : { ...patch, name: cleanName(patch.name) };
+     const payment = updateEntity(tx, expectedPayment, id, clean, grouped);
+@@ -416,7 +446,9 @@ export function updateExpectedPayment(
+     if (changedEnd && payment.endDate !== null) {
+       const lifecycle = readPaymentLifecycles(tx, [id]).get(id);
+       if (lifecycle?.endedFrom !== addDays(payment.endDate, 1))
+-        throw new ConflictError('Der neue Endtermin ist nicht eindeutig belegt. Die Änderung wurde nicht gespeichert.');
++        throw new ConflictError(
++          'Der neue Endtermin ist nicht eindeutig belegt. Die Änderung wurde nicht gespeichert.',
++        );
+       replanPayment(tx, payment, today, grouped, lifecycle, true);
+     } else replanPayment(tx, payment, today, grouped);
+     return { payment, groupId: grouped.groupId };
+@@ -445,7 +477,12 @@ export function deleteExpectedPayment(
+ 
+ /** Forward-only interval; suppressed open rows and the interval share one audited action. */
+ export function pauseExpectedPayment(
+-  db: Executor, id: string, throughDate: string, reviewToken: string, ctx: AuditContext, today: string,
++  db: Executor,
++  id: string,
++  throughDate: string,
++  reviewToken: string,
++  ctx: AuditContext,
++  today: string,
+ ): { groupId: string } {
+   if (!isPaymentLifecycleDay(today) || !isPaymentLifecycleDay(throughDate) || throughDate < today)
+     throw new ConflictError('Die Pause braucht ein gültiges Enddatum ab heute.');
+@@ -456,7 +493,12 @@ export function pauseExpectedPayment(
+     assertPaymentReview(before, reviewToken);
+     if (before?.pauses.some((p) => p.fromDate <= throughDate && p.throughDate >= today))
+       throw new ConflictError('Für diesen Zeitraum besteht bereits eine Pause.');
+-    insertTracked(tx, expectedPaymentPause, { id: randomUUID(), expectedPaymentId: id, fromDate: today, throughDate }, grouped);
++    insertTracked(
++      tx,
++      expectedPaymentPause,
++      { id: randomUUID(), expectedPaymentId: id, fromDate: today, throughDate },
++      grouped,
++    );
+     const lifecycle = readPaymentLifecycles(tx, [id]).get(id);
+     assertPaymentPauseRanges(lifecycle);
+     replanPayment(tx, payment, today, grouped, lifecycle, true);
+@@ -466,20 +508,30 @@ export function pauseExpectedPayment(
+ 
+ /** Existing endDate stays inclusive; the explicit action names the first excluded day. */
+ export function endExpectedPayment(
+-  db: Executor, id: string, fromDate: string, reviewToken: string, ctx: AuditContext, today: string,
++  db: Executor,
++  id: string,
++  fromDate: string,
++  reviewToken: string,
++  ctx: AuditContext,
++  today: string,
+ ): { groupId: string } {
+   if (!isPaymentLifecycleDay(today) || !isPaymentLifecycleDay(fromDate) || fromDate < today)
+-    throw new ConflictError('Beenden ist nur ab heute möglich. Vergangene Termine bleiben erhalten.');
++    throw new ConflictError(
++      'Beenden ist nur ab heute möglich. Vergangene Termine bleiben erhalten.',
++    );
+   const grouped = withGroup(ctx);
+   return runInTransaction(db, (tx) => {
+     const current = livePayment(tx, id);
+     assertPaymentReview(readPaymentLifecycles(tx, [id]).get(id), reviewToken);
+     const endDate = addDays(fromDate, -1);
+-    if (current.endDate === endDate) throw new ConflictError('Diese Zahlung ist bereits ab diesem Datum beendet.');
++    if (current.endDate === endDate)
++      throw new ConflictError('Diese Zahlung ist bereits ab diesem Datum beendet.');
+     const payment = updateEntity(tx, expectedPayment, id, { endDate }, grouped);
+     const lifecycle = readPaymentLifecycles(tx, [id]).get(id);
+     if (lifecycle?.endedFrom !== fromDate)
+-      throw new ConflictError('Der neue Endtermin ist nicht eindeutig belegt. Die Änderung wurde nicht gespeichert.');
++      throw new ConflictError(
++        'Der neue Endtermin ist nicht eindeutig belegt. Die Änderung wurde nicht gespeichert.',
++      );
+     replanPayment(tx, payment, today, grouped, lifecycle, true);
+     return { groupId: grouped.groupId };
+   });
+@@ -552,7 +604,9 @@ export function listExpectedPayments(
+   return runInTransaction(db, (tx) => listExpectedPaymentsInSnapshot(tx, today, options));
+ }
+ function listExpectedPaymentsInSnapshot(
+-  db: Executor, today: string, options: { includeDeleted?: boolean },
++  db: Executor,
++  today: string,
++  options: { includeDeleted?: boolean },
+ ): ExpectedPaymentListing[] {
+   const payments = db
+     .select()
+@@ -561,7 +615,10 @@ function listExpectedPaymentsInSnapshot(
+     .orderBy(asc(expectedPayment.name), asc(expectedPayment.id))
+     .all();
+   const versions = versionsByPayment(db);
+-  const lifecycle = readPaymentLifecycles(db, payments.map((p) => p.id));
++  const lifecycle = readPaymentLifecycles(
++    db,
++    payments.map((p) => p.id),
++  );
+   const horizon = lastDayOfMonth(addMonths(monthOf(today), 13));
+   return payments.map((p) => {
+     const list = versions.get(p.id) ?? [];
+@@ -569,7 +626,12 @@ function listExpectedPaymentsInSnapshot(
+     const sign = p.kind === 'outflow' ? -1 : 1;
+     const signed = current ? sign * current.amountCents : null;
+     const state = lifecycle.get(p.id)!;
+-    const next = occurrences(schedulePayment(p, state), list.map(scheduleVersion), today, horizon)[0];
++    const next = occurrences(
++      schedulePayment(p, state),
++      list.map(scheduleVersion),
++      today,
++      horizon,
++    )[0];
+     return {
+       ...p,
+       version: current && {
+@@ -585,8 +647,13 @@ function listExpectedPaymentsInSnapshot(
+         signed === null ? null : monthlyEquivalent(p.rhythm, signed, p.intervalWeeks),
+       yearlyEquivalentCents:
+         signed === null ? null : yearlyEquivalent(p.rhythm, signed, p.intervalWeeks),
+-      lifecycle: { pauses: state.pauses, endedFrom: state.endedFrom, endEvidence: state.endEvidence,
+-        deletion: state.deletion, reviewToken: state.reviewToken },
++      lifecycle: {
++        pauses: state.pauses,
++        endedFrom: state.endedFrom,
++        endEvidence: state.endEvidence,
++        deletion: state.deletion,
++        reviewToken: state.reviewToken,
++      },
+     };
+   });
+ }
+@@ -745,8 +812,13 @@ export function matchOccurrences(
+       )
+       .all()
+       .filter((r) => addDays(r.occ.dueDate, -r.payment.dateWindowDays) <= today);
+-    const lifecycle = readPaymentLifecycles(tx, openCandidates.map((r) => r.payment.id));
+-    const open = openCandidates.filter((r) => !paymentOpenSuppressed(lifecycle.get(r.payment.id), r.occ));
++    const lifecycle = readPaymentLifecycles(
++      tx,
++      openCandidates.map((r) => r.payment.id),
++    );
++    const open = openCandidates.filter(
++      (r) => !paymentOpenSuppressed(lifecycle.get(r.payment.id), r.occ),
++    );
+     if (open.length === 0) return summary;
+ 
+     const versions = versionsByPayment(tx, [...new Set(open.map((r) => r.payment.id))]);
+@@ -946,9 +1018,12 @@ export function skipOccurrence(
+       );
+     } else if (row.deletedAt !== null) {
+       const generated = row.status === 'expected' && lifecycle?.revivableOccurrenceIds.has(row.id);
+-      const repeatedSkip = row.status === 'skipped' && lifecycle?.revivableSkippedOccurrenceIds.has(row.id);
++      const repeatedSkip =
++        row.status === 'skipped' && lifecycle?.revivableSkippedOccurrenceIds.has(row.id);
+       if (row.dueDate < today || row.bookingId !== null || (!generated && !repeatedSkip))
+-        throw new ConflictError('Dieser entfernte Termin hat einen erhaltenen Verlauf. Bitte die ursprüngliche Aktion verwenden; er wird nicht neu angelegt.');
++        throw new ConflictError(
++          'Dieser entfernte Termin hat einen erhaltenen Verlauf. Bitte die ursprüngliche Aktion verwenden; er wird nicht neu angelegt.',
++        );
+       updateTracked(
+         tx,
+         expectedOccurrence,
+@@ -989,7 +1064,9 @@ export function unskipOccurrence(
+     const { occ, payment } = liveOccurrence(tx, occurrenceId);
+     if (occ.status !== 'skipped') throw new ConflictError('This occurrence is not skipped');
+     if (paymentDateSuppressed(readPaymentLifecycles(tx, [payment.id]).get(payment.id), occ.dueDate))
+-      throw new ConflictError('Dieser Termin ist pausiert oder beendet. Bitte zuerst die Zahlungsaktion rückgängig machen.');
++      throw new ConflictError(
++        'Dieser Termin ist pausiert oder beendet. Bitte zuerst die Zahlungsaktion rückgängig machen.',
++      );
+     updateTracked(tx, expectedOccurrence, [occurrenceId], { status: 'expected' }, grouped);
+     replanPayment(tx, payment, today, grouped);
+     const after = tx
+@@ -1065,7 +1142,10 @@ export function upcoming(
+   return runInTransaction(db, (tx) => upcomingInSnapshot(tx, from, to, options));
+ }
+ function upcomingInSnapshot(
+-  db: Executor, from: string, to: string, options: { kind?: Payment['kind']; includeSkipped?: boolean },
++  db: Executor,
++  from: string,
++  to: string,
++  options: { kind?: Payment['kind']; includeSkipped?: boolean },
+ ): UpcomingRow[] {
+   const rows = db
+     .select({
+@@ -1105,62 +1185,70 @@ function upcomingInSnapshot(
+     .orderBy(asc(expectedOccurrence.dueDate), asc(expectedPayment.name), asc(expectedOccurrence.id))
+     .all();
+   const versions = versionsByPayment(db, [...new Set(rows.map((r) => r.payment.id))]);
+-  const lifecycle = readPaymentLifecycles(db, rows.map((r) => r.payment.id));
+-  return rows.filter((r) => !paymentOpenSuppressed(lifecycle.get(r.payment.id), {
+-    dueDate: r.occ.dueDate,
+-    status: r.bookingDate === null && r.occ.bookingId !== null ? 'expected' : r.occ.status,
+-    bookingId: r.bookingDate === null ? null : r.occ.bookingId,
+-  })).map((r) => {
+-    const version = versionOn(versions.get(r.payment.id) ?? [], r.occ.dueDate);
+-    const currency = version?.currency ?? 'EUR';
+-    let suggestion: VersionSuggestion | null = null;
+-    if (r.occ.status === 'deviating' && r.occ.bookingId !== null && r.bookingDate !== null) {
+-      const booked = bookedAmountIn(
+-        {
+-          amountCents: r.bookingAmount!,
+-          currency: r.bookingCurrency!,
+-          originalAmountCents: r.bookingOriginalAmount,
+-          originalCurrency: r.bookingOriginalCurrency,
+-        },
+-        currency,
+-      );
+-      suggestion = versionSuggestion(
+-        r.payment.id,
+-        {
++  const lifecycle = readPaymentLifecycles(
++    db,
++    rows.map((r) => r.payment.id),
++  );
++  return rows
++    .filter(
++      (r) =>
++        !paymentOpenSuppressed(lifecycle.get(r.payment.id), {
+           dueDate: r.occ.dueDate,
+-          amountCents: r.occ.expectedAmountCents,
+-          amountMaxCents: null,
+-          contactShareCents: r.occ.contactShareCents,
+-        },
+-        { id: r.occ.bookingId, date: r.bookingDate, amountCents: booked },
+-      );
+-    }
+-    return {
+-      occurrenceId: r.occ.id,
+-      paymentId: r.payment.id,
+-      name: r.payment.name,
+-      kind: r.payment.kind,
+-      dueDate: r.occ.dueDate,
+-      status: r.bookingDate === null && r.occ.bookingId !== null ? 'expected' : r.occ.status,
+-      amountCents: r.occ.expectedAmountCents,
+-      currency,
+-      contactShareCents: r.occ.contactShareCents,
+-      accountId: r.payment.accountId,
+-      accountName: r.accountName,
+-      payeeId: r.payment.payeeId,
+-      payeeName: r.payeeName,
+-      contactId: r.payment.contactId,
+-      contactName: r.contactName,
+-      categoryId: r.payment.categoryId,
+-      categoryName: r.categoryName,
+-      categoryClass: r.categoryClass,
+-      incomeTypeId: r.payment.incomeTypeId,
+-      incomeTypeName: r.incomeTypeName,
+-      bookingId: r.bookingDate === null ? null : r.occ.bookingId,
+-      bookedAmountCents: r.bookingDate === null ? null : r.bookingAmount,
+-      suggestion,
+-    };
+-  });
++          status: r.bookingDate === null && r.occ.bookingId !== null ? 'expected' : r.occ.status,
++          bookingId: r.bookingDate === null ? null : r.occ.bookingId,
++        }),
++    )
++    .map((r) => {
++      const version = versionOn(versions.get(r.payment.id) ?? [], r.occ.dueDate);
++      const currency = version?.currency ?? 'EUR';
++      let suggestion: VersionSuggestion | null = null;
++      if (r.occ.status === 'deviating' && r.occ.bookingId !== null && r.bookingDate !== null) {
++        const booked = bookedAmountIn(
++          {
++            amountCents: r.bookingAmount!,
++            currency: r.bookingCurrency!,
++            originalAmountCents: r.bookingOriginalAmount,
++            originalCurrency: r.bookingOriginalCurrency,
++          },
++          currency,
++        );
++        suggestion = versionSuggestion(
++          r.payment.id,
++          {
++            dueDate: r.occ.dueDate,
++            amountCents: r.occ.expectedAmountCents,
++            amountMaxCents: null,
++            contactShareCents: r.occ.contactShareCents,
++          },
++          { id: r.occ.bookingId, date: r.bookingDate, amountCents: booked },
++        );
++      }
++      return {
++        occurrenceId: r.occ.id,
++        paymentId: r.payment.id,
++        name: r.payment.name,
++        kind: r.payment.kind,
++        dueDate: r.occ.dueDate,
++        status: r.bookingDate === null && r.occ.bookingId !== null ? 'expected' : r.occ.status,
++        amountCents: r.occ.expectedAmountCents,
++        currency,
++        contactShareCents: r.occ.contactShareCents,
++        accountId: r.payment.accountId,
++        accountName: r.accountName,
++        payeeId: r.payment.payeeId,
++        payeeName: r.payeeName,
++        contactId: r.payment.contactId,
++        contactName: r.contactName,
++        categoryId: r.payment.categoryId,
++        categoryName: r.categoryName,
++        categoryClass: r.categoryClass,
++        incomeTypeId: r.payment.incomeTypeId,
++        incomeTypeName: r.incomeTypeName,
++        bookingId: r.bookingDate === null ? null : r.occ.bookingId,
++        bookedAmountCents: r.bookingDate === null ? null : r.bookingAmount,
++        suggestion,
++      };
++    });
+ }
+ 
+ export interface MonthIncomeLine {
+diff --git a/packages/db/src/repos/payments-preview.ts b/packages/db/src/repos/payments-preview.ts
+index 8e66a927..1d1b0bec 100644
+--- a/packages/db/src/repos/payments-preview.ts
++++ b/packages/db/src/repos/payments-preview.ts
+@@ -53,7 +53,10 @@ function readPaymentsPreviewInSnapshot(db: Executor, asOf: string) {
+     .leftJoin(category, eq(category.id, expectedPayment.categoryId))
+     .where(and(isNull(expectedPayment.deletedAt), eq(expectedPayment.kind, 'outflow')))
+     .all();
+-  const lifecycle = readPaymentLifecycles(db, payments.map((p) => p.payment.id));
++  const lifecycle = readPaymentLifecycles(
++    db,
++    payments.map((p) => p.payment.id),
++  );
+   const stored = db
+     .select({
+       paymentId: expectedOccurrence.expectedPaymentId,
+@@ -75,9 +78,15 @@ function readPaymentsPreviewInSnapshot(db: Executor, asOf: string) {
+         lte(expectedOccurrence.dueDate, to),
+       ),
+     )
+-    .all().filter((row) => !paymentOpenSuppressed(lifecycle.get(row.paymentId), {
+-      ...row, status: row.storedBookingId !== null && row.bookingId === null ? 'expected' : row.status,
+-    })).map(({ storedBookingId, ...row }) => {
++    .all()
++    .filter(
++      (row) =>
++        !paymentOpenSuppressed(lifecycle.get(row.paymentId), {
++          ...row,
++          status: row.storedBookingId !== null && row.bookingId === null ? 'expected' : row.status,
++        }),
++    )
++    .map(({ storedBookingId, ...row }) => {
+       void storedBookingId; // Read-filter input only; preserve the existing public stored shape.
+       return row;
+     });
+diff --git a/packages/db/src/repos/rule-inputs.ts b/packages/db/src/repos/rule-inputs.ts
+index e4dd9ceb..92461891 100644
+--- a/packages/db/src/repos/rule-inputs.ts
++++ b/packages/db/src/repos/rule-inputs.ts
+@@ -239,7 +239,10 @@ function readFacts(db: Executor, upTo: string, ledger: ReturnType<typeof budgetL
+     });
+ 
+   const payments = db.select().from(expectedPayment).where(isNull(expectedPayment.deletedAt)).all();
+-  const paymentLifecycles = readPaymentLifecycles(db, payments.map((p) => p.id));
++  const paymentLifecycles = readPaymentLifecycles(
++    db,
++    payments.map((p) => p.id),
++  );
+   return {
+     accounts,
+     categories,
+@@ -372,7 +375,12 @@ export function scheduled(
+   const replaced = statementLegacyKeys(f.db);
+   for (const p of f.payments) {
+     const versions = f.versions.get(p.id) ?? [];
+-    for (const occ of occurrences(schedulePayment(p, f.paymentLifecycles?.get(p.id)), versions.map(scheduleVersion), from, to)) {
++    for (const occ of occurrences(
++      schedulePayment(p, f.paymentLifecycles?.get(p.id)),
++      versions.map(scheduleVersion),
++      from,
++      to,
++    )) {
+       if (replaced.has(p.id + '|' + occ.dueDate)) continue;
+       if (!isPlannedOccurrence(f, p.id, occ.dueDate, options)) continue;
+       const v = versionOn(versions, occ.dueDate);
+diff --git a/packages/db/src/schema/budget.ts b/packages/db/src/schema/budget.ts
+index a1d2ea68..f4085f8f 100644
+--- a/packages/db/src/schema/budget.ts
++++ b/packages/db/src/schema/budget.ts
+@@ -297,18 +297,24 @@ export const expectedPayment = sqliteTable(
+ );
+ 
+ /** Inclusive forward pause ranges. Retained rows and audit preserve Undo/history. */
+-export const expectedPaymentPause = sqliteTable('expected_payment_pause', {
+-  id: id(),
+-  expectedPaymentId: text('expected_payment_id').notNull().references(() => expectedPayment.id),
+-  fromDate: text('from_date').notNull(),
+-  throughDate: text('through_date').notNull(),
+-  ...timestamps(),
+-}, (t) => [
+-  isoDay('expected_pause_from_chk', t.fromDate),
+-  isoDay('expected_pause_through_chk', t.throughDate),
+-  check('expected_pause_order_chk', sql`${t.fromDate} <= ${t.throughDate}`),
+-  index('expected_pause_payment_range_idx').on(t.expectedPaymentId, t.fromDate, t.throughDate),
+-]);
++export const expectedPaymentPause = sqliteTable(
++  'expected_payment_pause',
++  {
++    id: id(),
++    expectedPaymentId: text('expected_payment_id')
++      .notNull()
++      .references(() => expectedPayment.id),
++    fromDate: text('from_date').notNull(),
++    throughDate: text('through_date').notNull(),
++    ...timestamps(),
++  },
++  (t) => [
++    isoDay('expected_pause_from_chk', t.fromDate),
++    isoDay('expected_pause_through_chk', t.throughDate),
++    check('expected_pause_order_chk', sql`${t.fromDate} <= ${t.throughDate}`),
++    index('expected_pause_payment_range_idx').on(t.expectedPaymentId, t.fromDate, t.throughDate),
++  ],
++);
+ 
+ /**
+  * Amount of an expected payment from `valid_from` on. Versions are immutable (a trigger in the
+@@ -342,26 +348,33 @@ export const expectedPaymentVersion = sqliteTable(
+   ],
+ );
+ 
+-export const savingsGoal = sqliteTable('savings_goal', {
+-  id: id(),
+-  name: text('name').notNull(),
+-  targetCents: cents('target_cents').notNull(),
+-  targetDate: text('target_date'),
+-  categoryId: text('category_id').references(() => category.id),
+-  accountId: text('account_id').references(() => account.id),
+-  /** NULL retains the legacy created-at month; existing dates are never rewritten. */
+-  startMonth: text('start_month'),
+-  /** Explicit Vienna calendar day for the user's audited manual completion. */
+-  manualCompletedOn: text('manual_completed_on'),
+-  /** Internal prospective evidence only; never serialized in public goal DTOs. */
+-  lifecycleAnchorJson: text('lifecycle_anchor_json'),
+-  note: text('note'),
+-  ...timestamps(),
+-}, (t) => [
+-  isoMonth('savings_goal_start_month_chk', t.startMonth),
+-  isoDay('savings_goal_manual_completed_on_chk', t.manualCompletedOn),
+-  check('savings_goal_lifecycle_anchor_chk', sql`${t.lifecycleAnchorJson} IS NULL OR (json_valid(${t.lifecycleAnchorJson}) AND length(${t.lifecycleAnchorJson}) <= 2048)`),
+-]);
++export const savingsGoal = sqliteTable(
++  'savings_goal',
++  {
++    id: id(),
++    name: text('name').notNull(),
++    targetCents: cents('target_cents').notNull(),
++    targetDate: text('target_date'),
++    categoryId: text('category_id').references(() => category.id),
++    accountId: text('account_id').references(() => account.id),
++    /** NULL retains the legacy created-at month; existing dates are never rewritten. */
++    startMonth: text('start_month'),
++    /** Explicit Vienna calendar day for the user's audited manual completion. */
++    manualCompletedOn: text('manual_completed_on'),
++    /** Internal prospective evidence only; never serialized in public goal DTOs. */
++    lifecycleAnchorJson: text('lifecycle_anchor_json'),
++    note: text('note'),
++    ...timestamps(),
++  },
++  (t) => [
++    isoMonth('savings_goal_start_month_chk', t.startMonth),
++    isoDay('savings_goal_manual_completed_on_chk', t.manualCompletedOn),
++    check(
++      'savings_goal_lifecycle_anchor_chk',
++      sql`${t.lifecycleAnchorJson} IS NULL OR (json_valid(${t.lifecycleAnchorJson}) AND length(${t.lifecycleAnchorJson}) <= 2048)`,
++    ),
++  ],
++);
+ 
+ /** Forecast events (Geplantes Ereignis): a purchase, a bonus, a move. */
+ export const plannedEvent = sqliteTable(
+diff --git a/packages/domain/src/schedule/due-dates.ts b/packages/domain/src/schedule/due-dates.ts
+index 37e64cd8..42dc4e13 100644
+--- a/packages/domain/src/schedule/due-dates.ts
++++ b/packages/domain/src/schedule/due-dates.ts
+@@ -53,7 +53,8 @@ const anchorMonth = (rule: ScheduleRule): number =>
+  */
+ export function dueDates(rule: ScheduleRule, from: string, to: string): string[] {
+   if (to < from) return [];
+-  const paused = (day: string) => rule.pauses?.some((p) => p.fromDate <= day && day <= p.throughDate) ?? false;
++  const paused = (day: string) =>
++    rule.pauses?.some((p) => p.fromDate <= day && day <= p.throughDate) ?? false;
+   if (rule.rhythm === 'weekly') {
+     // Weekly schedules keep their weekday across month/year boundaries.
+     if (!rule.startDate) throw new RangeError('Weekly schedules need a start date');
+@@ -71,7 +72,8 @@ export function dueDates(rule: ScheduleRule, from: string, to: string): string[]
+         day >= from &&
+         day <= to &&
+         (!rule.endDate || day <= rule.endDate) &&
+-        (!rule.startDate || day >= rule.startDate) && !paused(day)
++        (!rule.startDate || day >= rule.startDate) &&
++        !paused(day)
+       )
+         out.push(day);
+     }
+diff --git a/packages/domain/src/schedule/payment-lifecycle-607.test.ts b/packages/domain/src/schedule/payment-lifecycle-607.test.ts
+index 27592f51..18a4a1b8 100644
+--- a/packages/domain/src/schedule/payment-lifecycle-607.test.ts
++++ b/packages/domain/src/schedule/payment-lifecycle-607.test.ts
+@@ -3,27 +3,53 @@ import { dueDates, type ScheduleRule } from './due-dates';
+ import { occurrences } from './occurrences';
+ 
+ const monthly: ScheduleRule = {
+-  rhythm: 'monthly', dueDay: 1, dueMonth: null, dateShift: 'before',
+-  startDate: '2026-01-01', endDate: null,
++  rhythm: 'monthly',
++  dueDay: 1,
++  dueMonth: null,
++  dateShift: 'before',
++  startDate: '2026-01-01',
++  endDate: null,
+ };
+ 
+ describe('#607 canonical final-day pause boundaries', () => {
+   it('filters the shifted Friday, not the nominal Sunday, including both endpoints', () => {
+-    expect(dueDates({ ...monthly, pauses: [{ fromDate: '2026-02-27', throughDate: '2026-02-27' }] },
+-      '2026-02-25', '2026-04-02')).toEqual(['2026-04-01']);
+-    expect(dueDates({ ...monthly, pauses: [{ fromDate: '2026-03-01', throughDate: '2026-03-01' }] },
+-      '2026-02-25', '2026-04-02')).toEqual(['2026-02-27', '2026-04-01']);
++    expect(
++      dueDates(
++        { ...monthly, pauses: [{ fromDate: '2026-02-27', throughDate: '2026-02-27' }] },
++        '2026-02-25',
++        '2026-04-02',
++      ),
++    ).toEqual(['2026-04-01']);
++    expect(
++      dueDates(
++        { ...monthly, pauses: [{ fromDate: '2026-03-01', throughDate: '2026-03-01' }] },
++        '2026-02-25',
++        '2026-04-02',
++      ),
++    ).toEqual(['2026-02-27', '2026-04-01']);
+   });
+ 
+   it('resumes the original fortnightly anchor and uses the actual later price version', () => {
+-    expect(occurrences({
+-      ...monthly, rhythm: 'weekly', startDate: '2026-03-02', intervalWeeks: 2,
+-      dateShift: 'none', kind: 'outflow', contactShareBp: 3333,
+-      pauses: [{ fromDate: '2026-03-10', throughDate: '2026-03-30' }],
+-    }, [
+-      { validFrom: '2026-01-01', amountCents: 1001, amountMaxCents: null },
+-      { validFrom: '2026-04-01', amountCents: 1501, amountMaxCents: null },
+-    ], '2026-03-01', '2026-04-14')).toEqual([
++    expect(
++      occurrences(
++        {
++          ...monthly,
++          rhythm: 'weekly',
++          startDate: '2026-03-02',
++          intervalWeeks: 2,
++          dateShift: 'none',
++          kind: 'outflow',
++          contactShareBp: 3333,
++          pauses: [{ fromDate: '2026-03-10', throughDate: '2026-03-30' }],
++        },
++        [
++          { validFrom: '2026-01-01', amountCents: 1001, amountMaxCents: null },
++          { validFrom: '2026-04-01', amountCents: 1501, amountMaxCents: null },
++        ],
++        '2026-03-01',
++        '2026-04-14',
++      ),
++    ).toEqual([
+       { dueDate: '2026-03-02', amountCents: -1001, amountMaxCents: null, contactShareCents: -334 },
+       { dueDate: '2026-04-13', amountCents: -1501, amountMaxCents: null, contactShareCents: -500 },
+     ]);
+@@ -31,10 +57,23 @@ describe('#607 canonical final-day pause boundaries', () => {
+ 
+   it('keeps the old inclusive end semantics and composes disjoint pauses without shifting dates', () => {
+     const rule = { ...monthly, dueDay: 25, dateShift: 'none' as const, endDate: '2026-05-25' };
+-    expect(dueDates(rule, '2026-03-01', '2026-06-30')).toEqual(['2026-03-25', '2026-04-25', '2026-05-25']);
+-    expect(dueDates({ ...rule, pauses: [
+-      { fromDate: '2026-03-20', throughDate: '2026-03-25' },
+-      { fromDate: '2026-05-25', throughDate: '2026-06-01' },
+-    ] }, '2026-03-01', '2026-06-30')).toEqual(['2026-04-25']);
++    expect(dueDates(rule, '2026-03-01', '2026-06-30')).toEqual([
++      '2026-03-25',
++      '2026-04-25',
++      '2026-05-25',
++    ]);
++    expect(
++      dueDates(
++        {
++          ...rule,
++          pauses: [
++            { fromDate: '2026-03-20', throughDate: '2026-03-25' },
++            { fromDate: '2026-05-25', throughDate: '2026-06-01' },
++          ],
++        },
++        '2026-03-01',
++        '2026-06-30',
++      ),
++    ).toEqual(['2026-04-25']);
+   });
+ });

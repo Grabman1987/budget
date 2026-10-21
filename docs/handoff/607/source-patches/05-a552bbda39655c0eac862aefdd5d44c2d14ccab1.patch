@@ -1,0 +1,49 @@
+diff --git a/apps/web/src/expected/payment-lifecycle-607.test.tsx b/apps/web/src/expected/payment-lifecycle-607.test.tsx
+index 72358dbd..e51a7aab 100644
+--- a/apps/web/src/expected/payment-lifecycle-607.test.tsx
++++ b/apps/web/src/expected/payment-lifecycle-607.test.tsx
+@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+ import { accountsQuery, lookupsQuery, payeesQuery } from '../ledger/queries';
++import type { AccountList, Lookups } from '../ledger/types';
+ import { expectedQuery, paymentDetailQuery, versionsQuery, type ExpectedPayment } from './api';
+ import { PaymentPanel } from './payment-panel';
+ 
+@@ -114,11 +115,25 @@ function show(initial = payment(), creating = false) {
+     hasFurtherFuture: false,
+   };
+   const versions = [{ ...initial.version!, expectedPaymentId: initial.id, note: null }];
+-  const lookups = { categories: [], contacts: [], incomeTypes: [] };
++  const accounts: AccountList = {
++    asOf: '2026-09-17',
++    accounts: [],
++    netWorthEurCents: 0,
++    missingFxCurrencies: [],
++    missingPriceSecurityIds: [],
++  };
++  const lookups: Lookups = {
++    groups: [],
++    categories: [],
++    projects: [],
++    incomeTypes: [],
++    contacts: [],
++    institutions: [],
++  };
+   client.setQueryData(expectedQuery().queryKey, [current]);
+   client.setQueryData(paymentDetailQuery(initial.id, '2026-09-17').queryKey, detail);
+   client.setQueryData(versionsQuery(initial.id).queryKey, versions);
+-  client.setQueryData(accountsQuery().queryKey, { accounts: [] });
++  client.setQueryData(accountsQuery().queryKey, accounts);
+   client.setQueryData(lookupsQuery().queryKey, lookups);
+   client.setQueryData(payeesQuery().queryKey, { payees: [] });
+   vi.stubGlobal(
+@@ -148,7 +163,7 @@ function show(initial = payment(), creating = false) {
+       if (path === '/api/expected') return reply({ payments: [current] });
+       if (path === `/api/expected/${initial.id}/detail`) return reply(detail);
+       if (path === `/api/expected/${initial.id}/versions`) return reply({ versions });
+-      if (path === '/api/accounts') return reply({ accounts: [] });
++      if (path === '/api/accounts') return reply(accounts);
+       if (path === '/api/lookups') return reply(lookups);
+       if (path === '/api/payees') return reply({ payees: [] });
+       throw new Error(`Unexpected read: ${path}`);

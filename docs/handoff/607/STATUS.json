@@ -1,0 +1,8 @@
+{
+  "ticket": "607",
+  "testedSource": "42d26f3aff97440ef96194484f931bedde85718e",
+  "passed": "NEW DB19 + unchanged compatibility117 passed at c4f510b9d313158782fe0c64cf0a8900fcde5227; NEW UI8 passed at a552bbda39655c0eac862aefdd5d44c2d14ccab1. Latest native-spec lint/format passed at42d26; native execution pending.",
+  "remaining": "UNINTEGRATED patch capsule. Requires card migration47, goal48 then lifecycle49. Historical web type/eslint failures recorded; no full check/native/CI/live claim.",
+  "notLive": true,
+  "preparedDiffsApplied": false
+}

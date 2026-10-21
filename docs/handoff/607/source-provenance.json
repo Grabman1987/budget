@@ -1,0 +1,136 @@
+{
+  "branch": "codex/607-payment-lifecycle",
+  "sourceHead": "42d26f3aff97440ef96194484f931bedde85718e",
+  "originalBaseBeforeOwnedCommits": "49402a1af32ec506696abb9e9225fae7b3c50fe4",
+  "ownedCommits": [
+    {
+      "sha": "4ca52ccf52d9101bcff9ef9b0744b04a4419b48a",
+      "parentBase": "49402a1af32ec506696abb9e9225fae7b3c50fe4",
+      "subject": "feat(expected): preserve recurring-payment pause and end history (Refs #607)",
+      "paths": [
+        "apps/server/src/api/expected-lifecycle-607.test.ts",
+        "apps/server/src/api/expected.ts",
+        "apps/server/src/api/schemas.ts",
+        "apps/web/src/expected/api.ts",
+        "apps/web/src/expected/expected.css",
+        "apps/web/src/expected/payment-draft.ts",
+        "apps/web/src/expected/payment-form.tsx",
+        "apps/web/src/expected/payment-panel.tsx",
+        "docs/ROADMAP.md",
+        "packages/db/drizzle/0049_expected_payment_pause.sql",
+        "packages/db/drizzle/meta/0049_snapshot.json",
+        "packages/db/drizzle/meta/_journal.json",
+        "packages/db/drizzle/rollback/0049_expected_payment_pause.sql",
+        "packages/db/src/payment-pause-migration-607.test.ts",
+        "packages/db/src/repos/audit.ts",
+        "packages/db/src/repos/expected-detail.ts",
+        "packages/db/src/repos/expected-lifecycle-607.test.ts",
+        "packages/db/src/repos/expected-lifecycle-invariants.ts",
+        "packages/db/src/repos/expected.ts",
+        "packages/db/src/repos/income-targets.ts",
+        "packages/db/src/repos/payments-preview.ts",
+        "packages/db/src/repos/rule-inputs.ts",
+        "packages/db/src/schema/budget.ts",
+        "packages/domain/src/schedule/due-dates.ts",
+        "packages/domain/src/schedule/payment-lifecycle-607.test.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 4ca52ccf52d9101bcff9ef9b0744b04a4419b48a > OWN_OUTPUT/4ca52ccf52d9101bcff9ef9b0744b04a4419b48a.patch"
+    },
+    {
+      "sha": "5131ebc9a26b556c7e0fd4750a230c9ee4845637",
+      "parentBase": "4ca52ccf52d9101bcff9ef9b0744b04a4419b48a",
+      "subject": "test(expected): cover lifecycle dialogs and native Undo for #607",
+      "paths": [
+        "apps/web/src/expected/payment-lifecycle-607.test.tsx",
+        "e2e/issue-607-payment-lifecycle.spec.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 5131ebc9a26b556c7e0fd4750a230c9ee4845637 > OWN_OUTPUT/5131ebc9a26b556c7e0fd4750a230c9ee4845637.patch"
+    },
+    {
+      "sha": "c4f510b9d313158782fe0c64cf0a8900fcde5227",
+      "parentBase": "6768321be143a62279d8961fe776d8e7e9c59926",
+      "subject": "Delete each synthetic lifecycle fixture by its own primary key",
+      "paths": [
+        "packages/db/src/repos/expected-lifecycle-607.test.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout c4f510b9d313158782fe0c64cf0a8900fcde5227 > OWN_OUTPUT/c4f510b9d313158782fe0c64cf0a8900fcde5227.patch"
+    },
+    {
+      "sha": "327f59a8ffd9018dbfff28ef31f7736fde2eedf7",
+      "parentBase": "c4f510b9d313158782fe0c64cf0a8900fcde5227",
+      "subject": "style(expected): format reviewed lifecycle source and new tests",
+      "paths": [
+        "apps/server/src/api/expected-lifecycle-607.test.ts",
+        "apps/server/src/api/expected.ts",
+        "apps/server/src/api/schemas.ts",
+        "apps/web/src/expected/payment-draft.ts",
+        "apps/web/src/expected/payment-form.tsx",
+        "apps/web/src/expected/payment-lifecycle-607.test.tsx",
+        "apps/web/src/expected/payment-panel.tsx",
+        "e2e/issue-607-payment-lifecycle.spec.ts",
+        "packages/db/src/payment-pause-migration-607.test.ts",
+        "packages/db/src/repos/audit.ts",
+        "packages/db/src/repos/expected-detail.ts",
+        "packages/db/src/repos/expected-lifecycle-607.test.ts",
+        "packages/db/src/repos/expected-lifecycle-invariants.ts",
+        "packages/db/src/repos/expected.ts",
+        "packages/db/src/repos/payments-preview.ts",
+        "packages/db/src/repos/rule-inputs.ts",
+        "packages/db/src/schema/budget.ts",
+        "packages/domain/src/schedule/due-dates.ts",
+        "packages/domain/src/schedule/payment-lifecycle-607.test.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 327f59a8ffd9018dbfff28ef31f7736fde2eedf7 > OWN_OUTPUT/327f59a8ffd9018dbfff28ef31f7736fde2eedf7.patch"
+    },
+    {
+      "sha": "a552bbda39655c0eac862aefdd5d44c2d14ccab1",
+      "parentBase": "327f59a8ffd9018dbfff28ef31f7736fde2eedf7",
+      "subject": "Complete synthetic payment lifecycle cache fixtures",
+      "paths": [
+        "apps/web/src/expected/payment-lifecycle-607.test.tsx"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout a552bbda39655c0eac862aefdd5d44c2d14ccab1 > OWN_OUTPUT/a552bbda39655c0eac862aefdd5d44c2d14ccab1.patch"
+    },
+    {
+      "sha": "42d26f3aff97440ef96194484f931bedde85718e",
+      "parentBase": "a552bbda39655c0eac862aefdd5d44c2d14ccab1",
+      "subject": "Use named request type in new payment lifecycle browser tests",
+      "paths": [
+        "e2e/issue-607-payment-lifecycle.spec.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 42d26f3aff97440ef96194484f931bedde85718e > OWN_OUTPUT/42d26f3aff97440ef96194484f931bedde85718e.patch"
+    }
+  ],
+  "ownedPathSet": [
+    "apps/server/src/api/expected-lifecycle-607.test.ts",
+    "apps/server/src/api/expected.ts",
+    "apps/server/src/api/schemas.ts",
+    "apps/web/src/expected/api.ts",
+    "apps/web/src/expected/expected.css",
+    "apps/web/src/expected/payment-draft.ts",
+    "apps/web/src/expected/payment-form.tsx",
+    "apps/web/src/expected/payment-lifecycle-607.test.tsx",
+    "apps/web/src/expected/payment-panel.tsx",
+    "docs/ROADMAP.md",
+    "e2e/issue-607-payment-lifecycle.spec.ts",
+    "packages/db/drizzle/0049_expected_payment_pause.sql",
+    "packages/db/drizzle/meta/0049_snapshot.json",
+    "packages/db/drizzle/meta/_journal.json",
+    "packages/db/drizzle/rollback/0049_expected_payment_pause.sql",
+    "packages/db/src/payment-pause-migration-607.test.ts",
+    "packages/db/src/repos/audit.ts",
+    "packages/db/src/repos/expected-detail.ts",
+    "packages/db/src/repos/expected-lifecycle-607.test.ts",
+    "packages/db/src/repos/expected-lifecycle-invariants.ts",
+    "packages/db/src/repos/expected.ts",
+    "packages/db/src/repos/income-targets.ts",
+    "packages/db/src/repos/payments-preview.ts",
+    "packages/db/src/repos/rule-inputs.ts",
+    "packages/db/src/schema/budget.ts",
+    "packages/domain/src/schedule/due-dates.ts",
+    "packages/domain/src/schedule/payment-lifecycle-607.test.ts"
+  ],
+  "containsMixedBatch": true,
+  "publishMode": "UNINTEGRATED source packet only unless isolated ancestry established; no adoption implied",
+  "exclusions": "All unrelated parent ancestry; whole Roadmap/router/migration-journal blobs require scoped hunk ownership, not wholesale replacement."
+}

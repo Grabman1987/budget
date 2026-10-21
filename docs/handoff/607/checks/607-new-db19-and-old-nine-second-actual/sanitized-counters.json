@@ -1,0 +1,20 @@
+[
+  {
+    "sourceLogName": "new-db19.log",
+    "sha256": "429d3cb93c9da9a20006273a5389884933aaeebaddb010e68eae35e44b334da3",
+    "summaryLines": [
+      "Test Files  1 passed (1)",
+      "Tests  19 passed (19)",
+      "Duration  3.72s (transform 46%, tests 34%, import 19%)"
+    ]
+  },
+  {
+    "sourceLogName": "old-nine-compatibility.log",
+    "sha256": "53b7bc0a8e1aa32bd993372755585c95b5b1671c632eb1c8dbc0a6d9d9aae8cf",
+    "summaryLines": [
+      "Test Files  9 passed (9)",
+      "Tests  117 passed (117)",
+      "Duration  10.45s (import 39%, tests 32%, transform 28%)"
+    ]
+  }
+]
