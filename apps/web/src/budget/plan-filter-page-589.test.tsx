@@ -11,6 +11,7 @@ import {
 } from '@tanstack/react-router';
 import { setAmountsHidden, ToastProvider } from '@budget/ui';
 import { createTestDatabase, schema } from '@budget/db';
+import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createLedgerApi } from '../../../server/src/api';
 import type { AuthStatus } from '../auth/api';
@@ -370,4 +371,23 @@ it('announces50of51 then51of51, withholds retained pages during refresh/conflict
   await user.click(within(section).getByRole('button', { name: 'Erneut versuchen' }));
   await waitFor(() => expect(statuses()).toContain('Buchungen ohne Kategorie geladen.'));
   expect(within(section).getAllByRole('link').length).toBeGreaterThanOrEqual(50);
+});
+
+
+it('distinguishes the52 pending-or-unclassified header union from51 strictly uncategorized bookings without double counting', async () => {
+  opened.db.update(schema.booking).set({ status: 'pending' }).where(eq(schema.booking.id, 'spent-A')).run();
+  const snapshot = () => ({
+    bookings: opened.db.select().from(schema.booking).all(),
+    splits: opened.db.select().from(schema.bookingSplit).all(),
+    audit: opened.db.select().from(schema.auditLog).all(),
+  });
+  const before = snapshot();
+  mount();
+  const combined = await screen.findByText('52 vorgemerkt / ohne Kategorie', { selector: 'summary' });
+  expect(combined.getAttribute('title')).toBe(
+    'Buchungen mit vorgemerktem Status oder mindestens einem Anteil ohne Kategorie. Jede Buchung wird einmal gezählt.',
+  );
+  expect(segment('Ohne Kategorie (51)')).toBeTruthy();
+  await waitFor(() => expect(client.isFetching()).toBe(0));
+  expect(snapshot()).toEqual(before);
 });

@@ -1314,8 +1314,12 @@ function PlanTopBar({
           className="plan-popover"
           onToggle={(event) => disclosureToggle(event.currentTarget, 'plan-chip-panel-2')}
         >
-          <summary aria-controls="plan-chip-panel-2" className="plan-chip">
-            {s.unclassified?.count ?? 0} ohne Kategorie
+          <summary
+            aria-controls="plan-chip-panel-2"
+            className="plan-chip"
+            title="Buchungen mit vorgemerktem Status oder mindestens einem Anteil ohne Kategorie. Jede Buchung wird einmal gezählt."
+          >
+            {s.unclassified?.count ?? 0} vorgemerkt / ohne Kategorie
           </summary>
         </details>
         <Button

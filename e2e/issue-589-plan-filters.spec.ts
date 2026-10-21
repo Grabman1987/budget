@@ -151,6 +151,12 @@ async function scene(
   await expect(
     filters.getByRole('button', { name: 'Ohne Kategorie (1)', exact: true }),
   ).toBeVisible();
+  const combined = page.locator('summary[aria-controls="plan-chip-panel-2"]');
+  await expect(combined).toHaveText('2 vorgemerkt / ohne Kategorie');
+  await expect(combined).toHaveAttribute(
+    'title',
+    'Buchungen mit vorgemerktem Status oder mindestens einem Anteil ohne Kategorie. Jede Buchung wird einmal gezählt.',
+  );
   await page.locator(`.pname[data-category-id="${ids.recipientId}"]`).click();
   await expect(
     page.getByRole('heading', { name: 'Synthetic Recipient', exact: true }),
