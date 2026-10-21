@@ -1,0 +1,49 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/550-551-asset-composition",
+  "sourceHead": "da796a63853fb4a1266ab700468b37f5afdaf7b1",
+  "originalBaseBeforeOwnedCommits": "5d63e9c226af6463401d7a45b00f6c359baaa249",
+  "orderedCommits": [
+    {
+      "sha": "da796a63853fb4a1266ab700468b37f5afdaf7b1",
+      "parentBase": "5d63e9c226af6463401d7a45b00f6c359baaa249",
+      "subject": "feat(wealth): checkpoint asset composition source; validation pending",
+      "paths": [
+        "SPEC.md",
+        "apps/server/src/api/wealth.ts",
+        "apps/web/src/wealth/api.ts",
+        "apps/web/src/wealth/asset-composition-chart.tsx",
+        "apps/web/src/wealth/asset-composition.tsx",
+        "apps/web/src/wealth/networth-page.tsx",
+        "apps/web/src/wealth/wealth.css",
+        "docs/ROADMAP.md",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/repos/networth-composition.ts",
+        "packages/db/src/repos/portfolio.ts",
+        "packages/domain/src/ledger/index.ts",
+        "packages/domain/src/ledger/networth-composition.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout da796a63853fb4a1266ab700468b37f5afdaf7b1 > OWN_OUTPUT/da796a63853fb4a1266ab700468b37f5afdaf7b1.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-da796a63853fb4a1266ab700468b37f5afdaf7b1.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "SPEC.md",
+    "apps/server/src/api/wealth.ts",
+    "apps/web/src/wealth/api.ts",
+    "apps/web/src/wealth/asset-composition-chart.tsx",
+    "apps/web/src/wealth/asset-composition.tsx",
+    "apps/web/src/wealth/networth-page.tsx",
+    "apps/web/src/wealth/wealth.css",
+    "docs/ROADMAP.md",
+    "packages/db/src/repos/index.ts",
+    "packages/db/src/repos/networth-composition.ts",
+    "packages/db/src/repos/portfolio.ts",
+    "packages/domain/src/ledger/index.ts",
+    "packages/domain/src/ledger/networth-composition.ts"
+  ],
+  "mixedSourceAncestry": true,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

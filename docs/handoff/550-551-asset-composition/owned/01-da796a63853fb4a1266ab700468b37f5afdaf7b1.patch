@@ -1,0 +1,761 @@
+diff --git a/SPEC.md b/SPEC.md
+index e2744f9fc98069285af33976e7631770d3af9a55..efdfdc404396b6772baa8c22ad76e81e8f10aaa2 100644
+--- a/SPEC.md
++++ b/SPEC.md
+@@ -22,6 +22,13 @@ Owner reference-adoption decision (2026-10-15): Portfolio Performance is the def
+ 
+ Owner allocation addition (2026-10-15; delivered in #507): users select the accounts/depots counted for both wealth thresholds and cash share, map existing instruments to asset classes, and enter editable lower-bound stages ("ab Vermögen"). Preserve the existing explicit universe, signed cash, dated target versions and inclusive upper-bound storage: translate each next lower bound to one cent below it without moving legacy boundaries. The requested generic seven-stage example is an explicitly mapped template, never a production seed or trading instruction. Account-scope/cash-class edits and targets must save atomically with conflict detection and grouped undo. Owner decision 2026-10-16: every stage activates by its threshold (conditions are hints) and a reached stage holds until the month-end sum falls below 90 % of its lower bound; see [contract](docs/allocation-wealth-stages.md).
+ 
++Owner net-worth composition decision (2026-10-21, #550): composition percentages
++use signed net worth as their denominator; debts have negative shares. Show
++percentages only when net worth is at least EUR 100 (10,000 cents) and all values
++are complete. Otherwise show euro amounts without percentages. Thus EUR 10,000
++of assets and EUR 2,000 of debts produce EUR 8,000 net worth, with shares of 125%
++and -25%. This presentation rule does not change stored values or valuation.
++
+ Owner wealth completeness/backlog requirement (2026-10-15): Vermögen must expose
+ a compact benchmark comparison, actual portfolio value history in EUR, and asset
+ composition with time development under explicit scope/unit/date conventions.
+diff --git a/apps/server/src/api/wealth.ts b/apps/server/src/api/wealth.ts
+index 42d12d5ca572bef642e2108776fc2a12af6a39e5..d7a205c8e0ee365051cbbeb5ba3a66a23a0b056e 100644
+--- a/apps/server/src/api/wealth.ts
++++ b/apps/server/src/api/wealth.ts
+@@ -3,6 +3,7 @@ import { debtRoutes } from './debts';
+ import {
+   freedomViewWithHistory,
+   accountValuesAsOf,
++  netWorthAssetComposition,
+   earliestAccountDate,
+   netWorthAsOf,
+   netWorthDaily,
+@@ -45,6 +46,7 @@ export function wealthRoutes(db: Db, today: () => string): Hono {
+     const nowCents = netWorthAsOf(db, to).totalCents;
+     if (chain.nowCents !== nowCents) throw new Error('Net worth series and netWorthAsOf disagree');
+ 
++    const assetComposition = netWorthAssetComposition(db, from, to);
+     const values = accountValuesAsOf(db, to);
+     const byValue = (a: { valueCents: number }, b: { valueCents: number }) =>
+       b.valueCents - a.valueCents;
+@@ -62,6 +64,8 @@ export function wealthRoutes(db: Db, today: () => string): Hono {
+         unit: period === '1M' || period === '3M' ? 'week' : 'month',
+         buckets: bucketNetWorth(rows, period === '1M' || period === '3M' ? 'week' : 'month'),
+       },
++      assetComposition: assetComposition.current,
++      assetCompositionHistory: assetComposition.history,
+       composition: {
+         assets: values.filter((a) => a.valueCents > 0).sort(byValue),
+         debts: values.filter((a) => a.valueCents < 0).sort((a, b) => a.valueCents - b.valueCents),
+diff --git a/apps/web/src/wealth/api.ts b/apps/web/src/wealth/api.ts
+index 52674dfabc6406819680f33cb2282961a1c91853..81bb183f66643c2c72df76b08b24ab9c9e3b01a1 100644
+--- a/apps/web/src/wealth/api.ts
++++ b/apps/web/src/wealth/api.ts
+@@ -1,5 +1,5 @@
+ import { queryOptions } from '@tanstack/react-query';
+-import type { NetWorthBucket, NetWorthWindow, Period } from '@budget/domain';
++import type { AssetCompositionPoint, NetWorthBucket, NetWorthWindow, Period } from '@budget/domain';
+ import { request } from '../api/http';
+ import { LEDGER_KEY } from '../ledger/queries';
+ import type { WithValuationNotes } from '../ledger/valuation-hint';
+@@ -29,6 +29,9 @@ export interface NetWorthView extends WithValuationNotes {
+   chain: NetWorthWindow;
+   daily: { date: string; netWorthCents: number }[];
+   bars: { unit: 'week' | 'month'; buckets: NetWorthBucket[] };
++  /** Additive fields; older cached views keep the existing account composition. */
++  assetComposition?: AssetCompositionPoint;
++  assetCompositionHistory?: AssetCompositionPoint[];
+   composition: { assets: CompositionRow[]; debts: CompositionRow[] };
+ }
+ 
+diff --git a/apps/web/src/wealth/asset-composition-chart.tsx b/apps/web/src/wealth/asset-composition-chart.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..32ea4fe3285344b74dc0aeebbaaa8aeb02d3fb3e
+--- /dev/null
++++ b/apps/web/src/wealth/asset-composition-chart.tsx
+@@ -0,0 +1,122 @@
++import type { AssetCompositionKey, AssetCompositionPoint } from '@budget/domain';
++import { AxisLine, ChartSvg, Graticule, privateAmount, useAmountPrivacy } from '@budget/ui';
++import { useElementWidth } from '../charts/use-element-width';
++import { eur, longDay } from '../ledger/format';
++import { kfmt, monthTickLabel, yTicks } from './networth-model';
++import { percentText } from './portfolio-format';
++
++const COLORS: Record<AssetCompositionKey, string> = {
++  cash: 'var(--line-2)', securities: 'var(--line)', depot_cash: 'var(--future)',
++  crypto: 'var(--want)', other: 'var(--ink-3)', debt: 'var(--ink-2)',
++  unclassified: 'var(--rule-strong)',
++};
++const KIND = { month_end: 'Monatsende', period_start: 'Zeitraumstart', as_of: 'Stichtag' };
++const HEIGHT = 320;
++const LEFT = 56;
++const RIGHT = 14;
++const TOP = 22;
++const BOTTOM = 286;
++
++/** Month-end samples, straight segments and visible gaps. Tooltip/table use the same points. */
++export function AssetCompositionChart({ points }: { points: AssetCompositionPoint[] }) {
++  useAmountPrivacy();
++  const [ref, width] = useElementWidth<HTMLDivElement>();
++  return <div className="asset-history">
++    <p className="vnote">Monatsenden sowie Zeitraumstart und Stichtag. Historische Werte sind nach der heutigen Konto- und Wertpapierzuordnung gruppiert.</p>
++    <div ref={ref} className="vline">
++      {width > LEFT + RIGHT && points.length > 0 && <Drawing points={points} width={width} />}
++    </div>
++    <p className="vnote">Flächen über null: Vermögenswerte. Schulden liegen unter null. Die Linie zeigt das Nettovermögen, nicht die obere Flächenkante. Fehlende Werte unterbrechen die Darstellung; geschätzte oder veraltete Werte bleiben gekennzeichnet.</p>
++    <ul className="asset-history-legend" aria-label="Vermögensarten im Verlauf">
++      {points.flatMap((point) => point.groups).filter((group, index, all) => all.findIndex((g) => g.key === group.key) === index).map((group) => <li key={group.key}><i style={{ background: COLORS[group.key] }} aria-hidden="true" />{group.label}</li>)}
++      <li><i className="asset-net-line" aria-hidden="true" />Nettovermögen</li>
++    </ul>
++  </div>;
++}
++
++function Drawing({ points, width }: { points: AssetCompositionPoint[]; width: number }) {
++  useAmountPrivacy();
++  const keys = [...new Set(points.flatMap((p) => p.groups.map((g) => g.key)))];
++  // Only drawing coordinates are accumulated here; financial amounts stay in the producer DTO.
++  const stacks = points.map((point) => {
++    let positive = 0;
++    let negative = 0;
++    let positiveKnown = true;
++    let negativeKnown = true;
++    return keys.map((key) => {
++      if (point.unavailable || point.groups.some((g) => g.valueCents === null))
++        return { key, lo: null, hi: null };
++      const group = point.groups.find((g) => g.key === key);
++      const value = group?.valueCents ?? (group ? null : 0);
++      if (value === null) {
++        // An unpriced position has no known sign; neither stack can bridge it.
++        positiveKnown = false;
++        negativeKnown = false;
++        return { key, lo: null, hi: null };
++      }
++      if (value < 0) {
++        const lo = negative;
++        negative += value;
++        return { key, lo: negativeKnown ? lo : null, hi: negativeKnown ? negative : null };
++      }
++      const lo = positive;
++      positive += value;
++      return { key, lo: positiveKnown ? lo : null, hi: positiveKnown ? positive : null };
++    });
++  });
++  const finite = stacks.flatMap((point) => point.flatMap((s) => s.lo === null || s.hi === null ? [] : [s.lo, s.hi]));
++  const min = Math.min(0, ...finite, ...points.flatMap((p) => p.totalCents === null ? [] : [p.totalCents]));
++  const max = Math.max(0, ...finite, ...points.flatMap((p) => p.totalCents === null ? [] : [p.totalCents]));
++  const padding = (max - min) * 0.08 || 100;
++  const low = min - padding;
++  const high = max + padding;
++  const y = (value: number) => BOTTOM - (value - low) / (high - low) * (BOTTOM - TOP);
++  const day = (value: string) => Date.parse(`${value}T00:00:00Z`);
++  const first = day(points[0]!.asOf);
++  const span = day(points[points.length - 1]!.asOf) - first;
++  const x = (index: number) => LEFT + (span === 0 ? 0.5 : (day(points[index]!.asOf) - first) / span) * (width - LEFT - RIGHT);
++  const inspect = points.map((point, i) => ({
++    x: x(i), date: point.asOf,
++    series: [
++      { name: KIND[point.pointKind], value: longDay(point.asOf) },
++      { name: 'Bewertung', value: point.unavailable ? 'Gruppierung nicht darstellbar' : point.complete ? 'Vollständig und aktuell' : 'Fehlend, geschätzt oder nicht aktuell' },
++      ...point.groups.map((group) => ({ name: group.label, color: COLORS[group.key],
++        value: group.valueCents === null
++          ? group.knownCents === null ? 'Wert nicht darstellbar' : `Wert fehlt · bekannt ${eur(group.knownCents)}`
++          : `${eur(group.valueCents)}${group.shareBp === null ? '' : ` · ${privateAmount(percentText(group.shareBp))}`}` })),
++      { name: 'Nettovermögen', color: 'var(--line)', value: point.totalCents === null
++        ? point.knownCents === null ? 'Wert nicht darstellbar' : `Wert fehlt · bekannt ${eur(point.knownCents)}` : eur(point.totalCents) },
++    ],
++  }));
++  const tickEvery = Math.max(1, Math.ceil(points.length / Math.max(2, Math.floor((width - LEFT - RIGHT) / 80))));
++  return <ChartSvg width={width} height={HEIGHT} testId="asset-composition-chart"
++    label="Zusammensetzung des Nettovermögens an Monatsenden und Ankern; positive Vermögenswerte über null, Schulden darunter und Nettovermögen als Linie"
++    points={inspect} table tooltipNote="Historische Werte, heutige Gruppierung. Keine Zwischenwerte.">
++    <Graticule x1={LEFT} x2={width - RIGHT} lines={yTicks(low / 100, high / 100).map((v) => ({ y: y(v * 100), label: kfmt(v) }))} />
++    <AxisLine x1={LEFT} x2={width - RIGHT} y={y(0)} />
++    {keys.map((key, groupIndex) => <g key={key}>
++      {points.map((point, i) => {
++        const now = stacks[i]?.[groupIndex];
++        const prev = stacks[i - 1]?.[groupIndex];
++        if (!now || now.lo === null || now.hi === null) return null;
++        if (i === 0 || !prev || prev.lo === null || prev.hi === null)
++          return <line key={point.asOf} x1={x(i)} x2={x(i)} y1={y(now.lo)} y2={y(now.hi)} stroke={COLORS[key]} strokeWidth={3} />;
++        return <path key={point.asOf} d={`M${x(i - 1)} ${y(prev.lo)}L${x(i - 1)} ${y(prev.hi)}L${x(i)} ${y(now.hi)}L${x(i)} ${y(now.lo)}Z`}
++          fill={COLORS[key]} fillOpacity={0.5} stroke={COLORS[key]} strokeWidth={1} />;
++      })}
++    </g>)}
++    {points.map((point, i) => {
++      if (point.totalCents === null || point.unavailable) return null;
++      const previous = points[i - 1];
++      return <g key={point.asOf}>
++        {previous?.totalCents !== null && previous?.totalCents !== undefined && !previous.unavailable &&
++          <line x1={x(i - 1)} x2={x(i)} y1={y(previous.totalCents)} y2={y(point.totalCents)} className="l-actual" />}
++        <circle cx={x(i)} cy={y(point.totalCents)} r={3} className="dot-actual" />
++      </g>;
++    })}
++    {points.map((point, i) => (i % tickEvery === 0 || i === points.length - 1) &&
++      <text key={point.asOf} x={x(i)} y={HEIGHT - 6} className="svg-label" textAnchor={i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'middle'}>
++        {monthTickLabel(point.asOf)}{point.pointKind !== 'month_end' ? ' ·' : ''}
++      </text>)}
++  </ChartSvg>;
++}
+diff --git a/apps/web/src/wealth/asset-composition.tsx b/apps/web/src/wealth/asset-composition.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..96b1b8049801e151e52932f819d96c287484a5d1
+--- /dev/null
++++ b/apps/web/src/wealth/asset-composition.tsx
+@@ -0,0 +1,51 @@
++import type { AssetCompositionPoint, CompositionAmount } from '@budget/domain';
++import { maskMoneyText, privateAmount, useAmountPrivacy } from '@budget/ui';
++import { useState } from 'react';
++import { AppLink } from '../shell/app-link';
++import { eur, longDay } from '../ledger/format';
++import { percentText } from './portfolio-format';
++
++function Amount({ value }: { value: CompositionAmount }) {
++  return <span className="asset-composition-amount">
++    {value.valueCents === null ? <><span>{value.unavailable === 'result_limit' ? 'Wert nicht darstellbar' : 'Wert fehlt'}</span>{value.knownCents !== null && <small>Bekannt: {eur(value.knownCents)}</small>}</> : eur(value.valueCents)}
++    {value.shareBp !== null && <small>{privateAmount(percentText(value.shareBp))}</small>}
++  </span>;
++}
++
++/** Contributions are producer components; account mode uses the original whole-account value. */
++export function AssetComposition({ point }: { point: AssetCompositionPoint }) {
++  useAmountPrivacy();
++  const [mode, setMode] = useState<'groups' | 'accounts'>('groups');
++  const hasShares = point.groups.some((g) => g.shareBp !== null);
++  return <section className="vcomp asset-composition" aria-labelledby="comp-title">
++    <div className="tbd-head"><h2 id="comp-title">Woraus es besteht</h2></div>
++    <div className="composition-switch" role="group" aria-label="Zusammensetzung anzeigen">
++      <button type="button" aria-pressed={mode === 'groups'} onClick={() => setMode('groups')}>Nach Vermögensart</button>
++      <button type="button" aria-pressed={mode === 'accounts'} onClick={() => setMode('accounts')}>Nach Konto</button>
++    </div>
++    <p className="vnote">Stand {longDay(point.asOf)}{hasShares ? ' · Anteile am Nettovermögen' : ' · Eurobeträge ohne Prozentanteile'}</p>
++    {!point.complete && <p className="vnote">Werte fehlen, sind geschätzt, nicht aktuell oder nicht darstellbar. Bekannter Anteil: {point.knownCents === null ? 'nicht darstellbar' : eur(point.knownCents)}. Prozentanteile sind nicht verfügbar.</p>}
++    {mode === 'groups' && point.unavailable ? <p className="vnote">Die Gruppensumme überschreitet den darstellbaren Bereich. Die einzelnen Kontowerte bleiben unter „Nach Konto“ verfügbar.</p> : mode === 'groups' ? <div className="asset-composition-groups">
++      {point.groups.map((group) => <details key={group.key} className="asset-composition-group">
++        <summary><span>{group.label}</span><Amount value={group} /></summary>
++        {group.accounts.length === 0 ? <p className="vnote">Kein Kontobeitrag in dieser Vermögensart.</p> :
++          <table><caption className="sr-only">Kontobeiträge zu {group.label}</caption>
++            <thead><tr><th scope="col">Konto</th><th scope="col">Beitrag</th></tr></thead>
++            <tbody>{group.accounts.map((row) => <tr key={row.accountId}>
++              <th scope="row"><AppLink to={`/konten/${row.accountId}`}>{maskMoneyText(row.name)}</AppLink></th>
++              <td><Amount value={row} /></td>
++            </tr>)}</tbody>
++          </table>}
++      </details>)}
++      <p className="vnote">Kontobeiträge können auf mehrere Vermögensarten verteilt sein. Depot-Bargeld enthält jedes Verrechnungskonto nur einmal; negative Werte zählen zu Schulden.</p>
++    </div> : <table className="asset-composition-accounts">
++      <caption className="sr-only">Ganze Kontowerte am gewählten Stichtag</caption>
++      <thead><tr><th scope="col">Konto</th><th scope="col">Kontowert</th></tr></thead>
++      <tbody>{point.accounts.map((row) => <tr key={row.accountId}>
++        <th scope="row"><AppLink to={`/konten/${row.accountId}`}>{maskMoneyText(row.name)}</AppLink></th>
++        <td><Amount value={row} /></td>
++      </tr>)}</tbody>
++    </table>}
++    {point.complete && !hasShares && <p className="vnote">Prozentanteile werden ab 100 Euro Nettovermögen angezeigt.</p>}
++  </section>;
++}
+diff --git a/apps/web/src/wealth/networth-page.tsx b/apps/web/src/wealth/networth-page.tsx
+index 739ad5378a17b0401ea16c9d9ada7ffce2b9cb22..58644fe36cb80db85c9bde4b433a089e6aeb9934 100644
+--- a/apps/web/src/wealth/networth-page.tsx
++++ b/apps/web/src/wealth/networth-page.tsx
+@@ -2,7 +2,7 @@ import { ChartValue } from '@budget/ui';
+ import { useAmountPrivacy, DimensionChain } from '@budget/ui';
+ import { useQuery } from '@tanstack/react-query';
+ import { ArrowDown, ArrowUp } from 'lucide-react';
+-import type { CSSProperties } from 'react';
++import { useState, type CSSProperties } from 'react';
+ import { VERMOEGEN_NETTO_META } from '../nav/pages';
+ import { PageFrame } from '../pages/placeholder-page';
+ import { eur, eurParts, eurWhole } from '../ledger/format';
+@@ -10,6 +10,8 @@ import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
+ import { ValuationHint } from '../ledger/valuation-hint';
+ import { netWorthQuery, type CompositionRow, type NetWorthView } from './api';
+ import { NetWorthChart } from './networth-chart';
++import { AssetComposition } from './asset-composition';
++import { AssetCompositionChart } from './asset-composition-chart';
+ import {
+   chainTerms,
+   compositionGeometry,
+@@ -27,9 +29,8 @@ export function NetWorthPage() {
+   const view = query.data;
+   const empty =
+     view &&
+-    view.composition.assets.length === 0 &&
+-    view.composition.debts.length === 0 &&
+-    view.chain.nowCents === 0;
++    (view.assetComposition ? view.assetComposition.accounts.length === 0 :
++      view.composition.assets.length === 0 && view.composition.debts.length === 0 && view.chain.nowCents === 0);
+ 
+   return (
+     <PageFrame meta={VERMOEGEN_NETTO_META}>
+@@ -47,7 +48,7 @@ export function NetWorthPage() {
+           <>
+             <ValuationHint incomplete={view.incomplete} />
+             <Course view={view} />
+-            <Composition view={view} />
++            {view.assetComposition ? <AssetComposition point={view.assetComposition} /> : <Composition view={view} />}
+           </>
+         )}
+       </div>
+@@ -58,6 +59,7 @@ export function NetWorthPage() {
+ function Course({ view }: { view: NetWorthView }) {
+   useAmountPrivacy();
+   const { chain } = view;
++  const [historyMode, setHistoryMode] = useState<'total' | 'composition'>('total');
+   const text = periodText(view.period, view.from);
+   const { whole, fraction } = eurParts(chain.nowCents);
+   const up = chain.deltaCents >= 0;
+@@ -79,8 +81,14 @@ function Course({ view }: { view: NetWorthView }) {
+         <span className="cents">,{fraction} €</span>
+       </div>
+       <ZeitraumSwitch />
+-      <NetWorthChart view={view} periodLabel={text} />
+-      <div className="legend" aria-hidden="true">
++      {view.assetCompositionHistory && <div className="composition-switch" role="group" aria-label="Verlauf anzeigen">
++        <button type="button" aria-pressed={historyMode === 'total'} onClick={() => setHistoryMode('total')}>Gesamt</button>
++        <button type="button" aria-pressed={historyMode === 'composition'} onClick={() => setHistoryMode('composition')}>Zusammensetzung</button>
++      </div>}
++      {historyMode === 'composition' && view.assetCompositionHistory
++        ? <AssetCompositionChart points={view.assetCompositionHistory} />
++        : <NetWorthChart view={view} periodLabel={text} />}
++      {historyMode === 'total' && <div className="legend" aria-hidden="true">
+         <span>
+           <svg viewBox="0 0 26 8">
+             <path className="l-actual" d="M0 4h26" />
+@@ -95,7 +103,8 @@ function Course({ view }: { view: NetWorthView }) {
+           <i className="lg-sq lg-mkt" />
+           Markt
+         </span>
+-      </div>
++      </div>}
++      {view.assetComposition && !view.assetComposition.complete && <p className="vnote">Die Gesamtzahl verwendet die bestehende Bewertungsbasis. Fehlende, geschätzte oder nicht aktuelle Einzelwerte sind in der Zusammensetzung gekennzeichnet.</p>}
+       <DimensionChain
+         terms={chainTerms(chain, view.from)}
+         label="Maßkette Nettovermögen im Zeitraum"
+diff --git a/apps/web/src/wealth/wealth.css b/apps/web/src/wealth/wealth.css
+index 6cce9c6debdb5f7695268d8093547319e90bac81..6dbee85f859f3d2fc39d2e1d176f8c2420681bfe 100644
+--- a/apps/web/src/wealth/wealth.css
++++ b/apps/web/src/wealth/wealth.css
+@@ -163,3 +163,104 @@
+ .vview:not(.debts-view, .freedom-view) > :is(.vnw, .vcomp) {
+   grid-column: 1 / -1;
+ }
++
++/* Net-worth composition: shared rounded producer values, separate from the daily total chart. */
++.composition-switch {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 4px;
++  margin-block: 8px;
++}
++.composition-switch button {
++  min-height: 44px;
++  padding: 8px 12px;
++  border: 1px solid var(--rule);
++  background: transparent;
++  color: var(--ink-2);
++  font: inherit;
++}
++.composition-switch button[aria-pressed='true'] {
++  border-color: var(--line);
++  background: var(--tint);
++  color: var(--ink);
++}
++.asset-composition-groups {
++  margin-top: 12px;
++}
++.asset-composition-group {
++  border-top: 1px solid var(--rule);
++}
++.asset-composition-group summary {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr) auto;
++  align-items: center;
++  gap: 12px;
++  min-height: 44px;
++  padding-block: 8px;
++  cursor: pointer;
++}
++.asset-composition-group summary > span:first-child::before {
++  content: '+ ';
++  color: var(--ink-2);
++}
++.asset-composition-group[open] summary > span:first-child::before {
++  content: '− ';
++}
++.asset-composition-amount {
++  display: grid;
++  gap: 4px;
++  text-align: right;
++  font-variant-numeric: tabular-nums;
++}
++.asset-composition-amount small {
++  color: var(--ink-2);
++  font-size: var(--fs-label);
++}
++.asset-composition table {
++  border-collapse: collapse;
++  width: 100%;
++  table-layout: fixed;
++}
++.asset-composition :is(th, td) {
++  padding: 8px 4px;
++  border-bottom: 1px solid var(--rule);
++  text-align: left;
++  vertical-align: middle;
++  overflow-wrap: anywhere;
++  font-weight: normal;
++}
++.asset-composition :is(th, td):last-child {
++  text-align: right;
++}
++.asset-composition a {
++  display: inline-flex;
++  align-items: center;
++  min-height: 44px;
++  max-width: 100%;
++  overflow-wrap: anywhere;
++}
++.asset-history-legend {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 8px 16px;
++  padding: 0;
++  margin: 12px 0;
++  list-style: none;
++  color: var(--ink-2);
++  font-size: var(--fs-label);
++}
++.asset-history-legend li {
++  display: inline-flex;
++  align-items: center;
++  gap: 4px;
++}
++.asset-history-legend i {
++  display: inline-block;
++  width: 12px;
++  height: 12px;
++}
++.asset-history-legend .asset-net-line {
++  height: 0;
++  width: 16px;
++  border-top: 2px solid var(--line);
++}
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index 3e8a2db64b9e654c56f053889e91bb3bc7071984..0dcfe588f22c076c501d8e8dbac088121751c645 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1842,3 +1842,11 @@ explicit reanalysis/review. Upload and reanalysis never post money.
+ ### #524 / #549 — Net-worth explanation correction (source-only partial progress)
+ 
+ - Corrected the existing Gespart explanation to the approved Einnahmen minus Konsum plus regular principal repayment wording and the existing Anfang + Gespart + Markt = Jetzt chain. No producer math changed; validation remains deferred. This does not complete #524, grouped composition #550 or composition history #551, and does not decide their unanswered share denominator/debt-share policy.
++
++
++### #550 / #551 — owner-decided asset composition (source checkpoint, 2026-10-21)
++
++- Implemented one additive projection of the existing producer's already-rounded cash/manual/holding EUR terms into six asset types, plus an explicit known-classification fallback and unknown-value gaps. Whole-account values, the existing eleven-type reports, daily total/Gespart/Markt chain and strict FX handling retain their existing paths.
++- The confirmed owner convention uses signed net worth for shares: complete current values and at least 10,000 cents are required; debts remain negative, shares can exceed 100%, and smaller/incomplete net worth shows euros only. The exact BigInt multiplication helper supplies basis points. A new display-group calculation limit is explicit and cannot turn an otherwise valid legacy wealth read into an error.
++- Added the default grouped view with expandable account contributions and a whole-account mode. Added a separate monthly composition view with true month-end samples, explicit period-start/as-of anchors, signed areas and the source net-worth line; the existing daily Gesamt view is retained. Tooltip/table points share the dated source values, with no interpolation across unavailable data. Historical values use current account/instrument grouping metadata, which is disclosed in the UI.
++- [ ] Source-only checkpoint: independent whole-diff review and all later acceptance remain pending. No new tests, test execution, formatter, typecheck, build, native/visual/Axe evidence or CI was run for this packet. Source controls for privacy, native expansion, responsive widths and 44px actions are implemented but are not a claim of rendered acceptance. Literal conservation/rounding/shares/transfer+Undo/gaps and monthly endpoint tests remain required, followed by the required checks, browser evidence, exact-head CI and LIVE verification.
+diff --git a/packages/db/src/repos/index.ts b/packages/db/src/repos/index.ts
+index 8576aed8f874ded2b40d1b92ca4f935e384e329c..5cc8f02ffa81a66cc08cc6fe66cce3cfa4c59312 100644
+--- a/packages/db/src/repos/index.ts
++++ b/packages/db/src/repos/index.ts
+@@ -100,3 +100,4 @@ export * from './statement-settlement-read';
+ export * from './statement-automation';
+ export * from './statement-receipt-links';
+ export * from './booking-bulk-eligibility';
++export * from './networth-composition';
+diff --git a/packages/db/src/repos/networth-composition.ts b/packages/db/src/repos/networth-composition.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..5d7bad652cfa31077cc1112aacdce26596696bb9
+--- /dev/null
++++ b/packages/db/src/repos/networth-composition.ts
+@@ -0,0 +1,36 @@
++import {
++  historyDays, lastDayOfMonth, monthOf, projectAssetComposition,
++  type AssetCompositionPoint,
++} from '@budget/domain';
++import { isNull } from 'drizzle-orm';
++import { account, security } from '../schema';
++import { netWorthCompositionSource } from './portfolio';
++import { memoized } from './request-memo';
++import type { Executor } from './types';
++
++/** Historical money, grouped by current metadata; account/security taxonomy is not versioned. */
++export function netWorthAssetComposition(db: Executor, from: string, to: string): {
++  current: AssetCompositionPoint;
++  history: AssetCompositionPoint[];
++} {
++  return memoized(db, `asset-composition|${from}|${to}`, () => {
++    const accounts = db.select({
++      accountId: account.id, name: account.name, type: account.type, role: account.role,
++      referenceAccountId: account.referenceAccountId,
++    }).from(account).where(isNull(account.deletedAt)).all();
++    const securityKinds = new Map(db.select({ id: security.id, kind: security.kind })
++      .from(security).where(isNull(security.deletedAt)).all().map((s) => [s.id, s.kind]));
++    const history = historyDays(from, to, 'month').map((asOf): AssetCompositionPoint => {
++      const { valuation, components } = netWorthCompositionSource(db, asOf);
++      return projectAssetComposition({
++        asOf, pointKind: asOf === to ? 'as_of'
++          : asOf === from ? 'period_start'
++          : asOf === lastDayOfMonth(monthOf(asOf)) ? 'month_end' : 'period_start',
++        components, accounts, securityKinds, totalCents: valuation.totalCents,
++        byAccount: valuation.byAccount,
++      });
++    });
++    // historyDays always includes the actual selected endpoint, even for a one-day window.
++    return { current: history[history.length - 1]!, history };
++  });
++}
+diff --git a/packages/db/src/repos/portfolio.ts b/packages/db/src/repos/portfolio.ts
+index caab34b35375d904c66fd2b81c18b6eb1053d116..6d74c7e74dbf37be8ddad5bc9af6a0e4894ccee0 100644
+--- a/packages/db/src/repos/portfolio.ts
++++ b/packages/db/src/repos/portfolio.ts
+@@ -17,6 +17,7 @@ import {
+   sumValuationCents,
+   unitsHeld,
+   ValuationLimitError,
++  type NetWorthComponent,
+   type CashFlow,
+   type DatedPrice,
+   type DatedRate,
+@@ -503,6 +504,12 @@ export function netWorthValuationAsOf(
+   return netWorthValuationRead(db, asOf, options).valuation;
+ }
+ 
++/** Exact rounded terms of the same memoized producer; no second conversion or pricing path. */
++export function netWorthCompositionSource(db: Executor, asOf: string) {
++  const { valuation, components } = netWorthValuationRead(db, asOf);
++  return { valuation, components };
++}
++
+ /** Fallible debt reads retain safe rows when only a final EUR result is out of range. */
+ export function fallibleNetWorthValuationAsOf(db: Executor, asOf: string) {
+   const { valuation, calculationLimitAccountIds, calculationLimitAccountSigns } =
+@@ -549,6 +556,7 @@ function computeNetWorthValuation(
+     }
+   };
+   const cashSources: ValuationSource[] = [];
++  const components: NetWorthComponent[] = [];
+   const estimate = options.estimate ?? true;
+   const accountRows = db
+     .select({
+@@ -635,15 +643,30 @@ function computeNetWorthValuation(
+         calculationLimitAccountIds.push(balance.accountId);
+       }
+     }
++    components.push({
++      accountId: balance.accountId, securityId: null,
++      kind: manualAccounts.has(balance.accountId) ? 'manual' : 'cash',
++      valueCents: byAccount[balance.accountId] ?? null,
++      quality: byAccount[balance.accountId] === null ? 'missing' : 'exact',
++      missing: rate === undefined ? 'fx' : null,
++    });
+   }
+ 
+   const holdingsByAccount: Record<string, number | null> = {};
+   const holdingTerms = new Map<string, number[]>();
+   for (const holding of holdings.values) {
++    components.push({ accountId: holding.accountId, securityId: holding.securityId,
++      kind: 'holding', valueCents: holding.valueCents, quality: holding.quality, missing: null });
+     const terms = holdingTerms.get(holding.accountId) ?? [];
+     terms.push(holding.valueCents);
+     holdingTerms.set(holding.accountId, terms);
+   }
++  for (const position of holdings.missingFxPositions)
++    components.push({ accountId: position.accountId, securityId: position.securityId,
++      kind: 'holding', valueCents: null, quality: 'missing', missing: 'fx' });
++  for (const position of holdings.missingPricePositions)
++    components.push({ accountId: position.accountId, securityId: position.securityId,
++      kind: 'holding', valueCents: null, quality: 'missing', missing: 'price' });
+   for (const [accountId, currencies] of holdings.missingFxByAccount) {
+     holdingsByAccount[accountId] = null;
+     for (const currency of currencies) addMissing(accountId, currency);
+@@ -695,6 +718,7 @@ function computeNetWorthValuation(
+   };
+   return {
+     valuation: result,
++    components,
+     cashSources,
+     holdingSources: holdingRead.sources,
+     calculationLimitAccountIds: calculationLimitAccountIds.sort(),
+diff --git a/packages/domain/src/ledger/index.ts b/packages/domain/src/ledger/index.ts
+index ef94dd7920f6d523646e9f118091b72a283c678e..29076390b7de1b4e1313480beb615a10a959cd64 100644
+--- a/packages/domain/src/ledger/index.ts
++++ b/packages/domain/src/ledger/index.ts
+@@ -112,3 +112,4 @@ export {
+   RECONCILE_ADJUST_CATEGORY_KINDS,
+   isReconcileAdjustCategoryKind,
+ } from './adjustment-categories';
++export * from './networth-composition';
+diff --git a/packages/domain/src/ledger/networth-composition.ts b/packages/domain/src/ledger/networth-composition.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..96b717d531eec2885509250a5b72651e24fd7e3a
+--- /dev/null
++++ b/packages/domain/src/ledger/networth-composition.ts
+@@ -0,0 +1,167 @@
++import { sumValuationCents, ValuationLimitError } from '../invest/invest';
++import type { ValuationQuality } from '../invest/series';
++import { mulDivRound } from '../wealth/int';
++
++/** Already-rounded producer terms, never account-total-minus-holdings residuals. */
++export interface NetWorthComponent {
++  accountId: string;
++  securityId: string | null;
++  kind: 'cash' | 'manual' | 'holding';
++  valueCents: number | null;
++  quality: ValuationQuality;
++  missing: 'price' | 'fx' | null;
++}
++
++export interface CompositionAccount {
++  accountId: string;
++  name: string;
++  type: string;
++  role: string;
++  referenceAccountId: string | null;
++}
++
++export const ASSET_COMPOSITION_GROUPS = [
++  { key: 'cash', label: 'Konten & Bargeld' },
++  { key: 'securities', label: 'Wertpapiere' },
++  { key: 'depot_cash', label: 'Depot-Bargeld' },
++  { key: 'crypto', label: 'Krypto' },
++  { key: 'other', label: 'P2P/Sonstiges' },
++  { key: 'debt', label: 'Schulden' },
++  { key: 'unclassified', label: 'Nicht zugeordnet' },
++] as const;
++export type AssetCompositionKey = (typeof ASSET_COMPOSITION_GROUPS)[number]['key'];
++
++export interface CompositionAmount {
++  /** Null for an unvalued component; the known subtotal remains explicit. */
++  valueCents: number | null;
++  knownCents: number | null;
++  unavailable: 'missing_value' | 'result_limit' | null;
++  shareBp: number | null;
++}
++export interface AssetCompositionGroup extends CompositionAmount {
++  key: AssetCompositionKey;
++  label: string;
++  accounts: Array<CompositionAmount & { accountId: string; name: string }>;
++}
++export interface AssetCompositionPoint {
++  asOf: string;
++  pointKind: 'month_end' | 'period_start' | 'as_of';
++  unavailable: 'calculation_limit' | null;
++  totalCents: number | null;
++  knownCents: number | null;
++  /** Quality, not just stored coverage: stale/estimated values also suppress shares. */
++  complete: boolean;
++  groups: AssetCompositionGroup[];
++  accounts: Array<CompositionAmount & { accountId: string; name: string }>;
++  gaps: Array<{
++    accountId: string;
++    securityId: string | null;
++    quality: ValuationQuality;
++    missing: NetWorthComponent['missing'];
++  }>;
++}
++
++function groupOf(
++  component: NetWorthComponent,
++  account: CompositionAccount | undefined,
++  securityKind: string | undefined,
++  referenceCash: ReadonlySet<string>,
++): AssetCompositionKey {
++  // Unknown values have no proven sign. Keep a gap rather than guessing an asset or debt.
++  if (component.valueCents === null) return 'unclassified';
++  if (component.valueCents < 0) return 'debt';
++  if (component.kind === 'holding') {
++    if (securityKind === 'crypto') return 'crypto';
++    if (securityKind === 'p2p' || securityKind === 'other') return 'other';
++    if (['etf', 'stock', 'fund', 'bond', 'commodity'].includes(securityKind ?? ''))
++      return 'securities';
++    return 'unclassified';
++  }
++  if (!account) return 'unclassified';
++  if (['brokerage', 'crypto'].includes(account.type) || referenceCash.has(account.accountId))
++    return 'depot_cash';
++  if (component.kind === 'manual' || account.type === 'receivable' || account.role === 'receivable')
++    return 'other';
++  if (['checking', 'cash', 'savings', 'credit_card', 'loan', 'other_liability', 'p2p', 'other_asset'].includes(account.type))
++    return 'cash';
++  return 'unclassified';
++}
++
++/** Display projection only; inputs come from the shared valuation and current metadata. */
++export function projectAssetComposition(input: {
++  asOf: string;
++  pointKind: AssetCompositionPoint['pointKind'];
++  components: readonly NetWorthComponent[];
++  accounts: readonly CompositionAccount[];
++  securityKinds: ReadonlyMap<string, string>;
++  totalCents: number | null;
++  byAccount: Readonly<Record<string, number | null>>;
++}): AssetCompositionPoint {
++  const metadata = new Map(input.accounts.map((a) => [a.accountId, a]));
++  const referenceCash = new Set(input.accounts
++    .filter((a) => ['brokerage', 'crypto'].includes(a.type))
++    .flatMap((a) => a.referenceAccountId ? [a.referenceAccountId] : []));
++  const complete = input.totalCents !== null && input.components.every((c) =>
++    c.valueCents !== null && c.quality === 'exact');
++  const shares = complete && input.totalCents !== null && input.totalCents >= 10_000;
++  let displayLimited = false;
++  const amount = (components: readonly NetWorthComponent[]): CompositionAmount => {
++    let knownCents: number;
++    try {
++      knownCents = sumValuationCents(components.flatMap((c) => c.valueCents === null ? [] : [c.valueCents]));
++    } catch (error) {
++      if (!(error instanceof ValuationLimitError) || error.boundary !== 'result') throw error;
++      // A new display group may overflow even though cancelling legacy account/net totals are safe.
++      displayLimited = true;
++      return { valueCents: null, knownCents: null, shareBp: null, unavailable: 'result_limit' };
++    }
++    const valueCents = components.some((c) => c.valueCents === null) ? null : knownCents;
++    return {
++      valueCents, knownCents, unavailable: valueCents === null ? 'missing_value' : null,
++      shareBp: shares && valueCents !== null && input.totalCents !== null
++        ? mulDivRound(valueCents, 10_000, input.totalCents) : null,
++    };
++  };
++  const grouped = new Map<AssetCompositionKey, NetWorthComponent[]>();
++  for (const component of input.components) {
++    const key = groupOf(component, metadata.get(component.accountId),
++      component.securityId === null ? undefined : input.securityKinds.get(component.securityId), referenceCash);
++    const terms = grouped.get(key) ?? [];
++    terms.push(component);
++    grouped.set(key, terms);
++  }
++  const groups = ASSET_COMPOSITION_GROUPS.flatMap((group): AssetCompositionGroup[] => {
++    const terms = grouped.get(group.key) ?? [];
++    if (group.key === 'unclassified' && terms.length === 0) return [];
++    const ids = [...new Set(terms.map((c) => c.accountId))];
++    return [{ ...group, ...amount(terms), accounts: ids.map((accountId) => ({
++      accountId, name: metadata.get(accountId)?.name ?? 'Unbekanntes Konto',
++      ...amount(terms.filter((c) => c.accountId === accountId)),
++    })) }];
++  });
++  const accounts = Object.entries(input.byAccount).map(([accountId, whole]): AssetCompositionPoint['accounts'][number] => {
++    const terms = input.components.filter((c) => c.accountId === accountId);
++    const projected = amount(terms);
++    // Preserve the authoritative account value, but never relabel an unpriced position as zero.
++    const valueCents = projected.valueCents === null ? null : whole;
++    return { accountId, name: metadata.get(accountId)?.name ?? 'Unbekanntes Konto',
++      valueCents, knownCents: projected.knownCents,
++      unavailable: valueCents === null ? projected.unavailable ?? 'missing_value' : null,
++      shareBp: shares && valueCents !== null && input.totalCents !== null
++        ? mulDivRound(valueCents, 10_000, input.totalCents) : null };
++  });
++  const knownCents = amount(input.components).knownCents;
++  const totalCents = input.components.some((c) => c.valueCents === null) ? null : input.totalCents;
++  if (displayLimited) {
++    for (const group of groups) {
++      group.shareBp = null;
++      for (const account of group.accounts) account.shareBp = null;
++    }
++    for (const account of accounts) account.shareBp = null;
++  }
++  return { asOf: input.asOf, pointKind: input.pointKind, totalCents, knownCents,
++    complete: complete && !displayLimited,
++    unavailable: displayLimited ? 'calculation_limit' : null, groups, accounts, gaps: input.components
++      .filter((c) => c.valueCents === null || c.quality !== 'exact')
++      .map(({ accountId, securityId, quality, missing }) => ({ accountId, securityId, quality, missing })) };
++}

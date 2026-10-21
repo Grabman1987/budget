@@ -1,0 +1,94 @@
+{
+  "verdict": "HIGH CLEAR \u2014 source only",
+  "base": "5d63e9c226af6463401d7a45b00f6c359baaa249",
+  "manifestSha256": "e2ef95108d8cd48a6d139f523dc3898ea1c2db3428e9137ba6928f6a4021fc5a",
+  "files": {
+    "SPEC.md": {
+      "sha256": "75c7bc10e17dbc5ca4c2d10f5f1b1d5c22f64646c534dd7419fc97333643a44d",
+      "mode": 33152,
+      "beforeSha256": "b83753a33ff6cd629139dd56e7304d6a719bfde292302102566c75d8b7a73898",
+      "owner": "Root"
+    },
+    "apps/server/src/api/wealth.ts": {
+      "sha256": "eeac83fa1f423d79334df5c4290417e5d4fd56afe3333176ebfbd91295937d5b",
+      "mode": 33152,
+      "beforeSha256": "cf3d6ad3f1d53f3ac3b68659c9f1f33ac3f10a48a4f39ab502e4b8dbd775e91f",
+      "owner": "cloud_ui_481"
+    },
+    "apps/web/src/wealth/api.ts": {
+      "sha256": "f5738166efcd897f2c489fd0189d7fa2232d25bc5405dacd90bffeeebf1fbc18",
+      "mode": 33152,
+      "beforeSha256": "c157708bd40d156727174cf294b4b279e466b4c222067ab0dc570097c4bbe7b3",
+      "owner": "cloud_ui_481"
+    },
+    "apps/web/src/wealth/asset-composition-chart.tsx": {
+      "sha256": "06b0e02419769ed8565b7aab3ddb67eb5edad91c53aedec4b0a1c32d6e54fc49",
+      "mode": 33152,
+      "beforeSha256": null,
+      "owner": "cloud_ui_481"
+    },
+    "apps/web/src/wealth/asset-composition.tsx": {
+      "sha256": "78cc382419f513ecd613905c68451a7f1add6fd212dce210fb864f0274d49385",
+      "mode": 33152,
+      "beforeSha256": null,
+      "owner": "cloud_ui_481"
+    },
+    "apps/web/src/wealth/networth-page.tsx": {
+      "sha256": "9d9f0b8ba9e4e8c084dc41cbd81f60375a0810ff311e25bcea9ae3a6dd3c172c",
+      "mode": 33152,
+      "beforeSha256": "a73b6e3a78d69334a286f9bcfac0d46835f02fd3672b7bfc55371982d0277ba0",
+      "owner": "cloud_ui_481"
+    },
+    "apps/web/src/wealth/wealth.css": {
+      "sha256": "9884ff66c1fa49a08e95fcf06080c41b125115f708d7739809a16f32c4e09ec5",
+      "mode": 33152,
+      "beforeSha256": "b907f64d8c7dc3067d1cd7ebd8fee9276074fcaa6afa2a7a86c0762a64c2da98",
+      "owner": "cloud_ui_481"
+    },
+    "docs/ROADMAP.md": {
+      "sha256": "a475d42c37dddd5aeb419a4d82a993890db4062346871a1b7932e9d019571f98",
+      "mode": 33152,
+      "beforeSha256": "1b04ced58ac52c9929188ec5d2e33c09feaebf56b75b056f006e4b5859a0652c",
+      "owner": "cloud_ui_481"
+    },
+    "packages/db/src/repos/index.ts": {
+      "sha256": "34c646c3f68435bd9f94bee2c0d02651039e1237d1f6e12fc9fefa3f43a4c3fd",
+      "mode": 33152,
+      "beforeSha256": "ef48a37029ec67640b37180eccf8441388b19ac84010356401d970d83d429813",
+      "owner": "Root"
+    },
+    "packages/db/src/repos/networth-composition.ts": {
+      "sha256": "ea3efa58748e19aeb0c2b0ef0534490e0715afe9053ad74f2950b284b6cf9dfc",
+      "mode": 33152,
+      "beforeSha256": null,
+      "owner": "cloud_ui_481"
+    },
+    "packages/db/src/repos/portfolio.ts": {
+      "sha256": "95b2d0ebc62fcdc62f8e76fb995f5f860d85056dd9d18acdea3b09d64c4055b1",
+      "mode": 33152,
+      "beforeSha256": "1b6d5bf033c576709300ffc298538da77ad1a3afeb959649926a55168cf64f5a",
+      "owner": "cloud_ui_481"
+    },
+    "packages/domain/src/ledger/index.ts": {
+      "sha256": "bad397a2e08cf1a95593cd6ebf1ad433c804df8ee0d663e906183936ab3b5708",
+      "mode": 33152,
+      "beforeSha256": "8db956f7446ad0cf1eae962b871dd95e03c0c338d61701a62ab9342588c7c7b7",
+      "owner": "Root"
+    },
+    "packages/domain/src/ledger/networth-composition.ts": {
+      "sha256": "c0951c11dc06e84ff4d83f334a0fd673e18f2ab8601ebd9c65e3029b4c3a6d77",
+      "mode": 33152,
+      "beforeSha256": null,
+      "owner": "cloud_ui_481"
+    }
+  },
+  "lastDeltaOnly": [
+    "apps/web/src/wealth/asset-composition-chart.tsx"
+  ],
+  "producerWholeInverseExact": true,
+  "producerAdditiveRuns": 7,
+  "barrelWholeInversesExact": true,
+  "roadmapPrefixBytes": 246224,
+  "runtimeExecuted": false,
+  "reportSha256": "a39046f956f814bd610e896a2f3ff4ae01028619cc28f10971f0443029e25be1"
+}

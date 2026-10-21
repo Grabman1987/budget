@@ -1,0 +1,25 @@
+{
+  "manifestSha256": "e3ccdad067000018a267a01b45df7f4fe777ad24ca15483dde5ca93afe868091",
+  "producerWholeInverseExact": true,
+  "producerAddedRuns": 7,
+  "runtimeExecuted": false,
+  "findings": [
+    {
+      "severity": "P2",
+      "path": "packages/db/src/repos/portfolio.ts",
+      "boundary": "manual classification",
+      "description": "manualValues.has labels P2P/other_asset balance fallback as cash despite manualAccounts eligibility; use existing manual-vs-holding identity without changing values."
+    },
+    {
+      "severity": "P2",
+      "path": "packages/domain/src/ledger/networth-composition.ts",
+      "boundary": "new grouped result overflow",
+      "literalCents": [
+        5000000000000000,
+        5000000000000000,
+        -5000000000000000
+      ],
+      "description": "All legacy account/net totals safe; positive cash group exceeds safe range. Preserve numeric guard and explicitly contain unavailable new composition so old response remains usable."
+    }
+  ]
+}

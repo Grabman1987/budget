@@ -1,0 +1,37 @@
+[
+  {
+    "path": "docs/handoff/550-551-asset-composition/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/550-551-asset-composition/README.md",
+    "size": 478,
+    "sha256": "92f2c48c17906cd77d1cc38eeef6395067369a3b82d7acaa93eee627d97f6a75"
+  },
+  {
+    "path": "docs/handoff/550-551-asset-composition/owned/01-da796a63853fb4a1266ab700468b37f5afdaf7b1.patch",
+    "size": 40168,
+    "sha256": "596aea73532be1765067cbc24a28e28f377401140fffcef257808a5ddafcdaf8"
+  },
+  {
+    "path": "docs/handoff/550-551-asset-composition/packet.json",
+    "size": 2174,
+    "sha256": "71f5de15a338d0be46437eb6c043edf5e7449cddaf8553ca9c95c6233d901053"
+  },
+  {
+    "path": "docs/handoff/550-551-asset-composition/reviews/550-551-first-two-independent-readonly-findings.json",
+    "size": 993,
+    "sha256": "0a77bff5fb8b8047ff322ed4ebdef31784ca4ed58d8870d668501555daf42077"
+  },
+  {
+    "path": "docs/handoff/550-551-asset-composition/reviews/550-551-whole-thirteen-independent-source-correspondence.json",
+    "size": 3836,
+    "sha256": "c2520e39b34dd08f74a35e6361e00e3ce748ae216f83f69fc5f95ce9139168da"
+  },
+  {
+    "path": "docs/handoff/550-551-asset-composition/reviews/550-551-whole-thirteen-independent-source-high.md",
+    "size": 4902,
+    "sha256": "a39046f956f814bd610e896a2f3ff4ae01028619cc28f10971f0443029e25be1"
+  }
+]
