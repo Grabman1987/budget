@@ -97,3 +97,4 @@ export * from './statement-intake';
 export * from './statement-settlement';
 export * from './statement-settlement-invariants';
 export * from './statement-settlement-read';
+export * from './statement-automation';

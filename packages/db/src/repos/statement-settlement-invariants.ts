@@ -1,9 +1,11 @@
+import { assertStatementAutomationBookingWrite, assertStatementAutomationSourceWrite, assertStatementAutomationUndoTarget, assertStatementAutomationInvariants } from './statement-automation-invariants';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { statementBonusEvidenceSchema, type StatementBonusEvidence } from '@budget/domain';
 import {
   account,
   auditLog,
   booking,
+  bookingReceipt,
   bookingSplit,
   category,
   receipt,
@@ -13,6 +15,9 @@ import {
   statementSettlementConfig,
   INCOME_TYPES,
 } from '../schema';
+import { statementAutomationRun } from '../schema/statement-automation';
+import { hasStatementAutomation } from './statement-automation-invariants';
+import type { StatementFields } from '@budget/domain';
 import { BookingInvariantError, ConflictError } from './errors';
 import type { Executor } from './types';
 
@@ -124,7 +129,8 @@ export function assertBonusOriginals(
       );
   }
 }
-export function assertStatementSourceWrite(db: Executor, sourceId: string) {
+export function assertStatementSourceWrite(db: Executor, sourceId: string, targetAccountId?: string, action?: string) {
+  assertStatementAutomationSourceWrite(db, sourceId, targetAccountId, action);
   if (!hasStatementSettlementFamily(db)) return;
   const used =
     db
@@ -150,6 +156,7 @@ export function assertStatementBookingWrite(
   action: string,
   fields: string[] = [],
 ) {
+  assertStatementAutomationBookingWrite(db, id, action === 'update' ? fields : []);
   if (!hasStatementSettlementFamily(db)) return;
   if (action === 'update' && fields.every((f) => ['status', 'flag', 'memo'].includes(f))) return;
   const consumed =
@@ -183,6 +190,7 @@ export function assertStatementUndoTarget(
   entries: readonly { entityType: string; groupId: string | null }[],
   partial: boolean,
 ) {
+  assertStatementAutomationUndoTarget(db, entries, partial);
   if (!partial || !hasStatementSettlementFamily(db)) return;
   for (const group of new Set(entries.flatMap((e) => (e.groupId ? [e.groupId] : [])))) {
     const types = db
@@ -199,8 +207,35 @@ export function assertStatementUndoTarget(
       throw new ConflictError('Abrechnungsaktion nur als vollständige Gruppe zurücknehmen.');
   }
 }
+function acceptedFields(db: Executor, row: typeof statementSettlement.$inferSelect | typeof statementBonus.$inferSelect) {
+  const source = db.select().from(statementIntake).where(eq(statementIntake.id, row.sourceIntakeId)).get();
+  const value = JSON.parse(row.originsJson) as { origin?: string; layout?: string; runId?: string; fields?: StatementFields;
+    identity?: { kind?: string; key?: string; issueDate?: string; reference?: string | null };
+    previous?: { intakeId: string; sha256: string; accountId: string; currency: string } };
+  if (value.origin !== 'machine') {
+    return source?.status === 'reviewed' && source.reviewedJson
+      ? (JSON.parse(source.reviewedJson) as { fields: StatementFields }).fields : null;
+  }
+  if (!hasStatementAutomation(db) || !value.runId || !value.fields || !value.identity || !source) return null;
+  const run = db.select().from(statementAutomationRun).where(eq(statementAutomationRun.id, value.runId)).get();
+  const prior = value.previous ? db.select().from(statementIntake).where(eq(statementIntake.id, value.previous.intakeId)).get() : null;
+  const priorReceipt = prior ? db.select().from(receipt).where(eq(receipt.id, prior.receiptId)).get() : null;
+  if (!run || run.sourceIntakeId !== row.sourceIntakeId || run.sourceSha256 !== row.sourceSha256 ||
+    run.sourceRevision !== row.sourceRevision || run.accountId !== row.cardAccountId || run.identityKey !== value.identity.key ||
+    value.identity.issueDate !== row.issueDate || value.identity.reference !== row.reference ||
+    (row.reference === null ? value.identity.kind !== 'issued_date' : value.identity.kind !== 'printed_reference') ||
+    !['issued_card', 'company_card'].includes(value.layout ?? '') ||
+    (value.layout === 'issued_card' && (!prior || prior.deletedAt || prior.status === 'rejected' || prior.accountId !== row.cardAccountId ||
+    prior.sha256 !== value.previous!.sha256 || value.previous!.accountId !== row.cardAccountId || value.previous!.currency !== row.currency ||
+    !priorReceipt || priorReceipt.deletedAt || priorReceipt.sha256 !== value.previous!.sha256)) ||
+    !['pending', 'reviewed'].includes(source.status) ||
+    JSON.stringify(value.fields) !== JSON.stringify((JSON.parse(source.proposalJson) as { fields: StatementFields }).fields) ||
+    Object.values(value.fields).some((f) => f.value !== null && f.origin !== 'printed')) return null;
+  return value.fields;
+}
 /** Schema-only final validator: safe from a write-module/audit import cycle. */
 export function assertStatementSettlementInvariants(db: Executor) {
+  assertStatementAutomationInvariants(db);
   if (!hasStatementSettlementFamily(db)) return;
   const settlements = db
     .select()
@@ -227,13 +262,10 @@ export function assertStatementSettlementInvariants(db: Executor) {
       .from(statementSettlementConfig)
       .where(eq(statementSettlementConfig.cardAccountId, r.cardAccountId))
       .get();
-    const fields = source?.reviewedJson
-      ? (JSON.parse(source.reviewedJson) as { fields: Record<string, { value: unknown }> }).fields
-      : null;
+    const fields = acceptedFields(db, r);
     if (
       !source ||
       source.deletedAt ||
-      source.status !== 'reviewed' ||
       source.sha256 !== r.sourceSha256 ||
       source.receiptId !== r.receiptId ||
       source.accountId !== r.cardAccountId ||
@@ -256,13 +288,7 @@ export function assertStatementSettlementInvariants(db: Executor) {
   }
   for (const r of settlements) {
     if (r.state === 'open') statementPair(db, r.cardAccountId, r.fundingAccountId);
-    const s = db
-      .select()
-      .from(statementIntake)
-      .where(eq(statementIntake.id, r.sourceIntakeId))
-      .get()!;
-    const fields = (JSON.parse(s.reviewedJson!) as { fields: Record<string, { value: unknown }> })
-      .fields;
+    const fields = acceptedFields(db, r)!;
     if (fields.payableCents?.value !== r.payableCents || fields.debitDate?.value !== r.debitDate)
       throw new BookingInvariantError(
         'Angenommener Rechnungsbetrag oder Einzugstermin stimmt nicht überein.',
@@ -271,6 +297,18 @@ export function assertStatementSettlementInvariants(db: Executor) {
     const from = db.select().from(booking).where(eq(booking.id, r.fromBookingId!)).get();
     const to = db.select().from(booking).where(eq(booking.id, r.toBookingId!)).get();
     const funding = db.select().from(account).where(eq(account.id, r.fundingAccountId)).get();
+    const machine = JSON.parse(r.originsJson) as { origin?: string; linkedReference?: string | null };
+    if (machine.origin === 'machine') {
+      const edges = db.select().from(bookingReceipt).where(eq(bookingReceipt.receiptId, r.receiptId)).all();
+      if (![r.fromBookingId, r.toBookingId].every((id) => id && edges.some((edge) => edge.bookingId === id && !edge.deletedAt)))
+        throw new BookingInvariantError('Automatischer Abrechnungsausgleich benötigt den Originalbeleg an beiden Transferseiten.');
+    }
+    if (machine.origin === 'machine' && r.representationKind === 'linked' &&
+      (!machine.linkedReference || ![from, to].some((b) => b?.source === 'bank' &&
+        (b.bankRawText ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('de-AT').split(/[^\p{L}\p{N}_/-]+/u)
+          .includes(machine.linkedReference!.trim().toLocaleLowerCase('de-AT')))))
+      throw new BookingInvariantError('Der eindeutige Banknachweis zum Abrechnungsausgleich wurde geändert.');
+
     if (
       !from ||
       !to ||

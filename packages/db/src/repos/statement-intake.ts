@@ -276,7 +276,7 @@ export function mutateStatementIntake(
     const row = tx.select().from(statementIntake).where(eq(statementIntake.id, id)).get()!;
     if (Object.entries(patch).every(([k, v]) => row[k as keyof typeof row] === v))
       return { intake: current, groupId: null };
-    assertStatementSourceWrite(tx, id);
+    assertStatementSourceWrite(tx, id, input.targetAccountId, action);
     updateTracked(
       tx,
       statementIntake,

@@ -330,6 +330,13 @@
       "when": 1792500000000,
       "tag": "0046_statement_settlement",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1792510000000,
+      "tag": "0047_statement_automation",
+      "breakpoints": true
     }
   ]
 }

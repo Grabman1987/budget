@@ -43,7 +43,7 @@ const acceptedSource = () => ({
   cardAccountId: text('card_account_id')
     .notNull()
     .references(() => account.id),
-  reference: text('reference').notNull(),
+  reference: text('reference'),
   issueDate: text('issue_date').notNull(),
   currency: text('currency').notNull(),
   originsJson: text('origins_json').notNull(),
@@ -103,6 +103,9 @@ export const statementSettlement = sqliteTable(
     uniqueIndex('statement_settlement_identity_uq')
       .on(t.cardAccountId, t.reference, t.issueDate)
       .where(sql`${t.deletedAt} IS NULL AND ${t.state} NOT IN ('withdrawn','superseded')`),
+    uniqueIndex('statement_settlement_issued_identity_uq')
+      .on(t.cardAccountId, t.issueDate)
+      .where(sql`${t.reference} IS NULL AND ${t.deletedAt} IS NULL AND ${t.state} NOT IN ('withdrawn','superseded')`),
     uniqueIndex('statement_settlement_transfer_uq')
       .on(t.transferId)
       .where(sql`${t.deletedAt} IS NULL AND ${t.state}='represented'`),
@@ -115,6 +118,8 @@ export const statementBonus = sqliteTable(
   'statement_bonus',
   {
     ...acceptedSource(),
+    // Legacy/manual bonus acceptance still requires an actual printed/manual reference.
+    reference: text('reference').notNull(),
     bonusCents: integer('bonus_cents').notNull(),
     creditDate: text('credit_date').notNull(),
     state: text('state', {
