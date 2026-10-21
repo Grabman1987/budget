@@ -344,6 +344,51 @@ export function parseStatementText(text: string, sha256: string): StatementPropo
         for (const n of vals) if (n.value !== null) add('payableCents', n.value, i, 'payable');
       }
     });
+  // A jointly identified issued-card summary, never an arbitrary current balance.
+  // Its trailing sign describes the card balance; payable debt has the opposite sign.
+  if (!company && !lines.some((l) => /\bAbrechnungsbetrag\b/i.test(l))) {
+    const rows = lines.map((text, line) => ({ text: text.trim(), line })).filter((r) => r.text);
+    let summary = false;
+    for (let i = 0; i + 3 < rows.length; i++) {
+      const issue = /^Datum(?:\s+(.*))?$/i.exec(rows[i]!.text);
+      const next = /^Datum n\s*ä\s*chste Umsatznachricht(?:\s+.*)?$/i.test(rows[i + 1]!.text);
+      const debit = /^Wird eingezogen am(?:\s+(.*))?$/i.exec(rows[i + 2]!.text);
+      const balance = /^Saldo(?:\s+(.*))?$/i.exec(rows[i + 3]!.text);
+      if (!issue || !next || !debit || !balance) continue;
+      summary = true;
+      for (const d of dates(issue[1] ?? '')) add('issueDate', d, rows[i]!.line, 'issue_date');
+      for (const d of dates(debit[1] ?? '')) add('debitDate', d, rows[i + 2]!.line, 'debit_date');
+      const signed = /^(\d[\d.,]*)\s*([+−-])$/.exec(balance[1] ?? '');
+      if (signed) {
+        const values = money(signed[1]!);
+        if (values.length === 1 && values[0]!.value !== null) {
+          const amount = values[0]!.value!;
+          add(
+            'payableCents',
+            amount === 0 ? 0 : signed[2] === '+' ? -amount : amount,
+            rows[i + 3]!.line,
+            'payable',
+          );
+        }
+      }
+    }
+    if (summary) {
+      // Only an explicit final-amount table heading supplies currency, not merchant text.
+      lines.forEach((text, line) => {
+        const header =
+          /^\s*Karte\s+Umsatz\s+Buchung\s+Buchungstext\b.*\bBetrag\s+Kurs\s+([A-Z]{3})\s+Betrag(?:\s+.*)?$/i.exec(
+            text,
+          );
+        if (/\d/.test(text) || !header) return;
+        for (const match of text.matchAll(/\b([A-Z]{3})\s+Betrag\b/g)) {
+          const currency = statementFactsSchema.shape.currency.safeParse(match[1]);
+          if (currency.success && currency.data !== null)
+            add('currency', currency.data, line, 'currency');
+          else p.warnings.push('ambiguous_currency');
+        }
+      });
+    }
+  }
   if (company && p.warnings.includes('ambiguous_company_gross')) {
     p.fields.payableCents.value = null;
     p.fields.payableCents.origin = 'unavailable';
