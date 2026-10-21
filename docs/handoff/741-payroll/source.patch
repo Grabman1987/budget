@@ -1,0 +1,651 @@
+diff --git a/apps/server/src/api/payslip-intake.ts b/apps/server/src/api/payslip-intake.ts
+index 79ae119d..6b25ab6c 100644
+--- a/apps/server/src/api/payslip-intake.ts
++++ b/apps/server/src/api/payslip-intake.ts
+@@ -147,6 +147,7 @@ export function payslipIntakeRoutes(
+           sortOrder,
+           closedAt,
+         })),
++      payees: listPayees(db).filter((p) => !p.systemKind).map(({ id, name }) => ({ id, name })),
+       config: getPayslipSourceConfig(db),
+     });
+   });
+@@ -162,11 +163,14 @@ export function payslipIntakeRoutes(
+     }
+     const file = form.get('file');
+     const password = form.get('password'),
+-      remember = form.get('remember');
++      remember = form.get('remember'),
++      automation = form.get('automation');
+     if (
+-      [...form.keys()].some((key) => !['file', 'password', 'remember'].includes(key)) ||
++      [...form.keys()].some((key) => !['file', 'password', 'remember', 'automation'].includes(key)) ||
+       form.getAll('password').length > 1 ||
+       form.getAll('remember').length > 1 ||
++      form.getAll('automation').length > 1 ||
++      (automation !== null && automation !== 'eligible') ||
+       (password !== null && (typeof password !== 'string' || password.length > MAX_PASSWORD)) ||
+       (remember !== null && remember !== '1' && remember !== 'true') ||
+       form.getAll('file').length !== 1 ||
+@@ -183,6 +187,7 @@ export function payslipIntakeRoutes(
+       await service.ingest(Buffer.from(await file.arrayBuffer()), file.name, 'manual', undefined, {
+         ...(password ? { password: password as string } : {}),
+         remember: remember !== null,
++        ...(automation === 'eligible' ? { automation: 'eligible' as const } : {}),
+       }),
+       201,
+     );
+diff --git a/apps/server/src/payslips/service.ts b/apps/server/src/payslips/service.ts
+index 932cc4c2..8b11baef 100644
+--- a/apps/server/src/payslips/service.ts
++++ b/apps/server/src/payslips/service.ts
+@@ -4,6 +4,9 @@ import { resolve } from 'node:path';
+ import { Worker } from 'node:worker_threads';
+ import {
+   findPayslipIntake,
++  automaticallyDecidePayslip,
++  payslipAutomationSnapshot,
++  payslipAutomationConfigSnapshot,
+   getPayslipIntake,
+   getPayslipSourceConfig,
+   getReceipt,
+@@ -18,6 +21,7 @@ import {
+   parsePayrollDocument,
+   type ParsedPayrollDocument,
+   type PayslipSourceConfig,
++  type PayslipAutomationOutcome,
+ } from '@budget/domain';
+ import {
+   dropboxTargetPath,
+@@ -71,6 +75,8 @@ export type PasswordOptions = {
+   remember?: boolean | undefined;
+   /** Dropbox year folder of the file; used only when the document itself shows no period. */
+   folderYear?: number | null | undefined;
++  /** Only explicit new manual-upload clients request deterministic automatic capture. */
++  automation?: 'eligible' | undefined;
+ };
+ /** 'off': not requested; 'unavailable': BUDGET_PEPPER missing; 'not_opened': did not open the PDF. */
+ export type PasswordRemember = 'saved' | 'unavailable' | 'not_opened' | 'off';
+@@ -90,6 +96,8 @@ type Staged = {
+   groupId: string | null | undefined;
+   dropboxCopy: DropboxCopy;
+   passwordRemember: PasswordRemember;
++  automation?: PayslipAutomationOutcome;
++  sourceGroupId?: string | null;
+ };
+ type Skipped = { skipped: 'before_start' };
+ export class PayslipIntakeService {
+@@ -202,9 +210,11 @@ export class PayslipIntakeService {
+         groupId: null,
+         dropboxCopy: 'off' as DropboxCopy,
+         passwordRemember: 'off' as PasswordRemember,
++        ...(options.automation === 'eligible' ? { automation: { status: 'unchanged' as const, reason: 'duplicate_source', groupId: null } } : {}),
+       };
+     const name = sanitizedFilename(filename);
+-    const { parsed, opened } = await this.evaluate(bytes, name, options.password);
++    const parsedWith = payslipAutomationConfigSnapshot(this.db);
++    const { parsed, opened } = await this.evaluate(bytes, name, options.password, parsedWith.config);
+     // Scheduled scans only: skip months before the records start, close months already captured.
+     const scope =
+       source === 'dropbox'
+@@ -225,10 +235,21 @@ export class PayslipIntakeService {
+       },
+       { actor: source === 'manual' ? 'owner' : 'system' },
+     );
++    let automation: PayslipAutomationOutcome | undefined;
++    if (source === 'manual' && options.automation === 'eligible') {
++      if (old || staged.duplicate) automation = { status: 'unchanged', reason: 'duplicate_source', groupId: null };
++      else {
++        const snapshot = payslipAutomationSnapshot(this.db, staged.id, parsedWith);
++        await verifyReceiptFile(this.dir, sha256, bytes.length);
++        automation = automaticallyDecidePayslip(this.db, staged.id, snapshot, { actor: 'document-automation:payroll' });
++      }
++    }
+     // Files fetched from Dropbox are never written back; only owner uploads are copied.
+     const dropboxCopy =
+       source === 'manual' ? await this.copyToDropbox(bytes, name, parsed) : ('off' as DropboxCopy);
+-    return { ...staged, dropboxCopy, passwordRemember: this.remember(bytes, opened, options) };
++    return { ...staged, dropboxCopy, passwordRemember: this.remember(bytes, opened, options),
++      ...(automation ? { automation, sourceGroupId: staged.groupId ?? null,
++        groupId: automation.groupId ?? staged.groupId } : {}) };
+   }
+   /** Best effort: the staged intake and the stored receipt stay valid whatever happens here. */
+   private async copyToDropbox(
+diff --git a/apps/web/src/reports/payslip-intake.tsx b/apps/web/src/reports/payslip-intake.tsx
+index f6a78aae..069a9693 100644
+--- a/apps/web/src/reports/payslip-intake.tsx
++++ b/apps/web/src/reports/payslip-intake.tsx
+@@ -2,6 +2,7 @@ import {
+   payrollTotals,
+   type ParsedPayrollDocument,
+   type PayslipSourceConfig,
++  type PayslipAutomationOutcome,
+ } from '@budget/domain';
+ import { Button, Field, SectionHead, Select, TextInput, useToast, WideDialog } from '@budget/ui';
+ import { useQuery, useQueryClient } from '@tanstack/react-query';
+@@ -73,6 +74,7 @@ export type PayslipUploadResult = {
+   duplicate: boolean;
+   dropboxCopy?: 'saved' | 'failed' | 'off';
+   passwordRemember?: RememberResult;
++  automation?: PayslipAutomationOutcome;
+ };
+ export function PayslipUpload({
+   onBusyChange,
+@@ -90,6 +92,8 @@ export function PayslipUpload({
+     [remember, setRemember] = useState(false),
+     [rememberNote, setRememberNote] = useState('');
+   const qc = useQueryClient();
++  const acknowledgeWrite = useBudgetWrite();
++  const toast = useToast();
+   function receive(files: File[]) {
+     if (busy || !files.length) return;
+     const file = files[0]!;
+@@ -114,6 +118,7 @@ export function PayslipUpload({
+     try {
+       const body = new FormData();
+       body.set('file', file);
++      body.set('automation', 'eligible');
+       if (password) {
+         body.set('password', password);
+         if (remember) body.set('remember', '1');
+@@ -128,6 +133,7 @@ export function PayslipUpload({
+         duplicate: boolean;
+         dropboxCopy?: 'saved' | 'failed' | 'off';
+         passwordRemember?: RememberResult;
++        automation?: PayslipAutomationOutcome;
+         error?: string;
+         message?: string;
+       };
+@@ -136,12 +142,30 @@ export function PayslipUpload({
+       if (!result.id) throw new ApiError(0, 'invalid_upload_response');
+       notifyApiWrite();
+       setMessage(
+-        result.duplicate
+-          ? 'Dieses PDF wurde bereits aufgenommen. Die vorhandene Prüfung wird geöffnet.'
+-          : 'PDF ausgewertet. Die Prüfung ist jetzt geöffnet.',
++        result.automation?.status === 'booked'
++          ? 'Gehaltszettel gespeichert und Auszahlung erfasst.'
++          : result.automation?.status === 'linked'
++            ? 'Gehaltszettel gespeichert und mit der vorhandenen Auszahlung verknüpft.'
++            : result.duplicate
++              ? 'Dieses PDF wurde bereits aufgenommen. Die vorhandene Abrechnung wird geöffnet.'
++              : 'PDF gespeichert. Nicht eindeutige Angaben bleiben unter Prüfen.',
+       );
+       setDropbox(result.duplicate ? 'off' : (result.dropboxCopy ?? 'off'));
+       setRememberNote(rememberText(result.passwordRemember));
++      if (result.automation?.groupId && ['booked', 'linked'].includes(result.automation.status)) {
++        // Acknowledge the already committed financial group through the shared Undo/redo UI.
++        // The earlier staging group is deliberately NOT the financial Undo target.
++        const groupId = result.automation.groupId;
++        await acknowledgeWrite(async () => ({ groupId }), () => 'Gehaltszettel automatisch gespeichert.');
++      }
++      if (result.automation?.status === 'pruefen') {
++        const reason = result.automation.reason;
++        toast.show({ message: reason === 'source_not_configured'
++          ? 'PDF gespeichert. Bitte Gehaltskonto und Arbeitgeber/Absender einmal einrichten.'
++          : reason === 'payroll_already_exists'
++            ? 'PDF gespeichert. Eine Abrechnung ist bereits erfasst; bitte die Zuordnung unter Prüfen kontrollieren.'
++            : 'PDF gespeichert. Auszahlung oder Angaben sind nicht eindeutig; bitte unter Prüfen kontrollieren.' });
++      }
+       onUploaded?.(result);
+       await qc.invalidateQueries();
+     } catch (e) {
+@@ -185,6 +209,9 @@ export function PayslipUpload({
+       </Button>
+       <span>PDF · höchstens 15 MB{busy ? ' · Wird ausgewertet …' : ''}</span>
+       <p className="payslip-drop-hint">PDF hier ablegen oder über den Button auswählen.</p>
++      <p>Mit eingerichteter Gehaltsquelle werden eindeutige neue Gehaltszettel automatisch gespeichert
++        und passende Auszahlungen verknüpft. Neue Auszahlungen werden vorgemerkt (Bargeld bestätigt).
++        Unklare Angaben bleiben unter Prüfen.</p>
+       <details className="payslip-password-details">
+         <summary>PDF-Passwort eingeben (optional)</summary>
+         <PasswordFields
+@@ -644,7 +671,7 @@ export function PayslipIntakeDetail({
+         {duplicate && (
+           <p role="status">Duplikat erkannt. Die bestehende Abrechnung wird angezeigt.</p>
+         )}
+-        {!duplicate && <p role="status">PDF ausgewertet. Prüfung ohne automatische Buchung.</p>}
++        {!duplicate && <p role="status">{data?.status === 'confirmed' ? 'Gehaltszettel gespeichert.' : 'PDF gespeichert. Offene Angaben bitte prüfen.'}</p>}
+         {review}
+       </section>
+     );
+@@ -676,6 +703,7 @@ type SourceStatus = {
+   filesFound: number;
+   errors: number;
+   config: PayslipSourceConfig;
++  payees?: { id: string; name: string }[];
+ };
+ export function PayslipSourceSection() {
+   const query = useQuery({
+@@ -741,7 +769,7 @@ export function PayslipSourceSection() {
+             source={query.data.passwordSource}
+             available={query.data.passwordRememberAvailable}
+           />
+-          <PayslipSourceForm initial={query.data.config} accounts={query.data.accounts} />
++          <PayslipSourceForm initial={query.data.config} accounts={query.data.accounts} payees={query.data.payees ?? []} />
+         </>
+       )}
+       <p>Dropbox wird nachts gelesen. PDFs erscheinen zur Bestätigung unter Prüfen.</p>
+@@ -841,11 +869,14 @@ const WAGE_LABELS = {
+ function PayslipSourceForm({
+   initial,
+   accounts,
++  payees,
+ }: {
+   initial: PayslipSourceConfig;
+   accounts: SourceStatus['accounts'];
++  payees: { id: string; name: string }[];
+ }) {
+   const [salaryAccountId, setAccount] = useState(initial.salaryAccountId ?? '');
++  const [automaticPayeeId, setAutomaticPayee] = useState(initial.automation?.payeeId ?? '');
+   const [rows, setRows] = useState(() =>
+     Object.entries(initial.wageTypes).map(([code, type]) => ({ code, type })),
+   );
+@@ -868,6 +899,7 @@ function PayslipSourceForm({
+       () =>
+         request<{ groupId: string }>('PUT', PATH + '/config', {
+           salaryAccountId: salaryAccountId || null,
++          ...(automaticPayeeId ? { automation: { payeeId: automaticPayeeId } } : {}),
+           wageTypes: Object.fromEntries(rows.map((r) => [r.code, r.type])),
+         }),
+       () => 'Gehaltsquelle gespeichert.',
+@@ -894,6 +926,17 @@ function PayslipSourceForm({
+           </Select>
+         )}
+       </Field>
++      <Field label="Arbeitgeber / Absender für automatische Gehaltszettel">
++        {({ id }) => (
++          <Select id={id} value={automaticPayeeId} disabled={busy}
++            onChange={(event) => setAutomaticPayee(event.target.value)}>
++            <option value="">Automatische Speicherung aus</option>
++            {payees.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
++          </Select>
++        )}
++      </Field>
++      <p>Einmal dem Gehaltskonto und einem vorhandenen Absender zuordnen. Nur eindeutig validierte
++        neue Uploads werden automatisch gespeichert; bestehende Buchungen bleiben unverändert.</p>
+       <p>
+         Lohnarten aus dem Dokument zuordnen. Bezüge sind bereits in der Bruttosumme enthalten.
+         Aufrollungen behalten ihr Vorzeichen.
+diff --git a/packages/db/src/repos/payslip-intake.ts b/packages/db/src/repos/payslip-intake.ts
+index fb020766..617651ba 100644
+--- a/packages/db/src/repos/payslip-intake.ts
++++ b/packages/db/src/repos/payslip-intake.ts
+@@ -1,11 +1,17 @@
+ import { randomUUID } from 'node:crypto';
+-import { and, eq, isNull, min, or } from 'drizzle-orm';
++import { and, eq, gt, gte, lte, isNull, min, or } from 'drizzle-orm';
+ import {
+   isDuplicatePayslip,
+   payrollTotals,
+   payslipInput,
+   payslipSourceConfig,
+   proposedPayslipPayoutDate,
++  planPayslipAutomation,
++  sameAutomaticPayrollSlot,
++  sameAutomaticPayrollRecord,
++  lastDayOfMonth,
++  versionOn,
++  type PayslipAutomationOutcome,
+   type ParsedPayrollDocument,
+   type PayslipSourceConfig,
+ } from '@budget/domain';
+@@ -23,6 +29,7 @@ import {
+   receipt,
+   expectedOccurrence,
+   expectedPayment,
++  expectedPaymentVersion,
+   payee,
+ } from '../schema';
+ import {
+@@ -31,12 +38,14 @@ import {
+   recordAudit,
+   withGroup,
+   nowIso,
++  history,
+   type AuditContext,
+ } from './audit';
+-import { ConflictError, EntityNotFoundError } from './errors';
++import { BookingInvariantError, ConflictError, EntityNotFoundError } from './errors';
++import { upcoming } from './expected';
+ import { runInTransaction, type Executor } from './types';
+ import { addReceipt, getReceipt, linkReceipt } from './receipts';
+-import { savePayslip } from './payroll-projects';
++import { listPayslips, savePayslip } from './payroll-projects';
+ import { earliestAccountDate } from './portfolio';
+ import { listEntities } from './entities';
+ import { createBooking } from './bookings';
+@@ -71,6 +80,9 @@ export function setPayslipSourceConfig(db: Executor, raw: PayslipSourceConfig, c
+         .get()
+     )
+       throw new ConflictError('Bitte ein bestehendes EUR-Gehaltskonto wählen.');
++    if (config.automation && (!config.salaryAccountId || !tx.select().from(payee).where(and(
++      eq(payee.id, config.automation.payeeId), isNull(payee.deletedAt), isNull(payee.systemKind),
++    )).get())) throw new ConflictError('Bitte Gehaltskonto und bestehenden Arbeitgeber/Absender wählen.');
+     const id = 'payslip.source',
+       value = JSON.stringify(config);
+     if (tx.select().from(appSetting).where(eq(appSetting.id, id)).get())
+@@ -479,12 +491,16 @@ export function decidePayslipIntake(
+     expectedOccurrenceId?: string | null | undefined;
+   },
+   ctx: AuditContext,
++  /** Internal automatic attachment only; never accepted by the manual HTTP decision schema. */
++  attachExistingPayslipId?: string,
+ ) {
+   const grouped = withGroup(ctx);
+   return runInTransaction(db, (tx) => {
+     const row = getPayslipIntake(tx, id);
+     if (row.status !== 'pending')
+       throw new ConflictError('Diese Aufgabe wurde bereits entschieden.');
++    if (attachExistingPayslipId && (decision.action !== 'confirm' || !decision.bookingId))
++      throw new ConflictError('Bestehende Abrechnung und Auszahlung bitte prüfen.');
+     let payslipId: string | null = null;
+     if (decision.action === 'confirm') {
+       const p = row.parsed;
+@@ -649,18 +665,18 @@ export function decidePayslipIntake(
+           label: 'Rundung (Summenprüfung)',
+           amountCents: difference,
+         });
+-      const saved = savePayslip(
+-        tx,
+-        payslipInput.parse({
+-          ...p.draft,
+-          lines,
+-          receiptId: row.receiptId,
+-          bookingId: payoutId,
+-        }),
+-        grouped,
+-        undefined,
+-        row.id,
+-      );
++      const capture = payslipInput.parse({ ...p.draft, lines, receiptId: row.receiptId, bookingId: payoutId });
++      let saved: { id: string };
++      if (attachExistingPayslipId) {
++        const existing = listPayslips(tx).find((candidate) => candidate.id === attachExistingPayslipId);
++        if (!existing || existing.receiptId || existing.bookingId !== payoutId || !sameAutomaticPayrollRecord(capture, existing))
++          throw new ConflictError('Die bestehende Abrechnung stimmt nicht eindeutig mit dem Dokument überein.');
++        // Preserve every original financial value and line identity: attach only this retained source.
++        updateTracked(tx, payslip, [existing.id], { receiptId: row.receiptId }, grouped);
++        saved = existing;
++      } else {
++        saved = savePayslip(tx, capture, grouped, undefined, row.id);
++      }
+       payslipId = saved.id;
+       if (payoutId) linkReceipt(tx, row.receiptId, payoutId, grouped);
+     }
+@@ -749,3 +765,119 @@ export function clearPayslipPassword(db: Executor, ctx: AuditContext) {
+     return true;
+   });
+ }
++
++
++/** Captured after staging; a new source/config/parse audit head invalidates automation. */
++export function payslipAutomationConfigSnapshot(db: Executor) {
++  return { config: getPayslipSourceConfig(db), revision: history(db, 'app_setting', 'payslip.source')[0]?.id ?? null };
++}
++export function payslipAutomationSnapshot(db: Executor, id: string, parsedWith: ReturnType<typeof payslipAutomationConfigSnapshot>) {
++  const row = getPayslipIntake(db, id);
++  return {
++    sha256: row.sha256,
++    receiptId: row.receiptId,
++    revision: history(db, 'payslip_intake', id)[0]?.id ?? null,
++    configRevision: parsedWith.revision,
++    config: JSON.stringify(parsedWith.config),
++    parsed: JSON.stringify(row.parsed),
++  };
++}
++export function automaticallyDecidePayslip(
++  db: Executor,
++  id: string,
++  snapshot: ReturnType<typeof payslipAutomationSnapshot>,
++  ctx: AuditContext,
++): PayslipAutomationOutcome {
++  const review = (reason: string): PayslipAutomationOutcome => ({ status: 'pruefen', reason, groupId: null });
++  try {
++    return runInTransaction(db, (tx) => {
++      const row = getPayslipIntake(tx, id);
++      if (row.status !== 'pending') return { status: 'unchanged', reason: 'already_decided', groupId: null };
++      // A restored/undone/reparsed intake can never qualify as a new source operation.
++      const entries = history(tx, 'payslip_intake', id);
++      if (entries.length !== 1 || entries[0]?.action !== 'create' || entries[0]?.id !== snapshot.revision)
++        return review('source_changed');
++      const config = getPayslipSourceConfig(tx);
++      if (row.sha256 !== snapshot.sha256 || row.receiptId !== snapshot.receiptId ||
++          JSON.stringify(row.parsed) !== snapshot.parsed || JSON.stringify(config) !== snapshot.config ||
++          (history(tx, 'app_setting', 'payslip.source')[0]?.id ?? null) !== snapshot.configRevision)
++        return review('source_changed');
++      if (!config.automation || !config.salaryAccountId) return review('source_not_configured');
++      const source = getReceipt(tx, row.receiptId);
++      if (source.sha256 !== snapshot.sha256) return review('source_changed');
++      const target = tx.select().from(account).where(and(eq(account.id, config.salaryAccountId), isNull(account.deletedAt))).get();
++      const sender = tx.select().from(payee).where(and(eq(payee.id, config.automation.payeeId), isNull(payee.deletedAt), isNull(payee.systemKind))).get();
++      if (!target || target.closedAt || target.currency !== 'EUR' || !sender) return review('source_not_configured');
++      const parsed = row.parsed;
++      if (!parsed.draft || !/^(20\d{2})-(0[1-9]|1[0-2])$/.test(parsed.draft.month)) return review('document_needs_review');
++      const historical = tx.select().from(payslip).where(and(eq(payslip.month, parsed.draft.month), eq(payslip.kind, parsed.draft.kind))).all();
++      if (historical.some((p) => p.deletedAt && sameAutomaticPayrollSlot(parsed.draft!, p)))
++        return review('payroll_previously_undone');
++      const saved = listEntities(tx, payslip);
++      const existingSlot = saved.filter((p) => sameAutomaticPayrollSlot(parsed.draft!, p));
++      if (existingSlot.length > 1 || existingSlot[0]?.receiptId || (existingSlot[0] && !existingSlot[0].bookingId))
++        return review('payroll_already_exists');
++      if (existingSlot[0] && history(tx, 'payslip', existingSlot[0].id).some((entry) => entry.action === 'undo'))
++        return review('payroll_previously_undone');
++      const incomeTypeId = parsed.draft.kind === 'special' ? INCOME_TYPES.special.id : INCOME_TYPES.salary.id;
++      const versions = tx.select({ version: expectedPaymentVersion }).from(expectedPaymentVersion)
++        .innerJoin(expectedPayment, eq(expectedPayment.id, expectedPaymentVersion.expectedPaymentId))
++        .where(and(eq(expectedPayment.accountId, target.id), isNull(expectedPayment.deletedAt),
++          isNull(expectedPaymentVersion.deletedAt))).all().map((row) => row.version);
++      const expectations = upcoming(tx, `${parsed.draft.month}-01`, lastDayOfMonth(parsed.draft.month), { kind: 'inflow' })
++        .filter((o) => o.accountId === target.id).map((o) => {
++          const sourceVersion = versionOn(versions.filter((v) => v.expectedPaymentId === o.paymentId), o.dueDate);
++          // Missing version currency is not permission to use upcoming's legacy EUR fallback.
++          return { ...o, currency: sourceVersion?.currency ?? '' };
++        });
++      const possibleExpected = expectations.filter((o) => o.incomeTypeId === incomeTypeId &&
++        (o.payeeId === sender.id || o.payeeId === null));
++      const anchor = proposedPayslipPayoutDate(parsed) ?? (possibleExpected.length === 1 ? possibleExpected[0]!.dueDate : null);
++      const anchorTime = anchor ? Date.parse(anchor + 'T00:00:00Z') : NaN;
++      const windowFilter = Number.isFinite(anchorTime) ? and(eq(booking.accountId, target.id),
++        isNull(booking.deletedAt), gt(booking.amountCents, 0),
++        gte(booking.date, new Date(anchorTime - 5 * 86400000).toISOString().slice(0, 10)),
++        lte(booking.date, new Date(anchorTime + 5 * 86400000).toISOString().slice(0, 10))) : undefined;
++      const candidates = windowFilter ? tx.select().from(booking).where(windowFilter).all() : [];
++      const splits = windowFilter ? tx.select({ split: bookingSplit }).from(bookingSplit)
++        .innerJoin(booking, eq(booking.id, bookingSplit.bookingId)).where(windowFilter).all().map((row) => row.split) : [];
++      const linkedExpectations = windowFilter ? tx.select({ bookingId: expectedOccurrence.bookingId, id: expectedOccurrence.id })
++        .from(expectedOccurrence).innerJoin(booking, eq(booking.id, expectedOccurrence.bookingId))
++        .where(and(windowFilter, isNull(expectedOccurrence.deletedAt))).all() : [];
++      const splitsByBooking = new Map<string, typeof splits>();
++      for (const split of splits) splitsByBooking.set(split.bookingId, [...(splitsByBooking.get(split.bookingId) ?? []), split]);
++      const plan = planPayslipAutomation({
++        parsed,
++        payeeId: sender.id,
++        salaryIncomeTypeId: incomeTypeId,
++        payrollIncomeTypeIds: [INCOME_TYPES.salary.id, INCOME_TYPES.special.id],
++        reimbursementIncomeTypeId: INCOME_TYPES.refund.id,
++        openingDate: target.openingDate,
++        bookings: candidates.map((b) => ({
++          ...b,
++          alreadyCaptured: saved.some((p) => p.bookingId === b.id && p.id !== existingSlot[0]?.id),
++          expectedOccurrenceIds: linkedExpectations.filter((o) => o.bookingId === b.id).map((o) => o.id),
++          splits: splitsByBooking.get(b.id) ?? [],
++        })),
++        expectations,
++      });
++      if (!plan.eligible) return review(plan.reason);
++      if (existingSlot[0] && existingSlot[0].bookingId !== plan.bookingId) return review('payroll_already_exists');
++      const result = decidePayslipIntake(tx, id, {
++        action: 'confirm', accountId: target.id, payeeId: sender.id,
++        payoutDate: plan.payoutDate, bookingId: plan.bookingId,
++        expectedOccurrenceId: plan.expectedOccurrenceId,
++      }, { ...ctx, actor: `document-automation:payroll@${snapshot.configRevision ?? 'unversioned'}` }, existingSlot[0]?.id);
++      const captured = tx.select().from(payslip).where(eq(payslip.id, result.payslipId!)).get()!;
++      return {
++        status: plan.bookingId ? 'linked' : 'booked', reason: existingSlot[0] ? 'existing_payroll_source_attached' : 'unambiguous_source',
++        groupId: result.groupId ?? null, payslipId: result.payslipId!,
++        ...(captured.bookingId ? { bookingId: captured.bookingId } : {}),
++      };
++    });
++  } catch (error) {
++    if (error instanceof ConflictError || error instanceof BookingInvariantError || error instanceof EntityNotFoundError)
++      return review('current_state_needs_review');
++    throw error;
++  }
++}
+diff --git a/packages/domain/src/index.ts b/packages/domain/src/index.ts
+index 90e44344..cb400aa5 100644
+--- a/packages/domain/src/index.ts
++++ b/packages/domain/src/index.ts
+@@ -33,6 +33,7 @@ export * from './budget-year';
+ export * from './planned-events';
+ export * from './assignment-rules';
+ export * from './reports/payslip-intake';
++export * from './reports/payslip-automation';
+ 
+ export * from './report-range';
+ export * from './income-targets';
+diff --git a/packages/domain/src/reports/payslip-automation.ts b/packages/domain/src/reports/payslip-automation.ts
+new file mode 100644
+index 00000000..fbce2d11
+--- /dev/null
++++ b/packages/domain/src/reports/payslip-automation.ts
+@@ -0,0 +1,125 @@
++import { payrollTotals, payslipInput, type PayslipInput } from './payroll-projects';
++import { PAYSLIP_PARSER_VERSION, proposedPayslipPayoutDate, type ParsedPayrollDocument } from './payslip-intake';
++
++export type PayslipAutomationOutcome = {
++  status: 'booked' | 'linked' | 'pruefen' | 'unchanged';
++  reason: string;
++  groupId: string | null;
++  payslipId?: string;
++  bookingId?: string;
++};
++export type PayrollAutomaticBooking = {
++  id: string;
++  date: string;
++  amountCents: number;
++  currency: string;
++  payeeId: string | null;
++  transferId: string | null;
++  alreadyCaptured: boolean;
++  expectedOccurrenceIds: ReadonlyArray<string>;
++  splits: ReadonlyArray<{
++    amountCents: number;
++    incomeTypeId: string | null;
++    categoryId: string | null;
++    contactId: string | null;
++    transferId: string | null;
++  }>;
++};
++export type PayrollAutomaticExpectation = {
++  occurrenceId: string;
++  dueDate: string;
++  amountCents: number;
++  currency: string;
++  payeeId: string | null;
++  incomeTypeId: string | null;
++  status: string;
++  bookingId: string | null;
++  contactId: string | null;
++};
++export type PayrollAutomaticPlan =
++  | { eligible: false; reason: string }
++  | { eligible: true; payoutDate: string; bookingId: string | null; expectedOccurrenceId: string | null };
++
++/** Stricter than manual suggestions: never infer an employer or match by amount/date alone. */
++export function planPayslipAutomation(input: {
++  parsed: ParsedPayrollDocument;
++  payeeId: string;
++  salaryIncomeTypeId: string;
++  payrollIncomeTypeIds: ReadonlyArray<string>;
++  reimbursementIncomeTypeId: string;
++  openingDate: string;
++  bookings: ReadonlyArray<PayrollAutomaticBooking>;
++  expectations: ReadonlyArray<PayrollAutomaticExpectation>;
++}): PayrollAutomaticPlan {
++  const no = (reason: string): PayrollAutomaticPlan => ({ eligible: false, reason });
++  const p = input.parsed;
++  if (!p.draft || !['payslip', 'bonus'].includes(p.documentType) || p.parserVersion !== PAYSLIP_PARSER_VERSION || p.periodSource !== 'content' || p.warnings.length || p.unmappedWageTypes?.length ||
++      p.differenceCents === null || !Number.isSafeInteger(p.differenceCents) || Math.abs(p.differenceCents) > 1)
++    return no('document_needs_review');
++  // Validate the same signed rounding line used by the existing confirmation writer.
++  const difference = payrollTotals([p.draft]).calculatedNetCents - p.draft.netCents;
++  if (!Number.isSafeInteger(difference) || Math.abs(difference) > 1 || difference !== p.differenceCents)
++    return no('document_needs_review');
++  const checked = payslipInput.safeParse({ ...p.draft, lines: [
++    ...p.draft.lines,
++    ...(difference ? [{ section: 'deduction', label: 'Rundung (Summenprüfung)', amountCents: difference }] : []),
++  ] });
++  if (!checked.success || p.draft.netCents <= 0) return no('document_needs_review');
++  const totals = payrollTotals([p.draft]);
++  const salary = p.draft.netCents - totals.reimbursementsCents;
++  if (!Number.isSafeInteger(salary) || salary <= 0 || totals.reimbursementsCents < 0)
++    return no('document_needs_review');
++  const expectations = input.expectations.filter((e) =>
++    e.incomeTypeId === input.salaryIncomeTypeId && (e.payeeId === input.payeeId || e.payeeId === null));
++  if (expectations.length > 1) return no('expectation_ambiguous');
++  const expected = expectations[0];
++  if (expected && (expected.payeeId !== input.payeeId || expected.currency !== 'EUR' ||
++      expected.amountCents !== p.draft.netCents || expected.contactId ||
++      !['expected', 'received'].includes(expected.status))) return no('expectation_needs_review');
++  const printed = proposedPayslipPayoutDate(p);
++  const date = printed ?? expected?.dueDate;
++  const dateTime = date ? Date.parse(date + 'T00:00:00Z') : NaN;
++  if (!date || date < input.openingDate || !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
++      !Number.isFinite(dateTime) || new Date(dateTime).toISOString().slice(0, 10) !== date)
++    return no('payout_date_missing');
++  if (expected && expected.dueDate !== date) return no('expectation_date_conflict');
++  // Include any nearby payroll-like booking, even with missing/wrong sender, as a conflict.
++  const nearby = input.bookings.filter((b) => b.amountCents > 0 &&
++    Math.abs(Date.parse(b.date) - Date.parse(date)) <= 5 * 86400000 &&
++    (b.amountCents === p.draft!.netCents || b.payeeId === input.payeeId || b.splits.some((s) => input.payrollIncomeTypeIds.includes(s.incomeTypeId ?? ''))));
++  if (nearby.length > 1) return no('booking_ambiguous');
++  const existing = nearby[0];
++  if (existing) {
++    const splitTotal = (kind: string) => existing.splits.filter((s) => s.incomeTypeId === kind)
++      .reduce((sum, s) => sum + s.amountCents, 0);
++    if (existing.expectedOccurrenceIds.some((id) => id !== expected?.occurrenceId) ||
++        existing.date !== date || existing.currency !== 'EUR' || existing.payeeId !== input.payeeId ||
++        existing.amountCents !== p.draft.netCents || existing.transferId || existing.alreadyCaptured ||
++        existing.splits.some((s) => s.categoryId !== null || s.contactId || s.transferId || !Number.isSafeInteger(s.amountCents) ||
++          ![input.salaryIncomeTypeId, input.reimbursementIncomeTypeId].includes(s.incomeTypeId ?? '')) ||
++        splitTotal(input.salaryIncomeTypeId) !== salary ||
++        splitTotal(input.reimbursementIncomeTypeId) !== totals.reimbursementsCents)
++      return no('booking_needs_review');
++  }
++  if (expected?.bookingId && expected.bookingId !== existing?.id) return no('expectation_already_linked');
++  if (expected && !expected.bookingId && expected.status !== 'expected') return no('expectation_needs_review');
++  return { eligible: true, payoutDate: date, bookingId: existing?.id ?? null,
++    expectedOccurrenceId: expected && !expected.bookingId ? expected.occurrenceId : null };
++}
++
++/** Existing regular/special payroll identity, not PDF byte identity. */
++export function sameAutomaticPayrollSlot(a: PayslipInput, b: Pick<PayslipInput, 'month' | 'kind' | 'specialType' | 'grossCents'>) {
++  return a.month === b.month && a.kind === b.kind && a.specialType === b.specialType &&
++    (a.specialType !== 'other' || a.grossCents === b.grossCents);
++}
++
++
++/** Exact captured document values; never overwrite an amended/manual payroll record. */
++export function sameAutomaticPayrollRecord(a: PayslipInput, b: PayslipInput): boolean {
++  const fields = (p: PayslipInput) => ({
++    month: p.month, kind: p.kind, specialType: p.specialType,
++    grossCents: p.grossCents, svCents: p.svCents, taxCents: p.taxCents, netCents: p.netCents,
++    lines: p.lines.map(({ section, label, amountCents }) => ({ section, label, amountCents })),
++  });
++  return JSON.stringify(fields(a)) === JSON.stringify(fields(b));
++}
+diff --git a/packages/domain/src/reports/payslip-intake.ts b/packages/domain/src/reports/payslip-intake.ts
+index 3c022b9f..25127e78 100644
+--- a/packages/domain/src/reports/payslip-intake.ts
++++ b/packages/domain/src/reports/payslip-intake.ts
+@@ -23,6 +23,8 @@ export const wageTypes = [
+ ] as const;
+ export const payslipSourceConfig = z.strictObject({
+   salaryAccountId: z.string().min(1).max(64).nullable(),
++  /** Explicit owner mapping; absent preserves the original manual workflow. */
++  automation: z.strictObject({ payeeId: z.string().min(1).max(64) }).optional(),
+   wageTypes: z
+     .record(z.string().regex(/^\d{1,8}$/), z.enum(wageTypes))
+     .refine((v) => Object.keys(v).length <= 200),
