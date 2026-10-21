@@ -1715,13 +1715,22 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
   Root when `/tmp` had zero free bytes. Existing fixtures had reported failures;
   individual causes/aggregate results were not established. Source/compiled/process
   guards passed; no normal build ran. This is an aborted attempt, not a full pass.
-- [x] After capacity repair, required AGE1/two-worker full check passed 579 files /
+- [x] Before the later comparator-only follow-up, after capacity repair, required
+  AGE1/two-worker full check passed 579 files /
   5,176 tests (470.39s Vitest duration) on freeze `dea6bb3e` / base `9baa582f`,
-  followed by normal production build0. Only factual result notes changed after
-  this check; no later Main join is claimed as locally tested.
+  followed by normal production build0. Commit `438ace6c` retained that product
+  source with factual result notes; later assertion-only changes have a separate
+  checkpoint below. No later Main join is claimed as locally tested.
 - [x] Owner explicitly approved exactly one disclosure-opening click in each of
   the two existing financial E2E files; Root adopted both with all assertions intact.
 - [x] Execute the exact adapted band flow locally with three setup cases: 4/4
   first-pass, 36.331s reporter duration, reusing the unchanged 166-file E2E build.
+- [x] Owner separately approved exactly four full-buffer equality substitutions in
+  three existing financial-conservation test files; every byte and all other
+  assertions/timeouts remain checked. Targeted three files passed 20/20 tests
+  (7.609s command elapsed). Previous CI timeout causality remains unproven.
+- [ ] Subsequent exact-head AGE1/two-worker full/build evidence after that
+  assertion-only follow-up is recorded in PR #737 before merge. The earlier full
+  pass is not used as a pass of the changed assertions.
 - [ ] Exact-head Chromium CI must exercise the adapted inspector flow and band
   flow; review, merge and LIVE verification remain pending.

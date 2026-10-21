@@ -123,7 +123,7 @@ it('counts and paginates only the chosen account before slicing, even with equal
   expect(
     (await get(`?bankAccountId=${A}&fromDate=2026-10-20&limit=1`)).entries.map((entry) => entry.id),
   ).toEqual(['a-two']);
-  expect(opened.sqlite.serialize()).toEqual(before);
+  expect(opened.sqlite.serialize().equals(before)).toBe(true);
 });
 
 it('rejects malformed account UUIDs and leaves the absent-filter response and database unchanged', async () => {
@@ -147,5 +147,5 @@ it('rejects malformed account UUIDs and leaves the absent-filter response and da
     'orphan',
   ]);
   expect(await get('?limit=100')).toEqual(first);
-  expect(opened.sqlite.serialize()).toEqual(before);
+  expect(opened.sqlite.serialize().equals(before)).toBe(true);
 });

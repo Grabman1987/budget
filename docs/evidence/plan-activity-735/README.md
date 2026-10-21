@@ -42,12 +42,24 @@ write path. Empty descriptions have a nonempty accessible fallback.
   exact total/item sums, source metadata, privacy, scoped Axe and Back state.
   Separate cases cover a future booking origin and multi-month navigation.
   There were no skips, retries or flaky results; reads emitted no writes.
-- The required **AGE-enabled full check passed all 579 files / 5,176 tests**
+- Before the byte-comparison follow-up below, the required **AGE-enabled full
+  check passed all 579 files / 5,176 tests**
   (470.39s Vitest duration), with two workers and Node22, followed by a successful
   normal production build. It ran on source freeze `dea6bb3e` at base `9baa582f`;
-  only these factual result notes changed afterward. This is not validation of a
-  later Main join. Exact-head Chromium CI, merge and LIVE remain pending. Local
+  commit `438ace6c` retained that product source with only factual result notes
+  after the check. The later four-comparison follow-up has its own checkpoint
+  below. This is not validation of a later Main join. At this checkpoint,
+  exact-head Chromium CI, merge and LIVE were pending. Local
   WebKit does not establish a physical iPhone keyboard or OS picker result.
+- CI then reported four existing 5000ms test timeouts at complete SQLite Buffer
+  comparisons, also present on the separate category-picker branch. A prior
+  unchanged-test CPU profile measured costly generic Buffer equality; the exact
+  cause of each CI timeout was not established. The owner approved exactly four
+  native byte comparisons (details below). All three affected files passed
+  **20/20 tests** afterward (7.609s command elapsed), with their original timeouts
+  unchanged. Subsequent exact-head full/build/CI results are recorded in
+  [PR #737](https://github.com/Grabman1987/budget/pull/737); this page records the
+  targeted checkpoint and does not infer a new full pass from the earlier result.
 
 The first required full attempt passed workspace types, lint and formatting, then
 Root stopped it orderly after `/tmp` reached zero available bytes. Existing import
@@ -95,6 +107,18 @@ setup cases passed locally on the first attempt (4/4, 36.331s reporter duration)
 reusing the unchanged 166-file E2E build. The unchanged canonical WebKit
 configuration excludes `plan-inspector.spec.ts`; that adapted flow remains an
 exact-head Chromium CI gate. The local result is not a two-flow pass.
+
+For the separate equality-only follow-up, the owner approved “Ja, genau diese vier
+Bytevergleiche umstellen”. Root replaced four generic deep comparisons with
+`Buffer.equals` plus strict `toBe(true)`. The same complete before/after images,
+including length and every byte, are compared; there are no hashes, slices,
+excluded data, timeout changes or removed financial assertions.
+
+| Existing file                                                 | Approved byte-comparison change              | Retained coverage                                                                                 |
+| ------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `apps/server/src/api/inbox-bank-account-724.test.ts`          | Two complete serialized DB comparisons       | Account isolation, counts/pagination, invalid UUIDs and read conservation                         |
+| `apps/server/src/api/statement-settlement-727.test.ts`        | One complete serialized DB comparison        | Reviewed source, literal account balances and no writes                                           |
+| `apps/server/src/statements/settlement-integrity-727.test.ts` | One complete original SQLite file comparison | Through45/46 copy migration, rollback refusal, FK/integrity checks and original-file conservation |
 
 | Existing file                                | Authorized interaction change           | Retained coverage                                                                       |
 | -------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------- |
