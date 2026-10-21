@@ -733,9 +733,10 @@ function PlanBody({
             Envelopes im Monat
           </h2>
           <div className="plan-filterbar" aria-label="Kategorien filtern">
-            <label className="plan-category-search">
+            <label className="plan-category-search" htmlFor="plan-category-search">
               <span className="sr-only">Kategorie suchen</span>
               <TextInput
+                id="plan-category-search"
                 type="search"
                 placeholder="Kategorie suchen"
                 value={nameQuery}
