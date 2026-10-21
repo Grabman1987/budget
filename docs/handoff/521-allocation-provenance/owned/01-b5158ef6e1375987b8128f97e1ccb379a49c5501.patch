@@ -1,0 +1,228 @@
+diff --git a/apps/web/src/wealth/allocation-section.tsx b/apps/web/src/wealth/allocation-section.tsx
+index dc18c29fc8b4a9942386f48b777830d5b800523c..de5a4a2611bc1f6852e46ae55d760896a70c9996 100644
+--- a/apps/web/src/wealth/allocation-section.tsx
++++ b/apps/web/src/wealth/allocation-section.tsx
+@@ -1,11 +1,11 @@
+ import { ChartValue } from '@budget/ui';
+ import type { RebalanceProposal } from '@budget/domain';
+-import { Button } from '@budget/ui';
++import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
+ import { useQuery } from '@tanstack/react-query';
+ import { useNavigate } from '@tanstack/react-router';
+ import { CheckCircle2 } from 'lucide-react';
+ import { LoadingNote, ErrorNote } from '../ledger/states';
+-import { eurWhole } from '../ledger/format';
++import { eurWhole, longDay } from '../ledger/format';
+ import { allocationQuery, type PortfolioAllocationView } from './allocation-api';
+ import { chartPercent } from '../charts/tooltip-data';
+ import { percentText } from './portfolio-format';
+@@ -112,6 +112,7 @@ export function PortfolioAllocation() {
+                   % liegen.
+                 </p>
+               )}
++              <AllocationEvidence view={view} />
+             </details>
+             {view.quality.unclassifiedSecurityIds.length > 0 && (
+               <ul
+@@ -344,6 +345,93 @@ export function PortfolioAllocation() {
+     </>
+   );
+ }
++function AllocationEvidence({ view }: { view: PortfolioAllocationView }) {
++  useAmountPrivacy();
++  return (
++    <>
++      <p className="vnote">
++        <strong>Datengrundlage am {longDay(view.asOf)}</strong>. Der Stichtag ist nicht das
++        Aktualisierungsdatum aller Quellen. Datenqualität der gesamten Auswertung: Bewertung{' '}
++        {view.quality.valuationQuality === 'exact'
++          ? 'vollständig'
++          : view.quality.valuationQuality === 'estimated'
++            ? 'geschätzt oder veraltet'
++            : 'nicht vollständig verfügbar'}
++        , Klassifikation{' '}
++        {view.quality.classification === 'complete' ? 'vollständig' : 'unvollständig'}. Die
++        gespeicherte Vollständigkeit einer Exposure-Angabe ersetzt diese Prüfung nicht.
++      </p>
++      {view.exposureEvidence === undefined ? (
++        <p className="vnote">
++          Quelldetails nicht verfügbar. Die Datenqualität und Hinweise bleiben unverändert.
++        </p>
++      ) : view.exposureEvidence.length === 0 ? (
++        <p className="vnote">Keine gehaltenen Instrumente im ausgewählten Allokationsuniversum.</p>
++      ) : (
++        <ul className="allocation-quality-links" aria-label="Wirksame Exposure-Quellen">
++          {view.exposureEvidence.map((evidence) => (
++            <li key={evidence.securityId}>
++              <AppLink
++                className="allocation-security-link"
++                to="/einstellungen/anlageklassen"
++                search={{ panel: 'instrument', instrument: evidence.securityId }}
++                state={{ panelOpenedInApp: true }}
++              >
++                {maskMoneyText(view.names.securities[evidence.securityId] ?? 'Instrument')}
++              </AppLink>{' '}
++              {evidence.validFrom === null
++                ? 'Keine wirksame Exposure-Version hinterlegt.'
++                : `Wirksam ab ${longDay(evidence.validFrom)} · Quelle: ${maskMoneyText(evidence.source ?? 'nicht hinterlegt')}.`}{' '}
++              Gespeicherte Exposure-Angabe:{' '}
++              {evidence.storedComplete === null
++                ? 'Vollständigkeit nicht hinterlegt'
++                : evidence.storedComplete
++                  ? 'vollständig'
++                  : 'unvollständig'}.
++            </li>
++          ))}
++        </ul>
++      )}
++      <p className="vnote">
++        {view.policy.targetValidFrom === null
++          ? 'Keine wirksame Sollversion hinterlegt.'
++          : `Sollversion: ${maskMoneyText(view.policy.targetLabel || 'ohne Bezeichnung')} · wirksam ab ${longDay(view.policy.targetValidFrom)}.`}{' '}
++        {view.policy.tierIndex === null
++          ? 'Keine aktive Vermögensstufe ausgewiesen.'
++          : `Aktive Vermögensstufe ${view.policy.tierIndex + 1}${view.policy.wealthStage?.label ? ` · ${maskMoneyText(view.policy.wealthStage.label)}` : ''}.`}
++      </p>
++      <ul className="allocation-quality-links" aria-label="Wirksame Sollquoten und Bänder">
++        {view.classes.map((cls) => {
++          const mode = view.policy.targets.find((target) => target.assetClass === cls.id)?.bandMode;
++          return (
++            <li key={cls.id}>
++              {maskMoneyText(cls.name)}:{' '}
++              {cls.targetBp === null ? 'unverwaltet, kein Soll festgelegt' : (
++                <>
++                  Soll {percentText(cls.targetBp)} ·{' '}
++                  {cls.bandBp === null
++                    ? 'Band nicht ermittelbar'
++                    : `wirksames Band ±${percentText(cls.bandBp)}`}{' '}
++                  ·{' '}
++                  {mode === 'custom'
++                    ? 'eigenes Band'
++                    : mode === 'standard'
++                      ? 'Standardband laut Regelwerk'
++                      : 'Bandmodus nicht gesondert gespeichert'}
++                </>
++              )}.
++            </li>
++          );
++        })}
++      </ul>
++      <p className="vnote">
++        Kontoauswahl, Anlage-Kassa-Zuordnung und Risikoparameter sind aktuelle Einstellungen ohne
++        eigenen historischen Gültigkeitsverlauf. Anlage-Kassa erhält keine erfundene Exposure-Version.
++      </p>
++    </>
++  );
++}
++
+ function proposalText(proposal: RebalanceProposal, view: PortfolioAllocationView) {
+   const name = proposal.assetClass
+     ? (view.classes.find((cls) => cls.id === proposal.assetClass)?.name ?? 'Anlageklasse')
+diff --git a/apps/web/src/wealth/networth-page.tsx b/apps/web/src/wealth/networth-page.tsx
+index 6f2579fcd6341f07e4dbd8c4a0ad4ea04082d5f6..739ad5378a17b0401ea16c9d9ada7ffce2b9cb22 100644
+--- a/apps/web/src/wealth/networth-page.tsx
++++ b/apps/web/src/wealth/networth-page.tsx
+@@ -101,8 +101,8 @@ function Course({ view }: { view: NetWorthView }) {
+         label="Maßkette Nettovermögen im Zeitraum"
+       />
+       <p className="vnote">
+-        Gespart = was du eingezahlt hast (Einnahmen minus Ausgaben). Markt = alles andere: Kurse,
+-        Zinsen, Bewertungen.
++        Gespart = Einnahmen minus Konsum plus reguläre Tilgung. Markt zeigt die Wertänderung der
++        Wertpapiere ohne Käufe und Verkäufe. Anfang + Gespart + Markt = Jetzt.
+       </p>
+     </section>
+   );
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index bce73e3781b58202c6613961c262d8e1bdb630a0..2b735c90e52c7293ae015b618a332bd11f730819 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1817,3 +1817,14 @@ explicit reanalysis/review. Upload and reanalysis never post money.
+ - Added a URL-selected balance, history or whole-picture view under the existing Vermögen und Schulden route. Only the active original report mounts; its financial reader/body, valuation quality and unavailable states,≈marks, source links, period controls, detail tables and CSV behavior remain unchanged. Old direct report routes remain available until #620.
+ - View changes preserve the actual current period and selected month/search context. The original differing defaults (balanceAlles, historyYTD, whole-picture1J) are materialized only when switching views without a valid explicit period; no mount rewrite or financial/date formula changes. The existing scoped view selector provides labelled wrapping and coarse/phone44px controls.
+ - Validation is deferred by the owner’s implementation-first batching instruction: independent fixed-date legacy/new-view cent equivalence; exact period/default and selected-month identity on switching/refresh/BackForward; existing estimated/unknown valuation provenance,≈coverage, unavailable states, CSV and source drilldowns; privacy, keyboard/Axe,44px/390px/light-dark layouts and required full/native/CI/live gates. No tests were added or changed, and no acceptance criterion is marked verified.
++
++
++### #521 — Effective allocation evidence (source implemented; validation deferred)
++
++- Added optional read-only exposure provenance from the same effective exposure map and selected held-security universe, including missing-price/FX positions. Missing metadata remains distinct from stored incomplete exposure; existing allocation, target/tier/band and quality calculations are unchanged.
++- Extended the existing allocation disclosure with effective source/date/completeness and the supplied target basis. Stored exposure completeness is explicitly separate from effective classification/valuation quality; unavailable details never upgrade guidance. This implements the missing AC-010-02 behavior in source, without claiming acceptance of the seven ACs.
++- Validation is deferred under the owner's implementation-first batching instruction: scoped/deduplicated provenance, dated version/null/false cases, literal same-date allocation/report agreement, signed cash and quality suppression, read-only/Undo correspondence, privacy/keyboard/44px/Axe and required checks/CI/live. Existing tests were not edited or executed.
++
++### #524 / #549 — Net-worth explanation correction (source-only partial progress)
++
++- Corrected the existing Gespart explanation to the approved Einnahmen minus Konsum plus regular principal repayment wording and the existing Anfang + Gespart + Markt = Jetzt chain. No producer math changed; validation remains deferred. This does not complete #524, grouped composition #550 or composition history #551, and does not decide their unanswered share denominator/debt-share policy.
+diff --git a/packages/db/src/repos/allocation-inputs.ts b/packages/db/src/repos/allocation-inputs.ts
+index e31c7e5d561599c478f4eeaa7d5ca73d0b50ceb1..7b2284bc49d8fb7557f1bbd3dd9edab250a7f16d 100644
+--- a/packages/db/src/repos/allocation-inputs.ts
++++ b/packages/db/src/repos/allocation-inputs.ts
+@@ -21,6 +21,14 @@ export interface AllocationSecurity {
+   held: boolean;
+ }
+ 
++/** Stored provenance of the effective exposure, not the current valuation/classification quality. */
++export interface AllocationExposureEvidence {
++  securityId: string;
++  validFrom: string | null;
++  source: string | null;
++  storedComplete: boolean | null;
++}
++
+ /** Current dated assignments, including products that have never been bought. */
+ export function allocationSecuritiesAsOf(db: Executor, asOf: string) {
+   const exposures = exposuresAsOf(db, asOf);
+@@ -188,10 +196,26 @@ export function allocationInputsAsOf(db: Executor, asOf: string) {
+     missingFxSecurityIds: valuation.missingFxPositions.filter(included).map((h) => h.securityId),
+     missingFxAccountIds,
+   });
++  const heldSecurityIds = new Set([
++    ...values.map((position) => position.securityId),
++    ...unavailable.flatMap((position) => (position.securityId ? [position.securityId] : [])),
++  ]);
++  const exposureEvidence: AllocationExposureEvidence[] = [...heldSecurityIds]
++    .sort()
++    .map((securityId) => {
++      const exposure = exposures.get(securityId);
++      return {
++        securityId,
++        validFrom: exposure?.validFrom ?? null,
++        source: exposure?.source ?? null,
++        storedComplete: exposure?.complete ?? null,
++      };
++    });
+   return {
+     positions,
+     quality,
+     unavailable,
++    exposureEvidence,
+     valueCents:
+       quality.valuationQuality === 'incomplete'
+         ? null
+diff --git a/packages/db/src/repos/portfolio-allocation.ts b/packages/db/src/repos/portfolio-allocation.ts
+index 267e968cfdc0a4ec00fee384868ef1a7a038718f..4d7723834696ab228b709e55cad04f93c70c62ed 100644
+--- a/packages/db/src/repos/portfolio-allocation.ts
++++ b/packages/db/src/repos/portfolio-allocation.ts
+@@ -3,6 +3,7 @@ import {
+   allocationInputsAsOf,
+   allocationSecuritiesAsOf,
+   type AllocationSecurity,
++  type AllocationExposureEvidence,
+ } from './allocation-inputs';
+ import type { AllocationQuality } from '@budget/domain';
+ import { resolvedBandBp } from '@budget/domain';
+@@ -18,6 +19,7 @@ export interface PortfolioAllocationView {
+   valuationQuality: AllocationQuality['valuationQuality'];
+   quality: AllocationQuality;
+   universe: { accountIds: string[]; securityIds: string[] };
++  exposureEvidence?: AllocationExposureEvidence[];
+   valueCents: number | null;
+   status: 'known' | 'empty' | 'unavailable' | 'nonpositive';
+   missing: ('missing_price' | 'missing_fx')[];
+@@ -68,6 +70,7 @@ export function portfolioAllocation(db: Executor, asOf: string): PortfolioAlloca
+     valuationQuality: current.quality.valuationQuality,
+     quality: current.quality,
+     universe: current.universe,
++    exposureEvidence: current.exposureEvidence,
+     valueCents: current.valueCents,
+     status,
+     missing,

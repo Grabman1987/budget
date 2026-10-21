@@ -1,0 +1,32 @@
+[
+  {
+    "path": "docs/handoff/521-allocation-provenance/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/521-allocation-provenance/README.md",
+    "size": 478,
+    "sha256": "ac6e3bc4f2341037656b07e79a27a284aa89d6795e354f75ebab361812cc8ebc"
+  },
+  {
+    "path": "docs/handoff/521-allocation-provenance/owned/01-b5158ef6e1375987b8128f97e1ccb379a49c5501.patch",
+    "size": 12825,
+    "sha256": "f26b43df2ddc3f69861e5cb2c75c87a8b819af33951fda0edba9b7c2ec6b975f"
+  },
+  {
+    "path": "docs/handoff/521-allocation-provenance/packet.json",
+    "size": 1507,
+    "sha256": "67d26fb29d940139d8543c9cbdbd37cad0c7a3f620e7a6bb229fd4218d7ddb12"
+  },
+  {
+    "path": "docs/handoff/521-allocation-provenance/reviews/521-whole-five-effective-provenance-independent-correspondence.json",
+    "size": 1254,
+    "sha256": "25f75d2424b99b76bb5bc0f3d9db4c5c886fd94e5415e2ad2c7aca866eda91f3"
+  },
+  {
+    "path": "docs/handoff/521-allocation-provenance/reviews/521-whole-five-effective-provenance-independent-source-high.md",
+    "size": 2821,
+    "sha256": "821e6827a857a68c54148920e2871330892bb7f2fd2f55dbaea47936b97e50e1"
+  }
+]

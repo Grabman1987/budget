@@ -1,0 +1,35 @@
+{
+  "verdict": "HIGH CLEAR \u2014 source only",
+  "manifestSha256": "3083044503d1a20633bd98f5c501abd8253c74176a766b99793a20aa27aa9ab3",
+  "basis": "211291473f2848eb9a17116908aa86d399b2d3d2",
+  "paths": {
+    "apps/web/src/wealth/allocation-section.tsx": {
+      "sha256": "d4fb495bc46d8d57a71e866f595265951f27dad37f9b44d8399131ef7b208115",
+      "mode": 384,
+      "bytes": 22179
+    },
+    "apps/web/src/wealth/networth-page.tsx": {
+      "sha256": "a73b6e3a78d69334a286f9bcfac0d46835f02fd3672b7bfc55371982d0277ba0",
+      "mode": 384,
+      "bytes": 5460
+    },
+    "docs/ROADMAP.md": {
+      "sha256": "e14cce941d9e521397e5078e44b384c43ad2be9cc703990439e4299fd0109d9a",
+      "mode": 384,
+      "bytes": 243140
+    },
+    "packages/db/src/repos/allocation-inputs.ts": {
+      "sha256": "cefaaa44ccd9d585a748ad604b7f6b2d21c5cc8181bb72accaf4ab387f4dbad0",
+      "mode": 384,
+      "bytes": 8430
+    },
+    "packages/db/src/repos/portfolio-allocation.ts": {
+      "sha256": "5b92b779e349d5d6eac5f6787e678bcc867dbaaba138c5901c6747351d0c665a",
+      "mode": 384,
+      "bytes": 3598
+    }
+  },
+  "incomingRoadmapPrefixBytes": 241538,
+  "projectRuntimeExecuted": false,
+  "reportSha256": "821e6827a857a68c54148920e2871330892bb7f2fd2f55dbaea47936b97e50e1"
+}

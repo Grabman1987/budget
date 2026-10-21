@@ -1,0 +1,33 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/521-allocation-provenance",
+  "sourceHead": "b5158ef6e1375987b8128f97e1ccb379a49c5501",
+  "originalBaseBeforeOwnedCommits": "211291473f2848eb9a17116908aa86d399b2d3d2",
+  "orderedCommits": [
+    {
+      "sha": "b5158ef6e1375987b8128f97e1ccb379a49c5501",
+      "parentBase": "211291473f2848eb9a17116908aa86d399b2d3d2",
+      "subject": "feat: explain effective allocation provenance (#521)",
+      "paths": [
+        "apps/web/src/wealth/allocation-section.tsx",
+        "apps/web/src/wealth/networth-page.tsx",
+        "docs/ROADMAP.md",
+        "packages/db/src/repos/allocation-inputs.ts",
+        "packages/db/src/repos/portfolio-allocation.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout b5158ef6e1375987b8128f97e1ccb379a49c5501 > OWN_OUTPUT/b5158ef6e1375987b8128f97e1ccb379a49c5501.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-b5158ef6e1375987b8128f97e1ccb379a49c5501.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/web/src/wealth/allocation-section.tsx",
+    "apps/web/src/wealth/networth-page.tsx",
+    "docs/ROADMAP.md",
+    "packages/db/src/repos/allocation-inputs.ts",
+    "packages/db/src/repos/portfolio-allocation.ts"
+  ],
+  "mixedSourceAncestry": true,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}
