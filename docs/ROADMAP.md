@@ -1822,3 +1822,15 @@ Custom Pivot and the four fixed templates now offer a local Tabelle/Diagramm tog
 Actual local verification: NEW3 unit files 41/41 (7.54s) plus types/lint/CSS/format; clean Main-e020 inheritance at 37e85f52; fresh E2E build and genuine canonical WebKit 33/33 (30 feature +3 setup, 4.9m), all three profiles/both themes. Strict original financial/source/CSV/read-only, 44px/Axe/overflow and native scroll-memory checks passed. Earlier selector failures and 29/4 scroll-memory failure remain archived. See [safe results and original viewport captures](evidence/explorer-chart-626/README.md), including FAB/tabbar/sticky-header framing and raw-touch0/DPR limits.
 
 Required aggregate run 25727 passed 547 files / 4,889 tests (419.87s) with AGE1 / Node22 / two workers; normal production build and all source/process/lock guards exited 0 at source37e85f52 + reviewed 25-path evidence freeze59bf40d3. Only this factual two-document result update follows; native JSON / 12 PNGs and source10 remain unchanged. Exact Chromium/GitHub CI and live delivery remain pending.
+
+Continuation: reviewed pointer/scroll-end test mechanics passed the full AGE check (592 files / 5,254 tests) and production build on `445c03e3`; the final mobile-project regression passed 33/33. CI `39660649882` on `38c8c430` passed 20 jobs and found the separate savings-navigation defect. Main `fb7490d3` now supplies its independently reviewed, CI-green and live #747 repair unchanged. Both ROADMAP append sections were retained. Required CI on the updated #719 head and its own serial live delivery remain pending.
+
+## #747 — Today savings action opens the task segment
+
+- [x] Identify the contextual-navigation defect: the generic inbox auto-selects movements while savings execution proposals belong to tasks.
+- [x] With one open movement and one savings proposal, the Today action opens `teil=aufgaben` and the matching confirmation dialog. Opening it creates no trade and preserves the literal account balances.
+- [x] Preserve and pass the existing portfolio execution, financial, Undo and Redo regression checks without modifying their expectations. New regression plus unchanged portfolio tests: system Chromium desktop/mobile 17/17 passed (including setup, 1.2 min). Before the one-line fix, the new desktop regression failed on the bare inbox URL and showed Umsätze selected; its trace was retained.
+- [x] Independent Codex full-diff review: no findings; existing tests, financial writers, locks, audit and Undo unchanged.
+- [x] Required full AGE-enabled check: typecheck, lint/format and 589 files / 5,213 tests passed (386.97 s Vitest); normal production build passed. Supplemental system Chromium is not canonical visual or WebKit evidence.
+- [x] Exact-head canonical CI `39664783674` passed.
+- [x] Protected serial merge PR #748 is LIVE at `fb7490d3bb2855d618df89625f5166f4cf24ae13`: Main CI `39666973044` and deployment `39667052323` succeeded. Owner local CLI reported fresh matching health on 2026-10-21 at 22:06 Europe/Vienna; cloud coordinator independently verified GitHub evidence. #747 closed; board reconciliation remains pending without board access.
