@@ -1,0 +1,57 @@
+[
+  {
+    "path": "docs/handoff/archive-cloud-review-receipt-698/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-receipt-698/README.md",
+    "size": 498,
+    "sha256": "ab558feeb8bbed2bc06f888bde6419aa4bda690b1955263351e035a6932fdac8"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-receipt-698/preservation.json",
+    "size": 969,
+    "sha256": "b101c6174bc383a8e3c9d4a1979c409c3574bd83c65f79e8c35572402e7b12b8"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-receipt-698/tracked-head.patch",
+    "size": 13259,
+    "sha256": "8edd689a6bf8891073861aeda7ae31c9171daa445f592ce39151201da67d6268"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-receipt-698/untracked/apps/server/src/api/explorer-csv-627.test.ts",
+    "size": 8963,
+    "sha256": "360deaf7b5e3792c3bdc813afb771a9e32db16caccb32927b4fbdee1370451f5"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-receipt-698/untracked/apps/web/src/reports/explorer-csv-627.test.ts",
+    "size": 4508,
+    "sha256": "fb515662f71e09121323d827000b415039f6aaf76f9092e537cd037000aba1d4"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-receipt-698/untracked/apps/web/src/reports/explorer-csv-ui-627.test.tsx",
+    "size": 8089,
+    "sha256": "f04d451fa96a3f1e27a5b3e20852a84682bb48af95b6844b0b0d09f4e43a483f"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-receipt-698/untracked/docs/evidence/reference-adoption/wp-009-explorer-csv-627.md",
+    "size": 6414,
+    "sha256": "51666a78299e8374d15745010f7d42195b9a00806bfcd6e883dab47a4cdffc7e"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-receipt-698/untracked/e2e/issue-627-explorer-csv.spec.ts",
+    "size": 6937,
+    "sha256": "880b855de7266d083e992004a8e5c79d4dd04f09f8679207e343ce5b33ea15af"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-receipt-698/untracked/packages/domain/src/overview/explorer-csv-627.test.ts",
+    "size": 4867,
+    "sha256": "4ec1d3f570ff51a66b7fd55cabddfd94a0a3122225c8aa50ea9407481fdffbf7"
+  },
+  {
+    "path": "docs/handoff/archive-cloud-review-receipt-698/untracked/packages/domain/src/overview/explorer-csv.ts",
+    "size": 3138,
+    "sha256": "2f9a594cc4cfad39f562cf20d073814c912816d12297ea32ab944ac8a147119c"
+  }
+]

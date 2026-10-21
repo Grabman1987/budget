@@ -1,0 +1,23 @@
+{
+  "state": "ARCHIVED REVIEW / ALREADY DELIVERED \u2014 NOT NEW IMPLEMENTATION",
+  "worktree": "/workspace/cloud-review-receipt-698",
+  "head": "74abab012ee0d99f8a846fd7317f59272759a52f",
+  "historicalContext": "Dirty paths implement #627 CSV, delivered PR709; directory label698 is misleading.",
+  "trackedPaths": [
+    "apps/server/src/api/overview-reports.ts",
+    "apps/web/src/reports/explorer-report.tsx",
+    "apps/web/src/reports/overview-api.ts",
+    "docs/ROADMAP.md",
+    "packages/domain/src/overview/index.ts"
+  ],
+  "untrackedPaths": [
+    "apps/server/src/api/explorer-csv-627.test.ts",
+    "apps/web/src/reports/explorer-csv-627.test.ts",
+    "apps/web/src/reports/explorer-csv-ui-627.test.tsx",
+    "docs/evidence/reference-adoption/wp-009-explorer-csv-627.md",
+    "e2e/issue-627-explorer-csv.spec.ts",
+    "packages/domain/src/overview/explorer-csv-627.test.ts",
+    "packages/domain/src/overview/explorer-csv.ts"
+  ],
+  "originalsMutated": false
+}

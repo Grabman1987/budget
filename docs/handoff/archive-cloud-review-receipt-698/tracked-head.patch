@@ -1,0 +1,303 @@
+diff --git a/apps/server/src/api/overview-reports.ts b/apps/server/src/api/overview-reports.ts
+index 988dc7059e15d2e591ef8c974746a5a9dfcaf745..39e4087c543d8f1ac3fce88bd3d46a6833da0a21 100644
+--- a/apps/server/src/api/overview-reports.ts
++++ b/apps/server/src/api/overview-reports.ts
+@@ -12,6 +12,7 @@ import {
+   EXPLORER_COLS,
+   EXPLORER_DIMS,
+   EXPLORER_MEASURES,
++  explorerCsv,
+   overviewRefMonth,
+   type CompareMode,
+   type ExplorerQuery,
+@@ -63,5 +64,19 @@ export function overviewReportRoutes(db: Db, today: () => string): Hono {
+     return c.json(explorerReport(db, query, today()));
+   });
+ 
++  app.get('/explorer.csv', (c) => {
++    const query = readQuery(c, explorerQuery.strict()) as ExplorerQuery;
++    const day = today();
++    checkedReportPeriod(query.period, day);
++    const { result } = explorerReport(db, query, day);
++    const first = result.months[0] ?? 'empty';
++    const last = result.months.at(-1) ?? 'empty';
++    return c.body(explorerCsv(result), 200, {
++      'Content-Type': 'text/csv; charset=utf-8',
++      'Content-Disposition': `attachment; filename="explorer-${first}-${last}.csv"`,
++      'Cache-Control': 'no-store',
++    });
++  });
++
+   return app;
+ }
+diff --git a/apps/web/src/reports/explorer-report.tsx b/apps/web/src/reports/explorer-report.tsx
+index a3155d6378e7401246313504dfc63ec2803d9761..f49b7a6d73109553dcfd93f7f1c6dca935ae9ae3 100644
+--- a/apps/web/src/reports/explorer-report.tsx
++++ b/apps/web/src/reports/explorer-report.tsx
+@@ -18,14 +18,14 @@ import {
+   DEFAULT_EXPLORER_QUERY,
+   lastDayOfMonth,
+   overviewHeat,
+-  type ExplorerColumn,
++  explorerTableHeaders,
+   type ExplorerQuery,
+   type ExplorerResult,
+   type PersistedExplorerView,
+ } from '@budget/domain';
+ import { keepPreviousData, useQuery } from '@tanstack/react-query';
+-import { Bookmark, Pencil, X } from 'lucide-react';
+-import { useState, type CSSProperties, type FormEvent } from 'react';
++import { Bookmark, Download, Pencil, X } from 'lucide-react';
++import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+ import { ErrorNote, LoadingNote } from '../ledger/states';
+ import type { PageMeta } from '../nav/pages';
+ import type { ReportEntry } from '../nav/reports-catalog';
+@@ -33,7 +33,7 @@ import { PageFrame } from '../pages/placeholder-page';
+ import { AppLink } from '../shell/app-link';
+ import { sameQuery } from './explorer-views';
+ import { useExplorerViews } from './use-explorer-views';
+-import { explorerQuery } from './overview-api';
++import { EXPLORER_CSV_CHANGED_MESSAGE, explorerQuery, fetchExplorerCsv } from './overview-api';
+ import { euroCellText, monthLong, monthShortYear, wholeText } from './overview-format';
+ import './overview-reports.css';
+ import './explorer-report.css';
+@@ -41,21 +41,6 @@ import './explorer-report.css';
+ const label = <T extends ReadonlyArray<{ id: string; label: string }>>(list: T, id: string) =>
+   list.find((x) => x.id === id)?.label ?? id;
+ 
+-const columnLabel = (column: ExplorerColumn, cols: ExplorerQuery['cols']) => {
+-  switch (cols) {
+-    case 'monat':
+-      return monthShortYear(column.key);
+-    case 'quartal': {
+-      const [year = '', q = ''] = column.key.split('-');
+-      return `${q} ${year.slice(2)}`;
+-    }
+-    case 'jahr':
+-      return column.key;
+-    case 'keine':
+-      return 'Zeitraum';
+-  }
+-};
+-
+ const periodName = (months: string[]) =>
+   months.length === 0
+     ? 'kein Zeitraum'
+@@ -74,6 +59,56 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+   const [replace, setReplace] = useState<PersistedExplorerView>();
+   const result = useQuery({ ...explorerQuery(query), placeholderData: keepPreviousData });
+   const data = result.data;
++  const [exporting, setExporting] = useState(false);
++  const [exportError, setExportError] = useState<string>();
++  const exportReady = Boolean(
++    data &&
++    !result.isPending &&
++    !result.isFetching &&
++    !result.isPlaceholderData &&
++    !result.isError &&
++    sameQuery(query, data.result.query),
++  );
++  const latest = useRef({ query, result: data?.result, ready: exportReady });
++  useEffect(() => {
++    latest.current = { query, result: data?.result, ready: exportReady };
++  }, [query, data, exportReady]);
++  const download = async () => {
++    const snapshot = data?.result;
++    if (!snapshot || !exportReady || exporting) return;
++    setExporting(true);
++    setExportError(undefined);
++    try {
++      const { blob, filename } = await fetchExplorerCsv(snapshot);
++      const current = latest.current;
++      if (
++        !current.ready ||
++        current.result !== snapshot ||
++        !sameQuery(current.query, snapshot.query)
++      )
++        throw new Error(EXPLORER_CSV_CHANGED_MESSAGE);
++      const url = URL.createObjectURL(blob);
++      const link = document.createElement('a');
++      try {
++        link.href = url;
++        link.download = filename;
++        link.hidden = true;
++        document.body.append(link);
++        link.click();
++      } finally {
++        link.remove();
++        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
++      }
++    } catch (error) {
++      setExportError(
++        error instanceof Error && error.message === EXPLORER_CSV_CHANGED_MESSAGE
++          ? EXPLORER_CSV_CHANGED_MESSAGE
++          : 'Der CSV-Export ist fehlgeschlagen. Bitte versuche es erneut.',
++      );
++    } finally {
++      setExporting(false);
++    }
++  };
+   const set = <K extends keyof ExplorerQuery>(key: K, value: ExplorerQuery[K]) =>
+     setQuery((q) => ({ ...q, [key]: value }));
+ 
+@@ -361,7 +396,22 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+           <ErrorNote what="Explorer" error={result.error} onRetry={() => void result.refetch()} />
+         )}
+         {data && (
+-          <Pivot result={data.result} firstMonth={data.firstMonth} fetching={result.isFetching} />
++          <Pivot
++            result={data.result}
++            firstMonth={data.firstMonth}
++            fetching={result.isFetching}
++            onExport={() => void download()}
++            exportDisabled={!exportReady || exporting}
++            exporting={exporting}
++          />
++        )}
++        {exportError && (
++          <p className="ov-note" role="alert">
++            {exportError}{' '}
++            <Button variant="ghost" onClick={() => void result.refetch()}>
++              Auswertung neu laden
++            </Button>
++          </p>
+         )}
+       </div>
+     </PageFrame>
+@@ -372,13 +422,20 @@ function Pivot({
+   result,
+   firstMonth,
+   fetching,
++  onExport,
++  exportDisabled,
++  exporting,
+ }: {
+   result: ExplorerResult;
+   firstMonth: string | null;
+   fetching: boolean;
++  onExport: () => void;
++  exportDisabled: boolean;
++  exporting: boolean;
+ }) {
+   useAmountPrivacy();
+   const { query, columns, rows, totals } = result;
++  const headers = explorerTableHeaders(result);
+   const fmt = (value: number) => (result.unit === 'count' ? wholeText(value) : euroCellText(value));
+   const first = result.months[0];
+   const last = result.months[result.months.length - 1];
+@@ -403,6 +460,15 @@ function Pivot({
+             {rows.length} {rows.length === 1 ? 'Zeile' : 'Zeilen'}
+           </span>
+         </span>
++        <Button
++          variant="ghost"
++          style={{ minHeight: 'var(--touch)' }}
++          disabled={exportDisabled}
++          onClick={onExport}
++        >
++          <Download size={15} strokeWidth={1.75} aria-hidden="true" />
++          {exporting ? 'CSV wird geprüft …' : 'CSV exportieren'}
++        </Button>
+       </div>
+       {rows.length === 0 ? (
+         <p className="ov-empty" role="status">
+@@ -421,15 +487,13 @@ function Pivot({
+           <table className="ov-table ex-table" data-testid="ex-table">
+             <thead>
+               <tr>
+-                <th className="tech ex-first">{label(EXPLORER_DIMS, query.dim)}</th>
+-                {columns.map((c) => (
++                <th className="tech ex-first">{headers[0]}</th>
++                {columns.map((c, i) => (
+                   <th key={c.key} className="tech n">
+-                    {columnLabel(c, query.cols)}
++                    {headers[i + 1]}
+                   </th>
+                 ))}
+-                {columns.length > 1 && (
+-                  <th className="tech n">{query.meas === 'avg' ? 'Ø' : 'Gesamt'}</th>
+-                )}
++                {columns.length > 1 && <th className="tech n">{headers.at(-1)}</th>}
+               </tr>
+             </thead>
+             <tbody>
+diff --git a/apps/web/src/reports/overview-api.ts b/apps/web/src/reports/overview-api.ts
+index d781df13a14c1c8a8482ccbd8fbaf944451e7408..1417ffbd91868c101821076ad620d7536b715a2a 100644
+--- a/apps/web/src/reports/overview-api.ts
++++ b/apps/web/src/reports/overview-api.ts
+@@ -3,10 +3,15 @@ import type {
+   PeriodComparisonReport,
+   YearReportRead as YearReportData,
+ } from '@budget/db';
+-import type { CompareMode, ExplorerQuery } from '@budget/domain';
++import {
++  explorerCsv,
++  type CompareMode,
++  type ExplorerQuery,
++  type ExplorerResult,
++} from '@budget/domain';
+ import { queryOptions, useQueryClient } from '@tanstack/react-query';
+ import { useEffect, useRef } from 'react';
+-import { request } from '../api/http';
++import { ApiError, request } from '../api/http';
+ import { LEDGER_KEY } from '../ledger/queries';
+ import type { WithValuationNotes } from '../ledger/valuation-hint';
+ import { evaluateRules } from '../rules/api';
+@@ -66,3 +71,32 @@ export const explorerQuery = (query: ExplorerQuery) =>
+         `/api/overview/explorer?${new URLSearchParams(query as unknown as Record<string, string>)}`,
+       ),
+   });
++
++export const EXPLORER_CSV_CHANGED_MESSAGE =
++  'Die Daten haben sich geändert. Bitte lade die Auswertung neu und exportiere erneut.';
++
++/** Recompute on the server, then fail closed if it no longer equals the displayed pivot. */
++export async function fetchExplorerCsv(
++  result: ExplorerResult,
++): Promise<{ blob: Blob; filename: string }> {
++  const expected = explorerCsv(result);
++  const response = await fetch(
++    `/api/overview/explorer.csv?${new URLSearchParams(result.query as unknown as Record<string, string>)}`,
++    { credentials: 'same-origin' },
++  );
++  if (!response.ok) throw new ApiError(response.status, 'export_failed');
++  if (!/^text\/csv(?:;|$)/i.test(response.headers.get('content-type') ?? ''))
++    throw new Error('Invalid CSV response');
++  const filename = response.headers
++    .get('content-disposition')
++    ?.match(
++      /^attachment; filename="(explorer-(?:\d{4}-\d{2}|empty)-(?:\d{4}-\d{2}|empty)\.csv)"$/,
++    )?.[1];
++  const displayedFilename = `explorer-${result.months[0] ?? 'empty'}-${result.months.at(-1) ?? 'empty'}.csv`;
++  if (filename !== displayedFilename) throw new Error(EXPLORER_CSV_CHANGED_MESSAGE);
++  const bytes = await response.arrayBuffer();
++  // Response.text()/Blob.text() strip a UTF-8 BOM. Keep it for exact projection comparison.
++  const actual = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
++  if (actual !== expected) throw new Error(EXPLORER_CSV_CHANGED_MESSAGE);
++  return { blob: new Blob([bytes], { type: 'text/csv;charset=utf-8' }), filename };
++}
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index 849dc93d04dbd6dd5854604294f47ac42578657e..a5646a6d448ec7eb936a6ddb545a06d30bf4186d 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1,5 +1,11 @@
+ # Roadmap
+ 
++### #627 — CSV of the validated current Explorer table (2026-10-19)
++
++- [x] Add a read-only authenticated filtered CSV using the existing validated pivot, raw integer units, supplied footer/truncation metadata, safe text encoding and explicit empty marker. Compare the server recomputation with the displayed result before creating a file; changed data retains the view and offers reload.
++- [x] Literal projection/API/client/DOM checks and unchanged report/export neighbors pass seven files / 55 tests; the later identical-body relative-period fix passes three affected files / 17 tests. Download filenames identify the validated effective window. Existing tests and financial write paths remain unchanged ([evidence](evidence/reference-adoption/wp-009-explorer-csv-627.md)).
++- [ ] Complete independent HIGH review, required full check/build, actual desktop/phone browser and visual evidence, exact-head CI and serial live verification. Templates, charts, hub integration and full export remain separate; do not close #627 or its parent from focused checks.
++
+ ### #615 — shared Freiheit / R16 investment basis (2026-10-19)
+ 
+ - [x] Current and historical Freiheit, R16 and Allokation use the same selected Anlagebasis; the page explains retrospective current membership. Existing R16 formulas, source money, locks and undo remain unchanged.
+diff --git a/packages/domain/src/overview/index.ts b/packages/domain/src/overview/index.ts
+index 2601ec56498442f12588f263c8a4f116ea2078a0..7faf4d9f7bacb5b5541ccae0f746ac9e20ae45fe 100644
+--- a/packages/domain/src/overview/index.ts
++++ b/packages/domain/src/overview/index.ts
+@@ -60,3 +60,4 @@ export {
+ } from './explorer';
+ 
+ export * from './reconciliation';
++export { explorerCsv, explorerTableHeaders } from './explorer-csv';
