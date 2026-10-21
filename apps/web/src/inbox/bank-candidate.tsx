@@ -1,6 +1,6 @@
 import { Button, Field, Select, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { eur, shortDay } from '../ledger/format';
@@ -79,6 +79,24 @@ function BankCandidateForm({
   useAmountPrivacy();
   const lookups = useQuery(lookupsQuery()),
     payees = useQuery(payeesQuery());
+  const categoryGroups = useMemo(() => {
+    const categories = (lookups.data?.categories ?? [])
+      .filter((c) => c.kind !== 'card_payment')
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    const groups = [...(lookups.data?.groups ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
+    const known = new Set(groups.map((g) => g.id));
+    const grouped = groups.map((g) => ({
+      id: g.id,
+      name: g.name,
+      categories: categories.filter((c) => c.groupId === g.id),
+    }));
+    grouped.push({
+      id: '',
+      name: 'Ohne Gruppe',
+      categories: categories.filter((c) => !c.groupId || !known.has(c.groupId)),
+    });
+    return grouped.filter((g) => g.categories.length > 0);
+  }, [lookups.data]);
   const review = useQuery(candidateAssignmentQuery(id));
   const [categoryId, setCategory] = useState(''),
     [payeeId, setPayee] = useState<string | undefined>();
@@ -301,13 +319,15 @@ function BankCandidateForm({
                 onChange={(e) => setCategory(e.target.value)}
               >
                 <option value="">Später zuordnen / Zu verteilen</option>
-                {lookups.data?.categories
-                  .filter((c) => c.kind !== 'card_payment')
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
+                {categoryGroups.map((g) => (
+                  <optgroup key={g.id} label={g.name}>
+                    {g.categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
               </Select>
             )}
           </Field>

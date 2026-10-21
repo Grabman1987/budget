@@ -1734,3 +1734,37 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
   pass is not used as a pass of the changed assertions.
 - [ ] Exact-head Chromium CI must exercise the adapted inspector flow and band
   flow; review, merge and LIVE verification remain pending.
+### #734 — Grouped, reachable category pickers
+
+- Bank review retains exact eligible category IDs in native groups. Capture places
+  categories before contacts, including filtered matches, removes its 60-result
+  cap, bounds the popup to viewport/dialog clips and retains compact fine-pointer
+  rows and coarse targets of at least 44px. Other consumers retain their defaults.
+- [x] Independent source and original desktop/phone light/dark review;
+      [qualified current evidence](evidence/category-picker-734/README.md).
+- [x] Current canonical WebKit 9/9: four feature cases, two unchanged capture-dialog
+      regressions and three setup cases. New-focus recovery, root viewport clipping,
+      real one-pixel native-scroll clearance, strict header-aware upward traversal,
+      explicit phone 450px hidden/Enter recovery, manual hide/reopen, Axe and real
+      capture split/save/Undo passed. Bank confirmation transport alone is synthetic;
+      no real bank-confirmation/Undo claim. Phone 390 × 664, DPR 3, raw touch count 0;
+      current poststress popup 185px, initial 320px. Combined run reused exact 166 files
+      from the corrected fresh E2E build, with no rebuild or added historical totals.
+- Historical AGE1/one-worker full: 578 files / 5,162 tests and normal build passed on
+  base `9baa582f` plus freeze `4a22a00d`, before the PR736 interaction corrections.
+- Pre-inheritance AGE1/two-worker check: 577 files passed / 1 failed (578
+  total), 5,162 tests passed / 1 failed (5,163 total), 521.57s Vitest
+  duration. The unchanged #727 server test
+  `statement-settlement-727.test.ts:202` timed out at its existing 5,000ms
+  limit. Check exited 1; no pipeline build ran. Independent normal
+  production build subsequently passed (Vite 7.57s, esbuild 547ms); the
+  required full check remains failed. Base `9baa582f`, parent `a216d438`,
+  corrected freeze `b8e60568`. No retry/old-test edit; only factual result
+  prose changed afterwards.
+- [ ] Joined-head required AGE1/two-worker check and normal build: pending at this
+      checkpoint after ordinary inheritance of verified LIVE Main `a83855c7`,
+      including its owner-approved four existing #727 byte comparisons and #735
+      changes. The #734 product/NEW tests/images/profiles carry byte-exactly;
+      actual full results and required CI are tracked in
+      [PR #736](https://github.com/Grabman1987/budget/pull/736).
+- [ ] Exact new-head Chromium/required CI, serial merge and verified LIVE.

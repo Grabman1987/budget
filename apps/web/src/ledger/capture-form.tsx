@@ -872,6 +872,7 @@ export function CaptureForm({
             {isTransfer && showCategory && (
               <CategoryCombobox
                 label="Kategorie"
+                capturePicker
                 categories={pickable}
                 leading={leading}
                 selectedName={categoryName}
