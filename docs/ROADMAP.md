@@ -1768,3 +1768,13 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
       actual full results and required CI are tracked in
       [PR #736](https://github.com/Grabman1987/budget/pull/736).
 - [ ] Exact new-head Chromium/required CI, serial merge and verified LIVE.
+
+## #738 – Contacts: compact statement, copying and source bookings
+
+- [x] Compact source-linked tables retain the existing current-month, older-open, remaining-history and closed-history sections and balances.
+- [x] Section-scoped plain text includes its period, signed movements, open amounts and explicitly overall balance; privacy and manual copy fallback apply. No messages are sent.
+- [x] A fresh booking GET precedes the existing editor. Synthetic gift correction preserves the bank payment and unrelated split, with real Save/Undo. Allocation/write-off guards remain; the exact known repayment guard has a German explanation.
+- [x] Focused UI/API/security regressions and static checks passed. Final canonical WebKit 8/8: four NEW profile/theme cases, the unchanged #598 signed-movement case and three setup cases; no retries or skips.
+- [x] [Four unchanged synthetic browser originals and evidence limits](evidence/contact-statement-738/README.md). No existing test file changed.
+- [ ] Required AGE-enabled full check with two Vitest workers and normal production build are pending at this evidence checkpoint; actual exact-head results are recorded in the PR.
+- [ ] Exact-head CI, serial integration and verified LIVE; no queue-completion claim.

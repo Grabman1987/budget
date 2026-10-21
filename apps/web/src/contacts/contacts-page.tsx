@@ -440,9 +440,11 @@ function ContactBody({ statement }: { statement: Statement }) {
           onClose={() => setWriteOff(false)}
         />
       )}
-      <h3>{monthTitle}</h3>
       {currentMonthMovements.length === 0 ? (
-        <p>In diesem Monat gibt es noch keine Kontaktbuchungen.</p>
+        <>
+          <h3>{monthTitle}</h3>
+          <p>In diesem Monat gibt es noch keine Kontaktbuchungen.</p>
+        </>
       ) : (
         <ContactMovementTable
           statement={statement}
@@ -454,24 +456,27 @@ function ContactBody({ statement }: { statement: Statement }) {
       )}
       {openOlderOutlays.length > 0 && (
         <section aria-labelledby="contacts-open-older">
-          <h3 id="contacts-open-older">Offene ältere Auslagen</h3>
           <ContactMovementTable
             statement={statement}
             movements={openOlderOutlays}
             title="Offene ältere Auslagen"
+            headingId="contacts-open-older"
             caption="Noch offene Auslagen aus früheren Monaten"
             onOpen={openSource}
           />
         </section>
       )}
-      <h3>Verlauf</h3>
       {visibleHistory.length === 0 ? (
-        <p>Noch keine ältere oder spätere Kontaktbewegung.</p>
+        <>
+          <h3>Verlauf</h3>
+          <p>Noch keine ältere oder spätere Kontaktbewegung.</p>
+        </>
       ) : (
         <ContactMovementTable
           statement={statement}
           movements={visibleHistory}
           title="Verlauf außerhalb des aktuellen Monats"
+          heading="Verlauf"
           caption="Kontaktbuchungen außerhalb des aktuellen Monats"
           onOpen={openSource}
         />
@@ -485,6 +490,7 @@ function ContactBody({ statement }: { statement: Statement }) {
             statement={statement}
             movements={archived}
             title="Abgeschlossene Historie bis zum Ausgleich"
+            heading={false}
             caption="Abgeschlossene Kontaktbuchungen bis zum Ausgleich"
             onOpen={openSource}
           />

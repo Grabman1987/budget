@@ -189,6 +189,9 @@ it('keeps every movement in its exact section and copies only the named month wi
     name: 'Kontaktbuchungen im aktuellen Monat',
   });
   expect(within(currentTable).getAllByRole('row')).toHaveLength(3);
+  expect(
+    Array.from(currentTable.querySelectorAll('tbody .num'), (node) => node.textContent),
+  ).toEqual(['+40,00 €', '−15,00 €']);
   expect(within(currentTable).getByRole('columnheader', { name: 'Offen' })).toBeTruthy();
   expect(within(currentTable).getByRole('button', { name: /Synthetische Auslage/ })).toBeTruthy();
   expect(

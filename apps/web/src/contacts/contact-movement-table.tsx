@@ -27,12 +27,16 @@ export function ContactMovementTable({
   movements,
   title,
   caption,
+  heading,
+  headingId,
   onOpen,
 }: {
   statement: Statement;
   movements: ContactMovement[];
   title: string;
   caption: string;
+  heading?: string | false;
+  headingId?: string;
   onOpen: (movement: ContactMovement) => void;
 }) {
   useAmountPrivacy();
@@ -69,6 +73,7 @@ export function ContactMovementTable({
   return (
     <div className="contact-statement-section">
       <div className="contact-section-tools">
+        {heading !== false && <h3 id={headingId}>{heading ?? title}</h3>}
         <Button
           variant="ghost"
           disabled={copyState === 'copying'}
@@ -155,7 +160,7 @@ export function ContactMovementTable({
                 <td className="num">
                   {eur(receivableDelta(movement.amountCents), { sign: true })}
                 </td>
-                <td className="num">{outlay ? eur(outlay.remainingCents) : '—'}</td>
+                <td className="contact-open-amount">{outlay ? eur(outlay.remainingCents) : '—'}</td>
               </tr>
             );
           })}

@@ -62,7 +62,8 @@
   padding: 8px;
   border-bottom: 1px solid var(--rule);
 }
-.contacts-table .num {
+.contacts-table .num,
+.contact-movements .contact-open-amount {
   text-align: right;
   white-space: nowrap;
 }
@@ -203,6 +204,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: space-between;
 }
 .contact-section-tools [role='status'],
 .contact-movement-meta {
@@ -238,7 +240,8 @@
 .contact-movements th:not(:first-child) {
   text-align: right;
 }
-.contact-movements .num {
+.contact-movements .num,
+.contact-movements .contact-open-amount {
   width: 1%;
   vertical-align: top;
   padding-top: 16px;
