@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it } from 'vitest';
-import { parseCardDocument, parseStatementText, type StatementAutomationExecution } from '@budget/domain';
+import { parseCardDocument, parseStatementText, type StatementAutomationExecution, type StatementBonusEvidence } from '@budget/domain';
 import { createTestDatabase, type OpenedDatabase } from '../client';
 import { categoryGroup, INCOME_TYPES } from '../schema';
 import { accounts, categories, createEntity } from './entities';
@@ -8,7 +8,10 @@ import { history, undo } from './audit';
 import { balanceSeries } from './ledger-queries';
 import { saveAssignmentRule } from './assignment-rules';
 import { getStatementIntake, mutateStatementIntake, stageStatementIntake } from './statement-intake';
-import { performStatementAction } from './statement-settlement';
+import { performStatementAction, statementSettlementState } from './statement-settlement';
+import { createExpectedPayment } from './expected';
+import { loadFacts, scheduled } from './rule-inputs';
+import { accountPreview } from './account-preview';
 import { removeReceipt, unlinkReceipt } from './receipts';
 import {
   performStatementAutomation, prepareStatementAutomation, readStatementAutomationOutcome,
@@ -229,4 +232,98 @@ it('rolls back the run claim, money, links and audit together when a late financ
   expect(rows('statement_automation_run')).toEqual([]);
   opened.sqlite.exec('DROP TRIGGER synthetic_741_failure');
   expect(perform(input)).toMatchObject({ status: 'saved', created: 1 });
+});
+
+it('replaces only the configured recurring identity/date with issued8880, preserving the other10000 and the next month through Undo', () => {
+  const config = configure(); rule();
+  const selected = createExpectedPayment(opened.db, { name: 'Synthetic selected debit', accountId: FUND,
+    categoryId: null, kind: 'outflow', rhythm: 'monthly', dueDay: 12, startDate: '2031-01-12', dateShift: 'none' },
+  { validFrom: '2031-01-12', amountCents: 10000, currency: 'EUR' }, ctx, '2031-01-10').payment;
+  const unrelated = createExpectedPayment(opened.db, { name: 'Synthetic unrelated debit', accountId: FUND,
+    categoryId: null, kind: 'outflow', rhythm: 'monthly', dueDay: 12, startDate: '2031-01-12', endDate: '2031-01-12', dateShift: 'none' },
+  { validFrom: '2031-01-12', amountCents: 10000, currency: 'EUR' }, ctx, '2031-01-10').payment;
+  saveStatementAutomationConfig(opened.db, { accountId: CARD, expectedRevision: config.revision,
+    enabled: true, mappedCards: config.mappedCards, scheduledPayment: { mode: 'existing', paymentId: selected.id } }, ctx);
+  const scheduledRows = () => scheduled(loadFacts(opened.db, '2031-01-10'), '2031-01-12', '2031-02-12', '2031-01-10')
+    .map((row) => [row.payment.id, row.dueDate, row.cents]).sort();
+  const plannedBefore = [[selected.id, '2031-01-12', -10000], [selected.id, '2031-02-12', -10000],
+    [unrelated.id, '2031-01-12', -10000]].sort();
+  expect(scheduledRows()).toEqual(plannedBefore);
+  const retained = JSON.stringify(['expected_payment', 'expected_payment_version', 'expected_occurrence'].map(rows));
+  const result = perform(preparation());
+  expect(result).toMatchObject({ status: 'saved', created: 1, receiptLinks: 3 });
+  expect(scheduledRows()).toEqual([[selected.id, '2031-02-12', -10000], [unrelated.id, '2031-01-12', -10000]].sort());
+  expect(accountPreview(opened.db, FUND, 'EUR', '2031-01-10', 2).points.at(-1))
+    .toEqual({ date: '2031-01-12', balanceCents: 31120 });
+  expect(accountPreview(opened.db, CARD, 'EUR', '2031-01-10', 2).points.at(-1))
+    .toEqual({ date: '2031-01-12', balanceCents: 0 });
+  expect(JSON.stringify(['expected_payment', 'expected_payment_version', 'expected_occurrence'].map(rows))).toBe(retained);
+  undo(opened.db, { groupId: result.groupId! }, ctx);
+  expect(scheduledRows()).toEqual(plannedBefore);
+  expect(accountPreview(opened.db, FUND, 'EUR', '2031-01-10', 2).points.at(-1))
+    .toEqual({ date: '2031-01-12', balanceCents: 30000 });
+  expect(balances()).toEqual([50000, 0]);
+  expect(JSON.stringify(['expected_payment', 'expected_payment_version', 'expected_occurrence'].map(rows))).toBe(retained);
+});
+
+function manualBonusEvidence(bookingId: string): StatementBonusEvidence {
+  const booking = getBooking(opened.db, bookingId)!, split = booking.splits[0]!;
+  return { origin: 'owner', bonusCents: 120, creditDate: '2030-12-30', treatment: 'gross_then_credit',
+    existingCreditsReviewed: true, feesAdjustmentsReviewed: true,
+    selectedOriginals: [{ bookingId, bookingRevision: history(opened.db, 'booking', bookingId)[0]!.id,
+      splitId: split.id, splitRevision: history(opened.db, 'booking_split', split.id)[0]!.id,
+      accountId: CARD, currency: 'EUR', bookingAmountCents: -9000, splitAmountCents: -9000, categoryId: FUEL }],
+    allocations: [{ categoryId: FUEL, amountCents: 120 }] };
+}
+function manualBonusSource(day: '03' | '05') {
+  const sha = (day === '03' ? 'd' : 'e').repeat(64), reference = `SYNTHETIC-727-${day}`;
+  const proposal = parseStatementText(`Rechnungsnummer ${reference}\nRechnungsdatum ${day}.01.2031\nAbrechnungsbetrag 88,80 EUR\nEinzugsdatum 12.01.2031`, sha);
+  const intake = stageStatementIntake(opened.db, { accountId: CARD, sha256: sha, sizeBytes: 100,
+    filename: 'synthetic-owner-bonus-727.pdf', proposal }, ctx).intake;
+  const reviewed = mutateStatementIntake(opened.db, intake.id, intake, 'review', { facts: {
+    reference, issueDate: `2031-01-${day}`, debitDate: '2031-01-12', periodFrom: null, periodTo: null,
+    payableCents: 8880, currency: 'EUR', accountHint: null,
+  } }, ctx).intake;
+  return { intakeId: reviewed.id, accountId: CARD, sha256: sha, revision: reviewed.revision };
+}
+
+it('never credits an original again when the real727 path already consumed its split', () => {
+  configure();
+  const gross = original(-9000), source = manualBonusSource('03'), evidence = manualBonusEvidence(gross.id);
+  const configRevision = statementSettlementState(opened.db, CARD).config!.revision!;
+  const confirmed = performStatementAction(opened.db, { operation: 'confirm_bonus', key: 'manual-first-confirm',
+    source, configRevision, evidence }, ctx);
+  const posted = performStatementAction(opened.db, { operation: 'create_bonus', key: 'manual-first-credit',
+    source, configRevision, bonusId: confirmed.bonusId, expectedRevision: confirmed.bonusRevision,
+    selectedOriginals: evidence.selectedOriginals.map(({ bookingId, bookingRevision, splitId, splitRevision }) =>
+      ({ bookingId, bookingRevision, splitId, splitRevision })), status: 'confirmed' }, ctx);
+  const creditId = posted.bookingId!, credit = getBooking(opened.db, creditId), creditAudit = history(opened.db, 'booking', creditId);
+  const originalBefore = getBooking(opened.db, gross.id), originalAudit = history(opened.db, 'booking', gross.id);
+  expect(credit).toMatchObject({ amountCents: 120, status: 'confirmed' });
+  const result = perform(preparation());
+  expect(result).toMatchObject({ status: 'review', created: 0, matched: 0, credits: 0, receiptLinks: 2 });
+  expect(result.pending).toMatchObject([{ reason: 'original_credit_already_consumed' }]);
+  expect(getBooking(opened.db, gross.id)).toEqual(originalBefore);
+  expect(history(opened.db, 'booking', gross.id)).toEqual(originalAudit);
+  expect(getBooking(opened.db, creditId)).toEqual(credit);
+  expect(history(opened.db, 'booking', creditId)).toEqual(creditAudit);
+  expect(opened.sqlite.prepare('SELECT amount_cents FROM booking WHERE account_id=? AND amount_cents>0 AND transfer_id IS NULL AND deleted_at IS NULL').all(CARD))
+    .toEqual([{ amount_cents: 120 }]);
+  expect(balances()).toEqual([41120, 0]);
+});
+
+it('refuses a real727 credit claim after741 consumed the same original, with atomic preservation of all rows and audit', () => {
+  configure();
+  const gross = original(-9000), result = perform(preparation());
+  expect(result).toMatchObject({ status: 'saved', credits: 1 });
+  const source = manualBonusSource('05'), evidence = manualBonusEvidence(gross.id);
+  const configRevision = statementSettlementState(opened.db, CARD).config!.revision!;
+  const before = snapshot();
+  expect(() => performStatementAction(opened.db, { operation: 'confirm_bonus', key: 'manual-after-automatic-confirm',
+    source, configRevision, evidence }, ctx)).toThrow();
+  expect(snapshot()).toBe(before);
+  expect(getBooking(opened.db, gross.id)!.amountCents).toBe(-9000);
+  expect(opened.sqlite.prepare('SELECT amount_cents FROM booking WHERE account_id=? AND amount_cents>0 AND transfer_id IS NULL AND deleted_at IS NULL').all(CARD))
+    .toEqual([{ amount_cents: 120 }]);
+  expect(balances()).toEqual([41120, 0]);
 });
