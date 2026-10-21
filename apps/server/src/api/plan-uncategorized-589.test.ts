@@ -1,4 +1,4 @@
-import { createBooking, createTestDatabase, createTransfer, schema } from '@budget/db';
+import { createBooking, createTestDatabase, createTransfer, ensureAdvanceCategory, schema } from '@budget/db';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { createLedgerApi } from './index';
 
@@ -37,7 +37,6 @@ beforeEach(() => {
   const noise = [
     { id: 'classified-pending', accountId: 'budget', date: '2026-10-10', amountCents: -100, categoryId: 'classified' },
     { id: 'income', accountId: 'budget', date: '2026-10-10', amountCents: 100, incomeTypeId: 'income' },
-    { id: 'contact', accountId: 'budget', date: '2026-10-10', amountCents: -100, contactId: 'contact' },
     { id: 'zero', accountId: 'budget', date: '2026-10-10', amountCents: 0 },
     { id: 'deleted', accountId: 'budget', date: '2026-10-10', amountCents: -100, deletedAt: '2026-10-14' },
     { id: 'tracking', accountId: 'tracking', date: '2026-10-10', amountCents: -100 },
@@ -47,18 +46,20 @@ beforeEach(() => {
   ];
   for (const row of noise) {
     db.insert(schema.booking).values({ id: `noise-${row.id}`, accountId: row.accountId, date: row.date, amountCents: row.amountCents, status: 'pending', deletedAt: row.deletedAt ?? null }).run();
-    db.insert(schema.bookingSplit).values({ id: `noise-${row.id}-split`, bookingId: `noise-${row.id}`, amountCents: row.amountCents, categoryId: row.categoryId ?? null, incomeTypeId: row.incomeTypeId ?? null, contactId: row.contactId ?? null }).run();
+    db.insert(schema.bookingSplit).values({ id: `noise-${row.id}-split`, bookingId: `noise-${row.id}`, amountCents: row.amountCents, categoryId: row.categoryId ?? null, incomeTypeId: row.incomeTypeId ?? null }).run();
   }
+  createBooking(db, {
+    accountId: 'budget', date: '2026-10-10', amountCents: -100, status: 'pending',
+    splits: [{ categoryId: ensureAdvanceCategory(db, { actor: 'test' }), contactId: 'contact', amountCents: -100 }],
+  }, { actor: 'test' });
   createTransfer(db, { fromAccountId: 'budget', toAccountId: 'budget-two', date: '2026-10-10', amountCents: 100, status: 'pending' }, { actor: 'test' });
-  db.insert(schema.transfer).values({ id: 'split-transfer' }).run();
-  db.insert(schema.booking).values([
-    { id: 'partial-transfer', accountId: 'budget', date: '2026-10-10', amountCents: -100, status: 'pending' },
-    { id: 'partial-transfer-other', accountId: 'budget-two', date: '2026-10-10', amountCents: 100, status: 'pending', transferId: 'split-transfer' },
-  ]).run();
-  db.insert(schema.bookingSplit).values([
-    { id: 'partial-transfer-split', bookingId: 'partial-transfer', amountCents: -100, transferId: 'split-transfer' },
-    { id: 'partial-transfer-other-split', bookingId: 'partial-transfer-other', amountCents: 100, transferId: 'split-transfer' },
-  ]).run();
+  createBooking(db, {
+    accountId: 'budget', date: '2026-10-10', amountCents: -150, status: 'pending',
+    splits: [
+      { categoryId: 'classified', amountCents: -50 },
+      { transferAccountId: 'budget-two', amountCents: -100 },
+    ],
+  }, { actor: 'test' });
   api = createLedgerApi({ db, today: () => '2026-10-15', stepUp: async (_c, next) => next() });
 });
 afterEach(() => opened.close());
