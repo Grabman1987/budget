@@ -2877,3 +2877,45 @@
     right: 12px;
   }
 }
+
+
+/* Fine-pointer desktop retains the original compact worksheet budget with the added filters.
+   The financial rail can scroll horizontally instead of growing another line; its popovers
+   remain outside the scroll container. Phone/coarse controls retain their 44px rules. */
+@media (min-width: 1180px) and (pointer: fine) {
+  .plan .plan-main {
+    gap: 4px;
+  }
+  .plan .plan-topbar {
+    padding-block: 0;
+  }
+  .plan .plan-chip-scroll {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .plan .plan-chip-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .plan .plan-chip-scroll > * {
+    flex-shrink: 0;
+  }
+  .plan-filterbar {
+    padding-block: 0;
+  }
+  .plan-category-search .input {
+    height: 32px;
+    min-height: 32px;
+  }
+  .plan-filter-segments {
+    padding: 1px;
+  }
+  .plan .ptoolbar {
+    min-height: 32px;
+    padding-block: 0;
+  }
+  .plan .ptoolbar .btn {
+    height: 28px;
+    min-height: 28px;
+  }
+}

@@ -200,15 +200,17 @@ function PlanBody({
     kategorie?: string;
   };
   const navigate = useNavigate();
-  const filter = search.filter ?? (search.ansicht === 'triage' ? 'overspent' : 'all');
+  const legacyTriage = search.ansicht === 'triage' && search.filter === undefined;
+  const filter = search.filter ?? (legacyTriage ? 'overspent' : 'all');
   const nameQuery = search.q ?? '';
-  const filterTuple = JSON.stringify([filter, nameQuery]);
+  const filterTuple = JSON.stringify([filter, nameQuery, legacyTriage]);
   const [capturedFilter, setCapturedFilter] = useState(filterTuple);
   const uncategorized = useInfiniteQuery({
     ...budgetUncategorizedQuery(month),
     enabled: filter === 'uncategorized',
   });
   const changeFilter = (next: PlanFilter, query = nameQuery) => {
+    if (view === 'triage') setView('group');
     clearSelection();
     setCollapsed(new Set());
     void navigate({
@@ -226,7 +228,7 @@ function PlanBody({
   const restoredPlan = savedPlan?.month === month ? savedPlan : null;
   const liveIds = new Set(data.categories.map((category) => category.id));
   const [view, setView] = useState<PlanView>(
-    restoredPlan?.view === 'triage' ? 'group' : (restoredPlan?.view ?? 'group'),
+    legacyTriage ? 'triage' : restoredPlan?.view === 'triage' ? 'group' : (restoredPlan?.view ?? 'group'),
   );
   const phone = useIsPhone();
   const [distribute, setDistribute] = useState(false);
@@ -278,6 +280,7 @@ function PlanBody({
   // component's stale selection before committing the new filtered list.
   if (capturedFilter !== filterTuple) {
     setCapturedFilter(filterTuple);
+    setView(legacyTriage ? 'triage' : view === 'triage' ? 'group' : view);
     setSelected(new Set());
     setOpen(null);
     setPhoneSelection(false);
@@ -446,10 +449,12 @@ function PlanBody({
   const shownView: PlanView = multi ? 'group' : view;
   const unfilteredGroups = planGroups(shownView, rows, data, ctx);
   const multiGroups = views ? planMulti(views) : [];
+  // Legacy triage's All segment exits triage; other layouts retain their original row universe.
+  const filterRows = shownView === 'triage' ? rows : unfilteredGroups.flatMap((group) => group.rows);
   // Multi-month rows match once when any visible month matches; their cells stay unchanged.
   const entries = multi
     ? multiGroups.flatMap((group) => group.rows)
-    : unfilteredGroups.flatMap((group) => group.rows.map((row) => ({ ...row, cells: [row] })));
+    : filterRows.map((row) => ({ ...row, cells: [row] }));
   const namedEntries = entries.filter((row) => categoryNameMatches(row.name, nameQuery));
   const idsFor = (value: PlanFilter) =>
     new Set(
@@ -777,7 +782,10 @@ function PlanBody({
                 phoneSelection ? clearSelection(true) : startPhoneSelection()
               }
               collapsed={collapsed.size > 0}
-              onView={setView}
+              onView={(next) => {
+                if (legacyTriage) changeFilter('all');
+                setView(next);
+              }}
               onToggleAll={() =>
                 setCollapsed(collapsed.size ? new Set() : new Set(collapsibleKeys))
               }

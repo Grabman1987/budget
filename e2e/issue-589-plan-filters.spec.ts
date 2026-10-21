@@ -165,6 +165,7 @@ async function scene(
     viewport: { width: innerWidth, height: innerHeight },
     pointerCoarse: matchMedia('(pointer: coarse)').matches,
     scrollWidth: document.documentElement.scrollWidth,
+    beforeGrid: element.closest('.plan')!.querySelector('.ptable')!.getBoundingClientRect().top - element.closest('.plan')!.getBoundingClientRect().top,
     controls: [...element.querySelectorAll('input, .plan-filter-segments button, summary')].map(
       (control) => {
         const rect = control.getBoundingClientRect();
@@ -177,6 +178,7 @@ async function scene(
   if (profile === 'desktop') {
     expect(initial.viewport).toEqual({ width: 1440, height: 900 });
     expect(initial.pointerCoarse).toBe(false);
+    expect(initial.beforeGrid).toBeLessThanOrEqual(120);
     expect(Math.max(...initial.controls.map((rect) => rect.top))).toBeLessThan(
       Math.min(...initial.controls.map((rect) => rect.bottom)),
     );
@@ -201,6 +203,26 @@ async function scene(
   const image = info.outputPath(`plan-filters-${profile}-${theme}.png`);
   await page.screenshot({ path: image, fullPage: true, animations: 'disabled' });
   await info.attach('Plan filter controls', { path: image, contentType: 'image/png' });
+
+  await page.goto('/plan/monat?monat=2026-10&ansicht=triage');
+  await page.evaluate((value) => { document.documentElement.dataset['theme'] = value; }, theme);
+  await expect(page.locator('tr.pgroup .grp-title')).toHaveText('Überzogen');
+  await expect(page.locator('.ptable .pname')).toHaveCount(1);
+  await options.click();
+  const views = page.getByRole('group', { name: 'Ansicht', exact: true });
+  await expect(views.locator('[aria-pressed="true"]')).toHaveCount(0);
+  await views.getByRole('button', { name: 'Gruppen', exact: true }).click();
+  await expect(page.locator('.ptable .pname')).toHaveCount(3);
+  expect(new URL(page.url()).searchParams.has('ansicht')).toBe(false);
+  await page.goto('/plan/monat?monat=2026-10&ansicht=triage');
+  await page.evaluate((value) => { document.documentElement.dataset['theme'] = value; }, theme);
+  await expect(page.locator('tr.pgroup .grp-title')).toHaveText('Überzogen');
+  await options.click();
+  await views.getByRole('button', { name: 'Zeit', exact: true }).click();
+  await expect(page.locator('.ptable .pname')).toHaveCount(3);
+  expect(new URL(page.url()).searchParams.has('ansicht')).toBe(false);
+  await options.click();
+  await views.getByRole('button', { name: 'Gruppen', exact: true }).click();
 
   const search = page.getByRole('searchbox', { name: 'Kategorie suchen' });
   await search.fill('Recipient');
