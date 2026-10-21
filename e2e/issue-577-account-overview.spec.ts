@@ -231,7 +231,17 @@ async function scene(
       expect(row.top).toBeGreaterThanOrEqual(0);
       expect(row.bottom).toBeLessThanOrEqual(900);
     }
-  } else expect(initial.viewport.width).toBe(390);
+  } else {
+    expect(initial.viewport.width).toBe(390);
+    for (const group of await scope.locator('.overview-group').all()) {
+      const label = await group.locator('.grp-title').boundingBox();
+      const amount = await group.getByTestId('account-group-value').boundingBox();
+      expect(label).not.toBeNull();
+      expect(amount).not.toBeNull();
+      expect(label!.y + label!.height).toBeGreaterThan(amount!.y);
+      expect(amount!.y + amount!.height).toBeGreaterThan(label!.y);
+    }
+  }
   // Actual targets, not hidden descendants with misleading layout boxes.
   for (const target of await scope
     .locator('.overview-account-link, .overview-row-details .btn')

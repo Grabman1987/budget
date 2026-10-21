@@ -319,8 +319,10 @@ function OverviewGroup({
           <span className="grp-title">{group.group.title}</span>
           {ordering && reorder.status}
         </th>
-        <td className="kc-num overview-row-value" data-testid="account-group-value">
-          {group.sumCents === null ? '–' : `${group.sumApprox ? '≈ ' : ''}${eur(group.sumCents)}`}
+        <td className="kc-num overview-row-value">
+          <span className="overview-group-amount" data-testid="account-group-value">
+            {group.sumCents === null ? '–' : `${group.sumApprox ? '≈ ' : ''}${eur(group.sumCents)}`}
+          </span>
           <OverviewValueSource
             sources={overviewGroupValuationSources(group.accounts, sourcesByRow)}
             label={group.group.title}

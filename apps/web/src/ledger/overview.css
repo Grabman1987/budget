@@ -1,6 +1,6 @@
 /* Account overview only: the register, sidebar, grouping and money producers keep their defaults. */
 .account-overview-577.kview {
-  gap: 8px;
+  gap: 4px;
 }
 .account-overview-577 .overview-actions,
 .account-overview-577 .overview-lead-links,
@@ -181,6 +181,11 @@
 .account-overview-577 .overview-platform-links {
   margin-block: 12px;
 }
+.account-overview-577 .overview-group-amount {
+  display: inline-block;
+  white-space: nowrap;
+}
+.account-overview-577 .overview-group .term-trigger,
 .account-overview-577 .overview-detail .term-trigger {
   min-height: 44px;
   min-width: 44px;
@@ -199,7 +204,7 @@
   }
   .account-overview-577 .overview-table > tbody > .overview-account-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 80px 100px 44px;
+    grid-template-columns: minmax(0, 1fr) 80px max-content 44px;
     grid-template-areas: 'name line value details';
     align-items: center;
     gap: 0 4px;
@@ -244,12 +249,16 @@
   .account-overview-577 .overview-table > tbody > .overview-group {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'name value';
     align-items: center;
     gap: 8px;
     margin: 0;
     padding: 8px;
     background: var(--ground-2);
     border-bottom: 1px solid var(--rule-strong);
+  }
+  .account-overview-577 .overview-group > th {
+    grid-area: name;
   }
   .account-overview-577 .overview-group > td:empty {
     display: none;

@@ -8,50 +8,50 @@
   "rows": [
     {
       "id": "overview-alpha",
-      "top": 591.625,
-      "bottom": 644.625,
+      "top": 535.625,
+      "bottom": 588.625,
       "height": 53
     },
     {
       "id": "overview-bravo",
-      "top": 644.625,
-      "bottom": 697.625,
+      "top": 588.625,
+      "bottom": 641.625,
       "height": 53
     },
     {
       "id": "overview-reference",
-      "top": 697.625,
-      "bottom": 768.96875,
-      "height": 71.34375
+      "top": 641.625,
+      "bottom": 694.625,
+      "height": 53
     },
     {
       "id": "overview-card",
-      "top": 869.96875,
-      "bottom": 922.96875,
+      "top": 747.625,
+      "bottom": 800.625,
       "height": 53
     },
     {
       "id": "overview-loan",
-      "top": 1023.96875,
-      "bottom": 1076.96875,
+      "top": 853.625,
+      "bottom": 906.625,
       "height": 53
     },
     {
       "id": "overview-manual",
-      "top": 1177.96875,
-      "bottom": 1249.3125,
-      "height": 71.34375
+      "top": 959.625,
+      "bottom": 1012.625,
+      "height": 53
     },
     {
       "id": "overview-depot",
-      "top": 1249.3125,
-      "bottom": 1302.3125,
+      "top": 1012.625,
+      "bottom": 1065.625,
       "height": 53
     },
     {
       "id": "overview-usd",
-      "top": 1302.3125,
-      "bottom": 1355.3125,
+      "top": 1065.625,
+      "bottom": 1118.625,
       "height": 53
     }
   ],
