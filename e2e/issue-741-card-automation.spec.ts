@@ -277,13 +277,11 @@ for (const profile of ['desktop', 'phone'] as const)
             response.url().endsWith('/api/statement-intake/upload') &&
             response.request().method() === 'POST',
         );
-        await active
-          .getByLabel('Abrechnungs-PDF auswählen')
-          .setInputFiles({
-            name: 'synthetic-current-741.pdf',
-            mimeType: 'application/pdf',
-            buffer: pdf,
-          });
+        await active.getByLabel('Abrechnungs-PDF auswählen').setInputFiles({
+          name: 'synthetic-current-741.pdf',
+          mimeType: 'application/pdf',
+          buffer: pdf,
+        });
         const uploadResponse = await uploaded;
         expect(uploadResponse.status()).toBe(201);
         const body = (await uploadResponse.json()) as {
