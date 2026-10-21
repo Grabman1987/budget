@@ -1798,9 +1798,10 @@ explicit reanalysis/review. Upload and reanalysis never post money.
 - [x] Deterministic configured card upload uses original-source evidence, exact cents and audited pending writers; issued settlement preserves newer purchases and recorded originals unchanged. Payroll and manual receipt selection remain separate.
 - [x] Focused synthetic domain 21, DB 16 (13+3 separate runs), actual PDF/API 7, UI 7 and migration 10 passed; the initial rollback-negative failure was corrected without weakening its assertion. DB/server/Web types and scoped code checks passed.
 - [x] Canonical WebKit 7/7 (three setup plus four profile/theme cases), fresh E2E build and source/process guards passed on 88ee863b. Real posting/wholeUndo/no-repost and two phone manual nonmonetary reviews passed. [Four unchanged originals and exact evidence limits](evidence/card-automation-741/README.md).
-- [ ] Specific approval/adoption and actual rerun of the two old UI transport adapters: current existing regression result 77/94, 17 failures; financial oracles remain protected.
-- [ ] Required AGE-enabled full check, normal production build, exact-head Chromium/CI, serial integration and verified LIVE.
-- [ ] Payroll, #740 manual receipt selection and clicked booking-link destination acceptance. No whole-issue closure, physical-device certification or real-data-change claim.
+- [x] Standing technical-test authorization applied to the two preserved UI transport adapters. Fresh AGE-enabled card-statement selection: 18 files / 196 tests passed, including OLD726 9/9 and OLD727 15/15; financial oracles remain unchanged. Independent source/delta reviews passed.
+- [x] Normal production/E2E builds and workspace types passed (domain inference corrected and rerun separately). Supplemental real result-link desktop/mobile 5/5 including setup; corrected phone Undo scenarios 5/5 including setup after normal Redo-toast dismissal. Initial overlay failures and exact scope retained in linked evidence.
+- [ ] Required full CI, serial integration and verified LIVE.
+- [ ] Payroll and #740 manual receipt selection remain separate. No whole-issue closure, physical-device certification or real-data-change claim.
 
 ## #589 — URL-backed Plan filters: isolated acceptance packet
 

@@ -186,11 +186,14 @@ describe('synthetic issued-card extraction', () => {
       'previous_card_mismatch',
     ],
     ['unmapped card', { ...context(), mappedCardAccounts: {} }, 'card_mapping_required'],
-  ] as const)('keeps %s unresolved', (_label, ctx, reason) => {
-    const doc = parseCardDocument(consumer(), SHA, ctx);
-    expect(doc.reasons).toContain(reason);
-    expect(planCardRows(doc, [], []).every((a) => a.kind === 'pending')).toBe(true);
-  });
+  ] satisfies [string, CardParseContext, string][])(
+    'keeps %s unresolved',
+    (_label, ctx, reason) => {
+      const doc = parseCardDocument(consumer(), SHA, ctx);
+      expect(doc.reasons).toContain(reason);
+      expect(planCardRows(doc, [], []).every((a) => a.kind === 'pending')).toBe(true);
+    },
+  );
 
   it.each([
     ['70,00-', '70,00', 'row_amount_or_fee_unavailable'],

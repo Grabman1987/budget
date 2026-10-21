@@ -345,6 +345,12 @@ for (const profile of ['desktop', 'phone'] as const)
           expect(getBooking(opened.db, protectedRow.id)).toEqual(protectedRow.row);
           expect(history(opened.db, 'booking', protectedRow.id)).toEqual(protectedRow.audit);
         }
+        // Dismiss the ordinary Redo toast so it cannot cover the retained-source retry.
+        const redoButton = dialog.getByRole('button', { name: 'Wiederholen', exact: true });
+        await redoButton.focus();
+        await redoButton.press('Escape');
+        await expect(redoButton).toBeHidden();
+        await expect(dialog).toBeVisible();
         // Explicit retained-source retry returns historical undone state; it is not permission to redo.
         const retry = dialog.getByRole('button', {
           name: 'Gespeichertes PDF automatisch prüfen',
@@ -509,3 +515,194 @@ for (const profile of ['desktop', 'phone'] as const)
         opened.close();
       }
     });
+
+test('741 clicked automatic result opens its persisted booking destination', async ({
+  page,
+  isolatedLedger,
+}, info) => {
+  const { origin, databasePath } = isolatedLedger;
+  const opened = openDatabase(databasePath);
+  const funding = randomUUID(),
+    card = randomUUID(),
+    category = randomUUID(),
+    group = randomUUID();
+  try {
+    for (const account of [
+      {
+        id: funding,
+        name: 'Muster Link Einzug',
+        type: 'checking' as const,
+        openingBalanceCents: 50000,
+      },
+      {
+        id: card,
+        name: 'Muster Link Karte',
+        type: 'credit_card' as const,
+        openingBalanceCents: -10000,
+      },
+    ])
+      accounts.create(
+        opened.db,
+        {
+          ...account,
+          role: 'budget',
+          onBudget: true,
+          openingDate: '2030-11-01',
+        },
+        ctx,
+      );
+    createEntity(opened.db, schema.categoryGroup, { id: group, name: 'Muster Link Ausgaben' }, ctx);
+    categories.create(
+      opened.db,
+      {
+        id: category,
+        groupId: group,
+        name: 'Muster Link Einkauf',
+        class: 'need',
+      },
+      ctx,
+    );
+    saveAssignmentRule(
+      opened.db,
+      null,
+      {
+        name: 'Muster Link Zuordnung',
+        enabled: true,
+        automatic: true,
+        match: {
+          mode: 'all',
+          conditions: [{ type: 'counterparty', text: 'Synthetic current merchant' }],
+        },
+        actions: { categoryId: category },
+      },
+      ctx,
+    );
+    performStatementAction(
+      opened.db,
+      {
+        operation: 'configure',
+        key: 'synthetic-link-settlement-config',
+        cardAccountId: card,
+        fundingAccountId: funding,
+        expectedRevision: null,
+        enabled: true,
+      },
+      ctx,
+    );
+    const token = createHash('sha256')
+      .update(JSON.stringify(['statement-card-v1', card, '1111']))
+      .digest('hex');
+    saveStatementAutomationConfig(
+      opened.db,
+      {
+        accountId: card,
+        expectedRevision: null,
+        enabled: true,
+        mappedCards: [{ token, accountId: card }],
+        scheduledPayment: { mode: 'none' },
+      },
+      ctx,
+    );
+    await page.clock.setFixedTime(new Date('2031-01-10T12:00:00+01:00'));
+    const previousPdf = await syntheticColumnarPayslipPdf(rows(true), '');
+    const previous = await page.request.post('/api/statement-intake/upload', {
+      headers: { origin },
+      multipart: {
+        accountId: card,
+        file: {
+          name: 'synthetic-link-previous-741.pdf',
+          mimeType: 'application/pdf',
+          buffer: previousPdf,
+        },
+      },
+    });
+    expect(previous.status()).toBe(201);
+    expect((await previous.json()).automation).toBeUndefined();
+    await page.goto(`/konten/${card}`);
+    await page.getByRole('button', { name: 'Abrechnung hochladen', exact: true }).click();
+    const pdf = await syntheticColumnarPayslipPdf(rows(false), '');
+    const uploaded = page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/api/statement-intake/upload') &&
+        response.request().method() === 'POST',
+    );
+    await page.getByLabel('Abrechnungs-PDF auswählen').setInputFiles({
+      name: 'synthetic-link-current-741.pdf',
+      mimeType: 'application/pdf',
+      buffer: pdf,
+    });
+    const response = await uploaded;
+    expect(response.status()).toBe(201);
+    const body = (await response.json()) as {
+      intake: StatementIntakeView;
+      automation: StatementAutomationOutcome;
+    };
+    expect(body.automation).toMatchObject({
+      status: 'saved',
+      created: 1,
+      reasons: [],
+      pending: [],
+    });
+    const created = body.automation.items!.filter((item) => item.role === 'created');
+    expect(created).toHaveLength(1);
+    const bookingId = created[0]!.bookingId;
+    expect(created[0]!.accountId).toBe(card);
+    expect(getBooking(opened.db, bookingId)).toMatchObject({
+      accountId: card,
+      amountCents: -7000,
+      memo: 'Synthetic current merchant',
+      status: 'pending',
+    });
+    const dialog = page.getByRole('dialog', { name: 'Abrechnung prüfen' });
+    // Dismiss the ordinary Undo toast through its keyboard interaction before navigating.
+    const undo = dialog.getByRole('button', { name: 'Rückgängig', exact: true });
+    await undo.focus();
+    await undo.press('Escape');
+    await expect(undo).toBeHidden();
+    await expect(dialog).toBeVisible();
+    const link = dialog
+      .getByRole('region', { name: 'Automatisches Verarbeitungsergebnis' })
+      .getByRole('link', { name: 'Neue Buchung', exact: true });
+    const destination = `/konten/buchungen?konto=${card}&buchung=${bookingId}`;
+    await expect(link).toHaveAttribute('href', destination);
+    await link.click();
+    await expect(page).toHaveURL(origin + destination);
+    const row = page.locator(`[data-booking="${bookingId}"]`);
+    await expect(page.locator('[data-booking]')).toHaveCount(1);
+    await expect(row).toContainText('Synthetic current merchant');
+    await expect(row).toContainText('Muster Link Einkauf');
+    await expect(row).toContainText('−70,00');
+    await row.getByRole('button', { name: / bearbeiten$/ }).click();
+    const editor = page.getByRole('dialog', { name: 'Buchung bearbeiten', exact: true });
+    await expect(editor).toBeVisible();
+    await expect(editor.getByLabel('Betrag', { exact: true })).toHaveValue('70,00');
+    await expect(editor.getByLabel('Notiz', { exact: true })).toHaveValue(
+      'Synthetic current merchant',
+    );
+    await page.screenshot({
+      path: info.outputPath('clicked-booking-destination.png'),
+      fullPage: true,
+    });
+    await writeFile(
+      info.outputPath('clicked-booking-destination.json'),
+      JSON.stringify(
+        {
+          project: info.project.name,
+          viewport: page.viewportSize(),
+          bookingId,
+          accountId: card,
+          clickedHref: destination,
+          actualUrl: page.url(),
+          persistedAmountCents: -7000,
+          visibleEditorAmount: '70,00',
+          visibleMemo: 'Synthetic current merchant',
+          bookingLinkDestinationExercised: true,
+        },
+        null,
+        2,
+      ),
+    );
+  } finally {
+    opened.close();
+  }
+});
