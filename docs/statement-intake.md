@@ -28,6 +28,19 @@ labels/layouts are limited; an unreadable, scanned, password-blocked or ambiguou
 document remains retained for manual review. Parser success is not a guarantee
 that a particular issuer's layout is supported.
 
+A finite issued-card summary layout is also supported: the consecutive labels
+**Datum**, **Datum nächste Umsatznachricht**, **Wird eingezogen am** and **Saldo**
+must jointly identify the summary. Only its printed issue/debit dates and balance
+are proposed; the next-notice date never supplies a missing period or debit date.
+A trailing balance minus denotes payable debt, while a trailing plus denotes a
+credit requiring manual settlement. Existing invoice sign handling is unchanged.
+Currency requires an explicit supported final-amount column in the transaction
+heading; foreign purchase currencies never supply the statement currency.
+Reference and period remain blank when not independently identified. This layout
+does not provide automatic complete review: supply a real document identity or
+full period before reviewing. Reanalysis of an already retained document is
+explicit and follows the existing pending/reopen and conflict guards.
+
 **Einzugsdatum** must be explicit. An issue date, **Bankeinzug** or **0 Tage netto**
 does not supply a debit date. Unknown fields stay blank; an explicitly entered
 zero amount remains different from an unknown amount. German date entry uses
@@ -122,6 +135,27 @@ verified encrypted archive. See [receipt storage and backup](receipts.md) and
 [operations](ops.md) for the existing procedure. This feature adds no new archive
 destination, provider credentials, automatic mail retrieval or folder scanner.
 
+
+## Issued-card summary recognition (#739)
+
+The added finite summary parser was reproduced first with eight new failing
+synthetic cases against the unchanged parser. After the bounded correction,
+all eight new cases and thirteen existing parser cases passed (21 tests,
+2.91 seconds). The two new service cases reconstruct positioned PDF cells through
+the app's actual PDF.js worker. Domain/server type checks, scoped lint and format
+checks passed. No existing test or extraction-worker implementation changed.
+
+A bounded private check through the same CLI/service also recognized issue date,
+debit date, payable amount and currency in two retained source documents. Only
+recognized field names and structural tokens were recorded in shared diagnostics;
+no source values, identifiers or documents are repository fixtures. Reference,
+period and account hint remained unknown. A parser proposal is not complete
+review, payment acceptance or a booking. Explicitly reanalyse a retained pending
+document rather than blindly uploading it again; reviewed/rejected documents
+still require the existing reopen and conflict flow.
+
+The required full check/build, exact-head CI and LIVE verification for #739 are
+pending. Earlier checkpoints below belong to their stated historical sources.
 
 ## Synthetic implementation evidence
 

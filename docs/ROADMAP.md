@@ -1768,3 +1768,16 @@ Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers
       actual full results and required CI are tracked in
       [PR #736](https://github.com/Grabman1987/budget/pull/736).
 - [ ] Exact new-head Chromium/required CI, serial merge and verified LIVE.
+
+
+## #739 — Issued-card summary field recognition
+
+- [x] Finite generic summary fields and explicit trailing balance signs; no booking, settlement-rule, API, schema or UI change.
+- [x] NEW8 synthetic parser/actual-worker cases plus existing parser13: all21 PASS; affected types/lint/format pass.
+- [x] Independent source review and private app-extraction field-name check; no private source data in fixtures.
+- [ ] Required full check/build on the verified source; subsequent exact-head CI checks integration.
+- [ ] Exact-head CI and serial LIVE verification.
+
+Unknown reference/period remain manual; the next-notice date is never used as
+identity, period or debit-date fallback. Existing retained documents require
+explicit reanalysis/review. Upload and reanalysis never post money.
