@@ -1249,6 +1249,25 @@
   padding: 10px;
   color: var(--ink-2);
 }
+.is-capture-category .combo-list {
+  box-sizing: border-box;
+  min-width: 0;
+}
+.is-capture-category .combo-option > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 768px) and (pointer: fine) {
+  .bkform .is-capture-category .combo-option {
+    min-height: 36px;
+    padding-block: 4px;
+  }
+}
+@media (pointer: coarse) {
+  .is-capture-category .combo-option {
+    min-height: 44px;
+  }
+}
 .kchips {
   display: flex;
   flex-wrap: wrap;
@@ -1518,6 +1537,8 @@
   font-size: var(--fs-title);
 }
 .bk-body {
+  /* Keep native scroll alignment clear of fractional clipping at the sheet edge. */
+  scroll-padding-block: 1px;
   min-height: 0;
   overflow: auto;
   padding: 16px 20px 12px;

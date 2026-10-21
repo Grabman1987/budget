@@ -164,13 +164,15 @@ export function SplitEditor({
                 : row,
             ),
           );
-        const leading = [
+        const contactsLast = [
           ...contacts.map((c) => ({
             id: `__contact:${c.id}`,
             label: `${draft.kind === 'income' ? 'Rückzahlung von Kontakt' : 'Für Kontakt auslegen'} → ${c.name}`,
             group: 'Kontakte',
           })),
           { id: '__new-contact', label: 'Kontakt neu anlegen', group: 'Kontakte' },
+        ];
+        const leading = [
           ...(draft.kind === 'income' ? [{ id: '__none', label: 'Zu verteilen' }] : []),
           ...(draft.kind === 'expense' && multiple
             ? accounts
@@ -210,6 +212,8 @@ export function SplitEditor({
                 label={multiple ? `Kategorie ${n}` : 'Kategorie'}
                 categories={categories}
                 leading={leading}
+                trailing={contactsLast}
+                capturePicker
                 selectedName={selectedName}
                 error={!multiple ? error : undefined}
                 onSelect={(id) => choose(line, id)}
@@ -265,6 +269,7 @@ export function SplitEditor({
               accounts.some((a) => a.id === line.toAccountId && !a.onBudget) && (
                 <CategoryCombobox
                   label={`Kategorie für Umbuchung ${n}`}
+                  capturePicker
                   categories={categories}
                   selectedName={category?.name ?? ''}
                   onSelect={(categoryId) => change(line.key, { categoryId })}

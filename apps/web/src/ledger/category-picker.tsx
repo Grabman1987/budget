@@ -34,6 +34,8 @@ export function CategoryCombobox({
   label,
   categories,
   leading = [],
+  trailing = [],
+  capturePicker = false,
   selectedName,
   onSelect,
   error,
@@ -43,6 +45,9 @@ export function CategoryCombobox({
   label: string;
   categories: ReadonlyArray<PickCategory>;
   leading?: ReadonlyArray<ComboOption>;
+  trailing?: ReadonlyArray<ComboOption>;
+  /** Capture only: retain group order and fit the complete list inside its dialog. */
+  capturePicker?: boolean;
   /** Text shown while nothing is being typed. */
   selectedName: string;
   onSelect: (id: string) => void;
@@ -54,8 +59,8 @@ export function CategoryCombobox({
   // What is being typed to search; `null` shows the chosen name and the whole list.
   const [typing, setTyping] = useState<string | null>(null);
   const options = useMemo(
-    () => [...leading, ...categoryOptions(categories, hidden)],
-    [leading, categories, hidden],
+    () => [...leading, ...categoryOptions(categories, hidden), ...trailing],
+    [leading, categories, hidden, trailing],
   );
   const showsAvailable = categories.some((c) => c.availableCents !== null);
   return (
@@ -66,6 +71,7 @@ export function CategoryCombobox({
       placeholder={placeholder}
       error={error}
       listWhenEmpty
+      captureCategory={capturePicker}
       pickFirst={pickFirst}
       emptyText="Keine Kategorie gefunden."
       options={options}
