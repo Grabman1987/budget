@@ -154,8 +154,11 @@ review, payment acceptance or a booking. Explicitly reanalyse a retained pending
 document rather than blindly uploading it again; reviewed/rejected documents
 still require the existing reopen and conflict flow.
 
-The required full check/build, exact-head CI and LIVE verification for #739 are
-pending. Earlier checkpoints below belong to their stated historical sources.
+The required AGE-enabled full check passed on `cadfd183`: 583 test files and
+5,189 tests passed, with no failures or skips (512.64 seconds of tests). The normal
+production build also passed; source and process guards remained clean. Exact-head
+CI and LIVE verification for #739 are pending. Earlier checkpoints below belong
+to their stated historical sources.
 
 ## Synthetic implementation evidence
 
