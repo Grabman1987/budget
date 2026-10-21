@@ -1791,3 +1791,13 @@ explicit reanalysis/review. Upload and reanalysis never post money.
 - [x] [Four unchanged synthetic browser originals and evidence limits](evidence/contact-statement-738/README.md). No existing test file changed.
 - [x] Required AGE-enabled full check on clean source checkpoint `7169a0cba7ec70d0d25d8ed2bf24666d3142c5ee`: 584 files / 5,192 tests passed in 500.20s Vitest time with two workers; workspace static checks and normal production build passed. All 3,636 source hashes/full modes, HEAD and index stayed exact. Later ordinary Main inheritance and final-head CI are separate gates; the earlier owner-batching cancellation is retained.
 - [ ] Exact-head CI, serial integration and verified LIVE; no queue-completion claim.
+
+
+## #741 — Card upload automation (partial delivery; gates pending)
+
+- [x] Deterministic configured card upload uses original-source evidence, exact cents and audited pending writers; issued settlement preserves newer purchases and recorded originals unchanged. Payroll and manual receipt selection remain separate.
+- [x] Focused synthetic domain 21, DB 16 (13+3 separate runs), actual PDF/API 7, UI 7 and migration 10 passed; the initial rollback-negative failure was corrected without weakening its assertion. DB/server/Web types and scoped code checks passed.
+- [x] Canonical WebKit 7/7 (three setup plus four profile/theme cases), fresh E2E build and source/process guards passed on 88ee863b. Real posting/wholeUndo/no-repost and two phone manual nonmonetary reviews passed. [Four unchanged originals and exact evidence limits](evidence/card-automation-741/README.md).
+- [ ] Specific approval/adoption and actual rerun of the two old UI transport adapters: current existing regression result 77/94, 17 failures; financial oracles remain protected.
+- [ ] Required AGE-enabled full check, normal production build, exact-head Chromium/CI, serial integration and verified LIVE.
+- [ ] Payroll, #740 manual receipt selection and clicked booking-link destination acceptance. No whole-issue closure, physical-device certification or real-data-change claim.
