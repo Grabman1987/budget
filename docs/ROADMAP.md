@@ -1825,5 +1825,17 @@ addressed by the month-only CSS boundary; updated exact-head Goals CI is pending
 - [x] Required AGE-enabled full check on frozen source `3a1210cc`: 589 files / 5,213 tests; normal production build passed. The handoff only adds documentation/evidence, leaving product and test bytes unchanged.
 - [ ] Exact-head Chromium/required CI, serial integration and verified LIVE.
 
+CI `39661416902` on `e188323c` passed all 22 jobs; the additional first-booking regression `39661417099` also passed. Live Main `fb7490d3` is now inherited unchanged. Capture product/test files remain byte-identical to the checked source. Both ROADMAP append sections were retained; required CI on the updated PR #746 head and its own serial live delivery remain pending.
+
 The body scrolls; screenshots do not claim every split row is visible at once.
 Physical-device/keyboard/fullscreen acceptance belongs separately to #586.
+
+## #747 — Today savings action opens the task segment
+
+- [x] Identify the contextual-navigation defect: the generic inbox auto-selects movements while savings execution proposals belong to tasks.
+- [x] With one open movement and one savings proposal, the Today action opens `teil=aufgaben` and the matching confirmation dialog. Opening it creates no trade and preserves the literal account balances.
+- [x] Preserve and pass the existing portfolio execution, financial, Undo and Redo regression checks without modifying their expectations. New regression plus unchanged portfolio tests: system Chromium desktop/mobile 17/17 passed (including setup, 1.2 min). Before the one-line fix, the new desktop regression failed on the bare inbox URL and showed Umsätze selected; its trace was retained.
+- [x] Independent Codex full-diff review: no findings; existing tests, financial writers, locks, audit and Undo unchanged.
+- [x] Required full AGE-enabled check: typecheck, lint/format and 589 files / 5,213 tests passed (386.97 s Vitest); normal production build passed. Supplemental system Chromium is not canonical visual or WebKit evidence.
+- [x] Exact-head canonical CI `39664783674` passed.
+- [x] PR #748 is LIVE at `fb7490d3bb2855d618df89625f5166f4cf24ae13`: Main CI `39666973044` and deployment `39667052323` succeeded. Owner local CLI reported fresh matching health on 2026-10-21 at 22:06 Europe/Vienna; the coordinator independently verified GitHub evidence. #747 closed; board reconciliation remains pending without board access.
