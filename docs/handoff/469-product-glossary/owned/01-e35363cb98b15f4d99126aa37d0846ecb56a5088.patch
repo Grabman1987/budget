@@ -1,0 +1,42 @@
+diff --git a/PRODUCT.md b/PRODUCT.md
+index 60dd7cdc0e3b52b926e2d1087b7beb2ea43fe4a6..84fd9de6954a3fca31b0afb7a9ddc766e2f646c2 100644
+--- a/PRODUCT.md
++++ b/PRODUCT.md
+@@ -97,6 +97,23 @@ recorded separately; mockups alone do not establish completion.
+ 
+ Owner directive PR1 (2026-10-04): asset classification now uses effective-dated weighted exposure sets. Today's reassignment never changes earlier Ist; mixed and explicitly incomplete sets conserve the portfolio's cents and preserve unknown weight. The existing instrument editor accepts an effective date; the weighted API supports audited replacement and undo. Asset-class settings, risk unification/leverage and allocation quality remain separate PRs. See [historical asset exposure](docs/asset-exposure.md).
+ 
++## Canonical UI terminology
++
++The German labels below record the accepted wording from [#469](https://github.com/Grabman1987/budget/issues/469), including the owner's [allocation terms](https://github.com/Grabman1987/budget/issues/469#issuecomment-6209535836) and [single-category and Gespart clarification](https://github.com/Grabman1987/budget/issues/469#issuecomment-6213536356). They supersede conflicting historical UI wording in this document; dated directives remain as history. Financial meaning and calculations still follow `SPEC.md` and the existing shared models.
++
++- **Kategorie** replaces visible “Envelope”; technical identifiers may retain `envelope`.
++- **Verplantes Geld** replaces the UI label “Verfügbar in Envelopes”. This is a wording mapping, not a new calculation or a replacement for every use of “Verfügbar”.
++- **Ausgabentempo** replaces visible “Pace”; the existing metric and period contract remain unchanged.
++- **Noch im Plan** replaces the UI label “Plan-Rest”.
++- **Zu verteilen** is the lead figure in Plan, Heute and the corresponding reports, replacing “Noch zu verplanen”.
++- **Zugewiesen** names the category assignment column. This does not rename unrelated concepts such as “Geplante Zahlung”.
++- **Verteilen** names distributing “Zu verteilen” across multiple categories. **Zuweisen** remains appropriate for one category, including “Rate zuweisen” and “Schnell zuweisen”.
++- **Sparziel** denotes a target amount by a date; **Monatsziel** denotes the monthly rate. These names do not introduce another target type or change target calculations.
++- **Gespart**, in the wealth-development measure chain, replaces “Eigenleistung”: **Einnahmen − Konsum + reguläre Tilgung**, so **Anfang + Gespart + Markt = Jetzt**. This is the existing wealth contract, not a new formula or a definition for unrelated savings measures.
++- **Allokation** replaces visible “Allocation”.
++
++The [page review](docs/product/page-review-2026-10-16.md) also records newer route and navigation wording, including “Prüfen” instead of “Posteingang”. Under [#529](https://github.com/Grabman1987/budget/issues/529), apply terminology in each owning page task, not a separate app-wide replacement sweep. This glossary records the agreed vocabulary; it does not certify that every visible string has been updated or that #469's browser and delivery acceptance is complete.
++
+ ## Platform
+ 
+ Owner directive PR2 (2026-10-04): stored Regelwerk risk thresholds supply Portfolio, report 4.2, rebalancing, savings recommendations and Heute/finance check through one resolver. Leveraged ETFs count in speculative/cluster risk; market value and gross exposure stay distinct. Stored class bands override the smaller-of-5-percentage-points/25%-of-target standard. Historical parameter/leverage versioning remains outside this slice. See [risk policy](docs/portfolio-risk-policy.md).
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index bce73e3781b58202c6613961c262d8e1bdb630a0..8788e023feb17057473e94fd6c1293121a6eb05f 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1817,3 +1817,9 @@ explicit reanalysis/review. Upload and reanalysis never post money.
+ - Added a URL-selected balance, history or whole-picture view under the existing Vermögen und Schulden route. Only the active original report mounts; its financial reader/body, valuation quality and unavailable states,≈marks, source links, period controls, detail tables and CSV behavior remain unchanged. Old direct report routes remain available until #620.
+ - View changes preserve the actual current period and selected month/search context. The original differing defaults (balanceAlles, historyYTD, whole-picture1J) are materialized only when switching views without a valid explicit period; no mount rewrite or financial/date formula changes. The existing scoped view selector provides labelled wrapping and coarse/phone44px controls.
+ - Validation is deferred by the owner’s implementation-first batching instruction: independent fixed-date legacy/new-view cent equivalence; exact period/default and selected-month identity on switching/refresh/BackForward; existing estimated/unknown valuation provenance,≈coverage, unavailable states, CSV and source drilldowns; privacy, keyboard/Axe,44px/390px/light-dark layouts and required full/native/CI/live gates. No tests were added or changed, and no acceptance criterion is marked verified.
++
++### #469 — Canonical terminology reference (documentation-only partial implementation)
++
++- Added the accepted German UI vocabulary to `PRODUCT.md`, with direct links to the owner decisions and the precise wealth-only “Gespart” explanation. Historical directives remain intact; no application text, financial model, write path, rule or test changed.
++- This is only the documentation slice. Remaining page-owned wording includes visible “Envelope”, rule-code presentation and report copy; the accepted navigation and later owner decisions retain precedence. No app-wide replacement sweep was performed.
++- All issue acceptance remains open for the complete terminology work: visible-string coverage; desktop 1440, Chromium 390 and WebKit iPhone in both themes; overflow, Axe and 44 px targets; preserved cent/write/lock/Undo contracts and design tokens; synthetic evidence; required checks, reviewed PR and serial LIVE verification. The owner deferred validation to the coherent batch; no tests or runtime checks were executed for this source checkpoint, and #469 is not complete or published.

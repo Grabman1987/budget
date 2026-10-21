@@ -1,0 +1,27 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/469-product-glossary",
+  "sourceHead": "e35363cb98b15f4d99126aa37d0846ecb56a5088",
+  "originalBaseBeforeOwnedCommits": "211291473f2848eb9a17116908aa86d399b2d3d2",
+  "orderedCommits": [
+    {
+      "sha": "e35363cb98b15f4d99126aa37d0846ecb56a5088",
+      "parentBase": "211291473f2848eb9a17116908aa86d399b2d3d2",
+      "subject": "docs: record canonical UI terminology (Refs #469)",
+      "paths": [
+        "PRODUCT.md",
+        "docs/ROADMAP.md"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout e35363cb98b15f4d99126aa37d0846ecb56a5088 > OWN_OUTPUT/e35363cb98b15f4d99126aa37d0846ecb56a5088.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-e35363cb98b15f4d99126aa37d0846ecb56a5088.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "PRODUCT.md",
+    "docs/ROADMAP.md"
+  ],
+  "mixedSourceAncestry": true,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

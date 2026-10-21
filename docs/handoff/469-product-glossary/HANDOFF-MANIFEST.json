@@ -1,0 +1,22 @@
+[
+  {
+    "path": "docs/handoff/469-product-glossary/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/469-product-glossary/README.md",
+    "size": 473,
+    "sha256": "9369370aad84face8d3e0af93d2d592052c18c1fed90dda51766ccbbdb4691f3"
+  },
+  {
+    "path": "docs/handoff/469-product-glossary/owned/01-e35363cb98b15f4d99126aa37d0846ecb56a5088.patch",
+    "size": 6349,
+    "sha256": "fcb441149fa77eb65816bfee0e276f38933b7b33b445b9dd67e999e9ece51935"
+  },
+  {
+    "path": "docs/handoff/469-product-glossary/packet.json",
+    "size": 1127,
+    "sha256": "4c824a8b8f5d6a0f2131a09ce948a393af57bb80e266d30f3de7b712fb8cfd2a"
+  }
+]
