@@ -1,0 +1,32 @@
+[
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-case002/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-case002/README.md",
+    "size": 501,
+    "sha256": "dd734c722108daf300988b8f572de110dae6c5efc4e8fd0645803337a4639426"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-case002/preservation.json",
+    "size": 615,
+    "sha256": "917c4abccd0f994a668a22d7daf31c524b0aad91021e6295772dfedbd2fceaa7"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-case002/untracked/apps/server/src/api/case-002.test.ts",
+    "size": 5643,
+    "sha256": "dff4d1e059bd10b7b950e340d2f414644f588d79ff52db50a3728df21b860ed6"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-case002/untracked/docs/evidence/reference-adoption/wp-001-case-002-cash-2026-10-19.md",
+    "size": 4451,
+    "sha256": "98e02542b0daf72391d59322af3d19c035e17eeaec86168ed95af4eb4da06410"
+  },
+  {
+    "path": "docs/handoff/archive-budget-cloud-review-case002/untracked/packages/db/src/repos/case-002.test.ts",
+    "size": 3819,
+    "sha256": "d83cb2e676028f432658467251f86748bdab4374d46d60acfb4359ebca847742"
+  }
+]
