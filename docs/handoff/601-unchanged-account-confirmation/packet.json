@@ -1,0 +1,41 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/601-unchanged-account-confirmation",
+  "sourceHead": "7cf615bde670bb321d15b8f2469c6ab6c8298676",
+  "originalBaseBeforeOwnedCommits": "8f2509c683fcbe6959976127c50ce455574c7221",
+  "orderedCommits": [
+    {
+      "sha": "7cf615bde670bb321d15b8f2469c6ab6c8298676",
+      "parentBase": "8f2509c683fcbe6959976127c50ce455574c7221",
+      "subject": "feat(month-close): prepare unchanged account confirmation (#601)",
+      "paths": [
+        "apps/server/src/api/accounts.ts",
+        "apps/server/src/api/month-close.ts",
+        "apps/web/src/ledger/reconcile-panel.tsx",
+        "apps/web/src/month-close/api.ts",
+        "apps/web/src/month-close/month-close-page.tsx",
+        "apps/web/src/month-close/month-close.css",
+        "docs/ROADMAP.md",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/repos/month-close-reconciliation.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 7cf615bde670bb321d15b8f2469c6ab6c8298676 > OWN_OUTPUT/7cf615bde670bb321d15b8f2469c6ab6c8298676.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-7cf615bde670bb321d15b8f2469c6ab6c8298676.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/server/src/api/accounts.ts",
+    "apps/server/src/api/month-close.ts",
+    "apps/web/src/ledger/reconcile-panel.tsx",
+    "apps/web/src/month-close/api.ts",
+    "apps/web/src/month-close/month-close-page.tsx",
+    "apps/web/src/month-close/month-close.css",
+    "docs/ROADMAP.md",
+    "packages/db/src/repos/index.ts",
+    "packages/db/src/repos/month-close-reconciliation.ts"
+  ],
+  "mixedSourceAncestry": true,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

@@ -1,0 +1,5 @@
+# #601 / #608 integration boundary — SOURCE CLEAR
+
+Reviewed clean integrated bcf5dabc63c1d5798d12f065f61e9eaaf26a13e7 against previous5960e51c. All seven non-append #601 paths retain checkpoint7cf615bde670bb321d15b8f2469c6ab6c8298676 exact Git blobs and modes; all four non-Roadmap #608 paths retain checkpoint81a68a9381ce20cf09179b46ed188e38bd77222c exact Git blobs and modes. Changed-path union is exactly the two checkpoint sets, without unrelated paths; worktree clean.
+
+Independently reconstructed both manual unions using each receipt's exact common prefix plus both suffixes. #601 Roadmap and DB barrel match0ed2a489 and receipt hashes; #608 Roadmap matchesbcf5dabc and its receipt hash. Previous Roadmap/exports remain exact, including networth-composition, followed only by the accepted new export and appendices. No financial or UI producer code required conflict resolution. These disjoint feature paths introduce no additional source seam identified in this boundary check; prior whole-source verdicts carry with their stated deferred validation. No tests, runtime, formatting or source mutations performed.

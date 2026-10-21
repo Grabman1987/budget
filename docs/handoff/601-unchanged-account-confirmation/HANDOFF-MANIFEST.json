@@ -1,0 +1,37 @@
+[
+  {
+    "path": "docs/handoff/601-unchanged-account-confirmation/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/601-unchanged-account-confirmation/README.md",
+    "size": 487,
+    "sha256": "b3acf8915f484b40bf1ba63ca032f3655a02b81595cebc050a0cbbb82580676d"
+  },
+  {
+    "path": "docs/handoff/601-unchanged-account-confirmation/owned/01-7cf615bde670bb321d15b8f2469c6ab6c8298676.patch",
+    "size": 40258,
+    "sha256": "74005f5ddaef27a9d11a71789d08fd213dd37d854d5f5872b309e78a37974fc1"
+  },
+  {
+    "path": "docs/handoff/601-unchanged-account-confirmation/packet.json",
+    "size": 1878,
+    "sha256": "2e3792f17e80965a08121c19199b15ea17860ec72f634cc4300deeccdec3c8ad"
+  },
+  {
+    "path": "docs/handoff/601-unchanged-account-confirmation/reviews/601-608-integration-bcf5dabc-independent-source-boundary.md",
+    "size": 1122,
+    "sha256": "0a550050152c39b20623e2a86985349b2e7209df411ec4f9ac8e25ff036b17fa"
+  },
+  {
+    "path": "docs/handoff/601-unchanged-account-confirmation/reviews/601-helper-first-financial-independent-source-high.md",
+    "size": 2785,
+    "sha256": "c0e7b288013590d1622a28d25bf40c6027bdae3c5c7eab6cbff455b10c5dda1e"
+  },
+  {
+    "path": "docs/handoff/601-unchanged-account-confirmation/reviews/601-whole-eight-independent-source-review.md",
+    "size": 3165,
+    "sha256": "ca4a1e8a03b40e195eae3a4b0d8c3b658c7b289917b907d5f3c1296ee306227e"
+  }
+]

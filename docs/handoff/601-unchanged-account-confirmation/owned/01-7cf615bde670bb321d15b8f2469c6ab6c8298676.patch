@@ -1,0 +1,662 @@
+diff --git a/apps/server/src/api/accounts.ts b/apps/server/src/api/accounts.ts
+index 0c65f95065e44201613ec21040f12b85e469bc9c..cabf4a029586295d57431e42bd6b490601eb60a4 100644
+--- a/apps/server/src/api/accounts.ts
++++ b/apps/server/src/api/accounts.ts
+@@ -24,6 +24,7 @@ import {
+   reconcileAccount,
+   type AccountSummary,
+   type Db,
++  type Executor,
+ } from '@budget/db';
+ import { and, eq, isNull, sql } from 'drizzle-orm';
+ import { z } from 'zod';
+@@ -50,6 +51,23 @@ import {
+   seriesQuery,
+ } from './schemas';
+ 
++/** The ordinary and month-close reconciliation routes share this existing category guard. */
++export function assertReconcileAdjustmentCategory(db: Executor, categoryId: string | undefined): void {
++  if (categoryId !== undefined) {
++      const picked = db
++        .select({ kind: category.kind })
++        .from(category)
++        .where(eq(category.id, categoryId))
++        .get();
++      if (picked && !isReconcileAdjustCategoryKind(picked.kind))
++        throw new ApiError(
++          400,
++          'invalid',
++          'Für den Ausgleich ist nur eine Ausgaben-Kategorie erlaubt (keine Einnahmen-, Auslagen-, Karten-, Schulden- oder Investment-Kategorie).',
++        );
++    }
++}
++
+ /** Role and budget membership that follow from an account type when the request says nothing. */
+ const DEFAULTS = {
+   checking: { role: 'budget', onBudget: true },
+@@ -541,19 +559,7 @@ export function accountRoutes(db: Db, today: () => string): Hono {
+   app.post('/:id/reconciliation', async (c) => {
+     const id = c.req.param('id');
+     const input = await readBody(c, reconcileBody);
+-    if (input.categoryId !== undefined) {
+-      const picked = db
+-        .select({ kind: category.kind })
+-        .from(category)
+-        .where(eq(category.id, input.categoryId))
+-        .get();
+-      if (picked && !isReconcileAdjustCategoryKind(picked.kind))
+-        throw new ApiError(
+-          400,
+-          'invalid',
+-          'Für den Ausgleich ist nur eine Ausgaben-Kategorie erlaubt (keine Einnahmen-, Auslagen-, Karten-, Schulden- oder Investment-Kategorie).',
+-        );
+-    }
++    assertReconcileAdjustmentCategory(db, input.categoryId);
+     const ctx = audit();
+     const result = reconcileAccount(db, defined({ ...input, accountId: id, today: today() }), ctx);
+     return c.json({ result, account: summary(id) }, 201);
+diff --git a/apps/server/src/api/month-close.ts b/apps/server/src/api/month-close.ts
+index b36d9c31175c69c477fdb5f3df8a8f3f17ab066b..3fc22aa573c742ea2ab9dda95907a716f5ac5e1f 100644
+--- a/apps/server/src/api/month-close.ts
++++ b/apps/server/src/api/month-close.ts
+@@ -14,6 +14,9 @@ import {
+   reportTables,
+   monthOnePager,
+   monthCloseSourceRevision,
++  previewMonthCloseReconciliation,
++  confirmMonthCloseReconciliation,
++  reconcileAccount,
+   occurrencesBetween,
+   loadFacts,
+   type Db,
+@@ -36,8 +39,9 @@ import { and, desc, eq, isNull, lte } from 'drizzle-orm';
+ import { createHash, randomUUID } from 'node:crypto';
+ import { Hono } from 'hono';
+ import { z } from 'zod';
+-import { ACTOR, ApiError, readBody } from './http';
+-import { month } from './schemas';
++import { ACTOR, ApiError, defined, readBody } from './http';
++import { assertReconcileAdjustmentCategory } from './accounts';
++import { month, day, reconcileBody } from './schemas';
+ 
+ const fingerprint = (value: unknown) =>
+   createHash('sha256').update(JSON.stringify(value)).digest('hex');
+@@ -110,11 +114,17 @@ function readMonthCloseWithin(db: Db, m: string, today: string) {
+       return {
+         ...a,
+         manual,
++        holdingValued: holdingAccounts.has(a.id),
+         valueCents: value?.valueCents ?? a.balanceCents,
+         lastValuedOn: value?.date ?? null,
+         done: manual ? value?.date === end : reconciled,
+       };
+     });
++  // Presentation priority must not reorder the established close sourceRevision/work facts.
++  const bankFirstAccounts = [...accounts].sort((a, b) =>
++    Number(!['checking', 'savings', 'credit_card'].includes(a.type)) - Number(!['checking', 'savings', 'credit_card'].includes(b.type)));
++  const unchangedConfirmation = previewMonthCloseReconciliation(db, m, today,
++    bankFirstAccounts.map((a) => ({ id: a.id, manual: a.manual, done: a.done, hasHoldings: a.holdingValued })));
+   const nextMonth = addMonths(m, 1);
+   const plans = planMonthViews(db, [m, nextMonth], {}, today);
+   const plan = plans[m]!;
+@@ -219,7 +229,8 @@ function readMonthCloseWithin(db: Db, m: string, today: string) {
+     },
+     work,
+     inbox,
+-    accounts,
++    unchangedConfirmation,
++    accounts: bankFirstAccounts,
+     overspent,
+     nextPlan,
+     deviations: closeDeviations(
+@@ -235,6 +246,45 @@ function readMonthCloseWithin(db: Db, m: string, today: string) {
+ export function monthCloseRoutes(db: Db, today: () => string): Hono {
+   const app = new Hono();
+   app.get('/:month', (c) => c.json(readMonthClose(db, month.parse(c.req.param('month')), today())));
++  app.post('/:month/reconcile-unchanged', async (c) => {
++    const m = month.parse(c.req.param('month')), currentToday = today();
++    const body = await readBody(c, z.object({
++      accountIds: z.array(z.string().min(1).max(64)).min(1).max(500)
++        .refine((ids) => new Set(ids).size === ids.length, 'Duplicate accounts are not allowed'),
++      asOf: day, revision: z.string().regex(/^[a-f0-9]{64}$/),
++    }).strict());
++    const ctx = { actor: ACTOR, groupId: randomUUID() };
++    const result = db.transaction((tx) => {
++      const view = readMonthClose(tx, m, currentToday);
++      return confirmMonthCloseReconciliation(tx, { ...body, month: m, today: currentToday },
++        view.accounts.map((a) => ({ id: a.id, manual: a.manual, done: a.done, hasHoldings: a.holdingValued })), ctx);
++    });
++    return c.json({ ...result, changedCount: result.reconciliations.length }, 201);
++  });
++
++  app.post('/:month/accounts/:id/reconciliation', async (c) => {
++    const m = month.parse(c.req.param('month')), id = c.req.param('id'), currentToday = today();
++    const { sourceRevision, ...input } = await readBody(c,
++      reconcileBody.extend({ sourceRevision: z.string().regex(/^[a-f0-9]{64}$/) }).strict());
++    const ctx = { actor: ACTOR, groupId: randomUUID() };
++    const result = db.transaction((tx) => {
++      const view = readMonthClose(tx, m, currentToday);
++      if (sourceRevision !== view.sourceRevision || input.date !== view.asOf)
++        throw new ApiError(409, 'stale_close', 'Der Abschlussstand hat sich geändert. Bitte neu laden.');
++      if (!view.accounts.some((a) => a.id === id && !a.manual && !a.done))
++        throw new ApiError(409, 'close_account_unavailable', 'Dieses Konto bleibt außerhalb dieser Kontoprüfung. Bitte den Abschluss neu laden.');
++      assertReconcileAdjustmentCategory(tx, input.categoryId);
++      const checked = reconcileAccount(tx, defined({ ...input, accountId: id, today: currentToday,
++        note: input.note?.trim() || null }), ctx);
++      // Enforce the actual residual difference, after the existing explicit duplicate/pending
++      // actions. Missing reason rolls this whole request back; this is not a preview dry-run.
++      if (checked.adjustmentBookingId !== null && checked.differenceCents !== 0 && !input.note?.trim())
++        throw new ApiError(400, 'reconciliation_reason_required', 'Gib einen Grund für den verbleibenden Ausgleich an.');
++      return checked;
++    });
++    return c.json({ result }, 201);
++  });
++
+   app.patch('/:month', async (c) => {
+     const m = month.parse(c.req.param('month'));
+     const patch = await readBody(
+diff --git a/apps/web/src/ledger/reconcile-panel.tsx b/apps/web/src/ledger/reconcile-panel.tsx
+index f9fccc15903e141adb89da7156350821c5714ca9..e6f813b424d82b4adaf3edf28d63f07eaa249d2b 100644
+--- a/apps/web/src/ledger/reconcile-panel.tsx
++++ b/apps/web/src/ledger/reconcile-panel.tsx
+@@ -18,6 +18,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
+ import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+ import { useEffect, useState } from 'react';
+ import { AppLink } from '../shell/app-link';
++import { ApiError } from '../api/http';
+ import { previewReconciliation, reconcileAccount, type ReconcileRequest } from './api';
+ import { nativeCurrency, valuedCurrency, longDay, shortDay } from './format';
+ import { errorText } from './labels';
+@@ -25,7 +26,7 @@ import { useLedgerWrites } from './mutations';
+ import { LEDGER_KEY, lookupsQuery } from './queries';
+ import { findingOf } from './reconcile-model';
+ import { ErrorNote, LoadingNote } from './states';
+-import type { AccountRow } from './types';
++import type { AccountRow, ReconcileResult } from './types';
+ import { SettingsFormDialog } from '../pages/settings-form-dialog';
+ import { BookingPanel, type BookingPanelState } from './booking-panel';
+ import { categoriesFor, pickableCategories } from './capture-model';
+@@ -62,15 +63,27 @@ export function ReconcileFlow({
+   account,
+   onDone,
+   initialDate,
++  monthClose,
+ }: {
+   account: AccountRow;
+   onDone: () => void;
+   initialDate?: string | undefined;
++  monthClose?: {
++    asOf: string;
++    confirm: (input: ReconcileRequest & { note?: string }) => Promise<{ result: ReconcileResult }>;
++    onReload: () => void;
++    onBusy: (busy: boolean) => void;
++  };
+ }) {
+   useAmountPrivacy();
+   const qc = useQueryClient();
+   const writes = useLedgerWrites();
+   const today = todayInVienna();
++  // A dirty form retains the close revision captured when it was opened, never a silent refresh.
++  const [closeContext] = useState(monthClose);
++  const [reason, setReason] = useState('');
++  const [staleClose, setStaleClose] = useState(false);
++  useEffect(() => () => { closeContext?.onBusy(false); }, [closeContext]);
+   const [date, setDate] = useState(initialDate ?? today);
+   const [text, setText] = useState('');
+   const [adjustDate, setAdjustDate] = useState<string | null>(null);
+@@ -134,12 +147,17 @@ export function ReconcileFlow({
+     !preview.isError;
+ 
+   const confirm = useMutation({
+-    mutationFn: (extra: Partial<ReconcileRequest>) =>
+-      reconcileAccount(account.id, {
++    onMutate: () => { closeContext?.onBusy(true); },
++    mutationFn: (extra: Partial<ReconcileRequest>) => {
++      const input = {
+         date: asked.date,
+         statementBalanceCents: asked.statement as number,
+         ...extra,
+-      }),
++        ...(closeContext && extra.adjust && reason.trim() ? { note: reason.trim() } : {}),
++      };
++      return closeContext ? closeContext.confirm(input) : reconcileAccount(account.id, input);
++    },
++    onSettled: () => { closeContext?.onBusy(false); },
+     onSuccess: ({ result }) => {
+       void qc.invalidateQueries({ queryKey: LEDGER_KEY });
+       writes.offerUndo(
+@@ -150,13 +168,18 @@ export function ReconcileFlow({
+       );
+       onDone();
+     },
+-    onError: (e) => setError(errorText(e)),
++    onError: (e) => {
++      if (closeContext && e instanceof ApiError && (e.code === 'stale_close' || e.code === 'close_account_unavailable')) setStaleClose(true);
++      setError(errorText(e));
++    },
+   });
+   const run = (extra: Partial<ReconcileRequest>) => {
++    if (closeContext && (confirm.isPending || staleClose || (extra.adjust && !reason.trim()))) return;
+     setError(null);
+     confirm.mutate(extra);
+   };
+   const dropDuplicate = (id: string) => {
++    if (closeContext) { run({ removeBookingIds: [id] }); return; }
+     setError(null);
+     writes.remove.mutate(
+       { id },
+@@ -173,7 +196,7 @@ export function ReconcileFlow({
+       {bank && bank.amountCents !== null && bankDate && (
+         <Button
+           variant="ghost"
+-          disabled={confirm.isPending}
++          disabled={confirm.isPending || Boolean(closeContext && bankDate !== closeContext.asOf)}
+           onClick={() => {
+             setDate(bankDate);
+             setText(formatDecimal(cents(bank.amountCents!)));
+@@ -187,6 +210,7 @@ export function ReconcileFlow({
+           <TextInput
+             id={id}
+             type="date"
++            disabled={Boolean(closeContext)}
+             min={account.openingDate}
+             max={today}
+             value={date}
+@@ -327,6 +351,11 @@ export function ReconcileFlow({
+               </span>
+             </p>
+             <div className="kform">
++              {closeContext && <Field label="Grund für den Ausgleich">
++                {({ id }) => <TextInput id={id} value={reason} maxLength={500} disabled={confirm.isPending}
++                  onChange={(event) => setReason(event.target.value)} aria-required="true" />}
++              </Field>}
++              {closeContext && <p className="kmeta">Ein Grund ist nur erforderlich, wenn ein verbleibender Unterschied als Ausgleich gebucht wird.</p>}
+               <Field label="Ausgleichsdatum">
+                 {({ id }) => (
+                   <TextInput
+@@ -405,10 +434,10 @@ export function ReconcileFlow({
+               )}
+               {finding.kind === 'duplicate' && (
+                 <Button
+-                  disabled={writes.remove.isPending}
++                  disabled={writes.remove.isPending || Boolean(closeContext && (confirm.isPending || staleClose))}
+                   onClick={() => dropDuplicate(finding.candidate.removeId)}
+                 >
+-                  Doppelte Buchung entfernen
++                  {closeContext ? 'Doppelte Buchung entfernen und festschreiben' : 'Doppelte Buchung entfernen'}
+                 </Button>
+               )}
+               {finding.kind === 'pending' && (
+@@ -424,7 +453,8 @@ export function ReconcileFlow({
+                   finding.kind === 'missing' || finding.kind === 'other' ? 'primary' : 'ghost'
+                 }
+                 disabled={
+-                  confirm.isPending ||
++                  confirm.isPending || staleClose ||
++                  Boolean(closeContext && !reason.trim()) ||
+                   !adjustmentValid ||
+                   (locked && !unlock) ||
+                   (categoryId !== '' && !categories.some((c) => c.id === categoryId))
+@@ -451,6 +481,9 @@ export function ReconcileFlow({
+           </>
+         )}
+       </div>
++      {staleClose && closeContext && <Button variant="ghost" disabled={confirm.isPending} onClick={closeContext.onReload}>
++        Prüfung schließen und Abschluss neu laden
++      </Button>}
+       {error && (
+         <p className="field-error" role="alert">
+           {maskMoneyText(error)}
+diff --git a/apps/web/src/month-close/api.ts b/apps/web/src/month-close/api.ts
+index 3c27c01e851242035046b95e94d8513cfceff493..80a28e7d6332863cb38d266a01b32c7896325d19 100644
+--- a/apps/web/src/month-close/api.ts
++++ b/apps/web/src/month-close/api.ts
+@@ -5,7 +5,9 @@ import type {
+   closePlanHistory,
+   closeDeviations,
+ } from '@budget/domain';
+-import type { AccountSummary, InboxEntry, HeuteOccurrence, OnePager } from '@budget/db';
++import type { AccountSummary, InboxEntry, HeuteOccurrence, OnePager, MonthCloseReconciliationPreview } from '@budget/db';
++import type { ReconcileRequest } from '../ledger/api';
++import type { ReconcileResult } from '../ledger/types';
+ import { queryOptions } from '@tanstack/react-query';
+ import { request } from '../api/http';
+ import { LEDGER_KEY } from '../ledger/queries';
+@@ -34,6 +36,7 @@ export interface MonthCloseView extends WithValuationNotes {
+     totalTasks: number;
+   };
+   sourceRevision: string;
++  unchangedConfirmation?: MonthCloseReconciliationPreview;
+   close: { changedSinceClose: boolean; legacyMarker: boolean };
+   result: {
+     report: OnePager;
+@@ -51,6 +54,7 @@ export interface MonthCloseView extends WithValuationNotes {
+   accounts: Array<
+     AccountSummary & {
+       manual: boolean;
++      holdingValued?: boolean;
+       valueCents: number;
+       lastValuedOn: string | null;
+       done: boolean;
+@@ -77,3 +81,13 @@ export const saveMonthClose = (
+     `/api/month-close/${month}`,
+     patch,
+   );
++
++export const confirmUnchangedCloseAccounts = (month: string, input: {
++  accountIds: string[]; asOf: string; revision: string;
++}) => request<{ groupId: string; changedCount: number; reconciliations: { accountId: string; reconciliationId: string }[] }>(
++  'POST', `/api/month-close/${encodeURIComponent(month)}/reconcile-unchanged`, input,
++);
++export const reconcileCloseAccount = (month: string, accountId: string,
++  input: ReconcileRequest & { sourceRevision: string; note?: string },
++) => request<{ result: ReconcileResult }>('POST',
++  `/api/month-close/${encodeURIComponent(month)}/accounts/${encodeURIComponent(accountId)}/reconciliation`, input);
+diff --git a/apps/web/src/month-close/month-close-page.tsx b/apps/web/src/month-close/month-close-page.tsx
+index e65bfd03fedcc3ea6696572879b2b3ff02fcd56a..40a235471a4f859b1343950faf0d2876083e0b29 100644
+--- a/apps/web/src/month-close/month-close-page.tsx
++++ b/apps/web/src/month-close/month-close-page.tsx
+@@ -2,7 +2,7 @@ import { useAmountPrivacy, Button, Field, TextInput, TitleBlock } from '@budget/
+ import { todayInVienna, type CloseWork } from '@budget/domain';
+ import { useQuery } from '@tanstack/react-query';
+ import { useParams } from '@tanstack/react-router';
+-import { useState } from 'react';
++import { useRef, useState } from 'react';
+ import { budgetQuery, assign } from '../budget/budget-api';
+ import { EnvelopeBody } from '../budget/envelope-panel';
+ import { planRows } from '../budget/plan-model';
+@@ -16,7 +16,7 @@ import { ReconcileFlow } from '../ledger/reconcile-panel';
+ import { ErrorNote, LoadingNote } from '../ledger/states';
+ import { monthLabel } from '../nav/month';
+ import { AppLink } from '../shell/app-link';
+-import { monthCloseQuery, saveMonthClose, type MonthCloseView } from './api';
++import { monthCloseQuery, saveMonthClose, confirmUnchangedCloseAccounts, reconcileCloseAccount, type MonthCloseView } from './api';
+ import { CloseStepper, CLOSE_STATUS } from './stepper';
+ import { NextMonthPlan } from './next-month-plan';
+ import { MonthReview } from './month-review';
+@@ -95,6 +95,8 @@ function CloseFlow({
+ }) {
+   const write = useBudgetWrite();
+   const [busy, setBusy] = useState(false);
++  const bulkSubmitting = useRef(false);
++  const [bulkFailed, setBulkFailed] = useState(false);
+   const [dirtyPlan, setDirtyPlan] = useState(false);
+   const [selected, setSelected] = useState<string | null>(null);
+   const [deferring, setDeferring] = useState<CloseWork[] | null>(null);
+@@ -116,6 +118,19 @@ function CloseFlow({
+         (d) => d.step === w.step && d.id === w.id && d.fingerprint === w.fingerprint,
+       ),
+   );
++  const unchanged = data.unchangedConfirmation;
++  const groupedIds = new Set(unchanged && unchanged.accounts.length <= 500 ? unchanged.accounts.map((row) => row.id) : []);
++  const confirmUnchanged = async () => {
++    if (bulkSubmitting.current || busy || !fresh || selected !== null || bulkFailed || !unchanged?.accounts.length || unchanged.accounts.length > 500) return;
++    // Capture exactly the displayed cohort and its source revision, never a later refreshed set.
++    const captured = { accountIds: unchanged.accounts.map((row) => row.id), asOf: unchanged.asOf, revision: unchanged.revision };
++    bulkSubmitting.current = true; setBusy(true);
++    try {
++      const result = await write(() => confirmUnchangedCloseAccounts(data.month, captured),
++        (saved) => `${saved.reconciliations.length} unveränderte Kontostände gemeinsam bestätigt.`);
++      if (!result) setBulkFailed(true);
++    } finally { bulkSubmitting.current = false; setBusy(false); }
++  };
+   const select = async (currentStep: number) => {
+     if (busy || dirtyPlan || !fresh) return;
+     setBusy(true);
+@@ -199,7 +214,23 @@ function CloseFlow({
+                 onRetry={() => void accounts.refetch()}
+               />
+             )}
+-            {data.accounts.map((a) => {
++            {unchanged && unchanged.accounts.length > 0 && <div className="close-row close-unchanged" aria-labelledby="close-unchanged-title" aria-busy={busy}>
++              <h3 id="close-unchanged-title">Gemeinsam bestätigen</h3>
++              <p>Diese {unchanged.accounts.length} Konten haben seit der letzten persönlichen Prüfung keine nachgewiesene Bewegung oder spätere Änderung. Bestätigt wird der unveränderte frühere Saldo zum {longDay(unchanged.asOf)}. Es wurde kein neuer Bankstand abgerufen.</p>
++              <ul>{unchanged.accounts.map((row) => <li key={row.id}>
++                <AppLink to="/konten/buchungen" search={{ konto: row.id, bis: unchanged.asOf }}>{row.name}</AppLink>
++                {' · '}{nativeCurrency(row.statementBalanceCents, row.currency)}{' · '}zuletzt persönlich geprüft am {longDay(row.priorDate)}
++              </li>)}</ul>
++              <p>Je Konto wird eine echte Kontoprüfung gespeichert. Ein Rückgängig nimmt die ganze Gruppe zurück. Es entsteht kein Ausgleich und keine zusätzliche Monatssperre.</p>
++              <div className="close-actions">
++                <Button disabled={busy || !fresh || selected !== null || bulkFailed || unchanged.accounts.length > 500} onClick={() => void confirmUnchanged()}>Gemeinsam bestätigen</Button>
++                {bulkFailed && <Button variant="ghost" disabled={busy || !fresh} onClick={() => { setBulkFailed(false); onReload(); }}>Abschluss neu laden</Button>}
++              </div>
++              {bulkFailed && <p role="alert">Die Sammelbestätigung ist fehlgeschlagen. Es wurde keine Teilgruppe bestätigt. Lade den aktuellen Abschlussstand, bevor du erneut bestätigst.</p>}
++              {selected !== null && <p>Schließe zuerst die offene Einzelprüfung.</p>}
++              {unchanged.accounts.length > 500 && <p>Mehr als 500 Konten: bitte die Konten einzeln prüfen.</p>}
++            </div>}
++            {data.accounts.filter((a) => !groupedIds.has(a.id) || selected === a.id).map((a) => {
+               const work = data.work.find((w) => w.step === 2 && w.id === a.id);
+               const decision =
+                 work &&
+@@ -272,6 +303,11 @@ function CloseFlow({
+                           key={a.id}
+                           account={account}
+                           initialDate={data.asOf}
++                          monthClose={{ asOf: data.asOf,
++                            confirm: (input) => reconcileCloseAccount(data.month, a.id, { ...input, sourceRevision: data.sourceRevision }),
++                            onBusy: setBusy,
++                            onReload: () => { setSelected(null); onReload(); },
++                          }}
+                           onDone={() => setSelected(null)}
+                         />
+                       )
+diff --git a/apps/web/src/month-close/month-close.css b/apps/web/src/month-close/month-close.css
+index 66103038ddb5c97b83d3e2bcdcf556c33e32d5ba..d933722dfd1060f41a538647957b34dc885422ef 100644
+--- a/apps/web/src/month-close/month-close.css
++++ b/apps/web/src/month-close/month-close.css
+@@ -255,3 +255,19 @@
+     color: var(--ink-2);
+   }
+ }
++
++/* One explicit membership list, no mixed-currency aggregate or new visual token. */
++.close-unchanged {
++  overflow-wrap: anywhere;
++}
++.close-unchanged ul {
++  padding-inline-start: 24px;
++}
++.close-unchanged li {
++  padding-block: 8px;
++}
++.close-unchanged a {
++  display: inline-flex;
++  align-items: center;
++  min-height: var(--touch);
++}
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index 2c83c7f8598592a4fedc5ff003229ec772b995d0..f459708233e0ef8bf9ac929b6da0cc2fa903dfe5 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -1850,3 +1850,10 @@ explicit reanalysis/review. Upload and reanalysis never post money.
+ - The result shows checked versus deferred accounts, assignments, unresolved overspending, the next month's unallocated carry, actual savings rate and the existing monthly spending/plan comparison. Figures and the full One-Pager come from one close read snapshot; the shared 50/30/20 allocation stays distinct from the actual savings rate. Existing report details, deviations and open findings remain accessible.
+ - Closing retains the historical date and adds a server timestamp, bounded result snapshot and revision check. Repeated identical close requests are no-ops without another audit write or false Undo action. Later changes keep the historical marker; explicit re-close is audited and undoable. Closing introduces no booking lock and no financial writer or calculation change. Account bulk confirmation (#601) and bounded Heute priorities/change reminders (#603 with #573) remain separate work.
+ - Validation is deferred by the owner's implementation-first batching instruction: literal result/report/Plan cent parity; empty/accepted work and quiet-month <=3-click completion; resume, stale-source refusal, true repeated-close no-op, changed-source re-close and grouped Undo; old title/progress adapter review without weakening financial assertions; privacy, keyboard/Axe, 44 px targets, light/dark desktop/phone layout and required full/native/CI/live gates. No acceptance criterion is marked verified here.
++
++
++### #601 — Unchanged account confirmation (implementation pending batch validation)
++
++- Prepared one explicit “Gemeinsam bestätigen” row from prior personal reconciliation snapshots, native balances and retained no-movement evidence. Pending/unresolved activity, later backdated/moved/deleted edits, incomplete audit provenance, valued holdings/manual mode and contradictory dated bank balances stay on the individual path. No bank balance is fetched or inferred, and a zero net movement alone is not evidence.
++- The fixed displayed account set and source revision are rechecked before any write in one transaction. Each account uses the existing reconciliation writer without adjustment; the resulting snapshots share one audit/Undo group. Bank-first presentation preserves owner order without changing the established close-source fingerprint. Individual month-close adjustments require a reason only for an actual residual difference; ordinary account reconciliation keeps its existing behavior.
++- All validation remains deferred under the owner’s implementation-first batching instruction: literal unchanged nonzero balances and net-zero activity exclusion, pending/future/backdated/ABA/history cases, full-set stale/subset/replay refusal, all-account rollback and exact Undo/redo, scoped reason/date/category/currency/lock behavior; desktop and phone profiles, light/dark/privacy/keyboard/Axe/44 px/overflow, required checks, build, CI and LIVE. No acceptance criterion is marked verified here.
+diff --git a/packages/db/src/repos/index.ts b/packages/db/src/repos/index.ts
+index 8a3dfbe9f22514ceb03197659c7901423e671c2a..d2635dc8504f9a0e7333478a591e6de9a62106e1 100644
+--- a/packages/db/src/repos/index.ts
++++ b/packages/db/src/repos/index.ts
+@@ -101,3 +101,4 @@ export * from './statement-automation';
+ export * from './statement-receipt-links';
+ export * from './booking-bulk-eligibility';
+ export * from './month-close-state';
++export * from './month-close-reconciliation';
+diff --git a/packages/db/src/repos/month-close-reconciliation.ts b/packages/db/src/repos/month-close-reconciliation.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..07130385cf75d6f332fb0d8140dae83958f2181c
+--- /dev/null
++++ b/packages/db/src/repos/month-close-reconciliation.ts
+@@ -0,0 +1,166 @@
++import { lastDayOfMonth } from '@budget/domain';
++import { and, desc, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
++import { createHash } from 'node:crypto';
++import { account, accountReconciliation, bankSyncAccount, bankSyncCandidate, inboxItem } from '../schema';
++import { withGroup, type AuditContext } from './audit';
++import { ConflictError, BookingInvariantError } from './errors';
++import { bookedBalance, reconcileAccount } from './reconciliation';
++import { runInTransaction, type Executor } from './types';
++
++/** Server-owned scope from the actual close view, never accepted in an HTTP payload. */
++export interface MonthCloseReconciliationScope {
++  id: string; manual: boolean; done: boolean; hasHoldings: boolean;
++}
++export interface UnchangedAccountConfirmation {
++  id: string; name: string; currency: string; statementBalanceCents: number;
++  priorReconciliationId: string; priorDate: string;
++}
++export type UnchangedAccountReason = 'already_done' | 'individual_mode' | 'no_prior_check' |
++  'incomplete_history' | 'movement' | 'unresolved' | 'changed_since_check' | 'difference' | 'bank_difference' | 'unsafe_balance';
++export interface MonthCloseReconciliationPreview {
++  month: string; asOf: string; revision: string;
++  accounts: UnchangedAccountConfirmation[];
++  excluded: { id: string; reason: UnchangedAccountReason }[];
++}
++
++/**
++ * Confirm retained personal statements, not a newly fetched bank balance. Eligibility is
++ * deliberately conservative: incomplete lineage goes to the existing individual workflow.
++ */
++export function previewMonthCloseReconciliation(db: Executor, month: string, today: string,
++  scope: readonly MonthCloseReconciliationScope[]): MonthCloseReconciliationPreview {
++  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new BookingInvariantError('Invalid close month');
++  const end = lastDayOfMonth(month), asOf = end < today ? end : today;
++  return runInTransaction(db, (tx) => {
++    const accounts: UnchangedAccountConfirmation[] = [], excluded: MonthCloseReconciliationPreview['excluded'] = [];
++    const seeds = new Map(scope.map((row) => [row.id, row]));
++    const ids = [...seeds.keys()].sort();
++    const head = tx.get<{ ordinal: string; id: string }>(sql`SELECT CAST(rowid AS TEXT) AS ordinal,id FROM audit_log ORDER BY rowid DESC LIMIT 1`) ?? null;
++    const proof: unknown[] = [];
++    const rows: (typeof account.$inferSelect)[] = [];
++    for (let at = 0; at < ids.length; at += 200) rows.push(...tx.select().from(account)
++      .where(and(inArray(account.id, ids.slice(at, at + 200)), isNull(account.deletedAt))).all());
++    // Scope comes from the real owner-ordered close view, with a stable bank-first partition.
++    const rank = new Map(scope.map((row, index) => [row.id, index]));
++    rows.sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
++    for (const row of rows) {
++      const seed = seeds.get(row.id)!;
++      const omit = (reason: UnchangedAccountReason) => excluded.push({ id: row.id, reason });
++      if (seed.done) { omit('already_done'); continue; }
++      if (seed.manual || seed.hasHoldings || row.closedAt || row.openingDate > asOf ||
++        !['checking', 'cash', 'savings', 'credit_card', 'loan', 'other_liability', 'brokerage', 'crypto'].includes(row.type)) {
++        omit('individual_mode'); continue;
++      }
++      const checks = tx.select().from(accountReconciliation)
++        .where(and(eq(accountReconciliation.accountId, row.id), isNull(accountReconciliation.deletedAt)))
++        .orderBy(desc(accountReconciliation.date), desc(accountReconciliation.createdAt), desc(accountReconciliation.id)).all();
++      // A check already covering the target must not be duplicated, even in a current month.
++      if (checks.some((check) => check.date >= asOf)) { omit('already_done'); continue; }
++      const prior = checks.find((check) => check.date <= asOf);
++      if (!prior) { omit('no_prior_check'); continue; }
++      const ceremony = tx.get<{ ordinal: string; id: string; matches: number }>(sql`
++        SELECT CAST(a.rowid AS TEXT) AS ordinal,a.id,
++          (json_extract(a.after_json,'$.account_id') IS ${row.id}
++            AND json_extract(a.after_json,'$.date') IS ${prior.date}
++            AND json_extract(a.after_json,'$.statement_balance_cents') IS ${prior.statementBalanceCents}
++            AND json_extract(a.after_json,'$.cleared_balance_cents') IS ${prior.clearedBalanceCents}
++            AND json_extract(a.after_json,'$.deleted_at') IS NULL) AS matches
++        FROM audit_log a WHERE a.entity_type='account_reconciliation' AND a.entity_id=${prior.id}
++          AND a.action='create' AND a.before_json IS NULL AND a.after_json IS NOT NULL
++        ORDER BY a.rowid LIMIT 1`);
++      if (!ceremony || !ceremony.matches) { omit('incomplete_history'); continue; }
++      // Only counts/identities/predicates leave SQLite: never copy private audit snapshots.
++      const evidence = tx.get<{ movement: number; pending: number; changed: number; unproved: number; accountProved: number }>(sql`
++        SELECT
++          (SELECT count(*) FROM booking b WHERE b.account_id=${row.id} AND b.deleted_at IS NULL
++            AND b.date>${prior.date} AND b.date<=${asOf} AND b.date>=${row.openingDate}) AS movement,
++          (SELECT count(*) FROM booking b WHERE b.account_id=${row.id} AND b.deleted_at IS NULL
++            AND b.status='pending' AND b.date>=${row.openingDate} AND b.date<=${asOf}) AS pending,
++          (SELECT count(*) FROM audit_log a WHERE a.rowid>CAST(${ceremony.ordinal} AS INTEGER) AND (
++            (a.entity_type='account' AND a.entity_id=${row.id})
++            OR (a.entity_type='account_reconciliation' AND
++              (json_extract(a.before_json,'$.account_id')=${row.id} OR json_extract(a.after_json,'$.account_id')=${row.id}))
++            OR (a.entity_type='booking' AND (
++              (json_extract(a.before_json,'$.account_id')=${row.id} AND json_extract(a.before_json,'$.date')<=${asOf})
++              OR (json_extract(a.after_json,'$.account_id')=${row.id} AND json_extract(a.after_json,'$.date')<=${asOf})
++              OR EXISTS(SELECT 1 FROM booking b WHERE b.id=a.entity_id AND b.account_id=${row.id} AND b.date<=${asOf})))
++            OR (a.entity_type='booking_split' AND (
++              EXISTS(SELECT 1 FROM booking b WHERE b.id IN(json_extract(a.before_json,'$.booking_id'),json_extract(a.after_json,'$.booking_id'))
++                AND b.account_id=${row.id} AND b.date<=${asOf})
++              OR EXISTS(SELECT 1 FROM audit_log parent WHERE parent.entity_type='booking'
++                AND parent.entity_id IN(json_extract(a.before_json,'$.booking_id'),json_extract(a.after_json,'$.booking_id'))
++                AND ((json_extract(parent.before_json,'$.account_id')=${row.id} AND json_extract(parent.before_json,'$.date')<=${asOf})
++                  OR (json_extract(parent.after_json,'$.account_id')=${row.id} AND json_extract(parent.after_json,'$.date')<=${asOf}))))
++          )) AS changed,
++          (SELECT count(*) FROM booking b WHERE b.account_id=${row.id} AND b.deleted_at IS NULL
++            AND b.date>=${row.openingDate} AND b.date<=${asOf} AND NOT EXISTS (
++              SELECT 1 FROM audit_log a WHERE a.entity_type='booking' AND a.entity_id=b.id
++                AND a.rowid=(SELECT max(last.rowid) FROM audit_log last WHERE last.entity_type='booking' AND last.entity_id=b.id)
++                AND a.rowid<=CAST(${ceremony.ordinal} AS INTEGER) AND a.after_json IS NOT NULL
++                AND json_extract(a.after_json,'$.account_id') IS b.account_id AND json_extract(a.after_json,'$.date') IS b.date
++                AND json_extract(a.after_json,'$.amount_cents') IS b.amount_cents AND json_extract(a.after_json,'$.currency') IS b.currency
++                AND json_extract(a.after_json,'$.status') IS b.status AND json_extract(a.after_json,'$.deleted_at') IS NULL
++                AND json_extract(a.after_json,'$.original_amount_cents') IS b.original_amount_cents
++                AND json_extract(a.after_json,'$.original_currency') IS b.original_currency
++                AND json_extract(a.after_json,'$.fx_rate_micro') IS b.fx_rate_micro
++                AND json_extract(a.after_json,'$.transfer_id') IS b.transfer_id
++          )) AS unproved,
++          (SELECT count(*) FROM audit_log a WHERE a.entity_type='account' AND a.entity_id=${row.id}
++            AND a.rowid=(SELECT max(last.rowid) FROM audit_log last WHERE last.entity_type='account' AND last.entity_id=${row.id})
++            AND a.rowid<=CAST(${ceremony.ordinal} AS INTEGER) AND a.after_json IS NOT NULL
++            AND json_extract(a.after_json,'$.opening_date') IS ${row.openingDate}
++            AND json_extract(a.after_json,'$.opening_balance_cents') IS ${row.openingBalanceCents}
++            AND json_extract(a.after_json,'$.currency') IS ${row.currency}
++            AND json_extract(a.after_json,'$.deleted_at') IS NULL) AS accountProved
++      `)!;
++      const bank = tx.select({ id: bankSyncAccount.id, currency: bankSyncAccount.currency,
++        date: bankSyncAccount.balanceDate, cents: bankSyncAccount.balanceCents,
++        fetchedAt: bankSyncAccount.balanceFetchedAt }).from(bankSyncAccount)
++        .where(eq(bankSyncAccount.accountId, row.id)).orderBy(bankSyncAccount.id).all();
++      const unresolved = tx.select({ id: bankSyncCandidate.id }).from(bankSyncCandidate)
++        .innerJoin(inboxItem, eq(inboxItem.id, bankSyncCandidate.id))
++        .where(and(eq(bankSyncCandidate.accountId, row.id), eq(bankSyncCandidate.currency, row.currency),
++          lte(bankSyncCandidate.date, asOf), isNull(inboxItem.resolvedAt))).all();
++      proof.push({ id: row.id, priorId: prior.id, ceremony, evidence, bank, unresolved });
++      if (!evidence.accountProved || evidence.unproved) { omit('incomplete_history'); continue; }
++      if (evidence.movement) { omit('movement'); continue; }
++      if (evidence.pending || unresolved.length) { omit('unresolved'); continue; }
++      if (evidence.changed) { omit('changed_since_check'); continue; }
++      const balance = bookedBalance(tx, row.id, asOf);
++      if (!Number.isSafeInteger(balance) || !Number.isSafeInteger(prior.statementBalanceCents)) { omit('unsafe_balance'); continue; }
++      if (balance !== prior.statementBalanceCents) { omit('difference'); continue; }
++      if (bank.some((value) => value.date === asOf && value.cents !== null &&
++        (value.currency !== row.currency || !Number.isSafeInteger(value.cents) || value.cents !== prior.statementBalanceCents))) {
++        omit('bank_difference'); continue;
++      }
++      accounts.push({ id: row.id, name: row.name, currency: row.currency,
++        statementBalanceCents: prior.statementBalanceCents, priorReconciliationId: prior.id, priorDate: prior.date });
++    }
++    for (const id of ids) if (!rows.some((row) => row.id === id)) excluded.push({ id, reason: 'individual_mode' });
++    const revision = createHash('sha256').update(JSON.stringify(['month-close-unchanged-v1', month, asOf, ids, scope, head,
++      rows.map((row) => [row.id, row.currency, row.openingDate, row.openingBalanceCents, row.closedAt, row.sortOrder, row.name]), accounts, excluded, proof])).digest('hex');
++    return { month, asOf, revision, accounts, excluded };
++  });
++}
++
++/** Recompute before the first write; one failure rolls back every account/audit in this group. */
++export function confirmMonthCloseReconciliation(db: Executor, input: {
++  month: string; asOf: string; today: string; accountIds: string[]; revision: string;
++}, scope: readonly MonthCloseReconciliationScope[], ctx: AuditContext) {
++  return runInTransaction(db, (tx) => {
++    const preview = previewMonthCloseReconciliation(tx, input.month, input.today, scope);
++    const requested = [...new Set(input.accountIds)].sort(), expected = preview.accounts.map((row) => row.id).sort();
++    if (!requested.length || requested.length !== input.accountIds.length || requested.length !== expected.length ||
++      requested.some((id, index) => id !== expected[index]) || input.asOf !== preview.asOf || input.revision !== preview.revision)
++      throw new ConflictError('Der Kontenstand oder die Auswahl hat sich geändert. Lade den Abschluss neu und bestätige die aktuelle Sammelzeile.');
++    const grouped = withGroup(ctx);
++    const reconciliations = preview.accounts.map((row) => {
++      const result = reconcileAccount(tx, { accountId: row.id, date: preview.asOf,
++        statementBalanceCents: row.statementBalanceCents, adjust: false, today: input.today }, grouped);
++      if (result.adjustmentBookingId !== null || result.differenceCents !== 0)
++        throw new BookingInvariantError('An unchanged confirmation must not create an adjustment');
++      return { accountId: row.id, reconciliationId: result.reconciliationId };
++    });
++    return { groupId: grouped.groupId, reconciliations };
++  });
++}
