@@ -155,6 +155,11 @@ async function contained(locator: Locator, minimum: number) {
       height: rect.height,
       viewportWidth: innerWidth,
       viewportHeight: innerHeight,
+      scrollTop: document.scrollingElement?.scrollTop,
+      scrollHeight: document.scrollingElement?.scrollHeight,
+      target: { tag: element.tagName, className: element.getAttribute('class') },
+      hit: centre ? { tag: centre.tagName, className: centre.getAttribute('class') } : null,
+      fixedSurface: centre?.closest('.tabbar, .fab')?.getAttribute('class') ?? null,
       owned: centre === element || (centre !== null && element.contains(centre)),
     };
   });
@@ -164,7 +169,7 @@ async function contained(locator: Locator, minimum: number) {
   expect(metrics.bottom).toBeLessThanOrEqual(metrics.viewportHeight);
   expect(metrics.width).toBeGreaterThanOrEqual(minimum);
   expect(metrics.height).toBeGreaterThanOrEqual(minimum);
-  expect(metrics.owned).toBe(true);
+  expect(metrics.owned, JSON.stringify(metrics)).toBe(true);
 }
 
 async function scene(
