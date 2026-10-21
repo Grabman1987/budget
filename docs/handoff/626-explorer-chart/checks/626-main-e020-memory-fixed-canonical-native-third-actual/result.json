@@ -1,0 +1,51 @@
+{
+  "startedAt": "2026-10-20T06:09:13.460772+00:00",
+  "sourceFreezeSha256": "22581f51df73a40cab1542c9e9574069771e59df067800fecc1b25572d460e4f",
+  "helperSha256": "663c45b799d4da770396b9724636611238fa457727c51ee5e0aa9d0cb7ad5a26",
+  "phases": [
+    {
+      "name": "fresh-e2e-build",
+      "command": [
+        "npm",
+        "run",
+        "build:e2e"
+      ],
+      "startedAt": "2026-10-20T06:09:14.397127+00:00",
+      "pid": 652521,
+      "pgid": 652521,
+      "exit": 0,
+      "finishedAt": "2026-10-20T06:09:22.544923+00:00",
+      "groupAfter": [
+        {
+          "pid": 652553,
+          "pgid": 652521,
+          "stat": "Z",
+          "comm": "esbuild"
+        }
+      ]
+    },
+    {
+      "name": "canonical-native",
+      "command": [
+        "/workspace/.budget-tools/cloud-control/run-webkit.sh",
+        "/workspace/cloud-explorer-chart-626",
+        "test",
+        "e2e/issue-626-explorer-chart-toggle.spec.ts",
+        "--project=webkit-iphone",
+        "--workers=1"
+      ],
+      "startedAt": "2026-10-20T06:09:23.048878+00:00",
+      "pid": 652613,
+      "pgid": 652613,
+      "exit": 0,
+      "finishedAt": "2026-10-20T06:14:26.221179+00:00",
+      "groupAfter": []
+    }
+  ],
+  "scope": "Fresh build:e2e at clean37e85f52 normalLIVEe020 inheritance + corrected native-pan memory; then exact whole NEW626 canonical WebKit one worker/default30. Actual33 previously discovered (30 own+3setup), no pass claim. All10ownbytes exact41unit/static3f; oldtests/config/oracles unchanged. Prior9/24 and29/4 raw preserved.",
+  "finishedAt": "2026-10-20T06:14:27.164361+00:00",
+  "sourceGuard": 0,
+  "processGuard": 0,
+  "compiledFileCount": 168,
+  "wrapperExit": 0
+}

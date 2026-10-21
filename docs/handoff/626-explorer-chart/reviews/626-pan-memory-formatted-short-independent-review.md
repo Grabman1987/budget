@@ -1,0 +1,7 @@
+# 626 corrected pan memory: formatted/source/actual reconciliation — HIGH CLEAR
+
+Final formatted-freeze SHA3f083efd41300a9776bed4f251a44fb02bceeec8311fbd3b4902c0dae7a56792. All3436 current source hashes and modes, HEADcb087a, dirty status and index match; post source map exact. Only inspector and author NEW RTL formatting differs from reviewed7e0; both before-format copies match7e0. Independent full normalized TypeScript AST comparison yields equality for both complete files with parse0/0; all other3434 including native6c7867 remain exact.
+
+Actual67009 raw unit log: NEW3files41PASS7.54s. All9 .exit records0 (OWN2format, units, WEBtypes, OWN2lint, CSSscale, formatcheck, guard, wrapper, lock-release). JSDOM scrollTo warnings retained. Prior literal RED55503 and real native four-phone47→0 are historical preserved; this current GREEN is unit/static only. No fresh-browser, full-suite, CI/live or readiness claim.
+
+Reviewed source semantics unchanged: active exact current-root native-scroller event preserves rawoffset; no hidden/detached cleanup overwrite; layout restore and active-key tooltip lifecycle preserved. Root-authorized exact10 source checkpoint plus ordinary LIVE Main inheritance can proceed, preserving all owned bytes/modes and unowned incoming main. Mechanical merge review and fresh build/native remain required under Root scheduling. Reviewer performed no functional execution or source writes.

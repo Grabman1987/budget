@@ -1,0 +1,9 @@
+# Independent partial626 actual selector adjudication
+
+Read-only while firstcanonical21356 remains in progress; no finaloutcome/count/runtime readiness claimed and no sourcewrites. Inspected live safe error-context files under cloud-explorer-chart-626/test-results, not auth/network traces.
+
+Heatmap configureddark e2a13 actualcontext: strict locator('.ex-chart-626').locator('details') resolves exactlytwo validsurfaces, sharedChartSvg chart-data-table and intendedex-chart-originals. The assertion was intended to inspect ninth/tenth original rows and summary44target. Narrowing only to chart.locator('.ex-chart-originals') preserves that same target and every literal/source/value/44guard. It is a meaningful newfixture-selector correction, not a product or financialfix. Current shared dataalternative must remain untouched.
+
+Total configureddark6b0c2 actualcontext: getByLabel('Diagrammzeilen',{exact:true}) repeatedly0; sameactualsnapshot exposes combobox with exactaccessibleNameDiagrammzeilen. Replacing that query with getByRole('combobox',{name:'Diagrammzeilen',exact:true}) preserves strictsemanticname/count1, six requiredcohortlabels and nonvacuousKategorien selection, rather than weakening it. Sourceactualnative select is present; no missingcohort/productbug can be inferred from this mismatched queryAPI alone. No unsupported browser-internal labelalgorithm claim.
+
+Othercases blockedbefore laterchecks do not establish thosefinancial/privacy/geometry/focus assertions passed. Observed categorycase passes are partial until runnercompletion/archiveguard; no allGREEN inference. Root/author must wait actualexit, preserve all initialfailures/rawoutcomes, then freezeonlyexactNEWselector substitutions for independentwholefileinverse. No timeout/force/config/skip/literal/source/oldtest modification follows from this adjudication.

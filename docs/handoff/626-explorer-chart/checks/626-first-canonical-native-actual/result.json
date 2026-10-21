@@ -1,0 +1,51 @@
+{
+  "startedAt": "2026-10-20T05:43:14.028833+00:00",
+  "sourceFreezeSha256": "93cb8d1f02d5dbb4e3d532dfe1c37c64e3fe93e637452660349b0c9de2589edb",
+  "helperSha256": "663c45b799d4da770396b9724636611238fa457727c51ee5e0aa9d0cb7ad5a26",
+  "phases": [
+    {
+      "name": "fresh-e2e-build",
+      "command": [
+        "npm",
+        "run",
+        "build:e2e"
+      ],
+      "startedAt": "2026-10-20T05:43:17.167423+00:00",
+      "pid": 638645,
+      "pgid": 638645,
+      "exit": 0,
+      "finishedAt": "2026-10-20T05:43:49.746882+00:00",
+      "groupAfter": [
+        {
+          "pid": 638677,
+          "pgid": 638645,
+          "stat": "Z",
+          "comm": "esbuild"
+        }
+      ]
+    },
+    {
+      "name": "canonical-native",
+      "command": [
+        "/workspace/.budget-tools/cloud-control/run-webkit.sh",
+        "/workspace/cloud-explorer-chart-626",
+        "test",
+        "e2e/issue-626-explorer-chart-toggle.spec.ts",
+        "--project=webkit-iphone",
+        "--workers=1"
+      ],
+      "startedAt": "2026-10-20T05:43:51.376669+00:00",
+      "pid": 638753,
+      "pgid": 638753,
+      "exit": 1,
+      "finishedAt": "2026-10-20T05:48:30.634387+00:00",
+      "groupAfter": []
+    }
+  ],
+  "scope": "Fresh build:e2e then unchanged whole NEW626 canonical WebKit one worker/default30. Actual33 discovered (30 own +3setup), not a pass claim. No old tests/config/oracle changes.",
+  "finishedAt": "2026-10-20T05:48:31.677341+00:00",
+  "sourceGuard": 0,
+  "processGuard": 0,
+  "compiledFileCount": 167,
+  "wrapperExit": 1
+}

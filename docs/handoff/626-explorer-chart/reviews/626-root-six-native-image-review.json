@@ -1,0 +1,56 @@
+{
+  "at": "2026-10-20T06:15:45.189093+00:00",
+  "reviewer": "Root personally opened all six original PNGs using view_image",
+  "sourceHead": "37e85f52a248414a8f2775c26946fbc27655bdea",
+  "images": [
+    {
+      "view": "custom",
+      "theme": "dark",
+      "profile": "desktop1440",
+      "path": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-0fd35--read-only-desktop1440-dark-webkit-iphone/chart-custom-dark.png",
+      "sha256": "b0577d3589a2e53a482c6bd5653f677c91aace036d775513c933f726171dfc90"
+    },
+    {
+      "view": "custom",
+      "theme": "light",
+      "profile": "configured",
+      "path": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-8afe6--read-only-configured-light-webkit-iphone/chart-custom-light.png",
+      "sha256": "8fff4da832f757453ebca4ca731a3b831b2ea0b23a97fea10cdc4596256ee597"
+    },
+    {
+      "view": "year",
+      "theme": "dark",
+      "profile": "phone844",
+      "path": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-bd8b6-and-read-only-phone844-dark-webkit-iphone/chart-year-dark.png",
+      "sha256": "e720da3acdf14e1a68b8b5da590d7c974618ac0109158194cd1e9310512fad58"
+    },
+    {
+      "view": "heatmap",
+      "theme": "light",
+      "profile": "desktop1440",
+      "path": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-bf4f2-read-only-desktop1440-light-webkit-iphone/chart-heatmap-light.png",
+      "sha256": "98cb52a584c832d83277bc7322fb251d2b73870a07d111da21b64249d4c077d4"
+    },
+    {
+      "view": "category",
+      "theme": "light",
+      "profile": "configured",
+      "path": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-a4455--read-only-configured-light-webkit-iphone/chart-category-light.png",
+      "sha256": "34972e6e52de31b51bd6ae842ca382adbdf73c0b161b4b9c8d12721e15b1e7fe"
+    },
+    {
+      "view": "total",
+      "theme": "dark",
+      "profile": "desktop1440",
+      "path": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-d4288--read-only-desktop1440-dark-webkit-iphone/chart-total-dark.png",
+      "sha256": "16bf91c7e861116d4d8bd1c8d32fbf18191d7301dd458b97247f954679ed0260"
+    }
+  ],
+  "observations": [
+    "Desktop custom/heatmap/total show distinct labelled marker shapes and native shared chart grid; eight source rows plus separately labelled Weitere.",
+    "Phone custom/year/category controls and value lines are legible in the captured area; native runtime separately verifies strict44/Axe/overflow/keyboard/source/CSV/read-only assertions.",
+    "Configured phone originals are DPR3 physical1170x1992 corresponding to CSS390x664; manualphone is390x844DPR1.",
+    "Phone fixed FAB and bottom navigation partly occlude plot endpoints/axes in these particular viewport captures; desktop scrolled screenshots include sticky header framing. No simultaneous whole-chart visibility, physical-phone, physical touch or unoccluded-point hit-test claim. Vertical-page scrolling and runtime keyboard/data controls are separate from this photographic limitation."
+  ],
+  "result": "Representative original visual review clear with stated capture limits; full33 result and independent whole-diff review remain separate evidence."
+}

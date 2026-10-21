@@ -1,0 +1,1 @@
+The agent staging manifest initially omitted large626 image changes. Root restored every tracked synthetic evidence file here from commit 2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6. Images/JSON are accessible beside the patch package. Original source/test revision and qualified scope remain in README/runtime-proof. No raw logs or traces are included.

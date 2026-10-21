@@ -1,0 +1,73 @@
+diff --git a/docs/evidence/explorer-chart-626/README.md b/docs/evidence/explorer-chart-626/README.md
+index cc2a62a85058ded8c6ea4862e86354e2e9226ea3..0ddd20fa915e903e4e8cae2076eafef269a28925 100644
+--- a/docs/evidence/explorer-chart-626/README.md
++++ b/docs/evidence/explorer-chart-626/README.md
+@@ -32,3 +32,13 @@ The configured phone viewport is **390×664 CSS pixels at DPR3**, so its PNG is
+ These are viewport captures. Existing phone FAB/tabbar can cover lower plot endpoints or axis labels; desktop sticky search can cover the upper-page framing after scrolling. They do not prove that the whole chart is simultaneously unobscured or that every plotted point passes a pointer hit test. Keyboard inspection and the asserted controls/data were tested separately.
+ 
+ **Exact Chromium/GitHub CI, PR integration and live delivery remain pending.** Local Chromium download returned 403; no system-browser substitute was used as acceptance evidence. Raw source/compiled maps, logs and original images are retained in `626-main-e020-memory-fixed-canonical-native-third-actual`; only safe projections and synthetic-data images are proposed here.
++
++## PR719 initial Chromium CI and native-hover follow-up
++
++Initial exact-head CI **39381657544** at **2f7f6064** failed the NEW custom/configured-dark **Chromium mobile** case in job **118491913530**. Both attempts reached `originalCell.hover()` after native ArrowRight; the log records sticky row-header/link interception and occasional bottom-navigation interception before the exact 901-cent tooltip and later checks. Exact failed Chromium cell bounds were not recorded, so this does not establish that the whole cell was unreachable or that the underlying financial sources differed.
++
++Only the NEW native spec now measures the same January cell’s horizontal intersection with its scroller/viewport excluding the sticky row header. It requires a finite positive exposed strip and an interior padding-box coordinate, saves that safe geometry, then uses the same unforced real hover on that part of the same cell. Public vertical auto-scroll and hit checking remain intact. All original 901-cent/name assertions, native ArrowRight, after-hover position capture, exact return position, booking/source IDs, CSV, financial fingerprint, no-write checks and default 30-second budget remain unchanged. The six production files and three unit/RTL files are byte-identical to 2f7f6064.
++
++Focused native type/lint/format/discovery run **10187** passed (formatter byte-no-op). A fresh E2E build and the complete genuine canonical WebKit selection in run **79784** then passed **33/33** in **4.6m**, one worker/default 30s. All four custom phone cases reached the original 901-cent hover, exact pan restoration, CSV and final read-only fingerprint. Each local WebKit geometry recorded horizontal scroll 47, exposed width 62.21875 CSS px and chosen cell-padding point (78.109375,32); these are local measurements, not the absent failed Chromium bounds. All 3,486 source files/25 owned paths, modes/index/head/exact dirty state and fresh 168 compiled files matched pre/post; native/build/source/process/wrapper/lock exits were 0, with exited build esbuild zombie qualified and no live native process/container remaining.
++
++Raw archive: `719-exposed-cell-hover-canonical-native-first-actual`; result SHA256 `a6e1ccd2a4aad2192280484e5591b73114e4f4b1b4bc79fb098e17f017d2f295`, archive-map SHA256 `d77adb85773ffc463bf96906112a92f60c6daed463e16711a7dc25bcc8d0313e`. Earlier results and the failed first CI remain preserved. The 12 committed PNGs and native runtimeJSON remain the unchanged, historically reviewed UI proof; no photo regeneration or product change is claimed. The required aggregate 547/4,889 result above remains qualified to its original source checkpoint; this follow-up changes only the NEW native fixture and this factual README. **A new exact-head Chromium/GitHub CI and live delivery remain pending.**
+diff --git a/e2e/issue-626-explorer-chart-toggle.spec.ts b/e2e/issue-626-explorer-chart-toggle.spec.ts
+index 4d422f726d37134ac05144651807ba188596e7bd..7d3907d0c5ddc5e3442c832d7a7e47148d17c2fb 100644
+--- a/e2e/issue-626-explorer-chart-toggle.spec.ts
++++ b/e2e/issue-626-explorer-chart-toggle.spec.ts
+@@ -182,7 +182,49 @@ async function proof(
+     pan = await region.evaluate((e) => e.scrollLeft);
+   }
+   const originalCell = sourceRow.locator('td[data-chart-point]').first();
+-  await originalCell.hover();
++  if (view === 'custom' && regionSize.scrollWidth > regionSize.width) {
++    // A native horizontal pan may put the cell centre behind the sticky row header.
++    // Hover the exposed part of the SAME January cell; public hover still performs
++    // its normal vertical scrolling and hit checks.
++    const exposed = await originalCell.evaluate((cell) => {
++      const scroller = cell.closest('.ex-scroll')!;
++      const box = cell.getBoundingClientRect();
++      const scrollBox = scroller.getBoundingClientRect();
++      const sticky = cell.parentElement!.querySelector('th.ex-first')!.getBoundingClientRect();
++      const left = Math.max(box.left, scrollBox.left + scroller.clientLeft, sticky.right, 0);
++      const right = Math.min(
++        box.right,
++        scrollBox.left + scroller.clientLeft + scroller.clientWidth,
++        innerWidth,
++      );
++      const borderLeft = parseFloat(getComputedStyle(cell).borderLeftWidth) || 0;
++      return {
++        exposedWidth: right - left,
++        x: (left + right) / 2 - box.left - borderLeft,
++        y: cell.clientHeight / 2,
++        cellWidth: cell.clientWidth,
++        cell: { left: box.left, right: box.right, width: box.width },
++        sticky: { left: sticky.left, right: sticky.right, width: sticky.width },
++        scroller: { left: scrollBox.left, right: scrollBox.right, width: scroller.clientWidth },
++        scrollLeft: scroller.scrollLeft,
++        viewportWidth: innerWidth,
++      };
++    });
++    const hoverGeometry = info.outputPath('original-cell-hover-geometry.json');
++    await writeFile(hoverGeometry, JSON.stringify(exposed, null, 2));
++    await info.attach('original-cell-hover-geometry', {
++      path: hoverGeometry,
++      contentType: 'application/json',
++    });
++    expect(Number.isFinite(exposed.exposedWidth)).toBe(true);
++    expect(exposed.exposedWidth).toBeGreaterThan(0);
++    expect(Number.isFinite(exposed.x)).toBe(true);
++    expect(exposed.x).toBeGreaterThanOrEqual(0);
++    expect(exposed.x).toBeLessThan(exposed.cellWidth);
++    await originalCell.hover({ position: { x: exposed.x, y: exposed.y } });
++  } else {
++    await originalCell.hover();
++  }
+   await expect(page.locator('.chart-tooltip[role="status"]')).toContainText('Kategorie 09');
+   await expect(page.locator('.chart-tooltip[role="status"]')).toContainText('9,01 €');
+   const panBeforeSwitch = await region.evaluate((e) => e.scrollLeft);

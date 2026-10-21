@@ -1,0 +1,117 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/626-explorer-chart",
+  "sourceHead": "1aacdcea934aafb0a8236b305c9c5d1e4af0eb6e",
+  "originalBaseBeforeOwnedCommits": "cb087a2639f5e367aa3af4aa2b692725f169e76c",
+  "orderedCommits": [
+    {
+      "sha": "c8d43a3bafdad3983ac41543358e5b7bfaf9c665",
+      "parentBase": "cb087a2639f5e367aa3af4aa2b692725f169e76c",
+      "subject": "feat(reports): add same-source Explorer chart views (#626)",
+      "paths": [
+        "apps/web/src/reports/explorer-chart-626.test.tsx",
+        "apps/web/src/reports/explorer-chart-626.tsx",
+        "apps/web/src/reports/explorer-chart-model-626.test.ts",
+        "apps/web/src/reports/explorer-chart-model-626.ts",
+        "apps/web/src/reports/explorer-report.css",
+        "apps/web/src/reports/explorer-report.tsx",
+        "apps/web/src/reports/explorer-table-inspector-626.tsx",
+        "apps/web/src/reports/explorer-templates.tsx",
+        "apps/web/src/reports/explorer-toggle-626.test.tsx",
+        "e2e/issue-626-explorer-chart-toggle.spec.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout c8d43a3bafdad3983ac41543358e5b7bfaf9c665 > OWN_OUTPUT/c8d43a3bafdad3983ac41543358e5b7bfaf9c665.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-c8d43a3bafdad3983ac41543358e5b7bfaf9c665.patch",
+      "copied": true
+    },
+    {
+      "sha": "2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6",
+      "parentBase": "37e85f52a248414a8f2775c26946fbc27655bdea",
+      "subject": "docs(reports): record Explorer chart verification",
+      "paths": [
+        "docs/ROADMAP.md",
+        "docs/evidence/explorer-chart-626/README.md",
+        "docs/evidence/explorer-chart-626/configured-custom-dark.png",
+        "docs/evidence/explorer-chart-626/configured-custom-light.png",
+        "docs/evidence/explorer-chart-626/configured-heatmap-dark.png",
+        "docs/evidence/explorer-chart-626/configured-heatmap-light.png",
+        "docs/evidence/explorer-chart-626/configured-total-dark.png",
+        "docs/evidence/explorer-chart-626/configured-total-light.png",
+        "docs/evidence/explorer-chart-626/desktop1440-custom-dark.png",
+        "docs/evidence/explorer-chart-626/desktop1440-custom-light.png",
+        "docs/evidence/explorer-chart-626/desktop1440-heatmap-dark.png",
+        "docs/evidence/explorer-chart-626/desktop1440-heatmap-light.png",
+        "docs/evidence/explorer-chart-626/desktop1440-total-dark.png",
+        "docs/evidence/explorer-chart-626/desktop1440-total-light.png",
+        "docs/evidence/explorer-chart-626/runtime-proof.json"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6 > OWN_OUTPUT/2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/02-2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6.patch",
+      "copied": true,
+      "exportedPaths": [
+        "docs/ROADMAP.md",
+        "docs/evidence/explorer-chart-626/README.md"
+      ],
+      "excludedArtifactPaths": [
+        "docs/evidence/explorer-chart-626/configured-custom-dark.png",
+        "docs/evidence/explorer-chart-626/configured-custom-light.png",
+        "docs/evidence/explorer-chart-626/configured-heatmap-dark.png",
+        "docs/evidence/explorer-chart-626/configured-heatmap-light.png",
+        "docs/evidence/explorer-chart-626/configured-total-dark.png",
+        "docs/evidence/explorer-chart-626/configured-total-light.png",
+        "docs/evidence/explorer-chart-626/desktop1440-custom-dark.png",
+        "docs/evidence/explorer-chart-626/desktop1440-custom-light.png",
+        "docs/evidence/explorer-chart-626/desktop1440-heatmap-dark.png",
+        "docs/evidence/explorer-chart-626/desktop1440-heatmap-light.png",
+        "docs/evidence/explorer-chart-626/desktop1440-total-dark.png",
+        "docs/evidence/explorer-chart-626/desktop1440-total-light.png",
+        "docs/evidence/explorer-chart-626/runtime-proof.json"
+      ],
+      "scopeNote": "Exact source/docs slice; large screenshots/runtime artifacts omitted."
+    },
+    {
+      "sha": "1aacdcea934aafb0a8236b305c9c5d1e4af0eb6e",
+      "parentBase": "2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6",
+      "subject": "test(reports): hover exposed Explorer table cells",
+      "paths": [
+        "docs/evidence/explorer-chart-626/README.md",
+        "e2e/issue-626-explorer-chart-toggle.spec.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 1aacdcea934aafb0a8236b305c9c5d1e4af0eb6e > OWN_OUTPUT/1aacdcea934aafb0a8236b305c9c5d1e4af0eb6e.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/03-1aacdcea934aafb0a8236b305c9c5d1e4af0eb6e.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/web/src/reports/explorer-chart-626.test.tsx",
+    "apps/web/src/reports/explorer-chart-626.tsx",
+    "apps/web/src/reports/explorer-chart-model-626.test.ts",
+    "apps/web/src/reports/explorer-chart-model-626.ts",
+    "apps/web/src/reports/explorer-report.css",
+    "apps/web/src/reports/explorer-report.tsx",
+    "apps/web/src/reports/explorer-table-inspector-626.tsx",
+    "apps/web/src/reports/explorer-templates.tsx",
+    "apps/web/src/reports/explorer-toggle-626.test.tsx",
+    "docs/ROADMAP.md",
+    "docs/evidence/explorer-chart-626/README.md",
+    "docs/evidence/explorer-chart-626/configured-custom-dark.png",
+    "docs/evidence/explorer-chart-626/configured-custom-light.png",
+    "docs/evidence/explorer-chart-626/configured-heatmap-dark.png",
+    "docs/evidence/explorer-chart-626/configured-heatmap-light.png",
+    "docs/evidence/explorer-chart-626/configured-total-dark.png",
+    "docs/evidence/explorer-chart-626/configured-total-light.png",
+    "docs/evidence/explorer-chart-626/desktop1440-custom-dark.png",
+    "docs/evidence/explorer-chart-626/desktop1440-custom-light.png",
+    "docs/evidence/explorer-chart-626/desktop1440-heatmap-dark.png",
+    "docs/evidence/explorer-chart-626/desktop1440-heatmap-light.png",
+    "docs/evidence/explorer-chart-626/desktop1440-total-dark.png",
+    "docs/evidence/explorer-chart-626/desktop1440-total-light.png",
+    "docs/evidence/explorer-chart-626/runtime-proof.json",
+    "e2e/issue-626-explorer-chart-toggle.spec.ts"
+  ],
+  "mixedSourceAncestry": false,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

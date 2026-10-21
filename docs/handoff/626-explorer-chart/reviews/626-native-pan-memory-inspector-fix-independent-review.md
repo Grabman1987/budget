@@ -1,0 +1,9 @@
+# 626 pan-memory minimal inspector correction — HIGH STATIC CLEAR
+
+Freeze7e0cacbab3e1866244a76c19a45ebf8251ab7edfcabdeb8660d23a608195435e, HEADcb087a2639f5e367aa3af4aa2b692725f169e76c. Current all3436 hashes/modes, index, HEAD and dirty status match. Only inspector changes versus e822; other3435 including all tests/native remain exact. Inspector SHA dc116a44cffe2248b5118ffbdb5d3a226859eb3cd4b66bdf4cdf288e280c5e4c. Whole-file inverse after removing the new capture handler and restoring the old cleanup is byte-exact before.tsx.
+
+Actual55503 literal-red log has one selected meaningful failure: visible47 and hidden0 passed, return-region expected47/received0 at394. Later link assertion unreached. Twelve other tests filtered by the selected title; no configured skip added. Unit/wrapper1, guard0, lock-release0. JSDOM scrollTo warning retained. This complements genuine four-phone native47→0; it does not constitute native-pan verification.
+
+Fix removes only cleanup-time memory overwrite and records raw scrollLeft from the currently active root-owned native scroller in local onScrollCapture. The query requires the actual existing .ex-scroll/.ex-template-scroll descendant and event.target identity, excluding nested/outer scrolls and detached old nodes. No preventDefault, shared edits, rounding, state render or event redirection. Existing active layout restoration, active-key tooltip lifecycle, keyboard behavior, rows/values, finance actions and all strict native oracles remain byte-exact. The scoped change addresses lifecycle-sensitive live-offset loss without claiming an observed exact React callback ordering.
+
+Root's conditional OWN2 formatter and NEW3 unit41/types/lint/CSS/format may proceed. Functional/native GREEN remains pending actual execution; no reviewer execution or source changes performed.

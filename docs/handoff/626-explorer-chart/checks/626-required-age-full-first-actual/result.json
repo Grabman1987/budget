@@ -1,0 +1,75 @@
+{
+  "startedAt": "2026-10-20T06:22:21.597451+00:00",
+  "freezeSha256": "59bf40d3a5a297a94adc8ff4b6d368c330218755afc060bf5a4d25d44a5651d8",
+  "requiredAge": "1",
+  "vitestMaxWorkers": "2",
+  "phases": [
+    {
+      "name": "check",
+      "command": [
+        "npm",
+        "run",
+        "check"
+      ],
+      "startedAt": "2026-10-20T06:22:22.916639+00:00",
+      "pid": 659034,
+      "pgid": 659034,
+      "exit": 0,
+      "finishedAt": "2026-10-20T06:32:30.826083+00:00",
+      "groupAfter": [
+        {
+          "pid": 659418,
+          "pgid": 659034,
+          "stat": "Z",
+          "comm": "esbuild"
+        },
+        {
+          "pid": 663508,
+          "pgid": 659034,
+          "stat": "Z",
+          "comm": "esbuild"
+        },
+        {
+          "pid": 663864,
+          "pgid": 659034,
+          "stat": "Z",
+          "comm": "esbuild"
+        },
+        {
+          "pid": 665102,
+          "pgid": 659034,
+          "stat": "Z",
+          "comm": "esbuild"
+        }
+      ]
+    },
+    {
+      "name": "production",
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "startedAt": "2026-10-20T06:32:31.284629+00:00",
+      "pid": 667831,
+      "pgid": 667831,
+      "exit": 0,
+      "finishedAt": "2026-10-20T06:32:39.051227+00:00",
+      "groupAfter": [
+        {
+          "pid": 667863,
+          "pgid": 667831,
+          "stat": "Z",
+          "comm": "esbuild"
+        }
+      ]
+    }
+  ],
+  "scope": "Required whole repository npm run check then ONLY0 normal npm run build; frozen source10 plus reviewed evidence15. Actual tracked3472 +14new evidence =3486working; no source/docs writes or automatic retries.",
+  "nodeVersion": "v22.23.3",
+  "ageVersion": "1.2.1",
+  "finishedAt": "2026-10-20T06:32:39.889900+00:00",
+  "sourceGuard": 0,
+  "processGuard": 0,
+  "wrapperExit": 0
+}

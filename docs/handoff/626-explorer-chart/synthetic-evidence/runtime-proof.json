@@ -1,0 +1,1644 @@
+{
+  "scope": "Local current-source canonical WebKit verification; required aggregate check, Chromium CI and delivery remain pending.",
+  "source": {
+    "runtimeHead": "37e85f52a248414a8f2775c26946fbc27655bdea",
+    "sourceFreezeSha256": "22581f51df73a40cab1542c9e9574069771e59df067800fecc1b25572d460e4f",
+    "inheritedLiveMain": "e020e36867fd949372b294c99fcbde22a6a77cf4",
+    "trackedFiles": 3472,
+    "ownedSourcePaths": 10,
+    "existingTestsChanged": 0
+  },
+  "native": {
+    "archive": "626-main-e020-memory-fixed-canonical-native-third-actual",
+    "run": 66307,
+    "command": "run-webkit.sh <worktree> test e2e/issue-626-explorer-chart-toggle.spec.ts --project=webkit-iphone --workers=1",
+    "passed": 33,
+    "ownPassed": 30,
+    "setupPassed": 3,
+    "reportedDuration": "4.9m",
+    "freshBuildE2EExit": 0,
+    "compiledFiles": 168,
+    "nativeExit": 0,
+    "wrapperExit": 0,
+    "sourceGuardExit": 0,
+    "processGuardExit": 0,
+    "lockReleaseExit": 0,
+    "resultSha256": "08cd166ea425768731058e8291d3e52d8ac2fa4f9f904d31ea60710a60e410c7",
+    "nativeLogSha256": "8892906ac329e7b94eff2e2f3cb82d4e5637be3367d9b54441fdb91e4b911d6d",
+    "archiveManifestSha256": "da441452dfde684c6ad2684dc22c4164b6147bc437eb3d229a36ac88ba7e3e0a",
+    "compiledManifestSha256": "fa5010d8db2f09b578a760f42789d9306fbfb630a2f7fc51ba66f106f140a44d",
+    "buildCleanupQualification": "One exited esbuild zombie remained; no live native process group or owned container remained."
+  },
+  "targeted": {
+    "archive": "626-pan-memory-corrected-short-actual",
+    "sourceCheckpoint": "premerge source10, unchanged by current normal Main inheritance",
+    "unitFiles": 3,
+    "unitPassed": 41,
+    "reportedDuration": "7.54s",
+    "webTypesExit": 0,
+    "ownLintExit": 0,
+    "cssScaleExit": 0,
+    "formatExit": 0,
+    "logSha256": "3ab5c05adb0732d6016097a3675ea2450326a3bb36ee98910dac0f5f3669e15c"
+  },
+  "passingNativeAssertions": {
+    "all30Cases": [
+      "default native table; pressed mode controls; unchanged original table text and row count after returning",
+      "exact real viewport/DPR/coarse pointer; both 44px dimensions; finite bounded paths; document width <= viewport; main Axe violations []",
+      "privacy visible value -> masked -> same value; keyboard inspection and Escape",
+      "native horizontal position preserved; no captured API writes; same raw financial fingerprint before/after"
+    ],
+    "customAndNoncategoryTemplates": "Further exact displayed January/February/March values 500/100/0 cents; original remaining categories 09/10 retained; original independent summaries preserved",
+    "custom": "Original c09 booking link retained; exact original CSV rows c09:901,-101,-400,400 and c10:-401,201,400,200",
+    "fixedTemplates": "Original c09 January cell 901 cents; same original split booking ID; same 901-cent allocated source sum, URL state, unforced close and focus return",
+    "yearAndTotal": "All six existing kind cohorts traversed nonvacuously; Kategorien selected; known-wide phone native ArrowRight produces positive pan"
+  },
+  "profiles": [
+    {
+      "view": "category",
+      "color": "light",
+      "requestedProfile": "desktop1440",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": false,
+        "hasTouch": false,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 1074,
+        "scrollWidth": 1074
+      },
+      "nativePan": 0,
+      "panBeforeSwitch": 0,
+      "sourceRows": 1,
+      "width": 1440,
+      "height": 900,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": false,
+      "theme": "light",
+      "documentWidth": 1440,
+      "chart": {
+        "width": 1073,
+        "height": 228,
+        "pathCount": 1
+      },
+      "rawPhysicalSha256": "207e61088f8be156225146b5ce1a35e9ad7b9a22d9a8ce3d3c518bec25b67f17",
+      "originalImageSha256": "753bad1d6c14630751f06ed29c99176514bf395a776c0875eb207b5fc8141579",
+      "originalImagePixelSize": [
+        1440,
+        900
+      ]
+    },
+    {
+      "view": "category",
+      "color": "light",
+      "requestedProfile": "phone844",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": true,
+        "hasTouch": true,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 487
+      },
+      "nativePan": 31,
+      "panBeforeSwitch": 0,
+      "sourceRows": 1,
+      "width": 390,
+      "height": 844,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "light",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 1
+      },
+      "rawPhysicalSha256": "f1650acd4341d853692cd350a4ef455b9c1ac398d5a9843173812f4be4c61400",
+      "originalImageSha256": "37fff803a72f5ef50f97088f13aab33b4b002c415132c9e0b3550168dbcf9ca2",
+      "originalImagePixelSize": [
+        390,
+        844
+      ]
+    },
+    {
+      "view": "total",
+      "color": "light",
+      "requestedProfile": "desktop1440",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": false,
+        "hasTouch": false,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 1074,
+        "scrollWidth": 1074
+      },
+      "nativePan": 0,
+      "panBeforeSwitch": 0,
+      "sourceRows": 19,
+      "width": 1440,
+      "height": 900,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": false,
+      "theme": "light",
+      "documentWidth": 1440,
+      "chart": {
+        "width": 1073,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "25fde8a8912d0567dcf204545ee92437f771f3698d71b03fdd21e9fe118249bc",
+      "originalImageSha256": "0e0113fec0157c1cbbaae5b34349a56d5addc52019abf798c696bfe427b7d870",
+      "originalImagePixelSize": [
+        1440,
+        900
+      ]
+    },
+    {
+      "view": "year",
+      "color": "light",
+      "requestedProfile": "configured",
+      "manualContextOptions": null,
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 1060
+      },
+      "nativePan": 31,
+      "panBeforeSwitch": 0,
+      "sourceRows": 19,
+      "width": 390,
+      "height": 664,
+      "dpr": 3,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "light",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "c09fabe7deff0a8e6d2dc094afd5890b4593e883f6158bf111f2c22ee9828764",
+      "originalImageSha256": "654857a517432ce87f25145024a25ef3f5337cf5112166bd56aea07eb943299a",
+      "originalImagePixelSize": [
+        1170,
+        1992
+      ]
+    },
+    {
+      "view": "custom",
+      "color": "dark",
+      "requestedProfile": "desktop1440",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": false,
+        "hasTouch": false,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 1074,
+        "scrollWidth": 1074
+      },
+      "nativePan": 0,
+      "panBeforeSwitch": 0,
+      "sourceRows": 11,
+      "width": 1440,
+      "height": 900,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": false,
+      "theme": "dark",
+      "documentWidth": 1440,
+      "chart": {
+        "width": 1073,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "492318fd3bcbfaecf24d9420391d93485f166d80921e3d4d9ec96e6fddb30746",
+      "originalImageSha256": "b0577d3589a2e53a482c6bd5653f677c91aace036d775513c933f726171dfc90",
+      "originalImagePixelSize": [
+        1440,
+        900
+      ]
+    },
+    {
+      "view": "year",
+      "color": "dark",
+      "requestedProfile": "desktop1440",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": false,
+        "hasTouch": false,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 1074,
+        "scrollWidth": 1098
+      },
+      "nativePan": 24,
+      "panBeforeSwitch": 0,
+      "sourceRows": 19,
+      "width": 1440,
+      "height": 900,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": false,
+      "theme": "dark",
+      "documentWidth": 1440,
+      "chart": {
+        "width": 1073,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "96e97f1d30fda6c7e0a21942f3b45c80a541374e239498102b886827c1213933",
+      "originalImageSha256": "c5269dda2fed63a18344f747d910d800abcc778c1c0b2729cfa9074046aeade4",
+      "originalImagePixelSize": [
+        1440,
+        900
+      ]
+    },
+    {
+      "view": "total",
+      "color": "dark",
+      "requestedProfile": "phone844",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": true,
+        "hasTouch": true,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 453
+      },
+      "nativePan": 31,
+      "panBeforeSwitch": 0,
+      "sourceRows": 19,
+      "width": 390,
+      "height": 844,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "dark",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "df449175a48cda6417ca0167e2b7f29350ea8b7121eb375a6614912670f9a7ad",
+      "originalImageSha256": "b5e8d931fbd0695574ad0388af4e18966f06ddb316695a7740cda126bd7eeaec",
+      "originalImagePixelSize": [
+        390,
+        844
+      ]
+    },
+    {
+      "view": "custom",
+      "color": "light",
+      "requestedProfile": "desktop1440",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": false,
+        "hasTouch": false,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 1074,
+        "scrollWidth": 1074
+      },
+      "nativePan": 0,
+      "panBeforeSwitch": 0,
+      "sourceRows": 11,
+      "width": 1440,
+      "height": 900,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": false,
+      "theme": "light",
+      "documentWidth": 1440,
+      "chart": {
+        "width": 1073,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "7ae7e050553c72d24cc02d75971987b44da0c6d7df8148d7881cebe43f0236d9",
+      "originalImageSha256": "7c567e9ff8b683efafdb6e4a43adc254264920feed31a59b842f6b5fad33a6b8",
+      "originalImagePixelSize": [
+        1440,
+        900
+      ]
+    },
+    {
+      "view": "category",
+      "color": "dark",
+      "requestedProfile": "desktop1440",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": false,
+        "hasTouch": false,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 1074,
+        "scrollWidth": 1074
+      },
+      "nativePan": 0,
+      "panBeforeSwitch": 0,
+      "sourceRows": 1,
+      "width": 1440,
+      "height": 900,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": false,
+      "theme": "dark",
+      "documentWidth": 1440,
+      "chart": {
+        "width": 1073,
+        "height": 228,
+        "pathCount": 1
+      },
+      "rawPhysicalSha256": "017a27d49958f07ef4f7e1ab4fdbabbbc70c246cea22ddd3e024414daf264aca",
+      "originalImageSha256": "01d32614f2735a0cee90bd6649a75dd1449485c2ed66d5e52e37decf878bb23d",
+      "originalImagePixelSize": [
+        1440,
+        900
+      ]
+    },
+    {
+      "view": "year",
+      "color": "light",
+      "requestedProfile": "phone844",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": true,
+        "hasTouch": true,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 1060
+      },
+      "nativePan": 31,
+      "panBeforeSwitch": 0,
+      "sourceRows": 19,
+      "width": 390,
+      "height": 844,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "light",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "f367367abacd7419bebdbaed43f093b9b3eb65a8c078034da581163073ff96d1",
+      "originalImageSha256": "5f1d5c0e579a9535044c6a50bbe4902110819f59dafe12ae0e2da97c58129483",
+      "originalImagePixelSize": [
+        390,
+        844
+      ]
+    },
+    {
+      "view": "year",
+      "color": "light",
+      "requestedProfile": "desktop1440",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": false,
+        "hasTouch": false,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 1074,
+        "scrollWidth": 1098
+      },
+      "nativePan": 24,
+      "panBeforeSwitch": 0,
+      "sourceRows": 19,
+      "width": 1440,
+      "height": 900,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": false,
+      "theme": "light",
+      "documentWidth": 1440,
+      "chart": {
+        "width": 1073,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "2bdb3a357d6ae27b169c1a9ddef3cca70373164dcd381a3eee813149602202d9",
+      "originalImageSha256": "e27f6c5c3293f74e4fe1b1786faa3283cf36cdd53240b109c521b34aa4cf7ec2",
+      "originalImagePixelSize": [
+        1440,
+        900
+      ]
+    },
+    {
+      "view": "total",
+      "color": "light",
+      "requestedProfile": "phone844",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": true,
+        "hasTouch": true,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 453
+      },
+      "nativePan": 31,
+      "panBeforeSwitch": 0,
+      "sourceRows": 19,
+      "width": 390,
+      "height": 844,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "light",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "fa38d765f5203312709f3666908d1a0ef56a4f382af658770f92e17b3442a362",
+      "originalImageSha256": "7f6833de5333d7b7a0637ea0b3a17cdba773a48fa538014591cd2c5641d1fc89",
+      "originalImagePixelSize": [
+        390,
+        844
+      ]
+    },
+    {
+      "view": "heatmap",
+      "color": "dark",
+      "requestedProfile": "phone844",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": true,
+        "hasTouch": true,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 451
+      },
+      "nativePan": 31,
+      "panBeforeSwitch": 0,
+      "sourceRows": 10,
+      "width": 390,
+      "height": 844,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "dark",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "63ffe7f742a8bbd31cd533dfa91e60bdcad1f805e5f363ace980903c3f2833e3",
+      "originalImageSha256": "5c054910cee6a1dbc00b0dfc1d55f48f7f18125681b088162aa846b7480589fd",
+      "originalImagePixelSize": [
+        390,
+        844
+      ]
+    },
+    {
+      "view": "total",
+      "color": "dark",
+      "requestedProfile": "configured",
+      "manualContextOptions": null,
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 453
+      },
+      "nativePan": 31,
+      "panBeforeSwitch": 0,
+      "sourceRows": 19,
+      "width": 390,
+      "height": 664,
+      "dpr": 3,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "dark",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "5e94c806f923213496dc279e35523763940c6db589e4be81fad49e6e432133b1",
+      "originalImageSha256": "15adf7ef21a4ed9e65ce4a027a5fec424296a4581c8025c70a7bcb656fb87245",
+      "originalImagePixelSize": [
+        1170,
+        1992
+      ]
+    },
+    {
+      "view": "heatmap",
+      "color": "dark",
+      "requestedProfile": "desktop1440",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": false,
+        "hasTouch": false,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 1074,
+        "scrollWidth": 1074
+      },
+      "nativePan": 0,
+      "panBeforeSwitch": 0,
+      "sourceRows": 10,
+      "width": 1440,
+      "height": 900,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": false,
+      "theme": "dark",
+      "documentWidth": 1440,
+      "chart": {
+        "width": 1073,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "98cfc9e740872c0f5083cd7d87661f976068728713138c2a5c9e78714a9eff13",
+      "originalImageSha256": "436bb6a06d6af3122b27486d1bfadd68e8cdf147d7520468b4026997a56b3706",
+      "originalImagePixelSize": [
+        1440,
+        900
+      ]
+    },
+    {
+      "view": "custom",
+      "color": "light",
+      "requestedProfile": "configured",
+      "manualContextOptions": null,
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 640
+      },
+      "nativePan": 39,
+      "panBeforeSwitch": 47,
+      "sourceRows": 11,
+      "width": 390,
+      "height": 664,
+      "dpr": 3,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "light",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "dc303003775109f14ad70102a2861e599a6c8dd3fa1d06fcab490ed612baeb33",
+      "originalImageSha256": "8fff4da832f757453ebca4ca731a3b831b2ea0b23a97fea10cdc4596256ee597",
+      "originalImagePixelSize": [
+        1170,
+        1992
+      ]
+    },
+    {
+      "view": "custom",
+      "color": "light",
+      "requestedProfile": "phone844",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": true,
+        "hasTouch": true,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 640
+      },
+      "nativePan": 47,
+      "panBeforeSwitch": 47,
+      "sourceRows": 11,
+      "width": 390,
+      "height": 844,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "light",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "0b461bd97431f8a9cc4c9777605eaa688927ec4135797397557b8873b22832f9",
+      "originalImageSha256": "79aacdb2024ca311a3a0b20a2f84550654db60f8bea6ec8bc94dc7ee1576fab9",
+      "originalImagePixelSize": [
+        390,
+        844
+      ]
+    },
+    {
+      "view": "total",
+      "color": "light",
+      "requestedProfile": "configured",
+      "manualContextOptions": null,
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 453
+      },
+      "nativePan": 31,
+      "panBeforeSwitch": 0,
+      "sourceRows": 19,
+      "width": 390,
+      "height": 664,
+      "dpr": 3,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "light",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "427b30665432f6faed8e510ce2913da685c3dd572bdaceb1daf461c511de4959",
+      "originalImageSha256": "062206f403a14a8fa964bb46c3c34fbf062936158e8590d2f182ce2aadcc0b42",
+      "originalImagePixelSize": [
+        1170,
+        1992
+      ]
+    },
+    {
+      "view": "category",
+      "color": "light",
+      "requestedProfile": "configured",
+      "manualContextOptions": null,
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 487
+      },
+      "nativePan": 31,
+      "panBeforeSwitch": 0,
+      "sourceRows": 1,
+      "width": 390,
+      "height": 664,
+      "dpr": 3,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "light",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 1
+      },
+      "rawPhysicalSha256": "74d93703cf43ce7bd97de5175a94072db94c39481c97475986f2c0db4bf994a2",
+      "originalImageSha256": "34972e6e52de31b51bd6ae842ca382adbdf73c0b161b4b9c8d12721e15b1e7fe",
+      "originalImagePixelSize": [
+        1170,
+        1992
+      ]
+    },
+    {
+      "view": "custom",
+      "color": "dark",
+      "requestedProfile": "configured",
+      "manualContextOptions": null,
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 640
+      },
+      "nativePan": 47,
+      "panBeforeSwitch": 47,
+      "sourceRows": 11,
+      "width": 390,
+      "height": 664,
+      "dpr": 3,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "dark",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "6becb95cb10c98e05a77258d23870c5291ff10d8de8d73fd1149ad0cddb11110",
+      "originalImageSha256": "f4dcf1782a27825b5b45a0b3cb99722fcf400cf07b63f90d219a7582e9cf6e48",
+      "originalImagePixelSize": [
+        1170,
+        1992
+      ]
+    },
+    {
+      "view": "category",
+      "color": "dark",
+      "requestedProfile": "phone844",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": true,
+        "hasTouch": true,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 487
+      },
+      "nativePan": 26,
+      "panBeforeSwitch": 0,
+      "sourceRows": 1,
+      "width": 390,
+      "height": 844,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "dark",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 1
+      },
+      "rawPhysicalSha256": "355b79333e24af37d9402a8208d03b98061515272736f30f94e734eff8451a09",
+      "originalImageSha256": "cc9365dd08c2ce33468d3805c85ce060997ea6b444f654817e693421d0455f20",
+      "originalImagePixelSize": [
+        390,
+        844
+      ]
+    },
+    {
+      "view": "year",
+      "color": "dark",
+      "requestedProfile": "phone844",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": true,
+        "hasTouch": true,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 1060
+      },
+      "nativePan": 31,
+      "panBeforeSwitch": 0,
+      "sourceRows": 19,
+      "width": 390,
+      "height": 844,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "dark",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "852fe07a721d0e1f263875496cf29b40882714b8f96a276148bae447a586c9dc",
+      "originalImageSha256": "e720da3acdf14e1a68b8b5da590d7c974618ac0109158194cd1e9310512fad58",
+      "originalImagePixelSize": [
+        390,
+        844
+      ]
+    },
+    {
+      "view": "heatmap",
+      "color": "light",
+      "requestedProfile": "desktop1440",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": false,
+        "hasTouch": false,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 1074,
+        "scrollWidth": 1074
+      },
+      "nativePan": 0,
+      "panBeforeSwitch": 0,
+      "sourceRows": 10,
+      "width": 1440,
+      "height": 900,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": false,
+      "theme": "light",
+      "documentWidth": 1440,
+      "chart": {
+        "width": 1073,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "d23623ba86c1effe63ed7a853d8b542c4e98d4e686c97e1c12826b6c2bd2085f",
+      "originalImageSha256": "98cb52a584c832d83277bc7322fb251d2b73870a07d111da21b64249d4c077d4",
+      "originalImagePixelSize": [
+        1440,
+        900
+      ]
+    },
+    {
+      "view": "heatmap",
+      "color": "light",
+      "requestedProfile": "phone844",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": true,
+        "hasTouch": true,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 451
+      },
+      "nativePan": 31,
+      "panBeforeSwitch": 0,
+      "sourceRows": 10,
+      "width": 390,
+      "height": 844,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "light",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "8c17606db3679e699472bace3cef1648ffc12079503be0a1f5237f82380ab4df",
+      "originalImageSha256": "14f654b97d0d9e823b44947beef40daf8b51767147a3cf88df3deb3b9f181c2d",
+      "originalImagePixelSize": [
+        390,
+        844
+      ]
+    },
+    {
+      "view": "year",
+      "color": "dark",
+      "requestedProfile": "configured",
+      "manualContextOptions": null,
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 1060
+      },
+      "nativePan": 31,
+      "panBeforeSwitch": 0,
+      "sourceRows": 19,
+      "width": 390,
+      "height": 664,
+      "dpr": 3,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "dark",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "df3bbb39b30076d6288833d49ae6b4b930831e205eb5549e64f6a33708cf92b3",
+      "originalImageSha256": "fd0cd67353ba19ad538e55151fe8d075b8781183d4d0d277b9a66cb1684fb557",
+      "originalImagePixelSize": [
+        1170,
+        1992
+      ]
+    },
+    {
+      "view": "heatmap",
+      "color": "light",
+      "requestedProfile": "configured",
+      "manualContextOptions": null,
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 451
+      },
+      "nativePan": 31,
+      "panBeforeSwitch": 0,
+      "sourceRows": 10,
+      "width": 390,
+      "height": 664,
+      "dpr": 3,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "light",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "f690c7a94bee59ea6d6f9c0cdb4fed4a93a743f03bfc7927880ad17095d9bc74",
+      "originalImageSha256": "76d1ba8fe135c685dcd498fbe30442fa86beae79f7e00e7986c756c23570337d",
+      "originalImagePixelSize": [
+        1170,
+        1992
+      ]
+    },
+    {
+      "view": "total",
+      "color": "dark",
+      "requestedProfile": "desktop1440",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": false,
+        "hasTouch": false,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 1074,
+        "scrollWidth": 1074
+      },
+      "nativePan": 0,
+      "panBeforeSwitch": 0,
+      "sourceRows": 19,
+      "width": 1440,
+      "height": 900,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": false,
+      "theme": "dark",
+      "documentWidth": 1440,
+      "chart": {
+        "width": 1073,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "ec5e9d6f94f16252cc6b152ebe76faf6b744a6f9cb41dc573ee5b32222800ff4",
+      "originalImageSha256": "16bf91c7e861116d4d8bd1c8d32fbf18191d7301dd458b97247f954679ed0260",
+      "originalImagePixelSize": [
+        1440,
+        900
+      ]
+    },
+    {
+      "view": "custom",
+      "color": "dark",
+      "requestedProfile": "phone844",
+      "manualContextOptions": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "deviceScaleFactor": 1,
+        "isMobile": true,
+        "hasTouch": true,
+        "reducedMotion": "reduce"
+      },
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 640
+      },
+      "nativePan": 47,
+      "panBeforeSwitch": 47,
+      "sourceRows": 11,
+      "width": 390,
+      "height": 844,
+      "dpr": 1,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "dark",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "c77f1e5ba847d98d3d11ed0355eaf5a14c59a5482c9662b48fc997c595664e85",
+      "originalImageSha256": "e00afa4a6912b5c3dc3529a84f3f87a861b1973649cf6db905780fdf3a884276",
+      "originalImagePixelSize": [
+        390,
+        844
+      ]
+    },
+    {
+      "view": "heatmap",
+      "color": "dark",
+      "requestedProfile": "configured",
+      "manualContextOptions": null,
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 451
+      },
+      "nativePan": 31,
+      "panBeforeSwitch": 0,
+      "sourceRows": 10,
+      "width": 390,
+      "height": 664,
+      "dpr": 3,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "dark",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 9
+      },
+      "rawPhysicalSha256": "b8447c6df9a510185c76d35255b258e8f7cb15e6991f93d3a43c88cda6d16c8f",
+      "originalImageSha256": "a99a489dd41b0846781c6f50c9f705af606553dc83ffe20bd8b1fa2e5d49535d",
+      "originalImagePixelSize": [
+        1170,
+        1992
+      ]
+    },
+    {
+      "view": "category",
+      "color": "dark",
+      "requestedProfile": "configured",
+      "manualContextOptions": null,
+      "engine": "webkit",
+      "version": "27.2",
+      "project": "webkit-iphone",
+      "projectConfigured": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "isMobile": true,
+        "hasTouch": true,
+        "deviceScaleFactor": 3
+      },
+      "region": {
+        "width": 328,
+        "scrollWidth": 487
+      },
+      "nativePan": 31,
+      "panBeforeSwitch": 0,
+      "sourceRows": 1,
+      "width": 390,
+      "height": 664,
+      "dpr": 3,
+      "touchPoints": 0,
+      "coarse": true,
+      "theme": "dark",
+      "documentWidth": 390,
+      "chart": {
+        "width": 328,
+        "height": 228,
+        "pathCount": 1
+      },
+      "rawPhysicalSha256": "b7438cd5d183e967df77289194af780233da995c666c6ea21a8e060d6f659d0e",
+      "originalImageSha256": "8e63bc920e0ed825064e774a5a40851bbedfca70d35196e6daf39050389a1dd7",
+      "originalImagePixelSize": [
+        1170,
+        1992
+      ]
+    }
+  ],
+  "images": [
+    {
+      "path": "docs/evidence/explorer-chart-626/desktop1440-total-light.png",
+      "sha256": "0e0113fec0157c1cbbaae5b34349a56d5addc52019abf798c696bfe427b7d870",
+      "original": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-0a2dc-read-only-desktop1440-light-webkit-iphone/chart-total-light.png",
+      "pixelSize": [
+        1440,
+        900
+      ]
+    },
+    {
+      "path": "docs/evidence/explorer-chart-626/desktop1440-custom-dark.png",
+      "sha256": "b0577d3589a2e53a482c6bd5653f677c91aace036d775513c933f726171dfc90",
+      "original": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-0fd35--read-only-desktop1440-dark-webkit-iphone/chart-custom-dark.png",
+      "pixelSize": [
+        1440,
+        900
+      ]
+    },
+    {
+      "path": "docs/evidence/explorer-chart-626/desktop1440-custom-light.png",
+      "sha256": "7c567e9ff8b683efafdb6e4a43adc254264920feed31a59b842f6b5fad33a6b8",
+      "original": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-3c42b-read-only-desktop1440-light-webkit-iphone/chart-custom-light.png",
+      "pixelSize": [
+        1440,
+        900
+      ]
+    },
+    {
+      "path": "docs/evidence/explorer-chart-626/configured-total-dark.png",
+      "sha256": "15adf7ef21a4ed9e65ce4a027a5fec424296a4581c8025c70a7bcb656fb87245",
+      "original": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-6b0c2-d-read-only-configured-dark-webkit-iphone/chart-total-dark.png",
+      "pixelSize": [
+        1170,
+        1992
+      ]
+    },
+    {
+      "path": "docs/evidence/explorer-chart-626/desktop1440-heatmap-dark.png",
+      "sha256": "436bb6a06d6af3122b27486d1bfadd68e8cdf147d7520468b4026997a56b3706",
+      "original": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-7110f--read-only-desktop1440-dark-webkit-iphone/chart-heatmap-dark.png",
+      "pixelSize": [
+        1440,
+        900
+      ]
+    },
+    {
+      "path": "docs/evidence/explorer-chart-626/configured-custom-light.png",
+      "sha256": "8fff4da832f757453ebca4ca731a3b831b2ea0b23a97fea10cdc4596256ee597",
+      "original": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-8afe6--read-only-configured-light-webkit-iphone/chart-custom-light.png",
+      "pixelSize": [
+        1170,
+        1992
+      ]
+    },
+    {
+      "path": "docs/evidence/explorer-chart-626/configured-total-light.png",
+      "sha256": "062206f403a14a8fa964bb46c3c34fbf062936158e8590d2f182ce2aadcc0b42",
+      "original": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-9b83e--read-only-configured-light-webkit-iphone/chart-total-light.png",
+      "pixelSize": [
+        1170,
+        1992
+      ]
+    },
+    {
+      "path": "docs/evidence/explorer-chart-626/configured-custom-dark.png",
+      "sha256": "f4dcf1782a27825b5b45a0b3cb99722fcf400cf07b63f90d219a7582e9cf6e48",
+      "original": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-b7f1c-d-read-only-configured-dark-webkit-iphone/chart-custom-dark.png",
+      "pixelSize": [
+        1170,
+        1992
+      ]
+    },
+    {
+      "path": "docs/evidence/explorer-chart-626/desktop1440-heatmap-light.png",
+      "sha256": "98cb52a584c832d83277bc7322fb251d2b73870a07d111da21b64249d4c077d4",
+      "original": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-bf4f2-read-only-desktop1440-light-webkit-iphone/chart-heatmap-light.png",
+      "pixelSize": [
+        1440,
+        900
+      ]
+    },
+    {
+      "path": "docs/evidence/explorer-chart-626/configured-heatmap-light.png",
+      "sha256": "76d1ba8fe135c685dcd498fbe30442fa86beae79f7e00e7986c756c23570337d",
+      "original": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-ce405--read-only-configured-light-webkit-iphone/chart-heatmap-light.png",
+      "pixelSize": [
+        1170,
+        1992
+      ]
+    },
+    {
+      "path": "docs/evidence/explorer-chart-626/desktop1440-total-dark.png",
+      "sha256": "16bf91c7e861116d4d8bd1c8d32fbf18191d7301dd458b97247f954679ed0260",
+      "original": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-d4288--read-only-desktop1440-dark-webkit-iphone/chart-total-dark.png",
+      "pixelSize": [
+        1440,
+        900
+      ]
+    },
+    {
+      "path": "docs/evidence/explorer-chart-626/configured-heatmap-dark.png",
+      "sha256": "a99a489dd41b0846781c6f50c9f705af606553dc83ffe20bd8b1fa2e5d49535d",
+      "original": "/workspace/.budget-tools/cloud-control/626-main-e020-memory-fixed-canonical-native-third-actual/test-results/issue-626-explorer-chart-t-e2a13-d-read-only-configured-dark-webkit-iphone/chart-heatmap-dark.png",
+      "pixelSize": [
+        1170,
+        1992
+      ]
+    }
+  ],
+  "limitations": [
+    "Configured CSS viewport390x664 has DPR3 (1170x1992 pixels); manual390x844 and true1440x900 have DPR1. Raw navigator.maxTouchPoints is0 and is preserved.",
+    "Images are original viewport captures after public scrollIntoViewIfNeeded. Existing phone FAB/tabbar can cover lower plot endpoints/axis labels; desktop sticky search can cover upper-page framing. No whole-chart simultaneous visibility, unobscured-point hit test, OS-pan, physical-phone or native-touch claim.",
+    "Chromium could not be installed locally because its download returned403; canonical Chromium and all required GitHub CI remain pending.",
+    "Earlier failed attempts remain archived; the prior 29/4 native result and literal47->0 unit RED motivated the local scroll-event memory repair."
+  ]
+}

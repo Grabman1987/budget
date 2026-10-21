@@ -1,0 +1,3 @@
+# 626 PR template body correspondence — CLEAR
+
+Body SHA6c994e899dfcc606bc83d5a44ed05f4591248f3bc3d1a8dded0c4f12ce298d0c personally read against repository PR template and independently reviewed final result96244755. Required headings/Refs626/source-evidence table and unchanged-oldtest disclosure retained. Exact41/33/full547-4889 results, tested37e85+59bf and later two factual docs, qualified imagery/profiles and pending ChromiumCI/live are accurate. Checklist local green denotes actual required local check/build, not CI/merge acceptance. No new factual or source scope difference. No runtime/source writes.

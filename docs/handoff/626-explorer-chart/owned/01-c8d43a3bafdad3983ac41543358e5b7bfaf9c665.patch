@@ -1,0 +1,2594 @@
+diff --git a/apps/web/src/reports/explorer-chart-626.test.tsx b/apps/web/src/reports/explorer-chart-626.test.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..f77c9c7d144438ad170a901c13d6aeed84893149
+--- /dev/null
++++ b/apps/web/src/reports/explorer-chart-626.test.tsx
+@@ -0,0 +1,178 @@
++// @vitest-environment jsdom
++import { DEFAULT_EXPLORER_QUERY, type ExplorerResult } from '@budget/domain';
++import { setAmountsHidden } from '@budget/ui';
++import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
++import { afterEach, describe, expect, it, vi } from 'vitest';
++import { ExplorerChart626 } from './explorer-chart-626';
++import { customChartModel } from './explorer-chart-model-626';
++const width = vi.hoisted(() => ({ value: 320 }));
++vi.mock('../charts/use-element-width', () => ({ useElementWidth: () => [vi.fn(), width.value] }));
++afterEach(() => {
++  cleanup();
++  width.value = 320;
++  setAmountsHidden(false);
++});
++function source(values: number[]): ExplorerResult {
++  return {
++    query: { ...DEFAULT_EXPLORER_QUERY, cols: 'monat' },
++    months: ['2024-01', '2024-02', '2024-04'].slice(0, values.length),
++    columns: ['2024-01', '2024-02', '2024-04']
++      .slice(0, values.length)
++      .map((key) => ({ key, months: [key] })),
++    unit: 'cents',
++    rows: [{ key: 'source', label: 'Originalquelle', class: null, values, total: 7777 }],
++    totals: null,
++    truncated: 0,
++    good: 'low',
++  };
++}
++function finiteGeometry(container: HTMLElement, actualWidth: number) {
++  const paths = container.querySelectorAll('.ex-chart-series .l-actual');
++  for (const path of paths) {
++    const value = path.getAttribute('d') ?? '';
++    expect(value).not.toMatch(/NaN|Infinity|undefined/);
++    const numbers = value.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi)?.map(Number) ?? [];
++    expect(numbers.every(Number.isFinite)).toBe(true);
++    numbers.forEach((value, index) => {
++      expect(value).toBeGreaterThanOrEqual(index % 2 === 0 ? 60 : 16);
++      expect(value).toBeLessThanOrEqual(index % 2 === 0 ? actualWidth - 12 : 192);
++    });
++  }
++}
++describe('626 actual-width original-value line geometry', () => {
++  it.each([320, 1200])(
++    'has finite bounded zero/signed/single/extreme geometry at %i CSS pixels',
++    (actualWidth) => {
++      width.value = actualWidth;
++      for (const values of [
++        [0, 0, 0],
++        [-1001, -2001, -1],
++        [1001],
++        [Number.MAX_SAFE_INTEGER, -Number.MAX_SAFE_INTEGER, 0],
++      ]) {
++        const mounted = render(<ExplorerChart626 data={customChartModel(source(values))} />);
++        expect(mounted.container.querySelector('svg.chart')?.getAttribute('width')).toBe(
++          String(actualWidth),
++        );
++        finiteGeometry(mounted.container, actualWidth);
++        mounted.unmount();
++      }
++    },
++  );
++  it('shows empty/missing values honestly and breaks both line segments at an explicit null', () => {
++    const empty = render(<ExplorerChart626 data={customChartModel(source([]))} />);
++    expect(screen.getByRole('status').textContent).toContain('Keine Werte');
++    empty.unmount();
++    const model = customChartModel(source([1001, 0, -1001]));
++    model.rows[0]!.values = [1001, null, -1001];
++    const mounted = render(<ExplorerChart626 data={model} />);
++    expect(mounted.container.querySelectorAll('.ex-chart-series .l-actual')).toHaveLength(2);
++    finiteGeometry(mounted.container, 320);
++    mounted.unmount();
++    const absent = customChartModel(source([0, 0, 0]));
++    absent.rows[0]!.values = [null, null, null];
++    const missing = render(<ExplorerChart626 data={absent} />);
++    expect(missing.container.querySelectorAll('.ex-chart-series .l-actual')).toHaveLength(0);
++    expect(screen.getByRole('status').textContent).toContain('Lücken');
++  });
++  it('paints an isolated interior value even when axis-label cadence skips its column', () => {
++    const model = customChartModel(source([0, 0, 0]));
++    model.columns = Array.from({ length: 12 }, (_, index) => ({
++      key: `2024-${String(index + 1).padStart(2, '0')}`,
++      label: `Monat ${index + 1}`,
++      months: [`2024-${String(index + 1).padStart(2, '0')}`],
++    }));
++    model.rows[0]!.values = [null, 100, null, null, null, null, null, null, null, null, null, null];
++    const mounted = render(<ExplorerChart626 data={model} />);
++    const series = mounted.container.querySelector('.ex-chart-series')!;
++    expect(series.querySelectorAll('.l-actual')).toHaveLength(1);
++    expect(series.querySelector('[data-chart-point="1"] .ex-series-marker')).not.toBeNull();
++    expect(series.querySelectorAll('.ex-series-marker')).toHaveLength(1);
++    expect(series.querySelector('[data-chart-point="0"]')).toBeNull();
++    expect(series.querySelector('[data-chart-point="2"]')).toBeNull();
++    finiteGeometry(mounted.container, 320);
++  });
++
++  it('uses actual irregular month distances rather than equal spacing or invented dates', () => {
++    const mounted = render(<ExplorerChart626 data={customChartModel(source([100, 200, 300]))} />);
++    const path =
++      mounted.container.querySelector('.ex-chart-series .l-actual')?.getAttribute('d') ?? '';
++    const numbers = path.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
++    expect(numbers[0]).toBe(60);
++    expect(numbers[2]).toBeCloseTo(144.484, 3);
++    expect(numbers[4]).toBe(308);
++  });
++  it('keeps eight distinct named marker patterns and literal Further values without changing source totals', async () => {
++    const data = source([10, 20, 30]);
++    data.rows = Array.from({ length: 8 }, (_, index) => ({
++      key: `first-${index}`,
++      label: `Quelle ${index + 1}`,
++      class: null,
++      values: [10, 20, 30],
++      total: 9001,
++    }));
++    data.rows.push(
++      { key: 'ninth', label: 'Neunte', class: null, values: [901, -101, 0], total: 9002 },
++      { key: 'tenth', label: 'Zehnte', class: null, values: [-401, 201, 0], total: 9003 },
++    );
++    const before = structuredClone(data);
++    const mounted = render(<ExplorerChart626 data={customChartModel(data)} />);
++    expect(screen.getByRole('list', { name: 'Reihenlegende' }).querySelectorAll('li')).toHaveLength(
++      9,
++    );
++    const marks = [
++      ...screen.getByRole('list', { name: 'Reihenlegende' }).querySelectorAll('.ex-series-marker'),
++    ].map((node) => node.getAttribute('d'));
++    expect(new Set(marks).size).toBe(9);
++    const target = mounted.container.querySelector('.chart-interactive')!;
++    fireEvent.keyDown(target, { key: 'ArrowRight' });
++    await waitFor(() =>
++      expect(document.querySelector('.chart-tooltip')?.textContent).toContain(
++        'Weitere · Zeilensumme (2)',
++      ),
++    );
++    expect(document.querySelector('.chart-tooltip')?.textContent).toContain('5,00 €');
++    expect(data).toEqual(before);
++  });
++  it('distinguishes an original source named Weitere from the real remaining-row aggregate', async () => {
++    const data = source([10, 20, 30]);
++    data.rows = Array.from({ length: 8 }, (_, index) => ({
++      key: `source-${index}`,
++      label: index === 0 ? 'Weitere' : `Quelle ${index + 1}`,
++      class: null,
++      values: [1234, 0, 0],
++      total: 1234,
++    }));
++    data.rows.push(
++      { key: 'ninth', label: 'Neunte', class: null, values: [901, -101, 0], total: 800 },
++      { key: 'tenth', label: 'Zehnte', class: null, values: [-401, 201, 0], total: -200 },
++    );
++    const mounted = render(<ExplorerChart626 data={customChartModel(data)} />);
++    fireEvent.keyDown(mounted.container.querySelector('.chart-interactive')!, {
++      key: 'ArrowRight',
++    });
++    await waitFor(() => expect(document.querySelector('.chart-tooltip')).not.toBeNull());
++    const names = [...document.querySelectorAll('.chart-tooltip-row > span')].map(
++      (node) => node.textContent,
++    );
++    expect(names.filter((name) => name === 'Weitere')).toHaveLength(1);
++    expect(names.filter((name) => name === 'Weitere · Zeilensumme (2)')).toHaveLength(1);
++    expect(names).not.toContain('Weitere · Zeilensumme (1)');
++    expect(document.querySelector('.chart-tooltip')?.textContent).toContain('12,34 €');
++    expect(document.querySelector('.chart-tooltip')?.textContent).toContain('5,00 €');
++  });
++
++  it('keeps amount privacy on tooltip/data alternatives without changing exact source values', async () => {
++    const data = source([1234]);
++    const mounted = render(<ExplorerChart626 data={customChartModel(data)} />);
++    await act(async () => {
++      setAmountsHidden(true);
++    });
++    fireEvent.keyDown(mounted.container.querySelector('.chart-interactive')!, {
++      key: 'ArrowRight',
++    });
++    await waitFor(() => expect(document.querySelector('.chart-tooltip')).not.toBeNull());
++    expect(document.querySelector('.chart-tooltip')?.textContent).not.toContain('12,34');
++    expect(data.rows[0]?.values).toEqual([1234]);
++  });
++});
+diff --git a/apps/web/src/reports/explorer-chart-626.tsx b/apps/web/src/reports/explorer-chart-626.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..4dffb035a484e781f49d8a37cd0abaf75f6f02e9
+--- /dev/null
++++ b/apps/web/src/reports/explorer-chart-626.tsx
+@@ -0,0 +1,294 @@
++import {
++  AxisLine,
++  Button,
++  ChartSvg,
++  Graticule,
++  Line,
++  ReportTrendContext,
++  XTicks,
++  useAmountPrivacy,
++} from '@budget/ui';
++import { useState } from 'react';
++import { useElementWidth } from '../charts/use-element-width';
++import { kfmt } from '../wealth/networth-model';
++import {
++  boundedChartRows,
++  type ExplorerChartModel,
++  type ExplorerChartUnit,
++} from './explorer-chart-model-626';
++import { explorerChartValue626 } from './explorer-table-inspector-626';
++
++export function ExplorerViewToggle626({
++  value,
++  onChange,
++  busy = false,
++}: {
++  value: 'table' | 'chart';
++  onChange: (value: 'table' | 'chart') => void;
++  busy?: boolean;
++}) {
++  return (
++    <div className="ex-view-toggle" role="group" aria-label="Darstellung">
++      <Button variant="ghost" aria-pressed={value === 'table'} onClick={() => onChange('table')}>
++        Tabelle
++      </Button>
++      <Button
++        variant="ghost"
++        aria-pressed={value === 'chart'}
++        disabled={busy}
++        onClick={() => onChange('chart')}
++      >
++        Diagramm
++      </Button>
++    </div>
++  );
++}
++
++// Distinct labelled marker shapes retain row identity without treating dashes as forecasts.
++function marker(index: number, x: number, y: number) {
++  const shapes = [
++    `M${x - 3},${y}a3,3 0 1,0 6,0a3,3 0 1,0 -6,0`,
++    `M${x - 3},${y - 3}h6v6h-6Z`,
++    `M${x},${y - 4}l4,7h-8Z`,
++    `M${x},${y - 4}l4,4l-4,4l-4,-4Z`,
++    `M${x - 3},${y - 3}l6,6M${x + 3},${y - 3}l-6,6`,
++    `M${x - 4},${y}h8M${x},${y - 4}v8`,
++    `M${x - 4},${y}l2,-3h4l2,3l-2,3h-4Z`,
++    `M${x - 4},${y - 3}h8l-4,7Z`,
++    `M${x - 4},${y}a4,4 0 1,0 8,0a4,4 0 1,0 -8,0M${x - 1},${y}h2`,
++  ];
++  return <path d={shapes[index]!} className="ex-series-marker" />;
++}
++const unitLabel = (unit: ExplorerChartUnit) =>
++  unit === 'cents' ? 'Euro' : unit === 'bp' ? 'Prozent' : 'Anzahl';
++
++export function ExplorerChart626({ data }: { data: ExplorerChartModel }) {
++  useAmountPrivacy();
++  const [selected, setSelected] = useState('');
++  const [ref, width] = useElementWidth<HTMLDivElement>();
++  const cohort = data.cohorts.find((value) => value.id === selected) ?? data.cohorts[0];
++  const series = cohort ? boundedChartRows(cohort.rows, cohort.unit) : [];
++  const unit = cohort?.unit ?? 'cents';
++  const present = series.flatMap((row) =>
++    row.values.filter((value): value is number => value !== null),
++  );
++  const low = Math.min(0, ...present);
++  const high = Math.max(1, ...present);
++  const plotWidth = Math.max(1, width - 72);
++  const dates = data.columns.map((column) => {
++    const month = column.months[0];
++    return month && /^\d{4}-\d{2}$/.test(month) ? Date.parse(`${month}-01T00:00:00Z`) : NaN;
++  });
++  const timed =
++    data.temporal && dates.length > 1 && dates.every(Number.isFinite) && dates.at(-1)! > dates[0]!;
++  const x = (index: number) =>
++    60 +
++    (timed
++      ? (dates[index]! - dates[0]!) / (dates.at(-1)! - dates[0]!)
++      : data.columns.length > 1
++        ? index / (data.columns.length - 1)
++        : 0.5) *
++      plotWidth;
++  const y = (value: number) => 192 - ((value - low) / (high - low)) * 176;
++  const cadence = Math.max(
++    1,
++    Math.ceil(data.columns.length / Math.max(1, Math.floor(plotWidth / 76))),
++  );
++  const points = data.columns.map((column, index) => ({
++    x: x(index),
++    date: column.label,
++    series: [
++      ...series.map((row) => ({
++        name:
++          row.key === 'remaining' ? `Weitere · Zeilensumme (${row.sourceRows.length})` : row.label,
++        value: explorerChartValue626(row.values[index] ?? null, unit),
++      })),
++      ...(data.averageReference !== null
++        ? [{ name: 'Ø je Monat', value: explorerChartValue626(data.averageReference, unit) }]
++        : []),
++    ],
++  }));
++  const remaining = series.find((row) => row.key === 'remaining');
++  return (
++    <section className="ex-chart-626" aria-label="Diagrammansicht">
++      {data.cohorts.length > 1 && (
++        <label className="ex-chart-cohort">
++          Diagrammzeilen
++          <select value={cohort?.id ?? ''} onChange={(event) => setSelected(event.target.value)}>
++            {data.cohorts.map((value) => (
++              <option key={value.id} value={value.id}>
++                {value.label}
++              </option>
++            ))}
++          </select>
++        </label>
++      )}
++      <p className="ov-note">
++        {cohort?.label ?? 'Zeilen'} · {unitLabel(unit)} ·{' '}
++        {data.temporal ? 'Zeitspalten der Tabelle' : 'Spalte der Tabelle'}.
++      </p>
++      <div ref={ref} className="ex-chart-drawing">
++        {!series.length || !data.columns.length ? (
++          <p role="status">Keine Werte für diese Auswahl.</p>
++        ) : (
++          width > 72 && (
++            <ReportTrendContext.Provider value={false}>
++              <ChartSvg
++                width={width}
++                height={228}
++                label={`Diagramm · ${cohort?.label ?? 'Zeilen'} · ${unitLabel(unit)}`}
++                points={points}
++                table
++              >
++                <Graticule
++                  x1={60}
++                  x2={width - 12}
++                  lines={Array.from({ length: 5 }, (_, index) => {
++                    const value = Math.round(low + ((high - low) * index) / 4);
++                    return { y: y(value), label: kfmt(unit === 'count' ? value : value / 100) };
++                  })}
++                />
++                <AxisLine x1={60} x2={width - 12} y={y(0)} />
++                {series.map((row, rowIndex) => {
++                  const segments: Array<Array<[number, number]>> = [];
++                  let segment: Array<[number, number]> = [];
++                  row.values.forEach((value, index) => {
++                    if (value === null) {
++                      if (segment.length) segments.push(segment);
++                      segment = [];
++                    } else segment.push([x(index), y(value)]);
++                  });
++                  if (segment.length) segments.push(segment);
++                  return (
++                    <g
++                      key={row.key}
++                      data-series-key={row.key}
++                      className={`ex-chart-series ex-chart-series-${rowIndex}`}
++                    >
++                      {segments.map((segment, index) => (
++                        <Line key={index} points={segment} kind="actual" draw={false} />
++                      ))}
++                      {row.values.map((value, index) =>
++                        value !== null &&
++                        (index % cadence === 0 ||
++                          index === row.values.length - 1 ||
++                          (row.values[index - 1] == null && row.values[index + 1] == null)) ? (
++                          <g key={index} data-chart-point={index}>
++                            {marker(rowIndex, x(index), y(value))}
++                          </g>
++                        ) : null,
++                      )}
++                    </g>
++                  );
++                })}
++                {data.averageReference !== null && (
++                  <Line
++                    points={[
++                      [60, y(data.averageReference)],
++                      [width - 12, y(data.averageReference)],
++                    ]}
++                    kind="benchmark"
++                    draw={false}
++                  />
++                )}
++                <XTicks
++                  y={216}
++                  ticks={data.columns.flatMap((column, index) =>
++                    index % cadence === 0 ? [{ x: x(index), label: column.label }] : [],
++                  )}
++                />
++              </ChartSvg>
++            </ReportTrendContext.Provider>
++          )
++        )}
++      </div>
++      {series.length > 0 && (
++        <ul className="ex-chart-legend" aria-label="Reihenlegende">
++          {series.map((row, index) => (
++            <li key={row.key}>
++              <svg width="24" height="16" viewBox="0 0 24 16" aria-hidden="true">
++                <path d="M0,8H24" className="ex-series-rule" />
++                {marker(index, 12, 8)}
++              </svg>
++              <span>
++                {row.label}
++                {row.key === 'remaining' ? ` (${row.sourceRows.length} Zeilen)` : ''}
++              </span>
++            </li>
++          ))}
++        </ul>
++      )}
++      {data.averageReference !== null && (
++        <p className="ov-note">
++          Strichpunktiert: Ø je Monat {explorerChartValue626(data.averageReference, unit)}.
++        </p>
++      )}
++      {present.length === 0 && series.length > 0 && data.columns.length > 0 && (
++        <p role="status">Fehlende Werte bleiben Lücken, nicht null Euro.</p>
++      )}
++      {remaining && (
++        <>
++          <p className="ov-note">
++            Weitere ist die Zeilensumme der übrigen {remaining.sourceRows.length} angezeigten Zeilen
++            je Spalte. Fehlende oder nicht darstellbare Summen bleiben offen.{' '}
++            {data.measure === 'avg'
++              ? 'Durchschnittswerte werden hier nur als angezeigte Zellen addiert, nicht neu gemittelt.'
++              : data.measure === 'anzahl'
++                ? 'Buchungszahlen können sich bei geteilten Buchungen überschneiden; dies ist keine Gesamtzahl unterschiedlicher Buchungen.'
++                : ''}
++            {unit === 'bp' ? ' Prozentwerte werden nicht addiert.' : ''}
++          </p>
++          <details className="ex-chart-originals">
++            <summary>Weitere: ursprüngliche Zeilen und eigene Summen</summary>
++            <div className="ex-chart-original-scroll">
++              <table>
++                <caption>Originalwerte der übrigen angezeigten Zeilen</caption>
++                <thead>
++                  <tr>
++                    <th scope="col">Zeile</th>
++                    {data.columns.map((column) => (
++                      <th key={column.key} scope="col">
++                        {column.label}
++                      </th>
++                    ))}
++                    {data.summaryColumns.map((column) => (
++                      <th key={column.key} scope="col">
++                        {column.label}
++                      </th>
++                    ))}
++                  </tr>
++                </thead>
++                <tbody>
++                  {remaining.sourceRows.map((row) => (
++                    <tr key={row.key}>
++                      <th scope="row">{row.label}</th>
++                      {row.values.map((value, index) => (
++                        <td key={data.columns[index]?.key ?? index}>
++                          {explorerChartValue626(value, unit)}
++                        </td>
++                      ))}
++                      {data.summaryColumns.map((column) => (
++                        <td key={column.key}>{explorerChartValue626(row[column.key], unit)}</td>
++                      ))}
++                    </tr>
++                  ))}
++                </tbody>
++              </table>
++            </div>
++          </details>
++        </>
++      )}
++      {data.truncated > 0 && (
++        <p className="ov-note">
++          Das Diagramm umfasst nur die {data.rows.length} angezeigten Zeilen; {data.truncated}{' '}
++          weitere Zeilen sind nicht enthalten.
++        </p>
++      )}
++      <p className="ov-note">
++        Linien verbinden vorhandene Tabellenwerte; Lücken werden nicht überbrückt. Reihen bleiben
++        durch Namen und unterschiedliche Zeichen erkennbar. Die ursprünglichen Summen und Buchungen
++        bleiben in der Tabelle verfügbar.
++      </p>
++    </section>
++  );
++}
+diff --git a/apps/web/src/reports/explorer-chart-model-626.test.ts b/apps/web/src/reports/explorer-chart-model-626.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..33412ba534c82e7d82d6391d3ddc633e3976b598
+--- /dev/null
++++ b/apps/web/src/reports/explorer-chart-model-626.test.ts
+@@ -0,0 +1,336 @@
++import {
++  DEFAULT_EXPLORER_QUERY,
++  type ExplorerResult,
++  type ExplorerTemplateModel,
++  type TableRow,
++  type TableRowKind,
++} from '@budget/domain';
++import { describe, expect, it } from 'vitest';
++import {
++  boundedChartRows,
++  customChartModel,
++  templateChartModel,
++  type ExplorerChartRow,
++} from './explorer-chart-model-626';
++
++// Literal presentation contracts drafted before the production model exists.
++// This file is NOT executed as a missing-import RED; the current-page RTL is the baseline RED.
++const row = (
++  key: string,
++  values: readonly (number | null)[],
++  total: number | null = 777,
++): ExplorerChartRow => ({ key, label: key, values, total, average: null });
++const firstEight = () =>
++  ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((key) => row(key, [10, 20, 30]));
++function custom(rows: ExplorerChartRow[], patch: Partial<ExplorerResult> = {}): ExplorerResult {
++  return {
++    query: { ...DEFAULT_EXPLORER_QUERY, cols: 'monat' },
++    months: ['2024-01', '2024-02', '2024-03'],
++    columns: [
++      { key: '2024-01', months: ['2024-01'] },
++      { key: '2024-02', months: ['2024-02'] },
++      { key: '2024-03', months: ['2024-03'] },
++    ],
++    unit: 'cents',
++    rows: rows.map((value) => ({
++      key: value.key,
++      label: value.label,
++      class: null,
++      values: [...value.values] as number[],
++      total: value.total ?? 0,
++    })),
++    totals: null,
++    truncated: 0,
++    good: 'low',
++    ...patch,
++  };
++}
++function template(
++  rows: TableRow[],
++  id: ExplorerTemplateModel['id'] = 'year',
++): ExplorerTemplateModel {
++  return {
++    id,
++    title: 'Synthetic template',
++    months: ['2024-01', '2024-02', '2024-03'],
++    rows,
++    total: true,
++    average: true,
++    categoryId: null,
++    asOf: '2024-04-05',
++    partialMonth: null,
++  };
++}
++const tableRow = (
++  key: string,
++  kind: TableRowKind,
++  level: TableRow['level'],
++  vals: TableRow['vals'],
++): TableRow => ({ key, label: key, kind, level, vals, good: null });
++
++describe('626 exact bounded source-row presentation', () => {
++  it.each([0, 1, 8])('preserves every returned row and source identity at boundary %i', (count) => {
++    const rows = firstEight().slice(0, count);
++    const before = structuredClone(rows);
++    const plotted = boundedChartRows(rows, 'cents');
++    expect(plotted).toHaveLength(count);
++    expect(plotted.map((series) => series.label)).toEqual(rows.map((source) => source.label));
++    plotted.forEach((series, index) => {
++      expect(series.values).toEqual([10, 20, 30]);
++      expect(series.sourceRows).toEqual([rows[index]]);
++      expect(series.sourceRows[0]).toBe(rows[index]);
++    });
++    expect(rows).toEqual(before);
++  });
++
++  it('groups exactly the ninth returned row without dropping its independent summary', () => {
++    const ninth = row('ninth', [901, -101, 0], 999);
++    const plotted = boundedChartRows([...firstEight(), ninth], 'cents');
++    expect(plotted).toHaveLength(9);
++    expect(plotted[8]?.label).toBe('Weitere');
++    expect(plotted[8]?.values).toEqual([901, -101, 0]);
++    expect(plotted[8]?.sourceRows).toEqual([ninth]);
++    expect(plotted[8]?.sourceRows[0]?.total).toBe(999);
++  });
++
++  it('adds displayed ninth/tenth cells exactly, never totals-minus-first-eight or rounded pixels', () => {
++    const rows = [
++      ...firstEight(),
++      row('ninth', [901, -101, 0], 9001),
++      row('tenth', [-401, 201, 0], 9002),
++    ];
++    const before = structuredClone(rows);
++    const plotted = boundedChartRows(rows, 'cents');
++    expect(plotted).toHaveLength(9);
++    expect(plotted[8]?.values).toEqual([500, 100, 0]);
++    expect(plotted[8]?.sourceRows.map((source) => source.key)).toEqual(['ninth', 'tenth']);
++    expect(plotted[8]?.sourceRows.map((source) => source.total)).toEqual([9001, 9002]);
++    expect(rows).toEqual(before);
++  });
++
++  it('preserves missing columns while independently summing complete signed/zero columns', () => {
++    const plotted = boundedChartRows(
++      [...firstEight(), row('ninth', [null, -101, 0]), row('tenth', [-401, 201, 0])],
++      'cents',
++    );
++    expect(plotted[8]?.values).toEqual([null, 100, 0]);
++  });
++
++  it('uses exact integer addition through cancellation and fails closed on unavailable overflow', () => {
++    const max = Number.MAX_SAFE_INTEGER;
++    const plotted = boundedChartRows(
++      [
++        ...firstEight(),
++        row('ninth', [max, max, -max]),
++        row('tenth', [1, max, -1]),
++        row('eleventh', [0, -max, 0]),
++      ],
++      'cents',
++    );
++    expect(plotted[8]?.values).toEqual([null, max, null]);
++    const invalid = boundedChartRows(
++      [...firstEight(), row('bad', [Infinity, NaN, 1.5]), row('valid', [0, 0, 0])],
++      'cents',
++    );
++    expect(invalid[8]?.values).toEqual([null, null, null]);
++    expect(
++      boundedChartRows([...firstEight(), row('unsafe', [max + 1, 0, 0])], 'cents')[8]?.values,
++    ).toEqual([null, 0, 0]);
++  });
++
++  it('limits to eight plus Further over200 RETURNED rows, never including truncated/unreturned values', () => {
++    const rows = Array.from({ length: 200 }, (_, index) => row(`source-${index}`, [0, 0, 0]));
++    const source = custom(rows, {
++      truncated: 1,
++      totals: { values: [100001, 200002, 300003], total: 600006 },
++    });
++    const adapted = customChartModel(source);
++    const plotted = boundedChartRows(adapted.cohorts[0]!.rows, 'cents');
++    expect(plotted).toHaveLength(9);
++    expect(plotted[8]?.sourceRows).toHaveLength(192);
++    expect(plotted[8]?.sourceRows[0]?.key).toBe('source-8');
++    expect(plotted[8]?.sourceRows[191]?.key).toBe('source-199');
++    expect(plotted[8]?.values).toEqual([0, 0, 0]);
++    expect(adapted.truncated).toBe(1);
++    expect(adapted.totals).toBe(source.totals);
++    expect(adapted.totals?.total).toBe(600006);
++  });
++
++  it('preserves count and avg source cells plus their INDEPENDENT original window totals', () => {
++    const count = custom([row('count', [2, 3, 0], 3)], {
++      unit: 'count',
++      query: { ...DEFAULT_EXPLORER_QUERY, cols: 'monat', meas: 'anzahl' },
++    });
++    const counts = customChartModel(count);
++    expect(counts.cohorts[0]?.unit).toBe('count');
++    expect(counts.cohorts[0]?.rows[0]?.values).toEqual([2, 3, 0]);
++    expect(counts.cohorts[0]?.rows[0]?.total).toBe(3);
++    expect(counts.totals).toBeNull();
++    const avg = custom([row('avg', [101, 102, 0], 101)], {
++      query: { ...DEFAULT_EXPLORER_QUERY, cols: 'monat', meas: 'avg' },
++    });
++    const averages = customChartModel(avg);
++    expect(averages.cohorts[0]?.rows[0]?.values).toEqual([101, 102, 0]);
++    expect(averages.cohorts[0]?.rows[0]?.total).toBe(101);
++    expect(averages.totals).toBeNull();
++    const further = boundedChartRows(
++      [...firstEight(), row('avg-a', [101, 102, 0], 101), row('avg-b', [202, 203, 0], 203)],
++      'cents',
++    )[8];
++    expect(further?.values).toEqual([303, 305, 0]);
++    expect(further?.sourceRows.map((source) => source.total)).toEqual([101, 203]);
++  });
++
++  it('preserves categorical single-column identity rather than inventing a time axis', () => {
++    const source = custom([row('one', [1001], 1001)], {
++      query: { ...DEFAULT_EXPLORER_QUERY, cols: 'keine' },
++      columns: [{ key: 'all', months: ['2024-01', '2024-02', '2024-03'] }],
++    });
++    const adapted = customChartModel(source);
++    expect(adapted.temporal).toBe(false);
++    expect(adapted.columns).toHaveLength(1);
++    expect(adapted.columns[0]?.key).toBe('all');
++    expect(adapted.columns[0]?.months).toEqual(['2024-01', '2024-02', '2024-03']);
++    expect(adapted.cohorts[0]?.rows[0]?.values).toEqual([1001]);
++  });
++});
++
++describe('626 existing column/header semantics', () => {
++  it('keeps quarter labels, original membership and independent total outside temporal columns', () => {
++    const source = custom([row('quarter', [1001, 2002], 9999)], {
++      query: { ...DEFAULT_EXPLORER_QUERY, cols: 'quartal' },
++      months: ['2024-01', '2024-02', '2024-03', '2024-07', '2024-08', '2024-09'],
++      columns: [
++        { key: '2024-Q1', months: ['2024-01', '2024-02', '2024-03'] },
++        { key: '2024-Q3', months: ['2024-07', '2024-08', '2024-09'] },
++      ],
++    });
++    const adapted = customChartModel(source);
++    expect(adapted.temporal).toBe(true);
++    expect(adapted.columns.map((column) => column.label)).toEqual(['Q1 24', 'Q3 24']);
++    expect(adapted.columns[1]?.months).toEqual(['2024-07', '2024-08', '2024-09']);
++    expect(adapted.columns).toHaveLength(2);
++    expect(adapted.summaryColumns).toEqual([{ key: 'total', label: 'Gesamt' }]);
++    expect(adapted.rows[0]?.total).toBe(9999);
++  });
++  it('keeps existing year headers and avg summary separate from original plotted cells', () => {
++    const source = custom([row('year', [101, 102], 203)], {
++      query: { ...DEFAULT_EXPLORER_QUERY, cols: 'jahr', meas: 'avg' },
++      months: ['2023-12', '2024-01'],
++      columns: [
++        { key: '2023', months: ['2023-12'] },
++        { key: '2024', months: ['2024-01'] },
++      ],
++    });
++    const adapted = customChartModel(source);
++    expect(adapted.columns.map((column) => column.label)).toEqual(['2023', '2024']);
++    expect(adapted.summaryColumns).toEqual([{ key: 'total', label: 'Ø' }]);
++    expect(adapted.rows[0]?.values).toEqual([101, 102]);
++    expect(adapted.rows[0]?.total).toBe(203);
++    expect(adapted.totals).toBeNull();
++  });
++});
++
++describe('626 fixed-template cohorts never mix ancestors, memo income or units', () => {
++  const originalRows = [
++    tableRow('class', 'sum', 0, [1001, 2000, null]),
++    tableRow('income', 'income', 1, [10001, 20002, null]),
++    tableRow('group', 'group', 1, [1001, 2000, null]),
++    tableRow('different-level', 'group', 0, [999, 0, null]),
++    tableRow('leaf', 'category', 2, [1001, 2000, null]),
++    tableRow('result', 'result', 0, [9000, -100, null]),
++    tableRow('pct', 'pct', 0, [1250, -500, null]),
++    tableRow('memo', 'memo', 1, [777, 0, null]),
++    tableRow('level', 'level', 0, [50000, 70000, null]),
++  ];
++  it.each(['heatmap', 'year', 'total', 'category'] as const)(
++    'keeps every original row and column reachable for %s',
++    (id) => {
++      const source = template(originalRows, id);
++      const before = structuredClone(source);
++      const adapted = templateChartModel(source);
++      expect(adapted.columns.map((column) => column.key)).toEqual([
++        '2024-01',
++        '2024-02',
++        '2024-03',
++      ]);
++      expect(adapted.rows.map((value) => value.key)).toEqual([
++        'class',
++        'income',
++        'group',
++        'different-level',
++        'leaf',
++        'result',
++        'pct',
++        'memo',
++        'level',
++      ]);
++      const rows = adapted.cohorts.flatMap((cohort) => cohort.rows);
++      for (const value of rows)
++        expect(value).toBe(adapted.rows.find((original) => original.key === value.key));
++      expect(rows.map((value) => value.key).sort()).toEqual(
++        [
++          'class',
++          'income',
++          'group',
++          'different-level',
++          'leaf',
++          'result',
++          'pct',
++          'memo',
++          'level',
++        ].sort(),
++      );
++      for (const cohort of adapted.cohorts) expect(cohort.rows).toHaveLength(1);
++      expect(adapted.cohorts.find((cohort) => cohort.rows[0]?.key === 'pct')?.unit).toBe('bp');
++      expect(rows.find((value) => value.key === 'pct')?.values).toEqual([1250, -500, null]);
++      expect(rows.find((value) => value.key === 'pct')?.total).toBeNull();
++      expect(rows.find((value) => value.key === 'pct')?.average).toBeNull();
++      expect(rows.find((value) => value.key === 'leaf')?.total).toBe(3001);
++      expect(rows.find((value) => value.key === 'leaf')?.average).toBe(1501);
++      expect(rows.find((value) => value.key === 'memo')?.values).toEqual([777, 0, null]);
++      expect(source).toEqual(before);
++    },
++  );
++
++  it('uses exactly the existing Summe and Ø Monat headers only as summary metadata', () => {
++    const data = templateChartModel(
++      template([tableRow('leaf', 'category', 2, [1001, 2000, null])]),
++    );
++    expect(data.summaryColumns).toEqual([
++      { key: 'total', label: 'Summe' },
++      { key: 'average', label: 'Ø Monat' },
++    ]);
++    expect(data.columns).toHaveLength(3);
++    expect(data.rows[0]?.values).toEqual([1001, 2000, null]);
++    expect(data.rows[0]?.total).toBe(3001);
++    expect(data.rows[0]?.average).toBe(1501);
++  });
++
++  it('retains canonical all-null cents summary0/0 without filling plotted gaps', () => {
++    const adapted = templateChartModel(
++      template([tableRow('absent', 'category', 2, [null, null, null])]),
++    );
++    expect(adapted.cohorts[0]?.rows[0]?.values).toEqual([null, null, null]);
++    expect(adapted.cohorts[0]?.rows[0]?.total).toBe(0);
++    expect(adapted.cohorts[0]?.rows[0]?.average).toBe(0);
++  });
++
++  it('fails closed for unsupported kinds instead of discarding a row or plotting an invented unit', () => {
++    const unknown = {
++      ...tableRow('unknown', 'category', 2, [1001, 0, null]),
++      kind: 'unsupported-future-kind',
++    } as unknown as TableRow;
++    expect(() => templateChartModel(template([unknown]))).toThrow(/Zeilenart/);
++  });
++
++  it('never creates an additive percentage Further if future input contains more than eight ratios', () => {
++    const ratios = Array.from({ length: 9 }, (_, index) =>
++      row(`ratio-${index}`, [1250, -500, null], null),
++    );
++    const plotted = boundedChartRows(ratios, 'bp');
++    expect(plotted).toHaveLength(9);
++    expect(plotted[8]?.values).toEqual([null, null, null]);
++    expect(plotted[8]?.sourceRows[0]).toBe(ratios[8]);
++  });
++});
+diff --git a/apps/web/src/reports/explorer-chart-model-626.ts b/apps/web/src/reports/explorer-chart-model-626.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..119448ce1cce04e059dbd8a5f8018e74f3f39fa0
+--- /dev/null
++++ b/apps/web/src/reports/explorer-chart-model-626.ts
+@@ -0,0 +1,162 @@
++import {
++  explorerTableHeaders,
++  explorerTemplateSummaries,
++  type ExplorerResult,
++  type ExplorerTemplateModel,
++  type TableRowKind,
++} from '@budget/domain';
++import { monthShort } from './table-format';
++
++export type ExplorerChartUnit = 'cents' | 'count' | 'bp';
++export interface ExplorerChartRow {
++  key: string;
++  label: string;
++  values: readonly (number | null)[];
++  /** Independent original window summary, not a sum of chart coordinates. */
++  total: number | null;
++  average: number | null;
++}
++export interface ExplorerChartCohort {
++  id: string;
++  label: string;
++  unit: ExplorerChartUnit;
++  rows: readonly ExplorerChartRow[];
++}
++export interface ExplorerChartModel {
++  columns: ReadonlyArray<{ key: string; label: string; months: readonly string[] }>;
++  /** Original native-table order; cohort grouping must never reorder table inspection. */
++  rows: readonly ExplorerChartRow[];
++  cohorts: readonly ExplorerChartCohort[];
++  summaryColumns: ReadonlyArray<{ key: 'total' | 'average'; label: string }>;
++  totals: ExplorerResult['totals'];
++  temporal: boolean;
++  truncated: number;
++  averageReference: number | null;
++  measure: 'summe' | 'avg' | 'anzahl';
++}
++export interface ExplorerChartSeries {
++  key: string;
++  label: string;
++  values: readonly (number | null)[];
++  /** Retain original membership and each independent summary for exact inspection. */
++  sourceRows: readonly ExplorerChartRow[];
++}
++
++const integer = (value: number | null | undefined): number | null =>
++  typeof value === 'number' && Number.isSafeInteger(value) ? value : null;
++
++/** Presentation sum of the returned, displayed row cells only. No financial DTO is mutated. */
++export function boundedChartRows(
++  rows: readonly ExplorerChartRow[],
++  unit: ExplorerChartUnit,
++): ExplorerChartSeries[] {
++  const visible = rows.slice(0, 8).map((row, index) => ({
++    key: `source:${index}:${row.key}`,
++    label: row.label,
++    values: row.values.map(integer),
++    sourceRows: [row],
++  }));
++  const remaining = rows.slice(8);
++  if (!remaining.length) return visible;
++  const limit = BigInt(Number.MAX_SAFE_INTEGER);
++  const values = (rows[0]?.values ?? []).map((_, column): number | null => {
++    // Ratios have no additive interpretation. Current canonical input has only one pct row.
++    if (unit === 'bp') return null;
++    let total = 0n;
++    for (const row of remaining) {
++      const value = integer(row.values[column]);
++      if (value === null) return null;
++      total += BigInt(value);
++    }
++    return total > limit || total < -limit ? null : Number(total);
++  });
++  return [...visible, { key: 'remaining', label: 'Weitere', values, sourceRows: remaining }];
++}
++
++export function customChartModel(result: ExplorerResult): ExplorerChartModel {
++  const labels = explorerTableHeaders(result);
++  const rows = result.rows.map((row) => ({
++    key: row.key,
++    label: row.label,
++    values: row.values,
++    total: row.total,
++    average: null,
++  }));
++  return {
++    columns: result.columns.map((column, index) => ({ ...column, label: labels[index + 1]! })),
++    rows,
++    cohorts: [{ id: 'custom', label: 'Zeilen', unit: result.unit, rows }],
++    summaryColumns:
++      result.columns.length > 1
++        ? [{ key: 'total', label: result.query.meas === 'avg' ? 'Ø' : 'Gesamt' }]
++        : [],
++    totals: result.totals,
++    temporal: result.query.cols !== 'keine',
++    truncated: result.truncated,
++    averageReference: null,
++    measure: result.query.meas,
++  };
++}
++
++const KIND_LABEL: Record<TableRowKind, string> = {
++  sum: 'Summen',
++  income: 'Einnahmenarten',
++  group: 'Gruppen',
++  category: 'Kategorien',
++  result: 'Ergebnisse',
++  pct: 'Sparquote',
++  memo: 'Hinweise',
++  level: 'Stände',
++};
++
++export function templateChartModel(model: ExplorerTemplateModel): ExplorerChartModel {
++  const rows: ExplorerChartRow[] = model.rows.map((row) => {
++    if (!Object.hasOwn(KIND_LABEL, row.kind) || ![0, 1, 2].includes(row.level))
++      throw new Error('Nicht unterstützte Zeilenart');
++    const summary = explorerTemplateSummaries(row);
++    return {
++      key: row.key,
++      label: row.label,
++      values: row.vals,
++      total: summary.total,
++      average: summary.average,
++    };
++  });
++  const cohorts = new Map<string, ExplorerChartCohort>();
++  model.rows.forEach((source, index) => {
++    const id = `${source.kind}:${source.level}`;
++    const existing = cohorts.get(id);
++    if (existing) cohorts.set(id, { ...existing, rows: [...existing.rows, rows[index]!] });
++    else
++      cohorts.set(id, {
++        id,
++        label: KIND_LABEL[source.kind],
++        unit: source.kind === 'pct' ? 'bp' : 'cents',
++        rows: [rows[index]!],
++      });
++  });
++  const all = [...cohorts.values()];
++  return {
++    columns: model.months.map((month) => ({
++      key: month,
++      label: `${monthShort(month, true)}${month === model.partialMonth ? '*' : ''}`,
++      months: [month],
++    })),
++    rows,
++    cohorts: all.map((cohort) => ({
++      ...cohort,
++      label: all.some((other) => other.id !== cohort.id && other.label === cohort.label)
++        ? `${cohort.label} · Ebene ${cohort.id.split(':')[1]}`
++        : cohort.label,
++    })),
++    summaryColumns: [
++      ...(model.total ? [{ key: 'total' as const, label: 'Summe' }] : []),
++      ...(model.average ? [{ key: 'average' as const, label: 'Ø Monat' }] : []),
++    ],
++    totals: null,
++    temporal: true,
++    truncated: 0,
++    averageReference: model.id === 'category' ? (rows[0]?.average ?? null) : null,
++    measure: 'summe',
++  };
++}
+diff --git a/apps/web/src/reports/explorer-report.css b/apps/web/src/reports/explorer-report.css
+index e65ea84cae8b000a88d0e3a6a8ea28189ef9229d..ba33d50aa846d8202a35ed76a69303f39b33be06 100644
+--- a/apps/web/src/reports/explorer-report.css
++++ b/apps/web/src/reports/explorer-report.css
+@@ -209,3 +209,102 @@
+     scroll-padding-inline-start: 150px;
+   }
+ }
++
++/* Explorer's local presentation controls retain native table/booking semantics. */
++.ex-view-toggle {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 8px;
++  margin-block: 12px;
++}
++.ex-view-toggle .btn {
++  min-width: var(--touch);
++  min-height: var(--touch);
++  border: var(--stroke-hairline) solid var(--rule-strong);
++}
++.ex-view-toggle .btn[aria-pressed='true'] {
++  background: var(--tint-2);
++  color: var(--ink);
++  border-color: var(--line);
++}
++.ex-native-view,
++.ex-table-inspector-626,
++.ex-chart-626,
++.ex-chart-drawing {
++  min-width: 0;
++  max-width: 100%;
++}
++.ex-native-view[hidden] {
++  display: none;
++}
++.ex-chart-cohort {
++  display: flex;
++  flex-wrap: wrap;
++  align-items: center;
++  gap: 8px 12px;
++}
++.ex-chart-cohort select {
++  min-height: var(--touch);
++  min-width: 0;
++  max-width: 100%;
++  border: var(--stroke-hairline) solid var(--rule-strong);
++  border-radius: var(--radius-sm);
++  background: var(--surface);
++  color: var(--ink);
++  font: inherit;
++  padding-inline: 12px;
++}
++.ex-chart-series .l-actual,
++.ex-series-marker,
++.ex-series-rule {
++  stroke: var(--line);
++  stroke-width: var(--stroke-measure);
++  fill: none;
++}
++.ex-series-marker {
++  fill: var(--surface);
++}
++.ex-chart-legend {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 8px 16px;
++  list-style: none;
++  padding: 0;
++  font-family: var(--font-tech);
++  font-size: var(--fs-chart-label);
++  line-height: var(--lh-chart-label);
++}
++.ex-chart-legend li {
++  display: inline-flex;
++  align-items: center;
++  gap: 8px;
++  min-width: 0;
++  overflow-wrap: anywhere;
++}
++.ex-chart-legend svg {
++  flex-shrink: 0;
++}
++.ex-chart-originals summary {
++  min-height: var(--touch);
++  cursor: pointer;
++}
++.ex-chart-original-scroll {
++  max-width: 100%;
++  overflow-x: auto;
++}
++.ex-chart-original-scroll table {
++  border-collapse: collapse;
++  width: max-content;
++  min-width: 100%;
++  font-size: var(--fs-table);
++  line-height: var(--lh-table);
++}
++.ex-chart-original-scroll th,
++.ex-chart-original-scroll td {
++  padding: 8px 12px;
++  border-bottom: var(--stroke-hairline) solid var(--rule);
++  text-align: right;
++}
++.ex-chart-original-scroll th:first-child {
++  text-align: left;
++}
+diff --git a/apps/web/src/reports/explorer-report.tsx b/apps/web/src/reports/explorer-report.tsx
+index 135776620a36a0b3d0a69f43c314900e7e7e9e07..f7d90c650a275e2da39e3a7e5ebb2edb150cc054 100644
+--- a/apps/web/src/reports/explorer-report.tsx
++++ b/apps/web/src/reports/explorer-report.tsx
+@@ -45,6 +45,9 @@ import { EXPLORER_CSV_CHANGED_MESSAGE, explorerQuery, fetchExplorerCsv } from '.
+ import { euroCellText, monthLong, monthShortYear, wholeText } from './overview-format';
+ import './overview-reports.css';
+ import './explorer-report.css';
++import { customChartModel } from './explorer-chart-model-626';
++import { ExplorerChart626, ExplorerViewToggle626 } from './explorer-chart-626';
++import { ExplorerTableInspector626 } from './explorer-table-inspector-626';
+ 
+ const label = <T extends ReadonlyArray<{ id: string; label: string }>>(list: T, id: string) =>
+   list.find((x) => x.id === id)?.label ?? id;
+@@ -571,6 +574,8 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
+             result={data.result}
+             firstMonth={data.firstMonth}
+             fetching={result.isFetching}
++            failed={result.isError}
++            ready={exportReady}
+             onExport={() => void download()}
+             exportDisabled={!exportReady || exporting}
+             exporting={exporting}
+@@ -599,6 +604,8 @@ function Pivot({
+   result,
+   firstMonth,
+   fetching,
++  failed,
++  ready,
+   onExport,
+   exportDisabled,
+   exporting,
+@@ -606,11 +613,16 @@ function Pivot({
+   result: ExplorerResult;
+   firstMonth: string | null;
+   fetching: boolean;
++  failed: boolean;
++  ready: boolean;
+   onExport: () => void;
+   exportDisabled: boolean;
+   exporting: boolean;
+ }) {
+   useAmountPrivacy();
++  const [view, setView] = useState<'table' | 'chart'>('table');
++  const chartData = useMemo(() => customChartModel(result), [result]);
++  const cellsPerRow = result.columns.length + chartData.summaryColumns.length;
+   const { query, columns, rows, totals } = result;
+   const headers = explorerTableHeaders(result);
+   const fmt = (value: number) => (result.unit === 'count' ? wholeText(value) : euroCellText(value));
+@@ -647,87 +659,115 @@ function Pivot({
+           {exporting ? 'CSV wird geprüft …' : 'CSV exportieren'}
+         </Button>
+       </div>
+-      {rows.length === 0 ? (
+-        <p className="ov-empty" role="status">
+-          {firstMonth === null
+-            ? 'Es gibt noch keine Buchungen auf Budgetkonten.'
+-            : 'Keine Werte für diese Auswahl.'}
+-        </p>
+-      ) : (
+-        <div
+-          className="ov-scroll ex-scroll"
+-          role="region"
+-          aria-label="Pivottabelle, bei Bedarf horizontal verschiebbar"
+-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the wide table.
+-          tabIndex={0}
+-        >
+-          <table className="ov-table ex-table" data-testid="ex-table">
+-            <thead>
+-              <tr>
+-                <th className="tech ex-first">{headers[0]}</th>
+-                {columns.map((c, i) => (
+-                  <th key={c.key} className="tech n">
+-                    {headers[i + 1]}
+-                  </th>
+-                ))}
+-                {columns.length > 1 && <th className="tech n">{headers.at(-1)}</th>}
+-              </tr>
+-            </thead>
+-            <tbody>
+-              {rows.map((row) => {
+-                const heat = columns.length > 1 ? overviewHeat(row.values, result.good) : [];
+-                const to = link(row.key);
+-                return (
+-                  <tr key={row.key || '__none'}>
+-                    <th scope="row" className="ex-first">
+-                      {row.class && <ClassSwatch kind={row.class} />}
+-                      {to ? (
+-                        <AppLink to="/konten/buchungen" search={to}>
+-                          {row.label}
+-                        </AppLink>
+-                      ) : (
+-                        row.label
+-                      )}
+-                    </th>
+-                    {row.values.map((value, i) => {
+-                      const h = heat[i];
+-                      return (
++      <ExplorerViewToggle626 value={view} onChange={setView} busy={!ready} />
++      {view === 'chart' &&
++        (failed ? (
++          <p role="status">Diagramm für diese Auswahl nicht verfügbar.</p>
++        ) : !ready ? (
++          <LoadingNote what="Diagramm" />
++        ) : (
++          <ExplorerChart626 data={chartData} />
++        ))}
++      <div hidden={view !== 'table'} className="ex-native-view">
++        <ExplorerTableInspector626 data={chartData} active={view === 'table'}>
++          {rows.length === 0 ? (
++            <p className="ov-empty" role="status">
++              {firstMonth === null
++                ? 'Es gibt noch keine Buchungen auf Budgetkonten.'
++                : 'Keine Werte für diese Auswahl.'}
++            </p>
++          ) : (
++            <div
++              className="ov-scroll ex-scroll"
++              role="region"
++              aria-label="Pivottabelle, bei Bedarf horizontal verschiebbar"
++              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users must be able to scroll the wide table.
++              tabIndex={0}
++            >
++              <table className="ov-table ex-table" data-testid="ex-table">
++                <thead>
++                  <tr>
++                    <th className="tech ex-first">{headers[0]}</th>
++                    {columns.map((c, i) => (
++                      <th key={c.key} className="tech n">
++                        {headers[i + 1]}
++                      </th>
++                    ))}
++                    {columns.length > 1 && <th className="tech n">{headers.at(-1)}</th>}
++                  </tr>
++                </thead>
++                <tbody>
++                  {rows.map((row, rowIndex) => {
++                    const heat = columns.length > 1 ? overviewHeat(row.values, result.good) : [];
++                    const to = link(row.key);
++                    return (
++                      <tr key={row.key || '__none'}>
++                        <th scope="row" className="ex-first">
++                          {row.class && <ClassSwatch kind={row.class} />}
++                          {to ? (
++                            <AppLink to="/konten/buchungen" search={to}>
++                              {row.label}
++                            </AppLink>
++                          ) : (
++                            row.label
++                          )}
++                        </th>
++                        {row.values.map((value, i) => {
++                          const h = heat[i];
++                          return (
++                            <td
++                              key={columns[i]?.key ?? i}
++                              data-chart-point={rowIndex * cellsPerRow + i}
++                              className={`n${h ? ` ov-hc is-${h.tone}` : ''}`}
++                              style={
++                                h ? ({ '--h': h.strength.toFixed(2) } as CSSProperties) : undefined
++                              }
++                            >
++                              {value === 0 ? <span className="muted">·</span> : fmt(value)}
++                            </td>
++                          );
++                        })}
++                        {columns.length > 1 && (
++                          <td
++                            className="n"
++                            data-chart-point={rowIndex * cellsPerRow + columns.length}
++                          >
++                            <strong>{fmt(row.total)}</strong>
++                          </td>
++                        )}
++                      </tr>
++                    );
++                  })}
++                  {totals && (
++                    <tr className="is-total">
++                      <th scope="row" className="ex-first">
++                        Summe
++                      </th>
++                      {totals.values.map((value, i) => (
+                         <td
+                           key={columns[i]?.key ?? i}
+-                          className={`n${h ? ` ov-hc is-${h.tone}` : ''}`}
+-                          style={
+-                            h ? ({ '--h': h.strength.toFixed(2) } as CSSProperties) : undefined
+-                          }
++                          className="n"
++                          data-chart-point={rows.length * cellsPerRow + i}
+                         >
+-                          {value === 0 ? <span className="muted">·</span> : fmt(value)}
++                          {fmt(value)}
+                         </td>
+-                      );
+-                    })}
+-                    {columns.length > 1 && (
+-                      <td className="n">
+-                        <strong>{fmt(row.total)}</strong>
+-                      </td>
+-                    )}
+-                  </tr>
+-                );
+-              })}
+-              {totals && (
+-                <tr className="is-total">
+-                  <th scope="row" className="ex-first">
+-                    Summe
+-                  </th>
+-                  {totals.values.map((value, i) => (
+-                    <td key={columns[i]?.key ?? i} className="n">
+-                      {fmt(value)}
+-                    </td>
+-                  ))}
+-                  {columns.length > 1 && <td className="n">{fmt(totals.total)}</td>}
+-                </tr>
+-              )}
+-            </tbody>
+-          </table>
+-        </div>
+-      )}
++                      ))}
++                      {columns.length > 1 && (
++                        <td
++                          className="n"
++                          data-chart-point={rows.length * cellsPerRow + columns.length}
++                        >
++                          {fmt(totals.total)}
++                        </td>
++                      )}
++                    </tr>
++                  )}
++                </tbody>
++              </table>
++            </div>
++          )}
++        </ExplorerTableInspector626>
++      </div>
+       {result.truncated > 0 && (
+         <p className="ov-note" role="note">
+           Die größten {rows.length} Zeilen sind aufgelistet, {result.truncated} weitere nicht.
+diff --git a/apps/web/src/reports/explorer-table-inspector-626.tsx b/apps/web/src/reports/explorer-table-inspector-626.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..7678619168d8ec5c6920e6f97c40c841d9a59d55
+--- /dev/null
++++ b/apps/web/src/reports/explorer-table-inspector-626.tsx
+@@ -0,0 +1,99 @@
++import { ChartValues, privateAmount, useAmountPrivacy, type ChartTooltipPoint } from '@budget/ui';
++import { useLayoutEffect, useRef, type ReactNode } from 'react';
++import { eur } from '../ledger/format';
++import { chartPercent } from '../charts/tooltip-data';
++import type { ExplorerChartModel, ExplorerChartUnit } from './explorer-chart-model-626';
++
++export function explorerChartValue626(value: number | null, unit: ExplorerChartUnit): string {
++  if (value === null || !Number.isSafeInteger(value)) return '–';
++  return unit === 'cents'
++    ? eur(value)
++    : privateAmount(unit === 'bp' ? chartPercent(value) : value.toLocaleString('de-AT'));
++}
++
++/** Wrap, never replace or flatten, the existing native table and its original links/actions. */
++export function ExplorerTableInspector626({
++  data,
++  children,
++  active = true,
++}: {
++  data: ExplorerChartModel;
++  children: ReactNode;
++  active?: boolean;
++}) {
++  useAmountPrivacy();
++  const root = useRef<HTMLDivElement>(null);
++  const horizontalPosition = useRef(0);
++  useLayoutEffect(() => {
++    if (!active) return;
++    const scroller = root.current?.querySelector<HTMLElement>('.ex-scroll, .ex-template-scroll');
++    if (!scroller) return;
++    scroller.scrollLeft = horizontalPosition.current;
++  }, [active]);
++  const units = new Map(
++    data.cohorts.flatMap((cohort) => cohort.rows.map((row) => [row.key, cohort.unit] as const)),
++  );
++  const rows = [
++    ...data.rows,
++    ...(data.totals
++      ? [
++          {
++            key: '__original_total',
++            label: 'Summe',
++            values: data.totals.values,
++            total: data.totals.total,
++            average: null,
++          },
++        ]
++      : []),
++  ];
++  const points: ChartTooltipPoint[] = rows.flatMap((row) => {
++    const unit = units.get(row.key) ?? data.cohorts[0]?.unit ?? 'cents';
++    return [
++      ...data.columns.map((column, index) => ({
++        x: 50,
++        date: column.label,
++        series: [
++          { name: row.label, value: explorerChartValue626(row.values[index] ?? null, unit) },
++        ],
++      })),
++      ...data.summaryColumns.map((column) => ({
++        x: 50,
++        date: column.label,
++        series: [{ name: row.label, value: explorerChartValue626(row[column.key], unit) }],
++      })),
++    ];
++  });
++  return (
++    <div
++      ref={root}
++      className="ex-table-inspector-626"
++      onScrollCapture={(event) => {
++        const scroller = root.current?.querySelector<HTMLElement>(
++          '.ex-scroll, .ex-template-scroll',
++        );
++        if (active && scroller && event.target === scroller)
++          horizontalPosition.current = scroller.scrollLeft;
++      }}
++      onKeyDownCapture={(event) => {
++        if (
++          (event.key === 'ArrowLeft' || event.key === 'ArrowRight') &&
++          !event.altKey &&
++          !event.ctrlKey &&
++          !event.metaKey &&
++          event.target instanceof Element &&
++          !event.target.matches('.chart-interactive')
++        )
++          event.stopPropagation();
++      }}
++    >
++      <ChartValues
++        key={active ? 'active' : 'inactive'}
++        label="Tabellenwerte: Zeile, Spalte und genauer Wert"
++        points={active ? points : []}
++      >
++        {children}
++      </ChartValues>
++    </div>
++  );
++}
+diff --git a/apps/web/src/reports/explorer-templates.tsx b/apps/web/src/reports/explorer-templates.tsx
+index efa8a5e5a99bb4280a344671c056322053c82e64..1e2fab3218543963a9622cb3f6323d74e2a05836 100644
+--- a/apps/web/src/reports/explorer-templates.tsx
++++ b/apps/web/src/reports/explorer-templates.tsx
+@@ -1,6 +1,5 @@
+ import {
+   explorerTemplateSources,
+-  explorerTemplateSummaries,
+   heatForCell,
+   tableHeatStats,
+   type ExplorerTemplateFacts,
+@@ -8,12 +7,23 @@ import {
+   type TableRow,
+ } from '@budget/domain';
+ import { Button, ClassSwatch, useAmountPrivacy } from '@budget/ui';
+-import { useEffect, useId, useRef, type CSSProperties, type MouseEvent } from 'react';
++import {
++  useEffect,
++  useId,
++  useMemo,
++  useRef,
++  useState,
++  type CSSProperties,
++  type MouseEvent,
++} from 'react';
+ import { eur, longDay } from '../ledger/format';
+ import { AppLink } from '../shell/app-link';
+ import { ExplorerTemplateTrend } from './explorer-template-trend';
+ import { monthLong, monthShort, percentWhole } from './table-format';
+ import './table-reports.css';
++import { templateChartModel } from './explorer-chart-model-626';
++import { ExplorerChart626, ExplorerViewToggle626 } from './explorer-chart-626';
++import { ExplorerTableInspector626 } from './explorer-table-inspector-626';
+ 
+ export function ExplorerTemplates({
+   facts,
+@@ -32,14 +42,18 @@ export function ExplorerTemplates({
+ }) {
+   useAmountPrivacy();
+   const prefix = useId();
++  const [view, setView] = useState<'table' | 'chart'>('table');
++  const chartData = useMemo(() => templateChartModel(model), [model]);
++  const cellsPerRow = model.months.length + chartData.summaryColumns.length;
+   const root = useRef<HTMLElement>(null);
+   const detailHeading = useRef<HTMLHeadingElement>(null);
+   const origin = useRef<HTMLButtonElement | null>(null);
+-  const row = model.rows.find((candidate) => candidate.key === selectedRowKey);
++  const selectedIndex = model.rows.findIndex((candidate) => candidate.key === selectedRowKey);
++  const row = model.rows[selectedIndex];
+   const columnIndex = model.months.indexOf(selectedColumn ?? '');
+   const value = row
+     ? selectedColumn === 'summe'
+-      ? explorerTemplateSummaries(row).total
++      ? chartData.rows[selectedIndex]!.total
+       : (row.vals[columnIndex] ?? null)
+     : null;
+   const sources =
+@@ -71,119 +85,141 @@ export function ExplorerTemplates({
+           Angezeigte Monate: {monthLong(model.months[0]!)} bis {monthLong(model.months.at(-1)!)}.
+         </p>
+       )}
+-      {model.id === 'category' && <ExplorerTemplateTrend model={model} />}
+-      {model.rows.length === 0 ? (
+-        <p role="status">Für diese Auswahl sind keine vollständigen Monatswerte verfügbar.</p>
+-      ) : (
+-        <div
+-          className="rscroll rsticky ex-template-scroll"
+-          role="region"
+-          aria-label={`${model.title}, bei Bedarf horizontal verschiebbar`}
+-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Native horizontal table scrolling is also keyboard accessible.
+-          tabIndex={0}
+-        >
+-          <table className="rtable ex-template-table">
+-            <caption className="sr-only">
+-              {model.title}: Monatswerte in Euro; Betrag öffnet die zugehörigen Buchungen
+-            </caption>
+-            <thead>
+-              <tr>
+-                <th scope="col" className="rg-first">
+-                  Position
+-                </th>
+-                {model.months.map((month) => (
+-                  <th scope="col" key={month} className="n" title={monthLong(month)}>
+-                    {monthShort(month, true)}
+-                    {month === model.partialMonth ? '*' : ''}
+-                  </th>
+-                ))}
+-                {model.total && (
+-                  <th scope="col" className="n">
+-                    Summe
+-                  </th>
+-                )}
+-                {model.average && (
+-                  <th scope="col" className="n">
+-                    Ø Monat
+-                  </th>
+-                )}
+-              </tr>
+-            </thead>
+-            <tbody>
+-              {model.rows.map((row) => {
+-                const stats = tableHeatStats(row.vals);
+-                const summaries = explorerTemplateSummaries(row);
+-                return (
+-                  <tr
+-                    key={row.key}
+-                    className={`rk-${row.kind} lv-${row.level}`}
+-                    data-template-row={row.key}
+-                    data-level={row.level}
+-                  >
+-                    <th scope="row" className="rg-first">
+-                      {row.swatch && (
+-                        <ClassSwatch kind={row.swatch === 'income' ? 'open' : row.swatch} />
+-                      )}
+-                      {row.label}
++      <ExplorerViewToggle626 value={view} onChange={setView} />
++      {view === 'chart' && <ExplorerChart626 data={chartData} />}
++      <div hidden={view !== 'table'} className="ex-native-view">
++        {model.id === 'category' && <ExplorerTemplateTrend model={model} />}
++        <ExplorerTableInspector626 data={chartData} active={view === 'table'}>
++          {model.rows.length === 0 ? (
++            <p role="status">Für diese Auswahl sind keine vollständigen Monatswerte verfügbar.</p>
++          ) : (
++            <div
++              className="rscroll rsticky ex-template-scroll"
++              role="region"
++              aria-label={`${model.title}, bei Bedarf horizontal verschiebbar`}
++              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Native horizontal table scrolling is also keyboard accessible.
++              tabIndex={0}
++            >
++              <table className="rtable ex-template-table">
++                <caption className="sr-only">
++                  {model.title}: Monatswerte in Euro; Betrag öffnet die zugehörigen Buchungen
++                </caption>
++                <thead>
++                  <tr>
++                    <th scope="col" className="rg-first">
++                      Position
+                     </th>
+-                    {row.vals.map((amount, index) => {
+-                      const month = model.months[index]!;
+-                      const heat = row.kind === 'pct' ? null : heatForCell(amount, stats, row.good);
+-                      return (
+-                        <td
+-                          key={month}
+-                          className="n"
+-                          data-heat={heat?.tone}
+-                          style={
+-                            heat
+-                              ? ({ '--h': heat.strength.toFixed(2) } as CSSProperties)
+-                              : undefined
+-                          }
+-                        >
+-                          {amount === null || row.kind === 'pct' ? (
+-                            number(row, amount)
+-                          ) : (
+-                            <button
+-                              type="button"
+-                              className="table-cell-open"
+-                              data-template-column={month}
+-                              aria-label={`${row.label} · ${monthLong(month)} · ${eur(amount)}${heat ? (amount > stats.mean ? ' · über dem Zeilenmittel' : ' · unter dem Zeilenmittel') : ''}`}
+-                              onClick={(event) => open(event, row.key, month)}
++                    {model.months.map((month) => (
++                      <th scope="col" key={month} className="n" title={monthLong(month)}>
++                        {monthShort(month, true)}
++                        {month === model.partialMonth ? '*' : ''}
++                      </th>
++                    ))}
++                    {model.total && (
++                      <th scope="col" className="n">
++                        Summe
++                      </th>
++                    )}
++                    {model.average && (
++                      <th scope="col" className="n">
++                        Ø Monat
++                      </th>
++                    )}
++                  </tr>
++                </thead>
++                <tbody>
++                  {model.rows.map((row, rowIndex) => {
++                    const stats = tableHeatStats(row.vals);
++                    const summaries = chartData.rows[rowIndex]!;
++                    return (
++                      <tr
++                        key={row.key}
++                        className={`rk-${row.kind} lv-${row.level}`}
++                        data-template-row={row.key}
++                        data-level={row.level}
++                      >
++                        <th scope="row" className="rg-first">
++                          {row.swatch && (
++                            <ClassSwatch kind={row.swatch === 'income' ? 'open' : row.swatch} />
++                          )}
++                          {row.label}
++                        </th>
++                        {row.vals.map((amount, index) => {
++                          const month = model.months[index]!;
++                          const heat =
++                            row.kind === 'pct' ? null : heatForCell(amount, stats, row.good);
++                          return (
++                            <td
++                              key={month}
++                              data-chart-point={rowIndex * cellsPerRow + index}
++                              className="n"
++                              data-heat={heat?.tone}
++                              style={
++                                heat
++                                  ? ({ '--h': heat.strength.toFixed(2) } as CSSProperties)
++                                  : undefined
++                              }
+                             >
+-                              {eur(amount)}
+-                              {heat && (
+-                                <span aria-hidden="true">{amount > stats.mean ? ' ↑' : ' ↓'}</span>
++                              {amount === null || row.kind === 'pct' ? (
++                                number(row, amount)
++                              ) : (
++                                <button
++                                  type="button"
++                                  className="table-cell-open"
++                                  data-template-column={month}
++                                  aria-label={`${row.label} · ${monthLong(month)} · ${eur(amount)}${heat ? (amount > stats.mean ? ' · über dem Zeilenmittel' : ' · unter dem Zeilenmittel') : ''}`}
++                                  onClick={(event) => open(event, row.key, month)}
++                                >
++                                  {eur(amount)}
++                                  {heat && (
++                                    <span aria-hidden="true">
++                                      {amount > stats.mean ? ' ↑' : ' ↓'}
++                                    </span>
++                                  )}
++                                </button>
+                               )}
+-                            </button>
+-                          )}
+-                        </td>
+-                      );
+-                    })}
+-                    {model.total && (
+-                      <td className="n">
+-                        {summaries.total === null ? (
+-                          '–'
+-                        ) : (
+-                          <button
+-                            type="button"
+-                            className="table-cell-open"
+-                            data-template-column="summe"
+-                            aria-label={`${row.label} · Summe · ${eur(summaries.total)}`}
+-                            onClick={(event) => open(event, row.key, 'summe')}
++                            </td>
++                          );
++                        })}
++                        {model.total && (
++                          <td
++                            className="n"
++                            data-chart-point={rowIndex * cellsPerRow + model.months.length}
+                           >
+-                            <strong>{eur(summaries.total)}</strong>
+-                          </button>
++                            {summaries.total === null ? (
++                              '–'
++                            ) : (
++                              <button
++                                type="button"
++                                className="table-cell-open"
++                                data-template-column="summe"
++                                aria-label={`${row.label} · Summe · ${eur(summaries.total)}`}
++                                onClick={(event) => open(event, row.key, 'summe')}
++                              >
++                                <strong>{eur(summaries.total)}</strong>
++                              </button>
++                            )}
++                          </td>
+                         )}
+-                      </td>
+-                    )}
+-                    {model.average && <td className="n">{number(row, summaries.average)}</td>}
+-                  </tr>
+-                );
+-              })}
+-            </tbody>
+-          </table>
+-        </div>
+-      )}
++                        {model.average && (
++                          <td
++                            className="n"
++                            data-chart-point={
++                              rowIndex * cellsPerRow + model.months.length + (model.total ? 1 : 0)
++                            }
++                          >
++                            {number(row, summaries.average)}
++                          </td>
++                        )}
++                      </tr>
++                    );
++                  })}
++                </tbody>
++              </table>
++            </div>
++          )}
++        </ExplorerTableInspector626>
++      </div>
+       <p className="ov-note">
+         Beträge bleiben centgenau. Teal bedeutet günstiger, Orange ungünstiger gegenüber dem
+         Durchschnitt derselben Zeile; die Zahl bleibt das Signal. Summe und Ø verwenden nur
+diff --git a/apps/web/src/reports/explorer-toggle-626.test.tsx b/apps/web/src/reports/explorer-toggle-626.test.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..e7c0562f728e8a85d803d8912591da1cea83f96b
+--- /dev/null
++++ b/apps/web/src/reports/explorer-toggle-626.test.tsx
+@@ -0,0 +1,397 @@
++// @vitest-environment jsdom
++import { DEFAULT_EXPLORER_QUERY, type ExplorerTemplateFacts } from '@budget/domain';
++import { ToastProvider, setAmountsHidden } from '@budget/ui';
++import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
++import {
++  createMemoryHistory,
++  createRootRoute,
++  createRoute,
++  createRouter,
++  RouterProvider,
++} from '@tanstack/react-router';
++import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
++import type { ReactNode } from 'react';
++import { afterEach, describe, expect, it, vi } from 'vitest';
++import type { PageMeta } from '../nav/pages';
++import type { ReportEntry } from '../nav/reports-catalog';
++import { ExplorerReportPage } from './explorer-report';
++import { explorerTemplateQuery } from './explorer-template-api';
++import { explorerQuery, type ExplorerReport } from './overview-api';
++import { validateReportSearch } from './report-search';
++
++vi.mock('../pages/placeholder-page', () => ({
++  PageFrame: ({ children }: { children: ReactNode }) => <main>{children}</main>,
++}));
++vi.mock('../charts/use-element-width', () => ({ useElementWidth: () => [vi.fn(), 320] }));
++const views = vi.hoisted(() => ({ write: vi.fn() }));
++vi.mock('./use-explorer-views', () => ({
++  useExplorerViews: () => ({
++    views: [],
++    data: { unavailable: false },
++    busy: false,
++    write: views.write,
++  }),
++}));
++const clients: QueryClient[] = [];
++afterEach(() => {
++  cleanup();
++  for (const client of clients.splice(0)) client.clear();
++  onlineManager.setOnline(true);
++  views.write.mockReset();
++  setAmountsHidden(false);
++  vi.unstubAllGlobals();
++});
++
++const facts: ExplorerTemplateFacts = {
++  asOf: '2024-03-05',
++  firstMonth: '2024-01',
++  lastFullMonth: '2024-02',
++  currentMonth: '2024-03',
++  categories: [
++    {
++      id: 'food',
++      name: 'Lebensmittel',
++      class: 'want',
++      kind: 'variable',
++      groupId: 'g',
++      groupName: 'Haushalt',
++    },
++  ],
++  incomeTypes: [{ id: 'salary', name: 'Gehalt', role: 'income' }],
++  months: [
++    {
++      month: '2024-01',
++      income: { salary: 10001 },
++      spending: { food: 1001 },
++      assigned: {},
++      netWorthCents: null,
++      moneyAgeDays: null,
++    },
++    {
++      month: '2024-02',
++      income: { salary: 20002 },
++      spending: { food: 2001 },
++      assigned: {},
++      netWorthCents: null,
++      moneyAgeDays: null,
++    },
++  ],
++  splits: [
++    {
++      bookingId: 'out',
++      date: '2024-02-03',
++      kind: 'spend',
++      amountCents: 2002,
++      categoryId: 'food',
++      incomeTypeId: null,
++      incomeGroup: null,
++      payeeId: null,
++      payeeName: null,
++    },
++    {
++      bookingId: 'refund',
++      date: '2024-02-04',
++      kind: 'spend',
++      amountCents: -1,
++      categoryId: 'food',
++      incomeTypeId: null,
++      incomeGroup: null,
++      payeeId: null,
++      payeeName: null,
++    },
++  ],
++};
++
++async function mount(search = '') {
++  const client = new QueryClient({
++    defaultOptions: { queries: { retry: false, staleTime: Infinity, gcTime: Infinity } },
++  });
++  clients.push(client);
++  client.setQueryData(explorerTemplateQuery.queryKey, facts);
++  client.setQueryData(explorerQuery(DEFAULT_EXPLORER_QUERY).queryKey, {
++    today: facts.asOf,
++    ref: '2024-02',
++    firstMonth: '2024-01',
++    result: {
++      query: DEFAULT_EXPLORER_QUERY,
++      months: ['2024-01', '2024-02'],
++      columns: [{ key: '2024-Q1', months: ['2024-01', '2024-02'] }],
++      unit: 'cents',
++      rows: [{ key: 'food', label: 'Lebensmittel', class: 'want', values: [1234], total: 1234 }],
++      totals: null,
++      truncated: 0,
++      good: 'low',
++    },
++  });
++  const root = createRootRoute();
++  const report: ReportEntry = {
++    id: 'explorer',
++    pos: '5.3',
++    name: 'Explorer',
++    question: 'Synthetic',
++    form: 'Pivot',
++    controls: [],
++  };
++  const route = createRoute({
++    getParentRoute: () => root,
++    path: '/reports/explorer',
++    validateSearch: (search: Record<string, unknown>) => ({
++      ...validateReportSearch(search),
++      zeitraum: search['zeitraum'],
++    }),
++    component: () => <ExplorerReportPage report={report} meta={{} as PageMeta} />,
++  });
++  const bookings = createRoute({
++    getParentRoute: () => root,
++    path: '/konten/buchungen',
++    component: () => <div>Buchungen</div>,
++  });
++  const router = createRouter({
++    routeTree: root.addChildren([route, bookings]),
++    history: createMemoryHistory({ initialEntries: [`/reports/explorer${search}`] }),
++  });
++  const fetch = vi.fn<typeof globalThis.fetch>(() =>
++    Promise.reject(new Error('Unexpected network access from a presentation switch')),
++  );
++  vi.stubGlobal('fetch', fetch);
++  await act(async () => {
++    render(
++      <QueryClientProvider client={client}>
++        <ToastProvider>
++          <RouterProvider router={router} />
++        </ToastProvider>
++      </QueryClientProvider>,
++    );
++    await router.load();
++  });
++  return { router, fetch, client };
++}
++
++describe('626 same-source table and chart presentation', () => {
++  it('offers a read-only Diagramm mode alongside the existing default native table', async () => {
++    const { router, fetch } = await mount();
++    const table = await screen.findByTestId('ex-table');
++    expect(within(table).getByRole('link', { name: 'Lebensmittel' })).toBeTruthy();
++    // Before product edits, the existing page reaches this assertion and lacks this control.
++    const diagram = screen.getByRole('button', { name: 'Diagramm' });
++    expect(screen.getByRole('button', { name: 'Tabelle' }).getAttribute('aria-pressed')).toBe(
++      'true',
++    );
++    const originalSearch = router.state.location.searchStr;
++    fireEvent.click(diagram);
++    await waitFor(() => expect(diagram.getAttribute('aria-pressed')).toBe('true'));
++    expect(screen.getByRole('img', { name: /Diagramm/ })).toBeTruthy();
++    expect(router.state.location.searchStr).toBe(originalSearch);
++    expect(fetch).not.toHaveBeenCalled();
++    expect(views.write).not.toHaveBeenCalled();
++    fireEvent.click(screen.getByRole('button', { name: 'Tabelle' }));
++    expect(
++      within(screen.getByTestId('ex-table')).getByRole('link', { name: 'Lebensmittel' }),
++    ).toBeTruthy();
++  });
++
++  it('inspects the exact custom row, existing quarter label and cents by hover and keyboard', async () => {
++    await mount();
++    const table = await screen.findByTestId('ex-table');
++    fireEvent.pointerMove(table.querySelector('tbody td')!, { pointerType: 'mouse' });
++    await waitFor(() =>
++      expect(document.querySelector('.chart-tooltip')?.textContent).toContain('12,34 €'),
++    );
++    expect(document.querySelector('.chart-tooltip')?.textContent).toContain('Lebensmittel');
++    expect(document.querySelector('.chart-tooltip')?.textContent).toContain('Q1 24');
++    fireEvent.click(screen.getByRole('button', { name: 'Diagramm' }));
++    const chart = document.querySelector('.ex-chart-626 .chart-interactive');
++    expect(chart).not.toBeNull();
++    fireEvent.keyDown(chart!, { key: 'ArrowRight' });
++    await waitFor(() =>
++      expect(document.querySelector('.chart-tooltip')?.textContent).toContain('12,34 €'),
++    );
++    expect(document.querySelector('.chart-tooltip')?.textContent).toContain('Q1 24');
++    fireEvent.keyDown(chart!, { key: 'Escape' });
++    expect(document.querySelector('.chart-tooltip')).toBeNull();
++  });
++
++  it('retains selected fixed-template source IDs and signed contributions across mode changes', async () => {
++    const { router, fetch } = await mount('?vorlage=heatmap&zeitraum=1J');
++    const table = await screen.findByTestId('template-heatmap');
++    fireEvent.click(
++      within(table).getByRole('button', { name: /^Lebensmittel · Februar 2024 · 20,01 €/ }),
++    );
++    const detail = await screen.findByTestId('template-sources');
++    expect(detail.textContent).toContain('Summe der zugeordneten Anteile: 20,01 €');
++    expect(detail.textContent).toContain('20,02 €');
++    expect(detail.textContent).toContain('−0,01 €');
++    const ids = within(detail)
++      .getAllByRole('link')
++      .map((link) => new URL((link as HTMLAnchorElement).href).searchParams.get('buchung'));
++    expect(ids).toEqual(['out', 'refund']);
++    const selected = router.state.location.searchStr;
++    fireEvent.click(screen.getByRole('button', { name: 'Diagramm' }));
++    expect(screen.getByTestId('template-sources').textContent).toContain('20,01 €');
++    expect(router.state.location.searchStr).toBe(selected);
++    fireEvent.click(screen.getByRole('button', { name: 'Tabelle' }));
++    expect(
++      within(screen.getByTestId('template-sources'))
++        .getAllByRole('link')
++        .map((link) => new URL((link as HTMLAnchorElement).href).searchParams.get('buchung')),
++    ).toEqual(['out', 'refund']);
++    expect(fetch).not.toHaveBeenCalled();
++    expect(views.write).not.toHaveBeenCalled();
++  });
++
++  it.each(['heatmap', 'year', 'total', 'category'])(
++    'offers a Diagramm for every fixed template: %s',
++    async (template) => {
++      await mount(`?vorlage=${template}&zeitraum=1J`);
++      await screen.findByTestId(`template-${template}`);
++      fireEvent.click(screen.getByRole('button', { name: 'Diagramm' }));
++      expect(screen.getByRole('button', { name: 'Diagramm' }).getAttribute('aria-pressed')).toBe(
++        'true',
++      );
++      expect(screen.getByRole('img', { name: /Diagramm/ })).toBeTruthy();
++      fireEvent.click(screen.getByRole('button', { name: 'Tabelle' }));
++      expect(within(screen.getByTestId(`template-${template}`)).getByRole('table')).toBeTruthy();
++    },
++  );
++
++  it('keeps native table-region arrow keys available for browser horizontal scrolling', async () => {
++    await mount();
++    await screen.findByTestId('ex-table');
++    const scroller = screen.getByRole('region', {
++      name: 'Pivottabelle, bei Bedarf horizontal verschiebbar',
++    });
++    scroller.focus();
++    const arrow = new KeyboardEvent('keydown', {
++      key: 'ArrowRight',
++      bubbles: true,
++      cancelable: true,
++    });
++    act(() => {
++      scroller.dispatchEvent(arrow);
++    });
++    expect(arrow.defaultPrevented).toBe(false);
++    expect(document.querySelector('.chart-tooltip')).toBeNull();
++    // This unit asserts event ownership only; genuine browser pan is a separate native proof.
++  });
++
++  it('fails closed for a background-refetch error while the original table data is retained', async () => {
++    const { client } = await mount();
++    await screen.findByTestId('ex-table');
++    fireEvent.click(screen.getByRole('button', { name: 'Diagramm' }));
++    expect(screen.getByRole('img', { name: /Diagramm/ })).toBeTruthy();
++    const key = explorerQuery(DEFAULT_EXPLORER_QUERY).queryKey;
++    const original = client.getQueryData(key);
++    await act(async () => {
++      await client
++        .fetchQuery({
++          queryKey: key,
++          staleTime: 0,
++          retry: false,
++          queryFn: () => Promise.reject(new Error('Synthetic626 background read unavailable')),
++        })
++        .catch(() => undefined);
++    });
++    await waitFor(() => expect(client.getQueryState(key)?.status).toBe('error'));
++    expect(client.getQueryData(key)).toBe(original);
++    expect(screen.queryByRole('img', { name: /Diagramm/ })).toBeNull();
++    expect(screen.getByRole('button', { name: 'Diagramm' }).matches(':disabled')).toBe(true);
++    fireEvent.click(screen.getByRole('button', { name: 'Tabelle' }));
++    expect(
++      within(screen.getByTestId('ex-table')).getByRole('link', { name: 'Lebensmittel' }),
++    ).toBeTruthy();
++  });
++
++  it('does not label a paused offline placeholder as the current Diagramm selection', async () => {
++    const { client, fetch } = await mount();
++    await screen.findByTestId('ex-table');
++    fireEvent.click(screen.getByRole('button', { name: 'Diagramm' }));
++    expect(screen.getByRole('img', { name: /Diagramm/ })).toBeTruthy();
++    act(() => {
++      onlineManager.setOnline(false);
++    });
++    fireEvent.change(screen.getByLabelText('Spalten', { exact: true }), {
++      target: { value: 'monat' },
++    });
++    const nextKey = explorerQuery({ ...DEFAULT_EXPLORER_QUERY, cols: 'monat' }).queryKey;
++    await waitFor(() => expect(client.getQueryState(nextKey)?.fetchStatus).toBe('paused'));
++    expect(client.getQueryData(nextKey)).toBeUndefined();
++    expect(screen.queryByRole('img', { name: /Diagramm/ })).toBeNull();
++    expect(screen.getByRole('button', { name: 'Diagramm' }).matches(':disabled')).toBe(true);
++    expect(fetch).not.toHaveBeenCalled();
++    fireEvent.click(screen.getByRole('button', { name: 'Tabelle' }));
++    expect(
++      within(screen.getByTestId('ex-table')).getByRole('link', { name: 'Lebensmittel' }),
++    ).toBeTruthy();
++  });
++
++  it('rejects a successful cached response whose literal query tuple belongs to another selection', async () => {
++    const { client } = await mount();
++    await screen.findByTestId('ex-table');
++    fireEvent.click(screen.getByRole('button', { name: 'Diagramm' }));
++    const key = explorerQuery(DEFAULT_EXPLORER_QUERY).queryKey;
++    const original = client.getQueryData<ExplorerReport>(key)!;
++    await act(async () => {
++      client.setQueryData<ExplorerReport>(key, {
++        ...original,
++        result: { ...original.result, query: { ...original.result.query, cols: 'jahr' } },
++      });
++    });
++    expect(client.getQueryState(key)?.status).toBe('success');
++    expect(client.getQueryState(key)?.fetchStatus).toBe('idle');
++    await waitFor(() => expect(screen.queryByRole('img', { name: /Diagramm/ })).toBeNull());
++    expect(screen.getByRole('button', { name: 'Diagramm' }).matches(':disabled')).toBe(true);
++    fireEvent.click(screen.getByRole('button', { name: 'Tabelle' }));
++    expect(
++      within(screen.getByTestId('ex-table')).getByRole('link', { name: 'Lebensmittel' }),
++    ).toBeTruthy();
++  });
++
++  it('masks exact inspection values and accessible chart alternatives in privacy mode', async () => {
++    await mount();
++    await screen.findByTestId('ex-table');
++    fireEvent.click(screen.getByRole('button', { name: 'Diagramm' }));
++    await act(async () => {
++      setAmountsHidden(true);
++    });
++    const chart = document.querySelector('.ex-chart-626 .chart-interactive');
++    expect(chart).not.toBeNull();
++    fireEvent.keyDown(chart!, { key: 'ArrowRight' });
++    await waitFor(() => expect(document.querySelector('.chart-tooltip')).not.toBeNull());
++    expect(document.querySelector('.chart-tooltip')?.textContent).not.toContain('12,34');
++    expect(screen.getByRole('img', { name: /Diagramm/ }).getAttribute('aria-label')).not.toContain(
++      '12,34',
++    );
++  });
++});
++
++it('remembers the literal native pan when the hidden or detached old CSS box reports zero', async () => {
++  await mount();
++  await screen.findByTestId('ex-table');
++  const scroller = screen.getByRole('region', {
++    name: 'Pivottabelle, bei Bedarf horizontal verschiebbar',
++  });
++  let visibleOffset = 0;
++  // CSSOM View reports zero without an associated CSS box. Model that browser boundary
++  // locally; JSDOM itself does not lay out hidden/detached scrollers. This is not native-pan proof.
++  Object.defineProperty(scroller, 'scrollLeft', {
++    configurable: true,
++    get: () => (scroller.isConnected && !scroller.closest('[hidden]') ? visibleOffset : 0),
++    set: (value: number) => {
++      visibleOffset = value;
++    },
++  });
++  scroller.scrollLeft = 47;
++  fireEvent.scroll(scroller);
++  expect(scroller.scrollLeft).toBe(47);
++  fireEvent.click(screen.getByRole('button', { name: 'Diagramm' }));
++  expect(scroller.scrollLeft).toBe(0);
++  fireEvent.click(screen.getByRole('button', { name: 'Tabelle' }));
++  expect(
++    screen.getByRole('region', {
++      name: 'Pivottabelle, bei Bedarf horizontal verschiebbar',
++    }).scrollLeft,
++  ).toBe(47);
++  expect(
++    within(screen.getByTestId('ex-table')).getByRole('link', { name: 'Lebensmittel' }),
++  ).toBeTruthy();
++});
+diff --git a/e2e/issue-626-explorer-chart-toggle.spec.ts b/e2e/issue-626-explorer-chart-toggle.spec.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..4d422f726d37134ac05144651807ba188596e7bd
+--- /dev/null
++++ b/e2e/issue-626-explorer-chart-toggle.spec.ts
+@@ -0,0 +1,430 @@
++import AxeBuilder from '@axe-core/playwright';
++import { createBooking, openDatabase } from '@budget/db';
++import { expect, type Page, type TestInfo } from '@playwright/test';
++import { createHash } from 'node:crypto';
++import { readFile, writeFile } from 'node:fs/promises';
++import { test } from './isolated-ledger';
++
++test.use({ ledgerToday: '2024-04-05' });
++const views = ['custom', 'heatmap', 'year', 'total', 'category'] as const;
++const profiles = ['configured', 'phone844', 'desktop1440'] as const;
++type View = (typeof views)[number];
++function seed(path: string) {
++  const opened = openDatabase(path);
++  try {
++    opened.sqlite.exec(`
++      INSERT INTO account(id,name,type,role,on_budget,opening_date)
++      VALUES ('budget','Synthetic chart account','checking','budget',1,'2024-01-01');
++      INSERT INTO category_group(id,name) VALUES ('g','Synthetic chart group');
++    `);
++    const insert = opened.sqlite.prepare(
++      "INSERT INTO category(id,group_id,name,class,kind) VALUES (?,'g',?,'want','variable')",
++    );
++    for (let index = 1; index <= 10; index++)
++      insert.run(
++        `c${String(index).padStart(2, '0')}`,
++        `Kategorie ${String(index).padStart(2, '0')}`,
++      );
++    const book = (
++      date: string,
++      amountCents: number,
++      splits: { amountCents: number; categoryId?: string; incomeTypeId?: string }[],
++    ) =>
++      createBooking(
++        opened.db,
++        { accountId: 'budget', date, amountCents, splits },
++        { actor: 'synthetic-chart-fixture' },
++      );
++    book('2024-01-02', 300000, [{ amountCents: 300000, incomeTypeId: 'income-salary' }]);
++    for (let index = 1; index <= 8; index++) {
++      const amount = -(20000 - index * 1000);
++      book('2024-01-03', amount, [
++        { amountCents: amount, categoryId: `c${String(index).padStart(2, '0')}` },
++      ]);
++    }
++    const splitId = book('2024-01-04', -1001, [
++      { amountCents: -901, categoryId: 'c09' },
++      { amountCents: -100, categoryId: 'c01' },
++    ]);
++    book('2024-02-03', 101, [{ amountCents: 101, categoryId: 'c09' }]);
++    book('2024-01-05', 401, [{ amountCents: 401, categoryId: 'c10' }]);
++    book('2024-02-04', -201, [{ amountCents: -201, categoryId: 'c10' }]);
++    // Existing Heatmap excludes net-negative categories. Opposite real March contributions
++    // retain both source categories without changing the literal Further March zero.
++    book('2024-03-03', 400, [{ amountCents: 400, categoryId: 'c09' }]);
++    book('2024-03-04', -400, [{ amountCents: -400, categoryId: 'c10' }]);
++    return { splitId };
++  } finally {
++    opened.close();
++  }
++}
++function fingerprint(path: string) {
++  const opened = openDatabase(path);
++  try {
++    const result = {
++      accounts: opened.sqlite.prepare('SELECT * FROM account ORDER BY id').all(),
++      bookings: opened.sqlite.prepare('SELECT * FROM booking ORDER BY id').all(),
++      splits: opened.sqlite.prepare('SELECT * FROM booking_split ORDER BY id').all(),
++      financialAudit: opened.sqlite
++        .prepare(
++          "SELECT * FROM audit_log WHERE entity_type IN ('account','booking','booking_split') ORDER BY id",
++        )
++        .all(),
++    };
++    return createHash('sha256').update(JSON.stringify(result)).digest('hex');
++  } finally {
++    opened.close();
++  }
++}
++async function realTheme(page: Page, value: 'dark' | 'light') {
++  if ((await page.locator('html').getAttribute('data-theme')) === value) return;
++  if (page.viewportSize()!.width < 768) {
++    const menu = page.locator('.m-profile');
++    await menu.locator('summary').click();
++    await menu
++      .getByRole('button', {
++        name: value === 'dark' ? 'Dunkle Blaupause' : 'Heller Zeichenfilm',
++        exact: true,
++      })
++      .click();
++    await menu.locator('summary').click();
++  } else
++    await page
++      .locator('.sidebar-foot')
++      .getByRole('button', { name: 'Hell/Dunkel umschalten', exact: true })
++      .click();
++  await expect(page.locator('html')).toHaveAttribute('data-theme', value);
++}
++async function proof(
++  page: Page,
++  info: TestInfo,
++  view: View,
++  color: 'light' | 'dark',
++  splitId: string,
++  profile: (typeof profiles)[number],
++) {
++  const writes: string[] = [];
++  page.on('request', (request) => {
++    const path = new URL(request.url()).pathname;
++    if (path.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method()))
++      writes.push(`${request.method()} ${path}`);
++  });
++  await page.addInitScript(() => localStorage.setItem('budget-theme', 'light'));
++  const search =
++    view === 'custom'
++      ? ''
++      : `?vorlage=${view}&zeitraum=${view === 'year' ? 'YTD' : view === 'total' ? '3J' : '1J'}${view === 'category' ? '&kategorien=%5B%22c09%22%5D' : ''}`;
++  await page.goto(`/reports/explorer${search}`);
++  const table =
++    view === 'custom'
++      ? page.getByTestId('ex-table')
++      : page.getByTestId(`template-${view}`).locator('table.ex-template-table');
++  await expect(table).toBeVisible();
++  const actualProfile = await page.evaluate(() => ({
++    width: innerWidth,
++    height: innerHeight,
++    dpr: devicePixelRatio,
++    coarse: matchMedia('(pointer:coarse)').matches,
++    touchPoints: navigator.maxTouchPoints,
++  }));
++  if (profile === 'desktop1440')
++    expect(actualProfile).toMatchObject({ width: 1440, height: 900, dpr: 1, coarse: false });
++  else if (profile === 'phone844')
++    expect(actualProfile).toMatchObject({ width: 390, height: 844, dpr: 1, coarse: true });
++  else {
++    const configured = info.project.use.viewport;
++    expect(configured).toBeTruthy();
++    expect(actualProfile.width).toBe(configured!.width);
++    expect(actualProfile.height).toBe(configured!.height);
++    expect(actualProfile.dpr).toBe(info.project.use.deviceScaleFactor ?? 1);
++    expect(actualProfile.coarse).toBe(Boolean(info.project.use.hasTouch));
++  }
++  // Raw maxTouchPoints is recorded, not promoted to a physical-touch capability claim.
++  expect(actualProfile.touchPoints).toBeGreaterThanOrEqual(0);
++  if (view === 'custom') {
++    await page.getByLabel('Spalten', { exact: true }).selectOption('monat');
++    await expect(page.getByRole('button', { name: 'CSV exportieren', exact: true })).toBeEnabled();
++  }
++  await realTheme(page, color);
++  const originalTable = await table.textContent();
++  const originalRows = await table.locator('tbody tr').count();
++  expect(originalRows).toBeGreaterThan(0);
++  const sourceRow =
++    view === 'custom'
++      ? table
++          .locator('tbody tr')
++          .filter({ has: page.getByRole('link', { name: 'Kategorie 09', exact: true }) })
++      : table.locator('[data-template-row="cat:c09"]');
++  await expect(sourceRow).toContainText(view === 'custom' ? 'Kategorie 09' : '9,01 €');
++  const sourceHref =
++    view === 'custom'
++      ? await sourceRow
++          .getByRole('link', { name: 'Kategorie 09', exact: true })
++          .getAttribute('href')
++      : null;
++  const tableButton = page.getByRole('button', { name: 'Tabelle', exact: true });
++  const chartButton = page.getByRole('button', { name: 'Diagramm', exact: true });
++  await expect(tableButton).toHaveAttribute('aria-pressed', 'true');
++  await expect(chartButton).toHaveAttribute('aria-pressed', 'false');
++  const region = page.locator(view === 'custom' ? '.ex-scroll' : '.ex-template-scroll');
++  const regionSize = await region.evaluate((e) => ({
++    width: e.clientWidth,
++    scrollWidth: e.scrollWidth,
++  }));
++  if (page.viewportSize()!.width === 390 && (view === 'year' || view === 'total')) {
++    expect(regionSize.scrollWidth).toBeGreaterThan(regionSize.width);
++  }
++  let pan = 0;
++  if (regionSize.scrollWidth > regionSize.width) {
++    await region.focus();
++    await region.press('ArrowRight');
++    await expect.poll(() => region.evaluate((e) => e.scrollLeft)).toBeGreaterThan(0);
++    pan = await region.evaluate((e) => e.scrollLeft);
++  }
++  const originalCell = sourceRow.locator('td[data-chart-point]').first();
++  await originalCell.hover();
++  await expect(page.locator('.chart-tooltip[role="status"]')).toContainText('Kategorie 09');
++  await expect(page.locator('.chart-tooltip[role="status"]')).toContainText('9,01 €');
++  const panBeforeSwitch = await region.evaluate((e) => e.scrollLeft);
++  const selectionBefore = new URL(page.url()).search;
++  await chartButton.click();
++  await expect(chartButton).toHaveAttribute('aria-pressed', 'true');
++  expect(new URL(page.url()).search).toBe(selectionBefore);
++  const chart = page.locator('.ex-chart-626');
++  const cohorts = chart.getByRole('combobox', { name: 'Diagrammzeilen', exact: true });
++  if (view === 'year' || view === 'total') {
++    await expect(cohorts).toHaveCount(1);
++    const labels = await cohorts.locator('option').allTextContents();
++    expect(labels).toEqual(
++      expect.arrayContaining([
++        'Summen',
++        'Einnahmenarten',
++        'Gruppen',
++        'Kategorien',
++        'Ergebnisse',
++        'Sparquote',
++      ]),
++    );
++  }
++  const available = (await cohorts.count())
++    ? await cohorts
++        .locator('option')
++        .evaluateAll((elements) =>
++          elements.map((e) => ({ value: (e as HTMLOptionElement).value, label: e.textContent })),
++        )
++    : [];
++  for (const cohort of available) {
++    await cohorts.selectOption(cohort.value);
++    await expect(chart.getByRole('img', { name: /Diagramm/ })).toBeVisible();
++    expect(await chart.locator('.ex-chart-legend li').count()).toBeGreaterThan(0);
++  }
++  const categories = available.find((option) => option.label === 'Kategorien');
++  if (view === 'year' || view === 'total') expect(categories).toBeTruthy();
++  if (categories) await cohorts.selectOption(categories.value);
++  const legend = chart.getByRole('list', { name: 'Reihenlegende' });
++  await expect(legend.locator('li')).toHaveCount(view === 'category' ? 1 : 9);
++  if (view !== 'category') {
++    await expect(legend).toContainText('Weitere (2 Zeilen)');
++    await expect(chart.locator('.ex-chart-originals')).toContainText('Kategorie 09');
++    await expect(chart.locator('.ex-chart-originals')).toContainText('Kategorie 10');
++    const originals = chart.locator('.ex-chart-originals');
++    await originals.locator('summary').click();
++    await expect(
++      originals.getByRole('rowheader', { name: 'Kategorie 09', exact: true }),
++    ).toBeVisible();
++    await expect(
++      originals.getByRole('rowheader', { name: 'Kategorie 10', exact: true }),
++    ).toBeVisible();
++    const summaryBox = await originals.locator('summary').boundingBox();
++    expect(summaryBox?.width).toBeGreaterThanOrEqual(44);
++    expect(summaryBox?.height).toBeGreaterThanOrEqual(44);
++    await originals.locator('summary').click();
++  }
++  const interactive = chart.locator('.chart-interactive').first();
++  await interactive.focus();
++  const january = await table.locator('thead tr').first().locator('th').allTextContents();
++  const januaryIndex =
++    january.findIndex((value) => /Jän(?:ner)?(?:\s|\u00a0|\n)*(?:20)?24/.test(value)) - 1;
++  expect(januaryIndex).toBeGreaterThanOrEqual(0);
++  // Focus shows the first actual source column; real arrows advance to January's table column.
++  for (let index = 0; index < januaryIndex; index++) await interactive.press('ArrowRight');
++  const tip = page.locator('.chart-tooltip[role="status"]');
++  if (view === 'category') await expect(tip).toContainText('9,01 €');
++  else {
++    await expect(
++      tip.locator('.chart-tooltip-row').filter({ hasText: 'Weitere · Zeilensumme (2)' }),
++    ).toContainText('5,00 €');
++    await interactive.press('ArrowRight');
++    await expect(
++      tip.locator('.chart-tooltip-row').filter({ hasText: 'Weitere · Zeilensumme (2)' }),
++    ).toContainText('1,00 €');
++    await interactive.press('ArrowRight');
++    await expect(
++      tip.locator('.chart-tooltip-row').filter({ hasText: 'Weitere · Zeilensumme (2)' }),
++    ).toContainText('0,00 €');
++  }
++  if (view !== 'category') {
++    await interactive.press('ArrowLeft');
++    await interactive.press('ArrowLeft');
++  }
++  const visibleExact = view === 'category' ? '9,01 €' : '5,00 €';
++  await expect(tip).toContainText(visibleExact);
++  await page.keyboard.press('Control+Shift+H');
++  await expect(tip).toContainText('•••');
++  await expect(tip).not.toContainText(visibleExact);
++  await page.keyboard.press('Control+Shift+H');
++  await expect(tip).toContainText(visibleExact);
++  await interactive.press('Escape');
++  await expect(tip).toHaveCount(0);
++  const geometry = await chart.locator('svg.chart').evaluate((svg) => ({
++    width: Number(svg.getAttribute('width')),
++    height: Number(svg.getAttribute('height')),
++    paths: [...svg.querySelectorAll('.l-actual')].map((path) => path.getAttribute('d')),
++  }));
++  expect(geometry.width).toBeGreaterThan(72);
++  expect(geometry.paths.length).toBeGreaterThan(0);
++  for (const path of geometry.paths) {
++    expect(path).not.toMatch(/NaN|Infinity|undefined/);
++    const coordinates = path!.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi)!.map(Number);
++    expect(coordinates.length).toBeGreaterThanOrEqual(2);
++    coordinates.forEach((value, index) => {
++      expect(Number.isFinite(value)).toBe(true);
++      expect(value).toBeGreaterThanOrEqual(index % 2 === 0 ? 60 : 16);
++      expect(value).toBeLessThanOrEqual(index % 2 === 0 ? geometry.width - 12 : 192);
++    });
++  }
++  for (const button of [tableButton, chartButton]) {
++    const box = await button.boundingBox();
++    expect(box?.width).toBeGreaterThanOrEqual(44);
++    expect(box?.height).toBeGreaterThanOrEqual(44);
++  }
++  if (await cohorts.count()) {
++    const box = await cohorts.boundingBox();
++    expect(box?.width).toBeGreaterThanOrEqual(44);
++    expect(box?.height).toBeGreaterThanOrEqual(44);
++  }
++  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
++  expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
++  await chartButton.scrollIntoViewIfNeeded();
++  await page.screenshot({ path: info.outputPath(`chart-${view}-${color}.png`) });
++  await tableButton.click();
++  await expect(table).toBeVisible();
++  await expect(tableButton).toHaveAttribute('aria-pressed', 'true');
++  expect(await table.textContent()).toBe(originalTable);
++  expect(await table.locator('tbody tr').count()).toBe(originalRows);
++  expect(await region.evaluate((e) => e.scrollLeft)).toBe(panBeforeSwitch);
++  if (view === 'custom') {
++    expect(
++      await sourceRow.getByRole('link', { name: 'Kategorie 09', exact: true }).getAttribute('href'),
++    ).toBe(sourceHref);
++    const originalLink = new URL(sourceHref!, page.url());
++    expect(originalLink.searchParams.get('kategorie')).toBe('c09');
++    const pending = page.waitForEvent('download');
++    await page.getByRole('button', { name: 'CSV exportieren', exact: true }).click();
++    const download = await pending;
++    expect(download.suggestedFilename()).toBe('explorer-2024-01-2024-03.csv');
++    const file = await download.path();
++    expect(file).not.toBeNull();
++    const csv = await readFile(file!, 'utf8');
++    expect(csv).toContain(';"c09";"Kategorie 09";901;-101;-400;400\r\n');
++    expect(csv).toContain(';"c10";"Kategorie 10";-401;201;400;200\r\n');
++  } else {
++    const cell = sourceRow.getByRole('button', { name: /^Kategorie 09 · Jänner 2024 · 9,01 €/ });
++    await cell.click();
++    const sources = page.getByTestId('template-sources');
++    await expect(sources).toContainText('Gewählte Zelle: 9,01 €');
++    await expect(sources).toContainText('Summe der zugeordneten Anteile: 9,01 €');
++    await expect(sources.getByRole('link')).toHaveCount(1);
++    expect(
++      new URL((await sources.getByRole('link').getAttribute('href'))!, page.url()).searchParams.get(
++        'buchung',
++      ),
++    ).toBe(splitId);
++    const chosenSearch = new URL(page.url()).search;
++    await chartButton.click();
++    expect(new URL(page.url()).search).toBe(chosenSearch);
++    await expect(sources).toContainText('9,01 €');
++    await tableButton.click();
++    await sources.getByRole('button', { name: 'Buchungen schließen', exact: true }).click();
++    await expect(sources).toHaveCount(0);
++    await expect(cell).toBeFocused();
++  }
++  expect(writes).toEqual([]);
++  const physical = {
++    view,
++    color,
++    requestedProfile: profile,
++    manualContextOptions:
++      profile === 'configured'
++        ? null
++        : {
++            viewport:
++              profile === 'phone844' ? { width: 390, height: 844 } : { width: 1440, height: 900 },
++            deviceScaleFactor: 1,
++            isMobile: profile === 'phone844',
++            hasTouch: profile === 'phone844',
++            reducedMotion: 'reduce',
++          },
++    engine: page.context().browser()!.browserType().name(),
++    version: page.context().browser()!.version(),
++    project: info.project.name,
++    projectConfigured: {
++      viewport: info.project.use.viewport,
++      isMobile: info.project.use.isMobile,
++      hasTouch: info.project.use.hasTouch,
++      deviceScaleFactor: info.project.use.deviceScaleFactor,
++    },
++    geometry,
++    region: regionSize,
++    nativePan: pan,
++    panBeforeSwitch,
++    sourceRows: originalRows,
++    ...(await page.evaluate(() => ({
++      width: innerWidth,
++      height: innerHeight,
++      dpr: devicePixelRatio,
++      touchPoints: navigator.maxTouchPoints,
++      coarse: matchMedia('(pointer:coarse)').matches,
++      theme: document.documentElement.dataset['theme'],
++      documentWidth: document.documentElement.scrollWidth,
++    }))),
++  };
++  const path = info.outputPath(`chart-${view}-${color}-physical.json`);
++  await writeFile(path, JSON.stringify(physical, null, 2));
++  await info.attach('actual-chart-profile', { path, contentType: 'application/json' });
++}
++for (const profile of profiles)
++  for (const view of views)
++    for (const color of ['dark', 'light'] as const) {
++      test(`626 ${view}: literal same-source lines, table keyboard and read-only ${profile} ${color}`, async ({
++        page,
++        browser,
++        isolatedLedger,
++      }, info) => {
++        const ids = seed(isolatedLedger.databasePath);
++        const before = fingerprint(isolatedLedger.databasePath);
++        const context =
++          profile === 'configured'
++            ? null
++            : await browser.newContext({
++                baseURL: isolatedLedger.origin,
++                storageState: isolatedLedger.storageState,
++                viewport: {
++                  width: profile === 'phone844' ? 390 : 1440,
++                  height: profile === 'phone844' ? 844 : 900,
++                },
++                deviceScaleFactor: 1,
++                isMobile: profile === 'phone844',
++                hasTouch: profile === 'phone844',
++                reducedMotion: 'reduce',
++              });
++        try {
++          const actual = context ? await context.newPage() : page;
++          if (context) await actual.clock.setFixedTime(new Date('2024-04-05T12:00:00+02:00'));
++          await proof(actual, info, view, color, ids.splitId, profile);
++          expect(fingerprint(isolatedLedger.databasePath)).toBe(before);
++        } finally {
++          await context?.close();
++        }
++      });
++    }

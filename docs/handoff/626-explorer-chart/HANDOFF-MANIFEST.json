@@ -1,0 +1,242 @@
+[
+  {
+    "path": "docs/handoff/626-explorer-chart/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/README.md",
+    "size": 471,
+    "sha256": "b45faa8fc0b5640b8ddc3b17bd6e9b9695f5ed62d375087fed7e99437b979641"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/RESTORED-EVIDENCE.md",
+    "size": 351,
+    "sha256": "e9924651e3b935d2e7d45127c864552d8efa4606b865ca7037aa0f01830c74fb"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/checks/626-first-canonical-native-actual/result.json",
+    "size": 1535,
+    "sha256": "7155ad1136d6ca94cd8b6a38ec31ee99edecf5059593c1e7b1f413f9677c0655"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/checks/626-main-e020-memory-fixed-canonical-native-third-actual/result.json",
+    "size": 1681,
+    "sha256": "08cd166ea425768731058e8291d3e52d8ac2fa4f9f904d31ea60710a60e410c7"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/checks/626-required-age-full-first-actual/result.json",
+    "size": 1836,
+    "sha256": "711f204bcc45574fb2b49dd91ddf34d378aa74a7c2808c1cfaec332441e97860"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/checks/626-selector-corrected-canonical-native-second-actual/result.json",
+    "size": 1189,
+    "sha256": "4960237634f89632714714a45f739aad81b081f37134349fd606ac619085d414"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/owned/01-c8d43a3bafdad3983ac41543358e5b7bfaf9c665.patch",
+    "size": 107711,
+    "sha256": "32aaf38a1b412eb32b3b8b980b1092d006f1f44ce68c3a1908330567c7c414c6"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/owned/02-2f7f60646c86b4f8dc36fca0fe773e40bd36b9a6.patch",
+    "size": 9746,
+    "sha256": "5f7ea0818d989430e0eefe1ad966fc87755428e6216acbc3592683fce1b9c7b8"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/owned/03-1aacdcea934aafb0a8236b305c9c5d1e4af0eb6e.patch",
+    "size": 6887,
+    "sha256": "d3caa3f60d6f6b813183bcc188be46db5364b0f83895272d7a47a19848c98bde"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/packet.json",
+    "size": 6466,
+    "sha256": "ceb77b03b445646027301fc96c050125f75346d39d0055f01fa2f5bce2131cb2"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-cached-tuple-observer-correction-independent-review.md",
+    "size": 1603,
+    "sha256": "d0768d23bc924938bf3356bd5d3574f0ff4269b5d03ab5dd5c708b73905591bf"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-corrected-short-actual-independent-review.md",
+    "size": 1029,
+    "sha256": "79fde0ec544728ede47585f1a8c3f976dc0cf10ecdd6e50301691ab0a013a6e3"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-current-query-source9-independent-review.md",
+    "size": 1748,
+    "sha256": "421d0f9dd1d9276ab1a7efc9a19c1b3a0ccad1d5fdbd3e9fb070bd48d83ab3a4"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-evidence25-applied-independent-review.md",
+    "size": 1569,
+    "sha256": "2a676d3d14d49f1d785d6c07d5580e93cae9b658de375db49effc67162a56d1d"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-final-clean25-independent-reconciliation.md",
+    "size": 1345,
+    "sha256": "14fbd86aea47d39c412eb1f528263ca8ce6ab4c7e6d3febc02932b0088a2dd5d"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-first-native-selector-independent-adjudication.md",
+    "size": 1847,
+    "sha256": "51b9216b51b5f96318f7e215bce4280c547ea75b7b9e24a25d6e537ce60b5a0a"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-first-source9-whole-independent-review.md",
+    "size": 5005,
+    "sha256": "6ceb8fb8a5ea6e9206bdbc737d587d704f41d506c01fd6ad8520eab8cd56f354"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-four-p2-corrected-source9-independent-review.md",
+    "size": 2765,
+    "sha256": "f69b951979c8c6ef115c24ba126275ebaf1c1544e1c7ed71b0bcf89a17fd62f3"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-literal-oracle-independent-preimplementation-review.md",
+    "size": 3343,
+    "sha256": "09302f1bf6836a203f2a988826a1a133ec80e8910a75c3cd10db8a6c74aa82f5"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-main-e020-mechanical-independent-review.md",
+    "size": 1219,
+    "sha256": "13b3e1751ffe651e61e415f1ae0cde83d3dd1d7304b866c09591b6198e6482a4"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-native-draft-independent-precopy-review.md",
+    "size": 3188,
+    "sha256": "9b68c2b517b38c0246a96d50ca0a7dbbed35d660afdda214cdd84342891b1123"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-native-evidence-proposal-independent-review.md",
+    "size": 2217,
+    "sha256": "368f896bca015aa71911d8790e7be1e01ab130d9296e525b7a6c165b8397c5a9"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-native-formatted-source10-independent-review.md",
+    "size": 1461,
+    "sha256": "9adc9af1b9abdb89a974bc2c5efb44902b1ecd6a6244d3f7d229f0475a58c96a"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-native-pan-memory-independent-review.md",
+    "size": 3325,
+    "sha256": "99aab4fd7b7b57a1186c84d92b63cd9443c45df7cf64403ab590c03c2002b09f"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-native-pan-memory-inspector-fix-independent-review.md",
+    "size": 1828,
+    "sha256": "dbf1da840aea954fc1123d89698601d2414828e6c6d5aa40c4149c67a8283415"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-native-two-selector-correction-independent-review.md",
+    "size": 1594,
+    "sha256": "487908d9a0107804690255e8ed18a55d1ed9712dcbf2a802693ecd485fb1d3a8"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-new2-pre-model-independent-review.md",
+    "size": 3155,
+    "sha256": "1a5a35efbc2cb362e3f193f879220d782e987e31226bedccdc8f30fac9905036"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-pan-memory-formatted-short-independent-review.md",
+    "size": 1427,
+    "sha256": "f838f2fd67028e17fd85a392895d18bccb5e76a18e7952b3fac9ed788aee6399"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-postfull-two-doc-independent-review.md",
+    "size": 2272,
+    "sha256": "48872d619d60d568ad4700071178e5865cb378cd9a92d7cb3db62d03e9e72c26"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-pr-template-body-independent-correspondence.md",
+    "size": 615,
+    "sha256": "d8fe179657512b68dd737a477dbccb91920591a260885a11ad9b9413814d2d6a"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-root-six-native-image-review.json",
+    "size": 3635,
+    "sha256": "ff28ddef27599a93b0ca740f5ab03232b334b21e09cd37e33002e76a7e287dbc"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-third-native-independent-profile-image-index.json",
+    "size": 24658,
+    "sha256": "c14b2422ce1cfbfed03153c0dc13fd48bc2f972de6e5c70ba2ed8246a672c393"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/reviews/626-third-native-pan-fixed-independent-review.md",
+    "size": 2925,
+    "sha256": "22965d9a33929a2b4ea7af6ddb8c3500e0570c53987d69cefcf1578973f58e71"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/synthetic-evidence/README.md",
+    "size": 6331,
+    "sha256": "8874043564c99c5bc9c0e1a2f12128b52cc107455eb7f1d913b259c32e0b2f1b"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/synthetic-evidence/configured-custom-dark.png",
+    "size": 266497,
+    "sha256": "f4dcf1782a27825b5b45a0b3cb99722fcf400cf07b63f90d219a7582e9cf6e48"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/synthetic-evidence/configured-custom-light.png",
+    "size": 251728,
+    "sha256": "8fff4da832f757453ebca4ca731a3b831b2ea0b23a97fea10cdc4596256ee597"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/synthetic-evidence/configured-heatmap-dark.png",
+    "size": 252202,
+    "sha256": "a99a489dd41b0846781c6f50c9f705af606553dc83ffe20bd8b1fa2e5d49535d"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/synthetic-evidence/configured-heatmap-light.png",
+    "size": 236036,
+    "sha256": "76d1ba8fe135c685dcd498fbe30442fa86beae79f7e00e7986c756c23570337d"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/synthetic-evidence/configured-total-dark.png",
+    "size": 233595,
+    "sha256": "15adf7ef21a4ed9e65ce4a027a5fec424296a4581c8025c70a7bcb656fb87245"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/synthetic-evidence/configured-total-light.png",
+    "size": 223032,
+    "sha256": "062206f403a14a8fa964bb46c3c34fbf062936158e8590d2f182ce2aadcc0b42"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/synthetic-evidence/desktop1440-custom-dark.png",
+    "size": 158069,
+    "sha256": "b0577d3589a2e53a482c6bd5653f677c91aace036d775513c933f726171dfc90"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/synthetic-evidence/desktop1440-custom-light.png",
+    "size": 156408,
+    "sha256": "7c567e9ff8b683efafdb6e4a43adc254264920feed31a59b842f6b5fad33a6b8"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/synthetic-evidence/desktop1440-heatmap-dark.png",
+    "size": 161574,
+    "sha256": "436bb6a06d6af3122b27486d1bfadd68e8cdf147d7520468b4026997a56b3706"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/synthetic-evidence/desktop1440-heatmap-light.png",
+    "size": 160519,
+    "sha256": "98cb52a584c832d83277bc7322fb251d2b73870a07d111da21b64249d4c077d4"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/synthetic-evidence/desktop1440-total-dark.png",
+    "size": 166763,
+    "sha256": "16bf91c7e861116d4d8bd1c8d32fbf18191d7301dd458b97247f954679ed0260"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/synthetic-evidence/desktop1440-total-light.png",
+    "size": 165905,
+    "sha256": "0e0113fec0157c1cbbaae5b34349a56d5addc52019abf798c696bfe427b7d870"
+  },
+  {
+    "path": "docs/handoff/626-explorer-chart/synthetic-evidence/runtime-proof.json",
+    "size": 46036,
+    "sha256": "b5c468324e443ca1a1fadfb825d049524b26c969ea530aa1e94ab22025cec584"
+  }
+]

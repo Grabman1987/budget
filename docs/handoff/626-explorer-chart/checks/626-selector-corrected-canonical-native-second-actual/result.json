@@ -1,0 +1,30 @@
+{
+  "startedAt": "2026-10-20T05:52:36.315101+00:00",
+  "sourceFreezeSha256": "49983f66b92a34cf7aea684d98f4a8566eb13b99971b434c4805716e7e9cfff7",
+  "helperSha256": "663c45b799d4da770396b9724636611238fa457727c51ee5e0aa9d0cb7ad5a26",
+  "phases": [
+    {
+      "name": "canonical-native",
+      "command": [
+        "/workspace/.budget-tools/cloud-control/run-webkit.sh",
+        "/workspace/cloud-explorer-chart-626",
+        "test",
+        "e2e/issue-626-explorer-chart-toggle.spec.ts",
+        "--project=webkit-iphone",
+        "--workers=1"
+      ],
+      "startedAt": "2026-10-20T05:52:37.289777+00:00",
+      "pid": 644404,
+      "pgid": 644404,
+      "exit": 1,
+      "finishedAt": "2026-10-20T05:57:34.897196+00:00",
+      "groupAfter": []
+    }
+  ],
+  "scope": "Canonical whole NEW626 WebKit one worker/default30 after two peer-reviewed NEW selector corrections. REUSE exact167 compiled from actual21356 freshbuild0, no new build claim; all3435 other source paths identical. Prior9PASS24FAIL retained. Actual33 discovered, no pass claim.",
+  "finishedAt": "2026-10-20T05:57:35.672718+00:00",
+  "sourceGuard": 0,
+  "processGuard": 0,
+  "compiledFileCount": 167,
+  "wrapperExit": 1
+}
