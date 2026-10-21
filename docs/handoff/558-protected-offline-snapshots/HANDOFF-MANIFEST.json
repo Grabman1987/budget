@@ -1,0 +1,22 @@
+[
+  {
+    "path": "docs/handoff/558-protected-offline-snapshots/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/558-protected-offline-snapshots/README.md",
+    "size": 484,
+    "sha256": "cb6adc479e299351c0a04ae108a0c1964fd87465be81969e7c00cee3fd612833"
+  },
+  {
+    "path": "docs/handoff/558-protected-offline-snapshots/owned/01-4529f40454a46379e8846e22f72570863624c3d5.patch",
+    "size": 50769,
+    "sha256": "ea4579e0a37dec851e03ed55303e38c3c43b2ddcda2b73186deb6076d9f66cc6"
+  },
+  {
+    "path": "docs/handoff/558-protected-offline-snapshots/packet.json",
+    "size": 1739,
+    "sha256": "47e6e160281fb0863a73e6c15df5fadf8e0abdd9526faa223a368a1eb5e4ede3"
+  }
+]

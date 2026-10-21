@@ -1,0 +1,37 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/558-protected-offline-snapshots",
+  "sourceHead": "4529f40454a46379e8846e22f72570863624c3d5",
+  "originalBaseBeforeOwnedCommits": "e14932decc183919694aa5f4d24e03b4b6f54914",
+  "orderedCommits": [
+    {
+      "sha": "4529f40454a46379e8846e22f72570863624c3d5",
+      "parentBase": "e14932decc183919694aa5f4d24e03b4b6f54914",
+      "subject": "feat(pwa): add protected read-snapshot infrastructure",
+      "paths": [
+        "apps/web/src/api/http-offline-security.test.ts",
+        "apps/web/src/api/http.ts",
+        "apps/web/src/pages/security-page.tsx",
+        "apps/web/src/pwa/local-data.ts",
+        "apps/web/src/pwa/read-snapshot-store.ts",
+        "docs/evidence/reference-adoption/wp-014-offline-558.md",
+        "e2e/issue-558-offline-store-security.spec.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout 4529f40454a46379e8846e22f72570863624c3d5 > OWN_OUTPUT/4529f40454a46379e8846e22f72570863624c3d5.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-4529f40454a46379e8846e22f72570863624c3d5.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/web/src/api/http-offline-security.test.ts",
+    "apps/web/src/api/http.ts",
+    "apps/web/src/pages/security-page.tsx",
+    "apps/web/src/pwa/local-data.ts",
+    "apps/web/src/pwa/read-snapshot-store.ts",
+    "docs/evidence/reference-adoption/wp-014-offline-558.md",
+    "e2e/issue-558-offline-store-security.spec.ts"
+  ],
+  "mixedSourceAncestry": false,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

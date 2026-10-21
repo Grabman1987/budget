@@ -1,0 +1,1240 @@
+diff --git a/apps/web/src/api/http-offline-security.test.ts b/apps/web/src/api/http-offline-security.test.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..de694c0bf6acb242895d27fc39fc4a6cc5a6627c
+--- /dev/null
++++ b/apps/web/src/api/http-offline-security.test.ts
+@@ -0,0 +1,213 @@
++// @vitest-environment jsdom
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
++import { ApiError, onApiRead, request } from './http';
++import { recoveryLogin } from '../auth/api';
++import {
++  clearReadSnapshots,
++  readSnapshotGeneration,
++  snapshotAuthorizationToken,
++  setNetworkUnavailable,
++  setOfflineViewer,
++} from '../pwa/read-snapshot-store';
++
++const response = (data: unknown, status = 200) =>
++  new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
++const fetch = vi.fn<typeof globalThis.fetch>();
++const cleanup: (() => void)[] = [];
++
++beforeEach(() => {
++  localStorage.clear();
++  fetch.mockReset().mockImplementation(async () => response({ ok: true }));
++  vi.stubGlobal('fetch', fetch);
++  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
++  setOfflineViewer(false);
++  setNetworkUnavailable(false);
++});
++afterEach(() => {
++  cleanup.splice(0).forEach((dispose) => dispose());
++  vi.restoreAllMocks();
++  vi.unstubAllGlobals();
++});
++
++describe('offline read-only transport boundary (#558)', () => {
++  it('allows a real online recovery retry after a failed status GET, preserving the same-origin request', async () => {
++    fetch.mockRejectedValueOnce(new Error('synthetic disconnected status'));
++    await expect(request('GET', '/api/auth/status')).rejects.toMatchObject({
++      status: 0,
++      code: 'network',
++    });
++    await expect(recoveryLogin('synthetic-code')).resolves.toEqual({ ok: true });
++    expect(fetch).toHaveBeenLastCalledWith('/api/auth/recovery/login', {
++      method: 'POST',
++      credentials: 'same-origin',
++      headers: { 'content-type': 'application/json' },
++      body: JSON.stringify({ code: 'synthetic-code' }),
++    });
++  });
++
++  it('keeps online auth reconnect exceptions exact and excludes administration and saved/offline views', async () => {
++    for (const path of [
++      '/api/auth/login/options',
++      '/api/auth/login/verify',
++      '/api/auth/recovery/login',
++      '/api/auth/register/options',
++      '/api/auth/register/verify',
++      '/api/auth/step-up/options',
++      '/api/auth/step-up/verify',
++      '/api/auth/logout',
++    ]) {
++      setNetworkUnavailable(true);
++      await expect(request('POST', path, {})).resolves.toEqual({ ok: true });
++      expect(fetch).toHaveBeenLastCalledWith(path, expect.objectContaining({ method: 'POST' }));
++      setOfflineViewer(true);
++      await expect(request('POST', path, {})).rejects.toMatchObject({ code: 'offline_readonly' });
++      setOfflineViewer(false);
++      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
++      await expect(request('POST', path, {})).rejects.toMatchObject({ code: 'offline_readonly' });
++      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
++    }
++    const count = fetch.mock.calls.length;
++    setNetworkUnavailable(true);
++    for (const [method, path] of [
++      ['POST', '/api/auth/recovery/regenerate'],
++      ['POST', '/api/auth/sessions/revoke-others'],
++      ['DELETE', '/api/auth/passkeys/synthetic'],
++      ['POST', '/api/auth/logout/extra'],
++      ['DELETE', '/api/auth/logout'],
++    ] as const)
++      await expect(request(method, path, {})).rejects.toMatchObject({ code: 'offline_readonly' });
++    expect(fetch).toHaveBeenCalledTimes(count);
++  });
++
++  it.each(['POST', 'PUT', 'PATCH', 'DELETE'] as const)(
++    'denies offline %s before fetch, including idempotent queued capture',
++    async (method) => {
++      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
++      await expect(
++        request(
++          method,
++          '/api/bookings',
++          { amountCents: -123 },
++          {
++            'Idempotency-Key': 'synthetic-queued-capture',
++          },
++        ),
++      ).rejects.toMatchObject({ status: 0, code: 'offline_readonly' });
++      expect(fetch).not.toHaveBeenCalled();
++    },
++  );
++
++  it('blocks writes after a lost connection even if navigator still reports online', async () => {
++    fetch.mockRejectedValueOnce(new Error('synthetic disconnection'));
++    await expect(request('GET', '/api/accounts')).rejects.toBeInstanceOf(ApiError);
++    await expect(request('PATCH', '/api/accounts/a', { name: 'Synthetic' })).rejects.toMatchObject({
++      status: 0,
++      code: 'offline_readonly',
++    });
++    expect(fetch).toHaveBeenCalledTimes(1);
++    // A real HTTP response re-establishes reachability; 503 is still returned to the caller.
++    fetch.mockResolvedValueOnce(response({ error: 'unavailable' }, 503));
++    await expect(request('GET', '/api/accounts')).rejects.toMatchObject({ status: 503 });
++    await expect(request('PATCH', '/api/accounts/a', { name: 'Synthetic' })).resolves.toEqual({
++      ok: true,
++    });
++  });
++
++  it('permits only the existing idempotent booking replay while online in the viewer', async () => {
++    setOfflineViewer(true);
++    for (const [method, path, headers] of [
++      ['POST', '/api/bookings', undefined],
++      ['POST', '/api/accounts', { 'Idempotency-Key': 'synthetic' }],
++      ['DELETE', '/api/bookings', { 'Idempotency-Key': 'synthetic' }],
++      ['POST', '/api/bookings', { 'Idempotency-Key': '' }],
++    ] as const) {
++      await expect(request(method, path, {}, headers)).rejects.toMatchObject({
++        code: 'offline_readonly',
++      });
++    }
++    expect(fetch).not.toHaveBeenCalled();
++    await request(
++      'POST',
++      '/api/bookings',
++      { amountCents: -123 },
++      { 'idempotency-key': 'synthetic' },
++    );
++    expect(fetch).toHaveBeenCalledExactlyOnceWith(
++      '/api/bookings',
++      expect.objectContaining({
++        method: 'POST',
++        credentials: 'same-origin',
++        headers: { 'content-type': 'application/json', 'idempotency-key': 'synthetic' },
++      }),
++    );
++  });
++
++  it('invalidates copies for denied authentication without treating a server error as offline data', async () => {
++    const reads = vi.fn();
++    cleanup.push(onApiRead(reads));
++    for (const status of [401, 403]) {
++      const generation = readSnapshotGeneration();
++      fetch.mockResolvedValueOnce(response({ error: 'synthetic_denial' }, status));
++      await expect(request('GET', '/api/accounts')).rejects.toMatchObject({ status });
++      expect(readSnapshotGeneration()).toBeGreaterThan(generation);
++    }
++    const generation = readSnapshotGeneration();
++    fetch.mockResolvedValueOnce(response({ error: 'unavailable' }, 503));
++    await expect(request('GET', '/api/accounts')).rejects.toMatchObject({ status: 503 });
++    expect(readSnapshotGeneration()).toBe(generation);
++    expect(reads).not.toHaveBeenCalled();
++  });
++
++  it('exposes only approved successful raw GETs, never auth material or optimistic write payloads', async () => {
++    const reads = vi.fn();
++    cleanup.push(onApiRead(reads));
++    fetch.mockResolvedValueOnce(
++      response({
++        setupRequired: false,
++        authenticated: true,
++        stepUpValidUntil: null,
++        viaRecovery: false,
++      }),
++    );
++    await request('GET', '/api/auth/status');
++    await request('GET', '/api/auth/passkeys');
++    await request('GET', '/api/reports/wealth');
++    await request('POST', '/api/bookings', { amountCents: -123 });
++    expect(reads).not.toHaveBeenCalled();
++    const literal = { accounts: [{ id: 'synthetic', balanceCents: 9876 }] };
++    fetch.mockResolvedValueOnce(response(literal));
++    const result = await request<typeof literal>('GET', '/api/accounts');
++    expect(result).toEqual(literal);
++    result.accounts[0]!.balanceCents = -999;
++    expect(reads).toHaveBeenCalledTimes(1);
++    expect(reads.mock.calls[0]?.[0]).toMatchObject({ path: '/api/accounts', data: literal });
++    expect(reads.mock.calls[0]?.[0]).not.toHaveProperty('headers');
++    cleanup.pop()?.();
++    await request('GET', '/api/accounts');
++    expect(reads).toHaveBeenCalledTimes(1);
++  });
++
++  it('invalidates on an actual unauthenticated response and synchronously on wipe intent', async () => {
++    const before = readSnapshotGeneration();
++    const erased = clearReadSnapshots();
++    expect(readSnapshotGeneration()).toBeGreaterThan(before);
++    await erased;
++    const generation = readSnapshotGeneration();
++    fetch.mockResolvedValueOnce(response({ setupRequired: false, authenticated: false }));
++    await request('GET', '/api/auth/status');
++    expect(readSnapshotGeneration()).toBeGreaterThan(generation);
++  });
++
++  it('does not clear an interrupted logout intent on authenticated status; a real new login clears it', async () => {
++    const marker = 'budget-read-snapshot-logout.synthetic-interrupted-intent';
++    localStorage.setItem(marker, '1');
++    fetch.mockResolvedValueOnce(response({ setupRequired: false, authenticated: true }));
++    await request('GET', '/api/auth/status');
++    expect(localStorage.getItem(marker)).toBe('1');
++    expect(snapshotAuthorizationToken()).toBeUndefined();
++    const generation = readSnapshotGeneration();
++    await request('POST', '/api/auth/login/verify', { id: 'synthetic-credential' });
++    expect(localStorage.getItem(marker)).toBeNull();
++    expect(readSnapshotGeneration()).toBeGreaterThan(generation);
++  });
++});
+diff --git a/apps/web/src/api/http.ts b/apps/web/src/api/http.ts
+index 475d1bc4eb1bc6e5fea2b884055ce7239104bf55..7df1a012607e3b7958db95fe2ab024e295b2a69a 100644
+--- a/apps/web/src/api/http.ts
++++ b/apps/web/src/api/http.ts
+@@ -1,3 +1,15 @@
++import {
++  allowReadSnapshotWrites,
++  beginReadSnapshot,
++  clearReadSnapshots,
++  completeSnapshotLogout,
++  isOfflineViewer,
++  networkUnavailable,
++  snapshotAuthorizationToken,
++  setNetworkUnavailable,
++  type SnapshotToken,
++} from '../pwa/read-snapshot-store';
++
+ /** Error of an API call: HTTP status plus the machine-readable `error` code of the body. */
+ export class ApiError extends Error {
+   readonly status: number;
+@@ -41,6 +53,32 @@ export function notifyApiWrite(): void {
+   for (const listener of writeListeners) listener();
+ }
+ 
++export interface ApiRead {
++  path: string;
++  data: unknown;
++  fetchedAt: number;
++  token: Promise<SnapshotToken | undefined>;
++}
++const readListeners = new Set<(read: ApiRead) => void>();
++export function onApiRead(listener: (read: ApiRead) => void): () => void {
++  readListeners.add(listener);
++  return () => readListeners.delete(listener);
++}
++const snapshotRead = (path: string) =>
++  /^\/api\/(?:heute(?:\?|$)|accounts$|portfolio\/positions$|budget\/(?:\d{4}-\d{2}|months)(?:\?|$)|bookings(?:\?|$))/.test(
++    path,
++  );
++const AUTH_RECONNECT = new Set([
++  '/api/auth/login/options',
++  '/api/auth/login/verify',
++  '/api/auth/recovery/login',
++  '/api/auth/register/options',
++  '/api/auth/register/verify',
++  '/api/auth/step-up/options',
++  '/api/auth/step-up/verify',
++  '/api/auth/logout',
++]);
++
+ /** JSON request against the same origin; every failure becomes an `ApiError`. */
+ export async function request<T>(
+   method: HttpMethod,
+@@ -48,6 +86,30 @@ export async function request<T>(
+   body?: unknown,
+   headers?: Record<string, string>,
+ ): Promise<T> {
++  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
++  const savedView = isOfflineViewer();
++  // The existing capture queue persists first and replays idempotently when online. Its replay
++  // remains possible while the user is looking at a read-only copy; no other write is permitted.
++  const queuedReplay =
++    !offline &&
++    method === 'POST' &&
++    path === '/api/bookings' &&
++    Object.entries(headers ?? {}).some(
++      ([key, value]) => key.toLowerCase() === 'idempotency-key' && value.length > 0,
++    );
++  // A lost status GET must not strand an online sign-in, recovery or sign-out ceremony. This
++  // exception never applies inside a saved view, nor to passkey/recovery/session administration.
++  const authReconnect = !offline && !savedView && method === 'POST' && AUTH_RECONNECT.has(path);
++  if (
++    method !== 'GET' &&
++    (offline || savedView || networkUnavailable()) &&
++    !queuedReplay &&
++    !authReconnect
++  )
++    throw new ApiError(0, 'offline_readonly');
++  const started =
++    method === 'GET' && path === '/api/auth/status' ? snapshotAuthorizationToken() : undefined;
++  const token = method === 'GET' && snapshotRead(path) ? beginReadSnapshot() : undefined;
+   let response: Response;
+   try {
+     response = await fetch(path, {
+@@ -62,8 +124,10 @@ export async function request<T>(
+     });
+   } catch {
+     // The server is unreachable; status 0 marks "no response at all".
++    setNetworkUnavailable(true);
+     throw new ApiError(0, 'network');
+   }
++  setNetworkUnavailable(false);
+   let payload: unknown;
+   try {
+     payload = await response.json();
+@@ -72,6 +136,7 @@ export async function request<T>(
+     payload = undefined;
+   }
+   if (!response.ok) {
++    if (response.status === 401 || response.status === 403) void clearReadSnapshots();
+     const fields =
+       typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {};
+     const ids = Array.isArray(fields['bookingIds'])
+@@ -84,6 +149,32 @@ export async function request<T>(
+       ids,
+     );
+   }
++  if (method === 'GET' && path === '/api/auth/status') {
++    if (
++      typeof payload === 'object' &&
++      payload !== null &&
++      'authenticated' in payload &&
++      payload.authenticated === true
++    )
++      allowReadSnapshotWrites(started);
++    else {
++      completeSnapshotLogout();
++      void clearReadSnapshots();
++    }
++  }
++  if (
++    method === 'POST' &&
++    ['/api/auth/logout', '/api/auth/login/verify', '/api/auth/recovery/login'].includes(path)
++  ) {
++    completeSnapshotLogout();
++    void clearReadSnapshots();
++  }
++  if (token) {
++    // A query consumer may optimistically mutate its result later. Provenance must retain the
++    // actual completed response, rather than sharing that mutable query-cache object.
++    const read = { path, data: structuredClone(payload), fetchedAt: Date.now(), token };
++    for (const listener of readListeners) listener(read);
++  }
+   if (method !== 'GET') notifyApiWrite();
+   return payload as T;
+ }
+diff --git a/apps/web/src/pages/security-page.tsx b/apps/web/src/pages/security-page.tsx
+index 77e74537d954fa31506db4dc33afcd776238650a..d2deb70c4b774f372579217e09f593cc18263892 100644
+--- a/apps/web/src/pages/security-page.tsx
++++ b/apps/web/src/pages/security-page.tsx
+@@ -26,6 +26,7 @@ import { SECURITY_META } from '../nav/pages';
+ import { PageFrame } from './placeholder-page';
+ import { clearDeviceFinancialData } from '../pwa/local-data';
+ import { StorageStatus } from '../pwa/storage-status';
++import { clearReadSnapshots, holdReadSnapshotWrites } from '../pwa/read-snapshot-store';
+ 
+ const RECOVERY_CODE_COUNT = 10;
+ 
+@@ -117,13 +118,20 @@ export function SecurityPanel({ onLoggedOut }: SecurityPanelProps) {
+ 
+   const signOut = () =>
+     run(async () => {
++      // Invalidate at intent: a pending logout must not leave a readable copy or accept late reads.
++      const releaseSnapshotWrites = holdReadSnapshotWrites();
++      void clearReadSnapshots();
+       try {
+         await logout();
+       } finally {
+         // Also when the server could not be reached: the data must not stay on a device the user
+         // meant to sign out of. The error stays visible; the hand-over happens only on success.
+         queryClient.clear();
+-        await clearDeviceFinancialData();
++        try {
++          await clearDeviceFinancialData();
++        } finally {
++          releaseSnapshotWrites();
++        }
+       }
+       onLoggedOut();
+     });
+diff --git a/apps/web/src/pwa/local-data.ts b/apps/web/src/pwa/local-data.ts
+index 6fc8846eec458e732ddd4711e1a6b4465f48f941..3bd49e5ae48eea4d275f96117707e65f1f04cb13 100644
+--- a/apps/web/src/pwa/local-data.ts
++++ b/apps/web/src/pwa/local-data.ts
+@@ -1,4 +1,5 @@
+ import { clearChoices } from './queue-store';
++import { clearReadSnapshots } from './read-snapshot-store';
+ 
+ /** Key of the capture panel's recently used account and category ids (see ledger/capture-model). */
+ export const CAPTURE_MEMORY_KEY = 'budget-capture-memory';
+@@ -21,6 +22,8 @@ export const SHELL_CACHE_PREFIX = 'budget-shell-';
+  * Every step is best effort and independent; blocked storage never prevents the sign-out.
+  */
+ export async function clearDeviceFinancialData(): Promise<void> {
++  // Synchronous invalidation hides any displayed copy before the independent storage work.
++  const snapshotsCleared = clearReadSnapshots();
+   for (const key of FINANCIAL_LOCAL_STORAGE_KEYS) {
+     try {
+       localStorage.removeItem(key);
+@@ -48,4 +51,5 @@ export async function clearDeviceFinancialData(): Promise<void> {
+   } catch {
+     /* Cache Storage is unavailable (insecure context, private mode). */
+   }
++  await snapshotsCleared;
+ }
+diff --git a/apps/web/src/pwa/read-snapshot-store.ts b/apps/web/src/pwa/read-snapshot-store.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..700ca233a08e2c3cfc91f7a06096fc53775fe54a
+--- /dev/null
++++ b/apps/web/src/pwa/read-snapshot-store.ts
+@@ -0,0 +1,396 @@
++/** Same-origin financial copies, never credentials. This is not encryption or cached authentication. */
++export type OfflineView = 'today' | 'accounts' | 'plan' | 'bookings';
++export interface ReadSnapshot<T = unknown> {
++  view: OfflineView;
++  params: string;
++  fetchedAt: number;
++  data: T;
++  epoch: string;
++}
++export interface SnapshotToken {
++  epoch: string;
++  generation: number;
++}
++
++const DATABASE = 'budget-read-snapshots';
++const SIGNAL = 'budget-read-snapshot-epoch'; // Nonfinancial wipe marker, not authentication.
++const LOGOUT_PREFIX = 'budget-read-snapshot-logout.';
++const STORAGE_PROBE = 'budget-read-snapshot-storage-check';
++const STORAGE_TIMEOUT = 3000;
++const listeners = new Set<() => void>();
++let epoch: string | undefined;
++let generation = 0;
++let revision = 0;
++let opening: Promise<void> | undefined;
++let writesAllowed = false;
++let writeHolds = 0;
++let networkFailed = false;
++let offlineViewer = false;
++let channel: BroadcastChannel | undefined;
++let observing = false;
++const remoteHolds = new Set<string>();
++const changed = () => {
++  revision++;
++  listeners.forEach((listener) => listener());
++};
++export const subscribeReadSnapshots = (listener: () => void) => {
++  listeners.add(listener);
++  return () => {
++    listeners.delete(listener);
++  };
++};
++export const readSnapshotRevision = () => revision;
++export const readSnapshotGeneration = () => generation;
++export const networkUnavailable = () => networkFailed;
++export const setNetworkUnavailable = (failed: boolean) => {
++  if (networkFailed !== failed) {
++    networkFailed = failed;
++    changed();
++  }
++};
++export const setOfflineViewer = (active: boolean) => {
++  offlineViewer = active;
++};
++export const isOfflineViewer = () => offlineViewer;
++
++function observeWipes() {
++  if (observing || typeof window === 'undefined') return;
++  observing = true;
++  try {
++    if (typeof indexedDB !== 'undefined' && 'BroadcastChannel' in globalThis) {
++      channel = new BroadcastChannel(DATABASE);
++      channel.onmessage = (event: MessageEvent<unknown>) => {
++        const data = event.data;
++        if (typeof data === 'object' && data !== null && 'kind' in data) {
++          if (data.kind === 'complete') remoteHolds.clear();
++          if ('id' in data && typeof data.id === 'string') {
++            if (data.kind === 'hold') remoteHolds.add(data.id);
++            if (data.kind === 'release') remoteHolds.delete(data.id);
++          }
++        }
++        invalidate();
++      };
++    }
++  } catch {
++    /* The independent storage event still invalidates other tabs. */
++  }
++  window.addEventListener('storage', (event) => {
++    if (event.key === SIGNAL || event.key?.startsWith(LOGOUT_PREFIX)) invalidate();
++  });
++  window.addEventListener('online', () => setNetworkUnavailable(false));
++}
++
++function database(): Promise<IDBDatabase> {
++  return new Promise((resolve, reject) => {
++    let settled = false;
++    const timer = setTimeout(fail, STORAGE_TIMEOUT);
++    function fail() {
++      settled = true;
++      clearTimeout(timer);
++      reject(new Error('Offline-Speicher nicht verfügbar.'));
++    }
++    let request: IDBOpenDBRequest;
++    try {
++      request = indexedDB.open(DATABASE, 1);
++    } catch {
++      fail();
++      return;
++    }
++    request.onupgradeneeded = () => {
++      request.result.createObjectStore('meta');
++      request.result.createObjectStore('views', { keyPath: 'view' });
++    };
++    request.onsuccess = () => {
++      clearTimeout(timer);
++      if (settled) request.result.close();
++      else {
++        settled = true;
++        resolve(request.result);
++      }
++    };
++    request.onerror = request.onblocked = fail;
++  });
++}
++
++function signalEpoch() {
++  try {
++    return localStorage.getItem(SIGNAL);
++  } catch {
++    return undefined;
++  }
++}
++
++function logoutKeys(): string[] {
++  return Object.keys(localStorage).filter((key) => key.startsWith(LOGOUT_PREFIX));
++}
++function logoutPending(): boolean {
++  if (writeHolds > 0 || remoteHolds.size > 0) return true;
++  if (typeof window === 'undefined') return false;
++  try {
++    return logoutKeys().length > 0;
++  } catch {
++    return true;
++  } // Inaccessible wipe fences never authorize a financial copy.
++}
++
++async function access<T>(
++  mode: IDBTransactionMode,
++  operation: (tx: IDBTransaction, finish: (value: T) => void) => void,
++) {
++  const db = await database();
++  try {
++    return await new Promise<T>((resolve, reject) => {
++      const tx = db.transaction(['meta', 'views'], mode);
++      let value: T;
++      const timer = setTimeout(() => tx.abort(), STORAGE_TIMEOUT);
++      tx.oncomplete = () => {
++        clearTimeout(timer);
++        resolve(value);
++      };
++      tx.onerror = tx.onabort = () => {
++        clearTimeout(timer);
++        reject(new Error('Offline-Speicher nicht verfügbar.'));
++      };
++      operation(tx, (result) => {
++        value = result;
++      });
++    });
++  } finally {
++    db.close();
++  }
++}
++
++export function initializeReadSnapshots(): Promise<void> {
++  observeWipes();
++  if (opening) return opening;
++  const started = generation;
++  opening = access<{ current: string; fence: string | null }>('readwrite', (tx, finish) => {
++    const meta = tx.objectStore('meta');
++    const request = meta.get('epoch');
++    request.onsuccess = () => {
++      // Read-only localStorage cannot durably fence a pending logout in a newly opened tab.
++      // Refuse financial copies in that mode even if IndexedDB itself still works.
++      try {
++        localStorage.setItem(STORAGE_PROBE, '1');
++        localStorage.removeItem(STORAGE_PROBE);
++      } catch {
++        tx.abort();
++        return;
++      }
++      const stored = request.result as string | undefined;
++      const fence = signalEpoch();
++      if (fence === undefined) {
++        tx.abort();
++        return;
++      }
++      // Never rewind to a marker's epoch: it may predate a successful wipe in another tab.
++      const current =
++        fence && fence !== stored ? crypto.randomUUID() : (stored ?? crypto.randomUUID());
++      if (stored !== current || fence) tx.objectStore('views').clear();
++      meta.put(current, 'epoch');
++      finish({ current, fence });
++    };
++  })
++    .then(({ current, fence }) => {
++      try {
++        if (fence && signalEpoch() === fence) localStorage.removeItem(SIGNAL);
++      } catch {
++        /* A remaining fence keeps captures and reads unavailable. */
++      }
++      if (generation === started) epoch = current;
++    })
++    .catch(() => {
++      if (generation === started) epoch = undefined;
++    });
++  return opening;
++}
++
++export const snapshotAuthorizationToken = () => (!logoutPending() ? generation : undefined);
++
++/** A real status response may enable future captures, never a query-cache auth value. */
++export function allowReadSnapshotWrites(started: number | undefined): void {
++  if (started !== undefined && started === generation && !logoutPending()) writesAllowed = true;
++}
++
++/** Logout is not finished while the server request is pending, even if a concurrent status says true. */
++export function holdReadSnapshotWrites(): () => void {
++  observeWipes();
++  const id = crypto.randomUUID();
++  writeHolds++;
++  writesAllowed = false;
++  try {
++    localStorage.setItem(LOGOUT_PREFIX + id, '1');
++  } catch {
++    /* Independent broadcast below. */
++  }
++  try {
++    channel?.postMessage({ kind: 'hold', id });
++  } catch {
++    /* Persistent fence remains. */
++  }
++  let released = false;
++  return () => {
++    if (!released) {
++      writeHolds--;
++      try {
++        localStorage.removeItem(LOGOUT_PREFIX + id);
++      } catch {
++        /* Fail closed until real reauthentication. */
++      }
++      try {
++        channel?.postMessage({ kind: 'release', id });
++      } catch {
++        /* Persistent fence remains. */
++      }
++    }
++    released = true;
++  };
++}
++
++/** Only call for a real completed logout, unauthenticated status or successful new login. */
++export function completeSnapshotLogout(): void {
++  try {
++    for (const key of logoutKeys()) localStorage.removeItem(key);
++  } catch {
++    /* Fail closed. */
++  }
++  remoteHolds.clear();
++  try {
++    channel?.postMessage({ kind: 'complete' });
++  } catch {
++    /* Persistent epoch still protects writes. */
++  }
++}
++
++/** Start before the HTTP request. A later sign-out invalidates this promise, too. */
++export async function beginReadSnapshot(): Promise<SnapshotToken | undefined> {
++  const started = generation;
++  const allowed = writesAllowed && !logoutPending();
++  await initializeReadSnapshots();
++  return allowed && writesAllowed && !logoutPending() && generation === started && epoch
++    ? { epoch, generation: started }
++    : undefined;
++}
++
++export async function saveReadSnapshot<T>(
++  token: SnapshotToken | undefined,
++  snapshot: Omit<ReadSnapshot<T>, 'epoch'>,
++): Promise<boolean> {
++  if (
++    !token ||
++    !writesAllowed ||
++    logoutPending() ||
++    token.generation !== generation ||
++    token.epoch !== epoch ||
++    !['today', 'accounts', 'plan', 'bookings'].includes(snapshot.view) ||
++    !Number.isFinite(snapshot.fetchedAt) ||
++    snapshot.fetchedAt <= 0 ||
++    typeof snapshot.params !== 'string'
++  )
++    return false;
++  try {
++    return await access<boolean>('readwrite', (tx, finish) => {
++      const request = tx.objectStore('meta').get('epoch');
++      request.onsuccess = () => {
++        const signal = signalEpoch();
++        if (
++          !writesAllowed ||
++          logoutPending() ||
++          signal === undefined ||
++          token.generation !== generation ||
++          request.result !== token.epoch ||
++          (signal && signal !== token.epoch)
++        ) {
++          finish(false);
++          return;
++        }
++        tx.objectStore('views').put({ ...snapshot, epoch: token.epoch });
++        finish(true);
++      };
++    });
++  } catch {
++    return false;
++  }
++}
++
++export async function loadReadSnapshot<T>(
++  view: OfflineView,
++  params: string,
++): Promise<ReadSnapshot<T> | undefined> {
++  await initializeReadSnapshots();
++  const started = generation;
++  if (!epoch) return;
++  try {
++    const result = await access<ReadSnapshot<T> | undefined>('readonly', (tx, finish) => {
++      const meta = tx.objectStore('meta').get('epoch');
++      meta.onsuccess = () => {
++        if (meta.result !== epoch) {
++          finish(undefined);
++          return;
++        }
++        const request = tx.objectStore('views').get(view);
++        request.onsuccess = () => finish(request.result as ReadSnapshot<T> | undefined);
++      };
++    });
++    const signal = signalEpoch();
++    if (
++      started !== generation ||
++      result?.epoch !== epoch ||
++      result.view !== view ||
++      result.params !== params ||
++      !Number.isFinite(result.fetchedAt) ||
++      result.fetchedAt <= 0 ||
++      signal === undefined ||
++      logoutPending() ||
++      (signal && signal !== result.epoch)
++    )
++      return;
++    return result;
++  } catch {
++    return;
++  }
++}
++
++function invalidate() {
++  generation++;
++  epoch = undefined;
++  opening = undefined;
++  writesAllowed = false;
++  offlineViewer = false;
++  changed(); // Hide displayed values before waiting for storage.
++}
++
++export async function clearReadSnapshots(): Promise<void> {
++  observeWipes();
++  invalidate();
++  // An unsupported device cannot read or retain this store. Invalidate memory without starting
++  // asynchronous storage bookkeeping; an existing but blocked IndexedDB still uses the fence below.
++  if (typeof indexedDB === 'undefined') return;
++  const next = crypto.randomUUID();
++  try {
++    localStorage.setItem(SIGNAL, next);
++  } catch {
++    /* Independent best-effort invalidation. */
++  }
++  try {
++    channel?.postMessage('wipe');
++  } catch {
++    /* Storage marker and database still invalidate. */
++  }
++  try {
++    await access<void>('readwrite', (tx, finish) => {
++      tx.objectStore('views').clear();
++      tx.objectStore('meta').put(next, 'epoch');
++      finish(undefined);
++    });
++    // Keep the marker across reloads if erasure failed. A completed database transaction has
++    // durably replaced the epoch, so its temporary localStorage fence is no longer needed.
++    try {
++      if (signalEpoch() === next) localStorage.removeItem(SIGNAL);
++    } catch {
++      /* Fail closed. */
++    }
++  } catch {
++    /* Reads remain unavailable when storage is blocked. */
++  }
++}
+diff --git a/docs/evidence/reference-adoption/wp-014-offline-558.md b/docs/evidence/reference-adoption/wp-014-offline-558.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..dc1c56055eb58bdd6f4de0e57d672a9b1485143b
+--- /dev/null
++++ b/docs/evidence/reference-adoption/wp-014-offline-558.md
+@@ -0,0 +1,38 @@
++# #558 — protected offline read snapshots
++
++## Infrastructure boundary (UI acceptance remains open)
++
++The owner’s #522 decision limits offline reads to Heute, Kontensalden, the current Vienna-month Plan and the latest fetched bookings. This implementation phase adds only the storage, request provenance and sign-out/transport boundary. The four consumer captures and a separate explicit read-only viewer are still pending. Existing authenticated routing, ledger calculations, mutation semantics, capture queue, service worker and cache policy are unchanged. No issue acceptance is claimed from these infrastructure tests alone.
++
++The intended snapshot is a completed successful response with its exact parameter key and fetch timestamp. Only the latest entry per approved view is retained in a separate same-origin IndexedDB database, `budget-read-snapshots`. Read authorization is not persisted: a cold offline copy must be a separately labelled, explicitly opened saved view, never evidence of a valid session. There is no invented TTL or session identifier.
++
++## Privacy and failure contract
++
++- Snapshot write permission starts disabled and is enabled only by a new successful real `/api/auth/status` response with `authenticated: true`. A response or request begun before a wipe cannot enable the replacement epoch. Query-cache auth values do not enable captures.
++- Sign-out immediately invalidates displayed copies and blocks new captures before waiting for the logout request. A shared nonfinancial logout-intent fence also rejects concurrent status responses and captures in other tabs and after cold reload while logout is pending. Each simultaneous logout owns a distinct random marker, so releasing one cannot clear another pending intent. An interrupted intent has no TTL and is cleared only by a real completed logout, fresh unauthenticated status or successful new login/recovery ceremony; an authenticated status alone cannot clear it. The final device wipe invalidates requests started during that interval. HTTP 401/403 and real unauthenticated status responses invalidate copies as well.
++- Every eligible GET starts an epoch token before fetching; only successful allowlisted read responses notify snapshot consumers. The observed payload is cloned before query consumers can mutate it optimistically. Auth/passkey responses, unrelated report endpoints and write payloads are not observed.
++- Same-tab generation checks, transactional persistent epochs, BroadcastChannel and a temporary nonfinancial localStorage wipe marker prevent late responses and other tabs from restoring a wiped copy. The marker contains only a random epoch, is removed after successful database erasure, and remains as a reload fence if erasure failed. Initialization clears any snapshot from the earlier epoch before allowing reads and rotates to a fresh epoch rather than rewinding to a stale marker. Inaccessible or read-only localStorage fences fail closed as well: initialization probes a nonfinancial write/removal before accepting financial copies, even if IndexedDB remains readable.
++- Unsupported IndexedDB immediately invalidates memory without impossible-store bookkeeping; an existing but blocked IndexedDB fails closed with bounded open/transaction waits; it neither prevents sign-out nor falls back to stale query data. Storage mechanisms fail independently. If all durable storage and messaging are inaccessible, physical erasure and immediate notification of another tab cannot be guaranteed; this follows the existing best-effort device-wipe boundary. No encryption, protection from same-origin script execution, unlocked-device access or browser-profile inspection is claimed.
++- Non-GET HTTP calls are denied before fetch while offline, while explicitly viewing a saved copy, or after a connection failure. While online and outside the saved viewer, an exact POST allowlist permits existing login/recovery/register/step-up and ordinary logout retries after a connection failure; passkey deletion, recovery-code regeneration and session administration remain blocked. Inside the viewer, the existing online idempotent `POST /api/bookings` replay is the sole exception; offline capture continues to persist in its existing queue. This guard supplements the future visibly disabled viewer controls; it does not replace server authorization.
++- No queued booking, capture-store schema, local financial preference list, app-shell cache, token, cookie, recovery code or passkey is added to the snapshot store or changed by its erasure. No API responses enter Cache Storage or the service worker.
++
++## Verification
++
++Frozen infrastructure validation (2026-10-19):
++
++- Focused Vitest: 8 files / 62 tests passed, including the new transport security cases and unchanged PWA, local-data, security panel, auth API, WebAuthn, stale-after-write and durable capture-queue suites. No existing test was edited.
++- Web typecheck, targeted ESLint and `npm run build:e2e` passed.
++- Native WebKit: all 7 security cases plus 3 canonical setup tests passed (10/10). Cases cover exact parameters/cold reload, request-start invalidation and old status, cross-tab wipe plus queue survival, failed erasure, cross-tab pending logout including reload, stale-marker epoch rewind, and read-only localStorage with readable native IndexedDB.
++- Independent Codex review of the complete frozen seven-file infrastructure diff found no actionable issue; its separate 4-file / 41-test HTTP/auth/WebAuthn/queue run passed. Source/test hashes stayed unchanged throughout review and native validation. This verifies the infrastructure boundary only.
++
++Commands:
++
++```sh
++npx vitest run apps/web/src/api/http-offline-security.test.ts apps/web/src/pwa/local-data.test.ts apps/web/src/pwa/pwa.test.tsx apps/web/src/pages/security-page.test.tsx apps/web/src/auth/api.test.ts apps/web/src/auth/webauthn.test.ts apps/web/src/auth/stale-after-write.test.ts apps/web/src/pwa/queue.test.ts --maxWorkers=1
++npm run typecheck -w @budget/web
++npm run build:e2e
++# Managed cloud runner, unchanged canonical project, real pinned WebKit:
++/workspace/.budget-tools/cloud-control/run-webkit.sh /workspace/cloud-offline-558 test e2e/issue-558-offline-store-security.spec.ts --project=webkit-iphone --workers=1
++```
++
++The repository-wide age check and final feature browser/visual acceptance remain pending until the consumer/viewer phase is complete. No final feature readiness or PR acceptance is claimed. Required final feature acceptance remains the four exact renderers (including completed displayed Depotwert), cold reload, warm draft preservation, explicit entry/clear, exact URL parameters/current Vienna month, amount privacy, read-only controls with the capture exception, route changes and desktop/mobile/real WebKit accessibility/layout checks. The infrastructure proof uses only literal synthetic values and native browser IndexedDB/BroadcastChannel; it does not substitute a system Chromium run for WebKit.
+diff --git a/e2e/issue-558-offline-store-security.spec.ts b/e2e/issue-558-offline-store-security.spec.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..c726d203ccb69118769f2674ed916c338e60da17
+--- /dev/null
++++ b/e2e/issue-558-offline-store-security.spec.ts
+@@ -0,0 +1,374 @@
++import { expect, test, type Page } from '@playwright/test';
++import { readFileSync } from 'node:fs';
++import ts from 'typescript';
++import type * as Store from '../apps/web/src/pwa/read-snapshot-store';
++
++// Exercise the production store with native IndexedDB/BroadcastChannel, independently of auth
++// routing or UI caches. A synthetic HTML harness avoids executing unrelated financial queries.
++const source = ts.transpileModule(
++  readFileSync(new URL('../apps/web/src/pwa/read-snapshot-store.ts', import.meta.url), 'utf8'),
++  { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } },
++).outputText;
++declare global {
++  interface Window {
++    snapshotStore: typeof Store;
++    pendingSnapshotToken: Store.SnapshotToken | undefined;
++    nativeSnapshotIDB: IDBFactory;
++    releaseSnapshotHold: () => void;
++  }
++}
++const stamp = Date.parse('2026-10-19T08:15:00Z');
++const params = 'month=2026-10&period=payday';
++const literal = { availableCents: 12345, bookedCents: -678, label: 'Synthetic view' };
++
++async function harness(page: Page) {
++  await page.route('**/__snapshot_security__', (route) =>
++    route.fulfill({
++      status: 200,
++      contentType: 'text/html',
++      body: '<!doctype html><title>Synthetic storage proof</title>',
++    }),
++  );
++  await page.goto('/__snapshot_security__');
++  await install(page);
++}
++async function install(page: Page) {
++  await page.evaluate(async (moduleSource) => {
++    const url = URL.createObjectURL(new Blob([moduleSource], { type: 'text/javascript' }));
++    try {
++      window.snapshotStore = await import(url);
++    } finally {
++      URL.revokeObjectURL(url);
++    }
++    await window.snapshotStore.initializeReadSnapshots();
++  }, source);
++}
++async function seed(page: Page) {
++  return page.evaluate(
++    async ({ params, literal, stamp }) => {
++      const store = window.snapshotStore;
++      // Simulate only the transport's verified-auth notification, not a persisted auth claim.
++      store.allowReadSnapshotWrites(store.readSnapshotGeneration());
++      const token = await store.beginReadSnapshot();
++      window.pendingSnapshotToken = token;
++      return store.saveReadSnapshot(token, {
++        view: 'today',
++        params,
++        fetchedAt: stamp,
++        data: literal,
++      });
++    },
++    { params, literal, stamp },
++  );
++}
++
++test('native snapshots preserve exact successful values/parameters across reload without auth metadata', async ({
++  page,
++}) => {
++  await harness(page);
++  expect(await seed(page)).toBe(true);
++  await page.reload();
++  await install(page);
++  const found = await page.evaluate(
++    async ({ params }) => ({
++      saved: await window.snapshotStore.loadReadSnapshot('today', params),
++      otherPeriod: await window.snapshotStore.loadReadSnapshot(
++        'today',
++        'month=2026-10&period=month',
++      ),
++      otherView: await window.snapshotStore.loadReadSnapshot('accounts', params),
++      token: await window.snapshotStore.beginReadSnapshot(),
++      local: { ...localStorage },
++    }),
++    { params },
++  );
++  expect(found.saved).toMatchObject({ view: 'today', params, fetchedAt: stamp, data: literal });
++  expect(Object.keys(found.saved ?? {}).sort()).toEqual([
++    'data',
++    'epoch',
++    'fetchedAt',
++    'params',
++    'view',
++  ]);
++  expect(found.otherPeriod).toBeUndefined();
++  expect(found.otherView).toBeUndefined();
++  expect(found.token).toBeUndefined(); // Reload does not revive authenticated write permission.
++  expect(found.local).toEqual({});
++});
++
++test('wipe rejects old responses, old status unlocks and optimistic background reads during logout', async ({
++  page,
++}) => {
++  await harness(page);
++  expect(await seed(page)).toBe(true);
++  const result = await page.evaluate(
++    async ({ params, literal, stamp }) => {
++      const store = window.snapshotStore;
++      const started = store.readSnapshotGeneration();
++      const pendingToken = store.beginReadSnapshot();
++      const release = store.holdReadSnapshotWrites();
++      const duringLogoutStatus = store.snapshotAuthorizationToken();
++      const cleared = store.clearReadSnapshots();
++      const hiddenSynchronously = store.readSnapshotGeneration() > started;
++      // An authenticated status request begun before sign-out cannot re-enable capture afterwards.
++      store.allowReadSnapshotWrites(started);
++      // Even a fresh status arriving before logout finishes cannot authorize captures.
++      store.allowReadSnapshotWrites(store.readSnapshotGeneration());
++      const whileLogoutPending = await store.beginReadSnapshot();
++      await cleared;
++      release();
++      store.allowReadSnapshotWrites(duringLogoutStatus);
++      return {
++        hiddenSynchronously,
++        pending: await pendingToken,
++        whileLogoutPending,
++        afterLateStatus: await store.beginReadSnapshot(),
++        oldSave: await store.saveReadSnapshot(window.pendingSnapshotToken, {
++          view: 'today',
++          params,
++          fetchedAt: stamp,
++          data: literal,
++        }),
++        saved: await store.loadReadSnapshot('today', params),
++        local: { ...localStorage },
++      };
++    },
++    { params, literal, stamp },
++  );
++  expect(result).toEqual({
++    hiddenSynchronously: true,
++    pending: undefined,
++    whileLogoutPending: undefined,
++    afterLateStatus: undefined,
++    oldSave: false,
++    saved: undefined,
++    local: {},
++  });
++  expect(await seed(page)).toBe(true); // A later verified session may capture a fresh response.
++});
++
++test('native cross-tab wipe hides copies and survives reload while unsent capture remains untouched', async ({
++  page,
++  context,
++}) => {
++  await harness(page);
++  expect(await seed(page)).toBe(true);
++  await page.evaluate(async () => {
++    await new Promise<void>((resolve, reject) => {
++      const open = indexedDB.open('budget-capture', 1);
++      open.onupgradeneeded = () => {
++        open.result.createObjectStore('bookings', { keyPath: 'id' });
++        open.result.createObjectStore('choices');
++      };
++      open.onerror = () => reject(open.error);
++      open.onsuccess = () => {
++        const db = open.result;
++        const tx = db.transaction('bookings', 'readwrite');
++        tx.objectStore('bookings').put({ id: 'synthetic-unsent', input: { amountCents: -123 } });
++        tx.oncomplete = () => {
++          db.close();
++          resolve();
++        };
++        tx.onerror = () => reject(tx.error);
++      };
++    });
++  });
++  const second = await context.newPage();
++  await harness(second);
++  expect(
++    await second.evaluate(
++      (params) => window.snapshotStore.loadReadSnapshot('today', params),
++      params,
++    ),
++  ).toBeTruthy();
++  const old = await page.evaluate(() => window.snapshotStore.readSnapshotRevision());
++  await second.evaluate(() => window.snapshotStore.clearReadSnapshots());
++  await expect
++    .poll(() => page.evaluate(() => window.snapshotStore.readSnapshotRevision()))
++    .toBeGreaterThan(old);
++  expect(
++    await page.evaluate((params) => window.snapshotStore.loadReadSnapshot('today', params), params),
++  ).toBeUndefined();
++  await page.reload();
++  await install(page);
++  expect(
++    await page.evaluate((params) => window.snapshotStore.loadReadSnapshot('today', params), params),
++  ).toBeUndefined();
++  expect(
++    await page.evaluate(
++      () =>
++        new Promise<unknown>((resolve, reject) => {
++          const open = indexedDB.open('budget-capture', 1);
++          open.onerror = () => reject(open.error);
++          open.onsuccess = () => {
++            const db = open.result;
++            const tx = db.transaction('bookings', 'readonly');
++            const read = tx.objectStore('bookings').get('synthetic-unsent');
++            tx.oncomplete = () => {
++              db.close();
++              resolve(read.result);
++            };
++            tx.onerror = () => reject(tx.error);
++          };
++        }),
++    ),
++  ).toEqual({ id: 'synthetic-unsent', input: { amountCents: -123 } });
++  await second.close();
++});
++
++test('failed erasure leaves a durable nonfinancial fence; reopening cannot revive old financial data', async ({
++  page,
++}) => {
++  await harness(page);
++  expect(await seed(page)).toBe(true);
++  await page.evaluate(async () => {
++    window.nativeSnapshotIDB = indexedDB;
++    Object.defineProperty(window, 'indexedDB', {
++      configurable: true,
++      value: {
++        open() {
++          throw new Error('synthetic blocked storage');
++        },
++      },
++    });
++    await window.snapshotStore.clearReadSnapshots();
++    Object.defineProperty(window, 'indexedDB', {
++      configurable: true,
++      value: window.nativeSnapshotIDB,
++    });
++  });
++  const marker = await page.evaluate(() => ({ ...localStorage }));
++  expect(Object.keys(marker)).toEqual(['budget-read-snapshot-epoch']);
++  expect(JSON.stringify(marker)).not.toContain('Synthetic');
++  expect(JSON.stringify(marker)).not.toContain('12345');
++  await page.reload();
++  await install(page);
++  expect(
++    await page.evaluate((params) => window.snapshotStore.loadReadSnapshot('today', params), params),
++  ).toBeUndefined();
++});
++
++test('a second tab and a cold reload cannot recapture while another tab is still logging out', async ({
++  page,
++  context,
++}) => {
++  await harness(page);
++  expect(await seed(page)).toBe(true);
++  await page.evaluate(async () => {
++    window.releaseSnapshotHold = window.snapshotStore.holdReadSnapshotWrites();
++    await window.snapshotStore.clearReadSnapshots();
++  });
++  const second = await context.newPage();
++  await harness(second);
++  const tryCapture = async () =>
++    second.evaluate(
++      async ({ params, literal, stamp }) => {
++        const store = window.snapshotStore;
++        const statusRequest = store.snapshotAuthorizationToken();
++        store.allowReadSnapshotWrites(statusRequest);
++        const token = await store.beginReadSnapshot();
++        return {
++          statusRequest,
++          token,
++          saved: await store.saveReadSnapshot(token, {
++            view: 'today',
++            params,
++            fetchedAt: stamp,
++            data: literal,
++          }),
++          loaded: await store.loadReadSnapshot('today', params),
++        };
++      },
++      { params, literal, stamp },
++    );
++  expect(await tryCapture()).toEqual({
++    statusRequest: undefined,
++    token: undefined,
++    saved: false,
++    loaded: undefined,
++  });
++  await second.reload();
++  await install(second);
++  expect(await tryCapture()).toEqual({
++    statusRequest: undefined,
++    token: undefined,
++    saved: false,
++    loaded: undefined,
++  });
++  await page.evaluate(async () => {
++    await window.snapshotStore.clearReadSnapshots();
++    window.releaseSnapshotHold();
++  });
++  await expect
++    .poll(() => second.evaluate(() => window.snapshotStore.snapshotAuthorizationToken()))
++    .not.toBeUndefined();
++  expect(await seed(second)).toBe(true);
++  await second.close();
++});
++
++test('a stale failed-wipe marker cannot rewind the database and authorize a pre-wipe response', async ({
++  page,
++}) => {
++  await harness(page);
++  expect(await seed(page)).toBe(true);
++  const old = await page.evaluate(() => window.pendingSnapshotToken!);
++  await page.evaluate(async (old) => {
++    await window.snapshotStore.clearReadSnapshots();
++    localStorage.setItem('budget-read-snapshot-epoch', old.epoch);
++  }, old);
++  await page.reload();
++  await install(page);
++  const result = await page.evaluate(
++    async ({ old, params, literal, stamp }) => {
++      const store = window.snapshotStore;
++      store.allowReadSnapshotWrites(store.snapshotAuthorizationToken());
++      return {
++        current: await store.beginReadSnapshot(),
++        stale: await store.saveReadSnapshot(old, {
++          view: 'today',
++          params,
++          fetchedAt: stamp,
++          data: literal,
++        }),
++        loaded: await store.loadReadSnapshot('today', params),
++      };
++    },
++    { old, params, literal, stamp },
++  );
++  expect(result.current?.epoch).not.toBe(old.epoch);
++  expect(result.stale).toBe(false);
++  expect(result.loaded).toBeUndefined();
++});
++
++test('read-only localStorage fails closed even while native IndexedDB remains accessible', async ({
++  page,
++}) => {
++  await harness(page);
++  expect(await seed(page)).toBe(true);
++  await page.reload();
++  await page.evaluate(() => {
++    Storage.prototype.setItem = () => {
++      throw new Error('synthetic read-only storage');
++    };
++  });
++  await install(page);
++  const result = await page.evaluate(
++    async ({ params, literal, stamp }) => {
++      const store = window.snapshotStore;
++      store.allowReadSnapshotWrites(store.snapshotAuthorizationToken());
++      const token = await store.beginReadSnapshot();
++      return {
++        token,
++        loaded: await store.loadReadSnapshot('today', params),
++        saved: await store.saveReadSnapshot(token, {
++          view: 'today',
++          params,
++          fetchedAt: stamp,
++          data: literal,
++        }),
++      };
++    },
++    { params, literal, stamp },
++  );
++  expect(result).toEqual({ token: undefined, loaded: undefined, saved: false });
++});
