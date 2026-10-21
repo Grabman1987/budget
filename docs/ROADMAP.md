@@ -1801,3 +1801,34 @@ explicit reanalysis/review. Upload and reanalysis never post money.
 - [ ] Specific approval/adoption and actual rerun of the two old UI transport adapters: current existing regression result 77/94, 17 failures; financial oracles remain protected.
 - [ ] Required AGE-enabled full check, normal production build, exact-head Chromium/CI, serial integration and verified LIVE.
 - [ ] Payroll, #740 manual receipt selection and clicked booking-link destination acceptance. No whole-issue closure, physical-device certification or real-data-change claim.
+
+## #589 — URL-backed Plan filters: isolated acceptance packet
+
+URL-backed category search/counts and the strict missing-category reader retain
+existing financial writers/formulas. The separate header union is explicitly
+labelled “vorgemerkt / ohne Kategorie”. Compact fine-pointer controls and legacy
+triage/view transitions are corrected without changing any existing test. The
+new compact CSS is scoped to the month-only root; shared Goals styles/baselines
+are unchanged.
+
+- [x] Earlier NEW pure3/API3 passed with literal counts/IDs, hidden/multi-month predicates, exact51/50+1 paging, cursor refusal and read-only conservation.
+- [x] On193f NEW RouterUI7 and unchanged compatibility8files/70tests passed; Web types and scoped lint/format/CSS passed. Legacy entry/view/All/explicit-filter and saved-state cases are covered.
+- [x] Current4d558 WebKit7/7 (80.325s) (setup3 + feature4), no skips/retries/flaky cases: both themes, desktop1440×900 table offset114px≤120 and configured390×664 with44px targets/no overflow; legacy triage roundtrips, keyboard/Axe/source links and real cover/audit/Undo passed. [Four current original images and limits](evidence/plan-filters-589/README.md).
+- [x] Separate unchanged OLD WebKit compact case plus setup3 passed4/4 on193f: all18 rows/two groups, unchanged76px row/group and152px band bounds/cents/keyboard/multi-month assertions. Current4d558 scoped static checks passed.
+- [x] Historical required AGE full check and normal production build passed onf40e0337:589 files/5211 tests, before the current compact/legacy correction; this is not a full-run result on current4d558.
+- [ ] Corrected exact-head required Chromium/CI, remaining required validation/build, serial integration and verified LIVE.
+
+First329d CI's unchanged compact/triage browser failures remain archived; current
+targeted/WebKit results and the separate OLD WebKit compact proof do not claim
+all old browser cases or current CI green. Later4dbab Goals visual failures are
+addressed by the month-only CSS boundary; updated exact-head Goals CI is pending.
+
+## #747 — Today savings action opens the task segment
+
+- [x] Identify the contextual-navigation defect: the generic inbox auto-selects movements while savings execution proposals belong to tasks.
+- [x] With one open movement and one savings proposal, the Today action opens `teil=aufgaben` and the matching confirmation dialog. Opening it creates no trade and preserves the literal account balances.
+- [x] Preserve and pass the existing portfolio execution, financial, Undo and Redo regression checks without modifying their expectations. New regression plus unchanged portfolio tests: system Chromium desktop/mobile 17/17 passed (including setup, 1.2 min). Before the one-line fix, the new desktop regression failed on the bare inbox URL and showed Umsätze selected; its trace was retained.
+- [x] Independent Codex full-diff review: no findings; existing tests, financial writers, locks, audit and Undo unchanged.
+- [x] Required full AGE-enabled check: typecheck, lint/format and 589 files / 5,213 tests passed (386.97 s Vitest); normal production build passed. Supplemental system Chromium is not canonical visual or WebKit evidence.
+- [ ] Exact-head canonical CI.
+- [ ] Protected serial integration, deployment and actual live-revision verification; only then close #747.
