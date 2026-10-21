@@ -1,4 +1,5 @@
-export type StatementScheduledPayment = null | { mode: 'none' } | { mode: 'existing'; paymentId: string };
+export type StatementScheduledPayment =
+  null | { mode: 'none' } | { mode: 'existing'; paymentId: string };
 import type { CardDocument, CardParseContext } from './statement-automation';
 import type { StatementCas } from './statement-intake';
 
@@ -42,7 +43,11 @@ export type StatementAutomationOutcome = {
   receiptLinks: number;
   pending: { rowKey: string; line: number; reason: string }[];
   reasons: string[];
-  items?: { bookingId: string; accountId: string; role: 'created' | 'matched' | 'credit' | 'original' | 'settlement' }[];
+  items?: {
+    bookingId: string;
+    accountId: string;
+    role: 'created' | 'matched' | 'credit' | 'original' | 'settlement';
+  }[];
   suggestedCardTokens: string[];
   suggestedCardHints: { token: string; hint: string }[];
 };

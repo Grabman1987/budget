@@ -1,4 +1,9 @@
-import { assertStatementAutomationBookingWrite, assertStatementAutomationSourceWrite, assertStatementAutomationUndoTarget, assertStatementAutomationInvariants } from './statement-automation-invariants';
+import {
+  assertStatementAutomationBookingWrite,
+  assertStatementAutomationSourceWrite,
+  assertStatementAutomationUndoTarget,
+  assertStatementAutomationInvariants,
+} from './statement-automation-invariants';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { statementBonusEvidenceSchema, type StatementBonusEvidence } from '@budget/domain';
 import {
@@ -129,7 +134,12 @@ export function assertBonusOriginals(
       );
   }
 }
-export function assertStatementSourceWrite(db: Executor, sourceId: string, targetAccountId?: string, action?: string) {
+export function assertStatementSourceWrite(
+  db: Executor,
+  sourceId: string,
+  targetAccountId?: string,
+  action?: string,
+) {
   assertStatementAutomationSourceWrite(db, sourceId, targetAccountId, action);
   if (!hasStatementSettlementFamily(db)) return;
   const used =
@@ -207,30 +217,71 @@ export function assertStatementUndoTarget(
       throw new ConflictError('Abrechnungsaktion nur als vollständige Gruppe zurücknehmen.');
   }
 }
-function acceptedFields(db: Executor, row: typeof statementSettlement.$inferSelect | typeof statementBonus.$inferSelect) {
-  const source = db.select().from(statementIntake).where(eq(statementIntake.id, row.sourceIntakeId)).get();
-  const value = JSON.parse(row.originsJson) as { origin?: string; layout?: string; runId?: string; fields?: StatementFields;
+function acceptedFields(
+  db: Executor,
+  row: typeof statementSettlement.$inferSelect | typeof statementBonus.$inferSelect,
+) {
+  const source = db
+    .select()
+    .from(statementIntake)
+    .where(eq(statementIntake.id, row.sourceIntakeId))
+    .get();
+  const value = JSON.parse(row.originsJson) as {
+    origin?: string;
+    layout?: string;
+    runId?: string;
+    fields?: StatementFields;
     identity?: { kind?: string; key?: string; issueDate?: string; reference?: string | null };
-    previous?: { intakeId: string; sha256: string; accountId: string; currency: string } };
+    previous?: { intakeId: string; sha256: string; accountId: string; currency: string };
+  };
   if (value.origin !== 'machine') {
     return source?.status === 'reviewed' && source.reviewedJson
-      ? (JSON.parse(source.reviewedJson) as { fields: StatementFields }).fields : null;
+      ? (JSON.parse(source.reviewedJson) as { fields: StatementFields }).fields
+      : null;
   }
-  if (!hasStatementAutomation(db) || !value.runId || !value.fields || !value.identity || !source) return null;
-  const run = db.select().from(statementAutomationRun).where(eq(statementAutomationRun.id, value.runId)).get();
-  const prior = value.previous ? db.select().from(statementIntake).where(eq(statementIntake.id, value.previous.intakeId)).get() : null;
-  const priorReceipt = prior ? db.select().from(receipt).where(eq(receipt.id, prior.receiptId)).get() : null;
-  if (!run || run.sourceIntakeId !== row.sourceIntakeId || run.sourceSha256 !== row.sourceSha256 ||
-    run.sourceRevision !== row.sourceRevision || run.accountId !== row.cardAccountId || run.identityKey !== value.identity.key ||
-    value.identity.issueDate !== row.issueDate || value.identity.reference !== row.reference ||
-    (row.reference === null ? value.identity.kind !== 'issued_date' : value.identity.kind !== 'printed_reference') ||
+  if (!hasStatementAutomation(db) || !value.runId || !value.fields || !value.identity || !source)
+    return null;
+  const run = db
+    .select()
+    .from(statementAutomationRun)
+    .where(eq(statementAutomationRun.id, value.runId))
+    .get();
+  const prior = value.previous
+    ? db.select().from(statementIntake).where(eq(statementIntake.id, value.previous.intakeId)).get()
+    : null;
+  const priorReceipt = prior
+    ? db.select().from(receipt).where(eq(receipt.id, prior.receiptId)).get()
+    : null;
+  if (
+    !run ||
+    run.sourceIntakeId !== row.sourceIntakeId ||
+    run.sourceSha256 !== row.sourceSha256 ||
+    run.sourceRevision !== row.sourceRevision ||
+    run.accountId !== row.cardAccountId ||
+    run.identityKey !== value.identity.key ||
+    value.identity.issueDate !== row.issueDate ||
+    value.identity.reference !== row.reference ||
+    (row.reference === null
+      ? value.identity.kind !== 'issued_date'
+      : value.identity.kind !== 'printed_reference') ||
     !['issued_card', 'company_card'].includes(value.layout ?? '') ||
-    (value.layout === 'issued_card' && (!prior || prior.deletedAt || prior.status === 'rejected' || prior.accountId !== row.cardAccountId ||
-    prior.sha256 !== value.previous!.sha256 || value.previous!.accountId !== row.cardAccountId || value.previous!.currency !== row.currency ||
-    !priorReceipt || priorReceipt.deletedAt || priorReceipt.sha256 !== value.previous!.sha256)) ||
+    (value.layout === 'issued_card' &&
+      (!prior ||
+        prior.deletedAt ||
+        prior.status === 'rejected' ||
+        prior.accountId !== row.cardAccountId ||
+        prior.sha256 !== value.previous!.sha256 ||
+        value.previous!.accountId !== row.cardAccountId ||
+        value.previous!.currency !== row.currency ||
+        !priorReceipt ||
+        priorReceipt.deletedAt ||
+        priorReceipt.sha256 !== value.previous!.sha256)) ||
     !['pending', 'reviewed'].includes(source.status) ||
-    JSON.stringify(value.fields) !== JSON.stringify((JSON.parse(source.proposalJson) as { fields: StatementFields }).fields) ||
-    Object.values(value.fields).some((f) => f.value !== null && f.origin !== 'printed')) return null;
+    JSON.stringify(value.fields) !==
+      JSON.stringify((JSON.parse(source.proposalJson) as { fields: StatementFields }).fields) ||
+    Object.values(value.fields).some((f) => f.value !== null && f.origin !== 'printed')
+  )
+    return null;
   return value.fields;
 }
 /** Schema-only final validator: safe from a write-module/audit import cycle. */
@@ -297,17 +348,43 @@ export function assertStatementSettlementInvariants(db: Executor) {
     const from = db.select().from(booking).where(eq(booking.id, r.fromBookingId!)).get();
     const to = db.select().from(booking).where(eq(booking.id, r.toBookingId!)).get();
     const funding = db.select().from(account).where(eq(account.id, r.fundingAccountId)).get();
-    const machine = JSON.parse(r.originsJson) as { origin?: string; linkedReference?: string | null };
+    const machine = JSON.parse(r.originsJson) as {
+      origin?: string;
+      linkedReference?: string | null;
+    };
     if (machine.origin === 'machine') {
-      const edges = db.select().from(bookingReceipt).where(eq(bookingReceipt.receiptId, r.receiptId)).all();
-      if (![r.fromBookingId, r.toBookingId].every((id) => id && edges.some((edge) => edge.bookingId === id && !edge.deletedAt)))
-        throw new BookingInvariantError('Automatischer Abrechnungsausgleich benötigt den Originalbeleg an beiden Transferseiten.');
+      const edges = db
+        .select()
+        .from(bookingReceipt)
+        .where(eq(bookingReceipt.receiptId, r.receiptId))
+        .all();
+      if (
+        ![r.fromBookingId, r.toBookingId].every(
+          (id) => id && edges.some((edge) => edge.bookingId === id && !edge.deletedAt),
+        )
+      )
+        throw new BookingInvariantError(
+          'Automatischer Abrechnungsausgleich benötigt den Originalbeleg an beiden Transferseiten.',
+        );
     }
-    if (machine.origin === 'machine' && r.representationKind === 'linked' &&
-      (!machine.linkedReference || ![from, to].some((b) => b?.source === 'bank' &&
-        (b.bankRawText ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('de-AT').split(/[^\p{L}\p{N}_/-]+/u)
-          .includes(machine.linkedReference!.trim().toLocaleLowerCase('de-AT')))))
-      throw new BookingInvariantError('Der eindeutige Banknachweis zum Abrechnungsausgleich wurde geändert.');
+    if (
+      machine.origin === 'machine' &&
+      r.representationKind === 'linked' &&
+      (!machine.linkedReference ||
+        ![from, to].some(
+          (b) =>
+            b?.source === 'bank' &&
+            (b.bankRawText ?? '')
+              .trim()
+              .replace(/\s+/g, ' ')
+              .toLocaleLowerCase('de-AT')
+              .split(/[^\p{L}\p{N}_/-]+/u)
+              .includes(machine.linkedReference!.trim().toLocaleLowerCase('de-AT')),
+        ))
+    )
+      throw new BookingInvariantError(
+        'Der eindeutige Banknachweis zum Abrechnungsausgleich wurde geändert.',
+      );
 
     if (
       !from ||

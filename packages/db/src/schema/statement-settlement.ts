@@ -105,7 +105,9 @@ export const statementSettlement = sqliteTable(
       .where(sql`${t.deletedAt} IS NULL AND ${t.state} NOT IN ('withdrawn','superseded')`),
     uniqueIndex('statement_settlement_issued_identity_uq')
       .on(t.cardAccountId, t.issueDate)
-      .where(sql`${t.reference} IS NULL AND ${t.deletedAt} IS NULL AND ${t.state} NOT IN ('withdrawn','superseded')`),
+      .where(
+        sql`${t.reference} IS NULL AND ${t.deletedAt} IS NULL AND ${t.state} NOT IN ('withdrawn','superseded')`,
+      ),
     uniqueIndex('statement_settlement_transfer_uq')
       .on(t.transferId)
       .where(sql`${t.deletedAt} IS NULL AND ${t.state}='represented'`),
