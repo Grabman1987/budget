@@ -1823,3 +1823,12 @@ addressed by the month-only CSS boundary; updated exact-head Goals CI is pending
 - [x] Required full AGE-enabled check: typecheck, lint/format and 589 files / 5,213 tests passed (386.97 s Vitest); normal production build passed. Supplemental system Chromium is not canonical visual or WebKit evidence.
 - [ ] Exact-head canonical CI.
 - [ ] Protected serial integration, deployment and actual live-revision verification; only then close #747.
+
+
+### #577 — Operational account overview (targeted checks passed; delivery pending)
+
+- Replaced the overview’s net-worth hero with the existing Budget-Konten group balance and an explicit checked/visible-account count linking to Prüfen. Closed accounts are omitted; each physical account retains its original group, order, value and check state. Platform/reference relationships are visual links only, including shared or cross-group references.
+- Added a compact token-based list with the existing account/reorder controllers, 30-day sparklines and explicit details for source, cash, pending/review/bank/limit metadata. Main rows and their checked count use one account projection; no new deadline, financial formula or write path was introduced.
+- Enriched history is explicitly requested with quality=1, a separate client key and sibling quality facts from the same read transaction. Default batch/single JSON and old callers are preserved; daily missing/absent metadata produces gaps/unavailable, never invented zero. Native cash balances retain their actual currency even when EUR conversion is unknown. Legacy MiniLine defaults remain unchanged.
+- [x] Fresh focused 51/51 plus legacy MiniLine 2/2; affected workspace types, scoped lint/format/CSS and E2E build pass. Supplemental Chromium 15 passed / two existing project skips, including all eight new profile/theme cases with actual1440 fit,390 targets, keyboard/Axe/privacy and real reorder/Undo. Independent source/delta reviews passed. [Unedited images, per-file mappings and limits](evidence/account-overview-577/README.md).
+- [ ] Six further legacy-browser UI mappings and their independent/runtime checks; pinned WebKit and required full CI, protected integration, deployment and actual LIVE revision. No complete #577 acceptance claim.

@@ -30,9 +30,19 @@ const treeSum = (page: Page, group: string): Locator =>
     .locator('xpath=ancestor::section')
     .locator('.acct-group-bar > .acct-amount');
 const overviewSum = (page: Page, group: string): Locator =>
-  page.locator(`tr.kgroup#kg-${group} td.kc-num`).getByTestId('account-group-value');
+  page.locator(`tr.kgroup#kg-${group}`).getByTestId('account-group-value');
 const overviewRow = (page: Page, name: string): Locator =>
   page.locator('tr.krow', { hasText: name });
+
+// The group cell now also owns the source button; retain exact money-only text comparisons.
+const overviewFigure = (page: Page, group: string) =>
+  overviewSum(page, group).evaluate((cell) =>
+    Array.from(cell.childNodes)
+      .filter((node) => node.nodeType === Node.TEXT_NODE)
+      .map((node) => node.textContent ?? '')
+      .join('')
+      .trim(),
+  );
 
 // Same ledger as the depot template: own depot cash -26,90 (buy 24,68, fee 0,99, booking 1,23)
 // and positions worth 24,68, so cash plus positions would read -2,22 and show "−2 €".
@@ -132,8 +142,14 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(overviewRow(page, 'Testverrechnung').getByTestId('account-value')).toHaveText(
       '91,55 €',
     );
-    await expect(page.getByTestId('included-depot-cash')).toContainText('−26,90 €');
-    await expect(overviewSum(page, 'investments')).toHaveText('24,68 €');
+    await page.getByRole('button', { name: 'Details zu Testverrechnung', exact: true }).click();
+    await expect(
+      page
+        .locator('.overview-detail-facts > div')
+        .filter({ has: page.getByText('Davon zugeordnetes Depot-Cash', { exact: true }) })
+        .locator('dd'),
+    ).toContainText('−26,90 €');
+    await expect.poll(() => overviewFigure(page, 'investments')).toBe('24,68 €');
     const groupMarker = overviewSum(page, 'investments')
       .locator('..')
       .getByRole('button', { name: 'Bewertungsgrundlage · Investments', exact: true });
@@ -143,8 +159,10 @@ for (const theme of ['light', 'dark'] as const) {
       page.locator(`[id="${await groupMarker.getAttribute('aria-describedby')}"]`),
     ).toContainText('Brutto-Ausführung');
     await page.keyboard.press('Escape');
-    await expect(overviewSum(page, 'budget')).toHaveText('91,55 €');
-    await expect(page.getByTestId('net-worth')).toContainText('116,23');
+    await expect.poll(() => overviewFigure(page, 'budget')).toBe('91,55 €');
+    await page.goto('/vermoegen/nettovermoegen');
+    await expect(page.getByTestId('nw-figure')).toContainText('116,23');
+    await page.goto('/konten');
     await fits(page);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     if (isMobile) return;
@@ -170,13 +188,23 @@ test('without a Verrechnungskonto the depot cash stays with the depot as a Cash 
   const { depot } = await seed(request, origin, false);
   await page.goto('/konten');
   await expect(overviewRow(page, 'Testdepot').getByTestId('account-value')).toHaveText('24,68 €');
-  await expect(page.getByTestId('depot-own-cash')).toContainText('−26,90 €');
+  await page.getByRole('button', { name: 'Details zu Testdepot', exact: true }).click();
+  await expect(
+    page
+      .locator('.overview-detail-facts > div')
+      .filter({
+        has: page.getByText('Zusätzliches Cash im Depot (in Gruppensumme)', { exact: true }),
+      })
+      .locator('dd'),
+  ).toContainText('−26,90 €');
   await expect(overviewRow(page, 'Testverrechnung').getByTestId('account-value')).toHaveText(
     '118,45 €',
   );
   // The Investments sum keeps the depot cash: 24,68 - 26,90 = -2,22.
-  await expect(overviewSum(page, 'investments')).toHaveText('−2,22 €');
-  await expect(page.getByTestId('net-worth')).toContainText('116,23');
+  await expect.poll(() => overviewFigure(page, 'investments')).toBe('−2,22 €');
+  await page.goto('/vermoegen/nettovermoegen');
+  await expect(page.getByTestId('nw-figure')).toContainText('116,23');
+  await page.goto('/konten');
   await fits(page);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   if (isMobile) return;
@@ -236,8 +264,9 @@ test('a partly unpriced depot shows ≈ in tree and overview like on its page, a
   await fits(page);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.goto('/konten');
-  await expect(overviewRow(page, 'Testdepot').getByTestId('account-value')).toHaveText('24,68 €');
-  const partialMarker = overviewRow(page, 'Testdepot').getByRole('button', {
+  await expect(overviewRow(page, 'Testdepot').getByTestId('account-value')).toHaveText('≈ 24,68 €');
+  await page.getByRole('button', { name: 'Details zu Testdepot', exact: true }).click();
+  const partialMarker = page.locator('.overview-detail').getByRole('button', {
     name: 'Bewertungsgrundlage · Testdepot',
     exact: true,
   });

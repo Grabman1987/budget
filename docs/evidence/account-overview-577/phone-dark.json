@@ -1,0 +1,63 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "coarse": true,
+  "scrollWidth": 390,
+  "rows": [
+    {
+      "id": "overview-alpha",
+      "top": 591.625,
+      "bottom": 644.625,
+      "height": 53
+    },
+    {
+      "id": "overview-bravo",
+      "top": 644.625,
+      "bottom": 697.625,
+      "height": 53
+    },
+    {
+      "id": "overview-reference",
+      "top": 697.625,
+      "bottom": 768.96875,
+      "height": 71.34375
+    },
+    {
+      "id": "overview-card",
+      "top": 869.96875,
+      "bottom": 922.96875,
+      "height": 53
+    },
+    {
+      "id": "overview-loan",
+      "top": 1023.96875,
+      "bottom": 1076.96875,
+      "height": 53
+    },
+    {
+      "id": "overview-manual",
+      "top": 1177.96875,
+      "bottom": 1249.3125,
+      "height": 71.34375
+    },
+    {
+      "id": "overview-depot",
+      "top": 1249.3125,
+      "bottom": 1302.3125,
+      "height": 53
+    },
+    {
+      "id": "overview-usd",
+      "top": 1302.3125,
+      "bottom": 1355.3125,
+      "height": 53
+    }
+  ],
+  "engine": "chromium",
+  "project": "mobile",
+  "profile": "configured",
+  "theme": "dark",
+  "transport": "real API reorder and Undo"
+}

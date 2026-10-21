@@ -65,7 +65,7 @@ test('Konten › Übersicht: reorder by buttons and drag, undo, persistence, sel
   const tag = `T${info.project.name}${info.retry}${info.repeatEachIndex}`;
   await seed(request, isolatedLedger.origin, tag);
   await page.goto('/konten');
-  await expect(page.getByTestId('net-worth')).toBeVisible();
+  await expect(page.getByTestId('budget-accounts-balance')).toBeVisible();
   expect(await tableOrder(page, tag)).toEqual(NAMES);
 
   await page.getByRole('button', { name: 'Reihenfolge ändern', exact: true }).click();
@@ -91,8 +91,11 @@ test('Konten › Übersicht: reorder by buttons and drag, undo, persistence, sel
 
   // Drag Alpha below Charlie by pointer: two rows down.
   const grip = page.getByRole('button', { name: new RegExp(`^Alpha ${tag} verschieben`) });
-  const rowHeight = (await rowOf(page, 'Bravo', tag).boundingBox())!.height;
-  await dragBy(page, grip, rowHeight * 2 + 4);
+  const sourceRow = (await rowOf(page, 'Alpha', tag).boundingBox())!;
+  const destinationRow = (await rowOf(page, 'Charlie', tag).boundingBox())!;
+  const distance =
+    destinationRow.y + destinationRow.height / 2 - (sourceRow.y + sourceRow.height / 2);
+  await dragBy(page, grip, distance + 4);
   await expect.poll(() => tableOrder(page, tag)).toEqual(['Bravo', 'Charlie', 'Alpha', 'Delta']);
   await expect(toast(page)).toContainText('Reihenfolge der Konten gespeichert.');
 

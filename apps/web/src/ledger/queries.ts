@@ -27,12 +27,18 @@ export const seriesQuery = (accountId: string, days: number) => {
 };
 
 /** `seriesQuery` of every live account in one request (the Konten table's sparklines). */
-export const seriesBatchQuery = (days: number) => {
-  const to = todayInVienna();
+export const seriesBatchQuery = (days: number, options?: { asOf?: string; quality?: true }) => {
+  const to = options?.asOf ?? todayInVienna();
   const from = addDays(to, -days);
   return queryOptions({
-    queryKey: [...LEDGER_KEY, 'series-batch', days, to],
-    queryFn: () => fetchSeriesBatch(from, to),
+    queryKey: [
+      ...LEDGER_KEY,
+      'series-batch',
+      days,
+      to,
+      ...(options?.quality ? ['quality-v1'] : []),
+    ],
+    queryFn: () => fetchSeriesBatch(from, to, options?.quality ? { quality: true } : undefined),
   });
 };
 
