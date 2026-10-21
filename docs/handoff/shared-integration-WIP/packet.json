@@ -1,0 +1,71 @@
+{
+  "state": "WIP / UNINTEGRATED shared source artifacts",
+  "sourceBranch": "codex/source-batch-integration-20261021",
+  "sourceHead": "5e0f4f1e0b5b9cfe788b00f78a02825c62667814",
+  "orderedCommits": [
+    {
+      "sha": "fa5936a790dbb721d70d8c8eb1f837613b6c0290",
+      "parentBase": "16614d41ca11d7065bcdbe6f72949bffd5471382",
+      "subject": "docs: distinguish document review from pending upload automation",
+      "paths": [
+        "docs/document-automation.md",
+        "docs/statement-intake.md"
+      ],
+      "scopeByPath": {
+        "docs/document-automation.md": "shared/multiple: inspect individual hunk; never whole batch",
+        "docs/statement-intake.md": "shared/multiple: inspect individual hunk; never whole batch"
+      },
+      "patchFile": "owned/fa5936a790dbb721d70d8c8eb1f837613b6c0290.patch",
+      "warning": "UNINTEGRATED individual source artifact; do not apply wholesale."
+    },
+    {
+      "sha": "0b9bbb658865239197de37ad98e06eededc25f12",
+      "parentBase": "e24864fa74a71adbce35ef50109faa44b3777db5",
+      "subject": "docs: preserve roadmap sections during goal anchor integration",
+      "paths": [
+        "docs/ROADMAP.md"
+      ],
+      "scopeByPath": {
+        "docs/ROADMAP.md": "shared/multiple: inspect individual hunk; never whole batch"
+      },
+      "patchFile": "owned/0b9bbb658865239197de37ad98e06eededc25f12.patch",
+      "warning": "UNINTEGRATED individual source artifact; do not apply wholesale."
+    },
+    {
+      "sha": "1543ddd98dd8ca714d0c45921d80dba453c178a7",
+      "parentBase": "221e607c8937d7e3cdcb318e3ca13a8b90b8914d",
+      "subject": "Remove empty statement from unpublished automation migration",
+      "paths": [
+        "packages/db/drizzle/0047_statement_automation.sql"
+      ],
+      "scopeByPath": {
+        "packages/db/drizzle/0047_statement_automation.sql": "#741"
+      },
+      "patchFile": "owned/1543ddd98dd8ca714d0c45921d80dba453c178a7.patch",
+      "warning": "UNINTEGRATED individual source artifact; do not apply wholesale."
+    },
+    {
+      "sha": "6097312929c84ea8bd827bc5895e6f4e85f87cf2",
+      "parentBase": "1543ddd98dd8ca714d0c45921d80dba453c178a7",
+      "subject": "Preserve route and query types across source integrations",
+      "paths": [
+        "apps/web/src/budget/plan-page.tsx",
+        "apps/web/src/reports/explorer-view-api.ts",
+        "apps/web/src/router.tsx"
+      ],
+      "scopeByPath": {
+        "apps/web/src/budget/plan-page.tsx": "#591/#593",
+        "apps/web/src/reports/explorer-view-api.ts": "#628",
+        "apps/web/src/router.tsx": "shared/multiple: inspect individual hunk; never whole batch"
+      },
+      "patchFile": "owned/6097312929c84ea8bd827bc5895e6f4e85f87cf2.patch",
+      "warning": "UNINTEGRATED individual source artifact; do not apply wholesale."
+    }
+  ],
+  "warnings": [
+    "No whole batch range exported.",
+    "Router portfolio hunk maps to544/546; Plan/Explorer query types map to591/593 and628.",
+    "Roadmap prefix restoration is historical context, not adopted requirements.",
+    "Root owns741 automation/migration cleanup; preserve original correction only."
+  ]
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "path": "docs/handoff/shared-integration-WIP/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/shared-integration-WIP/README.md",
+    "size": 316,
+    "sha256": "df4af182161e984a694e4a0dc072f4553e4e4722da86f46016739d95a84a221c"
+  },
+  {
+    "path": "docs/handoff/shared-integration-WIP/all-integration-fix-provenance.json",
+    "size": 11136,
+    "sha256": "3445b9ea3a9d63af776483a480ef5efaacbae2e2f0db317403cb0d3704b6c945"
+  },
+  {
+    "path": "docs/handoff/shared-integration-WIP/owned/0b9bbb658865239197de37ad98e06eededc25f12.patch",
+    "size": 6003,
+    "sha256": "2e245220bd50d75491fb7384d9e44283e7ab9d8a56f020c81daf496844895960"
+  },
+  {
+    "path": "docs/handoff/shared-integration-WIP/owned/1543ddd98dd8ca714d0c45921d80dba453c178a7.patch",
+    "size": 969,
+    "sha256": "94c0e8a88baedb16cbec193d65cd6ff9ada28eb2ad13552edfb95ba451ec1b05"
+  },
+  {
+    "path": "docs/handoff/shared-integration-WIP/owned/6097312929c84ea8bd827bc5895e6f4e85f87cf2.patch",
+    "size": 2856,
+    "sha256": "894ebf6c41a23a2092325f156a37f1dd6292baaf0867ace65ca19e6cba1af673"
+  },
+  {
+    "path": "docs/handoff/shared-integration-WIP/owned/fa5936a790dbb721d70d8c8eb1f837613b6c0290.patch",
+    "size": 7343,
+    "sha256": "5e2d26d6634f822dd88e89dd0b1086a1ca62f2d2214a84ecc005ef51f005e9a5"
+  },
+  {
+    "path": "docs/handoff/shared-integration-WIP/packet.json",
+    "size": 3122,
+    "sha256": "fa175eaaa064f98517f0c68d0b8b81d5daaaf60c35316017fb26e56a1403e470"
+  }
+]

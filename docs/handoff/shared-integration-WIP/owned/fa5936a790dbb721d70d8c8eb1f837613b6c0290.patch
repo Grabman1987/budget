@@ -1,0 +1,124 @@
+diff --git a/docs/document-automation.md b/docs/document-automation.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..3a032f0a16c029407395305648bd29e7d1168aa5
+--- /dev/null
++++ b/docs/document-automation.md
+@@ -0,0 +1,71 @@
++# Deterministic document automation (#741)
++
++Implementation status: the card and payroll source changes are locally
++checkpointed and independently source-reviewed. Batch tests, migration and
++rollback execution, browser checks, CI and publication remain pending. This page
++describes the implemented contract, not verified production readiness.
++
++## Upload and configuration
++
++An explicit manual PDF upload can request automatic processing. Extraction and
++eligibility use deterministic scripts; no AI or external OCR service is called.
++The retained original remains the source of evidence. Legacy callers that omit
++the automation request and scheduled source scans retain manual review.
++
++For cards, first upload a statement and explicitly map the recognized card to
++the selected account. Configure the counterpart, existing category rules and
++the intended scheduled payment, or explicitly choose no scheduled payment.
++An unset choice is distinct from choosing none. A masked hint never silently
++selects another account. New transactions require an unambiguous category rule;
++unknown categories are not guessed.
++
++For payroll, configure the salary account and employer/sender in the existing
++payslip settings. Automatic saving requires recognized wage sections, reconciled
++integer-cent totals and a supported payout date from the document or an eligible
++existing expectation. Unknown wage codes or conflicting records remain for
++review. Existing manually corrected payslips are not overwritten.
++
++## Financial outcomes
++
++- A supported, fully reconciled card statement can create eligible new purchase
++  bookings or link uniquely matching existing bookings. Same date and amount
++  alone do not prove a match. Ambiguous candidates remain under **Prüfen**.
++- Existing gross fuel purchases remain unchanged. A separately evidenced rebate
++  is a separate credit; a new purchase already entered at its discounted net
++  charge receives no second rebate.
++- Card settlement uses the issued statement's payable amount and explicit debit
++  date, never today's card balance. Consumer-card reconciliation requires the
++  corresponding previous source; supported company invoices have their own
++  subtotal, tax and total reconciliation. Missing source evidence remains
++  unresolved rather than becoming a balance correction.
++- A valid payroll document creates or links its exact payout through the existing
++  audited writer. Bank-account bookings remain pending until bank confirmation;
++  recording a document does not prove that the payment happened.
++- Results distinguish created records, existing links and unresolved portions.
++  Original documents and actual booking links remain available. No bank order,
++  message or external payment is sent.
++
++## Repeated uploads and corrections
++
++Source bytes, account configuration, captured revisions and current candidate
++records are checked again before financial writes. A repeated upload returns the
++existing result; it does not post the same money twice. Changed bytes for an
++existing source identity require review. Undo retains import history so that a
++retry does not silently recreate an undone financial action.
++
++Financial changes share an audit group and use the existing group Undo. Document
++review actions have their own document groups. Receipt links that support an
++active automatic result cannot be detached separately; undo the complete result
++first. Existing settlement and financial invariants continue to apply.
++
++## Storage and evidence boundaries
++
++The application's receipt store holds the authoritative original used for
++download and backup. Dropbox copies are an external archive and do not establish
++application links or reconciliation by themselves. These changes do not add a
++Gmail watcher or Dropbox synchronization service.
++
++The private extraction CLI remains read-only: it produces a proposal JSON and
++never posts financial records. See [statement intake](statement-intake.md) for
++storage, private extraction and backup details. The earlier summary-parser
++checks in that document do not validate the new transaction-row automation.
+diff --git a/docs/statement-intake.md b/docs/statement-intake.md
+index 95a2aabd4da2dc6b9bd064537161d4ae966ca90f..4da65f53d60d8e4209fe1ecba98364354e729573 100644
+--- a/docs/statement-intake.md
++++ b/docs/statement-intake.md
+@@ -1,9 +1,12 @@
+ # Statement PDF intake
+ 
+-Statement intake stores and reviews document facts for the selected account. It
+-does not create a booking, payment, statement obligation, forecast or bank order.
+-Financial settlement is a separate feature. A reviewed statement does not mean
+-that its amount was paid or reconciled.
++Statement intake retains original documents and reviews their facts for the
++selected account. Manual document actions do not post money. The explicit
++upload automation implemented for #741 can also save validated bookings and
++link existing records after configuration; see [document automation](document-automation.md).
++That implementation is awaiting batch validation and publication. A reviewed
++statement does not mean that its amount was paid or reconciled; no path sends a
++bank payment order.
+ 
+ ## Upload and review
+ 
+@@ -22,8 +25,10 @@ borrowed from payroll settings.
+ Inspect the proposed reference, dates, period, amount and explicit currency
+ against the original. Printed facts and owner-entered corrections have distinct
+ provenance. The current extractor supplies flattened line references where
+-available; page numbers remain unavailable. It does not import individual
+-purchases, calculate a missing payable total, or convert currencies. Supported
++available; page numbers remain unavailable. This summary proposal does not import
++individual purchases, calculate a missing payable total, or convert currencies.
++The separate #741 automation evaluates supported transaction rows and their
++reconciliation evidence. Supported
+ labels/layouts are limited; an unreadable, scanned, password-blocked or ambiguous
+ document remains retained for manual review. Parser success is not a guarantee
+ that a particular issuer's layout is supported.
+@@ -37,8 +42,10 @@ credit requiring manual settlement. Existing invoice sign handling is unchanged.
+ Currency requires an explicit supported final-amount column in the transaction
+ heading; foreign purchase currencies never supply the statement currency.
+ Reference and period remain blank when not independently identified. This layout
+-does not provide automatic complete review: supply a real document identity or
+-full period before reviewing. Reanalysis of an already retained document is
++alone does not provide complete manual review: supply a real document identity or
++full period before reviewing. The #741 machine path has separate source-identity
++and reconciliation requirements; it never invents a missing reference.
++Reanalysis of an already retained document is
+ explicit and follows the existing pending/reopen and conflict guards.
+ 
+ **Einzugsdatum** must be explicit. An issue date, **Bankeinzug** or **0 Tage netto**

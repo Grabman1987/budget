@@ -1,0 +1,54 @@
+diff --git a/apps/web/src/budget/plan-page.tsx b/apps/web/src/budget/plan-page.tsx
+index fa930be56c0dbfeb1a55686c23e8aea0cb7bc566..1306fb866ac00d81b5376905eedfe496f046b570 100644
+--- a/apps/web/src/budget/plan-page.tsx
++++ b/apps/web/src/budget/plan-page.tsx
+@@ -230,7 +230,7 @@ function PlanBody({
+     void navigate({
+       to: '/plan/monat',
+       resetScroll: false,
+-      search: (previous) => ({
++      search: (previous: Record<string, unknown>) => ({
+         ...previous,
+         ansicht: undefined,
+         filter: next === 'all' ? undefined : next,
+diff --git a/apps/web/src/reports/explorer-view-api.ts b/apps/web/src/reports/explorer-view-api.ts
+index 5fd1706f5f1181c2160851f6e8b9dcad5c006a1c..59d142a2100e80911f1c4d93975c3fcfec3428e9 100644
+--- a/apps/web/src/reports/explorer-view-api.ts
++++ b/apps/web/src/reports/explorer-view-api.ts
+@@ -4,16 +4,16 @@ import { request } from '../api/http';
+ import { EXPLORER_VIEWS_KEY } from './explorer-views';
+ 
+ export const SAVED_EXPLORER_KEY = ['explorer-saved-views'] as const;
+-export const savedExplorerViewsQuery = () =>
+-  queryOptions({
+-    queryKey: SAVED_EXPLORER_KEY,
+-    retry: false,
+-    queryFn: () => request<ExplorerViewsState>('GET', '/api/reports/saved-queries'),
+-  });
++const savedExplorerViewsOptions = () => ({
++  queryKey: SAVED_EXPLORER_KEY,
++  retry: false,
++  queryFn: () => request<ExplorerViewsState>('GET', '/api/reports/saved-queries'),
++});
++export const savedExplorerViewsQuery = () => queryOptions(savedExplorerViewsOptions());
+ /** A separate per-entry read prevents an earlier hub/editor cache from selecting an old query. */
+ export const savedExplorerEntryQuery = (id: string | undefined, entryKey: string) =>
+   queryOptions({
+-    ...savedExplorerViewsQuery(),
++    ...savedExplorerViewsOptions(),
+     queryKey: [...SAVED_EXPLORER_KEY, 'entry', id, entryKey],
+     enabled: Boolean(id),
+     gcTime: 0,
+diff --git a/apps/web/src/router.tsx b/apps/web/src/router.tsx
+index 976be3d6bb3658c5e883ebbbdc9ea2f394f8eae7..a3dfb1de456aa3264e458e99c69b53b931608d79 100644
+--- a/apps/web/src/router.tsx
++++ b/apps/web/src/router.tsx
+@@ -460,7 +460,7 @@ const portfolioRegisterSearch = (search: Record<string, unknown>) => ({
+         ? search['handel']
+         : undefined,
+   });
+-const portfolioLegacyRedirect = ({ search, location }: { search: ReturnType<typeof portfolioRegisterSearch> & { zeitraum?: Period }; location: { pathname: string } }) => {
++const portfolioLegacyRedirect = ({ search, location }: { search: ReturnType<typeof portfolioRegisterSearch> & { zeitraum?: Period | undefined }; location: { pathname: string } }) => {
+     if (search.sparplan === 'neu' && location.pathname !== '/vermoegen/portfolio/sparplaene')
+       throw redirect({ to: '/vermoegen/portfolio/sparplaene', search });
+     if (search.sparplan && search.sparplan !== 'neu')

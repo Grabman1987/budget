@@ -1,0 +1,12 @@
+diff --git a/packages/db/drizzle/0047_statement_automation.sql b/packages/db/drizzle/0047_statement_automation.sql
+index 15fd7d550c6522c5e997a0e8b93efd5a929ae62c..46cf34957d1290752d661e219c02c2df22e4c238 100644
+--- a/packages/db/drizzle/0047_statement_automation.sql
++++ b/packages/db/drizzle/0047_statement_automation.sql
+@@ -44,7 +44,6 @@ CREATE UNIQUE INDEX `statement_settlement_transfer_uq` ON `statement_settlement`
+ --> statement-breakpoint
+ CREATE UNIQUE INDEX `statement_settlement_legacy_uq` ON `statement_settlement` (`legacy_payment_id`,`legacy_due_date`) WHERE `deleted_at` IS NULL AND `state` NOT IN ('withdrawn','superseded');
+ --> statement-breakpoint
+---> statement-breakpoint
+ CREATE UNIQUE INDEX statement_settlement_issued_identity_uq ON statement_settlement(card_account_id,issue_date) WHERE reference IS NULL AND deleted_at IS NULL AND state NOT IN ('withdrawn','superseded');
+ --> statement-breakpoint
+ CREATE TABLE statement_automation_config (
