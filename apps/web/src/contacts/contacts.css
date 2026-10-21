@@ -62,7 +62,8 @@
   padding: 8px;
   border-bottom: 1px solid var(--rule);
 }
-.contacts-table .num {
+.contacts-table .num,
+.contact-movements .contact-open-amount {
   text-align: right;
   white-space: nowrap;
 }
@@ -193,4 +194,111 @@
 .contacts-actions-cell {
   width: var(--touch);
   text-align: right;
+}
+
+.contact-statement-section {
+  min-width: 0;
+}
+.contact-section-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+}
+.contact-section-tools [role='status'],
+.contact-movement-meta {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
+}
+.contact-source {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  width: 100%;
+  min-height: 34px;
+  padding-block: 4px;
+  text-align: left;
+  color: var(--ink);
+  font-size: var(--fs-table);
+  line-height: var(--lh-table);
+}
+.contact-source > span:first-child {
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
+}
+.contact-source:hover > span:first-child {
+  text-decoration-color: currentColor;
+}
+.contact-movement-meta {
+  white-space: nowrap;
+}
+.contact-movements th:not(:first-child) {
+  text-align: right;
+}
+.contact-movements .num,
+.contact-movements .contact-open-amount {
+  width: 1%;
+  vertical-align: top;
+  padding-top: 16px;
+}
+.contact-allocation-details summary {
+  display: list-item;
+  min-height: 24px;
+  padding-block: 2px;
+  width: fit-content;
+  cursor: pointer;
+  font-size: var(--fs-meta);
+}
+.contact-allocation-details p {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+  overflow-wrap: anywhere;
+}
+.contact-copy-fallback {
+  display: grid;
+  gap: 4px;
+}
+.contact-copy-fallback textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  font: inherit;
+}
+.contact-source-status {
+  display: grid;
+  gap: 8px;
+}
+@media (max-width: 767px) {
+  .contact-source {
+    display: block;
+    min-height: var(--touch);
+  }
+  .contact-source > span {
+    display: block;
+  }
+  .contact-movement-meta {
+    white-space: normal;
+  }
+  .contact-allocation-details summary {
+    min-height: var(--touch);
+    padding-block: 10px;
+  }
+  .contacts-statement .contact-movements td:last-child {
+    font-size: var(--fs-table);
+  }
+}
+@media (pointer: coarse) {
+  .contact-source,
+  .contact-allocation-details summary {
+    min-height: var(--touch);
+  }
 }

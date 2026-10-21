@@ -1782,6 +1782,16 @@ Unknown reference/period remain manual; the next-notice date is never used as
 identity, period or debit-date fallback. Existing retained documents require
 explicit reanalysis/review. Upload and reanalysis never post money.
 
+## #738 – Contacts: compact statement, copying and source bookings
+
+- [x] Compact source-linked tables retain the existing current-month, older-open, remaining-history and closed-history sections and balances.
+- [x] Section-scoped plain text includes its period, signed movements, open amounts and explicitly overall balance; privacy and manual copy fallback apply. No messages are sent.
+- [x] A fresh booking GET precedes the existing editor. Synthetic gift correction preserves the bank payment and unrelated split, with real Save/Undo. Allocation/write-off guards remain; the exact known repayment guard has a German explanation.
+- [x] Focused UI/API/security regressions and static checks passed. Final canonical WebKit 8/8: four NEW profile/theme cases, the unchanged #598 signed-movement case and three setup cases; no retries or skips.
+- [x] [Four unchanged synthetic browser originals and evidence limits](evidence/contact-statement-738/README.md). No existing test file changed.
+- [x] Required AGE-enabled full check on clean source checkpoint `7169a0cba7ec70d0d25d8ed2bf24666d3142c5ee`: 584 files / 5,192 tests passed in 500.20s Vitest time with two workers; workspace static checks and normal production build passed. All 3,636 source hashes/full modes, HEAD and index stayed exact. Later ordinary Main inheritance and final-head CI are separate gates; the earlier owner-batching cancellation is retained.
+- [ ] Exact-head CI, serial integration and verified LIVE; no queue-completion claim.
+
 
 ## #589 — URL-backed Plan filters: isolated acceptance packet
 
