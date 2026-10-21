@@ -316,6 +316,20 @@
       "when": 1792414491231,
       "tag": "0044_receipt_delivery",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "6",
+      "when": 1792490000000,
+      "tag": "0045_statement_intake",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "6",
+      "when": 1792500000000,
+      "tag": "0046_statement_settlement",
+      "breakpoints": true
     }
   ]
 }

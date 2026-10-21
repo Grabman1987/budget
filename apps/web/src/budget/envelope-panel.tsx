@@ -8,6 +8,7 @@ import {
   Select,
 } from '@budget/ui';
 import { cents, formatDecimal, parseAmount } from '@budget/domain';
+import { ChevronDown } from 'lucide-react';
 import { AppLink } from '../shell/app-link';
 import { useState } from 'react';
 import { eur } from '../ledger/format';
@@ -79,6 +80,7 @@ export function EnvelopeBody({
   tba,
   onDone,
   quickValues = false,
+  compact = false,
 }: {
   month: string;
   row: PlanRow;
@@ -86,6 +88,7 @@ export function EnvelopeBody({
   tba: number;
   onDone: () => void;
   quickValues?: boolean;
+  compact?: boolean;
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
@@ -165,41 +168,8 @@ export function EnvelopeBody({
     );
   };
 
-  return (
-    <div className="kform">
-      <h3 className="panel-h">Zuweisen</h3>
-      <AmountInput
-        label="Zugewiesen"
-        value={amount}
-        onChange={(v) => {
-          setAmount(v);
-          setError(undefined);
-        }}
-        error={error}
-      />
-      <div className="panel-actions">
-        <Button onClick={save}>Übernehmen</Button>
-        {fill > 0 && (
-          <Button
-            variant="ghost"
-            onClick={() =>
-              void run(
-                () => assign(month, [{ categoryId: r.id, assignedCents: r.assignedCents + fill }]),
-                `${r.name}: Ziel mit ${eur(fill)} gefüllt`,
-              )
-            }
-          >
-            Ziel füllen · {eur(fill)}
-          </Button>
-        )}
-      </div>
-
-      {quickValues && (
-        <QuickAssignActions month={month} emptyIds={[]} selectedIds={[r.id]} inline />
-      )}
-      <h3 className="panel-h">
-        {r.overspentCents > 0 ? 'Decken oder verschieben' : 'Geld verschieben'}
-      </h3>
+  const moveFields = (
+    <>
       <Segmented
         label="Richtung"
         stretch
@@ -284,6 +254,60 @@ export function EnvelopeBody({
           onCover={() => void cover(true)}
           onCancel={() => setChoosing(false)}
         />
+      )}
+    </>
+  );
+
+  return (
+    <div className="kform">
+      <h3 className="panel-h">Zuweisen</h3>
+      <AmountInput
+        label="Zugewiesen"
+        value={amount}
+        onChange={(v) => {
+          setAmount(v);
+          setError(undefined);
+        }}
+        error={error}
+      />
+      <div className="panel-actions">
+        <Button onClick={save}>Übernehmen</Button>
+        {fill > 0 && (
+          <Button
+            variant="ghost"
+            onClick={() =>
+              void run(
+                () => assign(month, [{ categoryId: r.id, assignedCents: r.assignedCents + fill }]),
+                `${r.name}: Ziel mit ${eur(fill)} gefüllt`,
+              )
+            }
+          >
+            Ziel füllen · {eur(fill)}
+          </Button>
+        )}
+      </div>
+
+      {quickValues && (
+        <QuickAssignActions month={month} emptyIds={[]} selectedIds={[r.id]} inline />
+      )}
+      {!compact && (
+        <h3 className="panel-h">
+          {r.overspentCents > 0 ? 'Decken oder verschieben' : 'Geld verschieben'}
+        </h3>
+      )}
+      {compact ? (
+        <details
+          className="inspector-move"
+          open={r.overspentCents > 0 || Boolean(moveError) || choosing || undefined}
+        >
+          <summary>
+            <ChevronDown className="insp-chev" size={16} strokeWidth={1.75} aria-hidden="true" />
+            {r.overspentCents > 0 ? 'Decken oder verschieben' : 'Geld verschieben'}
+          </summary>
+          {moveFields}
+        </details>
+      ) : (
+        moveFields
       )}
     </div>
   );

@@ -9,6 +9,7 @@ const page = z.object({
   offset: z.coerce.number().int().min(0).optional(),
   period: z.enum(['all', 'current', 'historical']).default('all'),
   bankSource: z.string().uuid().optional(),
+  bankAccountId: z.string().uuid().optional(),
   dateSort: z.enum(['newest', 'oldest']).optional(),
   fromDate: z.iso.date().optional(),
   readSource: z.string().min(1).max(100).optional(),
@@ -21,10 +22,21 @@ const page = z.object({
 export function inboxRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   app.get('/', (c) => {
-    const { limit, offset, period, bankSource, dateSort, fromDate, readSource, title, segment } =
-      readQuery(c, page);
+    const {
+      limit,
+      offset,
+      period,
+      bankSource,
+      bankAccountId,
+      dateSort,
+      fromDate,
+      readSource,
+      title,
+      segment,
+    } = readQuery(c, page);
     const inbox = readInbox(db, today(), bankSource, readSource, {
       excludeOverspent: segment !== undefined,
+      ...(bankAccountId ? { bankAccountId } : {}),
     });
     // Unlinked receipts count as tasks but are not entries; the header pill is the sum of both parts.
     const segments = { umsaetze: 0, aufgaben: inbox.count - inbox.entries.length };

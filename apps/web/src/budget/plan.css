@@ -2690,3 +2690,231 @@
     min-height: 44px;
   }
 }
+
+@media (min-width: 768px) {
+  .plan .pmulti-scroll:has(> .ptable-zero) {
+    padding-inline-end: 4px;
+  }
+}
+
+/* Activity is a read-only disclosure; the existing category writers stay in the inspector. */
+.plan .activity-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 24px;
+  min-width: 44px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.plan .inspector-move > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 620;
+}
+.plan .activity-terms {
+  padding: 0;
+  list-style: none;
+}
+.plan .activity-term {
+  border-top: 1px solid var(--card-border);
+  padding-block: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.plan .activity-term .btn {
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+  justify-self: start;
+}
+.plan .activity-term p {
+  margin: 0;
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .plan .activity-link {
+    min-height: 44px;
+  }
+}
+
+.plan .inspector-activity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.plan .activity-term > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.plan .activity-term .btn {
+  max-width: 100%;
+  text-align: left;
+}
+
+/* Shareable category filters (#589); the existing budget figures and actions stay authoritative. */
+.plan-filterbar {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+.plan-category-search {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+.plan-category-search .input {
+  width: 100%;
+  min-width: 0;
+}
+.plan-filter-segments {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.plan-filter-segments button {
+  min-width: 44px;
+  padding-inline: 6px;
+  font-size: var(--fs-meta);
+}
+.plan-filter-segments .has-overspending:not([aria-pressed='true']) {
+  color: var(--red);
+}
+.plan-filter-segments .has-overspending[aria-pressed='true'] {
+  background: var(--red);
+  color: var(--on-red);
+}
+.plan-filter-cover,
+.plan-filter-empty {
+  padding: 12px;
+}
+.plan .plan-filterbar .plan-menu-panel {
+  left: auto;
+  right: 0;
+}
+@media (max-width: 767px), (pointer: coarse) {
+  .plan-filterbar .input,
+  .plan-filterbar button,
+  .plan-filterbar summary {
+    min-height: 44px;
+  }
+}
+@media (max-width: 767px) {
+  .plan-category-search {
+    flex-basis: calc(100% - 120px);
+  }
+  .plan-filter-segments {
+    order: 1;
+    flex-basis: 100%;
+    justify-content: flex-start;
+    overflow: visible;
+  }
+  .plan-filter-segments button {
+    white-space: normal;
+  }
+}
+
+.plan-filter-scope {
+  margin: 0;
+  padding: 0 12px 8px;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.plan-uncategorized {
+  padding: 12px;
+}
+.plan-uncategorized table {
+  width: 100%;
+  table-layout: fixed;
+}
+.plan-uncategorized th,
+.plan-uncategorized td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+}
+.plan-uncategorized th:last-child,
+.plan-uncategorized td:last-child {
+  width: 40%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.plan-uncategorized a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  overflow-wrap: anywhere;
+}
+.plan-uncategorized small {
+  display: block;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+@media (min-width: 1180px) {
+  .plan-filterbar {
+    flex-wrap: nowrap;
+  }
+  .plan-filter-segments {
+    flex-wrap: nowrap;
+  }
+  .plan-filter-segments button {
+    white-space: nowrap;
+  }
+}
+@media (max-width: 767px) {
+  .plan .plan-filterbar .plan-menu-panel {
+    left: 12px;
+    right: 12px;
+  }
+}
+
+/* Fine-pointer desktop retains the original compact worksheet budget with the added filters.
+   The financial rail can scroll horizontally instead of growing another line; its popovers
+   remain outside the scroll container. Phone/coarse controls retain their 44px rules. */
+@media (min-width: 1180px) and (pointer: fine) {
+  .plan-month .plan-main {
+    gap: 4px;
+  }
+  .plan-month .plan-topbar {
+    padding-block: 0;
+  }
+  .plan-month .plan-chip-scroll {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .plan-month .plan-chip-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .plan-month .plan-chip-scroll > * {
+    flex-shrink: 0;
+  }
+  :where(.plan-month) .plan-filterbar {
+    padding-block: 0;
+  }
+  :where(.plan-month) .plan-category-search .input {
+    height: 32px;
+    min-height: 32px;
+  }
+  :where(.plan-month) .plan-filter-segments {
+    padding: 1px;
+  }
+  .plan-month .ptoolbar {
+    min-height: 32px;
+    padding-block: 0;
+  }
+  .plan-month .ptoolbar .btn {
+    height: 28px;
+    min-height: 28px;
+  }
+}

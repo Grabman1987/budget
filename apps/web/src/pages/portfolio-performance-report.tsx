@@ -1,6 +1,12 @@
 import { ReportPeriodControl } from '../reports/period-quick-select';
 import { Term } from '../reports/term';
-import type { ReactNode } from 'react';
+import {
+  HistoricalBasisCue,
+  historicalBasisReasons,
+  PortfolioCalculationDisclosure,
+} from '../reports/portfolio-calculation-disclosure-512';
+import type { ValuationNote } from '../ledger/valuation-hint';
+import { useId, type ReactNode } from 'react';
 import { useAmountPrivacy, DimensionChain, Button } from '@budget/ui';
 import { cents, type Period } from '@budget/domain';
 import type { PortfolioSummary } from '@budget/db';
@@ -115,6 +121,7 @@ export function PortfolioPerformanceReport({
         {!query.isError && query.data && (
           <PerformanceBody
             summary={query.data.portfolio}
+            incomplete={query.data.incomplete}
             onOpenPortfolio={() =>
               void navigate({
                 to: '/vermoegen/portfolio',
@@ -153,13 +160,18 @@ function PeriodControl({
 
 function PerformanceBody({
   summary,
+  incomplete,
   onOpenPortfolio,
 }: {
   summary: PortfolioSummary;
+  incomplete?: ValuationNote[] | undefined;
   onOpenPortfolio: () => void;
 }) {
   useAmountPrivacy();
   const performance = summary.performance;
+  const basisId = useId();
+  const sourceId = useId();
+  const basisReasons = historicalBasisReasons(summary);
 
   return (
     <>
@@ -181,8 +193,14 @@ function PerformanceBody({
                 <Term>TTWROR</Term> im Zeitraum · {performance.days} Tage · {performance.monthCount}{' '}
                 bewertete Monate
               </span>
-              <strong data-testid="period-ttwror">{percent(performance.ttwror)}</strong>
+              <strong
+                data-testid="period-ttwror"
+                aria-describedby={basisReasons.length ? basisId : undefined}
+              >
+                {percent(performance.ttwror)}
+              </strong>
             </div>
+            <HistoricalBasisCue reasons={basisReasons} id={basisId} sourceId={sourceId} />
             <p className="vnote">
               TTWROR und XIRR nach Portfolio Performance: Wertpapiere ohne Depotkassa, nach Gebühren
               und vor Steuern. TTWROR zählt Zuflüsse am Tagesanfang und Abflüsse am Tagesende.
@@ -228,6 +246,11 @@ function PerformanceBody({
             angenommen.
           </p>
         )}
+        <PortfolioCalculationDisclosure
+          summary={summary}
+          incomplete={incomplete}
+          sourceId={sourceId}
+        />
       </section>
       <PerformanceComparisons summary={summary} />
       <section className="performance-realized" aria-labelledby="realized-gain-title">

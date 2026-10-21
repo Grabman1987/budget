@@ -64,6 +64,7 @@ import { memoizedShared } from './request-memo';
 import { budgetLedger, budgetOfLedger } from './queries';
 import type { Executor } from './types';
 import { freedomExpenses } from './freedom-inputs';
+import { statementForecastLegs, statementLegacyKeys } from './statement-settlement-read';
 
 /**
  * `ruleInputs` is the single place that assembles what the rules read (SPEC §4): the budget
@@ -363,9 +364,11 @@ export function scheduled(
   }[] = [];
   const cats = catById(f);
   const accounts = new Map(f.accounts.map((a) => [a.id, a]));
+  const replaced = statementLegacyKeys(f.db);
   for (const p of f.payments) {
     const versions = f.versions.get(p.id) ?? [];
     for (const occ of occurrences(schedulePayment(p), versions.map(scheduleVersion), from, to)) {
+      if (replaced.has(p.id + '|' + occ.dueDate)) continue;
       if (!isPlannedOccurrence(f, p.id, occ.dueDate, options)) continue;
       const v = versionOn(versions, occ.dueDate);
       const pause = options.applyIncomePauses
@@ -456,6 +459,17 @@ export function forecastInputs(
   );
   const to = addDays(asOf, 365);
   const items: ForecastItem[] = [
+    ...statementForecastLegs(
+      f.db,
+      addDays(asOf, 1),
+      to,
+      new Set(budgetAccounts.map((a) => a.id)),
+    ).map((l) => ({
+      day: l.day,
+      cents: l.cents,
+      kind: 'event' as const,
+      label: l.kind === 'settlement' ? 'Abrechnungsausgleich' : 'Ausgabengutschrift',
+    })),
     ...scheduled(f, addDays(asOf, 1), to, asOf, { applyIncomePauses: true })
       .filter((o) => o.onBudget)
       .map((o) => ({

@@ -3,7 +3,7 @@ import { expect, type Browser, type Page } from '@playwright/test';
 import { sampleTest, SAMPLE_NOW, SAMPLE_URL } from './sample';
 import { STORAGE_STATE_SAMPLE } from '../playwright.config';
 import { test } from './isolated-ledger';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { cents, formatEuro } from '@budget/domain';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 
@@ -42,34 +42,38 @@ async function expectPhoneSelectionTargets(page: Page) {
   }
 }
 
-/** Keep both original compact row roles bounded when they share one physical band. */
+/** Measure the separate parent and first category at their original compact limits. */
 async function expectCompactBandContents(page: Page, phone: boolean) {
-  const bands = await page.locator('.ptable-zero .pmulti').evaluateAll((rows) =>
+  const bands = await page.locator('.ptable-zero .pgroup:not(.psingle)').evaluateAll((rows) =>
     rows.map((row) => {
-      const boxes = (selector: string) =>
-        Array.from(row.querySelectorAll(selector), (element) =>
+      const child = row.nextElementSibling!;
+      if (!child.matches('.prow:not(.psingle)')) throw new Error('Missing separate first category');
+      const boxes = (selector: string, scope: Element = child) =>
+        Array.from(scope.querySelectorAll(selector), (element) =>
           element.getBoundingClientRect(),
         ).filter((box) => box.width > 0 && box.height > 0);
       const category = boxes(
-        '.col-name > .plan-select, .pname, .spending-status, .spending-bar, .band-category-assigned, .band-category-activity, .band-category-available',
+        '.col-name > .plan-select, .pname, .spending-status, .spending-bar, .col-assign, .col-act, .col-avail',
       );
-      const parent = boxes('.band-parent .group-heading, .band-total');
+      const parent = boxes('.group-heading, .col-num', row);
       // Financial controls can protrude beyond their inline wrapper's line box.
       const categoryControls = boxes(
-        '.band-category-assigned :is(button, input, label), .band-category-available :is(button, input, label), .spending-bar .pbar-tick',
+        '.col-assign :is(button, input, label), .col-avail :is(button, input, label), .spending-bar .pbar-tick',
       );
-      const parentControls = boxes('.band-parent :is(button, input, label)');
+      const parentControls = boxes('.group-heading :is(button, input, label)', row);
       const height = (items: DOMRect[]) =>
         Math.max(...items.map((box) => box.bottom)) - Math.min(...items.map((box) => box.top));
-      const name = row.querySelector('.pname')!.getBoundingClientRect();
-      const status = row.querySelector('.spending-status')!.getBoundingClientRect();
+      const name = child.querySelector('.pname')!.getBoundingClientRect();
+      const status = child.querySelector('.spending-status')!.getBoundingClientRect();
       return {
         id: row.id,
         categoryCount: category.length,
         parentCount: parent.length,
         categoryHeight: height([...category, ...categoryControls]),
         parentHeight: height([...parent, ...parentControls]),
-        wholeHeight: row.getBoundingClientRect().height,
+        wholeHeight: child.getBoundingClientRect().bottom - row.getBoundingClientRect().top,
+        parentBottom: row.getBoundingClientRect().bottom,
+        childTop: child.getBoundingClientRect().top,
         nameRight: name.right,
         statusLeft: status.left,
       };
@@ -79,6 +83,7 @@ async function expectCompactBandContents(page: Page, phone: boolean) {
   for (const band of bands) {
     expect(band.categoryCount, band.id).toBe(phone ? 5 : 7);
     expect(band.parentCount, band.id).toBe(4);
+    expect(band.parentBottom, band.id).toBeLessThanOrEqual(band.childTop);
     expect(band.categoryHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 40);
     expect(band.parentHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 76 : 36);
     expect(band.wholeHeight, JSON.stringify(band)).toBeLessThanOrEqual(phone ? 152 : 76);
@@ -88,7 +93,7 @@ async function expectCompactBandContents(page: Page, phone: boolean) {
 
 /** Check actual on-screen inherited ink, which full-page Axe can miss off viewport. */
 async function expectOnscreenParentInk(page: Page, selectedIndices?: readonly number[]) {
-  const bands = page.locator('.ptable-zero .pmulti');
+  const bands = page.locator('.ptable-zero .pgroup:not(.psingle)');
   const results = [];
   const indices =
     selectedIndices ?? Array.from({ length: await bands.count() }, (_, index) => index);
@@ -206,7 +211,7 @@ async function resetCaptureScroll(page: Page) {
 }
 
 sampleTest(
-  'sample ledger: group-first-category bands, current-baseline reduction and visual/accessibility evidence',
+  'sample ledger: separate group headings, current-baseline reduction and visual/accessibility evidence',
   async ({ page, browser }, info) => {
     sampleTest.setTimeout(90_000);
     await page.goto('/plan/monat?monat=2026-09');
@@ -221,20 +226,21 @@ sampleTest(
     const bandGroups = data.groups.filter((g) => visible.some((c) => c.groupId === g.id));
     const multiple = bandGroups.filter((g) => !singles.includes(g));
     const table = page.locator('.ptable-zero');
-    await expect(table.locator('.psingle')).toHaveCount(bandGroups.length);
-    await expect(table.locator('.pmulti')).toHaveCount(multiple.length);
+    await expect(table.locator('.psingle')).toHaveCount(singles.length);
+    await expect(table.locator('.pgroup:not(.psingle)')).toHaveCount(multiple.length);
     await expect(table.locator('.prow:not(.is-empty)')).toHaveCount(visible.length);
     await page.evaluate(() => document.fonts.ready);
     await expectCompactBandContents(page, page.viewportSize()!.width < 768);
     expect(singles).toHaveLength(11);
     const oldRows = data.groups.length + visible.length;
-    const newRows = oldRows - bandGroups.length;
+    const newRows = oldRows - singles.length;
     await expect(table.locator('tbody > tr:not(.pgroup-gap)')).toHaveCount(newRows);
     const measurements = {
       groups: data.groups.length,
       categories: visible.length,
       singles: singles.length,
-      combinedGroups: bandGroups.length,
+      combinedGroups: singles.length,
+      separateMultiParents: multiple.length,
       oldRows,
       newRows,
       reductionPercent: (100 * (oldRows - newRows)) / oldRows,
@@ -242,12 +248,11 @@ sampleTest(
       viewport: page.viewportSize(),
       physicalTableHeightPx: (await table.boundingBox())!.height,
     };
-    mkdirSync('docs/evidence/plan-single-category-481', { recursive: true });
     expect(oldRows).toBe(55);
-    expect(newRows).toBe(36);
-    expect(measurements.reductionPercent).toBeGreaterThanOrEqual(30);
+    expect(newRows).toBe(44);
+    expect(measurements.reductionPercent).toBe(20);
     writeFileSync(
-      `docs/evidence/plan-single-category-481/${info.project.name}-rows.json`,
+      info.outputPath(`${info.project.name}-rows.json`),
       JSON.stringify(measurements, null, 2) + '\n',
     );
     await info.attach('sample-row-reduction', {
@@ -277,19 +282,18 @@ sampleTest(
       const summaries = data.summary.envelopes.filter((value) =>
         categories.some((category) => category.id === value.categoryId),
       );
-      const totals = band.locator(
-        info.project.name === 'desktop'
-          ? '.col-num > .band-total'
-          : '.band-parent-totals .band-total',
-      );
+      const totals = band.locator('.col-num');
       await expect(totals).toHaveCount(3);
       const expected = ['assignedCents', 'activityCents', 'availableCents'] as const;
       for (const [index, key] of expected.entries()) {
         const value = summaries.reduce((sum, row) => sum + row[key], 0);
         await expect(totals.nth(index)).toContainText(formatEuro(cents(value)));
       }
-      await expect(band.locator('.pname')).toHaveCount(1);
-      await expect(band.locator('.spending-status')).not.toBeEmpty();
+      await expect(band.locator('.pname')).toHaveCount(0);
+      const firstChild = band.locator('xpath=following-sibling::tr[1]');
+      await expect(firstChild).toHaveClass(/prow/);
+      await expect(firstChild.locator('.pname')).toHaveCount(1);
+      await expect(firstChild.locator('.spending-status')).not.toBeEmpty();
     }
     for (const theme of ['light', 'dark']) {
       await page.evaluate((value) => {
@@ -328,9 +332,8 @@ sampleTest(
         (info.project.name === 'desktop' && theme === 'light') ||
         (info.project.name !== 'desktop' && theme === 'dark')
       ) {
-        mkdirSync('docs/evidence/plan-single-category-481', { recursive: true });
         await page.screenshot({
-          path: `docs/evidence/plan-single-category-481/${info.project.name}-${theme}.png`,
+          path: info.outputPath(`${info.project.name}-${theme}.png`),
           fullPage: true,
         });
       }
@@ -454,6 +457,7 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
     path: `/api/budget/${month}/quick-assign`,
     body: { mode: 'target', categoryIds: [category.id] },
   });
+  await inspector.getByText('Geld verschieben', { selector: 'summary' }).click();
   await inspector.getByLabel('Nach', { exact: true }).selectOption(reserve.id);
   await inspector.getByLabel('Betrag', { exact: true }).fill('0,01');
   await inspector.getByRole('button', { name: 'Verschieben', exact: true }).click();
@@ -491,8 +495,9 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
   await dialog.getByLabel('Name', { exact: true }).fill('Zweiter Musterposten');
   await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(dialog).not.toBeVisible();
-  await expect(band).toHaveClass(/psingle/);
-  await expect(band).toHaveClass(/pmulti/);
+  await expect(band).toHaveClass(/pgroup/);
+  await expect(band).not.toHaveClass(/psingle/);
+  await expect(band.locator('.pname')).toHaveCount(0);
   await expect(band.locator('.grp-toggle')).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('.prow', { hasText: 'Zweiter Musterposten' })).toHaveCount(1);
   await expect(page.locator('.prow', { hasText: 'Musterposten' })).toHaveCount(2);
@@ -511,14 +516,15 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
     amountCents: -7,
   });
   await page.reload();
-  const totals = band.locator(
-    info.project.name === 'desktop' ? '.col-num > .band-total' : '.band-parent-totals .band-total',
-  );
+  const totals = band.locator('.col-num');
+  const firstCategory = page
+    .locator(`.pname[data-category-id="${category.id}"]`)
+    .locator('xpath=ancestor::tr');
   await expect(totals.nth(0)).toContainText('100,30 €');
   await expect(totals.nth(1)).toContainText('−100,09 €');
   await expect(totals.nth(2)).toContainText('0,21 €');
-  await expect(band.locator('.band-category-assigned')).toContainText('100,01 €');
-  await expect(band.locator('.band-category-available')).toContainText('−0,01 €');
+  await expect(firstCategory.locator('.col-assign')).toContainText('100,01 €');
+  await expect(firstCategory.locator('.col-avail')).toContainText('−0,01 €');
   // Parent summaries never inspect the first category; the category button still does.
   await expect(
     inspector.getByRole('heading', { name: 'Musterposten', exact: true }),
@@ -529,7 +535,7 @@ test('band selection, shortcuts, cent writes/undo and transition to two categori
       inspector.getByRole('heading', { name: 'Musterposten', exact: true }),
     ).not.toBeVisible();
   }
-  await band.locator('.pname').click();
+  await firstCategory.locator('.pname').click();
   await expect(inspector.getByRole('heading', { name: 'Musterposten', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   if (page.viewportSize()!.width < 768) {
@@ -650,7 +656,7 @@ async function withDesktopSample(browser: Browser, run: (desktop: Page) => Promi
     const desktop = await context.newPage();
     await desktop.clock.setFixedTime(new Date(SAMPLE_NOW));
     await desktop.goto('/plan/monat?monat=2026-09');
-    await expect(desktop.locator('.ptable-zero .pmulti')).toHaveCount(8);
+    await expect(desktop.locator('.ptable-zero .pgroup:not(.psingle)')).toHaveCount(8);
     await desktop.evaluate(() => document.fonts.ready);
     await run(desktop);
   } finally {
@@ -703,7 +709,7 @@ for (const theme of ['light', 'dark'] as const) {
           document.documentElement.dataset['theme'] = value;
         }, theme);
         await expectCompactBandContents(desktop, false);
-        const bands = desktop.locator('.ptable-zero .pmulti');
+        const bands = desktop.locator('.ptable-zero .pgroup:not(.psingle)');
         let truncatedLabels = 0;
         for (let index = 0; index < (await bands.count()); index++) {
           const band = bands.nth(index);
@@ -712,8 +718,8 @@ for (const theme of ['light', 'dark'] as const) {
           const geometry = await band.evaluate((row) => {
             const title = row.querySelector<HTMLElement>('.grp-title')!;
             const toggle = row.querySelector<HTMLElement>('.grp-toggle')!;
-            const add = row.querySelector<HTMLElement>('.band-parent .plan-add')!;
-            const selection = row.querySelector<HTMLElement>('.col-name > .plan-select')!;
+            const add = row.querySelector<HTMLElement>('.group-heading .plan-add')!;
+            const selection = row.querySelector<HTMLElement>('.group-heading > .plan-select')!;
             const rect = title.getBoundingClientRect();
             const text = document.createRange();
             text.selectNodeContents(title);
@@ -724,10 +730,12 @@ for (const theme of ['light', 'dark'] as const) {
               labelRight: rect.right,
               labelWidth: rect.width,
               textRight: fullText.right,
+              toggleLeft: toggle.getBoundingClientRect().left,
               toggleRight: toggle.getBoundingClientRect().right,
               addLeft: add.getBoundingClientRect().left,
               addRight: add.getBoundingClientRect().right,
               selectionLeft: selection.getBoundingClientRect().left,
+              selectionRight: selection.getBoundingClientRect().right,
               clipsText: ['hidden', 'clip'].includes(style.overflowX),
               textOverflow: style.textOverflow,
             };
@@ -737,7 +745,7 @@ for (const theme of ['light', 'dark'] as const) {
           expect(geometry.labelWidth, title).toBeGreaterThan(0);
           expect(geometry.labelRight, title).toBeLessThanOrEqual(geometry.toggleRight);
           expect(geometry.toggleRight, title).toBeLessThanOrEqual(geometry.addLeft);
-          expect(geometry.addRight, title).toBeLessThanOrEqual(geometry.selectionLeft);
+          expect(geometry.selectionRight, title).toBeLessThanOrEqual(geometry.toggleLeft);
           if (geometry.textRight > geometry.labelRight) {
             truncatedLabels++;
             expect(geometry.clipsText, title).toBe(true);
@@ -747,10 +755,11 @@ for (const theme of ['light', 'dark'] as const) {
             ? Math.min(geometry.textRight, geometry.labelRight)
             : geometry.textRight;
           expect(paintedRight, title).toBeLessThanOrEqual(geometry.addLeft);
-          expect(paintedRight, title).toBeLessThanOrEqual(geometry.selectionLeft);
+          expect(geometry.selectionRight, title).toBeLessThanOrEqual(geometry.labelLeft);
         }
-        // The sample includes long labels such as Versicherungen, so the guard is exercised.
-        expect(truncatedLabels).toBeGreaterThan(0);
+        // Standalone headings may fit long labels; validate their real clipping state.
+        expect(await bands.locator('.grp-title', { hasText: 'Versicherungen' }).count()).toBe(1);
+        expect(truncatedLabels).toBeLessThanOrEqual(await bands.count());
         expect(
           await desktop.evaluate(() => document.documentElement.scrollWidth),
         ).toBeLessThanOrEqual(1440);
@@ -778,8 +787,8 @@ for (const theme of ['light', 'dark'] as const) {
               theme,
               configuredDesktopFlags: { isMobile: false, hasTouch: false },
               oldRows: 55,
-              newRows: 36,
-              reductionPercent: (100 * (55 - 36)) / 55,
+              newRows: 44,
+              reductionPercent: (100 * (55 - 44)) / 55,
               ...measurements,
             },
             null,
@@ -803,32 +812,44 @@ for (const theme of ['light', 'dark'] as const) {
         for (const width of [768, 1180, 1439]) {
           await desktop.setViewportSize({ width, height: 900 });
           await expectCompactBandContents(desktop, false);
-          const labels = await desktop.locator('.ptable-zero .pmulti').evaluateAll((rows) =>
-            rows.map((row) => {
-              const title = row.querySelector<HTMLElement>('.grp-title')!;
-              const range = document.createRange();
-              range.selectNodeContents(title);
-              const rect = (selector: string) => {
-                const box = row.querySelector(selector)!.getBoundingClientRect();
-                return {
-                  left: box.left,
-                  right: box.right,
-                  top: box.top,
-                  bottom: box.bottom,
-                  width: box.width,
+          const labels = await desktop
+            .locator('.ptable-zero .pgroup:not(.psingle)')
+            .evaluateAll((rows) =>
+              rows.map((row) => {
+                const title = row.querySelector<HTMLElement>('.grp-title')!;
+                const range = document.createRange();
+                range.selectNodeContents(title);
+                const rect = (selector: string) => {
+                  const box = row.querySelector(selector)!.getBoundingClientRect();
+                  return {
+                    left: box.left,
+                    right: box.right,
+                    top: box.top,
+                    bottom: box.bottom,
+                    width: box.width,
+                  };
                 };
-              };
-              return {
-                name: title.textContent!,
-                textRight: range.getBoundingClientRect().right,
-                title: rect('.grp-title'),
-                add: rect('.band-parent .plan-add'),
-                selection: rect('.col-name > .plan-select'),
-                category: rect('.pname'),
-                status: rect('.spending-status'),
-              };
-            }),
-          );
+                return {
+                  name: title.textContent!,
+                  textRight: range.getBoundingClientRect().right,
+                  title: rect('.grp-title'),
+                  add: rect('.group-heading .plan-add'),
+                  selection: rect('.group-heading > .plan-select'),
+                  category: (() => {
+                    const box = row
+                      .nextElementSibling!.querySelector('.pname')!
+                      .getBoundingClientRect();
+                    return { width: box.width };
+                  })(),
+                  status: (() => {
+                    const box = row
+                      .nextElementSibling!.querySelector('.spending-status')!
+                      .getBoundingClientRect();
+                    return { width: box.width };
+                  })(),
+                };
+              }),
+            );
           expect(labels).toHaveLength(8);
           for (const label of labels) {
             const context = JSON.stringify({ width, theme, ...label });

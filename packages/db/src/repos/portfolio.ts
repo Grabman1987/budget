@@ -1,5 +1,6 @@
 import {
   addDays,
+  daysBetween,
   costBasisOnDay,
   costInEur,
   dailyMarketMoveCents,
@@ -18,6 +19,8 @@ import {
   ValuationLimitError,
   type CashFlow,
   type DatedPrice,
+  type DatedRate,
+  type DailyValuationObservation,
   type IncompleteValuation,
   type PositionCostInput,
   type PositionInput,
@@ -751,18 +754,128 @@ export function netWorthAsOf(db: Executor, asOf: string): NetWorth {
 // P5.2 read models: daily series in one pass (no `netWorthAsOf` per day).
 // ---------------------------------------------------------------------------------------------
 
-function toRateTable(rows: Rates): RateTable {
-  const table = new Map<string, { date: string; rateMicro: number }[]>();
+function toRateTable(rows: Rates, includeSources = false): RateTable {
+  const table = new Map<string, DatedRate[]>();
   for (const r of [...rows].sort((a, b) => a.date.localeCompare(b.date))) {
     const list = table.get(r.currency) ?? [];
-    list.push({ date: r.date, rateMicro: r.rateMicro });
+    list.push({
+      date: r.date,
+      rateMicro: r.rateMicro,
+      ...(includeSources ? { source: r.source } : {}),
+    });
     table.set(r.currency, list);
   }
   return table;
 }
 
-export function rateTable(db: Executor, to: string): RateTable {
-  return toRateTable(db.select().from(fxRate).where(lte(fxRate.date, to)).all());
+export function rateTable(db: Executor, to: string, includeSources = false): RateTable {
+  return toRateTable(db.select().from(fxRate).where(lte(fxRate.date, to)).all(), includeSources);
+}
+
+export type ValuationProvenanceRun = Omit<DailyValuationObservation, 'day'> & {
+  from: string;
+  to: string;
+  days: string;
+};
+export interface ValuationProvenance {
+  version: 'valuation-v1';
+  scope: 'securities-closing-valuations';
+  status: 'observed' | 'no-history';
+  window: { from: string; to: string } | null;
+  limits: { runs: 256; bytes: 65536 };
+  coverage: {
+    calendarDays: string;
+    observedPositionDays: string;
+    retainedPositionDays: string;
+    omittedPositionDays: string;
+    observedRuns: string;
+    retainedRuns: number;
+    omittedRuns: string;
+    unknownSourceLabelPositionDays: string;
+    complete: boolean;
+    truncated: boolean;
+    runLimit: boolean;
+    byteLimit: boolean;
+  };
+  excludes: ['flows', 'fees-taxes', 'benchmarks', 'cash', 'class-sleeves'];
+  runs: ValuationProvenanceRun[];
+}
+
+/** Request-local, bounded observation collector. It never resolves or recomputes a valuation. */
+export function valuationProvenanceCollector(window: ValuationProvenance['window']) {
+  const runs: ValuationProvenanceRun[] = [];
+  let observedDays = 0n,
+    observedRuns = 0n,
+    unknownLabels = 0n;
+  let last: { signature: string; day: string; run: ValuationProvenanceRun | undefined } | undefined;
+  const observe = (event: Readonly<DailyValuationObservation>) => {
+    if (!window || event.day < window.from || event.day > window.to) return;
+    observedDays++;
+    if (
+      (event.kind === 'quote' && event.source === null) ||
+      (event.fx.kind === 'rate' && event.fx.source === null)
+    )
+      unknownLabels++;
+    const { day, ...facts } = event;
+    const signature = JSON.stringify(facts);
+    if (last?.signature === signature && addDays(last.day, 1) === day) {
+      if (last.run) {
+        last.run.to = day;
+        last.run.days = String(BigInt(last.run.days) + 1n);
+      }
+      last.day = day;
+      return;
+    }
+    observedRuns++;
+    const run =
+      runs.length < 256
+        ? { ...facts, fx: { ...facts.fx }, from: day, to: day, days: '1' }
+        : undefined;
+    if (run) runs.push(run);
+    last = { signature, day, run };
+  };
+  const finish = (): ValuationProvenance => {
+    const retained = runs.map((run) => ({ ...run, fx: { ...run.fx } }));
+    let byteLimit = false;
+    const envelope = (): ValuationProvenance => {
+      const retainedDays = retained.reduce((n, run) => n + BigInt(run.days), 0n);
+      const omittedDays = observedDays - retainedDays;
+      return {
+        version: 'valuation-v1',
+        scope: 'securities-closing-valuations',
+        status: window ? 'observed' : 'no-history',
+        window: window ? { ...window } : null,
+        limits: { runs: 256, bytes: 65536 },
+        coverage: {
+          calendarDays: window ? String(BigInt(daysBetween(window.from, window.to)) + 1n) : '0',
+          observedPositionDays: String(observedDays),
+          retainedPositionDays: String(retainedDays),
+          omittedPositionDays: String(omittedDays),
+          observedRuns: String(observedRuns),
+          retainedRuns: retained.length,
+          omittedRuns: String(observedRuns - BigInt(retained.length)),
+          unknownSourceLabelPositionDays: String(unknownLabels),
+          complete: window !== null && omittedDays === 0n && unknownLabels === 0n,
+          truncated: omittedDays > 0n,
+          runLimit: observedRuns > 256n,
+          byteLimit,
+        },
+        excludes: ['flows', 'fees-taxes', 'benchmarks', 'cash', 'class-sleeves'],
+        runs: retained,
+      };
+    };
+    let result = envelope();
+    while (
+      Buffer.byteLength(JSON.stringify({ valuationProvenance: result }), 'utf8') > 65536 &&
+      retained.length > 0
+    ) {
+      retained.pop();
+      byteLimit = true;
+      result = envelope();
+    }
+    return result;
+  };
+  return { observe, finish };
 }
 
 export interface SeriesFilter {
@@ -850,7 +963,12 @@ export function valuationSeries(
   for (const p of db.select().from(price).where(lte(price.date, filter.to)).all()) {
     if (!wantSecurity(p.securityId)) continue;
     const list = pricesBySecurity.get(p.securityId) ?? [];
-    list.push({ date: p.date, priceMicro: p.priceMicro, currency: p.currency });
+    list.push({
+      date: p.date,
+      priceMicro: p.priceMicro,
+      currency: p.currency,
+      ...(options.observe ? { source: p.source } : {}),
+    });
     pricesBySecurity.set(p.securityId, list);
   }
 
@@ -889,7 +1007,7 @@ export function valuationSeries(
       (a, b) => a.accountId.localeCompare(b.accountId) || a.securityId.localeCompare(b.securityId),
     ),
     days,
-    rateTable(db, filter.to),
+    rateTable(db, filter.to, options.observe !== undefined),
     options,
   );
   noteIncomplete(series.incomplete);

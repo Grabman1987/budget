@@ -180,6 +180,7 @@ export type BookingCreate =
       memo?: string | null;
       status?: 'pending' | 'confirmed';
       projectId?: string | null;
+      bankStatus?: 'pending' | 'confirmed';
     };
 
 export interface BookingPatch {
