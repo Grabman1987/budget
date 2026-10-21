@@ -1,0 +1,27 @@
+[
+  {
+    "path": "docs/handoff/599-contact-reminders/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/599-contact-reminders/README.md",
+    "size": 474,
+    "sha256": "db5f06f7a8529d58b2f55f23b140554fec397a1586243d7fff8a0d55fb3ea88d"
+  },
+  {
+    "path": "docs/handoff/599-contact-reminders/owned/01-b4e1f558a7d92beab192fc8eaf3769579e2c2ce3.patch",
+    "size": 6947,
+    "sha256": "5c0565aa8e29f746d38bf6acb272fb16dcaf197db1c254b0ce804dec722172e3"
+  },
+  {
+    "path": "docs/handoff/599-contact-reminders/packet.json",
+    "size": 1381,
+    "sha256": "f6bf4494f12b4388663645b8c576d129f4a107b183a25215abb07f927597fa61"
+  },
+  {
+    "path": "docs/handoff/599-contact-reminders/reviews/599-contact-reminders-whole-four-independent-source-high.md",
+    "size": 2303,
+    "sha256": "46ff05b1fcdaf21a8a616da313f69d71c091ac07c0a37f59973ae6ac7e8d0bcc"
+  }
+]

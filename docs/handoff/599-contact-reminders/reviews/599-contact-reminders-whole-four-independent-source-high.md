@@ -1,0 +1,11 @@
+# #599 whole-four independent source review
+
+HIGH CLEAR on source at freeze `243b70b04e7c1cc61f49d8e0f5dfc90ff78039dfc9202916cc03dc62cb17ab8d`, parent `cadefe15230a977651351184739eafd46b721f3c`. All four immutable/source hashes match; only the declared four tracked paths differ. All unowned source is unchanged and all 847 existing tests are byte-exact to HEAD. No concrete source finding remains.
+
+The reminder reads live contacts and the existing as-of actual movement and saved settlement helpers, then calls the unchanged contactStatement replay. Thus manual allocation, FIFO, partial settlement, existing credit and write-off effects are taken from remainingCents rather than raw age or net balance. Date-ordered replay makes the first qualifying residual the oldest; the exact predicate is remainingCents > 0 and daysBetween(date,today) > 30. UTC-midnight ISO day arithmetic is calendar-based across DST. Future-dated movements are excluded by the existing as-of query, pending booked movement eligibility is unchanged, and one reminder is emitted per contact with stable oldest-date/ID ordering.
+
+Heute supplies its injected current Vienna-local day independently of the selected historical month. Non-EUR movements produce an explicit unavailable state rather than a guessed zero or conversion; allocation errors are not broadly swallowed. No monetary, settlement, rule, schema, reminder-state or write path changes exist.
+
+The DTO is optional and the UI defaults absent values to an empty array. Each real contact gets an encoded existing contact-detail link and an amount-free name/date/age row, retaining the existing wrapping and 44px link styles. Current-day labelling follows the existing Heute month/today treatment. Existing contact writes invalidate all queries on apply/Undo/redo; ordinary ledger writes invalidate LEDGER_KEY, which contains HEUTE_KEY, so the projection participates in the current refresh lifecycle without a new callback or persistence mechanism.
+
+This is unformatted, unexecuted source review, not day30/day31, settlement/Undo, non-EUR, no-write, browser/touch/Axe, full or delivery proof. No tests, runtime, formatter, private data, source/Git writes or dependency operations were performed. Coherent-batch validation remains deferred under the owner's strategy.

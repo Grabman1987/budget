@@ -1,0 +1,140 @@
+diff --git a/apps/web/src/heute/api.ts b/apps/web/src/heute/api.ts
+index ddc3f080b23af03b158fac639e89eed9ee85a8ed..eb2ce25a80a364fe922e8ad529a0fe83093d2f70 100644
+--- a/apps/web/src/heute/api.ts
++++ b/apps/web/src/heute/api.ts
+@@ -15,6 +15,10 @@ export interface AccountReminder {
+   supported?: boolean;
+ }
+ 
++export type ContactReminder =
++  | { contactId: string; name: string; status: 'overdue'; oldestOpenDate: string; ageDays: number }
++  | { contactId: string; name: string; status: 'unavailable'; reason: 'unsupported_currency' };
++
+ export interface HeuteUnavailable {
+   unavailable: { reason: 'missing_price' | 'missing_fx'; message: string; asOf: string };
+ }
+@@ -124,6 +128,7 @@ export interface Heute extends WithValuationNotes {
+   upcoming14: HeuteOccurrence[];
+   upcomingEvents: PlannedEventOccurrence[];
+   accountReminders: AccountReminder[];
++  contactReminders?: ContactReminder[];
+   financeCheck:
+     | {
+         counts: { ok: number; warn: number; bad: number; total: number; notEvaluated: number };
+diff --git a/apps/web/src/heute/attention-bar.tsx b/apps/web/src/heute/attention-bar.tsx
+index 1ee9c61f72b0c3a2288e37658c0f7aa00311de48..27a49ca4722210a9004de4e90abbafe641439aa8 100644
+--- a/apps/web/src/heute/attention-bar.tsx
++++ b/apps/web/src/heute/attention-bar.tsx
+@@ -16,7 +16,7 @@ export function AttentionBar({
+   savingsRows = [],
+   savingsError,
+ }: {
+-  data: Pick<Heute, 'stand' | 'nextSteps' | 'financeCheck' | 'attention' | 'accountReminders'>;
++  data: Pick<Heute, 'stand' | 'nextSteps' | 'financeCheck' | 'attention' | 'accountReminders' | 'contactReminders'>;
+   savingsRows?: RevisionRow[];
+   savingsError?: ReactNode;
+ }) {
+@@ -25,6 +25,7 @@ export function AttentionBar({
+   const uncategorized = data.nextSteps.items.find((i) => i.kind === 'uncategorized');
+   const overspending = data.nextSteps.items.filter((i) => i.kind === 'overspent').length;
+   const reminders = data.accountReminders?.length ?? 0;
++  const contacts = data.contactReminders ?? [];
+   const loanTermsMissing = data.attention.loanTermsMissing;
+   const quoteReview = data.attention.quoteReview?.count ?? 0;
+   const month = data.stand.today.slice(0, 7);
+@@ -38,6 +39,7 @@ export function AttentionBar({
+     !savingsRows.length &&
+     !savingsError &&
+     !reminders &&
++    !contacts.length &&
+     !loanTermsMissing &&
+     !quoteReview
+   )
+@@ -125,6 +127,12 @@ export function AttentionBar({
+           {savingsError}
+         </div>
+       )}
++      {contacts.map((reminder) => <div className="attention-row" key={`contact-${reminder.contactId}`}>
++        <span>{reminder.status === 'overdue'
++          ? <>{reminder.name}: offene Auslage seit {longDay(reminder.oldestOpenDate)} ({reminder.ageDays} Tage)</>
++          : <>{reminder.name}: Auslagenprüfung nicht verfügbar – Bewegungen außerhalb EUR</>}</span>
++        <AppLink to={`/konten/kontakte/${encodeURIComponent(reminder.contactId)}`}>Kontakt prüfen</AppLink>
++      </div>)}
+       {(reminders > 0 || quoteReview > 0 || loanTermsMissing) && (
+         <div className="attention-row">
+           <span>
+diff --git a/packages/db/src/repos/contacts.ts b/packages/db/src/repos/contacts.ts
+index 12bcb26834a24fe0a00f52b28ee851843f0c10a7..0fe3f655ca85ad377a0fbfe3d2fd789dff076060 100644
+--- a/packages/db/src/repos/contacts.ts
++++ b/packages/db/src/repos/contacts.ts
+@@ -1,5 +1,5 @@
+ import { randomUUID } from 'node:crypto';
+-import { allocateContactReceipt, contactStatement, type ContactAllocation } from '@budget/domain';
++import { allocateContactReceipt, contactStatement, daysBetween, type ContactAllocation } from '@budget/domain';
+ import { and, eq, isNull } from 'drizzle-orm';
+ import {
+   account,
+@@ -40,6 +40,34 @@ export function getContactStatement(db: Executor, id: string, asOf: string) {
+   };
+ }
+ 
++
++export type ContactReminder =
++  | { contactId: string; name: string; status: 'overdue'; oldestOpenDate: string; ageDays: number }
++  | { contactId: string; name: string; status: 'unavailable'; reason: 'unsupported_currency' };
++
++/** Current open outlays AFTER the existing saved/FIFO allocations; no reminder state or writes. */
++export function contactReminders(db: Executor, today: string): ContactReminder[] {
++  const reminders: ContactReminder[] = [];
++  for (const row of db.select({ id: contact.id, name: contact.name }).from(contact).where(isNull(contact.deletedAt)).all()) {
++    // Existing helpers query this contact/as-of only, preserving movement order and pending eligibility.
++    const movements = actualContactMovements(db, row.id, today);
++    if (movements.some((movement) => movement.currency !== 'EUR')) {
++      reminders.push({ contactId: row.id, name: row.name, status: 'unavailable', reason: 'unsupported_currency' });
++      continue;
++    }
++    const statement = contactStatement(movements, savedContactSettlements(db, row.id, today));
++    const oldest = statement.outlays.find((outlay) => outlay.remainingCents > 0 && daysBetween(outlay.date, today) > 30);
++    if (oldest) reminders.push({ contactId: row.id, name: row.name, status: 'overdue',
++      oldestOpenDate: oldest.date, ageDays: daysBetween(oldest.date, today) });
++  }
++  return reminders.sort((a, b) => {
++    if (a.status !== b.status) return a.status === 'overdue' ? -1 : 1;
++    if (a.status === 'overdue' && b.status === 'overdue')
++      return a.oldestOpenDate.localeCompare(b.oldestOpenDate) || a.contactId.localeCompare(b.contactId);
++    return a.contactId.localeCompare(b.contactId);
++  });
++}
++
+ export function listContactStatements(db: Executor, asOf: string, history = false) {
+   return db
+     .select()
+diff --git a/packages/db/src/repos/heute.ts b/packages/db/src/repos/heute.ts
+index 088273e4f30ae9f9fc00357739baed27678cdce4..1df4fb1d35506362bd2f63c396fc56c873e0009e 100644
+--- a/packages/db/src/repos/heute.ts
++++ b/packages/db/src/repos/heute.ts
+@@ -55,6 +55,7 @@ import { monthResultRead } from './month-reports';
+ import { wholePicture } from './whole-picture';
+ import { listGoals } from './goals';
+ import { accountReminders } from './account-reminders';
++import { contactReminders } from './contacts';
+ 
+ /**
+  * The read model of Heute (concept §7.1, SPEC §3): one call, every figure from the domain
+@@ -196,6 +197,8 @@ export interface Heute {
+   upcoming14: HeuteOccurrence[];
+   upcomingEvents: PlannedEventOccurrence[];
+   accountReminders: ReturnType<typeof accountReminders>;
++  /** Additive current-day projection; optional for older consumers, populated by this reader. */
++  contactReminders?: ReturnType<typeof contactReminders>;
+   financeCheck:
+     | {
+         counts: FinanceCheck['counts'];
+@@ -743,6 +746,7 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
+           a.eventId.localeCompare(b.eventId),
+       ),
+     accountReminders: accountReminders(db, today),
++    contactReminders: contactReminders(db, today),
+     financeCheck: check,
+     netWorth,
+     attention: {

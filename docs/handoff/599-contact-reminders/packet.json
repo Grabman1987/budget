@@ -1,0 +1,31 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/599-contact-reminders",
+  "sourceHead": "b4e1f558a7d92beab192fc8eaf3769579e2c2ce3",
+  "originalBaseBeforeOwnedCommits": "cadefe15230a977651351184739eafd46b721f3c",
+  "orderedCommits": [
+    {
+      "sha": "b4e1f558a7d92beab192fc8eaf3769579e2c2ce3",
+      "parentBase": "cadefe15230a977651351184739eafd46b721f3c",
+      "subject": "feat(contacts): derive current overdue outlay reminders for 599",
+      "paths": [
+        "apps/web/src/heute/api.ts",
+        "apps/web/src/heute/attention-bar.tsx",
+        "packages/db/src/repos/contacts.ts",
+        "packages/db/src/repos/heute.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout b4e1f558a7d92beab192fc8eaf3769579e2c2ce3 > OWN_OUTPUT/b4e1f558a7d92beab192fc8eaf3769579e2c2ce3.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-b4e1f558a7d92beab192fc8eaf3769579e2c2ce3.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/web/src/heute/api.ts",
+    "apps/web/src/heute/attention-bar.tsx",
+    "packages/db/src/repos/contacts.ts",
+    "packages/db/src/repos/heute.ts"
+  ],
+  "mixedSourceAncestry": false,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}
