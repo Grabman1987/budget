@@ -73,6 +73,7 @@ const app = createApp({
     ...(today ? { today } : {}),
   },
   database: process.env['BUDGET_DEBUG_API'] === '1' ? db : undefined,
+  bauteileEnabled: process.env['BUDGET_BAUTEILE_ENABLED'] === '1',
 });
 
 // Nightly prices (previous day's close) and ECB rates at 02:30 Vienna, plus a catch-up after a

@@ -31,12 +31,22 @@ browser validation, CI, PR, merge or deployment was performed. No real data used
   not a completed accessibility audit. Unavailable color resolution stays unknown.
   The existing chart gallery remains, including line/grid/zero-axis primitives.
   The gallery's fixed synthetic date is explicitly labelled Musterdatum.
-- Existing client DEV/e2e-only route exclusion remains. The server now refuses
+- The initial checkpoint kept client DEV/e2e-only route exclusion. The server refused
   `/dev` and decoded `/dev/*` paths with 404/no-store when the existing NODE_ENV
   production mode is active, before static serving and SPA fallback. This supplies
-  a server boundary rather than relying on client hiding. No production admin
-  switch or alternative authentication bypass was invented. Local dev/e2e behavior
-  stays under its existing development mode; authenticated APIs are unchanged.
+  a server boundary rather than relying on client hiding. Local dev/e2e behavior
+  stayed under its existing development mode; authenticated APIs were unchanged.
+- Follow-up D-37 source delta: production bundles only the `/dev/bauteile` route
+  from the dev pages. `BUDGET_BAUTEILE_ENABLED=1` is the sole operator-controlled
+  production switch and defaults off. With the flag on, the canonical GET/HEAD
+  path requires the existing owner session before static/SPA delivery. A separate
+  `/api/dev/bauteile-access` probe is mounted only when enabled, after the same
+  `/api` session and no-store guards, so client navigation also checks the server.
+  All other `/dev` paths and noncanonical/encoded gallery aliases stay 404; the
+  Vite production build still has sourcemaps disabled. Developer-only gallery
+  links are hidden in production. Missing AuthGate with a requested production
+  enablement fails at start. No role model, step-up, API write or financial-data
+  path was added. The flag was not activated.
 - CSP is unchanged. No console-message filters, eval relaxation or test harness
   changes were introduced. The historical eval-source allegation remains unproven.
 
@@ -50,15 +60,17 @@ or Plan page implementations. Reports hub must keep using the shared AreaHead to
 receive its identity; new overview routes need deliberate opt-in, never broad area
 matching. Account-overview ownership must retain its small decorative position
 prop/span while preserving all newer ledger behavior. Server app changes must keep
-the production refusal before static/SPA fallback and keep session/origin/CSP guards.
+the exact production gallery allowlist and session guard before static/SPA fallback,
+plus the separate `/api` probe under its established session/origin/CSP guards.
 
 ## Remaining acceptance and limits
 
 Confirmed revision provenance is not available, so dated REV metadata remains
 explicitly unavailable. Source implementation does not prove 390px overflow,
 contrast, desktop/mobile/WebKit geometry, keyboard/screen-reader behavior or Axe.
-Production 404/encoded-path/static-fallback behavior and development-only bundling
-need meaningful later checks; no such requests or builds were run. Source of any
+Production flag-off/flag-on, unauthorized/authorized, encoded-path and other
+`/dev` 404, cache headers, SPA navigation and static fallback behavior need
+meaningful later HTTP/browser checks; no such requests or builds were run. Source of any
 actual browser eval/CSP violation remains to investigate under the strict policy.
 Independent review, exact-head required checks and authorized delivery/live evidence
 remain open. No issue is closed or represented as accepted/live.

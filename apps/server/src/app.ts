@@ -28,6 +28,8 @@ interface BaseOptions {
   database?: Db | undefined;
   /** Full lowercase Git commit SHA baked into the deployment image. */
   buildRevision?: string | undefined;
+  /** Operator-controlled production access to the synthetic component gallery. Defaults off. */
+  bauteileEnabled?: boolean | undefined;
 }
 
 /**
@@ -87,11 +89,21 @@ export const PERMISSIONS_POLICY = {
   usb: false,
 };
 
-export function createApp({ webDir, database, auth, ledger, buildRevision }: AppOptions): Hono {
+export function createApp({
+  webDir,
+  database,
+  auth,
+  ledger,
+  buildRevision,
+  bauteileEnabled = false,
+}: AppOptions): Hono {
   if (ledger && !auth)
     throw new Error('The ledger API needs auth: mount it only behind the session guard');
   if (database && !auth)
     throw new Error('The debug API needs auth: mount it only behind the session guard');
+  const production = process.env['NODE_ENV'] === 'production';
+  if (production && bauteileEnabled && !auth)
+    throw new Error('The production component gallery needs auth');
   const app = new Hono();
   // Auth/static failures are outside the ledger's error handler. Never send or log their
   // exception text: drivers and upstream libraries can include private values in it.
@@ -122,18 +134,33 @@ export function createApp({ webDir, database, auth, ledger, buildRevision }: App
     }),
   );
 
-  // Client DEV/e2e route exclusion is not an access boundary. Production never serves dev URLs,
-  // including encoded path names, even when an SPA fallback or a stale gallery build exists.
-  if (process.env['NODE_ENV'] === 'production') app.use('*', async (c, next) => {
-    let path: string;
-    try { path = decodeURIComponent(c.req.path); }
-    catch { return c.text('Not found', 404); }
-    if (path === '/dev' || path.startsWith('/dev/')) {
-      c.header('Cache-Control', 'no-store');
-      return c.text('Not found', 404);
-    }
-    await next();
-  });
+  // The operator flag opens only the canonical gallery URL, with the existing owner session.
+  // Reject every other dev URL before static serving and the SPA fallback, including encodings.
+  if (production)
+    app.use('*', async (c, next) => {
+      let path: string;
+      let rawPath: string;
+      try {
+        rawPath = new URL(c.req.raw.url).pathname;
+        path = rawPath;
+        for (let i = 0; i < 4 && path.includes('%'); i++) path = decodeURIComponent(path);
+      } catch {
+        c.header('Cache-Control', 'no-store');
+        return c.text('Not found', 404);
+      }
+      if (path === '/dev' || path.startsWith('/dev/') || path.startsWith('/dev%')) {
+        c.header('Cache-Control', 'no-store');
+        if (
+          rawPath === '/dev/bauteile' &&
+          (c.req.method === 'GET' || c.req.method === 'HEAD') &&
+          bauteileEnabled && auth
+        )
+          return next();
+        return c.text('Not found', 404);
+      }
+      await next();
+    });
+  if (production && bauteileEnabled && auth) app.use('/dev/bauteile', auth.requireSession);
 
   // Private ledger data and rejected requests must never enter a browser/shared HTTP cache.
   // Keep this before body limits and authentication so early responses inherit the policy.
@@ -204,6 +231,10 @@ export function createApp({ webDir, database, auth, ledger, buildRevision }: App
   if (database) {
     app.get('/api/debug/summary', (c) => c.json(debugSummary(database, c.req.query('asOf'))));
   }
+  // The client rechecks this on navigation; the server URL gate above remains authoritative.
+  // /api already applies no-store and requireSession before this route.
+  if (production && bauteileEnabled)
+    app.get('/api/dev/bauteile-access', (c) => c.json({ enabled: true }));
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));
 
   // Hashed build output is immutable; everything else must revalidate.

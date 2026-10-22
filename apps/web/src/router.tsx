@@ -653,10 +653,33 @@ const setupRoute = createRoute({
   component: lazyRouteComponent(() => import('./auth/setup-route'), 'SetupRoute'),
 });
 
-// Developer pages (component gallery, chart spike) live outside the shell and outside the session
-// guard, so they exist only in `vite dev` and in the e2e build (`--mode e2e`). In a production build
-// the condition is a constant `false`: the routes and their chunks are not emitted at all.
+// Other developer pages exist only in dev/e2e. The production gallery is bundled, but the
+// server-controlled flag and owner session are checked before both HTTP delivery and SPA entry.
 const devRoutesEnabled = import.meta.env.DEV || import.meta.env.MODE === 'e2e';
+const bauteileRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/dev/bauteile',
+  beforeLoad: async ({ location }) => {
+    if (devRoutesEnabled) return;
+    const status = await queryClient.fetchQuery(authStatusQuery);
+    if (status.setupRequired) throw redirect({ to: '/setup' });
+    if (!status.authenticated)
+      throw redirect({ to: '/login', search: { weiter: captureContinuation(location.href) } });
+
+    const access = await fetch('/api/dev/bauteile-access', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    });
+    if (access.status === 401) {
+      queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== AUTH_STATUS_KEY[0] });
+      void clearDeviceFinancialData();
+      throw redirect({ to: '/login', search: { weiter: captureContinuation(location.href) } });
+    }
+    if (access.status === 404) throw notFound();
+    if (!access.ok) throw new Error('The component gallery is unavailable');
+  },
+  component: lazyRouteComponent(() => import('./routes/components-page'), 'ComponentsRoute'),
+});
 const devRoutes = devRoutesEnabled
   ? [
       createRoute({
@@ -673,11 +696,6 @@ const devRoutes = devRoutesEnabled
         getParentRoute: () => rootRoute,
         path: '/dev/diagramme',
         component: lazyRouteComponent(() => import('./routes/charts-spike'), 'ChartsSpikePage'),
-      }),
-      createRoute({
-        getParentRoute: () => rootRoute,
-        path: '/dev/bauteile',
-        component: lazyRouteComponent(() => import('./routes/components-page'), 'ComponentsRoute'),
       }),
       createRoute({
         getParentRoute: () => rootRoute,
@@ -806,6 +824,7 @@ const routeTree = rootRoute.addChildren([
   ]),
   loginRoute,
   setupRoute,
+  bauteileRoute,
   ...devRoutes,
 ]);
 

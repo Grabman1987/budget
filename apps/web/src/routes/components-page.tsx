@@ -64,6 +64,7 @@ const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
 ];
 
 const eur = (v: number) => formatEuro(cents(v));
+const developerRoutesEnabled = import.meta.env.DEV || import.meta.env.MODE === 'e2e';
 
 function ThemeSwitch() {
   useAmountPrivacy();
@@ -225,12 +226,16 @@ function Chains() {
       <DimensionChain
         label="Zu verteilen: Übertrag plus Einnahmen minus Zugewiesen"
         terms={[
-          { label: 'Übertrag', value: cents(33340), onSelect: () => setPanel('Übertrag') },
+          {
+            label: 'Übertrag',
+            value: cents(33340),
+            ...(developerRoutesEnabled ? { onSelect: () => setPanel('Übertrag') } : {}),
+          },
           {
             label: 'Einnahmen',
             value: cents(33340),
             op: '+',
-            onSelect: () => setPanel('Einnahmen'),
+            ...(developerRoutesEnabled ? { onSelect: () => setPanel('Einnahmen') } : {}),
           },
           { label: 'Ungedeckt', value: cents(33340), op: '+' },
           { label: 'Zu verteilen', value: cents(100020), op: '=' },
@@ -248,8 +253,9 @@ function Chains() {
       <SectionHead id="massketten-gezeichnet" title="Maßkette (gezeichnet)" />
       <p className="dev-note">
         Teilmaße über einem 14-px-Balken in Klassenfüllung, darunter der gebundene Teil (Schraffur)
-        oder eine Schuld (gestrichelt), unten das Ergebnis. Segmente sind per Tastatur bedienbar und
-        öffnen ihre Einzelposten. Die Ergebnis-Maßlinie wird gezogen wie von einem Plotter (900 ms),
+        oder eine Schuld (gestrichelt), unten das Ergebnis.
+        {developerRoutesEnabled ? ' Segmente öffnen per Tastatur ihre Einzelposten. ' : ' '}
+        Die Ergebnis-Maßlinie wird gezogen wie von einem Plotter (900 ms),
         die Kette klappt in 240 ms auf; bei reduzierter Bewegung erscheint alles sofort.
       </p>
       <p>
@@ -267,7 +273,7 @@ function Chains() {
         <DimensionChainDrawing
           label="Frei verfügbar bis Gehalt: Bedarf plus Wunsch minus offen bis Gehalt"
           open={drawingOpen}
-          onSelect={(key) => setPanel(key)}
+          onSelect={developerRoutesEnabled ? setPanel : undefined}
           parts={[
             { key: 'Bedarf', label: 'Bedarf', cents: cents(128000), fill: 'need' },
             { key: 'Wunsch', label: 'Wunsch', cents: cents(42000), fill: 'want' },
@@ -278,7 +284,7 @@ function Chains() {
       </div>
       <DimensionChainDrawing
         label="Nettovermögen: Budget-Konten, Sparen, Investment minus Schulden"
-        onSelect={(key) => setPanel(key)}
+        onSelect={developerRoutesEnabled ? setPanel : undefined}
         parts={[
           { key: 'Budget-Konten', label: 'Budget-Konten', cents: cents(116700), fill: 'need' },
           { key: 'Sparen', label: 'Sparen', cents: cents(773900), fill: 'future' },
@@ -397,15 +403,22 @@ function Overlays() {
   const [amount, setAmount] = useState('');
   return (
     <section aria-labelledby="ueberlagerungen" id="ueberlagerungen">
-      <SectionHead id="ueberlagerungen" title="Detailseite und Eingabedialog" detail={7} />
+      <SectionHead
+        id="ueberlagerungen"
+        title={developerRoutesEnabled ? 'Detailseite und Eingabedialog' : 'Eingabedialog'}
+        detail={7}
+      />
       <p className="dev-note">
-        Details öffnen eine Unterseite. Eingaben stehen im Formulardialog; Esc schließt und der
-        Fokus kehrt zurück. Auf dem Handy erscheint das Formular als Sheet.
+        {developerRoutesEnabled ? 'Details öffnen eine Unterseite. ' : ''}
+        Eingaben stehen im Formulardialog; Esc schließt und der Fokus kehrt zurück. Auf dem Handy
+        erscheint das Formular als Sheet.
       </p>
       <div className="dev-row">
-        <AppLink className="btn btn-ghost" to="/dev/details" search={{}}>
-          Detailseite öffnen
-        </AppLink>
+        {developerRoutesEnabled && (
+          <AppLink className="btn btn-ghost" to="/dev/details" search={{}}>
+            Detailseite öffnen
+          </AppLink>
+        )}
         <Button variant="ghost" onClick={() => setOpen(true)}>
           Eingabedialog öffnen
         </Button>
@@ -493,7 +506,12 @@ function ComponentsPage() {
         <ChartPrimitivesShowcase />
       </section>
       <p className="dev-note">
-        <Link to="/dev/diagramme">Diagramm-Spike</Link> · <Link to="/">Start</Link>
+        {developerRoutesEnabled && (
+          <>
+            <Link to="/dev/diagramme">Diagramm-Spike</Link> ·{' '}
+          </>
+        )}
+        <Link to="/">Start</Link>
       </p>
     </main>
   );
