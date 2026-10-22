@@ -1,0 +1,11 @@
+{
+  "head": "6905e358d6f0ce2d2a16947c8684ff31c35554b7",
+  "file": "/workspace/cloud-capture-transition-584/e2e/issue-584-capture-transition.spec.ts",
+  "sha256": "afe8d122b6e922f4e7538fd1feeacdf424927708b2de995355e36f3fef2e6a05",
+  "implementer": "sol_forecast_salary_marker",
+  "reviewer": "root",
+  "result": "Source clear; execution pending",
+  "scope": "One NEW native test file only; formatting only by root; no existing tests/product/config/writer change",
+  "review": "Checked real API shape, isolated-ledger setup, selector/control paths, signed literal cents, blocked keyboard submit, account balance, source split identity/order, real groupId Undo and active DB rows. Four profile/theme cases; no mocked requests or relaxed old tests. Current scope needs runtime assertions and original-image review.",
+  "testExecuted": false
+}

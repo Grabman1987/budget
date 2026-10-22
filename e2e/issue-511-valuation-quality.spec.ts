@@ -103,17 +103,23 @@ test('one current quote task and local disclosures follow real manual quote save
   const response = await page.request.get('/api/accounts');
   expect(response.status()).toBe(200);
   expect((await response.json()).netWorthEurCents).toBe(34000);
-  await expect(page.getByTestId('net-worth')).toHaveText('340,00 €');
-  await expect(page.getByTestId('net-worth').getByRole('button')).toHaveCount(0);
+  await page.goto('/vermoegen/nettovermoegen');
+  await expect(page.getByTestId('nw-figure')).toHaveText('340,00 €');
+  await page.goto('/konten');
+  const depotValue = page
+    .locator('[data-account-id="synthetic-depot"]')
+    .getByTestId('account-value');
+  await expect(depotValue).toHaveText('≈ 340,00 €');
+  await page.getByRole('button', { name: 'Details zu Synthetic depot', exact: true }).click();
+  await expect(depotValue.getByRole('button')).toHaveCount(0);
   const hint = page.getByRole('button', {
-    name: 'Bewertungsgrundlage · Nettovermögen',
+    name: 'Bewertungsgrundlage · Synthetic depot',
     exact: true,
   });
   expect(
     await page
-      .getByTestId('net-worth')
-      .locator('..')
-      .getByRole('button', { name: 'Bewertungsgrundlage · Nettovermögen', exact: true })
+      .locator('.overview-detail')
+      .getByRole('button', { name: 'Bewertungsgrundlage · Synthetic depot', exact: true })
       .count(),
   ).toBe(1);
   await hint.focus();
@@ -209,13 +215,16 @@ test('one current quote task and local disclosures follow real manual quote save
   await expect(privateKpiPopup).toContainText('Einstandswert als Schätzung');
   expect(await privateKpiPopup.textContent()).not.toContain('340');
   await page.keyboard.press('Escape');
+  await page.goto('/vermoegen/nettovermoegen');
+  await expect(page.getByTestId('nw-figure')).toHaveText('•••,••• €');
   await page.goto('/konten');
-  await expect(page.getByTestId('net-worth')).toHaveText('•••,••• €');
+  await expect(depotValue).toHaveText('≈ ••• €');
+  await page.getByRole('button', { name: 'Details zu Synthetic depot', exact: true }).click();
   const privateAccountMarker = page.getByRole('button', {
-    name: 'Bewertungsgrundlage · Nettovermögen',
+    name: 'Bewertungsgrundlage · Synthetic depot',
     exact: true,
   });
-  await expect(page.getByTestId('net-worth').getByRole('button')).toHaveCount(0);
+  await expect(depotValue.getByRole('button')).toHaveCount(0);
   await privateAccountMarker.focus();
   const privateAccountPopup = page.locator(
     `[id="${await privateAccountMarker.getAttribute('aria-describedby')}"]`,
@@ -286,10 +295,15 @@ async function capture(page: Page, info: TestInfo, label: string) {
         ).toContainText('Einstandswert als Schätzung');
         await page.keyboard.press('Escape');
       }
+      if (surface === 'accounts')
+        await page.getByRole('button', { name: 'Details zu Synthetic depot', exact: true }).click();
       const hint =
         surface === 'today'
           ? await currentDetail(page)
-          : page.getByRole('button', { name: 'Bewertungsgrundlage · Nettovermögen', exact: true });
+          : page.getByRole('button', {
+              name: 'Bewertungsgrundlage · Synthetic depot',
+              exact: true,
+            });
       await hint.scrollIntoViewIfNeeded();
       await hint.focus();
       const box = (await hint.boundingBox())!;

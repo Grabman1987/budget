@@ -1814,6 +1814,22 @@ targeted/WebKit results and the separate OLD WebKit compact proof do not claim
 all old browser cases or current CI green. Later4dbab Goals visual failures are
 addressed by the month-only CSS boundary; updated exact-head Goals CI is pending.
 
+
+## #584 — Capture line transition and stale remainder feedback
+
+- [x] NEW real isolated-ledger one → two → one regression: one gross field, exact 1-cent remainder refusal including Ctrl+Enter, unchanged 1000-cent head total after removal, one stored split of −1000 cents and public Undo.
+- [x] Literal UI odd cents: −1000 → −334/−333/−333, real API and SQLite readback; both Save/Undo paths restore the literal 100000-cent account balance.
+- [x] Exact local stale remainder-save feedback is suppressed only after current split validation clears; unrelated errors, financial rules, save guards and writers remain unchanged. No existing test changed.
+- [x] Corrected source `3a1210cc`: actual WebKit 7/7 in 81.135s (three setup + four feature cases), desktop 1440×900/configured iPhone 390×664, both themes, scoped Axe, phone44px and no horizontal overflow. [Four byte-identical one-after originals and limits](evidence/capture-transition-584/README.md).
+- [x] Root reviewed all four corrected one-after originals and two odd-cent originals. The first functional PASS / visual HOLD for stale red feedback remains retained; corrected originals remove that defect.
+- [x] Required AGE-enabled full check on frozen source `3a1210cc`: 589 files / 5,213 tests; normal production build passed. The handoff only adds documentation/evidence, leaving product and test bytes unchanged.
+- [ ] Exact-head Chromium/required CI, serial integration and verified LIVE.
+
+CI `39661416902` on `e188323c` passed all 22 jobs; the additional first-booking regression `39661417099` also passed. Live Main `fb7490d3` is now inherited unchanged. Capture product/test files remain byte-identical to the checked source. Both ROADMAP append sections were retained; required CI on the updated PR #746 head and its own serial live delivery remain pending.
+
+The body scrolls; screenshots do not claim every split row is visible at once.
+Physical-device/keyboard/fullscreen acceptance belongs separately to #586.
+
 ## #747 — Today savings action opens the task segment
 
 - [x] Identify the contextual-navigation defect: the generic inbox auto-selects movements while savings execution proposals belong to tasks.
@@ -1821,5 +1837,14 @@ addressed by the month-only CSS boundary; updated exact-head Goals CI is pending
 - [x] Preserve and pass the existing portfolio execution, financial, Undo and Redo regression checks without modifying their expectations. New regression plus unchanged portfolio tests: system Chromium desktop/mobile 17/17 passed (including setup, 1.2 min). Before the one-line fix, the new desktop regression failed on the bare inbox URL and showed Umsätze selected; its trace was retained.
 - [x] Independent Codex full-diff review: no findings; existing tests, financial writers, locks, audit and Undo unchanged.
 - [x] Required full AGE-enabled check: typecheck, lint/format and 589 files / 5,213 tests passed (386.97 s Vitest); normal production build passed. Supplemental system Chromium is not canonical visual or WebKit evidence.
-- [ ] Exact-head canonical CI.
-- [ ] Protected serial integration, deployment and actual live-revision verification; only then close #747.
+- [x] Exact-head canonical CI `39664783674` passed.
+- [x] PR #748 is LIVE at `fb7490d3bb2855d618df89625f5166f4cf24ae13`: Main CI `39666973044` and deployment `39667052323` succeeded. Owner local CLI reported fresh matching health on 2026-10-21 at 22:06 Europe/Vienna; the coordinator independently verified GitHub evidence. #747 closed; board reconciliation remains pending without board access.
+
+
+### #577 — Operational account overview (targeted checks passed; delivery pending)
+
+- Replaced the overview’s net-worth hero with the existing Budget-Konten group balance and an explicit checked/visible-account count linking to Prüfen. Closed accounts are omitted; each physical account retains its original group, order, value and check state. Platform/reference relationships are visual links only, including shared or cross-group references.
+- Added a compact token-based list with the existing account/reorder controllers, 30-day sparklines and explicit details for source, cash, pending/review/bank/limit metadata. Main rows and their checked count use one account projection; no new deadline, financial formula or write path was introduced.
+- Enriched history is explicitly requested with quality=1, a separate client key and sibling quality facts from the same read transaction. Default batch/single JSON and old callers are preserved; daily missing/absent metadata produces gaps/unavailable, never invented zero. Native cash balances retain their actual currency even when EUR conversion is unknown. Legacy MiniLine defaults remain unchanged.
+- [x] Fresh focused 51/51 plus legacy MiniLine 2/2; affected workspace types, scoped lint/format/CSS and E2E build pass. Supplemental Chromium 15 passed / two existing project skips, including all eight new profile/theme cases with actual1440 fit,390 targets, keyboard/Axe/privacy and real reorder/Undo. Independent source/delta reviews passed. [Unedited images, per-file mappings and limits](evidence/account-overview-577/README.md).
+- [ ] Complete initial-CI follow-up: large-amount/source-target layout and WebKit target ownership; diagnose the month-close retry and inherited Plan-filter failures. Legacy mappings retain independently reviewed finance/lock/Undo expectations (see evidence). Required full CI, protected integration, deployment and actual LIVE revision remain pending; no complete #577 acceptance claim.

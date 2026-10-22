@@ -1,4 +1,4 @@
-import type { AccountReviewStatus, CashValuation } from '@budget/domain';
+import type { AccountReviewStatus, CashValuation, ValuationQuality } from '@budget/domain';
 
 /** Shapes of the ledger API (`docs/api-ledger.md`); amounts are integer cents, days `YYYY-MM-DD`. */
 import type { ValuationSource, WithValuationNotes } from './valuation-hint';
@@ -101,6 +101,20 @@ export interface SeriesPoint {
   date: string;
   balanceCents: number;
   valuation?: CashValuation;
+}
+
+/** Explicit quality=1 sibling data, from the same snapshot as its account/date series point. */
+export interface AccountSeriesDayQuality {
+  source: 'native_cash' | 'account_value_eur';
+  currency: string;
+  known: boolean;
+  quality: ValuationQuality;
+  missing: 'price' | 'fx' | null;
+}
+export interface AccountSeriesBatch {
+  series: Record<string, { accountId: string; points: SeriesPoint[] }>;
+  /** Absent on legacy/default replies. Absence is not proof of valuation completeness. */
+  quality?: Record<string, Record<string, AccountSeriesDayQuality>>;
 }
 
 export interface ListedSplit {

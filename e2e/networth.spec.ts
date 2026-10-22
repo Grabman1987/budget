@@ -49,10 +49,13 @@ test('shows the prototype figure and the chain adds up', async ({ page }) => {
   await expect(page.getByText('Anfang Dez 2025')).toBeVisible();
 });
 
-test('jetzt equals the net worth on Konten (same function)', async ({ page }) => {
-  await page.goto('/konten');
-  await expect(page.getByTestId('net-worth')).toHaveText('84.730,00 €');
+test('jetzt equals the net worth from accounts (same function)', async ({ page, request }) => {
+  const response = await request.get('/api/accounts');
+  expect(response.status()).toBe(200);
+  const accounts = (await response.json()) as { netWorthEurCents: number };
+  expect(accounts.netWorthEurCents).toBe(8_473_000);
   await ready(page);
+  await expect(page.getByTestId('nw-figure')).toHaveText('84.730,00 €');
   expect((await chain(page)).now).toBe(NET_WORTH_EUROS);
 });
 
