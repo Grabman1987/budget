@@ -185,7 +185,7 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
         <div className="tbd-head">
           <h2 id="performance-heatmap-title">Monatsrenditen, Monat × Jahr</h2>
         </div>
-        <details className="performance-returns-grid">
+        <details className="performance-returns-grid performance-returns-screen">
           <summary>Renditeraster nach Jahr und Monat anzeigen</summary>
           <ChartValues
             label="Monatsrenditen"
@@ -208,78 +208,18 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
             )}
           >
             <Scroll label="Monatsrenditen">
-              <table className="prep-table performance-heatmap">
-                <caption>Portfolio-TTWROR in Prozent · * Teilmonat oder Teiljahr</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Jahr</th>
-                    {MONTHS.map((m) => (
-                      <th scope="col" key={m}>
-                        {m}
-                      </th>
-                    ))}
-                    <th scope="col">Jahresrendite</th>
-                    {summary.benchmarks.map((b) => (
-                      <th scope="col" key={b.id}>
-                        {b.name}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.years.map((year, yearIndex) => (
-                    <tr key={year.year}>
-                      <th scope="row">{year.year}</th>
-                      {MONTHS.map((_, i) => {
-                        const month = `${year.year}-${String(i + 1).padStart(2, '0')}`;
-                        const cell = history.months.find((m) => m.month === month);
-                        const heat = heatForCell(
-                          cell?.rate ?? null,
-                          { mean: 0, dev: heatMax },
-                          'high',
-                        );
-                        return (
-                          <td
-                            key={month}
-                            data-chart-point={yearIndex * 12 + i}
-                            style={heat ? ({ '--h': heat.strength } as CSSProperties) : undefined}
-                            className={
-                              heat
-                                ? `n ${heat.tone === 'good' ? 'return-positive' : 'return-negative'}`
-                                : 'n'
-                            }
-                            title={
-                              cell
-                                ? `${shortDay(cell.from)} bis ${shortDay(cell.to)}`
-                                : 'Außerhalb des Zeitraums'
-                            }
-                          >
-                            {cell
-                              ? cell.rate === null
-                                ? 'Nicht verfügbar'
-                                : `${rateText(cell.rate)}${cell.partial ? ' *' : ''}`
-                              : '–'}
-                          </td>
-                        );
-                      })}
-                      <td className="n">
-                        <strong>
-                          {rateText(year.rate)}
-                          {year.partial ? ' *' : ''}
-                        </strong>
-                      </td>
-                      {summary.benchmarks.map((b) => (
-                        <td className="n" key={b.id}>
-                          {rateText(b.years.find((y) => y.year === year.year)?.benchmarkRate)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <ReturnGridTable
+                history={history}
+                benchmarks={summary.benchmarks}
+                heatMax={heatMax}
+                chartPoints
+              />
             </Scroll>
           </ChartValues>
         </details>
+        <div className="performance-returns-print">
+          <ReturnGridTable history={history} benchmarks={summary.benchmarks} heatMax={heatMax} />
+        </div>
         <p className="vnote">
           Grün mit + = Gewinn, Rot mit − = Verlust. Jahreswerte verketten die bewertbaren
           Monatsrenditen. „–“ = außerhalb des Zeitraums; „Nicht verfügbar“ = ohne bewertbares
@@ -291,6 +231,87 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
         </details>
       </section>
     </>
+  );
+}
+
+/** One canonical return grid for the disclosure and its non-interactive print rendition. */
+function ReturnGridTable({
+  history,
+  benchmarks,
+  heatMax,
+  chartPoints = false,
+}: {
+  history: PortfolioPerformanceHistory;
+  benchmarks: PortfolioSummary['benchmarks'];
+  heatMax: number;
+  chartPoints?: boolean;
+}) {
+  return (
+    <table className="prep-table performance-heatmap">
+      <caption>Portfolio-TTWROR in Prozent · * Teilmonat oder Teiljahr</caption>
+      <thead>
+        <tr>
+          <th scope="col">Jahr</th>
+          {MONTHS.map((month) => (
+            <th scope="col" key={month}>
+              {month}
+            </th>
+          ))}
+          <th scope="col">Jahresrendite</th>
+          {benchmarks.map((benchmark) => (
+            <th scope="col" key={benchmark.id}>
+              {benchmark.name}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {history.years.map((year, yearIndex) => (
+          <tr key={year.year}>
+            <th scope="row">{year.year}</th>
+            {MONTHS.map((_, i) => {
+              const month = `${year.year}-${String(i + 1).padStart(2, '0')}`;
+              const cell = history.months.find((entry) => entry.month === month);
+              const heat = heatForCell(cell?.rate ?? null, { mean: 0, dev: heatMax }, 'high');
+              return (
+                <td
+                  key={month}
+                  data-chart-point={chartPoints ? yearIndex * 12 + i : undefined}
+                  style={heat ? ({ '--h': heat.strength } as CSSProperties) : undefined}
+                  className={
+                    heat
+                      ? `n ${heat.tone === 'good' ? 'return-positive' : 'return-negative'}`
+                      : 'n'
+                  }
+                  title={
+                    cell
+                      ? `${shortDay(cell.from)} bis ${shortDay(cell.to)}`
+                      : 'Außerhalb des Zeitraums'
+                  }
+                >
+                  {cell
+                    ? cell.rate === null
+                      ? 'Nicht verfügbar'
+                      : `${rateText(cell.rate)}${cell.partial ? ' *' : ''}`
+                    : '–'}
+                </td>
+              );
+            })}
+            <td className="n">
+              <strong>
+                {rateText(year.rate)}
+                {year.partial ? ' *' : ''}
+              </strong>
+            </td>
+            {benchmarks.map((benchmark) => (
+              <td className="n" key={benchmark.id}>
+                {rateText(benchmark.years.find((entry) => entry.year === year.year)?.benchmarkRate)}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 

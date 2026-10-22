@@ -176,6 +176,17 @@
   background: color-mix(in srgb, var(--heat-red) calc(var(--h) * var(--heat-max)), var(--ground));
   border-bottom-style: dashed;
 }
+.portfolio-performance-report .performance-returns-print {
+  display: none;
+}
+@media print {
+  .portfolio-performance-report .performance-returns-screen {
+    display: none !important;
+  }
+  .portfolio-performance-report .performance-returns-print {
+    display: block;
+  }
+}
 .portfolio-performance-report summary {
   min-height: 44px;
   display: list-item;
