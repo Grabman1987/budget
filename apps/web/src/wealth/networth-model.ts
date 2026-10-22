@@ -104,9 +104,10 @@ export const kfmt = (v: number): string =>
 export function euroAxis(ticks: readonly number[]): { unit: string; label: (value: number) => string } {
   const thousands = ticks.some((value) => Math.abs(value) >= 1000);
   const step = Math.min(...ticks.slice(1).map((value, index) => Math.abs(value - ticks[index]!)));
+  const scale = thousands ? 1000 : 1;
   const digits =
-    thousands && Number.isFinite(step) && step > 0
-      ? Math.min(6, Math.max(0, Math.ceil(-Math.log10(step / 1000))))
+    Number.isFinite(step) && step > 0
+      ? Math.min(6, Math.max(0, Math.ceil(-Math.log10(step / scale)) + 1))
       : 0;
   const formatter = new Intl.NumberFormat('de-AT', { maximumFractionDigits: digits });
   return {

@@ -20,6 +20,12 @@ The 13 implementation files are:
 - `apps/web/src/reports/year-report.tsx`: hide only trailing future columns after the latest available full month. The view still uses `buildYearView` for amounts, comparison pairs, and totals. An unavailable month within the actual-data horizon remains visible as an unavailable month; this is a display projection, not a change to the report's financial period or calculation.
 - `apps/web/src/wealth/networth-model.ts`, `apps/web/src/wealth/networth-chart.tsx`, and `apps/web/src/reports/{liquidity-chart,assets-debts-chart,wealth-history-chart}.tsx`: use one unit-aware axis formatter for those four charts, with explicit `€` or `Tsd. €` headings and distinct nice-number tick labels. Exact cent values still feed tooltips and summaries; chart geometry and stored values are unchanged.
 
+The axis label precision uses the selected unit and the existing `portfolioIndexAxis` extra-digit
+rule. Manual source examples for later validation (not executed): ticks `[0, 2500, 5000]` should
+read `0`, `2,5`, `5` under `Tsd. €`; ticks `[0, 0.25, 0.5]` should read `0`, `0,25`, `0,5` under
+`€`. Negative ticks retain the real minus sign. These examples describe expected labels and do
+not establish rendered spacing or a test result.
+
 ## Remaining integration and acceptance
 
 - `kfmt` still emits `T` in the other callers: `apps/web/src/reports/{table-charts,explorer-template-trend,year-charts,category-trend,cashflow-chart}.tsx` and `apps/web/src/wealth/{debts-chart,portfolio-overview,freedom-chart}.tsx`. Their plot margins and unit placement need individual source and rendered review; a global suffix replacement would make narrow labels longer.
