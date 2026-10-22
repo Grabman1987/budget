@@ -40,8 +40,12 @@ function configurationRevision(db: Executor, value: string | null): string {
 function decisionRevision(db: Executor, month: string): string {
   const id = `${DECISION}${month}`;
   const value = getEntity(db, appSetting, id)?.value ?? null;
-  const events = db.get<{ count: number }>(sql`SELECT COUNT(*) AS count FROM audit_log WHERE entity_type='app_setting' AND entity_id=${id}`)!.count;
+  const events = decisionAuditCount(db, month);
   return hash({ value, events });
+}
+function decisionAuditCount(db: Executor, month: string): number {
+  const id = `${DECISION}${month}`;
+  return db.get<{ count: number }>(sql`SELECT COUNT(*) AS count FROM audit_log WHERE entity_type='app_setting' AND entity_id=${id}`)!.count;
 }
 export function strategyConfiguration(db: Executor) {
   const value = getEntity(db, appSetting, CONFIG)?.value ?? null;
@@ -168,6 +172,23 @@ export function recordStrategyMonthlyDecision(db: Executor, evidence: Extract<St
     const decision = decisionSchema.parse({ ...facts, fingerprint, knownAt: asOf, sessions, closes });
     createEntity(tx, appSetting, { id, value: JSON.stringify(decision) }, grouped);
     return { decision, groupId: grouped.groupId, changedCount: 1 };
+  });
+}
+/** One-shot automatic path: an undone month remains permanently ineligible for automatic recreation. */
+export function recordAutomaticStrategyMonthlyDecision(db: Executor,
+  evidence: Extract<StrategyEvidence, { status: 'verified' }>, month: string, asOf: string,
+  ctx: AuditContext,
+) {
+  return runInTransaction(db, (tx) => {
+    const id = `${DECISION}${month}`;
+    // Both gates share the writer transaction. An Undo deletes the setting but retains its audit history.
+    if (getEntity(tx, appSetting, id) || decisionAuditCount(tx, month) !== 0)
+      return { status: 'already_seen' as const };
+    const settings = strategyConfiguration(tx);
+    if (!settings.config?.enabled) return { status: 'disabled' as const };
+    const result = recordStrategyMonthlyDecision(tx, evidence, month, asOf, settings.revision,
+      decisionRevision(tx, month), ctx);
+    return { status: 'recorded' as const, ...result };
   });
 }
 function jsonSignal(signal: StrategyTrendResult) {
