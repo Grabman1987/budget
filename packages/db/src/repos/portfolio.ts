@@ -1526,12 +1526,17 @@ export function holdingAccountValueSeries(
   db: Executor,
   days: ReadonlyArray<string>,
   accounts?: ReadonlyArray<string>,
+  observe?: ValuationOptions['observe'],
 ): Map<string, number[]> {
   const out = new Map<string, number[]>();
   const from = days[0];
   const to = days[days.length - 1];
   if (from === undefined || to === undefined) return out;
-  const positions = valuationSeries(db, { from, to, ...(accounts ? { accounts } : {}) }).positions;
+  const positions = valuationSeries(
+    db,
+    { from, to, ...(accounts ? { accounts } : {}) },
+    observe ? { observe } : {},
+  ).positions;
   if (positions.length === 0) return out;
   const held = new Set(positions.map((p) => p.accountId));
   const cash = cashSeries(db, days, [...held]);

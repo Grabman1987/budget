@@ -201,6 +201,7 @@ test('bank merge, mirror transfer, selected pair and balance lock with undo', as
     balanceDb.close();
   }
   await page.goto('/konten');
+  await page.getByRole('button', { name: 'Details zu Girokonto A', exact: true }).click();
   await expect(page.getByText('Bankstand: 975,98 €', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Abgleich sperren bis heute' })).toBeVisible();
   expect((await new AxeBuilder({ page }).include('.kview').analyze()).violations).toEqual([]);
