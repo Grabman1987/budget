@@ -107,6 +107,49 @@
   padding-block: 16px;
   border-block: 1px solid var(--rule);
 }
+.contacts-receipt-fields {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.contacts-allocation-table {
+  table-layout: fixed;
+}
+.contacts-allocation-table caption {
+  padding-block: 8px;
+  text-align: left;
+  color: var(--ink-2);
+}
+.contacts-allocation-table th {
+  overflow-wrap: anywhere;
+}
+.contacts-allocation-table th:nth-child(2) {
+  width: 24%;
+}
+.contacts-allocation-table th:nth-child(3) {
+  width: 36%;
+}
+.contacts-allocation-table .num {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.contacts-allocation-input {
+  min-width: 0;
+  width: 100%;
+  min-height: var(--touch);
+}
+.contacts-allocation-refresh {
+  display: grid;
+  gap: 8px;
+}
+.contacts-receipt .btn {
+  min-height: var(--touch);
+  max-width: 100%;
+  white-space: normal;
+}
 @media (max-width: 600px) {
   .contacts-page .ptoolbar {
     flex-wrap: wrap;

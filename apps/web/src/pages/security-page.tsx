@@ -26,6 +26,8 @@ import { SECURITY_META } from '../nav/pages';
 import { PageFrame } from './placeholder-page';
 import { clearDeviceFinancialData } from '../pwa/local-data';
 import { StorageStatus } from '../pwa/storage-status';
+import { holdReceiptQueueForSignOut } from '../pwa/receipt-queue-store';
+import { clearReadSnapshots, holdReadSnapshotWrites } from '../pwa/read-snapshot-store';
 
 const RECOVERY_CODE_COUNT = 10;
 
@@ -117,13 +119,30 @@ export function SecurityPanel({ onLoggedOut }: SecurityPanelProps) {
 
   const signOut = () =>
     run(async () => {
+      // Invalidate at intent: a pending logout must not leave a readable copy or accept late reads.
+      const releaseSnapshotWrites = holdReadSnapshotWrites();
+      const receiptHold = holdReceiptQueueForSignOut();
+      // Begin raw-byte erasure at intent, independently of the network request.
+      const receiptWipe = receiptHold.clear().then(() => true, () => false);
+      void clearReadSnapshots();
       try {
         await logout();
       } finally {
         // Also when the server could not be reached: the data must not stay on a device the user
         // meant to sign out of. The error stays visible; the hand-over happens only on success.
         queryClient.clear();
-        await clearDeviceFinancialData();
+        try {
+          await clearDeviceFinancialData();
+        } finally {
+          releaseSnapshotWrites();
+          const cleared = await receiptWipe;
+          if (cleared) {
+            try { await receiptHold.release(); }
+            catch { toast.show({ message: 'Belegdateien gelöscht; der lokale Belegspeicher bleibt gesperrt.' }); }
+          } else {
+            toast.show({ message: 'Belegdateien konnten nicht sicher gelöscht werden. Der Belegspeicher bleibt gesperrt; Browserdaten dieser Website entfernen.' });
+          }
+        }
       }
       onLoggedOut();
     });
@@ -282,6 +301,8 @@ export function SecurityPanel({ onLoggedOut }: SecurityPanelProps) {
           <Button variant="ghost" disabled={busy} onClick={() => void signOut()}>
             Abmelden
           </Button>
+          <p className="field-hint">Abmelden löscht wartende Belegdateien auf diesem Gerät.
+            Sende sie vorher, wenn du sie behalten möchtest. Wartende Textbuchungen bleiben erhalten.</p>
         </div>
       </section>
     </div>

@@ -717,9 +717,18 @@ function ReceiptForm({ statement, onDone }: { statement: Statement; onDone: () =
   const [accountId, setAccountId] = useState('');
   const [date, setDate] = useState(todayInVienna());
   const [amount, setAmount] = useState('');
-  const [chosen, setChosen] = useState<Record<string, string> | null>(null);
+  const [chosen, setChosen] = useState<{
+    basis: string;
+    values: Record<string, string>;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
+  const saving = useRef(false);
+  const allocationHint = useId();
   const write = useContactWrite();
+  const day = new Date(`${date}T00:00:00Z`);
+  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+    Number.isFinite(day.getTime()) && day.toISOString().slice(0, 10) === date &&
+    date <= todayInVienna();
   const target = useQuery({
     queryKey: [...LEDGER_KEY, 'contact', statement.contact.id, date],
     queryFn: () =>
@@ -727,20 +736,24 @@ function ReceiptForm({ statement, onDone }: { statement: Statement; onDone: () =
         'GET',
         `${contactUrl(statement.contact.id)}?asOf=${encodeURIComponent(date)}`,
       ),
-    enabled: /^\d{4}-\d{2}-\d{2}$/.test(date),
+    enabled: validDate,
+    retry: false,
   });
-  const open = target.data?.outlays.filter((o) => o.remainingCents > 0) ?? [];
+  // A failed/still-refreshing dated read is not a usable repayment preview.
+  const ready = validDate && target.isSuccess && !target.isFetching &&
+    target.data.contact.id === statement.contact.id && target.data.asOf === date;
+  const open = ready ? target.data!.outlays.filter((o) => o.remainingCents > 0) : [];
+  const basis = JSON.stringify(open.map((o) => [o.splitId, o.date, o.remainingCents]));
+  const changed = ready && chosen !== null && chosen.basis !== basis;
   const parsed = parseAmount(amount);
   const amountCents = parsed.ok && parsed.cents > 0 ? parsed.cents : 0;
   const plan = allocateContactReceipt(open, amountCents);
-  const values =
-    chosen ??
-    Object.fromEntries(
-      open.map((o) => [
-        o.splitId,
-        decimal(plan.allocations.find((a) => a.outlaySplitId === o.splitId)?.amountCents ?? 0),
-      ]),
-    );
+  const values = chosen?.values ?? Object.fromEntries(
+    open.map((o) => [
+      o.splitId,
+      decimal(plan.allocations.find((a) => a.outlaySplitId === o.splitId)?.amountCents ?? 0),
+    ]),
+  );
   let allocations: ContactAllocation[] = [];
   let allocationError = '';
   try {
@@ -754,110 +767,117 @@ function ReceiptForm({ statement, onDone }: { statement: Statement; onDone: () =
     allocationError =
       'Die Anteile müssen zur Rückzahlung passen und dürfen die offene Auslage nicht übersteigen.';
   }
+  const selectedCash = cash.find((a) => a.id === (accountId || cash[0]?.id));
+  const canSave = ready && !changed && amountCents > 0 && !allocationError &&
+    accounts.isSuccess && !accounts.isFetching && selectedCash !== undefined &&
+    date >= selectedCash.openingDate;
   return (
     <form
       className="contacts-form contacts-receipt"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!amountCents || allocationError || !target.data) return;
+        if (saving.current || !canSave || !selectedCash) return;
+        saving.current = true;
         setBusy(true);
         void write(
           () =>
             request('POST', `${contactUrl(statement.contact.id)}/settlements`, {
-              accountId: accountId || cash[0]?.id,
+              accountId: selectedCash.id,
               date,
               amountCents,
               allocations,
             }),
           'Rückzahlung gebucht.',
         ).then((ok) => {
+          saving.current = false;
           setBusy(false);
           if (ok) onDone();
         });
       }}
     >
-      <p>Rückzahlungen sind auf offene EUR-Konten (Giro, Sparen oder Bargeld) möglich.</p>
-      <Field label="Konto">
-        {({ id }) => (
-          <Select
-            id={id}
-            value={accountId || cash[0]?.id || ''}
-            onChange={(e) => setAccountId(e.target.value)}
-            required
-          >
-            <AccountOptions accounts={cash} />
-          </Select>
-        )}
-      </Field>
-      <Field label="Datum">
-        {({ id }) => (
-          <TextInput
-            id={id}
-            type="date"
-            value={date}
-            max={todayInVienna()}
-            required
-            onChange={(e) => {
-              setDate(e.target.value);
-              setChosen(null);
-            }}
-          />
-        )}
-      </Field>
-      <AmountInput
-        label="Rückzahlung"
-        value={amount}
-        onChange={(v) => {
-          setAmount(v);
-          setChosen(null);
-        }}
-      />
-      <p>Standard: älteste offene Auslage zuerst. Anteile vor dem Speichern ändern.</p>
-      {target.isPending && <LoadingNote what="Offene Auslagen" />}
-      {target.isError && (
-        <ErrorNote
-          what="Offene Auslagen"
-          error={target.error}
-          onRetry={() => void target.refetch()}
-        />
-      )}
-      {open.map((o, i) => (
-        <Field
-          key={o.splitId}
-          label={`Auslage ${i + 1} · ${longDay(o.date)} · offen ${eur(o.remainingCents)}`}
-        >
+      <fieldset className="contacts-receipt-fields" disabled={busy}>
+        <legend className="sr-only">Rückzahlung und Zuordnung zu offenen Auslagen</legend>
+        <p>Rückzahlungen sind auf offene EUR-Konten (Giro, Sparen oder Bargeld) möglich.</p>
+        {accounts.isPending && <LoadingNote what="Konten" />}
+        {accounts.isError && <ErrorNote what="Konten" error={accounts.error} onRetry={() => void accounts.refetch()} />}
+        {accounts.isSuccess && cash.length === 0 && <p role="status">Für die Rückzahlung ist ein offenes EUR-Konto erforderlich.</p>}
+        <Field label="Konto">
+          {({ id }) => (
+            <Select
+              id={id}
+              value={accountId || cash[0]?.id || ''}
+              onChange={(e) => setAccountId(e.target.value)}
+              required
+            >
+              <AccountOptions accounts={cash} />
+            </Select>
+          )}
+        </Field>
+        <Field label="Datum">
           {({ id }) => (
             <TextInput
               id={id}
-              inputMode="decimal"
-              value={values[o.splitId] ?? '0'}
-              money
-              onChange={(e) => setChosen({ ...values, [o.splitId]: e.target.value })}
+              type="date"
+              value={date}
+              max={todayInVienna()}
+              required
+              onChange={(e) => {
+                setDate(e.target.value);
+                setChosen(null);
+              }}
             />
           )}
         </Field>
-      ))}
-      <p>
-        Guthaben aus dieser Rückzahlung: <strong>{eur(plan.creditCents)}</strong>
-      </p>
-      {amountCents > 0 && allocationError && (
-        <p className="field-error" role="alert">
-          {allocationError}
-        </p>
-      )}
-      <Button
-        type="submit"
-        disabled={
-          busy ||
-          !cash.length ||
-          !amountCents ||
-          !!allocationError ||
-          !target.data ||
-          target.isFetching
-        }
-      >
-        Rückzahlung speichern
-      </Button>
+        <AmountInput
+          label="Rückzahlung"
+          value={amount}
+          onChange={(v) => {
+            setAmount(v);
+            setChosen(null);
+          }}
+        />
+        <p id={allocationHint}>Standard: älteste offene Auslage zuerst. Anteile vor dem Speichern ändern. Ein neuer Betrag oder ein anderes Datum berechnet die FIFO-Zuordnung neu.</p>
+        {!validDate && <p className="field-error" role="alert">Bitte ein gültiges Datum bis heute wählen.</p>}
+        {validDate && target.isPending && <LoadingNote what="Offene Auslagen" />}
+        {target.isFetching && !target.isPending && <p role="status">Offene Auslagen werden aktualisiert. Speichern ist währenddessen gesperrt.</p>}
+        {target.isError && <ErrorNote what="Offene Auslagen" error={target.error} onRetry={() => void target.refetch()} />}
+        {validDate && target.isSuccess && !target.isFetching && !ready && <div role="alert">
+          <p>Die geladenen Auslagen passen nicht zum Kontakt und Datum.</p>
+          <Button variant="ghost" onClick={() => void target.refetch()}>Auslagen erneut laden</Button>
+        </div>}
+        {changed && <div className="contacts-allocation-refresh" role="status">
+          <p>Die offenen Auslagen haben sich geändert. Deine manuelle Zuordnung wird nicht automatisch übernommen.</p>
+          <Button variant="ghost" onClick={() => setChosen(null)}>Neue Auslagen übernehmen und FIFO neu zuordnen</Button>
+        </div>}
+        {ready && <>
+          {open.length > 0 ? <table className="contacts-table contacts-allocation-table">
+            <caption>Zuordnung der Rückzahlung · {chosen ? 'manuell geändert' : 'älteste Auslage zuerst'}</caption>
+            <thead><tr><th scope="col">Auslage</th><th scope="col">Offen</th><th scope="col">Zuordnen</th></tr></thead>
+            <tbody>{open.map((o, i) => <tr key={o.splitId}>
+              <th scope="row">{longDay(o.date)}<small>{maskMoneyText(o.memo?.trim() || `Auslage ${i + 1}`)}</small></th>
+              <td className="num">{eur(o.remainingCents)}</td>
+              <td><TextInput
+                className="contacts-allocation-input"
+                aria-label={`Auslage ${i + 1} · ${longDay(o.date)} · offen ${eur(o.remainingCents)}`}
+                aria-describedby={allocationHint}
+                inputMode="decimal"
+                money
+                disabled={changed}
+                value={values[o.splitId] ?? '0'}
+                onChange={(e) => setChosen({ basis, values: { ...values, [o.splitId]: e.target.value } })}
+              /></td>
+            </tr>)}</tbody>
+          </table> : <p>Zu diesem Datum sind keine offenen Auslagen vorhanden. Die Rückzahlung wird als Kontaktguthaben geführt.</p>}
+          {chosen && !changed && <Button variant="ghost" onClick={() => setChosen(null)}>Älteste Auslage zuerst zuordnen</Button>}
+          <p>Guthaben aus dieser Rückzahlung: <strong>{eur(plan.creditCents)}</strong></p>
+        </>}
+        {amount !== '' && !amountCents && <p className="field-error" role="alert">Bitte eine gültige Rückzahlung größer als 0 eingeben.</p>}
+        {ready && !changed && amountCents > 0 && allocationError && <p className="field-error" role="alert">{allocationError}</p>}
+        {selectedCash && validDate && date < selectedCash.openingDate && <p className="field-error" role="alert">Das Rückzahlungsdatum liegt vor der Kontoeröffnung.</p>}
+        <Button type="submit" disabled={busy || !canSave}>
+          {busy ? 'Rückzahlung wird gespeichert …' : 'Rückzahlung speichern'}
+        </Button>
+      </fieldset>
     </form>
   );
 }

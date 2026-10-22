@@ -4,6 +4,9 @@ import { ApiError } from '../api/http';
 import { AUTH_STATUS_KEY, queryClient } from '../auth/status-query';
 import './pwa.css';
 import { QueueCapture, QueueList } from './queue-ui';
+import { ReceiptQueueList, ReceiptQueuePicker, ReceiptQueueProvider } from './receipt-queue-ui';
+import { OfflineReadViewer } from './read-snapshot-viewer';
+import { networkUnavailable, readSnapshotRevision, setOfflineViewer, subscribeReadSnapshots } from './read-snapshot-store';
 
 function subscribeAuthStatus(setHasConnected: (connected: boolean) => void) {
   return queryClient.getQueryCache().subscribe(({ query }) => {
@@ -32,18 +35,29 @@ function subscribeOnline(changed: () => void) {
   };
 }
 
-/** No durable financial cache: offline reloads render only the static shell. */
+/** Raw-file delivery is independent of authentication and the existing text booking queue. */
 export function PwaShell({ children }: { children: ReactNode }) {
+  return <ReceiptQueueProvider><PwaRuntime>{children}</PwaRuntime></ReceiptQueueProvider>;
+}
+
+function PwaRuntime({ children }: { children: ReactNode }) {
   const online = useSyncExternalStore(
     subscribeOnline,
     () => navigator.onLine,
     () => true,
   );
+  const readRevision = useSyncExternalStore(subscribeReadSnapshots, readSnapshotRevision, () => 0);
+  const unavailable = !online || networkUnavailable();
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
   const [hasConnected, setHasConnected] = useState(
     () => navigator.onLine && !authStatusUnavailable(),
   );
   const [capture, setCapture] = useState(false);
+  const showLocal = unavailable || !hasConnected;
+  useEffect(() => {
+    setOfflineViewer(showLocal);
+    return () => setOfflineViewer(false);
+  }, [showLocal, readRevision]);
   useEffect(() => {
     const connected = () => setHasConnected(true);
     window.addEventListener('online', connected);
@@ -108,24 +122,29 @@ export function PwaShell({ children }: { children: ReactNode }) {
           </Button>
         </section>
       )}
-      {!online && hasConnected && (
+      {unavailable && hasConnected && (
         <div className="pwa-connection" role="status">
           Offline · Angezeigte Daten können veraltet sein. Neue Buchungen warten auf diesem Gerät.
         </div>
       )}
-      {hasConnected ? (
-        children
-      ) : (
+      <div hidden={showLocal} inert={showLocal}>{children}</div>
+      {showLocal && (
         <main className="pwa-offline" id="main">
           <img src="/icons/budget.svg" width="48" height="48" alt="" />
           <h1>Budget ist offline</h1>
           <p>
-            Neue Buchungen bleiben auf diesem Gerät und werden bei Verbindung gesendet. Für aktuelle
-            Finanzdaten brauchst du eine Verbindung.
+            Neue Buchungen und Belegdateien bleiben auf diesem Gerät und werden getrennt gesendet.
+            Gespeicherte Ansichten sind nur lesbar. Für aktuelle Finanzdaten brauchst du eine Verbindung.
           </p>
           <Button onClick={() => window.location.reload()}>Erneut verbinden</Button>
           <Button onClick={() => setCapture(true)}>Buchung erfassen</Button>
           <QueueList />
+          <section className="receipt-section" aria-label="Beleg offline erfassen">
+            <h2>Beleg erfassen</h2>
+            <ReceiptQueuePicker />
+            <ReceiptQueueList />
+          </section>
+          <OfflineReadViewer />
         </main>
       )}
       {capture && <QueueCapture onClose={() => setCapture(false)} />}

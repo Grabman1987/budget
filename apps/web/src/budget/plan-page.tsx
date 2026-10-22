@@ -1,3 +1,4 @@
+import { useOfflineSnapshotCapture } from '../pwa/read-snapshot-capture';
 import { AllocationBar } from '../reports/allocation-bar';
 import { IncomeTargetsCard } from './income-targets-card';
 import {
@@ -124,6 +125,7 @@ declare module '@tanstack/history' {
  * list of the envelopes. Every figure comes from `/api/budget/:month`.
  */
 export function PlanMonthPage() {
+  useOfflineSnapshotCapture('plan');
   useAmountPrivacy();
   const [month] = useMonth();
   const span = useMonthSpan();

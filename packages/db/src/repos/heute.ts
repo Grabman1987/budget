@@ -55,6 +55,7 @@ import { monthResultRead } from './month-reports';
 import { wholePicture } from './whole-picture';
 import { listGoals } from './goals';
 import { accountReminders } from './account-reminders';
+import { contactReminders } from './contacts';
 
 /**
  * The read model of Heute (concept §7.1, SPEC §3): one call, every figure from the domain
@@ -196,6 +197,7 @@ export interface Heute {
   upcoming14: HeuteOccurrence[];
   upcomingEvents: PlannedEventOccurrence[];
   accountReminders: ReturnType<typeof accountReminders>;
+  contactReminders?: ReturnType<typeof contactReminders>;
   financeCheck:
     | {
         counts: FinanceCheck['counts'];
@@ -786,6 +788,7 @@ function heuteReaders(db: Executor, query: HeuteQuery) {
     return {
       stand,
       accountReminders: accountReminders(db, today),
+      contactReminders: contactReminders(db, today),
       financeCheck: checkOf(),
       attention: {
         // Same rule as the header pill and `/inbox/count`: overspent envelopes are counted in
@@ -838,6 +841,7 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
     upcoming14: upcoming.upcoming14,
     upcomingEvents: upcoming.upcomingEvents,
     accountReminders: tasks.accountReminders,
+    contactReminders: tasks.contactReminders,
     financeCheck: tasks.financeCheck,
     netWorth: reads.wealth().netWorth,
     attention: tasks.attention,

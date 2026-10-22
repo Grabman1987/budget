@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { allocateContactReceipt, contactStatement, type ContactAllocation } from '@budget/domain';
+import { allocateContactReceipt, contactStatement, daysBetween, type ContactAllocation } from '@budget/domain';
 import { and, eq, isNull } from 'drizzle-orm';
 import {
   account,
@@ -38,6 +38,33 @@ export function getContactStatement(db: Executor, id: string, asOf: string) {
     currency: 'EUR' as const,
     ...contactStatement(movements, savedContactSettlements(db, id, asOf)),
   };
+}
+
+export type ContactReminder =
+  | { contactId: string; name: string; status: 'overdue'; oldestOpenDate: string; ageDays: number }
+  | { contactId: string; name: string; status: 'unavailable'; reason: 'unsupported_currency' };
+
+/** Current open outlays AFTER the existing saved/FIFO allocations; no reminder state or writes. */
+export function contactReminders(db: Executor, today: string): ContactReminder[] {
+  const reminders: ContactReminder[] = [];
+  for (const row of db.select({ id: contact.id, name: contact.name }).from(contact).where(isNull(contact.deletedAt)).all()) {
+    // Existing helpers query this contact/as-of only, preserving movement order and pending eligibility.
+    const movements = actualContactMovements(db, row.id, today);
+    if (movements.some((movement) => movement.currency !== 'EUR')) {
+      reminders.push({ contactId: row.id, name: row.name, status: 'unavailable', reason: 'unsupported_currency' });
+      continue;
+    }
+    const statement = contactStatement(movements, savedContactSettlements(db, row.id, today));
+    const oldest = statement.outlays.find((outlay) => outlay.remainingCents > 0 && daysBetween(outlay.date, today) > 30);
+    if (oldest) reminders.push({ contactId: row.id, name: row.name, status: 'overdue',
+      oldestOpenDate: oldest.date, ageDays: daysBetween(oldest.date, today) });
+  }
+  return reminders.sort((a, b) => {
+    if (a.status !== b.status) return a.status === 'overdue' ? -1 : 1;
+    if (a.status === 'overdue' && b.status === 'overdue')
+      return a.oldestOpenDate.localeCompare(b.oldestOpenDate) || a.contactId.localeCompare(b.contactId);
+    return a.contactId.localeCompare(b.contactId);
+  });
 }
 
 export function listContactStatements(db: Executor, asOf: string, history = false) {
