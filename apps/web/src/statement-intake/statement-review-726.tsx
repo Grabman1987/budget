@@ -105,6 +105,8 @@ function AccountStatements({ accountId }: { accountId: string }) {
   const documentDirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const dirty = documentDirty || settlementDirty || automationDirty || linksDirty;
   const historyBlocked = useRef(false);
+  const historySourceId = useRef<string | null>(null);
+  historySourceId.current = current?.id ?? null;
   historyBlocked.current =
     documentBusy || automationBusy || linksBusy || documentDirty || automationDirty ||
     linksDirty || password !== '' || conflict;
@@ -448,8 +450,11 @@ function AccountStatements({ accountId }: { accountId: string }) {
               accountId={accountId}
               initialSource={current}
               onSourceAdopt={adopt}
-              canSourceHistoryChange={() => !historyBlocked.current}
+              canSourceHistoryChange={() =>
+                !historyBlocked.current && historySourceId.current === current.id
+              }
               onSourceHistoryConflict={() => {
+                if (historySourceId.current !== current.id) return;
                 setConflict(true);
                 setError('Der Dokumentstand hat sich geändert. Bitte den aktuellen Stand neu laden.');
               }}

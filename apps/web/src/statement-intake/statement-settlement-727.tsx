@@ -274,7 +274,13 @@ export function StatementSettlementReview({
   > | null>(null);
   const [editingBonus, setEditingBonus] = useState<string | null>(null);
   const running = useRef(false);
-  const historyGuard = useRef({ busy: false, dirty: false, retry: false, conflict: false });
+  const historyGuard = useRef({
+    busy: false,
+    dirty: false,
+    retry: false,
+    conflict: false,
+    sourceId: initialSource.id,
+  });
   useEffect(() => {
     onDirty(dirty || retry !== null);
   }, [dirty, retry, onDirty]);
@@ -327,7 +333,7 @@ export function StatementSettlementReview({
     !eligible ||
     current.isError ||
     current.isFetching;
-  historyGuard.current = { busy, dirty, retry: retry !== null, conflict };
+  historyGuard.current = { busy, dirty, retry: retry !== null, conflict, sourceId: source.id };
   const configRevision = captured?.config?.revision;
   const settlement = captured?.settlements.find(
     (r) => r.sourceIntakeId === source.id && active(r.state),
@@ -455,6 +461,7 @@ export function StatementSettlementReview({
       !guard.dirty &&
       !guard.retry &&
       !guard.conflict &&
+      guard.sourceId === source.id &&
       !running.current &&
       canSourceHistoryChange()
     );
