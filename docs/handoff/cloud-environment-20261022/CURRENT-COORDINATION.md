@@ -33,3 +33,7 @@ GitHub repository API and ordinary branch push worked here. The last fresh repos
 ## Remaining work
 
 Continue unfinished source from each pinned package handoff. Preserve explicit dependencies and scoped overlaps: #519 migration0051 depends on0048–0050; #470/#474 UI hunks must be combined with latest report/Plan source without whole-file overwrites; #574 assembly inherits the entire required offline/receipt stack. Further validation and serial delivery require a later owner direction changing the current no-test/no-merge mode. Private document history, trusted market/calendar adapters, unsupported transfer lineage and rendering acceptance remain separate open work.
+
+## Subsequent source continuation
+
+#488 source checkpoint `ca931813e58fe6076a26e70b626ff4050076066a` on `codex/impl-488-answer-first` now includes shared indexed depot-chart scale, top-five comparable category changes, regular salary lead/history table and method disclosures; NOT VALIDATED. The catalogue audit found16entries/34legacy mappings present; the full three-register Portfolio-Auswertung remains the concrete #487 source gap. Two further bounded tasks now run: #487 report implementation and remaining #470 monetary-axis units. These supersede the earlier no-active-agent snapshot. No automated queue loop or new validation is authorized.
