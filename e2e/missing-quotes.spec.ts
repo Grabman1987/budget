@@ -52,10 +52,23 @@ test('a position without market quote is valued at cost and flagged; the first q
 
   const hint = 'Bewertung teilweise geschätzt: 1 Wertpapier ohne Kurs';
 
+  // Cost-valued holdings of 10000 cents and cash of −10000 cents make known net worth zero;
+  // the Wealth page uses its existing empty state for this zero-only composition.
+  const wealthResponse = await request.get(`${origin}/api/wealth/networth?period=YTD`);
+  expect(wealthResponse.status()).toBe(200);
+  expect((await wealthResponse.json()).chain.nowCents).toBe(0);
   await page.goto('/konten');
-  await expect(page.getByTestId('net-worth')).not.toHaveText('Nicht verfügbar');
-  const accountMarker = page.getByTestId('net-worth').locator('..').getByRole('button', {
-    name: 'Bewertungsgrundlage · Nettovermögen',
+  const accountValue = page
+    .locator(`[data-account-id="${account.id}"]`)
+    .getByTestId('account-value');
+  await expect(accountValue).toBeVisible();
+  await expect(accountValue).not.toHaveText('Nicht verfügbar');
+  await expect(accountValue).toHaveText('≈ 100,00 €');
+  await page
+    .getByRole('button', { name: `Details zu Musterdepot ${info.project.name}`, exact: true })
+    .click();
+  const accountMarker = page.locator('.overview-detail').getByRole('button', {
+    name: `Bewertungsgrundlage · Musterdepot ${info.project.name}`,
     exact: true,
   });
   await expect(accountMarker).toHaveText('≈');

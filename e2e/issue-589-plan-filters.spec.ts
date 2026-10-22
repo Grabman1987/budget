@@ -278,9 +278,9 @@ async function scene(
   await expect(missing).toContainText('•••');
   await expect(missing).not.toContainText('1,50');
   await page.keyboard.press('Control+Shift+H');
-  await missing
-    .getByRole('link', { name: 'Synthetic missing classification', exact: true })
-    .click();
+  await clickPlanControl(
+    missing.getByRole('link', { name: 'Synthetic missing classification', exact: true }),
+  );
   await expect.poll(() => new URL(page.url()).pathname).toBe('/konten/buchungen');
   expect(new URL(page.url()).searchParams.get('buchung')).toBe(ids.missingId);
   await page.goBack();

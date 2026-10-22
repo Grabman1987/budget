@@ -4,6 +4,7 @@ import { queryString, request } from '../api/http';
 import type {
   AccountList,
   AccountRow,
+  AccountSeriesBatch,
   BookingFilter,
   BookingFlag,
   BookingPage,
@@ -63,10 +64,10 @@ export const fetchSeries = (
   );
 
 /** The series of all live accounts in one call (Konten), keyed by account id. */
-export const fetchSeriesBatch = (from: string, to: string) =>
-  request<{ series: Record<string, { accountId: string; points: SeriesPoint[] }> }>(
+export const fetchSeriesBatch = (from: string, to: string, options?: { quality?: true }) =>
+  request<AccountSeriesBatch>(
     'GET',
-    `/api/accounts/series${queryString({ from, to })}`,
+    `/api/accounts/series${queryString({ from, to, ...(options?.quality ? { quality: '1' } : {}) })}`,
   );
 
 export interface AccountInput {

@@ -9,4 +9,4 @@ Read the changed code, callers, tests, configuration and exports before proposin
 
 Review concrete correctness, safety, scale, test coverage, speed and unnecessary complexity. Each finding needs a reproducible case or a precise failing invariant. Preserve validation, integer cents, atomic writes, locks, audit and undo even when reducing code. A shorter implementation is not better if it drops an invariant.
 
-Use `budget-verified-delivery` for verification and serial delivery. This profile does not install Ponytail's global plugin or hooks. The owner's existing delegation authorization and three-active-branch limit apply.
+Use `budget-verified-delivery` for verification and delivery. This profile does not install Ponytail's global plugin or hooks. Follow [`docs/queue/README.md`](../../../docs/queue/README.md) for the current concurrency, review and integration rules.

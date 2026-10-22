@@ -130,6 +130,8 @@ it('shows type-specific due and quiet review dates and updates a manual account 
     );
     const user = userEvent.setup();
     await screen.findByRole('link', { name: 'Muster stale' }, { timeout: 10000 });
+    for (const id of ['stale', 'fresh', 'quiet', 'never', 'value', 'asset'])
+      await user.click(screen.getByRole('button', { name: `Details zu Muster ${id}` }));
     expect(screen.getByText('Fällig · geprüft am 06.09.2026').classList.contains('is-stale')).toBe(
       true,
     );
