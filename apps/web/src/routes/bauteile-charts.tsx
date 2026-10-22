@@ -268,7 +268,7 @@ function ClassBars({ width }: { width: number }) {
               opacity="var(--bar-tint)"
             />
             <rect x={x0} y={30} width={x1 - x0} height={10} fill="none" stroke="var(--line)" />
-            <text x={(x0 + x1) / 2} y={22} textAnchor="middle" className="svg-label-strong">
+            <text x={(x0 + x1) / 2} y={22} textAnchor="middle" className="svg-label-strong svg-value">
               {`${row.label} ${row.value} %`}
             </text>
           </g>

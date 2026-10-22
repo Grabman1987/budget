@@ -467,7 +467,7 @@ function CostChart({ data }: { data: ContractsReport }) {
         <text
           x={x(points.length - 1) + 8}
           y={y(last.fixedMonthlyCents) + 4}
-          className="svg-label-strong"
+          className="svg-label-strong svg-value"
         >
           {eur(last.fixedMonthlyCents)}
         </text>

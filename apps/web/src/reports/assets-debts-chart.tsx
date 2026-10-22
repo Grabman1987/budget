@@ -167,7 +167,7 @@ function Drawing({
           x={Math.min(last[0] + 8, W - 2)}
           y={last[1] - 8}
           textAnchor="end"
-          className="svg-label-strong"
+          className="svg-label-strong svg-value"
         >
           {kfmt(net[n - 1] as number)}
         </text>

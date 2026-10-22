@@ -528,7 +528,7 @@ function VerlaufChart({ counts, total }: { counts: DayCounts[]; total: number })
             x={x(counts.length - 1) + slot * 0.4}
             y={y(last.ok) - 8}
             textAnchor="end"
-            className="svg-label-strong"
+            className="svg-label-strong svg-value"
           >
             {last.ok} erfüllt
           </text>

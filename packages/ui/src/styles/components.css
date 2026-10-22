@@ -612,9 +612,10 @@
 .amount-hint.is-result {
   color: var(--line);
   font-weight: 600;
-  font-family: var(--font-tech);
+  font-family: var(--font-ui);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-body);
-  letter-spacing: 0.03em;
+  letter-spacing: 0;
 }
 @media (max-width: 767px) {
   .amount-input {

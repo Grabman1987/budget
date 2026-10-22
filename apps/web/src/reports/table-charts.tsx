@@ -359,7 +359,12 @@ export function MoneyAgeChart({
                 [W - R, y(targetDays)],
               ]}
             />
-            <text x={W - R} y={y(targetDays) - 6} textAnchor="end" className="svg-label-line">
+            <text
+              x={W - R}
+              y={y(targetDays) - 6}
+              textAnchor="end"
+              className="svg-label-line svg-value"
+            >
               Ziel {targetDays} Tage
             </text>
             {line.length > 1 && <Line kind="actual" points={line} />}

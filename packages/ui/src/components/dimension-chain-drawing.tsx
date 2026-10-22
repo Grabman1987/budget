@@ -214,7 +214,7 @@ export function DimensionChainDrawing({
                       x={label.x}
                       y={labelY - 7 - label.row * ROW_STEP}
                       textAnchor={label.anchor}
-                      className="svg-label-strong"
+                      className="svg-label-strong svg-value"
                     >
                       {label.text}
                     </text>
@@ -269,7 +269,7 @@ export function DimensionChainDrawing({
                           x={x0 - 8}
                           y={minusY + 10}
                           textAnchor="end"
-                          className="svg-label-line"
+                          className="svg-label-line svg-value"
                         >
                           {`${minus.label} ${money(toCents(-minus.cents))}`}
                         </text>
@@ -302,8 +302,7 @@ export function DimensionChainDrawing({
               x={(x(0) + resultEnd) / 2}
               y={resultY - 8}
               textAnchor="middle"
-              className="svg-label-strong"
-              fontSize={14}
+              className="svg-label-strong svg-value"
             >
               {`= ${result.label} ${formatEuro(result.cents, { cents: width >= SMALL })}`}
             </text>

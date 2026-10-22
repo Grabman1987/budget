@@ -12,10 +12,13 @@ export function ElevationMark({
   label,
   shelf = 48,
   align = 'end',
+  valueLabel = false,
 }: {
   x: number;
   y: number;
   label: string;
+  /** Monetary or other data value, rather than an axis/marker label. */
+  valueLabel?: boolean;
   /** Vertical distance from the point to the label shelf. */
   shelf?: number;
   /** `end`: label extends to the left of the mark, `start`: to the right. */
@@ -37,7 +40,13 @@ export function ElevationMark({
         d={`M${x},${y - 12} L${x},${top} L${x + dir * (width + 8)},${top}`}
         className="l-dim l-dim-thin"
       />
-      <text ref={text} x={x + dir * 4} y={top - 6} textAnchor={align} className="svg-label-strong">
+      <text
+        ref={text}
+        x={x + dir * 4}
+        y={top - 6}
+        textAnchor={align}
+        className={valueLabel ? 'svg-label-strong svg-value' : 'svg-label-strong'}
+      >
         {label}
       </text>
     </g>

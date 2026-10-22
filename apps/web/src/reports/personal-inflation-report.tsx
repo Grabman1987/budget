@@ -547,7 +547,7 @@ export function IndexChart({
         )}
         <Line kind="actual" points={points.map((p, i) => [x(i), y(p.index)] as const)} />
         <XTicks y={H - 18} ticks={ticks} />
-        <text x={x(points.length - 1) + 8} y={y(lastPoint.index) + 4} className="svg-label-strong">
+        <text x={x(points.length - 1) + 8} y={y(lastPoint.index) + 4} className="svg-label-strong svg-value">
           {index1(lastPoint.index)}
         </text>
       </ChartSvg>

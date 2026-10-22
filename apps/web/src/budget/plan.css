@@ -338,10 +338,11 @@
   gap: 6px;
 }
 .plan .dist-left {
-  font-family: var(--font-tech);
+  font-family: var(--font-ui);
+  font-variant-numeric: tabular-nums;
   font-weight: 600;
   font-size: var(--fs-table);
-  letter-spacing: 0.03em;
+  letter-spacing: 0;
   color: var(--line);
 }
 .plan .pgroup.is-flash td {

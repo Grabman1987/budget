@@ -109,7 +109,7 @@ export function PaceChart({ width }: { width: number }) {
       />
       <AxisLine x1={padL} x2={width - padR} y={y(0)} />
       <AxisLine x1={padL} x2={width - padR} y={y(LIMIT)} />
-      <text x={width - padR + 6} y={y(LIMIT) + 4} className="svg-label">
+      <text x={width - padR + 6} y={y(LIMIT) + 4} className="svg-label svg-value">
         {narrow ? 'Limit' : `Limit ${eur0(LIMIT)}`}
       </text>
       <XTicks
@@ -126,7 +126,7 @@ export function PaceChart({ width }: { width: number }) {
       <StepLine points={actual} kind="actual" />
       <Line points={forecast} kind="forecast" />
       <circle cx={x(DAYS)} cy={y(model.forecastEnd)} r={3.5} className="dot-actual" />
-      <text x={x(DAYS) + 8} y={y(model.forecastEnd) + 4} className="svg-label-strong">
+      <text x={x(DAYS) + 8} y={y(model.forecastEnd) + 4} className="svg-label-strong svg-value">
         {narrow ? String(Math.round(model.forecastEnd / 100)) : eur0(model.forecastEnd)}
       </text>
       <circle cx={x(TODAY)} cy={y(actualToday)} r={4} className="dot-actual" />
@@ -143,7 +143,7 @@ export function PaceChart({ width }: { width: number }) {
       <text
         x={x(TODAY) + 10}
         y={y(actualToday) + 24}
-        className={delta > 0 ? 'svg-label-red' : 'svg-label-line'}
+        className={delta > 0 ? 'svg-label-red svg-value' : 'svg-label-line svg-value'}
       >
         {`${eur0(Math.abs(delta))} ${delta > 0 ? 'über' : 'unter'} Plan`}
       </text>

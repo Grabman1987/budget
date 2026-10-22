@@ -410,7 +410,7 @@ function Sunburst({
           <text x={cx} y={cy - 2} textAnchor="middle" className="svg-label">
             {title}
           </text>
-          <text x={cx} y={cy + 14} textAnchor="middle" className="svg-label-strong">
+          <text x={cx} y={cy + 14} textAnchor="middle" className="svg-label-strong svg-value">
             {eur(totalCents)}
           </text>
         </ChartSvg>

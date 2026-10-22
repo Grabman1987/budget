@@ -134,7 +134,7 @@ function Drawing({ history, width: W }: { history: NetWorthHistory; width: numbe
       <Line kind="actual" points={line} draw className="l-daily rf-nw-line" />
       <g className="fade-in">
         <circle cx={last[0]} cy={last[1]} r={4} className="dot-actual" />
-        <text x={last[0] + 8} y={last[1] + 4} className="svg-label-strong">
+        <text x={last[0] + 8} y={last[1] + 4} className="svg-label-strong svg-value">
           {kfmt(lastValue / 100)}
         </text>
       </g>

@@ -221,7 +221,7 @@ function Drawing({
             x={x(low.index)}
             y={plotBottom + 16}
             textAnchor={x(low.index) < W / 2 ? 'start' : 'end'}
-            className="svg-label-strong lq-halo"
+            className="svg-label-strong svg-value lq-halo"
           >
             {eur(low.cents)}
           </text>
@@ -235,7 +235,7 @@ function Drawing({
           </text>
         </g>
       )}
-      <text x={W - R + 6} y={endY + 4} className="svg-label-strong">
+      <text x={W - R + 6} y={endY + 4} className="svg-label-strong svg-value">
         {eur(lastPoint.balanceCents, { cents: false })}
       </text>
       {!narrow && (

@@ -174,7 +174,7 @@ function Drawing({
         const i = months.length - 1;
         const total = totals[i] ?? 0;
         return total > 0 ? (
-          <text x={x(i)} y={y(total) - 6} textAnchor="middle" className="svg-label-strong">
+          <text x={x(i)} y={y(total) - 6} textAnchor="middle" className="svg-label-strong svg-value">
             {eur(total, { cents: false })}
           </text>
         ) : null;

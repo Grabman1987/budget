@@ -233,7 +233,12 @@ function Drawing({
               [width - right, y(limit)],
             ]}
           />
-          <text x={width - right} y={y(limit) - 6} textAnchor="end" className="svg-label">
+          <text
+            x={width - right}
+            y={y(limit) - 6}
+            textAnchor="end"
+            className="svg-label svg-value"
+          >
             {limitLabel} {nativeCurrency(limit, currency)}
           </text>
         </>
@@ -274,7 +279,7 @@ function Drawing({
             x={Math.max(left + 70, Math.min(x(low), width - right - 70))}
             y={y(lowPoint.balanceCents) + (lowDir === -1 ? -15 : 22)}
             textAnchor="middle"
-            className="svg-label-strong"
+            className="svg-label-strong svg-value"
           >{`Tiefpunkt ${nativeCurrency(lowPoint.balanceCents, currency)}`}</text>
         </g>
       )}
@@ -357,7 +362,7 @@ function Drawing({
           <text
             x={Math.max(left, Math.min(x(hover) - 100, width - right - 220)) + 8}
             y={top + 35}
-            className="svg-label-strong"
+            className="svg-label-strong svg-value"
           >
             {values[hover] == null ? 'Kurs fehlt' : nativeCurrency(values[hover]!, currency)}
           </text>

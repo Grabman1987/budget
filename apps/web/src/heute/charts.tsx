@@ -282,6 +282,7 @@ function BalanceDrawing({
         )}
         {low && (
           <ElevationMark
+            valueLabel
             x={xScale(low.day)}
             y={y(low.cents)}
             shelf={low.day < data.stand.today ? 24 : narrow ? 40 : 48}
