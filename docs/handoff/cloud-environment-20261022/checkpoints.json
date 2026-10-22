@@ -103,7 +103,7 @@
         608
       ],
       "branch": "codex/backlog-608-year-delivery",
-      "remote_sha": "59dacbfd3c2c3d17910a81e2f8983533a960183b",
+      "remote_sha": "6b2892ad22dfdd1e44da4184b8dad20ab54c1e4d",
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED; see handoff for partial AC"
     },
     {
@@ -130,7 +130,7 @@
       ],
       "branch": "codex/impl-599-contacts",
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
-      "remote_sha": "5bac17b31026aae54e1063d4de607949c51abc1a"
+      "remote_sha": "9fd8c9555f52fa07e0d2015acbc32b67bf8c187b"
     },
     {
       "issues": [
@@ -262,7 +262,7 @@
       ],
       "branch": "codex/impl-762-strategy",
       "status": "SOURCE CHECKPOINT; consult revision-specific evidence; not a completion claim",
-      "remote_sha": "df57fa8dfc03dd29b974d8d454c77a6ee73f5c88"
+      "remote_sha": "1ecd8b3d6935b9d4dc6c8d7bacc505d47d1a36ce"
     },
     {
       "issues": [
@@ -270,7 +270,7 @@
       ],
       "branch": "codex/backlog-586-mobile-capture",
       "status": "SOURCE CHECKPOINT; consult revision-specific evidence; not a completion claim",
-      "remote_sha": "4419698b95abd7603efb556198b38324b64ca554"
+      "remote_sha": "df13e773cf355ec5ea082c7316b05df0b340c517"
     },
     {
       "issues": [
@@ -279,7 +279,7 @@
       ],
       "branch": "codex/backlog-550-551-composition",
       "status": "SOURCE CHECKPOINT; consult revision-specific evidence; not a completion claim",
-      "remote_sha": "11f870db580add0e5db94ddbc1de8621c0196608"
+      "remote_sha": "ecfdcef53317815c0363e0b1c67ca83bd95cd1b2"
     },
     {
       "branch": "codex/impl-470-table-readability",
@@ -344,8 +344,9 @@
     }
   ],
   "remaining_agents": [
-    "tables_470_remaining: contact source review",
-    "review_519_financial_source: composition source review"
+    "tables_470_remaining: reconcile source corrections",
+    "design_474_remaining: readonly security-transfer preview source",
+    "small_516_typography: evidence matrix documentation"
   ],
   "stop": [
     719
@@ -370,18 +371,18 @@
   "active_source_tasks": [
     {
       "issues": [
-        599
+        564,
+        565
       ],
-      "scope": "Independent source review of existing contact package."
+      "scope": "Correcting stale normal-reconciliation apply and monetary-text privacy findings; independent correction review pending."
     },
     {
       "issues": [
-        550,
-        551
+        520
       ],
-      "scope": "Independent source review of existing composition package."
+      "scope": "Implementing readonly API/UI preview using source-reviewed history and preview helpers; no pair schema/writer/apply yet; migration0053 remains unreserved."
     }
   ],
-  "remote_heads_observed_at_utc": "2026-10-22T22:05:18.034155+00:00",
+  "remote_heads_observed_at_utc": "2026-10-22T22:10:38.215713+00:00",
   "recovery_note": "Temporary /tmp evidence directory disappeared during executor recovery. cloud-control now points to /workspace/.budget-tools/cloud-control-persistent. Missing local evidence is not assumed recovered; committed package reports preserved. #520 writer plan explicitly reconstructed and reviewed provenance documented."
 }

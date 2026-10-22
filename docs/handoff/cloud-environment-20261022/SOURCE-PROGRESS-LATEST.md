@@ -1,4 +1,4 @@
-# Source progress — 2026-10-22T22:05:18.034155+00:00
+# Source progress — 2026-10-22T22:10:38.215713+00:00
 
 This snapshot supersedes historical source-head and active-task statements in CURRENT-COORDINATION.md. All branch heads below were freshly read from origin. No tests, builds, browser execution, CI dispatch, merges or deployments were performed. NOT VALIDATED / NOT LIVE; #719 STOP.
 
@@ -27,6 +27,15 @@ This snapshot supersedes historical source-head and active-task statements in CU
 
 Temporary local evidence storage disappeared during executor recovery. Pushed source and package reports survived. New local coordination files use a workspace-backed directory; reconstructed plans are explicitly labeled. The committed reports, not vanished temporary paths, are the preserved evidence.
 
+## Further source reviews and corrections
+
+- #599 and #550/#551: bounded independent source reviews found no concrete new defect; reports archived on package branches.
+- #608: event loading/error no longer hides independently available annual context; correction and independent review archived. Product source `2e9cb9934af1d6b8b0431b0c2e64bee3ed35f822`; runtime remains unvalidated.
+- #586: bounded independent source review archived; historical WebKit/device evidence is not current-revision acceptance.
+- #564/#565: initial source review found stale normal reconciliation could apply a different amount than displayed, and monetary strings in new candidate text were unmasked. Correction underway, not yet reviewed clear.
+- #520: minimal writer plan and independent critique preserved after recovery; readonly API/UI preview is the current implementation step. Persistent pair relation/writer/API apply and migration0053 remain absent/unreserved.
+- #762: provider and evaluation planning notes preserved; verified index/calendar access remains an external evidence/operation dependency. Automatic monthly persistence still needs an Undo-resistant transaction guard.
+
 ## Remote checkpoints
 
 | Issues | Branch | Full remote SHA |
@@ -38,10 +47,10 @@ Temporary local evidence storage disappeared during executor recovery. Pushed so
 | #611, #612 | `codex/impl-611-612-debt` | `a395db8c9f4990846bc3a3ec65db071d1c0e616c` |
 | #553, #554, #619, #620, #621, #622, #623, #628 | `codex/impl-619-623-reports` | `4c6827344f9853787c64bdf117f10e5cc9617653` |
 | #515, #594, #596, #597 | `codex/impl-594-597-ledger` | `f140d6ac8086f3902887f8d68660bc1a5f1bbde0` |
-| #608 | `codex/backlog-608-year-delivery` | `59dacbfd3c2c3d17910a81e2f8983533a960183b` |
+| #608 | `codex/backlog-608-year-delivery` | `6b2892ad22dfdd1e44da4184b8dad20ab54c1e4d` |
 | #469, #471, #486 | `codex/impl-settings-469-486` | `09312b49e578db493bfe279133d30260c5e2ed44` |
 | #609 | `codex/impl-609-payslip-preview` | `813854c29ec095f47179f928fa43b5beb1b8679b` |
-| #599 | `codex/impl-599-contacts` | `5bac17b31026aae54e1063d4de607949c51abc1a` |
+| #599 | `codex/impl-599-contacts` | `9fd8c9555f52fa07e0d2015acbc32b67bf8c187b` |
 | #518, #521 | `codex/impl-518-521-explanations` | `4b5eba00bdc448c4f0285bd7d8070e7252eb9a04` |
 | #607 | `codex/impl-607-payments` | `8325561b7a1a6e47ef0ef67d27d0959d9f7c5b84` |
 | #564, #565 | `codex/impl-564-565-reconcile` | `e04b3002d5b843f6de35f3bbf98c2e3c1d506674` |
@@ -57,9 +66,9 @@ Temporary local evidence storage disappeared during executor recovery. Pushed so
 | #469 | `codex/impl-469-glossary-goals` | `e0e39d4b0b5b04ad6966e8603d0bd91cf4b66cad` |
 | #473 | `codex/impl-473-typography` | `9ef01d05ade1a6f5ac3a2ac99dd5e8275888107c` |
 | #519 | `codex/impl-519-fx-posting` | `d6cb8e1c0555196c5dcdefa01784f621a4a0d521` |
-| #762 | `codex/impl-762-strategy` | `df57fa8dfc03dd29b974d8d454c77a6ee73f5c88` |
-| #586 | `codex/backlog-586-mobile-capture` | `4419698b95abd7603efb556198b38324b64ca554` |
-| #550, #551 | `codex/backlog-550-551-composition` | `11f870db580add0e5db94ddbc1de8621c0196608` |
+| #762 | `codex/impl-762-strategy` | `1ecd8b3d6935b9d4dc6c8d7bacc505d47d1a36ce` |
+| #586 | `codex/backlog-586-mobile-capture` | `df13e773cf355ec5ea082c7316b05df0b340c517` |
+| #550, #551 | `codex/backlog-550-551-composition` | `ecfdcef53317815c0363e0b1c67ca83bd95cd1b2` |
 | #470 | `codex/impl-470-table-readability` | `28b2b2784e63e7674ea9a9bd9a5b4ec4c3a53340` |
 | #474 | `codex/impl-474-design-lines` | `dd11b4e03bdd79ce3074b2e504dd326453080470` |
 | #574, #599, #558, #559, #699, #700 | `codex/impl-574-offline-contact-assembly` | `54fe17bc4447bfc8167af83deaef51ed0aac39c6` |
