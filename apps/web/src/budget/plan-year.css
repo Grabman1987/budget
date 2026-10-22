@@ -327,6 +327,9 @@
   font-size: var(--fs-body);
   font-weight: 400;
 }
+.year-scenario-lead .seg button {
+  padding-inline: 8px;
+}
 .year-event-controls {
   position: relative;
 }
@@ -340,8 +343,8 @@
   padding-top: 68px;
 }
 .year-event-controls .year-events > summary {
-  min-height: 60px;
-  padding-right: 176px;
+  width: calc(100% - 176px);
+  padding: 16px;
 }
 .year-scenario-context {
   display: flex;

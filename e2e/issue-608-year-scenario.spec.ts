@@ -69,11 +69,12 @@ test('calendar-year scenario: literal December parity, dated inspection and comp
       screen: innerHeight,
       sections: [
         ...document.querySelectorAll(
-          'main > *, .plan-year > *, .year-planning > *, .year-sheet > *',
+          'main > *, .plan-year > *, .year-planning > *, .year-sheet > *, .year-scenario-lead dd > *',
         ),
       ].map((element) => ({
         name: element.className,
         height: element.getBoundingClientRect().height,
+        width: element.getBoundingClientRect().width,
       })),
     }));
     await page.screenshot({
@@ -89,7 +90,7 @@ test('calendar-year scenario: literal December parity, dated inspection and comp
     ).toEqual([]);
     const targets = await page
       .locator(
-        '.year-planning button:visible, .year-planning summary:visible, .year-sheet button:visible',
+        '.year-planning button:visible, .year-planning summary:visible, .year-sheet button:visible, .year-sheet select:visible',
       )
       .evaluateAll((elements) =>
         elements.map((element) => ({
@@ -99,6 +100,15 @@ test('calendar-year scenario: literal December parity, dated inspection and comp
       );
     if (page.viewportSize()!.width <= 767)
       expect(targets.filter((target) => target.height < 44)).toEqual([]);
+    const summary = await page.locator('.year-events > summary').boundingBox();
+    const create = await page
+      .getByRole('button', { name: 'Ereignis planen', exact: true })
+      .boundingBox();
+    const controls = await page.locator('.year-event-controls').boundingBox();
+    expect(summary!.x + summary!.width).toBeLessThanOrEqual(create!.x);
+    expect(create!.y + create!.height).toBeLessThanOrEqual(controls!.y + controls!.height);
+    await page.locator('.year-events > summary').click({ trial: true });
+    await page.getByRole('button', { name: 'Ereignis planen', exact: true }).click({ trial: true });
     await page.screenshot({
       path: info.outputPath(`year-scenario-${info.project.name}-${theme}.png`),
       fullPage: true,
@@ -123,6 +133,13 @@ test('calendar-year scenario: literal December parity, dated inspection and comp
     .filter({ hasText: 'Monatsende' });
   await expect(december.locator('.chart-data-value')).toHaveText('720,00 €');
   await page.locator('.year-events > summary').click();
+  expect(
+    await page
+      .locator('.year-event-list .event-check')
+      .evaluateAll((elements) =>
+        elements.every((element) => element.getBoundingClientRect().height >= 44),
+      ),
+  ).toBe(true);
   await page.getByRole('checkbox', { name: 'Geplante Gutschrift im Szenario' }).uncheck();
   await expect(lead).toHaveText('699,97 €');
   await expect(chart).toHaveAttribute('aria-label', /Dezember 699,97 €/);
