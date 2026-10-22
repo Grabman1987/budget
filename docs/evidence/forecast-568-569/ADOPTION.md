@@ -63,3 +63,20 @@ The pending-check list above records the historical adoption checkpoint. Current
 verified source results and remaining gates are in [README](README.md). Required
 complete checks can be fulfilled by exact-head CI under the current delivery
 rules; this does not claim a full local `npm run check` execution.
+
+## Shell visual readiness adapter
+
+`e2e/heute-visual-fixture.ts` now waits for the owner-approved shared 35-day
+liquidity chart instead of removed `heute-balance-chart`, additionally requiring
+its HEUTE label and rendered dated low-point summary. Its newly required
+liquidity/expected GET fixtures are computed from the same existing seeded real
+SQLite database and fixed 2026-09-17 day as Heute; no copied financial oracle or
+production writer is introduced. Both chart reads retain the original technical
+font load before response. Lead value, all three KPI headings, wealth heading,
+font/animation waits, screenshot assertions and timeouts remain unchanged.
+
+This technical selector/read-fixture adaptation follows #569's accepted card
+replacement and the owner's per-file adapter authorization. Workflow
+39769372353 reported job success but actually had four shell readiness failures
+and 40 passes; no baseline changed. Independent adapter review and rerun of only
+the same affected snapshot workflow remain required.
