@@ -156,7 +156,7 @@
       ],
       "branch": "codex/impl-564-565-reconcile",
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
-      "remote_sha": "e04b3002d5b843f6de35f3bbf98c2e3c1d506674"
+      "remote_sha": "7d24f141e309af1cd531d898befaf0b6bf6b2329"
     },
     {
       "issues": [
@@ -198,7 +198,7 @@
       ],
       "branch": "codex/impl-520-security-transfers",
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; scope and review limitations in package handoff",
-      "remote_sha": "4d1a8242acf4087d484d03367878ec29628d5d78"
+      "remote_sha": "d2015cc1cdf3ff17286f974426a4f617371d9c7b"
     },
     {
       "issues": [
@@ -344,9 +344,8 @@
     }
   ],
   "remaining_agents": [
-    "tables_470_remaining: reconcile source corrections",
-    "design_474_remaining: readonly security-transfer preview source",
-    "small_516_typography: evidence matrix documentation"
+    "review_520_lineage_policy: readonly preview source review",
+    "copy_469_rule_names: design token source review"
   ],
   "stop": [
     719
@@ -371,18 +370,18 @@
   "active_source_tasks": [
     {
       "issues": [
-        564,
-        565
+        520
       ],
-      "scope": "Correcting stale normal-reconciliation apply and monetary-text privacy findings; independent correction review pending."
+      "scope": "Readonly preview API/UI source pushed; independent source review active. No pair schema/writer/apply; 0053 unreserved."
     },
     {
       "issues": [
-        520
+        474
       ],
-      "scope": "Implementing readonly API/UI preview using source-reviewed history and preview helpers; no pair schema/writer/apply yet; migration0053 remains unreserved."
+      "scope": "Independent bounded source review of existing CSS/token changes."
     }
   ],
   "remote_heads_observed_at_utc": "2026-10-22T22:10:38.215713+00:00",
-  "recovery_note": "Temporary /tmp evidence directory disappeared during executor recovery. cloud-control now points to /workspace/.budget-tools/cloud-control-persistent. Missing local evidence is not assumed recovered; committed package reports preserved. #520 writer plan explicitly reconstructed and reviewed provenance documented."
+  "recovery_note": "Temporary /tmp evidence directory disappeared during executor recovery. cloud-control now points to /workspace/.budget-tools/cloud-control-persistent. Missing local evidence is not assumed recovered; committed package reports preserved. #520 writer plan explicitly reconstructed and reviewed provenance documented.",
+  "selected_heads_observed_at_utc": "2026-10-22T22:14:06.144467+00:00"
 }

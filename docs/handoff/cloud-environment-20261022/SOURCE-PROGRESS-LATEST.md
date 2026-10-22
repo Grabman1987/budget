@@ -32,8 +32,8 @@ Temporary local evidence storage disappeared during executor recovery. Pushed so
 - #599 and #550/#551: bounded independent source reviews found no concrete new defect; reports archived on package branches.
 - #608: event loading/error no longer hides independently available annual context; correction and independent review archived. Product source `2e9cb9934af1d6b8b0431b0c2e64bee3ed35f822`; runtime remains unvalidated.
 - #586: bounded independent source review archived; historical WebKit/device evidence is not current-revision acceptance.
-- #564/#565: initial source review found stale normal reconciliation could apply a different amount than displayed, and monetary strings in new candidate text were unmasked. Correction underway, not yet reviewed clear.
-- #520: minimal writer plan and independent critique preserved after recovery; readonly API/UI preview is the current implementation step. Persistent pair relation/writer/API apply and migration0053 remain absent/unreserved.
+- #564/#565: stale normal reconciliation and readonly monetary-text privacy findings corrected. Product source `4d26b0be2344e77f3f785a9b045ad42b69c6af60` independently source-reviewed; final report archived at docs head `7d24f141e309af1cd531d898befaf0b6bf6b2329`. Runtime remains unvalidated.
+- #520: minimal writer plan and independent critique preserved after recovery; readonly API/UI preview source `d2015cc1cdf3ff17286f974426a4f617371d9c7b` is pushed and undergoing independent source review. Persistent pair relation/writer/API apply and migration0053 remain absent/unreserved.
 - #762: provider and evaluation planning notes preserved; verified index/calendar access remains an external evidence/operation dependency. Automatic monthly persistence still needs an Undo-resistant transaction guard.
 
 ## Remote checkpoints
@@ -53,12 +53,12 @@ Temporary local evidence storage disappeared during executor recovery. Pushed so
 | #599 | `codex/impl-599-contacts` | `9fd8c9555f52fa07e0d2015acbc32b67bf8c187b` |
 | #518, #521 | `codex/impl-518-521-explanations` | `4b5eba00bdc448c4f0285bd7d8070e7252eb9a04` |
 | #607 | `codex/impl-607-payments` | `8325561b7a1a6e47ef0ef67d27d0959d9f7c5b84` |
-| #564, #565 | `codex/impl-564-565-reconcile` | `e04b3002d5b843f6de35f3bbf98c2e3c1d506674` |
+| #564, #565 | `codex/impl-564-565-reconcile` | `7d24f141e309af1cd531d898befaf0b6bf6b2329` |
 | #562, #563 | `codex/impl-562-563-inbox` | `f830a1d0b17ed6cedb8e9fed871d7d31b7145192` |
 | #485, #486 | `codex/impl-485-486-settings-navigation` | `78fa4838953313be5134add009b9b261b34120a8` |
 | #514 | `codex/impl-514-targets` | `4e4a938ee7cca6adeffc35849991a8abb3c4afc3` |
 | #519 | `codex/impl-519-fx-transfers` | `8b37818bf1c3160638b9909c8ad7feaf7af7c93b` |
-| #520 | `codex/impl-520-security-transfers` | `4d1a8242acf4087d484d03367878ec29628d5d78` |
+| #520 | `codex/impl-520-security-transfers` | `d2015cc1cdf3ff17286f974426a4f617371d9c7b` |
 | #471 | `codex/impl-471-icons` | `178c80b15a8e1e6e66115c2635d8992bb703d662` |
 | #469 | `codex/impl-469-copy` | `65aee06ce8b5ae970a6b2bcb11b2ef652cddb132` |
 | #489 | `codex/impl-489-overview-design` | `9fab18bbb2a9b54b17bbc2e2ef06206212c18b5a` |
