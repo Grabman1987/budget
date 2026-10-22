@@ -6,6 +6,12 @@ import { errorText } from '../ledger/labels';
 import { AppLink } from '../shell/app-link';
 
 type Run = { status: 'ok' | 'partial' | 'failed'; finishedAt: string; failedCount: number };
+type MarketRefreshResult = {
+  prices: { bySource: Record<string, { rows: number }>; failed: unknown[] };
+  fx: { bySource: { ecb: { rows: number } }; failed: unknown[] };
+};
+type CpiRefreshResult = { failed: string | null; skipped: boolean };
+type Notice = { text: string; error: boolean };
 type Status = {
   lastRun: Run | null;
   lastSuccess: Run | null;
@@ -25,19 +31,32 @@ export function MarketSourceSections() {
   const query = useQuery({ queryKey: key, queryFn: () => request<Status>('GET', '/api/market/status') });
   const client = useQueryClient();
   const [busy, setBusy] = useState<'prices' | 'cpi' | null>(null);
-  const [message, setMessage] = useState('');
+  const [notices, setNotices] = useState<Record<'prices' | 'cpi', Notice | null>>({ prices: null, cpi: null });
   async function refresh(kind: 'prices' | 'cpi') {
     setBusy(kind);
-    setMessage('');
+    setNotices((current) => ({ ...current, [kind]: null }));
     try {
-      const result = await request<{ failed?: string | null; skipped?: boolean }>('POST',
-        kind === 'cpi' ? '/api/market/cpi/refresh' : '/api/market/refresh', {});
-      setMessage(result.failed ? 'VPI-Abruf fehlgeschlagen. Gespeicherte Werte bleiben erhalten.'
-        : result.skipped ? 'Kein neuer VPI-Abruf: Die gespeicherte Reihe ist nach der bestehenden 30-Tage-Regel noch ausreichend frisch.'
-        : 'Abruf beendet. Den aufgezeichneten Stand siehst du in der jeweiligen Karte.');
+      if (kind === 'prices') {
+        const result = await request<MarketRefreshResult>('POST', '/api/market/refresh', {});
+        const failures = result.prices.failed.length + result.fx.failed.length;
+        const rows = Object.values(result.prices.bySource).reduce((sum, source) => sum + source.rows, 0)
+          + result.fx.bySource.ecb.rows;
+        setNotices((current) => ({ ...current, prices: failures === 0
+          ? { text: 'Kurs- und Währungsabruf beendet. Den aufgezeichneten Stand siehst du oben.', error: false }
+          : rows === 0
+            ? { text: 'Kurs- und Währungsabruf fehlgeschlagen. Gespeicherte Werte bleiben erhalten.', error: true }
+            : { text: 'Kurs- und Währungsabruf teilweise fehlgeschlagen. Gespeicherte Werte bleiben erhalten.', error: true } }));
+      } else {
+        const result = await request<CpiRefreshResult>('POST', '/api/market/cpi/refresh', {});
+        setNotices((current) => ({ ...current, cpi: result.failed
+          ? { text: 'VPI-Abruf fehlgeschlagen. Gespeicherte Werte bleiben erhalten.', error: true }
+          : result.skipped
+            ? { text: 'Kein neuer VPI-Abruf: Die gespeicherte Reihe ist nach der bestehenden 30-Tage-Regel noch ausreichend frisch.', error: false }
+            : { text: 'VPI-Abruf beendet. Den aufgezeichneten Stand siehst du oben.', error: false } }));
+      }
       await client.invalidateQueries();
     } catch (error) {
-      setMessage(errorText(error));
+      setNotices((current) => ({ ...current, [kind]: { text: errorText(error), error: true } }));
     } finally {
       setBusy(null);
     }
@@ -58,6 +77,7 @@ export function MarketSourceSections() {
         </dl>
         <p>{data.prices.missingOrStale.length} von {data.prices.instruments} aktivierten Instrumenten ohne gespeicherten Kurs oder mit einer Lücke von mindestens fünf Wochentagen zum {data.prices.asOf}.</p>
         <Button disabled={Boolean(busy) || data.manualRunning} onClick={() => void refresh('prices')}>{busy === 'prices' ? 'Abruf läuft …' : 'Jetzt abrufen'}</Button>
+        {notices.prices && <p role={notices.prices.error ? 'alert' : 'status'}>{notices.prices.text}</p>}
         <details className="source-configuration"><summary>Instrumente und Quellen einrichten</summary>
           <p>Die Zählung umfasst alle aktiven Instrumente mit eingeschalteten Kursen, auch ohne Bestand. Einzelne fehlende Kurse und Kennungen im Instrument ergänzen. Manuelle Kurse bleiben beim Abruf geschützt.</p>
           <ul>{data.prices.missingOrStale.map((instrument) => <li key={instrument.id}><AppLink to={`/vermoegen/portfolio/instrument/${encodeURIComponent(instrument.id)}`} search={{}}>{instrument.name} · {instrument.lastPriceDate ? `letzter Kurs ${instrument.lastPriceDate}` : 'Kurs fehlt'}</AppLink></li>)}</ul>
@@ -78,9 +98,9 @@ export function MarketSourceSections() {
         </dl>
         {data.cpi.warning && <p role="status">{data.cpi.warning} <AppLink to="/konten/pruefen" search={{ teil: 'aufgaben' }}>Aufgabe in Prüfen öffnen</AppLink></p>}
         <Button disabled={Boolean(busy) || data.manualRunning || !data.cpi.configured} onClick={() => void refresh('cpi')}>{busy === 'cpi' ? 'Abruf läuft …' : 'Jetzt abrufen'}</Button>
+        {notices.cpi && <p role={notices.cpi.error ? 'alert' : 'status'}>{notices.cpi.text}</p>}
         <details className="source-configuration"><summary>VPI-Quelle einrichten</summary><p>Die VPI-Quelle wird am Server bereitgestellt. Ein manueller Abruf verwendet dieselbe 30-Tage-Regel wie der automatische Abruf.</p><p>Gespeicherte Reihe: {data.cpi.series ?? 'keine'}. Das Abrufdatum belegt keinen neu veröffentlichten Monatswert.</p></details>
       </>}
-      {message && <p role="status">{message}</p>}
     </section>
   </>;
 }
