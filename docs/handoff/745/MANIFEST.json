@@ -1,0 +1,202 @@
+[
+  {
+    "path": "docs/handoff/745/CURRENT-AUTHORIZATION.md",
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1",
+    "size": 1204
+  },
+  {
+    "path": "docs/handoff/745/README.md",
+    "sha256": "bee9f1cc3a5f161788bbf3694e5bd657d2e5befd8011d75b390557d85a64b3dd",
+    "size": 945
+  },
+  {
+    "path": "docs/handoff/745/STATUS.json",
+    "sha256": "8535f6aca8416df62709fa7fac7c73a832520311dbe3963ba59f6c4673525524",
+    "size": 406
+  },
+  {
+    "path": "docs/handoff/745/checks/745-canonical-webkit-seven-first-actual/counts.json",
+    "sha256": "848b9d4e9c7fb411384e0da3b2acace0a4511c45360482fb14366b7d775b4cc5",
+    "size": 136
+  },
+  {
+    "path": "docs/handoff/745/checks/745-canonical-webkit-seven-first-actual/guards.json",
+    "sha256": "1e6721895338c0a9c8567547427715e5838235f4f18f8b00ae4ad324680cb948",
+    "size": 126
+  },
+  {
+    "path": "docs/handoff/745/checks/745-canonical-webkit-seven-first-actual/result.json",
+    "sha256": "44e322e0cf7ef107cc0ed1fbdc5091d397b3eaf0e88962b6398e4474767eedac",
+    "size": 151
+  },
+  {
+    "path": "docs/handoff/745/checks/745-native-one-static-first-actual/result.json",
+    "sha256": "49475e40b4c8c032b1934c4e2c42a2e92e8631457428926aeafdc60e75fcb2bb",
+    "size": 340
+  },
+  {
+    "path": "docs/handoff/745/checks/745-new-ui-six-and-unchanged735-first-actual/result.json",
+    "sha256": "8cebaedcdd9338e39951deb7cec794954801e9d43b31a963e1e313d01976f4f8",
+    "size": 588
+  },
+  {
+    "path": "docs/handoff/745/checks/745-new-ui-six-and-unchanged735-first-actual/sanitized-counters.json",
+    "sha256": "afe2dd66fa06da7bcec1914006a21967ee33bdb3cd755fad90511b6b9b4e6716",
+    "size": 312
+  },
+  {
+    "path": "docs/handoff/745/checks/745-phone-two-columns-static-ui-six-second-actual/result.json",
+    "sha256": "dd4eefab9953eee8fa45703514f4d9c8039344896bfd909432f3bd5f1cf2e0c2",
+    "size": 494
+  },
+  {
+    "path": "docs/handoff/745/checks/745-phone-two-columns-static-ui-six-second-actual/sanitized-counters.json",
+    "sha256": "9537875f9ed7399cd5e56c187a973fa6789711fa35f20081e6309348e32ccbdc",
+    "size": 301
+  },
+  {
+    "path": "docs/handoff/745/checks/745-phone-two-columns-webkit-seven-second-actual/counts.json",
+    "sha256": "a4745d433d45c8badb12a7afb34c1ee6b59b506717b6a82c13a7cdf5d8412b3b",
+    "size": 135
+  },
+  {
+    "path": "docs/handoff/745/checks/745-phone-two-columns-webkit-seven-second-actual/guards.json",
+    "sha256": "1e6721895338c0a9c8567547427715e5838235f4f18f8b00ae4ad324680cb948",
+    "size": 126
+  },
+  {
+    "path": "docs/handoff/745/checks/745-phone-two-columns-webkit-seven-second-actual/result.json",
+    "sha256": "7a742da34a7ee4d33a3ce5672b9c137c76fb70a658beb2aaa08eb045932192fa",
+    "size": 160
+  },
+  {
+    "path": "docs/handoff/745/checks/745-required-full-and-build-first-actual/result.json",
+    "sha256": "939e71fc1ec17bc0c6d37481f495783257e3e19398b81aa21d802b65151bcd76",
+    "size": 483
+  },
+  {
+    "path": "docs/handoff/745/checks/745-required-full-and-build-first-actual/sanitized-counters.json",
+    "sha256": "8e75b9a21f639ba87fa5806cb77bfe2e49d3f43ea7b44914805bfd09da005ca4",
+    "size": 328
+  },
+  {
+    "path": "docs/handoff/745/native-tested-revision.json",
+    "sha256": "80b04dc15d123cf49e14a60b0a624a33a3f2baceec08ac75b54c780cbd4cfe82",
+    "size": 269
+  },
+  {
+    "path": "docs/handoff/745/prepared-only/745-old735-date-account-one-assertion-outside/MANIFEST.json",
+    "sha256": "35a905436297ce4424f3092b0d3ceab95d11bbe4a1fc7d2b0e2cc5784cf91c0a",
+    "size": 992
+  },
+  {
+    "path": "docs/handoff/745/prepared-only/745-old735-date-account-one-assertion-outside/before.spec.ts",
+    "sha256": "f4fc8d4819b8d169919705378398e142f248b8c8d671b1d1f3b95635ae28a5ed",
+    "size": 13208
+  },
+  {
+    "path": "docs/handoff/745/prepared-only/745-old735-date-account-one-assertion-outside/candidate.spec.ts",
+    "sha256": "5b2884aae4fe023f47abb162987507d127a759b04da24ef8700cd9388267923d",
+    "size": 13251
+  },
+  {
+    "path": "docs/handoff/745/prepared-only/745-old735-date-account-one-assertion-outside/one-assertion.diff",
+    "sha256": "c6c37db1a6fbb3e304da29df9c9be2ff6b67589f827d4b5f02f7998e668d5d94",
+    "size": 662
+  },
+  {
+    "path": "docs/handoff/745/reviews/745-compact-activity-three-independent-source-high.md",
+    "sha256": "460ab5fbc476dcc11fa0ed99926861ad494964fd35f09803714891f36c0080b1",
+    "size": 4272
+  },
+  {
+    "path": "docs/handoff/745/reviews/745-current-visual-review.json",
+    "sha256": "3358af134eaea45e2a8643c1178033e2f3e866fed4e13412c77775797652ca3b",
+    "size": 1241
+  },
+  {
+    "path": "docs/handoff/745/reviews/745-current89327-format-and-old735-adapter-independent-high.md",
+    "sha256": "d42a73517cb3bcc977873d4568954e654a4d0bd72ca4976dd43567db030d0f2e",
+    "size": 2337
+  },
+  {
+    "path": "docs/handoff/745/reviews/745-first-native-visual-review.json",
+    "sha256": "63aabbbf15f56c8ef17eb404388aa1b61c7c827afff0d06d92d3dda75567f686",
+    "size": 991
+  },
+  {
+    "path": "docs/handoff/745/reviews/745-native-four-current85309-independent-source-high.md",
+    "sha256": "d5102d62185dce57c98495e1911d5bd57487d40fc2909bd553774029be2c4a7d",
+    "size": 2996
+  },
+  {
+    "path": "docs/handoff/745/reviews/745-phone-two-column-independent-source-high.md",
+    "sha256": "48e746f6b39bedb4c6cc84fd40c7b18ef39d3da40374836c0ce40bc1d7564b07",
+    "size": 2047
+  },
+  {
+    "path": "docs/handoff/745/synthetic-artifacts/issue-745-activity-table-7-42188-tion-table-configured-light-webkit-iphone/attachments/Activity-page-original-5430a1cb63d696f0533fe8633ed9a4943a8c8c3e.png",
+    "sha256": "41ed48952462a7056adaf80c1316a09db6a90b1a12ca478ae5407914ee3d5729",
+    "size": 426467
+  },
+  {
+    "path": "docs/handoff/745/synthetic-artifacts/issue-745-activity-table-7-42188-tion-table-configured-light-webkit-iphone/attachments/Activity-table-geometry-406f213bf530c34d45dc552bb775b948fc1104b3.json",
+    "sha256": "5dfb45c100e58355b07774208a3da8b68925d1b0769d630c94ee50fa233409c2",
+    "size": 1090
+  },
+  {
+    "path": "docs/handoff/745/synthetic-artifacts/issue-745-activity-table-7-42188-tion-table-configured-light-webkit-iphone/attachments/Activity-table-original-9455edd3f00700c302680787a499a552d5cb8d22.png",
+    "sha256": "6df50116109e6cadd59a4cf7fe7c0b5ebd7a2c7df8023439b198e693affc3d57",
+    "size": 164023
+  },
+  {
+    "path": "docs/handoff/745/synthetic-artifacts/issue-745-activity-table-7-5ff5b-ribution-table-desktop-dark-webkit-iphone/attachments/Activity-page-original-49519e7a1c7ce4ef1b4febf76ffb7449c197d90d.png",
+    "sha256": "fb988fd85c56133e2ef9a4e77c2eda568f1c66269665f9bf427890a8782c5a40",
+    "size": 168125
+  },
+  {
+    "path": "docs/handoff/745/synthetic-artifacts/issue-745-activity-table-7-5ff5b-ribution-table-desktop-dark-webkit-iphone/attachments/Activity-table-geometry-745cbab51cafe186d99a98eb1f5c89b52f9659d5.json",
+    "sha256": "92e1af7d13a47a5311d26906ce7f0ad439001523fce4c0d68d7d30040fb0702d",
+    "size": 1088
+  },
+  {
+    "path": "docs/handoff/745/synthetic-artifacts/issue-745-activity-table-7-5ff5b-ribution-table-desktop-dark-webkit-iphone/attachments/Activity-table-original-b69c735230ec133622885d5f310c5ca9da3c046d.png",
+    "sha256": "1ddd06700d1962e4fc889a46a346b7dabd67994a4b96d4dcdbca665d47a03f3d",
+    "size": 50777
+  },
+  {
+    "path": "docs/handoff/745/synthetic-artifacts/issue-745-activity-table-7-6c6ab-ibution-table-desktop-light-webkit-iphone/attachments/Activity-page-original-6207f73f1c41bc6aab7b026696091e1b1893b3d7.png",
+    "sha256": "1c9e87fed1fa3baba46bedc043b4be45688b1e5017dbc3deef5a3b5dc29f4649",
+    "size": 168535
+  },
+  {
+    "path": "docs/handoff/745/synthetic-artifacts/issue-745-activity-table-7-6c6ab-ibution-table-desktop-light-webkit-iphone/attachments/Activity-table-geometry-151048bfce8ad1607b98fb6e3ae4ff058028e863.json",
+    "sha256": "25e3c3390c3cce6dd938fd96532860b83e781efa539e6b718186dd91da3ca241",
+    "size": 1089
+  },
+  {
+    "path": "docs/handoff/745/synthetic-artifacts/issue-745-activity-table-7-6c6ab-ibution-table-desktop-light-webkit-iphone/attachments/Activity-table-original-845e819b5037b1606dcb81482ecab2e19c0635a9.png",
+    "sha256": "89722e35cd1b644fa8871769cd60136838400b3789ee5eea7eed8b27dd6297e8",
+    "size": 50942
+  },
+  {
+    "path": "docs/handoff/745/synthetic-artifacts/issue-745-activity-table-7-ab665-ution-table-configured-dark-webkit-iphone/attachments/Activity-page-original-b0cb58cbd751b891e0a51ceb883b7b2d863e3aa0.png",
+    "sha256": "b5334767bc8cf7820093de2d1fdffab67f815f3d48cf6e2dc3ffd71b33cb00f8",
+    "size": 432203
+  },
+  {
+    "path": "docs/handoff/745/synthetic-artifacts/issue-745-activity-table-7-ab665-ution-table-configured-dark-webkit-iphone/attachments/Activity-table-geometry-be095e964e9a8d9b8aff6ed43c933c3d2ab5e997.json",
+    "sha256": "09fc17cc2d53b8bb3caf8b2b7dc98c47b2fc96f558a801efbc2cf190f4dd1d30",
+    "size": 1089
+  },
+  {
+    "path": "docs/handoff/745/synthetic-artifacts/issue-745-activity-table-7-ab665-ution-table-configured-dark-webkit-iphone/attachments/Activity-table-original-71f090caa02b7ae26dd8ff282fc2327000265fb8.png",
+    "sha256": "d511b341ee6e73c5677538420063d28a95bae08906238de8f2c2041e9ca3fec0",
+    "size": 165628
+  },
+  {
+    "path": "docs/handoff/745/synthetic-artifacts-index.json",
+    "sha256": "2d872dc1cb0a2a2aa5251f17f62d4b23679023c3720364b1ddb6b9ee5e0a3707",
+    "size": 5007
+  }
+]

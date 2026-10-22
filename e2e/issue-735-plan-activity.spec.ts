@@ -142,7 +142,8 @@ for (const profile of ['desktop', 'phone'] as const)
           await expect(
             page.getByRole('button', { name: /Ursprungsbuchung öffnen · Hausverwaltung/ }),
           ).toBeVisible();
-          await expect(page.locator('.activity-terms')).toContainText('01.09.2026 · Girokonto');
+          await expect(firstContribution).toContainText('01.09.2026');
+          await expect(firstContribution).toContainText('Girokonto');
           expect(
             body.activityBreakdown.items.reduce(
               (sum: number, item: { contributionCents: number }) => sum + item.contributionCents,
