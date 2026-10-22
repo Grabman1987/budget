@@ -22,6 +22,7 @@ import { accountsQuery, LEDGER_KEY } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { StatementSettlementReview } from './statement-settlement-727';
 import { expectedQuery } from '../expected/api';
+import { StatementBookingLinks } from './statement-booking-links';
 import './statement-review-726.css';
 
 const PATH = '/api/statement-intake';
@@ -89,7 +90,10 @@ function AccountStatements({ accountId }: { accountId: string }) {
   const [automationDirty, setAutomationDirty] = useState(false);
   const [automationEditorKey, setAutomationEditorKey] = useState(0);
   const [automation, setAutomation] = useState<StatementAutomationOutcome | null>(null);
-  const busy = documentBusy || settlementBusy || automationBusy;
+  const [linksBusy, setLinksBusy] = useState(false),
+    [linksDirty, setLinksDirty] = useState(false);
+  const [linksEditorKey, setLinksEditorKey] = useState(0);
+  const busy = documentBusy || settlementBusy || automationBusy || linksBusy;
   const [current, setCurrent] = useState<StatementIntakeView | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null),
     [saved, setSaved] = useState<Draft | null>(null);
@@ -99,7 +103,7 @@ function AccountStatements({ accountId }: { accountId: string }) {
     [conflict, setConflict] = useState(false),
     [note, setNote] = useState('');
   const documentDirty = JSON.stringify(draft) !== JSON.stringify(saved);
-  const dirty = documentDirty || settlementDirty || automationDirty;
+  const dirty = documentDirty || settlementDirty || automationDirty || linksDirty;
   const write = useBudgetWrite();
   const blocker = useBlocker({
     shouldBlockFn: () => open && (busy || dirty || password !== ''),
@@ -117,6 +121,10 @@ function AccountStatements({ accountId }: { accountId: string }) {
     if (automationDirty) {
       setAutomationDirty(false);
       setAutomationEditorKey((key) => key + 1);
+    }
+    if (linksDirty) {
+      setLinksDirty(false);
+      setLinksEditorKey((key) => key + 1);
     }
     return true;
   };
@@ -169,8 +177,8 @@ function AccountStatements({ accountId }: { accountId: string }) {
   }
   async function upload(next: File) {
     if (busy || !readyAccount) return;
-    if (automationDirty) {
-      setError('Bitte die Einrichtung zuerst speichern oder verwerfen.');
+    if (automationDirty || linksDirty) {
+      setError('Bitte Einrichtung oder Verknüpfungsauswahl zuerst speichern oder verwerfen.');
       return;
     }
     setAutomation(null);
@@ -465,13 +473,23 @@ function AccountStatements({ accountId }: { accountId: string }) {
                   key={`${accountId}-${automationEditorKey}`}
                   accountId={accountId}
                   accounts={accounts.data?.accounts ?? []}
-                  disabled={documentBusy || settlementBusy}
+                  disabled={documentBusy || settlementBusy || linksBusy}
                   suggested={automation?.suggestedCardHints ?? []}
                   onBusy={setAutomationBusy}
                   onDirty={setAutomationDirty}
                 />
               )}
               {automation && <StatementAutomationResult outcome={automation} />}
+              {current && !current.deletedAt && (
+                <StatementBookingLinks
+                  key={`${current.id}-${linksEditorKey}`}
+                  intakeId={current.id}
+                  accountId={accountId}
+                  disabled={documentBusy || settlementBusy || automationBusy || conflict}
+                  onBusy={setLinksBusy}
+                  onDirty={setLinksDirty}
+                />
+              )}
               {current?.status === 'pending' && !current.deletedAt && (
                 <Button
                   variant="ghost"
@@ -1167,7 +1185,7 @@ function StatementAutomationSettings({
             >
               Stand neu laden
             </Button>
-            <Button variant="ghost" disabled={saving} onClick={cancel}>
+            <Button variant="ghost" disabled={disabled || saving} onClick={cancel}>
               Verwerfen
             </Button>
           </div>
