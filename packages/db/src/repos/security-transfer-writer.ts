@@ -4,7 +4,11 @@ import { desc, eq } from 'drizzle-orm';
 import { account, securityTransferPair, trade } from '../schema';
 import { insertTracked, withGroup, type AuditContext } from './audit';
 import { ConflictError } from './errors';
-import { readRecordedSecurityHistory } from './security-transfer-history';
+import {
+  normalizedSecurityTransferReference,
+  readRecordedSecurityHistory,
+  recordedSecurityTransferProposalFingerprint,
+} from './security-transfer-history';
 import { assertPairedScopes, pairedScopesFor } from './security-transfer-invariants';
 import { runInTransaction, type Executor } from './types';
 
@@ -29,7 +33,7 @@ const validDay = (value: string) => {
 /** Atomic repository action. No HTTP apply route calls it at this source-only checkpoint. */
 export function writeRecordedSecurityTransfer(db: Executor, input: RecordedSecurityTransferWrite,
   ctx: AuditContext) {
-  const sourceReference = input.sourceReference?.trim() || null;
+  const sourceReference = normalizedSecurityTransferReference(input.sourceReference);
   if (!input.securityId || !input.sourceAccountId || !input.destinationAccountId ||
       input.sourceAccountId === input.destinationAccountId || !validDay(input.date) ||
       !Number.isSafeInteger(input.unitsE8) || input.unitsE8 <= 0 ||
@@ -78,7 +82,8 @@ export function writeRecordedSecurityTransfer(db: Executor, input: RecordedSecur
       destinationAccountId: input.destinationAccountId, asOf: input.date });
     if (!history.available)
       throw new ConflictError(`Die belegte Übertragshistorie ist nicht schlüssig (${history.code}).`);
-    if (history.factFingerprint !== input.factFingerprint)
+    if (recordedSecurityTransferProposalFingerprint(history.factFingerprint,
+      { ...input, sourceReference }) !== input.factFingerprint)
       throw new ConflictError('Die Buchungshistorie hat sich seit der Vorschau geändert.');
     if (history.writeBlockers.length)
       throw new ConflictError('Ein Konto ist geschlossen oder der Stichtag bereits geprüft.');

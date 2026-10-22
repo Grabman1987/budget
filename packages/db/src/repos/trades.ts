@@ -260,9 +260,12 @@ export function updateTrade(
   return runInTransaction(db, (tx) => {
     const cur = loadTrade(tx, id);
     assertUnpairedTrade(tx, id);
-    const pairedBefore = pairedScopesFor(tx, [cur, {
+    const financialChange = (['securityId', 'date', 'kind', 'unitsE8',
+      'amountCents', 'feeCents', 'taxCents'] as const)
+      .some((key) => patch[key] !== undefined && patch[key] !== cur[key]);
+    const pairedBefore = financialChange ? pairedScopesFor(tx, [cur, {
       accountId: cur.accountId, securityId: patch.securityId ?? cur.securityId,
-    }]);
+    }]) : [];
     if (
       cur.savingsPlanId &&
       ((patch.kind && patch.kind !== 'buy') ||
@@ -334,9 +337,10 @@ export function updateTrade(
       grouped,
     );
     assertTradeSettlementInvariants(tx, cur.bookingId ? [cur.bookingId] : [], [id]);
-    assertPairedScopes(tx, [...pairedBefore, ...pairedScopesFor(tx, [cur, {
-      accountId: cur.accountId, securityId,
-    }])], date);
+    if (financialChange)
+      assertPairedScopes(tx, [...pairedBefore, ...pairedScopesFor(tx, [cur, {
+        accountId: cur.accountId, securityId,
+      }])], cur.date < date ? cur.date : date);
     return { trade: loadTrade(tx, id), bookingId, duplicate: false };
   });
 }

@@ -460,12 +460,21 @@ function loadTarget(db: Executor, target: UndoTarget): AuditEntry[] {
   return rows.map(parseEntry);
 }
 
+const financialTradeColumns = ['account_id', 'security_id', 'date', 'kind',
+  'units_e8', 'amount_cents', 'fee_cents', 'tax_cents', 'booking_id', 'deleted_at'] as const;
+
+function financialTradeUndo(entry: AuditEntry): boolean {
+  if (entry.entityType !== 'trade') return false;
+  return !entry.before || !entry.after || financialTradeColumns.some((column) =>
+    !isDeepStrictEqual(entry.before?.[column], entry.after?.[column]));
+}
+
 /** Use both sides of each audit snapshot: undo can move a native fact out of a pair component. */
 function securitySeedsOfUndo(entries: readonly AuditEntry[]): PairedHistorySeed[] {
   const seeds: PairedHistorySeed[] = [];
   for (const entry of entries) for (const snapshot of [entry.before, entry.after]) {
     if (!snapshot) continue;
-    if (entry.entityType === 'trade' || entry.entityType === 'holding') {
+    if (financialTradeUndo(entry) || entry.entityType === 'holding') {
       const accountId = snapshot['account_id'], securityId = snapshot['security_id'];
       if (typeof accountId === 'string' && typeof securityId === 'string')
         seeds.push({ accountId, securityId });
@@ -495,6 +504,16 @@ function assertWholeSecurityTransferUndo(db: Executor, entries: readonly AuditEn
     throw new AuditError('Wertpapierübertrag und beide Schenkel nur als gesamte Aktion rückgängig machen.');
   const subjects = new Set(entries.map((entry) => `${entry.entityType}|${entry.entityId}`));
   const seeds = securitySeedsOfUndo(entries);
+  if (entries.some((entry) => entry.entityType === 'investment_preference' &&
+      entry.before?.['cost_method'] !== entry.after?.['cost_method'])) {
+    const rows = db.select({ securityId: schema.securityTransferPair.securityId })
+      .from(schema.securityTransferPair).where(isNull(schema.securityTransferPair.deletedAt))
+      .limit(1001).all();
+    if (rows.length > 1000)
+      throw new AuditError('Die belegte Übertragshistorie überschreitet die Undo-Grenze.');
+    seeds.push(...[...new Set(rows.map((row) => row.securityId))]
+      .map((securityId) => ({ securityId })));
+  }
   for (const pairId of pairIds) {
     const pair = db.select().from(schema.securityTransferPair)
       .where(eq(schema.securityTransferPair.id, pairId)).get();
@@ -508,6 +527,24 @@ function assertWholeSecurityTransferUndo(db: Executor, entries: readonly AuditEn
     }
   }
   return seeds;
+}
+
+/** An undo can remove the old dated effect as well as restore a new one. */
+function pairedUndoMutationDate(entries: readonly AuditEntry[], scope: {
+  securityId: string; sourceAccountId: string; destinationAccountId: string;
+}): string | undefined {
+  const dates: string[] = [];
+  for (const entry of entries) {
+    if (!financialTradeUndo(entry) && entry.entityType !== 'holding') continue;
+    for (const snapshot of [entry.before, entry.after]) {
+      if (!snapshot || snapshot['security_id'] !== scope.securityId ||
+          ![scope.sourceAccountId, scope.destinationAccountId].includes(
+            snapshot['account_id'] as string)) continue;
+      const day = snapshot[entry.entityType === 'holding' ? 'as_of' : 'date'];
+      if (typeof day === 'string') dates.push(day);
+    }
+  }
+  return dates.sort()[0];
 }
 
 function occurrenceBookingIds(entry: AuditEntry): string[] {
@@ -1026,7 +1063,13 @@ export function undo(
       touched,
       originals.filter((entry) => entry.entityType === 'trade').map((entry) => entry.entityId),
     );
-    assertPairedScopes(tx, [...pairedBefore, ...pairedScopesFor(tx, pairedSeeds)]);
+    const pairedAfter = pairedScopesFor(tx, pairedSeeds);
+    const pairedUnion = new Map([...pairedBefore, ...pairedAfter].map((scope) => [
+      `${scope.pairId}|${scope.securityId}|${scope.sourceAccountId}|${scope.destinationAccountId}`,
+      scope,
+    ]));
+    for (const scope of pairedUnion.values())
+      assertPairedScopes(tx, [scope], pairedUndoMutationDate(originals, scope));
     const written = tx
       .select()
       .from(auditLog)

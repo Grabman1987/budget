@@ -491,6 +491,7 @@ const transferPreviewBody = z.object({
   destinationAccountId: id,
   date: exposureDay,
   unitsE8: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+  sourceReference: z.string().max(200).nullable().optional(),
 });
 
 export function tradeRoutes(db: Db): Hono {

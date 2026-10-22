@@ -435,7 +435,7 @@ export type RecordedSecurityTransferPreview =
       available: true;
       evidenceClass: 'recorded-native' | 'recorded-paired';
       method: 'fifo' | 'average';
-      /** Versioned full-current-history CAS evidence for a later atomic writer. */
+      /** Versioned current-history and exact-proposal CAS evidence for the atomic writer. */
       factFingerprint: string;
       date: string;
       unitsE8: number;
@@ -465,9 +465,25 @@ const historyMessage: Record<RecordedSecurityHistoryFailure, string> = {
   replay_conflict: 'Die gespeicherte Buchungshistorie kann nicht vollständig nachgerechnet werden.',
 };
 
+export const normalizedSecurityTransferReference = (value?: string | null): string | null =>
+  value?.trim() || null;
+
+/** Separate from the durable intent hash: the owner must apply the proposal they viewed. */
+export function recordedSecurityTransferProposalFingerprint(factFingerprint: string, input: {
+  securityId: string; sourceAccountId: string; destinationAccountId: string;
+  date: string; unitsE8: number; sourceReference?: string | null;
+}): string {
+  return createHash('sha256').update(JSON.stringify({ version: 1, factFingerprint,
+    securityId: input.securityId, sourceAccountId: input.sourceAccountId,
+    destinationAccountId: input.destinationAccountId, date: input.date,
+    unitsE8: input.unitsE8,
+    sourceReference: normalizedSecurityTransferReference(input.sourceReference),
+  })).digest('hex');
+}
+
 export function previewRecordedSecurityTransfer(db: Executor, input: {
   securityId: string; sourceAccountId: string; destinationAccountId: string;
-  date: string; unitsE8: number;
+  date: string; unitsE8: number; sourceReference?: string | null;
 }): RecordedSecurityTransferPreview {
   if (!Number.isSafeInteger(input.unitsE8) || input.unitsE8 <= 0)
     return { available: false, reason: 'invalid_units',
@@ -499,7 +515,7 @@ export function previewRecordedSecurityTransfer(db: Executor, input: {
     message: historyMessage.replay_conflict, applyAvailable: false };
   return {
     available: true, evidenceClass: history.evidenceClass, method: plan.method,
-    factFingerprint: history.factFingerprint,
+    factFingerprint: recordedSecurityTransferProposalFingerprint(history.factFingerprint, input),
     date: plan.date, unitsE8: plan.unitsE8,
     source: { accountId: source.accountId, beforeUnitsE8: source.unitsE8,
       beforeBasisCents: source.basisCents, remainingUnitsE8: source.unitsE8 - input.unitsE8,
