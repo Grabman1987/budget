@@ -342,6 +342,10 @@ export function GoalFigures({
           </dd>
         </div>
         <div className="kv">
+          <dt>Nötige künftige Rate</dt>
+          <dd>{g.neededMonthlyCents === null ? '–' : eur(g.neededMonthlyCents)}</dd>
+        </div>
+        <div className="kv">
           <dt>Ø letzte 3 Monate</dt>
           <dd>{eur(g.averageRateCents)}</dd>
         </div>

@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test as mainTest, type APIRequestContext, type Page } from '@playwright/test';
 import { MAIN_URL } from '../playwright.config';
-import { sampleTest } from './sample';
+import { sampleTest, SAMPLE_URL } from './sample';
 import { expectScreenshot } from './visual';
 
 /**
@@ -17,7 +17,7 @@ const NEEDED = [
     '800,00 €',
     '495,78 €',
     '101,41 €',
-    'hinter Plan · 54,92 € je Monat mehr nötig',
+    'hinter Plan · 54,92 € je zukünftigem Monat mehr nötig',
   ],
   ['Haushaltsversicherung 2027', '486,00 €', '324,00 €', '40,50 €', 'im Plan · fertig Jän 2027'],
   [
@@ -25,7 +25,7 @@ const NEEDED = [
     '580,00 €',
     '289,98 €',
     '48,34 €',
-    'hinter Plan · 0,01 € je Monat mehr nötig',
+    'hinter Plan · 0,01 € je zukünftigem Monat mehr nötig',
   ],
   ['Neues Fahrrad', '1.200,00 €', '90,07 €', '158,57 €', 'im Plan · fertig Apr 2027'],
   ['Urlaub Sommer 2027', '3.000,00 €', '179,89 €', '282,02 €', 'im Plan · fertig Jul 2027'],
@@ -46,11 +46,11 @@ sampleTest('the five fixture goals show their needed rates for 17.09.2026', asyn
     const row = goalRow(page, name);
     await expect(row.locator('.col-target')).toHaveText(target);
     await expect(row.locator('.col-saved')).toHaveText(saved);
-    await expect(row.locator('.col-rate')).toHaveText(needed);
-    await expect(row.getByTestId('goal-line')).toHaveText(line);
+    await expect(row.getByTestId('goal-future-rate')).toHaveText(needed);
+    await expect(row.getByTestId('goal-future-line')).toHaveText(line);
   }
   // Group sum "Offen": the needed rates add up.
-  await expect(page.locator('tr.pgroup .col-rate')).toHaveText('630,84 €');
+  await expect(page.getByTestId('goal-future-rate-total')).toHaveText('630,84 €');
   // Soonest target date first.
   await expect(page.locator('tr.prow .goal-name').first()).toHaveText('Weihnachten 2026');
 });
@@ -63,7 +63,9 @@ sampleTest('the detail of a goal: chain, figures, axe', async ({ page }) => {
   await expect(panel).toContainText('Monate bis dahin');
   await expect(
     panel.getByRole('button', { name: 'Als Ziel der Kategorie übernehmen' }),
-  ).toBeEnabled();
+  ).toHaveCount(0);
+  await expect(panel.getByRole('button', { name: 'Rate zuweisen', exact: true })).toBeDisabled();
+  await expect(panel).toContainText('Bitte das Sparziel oder das Ziel im Plan abstimmen.');
   const axe = await new AxeBuilder({ page }).analyze();
   expect(serious(axe.violations)).toEqual([]);
 });
@@ -71,8 +73,19 @@ sampleTest('the detail of a goal: chain, figures, axe', async ({ page }) => {
 sampleTest('adopting a goal as the envelope target is one undoable action', async ({ page }) => {
   await page.goto('/plan/sparziele');
   await page.getByRole('link', { name: 'Kfz-Service 2027' }).click();
-  await page.getByRole('button', { name: 'Als Ziel der Kategorie übernehmen' }).click();
-  await expect(toast(page)).toContainText('Kfz-Service: Ziel 580,00 € übernommen');
+  // The owner removed the adopt button; retain the real legacy API and financial Undo contract.
+  const goalsResponse = await page.request.get(`${SAMPLE_URL}/api/goals`);
+  expect(goalsResponse.ok()).toBe(true);
+  const goals = (await goalsResponse.json()) as { goals: { id: string; name: string }[] };
+  const legacyGoal = goals.goals.find((goal) => goal.name === 'Kfz-Service 2027');
+  expect(legacyGoal).toBeDefined();
+  const adoption = await page.request.post(`${SAMPLE_URL}/api/goals/${legacyGoal!.id}/adopt`, {
+    data: {},
+    headers: { origin: SAMPLE_URL },
+  });
+  expect(adoption.ok(), await adoption.text()).toBe(true);
+  const adoptedGroup = (await adoption.json()) as { groupId: string };
+  expect(adoptedGroup.groupId).toEqual(expect.any(String));
   const adopted = () =>
     page.evaluate(async () => {
       const res = await fetch('/api/categories');
@@ -90,8 +103,14 @@ sampleTest('adopting a goal as the envelope target is one undoable action', asyn
     });
   expect(await adopted()).toMatchObject({ kind: 'by_date', amountCents: 58_000 });
   // The sample server is shared: take it back.
-  await toast(page).getByRole('button', { name: 'Rückgängig' }).click();
-  await expect(toast(page)).toContainText('Rückgängig gemacht');
+  const reversal = await page.request.post(`${SAMPLE_URL}/api/undo`, {
+    data: { groupId: adoptedGroup.groupId },
+    headers: { origin: SAMPLE_URL },
+  });
+  expect(reversal.ok(), await reversal.text()).toBe(true);
+  expect((await reversal.json()) as { groupId: string }).toMatchObject({
+    groupId: expect.any(String),
+  });
   expect(await adopted()).toBeUndefined();
 });
 
@@ -153,7 +172,7 @@ mainTest('goals: create, edit, delete and undo', async ({ page }, testInfo) => {
   await expect(row.locator('.col-target')).toHaveText('1.000,00 €');
   await expect(row.locator('.col-saved')).toHaveText('0,00 €');
   await expect(row.locator('.col-date')).toHaveText(`30.06.${year}`);
-  await expect(row.getByTestId('goal-line')).toContainText('hinter Plan');
+  await expect(row.getByTestId('goal-line')).toContainText('für diesen Monat zuweisen');
 
   // Edit the target; the needed rate follows.
   const rateBefore = await row.locator('.col-rate').innerText();

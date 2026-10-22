@@ -117,3 +117,26 @@ completion, physical-device behavior or privacy-toggle acceptance. Six-point
 history is checked over HTTP; actual expense completion is covered by the
 existing new repository suite. All additions and adapters require independent
 review and root-owned execution; the adopter ran no heavy checks.
+
+## Existing native forecast/adoption compatibility and44px action repair
+
+Root's native run on `3b44ddce` passed both phone flows and found both desktop
+flows blocked by a42px funding action. Goal-detail actions now have the existing
+`--touch` minimum height; all44px assertions stay unchanged.
+
+Plan funding remains the primary rate/action. A separately labelled “Nötige
+künftige Rate” displays the unchanged future-only `neededMonthlyCents`, its
+unchanged forecast explanation, and the existing domain `goalTotals` sum over
+those original projections. Detail also exposes that future-only rate explicitly.
+No ledger/assignment/forecast formula or stored value changes.
+
+| Existing file | Bounded technical adapter and retained coverage |
+| --- | --- |
+| `e2e/goals.spec.ts` | The five future-rate monetary strings101.41/40.50/48.34/158.57/282.02 and630.84 group sum remain unchanged, with selectors moved to the distinct displayed future projection. The54.92/0.01 forecast deficits remain unchanged, with “zukünftigem Monat” wording. The new-goal monthly status assertion follows the authorized funding wording; create/edit/delete/Undo and all numeric oracles remain. |
+| `e2e/goals.spec.ts`, legacy adoption case | The owner explicitly removed the adopt button, so its click/toast UI assertion is retired. Authenticated `page.request` instead invokes the actual retained legacy adopt endpoint, checks HTTP success and the actual returned groupId, then calls public Undo with that group and checks success/returned audit group. The original by-date58000 assertion and exact post-Undo target absence remain unchanged. No manual-completion substitution. Native automatic synchronization and real funding/manual UI Undo remain covered by the new isolated flow. |
+| `e2e/goals.spec.ts`, detail case | Assert the obsolete button is absent and the legacy conflict is explicitly visible with funding disabled; retain the original2820.11 measure, remaining-month explanation and Axe check. |
+
+This is a deliberate distinction between retired adoption-button UI coverage and
+retained actual API financial/Undo coverage. Independent review must inspect that
+coverage boundary. No screenshot baseline, timeout, tolerance, financial oracle
+or existing calculation changed. Root owns all reruns and baseline decisions.

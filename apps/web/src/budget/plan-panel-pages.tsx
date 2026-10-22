@@ -201,7 +201,7 @@ export function GoalDetailPage() {
                   belegbar. Du kannst das Ziel manuell abschließen.
                 </p>
               )}
-            <div className="panel-actions">
+            <div className="panel-actions goal-actions">
               {goal?.funding && goal.lifecycle?.state !== 'completed' && (
                 <Button
                   disabled={!!goal.funding.conflict || goal.funding.remainingCents <= 0}

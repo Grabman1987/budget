@@ -156,3 +156,18 @@
   margin-inline-start: auto;
   min-height: 44px;
 }
+
+/* Current Plan funding and the distinct future-only forecast remain explicit. */
+.plan.goals .goal-future-projection {
+  display: block;
+  margin-block-start: var(--space-xs);
+  font-size: var(--fs-label);
+  font-weight: 400;
+  color: var(--ink-2);
+}
+.plan.goals .goal-future-projection > span {
+  display: block;
+}
+.goal-actions > .btn {
+  min-height: var(--touch);
+}

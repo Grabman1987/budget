@@ -12,6 +12,7 @@ export interface GoalGroup {
   rows: GoalView[];
   totals: GoalTotals;
   rateIncomplete: boolean;
+  futureRateCents: number;
 }
 
 const SHORT_MONTH = [
@@ -38,7 +39,7 @@ export const goalState = (goal: GoalView) =>
   goal.lifecycle?.state ?? (goal.status === 'reached' ? 'reached' : 'open');
 
 export function goalGroups(goals: readonly GoalView[]): GoalGroup[] {
-  const groups: Array<Omit<GoalGroup, 'no' | 'totals' | 'rateIncomplete'>> = [
+  const groups: Array<Omit<GoalGroup, 'no' | 'totals' | 'rateIncomplete' | 'futureRateCents'>> = [
     { key: 'reached', title: 'Erreicht', rows: goals.filter((g) => goalState(g) === 'reached') },
     { key: 'open', title: 'Offen', rows: goals.filter((g) => goalState(g) === 'open') },
     {
@@ -52,6 +53,7 @@ export function goalGroups(goals: readonly GoalView[]): GoalGroup[] {
     .map((g, i) => ({
       ...g,
       no: i + 1,
+      futureRateCents: goalTotals(g.rows).neededMonthlyCents,
       rateIncomplete: g.rows.some((row) => !row.funding || !!row.funding.conflict),
       totals: goalTotals(
         g.rows.map((row) => ({
@@ -90,6 +92,13 @@ export function goalLine(goal: GoalView, month: string): GoalLine {
     return goal.funding.remainingCents > 0
       ? { tone: 'warn', text: `noch ${eur(goal.funding.remainingCents)} für diesen Monat zuweisen` }
       : { tone: 'ok', text: 'Monatsrate zugewiesen' };
+  return goalForecastLine(goal, month);
+}
+
+/** The unchanged future-only projection stays separate from the current Plan funding need. */
+export function goalForecastLine(goal: GoalView, month: string): GoalLine {
+  if (goalState(goal) === 'completed') return { tone: 'done', text: 'abgeschlossen' };
+  if (goalState(goal) === 'reached') return { tone: 'done', text: 'erreicht' };
   if (goal.status === 'on_track')
     return {
       tone: 'ok',

@@ -14,7 +14,14 @@ import type { CategoryRow } from './api';
 import { budgetQuery } from './budget-api';
 import { CategoryIcon } from './category-icon';
 import { goalsQuery, fundGoalRate, type GoalView } from './goals-api';
-import { goalBar, goalGroups, goalLine, planSummary, type GoalGroup } from './goals-model';
+import {
+  goalBar,
+  goalGroups,
+  goalLine,
+  goalForecastLine,
+  planSummary,
+  type GoalGroup,
+} from './goals-model';
 import { GoalPanel, type GoalPanelState } from './goals-panel';
 import { CLASS_TEXT } from './plan-model';
 
@@ -217,6 +224,12 @@ function GroupRow({
         ) : (
           eur(g.totals.neededMonthlyCents)
         )}
+        {g.key === 'open' && (
+          <span className="goal-future-projection">
+            <span>Nötige künftige Rate</span>
+            <span data-testid="goal-future-rate-total">{eur(g.futureRateCents)}</span>
+          </span>
+        )}
       </td>
     </tr>
   );
@@ -309,6 +322,13 @@ function GoalRow({
         ) : (
           <span>{eur(g.neededMonthlyCents)} · künftig</span>
         )}
+        <span className="goal-future-projection">
+          <span>Nötige künftige Rate</span>
+          <span data-testid="goal-future-rate">
+            {g.neededMonthlyCents === null ? '–' : eur(g.neededMonthlyCents)}
+          </span>
+          <span data-testid="goal-future-line">{goalForecastLine(g, month).text}</span>
+        </span>
         {g.funding && g.lifecycle?.state !== 'completed' && (
           <Button
             size="sm"
