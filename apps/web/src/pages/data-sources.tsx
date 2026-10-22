@@ -1,4 +1,5 @@
 import { Button, Field, SectionHead, Select, TextInput } from '@budget/ui';
+import { TriangleAlert } from 'lucide-react';
 import { AppLink } from '../shell/app-link';
 import { todayInVienna } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
@@ -495,7 +496,7 @@ function ConnectionCard({
           )}
           {a.warnings?.map((w) => (
             <p className="field-error" key={w.id}>
-              ⚠ {w.title}: {w.detail}
+              <TriangleAlert size={16} strokeWidth={1.75} aria-hidden="true" /> {w.title}: {w.detail}
             </p>
           ))}
           <AppLink to="/konten/pruefen" search={{ bankSource: a.id }} className="btn btn-ghost">

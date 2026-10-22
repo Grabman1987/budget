@@ -14,7 +14,7 @@ import {
 } from '@budget/ui';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { Plus, X } from 'lucide-react';
+import { ChevronDown, Plus, X } from 'lucide-react';
 import { todayInVienna } from '@budget/domain';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { budgetQuery } from '../budget/budget-api';
@@ -403,7 +403,8 @@ function FilterRow({ search, setSearch, accounts, lookups, sortValue, onSortValu
         disabled={pending} onChange={(event) => setQ(event.target.value)}
       />}</Field></div>
       <Button variant="ghost" disabled={pending} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
-        Filter ▾{keys.length ? ` (${keys.length})` : ''}
+        Filter <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
+        {keys.length ? ` (${keys.length})` : ''}
       </Button>
     </div>
     {keys.length > 0 && <div className="kfilter-chips" role="group" aria-label="Aktive Filter">{keys.map((key) => {

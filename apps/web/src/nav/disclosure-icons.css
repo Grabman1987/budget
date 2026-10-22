@@ -1,0 +1,7 @@
+.disclosure-chevron {
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+details:not([open]) > summary .disclosure-chevron {
+  transform: rotate(-90deg);
+}

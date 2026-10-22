@@ -1,4 +1,5 @@
 import './ledger-batch.css';
+import '../nav/disclosure-icons.css';
 import { BookingAssignmentReview } from '../assignment/review';
 import {
   useAmountPrivacy,
@@ -13,7 +14,7 @@ import {
 } from '@budget/ui';
 import { manualTransferStatus, todayInVienna, type ManualBankStatus } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, Trash2, X } from 'lucide-react';
+import { CalendarDays, ChevronDown, Trash2, X } from 'lucide-react';
 import {
   useEffect,
   useMemo,
@@ -941,9 +942,8 @@ export function CaptureForm({
             >
               <summary>
                 Mehr{moreSummary && <span className="bk-more-summary"> · {moreSummary}</span>}
-                <span aria-hidden="true" className="kmore-caret">
-                  {' '}
-                  ▾
+                <span aria-hidden="true" className="disclosure-chevron">
+                  <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
                 </span>
               </summary>
               <div className="kform">

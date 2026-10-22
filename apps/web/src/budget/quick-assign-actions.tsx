@@ -1,4 +1,6 @@
 import { Button, useAmountPrivacy } from '@budget/ui';
+import { ChevronDown } from 'lucide-react';
+import '../nav/disclosure-icons.css';
 import type { QuickAssignMode } from '@budget/domain';
 import { useState } from 'react';
 import { eur } from '../ledger/format';
@@ -84,7 +86,9 @@ export function QuickAssignActions({
     actions
   ) : (
     <details className="quick-assign-actions plan-popover">
-      <summary>Schnell zuweisen ▾</summary>
+      <summary>
+        Schnell zuweisen <ChevronDown className="disclosure-chevron" size={16} strokeWidth={1.75} aria-hidden="true" />
+      </summary>
       {actions}
     </details>
   );
