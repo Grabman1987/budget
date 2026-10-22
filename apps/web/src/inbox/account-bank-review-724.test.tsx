@@ -257,7 +257,7 @@ it('keeps actual bank-candidate work in Umsätze and opens account checks throug
   mount('/konten/pruefen?von=%2F', true);
   expect(await screen.findByText(/Ungeprüfter Bankumsatz · −12,01\s€/)).toBeTruthy();
   const bankStatus = await screen.findByRole('region', { name: 'Bankstatus' });
-  expect(bankStatus).toHaveTextContent('Bank: nicht verbunden');
+  expect(bankStatus.textContent).toContain('Bank: nicht verbunden');
   expect(within(bankStatus).getByRole('link', { name: 'Einrichten' }).getAttribute('href')).toBe(
     '/einstellungen/datenquellen',
   );
@@ -294,7 +294,7 @@ it('suppresses cached source counts and account actions after a fatal refetch, t
     });
   });
   const error = await screen.findByRole('alert');
-  expect(error).toHaveTextContent('Aufgaben konnten nicht geladen werden.');
+  expect(error.textContent).toContain('Aufgaben konnten nicht geladen werden.');
   expect(screen.queryByRole('table', { name: 'Alle offenen Aufgaben nach Quelle' })).toBeNull();
   expect(screen.queryByRole('link', { name: 'Kontostand prüfen' })).toBeNull();
   fail = false;
@@ -355,7 +355,7 @@ it('shows the latest successful retrieval time for an active bank connection', a
   );
   mount('/konten/pruefen', true);
   const bankStatus = await screen.findByRole('region', { name: 'Bankstatus' });
-  expect(bankStatus).toHaveTextContent('Bank: verbunden · zuletzt 06:12');
+  expect(bankStatus.textContent).toContain('Bank: verbunden · zuletzt 06:12');
   expect(within(bankStatus).queryByRole('link', { name: 'Einrichten' })).toBeNull();
   expect(screen.getAllByRole('region', { name: 'Bankstatus' })).toHaveLength(1);
 });
