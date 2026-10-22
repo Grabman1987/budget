@@ -31,3 +31,9 @@ The prior historical-FX P2 is addressed by the implementation, subject to the DT
 - Shared German copy distinguishes a missing transfer quote, missing transfer FX and missing historical valuation FX. The fallback does not change the previously established Whole Picture *flow* invariant; unrelated historical valuation consumers were not claimed repaired.
 
 Outcome: **one actionable P2 DTO/type defect; no additional financial/source defect found in this bounded delta**. The earlier eager-series missing-FX path is now handled in the reviewed report scopes. No runtime, typecheck, migration, writer/Undo/apply or activation claim is made. No new owner product decision is needed.
+
+## Exact correction follow-up — source-clear within this reviewed scope
+
+Reviewed `e812fb40aac58905869b76b91950b3dc351ccba6` against `f7a9bb946ed03e241d8b7cc871936d83e3df3866`. The only product change updates `DepotColumn.returnUnavailable` to the imported `PortfolioReturnUnavailableReason | null` and clarifies its comment. This agrees with both account/total producers and includes `missing_valuation_fx`; no stale old reason-type reference remains in the module. The other changes archive the preceding report and explain its limitation.
+
+The sole remaining P2 is closed. No further actionable issue in this exact correction. Together with the preceding full and correction source reviews, there is no open finding in the bounded persistence/read-projection/reporting slice at this head. The worktree was clean and pinned to the reviewed full SHA. No tests, checks, compiler/build, browser, database or migration operations were performed. This is source-scoped clearance only; writer/grouped Undo/apply, runtime acceptance and activation remain outside it.
