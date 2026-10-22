@@ -90,8 +90,8 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
     mimeType: 'application/pdf',
     buffer: bytes,
   });
-  // Extraction may use the bounded 20-second PDF worker budget before staging completes.
-  await expect(page.getByRole('status').filter({ hasText: 'PDF ausgewertet' })).toBeVisible({
+  // The download link appears when the staged intake record has loaded into the review dialog.
+  await expect(upload.getByRole('link', { name: 'Original-PDF herunterladen' })).toBeVisible({
     timeout: 25000,
   });
   const review = page.getByRole('dialog', { name: 'Gehaltszettel hochladen' });
@@ -188,7 +188,7 @@ for (const intakeMethod of ['chooser', 'drop'] as const) {
       await transfer.dispose();
       expect(chooserOpened).toBe(false);
     }
-    await expect(page.getByRole('status').filter({ hasText: 'PDF ausgewertet' })).toBeVisible({
+    await expect(upload.getByRole('link', { name: 'Original-PDF herunterladen' })).toBeVisible({
       timeout: 25000,
     });
     expect((await (await request.get('/api/bookings')).json()).items).toHaveLength(0);
