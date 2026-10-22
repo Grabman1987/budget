@@ -565,8 +565,8 @@ function SheetTwo({ data, titleBlock }: { data: YearReportRead; titleBlock: Reac
           Signal. Die zehn größten Kategorien in Bedarf und Wunsch.
         </p>
       </section>
-      <section className="ov-sheet-sec" aria-label="Revisionen des Jahres">
-        <SectionTitle letter="H">Revisionen des Jahres</SectionTitle>
+      <section className="ov-sheet-sec" aria-label="Auffälligkeiten des Jahres">
+        <SectionTitle letter="H">Auffälligkeiten des Jahres</SectionTitle>
         {findings.length === 0 ? (
           <p className="ov-sheet-note">Keine Auffälligkeiten.</p>
         ) : (

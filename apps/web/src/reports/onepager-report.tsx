@@ -10,7 +10,7 @@ import {
   DimensionChain,
   RevisionTriangle,
 } from '@budget/ui';
-import { cents, MINUS } from '@budget/domain';
+import { cents, isRuleCode, MINUS } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { HeutePaceChart } from '../heute/charts';
 import { eur, eurParts, longDay } from '../ledger/format';
@@ -22,6 +22,7 @@ import type { ReportEntry } from '../nav/reports-catalog';
 import { NetWorthMini } from './month-charts';
 import { onePagerQuery, type OnePagerData } from './month-api';
 import { MonthReportFrame, shortMonth, useReportMonth } from './month-frame';
+import { ruleName } from '../rules/rules-model';
 import './onepager-report.css';
 import { onePagerVerdictFacts } from './verdict-facts';
 import { VerdictLine } from './verdict-line';
@@ -461,7 +462,9 @@ function Findings({ data }: { data: OnePagerData }) {
                 {signed(f.cents)}
                 {f.suffix ? ` ${f.suffix}` : ''}
               </td>
-              <td className="tech">{f.rule ?? '–'}</td>
+              <td className="tech">
+                {f.rule === null ? '–' : isRuleCode(f.rule) ? ruleName(f.rule) : f.rule}
+              </td>
             </tr>
           ))}
           {data.findings.length === 0 && (
