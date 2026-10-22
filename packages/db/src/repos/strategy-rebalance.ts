@@ -1,14 +1,17 @@
 import { createHash } from 'node:crypto';
-import { asc, like, sql } from 'drizzle-orm';
+import { and, asc, desc, isNull, like, lte, sql } from 'drizzle-orm';
 import { STRATEGY_CATEGORIES, todayInVienna, type StrategyCategory } from '@budget/domain';
 import { z } from 'zod';
-import { account, appSetting, auditLog, trade } from '../schema';
+import { account, appSetting, auditLog, trade, valuation as manualValuation } from '../schema';
 import { exposuresAsOf } from './asset-exposure';
 import { assertTradeSettlementInvariants } from './invariants';
 import { type AuditContext, withGroup } from './audit';
 import { createEntity, getEntity, updateEntity } from './entities';
 import { BookingInvariantError, ConflictError } from './errors';
+import { holdingValuationExportAsOf } from './portfolio';
 import { portfolioStrategyView, type PortfolioStrategyView, type StrategyEvidence } from './portfolio-strategy';
+import { fxRateOnOrBefore } from './prices';
+import { accountBalances } from './queries';
 import { runInTransaction, type Executor } from './types';
 
 const PREFIX = 'portfolio_rebalance.';
@@ -127,12 +130,49 @@ function conflicts(db: Executor, event: Event, owners: Map<string, string[]>): s
   }
   return reasons;
 }
-function sourceRevision(view: PortfolioStrategyView, decisionRevision: string): string {
+/** Exact inputs of the existing allocation valuation, without recomputing its EUR arithmetic. */
+function valuationInputs(db: Executor, view: PortfolioStrategyView) {
+  const day = view.today, includedAccounts = new Set(view.metadata.universe.accountIds);
+  const includedSecurities = new Set(view.metadata.universe.securityIds);
+  const valuation = holdingValuationExportAsOf(db, day);
+  const included = (row: { accountId: string; securityId: string }) =>
+    includedAccounts.has(row.accountId) && includedSecurities.has(row.securityId);
+  const holdings = valuation.values.filter(included).sort((a, b) =>
+    a.accountId.localeCompare(b.accountId) || a.securityId.localeCompare(b.securityId));
+  const missingPrice = valuation.missingPricePositions.filter(included).sort((a, b) =>
+    a.accountId.localeCompare(b.accountId) || a.securityId.localeCompare(b.securityId));
+  const missingFx = valuation.missingFxPositions.filter(included).sort((a, b) =>
+    a.accountId.localeCompare(b.accountId) || a.securityId.localeCompare(b.securityId));
+  const holdingAccounts = new Set([...valuation.values, ...valuation.missingPricePositions,
+    ...valuation.missingFxPositions].filter((row) => includedAccounts.has(row.accountId))
+    .map((row) => row.accountId));
+  const manual = new Map<string, { id: string; date: string; valueCents: number }>();
+  for (const row of db.select().from(manualValuation)
+    .where(and(lte(manualValuation.date, day), isNull(manualValuation.deletedAt)))
+    .orderBy(desc(manualValuation.date)).all())
+    if (includedAccounts.has(row.accountId) && !manual.has(row.accountId))
+      manual.set(row.accountId, { id: row.id, date: row.date, valueCents: row.valueCents });
+  const accounts = new Map(db.select().from(account).where(isNull(account.deletedAt)).all()
+    .filter((row) => includedAccounts.has(row.id)).map((row) => [row.id, row]));
+  const cash = accountBalances(db, day).filter((row) => includedAccounts.has(row.accountId))
+    .map((balance) => {
+      const owner = accounts.get(balance.accountId);
+      if (!owner) throw new RangeError('Included strategy account is missing');
+      const chosenManual = owner.type === 'p2p' && !holdingAccounts.has(owner.id) ? manual.get(owner.id) ?? null : null;
+      const fx = owner.currency === 'EUR' ? null : fxRateOnOrBefore(db, owner.currency, day) ?? null;
+      return { accountId: owner.id, accountType: owner.type, currency: owner.currency,
+        nativeBalanceCents: balance.balanceCents, selectedManual: chosenManual,
+        nativeInputCents: chosenManual?.valueCents ?? balance.balanceCents,
+        fx: fx && { date: fx.date, source: fx.source, rateMicro: fx.rateMicro } };
+    }).sort((a, b) => a.accountId.localeCompare(b.accountId));
+  return { holdings, missingPrice, missingFx, cash };
+}
+function sourceRevision(db: Executor, view: PortfolioStrategyView, decisionRevision: string): string {
   return hash({ config: view.config, configurationRevision: view.revision,
     decisionRevision, binding: view.binding?.fingerprint,
     universe: view.metadata.universe,
     exposures: view.metadata.securities.map((row) => ({ id: row.id, exposure: row.exposure })),
-    valuation: view.valuation, rebalance: view.rebalance });
+    valuation: view.valuation, valuationInputs: valuationInputs(db, view), rebalance: view.rebalance });
 }
 function proposalFromView(db: Executor, view: PortfolioStrategyView) {
   if (!view.binding || !view.config || !view.rebalance?.due || !view.rebalance.trigger)
@@ -141,7 +181,7 @@ function proposalFromView(db: Executor, view: PortfolioStrategyView) {
   return proposalSchema.parse({ asOf: view.asOf, effectiveDate: view.rebalance.effectiveDate,
     trigger: view.rebalance.trigger, decisionFingerprint: view.binding.fingerprint,
     decisionRevision: decisionAuditRevision(db, month), configurationRevision: view.revision,
-    valuationRevision: sourceRevision(view, decisionAuditRevision(db, month)),
+    valuationRevision: sourceRevision(db, view, decisionAuditRevision(db, month)),
     classes: view.config.classes, accountIds: view.metadata.universe.accountIds,
     securityIds: view.metadata.universe.securityIds,
     totalCents: view.rebalance.totalCents, cashCents: view.rebalance.cashCents,
@@ -157,7 +197,7 @@ export function strategyRebalanceLifecycle(db: Executor, view: PortfolioStrategy
       state: null, proposal: null, links: [], conflicts: [], proposalCurrent: false };
     const problems = conflicts(db, event, owners);
     const current = view.binding?.month === month && view.rebalance?.due &&
-      sourceRevision(view, decisionAuditRevision(db, month)) === event.proposal.valuationRevision;
+      sourceRevision(db, view, decisionAuditRevision(db, month)) === event.proposal.valuationRevision;
     return { month, revision: revision(db, month), status: problems.length ? 'needs_reconciliation' as const : event.state,
       state: event.state, proposal: event.proposal, links: event.links, conflicts: problems,
       proposalCurrent: !!current };
@@ -165,7 +205,7 @@ export function strategyRebalanceLifecycle(db: Executor, view: PortfolioStrategy
   const dueMonth = view.binding && view.rebalance?.due ? view.binding.month : null;
   return { events: rows, candidate: dueMonth ? { month: dueMonth, revision: revision(db, dueMonth),
     decisionRevision: decisionAuditRevision(db, dueMonth),
-    proposalRevision: sourceRevision(view, decisionAuditRevision(db, dueMonth)),
+    proposalRevision: sourceRevision(db, view, decisionAuditRevision(db, dueMonth)),
     previouslyReviewed: eventIds(db).includes(eventKey(dueMonth)) } : null };
 }
 export function portfolioStrategyWithRebalanceView(db: Executor, asOf: string, evidence: StrategyEvidence) {
@@ -228,7 +268,7 @@ export function reviewStrategyRebalance(db: Executor, input: { month: string; re
     const view = portfolioStrategyView(tx, asOf);
     if (view.binding?.month !== month || decisionAuditRevision(tx, month) !== input.decisionRevision)
       throw new ConflictError('Die verbindliche Monatsentscheidung hat sich geändert. Bitte neu laden.');
-    if (sourceRevision(view, decisionAuditRevision(tx, month)) !== input.proposalRevision)
+    if (sourceRevision(tx, view, decisionAuditRevision(tx, month)) !== input.proposalRevision)
       throw new ConflictError('Die angezeigten Rebalancing-Beträge oder ihre Quellen haben sich geändert. Bitte neu prüfen.');
     const proposal = proposalFromView(tx, view);
     const event = eventSchema.parse({ version: 1, month, proposal, state: 'reviewing', links: [], requests: [] });
