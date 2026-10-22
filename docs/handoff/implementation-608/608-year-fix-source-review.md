@@ -1,0 +1,7 @@
+# Narrow independent source review: #608 event-read boundary fix
+
+Worktree `/workspace/backlog-608-year`, branch `codex/backlog-608-year-delivery`, HEAD `2e9cb9934af1d6b8b0431b0c2e64bee3ed35f822` against prior reviewed source `59dacbfd3c2c3d17910a81e2f8983533a960183b`; direct package base `6420676d257698767931dd151863765cec914acf`. Scope: the `year-planning.tsx` correction for the P2 in the archived `docs/handoff/implementation-608/608-year-source-review.md`. Read-only source inspection; no tests, checks, builds, browser, CI, Git writes or product edits.
+
+No remaining finding in this narrow delta. When planned events are loading or fail, `YearPlanning` now renders the independently supplied `context` inside the same annual card before its loading/error state (`apps/web/src/budget/year-planning.tsx:48-70`). Thus successful `reportTablesQuery` income and consumption totals, its loading state, or its own `ErrorNote` from `plan-year-page.tsx:100-136` remain visible even if the event query is unavailable. The scenario controls, chart and event actions remain absent until event data arrives, so no scenario amounts are fabricated. The success branch still renders `context` at its existing location. The error path retains the same retry.
+
+This source-only review does not validate rendering, layout, data parity or browser behavior. #608 remains NOT VALIDATED. The prior source review is archived in the branch handoff. This report is archived in the package handoff after review, without modifying the reviewed source head.
