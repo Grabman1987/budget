@@ -1,3 +1,4 @@
+import { useOfflineSnapshotCapture } from '../pwa/read-snapshot-capture';
 import { AppLink } from '../shell/app-link';
 import { canLinkTransfer } from '@budget/domain';
 import { request } from '../api/http';
@@ -49,6 +50,7 @@ import {
 
 /** Alle Buchungen: filters in the URL, search, day groups, multi-select with bulk edit and undo. */
 export function BookingsPage() {
+  useOfflineSnapshotCapture('bookings');
   useAmountPrivacy();
   const search = useSearch({ strict: false }) as BookingsSearch;
   const navigate = useNavigate();

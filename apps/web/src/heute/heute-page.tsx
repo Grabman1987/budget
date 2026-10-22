@@ -1,3 +1,4 @@
+import { useOfflineSnapshotCapture } from '../pwa/read-snapshot-capture';
 import {
   useAmountPrivacy,
   ChartValue,
@@ -52,6 +53,7 @@ const STATUS: Record<string, string> = {
 };
 
 export function HeutePage() {
+  useOfflineSnapshotCapture('today');
   useAmountPrivacy();
   const [month] = useMonth();
   const { period, setPeriod } = useBalancePeriod();

@@ -28,17 +28,19 @@ None were performed. This is source implementation, not accepted or live deliver
   deliberately not duplicated. Service worker already excludes API responses and
   caches only app shell assets; it was not changed.
 
-Shared-file integration patches are outside the checkout at
+The coordinating owner applied all six shared-file integration patches into this
+checkpoint. Base-relative copies remain outside the checkout at
 `/workspace/.budget-tools/impl-offline-558-700/`: `01-http.patch`,
 `02-security.patch`, and the four `03`–`06` consumer hook patches. These are
-base-relative source patches for the respective owners, not included shared edits.
+base-relative source patches for the respective owners. The four two-line consumer
+hook mounts must survive later integration of those owners’ view changes.
 HTTP integration combines the two prepared protocols and optional confirmed-login
 queue recovery. Security integration starts raw-byte wipe at explicit logout intent,
 independent of logout HTTP; failed erasure remains fenced and visibly unresolved.
 Generic auth expiry cleanup does not erase raw-file intents.
 
-Remaining: owner integration of those shared hooks/boundaries; independent source
-review; all acceptance evidence (real Blob restart/lost acknowledgment/quota/privacy,
+Remaining: preserve those shared hooks/boundaries during cross-owner integration;
+independent source review; all acceptance evidence (real Blob restart/lost acknowledgment/quota/privacy,
 literal booking/receipt/idempotency/Undo, desktop/mobile/WebKit/a11y), ordinary
 required exact-head checks and authorized deployment/live verification. Existing
 historical evidence belongs to its original prepared commits, not this checkpoint.

@@ -1,3 +1,4 @@
+import { useOfflineSnapshotCapture } from '../pwa/read-snapshot-capture';
 import { Button, CircleNumber, cx, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
@@ -83,6 +84,7 @@ export function overviewGroupValuationSources(
 
 /** Operational account figures; valuation/group producers and all write controllers stay shared. */
 export function OverviewPage() {
+  useOfflineSnapshotCapture('accounts');
   useAmountPrivacy();
   const accounts = useQuery(accountsQuery());
   const [creating, setCreating] = useState(false);
