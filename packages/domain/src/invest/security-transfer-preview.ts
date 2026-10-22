@@ -17,6 +17,7 @@ export interface TransferLotFragment {
 }
 export type TransferLotDerivation =
   | { readonly kind: 'reunited'; readonly contributingFragments: readonly TransferLotFragment[] }
+  | { readonly kind: 'pooled-basis'; readonly date: string; readonly source: TransferLotFragment }
   | { readonly kind: 'allocated'; readonly date: string; readonly source: TransferLotFragment }
   | { readonly kind: 'sold-remainder'; readonly saleId: string; readonly date: string;
       readonly source: TransferLotFragment }
@@ -118,6 +119,14 @@ export function normalizeFifoAcquisitionFragments(fragments: readonly TransferLo
   }));
 }
 
+/** Average cents belong to the pool; retain any earlier numeric fragment claim as evidence. */
+function pooledAverageFragment(fragment: TransferLotFragment, date: string): TransferLotFragment {
+  return fragment.basisCents === null ? fragment : {
+    ...fragment, basisCents: null,
+    derivation: { kind: 'pooled-basis', date, source: fragment },
+  };
+}
+
 /** Check caller-supplied ancestry without treating an aggregate as one invented path. */
 function validDerivation(root: TransferLotFragment, method: CostMethod, asOf: string, accountId: string): boolean {
   const active = new Set<TransferLotFragment>(), complete = new Set<TransferLotFragment>();
@@ -173,7 +182,8 @@ function validDerivation(root: TransferLotFragment, method: CostMethod, asOf: st
         return false;
       for (const item of derivation.contributingFragments)
         stack.push({ fragment: item, leaving: false });
-    } else if (derivation.kind === 'allocated' || derivation.kind === 'sold-remainder' || derivation.kind === 'received') {
+    } else if (derivation.kind === 'pooled-basis' || derivation.kind === 'allocated' ||
+        derivation.kind === 'sold-remainder' || derivation.kind === 'received') {
       if (!derivation.source ||
           !validDay(derivation.date) || derivation.date < fragment.acquiredOn || derivation.date > asOf ||
           (derivation.kind === 'sold-remainder' && !identity(derivation.saleId)) ||
@@ -185,7 +195,10 @@ function validDerivation(root: TransferLotFragment, method: CostMethod, asOf: st
         return false;
       const previous = derivation.source;
       if ((derivation.kind === 'received' && (fragment.unitsE8 !== previous.unitsE8 || fragment.basisCents !== previous.basisCents)) ||
-          (derivation.kind !== 'received' && fragment.unitsE8 >= previous.unitsE8) ||
+          (derivation.kind === 'pooled-basis' && (method !== 'average' || fragment.unitsE8 !== previous.unitsE8 ||
+            fragment.basisCents !== null || previous.basisCents === null)) ||
+          ((derivation.kind === 'allocated' || derivation.kind === 'sold-remainder') &&
+            fragment.unitsE8 >= previous.unitsE8) ||
           (fragment.basisCents !== null && previous.basisCents !== null && fragment.basisCents > previous.basisCents))
         return false;
       const path = derivation.kind === 'received'
@@ -321,10 +334,11 @@ export function previewKnownBasisSecurityTransfer(input: KnownBasisTransferInput
       left -= take;
     } else {
       // Do not assign pooled basis to acquisition fragments or floor each fragment separately.
-      if (take > 0n) moved.push({ ...fragment, unitsE8: Number(take), basisCents: null,
-        ...(take < units ? { derivation: { kind: 'allocated' as const, date, source: fragment } } : {}) });
-      if (units > take) remaining.push({ ...fragment, unitsE8: Number(units - take), basisCents: null,
-        ...(take > 0n ? { derivation: { kind: 'allocated' as const, date, source: fragment } } : {}) });
+      const pooled = pooledAverageFragment(fragment, date);
+      if (take > 0n) moved.push({ ...pooled, unitsE8: Number(take),
+        ...(take < units ? { derivation: { kind: 'allocated' as const, date, source: pooled } } : {}) });
+      if (units > take) remaining.push({ ...pooled, unitsE8: Number(units - take),
+        ...(take > 0n ? { derivation: { kind: 'allocated' as const, date, source: pooled } } : {}) });
     }
   }
   // Average uses ONE pool-level division. Per-fragment floors would retain extra cents.
@@ -333,9 +347,9 @@ export function previewKnownBasisSecurityTransfer(input: KnownBasisTransferInput
     available: true, method, date, unitsE8, transferredBasisCents: Number(transferred),
     basisAllocation: method === 'fifo' ? 'fifo-lots' : 'average-pool',
     moved, sourceRemaining: remaining,
-    destinationExisting: (method === 'fifo'
-      ? normalizeFifoAcquisitionFragments(destination.fragments) : ordered(destination.fragments))
-      .map((fragment) => ({ ...fragment, basisCents: method === 'fifo' ? fragment.basisCents : null })),
+    destinationExisting: method === 'fifo'
+      ? normalizeFifoAcquisitionFragments(destination.fragments)
+      : ordered(destination.fragments).map((fragment) => pooledAverageFragment(fragment, date)),
     sourceRemainingBasisCents: Number(sourceBasis - transferred),
     destinationBasisAfterCents: Number(destinationBasis + transferred),
     cashDeltaCents: 0, realizedGainDeltaCents: 0, applyAvailable: false,

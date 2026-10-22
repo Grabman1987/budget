@@ -6,10 +6,15 @@ Owner implementation-only direction (2026-10-22) applies. No tests, test edits,
 test runs, typechecks, builds, browser checks, CI, PR, merge, deployment or database
 operation was performed. This is bounded preparation, not Stage-A acceptance.
 
-The subsequent implementation-only FIFO slice at `a5156b399d3c09094b255c32177c0685fb9213a7`
-uses the [bounded lineage policy review](security-transfers-520-lineage-policy-review.md).
+The implementation-only FIFO slice at `1709597413ba00933631c9af22b11a6343a83f65`,
+based on `a5156b399d3c09094b255c32177c0685fb9213a7`, uses the
+[bounded lineage policy review](security-transfers-520-lineage-policy-review.md).
 It completes the same-original-acquisition FIFO interpretation in the two pure helpers;
 moving-average rational ancestry and authoritative database/API work remain separate.
+The [independent source review](security-transfers-520-fifo-source-review.md) found a
+numeric-basis average projection regression; this follow-up records an explicit
+pooled-basis derivation that retains the prior numeric receipt and keeps current
+pooled-only fragment basis null. That is a source correction, not executed validation.
 
 ## Existing implementation inventory
 
@@ -131,6 +136,11 @@ the remaining lot's derivation. Average sales reuse `averageCost`; provenance un
 proportionally while basis remains pooled. Any fractional E8 provenance is rejected.
 Existing representable average reductions now retain their prior-fragment references;
 this does not implement exact rational pooled ancestry or alter the average cost rule.
+When valid average inputs supply numeric current fragment costs, the projection to
+pooled-only fragments records a separate derivation node with unchanged units.
+The earlier numeric receipt remains intact; the current pool still requires an
+explicit known basis on a later preview. Mixed known/null current fragment bases
+and conflicts between all-known fragments and a declared pool remain rejected.
 Both shared sale results are reconciled against exact BigInt half-up cents, and a
 floating-point mismatch is rejected instead of changing canonical sale arithmetic.
 The approved **transfer floor** is applied only to transfers; actual sales keep
