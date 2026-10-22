@@ -26,11 +26,22 @@ read `0`, `2,5`, `5` under `Tsd. €`; ticks `[0, 0.25, 0.5]` should read `0`, `
 `€`. Negative ticks retain the real minus sign. These examples describe expected labels and do
 not establish rendered spacing or a test result.
 
+The follow-up source checkpoint `2ccebe0531aceae5a0cf1118679eb751c65a8862` migrated the
+remaining production monetary-axis calls in
+`apps/web/src/reports/{table-charts,category-trend,explorer-template-trend,cashflow-chart,year-charts}.tsx`
+and `apps/web/src/wealth/{freedom-chart,portfolio-overview,debts-chart}.tsx`, with the native
+currency unit helper in `networth-model.ts`. Each EUR plot reuses its existing tick values and
+adds a `€` or `Tsd. €` heading. The portfolio value view converts its cent ticks to EUR for labels;
+the index/return view retains its percentage labels. The debt plot uses `EUR`/`€` for euro loans
+and the actual loan currency (for example `Tsd. CHF`) for other loans. Full tooltips, table data,
+stored amounts, `yTicks`, and financial formulas were not changed.
+
 ## Remaining integration and acceptance
 
-- `kfmt` still emits `T` in the other callers: `apps/web/src/reports/{table-charts,explorer-template-trend,year-charts,category-trend,cashflow-chart}.tsx` and `apps/web/src/wealth/{debts-chart,portfolio-overview,freedom-chart}.tsx`. Their plot margins and unit placement need individual source and rendered review; a global suffix replacement would make narrow labels longer.
+- The legacy exported `kfmt` in `networth-model.ts` still emits `T` because existing test expectations depend on it; no production chart calls it after the follow-up. Removing that export belongs with an authorized test change. Axis-heading placement and narrow labels still require rendered review.
 - The newer fixed Explorer year template in `packages/domain/src/overview/explorer-templates.ts` still projects all 12 calendar columns. Reconcile its presentation with the #550/#551 composition branches; do not copy the legacy view's slicing into the domain calculation without checking its fixed-template and CSV contract.
 - Portfolio position units and prices remain fully precise in `apps/web/src/wealth/portfolio-format.ts`, `portfolio-page.tsx`, and `portfolio-panel.tsx`. Any C-22 shortening to four unit decimals or two-to-four price decimals needs an accessible full-precision value and must not alter `unitsE8`/`priceMicro` or valuation. Coordinate with the #544 portfolio work.
+- The #488 depots/payroll shared-scale branch is separate. Reconcile its eventual chart unit treatment when integrating it; this branch did not edit those charts or their scale.
 - No trace supports a speculative #542 fix here. The iPhone page overflow, chart label spacing, FAB overlap, light/dark appearance, print appearance, 44 px rendered targets, Axe, and desktop/mobile/WebKit acceptance have not been established by source edits alone.
 
 ## Process note
