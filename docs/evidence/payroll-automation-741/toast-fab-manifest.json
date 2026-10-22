@@ -1,0 +1,14 @@
+{
+  "toast-fab-desktop.png": {
+    "sha256": "51d0eeef67222814540062cbcc348b3201f6f5e233327b940dd7b37db25ed453",
+    "source": "issue-757-toast-fab-a-save-cdb4c-le-capture-action-reachable-desktop/toast-fab.png"
+  },
+  "toast-fab-mobile.png": {
+    "sha256": "b21528de5f57413b01ba59e929e06980f8cd821b80e4dd641efd7f5a217c8807",
+    "source": "issue-757-toast-fab-a-save-cdb4c-le-capture-action-reachable-mobile/toast-fab.png"
+  },
+  "toast-fab-webkit-iphone.png": {
+    "sha256": "77cc552baedbbed5ab3835f69029c3c51b6fbb342ca2c95331b7030eda2bc26c",
+    "source": "issue-757-toast-fab-a-save-cdb4c-le-capture-action-reachable-webkit-iphone/toast-fab.png"
+  }
+}

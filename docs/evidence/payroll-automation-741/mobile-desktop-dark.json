@@ -1,0 +1,44 @@
+{
+  "source": "synthetic-only",
+  "engine": "chromium",
+  "project": "mobile",
+  "profile": "desktop",
+  "runtime": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "dpr": 1,
+    "maxTouchPoints": 10,
+    "coarse": false,
+    "themePreference": "dark",
+    "resolvedTheme": "dark"
+  },
+  "linkSize": {
+    "width": 265.796875,
+    "height": 44
+  },
+  "sourceBytesPreserved": true,
+  "salaryCents": 287500,
+  "reimbursementCents": 10000,
+  "payoutCents": 297500,
+  "balances": [
+    62345,
+    359845,
+    62345
+  ],
+  "groupedUndoReached": true,
+  "duplicateDidNotRepost": true,
+  "clickedPayoutDestination": false,
+  "unobstructedPayoutLinkClaim": false,
+  "physicalTouchClaim": false,
+  "privacyToggleExercised": true,
+  "toastGeometry": {
+    "actionLeft": 806.296875,
+    "actionRight": 914.875,
+    "bodyLeft": 513.125,
+    "bodyRight": 926.875,
+    "labelLeft": 818.296875,
+    "labelRight": 902.875
+  }
+}

@@ -3,6 +3,7 @@ import {
   listEntities,
   decidePayslipIntake,
   getPayslipIntake,
+  readPayslipPayoutAssociation,
   getPayslipSourceConfig,
   payslipMatches,
   upcoming,
@@ -93,6 +94,7 @@ function intakeView(
     id: row.id,
     status: row.status,
     receiptId: row.receiptId,
+    payout: readPayslipPayoutAssociation(db, row.id),
     parsed: row.parsed,
     matches: payslipMatches(db, row.parsed, payoutAccountId, proposedPayoutDate),
     payoutAccountId,
@@ -147,6 +149,9 @@ export function payslipIntakeRoutes(
           sortOrder,
           closedAt,
         })),
+      payees: listPayees(db)
+        .filter((p) => !p.systemKind)
+        .map(({ id, name }) => ({ id, name })),
       config: getPayslipSourceConfig(db),
     });
   });
@@ -162,11 +167,16 @@ export function payslipIntakeRoutes(
     }
     const file = form.get('file');
     const password = form.get('password'),
-      remember = form.get('remember');
+      remember = form.get('remember'),
+      automation = form.get('automation');
     if (
-      [...form.keys()].some((key) => !['file', 'password', 'remember'].includes(key)) ||
+      [...form.keys()].some(
+        (key) => !['file', 'password', 'remember', 'automation'].includes(key),
+      ) ||
       form.getAll('password').length > 1 ||
       form.getAll('remember').length > 1 ||
+      form.getAll('automation').length > 1 ||
+      (automation !== null && automation !== 'eligible') ||
       (password !== null && (typeof password !== 'string' || password.length > MAX_PASSWORD)) ||
       (remember !== null && remember !== '1' && remember !== 'true') ||
       form.getAll('file').length !== 1 ||
@@ -183,6 +193,7 @@ export function payslipIntakeRoutes(
       await service.ingest(Buffer.from(await file.arrayBuffer()), file.name, 'manual', undefined, {
         ...(password ? { password: password as string } : {}),
         remember: remember !== null,
+        ...(automation === 'eligible' ? { automation: 'eligible' as const } : {}),
       }),
       201,
     );

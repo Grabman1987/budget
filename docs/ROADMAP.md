@@ -1,3 +1,10 @@
+## #568/#569 forecast tools and shared 35-day card — adoption pending validation
+
+- [x] Reconstruct the reviewed eight-source package with controlled disclosure state and salary occurrence provenance, preserving current task navigation and Plan filters.
+- [x] Adopt final prepared domain/API/UI/native acceptance tests and document technical existing-test adapters in [adoption notes](evidence/forecast-568-569/ADOPTION.md).
+- [ ] Independent combined review and required focused/full/build/browser/CI checks.
+- [ ] Verify all acceptance criteria on the live revision; issues remain open.
+
 # Roadmap
 
 ### #731 — punctuation-capable shared date entry (2026-10-20)
@@ -1882,7 +1889,7 @@ Physical-device/keyboard/fullscreen acceptance belongs separately to #586.
 - [x] Account-local explicit selection of existing bookings, immutable original download, same-account/currency candidates, current n:m links and protected machine pairs; no payment or financial-record creation.
 - [x] Source/target/pair-history CAS, complete batch validation before writes, audit-free no-ops and real grouped Undo/redo use existing receipt/audit writers.
 - [x] Independent full-diff HIGH review, scoped technical test-adapter review, targeted DB/API/UI regressions and fresh E2E build. Desktop/phone Chromium and native WebKit: 9/9 including three setup cases, both themes, exact financial state, real Undo/redo, privacy, keyboard, 44px/hit/Axe checks. [Original captures, provenance and evidence limits](evidence/statement-receipt-links-740/README.md).
-- [ ] Exact-head required CI, protected serial integration and actual live revision verification; final delivery recorded in the PR. Private historical archive linking remains separate; #719 remains stopped.
+- [x] [PR #754](https://github.com/Grabman1987/budget/pull/754) verified live at `1c19a465649490417f174787a9806b3347b7b7a6` on 2026-10-22: exact-head CI `39764114897`, Main CI `39770495472`, deployment `39770557570` and fresh matching health. The PR retains the diagnosed installation-timeout rerun and unrelated existing report-test retry. Private historical archive linking remains separate; #719 remains stopped.
 
 
 ### #604 — goal funding and retained lifecycle (source checkpoint, 2026-10-21)
@@ -1892,3 +1899,12 @@ Physical-device/keyboard/fullscreen acceptance belongs separately to #586.
 - Automatic completion reads coherent retained audit groups and canonical ledger projections only. New category goals and actual changes to their economic intent now capture an internal prospective anchor in the authenticated goal transaction. This can establish a current basis on seeded/imported data without inventing an earlier reaching date. Name/note-only and equal-value patches preserve the anchor; GET, import and migration do not create one. Public goal responses omit the internal anchor, which stores a digest rather than source rows.
 - Legacy goals without an anchor still require a fully audited empty initial ledger basis. Views before capture, pre-anchor financial Undo, missing/ambiguous/over-bound chronology, account-goal evidence and pre-entered future expense chronology remain explicitly unavailable; manual completion is retained. Existing financial writers and Undo machinery are unchanged.
 - Unpublished migration48 adds nullable start-month/manual-completion intent and the internal anchor; copy rollback rejects retained/audited use. Migration execution, new acceptance coverage, required checks, browser evidence, independent anchor review and live delivery remain pending. This entry is source implementation, not verified completion of #604.
+
+## #741 — Deterministic payroll upload continuation
+
+- [x] Adopt the independently preserved payroll continuation on verified live #754, with source/manifest correspondence and only the owned shared-barrel export.
+- [x] Require fully reconciled known source evidence and unique configured matching; preserve existing payout values and original bytes, use existing atomic audited writers and the financial Undo group, and prevent replay after Undo or concurrent duplicate uploads.
+- [x] Independent full-product HIGH source review; new pure/DB/API 46/46, new UI 7/7, existing regressions and reproduced/corrected live amount-privacy regression. Existing test adaptations are limited to provider/status context and readiness copy. [Evidence and qualifications](evidence/payroll-automation-741/README.md).
+- [x] Complete workspace typecheck, scoped lint/format and fresh build; final browser30/30 across desktop/mobile/WebKit, including actual result links/reload, original downloads, privacy, grouped Undo and the existing toast/dialog regression. Reproduce and correct the visible Undo-label overflow with two CSS declarations;15/15 existing Toast/Layer tests passed.
+- [x] Final independent whole-diff HIGH review CLEAR, including final source hashes, original browser artifacts and preserved archive.
+- [ ] Complete exact-head CI, protected serial integration and exact live verification. This payroll packet is not yet delivered; the already-live card packet #752 is separate. No private historical archive operation is claimed, and #719 stays stopped.

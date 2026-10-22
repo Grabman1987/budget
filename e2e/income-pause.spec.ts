@@ -111,6 +111,7 @@ isolatedTest(
     expect(monthIncome(before, '2026-10')).toBe(520_123);
     await assertScheduleAndNoBookings();
     await page.goto('/reports/liquiditaet');
+    await page.locator('details.rf-tools > summary').click();
 
     const pauseCard = page.locator('section[aria-labelledby="liq-pauses"]');
     const source = pauseCard.getByLabel('Einnahmequelle');
@@ -391,6 +392,7 @@ isolatedTest(
     });
     expect(removedSource.status(), await removedSource.text()).toBe(200);
     await page.reload();
+    await page.locator('details.rf-tools > summary').click();
     await expect(pauseCard).toContainText(`Synthetic deleted source ${info.project.name}`);
     await expect(pauseCard).toContainText('Quelle gelöscht');
   },
