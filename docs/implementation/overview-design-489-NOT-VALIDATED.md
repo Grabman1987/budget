@@ -54,7 +54,10 @@ browser validation, CI, PR, merge or deployment was performed. No real data used
   and rejects unresolved percent escapes after the bounded decode pass with
   404/no-store. This keeps deeply encoded aliases out of SPA fallback. The flag,
   owner-session requirement and refusal of other developer paths are unchanged.
-  The correction awaits an independent exact-delta review; no HTTP case was run.
+  The [independent exact-delta review](overview-design-489-production-flag-fix-source-review.md)
+  is source-clear at `0154ab19c9cf10030acc67283cfa41c91a0397df` against
+  `8a534c8de543ba2e8c72a264c3c8dec2a357577d` for both P2 cases. No HTTP case
+  was run; the source checkpoint remains NOT VALIDATED / NOT LIVE.
 - CSP is unchanged. No console-message filters, eval relaxation or test harness
   changes were introduced. The historical eval-source allegation remains unproven.
 
@@ -80,5 +83,6 @@ Production flag-off/flag-on, unauthorized/authorized, encoded-path and other
 `/dev` 404, cache headers, SPA navigation and static fallback behavior need
 meaningful later HTTP/browser checks; no such requests or builds were run. Source of any
 actual browser eval/CSP violation remains to investigate under the strict policy.
-Independent review, exact-head required checks and authorized delivery/live evidence
-remain open. No issue is closed or represented as accepted/live.
+The bounded production-boundary source reviews are archived. Exact-head required
+checks and authorized delivery/live evidence remain open. No issue is closed or
+represented as accepted/live.
