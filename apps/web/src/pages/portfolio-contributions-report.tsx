@@ -1,4 +1,5 @@
 import { ChartSvg } from '@budget/ui';
+import type { ReactNode } from 'react';
 import { chartPoints } from '../charts/tooltip-data';
 import { ReportPeriodControl } from '../reports/period-quick-select';
 import { Term } from '../reports/term';
@@ -43,9 +44,13 @@ const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }))
 export function PortfolioContributionsReport({
   report,
   meta,
+  title,
+  navigation,
 }: {
   report: ReportEntry;
   meta: PageMeta;
+  title?: string;
+  navigation?: ReactNode;
 }) {
   useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
@@ -71,7 +76,7 @@ export function PortfolioContributionsReport({
           : undefined
       }
       meta={meta}
-      title={report.name}
+      title={title ?? report.name}
       subtitle={`${report.pos} · ${report.question}`}
       reportDataBasis={
         query.isError
@@ -97,6 +102,7 @@ export function PortfolioContributionsReport({
         },
       ]}
     >
+      {navigation}
       <div className="kview vview portfolio-contributions-report">
         {query.isPending && <LoadingNote what="Einzahlungen und Wert" />}
         {query.isError &&

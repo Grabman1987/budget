@@ -9,7 +9,7 @@ const ids = (value: unknown) =>
     : undefined;
 
 export const validateReportSearch = (search: Record<string, unknown>) => ({
-  reportQuelle: ['projekte', 'planungstreue', 'kosten', 'peinzahlungen', 'prendite', 'kategorien', 'jahresansicht', 'gesamttabelle'].includes(search['reportQuelle'] as string) ? search['reportQuelle'] as string : undefined,
+  reportQuelle: ['projekte', 'planungstreue', 'kosten', 'pallocation', 'peinzahlungen', 'prendite', 'kategorien', 'jahresansicht', 'gesamttabelle'].includes(search['reportQuelle'] as string) ? search['reportQuelle'] as string : undefined,
   ansicht: id(search['ansicht']),
   projekt: id(search['projekt']),
   projektUngueltig: search['projektUngueltig'] === true || (search['projekt'] !== undefined && id(search['projekt']) === undefined) ? true : undefined,

@@ -85,7 +85,7 @@ const ALIASES = new Map<string, string>([
 ]);
 
 /** Report vocabulary only; unknown dynamic headings remain ordinary text. */
-export function Term({ children }: { children: string }) {
+export function Term({ children, indicator = false }: { children: string; indicator?: boolean }) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const explanation = GLOSSARY.get(ALIASES.get(children) ?? children);
@@ -100,6 +100,7 @@ export function Term({ children }: { children: string }) {
         aria-describedby={id}
       >
         {children}
+        {indicator && <span className="term-info" aria-hidden="true">ⓘ</span>}
       </button>
       {typeof document !== 'undefined' &&
         createPortal(

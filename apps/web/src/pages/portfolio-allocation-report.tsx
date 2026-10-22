@@ -1,5 +1,5 @@
 import { chartPoints, chartPercent } from '../charts/tooltip-data';
-import { Fragment } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { useAmountPrivacy, ChartSvg, Graticule, LineLegend, type GraticuleLine } from '@budget/ui';
 import type { AllocationGroup, AllocationHistory, AllocationReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
@@ -42,9 +42,13 @@ const inkOf = (index: number) => INKS[index % INKS.length] as (typeof INKS)[numb
 export function PortfolioAllocationReport({
   report,
   meta,
+  title,
+  navigation,
 }: {
   report: ReportEntry;
   meta: PageMeta;
+  title?: string;
+  navigation?: ReactNode;
 }) {
   useAmountPrivacy();
   const query = useQuery(allocationQuery);
@@ -66,7 +70,7 @@ export function PortfolioAllocationReport({
           : undefined
       }
       meta={meta}
-      title={report.name}
+      title={title ?? report.name}
       subtitle={`${report.pos} · ${report.question}`}
       reportDataBasis={
         query.isError
@@ -78,6 +82,7 @@ export function PortfolioAllocationReport({
             : 'wird geladen'
       }
     >
+      {navigation}
       <div className="prep portfolio-allocation-report">
         <BookRuleMetric code="R21" />
         {query.isPending && <LoadingNote what="Allocation" />}

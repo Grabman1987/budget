@@ -55,19 +55,19 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
           ))}
           <div className="performance-metric">
             <dt>
-              <Term>Volatilität</Term> p. a.
+              <Term indicator>Volatilität</Term> p. a.
             </dt>
             <dd>{percentText(perf?.volatility)}</dd>
           </div>
           <div className="performance-metric">
             <dt>
-              <Term>Max. Rückgang</Term>
+              <Term indicator>Max. Rückgang</Term>
             </dt>
             <dd>{rateText(perf?.maxDrawdown)}</dd>
           </div>
           <div className="performance-metric">
             <dt>
-              <Term>Sharpe</Term> · sicherer Zins 2,5 %
+              <Term indicator>Sharpe</Term> · sicherer Zins 2,5 %
             </dt>
             <dd>
               {perf && perf.volatility !== null && perf.volatility >= 0.005
@@ -76,6 +76,12 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
             </dd>
           </div>
         </dl>
+        <p className="vnote">
+          Volatilität beschreibt die annualisierte Schwankung der Renditen. Max. Rückgang misst
+          den größten Verlust gegenüber einem vorherigen Höchststand. Sharpe setzt die Rendite
+          oberhalb des angenommenen sicheren Zinses von 2,5 % zu ihrer Schwankung ins Verhältnis;
+          bei weniger als 0,5 % Volatilität bleibt die Kennzahl offen.
+        </p>
         {summary.benchmarks.some((b) => b.benchmarkReturn === null) && (
           <p role="status" className="vnote">
             Kurslücken: Die betroffene Benchmark-Rendite und Beta sind nicht verfügbar.
@@ -179,100 +185,103 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
         <div className="tbd-head">
           <h2 id="performance-heatmap-title">Monatsrenditen, Monat × Jahr</h2>
         </div>
-        <ChartValues
-          label="Monatsrenditen"
-          points={history.years.flatMap((year) =>
-            MONTHS.map((_, i) => {
-              const month = `${year.year}-${String(i + 1).padStart(2, '0')}`;
-              const cell = history.months.find((m) => m.month === month);
-              return {
-                x: 50,
-                date: month,
-                series: [
-                  {
-                    name: 'Portfolio',
-                    value: percentText(cell?.rate, { digits: 2 }),
-                    color: (cell?.rate ?? 0) < 0 ? 'var(--red)' : 'var(--line)',
-                  },
-                ],
-              };
-            }),
-          )}
-        >
-          <Scroll label="Monatsrenditen">
-            <table className="prep-table performance-heatmap">
-              <caption>Portfolio-TTWROR in Prozent · * Teilmonat oder Teiljahr</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Jahr</th>
-                  {MONTHS.map((m) => (
-                    <th scope="col" key={m}>
-                      {m}
-                    </th>
-                  ))}
-                  <th scope="col">Jahr</th>
-                  {summary.benchmarks.map((b) => (
-                    <th scope="col" key={b.id}>
-                      {b.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {history.years.map((year, yearIndex) => (
-                  <tr key={year.year}>
-                    <th scope="row">{year.year}</th>
-                    {MONTHS.map((_, i) => {
-                      const month = `${year.year}-${String(i + 1).padStart(2, '0')}`;
-                      const cell = history.months.find((m) => m.month === month);
-                      const heat = heatForCell(
-                        cell?.rate ?? null,
-                        { mean: 0, dev: heatMax },
-                        'high',
-                      );
-                      return (
-                        <td
-                          key={month}
-                          data-chart-point={yearIndex * 12 + i}
-                          style={heat ? ({ '--h': heat.strength } as CSSProperties) : undefined}
-                          className={
-                            heat
-                              ? `n ${heat.tone === 'good' ? 'return-positive' : 'return-negative'}`
-                              : 'n'
-                          }
-                          title={
-                            cell
-                              ? `${shortDay(cell.from)} bis ${shortDay(cell.to)}`
-                              : 'Außerhalb des Zeitraums'
-                          }
-                        >
-                          {cell
-                            ? cell.rate === null
-                              ? 'Nicht verfügbar'
-                              : `${rateText(cell.rate)}${cell.partial ? ' *' : ''}`
-                            : '–'}
-                        </td>
-                      );
-                    })}
-                    <td className="n">
-                      <strong>
-                        {rateText(year.rate)}
-                        {year.partial ? ' *' : ''}
-                      </strong>
-                    </td>
+        <details className="performance-returns-grid">
+          <summary>Renditeraster nach Jahr und Monat anzeigen</summary>
+          <ChartValues
+            label="Monatsrenditen"
+            points={history.years.flatMap((year) =>
+              MONTHS.map((_, i) => {
+                const month = `${year.year}-${String(i + 1).padStart(2, '0')}`;
+                const cell = history.months.find((m) => m.month === month);
+                return {
+                  x: 50,
+                  date: month,
+                  series: [
+                    {
+                      name: 'Portfolio',
+                      value: percentText(cell?.rate, { digits: 2 }),
+                      color: (cell?.rate ?? 0) < 0 ? 'var(--red)' : 'var(--line)',
+                    },
+                  ],
+                };
+              }),
+            )}
+          >
+            <Scroll label="Monatsrenditen">
+              <table className="prep-table performance-heatmap">
+                <caption>Portfolio-TTWROR in Prozent · * Teilmonat oder Teiljahr</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Jahr</th>
+                    {MONTHS.map((m) => (
+                      <th scope="col" key={m}>
+                        {m}
+                      </th>
+                    ))}
+                    <th scope="col">Jahresrendite</th>
                     {summary.benchmarks.map((b) => (
-                      <td className="n" key={b.id}>
-                        {rateText(b.years.find((y) => y.year === year.year)?.benchmarkRate)}
-                      </td>
+                      <th scope="col" key={b.id}>
+                        {b.name}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </Scroll>
-        </ChartValues>
+                </thead>
+                <tbody>
+                  {history.years.map((year, yearIndex) => (
+                    <tr key={year.year}>
+                      <th scope="row">{year.year}</th>
+                      {MONTHS.map((_, i) => {
+                        const month = `${year.year}-${String(i + 1).padStart(2, '0')}`;
+                        const cell = history.months.find((m) => m.month === month);
+                        const heat = heatForCell(
+                          cell?.rate ?? null,
+                          { mean: 0, dev: heatMax },
+                          'high',
+                        );
+                        return (
+                          <td
+                            key={month}
+                            data-chart-point={yearIndex * 12 + i}
+                            style={heat ? ({ '--h': heat.strength } as CSSProperties) : undefined}
+                            className={
+                              heat
+                                ? `n ${heat.tone === 'good' ? 'return-positive' : 'return-negative'}`
+                                : 'n'
+                            }
+                            title={
+                              cell
+                                ? `${shortDay(cell.from)} bis ${shortDay(cell.to)}`
+                                : 'Außerhalb des Zeitraums'
+                            }
+                          >
+                            {cell
+                              ? cell.rate === null
+                                ? 'Nicht verfügbar'
+                                : `${rateText(cell.rate)}${cell.partial ? ' *' : ''}`
+                              : '–'}
+                          </td>
+                        );
+                      })}
+                      <td className="n">
+                        <strong>
+                          {rateText(year.rate)}
+                          {year.partial ? ' *' : ''}
+                        </strong>
+                      </td>
+                      {summary.benchmarks.map((b) => (
+                        <td className="n" key={b.id}>
+                          {rateText(b.years.find((y) => y.year === year.year)?.benchmarkRate)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Scroll>
+          </ChartValues>
+        </details>
         <p className="vnote">
-          Grün mit + = Gewinn, Rot mit − = Verlust. Jahreswerte verketten die angezeigten
+          Grün mit + = Gewinn, Rot mit − = Verlust. Jahreswerte verketten die bewertbaren
           Monatsrenditen. „–“ = außerhalb des Zeitraums; „Nicht verfügbar“ = ohne bewertbares
           Kapital. * kennzeichnet den tatsächlichen Teilzeitraum.
         </p>

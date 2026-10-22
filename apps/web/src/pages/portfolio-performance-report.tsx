@@ -46,9 +46,13 @@ const periodAmount = (label: string, value: number) => ({
 export function PortfolioPerformanceReport({
   report,
   meta,
+  title,
+  navigation,
 }: {
   report: ReportEntry;
   meta: PageMeta;
+  title?: string;
+  navigation?: ReactNode;
 }) {
   useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
@@ -73,7 +77,7 @@ export function PortfolioPerformanceReport({
           : undefined
       }
       meta={meta}
-      title={report.name}
+      title={title ?? report.name}
       subtitle={`${report.pos} · ${report.question}`}
       reportDataBasis={
         query.isError
@@ -88,6 +92,7 @@ export function PortfolioPerformanceReport({
         { label: 'Zeitraum', value: <PeriodControl period={period} onChange={setPeriod} /> },
       ]}
     >
+      {navigation}
       <div className="kview vview portfolio-performance-report">
         {query.isPending && <LoadingNote what="Portfolioauswertung" />}
         {query.isError &&
@@ -201,20 +206,6 @@ function PerformanceBody({
               </strong>
             </div>
             <HistoricalBasisCue reasons={basisReasons} id={basisId} sourceId={sourceId} />
-            <p className="vnote">
-              TTWROR und XIRR nach Portfolio Performance: Wertpapiere ohne Depotkassa, nach Gebühren
-              und vor Steuern. TTWROR zählt Zuflüsse am Tagesanfang und Abflüsse am Tagesende.
-              Periodengewinn und Nettozuflüsse verwenden die tatsächlichen Beträge nach Steuern.
-            </p>
-            <DimensionChain
-              terms={[
-                { label: 'Anfang', value: cents(performance.startValueCents) },
-                periodAmount('Nettozuflüsse', performance.contributionsCents),
-                periodAmount('Periodengewinn', performance.gainCents),
-                { label: 'Ende', value: cents(performance.endValueCents), op: '=', result: true },
-              ]}
-              label="Maßkette Portfolioleistung im gewählten Zeitraum"
-            />
             <dl className="performance-metrics" aria-label="Kennzahlen des gewählten Zeitraums">
               <Metric
                 label={
@@ -239,6 +230,20 @@ function PerformanceBody({
                 }
               />
             </dl>
+            <p className="vnote">
+              TTWROR und XIRR nach Portfolio Performance: Wertpapiere ohne Depotkassa, nach Gebühren
+              und vor Steuern. TTWROR zählt Zuflüsse am Tagesanfang und Abflüsse am Tagesende.
+              Periodengewinn und Nettozuflüsse verwenden die tatsächlichen Beträge nach Steuern.
+            </p>
+            <DimensionChain
+              terms={[
+                { label: 'Anfang', value: cents(performance.startValueCents) },
+                periodAmount('Nettozuflüsse', performance.contributionsCents),
+                periodAmount('Periodengewinn', performance.gainCents),
+                { label: 'Ende', value: cents(performance.endValueCents), op: '=', result: true },
+              ]}
+              label="Maßkette Portfolioleistung im gewählten Zeitraum"
+            />
           </>
         ) : (
           <p className="performance-empty" role="status">

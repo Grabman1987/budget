@@ -1,0 +1,52 @@
+.portfolio-analysis-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-block: 8px 20px;
+}
+
+.portfolio-analysis-navigation .registers {
+  min-width: 0;
+  margin: 0;
+}
+
+.portfolio-analysis-print {
+  display: inline-flex;
+  gap: 8px;
+  min-height: var(--touch);
+}
+
+.portfolio-analysis-report .portfolio-allocation-report > [aria-labelledby='alloc-soll-title'] {
+  order: -1;
+}
+
+@media print {
+  .portfolio-analysis-navigation,
+  .portfolio-analysis-report :is(.performance-links, .benchmark-choices) {
+    display: none !important;
+  }
+
+  .portfolio-analysis-report :is(.prep-scroll, .rscroll) {
+    overflow: visible;
+    max-width: none;
+  }
+
+  .portfolio-analysis-report :is(.prep-table, .rtable) {
+    width: 100%;
+    color: var(--ink);
+  }
+
+  .portfolio-analysis-report svg {
+    max-width: 100%;
+  }
+
+  .portfolio-analysis-report :is(.prep-table, .rtable) thead {
+    display: table-header-group;
+  }
+
+  .portfolio-analysis-report :is(.prep-table, .rtable) tr {
+    break-inside: avoid;
+  }
+}
