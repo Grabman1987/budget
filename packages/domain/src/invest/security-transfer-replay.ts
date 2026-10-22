@@ -22,11 +22,12 @@ export type KnownSecurityReplayEvent =
 export interface KnownSecurityReplayInput {
   securityId: string;
   method: CostMethod;
-  /** Must be established by a future repository reader; absence of a snapshot alone is not proof. */
-  opening: 'documented-zero' | 'unknown';
+  /** Analytical zero seed of the recorded app ledger, not a claim about broker opening holdings. */
+  opening: 'recorded-ledger-zero-seed';
   accountIds: readonly string[];
   lockedAccountIds: readonly string[];
-  historyComplete: boolean;
+  /** Every recorded unit fact in this scope through this day was read and classified. */
+  coverage: { kind: 'all-supported-recorded-facts'; through: string };
   events: readonly KnownSecurityReplayEvent[];
 }
 export interface ReplayedSecurityAccount {
@@ -47,7 +48,7 @@ export interface ReplayedSecurityTransfer {
   incomingAverageProvenance?: AveragePoolProvenance;
 }
 const MESSAGES = {
-  unestablished_history: 'Dokumentierter Nullbestand und vollständige, eindeutig begrenzte Historie fehlen.',
+  unestablished_history: 'Der Umfang der aufgezeichneten, unterstützten Buchungen ist nicht eindeutig belegt.',
   ambiguous_event: 'Ereignis, Wertpapier, Währung oder Reihenfolge ist nicht eindeutig.',
   ambiguous_order: 'Die Reihenfolge am selben Tag ist nicht belegt.',
   duplicate_leg: 'Eine Übertragsseite fehlt oder wird mehrfach verwendet.',
@@ -84,13 +85,15 @@ function unambiguous(fragments: readonly TransferLotFragment[]): boolean {
   return new Set(fragments.map((f) => `${f.acquiredOn}:${f.acquisitionOrder}`)).size === fragments.length;
 }
 /**
- * Pure dated replay for one security, documented-zero openings and explicit EUR buy/sell/pair
- * events. It does not query, pair old deliveries, mutate rows, or establish the input evidence.
+ * Pure dated replay for one security, an app-ledger zero seed, and explicit EUR buy/sell/pair
+ * events. It does not query, pair old deliveries, mutate rows, establish input evidence, or
+ * assert that the recorded ledger is complete against an external broker.
  * Full-batch failure returns no partial plan. Caller-supplied event order must be authoritative.
  */
 export function replayKnownSecurityTransfers(input: KnownSecurityReplayInput): KnownSecurityReplayResult {
   if (!id(input.securityId) || (input.method !== 'fifo' && input.method !== 'average') ||
-      input.opening !== 'documented-zero' || input.historyComplete !== true ||
+      input.opening !== 'recorded-ledger-zero-seed' ||
+      input.coverage?.kind !== 'all-supported-recorded-facts' || !day(input.coverage.through) ||
       !Array.isArray(input.events) || input.events.length > 1000 ||
       !Array.isArray(input.accountIds) || !input.accountIds.length || input.accountIds.length > 50 ||
       input.accountIds.some((account) => !id(account)) || new Set(input.accountIds).size !== input.accountIds.length ||
@@ -105,7 +108,8 @@ export function replayKnownSecurityTransfers(input: KnownSecurityReplayInput): K
   const identities = new Set<string>(), positions = new Set<string>();
   for (const event of input.events) {
     if (!event || !id(event.id) || !day(event.date) || !safe(event.sequence) ||
-        event.securityId !== input.securityId || event.currency !== 'EUR' || identities.has(event.id))
+        event.date > input.coverage.through || event.securityId !== input.securityId ||
+        event.currency !== 'EUR' || identities.has(event.id))
       return fail('ambiguous_event', event && id(event.id) ? event.id : null);
     const position = `${event.date}:${event.sequence}`;
     if (positions.has(position)) return fail('ambiguous_order', event.id);

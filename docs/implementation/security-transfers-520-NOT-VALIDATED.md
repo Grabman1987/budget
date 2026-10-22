@@ -39,9 +39,9 @@ between accounts. None of those canonical functions or trade writers was changed
 ## New nonwriting computational preview only
 
 `packages/domain/src/invest/security-transfer-preview.ts` supplies an isolated pure
-preview, intentionally not exported from a shared barrel or connected to an API,
-repository, financial calculation, UI or writer. There is no migration reservation
-or schema change. `applyAvailable` always remains false.
+preview. The adjacent replay is now exported for a repository-only native-history
+reader; neither is connected to an authenticated API, financial page, UI or writer.
+There is no migration reservation or schema change. `applyAvailable` always remains false.
 
 Inputs describe documented remaining source/destination fragments immediately
 before the proposed transfer. Explicit account/security/date, EUR basis, original
@@ -106,11 +106,14 @@ are rejected; a pool total never silently overrides current fragment-basis evide
 
 `packages/domain/src/invest/security-transfer-replay.ts` adds a standalone full-input
 replay for one security and a selected FIFO/average method. It is not exported from
-a barrel or connected to any repository, API, UI or canonical calculation. The source
-requires an explicitly documented zero opening for every account, complete history,
-EUR basis and authoritative date/sequence order. Those input declarations are not
-database proof. A future repository reader must establish them; absence of a
-snapshot is insufficient. There is no invented historical opening or legacy pairing.
+the database package or connected to a server route, UI or canonical position
+writer. The domain function is exported for repository use. Its input declares a
+`recorded-ledger-zero-seed` and `all-supported-recorded-facts` through a named day.
+That means the existing app cost engine's analytical zero seed plus all supported
+recorded facts in the reader's scope. It does **not** certify a physical zero opening,
+complete external broker history or Gate 3 private reconciliation. Events beyond
+declared coverage are rejected. There is no invented historical opening or legacy
+pairing.
 
 The bounded input accepts explicit buys, sales and transfer events with distinct
 pair/out-leg/in-leg identities. Dates are valid and same-day positions unique; the helper
@@ -190,6 +193,36 @@ destination each have one actual E8 unit; each has a half-micro-unit ancestry
 contribution from each acquisition. This is analytical evidence, not a new
 physical unit or a per-acquisition cent assignment.
 
+## Repository-only recorded-ledger reader — still no apply
+
+`packages/db/src/repos/security-transfer-history.ts` reads one security in two
+investment accounts from a consistent DB snapshot. It accepts only validated
+native buys and sells with EUR account basis, selected persisted average/FIFO method
+and their canonical same-day cost order; multiple native events on one day are not
+blanket-rejected. It validates zero-unit cash kinds and settlement links, but does
+not turn them into basis events. Unpaired deliveries, splits and nonredundant
+snapshots return typed unavailable results. A null-basis snapshot is ignored only
+when both canonical methods establish its units from native facts; otherwise it
+is an unknown-basis anchor. Numerically redundant snapshots only corroborate the recorded native history; they do not prove an
+external opening or transfer ancestry. Source account reconciliation locks block
+the read result.
+
+The reader compares both account results with the existing selected-method
+`documentedCostOf` projection at the requested day and at the latest recorded day.
+It reads the full current affected history for a deterministic fact fingerprint;
+the fingerprint also includes the latest existing audit revisions for the cost
+preference and relevant source rows, so an average → FIFO → average change cannot
+reuse the old preview identity. Current settlement links are read with bounded
+queries rather than scanning unbounded audit histories;
+the replay input returned for a possible preview ends at the requested day.
+Later recorded events are also replayed and must remain viable, so a backdated
+candidate cannot ignore an already recorded later sale. A future apply must reread
+the then-latest facts and compare the same full-scope fingerprint in a transaction.
+No such apply path, persisted pair relation, public API or authenticated preview
+was added. Existing delivery legs stay unavailable; no amount/date/import-key
+matching creates a pair. The reader and changed helper contract are **NOT
+VALIDATED**; source review and executable acceptance remain separate gates.
+
 ## Literal intended controls, not executed evidence
 
 The specified FIFO example (4 units / EUR 40 plus 6 / EUR 72, transfer 5) must carry
@@ -202,9 +235,9 @@ controls, not results obtained by running this source.
 
 Executable independent acceptance of the bounded dated replay, FIFO
 same-acquisition normalization and average rational graph;
-authoritative zero-opening/history/order
-reader, existing split/snapshot/unpaired-delivery provenance, and wider supported
-history; explicit authoritative pair/lineage relation with migration reservation/review;
+split/snapshot/unpaired-delivery provenance and wider supported history;
+explicit authoritative pair/lineage relation with migration reservation/review and
+same-day pair order;
 transactional backdated-edit revalidation; locks, stale preview,
 idempotency, two-leg rollback, audit and exact apply/Undo/redo; public API/UI; all
 required independent literal/regression/financial/browser evidence and authorized
