@@ -9,3 +9,7 @@ Integration: this branch includes the ledger checkpoint as a dependency. Apply o
 No tests, checks, typecheck, build, browser, screenshots, CI, PR, merge or deployment were performed. Later visual/accessibility acceptance and selector adaptations are explicitly deferred under the owner's implementation-only instruction.
 
 The icon continuation is mechanical presentation work across later packages: retain only size/stroke/glyph changes when combining with newer functional source; never replace newer pages wholesale. Existing chart SVG paths and drawing stroke widths were deliberately left alone.
+
+## Independent source review
+
+The package source was independently inspected; see `SOURCE-REVIEW.md` for the exact revision and scope. No actionable source finding was reported in the reviewed icon delta. No runtime validation was performed. NOT VALIDATED / NOT LIVE.
