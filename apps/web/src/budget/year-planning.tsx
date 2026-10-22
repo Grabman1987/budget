@@ -101,7 +101,7 @@ export function YearPlanning({
       aria-busy={query.isFetching}
     >
       <div className="year-toolbar">
-        <h2 id="year-scenario-title">Reicht das Geld bis Jahresende?</h2>
+        <h2 id="year-scenario-title">Geld bis Jahresende</h2>
       </div>
       <dl className="year-scenario-lead">
         <dt>

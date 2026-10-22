@@ -432,10 +432,22 @@
     margin-block: 4px;
   }
   .year-scenario-context {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     padding-inline: 16px;
     padding-bottom: 8px;
-    gap: 4px 16px;
+    gap: 4px 8px;
     font-size: var(--fs-meta);
+  }
+  .year-scenario-context > span {
+    display: grid;
+    gap: 4px;
+    overflow-wrap: anywhere;
+  }
+  .year-scenario-context > small,
+  .year-scenario-context > :not(span):not(small) {
+    grid-column: 1 / -1;
+    order: 1;
   }
   .year-events > summary,
   .year-instructions > summary {
