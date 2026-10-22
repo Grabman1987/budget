@@ -1,10 +1,8 @@
-import { useAuthMethodLabel } from '../auth/status-query';
 import { todayInVienna } from '@budget/domain';
 import { useParams } from '@tanstack/react-router';
 import { ReportNavigation } from '../reports/report-navigation';
 import '../reports/period-quick-select.css';
 import { Segmented, StandValue, TitleBlock, type TitleBlockField } from '@budget/ui';
-import { KeyRound } from 'lucide-react';
 import { useState } from 'react';
 import { monthLabel, monthRangeLabel } from '../nav/month';
 import { useMonthSpan } from '../budget/month-span';
@@ -75,7 +73,6 @@ export function AreaHead({
   reportStand,
   accountFields,
 }: AreaHeadProps) {
-  const authMethod = useAuthMethodLabel();
   const { reportId } = useParams({ strict: false }) as { reportId?: string };
   const [month] = useMonth();
   const span = useMonthSpan();
@@ -148,18 +145,12 @@ export function AreaHead({
       fields = [{ label: 'Stand', value: <VermoegenStand />, hideOnMobile: true }];
       break;
     case 'einstellungen':
-      heading = 'Einstellungen';
-      fields = [
-        {
-          label: 'Profil',
-          value: (
-            <>
-              <KeyRound className="icon icon-sm" size={16} strokeWidth={1.75} aria-hidden="true" />
-              {authMethod}
-            </>
-          ),
-        },
-      ];
+      titleNode = title
+        ? title.startsWith('Einstellungen')
+          ? title
+          : `Einstellungen · ${title}`
+        : meta.title;
+      fields = [];
       break;
     case 'reports':
       heading = 'Reports';

@@ -147,7 +147,7 @@ export const PAGES: ReadonlyArray<PageDef> = [
   },
   {
     path: '/einstellungen/depots',
-    title: 'Einstellungen · Depots & Kryptos',
+    title: 'Einstellungen · Portfolio-Auswertung',
     area: 'einstellungen',
     register: 'depots',
     fills: P5,

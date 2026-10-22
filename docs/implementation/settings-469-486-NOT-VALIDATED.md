@@ -34,10 +34,13 @@ copied or reimplemented.
 - New display controls use existing components and token colors/type. Their touch
   targets use the existing `--touch` token and their row can wrap.
 
-Shared-file patches are prepared outside the checkout under
+The coordinating owner applied all three shared-file patches into this checkpoint.
+Base-relative copies remain outside the checkout under
 `/workspace/.budget-tools/impl-settings-469-486/`: settings-only title block cleanup
 (`01-settings-title.patch`, #486 A-12), and route-preserving Portfolio-Auswertung
-labels (`02`/`03`, #469 A-30). The coordinating owner decides their integration.
+labels (`02`/`03`, #469 A-30). The inert settings-header authentication-method cell
+is removed; authentication and security actions are unchanged. Existing addresses
+and register identifiers are unchanged.
 
 ## Acceptance still outstanding
 
