@@ -43,11 +43,18 @@ without including synthetic database or environment artifacts.
 
 ## Browser evidence
 
-All artifacts below were generated from verified source `03fc3f7e` in canonical
-`webkit-iphone`. Feature scenes explicitly cover 1440×900 desktop and configured
-390-wide geometry in both themes; this does not claim a physical-device run or
-Chromium execution. Root opened these four original images and found the chart
-labels readable without overlap, with the account/household scope clear:
+Final card images and four receipts below were generated from verified source
+`fd01ae86093def596002f60b932928142e5e4b84` after the normal main merge. Canonical
+`webkit-iphone` rerun passed seven tests (three setup, four desktop/390-wide
+light/dark feature scenes), 79.64 seconds, with no retry/skip. Fresh build:e2e
+passed in 9.14 seconds; all six adapter files passed scoped ESLint (3.2s) and
+formatting (1.51s). No full local check run is claimed.
+
+Root opened the final desktop-light and configured-dark card images: scope
+wording readable and labels intact. All four detail PNGs were byte-identical to
+verified `03fc3f7e` artifacts by root SHA comparison, so the two previously
+inspected detail images are retained unchanged. This does not claim a physical
+device or Chromium run.
 
 - [Card · desktop light](browser/forecast-card-desktop-light.png)
 - [Detail · configured light](browser/forecast-detail-configured-light.png)
@@ -74,22 +81,25 @@ Affected shell snapshot rerun [39770384412](https://github.com/Grabman1987/budge
 used exact `9e61403e`: actual **44 PASS**, with existing project skips; no baseline
 changes. It resolved the four missing-chart readiness failures in run 39769372353. Workflow job success alone was not treated as test success.
 This rerun predates the subsequent scope wording/compatibility adapter commit;
-updated wording still requires browser/snapshot revalidation.
+updated wording was subsequently verified in the final local WebKit run above;
+full required CI will cover existing adapters and visuals.
 
 A single normal merge incorporated live main
 `1c19a465649490417f174787a9806b3347b7b7a6` (#740 / PR754) as merge commit
 `b23e84427031839fc45ea876f33e531256c28813`, without conflicts or history rewrite.
 Current Heute task navigation, Plan filters, the 35d account selector and incoming
-statement receipt links remain intact. Existing screenshots/receipts above are
-historical verified `03fc3f7e` evidence, not proof of the merged source or the new
-scope wording. Required changed-caller browser checks and exact-head CI remain.
+statement receipt links remain intact. Final card screenshots/receipts above verify `fd01ae86`; unchanged detail PNGs
+retain their original inspected bytes. The root found the normal main merge
+clean and review CLEAR. Exact-head required CI remains.
 
 ## Pending gates
 
 - Required complete lint/unit/build and Chromium desktop/mobile CI on the exact
   final head. CI may fulfill the complete-check requirements under current rules;
   no redundant full local run is claimed.
-- Existing relevant income-pause/liquidity/navigation/issue-567 browser regressions.
+- Existing caller adapters, income-pause/liquidity/navigation/issue-567 and visual
+  regressions in the required full CI run; no additional remote E2E workflow is
+  requested.
 - Independent final evidence review and serialized main-green/deployed/live
   integration gate before closure.
 

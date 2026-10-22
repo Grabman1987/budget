@@ -13,8 +13,8 @@
     "svg": {
       "left": 16,
       "right": 374,
-      "top": 985.9375,
-      "bottom": 1205.9375,
+      "top": 1023.625,
+      "bottom": 1243.625,
       "width": 358,
       "height": 220
     },
@@ -22,16 +22,16 @@
       {
         "left": 140,
         "right": 193.375,
-        "top": 1139.9375,
-        "bottom": 1156.609375,
+        "top": 1177.625,
+        "bottom": 1194.296875,
         "width": 53.375,
         "height": 16.671875
       },
       {
         "left": 140,
         "right": 250.640625,
-        "top": 1156.9375,
-        "bottom": 1171.28125,
+        "top": 1194.625,
+        "bottom": 1208.96875,
         "width": 110.640625,
         "height": 14.34375
       }
@@ -39,8 +39,8 @@
     "dot": {
       "left": 135,
       "right": 145,
-      "top": 1055.6041259765625,
-      "bottom": 1065.6041259765625,
+      "top": 1093.2916259765625,
+      "bottom": 1103.2916259765625,
       "width": 10,
       "height": 10
     },
@@ -48,16 +48,16 @@
       {
         "left": 76,
         "right": 110.21875,
-        "top": 987.9375,
-        "bottom": 1002.28125,
+        "top": 1025.625,
+        "bottom": 1039.96875,
         "width": 34.21875,
         "height": 14.34375
       },
       {
         "left": 212,
         "right": 286.609375,
-        "top": 987.9375,
-        "bottom": 1002.28125,
+        "top": 1025.625,
+        "bottom": 1039.96875,
         "width": 74.609375,
         "height": 14.34375
       }
@@ -65,8 +65,8 @@
     "forecast": {
       "left": 72,
       "right": 310,
-      "top": 1031.6044921875,
-      "bottom": 1060.6044921875,
+      "top": 1069.2919921875,
+      "bottom": 1098.2919921875,
       "width": 238,
       "height": 29
     }
@@ -140,11 +140,11 @@
     "lowDay": "2026-09-27",
     "ruleUnchanged": true,
     "bookingCount": 0,
-    "skipGroupId": "d1c55912-398c-4499-b4d0-daebb559da6a"
+    "skipGroupId": "6188bb64-3b6e-4422-ab04-37148cb67117"
   },
   "writes": [
     {
-      "path": "/api/expected/22a1c37b-51eb-4b1d-94c9-ef776e4c643a/skip",
+      "path": "/api/expected/cff4cacf-94ee-48a3-ae73-ce43abd3c5eb/skip",
       "body": {
         "dueDate": "2026-09-27"
       }
@@ -152,17 +152,17 @@
     {
       "path": "/api/undo",
       "body": {
-        "groupId": "d1c55912-398c-4499-b4d0-daebb559da6a"
+        "groupId": "6188bb64-3b6e-4422-ab04-37148cb67117"
       }
     },
     {
-      "path": "/api/expected/22a1c37b-51eb-4b1d-94c9-ef776e4c643a/skip",
+      "path": "/api/expected/cff4cacf-94ee-48a3-ae73-ce43abd3c5eb/skip",
       "body": {
         "dueDate": "2026-09-27"
       }
     },
     {
-      "path": "/api/expected/occurrences/cc877be4-1da1-4b24-8fd6-75b2aa1c2e9a/unskip",
+      "path": "/api/expected/occurrences/4f709182-f63a-4aba-b55f-154c58eb4a3d/unskip",
       "body": {}
     }
   ]

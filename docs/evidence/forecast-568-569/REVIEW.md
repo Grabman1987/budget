@@ -41,3 +41,14 @@ Reviewed `03fc3f7e75d91a46902f72375af97df0c09c0ba2..43846fa8ab9358b24694fa34c0bd
 - `heute`: original literal endpoints, salary/rent/excluded-credit labels, keyboard payment tooltip, historical marker absence and join coordinates/animation-offset tolerance remain on R07. R07 actually uses heuteQuery(month,period) and shared useBalancePeriod, preserving the selected-month/payday data source; original API low/date/last-axis oracle remains independently asserted. The old cross-page equality comparison is now redundant across R07 visits, but does not replace/remove its independent API oracle; new35d card/detail parity is separately covered. Absent-old-chart zero-count checks now require visible R07 and explicit HEUTE on the replacement card. Pace assertions stay on Heute. Original composition/overflow and motion-mode loop remain on Heute after returning. Exact mobile height232→220 maps the intentionally changed compact chart at narrow width, documented explicitly rather than widening tolerance.
 
 All prior financial literals, protected security/Undo checks, numerical tolerances, timeout values and retries are retained. Added navigation/font settling is structural; no forced interactions, skipped expectations or fake historical chart added. Documentary runtime evidence is scoped to its actual03fc revision and pending gates remain explicit; no new runtime acceptance inferred. Combined independent review CLEAR at43846fa8ab9358b24694fa34c0bd948a69b8b8ed, subject to root's required actual compatibility/CI verification.
+
+## Final merged-source verification
+
+Root verified `fd01ae86093def596002f60b932928142e5e4b84`: all six adapter files
+scoped ESLint PASS (3.2s), formatting PASS (1.51s), fresh build:e2e PASS (9.14s),
+canonical WebKit 7/7 PASS including three setup and four feature scenes (79.64s,
+no retries/skips). Root inspected final desktop-light/configured-dark cards;
+scope wording readable and labels intact. Detail PNGs were byte-identical to
+previous inspected artifacts by SHA comparison. Normal main merge reviewed clean
+and CLEAR by root. Full required CI/Chromium and live delivery remain pending;
+no complete local check execution is inferred.

@@ -140,11 +140,11 @@
     "lowDay": "2026-09-27",
     "ruleUnchanged": true,
     "bookingCount": 0,
-    "skipGroupId": "3fe90ad4-1db4-45c0-9081-c8085e343e8b"
+    "skipGroupId": "6ae6e887-7603-4449-bfa3-4d836b6be704"
   },
   "writes": [
     {
-      "path": "/api/expected/b8e1a9f5-2ac7-4c80-9e35-c92280dc471c/skip",
+      "path": "/api/expected/c82ecbb2-adbf-490c-a5cb-cbd66993ea44/skip",
       "body": {
         "dueDate": "2026-09-27"
       }
@@ -152,17 +152,17 @@
     {
       "path": "/api/undo",
       "body": {
-        "groupId": "3fe90ad4-1db4-45c0-9081-c8085e343e8b"
+        "groupId": "6ae6e887-7603-4449-bfa3-4d836b6be704"
       }
     },
     {
-      "path": "/api/expected/b8e1a9f5-2ac7-4c80-9e35-c92280dc471c/skip",
+      "path": "/api/expected/c82ecbb2-adbf-490c-a5cb-cbd66993ea44/skip",
       "body": {
         "dueDate": "2026-09-27"
       }
     },
     {
-      "path": "/api/expected/occurrences/f15a555e-0b1e-462f-b1b0-e5f3eb97ad6d/unskip",
+      "path": "/api/expected/occurrences/d5125793-8526-446a-8f24-32ed1a9a207e/unskip",
       "body": {}
     }
   ]
