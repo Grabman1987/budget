@@ -286,8 +286,8 @@
       "issues": [
         470
       ],
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance documented",
-      "remote_sha": "ea373624f4abd0344ecef92102fbe2730aafb5bf"
+      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; see package handoff for scope and remaining work",
+      "remote_sha": "48c91868554647eb01dd9e61a03fc697b745c2fd"
     },
     {
       "branch": "codex/impl-474-design-lines",
@@ -307,8 +307,8 @@
         699,
         700
       ],
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance documented",
-      "remote_sha": "3526611528c3b653ff58d78ba417ab2bae157a02"
+      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; see package handoff for scope and remaining work",
+      "remote_sha": "54fe17bc4447bfc8167af83deaef51ed0aac39c6"
     },
     {
       "issues": [
@@ -317,6 +317,14 @@
       "branch": "codex/impl-488-answer-first",
       "remote_sha": "ca931813e58fe6076a26e70b626ff4050076066a",
       "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; acceptance and integration deferred"
+    },
+    {
+      "issues": [
+        487
+      ],
+      "branch": "codex/impl-487-portfolio-report",
+      "remote_sha": "ac5e55291ffe55c7872ab43c1407d7b117afe480",
+      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; see package handoff for scope and remaining work"
     }
   ],
   "remaining_agents": [

@@ -37,3 +37,18 @@ Continue unfinished source from each pinned package handoff. Preserve explicit d
 ## Subsequent source continuation
 
 #488 source checkpoint `ca931813e58fe6076a26e70b626ff4050076066a` on `codex/impl-488-answer-first` now includes shared indexed depot-chart scale, top-five comparable category changes, regular salary lead/history table and method disclosures; NOT VALIDATED. The catalogue audit found16entries/34legacy mappings present; the full three-register Portfolio-Auswertung remains the concrete #487 source gap. Two further bounded tasks now run: #487 report implementation and remaining #470 monetary-axis units. These supersede the earlier no-active-agent snapshot. No automated queue loop or new validation is authorized.
+
+
+## Latest source checkpoint — 2026-10-22 continuation
+
+This dated snapshot supersedes earlier active-agent and source-gap statements above. All three remote heads were read again with `git ls-remote` before recording:
+
+| Package | Remote branch | Full head | Current scope |
+|---|---|---|---|
+| #470 | `codex/impl-470-table-readability` | `48c91868554647eb01dd9e61a03fc697b745c2fd` | Remaining monetary axes, future-month view projection, compact position units/quotes with exact accessible values. Independent scoped source review of last five-file delta found no actionable issue. |
+| #487 | `codex/impl-487-portfolio-report` | `ac5e55291ffe55c7872ab43c1407d7b117afe480` | Three registers reuse existing financial readers. Independent source review found default print omits closed annual-return grid; narrow correction in progress. |
+| #574 assembly | `codex/impl-574-offline-contact-assembly` | `54fe17bc4447bfc8167af83deaef51ed0aac39c6` | Source fix `b547ce39b7c4994c4932404b0c954a4db02c406b` rejects late legacy aggregate overwrites of section bundles/equal-or-newer copies. Independent delta review found prior P2 addressed in source. Both review reports archived in package handoff directory. |
+
+#520 bounded pure-helper FIFO normalization is in progress following independent lineage analysis: combine only proven fragments of the same original acquisition into one economic FIFO lot, retain contributing lineage, preserve transfer floor/source residual and canonical sale half-up. No new persistence/API/apply enablement; average rational ancestry remains separate unfinished work.
+
+No runtime validation or delivery was performed. All packages remain NOT VALIDATED / NOT LIVE; #719 STOP. A reusable Goal prompt was supplied to the owner; supplying text alone does not establish that an app Goal was created or that uninterrupted background execution is available.

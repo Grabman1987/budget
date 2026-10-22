@@ -1,0 +1,45 @@
+# #520 — bounded lineage/policy review
+
+Reviewed source: `/workspace/impl-520-security-transfers`, designated checkpoint `a5156b399d3c09094b255c32177c0685fb9213a7`. Read-only source review, except this report outside the repository. No implementation, tests, test edits, checks, compilation, build, browser, CI, PR, merge, deployment or database operation performed. This is reasoning from source, not acceptance evidence. AGENTS.md's referenced `docs/queue/README.md` is absent at this checkpoint; the explicit implementation/review-only instruction controls. Read SPEC, SPEC-009, reference-adoption, relevant local review/reporting skills, the NOT-VALIDATED note, both new helpers and canonical cost functions/callers.
+
+## Recommendation
+
+Resolve both blockers in the pure representation/replay contract without asking the owner to choose a new financial policy. Normalize proven fragments of **one original acquisition in one account** into one FIFO economic lot; retain their separate historical lineage evidence. Represent moving-average ancestry as exact proportional pooled provenance, separate from integer-E8 transaction quantities. Neither requires inventing a pair, an acquisition, an acquisition date or rounding a provenance share.
+
+This is a recommended implementation interpretation of the existing acquisition-based FIFO and pooled-average contracts. The documents do not explicitly contain the sentence “coalesce reunited fragments”; conservation alone would not uniquely select it. The stronger basis is preserving the original acquisition identity/order and applying the existing method to that acquisition. Giving transfer fragments an additional economically significant disposal order would introduce a new rule that the existing contract does not establish.
+
+## 1. Reunited FIFO fragments
+
+Established requirements: SPEC §10 preserves source acquisition facts and selected FIFO/average semantics; reference-adoption line 37 retains acquisition basis/dates and supported method outcomes; SPEC-009 §§6/8 moves source lots with original acquisition order/dates and subsequently consumes that derived queue. Canonical `invest.ts:210–225` creates one economic FIFO lot per acquisition input and rounds a partial sale once for that lot. Transfer floor/source-residual cents are already owner-approved in the checkpoint note. Transfer arrival is not a new acquisition.
+
+For the stated original acquisition of 2 units / 1 cent, A→B 1/0 then 1/1 leaves B with one acquisition economically totaling 2/1. A later transfer of 1 unit carries 0 cents, leaving 1; a sale of 1 unit consumes 1 cent under canonical half-up, leaving 0; full transfer or sale consumes the complete 1 cent. The sale/transfer difference follows the already distinct approved operations. These are hand-derived expected outcomes, not executed results.
+
+Treating 1/0 and 1/1 as independently ordered lots can yield different partial outcomes, but only after adding a fragment-order convention (arrival time, ID, path, array order, etc.). Original-acquisition FIFO supplies no such order. Preserve the two historical transfers and their allocated cents as immutable evidence while deriving the current summed lot. Do not merge different acquisition IDs merely because date/order coincide, pool across accounts, reconstruct original basis after actual disposals, or rewrite earlier previews. Group only the current remaining quantities/bases of the proven same acquisition.
+
+Precise defects/minimal changes:
+
+- `security-transfer-preview.ts:143–146` rejects duplicate original acquisition positions specifically in a FIFO source account, even if provenance is known and the requested consumption is full. Replace this branch with validation plus same-acquisition economic normalization; retain rejection for unrelated tied acquisitions and inconsistent identity/date/order.
+- `security-transfer-replay.ts:75–76,138–139` similarly rejects all sales from such an account. The check mistakes repeated fragments for competing acquisition order. Full disposal is unambiguous even without a coalescing interpretation, so rejecting it is unquestionably overrestrictive.
+- Normalize before both preview FIFO allocation (`preview:175–187`) and replay FIFO sale projections (`replay:151–169`), consistently. Removing only the guard would make insertion order economically significant and would be incorrect. Feed canonical `fifoCost` one current lot per original acquisition, with summed units and basis; retain the existing exact reconciliation.
+- Separate economic-lot state from provenance records. `TransferLotFragment`'s single `fragmentId` and single linear `transferPairIds` path (`preview:4–13`; append at `replay:204–208`) cannot truthfully encode converging paths by simply retaining one fragment or concatenating all pair IDs. Keep immutable contributing fragment/transfer records or a derivation node referencing them, including each actual incoming branch's quantities/basis and existing pair/leg identities. A computed group identity is not a newly observed acquisition or persisted pair. Subsequent consumption references the aggregate and its ancestry; it need not claim an unevidenced physical subshare path.
+
+Optional product policies requiring an explicit new decision would include treating transfer arrival as acquisition priority, letting users elect a fragment/tax lot, or requiring broker-specific tax-lot parity. None is needed for this bounded analytical normalization.
+
+## 2. Average provenance below E8
+
+Canonical `averageCost` (`invest.ts:178–197`) prices disposal from account-level total units/basis. Acquisition-by-acquisition integer unit allocation is not an input or output of that financial method. SPEC-009's proportional pool contract and date retention do not require assigning each smallest transacted E8 quantum to exactly one acquisition. Known integral aggregate units can have exact rational analytical ancestry.
+
+For two different acquisitions each contributing one E8 quantum, transferring one quantum moves half the pool. The resulting unit has a one-half-quantum provenance contribution from each original acquisition, and so does the remaining unit. Both accounts still hold integer E8 totals; no half-quantum transaction is written, and no original date is selected or invented. A reference to the immutable pre-transfer pool plus exact ratio 1/2 preserves this fact; reduced integer numerator/denominator weights are another representation. A bare unordered set of acquisition IDs/dates, without weights or replayable pool derivation, would lose quantitative provenance and is insufficient.
+
+Precise defects/minimal changes:
+
+- `TransferLotFragment.unitsE8` (`preview:10,123–124`) currently serves both actual holdings and acquisition ancestry, forcing every provenance component to be integral. The divisibility rejection at `preview:177–179` and `replay:142–147` therefore rejects otherwise calculable average transfers **and ordinary sales** before canonical average arithmetic runs.
+- Separate average economic pool state (integer total units/basis) from exact proportional lineage. Apply q/U to ancestry for the transferred portion and (U−q)/U to the remainder, or retain equivalent immutable pool-split/merge graph nodes. On receipt, merge provenance with the destination pool without losing contributing acquisition identities/dates/orders or actual transfer branch evidence. Preserve known/null basis-evidence conflict checks at the input boundary.
+- Keep the one pool-level transfer floor (`preview:196`), canonical sale half-up (`replay:165–177`) and integer-E8 actual balances unchanged. Do not assign cents to individual average ancestry weights. Method switching must replay original events under FIFO rather than interpreting average weights as FIFO purchases. Bound rational/graph complexity explicitly; resource exhaustion can remain a typed computational limit.
+- Same-acquisition normalization can remove some artificial E8 failures, but cannot solve the different-acquisition example; exact pooled provenance is the general bounded fix. Deleting divisibility checks without changing representation, rounding weights or arbitrarily moving one original date is incorrect.
+
+These are technical provenance choices, not approval to round E8 quantities. Owner input would be required if the product wanted indivisible acquisition/date assignment or a tax-lot election policy. The present average accounting contract does not require either.
+
+## Boundary
+
+The new helpers are isolated: the only inspected source caller of preview is the new replay, and canonical `cost.ts`/`portfolio-summary.ts` still use existing account-local projections. Their cost trades do not retain acquisition identity (`cost.ts:17–30`), so they cannot settle reunited lineage by themselves. Do not alter those existing callers or claim canonical integration as part of these two fixes. Revise the NOT-VALIDATED note to describe representation work and remaining validation rather than a necessary owner rounding/coalescing decision; retain all unrelated stage-A, authoritative provenance, persistence and delivery gates.
