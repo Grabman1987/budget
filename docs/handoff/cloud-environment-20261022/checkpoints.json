@@ -198,7 +198,7 @@
       ],
       "branch": "codex/impl-520-security-transfers",
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; scope and review limitations in package handoff",
-      "remote_sha": "d2015cc1cdf3ff17286f974426a4f617371d9c7b"
+      "remote_sha": "2de7fa9611e7a37683edabdaf8ba075c7c26b944"
     },
     {
       "issues": [
@@ -344,8 +344,7 @@
     }
   ],
   "remaining_agents": [
-    "review_520_lineage_policy: readonly preview source review",
-    "copy_469_rule_names: design token source review"
+    "design_474_remaining: #520 source dependency assembly and persistence stage"
   ],
   "stop": [
     719
@@ -365,20 +364,15 @@
   "coordination_owner": "Budget App Main / this chat, explicitly reconfirmed by owner; Codex CLI optional support only.",
   "goal_objective_received": true,
   "migration_reservations": {
-    "0052": "#486 manual Dropbox scan coordination; base d6cb8e1c0555196c5dcdefa01784f621a4a0d521, after #604/0048 -> #607/0049 -> #514/0050 -> #519/0051; source only, never applied"
+    "0052": "#486 manual Dropbox scan coordination; base d6cb8e1c0555196c5dcdefa01784f621a4a0d521, after #604/0048 -> #607/0049 -> #514/0050 -> #519/0051; source only, never applied",
+    "0053": "#520 security transfer pair persistence; owner design_474_remaining, new codex/impl-520-transfer-persistence source branch. Dependency base ff620377e9f6905a3fa48f2464e1339269d4ea35 includes0048-0052; preserve reviewed607 deletion fix d80c2744, portfolio17ecb6e3, transfer source2de7fa96. Reserved after readonly GitHub main listing (through0047) and all36 checkpoint trees (through0052); source only, never applied."
   },
   "active_source_tasks": [
     {
       "issues": [
         520
       ],
-      "scope": "Readonly preview API/UI source pushed; independent source review active. No pair schema/writer/apply; 0053 unreserved."
-    },
-    {
-      "issues": [
-        474
-      ],
-      "scope": "Independent bounded source review of existing CSS/token changes."
+      "scope": "Source dependency assembly and persistent pair relation/reader/projection stage. 0053 reserved to one author; no DB execution, API apply, merge or deployment."
     }
   ],
   "remote_heads_observed_at_utc": "2026-10-22T22:10:38.215713+00:00",
