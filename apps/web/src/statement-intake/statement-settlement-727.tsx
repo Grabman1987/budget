@@ -222,6 +222,8 @@ export function StatementSettlementReview({
   onBack,
   onManual,
   onSourceAdopt,
+  canSourceHistoryChange,
+  onSourceHistoryConflict,
 }: {
   accountId: string;
   initialSource: StatementIntakeView;
@@ -230,6 +232,8 @@ export function StatementSettlementReview({
   onBack: () => void;
   onManual: () => boolean;
   onSourceAdopt: (source: StatementIntakeView) => void;
+  canSourceHistoryChange: () => boolean;
+  onSourceHistoryConflict: () => void;
 }) {
   useAmountPrivacy();
   const qc = useQueryClient(),
@@ -270,6 +274,7 @@ export function StatementSettlementReview({
   > | null>(null);
   const [editingBonus, setEditingBonus] = useState<string | null>(null);
   const running = useRef(false);
+  const historyGuard = useRef({ busy: false, dirty: false, retry: false, conflict: false });
   useEffect(() => {
     onDirty(dirty || retry !== null);
   }, [dirty, retry, onDirty]);
@@ -322,6 +327,7 @@ export function StatementSettlementReview({
     !eligible ||
     current.isError ||
     current.isFetching;
+  historyGuard.current = { busy, dirty, retry: retry !== null, conflict };
   const configRevision = captured?.config?.revision;
   const settlement = captured?.settlements.find(
     (r) => r.sourceIntakeId === source.id && active(r.state),
@@ -442,6 +448,60 @@ export function StatementSettlementReview({
     setSourceReviewAcknowledged(false);
     setLegacyKey('');
   }
+  const canApplyHistory = () => {
+    const guard = historyGuard.current;
+    return (
+      !guard.busy &&
+      !guard.dirty &&
+      !guard.retry &&
+      !guard.conflict &&
+      !running.current &&
+      canSourceHistoryChange()
+    );
+  };
+  async function adoptLatestSource(sourceId = source.id, canAdopt: () => boolean = () => true) {
+    const [next, document] = await Promise.all([
+      request<StatementSettlementState>(
+        'GET',
+        `${PATH}?cardAccountId=${encodeURIComponent(accountId)}`,
+      ),
+      request<{ intake: StatementIntakeView }>(
+        'GET',
+        `/api/statement-intake/${encodeURIComponent(sourceId)}`,
+      ),
+    ]);
+    if (document.intake.accountId !== accountId || document.intake.id !== sourceId)
+      throw new Error('Die Quelle passt nicht zur ausgewählten Abrechnung dieses Kontos.');
+    if (!canAdopt())
+      throw new Error('Der Dokumentstand konnte wegen neuer ungespeicherter Angaben nicht übernommen werden.');
+    setSource(document.intake);
+    onSourceAdopt(document.intake);
+    setCaptured(next);
+    qc.setQueryData(stateQuery(accountId).queryKey, next);
+    setFundingId(next.config?.fundingAccountId ?? '');
+    setEnabled(next.config?.enabled ?? false);
+    clearDraft();
+    setConflict(false);
+    await qc.invalidateQueries({ queryKey: [...KEY, accountId, 'candidates'] });
+  }
+  const markHistoryConflict = (cause: unknown) => {
+    setConflict(true);
+    setError(errorText(cause));
+    onSourceHistoryConflict();
+  };
+  const sourceHistory = {
+    canApply: canApplyHistory,
+    afterApply: async () => {
+      try {
+        if (!canApplyHistory())
+          throw new Error('Der aktuelle Dokumentstand muss erneut geladen werden.');
+        await adoptLatestSource(source.id, canApplyHistory);
+      } catch (cause) {
+        markHistoryConflict(cause);
+        throw cause;
+      }
+    },
+  };
   async function reload(sourceId = source.id) {
     if (
       busy ||
@@ -452,27 +512,7 @@ export function StatementSettlementReview({
     setBusy(true);
     setError('');
     try {
-      const [next, document] = await Promise.all([
-        request<StatementSettlementState>(
-          'GET',
-          `${PATH}?cardAccountId=${encodeURIComponent(accountId)}`,
-        ),
-        request<{ intake: StatementIntakeView }>(
-          'GET',
-          `/api/statement-intake/${encodeURIComponent(sourceId)}`,
-        ),
-      ]);
-      if (document.intake.accountId !== accountId || document.intake.id !== sourceId)
-        throw new Error('Die Quelle passt nicht zur ausgewählten Abrechnung dieses Kontos.');
-      setSource(document.intake);
-      onSourceAdopt(document.intake);
-      setCaptured(next);
-      qc.setQueryData(stateQuery(accountId).queryKey, next);
-      setFundingId(next.config?.fundingAccountId ?? '');
-      setEnabled(next.config?.enabled ?? false);
-      clearDraft();
-      setConflict(false);
-      await qc.invalidateQueries({ queryKey: [...KEY, accountId, 'candidates'] });
+      await adoptLatestSource(sourceId);
     } catch (cause) {
       setError(errorText(cause));
     } finally {
@@ -485,6 +525,7 @@ export function StatementSettlementReview({
     setBusy(true);
     setError('');
     let cause: unknown;
+    const sourceReassessed = action.operation === 'amend_bonus' && !!action.sourceReview;
     try {
       const result = await write(
         async () => {
@@ -508,6 +549,7 @@ export function StatementSettlementReview({
           action.operation === 'confirm' || action.operation === 'confirm_bonus'
             ? 'Nachweis angenommen. Es wurde nichts gebucht.'
             : 'Ausgleich aktualisiert.',
+        sourceReassessed ? sourceHistory : undefined,
       );
       if (!result) {
         if (!(cause instanceof ApiError) || cause.status === 0 || cause.status >= 500)
@@ -546,7 +588,6 @@ export function StatementSettlementReview({
         setChosenTransfer(null);
         setLegacyKey('');
       }
-      const sourceReassessed = action.operation === 'amend_bonus' && !!action.sourceReview;
       const [next, document] = await Promise.all([
         request<StatementSettlementState>(
           'GET',
@@ -654,10 +695,18 @@ export function StatementSettlementReview({
       return;
     setBusy(true);
     try {
-      await write(
+      const undone = await write(
         () => undoGroup(groupId),
-        () => 'Aktion rückgängig gemacht. Aktuellen Stand neu prüfen.',
+        () => 'Aktion rückgängig gemacht. Aktueller Stand wird geladen.',
+        sourceHistory,
       );
+      if (undone) {
+        try {
+          await adoptLatestSource();
+        } catch (cause) {
+          markHistoryConflict(cause);
+        }
+      }
     } finally {
       setBusy(false);
     }
@@ -1449,9 +1498,7 @@ export function StatementSettlementReview({
                   disabled={blocked || dirty}
                   onClick={() => void undo(bonus.actionGroupId!)}
                 >
-                  {bonus.representationKind === 'linked'
-                    ? 'Gutschriftzuordnung aufheben'
-                    : 'Erstellte Gutschrift rückgängig machen'}
+                  Letzte Bonusaktion rückgängig machen
                 </Button>
               )}
             </section>

@@ -50,6 +50,10 @@ export function useBudgetWrite() {
   return async function write<T extends { groupId: string }>(
     run: () => Promise<T>,
     message: (result: T) => string,
+    history?: {
+      canApply: () => boolean;
+      afterApply: () => Promise<void>;
+    },
   ): Promise<T | undefined> {
     try {
       const result = await run();
@@ -62,21 +66,49 @@ export function useBudgetWrite() {
       toast.show({
         message: message(result),
         actionLabel: 'Rückgängig',
-        onAction: () =>
+        onAction: () => {
+          if (history && !history.canApply()) {
+            toast.show({ message: 'Aktion derzeit gesperrt. Bitte den aktuellen Stand prüfen.' });
+            return;
+          }
           void undoGroup(result.groupId).then(
             async (undone) => {
-              await refresh();
+              try {
+                await refresh();
+                await history?.afterApply();
+              } catch {
+                toast.show({
+                  message: 'Rückgängig gemacht, aber der aktuelle Stand konnte nicht geladen werden. Bitte neu laden.',
+                });
+                return;
+              }
               toast.show({
                 message: 'Rückgängig gemacht.',
                 actionLabel: 'Wiederholen',
-                onAction: () =>
-                  void undoGroup(undone.groupId).then(refresh, (error: unknown) =>
-                    failed('Wiederholen', error),
-                  ),
+                onAction: () => {
+                  if (history && !history.canApply()) {
+                    toast.show({ message: 'Aktion derzeit gesperrt. Bitte den aktuellen Stand prüfen.' });
+                    return;
+                  }
+                  void undoGroup(undone.groupId).then(
+                    async () => {
+                      try {
+                        await refresh();
+                        await history?.afterApply();
+                      } catch {
+                        toast.show({
+                          message: 'Wiederholt, aber der aktuelle Stand konnte nicht geladen werden. Bitte neu laden.',
+                        });
+                      }
+                    },
+                    (error: unknown) => failed('Wiederholen', error),
+                  );
+                },
               });
             },
             (error: unknown) => failed('Rückgängig', error),
-          ),
+          );
+        },
       });
       return result;
     } catch (error) {

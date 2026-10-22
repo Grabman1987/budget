@@ -104,6 +104,10 @@ function AccountStatements({ accountId }: { accountId: string }) {
     [note, setNote] = useState('');
   const documentDirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const dirty = documentDirty || settlementDirty || automationDirty || linksDirty;
+  const historyBlocked = useRef(false);
+  historyBlocked.current =
+    documentBusy || automationBusy || linksBusy || documentDirty || automationDirty ||
+    linksDirty || password !== '' || conflict;
   const write = useBudgetWrite();
   const blocker = useBlocker({
     shouldBlockFn: () => open && (busy || dirty || password !== ''),
@@ -444,6 +448,11 @@ function AccountStatements({ accountId }: { accountId: string }) {
               accountId={accountId}
               initialSource={current}
               onSourceAdopt={adopt}
+              canSourceHistoryChange={() => !historyBlocked.current}
+              onSourceHistoryConflict={() => {
+                setConflict(true);
+                setError('Der Dokumentstand hat sich geändert. Bitte den aktuellen Stand neu laden.');
+              }}
               onDirty={setSettlementDirty}
               onBusy={setSettlementBusy}
               onBack={() => {
