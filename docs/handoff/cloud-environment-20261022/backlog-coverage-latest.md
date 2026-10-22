@@ -1,3 +1,5 @@
+> Status correction after later source work: the table and gap inventory below are a historical audit. #727 now has the reviewed `codex/impl-727-source-reassessment` checkpoint (see current manifest); its old "clearest source gap" assignment is superseded. #542 later source diagnosis found the existing low-point clamp from #580; the blocked artifact was not inspected and no speculative fix is justified. See `542-overflow-source-diagnosis.md`. Current active implementation is #520 writer/Undo and #762 rebalance lifecycle; runtime acceptance remains paused. Do not redispatch the historical gaps below.
+
 # Open-issue coverage audit (2026-10-22)
 
 Fresh `gh issue list` returned **94 open issues**. Compared by issue number with `source_checkpoints` in `checkpoints.json`; 61 issues have a direct checkpoint reference and 33 do not. A missing reference is not itself evidence of missing implementation. Checkpoints are source records, not validation/live/completion claims. GitHub Projects could not be read, so this is not a queue count.

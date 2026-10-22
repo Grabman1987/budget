@@ -1,31 +1,30 @@
-# Source progress — 2026-10-22T22:37:05.987728+00:00
+# Source progress — 2026-10-22T23:16:17.446848+00:00
 
-Current snapshot; supersedes older progress statements in CURRENT-COORDINATION.md. All source remains NOT VALIDATED / NOT LIVE. No tests, typechecks, builds, browser checks, CI dispatch, PR creation, merges, deployments or queue loops. #719 STOP.
+Current snapshot; supersedes older progress statements in CURRENT-COORDINATION.md. All new source remains NOT VALIDATED / NOT LIVE. Current phase prohibits tests, typechecks, builds, browser checks, CI dispatch, PR creation, merges, deployments and queue loops. #719 STOP.
 
-## Active work
+## Latest completed source work
 
-- #520 persistence correction `e73ab07c1d58442c6d645a5ef7558169bf4a7e96`: four original findings and missing-price handling source-cleared. One historical-FX report-path finding remains; bounded correction active. Writer, Undo mutation integration and apply API remain unimplemented; no migration execution. The next writer/Undo hookup map is archived alongside this snapshot.
-- #762: one-shot monthly evaluation source `c26a748d1090f7332449fd93dfd482ab92f02472` independently source-reviewed without a concrete finding; docs head `bbec02b3177c94dac950d35493ea766f4f23a600`. Atomic absent-month plus zero-audit guard prevents automatic recreation after Undo; post-provider UTC date is rechecked. It is not scheduled or connected to a real provider. Actual verified market/calendar access, scheduler wiring and execution/rebalance lifecycle remain open.
+- #520: persistence/read projection/reporting, internal writer and whole-group Undo, authenticated Apply API and explicit UI confirmation are implemented. Independent correction reviews close the bounded findings at read source `e812fb40aac58905869b76b91950b3dc351ccba6`, writer source `7f3f39d8d3d2da78346e938d84e19cdf743b8042`, and Apply source `d52d3cbd37d2052f9d096f7e86057c5c1a474f23`. Final documentation head `ed1ad3a2722266d8cc1b4b6ee0256d0393c4cf08`. No migration, database or API execution. Runtime, concurrency, financial and integration acceptance remain outstanding.
+- #762: one-shot monthly service and audited rebalance proposal/actual-trade linkage lifecycle are implemented. Monthly source `c26a748d1090f7332449fd93dfd482ab92f02472` and final rebalance correction `8f1475709f50b706dbcba9e12c91deefc2579cc4` independently source-reviewed. Documentation head `4b403b8623167a8298c1a83528f3d25c963fedd6`. Actual trusted provider and scheduled invocation remain absent. No autonomous broker orders or runtime acceptance.
+- #469 glossary: cause-neutral negative available-to-assign explanation corrected at `47377c904544f3302cb55ddfc4b93b460eca2367`, independently reviewed, archived at `142aca8077cc2a80c455e9c1e78ef22b89e127b7`.
+- #516 explanations: false generic YNAB provenance removed and stale fetched detail states hidden at `e7f2b743ffba61be845f5ae7b9ca2defe7ea3f76`, independently reviewed, archived at `8f3cd1266370bf0aadf4a03d2d88c740d19fde71`. Matching behavior unchanged.
+- #574 assembly: bounded offline uncertainty/privacy port independently reviewed at `ed6a393c3dc67c68d8620bd9b39dd475aa6a9f1b`, archived at `798b7715e7703aec8f5a9c755cbbe239f9f06e12`. This is not full assembly acceptance.
+- #519: central exact pinned correction review closes the recurring FX-fee issue at `d6cb8e1c0555196c5dcdefa01784f621a4a0d521`. Historical preparation branch and its obsolete pending-policy wording are preserved as history, superseded by the accepted decisions in checkpoints.json.
+- #486 A33 source audit: existing content list, last completed CSV response observation and honest backup status cover accepted source scope. Full export history/restore certification were not specified and are not invented blockers. Audit archived on settings branch `ec1b973dfc5530cb62f0f209961cc93a381c8355`.
 
-## Newly secured source and reviews
+## Remaining constraints
 
-- Offline #558/#559/#699/#700: uncertain prior delivery remains uncertain after a rejected attempt; monetary text masking corrected. Product `3f09e1a664da3ac80c93651fed6becea6574153d`, independent correction review archived.
-- #574 assembly: that correction port is independently reviewed at `ed6a393c3dc67c68d8620bd9b39dd475aa6a9f1b`; report archived at `798b7715e7703aec8f5a9c755cbbe239f9f06e12`. Scope is the four-file port, not entire assembly acceptance.
-- #521: actionable account/security links added and unsupported link parameters corrected. Reviewed product `b7239d229414b7ca6d6673e8e266ad8fbb0ac460`. #518 accepted explanation scope does not require inventing a numeric runway.
-- #485/#486: nested market-refresh failures now produce appropriate card-level feedback; reviewed product `2af7e67f24c9f6fc7781bc21cd2f1cf2d294a13e`.
-- #564/#565: reconciliation revision checks and monetary-text privacy source reviewed; final product `4d26b0be2344e77f3f785a9b045ad42b69c6af60`.
-- #608: event errors/loading preserve independent annual context; reviewed product `2e9cb9934af1d6b8b0431b0c2e64bee3ed35f822`.
-- Ledger, Heute/month-close, Plan, typography, design lines, contacts, composition and mobile capture have revision-specific archived source reports. See SOURCE-REVIEW-COVERAGE.md; source review does not establish runtime acceptance.
-
-## Preserved constraints and dependencies
-
-- #516 matching decision remains pending; no matching behavior changed.
-- Preserve #607 deletion revision guard and compose #562/#514 post-commit refresh handling with #727 optional history callbacks.
-- Migration0053 reserved exclusively to #520 author; dependency0048–0052 stack preserved. Old source branches are retained.
-- Last repository count was 94 OPEN issues, not a current Projects Warteschlange count. No Board completion or Live claims.
-- Recovery removed the old temporary evidence directory. Pushed package reports survived; reconstructed plans are labeled. Current local control storage is workspace-backed.
+- Last repository issue read at 2026-10-22T22:55:28Z: **94 OPEN**, **62 with direct checkpoint references**. These are not completed-ticket or Projects Warteschlange counts. No issue closure/Board Live changes.
+- #516 equivalent-match policy remains pending. #762 real market/calendar provider and scheduled invocation remain absent. #741 historical private archive/link work and private operations are separate from source implementation.
+- All packages still need appropriate runtime/integration acceptance before delivery. Device, screenshot, financial acceptance and previously blocked artifact work are not replaced by source review. #719 remains STOP.
+- Preserve #607 deletion revision guard. Compose #562/#514 post-commit refresh handling with #727 optional history callbacks. #520 carries only the narrow #514 correction; do not drop optional #727 callbacks when assembling packages.
+- Migration 0053 belongs to #520; dependency 0048–0052 stack remains preserved. No migrations applied.
+- Recovery removed the old temporary evidence directory. Pushed package reports survived; reconstructed plans are explicitly labeled. Current local control storage is workspace-backed.
+- Assigned #520/#762 authors and reviewers finished their bounded source tasks; no background agent execution is implied by saved branch records.
 
 ## Remote checkpoints
+
+Heads read together at 2026-10-22T23:16:17.446848+00:00. Scope-specific reviewed product revisions are in SOURCE-REVIEW-COVERAGE.md; documentation heads are not themselves proof of runtime behavior.
 
 | Issues | Branch | Full remote SHA |
 |---|---|---|
@@ -51,11 +50,11 @@ Current snapshot; supersedes older progress statements in CURRENT-COORDINATION.m
 | #471 | `codex/impl-471-icons` | `178c80b15a8e1e6e66115c2635d8992bb703d662` |
 | #469 | `codex/impl-469-copy` | `65aee06ce8b5ae970a6b2bcb11b2ef652cddb132` |
 | #489 | `codex/impl-489-overview-design` | `9fab18bbb2a9b54b17bbc2e2ef06206212c18b5a` |
-| #516 | `codex/impl-516-import-explanations` | `eef0bec42421abb73f05b2dd8c336431ba584a18` |
-| #469 | `codex/impl-469-glossary-goals` | `e0e39d4b0b5b04ad6966e8603d0bd91cf4b66cad` |
+| #516 | `codex/impl-516-import-explanations` | `8f3cd1266370bf0aadf4a03d2d88c740d19fde71` |
+| #469 | `codex/impl-469-glossary-goals` | `142aca8077cc2a80c455e9c1e78ef22b89e127b7` |
 | #473 | `codex/impl-473-typography` | `9ef01d05ade1a6f5ac3a2ac99dd5e8275888107c` |
 | #519 | `codex/impl-519-fx-posting` | `d6cb8e1c0555196c5dcdefa01784f621a4a0d521` |
-| #762 | `codex/impl-762-strategy` | `bbec02b3177c94dac950d35493ea766f4f23a600` |
+| #762 | `codex/impl-762-strategy` | `4b403b8623167a8298c1a83528f3d25c963fedd6` |
 | #586 | `codex/backlog-586-mobile-capture` | `df13e773cf355ec5ea082c7316b05df0b340c517` |
 | #550, #551 | `codex/backlog-550-551-composition` | `ecfdcef53317815c0363e0b1c67ca83bd95cd1b2` |
 | #470 | `codex/impl-470-table-readability` | `28b2b2784e63e7674ea9a9bd9a5b4ec4c3a53340` |
@@ -65,6 +64,4 @@ Current snapshot; supersedes older progress statements in CURRENT-COORDINATION.m
 | #487 | `codex/impl-487-portfolio-report` | `8ba342d00b995d8611af87e968ce159f54375382` |
 | #486 | `codex/impl-486-manual-scan` | `ff620377e9f6905a3fa48f2464e1339269d4ea35` |
 | #727 | `codex/impl-727-source-reassessment` | `a6edf91a8bdd8e072c726acac7fafb6d44b5f0c6` |
-| #520 | `codex/impl-520-transfer-persistence` | `e73ab07c1d58442c6d645a5ef7558169bf4a7e96` |
-
-Selected branch heads refreshed at 2026-10-22T22:46:28.813075+00:00. #486 A33 source scope audited: full export history and restore certification are not required by its accepted wording. See archived settings-486-remaining-source-scope.md on the settings branch; no functional legacy link was changed merely for cleanup.
+| #520 | `codex/impl-520-transfer-persistence` | `ed1ad3a2722266d8cc1b4b6ee0256d0393c4cf08` |
