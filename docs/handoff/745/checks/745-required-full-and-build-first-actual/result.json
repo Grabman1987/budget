@@ -1,0 +1,25 @@
+{
+  "head": "ad4a34dac18f00d3dd36f3e9dcbf1286b54bba54",
+  "BUDGET_REQUIRE_AGE": "1",
+  "VITEST_MAX_WORKERS": "2",
+  "phases": [
+    {
+      "name": "required-check",
+      "exit": 0,
+      "wallSeconds": 703.129
+    },
+    {
+      "name": "normal-production-build",
+      "exit": 0,
+      "wallSeconds": 8.337
+    }
+  ],
+  "processGuard": 0,
+  "sourceGuard": 0,
+  "diskFree": {
+    "/workspace": 3401732096,
+    "/tmp": 2531962880
+  },
+  "allPhases0": true,
+  "lockReleased": true
+}

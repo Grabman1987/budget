@@ -1825,6 +1825,24 @@ all old browser cases or current CI green. Later4dbab Goals visual failures are
 addressed by the month-only CSS boundary; updated exact-head Goals CI is pending.
 
 
+## #745 — compact category activity table (acceptance pending)
+
+The category/month detail uses a semantic table with distinct source totals and
+signed category contributions. Canonical totals, order, pagination and derived
+reserve explanations remain; the existing booking editor and writers are reused.
+Desktop shows five columns; the phone layout shows booking metadata and amount.
+
+- [x] Initial targeted validation: six NEW component cases plus seven unchanged UI and five unchanged API cases passed (18/18). The six affected component cases passed again after the phone layout correction.
+- [x] Canonical WebKit: seven passing cases including three setup cases, covering desktop1440 and phone390, light/dark, privacy, focus, 44px controls and scoped accessibility. Real synthetic source booking opens and cancels without writes.
+- [x] Current original screenshots and phone geometry (107–126px rows, 204px booking column, unbroken dates) personally reviewed; see [activity-table evidence](evidence/activity-table-745/README.md).
+- [x] Apply the preserved technical date/account assertion adapter under the owner’s standing authorization; all audited edit/Undo and financial expectations remain unchanged. Independent review and fresh targeted results are recorded in the activity-table evidence.
+- [x] Required AGE-enabled full check: 590 test files / 5219 tests passed, no failures/skips; normal production build passed.
+- [x] Fresh continuation: targeted UI/API 18/18, E2E build and scoped static checks; existing activity Chromium 12/12 plus final new table Chromium 11/11 (including three setup cases). Exact technical adapter and unobscured native scrolling independently reviewed, financial/Undo/44px/viewport/hit expectations unchanged.
+- [ ] Canonical Chromium CI, final required checks, serial integration and verified LIVE.
+
+No publication claim. This follow-up preserves the earlier #735 financial behavior.
+
+
 ## #584 — Capture line transition and stale remainder feedback
 
 - [x] NEW real isolated-ledger one → two → one regression: one gross field, exact 1-cent remainder refusal including Ctrl+Enter, unchanged 1000-cent head total after removal, one stored split of −1000 cents and public Undo.
