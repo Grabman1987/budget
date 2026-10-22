@@ -52,3 +52,11 @@ This dated snapshot supersedes earlier active-agent and source-gap statements ab
 #520 bounded pure-helper FIFO normalization is in progress following independent lineage analysis: combine only proven fragments of the same original acquisition into one economic FIFO lot, retain contributing lineage, preserve transfer floor/source residual and canonical sale half-up. No new persistence/API/apply enablement; average rational ancestry remains separate unfinished work.
 
 No runtime validation or delivery was performed. All packages remain NOT VALIDATED / NOT LIVE; #719 STOP. A reusable Goal prompt was supplied to the owner; supplying text alone does not establish that an app Goal was created or that uninterrupted background execution is available.
+
+
+### Follow-up pinned heads
+
+Remote reread confirms #487 `8ba342d00b995d8611af87e968ce159f54375382` and #520 `1709597413ba00933631c9af22b11a6343a83f65`.
+
+- #487 print correction source is `8978fa30a944cd3d74fa29327f5a520e9c39a38a`; one shared return-grid renderer supplies the collapsed screen view and a print-only non-interactive table. Independent narrow source review found the previous missing-grid issue addressed. Review is committed at `docs/implementation/portfolio-report-487-print-fix-source-review.md`. Actual print layout remains unvalidated.
+- #520 same-original-acquisition FIFO normalization source is now pushed. Readonly derivation references preserve contributing paths; transfer floor/residual and sale half-up remain distinct. Independent source review is in progress. Average fractional-E8 provenance, authoritative DB-derived reader, persistence/API/writer and acceptance remain outstanding. No runtime or canonical integration claim.

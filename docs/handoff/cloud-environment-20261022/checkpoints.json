@@ -198,7 +198,7 @@
       ],
       "branch": "codex/impl-520-security-transfers",
       "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
-      "remote_sha": "a5156b399d3c09094b255c32177c0685fb9213a7"
+      "remote_sha": "1709597413ba00933631c9af22b11a6343a83f65"
     },
     {
       "issues": [
@@ -323,7 +323,7 @@
         487
       ],
       "branch": "codex/impl-487-portfolio-report",
-      "remote_sha": "ac5e55291ffe55c7872ab43c1407d7b117afe480",
+      "remote_sha": "8ba342d00b995d8611af87e968ce159f54375382",
       "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; see package handoff for scope and remaining work"
     }
   ],
