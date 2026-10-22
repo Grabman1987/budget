@@ -1,0 +1,11 @@
+# #727 reassessment Undo correction — source-only delta review
+
+Reviewed final `854ee2168d10f1d388ad8e12066e27e538f3e28b` against `f3321ea0392eee3a7026e6921c2cac626307e489` in `/workspace/impl-727-source-reassessment`. No tests, build, browser, or runtime checks were run.
+
+## Remaining finding
+
+**P2 — A failed generic refresh skips source adoption and conflict marking after a successful Undo/redo.** `apps/web/src/budget/use-category-writes.ts:74-84,93-103` runs `await refresh()` before `await history?.afterApply()` inside one `try`. If `undoGroup` succeeds but any unrelated query in the generic `AFFECTED` refresh rejects, the source callback is never called. For a reassessment whose edited payable/date was adopted into the parent, the server has now reverted the document but the parent still displays the reassessed facts/revision, and `onSourceHistoryConflict` is never invoked because that is only inside `sourceHistory.afterApply` (`apps/web/src/statement-intake/statement-settlement-727.tsx:494-510`). The inline Undo also uses `write` and only refetches if it receives a result (`:703-716`), so it has the same generic-refresh failure gap. Minimal fix: run the source-specific reload independently of the generic invalidation result (e.g. separate settled outcomes), and mark the parent conflict if the source reload itself fails. Avoid treating a generic ledger refresh failure as permission to keep an unmarked stale source.
+
+## Resolved/scoped observations
+
+The ordinary success path now refetches both settlement and intake after inline or toast Undo/redo; `onSourceAdopt` refreshes parent `current`/`saved` (`statement-settlement-727.tsx:469-492,499-510,703-716`). A late toast is gated by child dirty/busy/retry/conflict state and the parent's current-source identity, document dirty/busy/conflict state (`statement-review-726.tsx:105-112,449-460`); an in-flight read checks the guard again before adoption. Source reload failure invokes the parent conflict callback. The bonus button now uses the neutral “Letzte Bonusaktion rückgängig machen” (`statement-settlement-727.tsx:1503-1509`). The optional `history` argument leaves other `useBudgetWrite` callers' call signatures unchanged; successful generic Undo/redo retains their existing behavior. These are static source observations, not validated behavior.

@@ -57,14 +57,23 @@ export function useBudgetWrite() {
   ): Promise<T | undefined> {
     try {
       const result = await run();
-      await refresh();
+      let refreshFailed = false;
+      try {
+        await refresh();
+      } catch (error) {
+        if (!history) throw error;
+        refreshFailed = true;
+      }
+      const successMessage = `${message(result)}${
+        refreshFailed ? ' Andere Ansichten konnten nicht aktualisiert werden.' : ''
+      }`;
       // A stale quick-fill or an exhausted pool may produce no audit entries.
       if ('changedCount' in result && result.changedCount === 0) {
-        toast.show({ message: message(result) });
+        toast.show({ message: successMessage });
         return result;
       }
       toast.show({
-        message: message(result),
+        message: successMessage,
         actionLabel: 'Rückgängig',
         onAction: () => {
           if (history && !history.canApply()) {
@@ -73,8 +82,19 @@ export function useBudgetWrite() {
           }
           void undoGroup(result.groupId).then(
             async (undone) => {
+              let refreshFailed = false;
               try {
                 await refresh();
+              } catch {
+                if (!history) {
+                  toast.show({
+                    message: 'Rückgängig gemacht, aber der aktuelle Stand konnte nicht geladen werden. Bitte neu laden.',
+                  });
+                  return;
+                }
+                refreshFailed = true;
+              }
+              try {
                 await history?.afterApply();
               } catch {
                 toast.show({
@@ -83,7 +103,9 @@ export function useBudgetWrite() {
                 return;
               }
               toast.show({
-                message: 'Rückgängig gemacht.',
+                message: refreshFailed
+                  ? 'Rückgängig gemacht. Andere Ansichten konnten nicht aktualisiert werden.'
+                  : 'Rückgängig gemacht.',
                 actionLabel: 'Wiederholen',
                 onAction: () => {
                   if (history && !history.canApply()) {
@@ -92,14 +114,30 @@ export function useBudgetWrite() {
                   }
                   void undoGroup(undone.groupId).then(
                     async () => {
+                      let refreshFailed = false;
                       try {
                         await refresh();
+                      } catch {
+                        if (!history) {
+                          toast.show({
+                            message: 'Wiederholt, aber der aktuelle Stand konnte nicht geladen werden. Bitte neu laden.',
+                          });
+                          return;
+                        }
+                        refreshFailed = true;
+                      }
+                      try {
                         await history?.afterApply();
                       } catch {
                         toast.show({
                           message: 'Wiederholt, aber der aktuelle Stand konnte nicht geladen werden. Bitte neu laden.',
                         });
+                        return;
                       }
+                      if (refreshFailed)
+                        toast.show({
+                          message: 'Wiederholt. Andere Ansichten konnten nicht aktualisiert werden.',
+                        });
                     },
                     (error: unknown) => failed('Wiederholen', error),
                   );
