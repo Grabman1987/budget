@@ -2,7 +2,7 @@ import { useUnsavedSettings } from '../settings/use-unsaved-settings';
 import { validFuturePreviewDays } from '@budget/domain';
 import { Button, Field, SectionHead, TextInput, useToast } from '@budget/ui';
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { errorText } from '../ledger/labels';
 import { undoGroup } from '../ledger/api';
@@ -47,8 +47,58 @@ function FuturePreviewEditor() {
   const [draft, setDraft] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const inFlight = useRef(false);
   const value = draft ?? String(query.data?.futurePreviewDays ?? '');
-  useUnsavedSettings(draft !== undefined && value !== String(query.data?.futurePreviewDays ?? ''), busy);
+  const dirty = draft !== undefined && value !== String(query.data?.futurePreviewDays ?? '');
+  useUnsavedSettings(dirty, busy);
+  useEffect(() => {
+    if (!dirty || busy || error || !query.data) return;
+    const timer = window.setTimeout(() => void save(), 600);
+    return () => window.clearTimeout(timer);
+    // The current value and query snapshot identify the scheduled save; the callback changes each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, dirty, busy, error, query.data]);
+
+  const save = async () => {
+    if (inFlight.current || !dirty || !query.data) return;
+    const days = Number(value);
+    if (!/^\d+$/.test(value) || !validFuturePreviewDays(days))
+      return setError('Bitte eine ganze Zahl von 0 bis 365 eintragen.');
+    inFlight.current = true;
+    setBusy(true);
+    try {
+      const result = await request<{ groupId: string }>('PATCH', '/api/display-settings', {
+        futurePreviewDays: days,
+      });
+      qc.setQueryData(displaySettingsQuery().queryKey, (
+        previous: { futurePreviewDays: number; accountReminderDays: number } | undefined,
+      ) =>
+        previous ? { ...previous, futurePreviewDays: days } : previous,
+      );
+      setDraft(undefined);
+      setError(undefined);
+      void qc.invalidateQueries({ queryKey: displaySettingsQuery().queryKey });
+      void qc.invalidateQueries({ queryKey: LEDGER_KEY });
+      toast.show({
+        message: 'Gespeichert · Kontovorschau',
+        actionLabel: 'Rückgängig',
+        onAction: () =>
+          void undoGroup(result.groupId)
+            .then(() =>
+              Promise.all([
+                qc.invalidateQueries({ queryKey: ['display-settings'] }),
+                qc.invalidateQueries({ queryKey: LEDGER_KEY }),
+              ]),
+            )
+            .catch((e: unknown) => toast.show({ message: errorText(e) })),
+      });
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  };
   return (
     <section className="profile-settings" aria-labelledby="preview-title">
       <SectionHead id="preview-title" title="Darstellung · Kontovorschau" />
@@ -64,34 +114,7 @@ function FuturePreviewEditor() {
           noValidate
           onSubmit={(e) => {
             e.preventDefault();
-            const days = Number(value);
-            if (!/^\d+$/.test(value) || !validFuturePreviewDays(days))
-              return setError('Bitte eine ganze Zahl von 0 bis 365 eintragen.');
-            setBusy(true);
-            void request<{ groupId: string }>('PATCH', '/api/display-settings', {
-              futurePreviewDays: days,
-            })
-              .then((result) => {
-                void qc.invalidateQueries({ queryKey: displaySettingsQuery().queryKey });
-                void qc.invalidateQueries({ queryKey: LEDGER_KEY });
-                setDraft(undefined);
-                setError(undefined);
-                toast.show({
-                  message: 'Kontovorschau gespeichert.',
-                  actionLabel: 'Rückgängig',
-                  onAction: () =>
-                    void undoGroup(result.groupId)
-                      .then(() =>
-                        Promise.all([
-                          qc.invalidateQueries({ queryKey: ['display-settings'] }),
-                          qc.invalidateQueries({ queryKey: LEDGER_KEY }),
-                        ]),
-                      )
-                      .catch((e: unknown) => toast.show({ message: errorText(e) })),
-                });
-              })
-              .catch((e: unknown) => setError(errorText(e)))
-              .finally(() => setBusy(false));
+            void save();
           }}
         >
           <Field
@@ -117,9 +140,12 @@ function FuturePreviewEditor() {
               />
             )}
           </Field>
-          <Button type="submit" disabled={busy || !query.data || draft === undefined}>
-            Speichern
-          </Button>
+          {busy && <p role="status">Speichert …</p>}
+          {error && dirty && (
+            <Button type="submit" disabled={busy || !query.data}>
+              Erneut versuchen
+            </Button>
+          )}
         </form>
       )}
     </section>

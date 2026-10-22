@@ -20,7 +20,7 @@ import {
   type RegionCode,
 } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ApiError, request } from '../api/http';
 import { errorText } from '../ledger/labels';
 import { undoGroup } from '../ledger/api';
@@ -81,7 +81,7 @@ export function ProfilePanel() {
           </Button>
         </p>
       )}
-      {query.data && <ProfileForm key={JSON.stringify(query.data)} saved={query.data} />}
+      {query.data && <ProfileForm saved={query.data} />}
     </section>
   );
 }
@@ -91,9 +91,12 @@ function ProfileForm({ saved }: { saved: Profile }) {
   const client = useQueryClient();
   const toast = useToast();
   const [draft, setDraft] = useState<Draft>(() => draftOf(saved));
+  const [base, setBase] = useState(saved);
+  const [seenSaved, setSeenSaved] = useState(saved);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [errors, setErrors] = useState<Errors>({});
+  const inFlight = useRef(false);
 
   const initials = draft.initialsEdited ? draft.initials : deriveInitials(draft.name);
   const householdText = draft.household.trim();
@@ -106,18 +109,38 @@ function ProfileForm({ saved }: { saved: Profile }) {
     region: draft.region === '' ? null : (draft.region as RegionCode),
   };
   const dirty =
-    body.name !== saved.name ||
-    body.initials !== saved.initials ||
-    body.birthDate !== saved.birthDate ||
-    body.household !== saved.household ||
-    body.region !== saved.region;
+    body.name !== base.name ||
+    body.initials !== base.initials ||
+    body.birthDate !== base.birthDate ||
+    body.household !== base.household ||
+    body.region !== base.region;
+
+  if (saved !== seenSaved) {
+    setSeenSaved(saved);
+    if (!busy && !dirty) {
+      setBase(saved);
+      setDraft(draftOf(saved));
+    }
+  }
 
   useUnsavedSettings(dirty, busy);
 
-  const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
+  useEffect(() => {
+    if (!dirty || busy || error) return;
+    const timer = window.setTimeout(() => void save(), 600);
+    return () => window.clearTimeout(timer);
+    // save reads the current draft/base; adding the callback would restart invalid-input timers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, base, busy, error]);
+
+  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
+    setError(undefined);
+    setErrors({});
     setDraft((d) => ({ ...d, [key]: value }));
+  };
 
   const save = async () => {
+    if (inFlight.current || !dirty) return;
     setError(undefined);
     const found: Errors = {};
     if (
@@ -129,9 +152,15 @@ function ProfileForm({ saved }: { saved: Profile }) {
       found.birthDate = 'Bitte ein gültiges Datum in der Vergangenheit eintragen.';
     setErrors(found);
     if (Object.keys(found).length > 0) return;
+    inFlight.current = true;
     setBusy(true);
     try {
-      const result = await request<Profile & { groupId: string }>('PATCH', PROFILE_PATH, body);
+      const patch = Object.fromEntries(
+        (Object.keys(body) as (keyof Profile)[])
+          .filter((key) => body[key] !== base[key])
+          .map((key) => [key, body[key]]),
+      ) as Partial<Profile>;
+      const result = await request<Profile & { groupId: string }>('PATCH', PROFILE_PATH, patch);
       const profile: Profile = {
         name: result.name,
         initials: result.initials,
@@ -139,9 +168,11 @@ function ProfileForm({ saved }: { saved: Profile }) {
         household: result.household,
         region: result.region,
       };
+      setBase(profile);
+      setDraft(draftOf(profile));
       client.setQueryData(PROFILE_KEY, profile);
       toast.show({
-        message: 'Profil gespeichert.', actionLabel: 'Rückgängig',
+        message: 'Gespeichert · Profil', actionLabel: 'Rückgängig',
         onAction: () => void undoGroup(result.groupId)
           .then(() => client.invalidateQueries())
           .catch((error: unknown) => toast.show({ message: errorText(error) })),
@@ -153,6 +184,7 @@ function ProfileForm({ saved }: { saved: Profile }) {
           : 'Das Profil konnte nicht gespeichert werden. Bitte erneut versuchen.',
       );
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   };
@@ -188,13 +220,15 @@ function ProfileForm({ saved }: { saved: Profile }) {
               autoComplete="off"
               aria-describedby={describedBy}
               disabled={busy}
-              onChange={(e) =>
+              onChange={(e) => {
+                setError(undefined);
+                setErrors({});
                 setDraft((d) => ({
                   ...d,
                   initials: e.target.value.toLocaleUpperCase('de-AT'),
                   initialsEdited: true,
-                }))
-              }
+                }));
+              }}
             />
           )}
         </Field>
@@ -251,9 +285,12 @@ function ProfileForm({ saved }: { saved: Profile }) {
           {maskMoneyText(error)}
         </p>
       )}
-      <Button type="submit" disabled={busy || !dirty}>
-        {busy ? 'Speichert …' : 'Speichern'}
-      </Button>
+      {busy && <p role="status">Speichert …</p>}
+      {error && (
+        <Button type="submit" disabled={busy || !dirty}>
+          Erneut versuchen
+        </Button>
+      )}
     </form>
   );
 }

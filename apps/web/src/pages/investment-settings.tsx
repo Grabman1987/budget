@@ -8,7 +8,7 @@ import {
   useAmountPrivacy,
 } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { undoGroup } from '../ledger/api';
 import { errorText } from '../ledger/labels';
@@ -44,19 +44,31 @@ export function InvestmentSettingsPanel() {
   const [chosen, setChosen] = useState<CostMethod>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const inFlight = useRef(false);
   const method = chosen ?? query.data?.costMethod ?? 'average';
-  useUnsavedSettings(chosen !== undefined && chosen !== query.data?.costMethod, busy);
+  const dirty = chosen !== undefined && chosen !== query.data?.costMethod;
+  useUnsavedSettings(dirty, busy);
+
+  useEffect(() => {
+    if (!dirty || busy || error || !query.data) return;
+    const timer = window.setTimeout(() => void save(), 0);
+    return () => window.clearTimeout(timer);
+    // The selected method and query snapshot identify the scheduled save; the callback changes each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chosen, dirty, busy, error, query.data]);
 
   const save = async () => {
+    if (inFlight.current || !dirty || !query.data) return;
+    inFlight.current = true;
     setBusy(true);
     setError(undefined);
     try {
       const saved = await request<Preferences & { groupId: string }>('PATCH', PATH, { costMethod: method });
       client.setQueryData(KEY, saved);
       setChosen(undefined);
-      await client.invalidateQueries();
+      void client.invalidateQueries();
       toast.show({
-        message: 'Einstandskostenmethode gespeichert.', actionLabel: 'Rückgängig',
+        message: 'Gespeichert · Einstandskostenmethode', actionLabel: 'Rückgängig',
         onAction: () => void undoGroup(saved.groupId)
           .then(() => client.invalidateQueries())
           .catch((error: unknown) => toast.show({ message: errorText(error) })),
@@ -64,6 +76,7 @@ export function InvestmentSettingsPanel() {
     } catch {
       setError('Die Einstellung konnte nicht gespeichert werden. Bitte erneut versuchen.');
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   };
@@ -105,7 +118,10 @@ export function InvestmentSettingsPanel() {
                 aria-describedby={describedBy}
                 value={method}
                 disabled={busy}
-                onChange={(event) => setChosen(event.target.value as CostMethod)}
+                onChange={(event) => {
+                  setError(undefined);
+                  setChosen(event.target.value as CostMethod);
+                }}
               >
                 <option value="average">Durchschnittseinstand (Standard)</option>
                 <option value="fifo">FIFO – älteste Kaufposten zuerst</option>
@@ -126,9 +142,12 @@ export function InvestmentSettingsPanel() {
               {maskMoneyText(error)}
             </p>
           )}
-          <Button type="submit" disabled={busy || method === query.data.costMethod}>
-            {busy ? 'Speichert …' : 'Speichern'}
-          </Button>
+          {busy && <p role="status">Speichert …</p>}
+          {error && dirty && (
+            <Button type="submit" disabled={busy}>
+              Erneut versuchen
+            </Button>
+          )}
         </form>
       )}
     </section>
