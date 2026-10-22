@@ -1,0 +1,25 @@
+.report-view-switch.seg { max-width: 100%; flex-wrap: wrap; }
+.report-view-switch button { overflow-wrap: anywhere; }
+.titleblock-report:has(.report-view-switch) { flex-wrap: wrap; }
+@media (min-width: 768px) {
+  .titleblock-report:has(.report-view-switch) .tb-title { flex-basis: 20rem; }
+}
+@media (max-width: 767px) {
+  .titleblock.titleblock-report:has(.report-view-switch) { grid-auto-flow: row; grid-template-columns: minmax(0, 1fr); }
+  .titleblock-report:has(.report-view-switch) .tb-field { border-left: 0; }
+  .report-view-switch.seg button { min-height: var(--touch); }
+}
+@media (pointer: coarse) { .report-view-switch.seg button { min-height: var(--touch); } }
+
+.report-income-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.report-project-select { display: grid; gap: 4px; min-width: 0; max-width: 100%; font-size: var(--fs-meta); }
+.report-project-select select { min-height: var(--touch); max-width: 100%; width: 16rem; }
+.report-project-note { grid-column: 1 / -1; margin: 8px 0 12px; color: var(--ink-2); font-size: var(--fs-table); line-height: var(--lh-table); overflow-wrap: anywhere; }
+.report-project-results-link { display: inline-flex; align-items: center; min-height: var(--touch); margin-bottom: 8px; }
+
+@media (pointer: coarse) {
+  .report-income-controls button, .report-project-status button { min-height: var(--touch); }
+}
+.report-source-select { display: grid; gap: 4px; max-width: 100%; margin-block: 8px; color: var(--ink-2); font-size: var(--fs-table); }
+.report-source-select select { width: 24rem; max-width: 100%; min-height: var(--touch); }
+.report-source-return a { display: inline-flex; align-items: center; min-height: var(--touch); }

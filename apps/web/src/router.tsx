@@ -56,6 +56,8 @@ import type { PageTitleData } from './shell/page-meta';
 import { isMonth } from './nav/month';
 import { isZeitraum } from './wealth/zeitraum';
 import { isPanelId, type PanelId } from './shell/panels';
+import { legacyReportHref } from './reports/report-legacy-targets';
+import { hubReport } from './reports/report-hub-model';
 import { validateReportSearch } from './reports/report-search';
 import { validateLiquiditySearch } from './reports/liquidity-selection';
 
@@ -603,11 +605,15 @@ const reportGroupRoute = createRoute({
 const reportRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/reports/$reportId',
+  beforeLoad: ({ params, location }) => {
+    const href = legacyReportHref(params.reportId, location.searchStr, location.hash);
+    if (href) throw redirect({ href, replace: true });
+  },
   validateSearch: validateReportSearch,
   staticData: { meta: { ...REPORTS_CATALOG, title: 'Report', register: 'katalog' } },
   loader: ({ params }): PageTitleData => {
     const report = findReport(params.reportId);
-    return report ? { title: report.name } : {};
+    return report ? { title: hubReport(report.id)?.name ?? report.name } : {};
   },
   component: lazyRouteComponent(reportsPages, 'ReportRoute'),
 });

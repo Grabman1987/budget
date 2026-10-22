@@ -1,20 +1,25 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { REPORTS } from '../nav/reports-catalog';
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AppLink } from '../shell/app-link';
+import { HUB_REPORTS, hubReport, matchingHubReports } from './report-hub-model';
 import './report-navigation.css';
 
 export function adjacentReports(id: string) {
-  const index = REPORTS.findIndex((r) => r.id === id);
+  const current = hubReport(id);
+  const index = HUB_REPORTS.findIndex((report) => report.id === current?.id);
   return {
-    previous: index > 0 ? REPORTS[index - 1] : undefined,
-    next: index >= 0 ? REPORTS[index + 1] : undefined,
+    previous: index > 0 ? HUB_REPORTS[index - 1] : undefined,
+    next: index >= 0 ? HUB_REPORTS[index + 1] : undefined,
   };
 }
 
 /** Catalog order also crosses group boundaries. Alt+Shift avoids browser history shortcuts. */
 export function ReportNavigation({ id }: { id: string }) {
   const navigate = useNavigate();
+  const [search, setSearch] = useState('');
+  const switcher = useRef<HTMLDetailsElement>(null);
+  const matches = matchingHubReports(search);
   const { previous, next } = adjacentReports(id);
   const go = (reportId: string) =>
     void navigate({
@@ -56,13 +61,29 @@ export function ReportNavigation({ id }: { id: string }) {
   }, [navigate, previous, next]);
   return (
     <nav className="report-navigation" aria-label="Weitere Berichte">
+      <details className="report-switcher" ref={switcher} onKeyDown={(event) => {
+        if (event.key === 'Escape' && switcher.current?.open) {
+          event.preventDefault();
+          switcher.current.open = false;
+          switcher.current.querySelector('summary')?.focus();
+        }
+      }}>
+        <summary aria-label="Bericht wechseln">Bericht wechseln <ChevronDown size={16} aria-hidden="true" /></summary>
+        <div className="report-switcher-menu">
+          <label><span className="sr-only">Bericht nach Name oder Frage suchen</span><input type="search" value={search} maxLength={160} autoComplete="off" placeholder="Name oder Frage suchen" onChange={(event) => setSearch(event.target.value)} /></label>
+          <ul>
+            {matches.map((report) => <li key={report.id}><AppLink to={`/reports/${report.id}`} aria-current={hubReport(id)?.id === report.id ? 'page' : undefined} search={(prev) => ({ zeitraum: prev['zeitraum'], trend: prev['trend'], monat: prev['monat'] })} onClick={() => { if (switcher.current) switcher.current.open = false; setSearch(''); }}>{report.no}. {report.name}</AppLink></li>)}
+          </ul>
+          {matches.length === 0 && <p role="status">Kein passender Bericht.</p>}
+        </div>
+      </details>
       <button
         type="button"
         className="icon-btn"
         disabled={!previous}
         aria-label={previous ? `Vorheriger Bericht: ${previous.name}` : 'Vorheriger Bericht'}
         aria-keyshortcuts="Alt+Shift+ArrowLeft"
-        title={previous ? `${previous.pos} ${previous.name} · Alt+Umschalt+←` : 'Erster Bericht'}
+        title={previous ? `${previous.no} ${previous.name} · Alt+Umschalt+←` : 'Erster Bericht'}
         onClick={() => previous && go(previous.id)}
       >
         <ChevronLeft size={18} aria-hidden="true" />
@@ -73,7 +94,7 @@ export function ReportNavigation({ id }: { id: string }) {
         disabled={!next}
         aria-label={next ? `Nächster Bericht: ${next.name}` : 'Nächster Bericht'}
         aria-keyshortcuts="Alt+Shift+ArrowRight"
-        title={next ? `${next.pos} ${next.name} · Alt+Umschalt+→` : 'Letzter Bericht'}
+        title={next ? `${next.no} ${next.name} · Alt+Umschalt+→` : 'Letzter Bericht'}
         onClick={() => next && go(next.id)}
       >
         <ChevronRight size={18} aria-hidden="true" />

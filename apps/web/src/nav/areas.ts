@@ -67,14 +67,7 @@ export const AREAS: ReadonlyArray<AreaDef> = [
     no: '05',
     to: '/reports',
     icon: BarChart3,
-    registers: [
-      { id: 'katalog', label: 'Katalog', to: '/reports' },
-      { id: 'monat', label: 'Monat', to: '/reports/gruppe/monat' },
-      { id: 'ausgaben', label: 'Ausgaben', to: '/reports/gruppe/ausgaben' },
-      { id: 'zukunft', label: 'Zukunft', to: '/reports/gruppe/zukunft' },
-      { id: 'portfolio', label: 'Portfolio', to: '/reports/gruppe/portfolio' },
-      { id: 'ueberblick', label: 'Überblick', to: '/reports/gruppe/ueberblick' },
-    ],
+    registers: [],
   },
   {
     id: 'einstellungen',

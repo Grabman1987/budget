@@ -1,23 +1,20 @@
-import '../nav/registers.css';
 import { WholePictureReport } from '../reports/whole-picture-report';
-import { IncomeExpenseReport } from '../reports/income-expense-report';
+import { IncomeCashflowReport } from '../reports/income-cashflow-report';
 import { PayrollReport } from '../reports/payroll-report';
 import { ProjectsReport } from '../reports/projects-report';
 import { ReportTrendContext } from '@budget/ui';
 import { useSearch } from '@tanstack/react-router';
-import { Registers, SectionHead, type RegisterItem } from '@budget/ui';
-import { ChevronRight, Printer } from 'lucide-react';
+import { SectionHead } from '@budget/ui';
+import { useEffect } from 'react';
+import { Printer } from 'lucide-react';
 import { BookRuleMetric } from '../rules/book-rule-metric';
-import { areaById } from '../nav/areas';
 import { REPORTS_CATALOG, REPORT_GROUP_PAGES, type PageMeta } from '../nav/pages';
 import {
-  REPORTS,
-  REPORT_GROUPS,
   findReport,
   findReportGroup,
   type ReportEntry,
 } from '../nav/reports-catalog';
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useParams } from '@tanstack/react-router';
 import { AppLink } from '../shell/app-link';
 import { AreaHead } from './area-head';
 import { PlaceholderPage } from './placeholder-page';
@@ -25,7 +22,7 @@ import { GoalsProgressReport } from './goals-progress-report';
 import { PaymentsPreviewReport } from './payments-preview-report';
 import { ContactReportPage } from '../reports/contact-report';
 import { CashflowReportPage } from '../reports/cashflow-report';
-import { AssetsDebtsReport } from '../reports/assets-debts-report';
+import { WealthReportViews } from '../reports/wealth-report-views';
 import { WealthHistoryReport } from '../reports/wealth-history-report';
 import { PayeeAnalysisReport } from './payee-analysis-report';
 import { PortfolioPerformanceReport } from './portfolio-performance-report';
@@ -37,7 +34,10 @@ import { FinanzcheckReport } from '../reports/finanzcheck-report';
 import { CompareReport } from '../reports/compare-report';
 import { JahresreportPage } from '../reports/jahresreport-page';
 import { ExplorerReportPage } from '../reports/explorer-report';
-import { SpendingAnalysisReport } from '../reports/spending-analysis-report';
+import { ReportSourceViews, ProjectResultsReturn } from '../reports/report-source-views';
+import { ReportHub } from '../reports/report-hub';
+import { rememberReport, type HubGroup } from '../reports/report-hub-model';
+import { SpendingReportViews } from '../reports/spending-report-views';
 import { BudgetAdherenceReportPage } from '../reports/budget-adherence-report';
 import { PlanningAccuracyReportPage } from '../reports/planning-accuracy-report';
 import { ContractsReportPage } from '../reports/contracts-report';
@@ -69,123 +69,38 @@ function Controls({ report }: { report: ReportEntry }) {
   );
 }
 
-function ReportRegisters({ current }: { current: string }) {
-  const items: RegisterItem[] = areaById('reports').registers.map((r) => ({
-    id: r.id,
-    label: r.label,
-    href: r.to,
-  }));
-  return (
-    <Registers
-      label="Register von Reports"
-      items={items}
-      current={current}
-      renderLink={(item, props) => (
-        <AppLink to={item.href ?? '/reports'} {...props}>
-          {item.label}
-        </AppLink>
-      )}
-    />
-  );
-}
-
-/**
- * Report catalog (Zeichnungsverzeichnis) as in the prototype: one table, a quiet heading row per
- * assembly, positions 1.1 … 5.5. The name is the link; the whole row is a larger click target.
- * On the phone the rows stack (position, name, question, chart form).
- */
-function ReportCatalogTable({
-  groups,
-  caption,
-}: {
-  groups: ReadonlyArray<(typeof REPORT_GROUPS)[number]>;
-  caption: string;
-}) {
-  const navigate = useNavigate();
-  return (
-    <section className="rcat-wrap" aria-label={caption}>
-      <table className="rcat">
-        <thead>
-          <tr>
-            <th className="tech col-pos">Pos</th>
-            <th className="tech">Report</th>
-            <th className="tech">Frage</th>
-            <th className="tech">Diagrammform</th>
-            <th className="tech">Steuerung</th>
-            <th>
-              <span className="sr-only">Öffnen</span>
-            </th>
-          </tr>
-        </thead>
-        {groups.map((group) => (
-          <tbody key={group.slug}>
-            <tr className="rcat-grp">
-              <td className="col-pos">{group.no}</td>
-              <td colSpan={5}>
-                <strong>{group.name}</strong>
-                <span className="rcat-count">{group.items.length} Reports</span>
-              </td>
-            </tr>
-            {group.items.map((report) => (
-              <tr
-                key={report.id}
-                className="rcat-row"
-                onClick={(event) => {
-                  if ((event.target as HTMLElement).closest('a')) return;
-                  void navigate({ to: `/reports/${report.id}` });
-                }}
-              >
-                <td className="col-pos">{report.pos}</td>
-                <td className="rcat-name">
-                  <AppLink to={`/reports/${report.id}`}>{report.name}</AppLink>
-                </td>
-                <td className="rcat-q">{report.question}</td>
-                <td className="rcat-form tech">{report.form}</td>
-                <td className="rcat-ctl">
-                  <Controls report={report} />
-                </td>
-                <td className="rcat-go" aria-hidden="true">
-                  <ChevronRight size={16} strokeWidth={1.75} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        ))}
-      </table>
-    </section>
-  );
-}
-
-/** Report catalog: all five assemblies. */
+/** The canonical hub preserves report bodies and old direct links. */
 export function ReportsCatalogPage() {
   return (
     <>
-      <AreaHead
-        meta={REPORTS_CATALOG}
-        subtitle={`${REPORTS.length} Zeichnungen aus einem Hauptbuch`}
-      />
-      <ReportRegisters current="katalog" />
-      <ReportCatalogTable groups={REPORT_GROUPS} caption="Katalog der Reports" />
+      <AreaHead meta={REPORTS_CATALOG} subtitle="16 Berichte aus einem Hauptbuch" />
+      <p className="muted">
+        <AppLink className="btn btn-ghost" to="/plan/prognose">Kontoprognose in Plan öffnen</AppLink>
+      </p>
+      <ReportHub />
     </>
   );
 }
 
-/** One register of the report catalog: the drawings of one assembly. */
+/** Existing group URLs remain useful without retaining the old register navigation. */
 export function ReportGroupPage({ slug }: { slug: string }) {
   const group = findReportGroup(slug);
   const page = REPORT_GROUP_PAGES.find((p) => p.slug === slug);
   if (!group || !page) return <ReportNotFound />;
+  const initial: Record<string, HubGroup> = {
+    monat: 'income', ausgaben: 'income', zukunft: 'wealth', portfolio: 'portfolio', ueberblick: 'reports',
+  };
   return (
     <>
-      <AreaHead meta={REPORTS_CATALOG} subtitle={group.name} />
-      <ReportRegisters current={slug} />
-      <ReportCatalogTable groups={[group]} caption={`Reports der Baugruppe ${group.name}`} />
+      <AreaHead meta={REPORTS_CATALOG} subtitle="16 Berichte aus einem Hauptbuch" />
+      <ReportHub key={slug} initialGroup={initial[slug]} />
     </>
   );
 }
 
 /** Report dispatch: connected bodies where implemented, otherwise a placeholder from the catalog. */
 export function ReportPage({ reportId, detail = false }: { reportId: string; detail?: boolean }) {
+  const search = useSearch({ strict: false }) as { reportQuelle?: string };
   if (reportId === 'kontakte') return <ContactReportPage />;
   const report = findReport(reportId);
   if (!report) return <ReportNotFound />;
@@ -198,12 +113,22 @@ export function ReportPage({ reportId, detail = false }: { reportId: string; det
   };
   if (report.id === 'cashflow') return <CashflowReportPage report={report} meta={meta} />;
   if (report.id === 'vermoegen') return <WealthHistoryReport report={report} meta={meta} />;
-  if (report.id === 'vermoegen-schulden') return <AssetsDebtsReport report={report} meta={meta} />;
-  if (report.id === 'ausgaben') return <SpendingAnalysisReport report={report} meta={meta} />;
-  if (report.id === 'budgettreue') return <BudgetAdherenceReportPage report={report} meta={meta} />;
+  if (report.id === 'vermoegen-schulden') return <WealthReportViews report={report} meta={meta} />;
+  if (report.id === 'ausgaben') return <SpendingReportViews report={report} meta={meta} />;
+  if (report.id === 'budgettreue') return <ReportSourceViews report={report} meta={meta}
+    sources={[{ id: 'budgettreue', name: 'Budgettreue' }, { id: 'planungstreue', name: 'Prognosegenauigkeit' }]}>
+    {(source, sourceMeta) => source.id === 'planungstreue'
+      ? <PlanningAccuracyReportPage report={source} meta={sourceMeta} />
+      : <BudgetAdherenceReportPage report={source} meta={sourceMeta} />}
+  </ReportSourceViews>;
   if (report.id === 'planungstreue')
     return <PlanningAccuracyReportPage report={report} meta={meta} />;
-  if (report.id === 'abos') return <ContractsReportPage report={report} meta={meta} />;
+  if (report.id === 'abos') return <ReportSourceViews report={report} meta={meta}
+    sources={[{ id: 'abos', name: 'Verträge und Abos' }, { id: 'kosten', name: 'Bank- und Zinskosten' }]}>
+    {(source, sourceMeta) => source.id === 'kosten'
+      ? <BankCostsReportPage report={source} meta={sourceMeta} />
+      : <ContractsReportPage report={source} meta={sourceMeta} />}
+  </ReportSourceViews>;
   if (report.id === 'kosten') return <BankCostsReportPage report={report} meta={meta} />;
   if (report.id === 'inflation') return <PersonalInflationReport report={report} meta={meta} />;
   if (report.id === 'sparziele') return <GoalsProgressReport report={report} meta={meta} />;
@@ -211,7 +136,13 @@ export function ReportPage({ reportId, detail = false }: { reportId: string; det
   if (report.id === 'empfaenger') return <PayeeAnalysisReport report={report} meta={meta} />;
   if (report.id === 'prendite') return <PortfolioPerformanceReport report={report} meta={meta} />;
   if (report.id === 'pdepots') return <PortfolioDepotsReport report={report} meta={meta} />;
-  if (report.id === 'pallocation') return <PortfolioAllocationReport report={report} meta={meta} />;
+  if (report.id === 'pallocation') return <ReportSourceViews report={report} meta={meta}
+    sources={[{ id: 'pallocation', name: 'Aufteilung' }, { id: 'peinzahlungen', name: 'Einzahlungen und Wert' }, { id: 'prendite', name: 'Rendite und Kennzahlen' }]}>
+    {(source, sourceMeta) => source.id === 'peinzahlungen'
+      ? <PortfolioContributionsReport report={source} meta={sourceMeta} />
+      : source.id === 'prendite' ? <PortfolioPerformanceReport report={source} meta={sourceMeta} />
+      : <PortfolioAllocationReport report={source} meta={sourceMeta} />}
+  </ReportSourceViews>;
   if (report.id === 'psteuern') return <PortfolioCostsReport report={report} meta={meta} />;
   if (report.id === 'peinzahlungen')
     return <PortfolioContributionsReport report={report} meta={meta} />;
@@ -223,13 +154,23 @@ export function ReportPage({ reportId, detail = false }: { reportId: string; det
   if (report.id === 'onepager') return <OnePagerReport report={report} meta={meta} />;
   if (report.id === 'finanzcheck') return <FinanzcheckReport report={report} meta={meta} />;
   if (report.id === 'jahresreport') return <JahresreportPage report={report} meta={meta} />;
-  if (report.id === 'explorer') return <ExplorerReportPage report={report} meta={meta} />;
+  if (report.id === 'explorer') return <ReportSourceViews report={report} meta={meta}
+    sources={[{ id: 'explorer', name: 'Auswertung und Vorlagen' }, { id: 'kategorien', name: 'Kategorieübersicht' }, { id: 'jahresansicht', name: 'Jahresansicht' }, { id: 'gesamttabelle', name: 'Gesamttabelle' }]}>
+    {(source, sourceMeta) => source.id === 'kategorien' ? <CategoryReport report={source} meta={sourceMeta} />
+      : source.id === 'jahresansicht' ? <YearReport report={source} meta={sourceMeta} />
+      : source.id === 'gesamttabelle' ? <TotalTableReport report={source} meta={sourceMeta} />
+      : <ExplorerReportPage report={source} meta={sourceMeta} />}
+  </ReportSourceViews>;
   if (report.id === 'vergleich') return <CompareReport report={report} meta={meta} />;
   if (report.id === 'jahresansicht') return <YearReport report={report} meta={meta} />;
   if (report.id === 'kategorien') return <CategoryReport report={report} meta={meta} />;
   if (report.id === 'sparquote') return <SavingsReport report={report} meta={meta} />;
+  if (report.id === 'einnahmen-ausgaben' && search.reportQuelle === 'projekte') return <>
+    <ProjectResultsReturn />
+    <ProjectsReport report={findReport('projekte')!} meta={meta} />
+  </>;
   if (report.id === 'einnahmen-ausgaben')
-    return <IncomeExpenseReport report={report} meta={meta} sources={detail} />;
+    return <IncomeCashflowReport report={report} meta={meta} sources={detail} />;
   if (report.id === 'gesamttabelle') return <TotalTableReport report={report} meta={meta} />;
   return (
     <PlaceholderPage
@@ -265,13 +206,23 @@ export function ReportGroupRoute() {
 
 export function ReportRoute() {
   const { reportId } = useParams({ strict: false }) as { reportId: string };
-  const search = useSearch({ strict: false }) as { trend?: boolean };
+  const search = useSearch({ strict: false }) as {
+    trend?: boolean;
+    reportQuelle?: string;
+    darstellung?: string;
+  };
+  const trendSource = search.reportQuelle ?? (
+    reportId === 'einnahmen-ausgaben' && search.darstellung === 'cashflow' ? 'cashflow'
+      : reportId === 'vermoegen-schulden' && search.darstellung === 'verlauf' ? 'vermoegen'
+      : reportId
+  );
+  useEffect(() => { rememberReport(reportId); }, [reportId]);
   return (
     <ReportTrendContext.Provider
       value={
         search.trend === true &&
         ['kategorien', 'sparquote', 'cashflow', 'vermoegen', 'peinzahlungen', 'pdepots'].includes(
-          reportId,
+          trendSource,
         )
       }
     >

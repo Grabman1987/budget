@@ -9,6 +9,14 @@ const ids = (value: unknown) =>
     : undefined;
 
 export const validateReportSearch = (search: Record<string, unknown>) => ({
+  reportQuelle: ['projekte', 'planungstreue', 'kosten', 'peinzahlungen', 'prendite', 'kategorien', 'jahresansicht', 'gesamttabelle'].includes(search['reportQuelle'] as string) ? search['reportQuelle'] as string : undefined,
+  ansicht: id(search['ansicht']),
+  projekt: id(search['projekt']),
+  projektUngueltig: search['projektUngueltig'] === true || (search['projekt'] !== undefined && id(search['projekt']) === undefined) ? true : undefined,
+  darstellung: ['gruppen', 'empfaenger', 'bilanz', 'verlauf', 'gesamt', 'income', 'overview', 'cashflow'].includes(search['darstellung'] as string)
+    ? search['darstellung'] as 'gruppen' | 'empfaenger' | 'bilanz' | 'verlauf' | 'gesamt' | 'income' | 'overview' | 'cashflow' : undefined,
+  empfaenger: id(search['empfaenger']),
+  exakt: search['exakt'] === true || search['exakt'] === 'true' ? true : undefined,
   vorlage: isExplorerTemplate(search['vorlage']) ? search['vorlage'] : undefined,
   kategorien: ids(search['kategorien']),
   gruppen: ids(search['gruppen']),

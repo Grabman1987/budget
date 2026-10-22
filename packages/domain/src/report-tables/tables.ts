@@ -85,7 +85,7 @@ export function monthIncomeOfRole(month: TableMonth, meta: TableMeta, role: Inco
 }
 
 /** Typed household income, shared with One-Pager, Sankey and the rules. */
-export const monthHouseholdIncome = (month: TableMonth, meta: TableMeta): number =>
+export const monthHouseholdIncome = (month: Pick<TableMonth, 'income'>, meta: TableMeta): number =>
   Object.entries(month.income).reduce((total, [id, cents]) => {
     const role = typeRole(meta, id);
     return total + householdIncomeCents(cents, id, role === 'income' ? 'household' : role);

@@ -37,6 +37,7 @@ import {
 import { categoryGroup, contact, incomeType, INCOME_TYPES, payee } from '../schema';
 import { allocationMonth } from './allocation';
 import { overviewData } from './report-ledger';
+import { projectOverviewData, reportProjectScope, type ReportProject, type ReportProjectScope } from './report-project-scope';
 import { upcoming } from './expected';
 import { availableSection, occurrencesBetween, paceOfMonth, type Heute } from './heute';
 import type { HeuteUnavailable } from './heute';
@@ -116,7 +117,7 @@ const monthsFrom = (f: Frame, from: string): string[] =>
   monthsBetween(from < f.firstMonth ? f.firstMonth : from, f.month);
 
 /** Income splits of the budget accounts up to `asOf`, with their type. */
-function incomeFacts(db: Executor, f: Frame, fromMonth: string): IncomeFact[] {
+function incomeFacts(db: Executor, f: Frame, fromMonth: string, scope?: ReportProjectScope): IncomeFact[] {
   const types = new Map(
     db
       .select()
@@ -124,7 +125,7 @@ function incomeFacts(db: Executor, f: Frame, fromMonth: string): IncomeFact[] {
       .all()
       .map((t) => [t.id, t]),
   );
-  return overviewData(db).splits.flatMap((s): IncomeFact[] => {
+  return projectOverviewData(db, scope).splits.flatMap((s): IncomeFact[] => {
     if (
       s.kind !== 'income' ||
       s.incomeTypeId === null ||
@@ -286,21 +287,31 @@ function expectedOf(db: Executor, f: Frame, income: MonthIncome) {
   };
 }
 
+export type ProjectIncomeReport = Omit<IncomeReport, 'expected' | 'expectedMaterialised' | 'foreignCurrencyCount'> & {
+  project: ReportProject;
+  expected: null;
+  expectedMaterialised: null;
+  foreignCurrencyCount: null;
+  expectedUnavailable: 'not_project_attributed';
+};
+
 /** Einnahmen: expected against received, by income type over twelve months, Kapitalerträge apart. */
-export function monthIncomeReport(db: Executor, today: string, month: string): IncomeReport {
+export function monthIncomeReport(db: Executor, today: string, month: string): IncomeReport;
+export function monthIncomeReport(db: Executor, today: string, month: string, projectId: string | undefined): IncomeReport | ProjectIncomeReport;
+export function monthIncomeReport(db: Executor, today: string, month: string, projectId?: string): IncomeReport | ProjectIncomeReport {
+  const scope = reportProjectScope(db, projectId);
   const f = frame(db, today, month);
   const months = monthsFrom(f, addMonths(month, -11));
-  const facts = incomeFacts(db, f, months[0] ?? month);
+  const facts = incomeFacts(db, f, months[0] ?? month, scope);
   const income = monthIncomeOf(facts, month);
-  const { expected, foreignCurrencyCount, materialised } = expectedOf(db, f, income);
-  return {
+  const actual = {
     month,
     asOf: f.asOf,
     partial: f.partial,
     firstMonth: f.firstMonth,
     beforeRecords: month < f.firstMonth,
     income,
-    contactWriteOffs: overviewData(db).splits.filter(
+    contactWriteOffs: projectOverviewData(db, scope).splits.filter(
       (s) =>
         s.kind === 'income' &&
         s.incomeGroup === 'unclassified' &&
@@ -308,11 +319,14 @@ export function monthIncomeReport(db: Executor, today: string, month: string): I
         monthOf(s.date) === month &&
         s.date <= f.asOf,
     ),
-    expected,
-    expectedMaterialised: materialised,
-    foreignCurrencyCount,
     window: incomeWindow(months.map((m) => monthIncomeOf(facts, m))),
   };
+  if (scope) return {
+    ...actual, project: scope.project, expected: null, expectedMaterialised: null,
+    foreignCurrencyCount: null, expectedUnavailable: 'not_project_attributed',
+  };
+  const { expected, foreignCurrencyCount, materialised } = expectedOf(db, f, income);
+  return { ...actual, expected, expectedMaterialised: materialised, foreignCurrencyCount };
 }
 
 // ---------------------------------------------------------------------------------------------

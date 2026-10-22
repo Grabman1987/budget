@@ -10,6 +10,16 @@ export const savedExplorerViewsQuery = () =>
     retry: false,
     queryFn: () => request<ExplorerViewsState>('GET', '/api/reports/saved-queries'),
   });
+/** A separate per-entry read prevents an earlier hub/editor cache from selecting an old query. */
+export const savedExplorerEntryQuery = (id: string | undefined, entryKey: string) =>
+  queryOptions({
+    ...savedExplorerViewsQuery(),
+    queryKey: [...SAVED_EXPLORER_KEY, 'entry', id, entryKey],
+    enabled: Boolean(id),
+    gcTime: 0,
+    refetchOnMount: 'always' as const,
+  });
+
 export const changeSavedExplorerViews = (revision: string, change: ExplorerViewsChange) =>
   request<ExplorerViewsWrite>('POST', '/api/reports/saved-queries', { revision, ...change });
 

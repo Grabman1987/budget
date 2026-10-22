@@ -4,7 +4,7 @@ import { useAmountPrivacy, ClassSwatch, DimensionChain } from '@budget/ui';
 import { cents, heatCells } from '@budget/domain';
 import type { SpendingReport } from '@budget/db';
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { request } from '../api/http';
 import { eur, longDay } from '../ledger/format';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -35,7 +35,12 @@ const analysisQuery = (period: SpendingPeriod) =>
 const CLASS_NAME = { need: 'Bedarf', want: 'Wunsch', future: 'Zukunft' } as const;
 
 /** 2.1 Ausgabenanalyse: Wofür geben wir Geld aus? */
-export function SpendingAnalysisReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
+export function SpendingAnalysisReport({ report, meta, viewControl, onPeriodChange }: {
+  report: ReportEntry;
+  meta: PageMeta;
+  viewControl?: ReactNode;
+  onPeriodChange?: (period: SpendingPeriod) => void;
+}) {
   useAmountPrivacy();
   const [period, setPeriod] = useReportPeriod();
   const query = useQuery(analysisQuery(period));
@@ -68,9 +73,10 @@ export function SpendingAnalysisReport({ report, meta }: { report: ReportEntry; 
         value: data?.to ? `${longDay(data.to)} · Monatsende` : 'Monatsende',
       }}
       extraFields={[
+        ...(viewControl ? [{ label: 'Ansicht', value: viewControl }] : []),
         {
           label: 'Zeitraum',
-          value: <PeriodSwitch period={period} onChange={setPeriod} />,
+          value: <PeriodSwitch period={period} onChange={onPeriodChange ?? setPeriod} />,
         },
       ]}
     >

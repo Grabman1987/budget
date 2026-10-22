@@ -8,7 +8,6 @@ import {
   tableRowTotal,
   tableRowAverage,
   monthHouseholdIncome,
-  type OverviewSplit,
 } from '@budget/domain';
 import {
   AxisLine,
@@ -35,29 +34,36 @@ import { ReportPeriodControl } from './period-quick-select';
 import { RowsGrid } from './table-grid';
 import { monthShort } from './table-format';
 import { TableReportFrame } from './table-report-frame';
-import type { ReportTables } from './table-reports-api';
+import type { IncomeExpenseReportData } from '@budget/db';
+import type { ReactNode } from 'react';
+import { ReportProjectScopeNote } from './report-project-scope';
 
-const queryOptionsForReport = queryOptions({
-  queryKey: [...LEDGER_KEY, 'income-expense'],
+const queryOptionsForReport = (projectId?: string) => queryOptions({
+  queryKey: projectId ? [...LEDGER_KEY, 'income-expense', 'project', projectId] : [...LEDGER_KEY, 'income-expense'],
   retry: false,
   queryFn: () =>
-    request<ReportTables & { splits: OverviewSplit[] }>('GET', '/api/report-tables/income-expense'),
+    request<IncomeExpenseReportData>('GET', `/api/report-tables/income-expense${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`),
 });
 export function IncomeExpenseReport({
   report,
   meta,
   sources = false,
+  projectId,
+  viewControl,
 }: {
   report: ReportEntry;
   meta: PageMeta;
   sources?: boolean;
+  projectId?: string | undefined;
+  viewControl?: ReactNode;
 }) {
   const [period, setPeriod] = useZeitraum();
-  const query = useQuery(queryOptionsForReport);
-  const { zelle, spalte, gruppen } = useSearch({ strict: false }) as {
+  const query = useQuery(queryOptionsForReport(projectId));
+  const { zelle, spalte, gruppen, monat } = useSearch({ strict: false }) as {
     zelle?: string;
     spalte?: string;
     gruppen?: string[];
+    monat?: string;
   };
   const navigate = useNavigate();
   const expanded = new Set(gruppen ?? []);
@@ -88,7 +94,8 @@ export function IncomeExpenseReport({
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `einnahmen-ausgaben-${window[0]}-${window.at(-1)}.csv`;
+    const projectPart = data && 'project' in data ? `projekt-${encodeURIComponent(data.project.id)}-` : '';
+    a.download = `einnahmen-ausgaben-${projectPart}${window[0]}-${window.at(-1)}.csv`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
@@ -97,7 +104,7 @@ export function IncomeExpenseReport({
       {sources && (
         <ReportDetailNav
           to="/reports/einnahmen-ausgaben"
-          search={{ zeitraum: period, gruppen }}
+          search={{ zeitraum: period, gruppen, ...(monat ? { monat } : {}), ...(projectId ? { projekt: projectId, darstellung: 'overview' } : {}) }}
           report="Einnahmen und Ausgaben"
           title="Buchungen"
           backLabel="Zurück zu Einnahmen und Ausgaben"
@@ -112,6 +119,7 @@ export function IncomeExpenseReport({
         query={query}
         className="income-expense-report"
         extraFields={[
+          ...(viewControl ? [{ label: 'Ansicht und Projekt', value: viewControl }] : []),
           {
             label: 'Zeitraum',
             value: (
@@ -129,8 +137,9 @@ export function IncomeExpenseReport({
         ]}
       >
         {() =>
-          data &&
-          (sources ? (
+          data && <>
+          {'project' in data && <ReportProjectScopeNote project={data.project} asOf={data.asOf} view="overview" />}
+          {sources ? (
             <>
               <section
                 className="tr-card"
@@ -167,6 +176,8 @@ export function IncomeExpenseReport({
                                 zelle: zelle!,
                                 spalte: spalte!,
                                 ...(gruppen ? { gruppen: JSON.stringify(gruppen) } : {}),
+                                ...(monat ? { monat } : {}),
+                                ...(projectId ? { projekt: projectId, darstellung: 'overview' } : {}),
                               }),
                           }}
                         >
@@ -204,6 +215,8 @@ export function IncomeExpenseReport({
                 cellLink={(row, column) => ({
                   to: '/reports/einnahmen-ausgaben/buchungen',
                   search: {
+                    ...(monat ? { monat } : {}),
+                    ...(projectId ? { projekt: projectId, darstellung: 'overview' } : {}),
                     zeitraum: period,
                     gruppen,
                     zelle: row.key,
@@ -246,13 +259,14 @@ export function IncomeExpenseReport({
                 Der laufende Monat reicht bis heute.
               </p>
             </section>
-          ))
+          )}
+          </>
         }
       </TableReportFrame>
     </>
   );
 }
-function IncomeExpenseChart({ data, months }: { data: ReportTables; months: string[] }) {
+function IncomeExpenseChart({ data, months }: { data: IncomeExpenseReportData; months: string[] }) {
   useAmountPrivacy();
   const points = data.months.filter((m) => months.includes(m.month));
   const income = points.map((m) => monthHouseholdIncome(m, data));
