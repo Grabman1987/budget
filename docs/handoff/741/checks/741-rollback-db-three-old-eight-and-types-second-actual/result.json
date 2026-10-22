@@ -1,0 +1,40 @@
+{
+  "head": "16d3ae1c53055cf1960b0e19e36359836b6896a8",
+  "phases": [
+    {
+      "name": "migration10",
+      "exit": 0,
+      "wallSeconds": 5.441
+    },
+    {
+      "name": "new-db3",
+      "exit": 0,
+      "wallSeconds": 3.334
+    },
+    {
+      "name": "old-eight",
+      "exit": 1,
+      "wallSeconds": 41.551
+    },
+    {
+      "name": "db-types",
+      "exit": 0,
+      "wallSeconds": 13.404
+    },
+    {
+      "name": "server-types",
+      "exit": 0,
+      "wallSeconds": 20.958
+    },
+    {
+      "name": "web-types",
+      "exit": 0,
+      "wallSeconds": 40.877
+    }
+  ],
+  "compiledGuard": 0,
+  "processGuard": 0,
+  "sourceGuard": 0,
+  "allPhases0": false,
+  "lockReleased": true
+}

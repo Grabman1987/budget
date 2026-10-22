@@ -6,8 +6,11 @@ import {
   type StatementFacts,
   type StatementIntakeView,
   type StatementReply,
+  type StatementAutomationConfig,
+  type StatementAutomationOutcome,
+  type StatementSettlementState,
 } from '@budget/domain';
-import { Button, Field, TextInput, WideDialog, useAmountPrivacy } from '@budget/ui';
+import { Button, Field, Select, TextInput, WideDialog, useAmountPrivacy } from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBlocker } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
@@ -18,6 +21,7 @@ import { longDay, nativeCurrency } from '../ledger/format';
 import { accountsQuery, LEDGER_KEY } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { StatementSettlementReview } from './statement-settlement-727';
+import { expectedQuery } from '../expected/api';
 import './statement-review-726.css';
 
 const PATH = '/api/statement-intake';
@@ -81,7 +85,11 @@ function AccountStatements({ accountId }: { accountId: string }) {
   const [settlementOpen, setSettlementOpen] = useState(false);
   const [settlementDirty, setSettlementDirty] = useState(false);
   const [settlementBusy, setSettlementBusy] = useState(false);
-  const busy = documentBusy || settlementBusy;
+  const [automationBusy, setAutomationBusy] = useState(false);
+  const [automationDirty, setAutomationDirty] = useState(false);
+  const [automationEditorKey, setAutomationEditorKey] = useState(0);
+  const [automation, setAutomation] = useState<StatementAutomationOutcome | null>(null);
+  const busy = documentBusy || settlementBusy || automationBusy;
   const [current, setCurrent] = useState<StatementIntakeView | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null),
     [saved, setSaved] = useState<Draft | null>(null);
@@ -91,7 +99,7 @@ function AccountStatements({ accountId }: { accountId: string }) {
     [conflict, setConflict] = useState(false),
     [note, setNote] = useState('');
   const documentDirty = JSON.stringify(draft) !== JSON.stringify(saved);
-  const dirty = documentDirty || settlementDirty;
+  const dirty = documentDirty || settlementDirty || automationDirty;
   const write = useBudgetWrite();
   const blocker = useBlocker({
     shouldBlockFn: () => open && (busy || dirty || password !== ''),
@@ -103,8 +111,15 @@ function AccountStatements({ accountId }: { accountId: string }) {
     if (!busy && window.confirm('Ungespeicherte Angaben verwerfen?')) blocker.proceed();
     else blocker.reset();
   }, [blocker, busy]);
-  const mayDiscard = () =>
-    !busy && (!(dirty || password) || window.confirm('Ungespeicherte Angaben verwerfen?'));
+  const mayDiscard = () => {
+    if (busy || ((dirty || password) && !window.confirm('Ungespeicherte Angaben verwerfen?')))
+      return false;
+    if (automationDirty) {
+      setAutomationDirty(false);
+      setAutomationEditorKey((key) => key + 1);
+    }
+    return true;
+  };
   const adopt = (view: StatementIntakeView) => {
     setCurrent(view);
     const next = fromView(view);
@@ -129,17 +144,22 @@ function AccountStatements({ accountId }: { accountId: string }) {
     setBusy(true);
     setError('');
     setNote('');
+    setAutomation(null);
     setCurrent(null);
     setDraft(null);
     setSaved(null);
     try {
-      const result = await request<{ intake: StatementIntakeView }>(
-        'GET',
-        `${PATH}/${encodeURIComponent(view.id)}`,
-      );
+      const [result, resultAutomation] = await Promise.all([
+        request<{ intake: StatementIntakeView }>('GET', `${PATH}/${encodeURIComponent(view.id)}`),
+        request<{ automation: StatementAutomationOutcome | null }>(
+          'GET',
+          `${PATH}/${encodeURIComponent(view.id)}/automation`,
+        ),
+      ]);
       if (result.intake.accountId !== accountId)
         throw new Error('Die Abrechnung gehört zu einem anderen Konto.');
       adopt(result.intake);
+      setAutomation(resultAutomation.automation);
     } catch (cause) {
       report(cause);
     } finally {
@@ -149,6 +169,11 @@ function AccountStatements({ accountId }: { accountId: string }) {
   }
   async function upload(next: File) {
     if (busy || !readyAccount) return;
+    if (automationDirty) {
+      setError('Bitte die Einrichtung zuerst speichern oder verwerfen.');
+      return;
+    }
+    setAutomation(null);
     setFile(next);
     setError('');
     setConflict(false);
@@ -165,6 +190,7 @@ function AccountStatements({ accountId }: { accountId: string }) {
       const body = new FormData();
       body.set('file', next);
       body.set('accountId', accountId);
+      body.set('automation', 'eligible');
       if (password) body.set('password', password);
       const response = await fetch(`${PATH}/upload`, {
         method: 'POST',
@@ -172,6 +198,7 @@ function AccountStatements({ accountId }: { accountId: string }) {
         credentials: 'same-origin',
       });
       const result = (await response.json()) as StatementReply & {
+        automation?: StatementAutomationOutcome;
         error?: string;
         message?: string;
       };
@@ -194,11 +221,65 @@ function AccountStatements({ accountId }: { accountId: string }) {
         throw new Error('Die Upload-Antwort passt nicht zum Konto.');
       adopt(result.intake);
       setFile(null);
+      setAutomation(result.automation ?? null);
       setNote(
         result.duplicate
-          ? 'Dieses PDF ist bereits vorhanden. Die bestehende Prüfung ist geöffnet.'
-          : 'PDF gespeichert. Es wurde nichts gebucht.',
+          ? 'Dieses PDF ist bereits vorhanden. Es wird keine automatische Aktion wiederholt.'
+          : result.automation?.groupId
+            ? 'PDF und eindeutig validierte Angaben gespeichert. Offene Teile bleiben unter Prüfen.'
+            : 'PDF gespeichert. Unklare oder noch nicht eingerichtete Teile bleiben unter Prüfen.',
       );
+      if (result.automation?.groupId) {
+        const groupId = result.automation.groupId;
+        await write(
+          async () => ({ groupId }),
+          () => 'Eindeutige Abrechnungsdaten automatisch gespeichert.',
+        );
+      }
+      notifyApiWrite();
+      await qc.invalidateQueries({ queryKey: KEY });
+    } catch (cause) {
+      report(cause);
+    } finally {
+      setBusy(false);
+      setPassword('');
+    }
+  }
+  async function automateCurrent() {
+    if (
+      !current ||
+      busy ||
+      conflict ||
+      !readyAccount ||
+      current.status !== 'pending' ||
+      !mayDiscard()
+    )
+      return;
+    setBusy(true);
+    setError('');
+    try {
+      const reply = await request<StatementReply & { automation: StatementAutomationOutcome }>(
+        'POST',
+        `${PATH}/${encodeURIComponent(current.id)}/automate`,
+        {
+          revision: current.revision,
+          sha256: current.sha256,
+          accountId: current.accountId,
+          ...(password ? { password } : {}),
+        },
+      );
+      if (reply.intake.accountId !== accountId)
+        throw new Error('Abrechnung gehört zu einem anderen Konto.');
+      adopt(reply.intake);
+      setAutomation(reply.automation);
+      setNote('Gespeichertes Original ausgewertet. Offene Teile bleiben unter Prüfen.');
+      if (reply.automation.groupId) {
+        const groupId = reply.automation.groupId;
+        await write(
+          async () => ({ groupId }),
+          () => 'Eindeutige Abrechnungsdaten automatisch gespeichert.',
+        );
+      }
       notifyApiWrite();
       await qc.invalidateQueries({ queryKey: KEY });
     } catch (cause) {
@@ -315,6 +396,7 @@ function AccountStatements({ accountId }: { accountId: string }) {
           if (!mayDiscard()) return;
           setSettlementOpen(false);
           setCurrent(null);
+          setAutomation(null);
           setDraft(null);
           setSaved(null);
           setError('');
@@ -374,9 +456,31 @@ function AccountStatements({ accountId }: { accountId: string }) {
                 Konto: <strong>{account?.name ?? 'Nicht verfügbar'}</strong>
               </p>
               <p>
-                Hier werden nur Dokumentangaben gespeichert. Es wird keine Zahlung oder Buchung
-                erstellt.
+                Eingerichtete neue Uploads speichern ausschließlich eindeutig validierte Angaben und
+                verknüpfen passende bestehende Buchungen. Vollständig belegte neue Buchungen werden
+                erfasst; Unklares bleibt unter Prüfen. Es wird kein Bankauftrag gesendet.
               </p>
+              {readyAccount && (
+                <StatementAutomationSettings
+                  key={`${accountId}-${automationEditorKey}`}
+                  accountId={accountId}
+                  accounts={accounts.data?.accounts ?? []}
+                  disabled={documentBusy || settlementBusy}
+                  suggested={automation?.suggestedCardHints ?? []}
+                  onBusy={setAutomationBusy}
+                  onDirty={setAutomationDirty}
+                />
+              )}
+              {automation && <StatementAutomationResult outcome={automation} />}
+              {current?.status === 'pending' && !current.deletedAt && (
+                <Button
+                  variant="ghost"
+                  disabled={busy || conflict || automationDirty}
+                  onClick={() => void automateCurrent()}
+                >
+                  Gespeichertes PDF automatisch prüfen
+                </Button>
+              )}
               {busy && <LoadingNote what="Abrechnungsdaten" />}
               {note && <p role="status">{note}</p>}
               {error && (
@@ -668,5 +772,407 @@ function AccountStatements({ accountId }: { accountId: string }) {
         </div>
       </WideDialog>
     </div>
+  );
+}
+
+const automaticReason = (reason: string): string => {
+  const messages: Record<string, string> = {
+    automation_not_configured: 'Automatische Verarbeitung ist noch nicht eingerichtet.',
+    previous_source_required: 'Die vorherige Abrechnung wird für Jahr und Saldo benötigt.',
+    previous_source_needs_review: 'Die vorherige Abrechnung ist nicht eindeutig validiert.',
+    retained_source_unavailable: 'Das gespeicherte Original konnte nicht verifiziert werden.',
+    source_extraction_unavailable: 'Das PDF konnte nicht eindeutig ausgelesen werden.',
+    duplicate_source: 'Dieses Original ist bereits vorhanden.',
+    mapping_required: 'Bitte Kartenhinweis und Konto ausdrücklich zuordnen.',
+    debit_date_required: 'Ein eindeutig belegtes Einzugsdatum fehlt.',
+  };
+  return messages[reason] ?? 'Dieser Teil ist nicht eindeutig belegt und bleibt zur Prüfung offen.';
+};
+function StatementAutomationResult({ outcome }: { outcome: StatementAutomationOutcome }) {
+  const reasons = [...new Set([...outcome.reasons, ...outcome.pending.map((row) => row.reason)])];
+  const roles = {
+    created: 'Neue Buchung',
+    matched: 'Zugeordnete Buchung',
+    credit: 'Gutschrift',
+    original: 'Ursprünglicher Aufwand',
+    settlement: 'Abrechnungsausgleich',
+  };
+  const items = outcome.status === 'undone' ? [] : (outcome.items ?? []);
+  return (
+    <section aria-label="Automatisches Verarbeitungsergebnis">
+      <p role="status">
+        {outcome.status === 'undone'
+          ? 'Die frühere automatische Aktion wurde rückgängig gemacht. Sie wird nicht erneut ausgeführt.'
+          : outcome.status === 'unchanged'
+            ? 'Bereits vorhandener Stand; keine automatische Aktion wiederholt.'
+            : outcome.status === 'review'
+              ? 'Teilweise oder noch nicht verarbeitet: Bitte prüfen.'
+              : 'Eindeutig validierte Teile automatisch gespeichert.'}
+      </p>
+      <p>
+        {outcome.status === 'unchanged' || outcome.status === 'undone'
+          ? 'Historisches Verarbeitungsergebnis – damals angelegte Buchungen: '
+          : 'Neue Buchungen: '}
+        {outcome.created} · bestehende zugeordnet: {outcome.matched} · Gutschriften:{' '}
+        {outcome.credits} · Belegverknüpfungen: {outcome.receiptLinks}
+      </p>
+      {items.length > 0 && (
+        <ul aria-label="Verknüpfte Buchungen">
+          {items.map((item) => (
+            <li key={`${item.role}:${item.bookingId}`}>
+              <a
+                href={`/konten/buchungen?konto=${encodeURIComponent(item.accountId)}&buchung=${encodeURIComponent(item.bookingId)}`}
+              >
+                {roles[item.role]}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+      {reasons.length > 0 && (
+        <ul>
+          {reasons.map((reason) => (
+            <li key={reason}>{automaticReason(reason)}</li>
+          ))}
+        </ul>
+      )}
+      <p>
+        Automatische Validierung ist keine Bestätigung einer tatsächlich ausgeführten Bankzahlung.
+      </p>
+    </section>
+  );
+}
+function StatementAutomationSettings({
+  accountId,
+  accounts,
+  disabled,
+  suggested,
+  onBusy,
+  onDirty,
+}: {
+  accountId: string;
+  accounts: { id: string; name: string; currency: string }[];
+  disabled: boolean;
+  suggested: { token: string; hint: string }[];
+  onBusy: (busy: boolean) => void;
+  onDirty: (dirty: boolean) => void;
+}) {
+  const query = useQuery({
+    queryKey: [...KEY, 'automation-config', accountId],
+    queryFn: () =>
+      request<{ config: StatementAutomationConfig }>(
+        'GET',
+        `${PATH}/automation/config?accountId=${encodeURIComponent(accountId)}`,
+      ),
+  });
+  const funding = useQuery({
+    queryKey: [...LEDGER_KEY, 'statement-settlements', accountId],
+    queryFn: () =>
+      request<StatementSettlementState>(
+        'GET',
+        `/api/statement-settlements?cardAccountId=${encodeURIComponent(accountId)}`,
+      ),
+  });
+  const payments = useQuery(expectedQuery());
+  const sourceCurrency = accounts.find((account) => account.id === accountId)?.currency;
+  const fundingId = funding.data?.config?.enabled ? funding.data.config.fundingAccountId : null;
+  const scheduledChoices = (payments.data ?? []).filter(
+    (payment) =>
+      !payment.deletedAt &&
+      payment.kind === 'outflow' &&
+      !!fundingId &&
+      payment.accountId === fundingId &&
+      !!sourceCurrency &&
+      payment.version?.currency === sourceCurrency,
+  );
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<StatementAutomationConfig | null>(null);
+  const [saving, setSaving] = useState(false);
+  const selectedPaymentId =
+    draft?.scheduledPayment?.mode === 'existing' ? draft.scheduledPayment.paymentId : null;
+  const write = useBudgetWrite();
+  const qc = useQueryClient();
+  const change = (next: StatementAutomationConfig) => {
+    setDraft(next);
+    onDirty(true);
+  };
+  const cancel = () => {
+    setEditing(false);
+    setDraft(null);
+    onDirty(false);
+  };
+  const save = async () => {
+    if (!draft || saving || disabled) return;
+    setSaving(true);
+    onBusy(true);
+    try {
+      const result = await write(
+        () =>
+          request<{ config: StatementAutomationConfig; groupId: string }>(
+            'PUT',
+            `${PATH}/automation/config`,
+            {
+              accountId,
+              expectedRevision: draft.revision,
+              enabled: draft.enabled,
+              mappedCards: draft.mappedCards,
+              scheduledPayment: draft.scheduledPayment ?? null,
+            },
+          ),
+        () => 'Automatische Abrechnungsverarbeitung eingerichtet.',
+      );
+      if (result) {
+        cancel();
+        await qc.invalidateQueries({ queryKey: [...KEY, 'automation-config', accountId] });
+      }
+    } finally {
+      setSaving(false);
+      onBusy(false);
+    }
+  };
+  return (
+    <details>
+      <summary>Automatische Verarbeitung einrichten</summary>
+      <p>
+        Erst ein PDF hochladen, dann die erkannten Karten einmalig zuordnen. Die Erkennung selbst
+        bucht nichts. Nur ausdrücklich zugeordnete Karten und eindeutige vorhandene Zuordnungsregeln
+        verwenden. Das Zahlungskonto bleibt in der Einrichtung für den Abrechnungsausgleich
+        festgelegt.
+      </p>
+      {query.isPending && <LoadingNote what="Automatische Abrechnungsverarbeitung" />}
+      {query.isError && (
+        <ErrorNote
+          what="Automatische Abrechnungsverarbeitung"
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        />
+      )}
+      {!editing && query.data && (
+        <Button
+          variant="ghost"
+          disabled={disabled}
+          onClick={() => {
+            setDraft({
+              ...query.data.config,
+              mappedCards: query.data.config.mappedCards.map((row) => ({ ...row })),
+            });
+            setEditing(true);
+          }}
+        >
+          Einrichtung bearbeiten
+        </Button>
+      )}
+      {editing && draft && (
+        <div>
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={draft.enabled}
+              disabled={disabled || saving}
+              onChange={(event) => change({ ...draft, enabled: event.target.checked })}
+            />{' '}
+            Eindeutige neue Uploads automatisch verarbeiten
+          </label>
+          <Field label="Bestehende wiederkehrende Abbuchung">
+            {({ id }) => (
+              <Select
+                id={id}
+                disabled={disabled || saving}
+                value={
+                  draft.scheduledPayment?.mode === 'existing'
+                    ? draft.scheduledPayment.paymentId
+                    : draft.scheduledPayment?.mode === 'none'
+                      ? 'none'
+                      : ''
+                }
+                onChange={(event) =>
+                  change({
+                    ...draft,
+                    scheduledPayment:
+                      event.target.value === ''
+                        ? null
+                        : event.target.value === 'none'
+                          ? { mode: 'none' }
+                          : { mode: 'existing', paymentId: event.target.value },
+                  })
+                }
+              >
+                <option value="">Noch nicht festgelegt – Ausgleich bleibt unter Prüfen</option>
+                <option value="none">Keine bestehende Zahlung</option>
+                {selectedPaymentId &&
+                  !scheduledChoices.some((payment) => payment.id === selectedPaymentId) && (
+                    <option value={selectedPaymentId}>
+                      Gespeicherte Zahlung (derzeit nicht auswählbar)
+                    </option>
+                  )}
+                {scheduledChoices.map((payment) => (
+                  <option key={payment.id} value={payment.id}>
+                    {payment.name} ·{' '}
+                    {accounts.find((account) => account.id === payment.accountId)?.name ??
+                      'Einzugskonto'}{' '}
+                    · {payment.version?.currency}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <p>
+            Eine vorhandene Abbuchungsregel ausdrücklich auswählen oder „Keine bestehende Zahlung“
+            festlegen. Zur Auswahl stehen Ausgänge vom eingerichteten Einzugskonto in derselben
+            Währung. Der konkrete Fälligkeitstag wird für jede Abrechnung erneut am gedruckten
+            Einzugsdatum geprüft.
+          </p>
+          {(funding.isPending || payments.isPending) && (
+            <LoadingNote what="Bestehende Abbuchungen" />
+          )}
+          {funding.isError && (
+            <ErrorNote
+              what="Einzugskonto"
+              error={funding.error}
+              onRetry={() => void funding.refetch()}
+            />
+          )}
+          {payments.isError && (
+            <ErrorNote
+              what="Bestehende Abbuchungen"
+              error={payments.error}
+              onRetry={() => void payments.refetch()}
+            />
+          )}
+          {!fundingId && !funding.isPending && !funding.isError && (
+            <p>
+              Für die Auswahl einer bestehenden Zahlung zuerst das Einzugskonto im
+              Abrechnungsausgleich einrichten.
+            </p>
+          )}
+          {suggested.length > 0 && (
+            <p>Erkannte Kartenhinweise: {suggested.map((row) => row.hint).join(' · ')}</p>
+          )}
+          {draft.mappedCards.map((row, index) => (
+            <div className="statement-fields-726" key={index}>
+              <Field label={`Erkannte Karte ${index + 1}`}>
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={row.token}
+                    disabled={disabled || saving}
+                    onChange={(event) =>
+                      change({
+                        ...draft,
+                        mappedCards: draft.mappedCards.map((item, at) =>
+                          at === index ? { ...item, token: event.target.value } : item,
+                        ),
+                      })
+                    }
+                  >
+                    <option value="">Erkannte Karte auswählen</option>
+                    {row.token && !suggested.some((item) => item.token === row.token) && (
+                      <option value={row.token}>Bereits zugeordnete Karte</option>
+                    )}
+                    {suggested.map((item, at) => (
+                      <option key={item.token} value={item.token}>
+                        {item.hint} · Karte {at + 1}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+              <Field label={`Zugehöriges Konto ${index + 1}`}>
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={row.accountId}
+                    disabled={disabled || saving}
+                    onChange={(event) =>
+                      change({
+                        ...draft,
+                        mappedCards: draft.mappedCards.map((item, at) =>
+                          at === index ? { ...item, accountId: event.target.value } : item,
+                        ),
+                      })
+                    }
+                  >
+                    <option value="">Konto auswählen</option>
+                    {accounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.name} · {account.currency}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+              <Button
+                variant="ghost"
+                disabled={disabled || saving}
+                onClick={() =>
+                  change({
+                    ...draft,
+                    mappedCards: draft.mappedCards.filter((_, at) => at !== index),
+                  })
+                }
+              >
+                Zuordnung {index + 1} entfernen
+              </Button>
+            </div>
+          ))}
+          <p>
+            Ein erstes PDF kann zur sicheren Erkennung hochgeladen werden, ohne automatisch zu
+            buchen. Danach die angezeigte Karte ausdrücklich dem richtigen Konto zuordnen;
+            vollständige Kartennummern werden hier nicht benötigt.
+          </p>
+          <div className="statement-actions-726">
+            <Button
+              variant="ghost"
+              disabled={disabled || saving || draft.mappedCards.length >= 64}
+              onClick={() =>
+                change({
+                  ...draft,
+                  mappedCards: [...draft.mappedCards, { token: '', accountId: '' }],
+                })
+              }
+            >
+              Zuordnung hinzufügen
+            </Button>
+            <Button disabled={disabled || saving} onClick={() => void save()}>
+              Einrichtung speichern
+            </Button>
+            <Button
+              variant="ghost"
+              disabled={disabled || saving}
+              onClick={() =>
+                void (async () => {
+                  if (
+                    !window.confirm(
+                      'Eigene Einrichtungsänderungen verwerfen und aktuellen Stand laden?',
+                    )
+                  )
+                    return;
+                  setSaving(true);
+                  onBusy(true);
+                  try {
+                    const latest = await query.refetch();
+                    if (latest.data && !latest.isError) {
+                      setDraft({
+                        ...latest.data.config,
+                        mappedCards: latest.data.config.mappedCards.map((row) => ({ ...row })),
+                      });
+                      onDirty(false);
+                    }
+                  } finally {
+                    setSaving(false);
+                    onBusy(false);
+                  }
+                })()
+              }
+            >
+              Stand neu laden
+            </Button>
+            <Button variant="ghost" disabled={saving} onClick={cancel}>
+              Verwerfen
+            </Button>
+          </div>
+        </div>
+      )}
+    </details>
   );
 }

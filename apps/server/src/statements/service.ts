@@ -5,7 +5,7 @@ import { Worker } from 'node:worker_threads';
 import { parseStatementText, unavailableStatement, type StatementProposal } from '@budget/domain';
 import { digest, RECEIPT_LIMIT, verifyReceiptFile } from '../receipts/files';
 /** Reuse the existing PDF worker, without loading a parent CLI's TypeScript hooks in its heap. */
-function extractStatementText(
+export function extractStatementText(
   bytes: Buffer,
   password: string | undefined,
 ): Promise<{ text?: string; error?: string }> {

@@ -121,6 +121,26 @@ function transport(reply: (url: URL, init?: RequestInit) => Response | Promise<R
             : undefined,
     });
     if (url.pathname === '/api/accounts') return json({ accounts: [account(A), account(B)] });
+    if ((init?.method ?? 'GET') === 'GET') {
+      for (const accountId of [A, B]) {
+        if (url.pathname + url.search === `${PATH}/automation/config?accountId=${accountId}`)
+          return json({
+            config: {
+              accountId,
+              enabled: false,
+              revision: null,
+              mappedCards: [],
+              scheduledPayment: null,
+              mappingKey: 'c'.repeat(64),
+            },
+          });
+        if (url.pathname + url.search === `/api/statement-settlements?cardAccountId=${accountId}`)
+          return json({ config: null, settlements: [], bonuses: [] });
+      }
+      if (url.pathname + url.search === '/api/expected') return json({ payments: [] });
+      if (url.pathname + url.search === `${PATH}/${ID}/automation`)
+        return json({ automation: null });
+    }
     return reply(url, init);
   });
   return calls;
@@ -215,12 +235,20 @@ it('keeps an empty account compact and uploads exactly one document for its actu
   expect(uploads[0]?.path).toBe(PATH + '/upload');
   expect(uploads[0]?.body).toBeInstanceOf(FormData);
   const body = uploads[0]!.body as FormData;
-  expect([...body.keys()].sort()).toEqual(['accountId', 'file']);
+  expect([...body.keys()].sort()).toEqual(['accountId', 'automation', 'file']);
+  expect(body.get('automation')).toBe('eligible');
   expect(body.get('accountId')).toBe(A);
   expect((body.get('file') as File).name).toBe('synthetic-726.pdf');
-  expect(calls.every((call) => call.path === '/api/accounts' || call.path.startsWith(PATH))).toBe(
-    true,
-  );
+  expect(
+    calls.every(
+      (call) =>
+        call.path === '/api/accounts' ||
+        call.path.startsWith(PATH) ||
+        (call.method === 'GET' &&
+          (call.path === `/api/statement-settlements?cardAccountId=${A}` ||
+            call.path === '/api/expected')),
+    ),
+  ).toBe(true);
 });
 
 it('leaves the debit date unknown until explicit entry and submits literal document facts without a payment', async () => {
@@ -293,9 +321,16 @@ it('leaves the debit date unknown until explicit entry and submits literal docum
     ]),
   );
   expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(1);
-  expect(calls.every((call) => call.path === '/api/accounts' || call.path.startsWith(PATH))).toBe(
-    true,
-  );
+  expect(
+    calls.every(
+      (call) =>
+        call.path === '/api/accounts' ||
+        call.path.startsWith(PATH) ||
+        (call.method === 'GET' &&
+          (call.path === `/api/statement-settlements?cardAccountId=${A}` ||
+            call.path === '/api/expected')),
+    ),
+  ).toBe(true);
 });
 
 it('protects busy upload and dirty edits during close/account navigation without moving a draft to an equal-name account', async () => {

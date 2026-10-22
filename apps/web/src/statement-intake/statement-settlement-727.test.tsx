@@ -173,6 +173,10 @@ function transport(reply: (url: URL, init?: RequestInit) => Response | Promise<R
         `${PATH}/${ID_B}`,
         `/api/statement-settlements?cardAccountId=${A}`,
         '/api/lookups',
+        `${PATH}/automation/config?accountId=${A}`,
+        `${PATH}/${ID}/automation`,
+        `${PATH}/${ID_B}/automation`,
+        '/api/expected',
       ]).has(call.path) ||
       candidate ||
       (url.pathname === '/api/expected/occurrences' &&
@@ -189,6 +193,22 @@ function transport(reply: (url: URL, init?: RequestInit) => Response | Promise<R
       throw new Error(`Unexpected synthetic request: ${call.method} ${call.path}`);
     }
     if (knownWrite) remainingWrites--;
+    if (call.method === 'GET') {
+      if (call.path === `${PATH}/automation/config?accountId=${A}`)
+        return json({
+          config: {
+            accountId: A,
+            enabled: false,
+            revision: null,
+            mappedCards: [],
+            scheduledPayment: null,
+            mappingKey: 'c'.repeat(64),
+          },
+        });
+      if (call.path === '/api/expected') return json({ payments: [] });
+      if (call.path === `${PATH}/${ID}/automation` || call.path === `${PATH}/${ID_B}/automation`)
+        return json({ automation: null });
+    }
     if (url.pathname === '/api/accounts')
       return json({
         accounts: [
