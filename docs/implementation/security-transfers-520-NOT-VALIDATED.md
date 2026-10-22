@@ -195,6 +195,11 @@ physical unit or a per-acquisition cent assignment.
 
 ## Repository-only recorded-ledger reader — still no apply
 
+The [revised history-bridge plan](security-transfers-520-history-reader-plan.md),
+[minimality review](security-transfers-520-history-plan-minimality-review.md) and
+[pinned source review](security-transfers-520-history-reader-source-review.md)
+record the scope correction and source-only findings.
+
 `packages/db/src/repos/security-transfer-history.ts` reads one security in two
 investment accounts from a consistent DB snapshot. It accepts only validated
 native buys and sells with EUR account basis, selected persisted average/FIFO method
