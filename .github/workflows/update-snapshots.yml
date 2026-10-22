@@ -1,5 +1,5 @@
-name: Temporary native frame diagnostic (never integrate)
-run-name: Native frame diagnostic ${{ github.sha }}
+name: Temporary native app comparison (never integrate)
+run-name: Native app worker comparison ${{ github.sha }}
 
 # Diagnostic branch only. This registered manual workflow runs its --ref version.
 # It is never merged and never supplies acceptance or required-check evidence.
@@ -42,17 +42,47 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
       - name: Verify reviewed diagnostic source
-        run: echo '42b70eb85243d39246f4b40e04a13ba938ad8a5f23ba773b331e160595133007  scripts/diagnostics/webkit-native-frame-repro.cjs' | sha256sum --check
+        run: |
+          echo '42b70eb85243d39246f4b40e04a13ba938ad8a5f23ba773b331e160595133007  scripts/diagnostics/webkit-native-frame-repro.cjs' | sha256sum --check
+          echo 'b8413e22be31e8e4f27650f84aba3315684aca20890ae468266ffbb84b9d7496  e2e/issue-589-plan-filters.spec.ts' | sha256sum --check
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Install pinned native WebKit
-        run: npx playwright install --with-deps webkit
+      - name: Install pinned browsers including setup dependencies
+        run: npx playwright install --with-deps chromium webkit
+      - name: Build exact product once
+        run: npm run build:e2e
       - name: Record non-sensitive runtime metadata
         run: |
           node -e 'const os = require("node:os"); console.log(JSON.stringify({node:process.version, platform:process.platform, arch:process.arch, release:os.release(), cpuCount:os.cpus().length, availableParallelism:os.availableParallelism()}))'
           cat /etc/os-release
-      - name: Run synthetic diagnostic (not product acceptance)
-        run: node scripts/diagnostics/webkit-native-frame-repro.cjs "$GITHUB_WORKSPACE"
+      - name: Compare one and two workers (diagnostic only)
+        run: |
+          mkdir -p diagnostic-results
+          combined_status=0
+          for worker_count in 1 2; do
+            echo "NATIVE_DIAGNOSTIC_ARM workers=$worker_count"
+            set +e
+            PLAYWRIGHT_JSON_OUTPUT_FILE="diagnostic-results/workers-$worker_count.json" \
+              /usr/bin/time -v -o "diagnostic-results/workers-$worker_count-resource.txt" \
+              npx playwright test e2e/issue-589-plan-filters.spec.ts \
+                --project=webkit-iphone --grep 'Plan filters configured' \
+                --workers="$worker_count" --retries=0 --reporter=list,json \
+                --output="diagnostic-results/workers-$worker_count"
+            arm_status=$?
+            set -e
+            echo "NATIVE_DIAGNOSTIC_RESULT workers=$worker_count exit=$arm_status"
+            echo "$arm_status" > "diagnostic-results/workers-$worker_count-exit.txt"
+            cat "diagnostic-results/workers-$worker_count-resource.txt"
+            if [ "$arm_status" -ne 0 ]; then combined_status=1; fi
+          done
+          exit "$combined_status"
+      - name: Preserve separate diagnostic artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: native-app-worker-comparison
+          path: diagnostic-results/
+          retention-days: 7
