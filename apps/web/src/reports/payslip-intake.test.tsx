@@ -66,7 +66,9 @@ it('accepts a dropped PDF without the native chooser and rejects ambiguous or no
   vi.stubGlobal('fetch', fetch);
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <PayslipUpload />
+      <ToastProvider>
+        <PayslipUpload />
+      </ToastProvider>
     </QueryClientProvider>,
   );
   const drop = screen.getByRole('region', { name: 'Gehaltszettel-PDF ablegen' });
