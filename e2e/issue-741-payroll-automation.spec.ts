@@ -369,13 +369,24 @@ test('741 links an existing payout, opens its actual booking route and reloads i
     await expect(page).toHaveURL(
       new RegExp(`/konten/buchungen\\?konto=${seeded.accountId}&buchung=${seeded.originalId}$`),
     );
-    await expect(
-      page.getByRole('dialog', { name: 'Buchung bearbeiten', exact: true }),
-    ).toBeVisible();
+    // buchung filters the persisted register row; opening its editor is an explicit action.
+    const openPayout = async () => {
+      const row = page.locator(`[data-booking="${seeded.originalId}"]`);
+      await expect(page.locator('[data-booking]')).toHaveCount(1);
+      await expect(row).toContainText('Muster Arbeitgeber');
+      await expect(row).toContainText('Synthetic preserved payout');
+      await expect(row).toContainText('+2.975,00');
+      await row.getByRole('button', { name: / bearbeiten$/ }).click();
+      const editor = page.getByRole('dialog', { name: 'Buchung bearbeiten', exact: true });
+      await expect(editor).toBeVisible();
+      await expect(editor.getByLabel('Betrag', { exact: true })).toHaveValue('2975,00');
+      await expect(editor.getByLabel('Notiz', { exact: true })).toHaveValue(
+        'Synthetic preserved payout',
+      );
+    };
+    await openPayout();
     await page.reload();
-    await expect(
-      page.getByRole('dialog', { name: 'Buchung bearbeiten', exact: true }),
-    ).toBeVisible();
+    await openPayout();
     const current = await page.request.get(`/api/payslip-intake/${result.id}`);
     expect(current.status()).toBe(200);
     expect(await current.json()).toMatchObject({
