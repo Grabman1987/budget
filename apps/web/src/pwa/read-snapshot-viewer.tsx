@@ -1,4 +1,4 @@
-import { Button, useAmountPrivacy } from '@budget/ui';
+import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { todayInVienna } from '@budget/domain';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Heute } from '../heute/api';
@@ -96,7 +96,7 @@ function SavedToday({ data }: { data: Heute }) {
     {check ? <>
       <p>{check.counts.ok} erfüllt · {check.counts.warn} Warnungen · {check.counts.bad} verletzt ·
         {check.counts.notEvaluated} nicht bewertet</p>
-      {check.keyRules.map((item) => <p key={item.code}>{item.name} · {item.valueText}</p>)}
+      {check.keyRules.map((item) => <p key={item.code}>{item.name} · {maskMoneyText(item.valueText)}</p>)}
     </> : <p>Nicht verfügbar</p>}
     <h4>Fixierte Kategorien</h4>
     {data.pinned.map((item) => <p key={item.id}>{item.name} · Verfügbar {eur(item.availableCents)}</p>)}

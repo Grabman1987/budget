@@ -52,7 +52,11 @@ package. Mutable outside-repo editing copies are at
   is shown without inventing one. Different section scopes/dates are explicitly
   disclosed, never presented as one complete or synchronized Heute snapshot.
 - Money uses the existing private EUR formatter. Local section summaries expose
-  no write controls or authenticated route; no formulas or stored money change.
+  no write controls or authenticated route; finance-check value text and the
+  unavailable-wealth diagnostic use the existing money-text privacy mask. These
+  lines are synchronized with the active SavedToday privacy correction in the
+  offline package and must survive the later single application of the patch.
+  No formulas or stored money change.
   Upcoming events use the same 14-day bound from the returned server day as #574.
 
 ## Actual compatibility limits

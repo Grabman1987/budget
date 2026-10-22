@@ -14,8 +14,12 @@ None were performed. This is source implementation, not accepted or live deliver
   local viewing so a connection change does not discard unsaved inputs.
 - #559/#699: reuse native IndexedDB Blob intent store and separate bounded FIFO
   delivery from `83505ed1`. Acknowledgment removal remains fenced; lost/auth/server
-  failures preserve immutable bytes, key and target. Complete validation rejection
-  permits explicit cancellation; conflict/network/session ambiguity remains protected.
+  failures preserve immutable bytes, key and target. Once a native claim starts,
+  uncertainty is monotone, including after 400/413/415/422 responses: a later
+  refusal cannot establish that an earlier or concurrent attempt was undelivered.
+  Only the existing valid same-key acknowledgment removes the claimed intent;
+  safe cancellation applies only before any claim. This conservative rule may
+  retain a first-attempt validation refusal for manual retry/clarification.
   Explicit sign-out fences erase raw files, while expiry retains them. The text
   booking queue and existing saved bookings are unchanged.
 - #700: existing receipt selection now always persists an upload intent before
@@ -27,6 +31,14 @@ None were performed. This is source implementation, not accepted or live deliver
 - #698 API, additive schema and delivery cache already exist at the base and were
   deliberately not duplicated. Service worker already excludes API responses and
   caches only app shell assets; it was not changed.
+
+The independent review of `f24d665fd69019f5b563977390f76fcef5d0ae4a` is
+archived in `offline-558-700-SOURCE-REVIEW.md`. Its two P2 findings have bounded
+source corrections here: monotone uncertainty across rejection/concurrent claims,
+and `maskMoneyText` on SavedToday finance-check value text. The separate, unapplied
+`docs/handoff/offline-574/01-offline-section-adapter.patch` carries the same
+value-text mask and masks its adjacent unavailable-wealth diagnostic. Preserve those
+lines when applying that patch once in the eventual #574 combined tree.
 
 The coordinating owner applied all six shared-file integration patches into this
 checkpoint. Base-relative copies remain outside the checkout at
@@ -40,7 +52,7 @@ independent of logout HTTP; failed erasure remains fenced and visibly unresolved
 Generic auth expiry cleanup does not erase raw-file intents.
 
 Remaining: preserve those shared hooks/boundaries during cross-owner integration;
-independent source review; all acceptance evidence (real Blob restart/lost acknowledgment/quota/privacy,
+independent review of this exact correction head; all acceptance evidence (real Blob restart/lost acknowledgment/quota/privacy,
 literal booking/receipt/idempotency/Undo, desktop/mobile/WebKit/a11y), ordinary
 required exact-head checks and authorized deployment/live verification. Existing
 historical evidence belongs to its original prepared commits, not this checkpoint.
