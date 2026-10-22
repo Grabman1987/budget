@@ -50,3 +50,9 @@ AccountPage but had no matching select option. Add only its existing-style
 35-day option. The new real Router/SQLite/API test covers initial selected
 representation, the 35d series read and switching away/back with URL state.
 Existing receipt links and all financial/Undo/timeouts stay unchanged.
+
+Focused account regression initially failed because this repository does not
+register the jest-dom `toHaveValue` matcher (Invalid Chai property), rather than
+a mismatched selected value. Use equivalent native `value` property assertions;
+production router accepts 35d through LIQUIDITY_HORIZONS and the test validator
+uses the same shared horizon/lever validation. No source or expectation changed.

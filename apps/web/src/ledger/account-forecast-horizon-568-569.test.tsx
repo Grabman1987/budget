@@ -90,7 +90,7 @@ it('represents the linked 35-day account forecast and lets users return to it (#
       </QueryClientProvider>,
     );
     const select = await screen.findByRole('combobox', { name: 'Kontovorschau Zeitraum' });
-    await waitFor(() => expect(select).toHaveValue('35d'));
+    await waitFor(() => expect(select).toHaveProperty('value', '35d'));
     expect(screen.getByRole('option', { name: 'Liquidität · 35 Tage' })).toHaveProperty(
       'selected',
       true,
@@ -103,9 +103,9 @@ it('represents the linked 35-day account forecast and lets users return to it (#
       ).toBe(true),
     );
     await userEvent.setup().selectOptions(select, '90d');
-    await waitFor(() => expect(select).toHaveValue('90d'));
+    await waitFor(() => expect(select).toHaveProperty('value', '90d'));
     await userEvent.setup().selectOptions(select, '35d');
-    await waitFor(() => expect(select).toHaveValue('35d'));
+    await waitFor(() => expect(select).toHaveProperty('value', '35d'));
     expect(router.state.location.search).toMatchObject({
       horizon: '35d',
       vorschau: 'liquiditaet',
