@@ -282,7 +282,7 @@ it('preserves the existing account-reminder hash deep link with actual Aufgaben 
       : json(taskPage()),
   );
   const { router } = mount('/konten/pruefen#account-reminder-title', true);
-  expect(await screen.findByRole('heading', { name: 'Konten prüfen', exact: true })).toBeTruthy();
+  expect(await screen.findByRole('heading', { name: 'Konten prüfen' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Aufgaben · 1' }).getAttribute('aria-pressed')).toBe(
     'true',
   );

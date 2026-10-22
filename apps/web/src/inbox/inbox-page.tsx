@@ -467,7 +467,7 @@ function PaginatedInboxBody({
   const accountAnchor = !bankSource && hash === 'account-reminder-title';
   const [pinned, setPinned] = useState<InboxSegment>();
   const [taskSource, setTaskSource] = useState<
-    'accounts' | 'plan' | 'receipts' | 'payslips' | 'other'
+    'accounts' | 'plan' | 'receipts' | 'payslips' | 'other' | undefined
   >(() => (accountAnchor ? 'accounts' : undefined));
   useEffect(() => {
     if (accountAnchor) setTaskSource('accounts');
