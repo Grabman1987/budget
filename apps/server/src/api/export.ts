@@ -8,6 +8,11 @@ import {
   positionCostDetailsAsOf,
   queryBookings,
   sqliteOf,
+  appSetting,
+  createEntity,
+  getEntity,
+  updateEntity,
+  writesHeld,
   type Db,
 } from '@budget/db';
 import { and, asc, desc, eq, inArray, isNull, lte } from 'drizzle-orm';
@@ -18,6 +23,7 @@ import { Readable } from 'node:stream';
 import yazl from 'yazl';
 import { readBackupStatus } from '../backup/status';
 import { admitExport } from './export-admission';
+import { ACTOR } from './http';
 import {
   account,
   assetClass,
@@ -38,6 +44,12 @@ import { Hono, type MiddlewareHandler } from 'hono';
 
 type Cell = string | number | boolean | null | undefined;
 type CsvRows = AsyncIterable<readonly Cell[]> | Iterable<readonly Cell[]>;
+const LAST_CSV_RESPONSE_KEY = 'export.csv.last_response_completed_at';
+const validCompletedAt = (value: string | undefined): value is string => {
+  if (!value) return false;
+  const time = Date.parse(value);
+  return Number.isFinite(time) && new Date(time).toISOString() === value;
+};
 
 const csvText = (value: Cell): string => {
   if (value === null || value === undefined) return '';
@@ -717,11 +729,14 @@ function exportEntries(
 
 export function exportRoutes(db: Db, today: () => string, stepUp: MiddlewareHandler): Hono {
   const api = new Hono();
-  // Process-local observation, intentionally not represented as durable download history.
-  let lastCompletedAt: string | null = null;
   api.get('/status', (c) => {
     c.header('Cache-Control', 'no-store');
-    return c.json({ lastCompletedAt, historyScope: 'server-process', backup: readBackupStatus(db) });
+    const value = getEntity(db, appSetting, LAST_CSV_RESPONSE_KEY)?.value;
+    return c.json({
+      lastCompletedAt: validCompletedAt(value) ? value : null,
+      historyScope: 'durable-last-observation',
+      backup: readBackupStatus(db),
+    });
   });
   api.get('/csv.zip', stepUp, async (c) => {
     const releaseSlot = admitExport(db);
@@ -851,8 +866,33 @@ export function exportRoutes(db: Db, today: () => string, stepUp: MiddlewareHand
             if (cancelled) return;
             if (next.done) {
               await finish();
-              if (!requestAborted && !requestSignal.aborted) lastCompletedAt = new Date().toISOString();
               controller.close();
+              if (!requestAborted && !requestSignal.aborted && !writesHeld(db)) {
+                const completedAt = new Date().toISOString();
+                try {
+                  db.transaction((tx) => {
+                    const previous = getEntity(tx, appSetting, LAST_CSV_RESPONSE_KEY);
+                    if (validCompletedAt(previous?.value) && previous.value >= completedAt) return;
+                    if (previous)
+                      updateEntity(
+                        tx,
+                        appSetting,
+                        LAST_CSV_RESPONSE_KEY,
+                        { value: completedAt },
+                        { actor: ACTOR },
+                      );
+                    else
+                      createEntity(
+                        tx,
+                        appSetting,
+                        { id: LAST_CSV_RESPONSE_KEY, value: completedAt },
+                        { actor: ACTOR },
+                      );
+                  });
+                } catch {
+                  // The response is complete; metadata failure must not turn it into a failed export.
+                }
+              }
             } else controller.enqueue(next.value);
           } catch (error) {
             await finish();

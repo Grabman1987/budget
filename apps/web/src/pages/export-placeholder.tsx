@@ -36,7 +36,7 @@ async function downloadCsvZip(): Promise<void> {
 
 type ExportStatus = {
   lastCompletedAt: string | null;
-  historyScope: 'server-process';
+  historyScope: 'durable-last-observation';
   backup: {
     configured: boolean | null; running: boolean; latestKnownArchiveDay: string | null;
     inventoryCheckedAt: string | null; lastCompletedAt: string | null; lastFailureAt: string | null; lastAttemptFailed: boolean;
@@ -88,7 +88,7 @@ export function ExportPlaceholderPage() {
         {status.isPending && <p role="status">Export- und Sicherungsstatus wird geladen …</p>}
         {status.isError && <p role="alert">Export- und Sicherungsstatus derzeit nicht verfügbar. <Button variant="ghost" onClick={() => void status.refetch()}>Erneut laden</Button></p>}
         {receivedAt && <p role="status">ZIP in diesem Seitenbesuch vollständig empfangen: {stamp(receivedAt)}. Ob die Datei auf deinem Gerät gespeichert wurde, kann die App nicht feststellen.</p>}
-        {status.data && <p>Letzter vollständig bereitgestellter Export seit diesem Serverstart: {stamp(status.data.lastCompletedAt)}. Frühere Exporte werden nicht dauerhaft protokolliert.</p>}
+        {status.data && <p>Zuletzt protokollierter serverseitig abgeschlossener CSV-Export: {stamp(status.data.lastCompletedAt)}. Ein aufgezeichneter Zeitpunkt bleibt nach einem Serverneustart erhalten; er bestätigt weder einen Download auf dein Gerät noch eine Wiederherstellung.</p>}
         {error && (
           <p className="field-error" role="alert">
             {maskMoneyText(error)}
