@@ -2,6 +2,7 @@ import { AllocationBar } from '../reports/allocation-bar';
 import { IncomeTargetsCard } from './income-targets-card';
 import {
   useAmountPrivacy,
+  maskMoneyText,
   Button,
   ClassSwatch,
   DimensionChain,
@@ -58,7 +59,6 @@ import {
   assign,
   coverAll,
   budgetMonthsQuery,
-  budgetQuery,
   budgetUncategorizedQuery,
   type BudgetMonthView,
 } from './budget-api';
@@ -68,7 +68,6 @@ import { PlanInspector } from './plan-inspector';
 import { QuickAssignActions } from './quick-assign-actions';
 import { patchCategory } from './api';
 import {
-  availableInEnvelopes,
   barFor,
   spendingBar,
   CLASS_TEXT,
@@ -79,6 +78,8 @@ import {
   isCard,
   isCashOver,
   monthStatus,
+  inspectorTotals,
+  inspectorCoverage,
   planGroups,
   planMulti,
   planRows,
@@ -131,14 +132,25 @@ export function PlanMonthPage() {
     () => Array.from({ length: span }, (_, i) => shiftMonth(month, i)),
     [month, span],
   );
-  // The leftmost month drives hero, triage, inspector and title block; the others only fill columns.
-  // One month is the single-month call; several months are ONE batch call (the server derives the
-  // facts and the history once, not once per month column).
-  const first = useQuery({ ...budgetQuery(months[0]!), enabled: months.length === 1 });
-  const batch = useQuery({ ...budgetMonthsQuery(months), enabled: months.length > 1 });
-  const budget = months.length === 1 ? first : batch;
-  const data = months.length === 1 ? first.data : batch.data?.months[months[0]!];
-  const columns = months.map((m) => (months.length === 1 ? first.data : batch.data?.months[m]));
+  // Keep the bounded read stable across span/phone changes: up to three inspected columns
+  // plus their successor. Display and action scopes still use only the chosen visible rows.
+  const readMonths = useMemo(() => Array.from({ length: 4 }, (_, i) => shiftMonth(month, i)), [month]);
+  const budget = useQuery(budgetMonthsQuery(readMonths));
+  const returnedData = budget.data?.months[month];
+  const currentData = returnedData?.summary.month === month ? returnedData : undefined;
+  const [monthSnapshot, setMonthSnapshot] = useState<{
+    month: string;
+    data: BudgetMonthView;
+  } | null>(null);
+  if (currentData && monthSnapshot?.data !== currentData) {
+    setMonthSnapshot({ month, data: currentData });
+  }
+  // A partial refresh must not unmount an active inspector and discard its captured inputs.
+  const data = currentData ?? (monthSnapshot?.month === month ? monthSnapshot.data : undefined);
+  const columns = months.map((m) => {
+    const view = budget.data?.months[m];
+    return view?.summary.month === m ? view : undefined;
+  });
   const views = columns.every((v) => v) ? columns.map((v) => v!) : null;
   // The month's income (title block and chain term) opens received against expected.
   const navigate = useNavigate();
@@ -167,6 +179,7 @@ export function PlanMonthPage() {
             months={months}
             data={data}
             views={views}
+            inspectorViews={budget.data?.months ?? {}}
             onIncome={openIncome}
           />
         )}
@@ -180,6 +193,7 @@ function PlanBody({
   months,
   data,
   views,
+  inspectorViews,
   onIncome,
 }: {
   month: string;
@@ -188,11 +202,25 @@ function PlanBody({
   data: BudgetMonthView;
   /** All visible months once loaded. */
   views: BudgetMonthView[] | null;
+  /** Read-only extra next month; never part of the displayed columns or action universe. */
+  inspectorViews: Record<string, BudgetMonthView>;
   onIncome: () => void;
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
   const [categoryForm, setCategoryForm] = useState<PanelState>(null);
+  const planMain = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const main = planMain.current;
+    const grid = main?.parentElement;
+    if (!main || !grid) return;
+    const measure = () => grid.style.setProperty('--plan-main-height', `${Math.floor(main.getBoundingClientRect().height)}px`);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(main);
+    return () => { observer.disconnect(); grid.style.removeProperty('--plan-main-height'); };
+  }, []);
   const accounts = useQuery(accountsQuery()).data?.accounts ?? [];
   const expected = useQuery(expectedQuery()).data;
   const search = useSearch({ strict: false }) as PlanFilterSearch & {
@@ -263,7 +291,8 @@ function PlanBody({
   const candidateInspector = restoredPlan ? restoredPlan.inspector : savedInspector;
   const restored =
     candidateInspector &&
-    months.includes(candidateInspector.month) &&
+    [month, shiftMonth(month, 1), shiftMonth(month, 2)].includes(candidateInspector.month) &&
+    inspectorViews[candidateInspector.month]?.summary.month === candidateInspector.month &&
     liveIds.has(candidateInspector.id)
       ? candidateInspector
       : null;
@@ -332,7 +361,10 @@ function PlanBody({
     query.addEventListener('change', resetPhoneSelection);
     return () => query.removeEventListener('change', resetPhoneSelection);
   }, [phoneSelection]);
+  const [inspectionIntent, setInspectionIntent] = useState(0);
   const inspect = (id: string, selectedMonth = month) => {
+    if (!months.includes(selectedMonth) || inspectorViews[selectedMonth]?.summary.month !== selectedMonth) return;
+    setInspectionIntent((intent) => intent + 1);
     selectionReturn.current = id;
     setPhoneSelection(false);
     setSelected(new Set([id]));
@@ -436,7 +468,15 @@ function PlanBody({
   };
   const rows = planRows(data);
   const byId = new Map(rows.map((r) => [r.id, r]));
-  const panelView = views?.find((v) => v.summary.month === open?.month) ?? data;
+  const desiredPanelMonth = open?.month ?? month;
+  const currentPanelView = inspectorViews[desiredPanelMonth];
+  const validPanelView = currentPanelView && currentPanelView.summary.month === desiredPanelMonth ? currentPanelView : null;
+  const panelReady = validPanelView !== null;
+  const [panelSnapshot, setPanelSnapshot] = useState(data);
+  if (validPanelView && validPanelView !== panelSnapshot) setPanelSnapshot(validPanelView);
+  // A missing response retains the previous source/draft read-only, never left-month fallback.
+  // Inspection/restoration only opens months actually present in the bounded read above.
+  const panelView = validPanelView ?? panelSnapshot;
   const allRows = planRows({
     ...data,
     categories: data.categories.map((c) => ({ ...c, hiddenAt: null })),
@@ -494,6 +534,19 @@ function PlanBody({
   const shownRows = groups.flatMap((g) => g.rows);
   const shownIds = new Set(shownRows.map((r) => r.id));
   const orderedRows = [...shownRows, ...rows.filter((r) => !shownIds.has(r.id))];
+  const actionIds = multi
+    ? visibleMultiGroups.flatMap((group) => group.rows.map((row) => row.id))
+    : shownRows.map((row) => row.id);
+  const selectedScope = open ? new Set([open.id]) : selected;
+  const actionById = new Map(panelRows.map((row) => [row.id, row]));
+  const inspectorActionRows = !panelReady || filter === 'uncategorized' ? [] : actionIds.flatMap((id) => {
+    if (selectedScope.size && !selectedScope.has(id)) return [];
+    const row = actionById.get(id);
+    return row?.quickAssign ? [row] : [];
+  });
+  const inspectorActionLabel = `${inspectorActionRows.length} ${selectedScope.size ? 'ausgewählte' : 'sichtbare'} ${inspectorActionRows.length === 1 ? 'Kategorie' : 'Kategorien'} · ${monthLabel(panelView.summary.month)}`;
+  const inspectedId = open?.id ?? (selected.size === 1 ? [...selected][0] : undefined);
+  const inspectedRow = inspectedId ? actionById.get(inspectedId) : undefined;
   const toggleSelected = (id: string) => {
     selectionReturn.current = id;
     setOpen(null);
@@ -728,7 +781,7 @@ function PlanBody({
           : undefined
       }
     >
-      <div className="plan-main">
+      <div className="plan-main" ref={planMain}>
         <PlanTopBar
           data={data}
           month={month}
@@ -1110,13 +1163,19 @@ function PlanBody({
         </section>
       )}
       <PlanInspector
-        month={open?.month ?? month}
+        month={panelView.summary.month}
+        sourceUnavailable={!panelReady}
         rows={panelRows}
         selected={(open
           ? panelRows.filter((r) => r.id === open.id)
           : orderedRows.filter((r) => selected.has(r.id))
-        ).map((r) => planGroups('time', [r], panelView, ctx).flatMap((g) => g.rows)[0] ?? r)}
+        ).map((r) => planGroups('time', [r], panelView, { ...ctx, month: panelView.summary.month }).flatMap((g) => g.rows)[0] ?? r)}
         tba={panelView.summary.toBeAssignedCents}
+        actionRows={inspectorActionRows}
+        actionScopeLabel={inspectorActionLabel}
+        inspectionIntent={inspectionIntent}
+        coverCapCents={panelView.budgetMoney?.coverCapCents}
+        pace={inspectedRow ? barFor(inspectedRow, { ...ctx, month: panelView.summary.month }).meta : ''}
         category={categoryTree.data?.categories.find(
           (c) => c.id === (open?.id ?? [...selected][0]),
         )}
@@ -1129,7 +1188,7 @@ function PlanBody({
           )
         }
         overview={
-          <MonthOverview data={data} rows={rows} month={months.length > 1 ? month : undefined} />
+          <MonthOverview data={data} rows={rows} nextView={inspectorViews[shiftMonth(month, 1)]} />
         }
         split={<SplitBand data={data} rows={rows} />}
         income={
@@ -1141,30 +1200,17 @@ function PlanBody({
         }
         money={
           data.budgetMoney && (
-            <details className="plan-budget-money inspector-section">
-              <summary
-                title={data.budgetMoney.accounts
-                  .map(
-                    (a) =>
-                      `${a.name}: ${eur(a.balanceCents)}${a.usedCreditCents > 0 ? ` · Kredit genutzt ${eur(-a.usedCreditCents)}${a.creditLineCents !== null ? ` · Rahmen ${eur(a.creditLineCents)}` : ' · Rahmen nicht hinterlegt'}` : ''}`,
-                  )
-                  .join(' · ')}
-              >
-                <ChevronDown
-                  className="insp-chev"
-                  size={16}
-                  strokeWidth={1.75}
-                  aria-hidden="true"
-                />
-                Geld auf Budget-Konten · {eur(data.budgetMoney.totalCents)}
+            <div className="plan-budget-money">
+              <p className="panel-sub">
+                Insgesamt {eur(data.budgetMoney.totalCents)}
                 {data.budgetMoney.usedCreditCents > 0 && (
                   <> · davon Dispo/Kreditrahmen genutzt {eur(-data.budgetMoney.usedCreditCents)}</>
                 )}
-              </summary>
+              </p>
               <ul>
                 {data.budgetMoney.accounts.map((a) => (
                   <li key={a.id}>
-                    {a.name} · {eur(a.balanceCents)}
+                    {maskMoneyText(a.name)} · {eur(a.balanceCents)}
                     {a.usedCreditCents > 0 && (
                       <>
                         {' '}
@@ -1177,7 +1223,7 @@ function PlanBody({
                   </li>
                 ))}
               </ul>
-            </details>
+            </div>
           )
         }
         rail={
@@ -1391,65 +1437,48 @@ function PlanTopBar({
 }
 
 /** Inspector: the month in figures, the overspending state and what is left in the envelopes. */
-function MonthOverview({
-  data,
-  rows,
-  month,
-}: {
+function MonthOverview({ data, rows, nextView }: {
   data: BudgetMonthView;
   rows: PlanRow[];
-  /** Several months are shown: the overview names the leftmost one. */
-  month: string | undefined;
+  nextView: BudgetMonthView | undefined;
 }) {
   useAmountPrivacy();
-  const s = data.summary;
-  const activity = rows.reduce((a, r) => a + r.activityCents, 0);
-  const available = availableInEnvelopes(rows);
-  const status = monthStatus(s, rows);
+  const totals = inspectorTotals(data.summary.envelopes);
+  const status = monthStatus(data.summary, rows);
+  const nextMonth = shiftMonth(data.summary.month, 1);
+  const coverage = nextView?.summary.month === nextMonth
+    ? inspectorCoverage(nextView.summary.envelopes)
+    : null;
   return (
-    <section className="insp-card card" aria-labelledby="overview-title">
-      <h2 className="insp-title" id="overview-title">
-        Monatsüberblick
-        {month && <span className="insp-month"> · {monthLabel(month)}</span>}
-      </h2>
+    <section className="inspector-month-figures" aria-label="Monatsaufstellung">
       <ul className="insp-status" aria-label="Zustand des Monats">
-        {status.map((l) => (
-          <li key={l.text} className={`is-${l.tone}`}>
-            {l.tone === 'good' ? (
-              <CheckCircle2 size={15} strokeWidth={1.75} aria-hidden="true" />
-            ) : (
-              <AlertTriangle size={15} strokeWidth={1.75} aria-hidden="true" />
-            )}
-            {l.text}
+        {status.map((line) => (
+          <li key={line.text} className={`is-${line.tone}`}>
+            {line.tone === 'good' ? <CheckCircle2 size={15} strokeWidth={1.75} aria-hidden="true" />
+              : <AlertTriangle size={15} strokeWidth={1.75} aria-hidden="true" />}
+            {line.text}
           </li>
         ))}
       </ul>
       <dl className="insp-list">
-        <div>
-          <dt>Übertrag</dt>
-          <dd>{eur(s.carryInCents)}</dd>
-        </div>
-        <div>
-          <dt>Einnahmen</dt>
-          <dd>{eur(s.incomeCents)}</dd>
-        </div>
-        <div>
-          <dt>Zugewiesen</dt>
-          <dd>{eur(s.assignedCents)}</dd>
-        </div>
-        <div>
-          <dt>Aktivität</dt>
-          <dd>{eur(activity)}</dd>
-        </div>
-        <div className="insp-total">
-          <dt>Verfügbar in Envelopes</dt>
-          <dd>
-            <span className={cx('pill', available > 0 ? 'is-good' : available < 0 && 'is-bad')}>
-              {eur(available)}
-            </span>
-          </dd>
-        </div>
+        <div><dt>→ Übertrag</dt><dd className="insp-amount">{eur(totals.carryCents)}</dd></div>
+        <div><dt>+ Zugewiesen</dt><dd className="insp-amount">{eur(totals.assignedCents)}</dd></div>
+        <div><dt>+ Aktivität</dt><dd className="insp-amount">{eur(totals.activityCents)}</dd></div>
+        <div className="insp-total"><dt>= Verfügbar</dt><dd className="insp-amount">
+          <span className={cx('pill', totals.availableCents > 0 ? 'is-good' : totals.availableCents < 0 && 'is-bad')}>{eur(totals.availableCents)}</span>
+        </dd></div>
       </dl>
+      <section className="inspector-next" aria-label="Nächster Monat">
+        <h3 className="panel-h">Nächster Monat · {monthLabel(nextMonth)}</h3>
+        {coverage ? <>
+          <p className="panel-sub">{coverage.percent === null ? coverage.needCents > 0 ? 'Kein positiver Monatszielbetrag; offener Finanzierungsbedarf bleibt bestehen.' : 'Keine Monatsziele zu finanzieren.'
+            : `${new Intl.NumberFormat('de-AT', { maximumFractionDigits: 1 }).format(coverage.percent)} % vorbereitet`}</p>
+          {coverage.percent !== null && <progress aria-label="Ziele im nächsten Monat vorbereitet" max={100} value={Math.min(100, coverage.percent)} />}
+          <p className="panel-sub">Kategorien mit Monatsziel: zugewiesen <span className="insp-amount">{eur(coverage.assignedCents)}</span> · Monatsziele <span className="insp-amount">{eur(coverage.goalCents)}</span></p>
+          {coverage.needCents > 0 && <p className="panel-sub">fehlt <span className="insp-amount">{eur(coverage.needCents)}</span></p>}
+          {coverage.excessCents > 0 && <p className="panel-sub"><span className="insp-amount">{eur(coverage.excessCents, { sign: true })}</span> über Ziel in einzelnen Kategorien</p>}
+        </> : <p className="panel-sub">Zielwerte noch nicht verfügbar.</p>}
+      </section>
     </section>
   );
 }

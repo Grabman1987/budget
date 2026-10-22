@@ -1937,9 +1937,6 @@
     overflow-y: auto;
     overscroll-behavior: contain;
   }
-  .plan .inspector-fold[open] > .inspector-fold-title {
-    display: none;
-  }
   .plan .plan-topbar {
     flex-wrap: wrap;
   }
@@ -2976,4 +2973,159 @@
     height: 28px;
     min-height: 28px;
   }
+}
+/* #591–593: one compact inspector; every money action keeps the existing writer. */
+.plan .plan-inspector {
+  overflow-wrap: normal;
+}
+.plan .plan-inspector .inspector-fold-title {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+}
+.plan .plan-inspector .inspector-fold-title > span,
+.plan .inspector-head h2 {
+  overflow-wrap: anywhere;
+}
+.plan .inspector-head h2 {
+  scroll-margin-top: 88px;
+}
+.plan .inspector-head h2:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+.plan .inspector-month-figures {
+  padding: 0 16px 12px;
+}
+.plan .inspector-month-figures .insp-status {
+  margin-top: 0;
+}
+.plan .inspector-month-figures .insp-status li {
+  padding: 4px 0;
+  background: transparent;
+  border-radius: 0;
+  font-size: var(--fs-meta);
+}
+.plan .plan-inspector .insp-list > div {
+  min-height: 28px;
+}
+.plan .plan-inspector .insp-amount {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  font-variant-numeric: tabular-nums;
+}
+.plan .inspector-next {
+  margin-top: 12px;
+}
+.plan .inspector-next .panel-sub {
+  margin-block: 4px;
+}
+.plan .inspector-next progress {
+  display: block;
+  width: 100%;
+  height: var(--bar-progress);
+  accent-color: var(--line);
+}
+.plan .inspector-quick {
+  padding: 12px 16px;
+  border-top: 1px solid var(--card-border);
+}
+.plan .inspector-selection .inspector-quick {
+  margin-inline: -16px;
+  margin-block: 12px;
+}
+.plan .inspector-quick .panel-sub {
+  margin-block: 4px;
+}
+.plan .inspector-quick-rows {
+  margin-top: 8px;
+}
+.plan .inspector-quick .inspector-quick-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  height: auto;
+  padding: 8px 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--card-border);
+  white-space: normal;
+  text-align: left;
+}
+.plan .inspector-quick-row > span:not(.insp-amount) {
+  overflow-wrap: anywhere;
+}
+.plan .inspector-quick .inspector-quick-limit {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.plan .inspector-cover-suggestion {
+  margin-block: 12px;
+}
+.plan .inspector-cover-suggestion > .btn {
+  width: 100%;
+  min-height: 44px;
+  height: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  white-space: normal;
+  text-align: left;
+}
+.plan .inspector-cover-suggestion > .btn > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.plan .plan-inspector .plan-budget-money {
+  padding: 0 16px 12px;
+}
+.plan .plan-inspector .plan-budget-money > ul {
+  padding: 0 0 0 16px;
+}
+@media (min-width: 1180px) {
+  .plan .plan-inspector:not(:has(.inspector-selection)) {
+    max-height: min(var(--plan-main-height, calc(100dvh - 88px)), calc(100dvh - 88px));
+  }
+}
+
+.plan .inspector-source-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.plan .inspector-source-warning {
+  padding: 12px 16px;
+}
+
+.plan .inspector-source-fields > a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.plan .inspector-pace {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.plan .inspector-pace .btn {
+  min-height: 44px;
+  min-width: 44px;
+}
+.plan .inspector-pace-tooltip {
+  width: 100%;
+  padding: 8px;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-meta);
 }

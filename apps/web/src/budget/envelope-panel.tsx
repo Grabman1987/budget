@@ -6,8 +6,9 @@ import {
   Field,
   Segmented,
   Select,
+  maskMoneyText,
 } from '@budget/ui';
-import { cents, formatDecimal, parseAmount } from '@budget/domain';
+import { cents, formatDecimal, parseAmount, todayInVienna } from '@budget/domain';
 import { ChevronDown } from 'lucide-react';
 import { AppLink } from '../shell/app-link';
 import { useState } from 'react';
@@ -81,6 +82,7 @@ export function EnvelopeBody({
   onDone,
   quickValues = false,
   compact = false,
+  coverCapCents,
 }: {
   month: string;
   row: PlanRow;
@@ -89,6 +91,7 @@ export function EnvelopeBody({
   onDone: () => void;
   quickValues?: boolean;
   compact?: boolean;
+  coverCapCents?: number | undefined;
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
@@ -96,8 +99,10 @@ export function EnvelopeBody({
   const [direction, setDirection] = useState<'in' | 'out'>(r.availableCents < 0 ? 'in' : 'out');
   const enough = coverSources(rows, r);
   const best = coverSource(rows, r);
+  const preferToBeAssigned = tba > 0 && tba >= (best ? freeCoverCents(best) : 0)
+    && (compact || tba >= r.overspentCents);
   const suggested =
-    r.overspentCents === 0 || (tba >= r.overspentCents && tba >= (best ? freeCoverCents(best) : 0))
+    r.overspentCents === 0 || preferToBeAssigned
       ? ''
       : (best?.id ?? 'none');
   const [chosenOther, setOther] = useState(suggested);
@@ -118,6 +123,7 @@ export function EnvelopeBody({
   const [error, setError] = useState<string>();
   const [moveError, setMoveError] = useState<string>();
   const [choosing, setChoosing] = useState(false);
+  const [coverBusy, setCoverBusy] = useState(false);
   const others = rows.filter((o) => o.id !== r.id && !isCard(o));
   const fill = Math.min(r.needCents, Math.max(0, tba));
   const sourceFree =
@@ -126,12 +132,25 @@ export function EnvelopeBody({
       : freeCoverCents(rows.find((o) => o.id === other) ?? { availableCents: 0 });
   const cappedRest = Math.max(0, r.overspentCents - sourceFree);
   const name = (id: string) =>
-    id === '' ? 'Zu verteilen' : (rows.find((o) => o.id === id)?.name ?? '');
+    id === '' ? 'Zu verteilen' : maskMoneyText(rows.find((o) => o.id === id)?.name ?? '');
 
   const run = async (fn: () => Promise<{ groupId: string }>, message: string) => {
     if (await write(fn, () => message)) onDone();
   };
   const coverFrom = useCover(month, name);
+  const directCap = month === todayInVienna().slice(0, 7) ? coverCapCents ?? 0 : Number.POSITIVE_INFINITY;
+  const directAmount = other === 'none' ? 0 : Math.max(0, Math.min(r.overspentCents, sourceFree, directCap));
+  const directRest = r.overspentCents - directAmount;
+  const directCover = async () => {
+    if (coverBusy || directAmount <= 0) return;
+    setCoverBusy(true);
+    try {
+      // The button explicitly acknowledges the shown capped cover; server revalidates it.
+      if (await coverFrom(r, other === '' ? null : other)) onDone();
+    } finally {
+      setCoverBusy(false);
+    }
+  };
   /** Confirm only the capped amount when Zu verteilen is short. */
   const cover = async (confirmedCap = false) => {
     const short = other === '' && coverFromToBeAssigned(r.overspentCents, tba).short;
@@ -208,8 +227,8 @@ export function EnvelopeBody({
             {(r.overspentCents > 0 && direction === 'in' ? coverOptions : others).map((o) => (
               <option key={o.id} value={o.id}>
                 {o.id === '' || r.overspentCents === 0 || direction !== 'in'
-                  ? `${o.name} · ${eur(o.availableCents)}`
-                  : coverSourceLabel(o)}
+                  ? `${maskMoneyText(o.name)} · ${eur(o.availableCents)}`
+                  : maskMoneyText(coverSourceLabel(o))}
               </option>
             ))}
           </Select>
@@ -243,7 +262,7 @@ export function EnvelopeBody({
             disabled={other === 'none'}
             onClick={() => void cover()}
           >
-            Decken · {eur(r.overspentCents)}
+            Decken · <span className="insp-amount">{eur(r.overspentCents)}</span>
           </Button>
         )}
       </div>
@@ -282,7 +301,7 @@ export function EnvelopeBody({
               )
             }
           >
-            Ziel füllen · {eur(fill)}
+            Ziel füllen · <span className="insp-amount">{eur(fill)}</span>
           </Button>
         )}
       </div>
@@ -290,6 +309,17 @@ export function EnvelopeBody({
       {quickValues && (
         <QuickAssignActions month={month} emptyIds={[]} selectedIds={[r.id]} inline />
       )}
+      {compact && r.overspentCents > 0 && <div className="inspector-cover-suggestion">
+        <Button variant={r.cashOverspentCents > 0 ? 'alert' : 'ghost'} disabled={coverBusy || directAmount <= 0}
+          onClick={() => void directCover()}>
+          <span>Mit {other === 'none' ? 'freier Quelle' : maskMoneyText(other === '' ? 'Zu verteilen' : name(other))} decken</span>
+          <span className="insp-amount">{eur(directAmount)}</span>
+        </Button>
+        {directRest > 0 && <p className="panel-sub">
+          {directAmount === 0 ? 'Es ist kein freies Geld zum Decken verfügbar.' : 'Auf freies Geld und die Deckungsgrenze begrenzt.'}
+          {' '}<span className="insp-amount">{eur(directRest)}</span> bleiben offen.
+        </p>}
+      </div>}
       {!compact && (
         <h3 className="panel-h">
           {r.overspentCents > 0 ? 'Decken oder verschieben' : 'Geld verschieben'}

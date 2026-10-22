@@ -2,7 +2,7 @@ import { addMonths, monthOf } from '../date';
 import type { TableMonth } from '../report-tables';
 import { averageCents, freedomSumCents } from '../wealth/freedom';
 
-export type QuickAssignMode = 'empty' | 'last-month' | 'average' | 'target';
+export type QuickAssignMode = 'empty' | 'last-month' | 'average' | 'target' | 'reset';
 export interface QuickAssignFigures {
   lastMonthCents: number;
   averageCents: number;
@@ -62,9 +62,11 @@ export function quickAssignPlan(
           ? r.quickAssign.lastMonthCents
           : mode === 'average'
             ? r.quickAssign.averageCents
-            : r.target
-              ? r.assignedCents + r.needCents
-              : r.assignedCents;
+            : mode === 'reset'
+              ? 0
+              : r.target
+                ? r.assignedCents + r.needCents
+                : r.assignedCents;
     return [{ ...r, value }];
   });
   // A reduction can fund another selected category in the same atomic action.
