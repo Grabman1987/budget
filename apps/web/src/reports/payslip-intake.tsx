@@ -158,7 +158,7 @@ export function PayslipUpload({
         const groupId = result.automation.groupId;
         await acknowledgeWrite(
           async () => ({ groupId }),
-          () => 'Gehaltszettel automatisch gespeichert.',
+          () => 'Gespeichert.',
         );
       }
       if (result.automation?.status === 'pruefen') {
