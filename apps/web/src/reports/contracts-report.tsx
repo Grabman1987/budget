@@ -120,7 +120,7 @@ function Body({ data }: { data: ContractsReport }) {
               ) : (
                 <AlertTriangle size={15} strokeWidth={1.75} aria-hidden="true" />
               )}
-              Fixkostenquote {bpText(quote)} · Ziel ≤ {bpText(r10.maxBp, { digits: 0 })} (R10)
+              Fixkostenquote {bpText(quote)} · Ziel ≤ {bpText(r10.maxBp, { digits: 0 })}
             </span>
           ) : (
             <span className="sr-state">Fixkostenquote ohne Einkommensbasis nicht berechenbar</span>
@@ -306,7 +306,7 @@ function Body({ data }: { data: ContractsReport }) {
         </ScrollRegion>
         <p className="sr-note">
           Fixe Verträge zählen je Monat, periodische Zahlungen als Zwölftel; dieselbe Auswahl wie
-          die Fixkostenquote (R10), ohne befristete Einmalzahlungen. Beträge in Fremdwährung stehen
+          die Fixkostenquote, ohne befristete Einmalzahlungen. Beträge in Fremdwährung stehen
           mit dem Originalbetrag und werden mit dem zuletzt gespeicherten Referenzkurs umgerechnet.{' '}
           <AppLink to="/plan/erwartet">Wiederkehrende Zahlungen pflegen</AppLink>
         </p>

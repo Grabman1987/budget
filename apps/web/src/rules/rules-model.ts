@@ -1,8 +1,19 @@
 import { formatPrivateEuro as formatEuro, maskMoneyText } from '@budget/ui';
-import { STAGES, cents, parseScaledDecimal, PARAM_SCHEMAS, type RuleCode } from '@budget/domain';
+import {
+  STAGES,
+  cents,
+  parseScaledDecimal,
+  PARAM_SCHEMAS,
+  RULE_DEFS,
+  type RuleCode,
+} from '@budget/domain';
 import type { RuleRow } from './api';
 
 export type RuleGroup = 'violated' | 'pending' | 'met' | 'disabled';
+
+/** Display the canonical name from the shared rule book for static report references. */
+export const ruleName = (code: RuleCode): string =>
+  RULE_DEFS.find((rule) => rule.code === code)?.name ?? code;
 
 /** Disabled previews and missing evaluations never count as met rules. */
 export function ruleGroup(rule: RuleRow, enabled = rule.enabled): RuleGroup {

@@ -295,7 +295,7 @@ function ForecastCard({
           <strong className={low && low.cents < 0 ? 'is-alert' : undefined} data-testid="liq-low">
             {eur(low?.cents ?? 0)}
           </strong>
-          <small>{low ? `am ${shortDay(low.day)} · Ziel ≥ 0 € (R07)` : 'keine Prognose'}</small>
+          <small>{low ? `am ${shortDay(low.day)} · Ziel ≥ 0 €` : 'keine Prognose'}</small>
         </div>
         <div>
           <span className="tech">Mit {LIQUIDITY_BUFFER_PERCENT} % Puffer</span>
@@ -925,7 +925,7 @@ function LeversCard({
       )}
       <p className="vnote">
         Rechts: um so viel hebt die Stellschraube den Tiefpunkt der nächsten 6 Monate. Der
-        Notgroschen bleibt unangetastet (R02).
+        Notgroschen bleibt unangetastet.
       </p>
     </section>
   );

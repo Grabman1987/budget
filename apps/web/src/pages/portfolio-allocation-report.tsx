@@ -23,6 +23,7 @@ import {
 } from './portfolio-report-shared';
 import './portfolio-allocation-report.css';
 import { BookRuleMetric } from '../rules/book-rule-metric';
+import { ruleName } from '../rules/rules-model';
 import { AppLink } from '../shell/app-link';
 
 interface AllocationResponse extends WithValuationNotes {
@@ -169,8 +170,8 @@ function AllocationBody({ data }: { data: AllocationReport }) {
         )}
         <p className="vnote">
           100 % = positiver klassifizierter Marktwert ({eur(data.classifiedCents)}). Cash,
-          unklassifizierte und negative Positionen bilden keine Schicht. R13 verwendet weiterhin das
-          gesamte Anlageuniversum einschließlich signiertem Cash.
+          unklassifizierte und negative Positionen bilden keine Schicht. {ruleName('R13')}{' '}
+          verwendet weiterhin das gesamte Anlageuniversum einschließlich signiertem Cash.
         </p>
         {data.separatePositions.length > 0 && (
           <div
@@ -658,7 +659,7 @@ function SollTable({ data }: { data: AllocationReport }) {
               <th className="tech">Klasse</th>
               <th className="tech n">Soll</th>
               <th className="tech n">Ist · Schichten</th>
-              <th className="tech n">Ist · R13</th>
+              <th className="tech n">Ist · {ruleName('R13')}</th>
               <th className="tech n">Abweichung</th>
               <th className="tech">Regel</th>
             </tr>
@@ -688,8 +689,8 @@ function SollTable({ data }: { data: AllocationReport }) {
                   ) : c.breach ? (
                     <span className={`alloc-status${c.confidence === 'exact' ? ' is-out' : ''}`}>
                       <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />
-                      {c.confidence === 'provisional' ? 'vorläufig ' : ''}außerhalb des Bands (R13,
-                      ±{bpText(c.bandBp ?? 0)})
+                      {c.confidence === 'provisional' ? 'vorläufig ' : ''}außerhalb des Bands (
+                      {ruleName('R13')}, ±{bpText(c.bandBp ?? 0)})
                     </span>
                   ) : (
                     <span className="alloc-status">
@@ -705,7 +706,7 @@ function SollTable({ data }: { data: AllocationReport }) {
       </div>
       <p className="vnote" data-testid="speculative-note">
         Spekulative Bruttoexposure (einschließlich gehebelter ETF) / Marktwert:{' '}
-        {bpText(spec.shareBp)} bei höchstens {bpText(spec.limitBp)} (R15)
+        {bpText(spec.shareBp)} bei höchstens {bpText(spec.limitBp)} ({ruleName('R15')})
         {data.quality.confidence === 'provisional'
           ? ', vorläufig.'
           : spec.breach

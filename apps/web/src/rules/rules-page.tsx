@@ -121,7 +121,7 @@ export function RulesPage() {
       () =>
         write(
           () => patchRule(r.code, { enabled }),
-          () => `${r.code} ${r.name}: ${onOff(enabled)}`,
+          () => `${r.name}: ${onOff(enabled)}`,
         ),
       switchHasFocus ? { targetId: switchId, focusedId: targetId } : undefined,
     );
@@ -152,10 +152,9 @@ export function RulesPage() {
         return (
           <li key={r.code} id={`rule-result-${r.code}`} tabIndex={-1} data-rule-code={r.code}>
             <div className="rw-rule-copy">
-              <strong>
-                <span className="rw-pos">{r.code}</span> {r.name}
-              </strong>
+              <strong>{r.name}</strong>
               <small className="rw-explanation">{guidance.explanation}</small>
+              <small>Regel {r.code}</small>
               {enabled &&
                 (r.latest ? (
                   <div className="rw-rule-result">
@@ -197,7 +196,7 @@ export function RulesPage() {
               <AppLink
                 id={`rule-settings-${r.code}`}
                 className="btn btn-ghost btn-xs"
-                aria-label={`Einstellen ${r.code} ${r.name}`}
+                aria-label={`${r.name} einstellen`}
                 to={`/einstellungen/regelwerk/${r.code}`}
                 search={(previous) => ({ monat: previous['monat'] })}
                 state={{ ruleDetailOpenedInApp: true }}
@@ -206,7 +205,7 @@ export function RulesPage() {
               </AppLink>
               <Switch
                 id={`rule-switch-${r.code}`}
-                label={`${r.code} ${r.name}`}
+                label={r.name}
                 checked={enabled}
                 onChange={(on) => toggleRule(r, on)}
               />
@@ -303,13 +302,11 @@ export function RulesPage() {
                         .map((c) => (
                           <li key={c.code}>
                             <span>
-                              <strong>
-                                <span className="rw-pos">{c.code}</span> {c.name}
-                              </strong>
+                              <strong>{c.name}</strong>
                               <small>
-                                {c.source}
+                                Punkt {c.code} · {c.source}
                                 {c.ruleCode ? (
-                                  ` · ${c.ruleCode}`
+                                  ` · ${book.rules.find((rule) => rule.code === c.ruleCode)?.name ?? c.ruleCode}`
                                 ) : (
                                   <>
                                     {' · '}

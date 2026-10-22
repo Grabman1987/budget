@@ -9,7 +9,7 @@ import { eurWhole } from '../ledger/format';
 import { allocationQuery, type PortfolioAllocationView } from './allocation-api';
 import { chartPercent } from '../charts/tooltip-data';
 import { percentText } from './portfolio-format';
-import { thresholdText } from '../rules/rules-model';
+import { ruleName, thresholdText } from '../rules/rules-model';
 import { AppLink } from '../shell/app-link';
 import './allocation.css';
 
@@ -105,8 +105,9 @@ export function PortfolioAllocation() {
               </p>
               {risk && (
                 <p className="vnote">
-                  Brutto-Exposure: {eurWhole(risk.cluster.totalGrossExposureCents)}. R14/R15 teilen
-                  das jeweilige Brutto-Exposure durch den Marktwert des Netto-Allokationsuniversums
+                  Brutto-Exposure: {eurWhole(risk.cluster.totalGrossExposureCents)}.{' '}
+                  {ruleName('R14')} und {ruleName('R15')} teilen das jeweilige Brutto-Exposure durch
+                  den Marktwert des Netto-Allokationsuniversums
                   ({eurWhole(risk.cluster.totalCents)}), nicht durch die Brutto-Summe. Hebel erhöhen
                   den Zähler; negative Kassa senkt den Nenner. Risikoanteile können deshalb über 100
                   % liegen.
@@ -365,11 +366,11 @@ function proposalText(proposal: RebalanceProposal, view: PortfolioAllocationView
     };
   if (proposal.rule === 'R15')
     return {
-      title: `Spekulativer Anteil ${percentText(proposal.shareBp)} über ${percentText(proposal.referenceBp)} (R15)`,
+      title: `${ruleName('R15')}: ${percentText(proposal.shareBp)} über ${percentText(proposal.referenceBp)}`,
       body: `${amount} Bruttoexposure über der Grenze. ${proposal.confidence === 'provisional' ? 'Bewertung und Klassifikation prüfen, bevor weitere Zukäufe beurteilt werden.' : 'Weitere Zukäufe spekulativer Produkte einschließlich gehebelter ETF prüfen.'}`,
     };
   return {
-    title: `${name} über ${percentText(proposal.referenceBp)} (R14)`,
+    title: `${ruleName('R14')}: ${name} über ${percentText(proposal.referenceBp)}`,
     body: `${percentText(proposal.shareBp)} Bruttoexposure / Marktwert · ${amount} Bruttoexposure über der Grenze. Konzentration bei weiteren Zukäufen berücksichtigen.`,
   };
 }

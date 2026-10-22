@@ -26,7 +26,7 @@ import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
-import { stageRange, thresholdText } from '../rules/rules-model';
+import { ruleName, stageRange, thresholdText } from '../rules/rules-model';
 import { finanzcheckVerlaufQuery, type FinanzcheckVerlauf } from './finanzcheck-api';
 import { useRuleDerivation } from './overview-api';
 import { monthLong, monthShortYear } from './overview-format';
@@ -78,7 +78,7 @@ const dayLabel = (day: string) =>
   day === lastDayOfMonth(day.slice(0, 7)) ? monthShortYear(day) : longDay(day).slice(0, 6);
 
 const stripLabel = (line: RuleTimeline) =>
-  `Verlauf ${line.code}: ${line.strip
+  `Verlauf ${line.name}: ${line.strip
     .map(
       (c) => `${dayLabel(c.asOf)} ${c.status === null ? 'nicht bewertbar' : STATUS_TEXT[c.status]}`,
     )
@@ -144,7 +144,7 @@ export function FinanzcheckReport({ report, meta }: { report: ReportEntry; meta:
       <div className="kview ov finanzcheck-report">
         <section className="card ov-card" aria-labelledby="r07-title">
           <div className="tbd-head">
-            <h2 id="r07-title">R07 · Kontoprognose</h2>
+            <h2 id="r07-title">Kontoprognose · {ruleName('R07')}</h2>
           </div>
           {forecastQuery.isPending && <LoadingNote what="Kontoprognose" />}
           {forecastQuery.isError && (
@@ -267,7 +267,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
                         <span className="ov-name">{item.text}</span>
                         <small>
                           {item.source ?? ''}
-                          {item.ruleCode ? ` · ${item.ruleCode}` : ''}
+                          {item.ruleCode ? ` · ${rules.get(item.ruleCode)?.name ?? item.ruleCode}` : ''}
                         </small>
                       </td>
                       <td>{maskMoneyText(item.valueText ?? '')}</td>
@@ -336,7 +336,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
               <span
                 key={t.code}
                 className={`ov-cell is-${t.current ?? 'none'}`}
-                title={`${t.code} ${t.name}: ${t.current === null ? 'nicht bewertbar' : STATUS_TEXT[t.current]}`}
+                title={`${t.name}: ${t.current === null ? 'nicht bewertbar' : STATUS_TEXT[t.current]}`}
               />
             ))}
           </div>
@@ -362,7 +362,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
               return {
                 id: t.code,
                 letter: String.fromCharCode(65 + (i % 26)),
-                title: `${t.code} ${t.name}`,
+                title: t.name,
                 detail:
                   rule?.latest?.actionText ??
                   rule?.action ??
@@ -411,7 +411,6 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
                   return (
                     <tr key={t.code} data-rule={t.code}>
                       <td>
-                        <span className="ov-pos">{t.code}</span>
                         <span className="ov-name">{t.name}</span>
                       </td>
                       <td>{maskMoneyText(rule?.latest?.valueText ?? '–')}</td>

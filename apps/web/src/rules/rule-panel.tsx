@@ -22,7 +22,7 @@ export function RulePanel({ rule, onClose }: { rule: RuleRow | null; onClose: ()
     <SettingsFormDialog
       open={rule !== null}
       onClose={onClose}
-      title={rule ? `Schwellen bearbeiten · ${rule.code} ${rule.name}` : ''}
+      title={rule ? `Schwellen bearbeiten · ${rule.name}` : ''}
     >
       {rule && (
         // Remounts when the stored parameters change (saved, undone, redone).
@@ -84,7 +84,7 @@ function RuleForm({ rule }: { rule: RuleRow }) {
     setBusy(true);
     await write(
       () => patchRule(rule.code, { params: changed }),
-      () => `${rule.code} ${rule.name}: Schwelle gespeichert.`,
+      () => `${rule.name}: Schwelle gespeichert.`,
       {
         // Fast undo can restore the original params before the saved value reached the query
         // cache. Its structural key then stays equal; restore the local draft explicitly.

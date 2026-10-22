@@ -28,7 +28,7 @@ export function RuleStatusPage() {
       .catch(() => undefined);
   }, [qc]);
   const rule = query.data?.rules.find((r) => r.code === code);
-  const title = rule ? `${rule.code} ${rule.name}` : 'Regel';
+  const title = rule?.name ?? 'Regel';
   const close = () => {
     if (!bearbeiten) return;
     if (state.panelOpenedInApp) router.history.back();

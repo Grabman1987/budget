@@ -26,6 +26,7 @@ import { monthShort, percentTenth, percentWhole, periodName } from './table-form
 import { TableReportFrame, useReportTables } from './table-report-frame';
 import type { ReportTables } from './table-reports-api';
 import { BookRuleMetric } from '../rules/book-rule-metric';
+import { ruleName } from '../rules/rules-model';
 
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
 
@@ -176,7 +177,7 @@ function SavingsBody({
                     aria-hidden="true"
                   />
                 )}
-                Ziel ≥ {percentWhole(target)} (R01)
+                Ziel ≥ {percentWhole(target)} · {ruleName('R01')}
               </span>
             </span>
           </div>
@@ -207,10 +208,10 @@ function SavingsBody({
                       ?.cells.find((c) => c.asOf === lastDayOfMonth(p.month))?.grossBp ?? null,
                 }))}
                 targetBp={target}
-                label={`${chartLabel} Bruttoquote R17 als zweite Linie, soweit bewertbar.`}
+                label={`${chartLabel} ${ruleName('R17')} als zweite Linie, soweit bewertbar.`}
               />
               <p className="vnote">
-                Bruttoquote R17: zweite Linie aus zwölf Monatsenden. Ohne vollständige Gehaltszettel
+                {ruleName('R17')}: zweite Linie aus zwölf Monatsenden. Ohne vollständige Gehaltszettel
                 und Arbeitgeberbeiträge bleibt sie leer; die Regel muss aktiviert sein.
               </p>
               <ul className="chart-legend">
@@ -218,7 +219,7 @@ function SavingsBody({
                   <svg aria-hidden="true" viewBox="0 0 32 8">
                     <line x1="0" x2="32" y1="4" y2="4" className="l-prev" />
                   </svg>
-                  Bruttoquote R17 · rollierend 12 Monate
+                  {ruleName('R17')} · rollierend 12 Monate
                 </li>
                 <li>
                   <i className="lg-sq lg-mkt" aria-hidden="true" />
@@ -272,7 +273,7 @@ function SavingsBody({
                       aria-hidden="true"
                     />
                   )}
-                  Ziel ≥ {days(goal)} (R03)
+                  Ziel ≥ {days(goal)} · {ruleName('R03')}
                 </span>
               </span>
             )}

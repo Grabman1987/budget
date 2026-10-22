@@ -10,6 +10,7 @@ export function RuleStatusContent({ rule }: { rule: RuleRow }) {
   return (
     <>
       <section className="rw-now" aria-label="Aktueller Stand">
+        <p className="rw-now-sub">Regel {rule.code}</p>
         {latest ? (
           <>
             <p className="rw-now-line">

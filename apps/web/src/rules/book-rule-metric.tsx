@@ -4,6 +4,7 @@ import { maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { rulesQuery } from './use-rule-writes';
 import { longDay } from '../ledger/format';
 import { AppLink } from '../shell/app-link';
+import { ruleName } from './rules-model';
 
 /** Current rolling-year check beside the related report; disabled rules remain previewable. */
 export function BookRuleMetric({ code }: { code: 'R17' | 'R19' | 'R21' | 'R22' }) {
@@ -13,7 +14,7 @@ export function BookRuleMetric({ code }: { code: 'R17' | 'R19' | 'R21' | 'R22' }
   return (
     <p className="vnote" role="status">
       <AppLink to="/einstellungen/regelwerk">
-        {code} {rule?.name ?? 'Finanz-Check'}
+        {rule?.name ?? ruleName(code)}
       </AppLink>
       {' · '}
       {maskMoneyText(
