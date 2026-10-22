@@ -271,6 +271,12 @@ does not assert AC-009-06 completion.
 
 ## Authenticated read-only transfer preview — source only
 
+The [independent source review](security-transfers-520-preview-api-ui-source-review.md)
+found an unmasked quantity input and a stale retry error in the first preview
+checkpoint. Its pinned follow-up closed both on source inspection at
+`5e4ed5af801b45d332209ac7f1a69e457f7ac5ce`. This is source clearance only,
+not API, privacy, browser or financial runtime acceptance.
+
 `POST /api/trades/transfer-preview` accepts only one stored security ID, two
 account IDs, date and positive integer E8 units in a body protected by the
 existing session, origin/CSRF and body-size boundary. The server derives both
@@ -289,7 +295,7 @@ historical read evidence. The proposed event is positioned after recorded native
 events of the selected day; that is a preview convention, not evidence of future
 persisted same-day pair order. Both API and domain result keep
 `applyAvailable: false`. This route, its UI and the revised reader are **NOT
-VALIDATED**; no schema, trade writer, pair relation, apply, undo or canonical
+VALIDATED at runtime**; no schema, trade writer, pair relation, apply, undo or canonical
 portfolio projection changed in this slice.
 
 ## Literal intended controls, not executed evidence
