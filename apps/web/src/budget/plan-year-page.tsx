@@ -60,7 +60,7 @@ export function PlanYearPage() {
               disabled={year <= 1900}
               onClick={() => setMonth(`${year - 1}-${month.slice(5)}`)}
             >
-              <ChevronLeft aria-hidden="true" size={20} />
+              <ChevronLeft aria-hidden="true" size={20} strokeWidth={1.5} />
             </button>
             <h1>{year}</h1>
             <button
@@ -70,7 +70,7 @@ export function PlanYearPage() {
               disabled={year >= 9999}
               onClick={() => setMonth(`${year + 1}-${month.slice(5)}`)}
             >
-              <ChevronRight aria-hidden="true" size={20} />
+              <ChevronRight aria-hidden="true" size={20} strokeWidth={1.5} />
             </button>
           </div>
         }
@@ -275,7 +275,7 @@ function YearOverview({
                         onClick={() => toggle(group.id)}
                       >
                         <ChevronDown
-                          size={16}
+                          size={16} strokeWidth={1.75}
                           aria-hidden="true"
                           className={cx(collapsed.has(group.id) && 'is-closed')}
                         />
@@ -332,7 +332,7 @@ function YearOverview({
                 >
                   <span>
                     <ChevronDown
-                      size={16}
+                      size={16} strokeWidth={1.75}
                       aria-hidden="true"
                       className={cx(collapsed.has(group.id) && 'is-closed')}
                     />

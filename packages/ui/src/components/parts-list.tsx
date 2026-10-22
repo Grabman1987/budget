@@ -97,7 +97,7 @@ export function PartsList<Row>({
                     aria-controls={rowsId}
                     onClick={() => toggle(group.id)}
                   >
-                    <ChevronDown size={18} strokeWidth={1.75} aria-hidden="true" />
+                    <ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" />
                     {group.title}
                   </button>
                   {group.note && <span className="grp-status">{group.note}</span>}

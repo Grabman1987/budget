@@ -103,7 +103,7 @@ export function AccountTree() {
             title="Neues Konto anlegen"
             onClick={() => setCreating(true)}
           >
-            <Plus size={18} strokeWidth={1.75} aria-hidden="true" />
+            <Plus size={20} strokeWidth={1.5} aria-hidden="true" />
           </button>
           <AppLink
             className="acct-head-action"
@@ -111,7 +111,7 @@ export function AccountTree() {
             aria-label="Konten verwalten"
             title="Konten verwalten"
           >
-            <Settings size={18} strokeWidth={1.75} aria-hidden="true" />
+            <Settings size={20} strokeWidth={1.5} aria-hidden="true" />
           </AppLink>
         </div>
         {groups.map((g) => (
@@ -148,7 +148,7 @@ function PencilButton(props: {
       aria-hidden={props.mouseOnly ? true : undefined}
       onClick={props.onClick}
     >
-      <Pencil size={13} strokeWidth={1.75} aria-hidden="true" />
+      <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />
     </button>
   );
 }
@@ -190,8 +190,8 @@ function AccountGroupBlock({
           disabled={editing}
           onClick={() => setFolded(!storedFolded)}
         >
-          <ChevronDown className="chev" size={14} strokeWidth={2} aria-hidden="true" />
-          <GroupIcon className="acct-group-icon" size={14} strokeWidth={1.75} aria-hidden="true" />
+          <ChevronDown className="chev" size={16} strokeWidth={1.75} aria-hidden="true" />
+          <GroupIcon className="acct-group-icon" size={16} strokeWidth={1.75} aria-hidden="true" />
           <span className="acct-group-title tech">{view.group.title}</span>
         </button>
         {!editing && (

@@ -149,7 +149,7 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
               <summary>
                 <span>Werkzeuge</span>
                 <small>Einkommenspausen · Ereignisse · Stellschrauben · Buchungen streichen</small>
-                <ChevronDown size={18} aria-hidden="true" />
+                <ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" />
               </summary>
               <div className="rf-tools-content">
                 <IncomePausesCard view={view} />
@@ -811,7 +811,7 @@ function EventsCard({ view }: { view: LiquidityReportView }) {
           />
         </div>
         <Button variant="ghost" size="sm" type="submit">
-          <Plus size={14} strokeWidth={1.75} aria-hidden="true" />
+          <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
           Ereignis
         </Button>
         {error && error.field !== 'amount' && (
@@ -1064,7 +1064,7 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
                           );
                         }}
                       >
-                        <CircleMinus size={18} aria-hidden="true" />
+                        <CircleMinus size={20} strokeWidth={1.5} aria-hidden="true" />
                       </Button>
                     )}
                   </td>

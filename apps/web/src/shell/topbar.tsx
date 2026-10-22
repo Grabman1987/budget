@@ -33,7 +33,7 @@ export function Topbar({
           aria-expanded={!collapsed}
           aria-controls="sidebar"
         >
-          <PanelLeft size={18} strokeWidth={1.75} aria-hidden="true" />
+          <PanelLeft size={20} strokeWidth={1.5} aria-hidden="true" />
         </button>
         <GlobalSearch onOpenChange={onSearchChange} />
         <div className="topbar-actions">
@@ -47,7 +47,7 @@ export function Topbar({
             aria-keyshortcuts="n"
             title="Buchung erfassen (N)"
           >
-            <Plus size={18} strokeWidth={1.75} aria-hidden="true" />
+            <Plus size={20} strokeWidth={1.5} aria-hidden="true" />
             Buchung
           </PanelLink>
         </div>

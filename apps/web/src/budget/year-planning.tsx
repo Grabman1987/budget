@@ -375,7 +375,7 @@ function ScenarioLabel({ kind }: { kind: keyof typeof SCENARIO_LABELS }) {
           if (e.key === 'Escape') setOpen(false);
         }}
       >
-        <Info size={14} aria-hidden="true" />
+        <Info size={16} strokeWidth={1.75} aria-hidden="true" />
       </Button>
       {open && (
         <span id={id} role="tooltip" className="scenario-help">

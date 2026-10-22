@@ -76,7 +76,7 @@ export function PlanInspector({
                 title="Auswahl aufheben (Esc)"
                 onClick={onClear}
               >
-                <X size={18} strokeWidth={1.75} aria-hidden="true" />
+                <X size={20} strokeWidth={1.5} aria-hidden="true" />
               </Button>
             </div>
             {row ? (

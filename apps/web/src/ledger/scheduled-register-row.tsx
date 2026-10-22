@@ -68,7 +68,7 @@ export function ScheduledRegisterRow({
             aria-expanded={actionsOpen}
             onClick={() => setActionsOpen((open) => !open)}
           >
-            <Ellipsis size={16} aria-hidden="true" />
+            <Ellipsis size={16} strokeWidth={1.75} aria-hidden="true" />
           </button>
           <div className="kschedule-actions">
             <Button size="xs" variant="ghost" disabled={busy} onClick={() => void action(true)}>
@@ -99,7 +99,7 @@ export function ScheduledRegisterRow({
           aria-label="Nächste Wiederholung"
           title="Nächste Wiederholung"
         >
-          <Repeat2 size={16} aria-hidden="true" />
+          <Repeat2 size={16} strokeWidth={1.75} aria-hidden="true" />
         </span>
       </td>
     </tr>

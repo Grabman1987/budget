@@ -83,7 +83,7 @@ export function BudgetAdherenceReportPage({
                 aria-label="Vormonat"
                 onClick={() => shift(-1)}
               >
-                <ChevronLeft size={18} strokeWidth={1.75} aria-hidden="true" />
+                <ChevronLeft size={20} strokeWidth={1.5} aria-hidden="true" />
               </button>
               <span data-testid="sr-month">{monthLabel(month)}</span>
               <button
@@ -92,7 +92,7 @@ export function BudgetAdherenceReportPage({
                 aria-label="Nächster Monat"
                 onClick={() => shift(1)}
               >
-                <ChevronRight size={18} strokeWidth={1.75} aria-hidden="true" />
+                <ChevronRight size={20} strokeWidth={1.5} aria-hidden="true" />
               </button>
             </span>
           ),
@@ -148,12 +148,12 @@ function Body({ data }: { data: BudgetAdherenceReport }) {
           </h2>
           {data.overCount > 0 ? (
             <span className={`sr-status ${data.live ? 'is-action' : ''}`}>
-              <AlertTriangle size={15} strokeWidth={1.75} aria-hidden="true" />
+              <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />
               {data.overCount} über Plan
             </span>
           ) : (
             <span className="sr-status is-ok">
-              <CheckCircle2 size={15} strokeWidth={1.75} aria-hidden="true" />
+              <CheckCircle2 size={16} strokeWidth={1.75} aria-hidden="true" />
               {data.items.length ? 'alles im Plan' : 'nichts geplant'}
             </span>
           )}
@@ -224,7 +224,7 @@ function Body({ data }: { data: BudgetAdherenceReport }) {
                         {x.over ? (
                           <span className="sr-status is-action">
                             {data.live ? (
-                              <AlertTriangle size={14} strokeWidth={1.75} aria-hidden="true" />
+                              <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />
                             ) : null}
                             {eur(x.istCents - x.planCents, { cents: false, sign: true })}
                           </span>
@@ -338,12 +338,12 @@ function Body({ data }: { data: BudgetAdherenceReport }) {
                         <span className="sr-status">Abweichung in Euro</span>
                       ) : r.inBand ? (
                         <span className="sr-status is-ok">
-                          <CheckCircle2 size={14} strokeWidth={1.75} aria-hidden="true" />
+                          <CheckCircle2 size={16} strokeWidth={1.75} aria-hidden="true" />
                           im Band
                         </span>
                       ) : (
                         <span className="sr-status">
-                          <AlertTriangle size={14} strokeWidth={1.75} aria-hidden="true" />
+                          <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />
                           Plan anpassen?
                         </span>
                       )}

@@ -159,7 +159,7 @@ export function GlobalSearch({
         aria-keyshortcuts="Control+k Meta+k"
         onClick={() => open()}
       >
-        <Search className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
+        <Search className="icon" size={20} strokeWidth={1.5} aria-hidden="true" />
         {!mobile && (
           <>
             <span>Suchen: Seiten, Reports, Buchungen, Aktionen</span>
@@ -423,7 +423,7 @@ export function SearchResults({
     <div className="global-search is-mobile" ref={container}>
       <label className="global-search-field">
         <span className="sr-only">Suchen</span>
-        <Search className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
+        <Search className="icon" size={20} strokeWidth={1.5} aria-hidden="true" />
         <input
           ref={input}
           id={palette ? 'palette-search-query' : 'search-query'}

@@ -116,9 +116,9 @@ function Body({ data }: { data: ContractsReport }) {
           {quote !== null && r10 ? (
             <span className={`sr-status ${ok ? 'is-ok' : 'is-action'}`}>
               {ok ? (
-                <CheckCircle2 size={15} strokeWidth={1.75} aria-hidden="true" />
+                <CheckCircle2 size={16} strokeWidth={1.75} aria-hidden="true" />
               ) : (
-                <AlertTriangle size={15} strokeWidth={1.75} aria-hidden="true" />
+                <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />
               )}
               Fixkostenquote {bpText(quote)} · Ziel ≤ {bpText(r10.maxBp, { digits: 0 })} (R10)
             </span>

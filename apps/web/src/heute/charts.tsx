@@ -64,7 +64,7 @@ export function DailyBudgetLine({
             if (event.key === 'Escape') setExplained(false);
           }}
         >
-          <Info size={16} aria-hidden="true" />
+          <Info size={16} strokeWidth={1.75} aria-hidden="true" />
         </button>
         {explained && (
           <span id={id} role="tooltip" className="heute-daily-help">

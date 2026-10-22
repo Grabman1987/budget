@@ -35,13 +35,13 @@ export function ThemeButton({ variant }: { variant: 'side' | 'icon' }) {
         aria-label="Hell/Dunkel umschalten"
         aria-pressed={dark}
       >
-        <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
+        <Icon size={20} strokeWidth={1.5} aria-hidden="true" />
       </button>
     );
   }
   return (
     <button type="button" className="side-btn" onClick={toggle} title="Hell/Dunkel umschalten">
-      <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
+      <Icon size={20} strokeWidth={1.5} aria-hidden="true" />
       <span className="label">{label}</span>
     </button>
   );

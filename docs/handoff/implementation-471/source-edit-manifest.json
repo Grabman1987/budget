@@ -1,0 +1,178 @@
+[
+  {
+    "path": "apps/web/src/pages/reports-pages.tsx",
+    "icons": 1
+  },
+  {
+    "path": "apps/web/src/pages/goals-progress-report.tsx",
+    "icons": 1
+  },
+  {
+    "path": "apps/web/src/pages/settings-nav.tsx",
+    "icons": 2
+  },
+  {
+    "path": "apps/web/src/budget/plan-multi.tsx",
+    "icons": 1
+  },
+  {
+    "path": "apps/web/src/budget/goals-page.tsx",
+    "icons": 3
+  },
+  {
+    "path": "apps/web/src/budget/categories-page.tsx",
+    "icons": 1
+  },
+  {
+    "path": "apps/web/src/budget/year-planning.tsx",
+    "icons": 1
+  },
+  {
+    "path": "apps/web/src/budget/plan-year-page.tsx",
+    "icons": 4
+  },
+  {
+    "path": "apps/web/src/budget/plan-inspector.tsx",
+    "icons": 1
+  },
+  {
+    "path": "apps/web/src/budget/plan-page.tsx",
+    "icons": 10
+  },
+  {
+    "path": "apps/web/src/reports/jahresreport-page.tsx",
+    "icons": 1
+  },
+  {
+    "path": "apps/web/src/reports/report-navigation.tsx",
+    "icons": 2
+  },
+  {
+    "path": "apps/web/src/reports/budget-adherence-report.tsx",
+    "icons": 7
+  },
+  {
+    "path": "apps/web/src/reports/planning-accuracy-report.tsx",
+    "icons": 2
+  },
+  {
+    "path": "apps/web/src/reports/liquidity-report.tsx",
+    "icons": 3
+  },
+  {
+    "path": "apps/web/src/reports/contracts-report.tsx",
+    "icons": 2
+  },
+  {
+    "path": "apps/web/src/reports/explorer-report.tsx",
+    "icons": 6
+  },
+  {
+    "path": "apps/web/src/reports/period-quick-select.tsx",
+    "icons": 3
+  },
+  {
+    "path": "apps/web/src/reports/month-frame.tsx",
+    "icons": 2
+  },
+  {
+    "path": "apps/web/src/wealth/portfolio-overview.tsx",
+    "icons": 1
+  },
+  {
+    "path": "apps/web/src/wealth/freedom-page.tsx",
+    "icons": 1
+  },
+  {
+    "path": "apps/web/src/wealth/allocation-section.tsx",
+    "icons": 1
+  },
+  {
+    "path": "apps/web/src/shell/sidebar.tsx",
+    "icons": 2
+  },
+  {
+    "path": "apps/web/src/shell/privacy-button.tsx",
+    "icons": 1
+  },
+  {
+    "path": "apps/web/src/shell/month-switch.tsx",
+    "icons": 3
+  },
+  {
+    "path": "apps/web/src/shell/account-tree.tsx",
+    "icons": 5
+  },
+  {
+    "path": "apps/web/src/shell/theme-button.tsx",
+    "icons": 2
+  },
+  {
+    "path": "apps/web/src/shell/global-search.tsx",
+    "icons": 2
+  },
+  {
+    "path": "apps/web/src/shell/mobile-chrome.tsx",
+    "icons": 2
+  },
+  {
+    "path": "apps/web/src/shell/topbar.tsx",
+    "icons": 2
+  },
+  {
+    "path": "apps/web/src/heute/heute-page.tsx",
+    "icons": 9
+  },
+  {
+    "path": "apps/web/src/heute/charts.tsx",
+    "icons": 1
+  },
+  {
+    "path": "apps/web/src/heute/upcoming-payments.tsx",
+    "icons": 3
+  },
+  {
+    "path": "apps/web/src/ledger/booking-table.tsx",
+    "icons": 4
+  },
+  {
+    "path": "apps/web/src/ledger/overview-page.tsx",
+    "icons": 6
+  },
+  {
+    "path": "apps/web/src/ledger/booking-cells.tsx",
+    "icons": 4
+  },
+  {
+    "path": "apps/web/src/ledger/capture-form.tsx",
+    "icons": 2
+  },
+  {
+    "path": "apps/web/src/ledger/account-page.tsx",
+    "icons": 1
+  },
+  {
+    "path": "apps/web/src/ledger/states.tsx",
+    "icons": 3
+  },
+  {
+    "path": "apps/web/src/ledger/scheduled-register-row.tsx",
+    "icons": 2
+  },
+  {
+    "path": "apps/web/src/expected/status-stamp.tsx",
+    "icons": 1
+  },
+  {
+    "path": "packages/ui/src/components/parts-list.tsx",
+    "icons": 1
+  },
+  {
+    "path": "packages/ui/src/components/panel.tsx",
+    "icons": 1
+  },
+  {
+    "path": "packages/ui/src/components/stamps.tsx",
+    "icons": 1
+  }
+]

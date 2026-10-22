@@ -139,7 +139,7 @@ export function PortfolioOverview() {
               performance.days > 0
                 ? percent(performance.ttwrorAnnualised)
                 : '—'}{' '}
-              (zeitgewichtet) <Info size={18} strokeWidth={1.75} aria-hidden="true" />
+              (zeitgewichtet) <Info size={20} strokeWidth={1.5} aria-hidden="true" />
             </summary>
             <p className="vnote">
               Zeitgewichtete Rendite nach Portfolio Performance, auf ein Jahr umgerechnet. Zuflüsse

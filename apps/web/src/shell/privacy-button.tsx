@@ -15,7 +15,7 @@ export function PrivacyButton({ text = false }: { text?: boolean }) {
       title="Privatmodus (Strg Umschalt H)"
       onClick={() => setAmountsHidden(!hidden)}
     >
-      <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
+      <Icon size={20} strokeWidth={1.5} aria-hidden="true" />
       {text && 'Beträge verbergen'}
     </button>
   );

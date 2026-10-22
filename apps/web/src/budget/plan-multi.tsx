@@ -209,7 +209,7 @@ export function MultiTable({
                                 aria-label={`${r.name}: Decken im ${monthName.format(dateOf(m))}`}
                                 onClick={() => onOpen(r.id, m)}
                               >
-                                <ArrowRightLeft size={16} aria-hidden="true" />
+                                <ArrowRightLeft size={16} strokeWidth={1.75} aria-hidden="true" />
                               </button>
                             )}
                           </td>,

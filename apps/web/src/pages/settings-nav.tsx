@@ -29,8 +29,8 @@ export function SettingsNav({ variant }: SettingsNavProps) {
                   <span className="settings-item-label">{item.label}</span>
                   <ChevronRight
                     className="settings-chevron"
-                    size={18}
-                    strokeWidth={1.75}
+                    size={20}
+                    strokeWidth={1.5}
                     aria-hidden="true"
                   />
                 </AppLink>
@@ -49,7 +49,7 @@ export function SettingsBack({ current }: { current: string | undefined }) {
   return (
     <div className="settings-back">
       <AppLink to="/einstellungen">
-        <ChevronLeft size={18} strokeWidth={1.75} aria-hidden="true" />
+        <ChevronLeft size={20} strokeWidth={1.5} aria-hidden="true" />
         Einstellungen
       </AppLink>
       {label && <span className="settings-here">{label}</span>}

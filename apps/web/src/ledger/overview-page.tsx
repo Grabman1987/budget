@@ -113,15 +113,15 @@ export function OverviewPage() {
               onClick={() => setOrdering(!ordering)}
             >
               {ordering ? (
-                <Check size={16} aria-hidden="true" />
+                <Check size={16} strokeWidth={1.75} aria-hidden="true" />
               ) : (
-                <Pencil size={16} aria-hidden="true" />
+                <Pencil size={16} strokeWidth={1.75} aria-hidden="true" />
               )}
               {ordering ? 'Fertig' : 'Reihenfolge ändern'}
             </Button>
           )}
           <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus size={16} aria-hidden="true" />
+            <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
             Konto anlegen
           </Button>
         </div>
@@ -421,7 +421,7 @@ function OverviewAccount({
               data-review-state={check.state}
               className={cx('kcheck', 'overview-check', check.stale && 'is-due is-stale')}
             >
-              {check.stale && <AlertTriangle size={14} aria-hidden="true" />}
+              {check.stale && <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />}
               {CHECK_LABEL[check.state] ?? CHECK_LABEL['unavailable']}
             </span>
           </Link>
@@ -459,9 +459,9 @@ function OverviewAccount({
             onClick={() => setExpanded(!expanded)}
           >
             {expanded ? (
-              <ChevronUp size={16} aria-hidden="true" />
+              <ChevronUp size={16} strokeWidth={1.75} aria-hidden="true" />
             ) : (
-              <ChevronDown size={16} aria-hidden="true" />
+              <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
             )}
           </Button>
         </td>

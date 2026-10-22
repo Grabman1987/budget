@@ -126,7 +126,7 @@ export function MonthControl({
         disabled={firstMonth !== undefined && shiftMonth(month, -1) < firstMonth}
         onClick={() => shift(-1)}
       >
-        <ChevronLeft size={18} strokeWidth={1.75} aria-hidden="true" />
+        <ChevronLeft size={20} strokeWidth={1.5} aria-hidden="true" />
       </button>
       <span className="mr-month-label" data-testid="report-month">
         {monthLabel(month)}
@@ -138,7 +138,7 @@ export function MonthControl({
         disabled={month >= current}
         onClick={() => shift(1)}
       >
-        <ChevronRight size={18} strokeWidth={1.75} aria-hidden="true" />
+        <ChevronRight size={20} strokeWidth={1.5} aria-hidden="true" />
       </button>
     </div>
   );

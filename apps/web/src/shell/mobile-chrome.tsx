@@ -98,7 +98,7 @@ export function TabBar({ area }: { area: AreaId | undefined }) {
           const Icon = a.icon;
           return (
             <AppLink key={a.id} to={a.to} aria-current={area === a.id ? 'page' : undefined}>
-              {Icon && <Icon className="icon" size={22} strokeWidth={1.75} aria-hidden="true" />}
+              {Icon && <Icon className="icon" size={24} strokeWidth={1.5} aria-hidden="true" />}
               {a.label}
             </AppLink>
           );
@@ -111,7 +111,7 @@ export function TabBar({ area }: { area: AreaId | undefined }) {
           aria-label="Buchung erfassen"
           hidden={!fabVisible}
         >
-          <Plus size={26} strokeWidth={2} aria-hidden="true" />
+          <Plus size={24} strokeWidth={1.5} aria-hidden="true" />
         </PanelLink>
       </nav>
     </>

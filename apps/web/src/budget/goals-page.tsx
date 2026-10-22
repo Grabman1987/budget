@@ -255,10 +255,10 @@ function GoalRow({
           <i className="pbar-tick" style={{ left: `${bar.tick * 100}%` }} />
         </span>
         <span className="pmeta" data-testid="goal-line">
-          {line.tone === 'done' && <Check size={13} strokeWidth={2} aria-hidden="true" />}
-          {line.tone === 'ok' && <CheckCircle2 size={13} strokeWidth={1.75} aria-hidden="true" />}
+          {line.tone === 'done' && <Check size={16} strokeWidth={1.75} aria-hidden="true" />}
+          {line.tone === 'ok' && <CheckCircle2 size={16} strokeWidth={1.75} aria-hidden="true" />}
           {line.tone === 'warn' && (
-            <AlertTriangle size={13} strokeWidth={1.75} aria-hidden="true" />
+            <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />
           )}
           {line.text}
         </span>

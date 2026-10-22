@@ -46,7 +46,7 @@ function InfoButton({
         if (e.key === 'Escape' && open) onToggle();
       }}
     >
-      <Info className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
+      <Info className="icon" size={20} strokeWidth={1.5} aria-hidden="true" />
     </button>
   );
 }

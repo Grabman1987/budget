@@ -24,7 +24,7 @@ export function StatusCell({
   const Icon = STATUS_ICON[status];
   const content = (
     <>
-      <Icon className="icon" size={14} strokeWidth={1.75} aria-hidden="true" />
+      <Icon className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
       {!iconOnly && STATUS_LABEL[status]}
     </>
   );
@@ -114,7 +114,7 @@ export function CategoryCell({
   if (booking.splits.length > 1) {
     return (
       <span className="kcat">
-        <Split className="icon" size={14} strokeWidth={1.75} aria-hidden="true" />
+        <Split className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
         Aufgeteilt ({booking.splits.length})
       </span>
     );
@@ -124,7 +124,7 @@ export function CategoryCell({
     const other = booking.transferAccountName ?? 'anderes Konto';
     return (
       <span className="kcat">
-        <ArrowLeftRight className="icon" size={14} strokeWidth={1.75} aria-hidden="true" />
+        <ArrowLeftRight className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
         Umbuchung {booking.amountCents < 0 ? 'nach' : 'von'} {other}
       </span>
     );
@@ -147,7 +147,7 @@ export function CategoryCell({
   if (!only?.categoryId || !only.categoryName) {
     return (
       <span className="kcat is-none">
-        <AlertTriangle className="icon" size={14} strokeWidth={1.75} aria-hidden="true" />
+        <AlertTriangle className="icon" size={16} strokeWidth={1.75} aria-hidden="true" />
         ohne Kategorie
       </span>
     );

@@ -220,7 +220,7 @@ function ReportBody({
                 </>
               ) : (
                 <p className="goal-report-unknown">
-                  <AlertTriangle size={16} aria-hidden="true" />
+                  <AlertTriangle size={16} strokeWidth={1.75} aria-hidden="true" />
                   Fortschritt nicht verfügbar. {row.reason}
                 </p>
               )}

@@ -101,7 +101,7 @@ export function JahresreportPage({ report, meta }: { report: ReportEntry; meta: 
                     disabled={data.report.months.length === 0}
                     onClick={() => window.print()}
                   >
-                    <Printer size={15} strokeWidth={1.75} aria-hidden="true" />
+                    <Printer size={16} strokeWidth={1.75} aria-hidden="true" />
                     Drucken
                   </Button>
                 </div>

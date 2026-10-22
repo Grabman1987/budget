@@ -40,7 +40,7 @@ export function MonthSwitch({ heading }: { heading: ReactNode }) {
   return (
     <div className="month-switch">
       <button type="button" className="icon-btn" aria-label="Vormonat" onClick={() => shift(-1)}>
-        <ChevronLeft size={20} strokeWidth={1.75} aria-hidden="true" />
+        <ChevronLeft size={20} strokeWidth={1.5} aria-hidden="true" />
       </button>
       <h1>{heading}</h1>
       <button
@@ -49,7 +49,7 @@ export function MonthSwitch({ heading }: { heading: ReactNode }) {
         aria-label="Nächster Monat"
         onClick={() => shift(1)}
       >
-        <ChevronRight size={20} strokeWidth={1.75} aria-hidden="true" />
+        <ChevronRight size={20} strokeWidth={1.5} aria-hidden="true" />
       </button>
       {month !== current && (
         <button
@@ -59,7 +59,7 @@ export function MonthSwitch({ heading }: { heading: ReactNode }) {
           title="Zum aktuellen Monat"
           onClick={() => setMonth(current)}
         >
-          <CalendarCheck size={18} strokeWidth={1.75} aria-hidden="true" />
+          <CalendarCheck size={20} strokeWidth={1.5} aria-hidden="true" />
         </button>
       )}
     </div>

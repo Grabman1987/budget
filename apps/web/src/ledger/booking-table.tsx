@@ -99,9 +99,9 @@ export function BookingTable({
           {label}
           {sort.key === key &&
             (sort.direction === 'asc' ? (
-              <ArrowUp size={12} strokeWidth={1.75} aria-hidden="true" />
+              <ArrowUp size={16} strokeWidth={1.75} aria-hidden="true" />
             ) : (
-              <ArrowDown size={12} strokeWidth={1.75} aria-hidden="true" />
+              <ArrowDown size={16} strokeWidth={1.75} aria-hidden="true" />
             ))}
         </button>
       ) : (
@@ -488,7 +488,7 @@ function Row({
             onClick={() => setEditing(true)}
           >
             <CategoryCell booking={b} classes={classes} showClass={false} />
-            <Pencil className="icon kcat-edit" size={12} strokeWidth={1.75} aria-hidden="true" />
+            <Pencil className="icon kcat-edit" size={16} strokeWidth={1.75} aria-hidden="true" />
           </button>
         ) : (
           <CategoryCell booking={b} classes={classes} showClass={false} />
@@ -539,7 +539,7 @@ function Row({
             aria-label="Kommende Buchung"
             title="Kommende Buchung"
           >
-            <CalendarDays size={16} aria-hidden="true" />
+            <CalendarDays size={16} strokeWidth={1.75} aria-hidden="true" />
           </span>
         ) : (
           <StatusCell
