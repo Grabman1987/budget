@@ -46,7 +46,7 @@ recompressing pixels. This removes standard EXIF GPS containers and orientation
 metadata; there is no pixel reorientation. Verify orientation on the real phone. **HEIC/HEIF and
 PDF metadata are retained**: reliable removal requires a decoder/parser beyond
 this dependency-free slice. The UI discloses this limitation. PDF active contents
-are never rendered inside the app; there is no PDF/HEIF inline preview.
+are never embedded inside the app. Payroll review can request one inert PNG page; raw PDFs and HEIF remain download-only.
 
 Downloads use `application/octet-stream`, `Content-Disposition: attachment`, a
 sanitized RFC 5987 filename, `nosniff` and `Cache-Control: no-store`. Authenticated
@@ -61,6 +61,54 @@ receipts. `POST /api/receipts` accepts multipart `file`, optional `bookingId`.
 `POST /api/receipts/:id/links` accepts `{bookingId}`; `DELETE .../links/:bookingId`
 unlinks. `DELETE /api/receipts/:id` removes an unlinked receipt.
 `GET .../:id/download` downloads; `GET .../:id/preview` supplies raster thumbnails.
+
+## Inert PDF page preview (#609, source implementation; validation pending)
+
+`POST /api/receipts/:id/pdf-preview` is a read-only, session- and same-origin-guarded
+request with strict JSON `{page, preset?, password?}`. Page is 1–30, preset is `fit`
+(default) or `detail`, and the transient password is at most 1,024 characters. The
+ordinary body limit and import hold apply. This POST does not notify financial
+write listeners, reparse a document, retain a password, create an audit entry or
+change a receipt/booking. Existing image and opaque download routes are unchanged.
+
+The service verifies the live PDF receipt's size and SHA-256 against the same
+bounded buffer passed to the renderer, which verifies the digest again. It
+rechecks the live receipt identity after rendering. No caller path or URL enters
+the worker. Responses contain only PNG bytes and finite `X-PDF-Page`,
+`X-PDF-Pages`, `X-PDF-Width` and `X-PDF-Height` headers, with `no-store` and `nosniff`.
+Wrong password, unavailable page, source change, busy renderer and processing limits
+have fixed messages; library diagnostics and private source content are discarded.
+
+One server-wide renderer slot per process has no waiting queue; admission precedes
+file loading. A 20-second cancellation deadline covers source reading and rendering.
+Abort/deadline stops subsequent work and terminates the worker, but in-progress
+filesystem operations must finish/close and worker termination must complete before
+the slot is released. It is not a hard wall-clock guarantee. There is no generated
+image cache, new file, external asset fetch, PDF viewer, annotation/XFA layer or CSP
+change. PDF.js uses only its packaged fonts/cMaps/wasm and its own optional Node
+canvas facility; application code does not import the optional renderer directly.
+
+Limits are 15 MiB source, 30 document pages, one page per request, 2,048 pixels per
+surface side, 4,194,304 pixels per surface/image, 16,777,216 simultaneously tracked
+canvas pixels and 8 MiB encoded PNG. Both factory create/reset paths enforce the
+surface budget. Actual oversized-image rejection versus omitted-content behavior still requires execution evidence. These
+limits do not bound all decoded image/font buffers or PNG encoder peak allocation.
+`canvasMaxAreaInBytes` is only an image-resizer setting; the worker’s 128 MiB limit
+covers V8 old-generation heap, not native Canvas/Skia or total process RSS. No hard
+native-memory isolation or cross-instance renderer quota is claimed. Optional
+native-renderer failure leaves preview unavailable and the original downloadable.
+
+The receipt-local view keeps only current-page pixels and a transient preview
+password in component memory. Page/zoom changes remove previous pixels; source
+switch, close, unmount and privacy mode remove the entire session and abort its
+request. There is no persistent React Query, offline or browser-storage entry.
+Privacy mode covers the whole image, because text masking cannot conceal amounts
+inside pixels. The existing explicit original download remains available and is
+not privacy-masked. Garbage collection is not a claim of forensic memory erasure.
+
+This source-only checkpoint has not executed rendering, native-platform loading,
+limit/abort/source-race tests, accessibility or desktop/phone verification. Those
+gates remain pending. The preview itself never authorizes payout normalization; the separately explicit, audit-proven subset is documented in payslip-intake.md.
 
 ## Backup and owner acceptance
 

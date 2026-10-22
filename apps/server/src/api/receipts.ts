@@ -26,6 +26,17 @@ import {
   verifyReceiptFile,
 } from '../receipts/files';
 import { ACTOR, ApiError, readBody, readQuery } from './http';
+import { PdfPreviewError, receiptPdfPreview, type PdfPreviewCode } from '../receipts/pdf-preview';
+
+const previewMessages: Record<PdfPreviewCode, string> = {
+  password: 'Das PDF benötigt ein anderes Passwort.',
+  page: 'Diese PDF-Seite ist nicht vorhanden.',
+  limit: 'Die PDF-Vorschau überschreitet ein Verarbeitungslimit. Das Original bleibt verfügbar.',
+  busy: 'Eine PDF-Vorschau wird gerade erstellt. Bitte erneut versuchen.',
+  unavailable: 'Für dieses PDF ist keine Vorschau verfügbar. Das Original bleibt verfügbar.',
+  source_changed: 'Der Beleg ist nicht mehr unverändert verfügbar. Bitte neu öffnen.',
+  aborted: 'Die PDF-Vorschau wurde abgebrochen.',
+};
 
 const id = z.string().uuid();
 type UploadReply = ReturnType<typeof addReceipt>;
@@ -137,6 +148,35 @@ export function receiptRoutes(db: Db, dir: string) {
   api.delete('/:id', (c) =>
     c.json(removeReceipt(db, id.parse(c.req.param('id')), { actor: ACTOR })),
   );
+  // Read-only POST keeps transient passwords out of URLs; ordinary auth/origin/body guards apply.
+  api.post('/:id/pdf-preview', async (c) => {
+    const receiptId = id.parse(c.req.param('id'));
+    const input = await readBody(c, z.object({
+      page: z.number().int().min(1).max(30),
+      preset: z.enum(['fit', 'detail']).default('fit'),
+      password: z.string().max(1024).optional(),
+    }).strict());
+    try {
+      const preview = await receiptPdfPreview(db, dir, receiptId, {
+        page: input.page,
+        preset: input.preset,
+        ...(input.password !== undefined ? { password: input.password } : {}),
+      }, c.req.raw.signal);
+      c.header('Content-Type', 'image/png');
+      c.header('X-Content-Type-Options', 'nosniff');
+      c.header('Content-Length', String(preview.png.length));
+      c.header('X-PDF-Page', String(preview.page));
+      c.header('X-PDF-Pages', String(preview.pages));
+      c.header('X-PDF-Width', String(preview.width));
+      c.header('X-PDF-Height', String(preview.height));
+      return c.body(new Uint8Array(preview.png));
+    } catch (error) {
+      if (!(error instanceof PdfPreviewError)) throw error;
+      const status = error.code === 'busy' || error.code === 'unavailable' ? 503
+        : error.code === 'source_changed' ? 409 : error.code === 'aborted' ? 400 : 422;
+      return c.json({ error: `pdf_preview_${error.code}`, message: previewMessages[error.code] }, status);
+    }
+  });
   api.get('/:id/:mode', async (c) => {
     const mode = z.enum(['download', 'preview']).parse(c.req.param('mode'));
     const row = getReceipt(db, id.parse(c.req.param('id')));

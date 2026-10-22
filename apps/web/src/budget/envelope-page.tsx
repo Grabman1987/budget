@@ -9,6 +9,9 @@ import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
 import { useMonth } from '../shell/use-month';
 import { IncomeBody } from '../expected/income-panel';
+import { incomeQuery } from '../expected/api';
+import { eur } from '../ledger/format';
+import { IncomePayslips } from '../reports/payslip-income';
 import { ExpectedDetailBack } from '../expected/detail-nav';
 import { PLAN_ERWARTET } from '../nav/pages';
 import { budgetActivityQuery, budgetQuery } from './budget-api';
@@ -110,8 +113,10 @@ export function EnvelopePage() {
 }
 
 export function PlanIncomePage() {
+  useAmountPrivacy();
   const [month] = useMonth();
   const budget = useQuery(budgetQuery(month));
+  const income = useQuery(incomeQuery(month));
   const expected = useLocation({
     select: (location) => location.pathname === '/plan/erwartet/einnahmen',
   });
@@ -120,7 +125,8 @@ export function PlanIncomePage() {
     heading.current?.focus({ preventScroll: true });
   }, [month]);
   return (
-    <PageFrame meta={expected ? PLAN_ERWARTET : PLAN_MONAT}>
+    <PageFrame meta={expected ? PLAN_ERWARTET : PLAN_MONAT}
+      income={income.data ? eur(income.data.receivedCents) : '–'}>
       <div className="plan plan-detail">
         {expected ? <ExpectedDetailBack /> : <PlanDetailBack month={month} />}
         <section className="card insp-card" aria-label="Einnahmen">
@@ -128,6 +134,9 @@ export function PlanIncomePage() {
             Einnahmen {monthLabel(month)}
           </h2>
           <IncomeBody month={month} bookedCents={budget.data?.summary.incomeCents} />
+        </section>
+        <section className="card insp-card">
+          <IncomePayslips key={month} month={month} />
         </section>
       </div>
     </PageFrame>

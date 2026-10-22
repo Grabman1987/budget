@@ -1,11 +1,13 @@
 import {
   payrollTotals,
+  cents,
   type ParsedPayrollDocument,
   type PayslipSourceConfig,
   type PayslipAutomationOutcome,
 } from '@budget/domain';
 import {
   Button,
+  DimensionChain,
   Field,
   SectionHead,
   Select,
@@ -23,6 +25,7 @@ import { eur, longDay } from '../ledger/format';
 import { errorText } from '../ledger/labels';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { AccountRow } from '../ledger/types';
+import { ReceiptPdfPreview } from '../receipts/pdf-preview';
 import './payslip-intake.css';
 
 const PATH = '/api/payslip-intake';
@@ -272,6 +275,12 @@ type Intake = {
     amountCents: number;
     differenceCents: number;
     exact: boolean;
+    splitPreview?: {
+      status: 'eligible' | 'already_correct' | 'locked' | 'unavailable';
+      token?: string;
+      salaryCents?: number;
+      reimbursementsCents?: number;
+    };
   }[];
   proposedPayeeId: string | null;
   selectedExpectedOccurrenceId: string | null;
@@ -305,6 +314,7 @@ export function PayslipIntakeDetail({
   const [expectedOccurrenceId, setExpectedOccurrenceId] = useState<string | null | undefined>();
   const [payeeId, setPayeeId] = useState<string | null | undefined>();
   const [wageMappings, setWageMappings] = useState<Record<string, string>>({});
+  const [acceptedSplitToken, setAcceptedSplitToken] = useState<string>();
   const [mappingPassword, setMappingPassword] = useState('');
   const query = useQuery({
     queryKey: ['payslip-intake', id, accountId, payoutDate, expectedOccurrenceId],
@@ -312,7 +322,9 @@ export function PayslipIntakeDetail({
       const params = new URLSearchParams();
       if (accountId) params.set('accountId', accountId);
       if (payoutDate) params.set('payoutDate', payoutDate);
-      if (expectedOccurrenceId) params.set('expectedOccurrenceId', expectedOccurrenceId);
+      // A deliberate empty selection must not reapply the server's initial sole-expectation default.
+      if (expectedOccurrenceId !== undefined)
+        params.set('expectedOccurrenceId', expectedOccurrenceId ?? 'none');
       return request<Intake>('GET', `${PATH}/${id}${params.size ? `?${params}` : ''}`);
     },
     enabled: inline || dialogOpen,
@@ -333,6 +345,9 @@ export function PayslipIntakeDetail({
   const p = data?.parsed,
     totals = p?.draft ? payrollTotals([p.draft]) : null;
   const selectedMatch = data?.matches.find((m) => m.id === match);
+  const splitPreview = selectedMatch?.splitPreview;
+  const splitAccepted = splitPreview?.status === 'eligible' && Boolean(splitPreview.token)
+    && acceptedSplitToken === splitPreview.token;
   const payoutAccount = data?.accounts.find((a) => a.id === data.payoutAccountId);
   const selectedExpectation = data?.expectedPayouts.find(
     (item) => item.occurrenceId === effectiveExpectedId,
@@ -373,6 +388,7 @@ export function PayslipIntakeDetail({
             : {
                 action,
                 bookingId: match || null,
+                ...(action === 'confirm' && splitAccepted ? { splitToken: splitPreview!.token } : {}),
                 ...(action === 'confirm' && payoutAccount
                   ? {
                       accountId: payoutAccount.id,
@@ -445,6 +461,19 @@ export function PayslipIntakeDetail({
           )}
           {totals && (
             <>
+              <DimensionChain label="Zusammensetzung der Auszahlung" precision="cent" terms={[
+                { label: 'Brutto', value: cents(totals.grossCents) },
+                { label: 'SV', value: cents(totals.svCents), op: '-' },
+                { label: 'Lohnsteuer', value: cents(totals.taxCents), op: '-' },
+                { label: 'Abzüge', value: cents(totals.otherCents), op: '-' },
+                { label: 'Steuerfreie Erstattungen', value: cents(totals.reimbursementsCents), op: '+' },
+                ...(totals.calculatedNetCents !== totals.netCents ? [{
+                  label: 'Summendifferenz',
+                  value: cents(totals.calculatedNetCents - totals.netCents),
+                  op: '-' as const,
+                }] : []),
+                { label: 'Auszahlung', value: cents(totals.netCents), op: '=' },
+              ]} />
               <dl className="source-status">
                 {[
                   ['Brutto', totals.grossCents],
@@ -641,6 +670,24 @@ export function PayslipIntakeDetail({
                   {eur(selectedMatch.differenceCents)}
                 </p>
               )}
+              {splitPreview?.status === 'eligible' && data.status === 'pending' && <div>
+                <label className="check-row">
+                  <input type="checkbox" disabled={busy} checked={splitAccepted}
+                    onChange={(event) => setAcceptedSplitToken(event.target.checked ? splitPreview.token : undefined)} />
+                  Vorhandene Auszahlung ausdrücklich in Gehalt und steuerfreie Erstattungen aufteilen
+                </label>
+                <p className="panel-sub">
+                  Gehalt <span className="payslip-split-amount">{eur(splitPreview.salaryCents!)}</span> · steuerfreie Erstattungen <span className="payslip-split-amount">{eur(splitPreview.reimbursementsCents!)}</span>.
+                  {' '}Gesamtbetrag, Konto, Datum und Status bleiben erhalten. Aufteilung und Verknüpfung gehören zu einer Rücknahme.
+                </p>
+              </div>}
+              {splitPreview?.status === 'locked' && <p className="panel-sub">
+                Diese Auszahlung ist geprüft. Sie wird nur verknüpft; ihre Aufteilung bleibt erhalten.
+              </p>}
+              {splitPreview?.status === 'unavailable' && <p className="panel-sub">
+                Eine unveränderte ursprüngliche Zuordnung ist nicht vollständig nachgewiesen. Die Auszahlung wird nur verknüpft;
+                bestehende Korrekturen und Zuordnungen bleiben erhalten.
+              </p>}
               {!data.matches.length && (
                 <p>
                   Keine Gehaltsbuchung im Zeitfenster gefunden. Nach der Bestätigung wird die
@@ -649,7 +696,8 @@ export function PayslipIntakeDetail({
               )}
               <p>
                 {selectedMatch
-                  ? 'Die vorhandene Buchung wird verknüpft. Ihre Zuordnung bleibt erhalten.'
+                  ? splitAccepted ? 'Die nachgewiesene ursprüngliche Auszahlung wird aufgeteilt und verknüpft.'
+                    : 'Die vorhandene Buchung wird verknüpft. Ihre Zuordnung bleibt erhalten.'
                   : payoutAccount?.type === 'cash'
                     ? 'Die neue Bargeldauszahlung wird sofort bestätigt.'
                     : 'Die neue Auszahlung wird vorgemerkt. Gehalt und steuerfreie Erstattungen werden getrennt zugeordnet.'}
@@ -693,6 +741,16 @@ export function PayslipIntakeDetail({
       )}
     </>
   );
+  const documentReview = (
+    <div className="payslip-document-review">
+      <div className="payslip-document-original">
+        {data && <ReceiptPdfPreview
+          key={`${id}:${data.receiptId}:${accountId ?? data.payoutAccountId ?? ''}`}
+          receiptId={data.receiptId} visible={inline || dialogOpen} />}
+      </div>
+      <div className="payslip-document-fields">{review}</div>
+    </div>
+  );
   if (inline)
     return (
       <section className="payslip-intake-review" aria-label="Gehaltszettelprüfung">
@@ -706,7 +764,7 @@ export function PayslipIntakeDetail({
               : 'PDF gespeichert. Offene Angaben bitte prüfen.'}
           </p>
         )}
-        {review}
+        {documentReview}
       </section>
     );
   return (
@@ -720,7 +778,7 @@ export function PayslipIntakeDetail({
         title="Gehaltszettel prüfen"
         beforeClose={() => !busy}
       >
-        <div className="payslip-review-dialog">{review}</div>
+        <div className="payslip-review-dialog">{documentReview}</div>
       </WideDialog>
     </>
   );

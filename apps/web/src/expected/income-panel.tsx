@@ -67,17 +67,19 @@ export function IncomeBody({
   return (
     <div className="kform xp-panel">
       <div>
+        <p className="panel-sub">Eingegangen</p>
         <div className="xp-big" data-testid="income-received">
           {eur(data.receivedCents)}
         </div>
         <p className="panel-sub">
-          Zu erwarteten Zahlungen eingegangen im {monthLabel(month).split(' ')[0]} · erwartet{' '}
-          {eur(data.expectedCents)}
+          von erwartet {eur(data.expectedCents)} · {monthLabel(month)}
         </p>
-        {bookedCents !== undefined && (
-          <p className="panel-sub">
-            Budgetrelevante Zuflüsse im Planmonat {monthLabel(month)}: {eur(bookedCents)}
-          </p>
+        {data.expectedCents > 0 && (
+          <progress
+            aria-label="Eingegangene erwartete Einnahmen"
+            max={data.expectedCents}
+            value={Math.max(0, Math.min(data.receivedCents, data.expectedCents))}
+          />
         )}
       </div>
       {empty ? (
@@ -137,6 +139,7 @@ export function IncomeBody({
         </>
       )}
       <p className="xp-note">
+        {bookedCents !== undefined && <>Zählt für Zu verteilen: {eur(bookedCents)} im Planmonat {monthLabel(month)}. </>}
         Erwartete Zahlungen sind Planwerte. Zu verteilen zählt nur tatsächlich gebuchte Zuflüsse im
         zugeordneten Planmonat. Heute zählt Haushaltseinnahmen nach Buchungsdatum; „Für nächsten
         Monat“ zählt im Plan erst im Folgemonat.

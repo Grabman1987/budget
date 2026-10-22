@@ -51,6 +51,7 @@ import { earliestAccountDate } from './portfolio';
 import { listEntities } from './entities';
 import { createBooking } from './bookings';
 import { expectedLinkedStatus } from './expected-links';
+import { applyPayslipPayoutSplit, previewPayslipPayoutSplit } from './payslip-payout-split';
 
 export const getPayslipSourceConfig = (db: Executor): PayslipSourceConfig => {
   const value = db
@@ -483,6 +484,7 @@ export function payslipMatches(
   parsed: ParsedPayrollDocument,
   accountId = getPayslipSourceConfig(db).salaryAccountId,
   payoutDate?: string | null,
+  splitSource?: { intake: ReturnType<typeof getPayslipIntake>; expectedOccurrenceId: string | null },
 ) {
   const draft = parsed.draft;
   if (!draft || !accountId || payoutDate === null) return [];
@@ -531,6 +533,11 @@ export function payslipMatches(
       amountCents: b.amountCents,
       differenceCents: b.amountCents - draft.netCents,
       exact: b.amountCents === draft.netCents,
+      ...(splitSource ? { splitPreview: previewPayslipPayoutSplit(db, splitSource.intake, b.id, {
+        accountId: accountId ?? null,
+        payoutDate: payoutDate ?? null,
+        expectedOccurrenceId: splitSource.expectedOccurrenceId,
+      }) } : {}),
     }));
 }
 export function decidePayslipIntake(
@@ -543,6 +550,8 @@ export function decidePayslipIntake(
     payoutDate?: string | undefined;
     payeeId?: string | null | undefined;
     expectedOccurrenceId?: string | null | undefined;
+    /** Explicit owner acceptance of the server's current audit-proven split preview. */
+    splitToken?: string | undefined;
   },
   ctx: AuditContext,
   /** Internal automatic attachment only; never accepted by the manual HTTP decision schema. */
@@ -553,6 +562,8 @@ export function decidePayslipIntake(
     const row = getPayslipIntake(tx, id);
     if (row.status !== 'pending')
       throw new ConflictError('Diese Aufgabe wurde bereits entschieden.');
+    if (decision.splitToken && (decision.action !== 'confirm' || !decision.bookingId || attachExistingPayslipId))
+      throw new ConflictError('Die Aufteilung benötigt eine ausdrücklich gewählte bestehende Auszahlung.');
     if (attachExistingPayslipId && (decision.action !== 'confirm' || !decision.bookingId))
       throw new ConflictError('Bestehende Abrechnung und Auszahlung bitte prüfen.');
     let payslipId: string | null = null;
@@ -612,6 +623,13 @@ export function decidePayslipIntake(
           'Gehaltsbuchung ist nicht mehr verfügbar oder außerhalb des Zeitfensters.',
         );
       getReceipt(tx, row.receiptId);
+      if (decision.splitToken && decision.bookingId) {
+        applyPayslipPayoutSplit(tx, row, decision.bookingId, {
+          accountId: decision.accountId ?? getPayslipSourceConfig(tx).salaryAccountId,
+          payoutDate: date ?? null,
+          expectedOccurrenceId: decision.expectedOccurrenceId ?? null,
+        }, decision.splitToken, grouped);
+      }
       let payoutId = decision.bookingId;
       if (decision.bookingId && occurrence) {
         const matchedBooking = tx
