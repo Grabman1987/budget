@@ -861,7 +861,8 @@ export function claimPayslipScan(
     const stale = start !== null && readPayslipScanStart(tx) !== start;
     const fullScanKey = JSON.stringify([start, parserVersion]);
     const continuingFull = !rootChanged && row.fullScanKey === fullScanKey;
-    const full = rootChanged || stale || parserStale || continuingFull;
+    const interruptedDifferentFull = row.fullScanKey !== null && !continuingFull;
+    const full = rootChanged || stale || parserStale || continuingFull || interruptedDifferentFull;
     if (continuingFull && row.nextRunAt > iso) return null;
     if (!row.requestAt && row.nextRunAt > iso && !full) return null;
     const token = randomUUID();
@@ -870,6 +871,7 @@ export function claimPayslipScan(
       .set({
         root,
         cursor: rootChanged || (full && !continuingFull) ? null : row.cursor,
+        ...(rootChanged ? { lastScanAt: null, filesFound: 0, errors: 0 } : {}),
         requestAt: null,
         leaseToken: token,
         leaseUntil: new Date(now.getTime() + 120_000).toISOString(),

@@ -132,6 +132,9 @@ export function payslipIntakeRoutes(
       scan && scan.nextRunAt > now && (scan.leaseToken || isScanFailure(scan.errorCode))
         ? scan.nextRunAt
         : null;
+    const configuredRootMatches = Boolean(
+      scan && scan.root === process.env['DROPBOX_PAYSLIP_ROOT']?.replace(/\/$/, ''),
+    );
     const passwordSource = payslipPasswordSource(db);
     return c.json({
       passwordSet: passwordSource !== null,
@@ -139,7 +142,7 @@ export function payslipIntakeRoutes(
       passwordRememberAvailable: Boolean(payslipPasswordBox()),
       dropboxConnected:
         dropboxConfigured() &&
-        scan?.root === process.env['DROPBOX_PAYSLIP_ROOT']?.replace(/\/$/, '') &&
+        configuredRootMatches &&
         Boolean(scan?.cursor) &&
         !isScanFailure(scan?.errorCode),
       dropboxConfigured: dropboxConfigured(),
@@ -147,10 +150,10 @@ export function payslipIntakeRoutes(
       scanState: scanRunning ? 'running' : scanQueued ? 'queued' : retryAt ? 'backoff' : 'idle',
       manualAvailable: dropboxConfigured() && !scanRunning && !scanQueued && !retryAt,
       retryAt,
-      lastScanAt: scan?.lastScanAt ?? null,
-      filesFound: scan?.filesFound ?? 0,
-      errors: scan?.errors ?? 0,
-      errorCode: scan?.errorCode ?? null,
+      lastScanAt: configuredRootMatches ? (scan?.lastScanAt ?? null) : null,
+      filesFound: configuredRootMatches ? (scan?.filesFound ?? 0) : 0,
+      errors: configuredRootMatches ? (scan?.errors ?? 0) : 0,
+      errorCode: configuredRootMatches ? (scan?.errorCode ?? null) : null,
       accounts: listEntities(db, account)
         .filter((a) => a.currency === 'EUR')
         .map(({ id, name, type, onBudget, sortOrder, closedAt }) => ({

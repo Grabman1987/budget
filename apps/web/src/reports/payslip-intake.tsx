@@ -809,6 +809,7 @@ export function PayslipSourceSection() {
             available={query.data.passwordRememberAvailable}
           />
           <PayslipSourceForm
+            key={JSON.stringify(query.data.config)}
             initial={query.data.config}
             accounts={query.data.accounts}
             payees={query.data.payees ?? []}

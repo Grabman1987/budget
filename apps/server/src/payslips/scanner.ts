@@ -90,7 +90,7 @@ export class PayslipScanner {
           claimed.lease,
           {
             cursor,
-            lastScanAt: now.toISOString(),
+            lastScanAt: new Date().toISOString(),
             ...(nextRunAt ? { nextRunAt } : {}),
             filesFound,
             errors,
@@ -220,13 +220,13 @@ export class PayslipScanner {
               `Gehaltszettel-Abruf fehlgeschlagen (${retry}). Der Scan wird erneut versucht.`,
               claimed.lease,
             );
-            write(retry, new Date(now.getTime() + 15 * 60_000).toISOString(), true);
+            write(retry, new Date(Date.now() + 15 * 60_000).toISOString(), true);
             return;
           }
           cursor = result.cursor;
           write(
             errors ? 'document_warning' : null,
-            result.has_more ? undefined : nextPayslipScan(now),
+            result.has_more ? undefined : nextPayslipScan(new Date()),
             !result.has_more,
             !result.has_more && full,
           );
@@ -234,7 +234,7 @@ export class PayslipScanner {
         }
         write(
           errors ? 'document_warning' : null,
-          new Date(now.getTime() + 60_000).toISOString(),
+          new Date(Date.now() + 60_000).toISOString(),
           true,
         );
       } catch (error) {
@@ -245,7 +245,7 @@ export class PayslipScanner {
           `Gehaltszettel-Abruf fehlgeschlagen (${code}). Der Scan wird erneut versucht.`,
           claimed.lease,
         );
-        write(code, new Date(now.getTime() + 15 * 60_000).toISOString(), true);
+        write(code, new Date(Date.now() + 15 * 60_000).toISOString(), true);
       }
     } finally {
       if (heartbeat) clearInterval(heartbeat);
