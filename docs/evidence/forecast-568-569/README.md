@@ -64,6 +64,26 @@ markers, compactness, no overflow, scoped Axe, keyboard/privacy/draft retention,
 target geometry and real skip/Undo/unskip. Only the four inspected PNGs are
 retained here; attachments and uninspected duplicate images are excluded.
 
+## Compatibility and main refresh
+
+Independent full caller/fixture review is CLEAR at `43846fa8` (see
+[review delta](REVIEW.md#existing-callerfixture-delta--clear)). It covers all
+additional existing-test adapters and truthful compact-card scope wording.
+
+Affected shell snapshot rerun [39770384412](https://github.com/Grabman1987/budget/actions/runs/39770384412)
+used exact `9e61403e`: actual **44 PASS**, with existing project skips; no baseline
+changes. It resolved the four missing-chart readiness failures in run 39769372353. Workflow job success alone was not treated as test success.
+This rerun predates the subsequent scope wording/compatibility adapter commit;
+updated wording still requires browser/snapshot revalidation.
+
+A single normal merge incorporated live main
+`1c19a465649490417f174787a9806b3347b7b7a6` (#740 / PR754) as merge commit
+`b23e84427031839fc45ea876f33e531256c28813`, without conflicts or history rewrite.
+Current Heute task navigation, Plan filters, the 35d account selector and incoming
+statement receipt links remain intact. Existing screenshots/receipts above are
+historical verified `03fc3f7e` evidence, not proof of the merged source or the new
+scope wording. Required changed-caller browser checks and exact-head CI remain.
+
 ## Pending gates
 
 - Required complete lint/unit/build and Chromium desktop/mobile CI on the exact
