@@ -550,7 +550,9 @@ function ClassTable({ groups, totalCents }: { groups: AllocationGroup[]; totalCe
                     <td />
                     <td />
                     <td />
-                    <td className="n">{percentText(p.ttwror12, { sign: true })}</td>
+                    <td className="n" title={p.returnUnavailable
+                      ? `Rendite nicht verfügbar: ${p.returnUnavailable === 'missing_transfer_fx' ? 'Wechselkurs' : 'Wertpapierkurs'} am Übertragstag fehlt.`
+                      : undefined}>{percentText(p.ttwror12, { sign: true })}</td>
                   </tr>
                 ))}
                 {c.assignedSecurities

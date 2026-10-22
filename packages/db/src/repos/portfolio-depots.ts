@@ -18,7 +18,12 @@ import {
 } from '@budget/domain';
 import { and, asc, eq, isNull, lte } from 'drizzle-orm';
 import { account, institution, price, security, valuation } from '../schema';
-import { cashSeries, portfolioFlows, valuationSeries } from './portfolio';
+import {
+  cashSeries,
+  portfolioFlowsRead,
+  valuationSeries,
+  type SecurityTransferFlowUnavailableReason,
+} from './portfolio';
 import { firstDay, positionLines, ratesAsOf } from './portfolio-summary';
 import type { Executor } from './types';
 
@@ -39,6 +44,8 @@ export interface DepotColumn {
   shareBp: number;
   /** The window figures of this depot; `null` when the depot has no valued day in the window. */
   performance: WindowPerformance | null;
+  /** A missing transfer-date boundary value affects this return, not its holdings. */
+  returnUnavailable: SecurityTransferFlowUnavailableReason | null;
   /** Chained time-weighted level, 100 at the window start, at every month boundary. */
   index: IndexPoint[];
   products: DepotProduct[];
@@ -129,28 +136,34 @@ export function depotComparison(
       .map((i) => [i.id, i.name]),
   );
 
-  const inputOf = (values: number[], accounts: ReadonlyArray<string>): PerformanceInput => {
+  type InputRead = { available: true; input: PerformanceInput } | {
+    available: false; reason: SecurityTransferFlowUnavailableReason;
+  };
+  const inputOf = (values: number[], accounts: ReadonlyArray<string>): InputRead => {
     const valuations: Valuation[] = series.days.map((date, i) => ({
       date,
       valueCents: values[i] as number,
     }));
-    const flowsOf = (taxBasis: 'after-tax' | 'before-tax' | 'pp-irr') => [
-      ...portfolioFlows(db, {
+    const flowsOf = (taxBasis: 'after-tax' | 'before-tax' | 'pp-irr') => {
+      const securities = portfolioFlowsRead(db, {
         from: start,
         to: today,
         view: 'securities',
         taxBasis,
+        pairedSecurityAccounts: accounts,
         includedCashAccounts: accounts.filter(
           (id) => !['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
         ),
         accounts: accounts.filter((id) =>
           ['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
         ),
-      }),
-      ...portfolioFlows(db, {
+      });
+      if (!securities.available) return securities;
+      const depot = portfolioFlowsRead(db, {
         from: start,
         to: today,
         view: 'depot',
+        pairedSecurityAccounts: accounts,
         includedSecuritiesAccounts: accounts.filter((id) =>
           ['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
         ),
@@ -160,13 +173,25 @@ export function depotComparison(
         referenceAccounts: accounts.filter(
           (id) => !['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
         ),
-      }),
-    ];
+      });
+      return depot.available
+        ? { available: true as const, flows: [...securities.flows, ...depot.flows] }
+        : depot;
+    };
+    const flows = flowsOf('after-tax');
+    if (!flows.available) return flows;
+    const returnFlows = flowsOf('before-tax');
+    if (!returnFlows.available) return returnFlows;
+    const irrFlows = flowsOf('pp-irr');
+    if (!irrFlows.available) return irrFlows;
     return {
-      series: valuations,
-      flows: flowsOf('after-tax'),
-      returnFlows: flowsOf('before-tax'),
-      irrFlows: flowsOf('pp-irr'),
+      available: true,
+      input: {
+        series: valuations,
+        flows: flows.flows,
+        returnFlows: returnFlows.flows,
+        irrFlows: irrFlows.flows,
+      },
     };
   };
 
@@ -223,25 +248,27 @@ export function depotComparison(
     );
   }
   const allValues = sumSeries(...values.values());
-  const totalInput = inputOf(allValues, investmentAccounts);
-  const totalPerformance = windowPerformance(
-    withBenchmark(totalInput),
-    periodWindow(period, today, totalInput.series[0]?.date),
-  );
-  const effective = { from: totalPerformance.from, to: totalPerformance.to };
+  const totalRead = inputOf(allValues, investmentAccounts);
+  const window = periodWindow(period, today, series.days[0]);
+  const totalPerformance = totalRead.available
+    ? windowPerformance(withBenchmark(totalRead.input), window) : null;
+  const effective = totalPerformance
+    ? { from: totalPerformance.from, to: totalPerformance.to }
+    : { from: window.from, to: window.to };
 
-  const performanceOf = (input: PerformanceInput): WindowPerformance | null => {
-    const first = input.series.find((v) => v.valueCents > 0);
+  const performanceOf = (read: InputRead): WindowPerformance | null => {
+    if (!read.available) return null;
+    const first = read.input.series.find((v) => v.valueCents > 0);
     if (!first || first.date > effective.to) return null;
-    return windowPerformance(withBenchmark(input), effective);
+    return windowPerformance(withBenchmark(read.input), effective);
   };
 
-  const totalLine = depotIndexLine(totalInput, effective);
+  const totalLine = totalRead.available ? depotIndexLine(totalRead.input, effective) : [];
   const benchmarkByDate = new Map(
-    performanceReportSeries(totalInput, effective, levels).dailyBenchmark.map((point) => [
-      point.date,
-      point.benchmark,
-    ]),
+    (totalRead.available
+      ? performanceReportSeries(totalRead.input, effective, levels).dailyBenchmark
+      : []
+    ).map((point) => [point.date, point.benchmark]),
   );
   const benchmarkIndex =
     levels.length > 0
@@ -249,17 +276,23 @@ export function depotComparison(
       : null;
 
   // Closed zero-value accounts remain visible only when this period contains value or flows.
+  const inputByAccount = new Map(
+    accounts.map((row) => [row.id, inputOf(values.get(row.id)!, [row.id])] as const),
+  );
   const accountIds = accounts
-    .filter(
-      (a) =>
+    .filter((a) => {
+      const read = inputByAccount.get(a.id)!;
+      return (
         !a.closedAt ||
         series.days.some(
           (day, i) => day >= effective.from && day <= effective.to && values.get(a.id)![i] !== 0,
         ) ||
-        inputOf(values.get(a.id)!, [a.id]).flows.some(
+        !read.available ||
+        read.input.flows.some(
           (f) => f.date > effective.from && f.date <= effective.to && f.cents !== 0,
-        ),
-    )
+        )
+      );
+    })
     .map((a) => a.id);
   const lastIndex = series.days.length - 1;
   const endValue = (id: string) => (values.get(id) as number[])[lastIndex] as number;
@@ -296,7 +329,7 @@ export function depotComparison(
 
   const depots: DepotColumn[] = accountIds
     .map((id, i): DepotColumn => {
-      const input = inputOf(values.get(id) as number[], [id]);
+      const input = inputByAccount.get(id)!;
       return {
         accountId: id,
         name: accountRows.get(id)?.name ?? id,
@@ -304,7 +337,8 @@ export function depotComparison(
         valueCents: endValue(id),
         shareBp: shares[i] as number,
         performance: performanceOf(input),
-        index: depotIndexLine(input, effective),
+        returnUnavailable: input.available ? null : input.reason,
+        index: input.available ? depotIndexLine(input.input, effective) : [],
         products: productsOf(id),
       };
     })
@@ -319,6 +353,7 @@ export function depotComparison(
     valueCents: totalValue,
     shareBp: totalValue > 0 ? 10_000 : 0,
     performance: totalPerformance,
+    returnUnavailable: totalRead.available ? null : totalRead.reason,
     index: totalLine,
     products: productsOf(null),
   };
@@ -330,7 +365,7 @@ export function depotComparison(
       ? { securityId: benchmarkSecurity.id, name: benchmarkSecurity.name }
       : null,
     benchmarkIndex,
-    benchmarks: portfolioBenchmarks(db, totalInput, effective),
+    benchmarks: totalRead.available ? portfolioBenchmarks(db, totalRead.input, effective) : [],
     depots,
     total,
   };

@@ -76,7 +76,9 @@ export function PortfolioContributionsReport({
       reportDataBasis={
         query.isError
           ? 'nicht verfügbar'
-          : history
+          : query.data?.portfolio.returnUnavailable
+            ? 'Wertzuwachs nicht verfügbar'
+            : history
             ? `${longDay(history.from)} bis ${longDay(history.to)}`
             : query.data
               ? 'keine Wertpapierhistorie'
@@ -142,8 +144,9 @@ export function PortfolioContributionsReport({
         )}
         {!query.isError && query.data && history === null && (
           <p className="contributions-empty" role="status">
-            Für die Wertpapiere liegt noch keine bewertbare Historie vor. Es wird kein Anfangswert
-            oder Nullertrag angenommen.
+            {query.data.portfolio.returnUnavailable
+              ? `Einzahlungen und Wertzuwachs können wegen eines fehlenden ${query.data.portfolio.returnUnavailable === 'missing_transfer_fx' ? 'Wechselkurses' : 'Wertpapierkurses'} am Übertragstag nicht berechnet werden. Bestände und belegte Kosten bleiben verfügbar.`
+              : 'Für die Wertpapiere liegt noch keine bewertbare Historie vor. Es wird kein Anfangswert oder Nullertrag angenommen.'}
           </p>
         )}
       </div>

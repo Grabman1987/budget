@@ -302,6 +302,12 @@ function KpiTable({ columns }: { columns: DepotColumn[] }) {
             {columns.map((depot) => (
               <th key={depot.accountId ?? 'total'} className="tech n">
                 {depot.name}
+                {depot.returnUnavailable && (
+                  <small className="prep-muted" role="status">
+                    {' '}· Rendite nicht verfügbar: {depot.returnUnavailable === 'missing_transfer_fx'
+                      ? 'Wechselkurs' : 'Wertpapierkurs'} am Übertragstag fehlt
+                  </small>
+                )}
               </th>
             ))}
           </tr>

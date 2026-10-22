@@ -78,7 +78,9 @@ export function PortfolioPerformanceReport({
       reportDataBasis={
         query.isError
           ? 'nicht verfügbar'
-          : query.data?.portfolio.performance
+          : query.data?.portfolio.returnUnavailable || query.data?.portfolio.performanceHistoryUnavailable
+            ? 'Rendite teilweise nicht verfügbar'
+            : query.data?.portfolio.performance
             ? `${longDay(query.data.portfolio.performance.from)} bis ${longDay(query.data.portfolio.performance.to)}`
             : query.data
               ? 'keine Renditehistorie'
@@ -183,10 +185,16 @@ function PerformanceBody({
         <div className="tbd-head">
           <h2 id="performance-window-title">
             Wertpapiere ·{' '}
-            {performance ? periodText(summary.period, performance.from) : 'ohne Historie'}
+            {performance ? periodText(summary.period, performance.from)
+              : summary.returnUnavailable ? 'Rendite nicht verfügbar' : 'ohne Historie'}
           </h2>
           <span className="tbd-state">Ansicht ohne Depotkassa</span>
         </div>
+        {summary.performanceHistoryUnavailable && performance && (
+          <p className="performance-empty" role="status">
+            Ein Produktvergleich ist wegen eines fehlenden {summary.performanceHistoryUnavailable === 'missing_transfer_fx' ? 'Wechselkurses' : 'Wertpapierkurses'} am Übertragstag nicht berechenbar. Die Gesamtrendite bleibt verfügbar.
+          </p>
+        )}
         {performance ? (
           <>
             <div className="performance-primary">
@@ -243,8 +251,9 @@ function PerformanceBody({
           </>
         ) : (
           <p className="performance-empty" role="status">
-            Für das Portfolio liegt keine Renditehistorie vor. Eine Rendite wird nicht als null
-            angenommen.
+            {summary.returnUnavailable
+              ? `Die Rendite kann wegen eines fehlenden ${summary.returnUnavailable === 'missing_transfer_fx' ? 'Wechselkurses' : 'Wertpapierkurses'} am Übertragstag nicht berechnet werden. Bestände und belegte Kosten bleiben sichtbar.`
+              : 'Für das Portfolio liegt keine Renditehistorie vor. Eine Rendite wird nicht als null angenommen.'}
           </p>
         )}
         <PortfolioCalculationDisclosure

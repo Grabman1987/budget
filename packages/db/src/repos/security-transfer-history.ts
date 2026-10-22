@@ -10,7 +10,7 @@ import {
   type KnownSecurityReplayResult,
   type SeriesTrade,
 } from '@budget/domain';
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import {
   account, accountReconciliation, auditLog, booking, bookingSplit, holding,
   INCOME_TYPES, security, securityTransferPair, trade,
@@ -26,21 +26,17 @@ export function pairedRecordedPositionAsOf(db: Executor, input: {
 }): null | { available: false; code: RecordedSecurityHistoryFailure } |
   { available: true; unitsE8: number; basisCents: number; realizedGainCents: number } {
   return memoizedShared(db, `pairedPosition|${input.accountId}|${input.securityId}|${input.asOf}|${input.method}`, () => {
-    const pairs = db.select().from(securityTransferPair).where(and(
-      eq(securityTransferPair.securityId, input.securityId), isNull(securityTransferPair.deletedAt)))
-      .limit(501).all();
-    if (pairs.length > 500) return { available: false as const, code: 'scope_limit' as const };
-    let counterpart: string | null = null;
-    for (const pair of pairs) {
-      const out = db.select().from(trade).where(eq(trade.id, pair.outTradeId)).get();
-      const incoming = db.select().from(trade).where(eq(trade.id, pair.inTradeId)).get();
-      if (!out || !incoming) return { available: false as const, code: 'invalid_pair' as const };
-      if (out.date > input.asOf || (out.accountId !== input.accountId && incoming.accountId !== input.accountId))
-        continue;
-      counterpart = out.accountId === input.accountId ? incoming.accountId : out.accountId;
-      break;
-    }
-    if (!counterpart) return null;
+    const adjacent = db.select({ pair: securityTransferPair }).from(trade)
+      .innerJoin(securityTransferPair, or(eq(securityTransferPair.outTradeId, trade.id),
+        eq(securityTransferPair.inTradeId, trade.id)))
+      .where(and(eq(securityTransferPair.securityId, input.securityId),
+        isNull(securityTransferPair.deletedAt), eq(trade.accountId, input.accountId),
+        lte(trade.date, input.asOf))).limit(1).get();
+    if (!adjacent) return null;
+    const out = db.select().from(trade).where(eq(trade.id, adjacent.pair.outTradeId)).get();
+    const incoming = db.select().from(trade).where(eq(trade.id, adjacent.pair.inTradeId)).get();
+    if (!out || !incoming) return { available: false as const, code: 'invalid_pair' as const };
+    const counterpart = out.accountId === input.accountId ? incoming.accountId : out.accountId;
     const history = readRecordedSecurityHistory(db, { securityId: input.securityId,
       sourceAccountId: input.accountId, destinationAccountId: counterpart, asOf: input.asOf });
     if (!history.available) return { available: false as const, code: history.code };
@@ -125,22 +121,27 @@ export function readRecordedSecurityHistory(db: Executor, input: {
       row.deletedAt !== null || row.role !== 'investment' || row.onBudget || row.currency !== 'EUR'))
       return unavailable('account_or_currency');
 
-    // Bounded explicit relation scan. Only live pairs connect economic components; tombstones
-    // remain CAS evidence when adjacent to one of those accounts. No date/note matching.
-    const allPairs = tx.select().from(securityTransferPair).where(
-      eq(securityTransferPair.securityId, input.securityId)).limit(501).all();
-    if (allPairs.length > 500) return unavailable('scope_limit');
+    // Only account-adjacent explicit pairs are read. Live pairs expand the economic
+    // component; tombstones stay as adjacent CAS evidence without expanding it.
     const legRows = new Map<string, TradeRow>();
-    for (const pair of allPairs) for (const legId of [pair.outTradeId, pair.inTradeId]) {
-      if (legRows.has(legId)) continue;
-      const row = tx.select().from(trade).where(eq(trade.id, legId)).get();
-      if (row) legRows.set(legId, row);
-    }
+    const adjacentById = new Map<string, typeof securityTransferPair.$inferSelect>();
     const accountSet = new Set(candidateIds);
     let expanded = true;
     while (expanded) {
       expanded = false;
-      for (const pair of allPairs) {
+      const rows = tx.select({ pair: securityTransferPair }).from(trade)
+        .innerJoin(securityTransferPair, or(eq(securityTransferPair.outTradeId, trade.id),
+          eq(securityTransferPair.inTradeId, trade.id)))
+        .where(and(eq(securityTransferPair.securityId, input.securityId),
+          inArray(trade.accountId, [...accountSet]))).limit(1001).all();
+      if (rows.length > 1000) return unavailable('scope_limit');
+      for (const { pair } of rows) {
+        adjacentById.set(pair.id, pair);
+        if (adjacentById.size > 500) return unavailable('scope_limit');
+        for (const legId of [pair.outTradeId, pair.inTradeId]) if (!legRows.has(legId)) {
+          const row = tx.select().from(trade).where(eq(trade.id, legId)).get();
+          if (row) legRows.set(legId, row);
+        }
         if (pair.deletedAt !== null) continue;
         const out = legRows.get(pair.outTradeId), incoming = legRows.get(pair.inTradeId);
         if (!out || !incoming) continue;
@@ -156,11 +157,18 @@ export function readRecordedSecurityHistory(db: Executor, input: {
     if (accounts.length !== accountIds.length || accounts.some((row) =>
       row.deletedAt !== null || row.role !== 'investment' || row.onBudget || row.currency !== 'EUR'))
       return unavailable('account_or_currency');
-    const adjacentPairs = allPairs.filter((pair) => {
-      const out = legRows.get(pair.outTradeId), incoming = legRows.get(pair.inTradeId);
-      return (out !== undefined && accountSet.has(out.accountId)) ||
-        (incoming !== undefined && accountSet.has(incoming.accountId));
-    });
+    const adjacentPairs = [...adjacentById.values()];
+    const adjacentLegIds = [...new Set(adjacentPairs.flatMap((pair) =>
+      [pair.outTradeId, pair.inTradeId]))];
+    if (adjacentLegIds.length > 1000) return unavailable('scope_limit');
+    if (adjacentLegIds.some((id) => !legRows.has(id)))
+      return unavailable('invalid_pair', adjacentPairs.map((pair) => pair.id));
+    const adjacentLegs = adjacentLegIds.map((id) => legRows.get(id)!);
+    const adjacentAccountIds = [...new Set(adjacentLegs.map((row) => row.accountId))];
+    const adjacentAccounts = adjacentAccountIds.length ? tx.select().from(account)
+      .where(inArray(account.id, adjacentAccountIds)).all() : [];
+    if (adjacentAccounts.length !== adjacentAccountIds.length)
+      return unavailable('invalid_pair', adjacentPairs.map((pair) => pair.id));
     const livePairs = adjacentPairs.filter((pair) => pair.deletedAt === null);
     const anyPairMembership = new Set<string>();
     for (const pair of adjacentPairs) for (const legId of [pair.outTradeId, pair.inTradeId]) {
@@ -297,6 +305,8 @@ export function readRecordedSecurityHistory(db: Executor, input: {
       ['security', instrument.id], ['investment_preference', 'portfolio'],
       ...accounts.map((row): [string, string] => ['account', row.id]),
       ...allTrades.map((row): [string, string] => ['trade', row.id]),
+      ...adjacentAccounts.map((row): [string, string] => ['account', row.id]),
+      ...adjacentLegs.map((row): [string, string] => ['trade', row.id]),
       ...snapshots.map((row): [string, string] => ['holding', row.id]),
       ...adjacentPairs.map((row): [string, string] => ['security_transfer_pair', row.id]),
       ...reconciliations.map((row): [string, string] => ['account_reconciliation', row.id]),
@@ -305,19 +315,23 @@ export function readRecordedSecurityHistory(db: Executor, input: {
       ]),
       ...[...historicalBookings.keys()].map((id): [string, string] => ['booking', id]),
     ];
-    if (revisionKeys.length > 6000) return unavailable('scope_limit');
+    if (revisionKeys.length > 7000) return unavailable('scope_limit');
     revisionKeys.sort((a, b) => a[0]!.localeCompare(b[0]!) || a[1]!.localeCompare(b[1]!));
-    const auditRevisions = revisionKeys.map(([entityType, entityId]) => {
+    const auditRevisions = revisionKeys.filter(([kind, id], index) =>
+      index === 0 || kind !== revisionKeys[index - 1]![0] || id !== revisionKeys[index - 1]![1])
+      .map(([entityType, entityId]) => {
       const newest = tx.select({ id: auditLog.id }).from(auditLog).where(and(
         eq(auditLog.entityType, entityType), eq(auditLog.entityId, entityId)))
         .orderBy(desc(sql<number>`rowid`)).limit(1).get();
       return [entityType, entityId, newest?.id ?? null];
-    });
+      });
     // This is the current complete set of recorded facts for these two accounts, not a claim
     // that an external broker's older or omitted events are present.
     const factFingerprint = createHash('sha256').update(JSON.stringify({
       version: 2, scope: input, method, instrument, accounts: accounts.sort((a, b) => a.id.localeCompare(b.id)),
       pairs: adjacentPairs.sort((a, b) => a.id.localeCompare(b.id)),
+      adjacentLegs: adjacentLegs.sort((a, b) => a.id.localeCompare(b.id)),
+      adjacentAccounts: adjacentAccounts.sort((a, b) => a.id.localeCompare(b.id)),
       reconciliations: reconciliations.sort((a, b) => a.id.localeCompare(b.id)),
       trades: allTrades.sort((a, b) => a.id.localeCompare(b.id)),
       snapshots: snapshots.sort((a, b) => a.id.localeCompare(b.id)),

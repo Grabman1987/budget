@@ -13,7 +13,7 @@ import {
   pickPrice,
   pickTradePrice,
   previewSecurityTransferScope,
-  PriceUnavailableError,
+  ExchangeRateUnavailableError,
   securityFlows,
   toEurCents,
   sumValuationCents,
@@ -32,7 +32,7 @@ import {
   type ValuationQuality,
   type ValuationSeries,
 } from '@budget/domain';
-import { and, desc, eq, gt, inArray, isNotNull, isNull, lte, max, min, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, isNotNull, isNull, lte, max, min, or, sql } from 'drizzle-orm';
 import {
   account,
   booking,
@@ -1143,16 +1143,33 @@ function tradesOf(
 /** Classify audited pair legs before the selected side is aggregated into gross daily flows. */
 function pairedFlowTrades(db: Executor, filter: FlowFilter & {
   view?: 'securities' | 'depot'; externalAccounts?: ReadonlyArray<string>;
+  pairedSecurityAccounts?: ReadonlyArray<string>;
 },
   selected: ReturnType<typeof tradesOf>) {
-  const pairs = db.select().from(securityTransferPair)
-    .where(isNull(securityTransferPair.deletedAt)).limit(1001).all();
-  if (pairs.length > 1000) throw new RangeError('Die Übertragshistorie überschreitet die Auswertungsgrenze.');
+  if (selected.length === 0)
+    return {
+      trades: selected,
+      pairedIds: new Set<string>(),
+      boundary: [] as { date: string; cents: number; currency: string }[],
+    };
+  const selectedIds = selected.map((row) => row.id);
+  const pairsById = new Map<string, typeof securityTransferPair.$inferSelect>();
+  for (let i = 0; i < selectedIds.length; i += 400) {
+    const ids = selectedIds.slice(i, i + 400);
+    const found = db.select().from(securityTransferPair).where(and(
+      isNull(securityTransferPair.deletedAt),
+      or(inArray(securityTransferPair.outTradeId, ids),
+        inArray(securityTransferPair.inTradeId, ids)),
+    )).limit(1001).all();
+    if (found.length > 1000) throw new RangeError('Die Übertragshistorie überschreitet die Auswertungsgrenze.');
+    for (const pair of found) pairsById.set(pair.id, pair);
+    if (pairsById.size > 1000) throw new RangeError('Die Übertragshistorie überschreitet die Auswertungsgrenze.');
+  }
   const selectedById = new Map(selected.map((row) => [row.id, row]));
   const adjusted = new Map<string, (typeof selected)[number]>();
   const pairedIds = new Set<string>();
   const boundary: { date: string; cents: number; currency: string }[] = [];
-  for (const pair of pairs) {
+  for (const pair of pairsById.values()) {
     const outSelected = selectedById.get(pair.outTradeId);
     const inSelected = selectedById.get(pair.inTradeId);
     if (!outSelected && !inSelected) continue;
@@ -1169,7 +1186,8 @@ function pairedFlowTrades(db: Executor, filter: FlowFilter & {
       sourceAccountId: out.accountId, destinationAccountId: incoming.accountId, asOf: out.date });
     if (!history.available) throw new RangeError('Die belegte Übertragshistorie ist nicht vollständig auswertbar.');
     pairedIds.add(out.id); pairedIds.add(incoming.id);
-    const oneSide = !!outSelected !== !!inSelected;
+    const oneSide = (!!outSelected !== !!inSelected) &&
+      !filter.pairedSecurityAccounts?.includes(outSelected ? incoming.accountId : out.accountId);
     if (!oneSide) continue;
     const counterpart = outSelected ? incoming.accountId : out.accountId;
     if (filter.externalAccounts !== undefined &&
@@ -1179,9 +1197,18 @@ function pairedFlowTrades(db: Executor, filter: FlowFilter & {
       currency: price.currency }).from(price).where(and(eq(price.securityId, pair.securityId),
       lte(price.date, out.date))).orderBy(price.date).all();
     const choice = pickPrice(prices, out.date, false);
-    if (!choice) throw new PriceUnavailableError(out.accountId, pair.securityId, out.date);
-    const valueCents = valueAtPrice(incoming.unitsE8, choice,
-      fxOn(rateTable(db, out.date), choice.price.currency, out.date));
+    const selectedAccountId = outSelected ? out.accountId : incoming.accountId;
+    if (!choice) throw new SecurityTransferFlowUnavailableError(
+      'missing_transfer_price', selectedAccountId, out.date);
+    let valueCents: number;
+    try {
+      valueCents = valueAtPrice(incoming.unitsE8, choice,
+        fxOn(rateTable(db, out.date), choice.price.currency, out.date));
+    } catch (error) {
+      if (!(error instanceof ExchangeRateUnavailableError)) throw error;
+      throw new SecurityTransferFlowUnavailableError(
+        'missing_transfer_fx', selectedAccountId, out.date);
+    }
     const scope = previewSecurityTransferScope({ id: pair.id,
       out: { id: out.id, accountId: out.accountId, securityId: out.securityId,
         date: out.date, unitsE8: out.unitsE8, currency: 'EUR' },
@@ -1198,6 +1225,22 @@ function pairedFlowTrades(db: Executor, filter: FlowFilter & {
   }
   return { trades: selected.filter((row) => !pairedIds.has(row.id))
     .concat([...adjusted.values()]), pairedIds, boundary };
+}
+
+export type SecurityTransferFlowUnavailableReason = 'missing_transfer_price' | 'missing_transfer_fx';
+
+/** A report's boundary flow is missing valuation evidence; the security basis remains readable. */
+export class SecurityTransferFlowUnavailableError extends Error {
+  override readonly name = 'SecurityTransferFlowUnavailableError';
+  constructor(
+    readonly reason: SecurityTransferFlowUnavailableReason,
+    readonly accountId: string,
+    readonly asOf: string,
+  ) {
+    super(reason === 'missing_transfer_price'
+      ? 'Für einen Wertpapierübertrag fehlt der Kurs am Übertragstag.'
+      : 'Für einen Wertpapierübertrag fehlt der Wechselkurs am Übertragstag.');
+  }
 }
 
 /**
@@ -1223,6 +1266,8 @@ export function portfolioFlows(
     includedCashAccounts?: ReadonlyArray<string>;
     /** Mixed comparison: these securities' cash-linked settlements are already internal. */
     includedSecuritiesAccounts?: ReadonlyArray<string>;
+    /** Full securities-value selection when a mixed report computes flows in two branches. */
+    pairedSecurityAccounts?: ReadonlyArray<string>;
     externalAccounts?: ReadonlyArray<string>;
     /** Securities-only PP returns exclude taxes; cash contribution facts include them. */
     taxBasis?: 'after-tax' | 'before-tax' | 'pp-irr';
@@ -1337,6 +1382,21 @@ export function portfolioFlows(
         currency: t.currency ?? 'EUR',
       });
   return depotFlows(boundary, rates);
+}
+
+/** Preserve independent report facts when only a scoped transfer boundary cannot be valued. */
+export function portfolioFlowsRead(
+  db: Executor,
+  filter: Parameters<typeof portfolioFlows>[1],
+):
+  | { available: true; flows: CashFlow[] }
+  | { available: false; reason: SecurityTransferFlowUnavailableReason; asOf: string } {
+  try {
+    return { available: true, flows: portfolioFlows(db, filter) };
+  } catch (error) {
+    if (!(error instanceof SecurityTransferFlowUnavailableError)) throw error;
+    return { available: false, reason: error.reason, asOf: error.asOf };
+  }
 }
 
 /** Deposits onto and withdrawals from `accounts` after `from` up to `to`: see `portfolioFlows` (depot view). */

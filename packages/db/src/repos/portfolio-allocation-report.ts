@@ -27,7 +27,8 @@ import {
 } from '@budget/domain';
 import { and, eq, isNull } from 'drizzle-orm';
 import { account, security } from '../schema';
-import { portfolioFlows, valuationSeries } from './portfolio';
+import { portfolioFlowsRead, valuationSeries,
+  type SecurityTransferFlowUnavailableReason } from './portfolio';
 import { firstDay, riskOf } from './portfolio-summary';
 import { listAssetClasses } from './securities';
 import type { Executor } from './types';
@@ -41,6 +42,7 @@ export interface AllocationProduct {
   depots: string[];
   /** Time-weighted return of the last 12 months; `null` without a valued start in the window. */
   ttwror12: number | null;
+  returnUnavailable: SecurityTransferFlowUnavailableReason | null;
 }
 
 export interface AllocationClass {
@@ -184,6 +186,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
           securities: universe.securities.map((s) => s.id),
         });
   const ttwror12 = new Map<string, number | null>();
+  const returnUnavailable = new Map<string, SecurityTransferFlowUnavailableReason>();
   if (series && series.days.length > 0) {
     const window = periodWindow('1J', today, series.days[0]);
     for (const line of lines) {
@@ -193,7 +196,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
         date,
         valueCents: values[i] as number,
       }));
-      const flows = portfolioFlows(db, {
+      const flowRead = portfolioFlowsRead(db, {
         from: start as string,
         to: today,
         view: 'securities',
@@ -202,10 +205,9 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
         taxBasis: 'before-tax',
       });
       const hasValue = valuations.some((v) => v.valueCents > 0);
-      ttwror12.set(
-        line.securityId,
-        hasValue ? windowPerformance({ series: valuations, flows }, window).ttwror : null,
-      );
+      if (!flowRead.available) returnUnavailable.set(line.securityId, flowRead.reason);
+      ttwror12.set(line.securityId, hasValue && flowRead.available
+        ? windowPerformance({ series: valuations, flows: flowRead.flows }, window).ttwror : null);
     }
   }
 
@@ -232,6 +234,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
           ),
         ],
         ttwror12: ttwror12.get(securityId) ?? null,
+        returnUnavailable: returnUnavailable.get(securityId) ?? null,
       };
     });
     return {

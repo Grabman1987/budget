@@ -60,8 +60,11 @@ import {
   holdingValuationExportAsOf,
   holdingValuesAsOf,
   portfolioFlows,
+  portfolioFlowsRead,
+  SecurityTransferFlowUnavailableError,
   valuationSeries,
   valuationProvenanceCollector,
+  type SecurityTransferFlowUnavailableReason,
   type ValuationProvenance,
 } from './portfolio';
 import { MissingFxRateError } from './errors';
@@ -152,6 +155,10 @@ export interface PortfolioSummary {
   realizedGainCents: number;
   /** `null` while the portfolio has no history (no holding or trade yet). */
   performance: WindowPerformance | null;
+  /** A recorded one-sided transfer lacks the dated value required for returns. */
+  returnUnavailable: SecurityTransferFlowUnavailableReason | null;
+  /** A selected product series may be unavailable even when the aggregate return is known. */
+  performanceHistoryUnavailable: SecurityTransferFlowUnavailableReason | null;
   /** Optional securities-only contribution report, derived from the same daily series and flows. */
   contributionHistory?: ContributionHistory | null;
   performanceHistory?: PortfolioPerformanceHistory | null;
@@ -868,6 +875,8 @@ function portfolioSummaryInRange(
         )
       : undefined;
   let performance: WindowPerformance | null = null;
+  let returnUnavailable: SecurityTransferFlowUnavailableReason | null = null;
+  let performanceHistoryUnavailable: SecurityTransferFlowUnavailableReason | null = null;
   let performanceHistory: PortfolioPerformanceHistory | null = null;
   let benchmark: PortfolioSummary['benchmark'] = null;
   let benchmarks: PortfolioBenchmarkSeries[] = [];
@@ -891,33 +900,40 @@ function portfolioSummaryInRange(
       date,
       valueCents: total[i] as number,
     }));
-    const flows = portfolioFlows(db, {
+    const flowsRead = portfolioFlowsRead(db, {
       from: start,
       to: today,
       view,
       referenceAccounts: options.referenceAccounts ?? investmentAccounts,
       accounts: investmentAccounts,
     });
-    const returnFlows =
+    const returnFlowsRead =
       view === 'securities'
-        ? portfolioFlows(db, {
+        ? portfolioFlowsRead(db, {
             from: start,
             to: today,
             view,
             accounts: investmentAccounts,
             taxBasis: 'before-tax',
           })
-        : flows;
-    const irrFlows =
+        : flowsRead;
+    const irrFlowsRead =
       view === 'securities'
-        ? portfolioFlows(db, {
+        ? portfolioFlowsRead(db, {
             from: start,
             to: today,
             view,
             accounts: investmentAccounts,
             taxBasis: 'pp-irr',
           })
-        : flows;
+        : flowsRead;
+    if (!flowsRead.available) returnUnavailable = flowsRead.reason;
+    else if (!returnFlowsRead.available) returnUnavailable = returnFlowsRead.reason;
+    else if (!irrFlowsRead.available) returnUnavailable = irrFlowsRead.reason;
+    else {
+    const flows = flowsRead.flows;
+    const returnFlows = returnFlowsRead.flows;
+    const irrFlows = irrFlowsRead.flows;
     const performanceInput = { series: valuations, flows, returnFlows, irrFlows };
 
     const benchmarkId = options.benchmarkSecurityId ?? lines[0]?.securityId;
@@ -962,27 +978,33 @@ function portfolioSummaryInRange(
         name,
       }));
       groups.push({ assetClassId: null, name: 'Ohne Anlageklasse' });
-      performanceHistory = portfolioPerformanceHistory(
-        db,
-        performanceInput,
-        performance,
-        series,
-        groups,
-        (securities, taxBasis = 'after-tax') =>
-          portfolioFlows(db, {
-            from: start,
-            to: today,
-            view: 'securities',
-            accounts: investmentAccounts,
-            securities,
-            taxBasis,
-          }),
-        selected.securityId ? quotes : undefined,
-      );
+      try {
+        performanceHistory = portfolioPerformanceHistory(
+          db,
+          performanceInput,
+          performance,
+          series,
+          groups,
+          (securities, taxBasis = 'after-tax') =>
+            portfolioFlows(db, {
+              from: start,
+              to: today,
+              view: 'securities',
+              accounts: investmentAccounts,
+              securities,
+              taxBasis,
+            }),
+          selected.securityId ? quotes : undefined,
+        );
+      } catch (error) {
+        if (!(error instanceof SecurityTransferFlowUnavailableError)) throw error;
+        performanceHistory = null;
+        performanceHistoryUnavailable = error.reason;
+      }
       benchmark = selected.securityId
         ? { securityId: selected.securityId, name: selected.name ?? 'Wertpapier nicht verfügbar' }
         : null;
-      const months = performanceHistory.months;
+      const months = performanceHistory?.months ?? [];
       const beta =
         months.length > 1 && months.every((m) => m.rate !== null && m.benchmarkRate !== null)
           ? monthlyFigures(
@@ -990,7 +1012,8 @@ function portfolioSummaryInRange(
               months.map((m) => m.benchmarkRate!),
             ).beta
           : null;
-      performance = { ...performance, benchmarkTtwror: performanceHistory.benchmarkReturn, beta };
+      if (performanceHistory)
+        performance = { ...performance, benchmarkTtwror: performanceHistory.benchmarkReturn, beta };
     }
 
     if (options.includeContributionHistory) {
@@ -1092,6 +1115,7 @@ function portfolioSummaryInRange(
         };
       }
     }
+    }
 
     // Month-end values per security for the TER (from the same series).
     const ends = lastTwelveMonthEnds(today);
@@ -1185,6 +1209,8 @@ function portfolioSummaryInRange(
     realizedGainCents,
     realizedGainComplete,
     performance,
+    returnUnavailable,
+    performanceHistoryUnavailable,
     ...(options.includePerformanceHistory ? { performanceHistory } : {}),
     ...(options.includeContributionHistory
       ? { contributionHistory: contributionHistory ?? null }
