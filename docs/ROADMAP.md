@@ -1,3 +1,10 @@
+## #568/#569 forecast tools and shared 35-day card — adoption pending validation
+
+- [x] Reconstruct the reviewed eight-source package with controlled disclosure state and salary occurrence provenance, preserving current task navigation and Plan filters.
+- [x] Adopt final prepared domain/API/UI/native acceptance tests and document technical existing-test adapters in [adoption notes](evidence/forecast-568-569/ADOPTION.md).
+- [ ] Independent combined review and required focused/full/build/browser/CI checks.
+- [ ] Verify all acceptance criteria on the live revision; issues remain open.
+
 # Roadmap
 
 ### #731 — punctuation-capable shared date entry (2026-10-20)

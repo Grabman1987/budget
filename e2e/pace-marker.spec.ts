@@ -19,10 +19,13 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
       expect(
         await page
           .locator('.heute-lead')
-          .evaluate((el) => el.nextElementSibling?.classList.contains('heute-pace')),
+          .evaluate(
+            (el) =>
+              el.nextElementSibling?.classList.contains('heute-compact-forecast') &&
+              el.nextElementSibling.nextElementSibling?.classList.contains('heute-pace'),
+          ),
       ).toBe(true);
-      await expect(page.locator('.heute-lead path.l-actual')).toHaveCSS('stroke-width', '1.5px');
-      await expect(page.locator('.heute-lead path.l-forecast')).toHaveCSS('stroke-width', '1px');
+      await expect(page.getByTestId('liquidity-chart')).toBeVisible();
     }
     const paceChart = page.locator('.heute-chart').filter({ has: chart });
     await expect(paceChart.locator('.chart-legend')).toHaveText('IstHochrechnungDeckel');
@@ -116,6 +119,12 @@ test('Pace reduces its lines and shares the plan marker and tooltip, with today 
       });
     }
   }
+  // The historical actual/forecast drawing survives on R07; Heute now has the 35-day card.
+  await page.goto('/reports/finanzcheck?monat=2026-09');
+  const history = page.getByTestId('r07-balance-chart');
+  await expect(history).toBeVisible();
+  await expect(history.locator('path.l-actual')).toHaveCSS('stroke-width', '1.5px');
+  await expect(history.locator('path.l-forecast')).toHaveCSS('stroke-width', '1px');
   await page.goto('/plan/monat?monat=2026-09');
   const marks = page.locator('.pbar-tick');
   await expect(marks.first()).toBeVisible();

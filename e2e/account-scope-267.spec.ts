@@ -70,14 +70,13 @@ test('Heute explains sidebar, forecast and net-worth account scopes', async ({
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  const chart = page.getByTestId('heute-balance-chart');
+  const chart = page.getByTestId('liquidity-chart');
   await expect(chart).toBeVisible();
-  await expect(chart).toHaveAttribute(
-    'aria-label',
-    /Budget-Konten; Kreditkarten im Budget eingeschlossen; Reservekonten ausgeschlossen/,
-  );
+  await expect(chart).toHaveAttribute('aria-label', /Saldo der Budget-Konten/);
   await expect(
-    page.getByText(/Kontoprognose bis .*Budget-Konten; Kreditkarten im Budget/),
+    page.getByText(
+      /Budget-Konten; Kreditkarten im Budget eingeschlossen, Reservekonten ausgeschlossen/,
+    ),
   ).toBeVisible();
   await expect(page.getByText(/Reservekonten ausgeschlossen/).first()).toBeVisible();
   await expect(page.getByTestId('heute-lead-value')).toHaveAttribute(
