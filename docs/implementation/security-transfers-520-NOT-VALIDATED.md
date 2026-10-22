@@ -6,6 +6,15 @@ Owner implementation-only direction (2026-10-22) applies. No tests, test edits,
 test runs, typechecks, builds, browser checks, CI, PR, merge, deployment or database
 operation was performed. This is bounded preparation, not Stage-A acceptance.
 
+The prospective paired writer remains a design only. Its [reconstructed
+plan](security-transfers-520-writer-plan.md), [independent
+review](security-transfers-520-writer-plan-review.md) and [implementation
+addendum](security-transfers-520-writer-plan-addendum.md) retain the one-relation
+contract after temporary storage loss. The review recommended bounded source
+preparation with explicit on-budget rejection, pair-aware canonical cost/flow
+reads, before/after component validation and distinct intent/fact hashes. No
+migration slot, including 0053, is reserved; no schema, writer or API was added.
+
 The implementation-only FIFO slice at `1709597413ba00933631c9af22b11a6343a83f65`,
 based on `a5156b399d3c09094b255c32177c0685fb9213a7`, uses the
 [bounded lineage policy review](security-transfers-520-lineage-policy-review.md).
