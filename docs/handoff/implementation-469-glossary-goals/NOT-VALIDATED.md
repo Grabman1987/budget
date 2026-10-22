@@ -54,8 +54,14 @@ The source scan found no additional user-facing `Rev.` literal in the current ap
 
 No tests or test edits, checks, typechecks, builds, browser review, CI, PR, merge, deployment, screenshot or accessibility evidence were run for this continuation. These scoped text changes are **NOT VALIDATED / NOT LIVE**. Final copy, layout, mobile, keyboard, and screen-reader acceptance remains open.
 
+## Negative “Zu verteilen” wording correction — NOT VALIDATED
+
+At `47377c904544f3302cb55ddfc4b93b460eca2367`, the `Zu verteilen` glossary no longer explains a negative amount as necessarily caused by excess assignment. It now says that less money is currently available to distribute than is already committed, and that uncovered expenses can contribute. This is wording only: the budget calculation, amounts, allocation behavior, rule identifiers, and adjacent glossary labels are unchanged.
+
+The exact one-file delta (`e0e39d4b0b5b04ad6966e8603d0bd91cf4b66cad..47377c904544f3302cb55ddfc4b93b460eca2367`, `apps/web/src/reports/term.tsx`) received an independent source review in `469-glossary-goals-fix-source-review.md`. The prior misleading causal claim is closed in this bounded delta; no further scoped finding was reported. This is source review only, not runtime, copy, accessibility, or product acceptance. NOT VALIDATED / NOT LIVE.
+
 ## Remaining gates / push
 
-No tests, test edits, checks, typecheck, formatter, build, browser, screenshots, Axe, migration execution, CI dispatch, PR, merge or deployment. No packages installed or copied. No current independent source review or accessibility/desktop/390/WebKit claim. Later gates include literal threshold boundaries and conflict exceptions, exact under-one-euro remainder visibility, unchanged funding and actual overspending behavior, native popover keyboard/focus behavior, glossary scope/meaning, wrapped German labels/44px phone targets, both themes, all project checks and serial integration.
+No tests, test edits, checks, typecheck, formatter, build, browser, screenshots, Axe, migration execution, CI dispatch, PR, merge or deployment. No whole-branch independent source review or accessibility/desktop/390/WebKit claim. Later gates include literal threshold boundaries and conflict exceptions, exact under-one-euro remainder visibility, unchanged funding and actual overspending behavior, native popover keyboard/focus behavior, glossary scope/meaning, wrapped German labels/44px phone targets, both themes, all project checks and serial integration.
 
 Read workflow triggers before normal feature push: CI push is main-only, recovery/register workflows PR-only, snapshots manual and deploy requires main CI/manual admission. Open-PR lookup for this new branch returned empty. No PR is authorized by this checkpoint.
