@@ -1,4 +1,6 @@
 import type { Page } from '@playwright/test';
+import { openDatabase, schema } from '@budget/db';
+import { test as isolatedTest } from './isolated-ledger';
 import { sampleTest as test, expect } from './sample';
 import type { AccountList } from '../apps/web/src/ledger/types';
 import type { NetWorthView } from '../apps/web/src/wealth/api';
@@ -67,7 +69,7 @@ test('Konten shows exact cents at rounding, sign and grouping boundaries', async
   for (const [cents, text] of cases) {
     value = cents;
     await page.goto('/konten');
-    await expect(page.getByTestId('net-worth')).toHaveText(text);
+    await expect(page.getByTestId('budget-accounts-balance')).toHaveText(text);
   }
   await screenshot(page);
 });
@@ -76,45 +78,41 @@ for (const [value, text] of [
   [12_345, '123,45 €'],
   [-12_345, '−123,45 €'],
 ] as const) {
-  test(`Konten includes closed residual ${value} and links the chain term to it`, async ({
-    page,
-  }) => {
-    await page.route(/\/api\/accounts(?:\?.*)?$/, async (route) => {
-      const response = await route.fetch();
-      const data = (await response.json()) as AccountList;
-      const account = data.accounts.find((a) => a.type === 'checking' && !a.closedAt);
-      expect(account).toBeDefined();
-      await route.fulfill({
-        response,
-        json: {
-          ...data,
-          accounts: [
-            {
-              ...account,
-              name: 'Closed residual',
-              closedAt: '2026-09-01T00:00:00Z',
-              balanceCents: value,
-              holdingsCents: 0,
-              valueEurCents: value,
-              missingFxCurrencies: [],
-            },
-          ],
-          netWorthEurCents: value,
-          missingFxCurrencies: [],
-        },
-      });
-    });
-
-    await page.goto('/konten');
-    await expect(page.getByTestId('net-worth')).toHaveText(text);
-    // Closed accounts sit in a collapsed "Geschlossen" section; the chain term opens it.
-    await expect(page.getByText('Closed residual')).toBeHidden();
-    const term = page.getByRole('button', { name: /Geschlossene Konten/ });
-    await expect(term).toBeVisible();
-    await term.click();
-    await expect(page.locator('#kaccts-closed')).toHaveClass(/is-flash/);
-    await expect(page.getByText('Closed residual')).toBeVisible();
-  });
+  isolatedTest(
+    `Closed residual ${value} remains in wealth and account management`,
+    async ({ page, isolatedLedger }) => {
+      const opened = openDatabase(isolatedLedger.databasePath);
+      try {
+        opened.db
+          .insert(schema.account)
+          .values({
+            id: 'closed-residual',
+            name: 'Closed residual',
+            type: 'checking',
+            role: 'budget',
+            onBudget: true,
+            openingDate: '2026-09-01',
+            closedAt: '2026-09-01T00:00:00Z',
+            openingBalanceCents: value,
+          })
+          .run();
+      } finally {
+        opened.close();
+      }
+      const response = await page.request.get('/api/accounts');
+      expect(response.status()).toBe(200);
+      expect(((await response.json()) as AccountList).netWorthEurCents).toBe(value);
+      await page.goto('/konten');
+      await expect(page.getByText('Closed residual')).toBeHidden();
+      const term = page.getByRole('link', { name: 'Vermögen ansehen', exact: true });
+      await expect(term).toBeVisible();
+      await term.click();
+      await expect(page.getByTestId('nw-figure')).toHaveText(text);
+      await page.goto('/einstellungen/konten');
+      await expect(page.getByRole('heading', { name: /Geschlossene Konten/ })).toBeVisible();
+      await expect(page.getByText('Closed residual', { exact: true })).toBeVisible();
+    },
+  );
 }
 
 test('Vermögen shows exact cents at rounding, sign and grouping boundaries', async ({ page }) => {

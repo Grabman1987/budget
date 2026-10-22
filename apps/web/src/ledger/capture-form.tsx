@@ -74,6 +74,7 @@ const KINDS: ReadonlyArray<SegmentedOption<BookingKind>> = [
 const EDIT_KINDS = KINDS.slice(0, 2);
 const NONE = '__none';
 const LOCKED = 'Diese Buchung ist geprüft. Bestätige die Freigabe, um sie zu ändern.';
+const REMAINDER_SAVE_ERROR = 'Speichern geht erst, wenn der Rest 0,00 € ist.';
 interface BankIntent {
   fromAccountId: string;
   toAccountId: string;
@@ -295,6 +296,7 @@ export function CaptureForm({
   });
   const lineProblem = !lineValidation.ok ? lineValidation.errors.splits : undefined;
   const blocked = !isTransfer && Boolean(lineProblem);
+  const splitError = errors.splits === REMAINDER_SAVE_ERROR && !blocked ? undefined : errors.splits;
 
   const draftDirty = queued
     ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(queued.draft))
@@ -416,7 +418,7 @@ export function CaptureForm({
   const save = async (andNew: boolean) => {
     if (saving.current) return;
     if (!editing && !from) return setErrors({ account: 'Bitte ein verfügbares Konto wählen.' });
-    if (blocked) return setErrors({ splits: 'Speichern geht erst, wenn der Rest 0,00 € ist.' });
+    if (blocked) return setErrors({ splits: REMAINDER_SAVE_ERROR });
     const filled = {
       ...lineDraft,
       date: parsedDate ?? '',
@@ -674,7 +676,7 @@ export function CaptureForm({
       contacts={contacts}
       hasAdvanceCategory={Boolean(advanceCategoryId)}
       locked={splitLocked}
-      error={errors.splits ?? errors.category}
+      error={splitError ?? errors.category}
       suggestions={chips}
       singleMetadata={singleMetadata}
     />

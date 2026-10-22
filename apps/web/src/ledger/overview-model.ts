@@ -64,6 +64,31 @@ export function overviewModel(
   };
 }
 
+/** Page-only identities and counts; shared sums, group membership and account order stay intact. */
+export function accountOverviewPresentation(model: ReturnType<typeof overviewModel>) {
+  const visible = model.groups.flatMap((group) => group.accounts);
+  const byId = new Map(visible.map((a) => [a.id, a]));
+  const related = new Map<string, AccountRow[]>();
+  for (const depot of visible) {
+    if (!['brokerage', 'crypto'].includes(depot.type) || !depot.referenceAccountId) continue;
+    const reference = byId.get(depot.referenceAccountId);
+    if (!reference || reference.id === depot.id) continue;
+    const add = (id: string, account: AccountRow) => {
+      const linked = related.get(id) ?? [];
+      if (!linked.some((a) => a.id === account.id)) related.set(id, [...linked, account]);
+    };
+    add(depot.id, reference);
+    add(reference.id, depot);
+  }
+  return {
+    visible,
+    budget: model.groups.find((group) => group.group.id === 'budget'),
+    checked: visible.filter((account) => account.reviewStatus?.state === 'checked').length,
+    reviewUnavailable: visible.filter((account) => !account.reviewStatus).length,
+    related,
+  };
+}
+
 /**
  * Net worth change against an earlier day, or `null` when it would mislead: an account that did
  * not exist yet at that day would count its whole opening balance as gain.

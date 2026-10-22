@@ -1,0 +1,8 @@
+{
+  "ticket": "584",
+  "testedSource": "3a1210cc3ddb229f00094cd6e851280335ae224c",
+  "passed": "Full check: 589 files / 5213 tests; build exit 0. Corrected WebKit 7/7 (3 setup + 4 feature cases).",
+  "remaining": "Chromium / required CI and integration pending. Physical-device keyboard acceptance #586 remains separate.",
+  "notLive": true,
+  "preparedDiffsApplied": false
+}

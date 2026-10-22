@@ -1,0 +1,11 @@
+[
+  {
+    "sourceLogName": "required-check.log",
+    "sha256": "d7d9ace4d277d0185145f161ba7c7c65828ab55edf743f9d79da2eabdd1063d3",
+    "summaryLines": [
+      "Test Files  589 passed (589)",
+      "Tests  5213 passed (5213)",
+      "Duration  506.59s (tests 55%, import 32%, environment 9%, transform 3%, setup 1%)"
+    ]
+  }
+]
