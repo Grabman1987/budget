@@ -75,5 +75,8 @@ required. This checkpoint is not runtime-validated or live.
 The independent review of the first correction head (`217f43a6652c234f764a53ff79094ac48a57e039`)
 is archived in `RECONCILE-564-565-FIX-SOURCE-REVIEW.md`. It cleared the original
 P2/P3 in source and identified the remaining read-only category-name privacy gap;
-that display text is now masked. The final one-line delta still needs independent
-review, and no execution evidence has been added.
+that display text is now masked. The independent final one-line review of product
+head `4d26b0be2344e77f3f785a9b045ad42b69c6af60` is archived in
+`RECONCILE-564-565-FINAL-SOURCE-REVIEW.md` and found no remaining source issue
+in the correction delta. No execution evidence has been added; acceptance and
+delivery remain open under #719 STOP.
