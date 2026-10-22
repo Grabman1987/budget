@@ -314,6 +314,11 @@ async function scene(
   await chart.press('Escape');
   await scope.getByRole('button', { name: 'Details zu Synthetic Depot' }).click();
 
+  if (profile === 'configured') {
+    await page.mouse.move(0, 0);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.term-popover:popover-open')).toHaveCount(0);
+  }
   await scope.getByRole('button', { name: 'Details zu Synthetic USD' }).click();
   await expect(scope.locator('.overview-detail')).toContainText('Saldo 123,45 EUR');
   await page.keyboard.press('Control+Shift+H');
