@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { SourceBalance, SourceMapping } from '@budget/domain';
 import { request } from '../api/http';
 import { INBOX_KEY } from '../inbox/api';
-import { InboxWorkflow } from '../inbox/inbox-page';
+import { AppLink } from '../shell/app-link';
 import { AccountOptions } from '../ledger/account-options';
 import { undoGroup } from '../ledger/api';
 import type { AccountRow } from '../ledger/types';
@@ -12,6 +12,7 @@ import './read-source.css';
 
 interface SourceStatus {
   configured: boolean;
+  automaticConfigured: boolean;
   running: boolean;
   lastSuccess: string | null;
   lastAttempt: string | null;
@@ -87,9 +88,9 @@ export function CryptoReadSourceSection() {
   }
   return (
     <section aria-labelledby="crypto-source-title" className="data-source-section">
-      <SectionHead id="crypto-source-title" title="Krypto-Lesequelle" />
+      <SectionHead id="crypto-source-title" title="Krypto" />
       <p>
-        Bewegungen werden hier geprüft. Ein- und Auszahlungen mit den Bankkonten abgleichen.
+        Bewegungen unter Konten › Prüfen mit den Bankkonten abgleichen.
         Buchungen und Trades bestätigst du selbst.
       </p>
       {query.isPending && <p role="status">Lädt …</p>}
@@ -101,7 +102,7 @@ export function CryptoReadSourceSection() {
       )}
       {query.data && !query.isError && (
         <>
-          <p>Schlüssel gesetzt: {query.data.configured ? 'ja' : 'nein'}</p>
+          <p>{query.data.configured ? 'Zugang mit Leserechten eingerichtet.' : 'Noch nicht verbunden. Einen Schlüssel mit Leserechten am Server hinterlegen; er wird hier nicht angezeigt.'}</p>
           <dl className="source-status">
             <div>
               <dt>Status</dt>
@@ -114,7 +115,7 @@ export function CryptoReadSourceSection() {
               </dd>
             </div>
             <div>
-              <dt>Letztes abgeschlossenes Bewegungsfenster</dt>
+              <dt>Letzter abgeschlossener Abruf</dt>
               <dd>{stamp(query.data.lastSuccess)}</dd>
             </div>
             <div>
@@ -122,6 +123,9 @@ export function CryptoReadSourceSection() {
               <dd>{stamp(query.data.lastAttempt)}</dd>
             </div>
           </dl>
+          <p>Nächster Abruf: {!query.data.configured ? 'Zugang zuerst am Server hinterlegen.' : query.data.automaticConfigured ? 'Täglich ab 02:30 Europe/Vienna eingerichtet, mit Fortsetzung und Fehlerpause. Ein genauer nächster Termin wird nicht aufgezeichnet.' : 'Automatischer Abruf auf dem Server nicht eingerichtet.'}</p>
+          <dl className="source-status"><div><dt>Erfasst</dt><dd>{query.data.match.matched}</dd></div><div><dt>Fehlt</dt><dd>{query.data.match.missing}</dd></div><div><dt>Ohne Zuordnung</dt><dd>{query.data.match.unmapped}</dd></div></dl>
+          <AppLink to="/konten/pruefen" search={{ readSource: 'crypto', teil: 'umsaetze' }}>Krypto-Bewegungen in Prüfen öffnen</AppLink>
           <div className="sources-actions">
             <Button
               disabled={busy || query.data.running || !query.data.configured}
@@ -134,20 +138,20 @@ export function CryptoReadSourceSection() {
               disabled={busy || query.data.running || !query.data.configured}
               onClick={() => void refresh(true)}
             >
-              Gesamten Verlauf prüfen
+              Gesamten Verlauf abrufen
             </Button>
           </div>
           <p>
-            Ein Klick holt den ganzen ausstehenden Verlauf. Außerdem ruft die App die Quelle im
-            Hintergrund automatisch ab. Ein Schlüssel mit Leserechten wird ausschließlich am Server
+            Ein Klick holt den ganzen ausstehenden Verlauf. Automatische Abrufe hängen vom eingerichteten Serverplan ab. Ein Schlüssel mit Leserechten wird ausschließlich am Server
             gesetzt.
           </p>
+          <details className="source-configuration"><summary>Krypto-Zuordnung und Abrufdetails einrichten</summary>
           <SinceForm saved={query.data.since} />
           <MatchSection match={query.data.match} disabled={busy || query.data.running} />
-          <InboxWorkflow readSource="crypto" />
           {query.data.balances.map((balance) => (
             <Mapping key={balance.key} balance={balance} data={query.data} />
           ))}
+          </details>
         </>
       )}
       {error && (
@@ -205,8 +209,7 @@ function MatchSection({ match, disabled }: { match: MatchCounts; disabled: boole
       <h3>Abgleich mit dem Hauptbuch</h3>
       <p>
         Jede Bewegung ab dem Startdatum wird mit den vorhandenen Trades und Buchungen der
-        zugeordneten Konten verglichen. Treffer gelten als erfasst, alles andere bleibt hier zur
-        Prüfung. Es werden nie automatisch Buchungen oder Trades angelegt.
+        zugeordneten Konten verglichen. Treffer gelten als erfasst, alles andere bleibt unter Konten › Prüfen zur Prüfung. Es werden nie automatisch Buchungen oder Trades angelegt.
       </p>
       <dl className="source-status">
         <div>
@@ -278,7 +281,7 @@ function SinceForm({ saved }: { saved: string | null }) {
     >
       <Field
         label="Bewegungen ab"
-        hint="Ältere Bewegungen sind bereits erfasst und erscheinen nicht in der Prüfliste. Ein früheres Datum holt ältere Bewegungen beim nächsten „Gesamten Verlauf prüfen“ in die Prüfliste."
+        hint="Ältere Bewegungen sind bereits erfasst und erscheinen nicht in der Prüfliste. Ein früheres Datum holt ältere Bewegungen beim nächsten „Gesamten Verlauf abrufen“ in die Prüfliste."
       >
         {({ id, describedBy }) => (
           <TextInput

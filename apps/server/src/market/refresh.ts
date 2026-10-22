@@ -14,7 +14,7 @@ import {
   type Db,
   type SecurityRow,
 } from '@budget/db';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { addDays, COICOP_CLASSES } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import {
@@ -72,7 +72,7 @@ export interface FxRefreshResult {
 }
 
 /** Whether `from`..`today` holds at least `STALE_AFTER_WEEKDAYS` weekdays. */
-const isGapStale = (from: string, today: string): boolean => {
+export const isGapStale = (from: string, today: string): boolean => {
   let n = 0;
   for (let d = from; d <= today && n < STALE_AFTER_WEEKDAYS; d = addDays(d, 1))
     if (isWeekday(d)) n++;
@@ -331,10 +331,21 @@ export async function refreshCpi(
         0,
       ),
     );
+    if ((series[source.series]?.length ?? 0) > 0)
+      resolveStaleValueItems(db, 'cpi-source', source.series, 'Verbraucherpreisindex erneut abgerufen.');
     return { skipped: false, rows: written, failed: null };
   } catch (error) {
     const kind = errorKind(error);
     log(`cpi: ${source.series} failed (${kind})`);
+    const pending = db.select({ id: schema.inboxItem.id }).from(schema.inboxItem).where(and(
+      eq(schema.inboxItem.refType, 'cpi-source'), eq(schema.inboxItem.refId, source.series),
+      isNull(schema.inboxItem.resolvedAt),
+    )).get();
+    if (!pending) openStaleValueItem(db, {
+      refType: 'cpi-source', refId: source.series,
+      title: 'Verbraucherpreisindex konnte nicht aktualisiert werden',
+      detail: `VPI-Abruf fehlgeschlagen (${kind}). Gespeicherte Werte bleiben erhalten.`,
+    });
     return { skipped: false, rows: 0, failed: kind };
   }
 }

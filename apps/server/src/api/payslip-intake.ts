@@ -122,7 +122,10 @@ export function payslipIntakeRoutes(
 ) {
   const api = new Hono();
   api.get('/status', (c) => {
-    const scan = readPayslipScan(db);
+    const recordedScan = readPayslipScan(db);
+    // A previous Dropbox root must not be presented as the current connection's last scan.
+    const scan = recordedScan?.root === process.env['DROPBOX_PAYSLIP_ROOT']?.replace(/\/$/, '')
+      ? recordedScan : undefined;
     const passwordSource = payslipPasswordSource(db);
     return c.json({
       passwordSet: passwordSource !== null,
@@ -136,6 +139,7 @@ export function payslipIntakeRoutes(
       dropboxConfigured: dropboxConfigured(),
       dropboxWrite: dropboxWriteEnabled(),
       lastScanAt: scan?.lastScanAt ?? null,
+      nextRunAt: dropboxConfigured() ? scan?.nextRunAt ?? null : null,
       filesFound: scan?.filesFound ?? 0,
       errors: scan?.errors ?? 0,
       errorCode: scan?.errorCode ?? null,
@@ -154,6 +158,13 @@ export function payslipIntakeRoutes(
         .map(({ id, name }) => ({ id, name })),
       config: getPayslipSourceConfig(db),
     });
+  });
+  api.put('/default-account', async (c) => {
+    const { salaryAccountId } = await readBody(c, payslipSourceConfig.pick({ salaryAccountId: true }));
+    // The small Connections form must not overwrite wage mappings or automation edited elsewhere.
+    return c.json(db.transaction((tx) => setPayslipSourceConfig(tx, {
+      ...getPayslipSourceConfig(tx), salaryAccountId,
+    }, { actor: ACTOR })));
   });
   api.put('/config', async (c) =>
     c.json(setPayslipSourceConfig(db, await readBody(c, payslipSourceConfig), { actor: ACTOR })),

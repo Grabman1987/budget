@@ -7,6 +7,7 @@ import { serve } from '@hono/node-server';
 import { createApp } from './app';
 import { authConfigFromEnv } from './auth/config';
 import { backupConfigFromEnv, BackupScheduler } from './backup/backup';
+import { registerBackupStatus } from './backup/status';
 import { safeBackupMessage } from './backup/s3';
 import { createAuth } from './auth/routes';
 import { ImportJobs } from './imports/jobs';
@@ -94,6 +95,7 @@ const backupConfig = backupConfigFromEnv();
 const backupTimers: NodeJS.Timeout[] = [];
 if (backupConfig) {
   const scheduler = new BackupScheduler({ sqlite, db, config: backupConfig });
+  registerBackupStatus(db, () => scheduler.status());
   const tick = () => void scheduler.tick();
   scheduler.init().then(
     () => console.log(`Encrypted backup on (${backupConfig.recipients.length} recipient(s))`),
@@ -105,6 +107,10 @@ if (backupConfig) {
   backupTimers.push(setTimeout(tick, 2 * 60_000), setInterval(tick, 15 * 60_000));
   for (const timer of backupTimers) timer.unref();
 } else {
+  registerBackupStatus(db, () => ({
+    configured: false, running: false, latestKnownArchiveDay: null,
+    inventoryCheckedAt: null, lastCompletedAt: null, lastFailureAt: null, lastAttemptFailed: false,
+  }));
   console.warn('Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).');
 }
 

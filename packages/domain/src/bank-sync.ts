@@ -200,10 +200,23 @@ export function bankFetchFrom(fromDate: string, lastSyncAt: string | null): stri
 export const consentNeedsAttention = (validUntil: string, now: Date): boolean =>
   Date.parse(validUntil) - now.getTime() <= 14 * 86_400_000;
 
-/** Nightly at 02:30 UTC; durable due timestamps allow catch-up after downtime. */
+export const BANK_RUN_TIMES = ['06:30', '18:30'] as const;
+const bankViennaHour = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Vienna', hour: '2-digit', hourCycle: 'h23',
+});
+
+/** Two daily Vienna slots; existing durable due times, catch-up and request gates stay in force. */
 export function nextBankRun(now: Date): string {
-  const next = new Date(now);
-  next.setUTCHours(2, 30, 0, 0);
-  if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
-  return next.toISOString();
+  const today = todayInVienna(now);
+  for (const day of [today, addDays(today, 1)]) {
+    for (const time of BANK_RUN_TIMES) {
+      const utc = new Date(`${day}T${time}:00Z`);
+      // Both approved slots are outside the DST transition and midnight windows. At these UTC
+      // hours Vienna is one or two hours ahead, on the same calendar day.
+      const offset = Number(bankViennaHour.format(utc)) - utc.getUTCHours();
+      const slot = new Date(utc.getTime() - offset * 3_600_000);
+      if (slot > now) return slot.toISOString();
+    }
+  }
+  throw new RangeError('No next bank slot for invalid clock');
 }

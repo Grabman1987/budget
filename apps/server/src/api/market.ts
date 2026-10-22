@@ -1,6 +1,9 @@
 import {
   EntityNotFoundError,
   fxSeries,
+  cpiMonths,
+  currentCpiSeries,
+  latestPriceOnOrBefore,
   lastMarketRun,
   lastSuccessfulMarketRun,
   priceSeries,
@@ -8,12 +11,13 @@ import {
   setManualPrice,
   type Db,
 } from '@budget/db';
-import { parseMicro } from '@budget/domain';
+import { addDays, parseMicro } from '@budget/domain';
 import type { MarketSources } from '@budget/market';
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { isGapStale, refreshCpi } from '../market/refresh';
 import { refreshMarket } from '../market/timer';
 import { ACTOR, ApiError, readBody, readQuery } from './http';
 import { day } from './schemas';
@@ -52,13 +56,51 @@ export function marketRoutes(db: Db, today: () => string, sources: MarketSources
     }
   });
 
-  /** The run log's newest entries: what ran last and what last refreshed prices. */
-  app.get('/market/status', (c) =>
-    c.json({
+  // A separate CPI action reuses the existing bounded monthly refresh, not a new writer.
+  app.post('/market/cpi/refresh', async (c) => {
+    if (running) throw new ApiError(409, 'refresh_running', 'A market refresh is already running');
+    running = true;
+    try {
+      return c.json(await refreshCpi(db, sources, { today: today() }));
+    } finally {
+      running = false;
+    }
+  });
+
+  /** Recorded runs and stored data; schedule configuration is not a worker-health assertion. */
+  app.get('/market/status', (c) => {
+    const asOf = today();
+    const instruments = db.select().from(schema.security)
+      .where(and(isNull(schema.security.deletedAt), eq(schema.security.pricesEnabled, true))).all();
+    const missingOrStale = instruments.flatMap((instrument) => {
+      const price = latestPriceOnOrBefore(db, instrument.id, asOf);
+      return !price || isGapStale(addDays(price.date, 1), asOf)
+        ? [{ id: instrument.id, name: instrument.name, lastPriceDate: price?.date ?? null }]
+        : [];
+    });
+    const series = sources.cpi?.series ?? currentCpiSeries(db);
+    const cpi = series ? cpiMonths(db, series) : null;
+    const warning = series ? db.select({ detail: schema.inboxItem.detail })
+      .from(schema.inboxItem).where(and(
+        eq(schema.inboxItem.refType, 'cpi-source'), eq(schema.inboxItem.refId, series),
+        isNull(schema.inboxItem.resolvedAt),
+      )).get() : undefined;
+    c.header('Cache-Control', 'no-store');
+    return c.json({
       lastRun: lastMarketRun(db) ?? null,
       lastSuccess: lastSuccessfulMarketRun(db) ?? null,
-    }),
-  );
+      manualRunning: running,
+      automaticConfigured: process.env['BUDGET_MARKET_DAILY'] === '1',
+      quoteSources: [...new Set([sources.quotes, ...(sources.moreQuotes ?? []),
+        ...(sources.fallbackQuotes ? [sources.fallbackQuotes] : [])].map((source) => source.id))],
+      prices: { asOf, instruments: instruments.length, missingOrStale },
+      cpi: {
+        configured: Boolean(sources.cpi), series,
+        lastStoredMonth: cpi ? Object.keys(cpi.months).sort().at(-1) ?? null : null,
+        fetchedAt: cpi?.fetchedAt ?? null, warning: warning?.detail ?? null,
+      },
+    });
+  });
 
   const requireSecurity = (id: string) => {
     const row = db.select().from(schema.security).where(eq(schema.security.id, id)).get();

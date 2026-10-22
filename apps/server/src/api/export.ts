@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import yazl from 'yazl';
+import { readBackupStatus } from '../backup/status';
 import { admitExport } from './export-admission';
 import {
   account,
@@ -716,6 +717,12 @@ function exportEntries(
 
 export function exportRoutes(db: Db, today: () => string, stepUp: MiddlewareHandler): Hono {
   const api = new Hono();
+  // Process-local observation, intentionally not represented as durable download history.
+  let lastCompletedAt: string | null = null;
+  api.get('/status', (c) => {
+    c.header('Cache-Control', 'no-store');
+    return c.json({ lastCompletedAt, historyScope: 'server-process', backup: readBackupStatus(db) });
+  });
   api.get('/csv.zip', stepUp, async (c) => {
     const releaseSlot = admitExport(db);
     if (!releaseSlot)
@@ -844,6 +851,7 @@ export function exportRoutes(db: Db, today: () => string, stepUp: MiddlewareHand
             if (cancelled) return;
             if (next.done) {
               await finish();
+              if (!requestAborted && !requestSignal.aborted) lastCompletedAt = new Date().toISOString();
               controller.close();
             } else controller.enqueue(next.value);
           } catch (error) {

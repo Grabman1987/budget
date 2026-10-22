@@ -148,7 +148,7 @@ export interface MarketInboxItem {
   title: string;
   /** Stable text per error class: the same failure does not open a second item. */
   detail: string;
-  refType: 'security' | 'fx';
+  refType: 'security' | 'fx' | 'cpi-source';
   refId: string;
 }
 
@@ -180,7 +180,7 @@ export function openStaleValueItem(db: Executor, item: MarketInboxItem): boolean
 /** Close the open `stale_value` items of a subject (the data is flowing again). */
 export function resolveStaleValueItems(
   db: Executor,
-  refType: 'security' | 'fx',
+  refType: 'security' | 'fx' | 'cpi-source',
   refId: string,
   resolution: string,
 ): number {

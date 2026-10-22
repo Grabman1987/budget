@@ -18,6 +18,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { ApiError, notifyApiWrite, request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
+import { AppLink } from '../shell/app-link';
+import { useUnsavedSettings } from '../settings/use-unsaved-settings';
 import { AccountOptions } from '../ledger/account-options';
 import { eur, longDay } from '../ledger/format';
 import { errorText } from '../ledger/labels';
@@ -734,6 +736,8 @@ type SourceStatus = {
   dropboxConfigured: boolean;
   dropboxWrite: boolean;
   lastScanAt: string | null;
+  nextRunAt: string | null;
+  errorCode: string | null;
   filesFound: number;
   errors: number;
   config: PayslipSourceConfig;
@@ -746,7 +750,7 @@ export function PayslipSourceSection() {
   });
   return (
     <section className="data-source-section" aria-labelledby="payslip-source-title">
-      <SectionHead id="payslip-source-title" title="Gehaltszettel" />
+      <SectionHead id="payslip-source-title" title="Gehaltszettel / Dropbox" />
       {query.isFetching && <LoadingNote what="Gehaltszettel-Datenquelle" />}
       {query.isError && (
         <ErrorNote
@@ -766,7 +770,6 @@ export function PayslipSourceSection() {
                   : query.data.passwordSource === 'server'
                     ? 'ja (Server)'
                     : 'nein'}
-                <small> · Server-Geheimnis PAYSLIP_PDF_PASSWORD</small>
               </dd>
             </div>
             <div>
@@ -790,6 +793,11 @@ export function PayslipSourceSection() {
                   : 'Noch nicht'}
               </dd>
             </div>
+            <div><dt>Gespeicherter nächster Dropbox-Termin</dt><dd>{!query.data.dropboxConfigured
+              ? 'Dropbox zuerst am Server einrichten.'
+              : query.data.nextRunAt ? `Fällig ab ${new Date(query.data.nextRunAt).toLocaleString('de-AT')}; Start durch den Server-Worker.`
+                : 'Noch kein Termin aufgezeichnet. Der Server prüft regelmäßig auf fällige Scans.'}</dd></div>
+            <div><dt>Standard-Konto</dt><dd>{query.data.accounts.find((account) => account.id === query.data.config.salaryAccountId)?.name ?? 'Noch nicht gewählt'}</dd></div>
             <div>
               <dt>Dateien gefunden</dt>
               <dd>{query.data.filesFound}</dd>
@@ -799,18 +807,23 @@ export function PayslipSourceSection() {
               <dd>{query.data.errors}</dd>
             </div>
           </dl>
+          {query.data.errorCode && <p role="status">Beim letzten Scan sind Fehler oder Dokumentwarnungen aufgetreten. <AppLink to="/konten/pruefen" search={{ teil: 'aufgaben' }}>In Prüfen ansehen</AppLink></p>}
+          <AppLink to="/plan/monat/einnahmen" search={{}}>Gehaltszettel und Lohnarten in Plan › Einnahmen öffnen</AppLink>
+          <details className="source-configuration"><summary>Gehaltsquelle einrichten</summary>
+          {!query.data.dropboxConfigured && <p>Dropbox-Zugang und Quellordner müssen am Server hinterlegt werden. Zugangsdaten werden hier nicht angezeigt.</p>}
           <PayslipPasswordControls
             source={query.data.passwordSource}
             available={query.data.passwordRememberAvailable}
           />
-          <PayslipSourceForm
+          <PayslipSourceForm accountOnly
             initial={query.data.config}
             accounts={query.data.accounts}
             payees={query.data.payees ?? []}
           />
+          </details>
         </>
       )}
-      <p>Dropbox wird nachts gelesen. PDFs erscheinen zur Bestätigung unter Prüfen.</p>
+      <p>Dropbox wird automatisch ab 02:30 UTC gelesen, mit Nachholen und Fehlerpause. Ein manueller Dropbox-Scan ist hier nicht verfügbar; PDFs kannst du über Plan › Einnahmen hochladen. Neue PDFs erscheinen in der bestehenden Gehaltsprüfung.</p>
     </section>
   );
 }
@@ -826,6 +839,7 @@ function PayslipPasswordControls({
     [busy, setBusy] = useState(false),
     qc = useQueryClient(),
     toast = useToast();
+  useUnsavedSettings(editing && Boolean(password), busy);
   async function run(action: () => Promise<unknown>, done: string) {
     if (busy) return;
     setBusy(true);
@@ -906,10 +920,12 @@ const WAGE_LABELS = {
 } as const;
 function PayslipSourceForm({
   initial,
+  accountOnly = false,
   accounts,
   payees,
 }: {
   initial: PayslipSourceConfig;
+  accountOnly?: boolean;
   accounts: SourceStatus['accounts'];
   payees: { id: string; name: string }[];
 }) {
@@ -921,6 +937,12 @@ function PayslipSourceForm({
   const [busy, setBusy] = useState(false);
   const write = useBudgetWrite(),
     toast = useToast();
+  useUnsavedSettings(
+    salaryAccountId !== (initial.salaryAccountId ?? '') ||
+      automaticPayeeId !== (initial.automation?.payeeId ?? '') ||
+      JSON.stringify(Object.fromEntries(rows.map((row) => [row.code, row.type]))) !== JSON.stringify(initial.wageTypes),
+    busy,
+  );
   const save = async () => {
     if (busy) return;
     if (
@@ -934,12 +956,15 @@ function PayslipSourceForm({
     }
     setBusy(true);
     await write(
-      () =>
-        request<{ groupId: string }>('PUT', PATH + '/config', {
-          salaryAccountId: salaryAccountId || null,
-          ...(automaticPayeeId ? { automation: { payeeId: automaticPayeeId } } : {}),
-          wageTypes: Object.fromEntries(rows.map((r) => [r.code, r.type])),
-        }),
+      () => accountOnly
+        ? request<{ groupId: string }>('PUT', PATH + '/default-account', {
+            salaryAccountId: salaryAccountId || null,
+          })
+        : request<{ groupId: string }>('PUT', PATH + '/config', {
+            salaryAccountId: salaryAccountId || null,
+            ...(automaticPayeeId ? { automation: { payeeId: automaticPayeeId } } : {}),
+            wageTypes: Object.fromEntries(rows.map((r) => [r.code, r.type])),
+          }),
       () => 'Gehaltsquelle gespeichert.',
     );
     setBusy(false);
@@ -964,6 +989,7 @@ function PayslipSourceForm({
           </Select>
         )}
       </Field>
+      {!accountOnly && <>
       <Field label="Arbeitgeber / Absender für automatische Gehaltszettel">
         {({ id }) => (
           <Select
@@ -1036,19 +1062,30 @@ function PayslipSourceForm({
           </Button>
         </div>
       ))}
+      </>}
       <div className="sources-actions">
-        <Button
+        {!accountOnly && <Button
           variant="ghost"
           disabled={busy || rows.length >= 200}
           onClick={() => setRows([...rows, { code: '', type: 'reimbursement' }])}
         >
           Lohnart hinzufügen
-        </Button>
+        </Button>}
         <Button type="submit" disabled={busy}>
-          Zuordnung speichern
+          {accountOnly ? 'Standard-Konto speichern' : 'Zuordnung speichern'}
         </Button>
       </div>
-      <p>Nach Änderungen das PDF unter Prüfen erneut auswerten.</p>
+      {!accountOnly && <p>Nach Änderungen das PDF unter Prüfen erneut auswerten.</p>}
     </form>
   );
+}
+
+/** Existing atomic source-config writer, placed with the payslip workflow instead of Connections. */
+export function PayslipMappingSettings() {
+  const query = useQuery({ queryKey: ['payslip-source'], queryFn: () => request<SourceStatus>('GET', PATH + '/status') });
+  return <details><summary>Lohnarten und Gehaltsautomatik zuordnen</summary>
+    {query.isPending && <LoadingNote what="Gehaltszuordnung" />}
+    {query.isError && <ErrorNote what="Gehaltszuordnung" error={query.error} onRetry={() => void query.refetch()} />}
+    {query.data && <PayslipSourceForm initial={query.data.config} accounts={query.data.accounts} payees={query.data.payees ?? []} />}
+  </details>;
 }

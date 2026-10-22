@@ -161,3 +161,8 @@
 .bank-balance button {
   min-height: 44px;
 }
+
+.source-configuration { margin-block: var(--space-lg); }
+.source-configuration > summary { cursor: pointer; min-height: 44px; padding-block: var(--space-sm); }
+.source-configuration[open] > summary { margin-bottom: var(--space-md); }
+.source-configuration li { overflow-wrap: anywhere; }

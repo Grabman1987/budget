@@ -8,6 +8,8 @@ import { monthLabel } from '../nav/month';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
 import { useMonth } from '../shell/use-month';
+import { PayslipUploadDialog } from '../reports/payslip-panel';
+import { PayslipMappingSettings } from '../reports/payslip-intake';
 import { IncomeBody } from '../expected/income-panel';
 import { ExpectedDetailBack } from '../expected/detail-nav';
 import { PLAN_ERWARTET } from '../nav/pages';
@@ -110,6 +112,7 @@ export function EnvelopePage() {
 }
 
 export function PlanIncomePage() {
+  const [uploadingPayslip, setUploadingPayslip] = useState(false);
   const [month] = useMonth();
   const budget = useQuery(budgetQuery(month));
   const expected = useLocation({
@@ -128,6 +131,9 @@ export function PlanIncomePage() {
             Einnahmen {monthLabel(month)}
           </h2>
           <IncomeBody month={month} bookedCents={budget.data?.summary.incomeCents} />
+          <Button variant="ghost" onClick={() => setUploadingPayslip(true)}>Gehaltszettel hochladen</Button>
+          <PayslipMappingSettings />
+          {uploadingPayslip && <PayslipUploadDialog onClose={() => setUploadingPayslip(false)} />}
         </section>
       </div>
     </PageFrame>

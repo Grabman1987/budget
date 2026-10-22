@@ -13,6 +13,7 @@ import { copyFile, mkdir, mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+import type { BackupStatus } from './status';
 import { backupDay, backupKey, backupsToDelete } from './retention';
 import { S3Client, safeBackupMessage, type S3Config } from './s3';
 import { receiptDirectory, receiptPath, verifyReceiptFile } from '../receipts/files';
@@ -157,6 +158,21 @@ export class BackupScheduler {
   private lastSuccess = 0;
   private running = false;
   private lastRetry = 0;
+  private inventoryCheckedAt: string | null = null;
+  private lastCompletedAt: string | null = null;
+  private lastFailureAt: string | null = null;
+
+  /** Read cached observations; never list the bucket or start a backup from a settings read. */
+  status(): BackupStatus {
+    return {
+      configured: true, running: this.running,
+      latestKnownArchiveDay: this.lastDay ?? null,
+      inventoryCheckedAt: this.inventoryCheckedAt,
+      lastCompletedAt: this.lastCompletedAt,
+      lastFailureAt: this.lastFailureAt,
+      lastAttemptFailed: this.lastRetry > 0,
+    };
+  }
 
   constructor(
     private readonly deps: {
@@ -182,6 +198,7 @@ export class BackupScheduler {
       .map(backupDay)
       .filter((d): d is string => d !== undefined)
       .sort();
+    this.inventoryCheckedAt = new Date().toISOString();
     this.lastDay = days.at(-1);
     if (this.lastDay) this.lastSuccess = Date.parse(`${this.lastDay}T02:00:00Z`);
   }
@@ -203,6 +220,7 @@ export class BackupScheduler {
       const result = await runBackup(this.deps.sqlite, this.deps.config, now, this.client);
       this.lastDay = now.toISOString().slice(0, 10);
       this.lastSuccess = now.getTime();
+      this.lastCompletedAt = new Date().toISOString();
       this.lastRetry = 0;
       this.resolveInbox(now);
       this.log(
@@ -211,6 +229,7 @@ export class BackupScheduler {
       return result;
     } catch (error) {
       this.lastRetry = now.getTime();
+      this.lastFailureAt = new Date().toISOString();
       const message = safeBackupMessage(error);
       this.log(`Encrypted backup failed: ${message}`);
       this.reportInbox(message, now);

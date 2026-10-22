@@ -29,6 +29,7 @@ export function readSourceRoutes(
     const { lastSuccess, lastAttempt, status, balances } = readSourceState(db);
     return c.json({
       configured: source.configured(),
+      automaticConfigured: process.env['BUDGET_MARKET_DAILY'] === '1',
       running: readSourceRunning(db),
       lastSuccess,
       lastAttempt,

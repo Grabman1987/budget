@@ -10,6 +10,7 @@ import type { AccountRow } from '../ledger/types';
 import { settingsSectionMeta } from '../settings/navigation';
 import { PageFrame } from './placeholder-page';
 import { CryptoReadSourceSection } from './read-source';
+import { MarketSourceSections } from './market-sources';
 import { PayslipSourceSection } from '../reports/payslip-intake';
 import './data-sources.css';
 
@@ -81,6 +82,7 @@ export function DataSourcesPage() {
         <BankSourceSection />
         <CryptoReadSourceSection />
         <PayslipSourceSection />
+        <MarketSourceSections />
       </div>
     </PageFrame>
   );
@@ -105,8 +107,11 @@ function BankSourceSection() {
     return { code: params.get('code'), state: params.get('state'), error: params.has('error') };
   });
   useEffect(() => {
-    if (callback.code || callback.error)
-      window.history.replaceState(null, '', window.location.pathname);
+    if (callback.code || callback.error) {
+      const url = new URL(window.location.href);
+      for (const name of ['code', 'state', 'error', 'error_description']) url.searchParams.delete(name);
+      window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+    }
   }, [callback]);
   async function act(action: () => Promise<unknown>, message: string) {
     setBusy(true);
@@ -124,7 +129,7 @@ function BankSourceSection() {
   }
   return (
     <section className="data-source-section" aria-labelledby="bank-source-title">
-      <SectionHead id="bank-source-title" title="Bank-Sync (PSD2)" />
+      <SectionHead id="bank-source-title" title="Bank" />
       <p>
         Neue Verbindungen merken Umsätze unter Prüfen vor. Sie zählen erst nach deiner Bestätigung
         zum Kontostand. Vorhandene Buchungen werden abgeglichen.
@@ -138,6 +143,9 @@ function BankSourceSection() {
           </Button>
         </p>
       )}
+      {query.data && <p role="status">{!query.data.configured ? 'Noch nicht eingerichtet. Server-Zugangsdaten hinterlegen und anschließend die Bank verbinden.' : query.data.workerEnabled === false ? 'Automatischer und manueller Bankabruf auf dem Server pausiert.' : `${query.data.connections.length} Bankverbindungen eingerichtet.`}</p>}
+      <details className="source-configuration" open={callback.code || callback.error ? true : undefined}>
+        <summary>Bankverbindung einrichten</summary>
       <div className="bank-connect" aria-label="Neue Bankverbindung">
         <h3>Bank verbinden</h3>
         {error && (
@@ -272,11 +280,13 @@ function BankSourceSection() {
           </>
         )}
       </div>
+      </details>
       {query.data?.configured && (
         <>
           {query.data.connections.length === 0 && <p>Noch keine Bank verbunden.</p>}
           <p className="text-muted">
-            Nächtlicher Abruf mit Nachholen nach Ausfällen. Das Tageslimit gilt pro Bankkonto und
+            Automatischer Abruf um 06:30 und 18:30 Europe/Vienna mit Nachholen nach Ausfällen.
+            Das bestehende Limit von vier Anfragen pro Tag gilt pro Bankkonto und
             zählt auch Transaktionsseiten und Saldoanfragen.
           </p>
           {query.data.connections.map((connection) => (
@@ -421,6 +431,12 @@ function ConnectionCard({
         </p>
       )}
       {message && <p role="status">{message}</p>}
+      {connection.accounts.map((account) => <p key={account.id}>
+        {account.label}: {account.accountId ? `${account.open} offen zur Prüfung.` : 'Kontozuordnung fehlt.'}
+        {account.lastResult && <> Letzter Abruf: {account.lastResult.linked} verknüpft, {account.lastResult.new} neu vorgemerkt.</>}{' '}
+        <AppLink to="/konten/pruefen" search={{ bankSource: account.id, teil: 'umsaetze' }}>Umsätze prüfen</AppLink>
+      </p>)}
+      <details className="source-configuration"><summary>Kontenzuordnung und Abrufdetails</summary>
       <Field
         label="Gebuchte Umsätze"
         hint="Gilt beim nächsten Abruf. Bereits übernommene Buchungen bleiben erhalten."
@@ -503,6 +519,7 @@ function ConnectionCard({
           </AppLink>
         </div>
       ))}
+      </details>
     </section>
   );
 }

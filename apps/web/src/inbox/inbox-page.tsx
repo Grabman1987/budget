@@ -87,8 +87,9 @@ export function InboxPage() {
           </AppLink>
         </p>
       )}
-      <InboxWorkflow bankSource={search.bankSource} />
-      {!search.bankSource && <InboxAccountReminders />}
+      {search.readSource && <p>Krypto-Bewegungen. <AppLink to="/konten/pruefen" search={{}}>Alle Aufgaben anzeigen</AppLink></p>}
+      <InboxWorkflow bankSource={search.bankSource} readSource={search.readSource} />
+      {!search.bankSource && !search.readSource && <InboxAccountReminders />}
     </PageFrame>
   );
 }
@@ -1158,10 +1159,11 @@ function SourceLink({ item }: { item: InboxStored }) {
   if (
     item.refType === 'read_source' ||
     item.refType === 'bank-sync' ||
-    item.refType === 'payslip-source'
+    item.refType === 'payslip-source' ||
+    item.refType === 'cpi-source'
   )
     return (
-      <AppLink className="btn btn-ghost btn-sm" to="/einstellungen/datenquellen">
+      <AppLink className="btn btn-ghost btn-sm" to="/einstellungen/verbindungen">
         Datenquelle prüfen
       </AppLink>
     );
@@ -1179,8 +1181,8 @@ function SourceLink({ item }: { item: InboxStored }) {
     );
   if (item.refType === 'encrypted_backup')
     return (
-      <AppLink className="btn btn-ghost btn-sm" to="/einstellungen/sicherheit">
-        Sicherheit prüfen
+      <AppLink className="btn btn-ghost btn-sm" to="/einstellungen/daten-export">
+        Sicherung prüfen
       </AppLink>
     );
   return null;

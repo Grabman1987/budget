@@ -14,7 +14,7 @@ import {
   updateBooking,
   type Db,
 } from '@budget/db';
-import { todayInVienna } from '@budget/domain';
+import { BANK_RUN_TIMES, todayInVienna } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { z } from 'zod';
@@ -93,7 +93,8 @@ export function bankSyncRoutes(
   app.get('/', (c) =>
     c.json(
       service
-        ? { ...service.status(), workerEnabled: process.env['BUDGET_BANK_SYNC_DAILY'] !== '0' }
+        ? { ...service.status(), workerEnabled: process.env['BUDGET_BANK_SYNC_DAILY'] !== '0',
+            schedule: { times: BANK_RUN_TIMES, timeZone: 'Europe/Vienna' } }
         : { configured: false, connections: [], accounts: [] },
     ),
   );

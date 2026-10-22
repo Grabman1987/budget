@@ -24,6 +24,7 @@ export function validateInboxSearch(search: Record<string, unknown>) {
     fromDate: z.iso.date().safeParse(search['fromDate']).success
       ? (search['fromDate'] as string)
       : undefined,
+    readSource: search['readSource'] === 'crypto' ? 'crypto' as const : undefined,
     bankSource:
       typeof source === 'string' &&
       /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(source)
