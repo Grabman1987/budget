@@ -1,6 +1,6 @@
 import { closeEntryMonth, unfundedSavingsGoals } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
-import { RevisionTable, useAmountPrivacy, type RevisionRow } from '@budget/ui';
+import { RevisionTable, maskMoneyText, useAmountPrivacy, type RevisionRow } from '@budget/ui';
 import type { ReactNode } from 'react';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote } from '../ledger/states';
@@ -16,7 +16,7 @@ export function AttentionBar({
   savingsRows = [],
   savingsError,
 }: {
-  data: Pick<Heute, 'stand' | 'nextSteps' | 'financeCheck' | 'attention' | 'accountReminders'>;
+  data: Pick<Heute, 'stand' | 'nextSteps' | 'financeCheck' | 'attention' | 'accountReminders' | 'contactReminders'>;
   savingsRows?: RevisionRow[];
   savingsError?: ReactNode;
 }) {
@@ -25,6 +25,7 @@ export function AttentionBar({
   const uncategorized = data.nextSteps.items.find((i) => i.kind === 'uncategorized');
   const overspending = data.nextSteps.items.filter((i) => i.kind === 'overspent').length;
   const reminders = data.accountReminders?.length ?? 0;
+  const contacts = data.contactReminders ?? [];
   const loanTermsMissing = data.attention.loanTermsMissing;
   const quoteReview = data.attention.quoteReview?.count ?? 0;
   const month = data.stand.today.slice(0, 7);
@@ -38,6 +39,7 @@ export function AttentionBar({
     !savingsRows.length &&
     !savingsError &&
     !reminders &&
+    !contacts.length &&
     !loanTermsMissing &&
     !quoteReview
   )
@@ -125,6 +127,12 @@ export function AttentionBar({
           {savingsError}
         </div>
       )}
+      {contacts.map((reminder) => <div className="attention-row" key={`contact-${reminder.contactId}`}>
+        <span>{reminder.status === 'overdue'
+          ? <>{maskMoneyText(reminder.name)}: offene Auslage seit {longDay(reminder.oldestOpenDate)} ({reminder.ageDays} Tage)</>
+          : <>{maskMoneyText(reminder.name)}: Auslagenprüfung nicht verfügbar – Bewegungen außerhalb EUR</>}</span>
+        <AppLink to={`/konten/kontakte/${encodeURIComponent(reminder.contactId)}`}>Kontakt prüfen</AppLink>
+      </div>)}
       {(reminders > 0 || quoteReview > 0 || loanTermsMissing) && (
         <div className="attention-row">
           <span>

@@ -15,6 +15,10 @@ export interface AccountReminder {
   supported?: boolean;
 }
 
+export type ContactReminder =
+  | { contactId: string; name: string; status: 'overdue'; oldestOpenDate: string; ageDays: number }
+  | { contactId: string; name: string; status: 'unavailable'; reason: 'unsupported_currency' };
+
 export interface HeuteUnavailable {
   unavailable: { reason: 'missing_price' | 'missing_fx'; message: string; asOf: string };
 }
@@ -124,6 +128,7 @@ export interface Heute extends WithValuationNotes {
   upcoming14: HeuteOccurrence[];
   upcomingEvents: PlannedEventOccurrence[];
   accountReminders: AccountReminder[];
+  contactReminders?: ContactReminder[];
   financeCheck:
     | {
         counts: { ok: number; warn: number; bad: number; total: number; notEvaluated: number };

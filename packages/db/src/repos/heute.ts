@@ -55,6 +55,7 @@ import { monthResultRead } from './month-reports';
 import { wholePicture } from './whole-picture';
 import { listGoals } from './goals';
 import { accountReminders } from './account-reminders';
+import { contactReminders } from './contacts';
 
 /**
  * The read model of Heute (concept §7.1, SPEC §3): one call, every figure from the domain
@@ -196,6 +197,8 @@ export interface Heute {
   upcoming14: HeuteOccurrence[];
   upcomingEvents: PlannedEventOccurrence[];
   accountReminders: ReturnType<typeof accountReminders>;
+  /** Additive current-day projection; optional for older consumers, populated by this reader. */
+  contactReminders?: ReturnType<typeof contactReminders>;
   financeCheck:
     | {
         counts: FinanceCheck['counts'];
@@ -743,6 +746,7 @@ export function heute(db: Executor, query: HeuteQuery): Heute {
           a.eventId.localeCompare(b.eventId),
       ),
     accountReminders: accountReminders(db, today),
+    contactReminders: contactReminders(db, today),
     financeCheck: check,
     netWorth,
     attention: {
