@@ -79,18 +79,21 @@ export function goalBar(goal: Pick<GoalView, 'savedCents' | 'targetCents'>): {
 }
 
 export interface GoalLine {
-  tone: 'done' | 'ok' | 'warn';
+  tone: 'done' | 'ok' | 'note' | 'warn';
   text: string;
 }
+
+// Display-only threshold: exact amounts, domain status and funding admission remain unchanged.
+const warningTone = (cents: number): GoalLine['tone'] => cents >= 100 ? 'warn' : 'note';
 
 /** The short status under the bar: what the forecast says, and what is missing if it is late. */
 export function goalLine(goal: GoalView, month: string): GoalLine {
   if (goalState(goal) === 'completed') return { tone: 'done', text: 'abgeschlossen' };
   if (goalState(goal) === 'reached') return { tone: 'done', text: 'erreicht' };
-  if (goal.funding?.conflict) return { tone: 'warn', text: 'Kategorie-Ziel abstimmen' };
+  if (goal.funding?.conflict) return { tone: 'warn', text: 'Monatsziel der Kategorie abstimmen' };
   if (goal.funding)
     return goal.funding.remainingCents > 0
-      ? { tone: 'warn', text: `noch ${eur(goal.funding.remainingCents)} für diesen Monat zuweisen` }
+      ? { tone: warningTone(goal.funding.remainingCents), text: `noch ${eur(goal.funding.remainingCents)} für diesen Monat zuweisen` }
       : { tone: 'ok', text: 'Monatsrate zugewiesen' };
   return goalForecastLine(goal, month);
 }
@@ -105,12 +108,12 @@ export function goalForecastLine(goal: GoalView, month: string): GoalLine {
       text: goal.forecastMonth ? `im Plan · fertig ${shortMonth(goal.forecastMonth)}` : 'im Plan',
     };
   if (goal.targetDate !== null && goal.targetDate.slice(0, 7) <= month)
-    return { tone: 'warn', text: 'hinter Plan · Zieldatum erreicht, Rest offen' };
+    return { tone: warningTone(goal.remainingCents), text: 'hinter Plan · Zieldatum erreicht, Rest offen' };
   if (goal.averageRateCents <= 0)
-    return { tone: 'warn', text: 'hinter Plan · zuletzt nichts gespart' };
+    return { tone: warningTone(goal.neededMonthlyCents ?? goal.remainingCents), text: 'hinter Plan · zuletzt nichts gespart' };
   const more = (goal.neededMonthlyCents ?? 0) - goal.averageRateCents;
   return {
-    tone: 'warn',
+    tone: warningTone(more),
     text: `hinter Plan · ${eur(Math.max(more, 0))} je zukünftigem Monat mehr nötig`,
   };
 }

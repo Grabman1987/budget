@@ -9,6 +9,7 @@ import { PLAN_SPARZIELE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { useMonth } from '../shell/use-month';
 import { AppLink } from '../shell/app-link';
+import { Term } from '../reports/term';
 import { categoriesQuery, useBudgetWrite } from './use-category-writes';
 import type { CategoryRow } from './api';
 import { budgetQuery } from './budget-api';
@@ -72,6 +73,10 @@ function GoalsBody({ month, goals }: { month: string; goals: GoalView[] }) {
           Neues Sparziel
         </Button>
       </div>
+      <p className="panel-sub">
+        <Term info>Sparziel</Term> beschreibt den Gesamtbetrag; <Term info>Monatsziel</Term> den Bedarf
+        einer Kategorie im gewählten Monat.
+      </p>
       {goals.length === 0 ? (
         <EmptyNote
           action={
@@ -90,7 +95,7 @@ function GoalsBody({ month, goals }: { month: string; goals: GoalView[] }) {
           </h2>
           <table className="ptable">
             <caption className="sr-only">
-              Sparziele mit Ziel, Gespart, Fehlt, Zieldatum und nötiger Monatsrate
+              Sparziele mit Zielbetrag, Gespart, Fehlt, Zieldatum und nötiger Monatsrate
             </caption>
             <thead>
               <tr>
@@ -104,7 +109,7 @@ function GoalsBody({ month, goals }: { month: string; goals: GoalView[] }) {
                   Kategorie
                 </th>
                 <th className="tech col-num" scope="col">
-                  Ziel
+                  Zielbetrag
                 </th>
                 <th className="tech col-num" scope="col">
                   Gespart
@@ -164,7 +169,7 @@ function GoalsBody({ month, goals }: { month: string; goals: GoalView[] }) {
               <i className="lg-bar">
                 <i className="lg-tick" style={{ left: '100%' }} />
               </i>
-              Ziel
+              Zielbetrag
             </span>
           </div>
         </section>
@@ -206,7 +211,7 @@ function GroupRow({
           </span>
         </button>
       </td>
-      <td className="col-num col-target" data-label="Ziel">
+      <td className="col-num col-target" data-label="Zielbetrag">
         {eur(g.totals.targetCents)}
       </td>
       <td className="col-num col-saved" data-label="Gespart">
@@ -300,7 +305,7 @@ function GoalRow({
           </span>
         )}
       </td>
-      <td className="col-num col-target" data-label="Ziel">
+      <td className="col-num col-target" data-label="Zielbetrag">
         {eur(g.targetCents)}
       </td>
       <td className="col-num col-saved" data-label="Gespart">
@@ -314,7 +319,7 @@ function GoalRow({
       </td>
       <td className="col-num col-rate" data-label="Nötige Rate">
         {g.funding?.conflict ? (
-          <span className="muted">Ziel abstimmen</span>
+          <span className="muted">Monatsziel abstimmen</span>
         ) : g.funding ? (
           eur(g.funding.monthlyCents)
         ) : g.neededMonthlyCents === null ? (

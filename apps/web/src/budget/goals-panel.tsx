@@ -122,7 +122,7 @@ function GoalBody({
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(startMonth))
       next.start = 'Bitte einen gültigen Startmonat wählen.';
     if (name.trim() === '') next.name = 'Bitte einen Namen eintragen.';
-    if (!parsed.ok || parsed.cents <= 0) next.target = 'Bitte ein Ziel über 0 eintragen.';
+    if (!parsed.ok || parsed.cents <= 0) next.target = 'Bitte einen Sparzielbetrag über 0 eintragen.';
     if (link === 'category' ? categoryId === '' : accountId === '')
       next.link = link === 'category' ? 'Bitte eine Kategorie wählen.' : 'Bitte ein Konto wählen.';
     setErrors(next);
@@ -178,7 +178,7 @@ function GoalBody({
           />
         )}
       </Field>
-      <AmountInput label="Ziel" value={target} onChange={setTarget} error={errors.target} />
+      <AmountInput label="Sparzielbetrag" value={target} onChange={setTarget} error={errors.target} />
       <Field
         label="Zielbeginn"
         error={errors.start}
@@ -276,8 +276,8 @@ function GoalBody({
 
       {goal?.funding?.conflict && <p role="status">{goal.funding.conflict}</p>}
       <p className="panel-sub">
-        Ein eindeutiges Sparziel mit Zieldatum setzt das Ziel seiner Kategorie beim Speichern.
-        Bestehende abweichende Ziele bleiben erhalten.
+        Ein eindeutiges Sparziel mit Zieldatum setzt das Monatsziel seiner Kategorie beim Speichern.
+        Bestehende abweichende Monatsziele bleiben erhalten.
       </p>
     </div>
   );
@@ -298,7 +298,7 @@ export function GoalFigures({
   const terms: DimensionChainTerm[] = [
     { label: 'Gespart', value: cents(g.savedCents - extra) },
     { label: 'Fehlt', value: cents(g.remainingCents), op: '+' },
-    { label: 'Ziel', value: cents(g.targetCents), op: '=' },
+    { label: 'Zielbetrag', value: cents(g.targetCents), op: '=' },
   ];
   const line = goalLine(g, month);
   return (
@@ -306,7 +306,7 @@ export function GoalFigures({
       <DimensionChain terms={terms} precision="cent" label="Maßkette Sparziel" />
       <p className="panel-sub">
         {line.text}
-        {extra > 0 && ` · ${eur(extra)} mehr als das Ziel`}
+        {extra > 0 && ` · ${eur(extra)} mehr als der Sparzielbetrag`}
       </p>
       <dl className="kv-list">
         <div className="kv">
@@ -333,7 +333,7 @@ export function GoalFigures({
           <dt>{g.funding ? 'Rate im gewählten Monat' : 'Nötige künftige Rate'}</dt>
           <dd>
             {g.funding?.conflict
-              ? 'Ziel abstimmen'
+              ? 'Monatsziel abstimmen'
               : g.funding
                 ? eur(g.funding.monthlyCents)
                 : g.neededMonthlyCents === null

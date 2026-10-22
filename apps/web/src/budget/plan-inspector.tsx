@@ -14,6 +14,7 @@ import { QuickAssignActions } from './quick-assign-actions';
 import type { PanelState } from './category-panel';
 import { TargetSnooze } from './target-snooze';
 import { SelectedFunding } from './selected-funding';
+import { Term } from '../reports/term';
 
 const moneyWords = (text: string) => maskMoneyText(text).replace(/ (?=€)/g, '\u00a0');
 
@@ -115,6 +116,7 @@ export function PlanInspector({
   useAmountPrivacy();
   const row = selected.length === 1 ? selected[0] : undefined;
   const snoozed = row?.target?.snoozedMonths?.includes(month) ?? false;
+  const targetName = row?.target?.weeklyDay != null ? 'Wochenziel' : 'Monatsziel';
   const [collapsed, setCollapsed] = useStoredFlag('budget.plan.inspector.collapsed');
   const hasSelection = selected.length > 0;
   const [fold, setFold] = useState({ intent: inspectionIntent, selected: hasSelection, open: !collapsed });
@@ -185,20 +187,20 @@ export function PlanInspector({
                   />
                 </div>
                 <div className="inspector-target">
-                  <h3 className="panel-h">Ziel</h3>
-                  <p className="panel-sub">{row.target ? moneyWords(targetText(row.target)) : 'Kein Ziel.'}</p>
+                  <h3 className="panel-h"><Term info>{targetName}</Term></h3>
+                  <p className="panel-sub">{row.target ? moneyWords(targetText(row.target)) : 'Kein Monatsziel.'}</p>
                   {row.target && (
                     <>
                       {!snoozed && <progress
-                        aria-label="Zielfortschritt"
+                        aria-label={`${targetName} · Fortschritt`}
                         className={cx(row.needCents <= 0 && 'is-done')}
                         max={Math.max(1, row.goalCents)}
                         value={Math.max(0, row.goalCents - row.needCents)}
                       />}
                       <p className="panel-sub">
-                        {snoozed ? 'Ziel diesen Monat ausgesetzt.' : row.needCents > 0 ? `fehlt ${eur(row.needCents)}` : 'Ziel finanziert.'}
+                        {snoozed ? `${targetName} diesen Monat ausgesetzt.` : row.needCents > 0 ? `fehlt ${eur(row.needCents)}` : `${targetName} finanziert.`}
                       </p>
-                      <TargetSnooze key={`${month}:${row.id}`} month={month} categoryId={row.id} snoozed={snoozed} disabled={sourceUnavailable} />
+                      <TargetSnooze key={`${month}:${row.id}`} month={month} categoryId={row.id} snoozed={snoozed} weekly={row.target.weeklyDay != null} disabled={sourceUnavailable} />
                     </>
                   )}
                 </div>
@@ -250,7 +252,7 @@ export function PlanInspector({
                         onCategory({ mode: 'edit', category, groupId: category.groupId })
                       }
                     >
-                      Umbenennen / Ziel ändern
+                      Umbenennen / Zuweisungsziel ändern
                     </Button>
                     <Button
                       variant="ghost"
@@ -296,6 +298,7 @@ export function PlanInspector({
           <>
             <RememberedSection name="overview-closed" title="Monatsaufstellung" defaultOpen>
               {overview}
+              <p className="panel-sub"><Term info>Zu verteilen</Term> · <Term info>Zugewiesen</Term></p>
             </RememberedSection>
             {actions}
             {guardedFunding}

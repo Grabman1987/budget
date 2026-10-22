@@ -343,10 +343,10 @@ function GoalBar({ goal, month }: { goal: GoalView; month: string }) {
 function GoalStatus({ goal, month }: { goal: GoalView; month: string }) {
   useAmountPrivacy();
   const line = goalLine(goal, month);
-  const Icon = line.tone === 'warn' ? AlertTriangle : Check;
+  const Icon = line.tone === 'warn' ? AlertTriangle : line.tone === 'note' ? null : Check;
   return (
     <span className="goal-report-status">
-      <Icon size={16} aria-hidden="true" />
+      {Icon && <Icon size={16} aria-hidden="true" />}
       {line.text}
     </span>
   );

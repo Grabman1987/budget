@@ -17,6 +17,7 @@ import { AccountOptions } from '../ledger/account-options';
 import { accountsQuery } from '../ledger/queries';
 import { eur, longDay } from '../ledger/format';
 import { monthLabel } from '../nav/month';
+import { Term } from '../reports/term';
 import {
   CATEGORY_KINDS,
   CLASSLESS_KINDS,
@@ -379,19 +380,20 @@ function CategoryForm({
         )}
       </Field>
       <fieldset className="kform-set">
-        <legend>Ziel</legend>
-        <Field label="Art des Ziels">
+        <legend>Zuweisungsziel der Kategorie</legend>
+        <p className="field-hint"><Term info>Monatsziel</Term> oder ausdrückliches <Term info>Wochenziel</Term>.</p>
+        <Field label="Zielart">
           {({ id }) => (
             <Select
               id={id}
               value={targetKind}
               onChange={(e) => setTargetKind(e.target.value as TargetChoice)}
             >
-              <option value="none">kein Ziel</option>
-              <option value="monthly">Betrag im Rhythmus</option>
+              <option value="none">kein Zuweisungsziel</option>
+              <option value="monthly">Monatsziel · Betrag im Rhythmus</option>
               {!classless && <option value="weekly">Wöchentlich zurücklegen</option>}
-              <option value="by_date">Betrag bis Datum</option>
-              <option value="keep_balance">Guthaben halten</option>
+              <option value="by_date">Monatsziel · Betrag bis Datum</option>
+              <option value="keep_balance">Monatsziel · Guthaben halten</option>
             </Select>
           )}
         </Field>

@@ -4,6 +4,47 @@ import './term.css';
 
 const GLOSSARY = new Map<string, string>([
   [
+    'Kategorie',
+    'Eine Kategorie ordnet Geld einem Zweck zu. Zugewiesen, Aktivität und Verfügbar beschreiben denselben Budgetbereich.',
+  ],
+  [
+    'Zu verteilen',
+    'Ein positiver Betrag ist im Budget noch keiner Kategorie zugewiesen. Ein negativer Betrag zeigt eine zu hohe Zuweisung. Verteilen betrifft mehrere Kategorien; zuweisen eine einzelne Kategorie.',
+  ],
+  [
+    'Zugewiesen',
+    'Der Betrag, den du einer Kategorie für den gewählten Monat zugewiesen hast. Das ist keine zusätzliche Einnahme oder Ausgabe.',
+  ],
+  [
+    'Verplantes Geld',
+    'Die Summe der verfügbaren Beträge in den Kategorien. Sie ist kein zusätzliches Kontoguthaben.',
+  ],
+  [
+    'Ausgabentempo',
+    'Die zeitbezogene Betrachtung zeigt, wie sich bisherige Ausgaben zum Verlauf des gewählten Monats verhalten.',
+  ],
+  ['Noch im Plan', 'Die geplanten Monatsausgaben abzüglich der bisherigen Ausgaben.'],
+  [
+    'Monatsziel',
+    'Die Zuweisungsabsicht einer Kategorie für einen Monat. Der Zieltyp bestimmt, ob Übertrag den Bedarf mindert und wie ein Betrag bis zum Zieldatum verteilt wird. Ein Monatsziel ist vom Gesamtbetrag eines Sparziels zu unterscheiden.',
+  ],
+  [
+    'Wochenziel',
+    'Ein Wochenziel legt einen Betrag je ausgewähltem Wochentag zurück. Jeder Kalendermonat zählt seine vier oder fünf tatsächlichen Termine; Übertrag mindert diesen monatlichen Zielbetrag nicht.',
+  ],
+  [
+    'Sparziel',
+    'Ein Sparziel beschreibt einen gewünschten Gesamtbetrag für eine Kategorie oder ein Konto. Mit einem Zieldatum zeigt es die nötige Monatsrate. Der bereits gesparte Betrag und der Bedarf des gewählten Monats bleiben getrennte Angaben.',
+  ],
+  [
+    'Berücksichtigter Portfoliowert',
+    'Der Wert der ausgewählten Positionen einschließlich Anlage-Kassa mit ihrem Vorzeichen. Die ausgewiesene Auswahl und Bewertungsgrenze bestimmen den Nenner.',
+  ],
+  [
+    'Abweichung vom Ziel',
+    'Der Abstand zwischen aktuellem Wert und Zielwert bei unverändertem Gesamtwert. Diese Angabe ist keine automatische Orderempfehlung.',
+  ],
+  [
     'TWR',
     'Die zeitgewichtete Rendite neutralisiert Ein- und Auszahlungen nach Portfolio Performance: Zuflüsse zählen am Tagesanfang, Abflüsse am Tagesende. Die Tagesrenditen werden miteinander verkettet.',
   ],
@@ -84,8 +125,8 @@ const ALIASES = new Map<string, string>([
   ['Sharpe-Quote', 'Sharpe'],
 ]);
 
-/** Report vocabulary only; unknown dynamic headings remain ordinary text. */
-export function Term({ children }: { children: string }) {
+/** Shared app vocabulary; unknown dynamic headings remain ordinary text. */
+export function Term({ children, info = false }: { children: string; info?: boolean }) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const explanation = GLOSSARY.get(ALIASES.get(children) ?? children);
@@ -98,8 +139,10 @@ export function Term({ children }: { children: string }) {
         className="term-trigger"
         popoverTarget={id}
         aria-describedby={id}
+        aria-label={info ? `${children} erklären` : undefined}
       >
         {children}
+        {info && <span aria-hidden="true"> ⓘ</span>}
       </button>
       {typeof document !== 'undefined' &&
         createPortal(
