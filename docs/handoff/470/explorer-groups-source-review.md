@@ -1,0 +1,7 @@
+# #470 Explorer year groups — source-only delta review
+
+Reviewed `d5d9cb62765ef67d9fcd5c65bc2acf7014708f5c` against `48c91868554647eb01dd9e61a03fc697b745c2fd` in `/workspace/impl-470-table-readability`. Scope: changed Explorer template component/CSS and current year-row model/navigation. **No actionable source finding in this bounded delta.** No tests, checks, build, browser or print execution was performed.
+
+The year model constructs each `group` immediately before its contiguous `category` rows (`packages/domain/src/report-tables/tables.ts:244-267`), matching the component's parent lookup (`apps/web/src/reports/explorer-templates.tsx:48-56`). Year-category rows are initially hidden by a CSS class, while all canonical rows, amounts, source lookup and CSV inputs stay in `model.rows` (`:138-150`); the print override restores those rows (`apps/web/src/reports/explorer-report.css:233-239`). Group buttons expose `aria-expanded`, use native keyboard activation, and have a `44px` minimum touch height (`explorer-templates.tsx:158-177`; `explorer-report.css:149-164`). A URL-selected category makes its parent group visible even before an explicit expansion, and collapsing that selected group clears the URL drilldown (`explorer-templates.tsx:141-146,164-174`; `explorer-report.tsx:594-601`). Expansion state is keyed to template/year and reset on change (`explorer-templates.tsx:39-47`).
+
+This is static source reasoning. Rendered focus behavior, screen-reader announcements, touch target size, print layout, overflow and visual acceptance remain unvalidated.
