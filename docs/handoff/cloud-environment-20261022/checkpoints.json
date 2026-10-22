@@ -198,7 +198,7 @@
       ],
       "branch": "codex/impl-520-security-transfers",
       "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
-      "remote_sha": "1709597413ba00933631c9af22b11a6343a83f65"
+      "remote_sha": "31c94f331233e397540383b24cae9c95030feb19"
     },
     {
       "issues": [
