@@ -129,7 +129,7 @@ export interface ListedSplit {
 }
 
 export interface ListedBooking {
-  categorySpendingCents?: number;
+  categorySpendingCents?: number | null;
   id: string;
   accountId: string;
   accountName: string;
@@ -157,7 +157,7 @@ export interface ListedBooking {
 
 export interface BookingPage {
   nativeTotals?: { currency: string; count: number; cents: number | null }[];
-  categorySpendingCents?: number;
+  categorySpendingCents?: number | null;
   items: ListedBooking[];
   nextCursor: string | null;
   total: number;

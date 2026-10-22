@@ -1,4 +1,4 @@
-import { Button, Select, useAmountPrivacy } from '@budget/ui';
+import { Button, Select, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { readBulkSelection, type BulkResult, type BulkSelection } from './api';
@@ -44,7 +44,7 @@ export function BookingSelectionBar({ ids, pending, categories, projects, onAppl
       {outcome.result.skipped.length > 0 && <ul>{outcome.result.skipped.map((skip) => {
         const current = skip.booking, row = current ?? outcome.submitted?.items.find((r) => r.id === skip.id);
         return <li key={skip.id}>
-          {row ? <><a href={`/konten/buchungen?buchung=${encodeURIComponent(row.id)}&konto=${encodeURIComponent(row.accountId)}`}>{row.description}</a>{!current && ' (Stand bei Auswahl)'} · {longDay(row.date)} · {row.amountCents === null ? 'Betrag nicht verfügbar' : nativeCurrency(row.amountCents, row.currency, true)} · {row.accountName} · </> : 'Buchung nicht mehr verfügbar · '}
+          {row ? <><a href={`/konten/buchungen?buchung=${encodeURIComponent(row.id)}&konto=${encodeURIComponent(row.accountId)}`}>{maskMoneyText(row.description)}</a>{!current && ' (Stand bei Auswahl)'} · {longDay(row.date)} · {row.amountCents === null ? 'Betrag nicht verfügbar' : nativeCurrency(row.amountCents, row.currency, true)} · {maskMoneyText(row.accountName)} · </> : 'Buchung nicht mehr verfügbar · '}
           {skip.id}: {SKIP_REASON_LABEL[skip.reason]}
         </li>;
       })}</ul>}

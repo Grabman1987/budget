@@ -513,7 +513,7 @@ function Row({
         </InlineBookingCell>
         )}
         {b.categorySpendingCents !== undefined && (
-          <small className="kmeta">Kategorie netto {eur(b.categorySpendingCents)}</small>
+          <small className="kmeta">Kategorie netto {b.categorySpendingCents === null ? 'nicht darstellbar' : eur(b.categorySpendingCents)}</small>
         )}
       </td>
       {runColumn && (

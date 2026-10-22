@@ -1,4 +1,4 @@
-import { Button, Field, Select, TextInput, useAmountPrivacy } from '@budget/ui';
+import { Button, Field, Select, TextInput, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useRef, useState } from 'react';
 import { ApiError } from '../api/http';
@@ -53,8 +53,14 @@ export function BookingBulkEditPanel({ ids, pending, onBusy, onConfirm, onCancel
   };
   const totals = (facts: BulkSelection) => facts.missingIds.length ? 'nicht vollständig verfügbar' :
     facts.totals.map((t) => t.cents === null ? `${t.currency}: nicht darstellbar` : nativeCurrency(t.cents, t.currency, true)).join(' · ');
-  const displayValue = (v: string | null) => v === null ? 'leer' : field === 'date' ? longDay(v) :
-    field === 'payeeId' ? payees.data?.payees.find((p) => p.id === v)?.name ?? 'gespeicherter Empfänger' : v;
+  const displayValue = (v: string | null) => {
+    if (v === null) return 'leer';
+    if (field === 'date') return longDay(v);
+    const text = field === 'payeeId'
+      ? (payees.data?.payees.find((p) => p.id === v)?.name ?? 'gespeicherter Empfänger')
+      : v;
+    return maskMoneyText(text);
+  };
   return <form className="bkform kprotected-edit" onSubmit={(event) => event.preventDefault()} aria-labelledby={`${instance}-title`} aria-busy={locked}>
     <div className="bk-head"><h2 id={`${instance}-title`}>Mehrere bearbeiten</h2></div>
     <div className="bk-body">
@@ -82,7 +88,7 @@ export function BookingBulkEditPanel({ ids, pending, onBusy, onConfirm, onCancel
         <ul>{preview.rows.map((row) => {
           const item = preview.selection.items.find((r) => r.id === row.id);
           return <li key={row.id}>
-            {item ? <>{item.description} · {longDay(item.date)} · {item.amountCents === null ? 'Betrag nicht verfügbar' : nativeCurrency(item.amountCents, item.currency, true)} · {item.accountName}</> : 'Nicht mehr verfügbar'} · {row.id}
+            {item ? <>{maskMoneyText(item.description)} · {longDay(item.date)} · {item.amountCents === null ? 'Betrag nicht verfügbar' : nativeCurrency(item.amountCents, item.currency, true)} · {maskMoneyText(item.accountName)}</> : 'Nicht mehr verfügbar'} · {row.id}
             {row.reason ? <> · {SKIP_REASON_LABEL[row.reason]}</> : <div>{displayValue(row.before)} → {displayValue(row.after)}{row.unchanged && ' · unverändert'}</div>}
           </li>;
         })}</ul>

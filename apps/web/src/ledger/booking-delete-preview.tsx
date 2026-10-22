@@ -1,4 +1,4 @@
-import { Button, useAmountPrivacy } from '@budget/ui';
+import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
 import { ApiError } from '../api/http';
@@ -54,7 +54,7 @@ export function BookingDeletePreviewPanel({ ids, mode = 'bulk', initialPreview, 
     } finally { accepting.current = false; setBusy(false); }
   };
   const row = (item: BulkSelectionItem) => <>
-    {item.description} · {longDay(item.date)} · {item.amountCents === null ? 'Betrag nicht verfügbar' : nativeCurrency(item.amountCents, item.currency, true)} · {item.accountName} · {item.id}
+    {maskMoneyText(item.description)} · {longDay(item.date)} · {item.amountCents === null ? 'Betrag nicht verfügbar' : nativeCurrency(item.amountCents, item.currency, true)} · {maskMoneyText(item.accountName)} · {item.id}
   </>;
   const totals = (values: BookingDeletePreview['eligibleTotals']) => values.length
     ? values.map((total) => total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents, total.currency, true)).join(' · ')

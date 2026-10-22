@@ -232,7 +232,7 @@ export function BookingsPage() {
               {pluralBookings(first.total)} im Filter · Summe: {first.nativeTotals?.length
                 ? first.nativeTotals.map((total) => total.cents === null ? `${total.currency}: nicht darstellbar` : nativeCurrency(total.cents, total.currency, true)).join(' · ')
                 : first.total === 0 ? 'keine Buchungen' : 'nicht verfügbar'}
-              {first.categorySpendingCents !== undefined && <> · {search.kategoriegruppe ? 'Gruppe' : 'Kategorie'} netto {eur(first.categorySpendingCents)} (Ausgaben − Erstattungen)</>}
+              {first.categorySpendingCents !== undefined && <> · {search.kategoriegruppe ? 'Gruppe' : 'Kategorie'} netto {first.categorySpendingCents === null ? 'nicht darstellbar' : eur(first.categorySpendingCents)} (Ausgaben − Erstattungen)</>}
             </p>
           )}
         </section>

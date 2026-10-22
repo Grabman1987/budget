@@ -5,6 +5,23 @@ typechecks, builds, browser checks, CI dispatch, PR, merge or deployment.
 This is source progress, not acceptance or live completion. Existing financial
 writers, locking, audit, Undo, tests, workflows and protected evidence remain.
 
+## Follow-up to independent source review — NOT VALIDATED
+
+The [independent review](594-597-ledger-source-review.md) of
+`6b5401d176658b4225f09d21c018a61cadfd90ea` identified two bounded display
+issues. Classified spending contributions now accumulate exact `bigint` values
+per booking and across the complete filter. A split with an unsafe input or a
+per-booking/filter total outside safe integer cents becomes `null`; the register
+and booking row say “nicht darstellbar” instead of passing it to `eur`. Selection,
+report classification, CSV scope, stored cents and writers are unchanged.
+
+The new read-only delete preview, bulk-edit preview and skipped-result descriptions,
+account names, and before/after memo or payee labels now use the existing
+`maskMoneyText` presentation helper. Editable draft values remain literal.
+Structured amounts retain their existing native-currency privacy formatting.
+The fix awaits independent exact-delta review. No tests, test edits, checks,
+typechecks, builds, browser validation, CI, PR, merge or deployment occurred.
+
 - **#594:** one live filter dialog on both layouts, removable chips, existing URL
   validation (including an invalid-date guard), full-history filter count and
   exact native-currency totals with explicit unavailable values, canonical Saldo

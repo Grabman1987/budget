@@ -229,7 +229,7 @@ export interface ListedSplit {
 }
 
 export interface ListedBooking {
-  categorySpendingCents?: number;
+  categorySpendingCents?: number | null;
   id: string;
   accountId: string;
   accountName: string;
@@ -261,7 +261,7 @@ export interface ListedBooking {
 
 export interface BookingPage {
   nativeTotals?: { currency: string; count: number; cents: number | null }[];
-  categorySpendingCents?: number;
+  categorySpendingCents?: number | null;
   items: ListedBooking[];
   nextCursor: string | null;
   /** All bookings matching the filter and their summed amount (not only this page). */
@@ -320,7 +320,7 @@ export function queryBookings(
   const conditions: (SQL | undefined)[] = [isNull(booking.deletedAt), isNull(account.deletedAt)];
   const contributions =
     (query.basis === 'category-spending' && query.categoryId) || query.categoryGroupId
-      ? new Map<string, number>() : null;
+      ? new Map<string, bigint | null>() : null;
   if (contributions) {
     const facts = reportTables(db, { today, withSources: true });
     const groupCategories = query.categoryGroupId ? new Set(facts.categories
@@ -329,7 +329,12 @@ export function queryBookings(
       if (s.kind === 'spend' && s.categoryId !== null &&
         (!query.categoryId || s.categoryId === query.categoryId) &&
         (!groupCategories || groupCategories.has(s.categoryId)))
-        contributions.set(s.bookingId, (contributions.get(s.bookingId) ?? 0) + s.amountCents);
+        contributions.set(
+          s.bookingId,
+          contributions.get(s.bookingId) === null || !Number.isSafeInteger(s.amountCents)
+            ? null
+            : (contributions.get(s.bookingId) ?? 0n) + BigInt(s.amountCents),
+        );
     }
     conditions.push(inArray(booking.id, [...contributions.keys()]));
   }
@@ -420,15 +425,28 @@ export function queryBookings(
     }));
   })() : undefined;
 
+  const safeContribution = (value: bigint | null | undefined): number | null => {
+    const bound = BigInt(Number.MAX_SAFE_INTEGER);
+    return value !== null && value !== undefined && value >= -bound && value <= bound
+      ? Number(value) : null;
+  };
   const categorySpendingCents = contributions
-    ? db
+    ? (() => {
+      let sum = 0n;
+      let available = true;
+      for (const b of db
         .select({ id: booking.id })
         .from(booking)
         .innerJoin(account, eq(account.id, booking.accountId))
         .leftJoin(payee, eq(payee.id, booking.payeeId))
         .where(base)
-        .all()
-        .reduce((sum, b) => sum + (contributions.get(b.id) ?? 0), 0)
+        .all()) {
+        const value = contributions.get(b.id);
+        if (value === null || value === undefined) available = false;
+        else sum += value;
+      }
+      return safeContribution(available ? sum : null);
+    })()
     : undefined;
 
   const after: SQL | undefined = (() => {
@@ -576,7 +594,7 @@ export function queryBookings(
     const tids = [b.transferId, ...own.map((s) => s.transferId)].filter((t): t is string => !!t);
     const other = otherLeg(b.id, tids);
     return {
-      ...(contributions ? { categorySpendingCents: contributions.get(b.id) ?? 0 } : {}),
+      ...(contributions ? { categorySpendingCents: safeContribution(contributions.get(b.id)) } : {}),
       id: b.id,
       accountId: b.accountId,
       accountName: r.accountName,
