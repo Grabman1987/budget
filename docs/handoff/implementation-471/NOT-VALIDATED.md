@@ -15,3 +15,7 @@ The icon continuation is mechanical presentation work across later packages: ret
 ## Independent source review
 
 The package source was independently inspected; see `SOURCE-REVIEW.md` for the exact revision and scope. No actionable source finding was reported in the reviewed icon delta. No runtime validation was performed. NOT VALIDATED / NOT LIVE.
+
+## Latest independent source review
+
+The independent root review of product source 1ee22ad7c2da4f0232af8d2f291c32c8c90b58f9 found the bar-geometry regression corrected and no remaining actionable delta finding. See SHAPE-SOURCE-REVIEW.md. This is source review, not rendered acceptance. NOT VALIDATED / NOT LIVE.
