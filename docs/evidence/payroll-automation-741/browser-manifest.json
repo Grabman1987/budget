@@ -1,0 +1,122 @@
+{
+  "desktop-desktop-light.json": {
+    "sha256": "73eef0a66f21b44b2c066e4d893275ccee7c8c8ee7a1329d4ffe5e16aeaf65c8",
+    "source": "issue-741-payroll-automati-17229-ncial-Undo-in-desktop-light-desktop/payroll-source-payout-proof.json"
+  },
+  "desktop-desktop-light.png": {
+    "sha256": "2643f03eaa617506b50ae0a73bc7ce5480096d83e76cb7fb29276032720a94ac",
+    "source": "issue-741-payroll-automati-17229-ncial-Undo-in-desktop-light-desktop/payroll-result-desktop-light.png"
+  },
+  "mobile-desktop-light.json": {
+    "sha256": "243b63383605c06727bc0937191f29ce634c1e65438ffc35a9db63a82d45773c",
+    "source": "issue-741-payroll-automati-17229-ncial-Undo-in-desktop-light-mobile/payroll-source-payout-proof.json"
+  },
+  "mobile-desktop-light.png": {
+    "sha256": "2643f03eaa617506b50ae0a73bc7ce5480096d83e76cb7fb29276032720a94ac",
+    "source": "issue-741-payroll-automati-17229-ncial-Undo-in-desktop-light-mobile/payroll-result-desktop-light.png"
+  },
+  "webkit-iphone-desktop-light.json": {
+    "sha256": "a60f644700cbca8488bd96e5163561ce1f9560f124147e0c34ade05c97005708",
+    "source": "issue-741-payroll-automati-17229-ncial-Undo-in-desktop-light-webkit-iphone/payroll-source-payout-proof.json"
+  },
+  "webkit-iphone-desktop-light.png": {
+    "sha256": "c9b2c7a7964667ef22c13785ef73018b2686549b4a6c044883b55758668fb3f3",
+    "source": "issue-741-payroll-automati-17229-ncial-Undo-in-desktop-light-webkit-iphone/payroll-result-desktop-light.png"
+  },
+  "desktop-phone-dark.json": {
+    "sha256": "eb3ab086359408492eedc7db38e692dcd1505e65a45119dab29866418c75908f",
+    "source": "issue-741-payroll-automati-38d01-inancial-Undo-in-phone-dark-desktop/payroll-source-payout-proof.json"
+  },
+  "desktop-phone-dark.png": {
+    "sha256": "7efc7f5b1519a39e65915521c7c5ed3039b53c64729b7e9bdd1dfa16bfd1abf0",
+    "source": "issue-741-payroll-automati-38d01-inancial-Undo-in-phone-dark-desktop/payroll-result-phone-dark.png"
+  },
+  "mobile-phone-dark.json": {
+    "sha256": "5fdc6c1edabffe7742a8481507ddd451f6165bbe45773e46998767a580e72e47",
+    "source": "issue-741-payroll-automati-38d01-inancial-Undo-in-phone-dark-mobile/payroll-source-payout-proof.json"
+  },
+  "mobile-phone-dark.png": {
+    "sha256": "7efc7f5b1519a39e65915521c7c5ed3039b53c64729b7e9bdd1dfa16bfd1abf0",
+    "source": "issue-741-payroll-automati-38d01-inancial-Undo-in-phone-dark-mobile/payroll-result-phone-dark.png"
+  },
+  "webkit-iphone-phone-dark.json": {
+    "sha256": "cb26899ba8c9358e0311d07b51d4497ce21fd374cf13e8c7a143c030eab1ded0",
+    "source": "issue-741-payroll-automati-38d01-inancial-Undo-in-phone-dark-webkit-iphone/payroll-source-payout-proof.json"
+  },
+  "webkit-iphone-phone-dark.png": {
+    "sha256": "48511f6951a56ddd18188760f032930b298a0bec13960bd39250c70237cc95c4",
+    "source": "issue-741-payroll-automati-38d01-inancial-Undo-in-phone-dark-webkit-iphone/payroll-result-phone-dark.png"
+  },
+  "desktop-desktop-dark.json": {
+    "sha256": "01aef91be08b5e3ccb6b9c62ae4b067020a9259a0e0320257b50083dc5a62791",
+    "source": "issue-741-payroll-automati-a15ec-ancial-Undo-in-desktop-dark-desktop/payroll-source-payout-proof.json"
+  },
+  "desktop-desktop-dark.png": {
+    "sha256": "76f4d58f1639d39d5472bf9fbb0a2566bf82ee9203da32d03b73e29b9d639312",
+    "source": "issue-741-payroll-automati-a15ec-ancial-Undo-in-desktop-dark-desktop/payroll-result-desktop-dark.png"
+  },
+  "mobile-desktop-dark.json": {
+    "sha256": "1d87aa21c4b4df5872fac63b3fd5e04b4e0230ad8c0841e5e4a8944393797560",
+    "source": "issue-741-payroll-automati-a15ec-ancial-Undo-in-desktop-dark-mobile/payroll-source-payout-proof.json"
+  },
+  "mobile-desktop-dark.png": {
+    "sha256": "76f4d58f1639d39d5472bf9fbb0a2566bf82ee9203da32d03b73e29b9d639312",
+    "source": "issue-741-payroll-automati-a15ec-ancial-Undo-in-desktop-dark-mobile/payroll-result-desktop-dark.png"
+  },
+  "webkit-iphone-desktop-dark.json": {
+    "sha256": "4f5541eec4a93a9332c29ed79f866db24b2d2a7721d3d18b042256bba35a18ae",
+    "source": "issue-741-payroll-automati-a15ec-ancial-Undo-in-desktop-dark-webkit-iphone/payroll-source-payout-proof.json"
+  },
+  "webkit-iphone-desktop-dark.png": {
+    "sha256": "ad4534b147eaad607d3fe41f2d1d7bfb0793d94db01ac64cf6ed880098406c18",
+    "source": "issue-741-payroll-automati-a15ec-ancial-Undo-in-desktop-dark-webkit-iphone/payroll-result-desktop-dark.png"
+  },
+  "desktop-phone-light.json": {
+    "sha256": "fef30b255fc5dccbcbf78b43758529ccc8d70279c6933abf842117e61dfe1790",
+    "source": "issue-741-payroll-automati-e5cbe-nancial-Undo-in-phone-light-desktop/payroll-source-payout-proof.json"
+  },
+  "desktop-phone-light.png": {
+    "sha256": "5d2b6cb8e64e3cbbdfeac6264994244a38aeaec0810fccb06ca17553c2fa9376",
+    "source": "issue-741-payroll-automati-e5cbe-nancial-Undo-in-phone-light-desktop/payroll-result-phone-light.png"
+  },
+  "mobile-phone-light.json": {
+    "sha256": "87e6d330cae02badfbc2614c604234f801cf9fe2214cf80b43de56976b300098",
+    "source": "issue-741-payroll-automati-e5cbe-nancial-Undo-in-phone-light-mobile/payroll-source-payout-proof.json"
+  },
+  "mobile-phone-light.png": {
+    "sha256": "5d2b6cb8e64e3cbbdfeac6264994244a38aeaec0810fccb06ca17553c2fa9376",
+    "source": "issue-741-payroll-automati-e5cbe-nancial-Undo-in-phone-light-mobile/payroll-result-phone-light.png"
+  },
+  "webkit-iphone-phone-light.json": {
+    "sha256": "0ec60c93f64973ffa7b2509e9bfe987a6ee0005cf5214b8a8cbb536655126e58",
+    "source": "issue-741-payroll-automati-e5cbe-nancial-Undo-in-phone-light-webkit-iphone/payroll-source-payout-proof.json"
+  },
+  "webkit-iphone-phone-light.png": {
+    "sha256": "f93281426bc0b184b88a210c23c573e9a1baccb880f63b36c83c10149b3b15d7",
+    "source": "issue-741-payroll-automati-e5cbe-nancial-Undo-in-phone-light-webkit-iphone/payroll-result-phone-light.png"
+  },
+  "desktop-booking-destination.json": {
+    "sha256": "d501804a7575a417e2390aca665a45e716728fe82709a723f8e529ca7a90e407",
+    "source": "issue-741-payroll-automati-1a510-out-changing-existing-money-desktop/payroll-booking-destination.json"
+  },
+  "desktop-booking-destination.png": {
+    "sha256": "21e10e700624cd59d21fd5c4c46691c79189f948a927f0ddaa1703895d2478a3",
+    "source": "issue-741-payroll-automati-1a510-out-changing-existing-money-desktop/payroll-booking-destination.png"
+  },
+  "mobile-booking-destination.json": {
+    "sha256": "405689c11c6288e8d53faf0261f55ca25c9419b63f638ad4daaeb5c2e9978992",
+    "source": "issue-741-payroll-automati-1a510-out-changing-existing-money-mobile/payroll-booking-destination.json"
+  },
+  "mobile-booking-destination.png": {
+    "sha256": "6f353325e56f3377a702d9492891da9a6ee6a069b46144d24e4240ea869ed855",
+    "source": "issue-741-payroll-automati-1a510-out-changing-existing-money-mobile/payroll-booking-destination.png"
+  },
+  "webkit-iphone-booking-destination.json": {
+    "sha256": "3bcdd17f2b9ba3c5c59e176c107944e839340e5b59827064f2c6c9de3b52196d",
+    "source": "issue-741-payroll-automati-1a510-out-changing-existing-money-webkit-iphone/payroll-booking-destination.json"
+  },
+  "webkit-iphone-booking-destination.png": {
+    "sha256": "11cbf431380e2245bcdb057a2a4bc915bdb6c68eadf477f5ba7cb972324496e8",
+    "source": "issue-741-payroll-automati-1a510-out-changing-existing-money-webkit-iphone/payroll-booking-destination.png"
+  }
+}

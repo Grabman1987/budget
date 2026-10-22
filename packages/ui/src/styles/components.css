@@ -1222,6 +1222,7 @@ dialog.sheet-bottom.is-full .sheet-grip {
   left: 50%;
   bottom: 28px;
   translate: -50% 0;
+  width: max-content;
   max-width: calc(100vw - 32px);
   pointer-events: none;
 }
@@ -1252,6 +1253,7 @@ dialog.sheet-bottom.is-full .sheet-grip {
     translate 240ms var(--ease-out);
 }
 .toast button {
+  flex-shrink: 0;
   color: var(--ground);
   font-weight: 650;
   text-decoration: underline;

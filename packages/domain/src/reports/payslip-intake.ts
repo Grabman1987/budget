@@ -23,6 +23,8 @@ export const wageTypes = [
 ] as const;
 export const payslipSourceConfig = z.strictObject({
   salaryAccountId: z.string().min(1).max(64).nullable(),
+  /** Explicit owner mapping; absent preserves the original manual workflow. */
+  automation: z.strictObject({ payeeId: z.string().min(1).max(64) }).optional(),
   wageTypes: z
     .record(z.string().regex(/^\d{1,8}$/), z.enum(wageTypes))
     .refine((v) => Object.keys(v).length <= 200),
