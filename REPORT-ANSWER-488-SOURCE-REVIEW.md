@@ -1,0 +1,5 @@
+# #488 remembered-collapse source review
+
+Delta `23c9bab4e66bb77f7cce2427640a66c8dfc6d46b` versus `ca931813e58fe6076a26e70b626ff4050076066a` in `/workspace/impl-488-answer-first`. Source-only; no tests, checks, build, browser or runtime validation.
+
+No concrete source regression found in this bounded delta. The salary main page renders five top-level sections in stable order, so the new positional defaults `#1`–`#4` leave the lead salary/chart section open. The existing hook reads stored choices before the initial defaults and keys storage by `location.pathname`, preserving independent history-page choices and its expanded initial state. Depot charts remain in the first section; the KPI section uses its existing `depots-kpi-title` heading ID and receives the same hook. `month-report.css` hides collapsed bodies only under `@media screen`, and hides toggle controls in print, so section bodies remain present for printing. This delta changes no report query or financial calculation. CSS geometry, accessibility and print output have not been runtime validated.

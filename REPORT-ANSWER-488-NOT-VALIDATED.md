@@ -20,3 +20,7 @@ The base already contains the shared report answer presentation from #553/#554, 
 - Run the repository gates and capture synthetic desktop-light/iPhone-dark evidence. Only then assess all issue criteria and prepare an English PR description ending `Refs #488`.
 
 This handoff makes no acceptance or screenshot claim.
+
+## Independent review of the remembered-collapse delta
+
+The separate source review of `23c9bab4e66bb77f7cce2427640a66c8dfc6d46b` against `ca931813e58fe6076a26e70b626ff4050076066a` is archived in [`REPORT-ANSWER-488-SOURCE-REVIEW.md`](REPORT-ANSWER-488-SOURCE-REVIEW.md). It found no concrete source regression in that bounded delta. This remains a **NOT VALIDATED** source checkpoint; print, accessibility and layout acceptance require later runtime review.
