@@ -295,7 +295,7 @@
         474
       ],
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance documented",
-      "remote_sha": "dd11b4e03bdd79ce3074b2e504dd326453080470"
+      "remote_sha": "ced6c7805f1d74541084a1835b1f154de76a3dec"
     },
     {
       "branch": "codex/impl-574-offline-contact-assembly",
@@ -344,7 +344,8 @@
     }
   ],
   "remaining_agents": [
-    "design_474_remaining: #520 source dependency assembly and persistence stage"
+    "design_474_remaining: transfer persistence source",
+    "review_520_lineage_policy: offline source review"
   ],
   "stop": [
     719
@@ -373,9 +374,18 @@
         520
       ],
       "scope": "Source dependency assembly and persistent pair relation/reader/projection stage. 0053 reserved to one author; no DB execution, API apply, merge or deployment."
+    },
+    {
+      "issues": [
+        558,
+        559,
+        699,
+        700
+      ],
+      "scope": "Independent source-only review of preserved offline and receipt retry package; no private operations."
     }
   ],
-  "remote_heads_observed_at_utc": "2026-10-22T22:10:38.215713+00:00",
+  "remote_heads_observed_at_utc": "2026-10-22T22:18:15.381810+00:00",
   "recovery_note": "Temporary /tmp evidence directory disappeared during executor recovery. cloud-control now points to /workspace/.budget-tools/cloud-control-persistent. Missing local evidence is not assumed recovered; committed package reports preserved. #520 writer plan explicitly reconstructed and reviewed provenance documented.",
   "selected_heads_observed_at_utc": "2026-10-22T22:14:06.144467+00:00"
 }
