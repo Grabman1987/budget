@@ -46,8 +46,8 @@ export interface DepotColumn {
   shareBp: number;
   /** The window figures of this depot; `null` when the depot has no valued day in the window. */
   performance: WindowPerformance | null;
-  /** A missing transfer-date boundary value affects this return, not its holdings. */
-  returnUnavailable: SecurityTransferFlowUnavailableReason | null;
+  /** Missing boundary-flow or historical FX evidence affects this return, not current holdings. */
+  returnUnavailable: PortfolioReturnUnavailableReason | null;
   /** Chained time-weighted level, 100 at the window start, at every month boundary. */
   index: IndexPoint[];
   products: DepotProduct[];
