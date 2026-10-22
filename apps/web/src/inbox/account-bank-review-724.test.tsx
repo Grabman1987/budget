@@ -10,7 +10,7 @@ import {
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { inboxPagesQuery, type InboxStored } from './api';
@@ -230,34 +230,69 @@ it('hides stale account work on a fatal refresh error and offers retry and a tru
 
 it('renders actual bank-candidate work before the account-reminder section without any display write', async () => {
   const calls = fetchFixture((url) =>
-    url.pathname === '/api/accounts/reminders'
-      ? json({
-          reminders: [
-            {
-              accountId: a,
-              accountName: 'Gleiches Konto',
-              days: 30,
-              dueOn: null,
-              action: 'balance',
-            },
-          ],
-        })
-      : json({
-          ...page([candidate('first', 'Ungeprüfter Bankumsatz')]),
-          segment: 'umsaetze',
-          segments: { umsaetze: 1, aufgaben: 0 },
-        }),
+    url.pathname === '/api/bank-sync'
+      ? json({ configured: false, connections: [], accounts: [] })
+      : url.pathname === '/api/accounts/reminders'
+        ? json({
+            reminders: [
+              {
+                accountId: a,
+                accountName: 'Gleiches Konto',
+                days: 30,
+                dueOn: null,
+                action: 'balance',
+              },
+            ],
+          })
+        : json({
+            ...page([candidate('first', 'Ungeprüfter Bankumsatz')]),
+            segment: 'umsaetze',
+            segments: { umsaetze: 1, aufgaben: 0 },
+          }),
   );
   mount('/konten/pruefen?von=%2F', true);
   const work = await screen.findByText(/Ungeprüfter Bankumsatz · −12,01\s€/);
+  const bankStatus = await screen.findByRole('region', { name: 'Bankstatus' });
+  expect(bankStatus).toHaveTextContent('Bank: nicht verbunden');
+  expect(
+    within(bankStatus).getByRole('link', { name: 'Einrichten' }).getAttribute('href'),
+  ).toBe('/einstellungen/datenquellen');
   const reminder = await screen.findByRole('heading', { name: 'Konten prüfen' });
   expect(work.compareDocumentPosition(reminder) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   await waitFor(() =>
     expect(calls.some((url) => url.pathname === '/api/accounts/reminders')).toBe(true),
   );
   expect(
-    calls.every((url) => ['/api/inbox', '/api/accounts/reminders'].includes(url.pathname)),
+    calls.every((url) =>
+      ['/api/inbox', '/api/accounts/reminders', '/api/bank-sync'].includes(url.pathname),
+    ),
   ).toBe(true);
+});
+
+it('shows the latest successful retrieval time for an active bank connection', async () => {
+  fetchFixture((url) =>
+    url.pathname === '/api/bank-sync'
+      ? json({
+          configured: true,
+          connections: [
+            { status: 'active', lastSuccessAt: '2026-10-22T04:12:00.000Z' },
+            { status: 'active', lastSuccessAt: '2026-10-21T16:30:00.000Z' },
+          ],
+          accounts: [],
+        })
+      : url.pathname === '/api/accounts/reminders'
+        ? json({ reminders: [] })
+        : json({
+            ...page([]),
+            segment: 'umsaetze',
+            segments: { umsaetze: 0, aufgaben: 0 },
+          }),
+  );
+  mount('/konten/pruefen', true);
+  const bankStatus = await screen.findByRole('region', { name: 'Bankstatus' });
+  expect(bankStatus).toHaveTextContent('Bank: verbunden · zuletzt 06:12');
+  expect(within(bankStatus).queryByRole('link', { name: 'Einrichten' })).toBeNull();
+  expect(screen.getAllByRole('region', { name: 'Bankstatus' })).toHaveLength(1);
 });
 
 it('retains the real learning offer after confirming the last candidate and refetching an empty account queue', async () => {

@@ -73,6 +73,7 @@ export function InboxPage() {
   return (
     <PageFrame meta={META}>
       {search.von && <InboxBack to={search.von} label="Zurück zur vorherigen Ansicht" />}
+      <BankStatusBlock />
       {search.bankSource && (
         <p>
           Aufgaben dieser Bankquelle.{' '}
@@ -90,6 +91,57 @@ export function InboxPage() {
       <InboxWorkflow bankSource={search.bankSource} />
       {!search.bankSource && <InboxAccountReminders />}
     </PageFrame>
+  );
+}
+
+type BankStatus = {
+  configured: boolean;
+  connections: { status: string; lastSuccessAt: string | null }[];
+};
+
+function BankStatusBlock() {
+  const query = useQuery({
+    queryKey: ['bank-sync'],
+    queryFn: () => request<BankStatus>('GET', '/api/bank-sync'),
+    refetchInterval: 30_000,
+  });
+  const connected = query.data?.connections.some((connection) => connection.status === 'active');
+  const lastSuccessAt = query.data?.connections
+    .filter((connection) => connection.status === 'active' && connection.lastSuccessAt)
+    .reduce<string | null>(
+      (latest, connection) =>
+        connection.lastSuccessAt && (!latest || connection.lastSuccessAt > latest)
+          ? connection.lastSuccessAt
+          : latest,
+      null,
+    );
+  const lastSuccess = lastSuccessAt
+    ? new Intl.DateTimeFormat('de-AT', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Europe/Vienna',
+      }).format(new Date(lastSuccessAt))
+    : null;
+
+  return (
+    <section className="inbox-bank-status" aria-label="Bankstatus" aria-busy={query.isPending}>
+      {query.isPending ? (
+        <LoadingNote what="Bankstatus" />
+      ) : query.isError ? (
+        <ErrorNote what="Bankstatus" error={query.error} onRetry={() => void query.refetch()} />
+      ) : connected ? (
+        <p>
+          Bank: verbunden · zuletzt {lastSuccess ?? 'noch kein erfolgreicher Abruf'}
+        </p>
+      ) : (
+        <>
+          <p>Bank: nicht verbunden</p>
+          <AppLink className="btn btn-ghost" to="/einstellungen/datenquellen" search={{}}>
+            Einrichten
+          </AppLink>
+        </>
+      )}
+    </section>
   );
 }
 export function InboxDetailPage() {

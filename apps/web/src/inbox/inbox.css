@@ -1,6 +1,25 @@
 .kinbox {
   grid-column: 1 / -1;
 }
+.inbox-bank-status {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding: 8px 0;
+  border-block: 1px solid var(--rule);
+}
+.inbox-bank-status p {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.inbox-bank-status .btn {
+  min-height: 44px;
+  flex: 0 0 auto;
+}
 .inbox-source-summaries {
   padding: 0;
   list-style: none;
