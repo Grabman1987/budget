@@ -24,3 +24,17 @@
     grid-template-columns: 1fr;
   }
 }
+
+.display-preferences .seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.display-preferences .seg button,
+.display-preferences .btn {
+  min-height: var(--touch);
+}
+.preference-help {
+  max-width: 72ch;
+  color: var(--ink-2);
+}

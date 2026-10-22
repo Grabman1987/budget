@@ -28,7 +28,7 @@ import { PROFILE_META } from '../nav/pages';
 import { PROFILE_KEY, PROFILE_PATH, profileQuery } from '../shell/use-profile';
 import { PageFrame } from './placeholder-page';
 import './profile-settings.css';
-import { PrivacyButton } from '../shell/privacy-button';
+import { DisplayPreferences } from './display-preferences';
 
 interface Draft {
   name: string;
@@ -56,14 +56,7 @@ export function ProfileSettingsPage() {
   useAmountPrivacy();
   return (
     <PageFrame meta={PROFILE_META} revealCurrentRegister>
-      <section className="profile-settings" aria-labelledby="privacy-title">
-        <SectionHead id="privacy-title" title="Privatmodus" />
-        <PrivacyButton text />
-        <p>
-          Beträge auf diesem Gerät verbergen · Strg Umschalt H. Buchungen und Berechnungen bleiben
-          unverändert.
-        </p>
-      </section>
+      <DisplayPreferences />
       <FuturePreviewSetting />
       <FuturePreviewSetting reminder />
       <ProfilePanel />
