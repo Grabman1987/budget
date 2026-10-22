@@ -31,6 +31,7 @@ import {
   setPortfolioBenchmark,
   ContributionHistoryLimitError,
   portfolioPositions,
+  previewRecordedSecurityTransfer,
   instrumentHistory,
   InstrumentHistoryRangeError,
   portfolioAllocation,
@@ -484,6 +485,13 @@ const tradeQuery = z.object({
   limit: z.coerce.number().int().min(1).max(1000).optional(),
   offset: z.coerce.number().int().min(0).optional(),
 });
+const transferPreviewBody = z.object({
+  securityId: id,
+  sourceAccountId: id,
+  destinationAccountId: id,
+  date: exposureDay,
+  unitsE8: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+});
 
 export function tradeRoutes(db: Db): Hono {
   const app = new Hono();
@@ -504,6 +512,9 @@ export function tradeRoutes(db: Db): Hono {
       next: start + trades.length < total ? start + trades.length : null,
     });
   });
+  // Read-only recorded-ledger preview. No pair, delivery leg or audit row is written.
+  app.post('/transfer-preview', async (c) => c.json(previewRecordedSecurityTransfer(db,
+    await readBody(c, transferPreviewBody))));
   app.get('/:id', (c) => c.json({ trade: getTrade(db, c.req.param('id')) }));
 
   app.post('/', async (c) => {

@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   documentedCostOf,
   isIncomeTrade,
@@ -20,7 +20,7 @@ import { listTrades, type TradeRow } from './trades';
 import { runInTransaction, type Executor } from './types';
 
 export type RecordedSecurityHistoryFailure =
-  | 'invalid_scope' | 'account_or_currency' | 'locked' | 'scope_limit'
+  | 'invalid_scope' | 'account_or_currency' | 'scope_limit'
   | 'unsupported_snapshot' | 'unsupported_event' | 'unpaired_delivery'
   | 'invalid_trade' | 'canonical_conflict' | 'replay_conflict';
 
@@ -34,9 +34,13 @@ export type RecordedSecurityHistory =
       fingerprintThrough: string;
       factFingerprint: string;
       input: KnownSecurityReplayInput;
+      /** Full current suffix for a hypothetical read-only proposal replay. */
+      fullInput: KnownSecurityReplayInput;
       state: Extract<KnownSecurityReplayResult, { available: true }>;
       canonical: { accountId: string; unitsE8: number; basisCents: number }[];
       relevantTradeIds: string[];
+      /** Historical calculation remains readable when a later reconciliation bars a write. */
+      writeBlockers: ('reconciled' | 'account_closed')[];
       /** Empty until a persisted, validated security-transfer pair relation exists. */
       relevantPairIds: [];
     };
@@ -83,16 +87,17 @@ export function readRecordedSecurityHistory(db: Executor, input: {
     const accountIds = [input.sourceAccountId, input.destinationAccountId];
     const accounts = tx.select().from(account).where(inArray(account.id, accountIds)).all();
     if (!instrument || accounts.length !== 2 || accounts.some((row) =>
-      row.deletedAt !== null || row.role !== 'investment' || row.currency !== 'EUR'))
+      row.deletedAt !== null || row.role !== 'investment' || row.onBudget || row.currency !== 'EUR'))
       return unavailable('account_or_currency');
 
-    // A reconciliation at or after the requested boundary locks historical source facts.
+    // Reconciliations affect mutation eligibility, not historical basis projection.
     const reconciliations = tx.select().from(accountReconciliation)
       .where(inArray(accountReconciliation.accountId, accountIds)).limit(1001).all();
     if (reconciliations.length > 1000) return unavailable('scope_limit');
+    const writeBlockers: ('reconciled' | 'account_closed')[] = [];
     if (reconciliations.some((row) => row.deletedAt === null && row.date >= input.asOf))
-      return unavailable('locked', reconciliations.filter((row) =>
-        row.deletedAt === null && row.date >= input.asOf).map((row) => row.id));
+      writeBlockers.push('reconciled');
+    if (accounts.some((row) => row.closedAt !== null)) writeBlockers.push('account_closed');
 
     // Include tombstones and later rows in the CAS facts; only live rows enter basis replay.
     const allTrades = accountIds.flatMap((accountId) => listTrades(tx, {
@@ -246,7 +251,8 @@ export function readRecordedSecurityHistory(db: Executor, input: {
     };
     // Later recorded facts are part of the same snapshot and must also have a viable native
     // replay before a backdated preview can be considered for a future transactional action.
-    const full = replayKnownSecurityTransfers(makeInput(latest));
+    const fullInput = makeInput(latest);
+    const full = replayKnownSecurityTransfers(fullInput);
     if (!full.available) return unavailable('replay_conflict', full.eventId ? [full.eventId] : []);
     const replayInput = makeInput(input.asOf);
     const state = replayKnownSecurityTransfers(replayInput);
@@ -262,10 +268,97 @@ export function readRecordedSecurityHistory(db: Executor, input: {
     return {
       available: true, evidenceClass: 'recorded-native',
       replayThrough: input.asOf, fingerprintThrough: latest,
-      factFingerprint, input: replayInput, state,
+      factFingerprint, input: replayInput, fullInput, state,
       canonical: state.accounts.map((row) => ({ accountId: row.accountId,
         unitsE8: row.unitsE8, basisCents: row.basisCents })),
       relevantTradeIds: liveTrades.map((row) => row.id), relevantPairIds: [],
+      writeBlockers,
     };
   });
+}
+
+/** Owner-facing projection of recorded evidence; never accepts caller-supplied lots or basis. */
+export type RecordedSecurityTransferPreview =
+  | { available: false; reason: string; message: string; applyAvailable: false }
+  | {
+      available: true;
+      evidenceClass: 'recorded-native';
+      method: 'fifo' | 'average';
+      date: string;
+      unitsE8: number;
+      source: { accountId: string; beforeUnitsE8: number; beforeBasisCents: number;
+        remainingUnitsE8: number; remainingBasisCents: number };
+      destination: { accountId: string; beforeUnitsE8: number; beforeBasisCents: number;
+        afterUnitsE8: number; afterBasisCents: number };
+      transferredBasisCents: number;
+      movedLots: { acquisitionId: string; acquiredOn: string; unitsE8: number; basisCents: number }[];
+      cashDeltaCents: 0;
+      realizedGainDeltaCents: 0;
+      warnings: string[];
+      applyAvailable: false;
+    };
+
+const historyMessage: Record<RecordedSecurityHistoryFailure, string> = {
+  invalid_scope: 'Wertpapier, zwei verschiedene Konten und gültigen Stichtag auswählen.',
+  account_or_currency: 'Beide Konten müssen budgetfreie Anlagekonten mit EUR-Einstand sein.',
+  scope_limit: 'Die belegte Buchungshistorie überschreitet die Vorschaugrenze.',
+  unsupported_snapshot: 'Ein älterer Bestandsstand lässt sich nicht aus den belegten Käufen ableiten.',
+  unsupported_event: 'Diese Buchungshistorie enthält eine nicht unterstützte Kapitalmaßnahme.',
+  unpaired_delivery: 'Eine frühere Lieferung ist nicht ausdrücklich als Übertragspaar belegt.',
+  invalid_trade: 'Eine gespeicherte Buchung oder ihre Kontobuchung ist nicht schlüssig.',
+  canonical_conflict: 'Der belegte Einstand stimmt nicht mit der bestehenden Bestandsrechnung überein.',
+  replay_conflict: 'Die gespeicherte Buchungshistorie kann nicht vollständig nachgerechnet werden.',
+};
+
+export function previewRecordedSecurityTransfer(db: Executor, input: {
+  securityId: string; sourceAccountId: string; destinationAccountId: string;
+  date: string; unitsE8: number;
+}): RecordedSecurityTransferPreview {
+  if (!Number.isSafeInteger(input.unitsE8) || input.unitsE8 <= 0)
+    return { available: false, reason: 'invalid_units',
+      message: 'Positive Stückzahl mit höchstens acht Nachkommastellen eingeben.', applyAvailable: false };
+  const history = readRecordedSecurityHistory(db, { securityId: input.securityId,
+    sourceAccountId: input.sourceAccountId, destinationAccountId: input.destinationAccountId,
+    asOf: input.date });
+  if (!history.available) return { available: false, reason: history.code,
+    message: historyMessage[history.code], applyAvailable: false };
+  const source = history.state.accounts.find((row) => row.accountId === input.sourceAccountId)!;
+  const destination = history.state.accounts.find((row) => row.accountId === input.destinationAccountId)!;
+  const candidateId = randomUUID();
+  const candidate = replayKnownSecurityTransfers({ ...history.fullInput,
+    events: [...history.fullInput.events, { id: candidateId, date: input.date,
+      sequence: history.fullInput.events.filter((event) => event.date === input.date).length,
+      securityId: input.securityId, currency: 'EUR', kind: 'transfer',
+      sourceAccountId: input.sourceAccountId, destinationAccountId: input.destinationAccountId,
+      unitsE8: input.unitsE8, outTradeId: randomUUID(), inTradeId: randomUUID() }],
+  });
+  if (!candidate.available) return { available: false, reason: candidate.code,
+    message: candidate.reason, applyAvailable: false };
+  const plan = candidate.transfers.find((transfer) => transfer.pairId === candidateId)?.preview;
+  if (!plan) return { available: false, reason: 'replay_conflict',
+    message: historyMessage.replay_conflict, applyAvailable: false };
+  return {
+    available: true, evidenceClass: history.evidenceClass, method: plan.method,
+    date: plan.date, unitsE8: plan.unitsE8,
+    source: { accountId: source.accountId, beforeUnitsE8: source.unitsE8,
+      beforeBasisCents: source.basisCents, remainingUnitsE8: source.unitsE8 - input.unitsE8,
+      remainingBasisCents: plan.sourceRemainingBasisCents },
+    destination: { accountId: destination.accountId, beforeUnitsE8: destination.unitsE8,
+      beforeBasisCents: destination.basisCents,
+      afterUnitsE8: destination.unitsE8 + input.unitsE8,
+      afterBasisCents: plan.destinationBasisAfterCents },
+    transferredBasisCents: plan.transferredBasisCents,
+    movedLots: plan.moved.map((lot) => ({ acquisitionId: lot.acquisitionId,
+      acquiredOn: lot.acquiredOn, unitsE8: lot.unitsE8, basisCents: lot.basisCents! })),
+    cashDeltaCents: 0, realizedGainDeltaCents: 0,
+    warnings: [
+      'Vorschau auf Basis gespeicherter Budget-Buchungen; keine Bestätigung einer vollständigen Brokerhistorie.',
+      'Stichtag nach allen bereits gespeicherten Buchungen dieses Tages; die spätere Übertragsreihenfolge ist noch nicht festgelegt.',
+      ...(history.writeBlockers.includes('reconciled')
+        ? ['Eine Kontoprüfung sperrt Änderungen am oder nach diesem Stichtag.'] : []),
+      ...(history.writeBlockers.includes('account_closed')
+        ? ['Ein beteiligtes Anlagekonto ist geschlossen und kann keinen neuen Übertrag erfassen.'] : []),
+    ],
+    applyAvailable: false,
+  };
 }

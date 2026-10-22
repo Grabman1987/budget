@@ -47,6 +47,7 @@ export async function request<T>(
   path: string,
   body?: unknown,
   headers?: Record<string, string>,
+  options?: { notifyWrite?: boolean },
 ): Promise<T> {
   let response: Response;
   try {
@@ -84,7 +85,7 @@ export async function request<T>(
       ids,
     );
   }
-  if (method !== 'GET') notifyApiWrite();
+  if (method !== 'GET' && options?.notifyWrite !== false) notifyApiWrite();
   return payload as T;
 }
 

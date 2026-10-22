@@ -13,7 +13,7 @@ addendum](security-transfers-520-writer-plan-addendum.md) retain the one-relatio
 contract after temporary storage loss. The review recommended bounded source
 preparation with explicit on-budget rejection, pair-aware canonical cost/flow
 reads, before/after component validation and distinct intent/fact hashes. No
-migration slot, including 0053, is reserved; no schema, writer or API was added.
+migration slot, including 0053, is reserved; no schema or writer was added.
 
 The implementation-only FIFO slice at `1709597413ba00933631c9af22b11a6343a83f65`,
 based on `a5156b399d3c09094b255c32177c0685fb9213a7`, uses the
@@ -49,7 +49,8 @@ between accounts. None of those canonical functions or trade writers was changed
 
 `packages/domain/src/invest/security-transfer-preview.ts` supplies an isolated pure
 preview. The adjacent replay is now exported for a repository-only native-history
-reader; neither is connected to an authenticated API, financial page, UI or writer.
+reader. The recorded-ledger preview is now exposed through a read-only authenticated
+API and the existing trade dialog; neither helper is connected to a writer.
 There is no migration reservation or schema change. `applyAvailable` always remains false.
 
 Inputs describe documented remaining source/destination fragments immediately
@@ -114,9 +115,10 @@ are rejected; a pool total never silently overrides current fragment-basis evide
 ## Pure dated replay source — still nonwriting
 
 `packages/domain/src/invest/security-transfer-replay.ts` adds a standalone full-input
-replay for one security and a selected FIFO/average method. It is not exported from
-the database package or connected to a server route, UI or canonical position
-writer. The domain function is exported for repository use. Its input declares a
+replay for one security and a selected FIFO/average method. Its sanitized
+recorded-ledger preview now feeds a server route and the trade dialog, while the
+canonical position writer remains unchanged. The domain function is exported
+for repository use. Its input declares a
 `recorded-ledger-zero-seed` and `all-supported-recorded-facts` through a named day.
 That means the existing app cost engine's analytical zero seed plus all supported
 recorded facts in the reader's scope. It does **not** certify a physical zero opening,
@@ -233,8 +235,9 @@ possible preview ends at the requested day.
 Later recorded events are also replayed and must remain viable, so a backdated
 candidate cannot ignore an already recorded later sale. A future apply must reread
 the then-latest facts and compare the same full-scope fingerprint in a transaction.
-No such apply path, persisted pair relation, public API or authenticated preview
-was added. Existing delivery legs stay unavailable; no amount/date/import-key
+No apply path or persisted pair relation was added. The later read-only preview
+route uses this reader and replays a hypothetical pair with the full recorded suffix.
+Existing delivery legs stay unavailable; no amount/date/import-key
 matching creates a pair. The reader and changed helper contract are **NOT
 VALIDATED**; source review and executable acceptance remain separate gates.
 
@@ -261,9 +264,33 @@ compares replay units/basis with the canonical selected-method position projecti
 
 Zero or negative post-split pools, zero or negative individual FIFO lots, unsafe
 integer bounds and rounding disagreement are typed unavailable. No cost formula,
-trade writer, schema, public API, UI, or new split action changed. Stage A
+trade writer, schema, or new split action changed. The later read-only preview
+route and UI show supported split-derived positions without an apply action. Stage A
 executable acceptance of this split slice remains open; this text
 does not assert AC-009-06 completion.
+
+## Authenticated read-only transfer preview — source only
+
+`POST /api/trades/transfer-preview` accepts only one stored security ID, two
+account IDs, date and positive integer E8 units in a body protected by the
+existing session, origin/CSRF and body-size boundary. The server derives both
+accounts' native known basis with the selected method, rejects on-budget or
+non-EUR-cost accounts, unsupported snapshots and unpaired historical deliveries,
+and computes a hypothetical transfer through the **full latest recorded suffix**.
+It returns a compact view of source/destination units and cents, transferred
+basis, affected FIFO acquisition dates/lots and safe warnings. No client lot,
+graph or basis is accepted or returned. Average shows pool economics without
+inventing per-acquisition cents.
+
+The existing trade dialog offers a **Wertpapierübertrag** preview mode, with
+masked amounts/units and no save action. Later reconciliation or account closure
+is a visible prospective write blocker, not a reason to erase otherwise valid
+historical read evidence. The proposed event is positioned after recorded native
+events of the selected day; that is a preview convention, not evidence of future
+persisted same-day pair order. Both API and domain result keep
+`applyAvailable: false`. This route, its UI and the revised reader are **NOT
+VALIDATED**; no schema, trade writer, pair relation, apply, undo or canonical
+portfolio projection changed in this slice.
 
 ## Literal intended controls, not executed evidence
 
@@ -281,10 +308,10 @@ split runtime/source acceptance, snapshot/unpaired-delivery provenance and wider
 explicit authoritative pair/lineage relation with migration reservation/review and
 same-day pair order;
 transactional backdated-edit revalidation; locks, stale preview,
-idempotency, two-leg rollback, audit and exact apply/Undo/redo; public API/UI; all
+idempotency, two-leg rollback, audit and exact apply/Undo/redo; mutating API/UI; all
 required independent literal/regression/financial/browser evidence and authorized
 integration/deployment/live gates. Stage A's tested replay exit criterion is not
 satisfied by these source helpers. Existing split behavior is unchanged; this narrow
 replay now recognizes supported split events but does not claim AC-009-06 coverage. No issue or
-private-financial validation is claimed. No persistence/API work follows this
-checkpoint until the replay contract and remaining provenance work are complete.
+private-financial validation is claimed. The read-only API does not activate
+financial mutation; persistence and apply remain separate work.

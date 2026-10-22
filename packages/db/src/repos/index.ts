@@ -30,6 +30,8 @@ export * from './goals';
 export * from './rule-inputs';
 export * from './rules';
 export * from './trades';
+export { previewRecordedSecurityTransfer } from './security-transfer-history';
+export type { RecordedSecurityTransferPreview } from './security-transfer-history';
 export * from './securities';
 export * from './portfolio-summary';
 export * from './portfolio-benchmark';

@@ -1,6 +1,6 @@
 import { privateAmount } from '@budget/ui';
 import { formatDecimal, type Cents } from '@budget/domain';
-import type { TradeRow } from '@budget/db';
+import type { RecordedSecurityTransferPreview, TradeRow } from '@budget/db';
 import { queryOptions } from '@tanstack/react-query';
 import { queryString, request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
@@ -42,5 +42,10 @@ export const saveTrade = (values: ManualTrade, id?: string) => {
 };
 export const removeTrade = (id: string) =>
   request<{ groupId: string }>('DELETE', `/api/trades/${encodeURIComponent(id)}`);
+export const previewSecurityTransfer = (input: {
+  securityId: string; sourceAccountId: string; destinationAccountId: string;
+  date: string; unitsE8: number;
+}) => request<RecordedSecurityTransferPreview>('POST', '/api/trades/transfer-preview',
+  input, undefined, { notifyWrite: false });
 export const sourceMoney = (cents: number, currency: string) =>
   `${privateAmount(formatDecimal(cents as Cents))} ${currency === 'EUR' ? '€' : currency}`;
