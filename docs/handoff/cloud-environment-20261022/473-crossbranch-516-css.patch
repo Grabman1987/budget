@@ -1,0 +1,12 @@
+diff --git a/apps/web/src/inbox/bank-source-explanation.css b/apps/web/src/inbox/bank-source-explanation.css
+--- a/apps/web/src/inbox/bank-source-explanation.css
++++ b/apps/web/src/inbox/bank-source-explanation.css
+@@ -19,7 +19,7 @@
+   border-block-start: 1px solid var(--rule);
+   padding-block: .5rem;
+   line-height: 1.5;
+-  font-size: .875rem;
++  font-size: var(--fs-body);
+ }
+ .bank-source-explanation-body p,
+ .bank-source-explanation-body ul,

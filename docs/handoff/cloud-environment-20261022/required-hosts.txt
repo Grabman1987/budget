@@ -1,0 +1,13 @@
+api.github.com
+budget-fg.fly.dev
+cdn.playwright.dev
+codeload.github.com
+dl.dropboxusercontent.com
+github.com
+plado.pages.dev
+playwright.download.prss.microsoft.com
+raw.githubusercontent.com
+www.dropbox.com
+storage.googleapis.com
+productionresultssa17.blob.core.windows.net
+chatgpt.com
