@@ -9,6 +9,7 @@ import {
   type ThemePreference,
 } from '@budget/ui';
 import { Eye, EyeOff } from 'lucide-react';
+import './profile-settings.css';
 
 const THEMES: ReadonlyArray<{ value: ThemePreference; label: string }> = [
   { value: 'system', label: 'Automatisch' },
