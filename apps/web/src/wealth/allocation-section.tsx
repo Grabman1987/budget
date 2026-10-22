@@ -277,7 +277,7 @@ export function PortfolioAllocation() {
               <thead>
                 <tr>
                   <th scope="col" className="tech">
-                    Rev.
+                    Punkt
                   </th>
                   <th scope="col" className="tech">
                     Änderung

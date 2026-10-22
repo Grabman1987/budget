@@ -356,7 +356,7 @@ function Body({ data }: { data: FinanzcheckVerlauf }) {
           <RevisionTable
             caption="Maßnahmen zu Regeln, die nicht erfüllt sind"
             empty="Alle bewertbaren Regeln sind erfüllt."
-            headers={{ revision: 'Rev.', change: 'Regel und Schritt', action: '' }}
+            headers={{ revision: 'Punkt', change: 'Regel und Schritt', action: '' }}
             rows={open.map((t, i) => {
               const rule = rules.get(t.code);
               return {

@@ -439,12 +439,12 @@ function Findings({ data }: { data: OnePagerData }) {
   return (
     <section className="ps-sec ps-wide ps-rev" aria-labelledby="ps-g">
       <h3 className="ps-h" id="ps-g">
-        <span>G</span>Revisionen des Monats
+        <span>G</span>Befunde des Monats
       </h3>
       <table className="ps-revt" data-testid="onepager-findings">
         <thead>
           <tr>
-            <th className="tech">Rev.</th>
+            <th className="tech">Punkt</th>
             <th className="tech">Befund</th>
             <th className="tech n">Betrag</th>
             <th className="tech">Regel</th>
