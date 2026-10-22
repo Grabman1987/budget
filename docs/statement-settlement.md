@@ -62,8 +62,13 @@ Omissions describe that page only; missing identities/invalid boundaries fail
 closed. GETs do not reconcile or write.
 
 Backend acknowledged represented-bonus source reassessment preserves the same
-credit and immutable old evidence through a grouped replacement. Its dialog
-editor remains OPEN; other independent source consumers still block conflicts.
+credit and immutable old evidence through a grouped replacement. A later
+source-only UI checkpoint adds an explicit re-review form for documentary facts:
+it sends the unchanged accepted bonus evidence with source, configuration and
+bonus revisions, and refreshes the reviewed source after success. The owner must
+acknowledge rechecking the retained original. Other independent source consumers
+still block conflicts. This UI checkpoint is **NOT VALIDATED** and is not part of
+the LIVE evidence below.
 
 ## Migration and evidence boundary
 
@@ -93,5 +98,6 @@ warning. That failed check did not run a normal production build.
 The integrated checkpoint `5c1855e0` passed the required AGE1/one-worker full
 check: 575 files / 5,157 tests, 799.95s Vitest duration. The following
 normal production build passed. Exact-head CI and serial LIVE remain pending. Net-only/difference extraction/reconciliation, uncertain
-partial credits and the represented-source reassessment editor remain OPEN.
+partial credits remain OPEN. The represented-source reassessment editor is only
+implemented in the later NOT VALIDATED source checkpoint.
 #727 is not marked complete. All examples and committed evidence are synthetic.

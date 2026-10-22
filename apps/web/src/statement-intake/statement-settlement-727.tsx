@@ -5,6 +5,8 @@ import {
   formatDecimal,
   parseAmount,
   statementBonusEvidenceSchema,
+  statementFactsSchema,
+  type StatementFacts,
   type StatementIntakeView,
   type StatementSettlementState,
   type StatementSettlementAction,
@@ -60,6 +62,33 @@ const sourceCas = (v: StatementIntakeView) => ({
   sha256: v.sha256,
   accountId: v.accountId,
 });
+type SourceReviewDraft = Record<Exclude<keyof StatementFacts, 'payableCents'>, string> & {
+  amount: string;
+};
+const sourceReviewDraftOf = (view: StatementIntakeView): SourceReviewDraft | null => {
+  const fields = view.reviewed?.fields;
+  if (!fields) return null;
+  return {
+    reference: fields.reference.value ?? '',
+    issueDate: fields.issueDate.value ? longDay(fields.issueDate.value) : '',
+    periodFrom: fields.periodFrom.value ? longDay(fields.periodFrom.value) : '',
+    periodTo: fields.periodTo.value ? longDay(fields.periodTo.value) : '',
+    amount:
+      fields.payableCents.value === null ? '' : formatDecimal(cents(fields.payableCents.value)),
+    currency: fields.currency.value ?? '',
+    debitDate: fields.debitDate.value ? longDay(fields.debitDate.value) : '',
+    accountHint: fields.accountHint.value ?? '',
+  };
+};
+const SOURCE_REVIEW_FIELDS = [
+  ['reference', 'Abrechnungsnummer', 128],
+  ['issueDate', 'Ausstellungsdatum · TT.MM.JJJJ', 10],
+  ['periodFrom', 'Zeitraum von · TT.MM.JJJJ', 10],
+  ['periodTo', 'Zeitraum bis · TT.MM.JJJJ', 10],
+  ['debitDate', 'Einzugsdatum · TT.MM.JJJJ', 10],
+  ['currency', 'Währung', 3],
+  ['accountHint', 'Kartenhinweis (maskiert)', 8],
+] as const;
 
 function CandidateChoices({
   accountId,
@@ -213,7 +242,9 @@ export function StatementSettlementReview({
   const [configDirty, setConfigDirty] = useState(false),
     [bonusDirty, setBonusDirty] = useState(false),
     [choiceDirty, setChoiceDirty] = useState(false);
-  const dirty = configDirty || bonusDirty || choiceDirty;
+  const [sourceReviewDraft, setSourceReviewDraft] = useState<SourceReviewDraft | null>(null);
+  const [sourceReviewAcknowledged, setSourceReviewAcknowledged] = useState(false);
+  const dirty = configDirty || bonusDirty || choiceDirty || sourceReviewDraft !== null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(''),
     [conflict, setConflict] = useState(false);
@@ -346,6 +377,52 @@ export function StatementSettlementReview({
       return value.ok && value.cents !== 0 ? [{ categoryId, amountCents: value.cents }] : [];
     }),
   });
+  const sourceAmount = sourceReviewDraft?.amount.trim()
+    ? parseAmount(sourceReviewDraft.amount)
+    : null;
+  const sourceReviewFacts = sourceReviewDraft
+    ? statementFactsSchema.safeParse({
+        reference: sourceReviewDraft.reference.trim() || null,
+        issueDate: iso(sourceReviewDraft.issueDate) || null,
+        periodFrom: iso(sourceReviewDraft.periodFrom) || null,
+        periodTo: iso(sourceReviewDraft.periodTo) || null,
+        payableCents: sourceAmount?.ok ? sourceAmount.cents : null,
+        currency: sourceReviewDraft.currency.trim() || null,
+        debitDate: iso(sourceReviewDraft.debitDate) || null,
+        accountHint: sourceReviewDraft.accountHint.trim() || null,
+      })
+    : null;
+  const sourceReviewComplete = Boolean(
+    sourceReviewFacts?.success &&
+    sourceReviewFacts.data.reference &&
+    sourceReviewFacts.data.issueDate &&
+    sourceReviewFacts.data.payableCents !== null &&
+    sourceReviewFacts.data.currency === card?.currency &&
+    sourceReviewFacts.data.debitDate &&
+    sourceAmount?.ok,
+  );
+  const sourceFieldError = (field: keyof StatementFacts) => {
+    if (!sourceReviewDraft) return undefined;
+    if (
+      (field === 'reference' && !sourceReviewDraft.reference.trim()) ||
+      (field === 'issueDate' && !sourceReviewDraft.issueDate) ||
+      (field === 'debitDate' && !sourceReviewDraft.debitDate) ||
+      (field === 'payableCents' && !sourceReviewDraft.amount.trim())
+    )
+      return 'Diese Angabe ist für die erneute Prüfung erforderlich.';
+    if (field === 'currency' && sourceReviewDraft.currency !== card?.currency)
+      return 'Die Währung muss zur Kreditkarte passen.';
+    if (sourceReviewFacts && !sourceReviewFacts.success) {
+      if (sourceReviewFacts.error.issues.some((issue) => issue.path[0] === field))
+        return 'Bitte diese Angabe anhand des Originals prüfen.';
+      if (
+        field === 'periodTo' &&
+        sourceReviewFacts.error.issues.some((issue) => issue.path.length === 0)
+      )
+        return 'Das Ende des Zeitraums muss nach dem Beginn liegen.';
+    }
+    return undefined;
+  };
   function clearDraft() {
     setConfigDirty(false);
     setBonusDirty(false);
@@ -361,6 +438,8 @@ export function StatementSettlementReview({
     setChosenCredit(null);
     setChosenTransfer(null);
     setEditingBonus(null);
+    setSourceReviewDraft(null);
+    setSourceReviewAcknowledged(false);
     setLegacyKey('');
   }
   async function reload(sourceId = source.id) {
@@ -437,7 +516,7 @@ export function StatementSettlementReview({
         setError(cause ? errorText(cause) : 'Aktion nicht gespeichert. Bitte den Stand prüfen.');
         return;
       }
-      // Keep the source's captured CAS. It is refreshed only by the explicit reload action.
+      // Ordinary actions keep the captured source CAS. A represented-source review changes it.
       setRetry(null);
       setConflict(false);
       if (action.operation === 'configure') setConfigDirty(false);
@@ -467,10 +546,27 @@ export function StatementSettlementReview({
         setChosenTransfer(null);
         setLegacyKey('');
       }
-      const next = await request<StatementSettlementState>(
-        'GET',
-        `${PATH}?cardAccountId=${encodeURIComponent(accountId)}`,
-      );
+      const sourceReassessed = action.operation === 'amend_bonus' && !!action.sourceReview;
+      const [next, document] = await Promise.all([
+        request<StatementSettlementState>(
+          'GET',
+          `${PATH}?cardAccountId=${encodeURIComponent(accountId)}`,
+        ),
+        sourceReassessed
+          ? request<{ intake: StatementIntakeView }>(
+              'GET',
+              `/api/statement-intake/${encodeURIComponent(source.id)}`,
+            )
+          : Promise.resolve(null),
+      ]);
+      if (document) {
+        if (document.intake.id !== source.id || document.intake.accountId !== accountId)
+          throw new Error('Die neu geprüfte Quelle passt nicht zu diesem Konto. Bitte neu laden.');
+        setSource(document.intake);
+        onSourceAdopt(document.intake);
+        setSourceReviewDraft(null);
+        setSourceReviewAcknowledged(false);
+      }
       setCaptured(next);
       qc.setQueryData(stateQuery(accountId).queryKey, next);
       if (action.operation === 'configure' || !configDirty) {
@@ -521,6 +617,30 @@ export function StatementSettlementReview({
       });
     else
       void run({ ...tuple, key: key(), operation: 'confirm_bonus', evidence: evidenceResult.data });
+  }
+  function reassessRepresentedBonus() {
+    const tuple = withSource();
+    if (
+      !tuple ||
+      !canConfirm ||
+      settlement ||
+      bonus?.state !== 'represented' ||
+      !bonus.revision ||
+      !sourceReviewDraft ||
+      !sourceReviewAcknowledged ||
+      !sourceReviewComplete ||
+      !sourceReviewFacts?.success
+    )
+      return;
+    void run({
+      ...tuple,
+      key: key(),
+      operation: 'amend_bonus',
+      bonusId: bonus.id,
+      expectedRevision: bonus.revision,
+      evidence: bonus.evidence,
+      sourceReview: { acknowledged: true, facts: sourceReviewFacts.data },
+    });
   }
   async function undo(groupId: string) {
     if (
@@ -1187,11 +1307,141 @@ export function StatementSettlementReview({
                 </div>
               )}
               {bonus.state === 'represented' && (
-                <p>
-                  Änderungen am zugeordneten Nachweis erfordern eine ausdrückliche Neubewertung.
-                  Eine erneute Quellenprüfung wird hier noch nicht angeboten; keine automatische
-                  Änderung der Gutschrift.
-                </p>
+                <>
+                  <p>
+                    Nur die Dokumentangaben können hier erneut geprüft werden. Die zugeordnete
+                    Gutschrift, ihr Datum, ihre Kategorieanteile und die ursprünglichen Käufe
+                    bleiben unverändert. Aus Differenzen wird kein neuer Bonus berechnet.
+                  </p>
+                  {settlement && (
+                    <p role="status">
+                      Diese Quelle hat auch eine angenommene Abrechnung. Deren Zuordnung oder
+                      Annahme muss vor einer erneuten Quellenprüfung getrennt geprüft werden.
+                    </p>
+                  )}
+                  {!sourceReviewDraft ? (
+                    <Button
+                      variant="ghost"
+                      disabled={
+                        !canConfirm ||
+                        !!settlement ||
+                        !bonus.revision ||
+                        lookups.isError ||
+                        lookups.isFetching ||
+                        bonusDirty ||
+                        choiceDirty
+                      }
+                      onClick={() => {
+                        setSourceReviewDraft(sourceReviewDraftOf(source));
+                        setSourceReviewAcknowledged(false);
+                      }}
+                    >
+                      Quelle des zugeordneten Bonus erneut prüfen
+                    </Button>
+                  ) : (
+                    <fieldset
+                      disabled={
+                        blocked ||
+                        !canConfirm ||
+                        !!settlement ||
+                        lookups.isError ||
+                        lookups.isFetching
+                      }
+                    >
+                      <legend>Dokumentangaben erneut prüfen</legend>
+                      <p>
+                        Angaben am gespeicherten Original-PDF prüfen. Der ausgestellte Zahlbetrag
+                        kommt aus der Abrechnung, nicht aus dem aktuellen Kartensaldo. Die
+                        zugeordnete Gutschrift wird nicht erneut gebucht.
+                      </p>
+                      {SOURCE_REVIEW_FIELDS.map(([name, label, maxLength]) => (
+                        <Field key={name} label={label} error={sourceFieldError(name)}>
+                          {({ id, describedBy, invalid }) => (
+                            <TextInput
+                              id={id}
+                              aria-describedby={describedBy}
+                              aria-invalid={invalid}
+                              value={sourceReviewDraft[name]}
+                              maxLength={maxLength}
+                              onChange={(event) =>
+                                setSourceReviewDraft((old) =>
+                                  old
+                                    ? {
+                                        ...old,
+                                        [name]:
+                                          name === 'currency'
+                                            ? event.target.value.toUpperCase()
+                                            : event.target.value,
+                                      }
+                                    : old,
+                                )
+                              }
+                            />
+                          )}
+                        </Field>
+                      ))}
+                      <Field
+                        label="Ausgestellter Zahlbetrag"
+                        error={
+                          sourceReviewDraft.amount.trim() && !sourceAmount?.ok
+                            ? 'Bitte einen gültigen Betrag eingeben.'
+                            : sourceFieldError('payableCents')
+                        }
+                        hint="Betrag der ausgestellten Abrechnung; 0 ist eine ausdrückliche Angabe."
+                      >
+                        {({ id, describedBy, invalid }) => (
+                          <TextInput
+                            id={id}
+                            money
+                            inputMode="decimal"
+                            aria-describedby={describedBy}
+                            aria-invalid={invalid}
+                            value={sourceReviewDraft.amount}
+                            onChange={(event) =>
+                              setSourceReviewDraft((old) =>
+                                old ? { ...old, amount: event.target.value } : old,
+                              )
+                            }
+                          />
+                        )}
+                      </Field>
+                      {!sourceReviewComplete && (
+                        <p role="status">
+                          Abrechnungsnummer, gültiges Ausstellungs- und Einzugsdatum, Zahlbetrag
+                          und passende Währung sind erforderlich. Weitere Angaben leer lassen,
+                          wenn sie im Original nicht belegt sind.
+                        </p>
+                      )}
+                      <label className="statement-choice-727">
+                        <input
+                          type="checkbox"
+                          checked={sourceReviewAcknowledged}
+                          onChange={(event) =>
+                            setSourceReviewAcknowledged(event.target.checked)
+                          }
+                        />
+                        Original erneut geprüft; bestehende Gutschrift und Käufe bleiben unverändert.
+                      </label>
+                      <div className="statement-actions-727">
+                        <Button
+                          disabled={!sourceReviewComplete || !sourceReviewAcknowledged}
+                          onClick={reassessRepresentedBonus}
+                        >
+                          Dokumentnachweis ausdrücklich ersetzen
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            setSourceReviewDraft(null);
+                            setSourceReviewAcknowledged(false);
+                          }}
+                        >
+                          Prüfung abbrechen
+                        </Button>
+                      </div>
+                    </fieldset>
+                  )}
+                </>
               )}
               {bonus.state === 'represented' && bonus.actionGroupId && (
                 <Button
