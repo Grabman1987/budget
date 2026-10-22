@@ -125,3 +125,20 @@ and one unclassified-security link still use a functioning legacy redirect.
 Preserve their query/state and carry only the relevant direct-link hunks into
 the eventual combined portfolio source. No legacy-link cleanup or product source
 change was made for this documentation checkpoint.
+
+## #485/#486 direct display-route CSS correction — NOT VALIDATED / NOT LIVE
+
+Source commit `79d9f35a4e87ab12f472a54035fac630b6f6888e` adds the existing
+`profile-settings.css` import to `apps/web/src/pages/display-preferences.tsx`.
+This makes the scoped `.display-preferences` wrap, help-text and touch-height
+rules available when `/einstellungen/darstellung` is opened directly through
+its separate lazy route. The profile page retains its own import. Theme/privacy
+state, labels, store writes and Undo are unchanged.
+
+The original independent finding is archived in
+`settings-display-preferences-source-review.md`; it found that this direct route
+could omit its scoped display rules. The exact one-line correction was reviewed
+against `ec1b973dfc5530cb62f0f209961cc93a381c8355` in
+`settings-display-preferences-fix-source-review.md`; the P3 is closed in source
+for that delta, with no new scoped finding. No visual, browser, accessibility or
+runtime acceptance is implied. This package remains NOT VALIDATED / NOT LIVE.
