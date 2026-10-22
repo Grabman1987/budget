@@ -82,3 +82,5 @@ Temporary local evidence storage disappeared during executor recovery. Pushed so
 `codex/impl-520-transfer-persistence` is assigned to the same #520 author. It starts from the preserved0048–0052 dependency source stack, brings forward the separately reviewed607 deletion guard and current portfolio/transfer deltas, and will keep the original branches intact. Migration0053 is reserved; source assembly is not integration, runtime validation or deployment. The first persistence stage remains without an enabled apply endpoint.
 
 An independent source-only review of the preserved offline558–700 package is also assigned. No private files or previously blocked private operations are part of that review.
+
+New dependency-source branch `codex/impl-520-transfer-persistence` is remotely preserved at `f25067da1214b2d2199a80bf3a857545f46e28a5`. It contains the documented source assembly, with the repository-export conflict resolved by retaining both exports. This commit is not the completed persistence implementation; 0053 source work continues without DB execution or apply activation. There are now37 preserved source-checkpoint branches.

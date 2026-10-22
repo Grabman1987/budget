@@ -341,6 +341,14 @@
       "branch": "codex/impl-727-source-reassessment",
       "remote_sha": "a6edf91a8bdd8e072c726acac7fafb6d44b5f0c6",
       "status": "Documentary reassessment UI and Undo refresh corrections; final reviewed product source4d130943456665c824d7b1cca15efe0218b00678; NOT VALIDATED / NOT LIVE"
+    },
+    {
+      "issues": [
+        520
+      ],
+      "branch": "codex/impl-520-transfer-persistence",
+      "remote_sha": "f25067da1214b2d2199a80bf3a857545f46e28a5",
+      "status": "SOURCE DEPENDENCY ASSEMBLY ONLY \u2014 NOT VALIDATED / NOT LIVE; 0053 persistence stage in progress; original preview branch preserved"
     }
   ],
   "remaining_agents": [
