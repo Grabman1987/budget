@@ -1,0 +1,44 @@
+# Forecast #568/#569 adoption — validation pending
+
+Base: `331bf3750341e0ad90f2392a2290160c6149bafb`. Owned source:
+`5a6f6bcdafe9daa110bf0e5402a62c42c2f96bdf` (parent `cadefe1523`).
+Adopted only its eight source paths, preserving current Heute task navigation and
+Plan filter URL validation. No backend writer, schema, dependencies or financial
+formula changed.
+
+Final prepared overlays: controlled-tools state (`33d069e3` candidate SHA256),
+salary-marker source and provenance test (manifest `3618ca89`), domain/API tests
+(manifest `c34b6af4`), corrected UI/native tests (manifest `26601e5d`), and dependent
+OLD2 controlled-tools adapters (manifest `b608c7a3`). Historical disclosure/remount
+adapters and initial UI/native proposal are superseded.
+
+The salary marker reads referenced positive scheduled inflows from the existing
+selected forecast run, before the movement display cutoff. The literal 9000-cent
+salary remains in acceptance fixtures. Controlled disclosure state belongs to the
+page, so loading a new query can withhold stale financial data while retaining the
+user's open/closed choice.
+
+## Existing-test changes for independent review
+
+Owner authorization transferred by the coordinating chat permits technical test
+adapters with per-file justification and independent review. No financial oracle,
+security/lock/audit/Undo assertion, tolerance, timeout or coverage was weakened.
+
+| File | Technical adaptation | Decision and preserved coverage |
+| --- | --- | --- |
+| `e2e/income-pause.spec.ts` | Two ordinary Werkzeuge summary clicks after initial navigation and document reload. | #568 owner-approved default-closed tools disclosure; every original pause/date/amount/action/assertion remains. |
+| `e2e/liquidity-report.spec.ts` | Five ordinary Werkzeuge summary clicks before accessing relocated controls. First click precedes horizon selection to exercise retained open state. | #568 tools relocation; unchanged levers, event writers, amounts, dates, Undo, privacy, accessibility, touch and timeout checks. |
+| `apps/web/src/reports/liquidity-lowpoint.test.ts` | Handcrafted salaryDay DTO fixture now provides scheduledInflows instead of display-only movements. Same three dates, cents and payment references. | #569 shared chart salary marker must retain real inflows below the movement cutoff; every existing expected salary date/null assertion remains byte-identical. |
+
+## Required verification (not executed by adoption)
+
+- Focused NEW domain/API/UI/provenance and unchanged lowpoint/navigation/income-pause/liquidity/issue-567 regressions.
+- Independent whole combined source/test-adapter review; scoped formatting/types/lint.
+- `npm run check`, `npm run build`, fresh `npm run build:e2e`.
+- Canonical WebKit iPhone and Chromium desktop/mobile, both themes: real API parity,
+  salary/low labels, compactness, Axe, keyboard/privacy/drafts, retention and real
+  skip/Undo/unskip. Expected screenshots/JSON are future artifacts, not proof.
+- Exact-head required CI and serial main-green/deployed/live gates before delivery.
+
+This checkpoint is source adoption only. Tests, runtime acceptance, publication,
+merge and live completion remain pending. Refs #568 and #569.

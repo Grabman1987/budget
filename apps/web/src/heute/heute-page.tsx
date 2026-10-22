@@ -23,7 +23,11 @@ import { PageFrame } from '../pages/placeholder-page';
 import { monthLabel as monthName } from '../nav/month';
 import { currentMonth, useMonth } from '../shell/use-month';
 import { AppLink } from '../shell/app-link';
-import { BalanceChart, HeutePaceChart } from './charts';
+import { HeutePaceChart } from './charts';
+import { LiquidityChart } from '../reports/liquidity-chart';
+import { liquidityQuery } from '../reports/liquidity-api';
+import { salaryDay } from '../reports/liquidity-selection';
+import { expectedQuery } from '../expected/api';
 import { heuteQuery, type Heute } from './api';
 import { useBalancePeriod } from './use-balance-period';
 import './heute.css';
@@ -151,14 +155,14 @@ function HeuteBody({ data }: { data: Heute }) {
       <section className="heute-lead" aria-labelledby="heute-lead-title">
         <div className="heute-lead-head">
           <div>
-            <h2 id="heute-lead-title">Kontoprognose</h2>
+            <h2 id="heute-lead-title">Spielraum bis Gehalt</h2>
             <p>
               Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor
               dem Gehalt noch fällig sind.
             </p>
             {away && (
               <span className="heute-anchor" data-testid="heute-anchor">
-                Frei bis Gehalt: Stand heute · {longDay(data.stand.today)}. Kontoprognose:{' '}
+                Frei bis Gehalt: Stand heute · {longDay(data.stand.today)}. Ansicht:{' '}
                 {monthName(data.stand.month)}.
               </span>
             )}
@@ -173,20 +177,7 @@ function HeuteBody({ data }: { data: Heute }) {
             {chainOpen ? 'Herleitung ausblenden' : 'Herleitung zeigen'}
           </Button>
         </div>
-        <BalanceChart
-          data={data}
-          chainOpen={chainOpen}
-          onToggleChain={() => setChainOpen((open) => !open)}
-          showLead={false}
-        />
         <DailyBudgetLine data={data} />
-        {data.balance.forecast.length > 0 && (
-          <p className="heute-note">
-            Kontoprognose bis {longDay(data.stand.to)} · Budget-Konten; Kreditkarten im Budget
-            eingeschlossen, Reservekonten ausgeschlossen · 14 Tage Rückblick · gleicher Horizont wie
-            R07.
-          </p>
-        )}
         {chainOpen && (
           <div id="heute-lead-chain" className="heute-chain-area">
             <DimensionChain
@@ -202,6 +193,8 @@ function HeuteBody({ data }: { data: Heute }) {
           </div>
         )}
       </section>
+
+      <CompactForecastCard />
 
       <section className="heute-section heute-pace" aria-labelledby="heute-pace-title">
         <SectionHead
@@ -522,6 +515,71 @@ function HeuteBody({ data }: { data: Heute }) {
         <FundingNotes data={data} />
       </MoreMonth>
     </>
+  );
+}
+
+/** Stand-today forecast: exactly the same read and unmodified series as the linked detail. */
+function CompactForecastCard() {
+  useAmountPrivacy();
+  const forecast = useQuery(liquidityQuery('35d', []));
+  const payments = useQuery(expectedQuery());
+  const view = forecast.isSuccess ? forecast.data : undefined;
+  const report = !forecast.isFetching && !forecast.isError ? view?.report : undefined;
+  const salaryIds = new Set(
+    (payments.data ?? [])
+      .filter((payment) => payment.incomeTypeId === 'income-salary')
+      .map((payment) => payment.id),
+  );
+  return (
+    <section
+      className="heute-section heute-compact-forecast"
+      aria-labelledby="heute-forecast-title"
+    >
+      <div className="heute-compact-forecast-head">
+        <h2 id="heute-forecast-title">Kontoprognose · 35 Tage</h2>
+        <AppLink
+          className="btn btn-ghost"
+          to="/plan/prognose"
+          search={{ horizon: '35d', levers: '' }}
+          aria-label="Details zur Kontoprognose für 35 Tage"
+        >
+          Details
+        </AppLink>
+      </div>
+      {forecast.isFetching && <LoadingNote what="Kontoprognose" />}
+      {forecast.isError && (
+        <ErrorNote
+          what="Kontoprognose"
+          error={forecast.error}
+          onRetry={() => void forecast.refetch()}
+        />
+      )}
+      {view && !view.available && (
+        <EmptyNote>Ohne Budget-Konto gibt es keine Kontoprognose.</EmptyNote>
+      )}
+      {report && (
+        <>
+          <p className="heute-note">
+            Stand heute · {longDay(view?.asOf ?? report.startDay)} · ohne Stellschrauben
+          </p>
+          <LiquidityChart report={report} salaryDay={salaryDay(report, salaryIds)} compact />
+          <p
+            className="heute-forecast-low"
+            data-day={report.low?.day}
+            data-cents={report.low?.cents}
+          >
+            {report.low ? (
+              <>
+                Tiefpunkt: <strong>{eur(report.low.cents)}</strong>
+                {' · '}am {longDay(report.low.day)}
+              </>
+            ) : (
+              'Kein Tiefpunkt verfügbar.'
+            )}
+          </p>
+        </>
+      )}
+    </section>
   );
 }
 

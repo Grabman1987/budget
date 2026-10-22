@@ -57,6 +57,7 @@ import { isMonth } from './nav/month';
 import { isZeitraum } from './wealth/zeitraum';
 import { isPanelId, type PanelId } from './shell/panels';
 import { validateReportSearch } from './reports/report-search';
+import { validateLiquiditySearch } from './reports/liquidity-selection';
 
 // Route-level code splitting: everything except the shell and the generic placeholder page is
 // loaded when its route is first visited. Each page module below becomes its own chunk.
@@ -783,7 +784,10 @@ const routeTree = rootRoute.addChildren([
       getParentRoute: () => shellRoute,
       path: '/plan/prognose',
       staticData: { meta: PLAN_PROGNOSE },
-      validateSearch: validateReportSearch,
+      validateSearch: (search: Record<string, unknown>) => ({
+        ...validateReportSearch(search),
+        ...validateLiquiditySearch(search),
+      }),
       component: lazyRouteComponent(() => import('./reports/liquidity-report'), 'PlanPrognosePage'),
     }),
     ...redirects,

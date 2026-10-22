@@ -26,8 +26,8 @@ export const BIG_MOVEMENT_CENTS = 25_000;
 /** The verdict looks six months ahead. */
 export const VERDICT_MONTHS = 6;
 
-export type LiquidityHorizon = '90d' | '6m' | '12m';
-export const LIQUIDITY_HORIZONS: ReadonlyArray<LiquidityHorizon> = ['90d', '6m', '12m'];
+export type LiquidityHorizon = '35d' | '90d' | '6m' | '12m';
+export const LIQUIDITY_HORIZONS: ReadonlyArray<LiquidityHorizon> = ['35d', '90d', '6m', '12m'];
 
 /**
  * Levers the plan can pull when it gets tight. Each one is derived from what the ledger holds:
@@ -144,6 +144,8 @@ export interface LiquidityReport {
   verdict: LiquidityVerdict;
   months: LiquidityMonthRow[];
   movements: LiquidityMovementMonth[];
+  /** Positive scheduled occurrences within the horizon, before the movement display cutoff. */
+  scheduledInflows: { day: string; cents: number; ref: ForecastItemRef }[];
   levers: LiquidityLever[];
 }
 
@@ -157,6 +159,7 @@ export function sameDayInMonths(day: string, n: number): string {
 
 /** Days after `startDay` that a horizon covers. */
 export function horizonDays(horizon: LiquidityHorizon, startDay: string): number {
+  if (horizon === '35d') return 35;
   if (horizon === '90d') return 90;
   return daysBetween(startDay, sameDayInMonths(startDay, horizon === '6m' ? 6 : 12));
 }
@@ -356,6 +359,16 @@ export function liquidityReport(input: LiquidityReportInput): LiquidityReport {
     .map((e) => ({ day: e.day, label: e.label ?? 'Ereignis', cents: e.cents }))
     .sort((a, b) => a.day.localeCompare(b.day));
 
+  const scheduledInflows = withEvents.days
+    .filter((d) => d.index <= hDays)
+    .flatMap((d) =>
+      d.items.flatMap((item) =>
+        (item.kind === 'income' || item.kind === 'fixed') && item.cents > 0 && item.ref
+          ? [{ day: d.day, cents: item.cents, ref: item.ref }]
+          : [],
+      ),
+    );
+
   const low6 = lowIn(withEvents.days, vDays);
   const lowBuffer6 = lowIn(buffered.days, vDays);
   const targets = leverTargets(input);
@@ -388,6 +401,7 @@ export function liquidityReport(input: LiquidityReportInput): LiquidityReport {
     verdict: verdictOf(low6, lowBuffer6),
     months: monthRows(withEvents.days, buffered.days, input.startCents, vDays),
     movements: movementMonths(withEvents.days, input.startCents, hDays),
+    scheduledInflows,
     levers,
   };
 }

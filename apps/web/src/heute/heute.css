@@ -1074,3 +1074,30 @@
   min-width: 44px;
   min-height: 44px;
 }
+
+/* Compact card uses the shared liquidity report, independent of the selected Heute month. */
+.heute-compact-forecast-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.heute-compact-forecast-head h2 {
+  margin: 0;
+  font-size: var(--fs-headline);
+}
+.heute-compact-forecast-head .btn {
+  min-height: 44px;
+}
+.heute-forecast-low {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  margin: 8px 0;
+  font-size: var(--fs-body);
+}
+.heute-forecast-low strong {
+  font-variant-numeric: tabular-nums;
+}
