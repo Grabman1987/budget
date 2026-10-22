@@ -1,0 +1,24 @@
+{
+  "commit": "2d412ca49efcd03e6a84c512965b3293dcfd2952",
+  "parent": "6c521d2cbd93b8c364cb5905f38fedff39ee9680",
+  "workflow": "39775332788",
+  "visual_review": "UNREVIEWED \u2014 integration owner must inspect all four; no acceptance claim",
+  "images": [
+    {
+      "path": "e2e/goals.spec.ts-snapshots/sparziele-dark-desktop-linux.png",
+      "sha256": "614f8c9df0e2b92d85bcc4d5ca211609634dccda1ad335114b9d08a80ca5847a"
+    },
+    {
+      "path": "e2e/goals.spec.ts-snapshots/sparziele-dark-mobile-linux.png",
+      "sha256": "5149401cd52cb45bd61e6be0b7395371296060615f0b6de6969c53ee82e0cedf"
+    },
+    {
+      "path": "e2e/goals.spec.ts-snapshots/sparziele-light-desktop-linux.png",
+      "sha256": "c292f81018f8de8e885a2922661d371b88faabefe25763f3ca42786bd610d4ea"
+    },
+    {
+      "path": "e2e/goals.spec.ts-snapshots/sparziele-light-mobile-linux.png",
+      "sha256": "f41ae2f6e5229b0487577fd98e5040ddbe633ac700fd624e2f76e53507a411f0"
+    }
+  ]
+}
