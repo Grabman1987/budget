@@ -20,3 +20,7 @@ The inspected workflows trigger CI on pull requests/main pushes, recovery/regist
 ## Native currency guard correction
 
 The independent source review of45b756eaf31763ad2566c63e1ec7c4e3680507b3 found a detectable cross-read currency mismatch. The account-series DTO now declares the existing server `currency` field, and `DebtLiveScenario` requires it to equal the captured plan currency before accepting history. Mismatches use the existing incomplete-history warning/reload path instead of relabelling equal numeric balances. This does not claim an atomic snapshot across the two GETs or change any calculation. See `SOURCE-REVIEW.md`; correction-delta review pending. No tests/test edits, typecheck, build or runtime validation performed. Existing synthetic series fixtures may need the real API currency field during later authorized test adaptation.
+
+## Latest independent source review
+
+Independent review of e0aaabf2c7219fd07f0ef60a4164503e0e9d0dcf found the currency mismatch guard corrected. See CURRENCY-FIX-SOURCE-REVIEW.md. The two GETs remain non-atomic; no runtime validation. NOT VALIDATED / NOT LIVE.
