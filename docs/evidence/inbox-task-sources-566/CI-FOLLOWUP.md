@@ -78,3 +78,31 @@ desktop-dark Chromium: labels and actions remain legible, no horizontal overflow
 Full-document phone captures show fixed navigation at its viewport position;
 actual hit/44px checks follow ordinary scrolling. Old native artifacts retain
 their original revision and are not relabelled as these new runs.
+
+## Register synchronization found during final CI review
+
+CI39793656282 on5e4c30e8 reported a retry-PASS in the unchanged
+`e2e/issue-581-account-register.spec.ts` inline-write case. An unchanged local
+desktop run reproduced it (three setup passes, one120s timeout). Its retained
+trace shows the category click resolving a row labelled16.10 after API Undo,
+then the row regrouping to17.10 during that click; the category editor is gone
+before selection. The API and unchanged balance alone did not prove that the
+date-grouped UI had finished refreshing.
+
+The sole adapter adds an exact visible17.10 date assertion after date Undo and
+before opening the category editor. It strengthens UI synchronization; every
+existing cent, category, Undo, reconciliation lock, timeout and tolerance
+assertion is retained. Register production code is unchanged. A fresh complete
+CI on the resulting head is required; the older run is historical evidence.
+
+The focused corrected run passed6/6 in48.1s: three setup cases and the unchanged
+inline-write contract on desktop, Chromium mobile and native WebKit, without
+retries. Independent trace, adapter and documentation review is CLEAR.
+
+That older run also contained two retry-PASS PWA update cases. PWA source/test
+and configuration match Main, and an unchanged local focused run passed5/5
+including setup in31.7s. Successful CI jobs uploaded no traces, so the original
+90s timeouts have no proven precise cause; indirect timing effects cannot be
+excluded. Two other jobs exhausted their30min job limit after unusually slow
+APT installation (one without reaching tests, one after23min installation).
+Their diagnosed failed-job rerun did not change code, limits or CI settings.
