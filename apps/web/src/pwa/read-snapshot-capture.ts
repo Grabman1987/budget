@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { todayInVienna } from '@budget/domain';
 import { onApiRead, type ApiRead } from '../api/http';
 import { saveReadSnapshot, type OfflineView } from './read-snapshot-store';
-import { captureTodaySection } from './read-snapshot-today-sections';
+import { captureTodaySection, isTodaySections } from './read-snapshot-today-sections';
 
 /** Only completed, authorized HTTP responses qualify; query-cache/optimistic values never do. */
 export function useOfflineSnapshotCapture(view: OfflineView) {
@@ -10,12 +10,22 @@ export function useOfflineSnapshotCapture(view: OfflineView) {
     if (view === 'today' && captureTodaySection(read)) return;
     const selected = selectRead(view, read);
     if (!selected) return;
-    void read.token.then((token) => saveReadSnapshot(token, {
-      view,
-      params: '',
-      fetchedAt: read.fetchedAt,
-      data: { source: read.path, payload: structuredClone(selected) },
-    })).catch(() => undefined);
+    void read.token.then((token) => {
+      const snapshot = {
+        view,
+        params: '',
+        fetchedAt: read.fetchedAt,
+        data: { source: read.path, payload: structuredClone(selected) },
+      };
+      if (view !== 'today') return saveReadSnapshot(token, snapshot);
+      return saveReadSnapshot(token, snapshot, (previous) => {
+        // A section success supersedes the legacy aggregate. A late aggregate must not
+        // replace it, even when the aggregate request began on a different page.
+        if (previous && (isTodaySections(previous.data.payload) ||
+            previous.fetchedAt >= read.fetchedAt)) return;
+        return snapshot;
+      });
+    }).catch(() => undefined);
   }), [view]);
 }
 

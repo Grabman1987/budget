@@ -11,6 +11,12 @@
 
 The offline runtime checkpoint has a coupled raw receipt queue (#559/#699/#700) in its HTTP, security and PWA entrypoints. Those consolidated source files are carried intact so the #558 snapshot path has complete imports and logout fencing; this assembly adds no new receipt behavior beyond that existing checkpoint. No dependencies were installed or replaced.
 
+## Source review follow-up — NOT VALIDATED
+
+- The read-only [assembly source review](assembly-source-review.md) of `3526611528c3b653ff58d78ba417ab2bae157a02` found one P2 ordering fault: a late legacy `/api/heute` response could replace a protected `today-sections-v1` bundle after individual sections had succeeded. The review is included without private logs or financial data; its finding describes the pre-fix head.
+- `apps/web/src/pwa/read-snapshot-capture.ts` now sends only the legacy Heute aggregate through `saveReadSnapshot`'s existing native transactional read/merge/write callback. The callback declines replacement when the current protected `today` row is a section bundle, or when an existing legacy row has an equal or newer `fetchedAt`. A newer aggregate can still replace an older legacy aggregate until a section succeeds. Section capture, other view writers, response payloads, auth/logout/epoch/privacy fences and viewer semantics are unchanged.
+- This is source-only implementation. No test, check, typecheck, build, browser run, CI, PR, merge or deployment validates this follow-up. The ordering cases and all remaining acceptance below stay open for later verification.
+
 ## Source behavior and limits
 
 - Authorized successful section GETs are saved under the protected `today` view with their own source URL, receipt time and exact returned server `stand`. A native read/merge/write transaction retains independently successful sections across tabs and refuses a stale response for the same section. Epoch, generation, logout and storage fences remain in the write path. The local viewer marks every missing section and shows each saved section's timestamp, server day, month and returned period independently. It does not fabricate a complete aggregate or a common current timestamp.
