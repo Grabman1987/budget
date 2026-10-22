@@ -22,16 +22,20 @@ export function BankSourceExplanation({ type, id, preparedRevision }: BankInboxR
   });
   const data = explanation.data;
   const stale = data && preparedRevision && data.review.readyRevision !== preparedRevision;
+  const reload = async () => {
+    await qc.invalidateQueries({ queryKey: INBOX_KEY });
+    await explanation.refetch();
+  };
   return <details className="bank-source-explanation" onToggle={(event) => setOpen(event.currentTarget.open)}>
     <summary>Quelle und Zuordnung erklären</summary>
     {open && <div className="bank-source-explanation-body">
       {explanation.isFetching && <p role="status">Quellenstand wird geladen …</p>}
       {explanation.isError && <ErrorNote what="Quellenstand" error={explanation.error} onRetry={() => void explanation.refetch()} />}
-      {data && <>
+      {data && !explanation.isFetching && !explanation.isError && <>
         <p>{data.review.available ? maskMoneyText(data.review.reason) : 'Für diesen Umsatz sind derzeit keine bearbeitbaren Vorschläge verfügbar. Die gespeicherte Herkunft bleibt sichtbar.'}</p>
         {stale && <div role="status">
           <p>Der Quellenstand unterscheidet sich vom angezeigten Vorschlag. Vor dem Übernehmen die Vorschläge neu laden.</p>
-          <Button size="sm" variant="ghost" onClick={() => void qc.invalidateQueries({ queryKey: INBOX_KEY })}>Vorschläge neu laden</Button>
+          <Button size="sm" variant="ghost" onClick={() => void reload()}>Vorschläge neu laden</Button>
         </div>}
         <ul>
           <li>Automatischer Bankabgleich: gleiches Konto, gleiche Währung und exakt gleicher Betrag mit Vorzeichen; höchstens {data.windows.autoLinkDays} Kalendertage Abstand. Ein einzelner eindeutiger Treffer kann verknüpft werden.</li>
@@ -74,13 +78,3 @@ export function BankSourceExplanation({ type, id, preparedRevision }: BankInboxR
   </details>;
 }
 
-export function OperatorImportExplanation() {
-  return <details className="bank-source-explanation">
-    <summary>Importidentität erklären</summary>
-    <div className="bank-source-explanation-body">
-      <p>YNAB-Dateiimporte bleiben ein Betreiberablauf mit Vorschau und ausdrücklicher Zuordnung. Die Identität enthält Dateiart, Konto, Datum, Empfänger, Kategorie, Notiz, Betrag und die laufende Nummer identischer Zeilen. Gleiche Zahlungen bleiben dadurch getrennt.</p>
-      <p>Geänderte Identitätsfelder benötigen Prüfung. Fehlende Zeilen sind keine Zustimmung zum Löschen; gelöschte Buchungen werden durch erneute Anwesenheit nicht automatisch wiederhergestellt. Nur der letzte Importlauf kann über seinen bestehenden Prüfpfad zurückgenommen werden.</p>
-      <p>Diese Erklärung importiert keine Datei und bestätigt keine konkrete Importidentität oder Rücknahme.</p>
-    </div>
-  </details>;
-}
