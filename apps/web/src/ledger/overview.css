@@ -291,3 +291,11 @@
     scroll-margin-block: 64px calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 16px);
   }
 }
+
+.account-overview-577 .overview-position {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+  font-family: var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  margin-inline-end: 8px;
+}

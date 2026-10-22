@@ -1,0 +1,38 @@
+.dev-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.drawing-contrast {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-table);
+}
+.drawing-contrast th,
+.drawing-contrast td {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.drawing-contrast-sample {
+  display: inline-block;
+  padding: 8px;
+}
+.drawing-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 16px;
+  padding: 0;
+  list-style: none;
+}
+.drawing-icon-grid li {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+.drawing-icon-sizes {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--ink);
+}

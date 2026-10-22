@@ -29,6 +29,7 @@ import { formatEuro } from '@budget/domain/money';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useState, type CSSProperties } from 'react';
 import { ChartPrimitivesShowcase } from './bauteile-charts';
+import { DrawingCatalog } from './bauteile-drawing';
 import { AppLink } from '../shell/app-link';
 
 const TOKEN_ROLES = [
@@ -452,9 +453,10 @@ function Header() {
     <>
       <TitleBlock
         title="Bauteile"
+        drawing={{ sheet: 'DEV', name: 'Bauteile · synthetische Muster' }}
         subtitle="Blaupause in Bausteinen"
         fields={[
-          { label: 'Stand', value: '29.09.2026' },
+          { label: 'Musterdatum', value: '29.09.2026' },
           { label: 'Darstellung', value: <ThemeSwitch /> },
         ]}
       />
@@ -479,6 +481,7 @@ function ComponentsPage() {
     <main className="dev">
       <Header />
       <Tokens />
+      <DrawingCatalog />
       <Basics />
       <Amount />
       <Chains />

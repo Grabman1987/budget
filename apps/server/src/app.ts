@@ -122,6 +122,19 @@ export function createApp({ webDir, database, auth, ledger, buildRevision }: App
     }),
   );
 
+  // Client DEV/e2e route exclusion is not an access boundary. Production never serves dev URLs,
+  // including encoded path names, even when an SPA fallback or a stale gallery build exists.
+  if (process.env['NODE_ENV'] === 'production') app.use('*', async (c, next) => {
+    let path: string;
+    try { path = decodeURIComponent(c.req.path); }
+    catch { return c.text('Not found', 404); }
+    if (path === '/dev' || path.startsWith('/dev/')) {
+      c.header('Cache-Control', 'no-store');
+      return c.text('Not found', 404);
+    }
+    await next();
+  });
+
   // Private ledger data and rejected requests must never enter a browser/shared HTTP cache.
   // Keep this before body limits and authentication so early responses inherit the policy.
   app.use('/api/*', async (c, next) => {

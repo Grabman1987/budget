@@ -30,6 +30,8 @@ export interface TitleBlockProps {
   compactOnMobile?: boolean;
   titleOnMobile?: boolean;
   className?: string;
+  /** Opt-in overview identity. Revision is explicit provenance, never the browser clock. */
+  drawing?: { sheet: string; name: string; revision?: string } | undefined;
 }
 
 /** Page head as a title block (Schriftfeld): 1 px pale frame, cells split by vertical rules. */
@@ -40,16 +42,9 @@ export function TitleBlock({
   compactOnMobile = false,
   titleOnMobile = false,
   className,
+  drawing,
 }: TitleBlockProps) {
-  return (
-    <header
-      className={cx(
-        'titleblock',
-        compactOnMobile && 'titleblock-compact',
-        titleOnMobile && 'titleblock-title-mobile',
-        className,
-      )}
-    >
+  const cells = <>
       <div className="tb-cell tb-title">
         {typeof title === 'string' ? <h1>{title}</h1> : title}
         {subtitle && <p>{subtitle}</p>}
@@ -65,6 +60,24 @@ export function TitleBlock({
           <div className="tb-value">{field.value}</div>
         </div>
       ))}
+  </>;
+  return (
+    <header
+      className={cx(
+        'titleblock',
+        compactOnMobile && 'titleblock-compact',
+        titleOnMobile && 'titleblock-title-mobile',
+        drawing && 'titleblock-drawing',
+        className,
+      )}
+    >
+      {drawing ? <>
+        <div className="tb-drawing-meta">
+          <span><span className="tech">Blatt</span> {drawing.sheet} / {drawing.name}</span>
+          <span><span className="tech">Rev.</span> {drawing.revision ?? '—'}{!drawing.revision && <span className="sr-only"> · Keine bestätigte Zeichnungsrevision vorhanden</span>}</span>
+        </div>
+        <div className="tb-drawing-body">{cells}</div>
+      </> : cells}
     </header>
   );
 }

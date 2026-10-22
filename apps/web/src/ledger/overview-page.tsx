@@ -331,10 +331,11 @@ function OverviewGroup({
         <td />
         {ordering && <td />}
       </tr>
-      {group.accounts.map((a) => (
+      {group.accounts.map((a, rowIndex) => (
         <OverviewAccount
           key={a.id}
           account={a}
+          {...(!ordering && group.accounts.length > 5 ? { position: `${index + 1}.${rowIndex + 1}` } : {})}
           value={values?.get(a.id)}
           useTreeValues={values !== undefined}
           loading={loading}
@@ -354,6 +355,7 @@ function OverviewGroup({
 
 function OverviewAccount({
   account: a,
+  position,
   value: shown,
   useTreeValues,
   loading,
@@ -367,6 +369,7 @@ function OverviewAccount({
   controls,
 }: {
   account: AccountRow;
+  position?: string;
   value: TreeValue | undefined;
   useTreeValues: boolean;
   loading: boolean;
@@ -406,7 +409,7 @@ function OverviewAccount({
             aria-describedby={checkId}
           >
             <span>
-              <span className="kname">{name}</span>
+              <span className="kname">{position && <span className="overview-position" aria-hidden="true">{position} </span>}{name}</span>
               {related.length > 0 && (
                 <span
                   className="overview-platform-mark"

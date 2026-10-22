@@ -1,6 +1,6 @@
 import { useAuthMethodLabel } from '../auth/status-query';
 import { todayInVienna } from '@budget/domain';
-import { useParams } from '@tanstack/react-router';
+import { useLocation, useParams } from '@tanstack/react-router';
 import { ReportNavigation } from '../reports/report-navigation';
 import '../reports/period-quick-select.css';
 import { Segmented, StandValue, TitleBlock, type TitleBlockField } from '@budget/ui';
@@ -56,6 +56,18 @@ export const TITLE_ON_MOBILE_AREAS: ReadonlySet<string> = new Set(['plan', 'heut
 
 const packageOf = (fills: string) => fills.split(/[\s;,]/)[0] ?? fills;
 
+/** Exact overview routes only: editors, registers, review lists and details stay undecorated. */
+const OVERVIEW_SHEETS: Record<string, { sheet: string; name: string }> = {
+  '/': { sheet: '01', name: 'Heute' },
+  '/plan/monat': { sheet: '02', name: 'Plan · Monat' },
+  '/konten': { sheet: '03', name: 'Konten' },
+  '/vermoegen/nettovermoegen': { sheet: '04', name: 'Vermögen' },
+  '/vermoegen/portfolio': { sheet: '04', name: 'Portfolio' },
+  '/vermoegen/schulden': { sheet: '04', name: 'Schulden' },
+  '/vermoegen/freiheit': { sheet: '04', name: 'Freiheit' },
+  '/reports': { sheet: '05', name: 'Reports' },
+};
+
 /**
  * Title block of a page, one per area exactly as in the prototype: Heute and Plan show the month
  * (Plan with previous/next), Konten and Vermögen the area name, then the area's fields (Stand,
@@ -76,6 +88,8 @@ export function AreaHead({
   accountFields,
 }: AreaHeadProps) {
   const authMethod = useAuthMethodLabel();
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const overviewSheet = OVERVIEW_SHEETS[pathname];
   const { reportId } = useParams({ strict: false }) as { reportId?: string };
   const [month] = useMonth();
   const span = useMonthSpan();
@@ -204,6 +218,7 @@ export function AreaHead({
       title={titleNode ?? title ?? heading ?? meta.title}
       {...(subtitle ? { subtitle } : {})}
       fields={all}
+      {...(overviewSheet ? { drawing: overviewSheet } : {})}
       compactOnMobile
       titleOnMobile={titleOnMobile}
       {...(meta.area === 'heute'

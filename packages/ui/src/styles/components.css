@@ -1483,3 +1483,69 @@ select:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Overview drawing identity is opt-in. Metadata is structural, not a financial revision date. */
+.titleblock-drawing {
+  display: block;
+  position: relative;
+}
+.tb-drawing-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-2);
+  font-family: var(--font-ui);
+  font-size: var(--fs-meta);
+  font-variant-numeric: tabular-nums;
+  background-image:
+    linear-gradient(var(--graticule) 1px, transparent 1px),
+    linear-gradient(90deg, var(--graticule) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+.tb-drawing-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
+}
+.titleblock-drawing::before,
+.titleblock-drawing::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  border-color: var(--rule-strong);
+}
+.titleblock-drawing::before {
+  inset: -4px auto auto -4px;
+  border-left: 1px solid var(--rule-strong);
+  border-top: 1px solid var(--rule-strong);
+}
+.titleblock-drawing::after {
+  inset: auto -4px -4px auto;
+  border-right: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule-strong);
+}
+@media (max-width: 767px) {
+  .titleblock-drawing:not(.titleblock-compact) .tb-drawing-body {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .titleblock-drawing.titleblock-title-mobile .tb-drawing-body {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .titleblock-drawing.titleblock-stack .tb-drawing-body {
+    grid-auto-flow: row;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .titleblock-drawing.titleblock-compact:not(.titleblock-title-mobile):not(:has(.tb-field:not(.tb-hide-mobile))) {
+    display: block;
+  }
+}
