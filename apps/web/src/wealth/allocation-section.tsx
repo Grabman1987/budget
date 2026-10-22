@@ -363,6 +363,73 @@ function AllocationEvidence({ view }: { view: PortfolioAllocationView }) {
         {view.quality.classification === 'complete' ? 'vollständig' : 'unvollständig'}. Die
         gespeicherte Vollständigkeit einer Exposure-Angabe ersetzt diese Prüfung nicht.
       </p>
+      {(view.quality.missingPriceSecurityIds.length > 0 ||
+        view.quality.missingFxSecurityIds.length > 0 ||
+        view.quality.missingFxAccountIds.length > 0 ||
+        view.quality.estimatedSecurityIds.length > 0 ||
+        view.quality.staleSecurityIds.length > 0) && (
+        <ul
+          className="allocation-quality-links"
+          aria-label="Betroffene Wertpapiere und Konten nach Bewertungsursache"
+        >
+          {view.quality.missingPriceSecurityIds.map((id) => (
+            <li key={`missing-price:${id}`}>
+              Kurs fehlt:{' '}
+              <AppLink
+                className="allocation-security-link"
+                to="/vermoegen/portfolio/instrument/$id"
+                params={{ id }}
+              >
+                {maskMoneyText(view.names.securities[id] ?? 'Instrument')}
+              </AppLink>
+            </li>
+          ))}
+          {view.quality.missingFxSecurityIds.map((id) => (
+            <li key={`missing-fx-security:${id}`}>
+              Wechselkurs fehlt:{' '}
+              <AppLink
+                className="allocation-security-link"
+                to="/vermoegen/portfolio/instrument/$id"
+                params={{ id }}
+              >
+                {maskMoneyText(view.names.securities[id] ?? 'Instrument')}
+              </AppLink>
+            </li>
+          ))}
+          {view.quality.missingFxAccountIds.map((id) => (
+            <li key={`missing-fx-account:${id}`}>
+              Wechselkurs fehlt:{' '}
+              <AppLink className="allocation-security-link" to="/konten/$id" params={{ id }}>
+                Betroffenes Konto öffnen
+              </AppLink>
+            </li>
+          ))}
+          {view.quality.estimatedSecurityIds.map((id) => (
+            <li key={`estimated:${id}`}>
+              Bewertung geschätzt:{' '}
+              <AppLink
+                className="allocation-security-link"
+                to="/vermoegen/portfolio/instrument/$id"
+                params={{ id }}
+              >
+                {maskMoneyText(view.names.securities[id] ?? 'Instrument')}
+              </AppLink>
+            </li>
+          ))}
+          {view.quality.staleSecurityIds.map((id) => (
+            <li key={`stale:${id}`}>
+              Bewertung veraltet:{' '}
+              <AppLink
+                className="allocation-security-link"
+                to="/vermoegen/portfolio/instrument/$id"
+                params={{ id }}
+              >
+                {maskMoneyText(view.names.securities[id] ?? 'Instrument')}
+              </AppLink>
+            </li>
+          ))}
+        </ul>
+      )}
       {view.exposureEvidence === undefined ? (
         <p className="vnote">
           Quelldetails nicht verfügbar. Die Datenqualität und Hinweise bleiben unverändert.

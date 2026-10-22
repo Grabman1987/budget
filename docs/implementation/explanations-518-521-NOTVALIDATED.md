@@ -29,3 +29,9 @@ The existing allocation disclosure now identifies as-of date, effective exposure
 No tests, new tests, existing-test edits, typechecks, builds, browser/Axe/screenshots, CI, PR, merge or deployment were performed. Same-date allocation/report equality, missing/null/false provenance, signed cash, scope exclusions, quality suppression, privacy interaction, keyboard/mobile layouts and regression/Undo evidence remain deferred. Source progress is not complete or LIVE acceptance; both issues remain open. Feature-branch push workflows were inspected; no PR was created.
 
 The [independent source review](explanations-518-521-SOURCE-REVIEW.md) of `e52447882b1def73d3ec9cced5d777c417bf7a35` against `ce1e67b17a930d3441e827359f1adf5efcb38303` found no concrete issue in the bounded five-path delta. It does not establish runtime behavior, financial equality, privacy interaction or completion of the remaining #518 product scope. Status remains NOT VALIDATED / NOT LIVE.
+
+## #521 valuation-cause links — source checkpoint 2026-10-22
+
+The remaining accepted #521 disclosure scope now lists the existing affected IDs by cause: missing quote, missing FX for a security or account, estimated valuation, and stale valuation. Security names use the existing `view.names.securities` data and `maskMoneyText`, linking to the existing instrument detail route. Missing-FX accounts use the exact `view.quality.missingFxAccountIds` IDs and the existing account detail route with a generic action label because this view does not carry account display names. The disclosure adds no amount, calculation, API field, or quality gate; existing quality totals and decisions remain unchanged.
+
+This is an unreviewed, source-only checkpoint. **NOT VALIDATED / NOT LIVE.** No tests, test edits, checks, typecheck, build, browser, CI, PR, merge, or deployment were performed. The earlier independent review covers only its pinned five-path delta and does not review this correction.
