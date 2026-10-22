@@ -1,0 +1,10 @@
+.fx-preparation { max-width: 960px; overflow-wrap: anywhere; }
+.fx-preparation form { display: grid; gap: 20px; }
+.fx-preparation fieldset { min-width: 0; border: 1px solid var(--rule); padding: 16px; display: grid; gap: 16px; }
+.fx-preparation legend { padding-inline: 8px; }
+.fx-preparation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.fx-preparation .btn, .fx-preparation .input, .fx-preparation .select { min-height: var(--touch); }
+.fx-preparation .kv-list dd { overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+  .fx-preparation-grid { grid-template-columns: minmax(0, 1fr); }
+}

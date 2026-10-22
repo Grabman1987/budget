@@ -302,6 +302,7 @@ export function BookingsPage() {
         )}
         <details className="kcsv-menu">
           <summary aria-label="Weitere Buchungsaktionen">⋯</summary>
+          <AppLink className="btn btn-ghost" to="/konten/fx-vorbereitung">Fremdwährungsübertrag vorbereiten</AppLink>
           <Button variant="ghost" disabled={csvDisabled} onClick={() => void exportCsv()}>
             {csvBusy ? 'CSV wird vorbereitet …' : `Buchungen bis ${historyFilter.to.split('-').reverse().join('.')} als CSV`}
           </Button>
