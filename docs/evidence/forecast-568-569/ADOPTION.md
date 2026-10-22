@@ -117,3 +117,22 @@ A scoped grep of old Heute chart/lead stroke selectors, liquidity lever referenc
 and strike accessible names found no further untouched occurrences requiring the
 same adapter; domain/component legacy chart tests remain valid for their own
 unchanged components. This static sweep is not execution proof.
+
+## Mobile historical marker compatibility
+
+`e2e/heute-hints-1009.spec.ts` checks the actual shared salary marker test ID
+instead of removed historical `.heute-salary-mark`; unchanged payday date,
+3812.00 derivation and every other financial/count/accessibility assertion stay.
+`e2e/heute.spec.ts` moves the unchanged literal 15-day/02.10 and
+28-day/15.10 bracket checks to surviving R07, where that historical SVG is
+actually rendered; DailyBudgetLine on Heute has no SVG dimension class.
+
+For August, BalanceChart intentionally renders an explicit empty state when the
+actual API returns no historical/forecast points (the synthetic ledger begins
+later). The test now requires a visible R07 section and, based solely on actual
+API point availability, visible chart or exact existing empty-state text, before
+the unchanged no-out-of-range-marker assertions. This is not a responsive fold
+or hidden-action bypass, and does not manufacture historic points or change
+dates/money. Original pace absence, selected period and new stand-today HEUTE
+checks remain. All deadlines/tolerances remain unchanged; independent review
+and root execution required.

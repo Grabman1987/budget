@@ -74,9 +74,9 @@ test('Heute month forecast ends two days after month end and names payments in t
   expect(data.balance.low!.cents).toBe(
     Math.min(...[...data.balance.actual, ...data.balance.forecast].map((d) => d.balanceCents)),
   );
-  await expect(page.locator('.heute-lead-dimension')).toContainText('15 Tage bis 02.10.');
   await expect(page.getByTestId('liquidity-chart')).toBeVisible();
   await page.goto('/reports/finanzcheck?monat=2026-09');
+  await expect(page.locator('.heute-lead-dimension')).toContainText('15 Tage bis 02.10.');
   await expect(page.getByTestId('forecast-step-label')).toContainText(['Gehalt', 'Miete']);
   await expect(
     page.getByTestId('forecast-step-label').filter({ hasText: 'Kreditrate' }),
@@ -93,7 +93,6 @@ test('Heute month forecast ends two days after month end and names payments in t
 
 test('Heute payday forecast follows the bracket and last axis label', async ({ page }) => {
   await page.goto('/?monat=2026-09&period=payday');
-  await expect(page.locator('.heute-lead-dimension')).toContainText('28 Tage bis Gehalt 15.10.');
   await expect(page.getByTestId('liquidity-chart')).toBeVisible();
   await expect(
     page.getByText(
@@ -102,6 +101,7 @@ test('Heute payday forecast follows the bracket and last axis label', async ({ p
     ),
   ).toBeVisible();
   await page.goto('/reports/finanzcheck?monat=2026-09');
+  await expect(page.locator('.heute-lead-dimension')).toContainText('28 Tage bis Gehalt 15.10.');
   await expect(page.locator('[data-testid="r07-balance-chart"] .svg-label').last()).toHaveText(
     '17.10.',
   );
@@ -364,11 +364,20 @@ test('a past month has no out-of-range today marker in the balance or pace chart
     'HEUTE',
   );
   await page.goto('/reports/finanzcheck?monat=2026-08&period=month');
-  await expect(page.getByTestId('r07-balance-chart')).toBeVisible();
-  await expect(page.locator('[data-testid="r07-balance-chart"] .l-today')).toHaveCount(0);
-  await expect(
-    page.locator('[data-testid="r07-balance-chart"] text').filter({ hasText: 'heute' }),
-  ).toHaveCount(0);
+  const historical: Heute = await (
+    await page.request.get('/api/heute?period=month&month=2026-08')
+  ).json();
+  const history = page.locator('section[aria-labelledby="r07-title"]');
+  await expect(history).toBeVisible();
+  if (historical.balance.actual.length + historical.balance.forecast.length === 0) {
+    await expect(
+      history.getByText('Kein Verlauf im gewählten Zeitraum.', { exact: true }),
+    ).toBeVisible();
+  } else {
+    await expect(history.getByTestId('r07-balance-chart')).toBeVisible();
+  }
+  await expect(history.locator('.l-today')).toHaveCount(0);
+  await expect(history.locator('text').filter({ hasText: 'heute' })).toHaveCount(0);
   await page.goto('/?monat=2026-08&period=month');
   await expect(page.locator('[data-testid="heute-pace-chart"] .l-today')).toHaveCount(0);
   await expect(page.getByTestId('liquidity-chart').getByTestId('liquidity-mark-heute')).toHaveText(
