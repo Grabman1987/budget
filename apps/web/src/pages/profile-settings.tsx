@@ -92,7 +92,6 @@ function ProfileForm({ saved }: { saved: Profile }) {
   const toast = useToast();
   const [draft, setDraft] = useState<Draft>(() => draftOf(saved));
   const [base, setBase] = useState(saved);
-  const [seenSaved, setSeenSaved] = useState(saved);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [errors, setErrors] = useState<Errors>({});
@@ -115,12 +114,9 @@ function ProfileForm({ saved }: { saved: Profile }) {
     body.household !== base.household ||
     body.region !== base.region;
 
-  if (saved !== seenSaved) {
-    setSeenSaved(saved);
-    if (!busy && !dirty) {
-      setBase(saved);
-      setDraft(draftOf(saved));
-    }
+  if (!busy && !dirty && saved !== base) {
+    setBase(saved);
+    setDraft(draftOf(saved));
   }
 
   useUnsavedSettings(dirty, busy);
