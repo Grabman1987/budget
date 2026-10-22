@@ -26,7 +26,7 @@ Running 14 tests using 1 worker
   ✘  14 [webkit-iphone] › e2e/issue-586-mobile-capture.spec.ts:119:1 › desktop card stays bounded and phone save follows keyboard-sized visual viewport (12.9s)
 
 
-  1) [webkit-iphone] › e2e/issue-586-mobile-capture.spec.ts:119:1 › desktop card stays bounded and phone save follows keyboard-sized visual viewport 
+  1) [webkit-iphone] › e2e/issue-586-mobile-capture.spec.ts:119:1 › desktop card stays bounded and phone save follows keyboard-sized visual viewport
 
     Error: expect(locator).toHaveValue(expected) failed
 
@@ -62,5 +62,5 @@ Running 14 tests using 1 worker
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
   1 failed
-    [webkit-iphone] › e2e/issue-586-mobile-capture.spec.ts:119:1 › desktop card stays bounded and phone save follows keyboard-sized visual viewport 
+    [webkit-iphone] › e2e/issue-586-mobile-capture.spec.ts:119:1 › desktop card stays bounded and phone save follows keyboard-sized visual viewport
   13 passed (1.8m)

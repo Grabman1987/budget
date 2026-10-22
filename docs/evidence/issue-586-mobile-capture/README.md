@@ -73,7 +73,8 @@ playwright test e2e/mobile-panels.spec.ts --project=webkit-iphone --workers=1 --
 ```
 
 Raw output is retained for the [initial layout run](webkit-layout-first-run.txt),
-[final focused cases](webkit-focused-final.txt) and [supplemental close case](webkit-consumer-close.txt). Desktop/Chromium 390 light/dark proof, CI and live verification
+[final focused cases](webkit-focused-final.txt) and [supplemental close case](webkit-consumer-close.txt). Trailing whitespace is removed from the
+checked-in text copies; coordinator originals remain unchanged. Desktop/Chromium 390 light/dark proof, CI and live verification
 remain pending. No existing screenshot baseline captures an open BookingPanel: all changed
 capture screenshots are evidence captures. The seven baseline-spec callers render other views,
 so no snapshot regeneration is expected or dispatched. Per the coordinator's resource direction, full-check coverage is delegated to
