@@ -1,4 +1,5 @@
 import { clearChoices } from './queue-store';
+import { clearReadSnapshots } from './read-snapshot-store';
 
 /** Key of the capture panel's recently used account and category ids (see ledger/capture-model). */
 export const CAPTURE_MEMORY_KEY = 'budget-capture-memory';
@@ -21,6 +22,8 @@ export const SHELL_CACHE_PREFIX = 'budget-shell-';
  * Every step is best effort and independent; blocked storage never prevents the sign-out.
  */
 export async function clearDeviceFinancialData(): Promise<void> {
+  // Synchronous invalidation hides any displayed copy before the independent storage work.
+  const snapshotsCleared = clearReadSnapshots();
   for (const key of FINANCIAL_LOCAL_STORAGE_KEYS) {
     try {
       localStorage.removeItem(key);
@@ -48,4 +51,5 @@ export async function clearDeviceFinancialData(): Promise<void> {
   } catch {
     /* Cache Storage is unavailable (insecure context, private mode). */
   }
+  await snapshotsCleared;
 }

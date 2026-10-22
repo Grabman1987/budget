@@ -1,12 +1,13 @@
-import { Button, SectionHead, useToast } from '@budget/ui';
+import { Button, SectionHead } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useId, useRef, useState } from 'react';
-import { ApiError, notifyApiWrite, request } from '../api/http';
+import { useId, useState } from 'react';
+import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { nativeCurrency } from '../ledger/format';
 import { bookingsQuery, LEDGER_KEY } from '../ledger/queries';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import './receipts.css';
+import { ReceiptQueuePicker, ReceiptQueueList } from '../pwa/receipt-queue-ui';
 
 interface Receipt {
   id: string;
@@ -26,53 +27,12 @@ const receiptQuery = (bookingId?: string) => ({
 
 /** Attach to a saved booking, or capture first into the inbox. All writes use shared undo toasts. */
 export function ReceiptSection({ bookingId }: { bookingId?: string }) {
-  const heading = useId(),
-    uploadId = useId(),
-    cameraId = useId();
-  const picker = useRef<HTMLInputElement>(null),
-    camera = useRef<HTMLInputElement>(null);
+  const heading = useId();
   const [busy, setBusy] = useState(false),
     [linking, setLinking] = useState<string | null>(null);
   const receipts = useQuery(receiptQuery(bookingId));
   const unlinked = useQuery({ ...receiptQuery(), enabled: Boolean(bookingId) });
-  const write = useBudgetWrite(),
-    toast = useToast();
-  const upload = async (file: File | undefined) => {
-    if (!file || busy) return;
-    if (file.size > 15 * 1024 * 1024) {
-      toast.show({ message: 'Ein Beleg darf höchstens 15 MB groß sein.' });
-      return;
-    }
-    setBusy(true);
-    await write(
-      async () => {
-        const data = new FormData();
-        data.set('file', file);
-        if (bookingId) data.set('bookingId', bookingId);
-        let response: Response;
-        try {
-          response = await fetch('/api/receipts', {
-            method: 'POST',
-            credentials: 'same-origin',
-            body: data,
-          });
-        } catch {
-          throw new ApiError(0, 'network');
-        }
-        const result = (await response.json().catch(() => ({}))) as {
-          groupId: string;
-          error?: string;
-          message?: string;
-        };
-        if (!response.ok)
-          throw new ApiError(response.status, result.error ?? 'unknown', result.message);
-        notifyApiWrite();
-        return result;
-      },
-      () => (bookingId ? 'Beleg angehängt.' : 'Beleg unter Prüfen gespeichert.'),
-    );
-    setBusy(false);
-  };
+  const write = useBudgetWrite();
   const change = async (run: () => Promise<{ groupId: string }>, message: string) => {
     if (busy) return;
     setBusy(true);
@@ -82,47 +42,8 @@ export function ReceiptSection({ bookingId }: { bookingId?: string }) {
   return (
     <section className="receipt-section" aria-labelledby={heading} aria-busy={busy}>
       <SectionHead id={heading} title={bookingId ? 'Beleg' : 'Beleg ohne Buchung'} />
-      <div className="receipt-actions">
-        <input
-          ref={picker}
-          id={uploadId}
-          className="sr-only"
-          tabIndex={-1}
-          type="file"
-          accept="image/*,application/pdf"
-          aria-label="Belegdatei auswählen"
-          disabled={busy}
-          onChange={(e) => {
-            void upload(e.target.files?.[0]);
-            e.target.value = '';
-          }}
-        />
-        <input
-          ref={camera}
-          id={cameraId}
-          className="sr-only"
-          tabIndex={-1}
-          type="file"
-          accept="image/*,application/pdf"
-          capture="environment"
-          aria-label="Beleg fotografieren"
-          disabled={busy}
-          onChange={(e) => {
-            void upload(e.target.files?.[0]);
-            e.target.value = '';
-          }}
-        />
-        <Button variant="ghost" disabled={busy} onClick={() => picker.current?.click()}>
-          Datei anhängen
-        </Button>
-        <Button variant="ghost" disabled={busy} onClick={() => camera.current?.click()}>
-          Foto aufnehmen
-        </Button>
-      </div>
-      <p className="receipt-hint">
-        JPEG, PNG, WebP, HEIC/HEIF oder PDF · höchstens 15 MB.{' '}
-        {busy ? 'Wird gespeichert …' : 'HEIC/HEIF und PDF behalten ihre Metadaten.'}
-      </p>
+      <ReceiptQueuePicker {...(bookingId ? { bookingId } : {})} />
+      <ReceiptQueueList {...(bookingId ? { bookingId } : {})} />
       {receipts.isPending && <LoadingNote what="Belege" />}
       {receipts.isError && (
         <ErrorNote what="Belege" error={receipts.error} onRetry={() => void receipts.refetch()} />
