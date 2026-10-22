@@ -355,7 +355,7 @@ it('shows the latest successful retrieval time for an active bank connection', a
   );
   mount('/konten/pruefen', true);
   const bankStatus = await screen.findByRole('region', { name: 'Bankstatus' });
-  expect(bankStatus.textContent).toContain('Bank: verbunden · zuletzt 06:12');
+  await waitFor(() => expect(bankStatus.textContent).toContain('Bank: verbunden · zuletzt 06:12'));
   expect(within(bankStatus).queryByRole('link', { name: 'Einrichten' })).toBeNull();
   expect(screen.getAllByRole('region', { name: 'Bankstatus' })).toHaveLength(1);
 });
