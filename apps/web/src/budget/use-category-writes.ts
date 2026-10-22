@@ -37,6 +37,15 @@ export function useBudgetWrite() {
   const toast = useToast();
   const refresh = () =>
     Promise.all(AFFECTED.map((queryKey) => qc.invalidateQueries({ queryKey: [...queryKey] })));
+  const refreshView = async () => {
+    try {
+      await refresh();
+      return true;
+    } catch {
+      // A failed read after a committed write must not erase its receipt or Undo action.
+      return false;
+    }
+  };
 
   const failed = (action: 'Rückgängig' | 'Wiederholen', error: unknown) =>
     toast.show({
@@ -51,37 +60,41 @@ export function useBudgetWrite() {
     run: () => Promise<T>,
     message: (result: T) => string,
   ): Promise<T | undefined> {
+    let result: T;
     try {
-      const result = await run();
-      await refresh();
-      // A stale quick-fill or an exhausted pool may produce no audit entries.
-      if ('changedCount' in result && result.changedCount === 0) {
-        toast.show({ message: message(result) });
-        return result;
-      }
-      toast.show({
-        message: message(result),
-        actionLabel: 'Rückgängig',
-        onAction: () =>
-          void undoGroup(result.groupId).then(
-            async (undone) => {
-              await refresh();
-              toast.show({
-                message: 'Rückgängig gemacht.',
-                actionLabel: 'Wiederholen',
-                onAction: () =>
-                  void undoGroup(undone.groupId).then(refresh, (error: unknown) =>
-                    failed('Wiederholen', error),
-                  ),
-              });
-            },
-            (error: unknown) => failed('Rückgängig', error),
-          ),
-      });
-      return result;
+      result = await run();
     } catch (error) {
       toast.show({ message: errorText(error) });
       return undefined;
     }
+    const refreshed = await refreshView();
+    const successMessage = `${message(result)}${refreshed ? '' : ' Andere Ansichten konnten nicht aktualisiert werden.'}`;
+    // A stale quick-fill or an exhausted pool may produce no audit entries.
+    if ('changedCount' in result && result.changedCount === 0) {
+      toast.show({ message: successMessage });
+      return result;
+    }
+    toast.show({
+      message: successMessage,
+      actionLabel: 'Rückgängig',
+      onAction: () =>
+        void undoGroup(result.groupId).then(
+          async (undone) => {
+            const undoRefreshed = await refreshView();
+            toast.show({
+              message: undoRefreshed ? 'Rückgängig gemacht.' :
+                'Rückgängig gemacht. Andere Ansichten konnten nicht aktualisiert werden.',
+              actionLabel: 'Wiederholen',
+              onAction: () =>
+                void undoGroup(undone.groupId).then(async () => {
+                  if (!(await refreshView()))
+                    toast.show({ message: 'Wiederholt. Andere Ansichten konnten nicht aktualisiert werden.' });
+                }, (error: unknown) => failed('Wiederholen', error)),
+            });
+          },
+          (error: unknown) => failed('Rückgängig', error),
+        ),
+    });
+    return result;
   };
 }

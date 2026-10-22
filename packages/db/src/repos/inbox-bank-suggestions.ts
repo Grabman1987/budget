@@ -91,8 +91,10 @@ export function readBankInboxSuggestion(db: Executor, ref: BankInboxRef, today: 
       return needsReview(ref, 'Mögliche Umbuchung');
     const candidateOptions = candidate ? candidateMatches(db, ref.id) : null;
     const matches = candidateOptions ?? bankBookingMatches(db, ref.id);
-    const alternatives = [...matches.merge, ...(candidateOptions?.link ?? [])];
     if (candidateOptions?.transfers.length) return needsReview(ref, 'Mögliche Umbuchung');
+    // A link keeps the target's own bank date/status and needs an individual decision.
+    if (candidateOptions?.link.length) return needsReview(ref, 'Geschützte passende Buchung');
+    const alternatives = matches.merge;
     const possible = unlinkedBankTargets(db, row.accountId, addDays(row.date, -5), addDays(row.date, 5))
       .filter((other) => other.id !== row.id && other.currency === row.currency && other.amountCents === row.amountCents);
     if (possible.some((other) => !alternatives.some((match) => match.id === other.id)))
