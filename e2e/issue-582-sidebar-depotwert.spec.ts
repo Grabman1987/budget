@@ -163,6 +163,7 @@ for (const theme of ['light', 'dark'] as const) {
     await page.goto('/vermoegen/nettovermoegen');
     await expect(page.getByTestId('nw-figure')).toContainText('116,23');
     await page.goto('/konten');
+    await expect(overviewRow(page, 'Testdepot')).toBeVisible();
     await fits(page);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     if (isMobile) return;
@@ -205,6 +206,7 @@ test('without a Verrechnungskonto the depot cash stays with the depot as a Cash 
   await page.goto('/vermoegen/nettovermoegen');
   await expect(page.getByTestId('nw-figure')).toContainText('116,23');
   await page.goto('/konten');
+  await expect(overviewRow(page, 'Testdepot')).toBeVisible();
   await fits(page);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   if (isMobile) return;
