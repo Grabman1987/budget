@@ -133,7 +133,15 @@ function CategoryBody({
     [data, window, period],
   );
   const rows = overview.rows;
-  const selectedIds = search.kategorien ?? (rows[0] ? [rows[0].category.id] : []);
+  const topChanges = rows
+    .filter((row) => row.previousCents !== null)
+    .map((row) => ({ row, changeCents: row.sumCents - row.previousCents! }))
+    .filter(({ changeCents }) => changeCents !== 0)
+    .sort((a, b) => Math.abs(b.changeCents) - Math.abs(a.changeCents))
+    .slice(0, 5);
+  const selectedIds =
+    search.kategorien ??
+    (topChanges[0] ? [topChanges[0].row.category.id] : rows[0] ? [rows[0].category.id] : []);
   const selected = data.categories.filter((c) => selectedIds.includes(c.id));
   const prefix = useId();
 
@@ -146,6 +154,27 @@ function CategoryBody({
         <span className="tbd-state">
           <span className="ink">Konsum {eur(overview.consumptionCents, { cents: false })}</span>
         </span>
+      </div>
+      <div className="category-top-changes" aria-labelledby="category-top-changes-title">
+        <h3 id="category-top-changes-title">Größte Veränderungen zur Vorperiode</h3>
+        {topChanges.length ? (
+          <ol>
+            {topChanges.map(({ row, changeCents }) => (
+              <li key={row.category.id}>
+                <button
+                  type="button"
+                  onClick={() => setChoice({ kategorien: [row.category.id] })}
+                  aria-label={`${row.category.name}: ${eur(changeCents, { sign: true })} zur Vorperiode; Verlauf zeigen`}
+                >
+                  <span>{row.category.name}</span>
+                  <strong>{eur(changeCents, { sign: true })}</strong>
+                </button>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="vnote">Keine vergleichbaren Veränderungen vorhanden.</p>
+        )}
       </div>
       <div className="category-trend-detail">
         <h3>Kategorietrend</h3>
@@ -259,12 +288,15 @@ function CategoryBody({
           </table>
         </div>
       )}
-      <p className="vnote">
-        Summe, Durchschnitt, Anteil und Detailverlauf beziehen sich auf den gewählten Zeitraum. Die
-        kleinen Verläufe zeigen die letzten zwölf vollständigen Monate. Zur Vorperiode: der Zeitraum
-        gleicher Länge davor, nur wenn er vollständig vorliegt. Der Anteil am Konsum ist für Zukunft
-        leer, weil Sparen kein Konsum ist. Rückerstattungen in derselben Kategorie sind abgezogen.
-      </p>
+      <details className="category-method">
+        <summary>Wie wird gerechnet?</summary>
+        <p className="vnote">
+          Summe, Durchschnitt, Anteil und Detailverlauf beziehen sich auf den gewählten Zeitraum. Die
+          kleinen Verläufe zeigen die letzten zwölf vollständigen Monate. Zur Vorperiode: der Zeitraum
+          gleicher Länge davor, nur wenn er vollständig vorliegt. Der Anteil am Konsum ist für Zukunft
+          leer, weil Sparen kein Konsum ist. Rückerstattungen in derselben Kategorie sind abgezogen.
+        </p>
+      </details>
     </section>
   );
 }

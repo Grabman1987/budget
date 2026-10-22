@@ -201,6 +201,42 @@
 }
 
 /* ---------- Kategorieübersicht ---------- */
+.category-top-changes ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 0 16px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+.category-top-changes h3 {
+  margin: 0 0 8px;
+  font-size: var(--fs-title);
+}
+.category-top-changes button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--touch);
+  padding: 8px 0;
+  border-bottom: var(--stroke-hairline) solid var(--rule);
+  text-align: left;
+}
+.category-top-changes button:hover {
+  background: var(--tint);
+}
+.category-top-changes button strong {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.category-method summary {
+  display: list-item;
+  align-content: center;
+  min-height: var(--touch);
+  cursor: pointer;
+}
 .category-trend-detail {
   min-width: 0;
   margin-bottom: 20px;

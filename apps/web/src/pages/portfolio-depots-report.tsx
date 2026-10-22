@@ -117,6 +117,13 @@ function DepotsBody({ data, period }: { data: DepotComparison; period: Period })
   const total = data.total as DepotColumn;
   const columns = [...data.depots, total];
   const window = data.window as { from: string; to: string };
+  const scaleLevels = [
+    ...columns.flatMap((depot) => depot.index.map((point) => point.level)),
+    ...data.benchmarks.flatMap((benchmark) => benchmark.index.map((point) => point.benchmark)),
+  ].filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  const sharedYDomain: readonly [number, number] | undefined = scaleLevels.length
+    ? [Math.min(...scaleLevels), Math.max(...scaleLevels)]
+    : undefined;
 
   return (
     <>
@@ -133,25 +140,33 @@ function DepotsBody({ data, period }: { data: DepotComparison; period: Period })
               depot={depot}
               position={depot.accountId === null ? 'Σ' : String(index + 1)}
               benchmarks={data.benchmarks}
+              yDomain={sharedYDomain}
             />
           ))}
         </ul>
-        <p className="vnote">
-          Vergleich: EUR-Kurse von Index-ETF, Start = 100. Fehlende Abschlüsse bleiben Lücken.
-        </p>
+        <p className="vnote">Alle Depotverläufe haben dieselbe Y-Skala (Start = 100).</p>
+        <details className="depot-method">
+          <summary>Wie wird gerechnet?</summary>
+          <p className="vnote">
+            Vergleich: EUR-Kurse von Index-ETF, Start = 100. Fehlende Abschlüsse bleiben Lücken.
+          </p>
+        </details>
       </section>
       <section className="prep-card" aria-labelledby="depots-kpi-title">
         <div className="tbd-head">
           <h2 id="depots-kpi-title">Kennzahlen nebeneinander</h2>
         </div>
         <KpiTable columns={columns} />
-        <p className="vnote">
-          TTWROR blendet Ein- und Auszahlungen aus und ist mit dem Vergleichswert vergleichbar.
-          Sharpe mit 2,5 % sicherem Zins (bei Volatilität unter 0,5 % nicht aussagekräftig und daher
-          ausgelassen). Broker und Krypto zeigen Wertpapiere ohne Depotkassa; weitere Anlagekonten
-          ihre gespeicherten Werte und externen Flüsse; Gewinn ist Wert am Ende minus Wert am Anfang
-          minus Nettoflüsse.
-        </p>
+        <details className="depot-method">
+          <summary>Wie wird gerechnet?</summary>
+          <p className="vnote">
+            TTWROR blendet Ein- und Auszahlungen aus und ist mit dem Vergleichswert vergleichbar.
+            Sharpe mit 2,5 % sicherem Zins (bei Volatilität unter 0,5 % nicht aussagekräftig und daher
+            ausgelassen). Broker und Krypto zeigen Wertpapiere ohne Depotkassa; weitere Anlagekonten
+            ihre gespeicherten Werte und externen Flüsse; Gewinn ist Wert am Ende minus Wert am Anfang
+            minus Nettoflüsse.
+          </p>
+        </details>
       </section>
     </>
   );
@@ -161,10 +176,12 @@ function DepotCard({
   depot,
   position,
   benchmarks,
+  yDomain,
 }: {
   depot: DepotColumn;
   position: string;
   benchmarks: PortfolioBenchmarkSeries[];
+  yDomain?: readonly [number, number] | undefined;
 }) {
   useAmountPrivacy();
   const perf = depot.performance;
@@ -232,7 +249,7 @@ function DepotCard({
           Im Zeitraum war dieses Depot nicht bewertet; es wird keine Rendite angenommen.
         </p>
       )}
-      <DepotChart depot={depot} benchmarks={benchmarks} />
+      <DepotChart depot={depot} benchmarks={benchmarks} yDomain={yDomain} />
     </li>
   );
 }
@@ -240,15 +257,18 @@ function DepotCard({
 function DepotChart({
   depot,
   benchmarks,
+  yDomain,
 }: {
   depot: DepotColumn;
   benchmarks: PortfolioBenchmarkSeries[];
+  yDomain?: readonly [number, number] | undefined;
 }) {
   return (
     <PerformanceChart
       testId="depot-chart"
       label={`${depot.name}, indexiert auf 100`}
       rows={depot.index}
+      yDomain={yDomain}
       lines={[
         { name: depot.name, values: depot.index.map((p) => p.level) },
         ...benchmarks.map((b) => ({

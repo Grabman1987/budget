@@ -14,11 +14,14 @@ export function PerformanceChart({
   testId,
   rows,
   lines,
+  yDomain,
 }: {
   label: string;
   testId?: string;
   rows: { date: string }[];
   lines: { name: string; values: (number | null)[]; benchmark?: boolean }[];
+  /** Reuse one index scale across a set of charts that must be compared side by side. */
+  yDomain?: readonly [number, number] | undefined;
 }) {
   useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
@@ -26,8 +29,8 @@ export function PerformanceChart({
     l.values.filter((v): v is number => v !== null && Number.isFinite(v)),
   );
   if (rows.length < 2 || !levels.length) return <div ref={ref} />;
-  const low = Math.min(...levels),
-    high = Math.max(...levels),
+  const low = yDomain?.[0] ?? Math.min(...levels),
+    high = yDomain?.[1] ?? Math.max(...levels),
     pad = (high - low) * 0.08 || 1;
   const left = 44,
     right = Math.max(left + 1, width - 16),

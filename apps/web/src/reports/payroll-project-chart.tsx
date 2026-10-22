@@ -22,8 +22,15 @@ export function PayrollProjectChart({
     left = 72,
     bottom = 208;
   const known = [...values, ...(gross ?? [])].filter((v): v is number => v !== null);
+  const salaryLow = Math.min(...known);
+  const salaryHigh = Math.max(...known);
+  const salaryPad = Math.max(100, (salaryHigh - salaryLow) * 0.08);
   const y = scaleLinear()
-    .domain([Math.min(0, ...known), Math.max(1, ...known)])
+    .domain(
+      gross && known.length
+        ? [salaryLow - salaryPad, salaryHigh + salaryPad]
+        : [Math.min(0, ...known), Math.max(1, ...known)],
+    )
     .nice()
     .range([bottom, 16]);
   const x = scaleLinear()

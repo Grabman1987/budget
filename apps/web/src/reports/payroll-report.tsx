@@ -74,6 +74,8 @@ export function PayrollReport({
   const panelData = query.isError ? undefined : query.data;
   const selected = panelData?.captured.find((p) => p.id === gehaltszettel);
   const parts = data ? eurParts(data.month.netCents) : undefined;
+  const regularNetCents =
+    data?.timeline.find((row) => row.month === month && row.recorded)?.salaryNetCents ?? null;
   const detailSlips = data
     ? zettel
       ? data.captured.filter((p) => p.id === zettel)
@@ -148,7 +150,11 @@ export function PayrollReport({
           ? {
               reportId: report.id,
               period: month,
-              metric: { label: 'Erfasstes Nettogehalt', value: data.month.netCents, unit: 'money' },
+              metric: {
+                label: 'Laufendes Nettogehalt',
+                value: regularNetCents,
+                unit: 'money',
+              },
             }
           : undefined
       }
@@ -205,19 +211,40 @@ export function PayrollReport({
                 {data.captured.length === 0 && (
                   <EmptyNote>Noch keine Gehaltszettel erfasst.</EmptyNote>
                 )}
-                <ul className="pp-history">
-                  {data.captured.map((p) => (
-                    <li key={p.id}>
-                      <AppLink
-                        className="pp-history-link"
-                        to="/reports/gehalt/historie"
-                        search={{ monat: month, zettel: p.id }}
-                      >
-                        {shortMonth(p.month)} · {kindName(p)} · {eur(p.netCents)}
-                      </AppLink>
-                    </li>
-                  ))}
-                </ul>
+                {data.captured.length > 0 && (
+                  <ScrollRegion className="pp-scroll" label="Erfasste Gehaltszettel">
+                    <table className="rtable">
+                      <caption className="sr-only">Gehaltszettel-Historie</caption>
+                      <thead>
+                        <tr>
+                          <th scope="col">Monat</th>
+                          <th scope="col">Art</th>
+                          <th scope="col" className="n">Auszahlung</th>
+                          <th scope="col">Zettel</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.captured.map((p) => (
+                          <tr key={p.id}>
+                            <th scope="row">{shortMonth(p.month)}</th>
+                            <td>{kindName(p)}</td>
+                            <td className="n">{eur(p.netCents)}</td>
+                            <td>
+                              <AppLink
+                                className="pp-history-link"
+                                to="/reports/gehalt/historie"
+                                search={{ monat: month, zettel: p.id }}
+                                aria-label={`${shortMonth(p.month)} · ${kindName(p)} · Zettel öffnen`}
+                              >
+                                Zettel öffnen
+                              </AppLink>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </ScrollRegion>
+                )}
                 {zettel && detailSlips.length === 0 && (
                   <EmptyNote>Dieser Gehaltszettel ist nicht verfügbar.</EmptyNote>
                 )}
@@ -226,6 +253,29 @@ export function PayrollReport({
             </>
           ) : (
             <>
+              <section className="mr-card mr-wide">
+                <div className="tbd-head">
+                  <h2>Laufendes Nettogehalt · {shortMonth(month)}</h2>
+                </div>
+                <p className="tbd-fig">
+                  {regularNetCents === null ? '–' : eur(regularNetCents)}
+                </p>
+                {data.timeline.some((row) => row.recorded) ? (
+                  <>
+                    <PayrollProjectChart
+                      months={data.timeline.map((r) => r.month)}
+                      values={data.timeline.map((r) => (r.recorded ? r.salaryNetCents : null))}
+                      gross={data.timeline.map((r) => (r.recorded ? r.grossCents : null))}
+                    />
+                    <p className="vnote">
+                      Tusche: laufendes Nettogehalt ohne steuerfreie Erstattungen · blasse Tusche:
+                      Brutto inkl. Zusätze. Fehlende Zettel bleiben Lücken.
+                    </p>
+                  </>
+                ) : (
+                  <EmptyNote>Noch kein laufendes Gehalt erfasst.</EmptyNote>
+                )}
+              </section>
               <section className="mr-card">
                 <div className="tbd-head">
                   <h2>Auszahlung {shortMonth(month)}</h2>
@@ -299,27 +349,16 @@ export function PayrollReport({
                       Lohnsteuer {pct(data.month.taxRatio)} · sonstige Abzüge{' '}
                       {pct(data.month.otherRatio)}
                     </p>
-                    <p className="vnote">
-                      Quoten auf Brutto ohne steuerfreie Erstattungen. Aufrollungen zählen mit
-                      Vorzeichen; bei Brutto null ist die Quote nicht verfügbar. Das Anteilsband
-                      entfällt bei negativen Abzügen oder einer Lohnsteuer-Erstattung.
-                    </p>
+                    <details className="pp-method">
+                      <summary>Wie wird gerechnet?</summary>
+                      <p className="vnote">
+                        Quoten auf Brutto ohne steuerfreie Erstattungen. Aufrollungen zählen mit
+                        Vorzeichen; bei Brutto null ist die Quote nicht verfügbar. Das Anteilsband
+                        entfällt bei negativen Abzügen oder einer Lohnsteuer-Erstattung.
+                      </p>
+                    </details>
                   </>
                 )}
-              </section>
-              <section className="mr-card mr-wide">
-                <div className="tbd-head">
-                  <h2>Verlauf · laufendes Gehalt</h2>
-                </div>
-                <PayrollProjectChart
-                  months={data.timeline.map((r) => r.month)}
-                  values={data.timeline.map((r) => (r.recorded ? r.salaryNetCents : null))}
-                  gross={data.timeline.map((r) => (r.recorded ? r.grossCents : null))}
-                />
-                <p className="vnote">
-                  Tusche: Nettogehalt ohne steuerfreie Erstattungen · blasse Tusche: Brutto inkl.
-                  Zusätze. Fehlende Zettel bleiben Lücken.
-                </p>
               </section>
               <section className="mr-card mr-wide">
                 <h2>Auszahlung je Monat und Jahr</h2>
