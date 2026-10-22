@@ -619,6 +619,7 @@ function TransferPreviewForm({ date, securityId, accounts, securities, onDirty, 
   const calculate = async (event: FormEvent) => {
     event.preventDefault();
     if (pending.current) return;
+    setError('');
     if (!draft.securityId || !draft.sourceAccountId || !draft.destinationAccountId ||
         draft.sourceAccountId === draft.destinationAccountId) {
       setError('Ein Wertpapier und zwei verschiedene Anlagekonten auswählen.');
@@ -689,7 +690,7 @@ function TransferPreviewForm({ date, securityId, accounts, securities, onDirty, 
         </Field>
         <Field label="Stückzahl" hint="Positive Stückzahl, bis zu acht Nachkommastellen.">
           {({ id, describedBy }) => <TextInput id={id} inputMode="decimal" value={draft.units}
-            required maxLength={30} aria-describedby={describedBy}
+            money required maxLength={30} aria-describedby={describedBy}
             onChange={(event) => update('units', event.target.value)} />}
         </Field>
         {!eligible.length && <p className="vnote">Zwei offene, budgetfreie EUR-Anlagekonten werden benötigt.</p>}
