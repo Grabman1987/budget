@@ -189,15 +189,20 @@ export function ReconcileFlow({
       onDone();
     },
     onError: (e) => {
-      if (closeContext && e instanceof ApiError && (e.code === 'stale_close' || e.code === 'close_account_unavailable')) setStaleClose(true);
+      if (closeContext && e instanceof ApiError && (e.code === 'stale_close' || e.code === 'close_account_unavailable' || e.code === 'conflict')) setStaleClose(true);
       setError(errorText(e));
     },
   });
   const run = (extra: Partial<ReconcileRequest>) => {
     if (!current || confirm.isPending || candidateBusy || writes.remove.isPending || writes.patch.isPending || staleClose ||
       (extra.adjust && (!candidatesReviewed || (closeContext && !reason.trim())))) return;
+    const revision = data?.candidateRevision;
+    if (extra.adjust && !revision) {
+      setError('Die Prüfungsrevision fehlt. Bitte die Kontoprüfung neu laden.');
+      return;
+    }
     setError(null);
-    confirm.mutate(extra);
+    confirm.mutate(extra.adjust ? { ...extra, candidateRevision: revision } : extra);
   };
   const busy = confirm.isPending || candidateBusy || writes.remove.isPending || writes.patch.isPending;
   const openCandidate = async (id: string) => {
@@ -353,7 +358,7 @@ export function ReconcileFlow({
             <ul>{(data.pendingCandidates ?? []).map((row) => {
               const key = `pending:${row.id}`, skipped = ignored.has(key);
               return <li key={key}>
-                <strong>{row.payeeName ?? row.memo ?? 'Buchung'} · {money(row.amountCents, true)}</strong>
+                <strong>{maskMoneyText(row.payeeName ?? row.memo ?? 'Buchung')} · {money(row.amountCents, true)}</strong>
                 <p>{longDay(row.date)} · Vorgemerkt{skipped ? ' · Für diese Prüfung ignoriert' : ''}</p>
                 <div className="panel-actions">
                   <Button variant="ghost" disabled={busy || staleClose} onClick={() => void resolveCandidate(row.id, 'confirm', row.amountCents === data.differenceCents)}>
@@ -368,7 +373,7 @@ export function ReconcileFlow({
             {data.duplicates.map((row) => {
               const key = `duplicate:${row.removeId}:${row.keepId}`, skipped = ignored.has(key);
               return <li key={key}>
-                <strong>Möglicherweise doppelt: {row.payeeName ?? 'Buchung'} · {money(row.amountCents, true)}</strong>
+                <strong>Möglicherweise doppelt: {maskMoneyText(row.payeeName ?? 'Buchung')} · {money(row.amountCents, true)}</strong>
                 <p>{longDay(row.date)} · Gleicher Betrag, Empfänger und Tag{skipped ? ' · Für diese Prüfung ignoriert' : ''}</p>
                 <div className="panel-actions">
                   <Button variant="ghost" disabled={busy || staleClose} onClick={() => void resolveCandidate(row.removeId, 'delete', row.explainsDifference)}>
@@ -382,7 +387,7 @@ export function ReconcileFlow({
             })}</ul>
           </section>}
           {data.pendingMatches.map((match) => match.bookingIds.length > 1 && <div className="panel-actions" key={match.bookingIds.join('|')}>
-            <p>Passende mögliche Kombination: {match.bookingIds.map((id) => { const row = data.pendingCandidates?.find((r) => r.id === id); return row ? `${row.payeeName ?? row.memo ?? 'Buchung'} · ${longDay(row.date)} · ${money(row.amountCents, true)}` : id; }).join(' / ')}</p>
+            <p>Passende mögliche Kombination: {match.bookingIds.map((id) => { const row = data.pendingCandidates?.find((r) => r.id === id); return row ? `${maskMoneyText(row.payeeName ?? row.memo ?? 'Buchung')} · ${longDay(row.date)} · ${money(row.amountCents, true)}` : id; }).join(' / ')}</p>
             <Button variant="ghost" disabled={busy || staleClose} onClick={() => run({ confirmBookingIds: match.bookingIds })}>
               Diese {match.bookingIds.length} vorgemerkten Buchungen bestätigen und festschreiben · {money(match.sumCents, true)}
             </Button>
@@ -425,6 +430,7 @@ export function ReconcileFlow({
       {error && (
         <p className="field-error" role="alert">
           {maskMoneyText(error)}
+          {!closeContext && <Button variant="ghost" disabled={busy} onClick={() => { setError(null); void preview.refetch(); }}>Prüfung neu laden</Button>}
         </p>
       )}
       <p className="text-muted">

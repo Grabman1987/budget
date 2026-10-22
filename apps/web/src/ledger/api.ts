@@ -261,6 +261,7 @@ export interface ReconcileRequest {
   removeBookingIds?: string[];
   confirmBookingIds?: string[];
   adjust?: boolean;
+  candidateRevision?: string;
   adjustDate?: string;
   categoryId?: string;
   /** Allow the adjustment inside an already checked period. */

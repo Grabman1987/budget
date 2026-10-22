@@ -248,6 +248,7 @@ export const reconcileBody = reconcilePreview.extend({
   removeBookingIds: z.array(id).max(100).default([]),
   confirmBookingIds: z.array(id).max(100).default([]),
   adjust: z.boolean().default(false),
+  candidateRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   adjustDate: day.optional(),
   categoryId: id.optional(),
   /** Allow `adjustDate` inside an already reconciled period. */

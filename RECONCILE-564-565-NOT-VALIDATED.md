@@ -18,8 +18,11 @@ Source progress does not establish acceptance or live completion.
   ordinary booking patch/delete/edit handlers and their audit/Undo. Ignore is an
   explicit local review choice, bound to that account/date/balance/candidate state.
   A changed preview withdraws the old review choice. The opaque review fingerprint
-  includes booking/account state and the audit head; it is a UI review fence, not
-  a new server write permission or a replacement for the retained close revision.
+  includes booking/account state and the audit head. For an adjustment, the client
+  sends the displayed candidate revision and the repo compares it with a fresh
+  preview inside the write transaction before any mutation. A missing/invalid
+  revision is refused; a stale revision conflicts without posting a different
+  residual. Month close retains its independent source-revision CAS.
 - Corrections appear only after the candidates are resolved or explicitly ignored
   and a difference remains. At zero difference, the ordinary final reconciliation
   stamps and locks bookings without creating a correction. Exact explaining
@@ -37,21 +40,33 @@ Source progress does not establish acceptance or live completion.
   Zu verteilen. An invalid explicitly submitted category is rejected before the
   correction is created. The actual amount remains the canonical residual
   `statement − cleared`; cent, date, lock and rollback semantics are unchanged.
+- New candidate payee/memo display text passes through the existing money-text
+  privacy mask. The stored names, notes, candidate revision and editable drafts
+  retain their exact source values.
 
-Changed source: reconciliation repo, ledger DTO/model/flow and scoped reconcile.css.
-The existing preview API already spreads the repo DTO; no shared API/schema/barrel
-patch is required. Preference keys use hashed account identities to remain within
-app_setting's existing 64-character key constraint.
+Changed source: reconciliation repo, ledger DTO/model/flow and scoped reconcile.css;
+the bounded review fix also changes the reconciliation request DTO and Zod API body.
+No database schema/migration or financial formula changes. The existing preview API
+still spreads the repo DTO. Preference keys use hashed account identities to remain
+within app_setting's existing 64-character key constraint.
 
 Deferred proof/adapters: existing reconciliation preview mocks need actual
-`pendingCandidates`, active `adjustmentCategories`, and remembered choice fields;
+`pendingCandidates`, `candidateRevision`, active `adjustmentCategories`, and remembered choice fields;
 old selectors describing an immediate correction/old “Ohne Kategorie” label need
-technical adaptation. Preserve all literal money/status/lock/audit/Undo assertions.
+technical adaptation. Adjustment request fixtures must include the shown revision;
+stale and missing revisions must preserve the old balance and audit group. Preserve
+all literal money/status/lock/audit/Undo assertions.
 Meaningful later proof: duplicate before adjustment, explicit pending actions,
 zero-residual reconciliation, correction/lock/preference grouped Undo and rollback,
-account isolation, deleted/hidden category fallback and concurrent invalidation.
+account isolation, deleted/hidden category fallback, concurrent invalidation,
+and privacy with a money string embedded in a candidate name/memo.
 Desktop1440, Chromium390, WebKit iPhone, light/dark, keyboard/focus/Axe/44px/overflow,
 required checks and independent final-diff review remain open.
 
 Workflow source inspection: push CI is restricted to main; other relevant workflows
 run on PR/manual triggers. Only an ordinary WIP checkpoint push is intended.
+
+The independent source review of the first package head (`e04b3002d5b843f6de35f3bbf98c2e3c1d506674`)
+is archived in `RECONCILE-564-565-SOURCE-REVIEW.md`; its two findings motivated
+the bounded source correction above. An independent final-delta review is still
+required. This checkpoint is not runtime-validated or live.

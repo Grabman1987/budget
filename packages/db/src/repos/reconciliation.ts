@@ -280,6 +280,8 @@ export interface ReconcileInput {
   confirmBookingIds?: string[];
   /** Book the remaining difference as Ausgleich (payee "Korrektur Kontoprüfung"). */
   adjust?: boolean;
+  /** Preview the owner reviewed before allowing an adjustment of the live residual. */
+  candidateRevision?: string;
   /** Day of the Ausgleich (account opening to check day); defaults to the check day. */
   adjustDate?: string;
   categoryId?: string;
@@ -319,6 +321,18 @@ export function reconcileAccount(
     if (!isDay(input.date) || input.date < acct.openingDate)
       throw new BookingInvariantError(`Date "${input.date}" is not valid for this account`);
     assertNotFuture(input.date, input.today ?? todayInVienna());
+    if (input.adjust) {
+      if (!input.candidateRevision || !/^[a-f0-9]{64}$/.test(input.candidateRevision))
+        throw new BookingInvariantError('Lade die Kontoprüfung vor dem Ausgleich neu.');
+      const current = previewReconciliation(tx, {
+        accountId: acct.id,
+        date: input.date,
+        statementBalanceCents: input.statementBalanceCents,
+        today: input.today,
+      });
+      if (current.candidateRevision !== input.candidateRevision)
+        throw new ConflictError('Der Kontostand oder die Kandidaten haben sich geändert. Bitte neu prüfen.');
+    }
     const adjustDate = input.adjustDate ?? input.date;
     if (!isDay(adjustDate) || adjustDate < acct.openingDate || adjustDate > input.date)
       throw new BookingInvariantError(
