@@ -93,3 +93,16 @@ All following heads were read from origin after their normal pushes; none is val
 The fresh coverage audit is archived alongside this note. It corrected stale dependency assumptions: #561 is closed; #566 has open source PR758; #476 has open PR759 and earlier forecast source; #604 has open PR760. #467 child source is delivered, not a new implementation gap. Local #517 worktree is clean at the same4f50e612 source already preserved under the reports branch, though its local alias has no remote ref. Do not recreate these packages.
 
 For #542, source inspection found the former unclamped low-point chart label already constrained by later#580 code. The exact old overflow node and current rendering remain unproven; no speculative source patch was made. Existing run log access returned403 and large artifacts were not downloaded. This is a later validation/diagnosis item, not a claim that the original issue is resolved.
+
+
+## Latest reviewed checkpoints — source only
+
+This snapshot supersedes earlier active-task lists. Remote heads freshly confirmed:
+
+- `codex/impl-485-486-settings-navigation`: `78fa4838953313be5134add009b9b261b34120a8` — Autosave and durable last server-completed CSV response observation; independent source reviews archived; NOT VALIDATED / NOT LIVE.
+- `codex/impl-486-manual-scan`: `ff620377e9f6905a3fa48f2464e1339269d4ea35` — Durable manual scan and four reviewed source corrections; source/security/migration review archived; NOT VALIDATED / NOT LIVE.
+- `codex/impl-727-source-reassessment`: `a2b5e7000f434cb3455da3eb73e4b9614851e185` — Documentary reassessment UI and Undo refresh corrections; final reviewed product source4d130943456665c824d7b1cca15efe0218b00678; NOT VALIDATED / NOT LIVE.
+
+#520 remains at0d38d341618a61a47eae56cc59de9cdbf6b9419b. An independent critique rejected the proposed blanket native-history certificate and one-event-per-day prerequisites as stronger than SPEC009. The author is revising the read-only bridge plan around recorded native ledger basis and canonical stable order, preserving explicit provenance requirements for snapshots/legacy deliveries. No new certificate ledger or migration is authorized by that plan. The critique is archived here.
+
+#516 matching-rule product question remains pending. #719 STOP. No tests, checks, builds, CI dispatch, PR creation, merges, deployment or Live claims.

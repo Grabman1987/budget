@@ -25,7 +25,7 @@
       ],
       "branch": "codex/impl-544-548-portfolio",
       "remote_sha": "ce1e67b17a930d3441e827359f1adf5efcb38303",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED; see handoff for partial AC"
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED; see handoff for partial AC"
     },
     {
       "issues": [
@@ -35,7 +35,7 @@
       ],
       "branch": "codex/impl-591-593-plan",
       "remote_sha": "b5b971902416bd933e1185b261d247a6b766305e",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED; see handoff for partial AC"
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED; see handoff for partial AC"
     },
     {
       "issues": [
@@ -50,7 +50,7 @@
       ],
       "branch": "codex/impl-heute-month-close",
       "remote_sha": "d27f9a2ff042d3c565009040c701ce37141efe98",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED; see handoff for partial AC"
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED; see handoff for partial AC"
     },
     {
       "issues": [
@@ -61,7 +61,7 @@
       ],
       "branch": "codex/impl-offline-558-700",
       "remote_sha": "f24d665fd69019f5b563977390f76fcef5d0ae4a",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED; see handoff for partial AC"
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED; see handoff for partial AC"
     },
     {
       "issues": [
@@ -70,7 +70,7 @@
       ],
       "branch": "codex/impl-611-612-debt",
       "remote_sha": "45b756eaf31763ad2566c63e1ec7c4e3680507b3",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED; see handoff for partial AC"
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED; see handoff for partial AC"
     },
     {
       "issues": [
@@ -85,7 +85,7 @@
       ],
       "branch": "codex/impl-619-623-reports",
       "remote_sha": "4f50e612fed8d812ae054470a3e31ab9553e2732",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED; see handoff for partial AC"
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED; see handoff for partial AC"
     },
     {
       "issues": [
@@ -96,7 +96,7 @@
       ],
       "branch": "codex/impl-594-597-ledger",
       "remote_sha": "6b5401d176658b4225f09d21c018a61cadfd90ea",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED; see handoff for partial AC"
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED; see handoff for partial AC"
     },
     {
       "issues": [
@@ -104,7 +104,7 @@
       ],
       "branch": "codex/backlog-608-year-delivery",
       "remote_sha": "59dacbfd3c2c3d17910a81e2f8983533a960183b",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED; see handoff for partial AC"
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED; see handoff for partial AC"
     },
     {
       "issues": [
@@ -114,14 +114,14 @@
       ],
       "branch": "codex/impl-settings-469-486",
       "remote_sha": "09312b49e578db493bfe279133d30260c5e2ed44",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED; see handoff for partial AC"
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED; see handoff for partial AC"
     },
     {
       "issues": [
         609
       ],
       "branch": "codex/impl-609-payslip-preview",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
       "remote_sha": "6d85aab877d678c0a8f48df237486eaa9e50e36a"
     },
     {
@@ -129,7 +129,7 @@
         599
       ],
       "branch": "codex/impl-599-contacts",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
       "remote_sha": "5bac17b31026aae54e1063d4de607949c51abc1a"
     },
     {
@@ -138,7 +138,7 @@
         521
       ],
       "branch": "codex/impl-518-521-explanations",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
       "remote_sha": "e52447882b1def73d3ec9cced5d777c417bf7a35"
     },
     {
@@ -146,7 +146,7 @@
         607
       ],
       "branch": "codex/impl-607-payments",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
       "remote_sha": "5678b5fe5fd96edd38004294f62d7ed7cef5b24c"
     },
     {
@@ -155,7 +155,7 @@
         565
       ],
       "branch": "codex/impl-564-565-reconcile",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
       "remote_sha": "e04b3002d5b843f6de35f3bbf98c2e3c1d506674"
     },
     {
@@ -164,7 +164,7 @@
         563
       ],
       "branch": "codex/impl-562-563-inbox",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
       "remote_sha": "5477fdb5b966e7a18aae3ff10c7937736f711ef9"
     },
     {
@@ -173,15 +173,15 @@
         486
       ],
       "branch": "codex/impl-485-486-settings-navigation",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; scope and review limitations in package handoff",
-      "remote_sha": "f0cf0a7fecd51ed6d119497982135539c87cfa56"
+      "status": "Autosave and durable last server-completed CSV response observation; independent source reviews archived; NOT VALIDATED / NOT LIVE",
+      "remote_sha": "78fa4838953313be5134add009b9b261b34120a8"
     },
     {
       "issues": [
         514
       ],
       "branch": "codex/impl-514-targets",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
       "remote_sha": "e7566feb0835c697531556651d213e5ef669cad4"
     },
     {
@@ -189,7 +189,7 @@
         519
       ],
       "branch": "codex/impl-519-fx-transfers",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
       "remote_sha": "8b37818bf1c3160638b9909c8ad7feaf7af7c93b"
     },
     {
@@ -197,7 +197,7 @@
         520
       ],
       "branch": "codex/impl-520-security-transfers",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; scope and review limitations in package handoff",
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; scope and review limitations in package handoff",
       "remote_sha": "0d38d341618a61a47eae56cc59de9cdbf6b9419b"
     },
     {
@@ -205,7 +205,7 @@
         471
       ],
       "branch": "codex/impl-471-icons",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
       "remote_sha": "d50abbc00c99a59ae5f0c8336832eb52680f7c42"
     },
     {
@@ -213,7 +213,7 @@
         469
       ],
       "branch": "codex/impl-469-copy",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
       "remote_sha": "27d2e86fe82f5f08eee298ad7631ec2df754f7b4"
     },
     {
@@ -221,7 +221,7 @@
         489
       ],
       "branch": "codex/impl-489-overview-design",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
       "remote_sha": "c16eb406451e3aa31c6afcb2abcf5018af408a6e"
     },
     {
@@ -230,7 +230,7 @@
       ],
       "branch": "codex/impl-516-import-explanations",
       "remote_sha": "eef0bec42421abb73f05b2dd8c336431ba584a18",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; documented provenance limitations"
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; documented provenance limitations"
     },
     {
       "issues": [
@@ -286,7 +286,7 @@
       "issues": [
         470
       ],
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; see package handoff for scope and remaining work",
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; see package handoff for scope and remaining work",
       "remote_sha": "48c91868554647eb01dd9e61a03fc697b745c2fd"
     },
     {
@@ -294,7 +294,7 @@
       "issues": [
         474
       ],
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance documented",
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance documented",
       "remote_sha": "dd11b4e03bdd79ce3074b2e504dd326453080470"
     },
     {
@@ -307,7 +307,7 @@
         699,
         700
       ],
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; see package handoff for scope and remaining work",
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; see package handoff for scope and remaining work",
       "remote_sha": "54fe17bc4447bfc8167af83deaef51ed0aac39c6"
     },
     {
@@ -316,7 +316,7 @@
       ],
       "branch": "codex/impl-488-answer-first",
       "remote_sha": "ca931813e58fe6076a26e70b626ff4050076066a",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; acceptance and integration deferred"
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; acceptance and integration deferred"
     },
     {
       "issues": [
@@ -324,34 +324,33 @@
       ],
       "branch": "codex/impl-487-portfolio-report",
       "remote_sha": "8ba342d00b995d8611af87e968ce159f54375382",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; see package handoff for scope and remaining work"
+      "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; see package handoff for scope and remaining work"
     },
     {
       "issues": [
         486
       ],
       "branch": "codex/impl-486-manual-scan",
-      "remote_sha": "04f8ab9aa9942aa382a4e67e65ce148f2a28e8dd",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; scope and review limitations in package handoff"
+      "remote_sha": "ff620377e9f6905a3fa48f2464e1339269d4ea35",
+      "status": "Durable manual scan and four reviewed source corrections; source/security/migration review archived; NOT VALIDATED / NOT LIVE"
     },
     {
       "issues": [
         727
       ],
       "branch": "codex/impl-727-source-reassessment",
-      "remote_sha": "f3321ea0392eee3a7026e6921c2cac626307e489",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; scope and review limitations in package handoff"
+      "remote_sha": "a2b5e7000f434cb3455da3eb73e4b9614851e185",
+      "status": "Documentary reassessment UI and Undo refresh corrections; final reviewed product source4d130943456665c824d7b1cca15efe0218b00678; NOT VALIDATED / NOT LIVE"
     }
   ],
   "remaining_agents": [
-    "design_474_remaining: #487 Portfolio-Auswertung implementation",
-    "tables_470_remaining: remaining #470 monetary axes"
+    "design_474_remaining: revise #520 minimal authoritative recorded-ledger reader plan with independent review"
   ],
   "stop": [
     719
   ],
   "completion_policy": "No issue closures/Live status from unvalidated source; existing financial/security/Undo semantics and evidence preserved.",
-  "observed_at_utc": "2026-10-22T20:21:59.140521+00:00",
+  "observed_at_utc": "2026-10-22T21:15:44.453433+00:00",
   "owner_decisions": {
     "519": [
       "Preserve actual native amounts and disclose quoted-rate discrepancy",
@@ -360,7 +359,7 @@
     ],
     "520": "Non-divisible residual cent remains with source holding and accompanies its eventual full transfer; total basis conserved."
   },
-  "agent_state": "Two active bounded implementation tasks; no queue loop.",
+  "agent_state": "One bounded read-only design follow-up active; completed source checkpoints archived; no automatic queue loop.",
   "board": "94 open repository issues at last fresh read; project board inaccessible: Resource not accessible by integration (user.projectV2). Do not call 94 the Warteschlange column count.",
   "coordination_owner": "Budget App Main / this chat, explicitly reconfirmed by owner; Codex CLI optional support only.",
   "goal_objective_received": true,
@@ -373,28 +372,7 @@
         520
       ],
       "branch": "codex/impl-520-security-transfers",
-      "scope": "Rational graph source pushed; read-only plan for authoritative history bridge, no writer or persistence implemented"
-    },
-    {
-      "issues": [
-        486
-      ],
-      "branch": "codex/impl-486-manual-scan",
-      "scope": "Pinned04f8ab9 full security/migration source review; deadline source finding under investigation; no execution"
-    },
-    {
-      "issues": [
-        727
-      ],
-      "branch": "codex/impl-727-source-reassessment",
-      "scope": "Pinnedf3321ea UI independent source review"
-    },
-    {
-      "issues": [
-        486
-      ],
-      "branch": "codex/impl-485-486-settings-navigation",
-      "scope": "Bounded durable last-export observation preparation, no invented restore/history claims"
+      "scope": "Revising read-only DB history bridge plan after independent minimality critique; no unnecessary certificate ledger; no new persistence or writer yet"
     }
   ]
 }

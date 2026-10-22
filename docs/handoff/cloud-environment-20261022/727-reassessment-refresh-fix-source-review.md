@@ -1,0 +1,9 @@
+# #727 refresh-failure correction — source-only delta review
+
+Reviewed `4d130943456665c824d7b1cca15efe0218b00678` against `854ee2168d10f1d388ad8e12066e27e538f3e28b` in `/workspace/impl-727-source-reassessment`. Scope was the `useBudgetWrite` refresh change and its existing reassessment save, inline Undo, and toast Undo/redo callers. **No actionable finding in this delta.** No runtime validation was performed.
+
+For a reassessment save, `write` now returns the successful POST receipt even when generic query invalidation rejects, provided the source-history callback was supplied (`apps/web/src/budget/use-category-writes.ts:58-75`). `run` therefore proceeds to fetch and adopt the revised intake and settlement state (`apps/web/src/statement-intake/statement-settlement-727.tsx:535-567,598-624`). Actual POST rejection still yields no receipt and follows the existing retry/conflict handling; a refresh rejection alone no longer masquerades as an uncertain action failure.
+
+After a successful toast Undo or redo, the generic refresh failure is recorded, then `history.afterApply()` still runs (`use-category-writes.ts:83-108,115-140`). That callback reloads/adopts the intake and marks the parent conflict if source reload fails (`statement-settlement-727.tsx:469-510`). The inline Undo also receives a result despite a generic refresh failure and performs its explicit source reload (`:693-719`). Source adoption still checks the current statement identity and dirty/busy state as covered in the prior review. Other `useBudgetWrite` callers omit `history`; their initial-write refresh failure continues to return undefined, and their Undo/redo refresh failure stops without invoking a source callback. The new catch provides an explicit toast for those existing Undo/redo failures.
+
+These conclusions are limited to static source control flow. Browser timing, network failures, query behavior, and runtime Undo/redo have not been validated.
