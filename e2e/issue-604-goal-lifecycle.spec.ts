@@ -25,12 +25,10 @@ async function hit(control: Locator) {
   expect(box.center).toBe(true);
 }
 async function dismissToast(page: Page) {
-  const undo = page
-    .locator('.toast.is-open')
-    .getByRole('button', { name: 'Rückgängig', exact: true });
-  if (await undo.isVisible()) {
-    await undo.focus();
-    await undo.press('Escape');
+  const action = page.locator('.toast.is-open').getByRole('button').first();
+  if (await action.isVisible()) {
+    await action.focus();
+    await action.press('Escape');
   }
 }
 for (const profile of ['desktop', 'phone'] as const)
