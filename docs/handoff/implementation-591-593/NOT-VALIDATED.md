@@ -77,6 +77,10 @@ fresh bounded read; the existing source-unavailable notice and disabled selected
 fieldset express that state. No financial formula, server writer or Undo path was
 changed.
 
-The corrected source awaits independent exact-delta review. No tests, test edits,
-checks, typechecks, builds, browser/accessibility run, CI, PR, merge or deployment
-were performed. All issue acceptance and LIVE status remain open.
+The [independent exact-delta source review](591-593-plan-fix-source-review.md)
+compared `fcb30a83c0a3757c9d756c9a51e253c38f0f119f` with
+`b5b971902416bd933e1185b261d247a6b766305e`. It found all three P2
+defects addressed in the bounded source and no new actionable defect. This is
+source-clear only. No tests, test edits, checks, typechecks, builds,
+browser/accessibility run, CI, PR, merge or deployment were performed. All issue
+acceptance and LIVE status remain open.
