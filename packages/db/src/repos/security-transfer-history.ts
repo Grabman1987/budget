@@ -435,6 +435,8 @@ export type RecordedSecurityTransferPreview =
       available: true;
       evidenceClass: 'recorded-native' | 'recorded-paired';
       method: 'fifo' | 'average';
+      /** Versioned full-current-history CAS evidence for a later atomic writer. */
+      factFingerprint: string;
       date: string;
       unitsE8: number;
       source: { accountId: string; beforeUnitsE8: number; beforeBasisCents: number;
@@ -497,6 +499,7 @@ export function previewRecordedSecurityTransfer(db: Executor, input: {
     message: historyMessage.replay_conflict, applyAvailable: false };
   return {
     available: true, evidenceClass: history.evidenceClass, method: plan.method,
+    factFingerprint: history.factFingerprint,
     date: plan.date, unitsE8: plan.unitsE8,
     source: { accountId: source.accountId, beforeUnitsE8: source.unitsE8,
       beforeBasisCents: source.basisCents, remainingUnitsE8: source.unitsE8 - input.unitsE8,

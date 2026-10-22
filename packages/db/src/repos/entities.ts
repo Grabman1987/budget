@@ -9,6 +9,19 @@ import { BookingInvariantError, EntityNotFoundError } from './errors';
 import { assertAccountBookingCurrencies, assertBudgetAccountCurrency } from './account-invariants';
 import { runInTransaction, type Executor } from './types';
 import { assertFxAccountInvariants } from './fx-transfer-invariants';
+import { assertPairedScopes, pairedScopesFor, type PairedHistorySeed } from './security-transfer-invariants';
+
+const pairSeeds = (name: string, row: Record<string, unknown>): PairedHistorySeed[] => {
+  if (name === 'account' && typeof row['id'] === 'string')
+    return [{ accountId: row['id'] }];
+  if (name === 'security' && typeof row['id'] === 'string')
+    return [{ securityId: row['id'] }];
+  if (name === 'holding' && typeof row['accountId'] === 'string' &&
+      typeof row['securityId'] === 'string')
+    return [{ accountId: row['accountId'], securityId: row['securityId'] }];
+  return [];
+};
+const pairedEntity = (name: string) => ['account', 'security', 'holding'].includes(name);
 
 /**
  * Generic repository for simple id-keyed tables (category, category_group, payee, contact,
@@ -81,6 +94,9 @@ export function createEntity<T extends IdTable>(
       { ...values, id: values.id ?? randomUUID() } as T['$inferInsert'],
       grouped,
     );
+    if (pairedEntity(tableMeta(table).name))
+      assertPairedScopes(tx, pairedScopesFor(tx,
+        pairSeeds(tableMeta(table).name, stored as unknown as Record<string, unknown>)));
     if (tableMeta(table).name === 'contact') assertContactName(tx, String(stored['id']));
     return stored;
   });
@@ -131,6 +147,12 @@ export function updateEntity<T extends IdTable>(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const current = requireLive(tx, table, id);
+    const name = tableMeta(table).name;
+    const affectsPair = name === 'holding' ||
+      (name === 'account' && ['role', 'onBudget', 'currency', 'openingDate', 'closedAt']
+        .some((key) => Object.hasOwn(patch, key)));
+    const pairedBefore = affectsPair
+      ? pairedScopesFor(tx, pairSeeds(name, current as unknown as Record<string, unknown>)) : [];
     if (tableMeta(table).name === tableMeta(account).name) {
       const before = current as typeof account.$inferSelect;
       const change = patch as Partial<typeof account.$inferInsert>;
@@ -152,7 +174,12 @@ export function updateEntity<T extends IdTable>(
         change.currency ?? before.currency,
       );
     }
-    updateTracked(tx, table, [id], patch as Record<string, unknown>, grouped);
+    updateTracked(tx, table, [id], patch as unknown as Record<string, unknown>, grouped);
+    if (affectsPair) {
+      const updated = requireLive(tx, table, id);
+      assertPairedScopes(tx, [...pairedBefore, ...pairedScopesFor(tx,
+        pairSeeds(name, updated as unknown as Record<string, unknown>))]);
+    }
     if (tableMeta(table).name === tableMeta(account).name &&
       ['currency', 'onBudget', 'openingDate'].some((key) => Object.hasOwn(patch, key)))
       assertFxAccountInvariants(tx, [id]);
@@ -181,8 +208,14 @@ export function softDeleteEntity<T extends IdTable>(
 ): void {
   const grouped = withGroup(ctx);
   runInTransaction(db, (tx) => {
-    requireLive(tx, table, id);
+    const current = requireLive(tx, table, id);
+    const name = tableMeta(table).name;
+    const pairedBefore = pairedEntity(name)
+      ? pairedScopesFor(tx, pairSeeds(name, current as unknown as Record<string, unknown>)) : [];
     updateTracked(tx, table, [id], { deletedAt: new Date().toISOString() }, grouped, 'delete');
+    if (pairedBefore.length)
+      assertPairedScopes(tx, [...pairedBefore, ...pairedScopesFor(tx,
+        pairSeeds(name, current as unknown as Record<string, unknown>))]);
     if (['account', 'contact', 'category'].includes(tableMeta(table).name))
       assertContactSettlementInvariants(tx);
     if (['account', 'category'].includes(tableMeta(table).name))
@@ -207,7 +240,13 @@ export function restoreEntity<T extends IdTable>(
       const accountRow = row as typeof account.$inferSelect;
       assertBudgetAccountCurrency(accountRow.onBudget, accountRow.currency);
     }
+    const name = tableMeta(table).name;
+    const pairedBefore = pairedEntity(name)
+      ? pairedScopesFor(tx, pairSeeds(name, row as unknown as Record<string, unknown>)) : [];
     updateTracked(tx, table, [id], { deletedAt: null }, grouped, 'restore');
+    if (pairedEntity(name))
+      assertPairedScopes(tx, [...pairedBefore, ...pairedScopesFor(tx,
+        pairSeeds(name, requireLive(tx, table, id) as unknown as Record<string, unknown>))]);
     if (tableMeta(table).name === 'contact') assertContactName(tx, id);
     if (tableMeta(table).name === tableMeta(account).name) assertAccountBookingCurrencies(tx, [id]);
     if (['account', 'contact', 'category'].includes(tableMeta(table).name))

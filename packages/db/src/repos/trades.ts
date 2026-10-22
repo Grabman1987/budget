@@ -26,6 +26,11 @@ import {
 } from './bookings';
 import { BookingInvariantError, EntityNotFoundError } from './errors';
 import { assertLedgerInvariants, assertTradeSettlementInvariants } from './invariants';
+import {
+  assertPairedScopes,
+  assertUnpairedTrade,
+  pairedScopesFor,
+} from './security-transfer-invariants';
 import { runInTransaction, type Executor } from './types';
 
 export type TradeRow = typeof trade.$inferSelect;
@@ -176,6 +181,7 @@ export function createTrade(db: Executor, input: TradeInput, ctx: AuditContext):
         .where(and(eq(trade.accountId, input.accountId), eq(trade.importKey, input.importKey)))
         .get();
       if (existing) {
+        assertUnpairedTrade(tx, existing.id);
         assertTradeSettlementInvariants(tx, existing.bookingId ? [existing.bookingId] : [], [
           existing.id,
         ]);
@@ -184,6 +190,7 @@ export function createTrade(db: Executor, input: TradeInput, ctx: AuditContext):
     }
     const sec = liveSecurity(tx, input.securityId);
     investmentAccount(tx, input.accountId);
+    const pairedBefore = pairedScopesFor(tx, [input]);
     const net = settlementCents(fields);
     const bookingId =
       net === 0
@@ -219,6 +226,7 @@ export function createTrade(db: Executor, input: TradeInput, ctx: AuditContext):
       grouped,
     );
     assertTradeSettlementInvariants(tx, bookingId ? [bookingId] : [], [row.id]);
+    assertPairedScopes(tx, [...pairedBefore, ...pairedScopesFor(tx, [input])], input.date);
     return { trade: row, bookingId, duplicate: false };
   });
 }
@@ -251,6 +259,10 @@ export function updateTrade(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const cur = loadTrade(tx, id);
+    assertUnpairedTrade(tx, id);
+    const pairedBefore = pairedScopesFor(tx, [cur, {
+      accountId: cur.accountId, securityId: patch.securityId ?? cur.securityId,
+    }]);
     if (
       cur.savingsPlanId &&
       ((patch.kind && patch.kind !== 'buy') ||
@@ -322,6 +334,9 @@ export function updateTrade(
       grouped,
     );
     assertTradeSettlementInvariants(tx, cur.bookingId ? [cur.bookingId] : [], [id]);
+    assertPairedScopes(tx, [...pairedBefore, ...pairedScopesFor(tx, [cur, {
+      accountId: cur.accountId, securityId,
+    }])], date);
     return { trade: loadTrade(tx, id), bookingId, duplicate: false };
   });
 }
@@ -336,6 +351,8 @@ export function deleteTrade(
   const grouped = withGroup(ctx);
   runInTransaction(db, (tx) => {
     const cur = loadTrade(tx, id);
+    assertUnpairedTrade(tx, id);
+    const pairedBefore = pairedScopesFor(tx, [cur]);
     updateTracked(tx, trade, [id], { deletedAt: new Date().toISOString() }, grouped, 'delete');
     if (cur.bookingId) {
       if (!getBooking(tx, cur.bookingId))
@@ -343,6 +360,7 @@ export function deleteTrade(
       deleteTradeSettlementBooking(tx, cur.bookingId, grouped, options);
     }
     assertTradeSettlementInvariants(tx, cur.bookingId ? [cur.bookingId] : [], [id]);
+    assertPairedScopes(tx, [...pairedBefore, ...pairedScopesFor(tx, [cur])], cur.date);
   });
 }
 
@@ -429,6 +447,7 @@ export function createTradesBulk(
       const key = input.importKey ? `${input.accountId}|${input.importKey}` : null;
       const existing = key ? stored.get(key) : undefined;
       if (existing) {
+        assertUnpairedTrade(tx, existing.id);
         results.push({ trade: existing, bookingId: existing.bookingId, duplicate: true });
         continue;
       }
@@ -489,6 +508,14 @@ export function createTradesBulk(
       bookingRows.map((r) => r.id as string),
       tradeRows.map((r) => r.id as string),
     );
+    const pairedSeeds = tradeRows.map((row) => ({ accountId: row.accountId,
+      securityId: row.securityId }));
+    for (const scope of pairedScopesFor(tx, pairedSeeds)) {
+      const date = tradeRows.filter((row) => row.securityId === scope.securityId &&
+        [scope.sourceAccountId, scope.destinationAccountId].includes(row.accountId))
+        .map((row) => row.date).sort()[0];
+      assertPairedScopes(tx, [scope], date);
+    }
     return results;
   });
 }

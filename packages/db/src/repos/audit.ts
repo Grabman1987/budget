@@ -39,6 +39,12 @@ import { assertAccountBookingCurrencies, assertEurBudgetAccounts } from './accou
 import { runInTransaction, type Executor } from './types';
 import { fxLinksOfBooking, fxLinksOfBookings } from './fx-transfers';
 import { assertFxBookingInvariants } from './fx-transfer-invariants';
+import {
+  assertPairedScopes,
+  isPairedTrade,
+  pairedScopesFor,
+  type PairedHistorySeed,
+} from './security-transfer-invariants';
 
 export { AuditError } from './errors';
 
@@ -454,6 +460,56 @@ function loadTarget(db: Executor, target: UndoTarget): AuditEntry[] {
   return rows.map(parseEntry);
 }
 
+/** Use both sides of each audit snapshot: undo can move a native fact out of a pair component. */
+function securitySeedsOfUndo(entries: readonly AuditEntry[]): PairedHistorySeed[] {
+  const seeds: PairedHistorySeed[] = [];
+  for (const entry of entries) for (const snapshot of [entry.before, entry.after]) {
+    if (!snapshot) continue;
+    if (entry.entityType === 'trade' || entry.entityType === 'holding') {
+      const accountId = snapshot['account_id'], securityId = snapshot['security_id'];
+      if (typeof accountId === 'string' && typeof securityId === 'string')
+        seeds.push({ accountId, securityId });
+    } else if (entry.entityType === 'account' && typeof snapshot['id'] === 'string') {
+      seeds.push({ accountId: snapshot['id'] });
+    } else if (entry.entityType === 'security' && typeof snapshot['id'] === 'string') {
+      seeds.push({ securityId: snapshot['id'] });
+    }
+  }
+  return seeds;
+}
+
+/** A paired delivery is one audited action, including when Undo is itself undone. */
+function assertWholeSecurityTransferUndo(db: Executor, entries: readonly AuditEntry[],
+  singleEntry: boolean): PairedHistorySeed[] {
+  const pairIds = new Set(entries.filter((entry) =>
+    entry.entityType === 'security_transfer_pair').map((entry) => entry.entityId));
+  for (const entry of entries) if (entry.entityType === 'trade' && isPairedTrade(db, entry.entityId)) {
+    const pair = db.select().from(schema.securityTransferPair).where(or(
+      eq(schema.securityTransferPair.outTradeId, entry.entityId),
+      eq(schema.securityTransferPair.inTradeId, entry.entityId))).get();
+    if (pair) pairIds.add(pair.id);
+  }
+  if (pairIds.size > 1000)
+    throw new AuditError('Die Übertragshistorie überschreitet die Undo-Grenze.');
+  if (singleEntry && pairIds.size)
+    throw new AuditError('Wertpapierübertrag und beide Schenkel nur als gesamte Aktion rückgängig machen.');
+  const subjects = new Set(entries.map((entry) => `${entry.entityType}|${entry.entityId}`));
+  const seeds = securitySeedsOfUndo(entries);
+  for (const pairId of pairIds) {
+    const pair = db.select().from(schema.securityTransferPair)
+      .where(eq(schema.securityTransferPair.id, pairId)).get();
+    if (!pair || !subjects.has(`security_transfer_pair|${pairId}`) ||
+        !subjects.has(`trade|${pair.outTradeId}`) || !subjects.has(`trade|${pair.inTradeId}`))
+      throw new AuditError('Wertpapierübertrag und beide Schenkel nur als gesamte Aktion rückgängig machen.');
+    for (const legId of [pair.outTradeId, pair.inTradeId]) {
+      const leg = db.select().from(schema.trade).where(eq(schema.trade.id, legId)).get();
+      if (!leg) throw new AuditError('Ein Übertragsschenkel fehlt.');
+      seeds.push({ accountId: leg.accountId, securityId: pair.securityId });
+    }
+  }
+  return seeds;
+}
+
 function occurrenceBookingIds(entry: AuditEntry): string[] {
   if (entry.entityType !== getTableName(schema.expectedOccurrence)) return [];
   return [...new Set([entry.before?.['booking_id'], entry.after?.['booking_id']])].filter(
@@ -638,6 +694,8 @@ export function undo(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const originals = loadTarget(tx, target);
+    const pairedSeeds = assertWholeSecurityTransferUndo(tx, originals, 'auditId' in target);
+    const pairedBefore = pairedScopesFor(tx, pairedSeeds);
     assertStatementUndoTarget(tx, originals, 'auditId' in target);
     // Protocol state cannot be replayed by undo: callbacks are one-shot and remote consent is external.
     if (
@@ -968,6 +1026,7 @@ export function undo(
       touched,
       originals.filter((entry) => entry.entityType === 'trade').map((entry) => entry.entityId),
     );
+    assertPairedScopes(tx, [...pairedBefore, ...pairedScopesFor(tx, pairedSeeds)]);
     const written = tx
       .select()
       .from(auditLog)
