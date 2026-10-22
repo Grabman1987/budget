@@ -9,7 +9,7 @@ const GLOSSARY = new Map<string, string>([
   ],
   [
     'Zu verteilen',
-    'Ein positiver Betrag ist im Budget noch keiner Kategorie zugewiesen. Ein negativer Betrag zeigt eine zu hohe Zuweisung. Verteilen betrifft mehrere Kategorien; zuweisen eine einzelne Kategorie.',
+    'Ein positiver Betrag ist im Budget noch keiner Kategorie zugewiesen. Ein negativer Betrag zeigt, dass aktuell weniger Geld zur Verteilung bereitsteht, als bereits gebunden ist. Ungedeckte Ausgaben können dazu beitragen. Verteilen betrifft mehrere Kategorien; zuweisen eine einzelne Kategorie.',
   ],
   [
     'Zugewiesen',
