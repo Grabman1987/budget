@@ -13,3 +13,7 @@ No new tests/test edits, test run, typecheck, build, browser, screenshot, CI, PR
 ## Independent source review
 
 The package source was independently inspected; see `SOURCE-REVIEW.md` for the exact revision and scope. One P3 wording error was corrected to describe the available category amount explicitly; no financial behavior changed. Correction-delta review pending. No runtime validation was performed. NOT VALIDATED / NOT LIVE.
+
+## Latest independent source review
+
+Independent correction-delta review of ede497e55ed6c63bf141b6ebdcd37dd3a4563105 found the wording issue resolved without behavior changes. See COPY-FIX-SOURCE-REVIEW.md; runtime acceptance remains open. NOT VALIDATED / NOT LIVE.
