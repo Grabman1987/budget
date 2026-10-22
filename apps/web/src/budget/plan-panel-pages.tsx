@@ -227,7 +227,7 @@ export function GoalDetailPage() {
                   onClick={() =>
                     void write(
                       () => completeGoal(id),
-                      () => 'Sparziel abgeschlossen. Buchungen bleiben erhalten.',
+                      () => 'Abgeschlossen.',
                     )
                   }
                 >

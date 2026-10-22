@@ -140,3 +140,13 @@ This is a deliberate distinction between retired adoption-button UI coverage and
 retained actual API financial/Undo coverage. Independent review must inspect that
 coverage boundary. No screenshot baseline, timeout, tolerance, financial oracle
 or existing calculation changed. Root owns all reruns and baseline decisions.
+
+
+## Phone completion-toast fit
+
+Root visually inspected the phone-light native capture on `3b44ddce`: the long
+completion message let the Undo action spill outside its toast box near the FAB.
+The goal completion toast now says “Abgeschlossen.”; retained goals/bookings and
+manual-completion semantics remain visible in the goal/history flow and unchanged
+in source. No global toast CSS, Undo behavior, assertion or timeout changes.
+Only the affected phone capture needs refreshing after this source change.
