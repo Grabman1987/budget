@@ -83,3 +83,7 @@ No tests, test edits, checks/typechecks, builds, browsers, CI, PR, merge, or dep
 ### Profile refresh reconciliation follow-up — NOT VALIDATED
 
 The independent [source review](settings-486-autosave-source-review.md) of `baa966cc3e1c4a3085c6997430f8f8c61d9edc52` found that a profile refresh observed during a dirty draft could remain unapplied after the owner reverted that draft. The form now reconciles the current saved profile with its baseline whenever it is clean and not saving, including when the refresh arrived earlier. Dirty drafts, failed-write drafts, pending writes, changed-key PATCH, and audited Undo are retained. Same-field cross-device conflict detection remains outside this bounded web-source fix. This delta has no runtime validation; no tests, test edits, checks/typechecks, builds, browsers, CI, PR, merge, or deployment were performed.
+
+### Independent autosave correction source review
+
+Source correction `41222031dd0ba702265be5b9b395be5da1a01cdf` was independently reviewed against `baa966cc3e1c4a3085c6997430f8f8c61d9edc52`. The previously reported stale clean-profile refresh path is addressed in the inspected source; no further scoped finding. See `settings-486-autosave-fix-source-review.md`. This was read-only source reasoning, not executable or UI validation. Existing same-field cross-device writer limitations and all acceptance gates remain open.
