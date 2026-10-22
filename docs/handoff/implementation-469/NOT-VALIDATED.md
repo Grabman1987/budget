@@ -9,3 +9,7 @@ The settings Automatisch/Hell/Dunkel and Portfolio-Auswertung work is independen
 Remaining #469 scope: all rule-code placements and generated report-sentence templates need a final product-wide copy pass after source packages are assembled; the >=1 EUR savings-warning behavior and global glossary popovers are not implemented by this text-only checkpoint. New pending weekly targets need explicit weekly labels, not a mechanical Monatsziel replacement. No complete-issue or visual acceptance claim.
 
 No new tests/test edits, test run, typecheck, build, browser, screenshot, CI, PR, merge or deployment. Literal finance, runtime and visual/accessibility proofs remain deferred under the owner's instruction.
+
+## Independent source review
+
+The package source was independently inspected; see `SOURCE-REVIEW.md` for the exact revision and scope. One P3 wording error was corrected to describe the available category amount explicitly; no financial behavior changed. Correction-delta review pending. No runtime validation was performed. NOT VALIDATED / NOT LIVE.

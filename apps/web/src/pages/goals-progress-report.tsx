@@ -138,8 +138,8 @@ function ReportBody({
           </span>
         </div>
         <p className="vnote">
-          Monatsstand aus den gespeicherten Sparzielen. Gespart entspricht dem verfügbaren Kategorie
-          oder dem Geldsaldo des verknüpften Kontos am Monatsende. Die Monatsrate folgt den letzten
+          Monatsstand aus den gespeicherten Sparzielen. Gespart entspricht dem verfügbaren Betrag in
+          der Kategorie oder dem Geldsaldo des verknüpften Kontos am Monatsende. Die Monatsrate folgt den letzten
           drei Monaten.
         </p>
         <p className="vnote">
