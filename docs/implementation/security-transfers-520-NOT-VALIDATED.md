@@ -6,6 +6,11 @@ Owner implementation-only direction (2026-10-22) applies. No tests, test edits,
 test runs, typechecks, builds, browser checks, CI, PR, merge, deployment or database
 operation was performed. This is bounded preparation, not Stage-A acceptance.
 
+The subsequent implementation-only FIFO slice at `a5156b399d3c09094b255c32177c0685fb9213a7`
+uses the [bounded lineage policy review](security-transfers-520-lineage-policy-review.md).
+It completes the same-original-acquisition FIFO interpretation in the two pure helpers;
+moving-average rational ancestry and authoritative database/API work remain separate.
+
 ## Existing implementation inventory
 
 The actual #520 issue remains an epic. Its 2026-10-22 owner comment records the
@@ -35,17 +40,20 @@ are **not** themselves proof of database lineage, lock state or an authoritative
 replay; a future repository adapter must derive them and revalidate transactionally.
 The helper does not accept caller-entered fragments through an authenticated API.
 
-- FIFO consumes the declared acquisition order, retaining every carried fragment's
-  original acquisition identity/date/order. Average moves exact proportional
+- FIFO consumes the declared acquisition order, deriving one current economic lot
+  from reunited fragments of the same original acquisition in one account. Immutable
+  contributing records retain their separate quantities, cents and transfer paths.
+  Average moves exact proportional
   acquisition-unit fragments, with one separately allocated pool basis. No method defaults
   or switches are introduced.
 - BigInt intermediate arithmetic preserves exact E8 units and applies the approved
   source-residual cent policy.
   Source remaining basis plus moved basis conserves the supplied basis. Destination
-  existing fragments remain separate; the preview does not invent new persisted
-  fragment IDs or claim a complete destination replay by itself.
+  existing fragments may be shown as a normalized economic lot with its contributing
+  records intact; the preview does not invent new persisted fragment IDs or claim a
+  complete destination replay by itself.
 - Unrepresentable E8 fragment units are rejected, not rounded. Unknown basis,
-  ambiguous/duplicate fragment identity or unexplained acquisition order, insufficient units,
+  ambiguous/duplicate fragment identity or unrelated tied acquisition order, insufficient units,
   unsupported corporate actions, unestablished transfer boundary, declared locks,
   unsupported currency and unsafe integer bounds fail closed.
 - A separate scope helper accepts both explicit paired legs with a pair identity,
@@ -105,17 +113,24 @@ combined fragments to 2,000. No input is written or mutated.
 Original acquisition identity/date/order is distinct from fragment identity.
 Buys create namespaced fragment IDs; every incoming transfer fragment gets a
 different namespaced ID derived from its explicit incoming leg and allocation
-index. Its original acquisition fields remain unchanged and its explicit pair path
-is extended. Results retain pair and both leg identities, computational allocation
+index. Its original acquisition fields remain unchanged. A linear pair path is
+extended only while it remains a single path. A received reunited lot instead
+retains an immutable derivation referencing the source aggregate and the actual
+pair/out-leg/in-leg IDs, date and account boundary; it never concatenates contributing
+paths. Results retain
+pair and both leg identities, computational allocation
 and incoming fragments. Repeated transfers to the same recipient can therefore
 coexist without claiming a second acquisition or reusing a fragment identity.
 The preview accepts repeated acquisition positions only for the same original
-acquisition with an explicit transfer path; inconsistent dates/orders for one
-acquisition identity and unrelated ties remain rejected.
+acquisition with documented derived/transfer ancestry; inconsistent dates/orders
+for one acquisition identity and unrelated ties remain rejected.
 
-FIFO sales reuse the existing `fifoCost` disposal rule and preserve remaining lot
-fragments. Average sales reuse `averageCost`; provenance units are reduced exactly
+FIFO sales normalize current fragments of the same original acquisition before
+the existing `fifoCost` disposal rule, and preserve the contributing records in
+the remaining lot's derivation. Average sales reuse `averageCost`; provenance units are reduced exactly
 proportionally while basis remains pooled. Any fractional E8 provenance is rejected.
+Existing representable average reductions now retain their prior-fragment references;
+this does not implement exact rational pooled ancestry or alter the average cost rule.
 Both shared sale results are reconciled against exact BigInt half-up cents, and a
 floating-point mismatch is rejected instead of changing canonical sale arithmetic.
 The approved **transfer floor** is applied only to transfers; actual sales keep
@@ -123,16 +138,13 @@ their existing half-up disposal rule. Transfers themselves add no realized gain,
 cash, fees, taxes or settlement activity. Historical replay previews are kept
 independent from later appends to the same account.
 
-There is a deliberate remaining FIFO limit. Suppose one original lot is 2 units /
-1 cent. A transfers 1 unit / 0 cents to B, then its remaining 1 unit / 1 cent to B.
-B now has two distinct fragments of the same acquisition position. A further
-1-unit FIFO transfer could select 0 or 1 cent if an ordering were invented. This
-source rejects later FIFO consumption of that tied acquisition position, including
-conservatively rejecting a full disposal, rather than picking an order or silently
-coalescing the fragments. A reviewed coalescing/fragment-order rule remains needed.
-Average keeps the combined 1-cent pool and still floors once at the aggregate
-level; its exact-E8 provenance constraint also remains. These are explicit source
-limits, not claims that the complete replay contract has been accepted.
+For a documented original lot of 2 units / 1 cent transferred to B in two steps
+(1/0 then 1/1), B's current FIFO economic lot is 2/1. Its two arrival records
+remain separate evidence. A further 1-unit transfer carries 0 cents under the
+approved transfer floor; a 1-unit sale consumes 1 cent under canonical sale
+half-up. Those are code interpretations, not executed acceptance results. Average
+keeps the combined 1-cent pool and still floors once at the aggregate level; its
+exact-E8 provenance constraint remains.
 
 A similar lineage choice arises for two fragments of one E8 micro-unit each when
 one micro-unit is transferred proportionally: each fragment would contribute half
@@ -149,8 +161,9 @@ controls, not results obtained by running this source.
 
 ## Remaining before any canonical financial mutation
 
-Independent review and acceptance of the bounded dated replay, FIFO same-acquisition
-fragment consumption/coalescing policy, authoritative zero-opening/history/order
+Independent source review and acceptance of the bounded dated replay and this FIFO
+same-acquisition normalization; exact rational moving-average ancestry;
+authoritative zero-opening/history/order
 reader, existing split/snapshot/unpaired-delivery provenance, and wider supported
 history; explicit authoritative pair/lineage relation with migration reservation/review;
 transactional backdated-edit revalidation; locks, stale preview,
@@ -160,4 +173,4 @@ integration/deployment/live gates. Stage A's tested replay exit criterion is not
 satisfied by these source helpers. Existing split behavior is unchanged; this narrow
 replay rejects split events rather than claiming AC-009-06 coverage. No issue or
 private-financial validation is claimed. No persistence/API work follows this
-checkpoint until the replay contract and remaining policies are complete.
+checkpoint until the replay contract and remaining provenance work are complete.

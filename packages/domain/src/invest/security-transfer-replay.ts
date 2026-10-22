@@ -3,6 +3,7 @@ import { averageCost, fifoCost, type CostTrade } from './invest';
 import { moneyRuleViolation, unitsRuleViolation } from './trade-rules';
 import {
   previewKnownBasisSecurityTransfer,
+  normalizeFifoAcquisitionFragments,
   type SecurityTransferPreview,
   type SecurityTransferPreviewError,
   type TransferLotFragment,
@@ -135,7 +136,8 @@ export function replayKnownSecurityTransfers(input: KnownSecurityReplayInput): K
         state.basisCents += event.amountCents + event.feeCents;
       } else {
         const quantity = BigInt(-event.unitsE8), beforeUnits = totalUnits(state.fragments);
-        if (quantity > beforeUnits || (input.method === 'fifo' && !unambiguous(state.fragments)))
+        const fifoLots = input.method === 'fifo' ? normalizeFifoAcquisitionFragments(state.fragments) : [];
+        if (quantity > beforeUnits || (input.method === 'fifo' && !unambiguous(fifoLots)))
           return fail('ambiguous_disposal', event.id);
         const remaining: TransferLotFragment[] = [];
         if (input.method === 'average') {
@@ -144,11 +146,13 @@ export function replayKnownSecurityTransfers(input: KnownSecurityReplayInput): K
             if (numerator % beforeUnits !== 0n)
               return fail('nonrepresentable_allocation', event.id);
             const units = BigInt(fragment.unitsE8) - numerator / beforeUnits;
-            if (units > 0n) remaining.push({ ...fragment, unitsE8: Number(units), basisCents: null });
+            if (units > 0n) remaining.push({ ...fragment, unitsE8: Number(units), basisCents: null,
+              ...(numerator > 0n ? { derivation: { kind: 'sold-remainder' as const,
+                saleId: event.id, date: event.date, source: fragment } } : {}) });
           }
         } else {
           let left = quantity;
-          for (const fragment of ordered(state.fragments)) {
+          for (const fragment of fifoLots) {
             const units = BigInt(fragment.unitsE8), taken = left < units ? left : units;
             if (fragment.basisCents === null) return fail('unknown_basis', event.id);
             const cost = fifoCost({ unitsE8: fragment.unitsE8, costBasisCents: fragment.basisCents }, [{
@@ -156,7 +160,10 @@ export function replayKnownSecurityTransfers(input: KnownSecurityReplayInput): K
             }]);
             if (cost.costBasisCents !== Number(BigInt(fragment.basisCents) - roundedBasis(fragment.basisCents, taken, units)))
               return fail('arithmetic_limit', event.id);
-            if (cost.unitsE8 > 0) remaining.push({ ...fragment, unitsE8: cost.unitsE8, basisCents: cost.costBasisCents });
+            if (cost.unitsE8 > 0) remaining.push({ ...fragment, unitsE8: cost.unitsE8,
+              basisCents: cost.costBasisCents,
+              ...(taken > 0n ? { derivation: { kind: 'sold-remainder' as const,
+                saleId: event.id, date: event.date, source: fragment } } : {}) });
             left -= taken;
           }
         }
@@ -165,7 +172,7 @@ export function replayKnownSecurityTransfers(input: KnownSecurityReplayInput): K
         const cost = input.method === 'average'
           ? averageCost({ unitsE8: state.unitsE8, costBasisCents: state.basisCents }, [sale])
           : fifoCost({ unitsE8: 0, costBasisCents: 0 }, [
-              ...ordered(state.fragments).map((f): CostTrade => ({ kind: 'buy', unitsE8: f.unitsE8,
+              ...fifoLots.map((f): CostTrade => ({ kind: 'buy', unitsE8: f.unitsE8,
                 amountCents: f.basisCents!, feeCents: 0, taxCents: 0 })), sale,
             ]);
         // Reuse canonical disposal semantics; reject a floating-point result that disagrees
@@ -203,7 +210,12 @@ export function replayKnownSecurityTransfers(input: KnownSecurityReplayInput): K
       source.unitsE8 -= event.unitsE8; source.basisCents = preview.sourceRemainingBasisCents;
       const incomingFragments = preview.moved.map((fragment, index) => ({ ...fragment,
         fragmentId: `in:${event.inTradeId}:${index}`,
-        transferPairIds: [...(fragment.transferPairIds ?? []), event.id],
+        transferPairIds: fragment.transferPairIds === undefined
+          ? undefined : [...fragment.transferPairIds, event.id],
+        derivation: { kind: 'received' as const, pairId: event.id,
+          outTradeId: event.outTradeId, inTradeId: event.inTradeId, date: event.date,
+          sourceAccountId: event.sourceAccountId, destinationAccountId: event.destinationAccountId,
+          source: fragment },
       }));
       destination.fragments.push(...incomingFragments);
       destination.unitsE8 += event.unitsE8; destination.basisCents = preview.destinationBasisAfterCents;
