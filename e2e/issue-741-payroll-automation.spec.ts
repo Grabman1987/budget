@@ -379,7 +379,7 @@ test('741 links an existing payout, opens its actual booking route and reloads i
       await row.getByRole('button', { name: / bearbeiten$/ }).click();
       const editor = page.getByRole('dialog', { name: 'Buchung bearbeiten', exact: true });
       await expect(editor).toBeVisible();
-      await expect(editor.getByLabel('Betrag', { exact: true })).toHaveValue('2975,00');
+      await expect(editor.getByLabel('Betrag', { exact: true })).toHaveValue('2.975,00');
       await expect(editor.getByLabel('Notiz', { exact: true })).toHaveValue(
         'Synthetic preserved payout',
       );
