@@ -74,6 +74,7 @@ export function DebtLiveScenario({ loan, asOf, choice }: {
       const currentObservation = series.status === 'fulfilled'
         ? series.value.points.find((point) => point.date === asOf) : undefined;
       const usableSeries = series.status === 'fulfilled' && series.value.accountId === loan.id &&
+        series.value.currency === plan.value.currency &&
         !series.value.unavailableCurrencies?.length && currentObservation !== undefined &&
         Math.max(0, -currentObservation.balanceCents) === plan.value.balanceCents;
       const basis: Basis = {
