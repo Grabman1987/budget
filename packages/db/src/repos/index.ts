@@ -99,3 +99,5 @@ export * from './statement-settlement-invariants';
 export * from './statement-settlement-read';
 export * from './statement-automation';
 export * from './statement-receipt-links';
+
+export * from './portfolio-strategy';

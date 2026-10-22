@@ -1,3 +1,4 @@
+import { portfolioStrategyRoutes, type StrategyEvidenceProvider } from './portfolio-strategy';
 import { inflationBasketRoutes } from './inflation-basket';
 import { displaySettingsRoutes } from './display-settings';
 import { explorerViewsRoutes } from './explorer-views';
@@ -95,6 +96,8 @@ export interface LedgerApiOptions {
   /** Runner of the import tasks (worker threads); one per database. */
   jobs?: ImportJobs | undefined;
   receiptsDir?: string | undefined;
+  /** Optional server-owned canonical USD index + official US-calendar evidence adapter. */
+  strategyEvidence?: StrategyEvidenceProvider | undefined;
 }
 
 /**
@@ -111,6 +114,7 @@ export function createLedgerApi({
   bankSync = bankSyncFromEnv(db),
   jobs,
   receiptsDir = receiptDirectory(sqliteOf(db).name),
+  strategyEvidence,
 }: LedgerApiOptions): LedgerApi {
   const api = new Hono();
   api.use('*', readModelCache(db, today));
@@ -163,6 +167,7 @@ export function createLedgerApi({
   api.route('/budget', budgetRoutes(db, today));
   api.route('/expected', expectedRoutes(db, today));
   api.route('/export', exportRoutes(db, today, stepUp));
+  api.route('/portfolio-strategy', portfolioStrategyRoutes(db, undefined, strategyEvidence));
   api.route('/wealth', wealthRoutes(db, today));
   api.route('/contacts', contactRoutes(db, today));
   api.route('/reports/payees', payeeReportRoutes(db, today));

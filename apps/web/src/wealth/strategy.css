@@ -1,0 +1,31 @@
+@layer pages {
+  .strategy-page { display: grid; gap: 28px; min-width: 0; padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+  .strategy-page h2 { font-size: var(--fs-headline); }
+  .strategy-actions, .strategy-breadcrumb { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .strategy-breadcrumb a { display: inline-flex; align-items: center; min-height: 44px; }
+  .strategy-stand { color: var(--ink-2); font-size: var(--fs-meta); overflow-wrap: anywhere; }
+  .strategy-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .strategy-facts dt { color: var(--ink-2); font-size: var(--fs-label); }
+  .strategy-facts dd { margin: 4px 0 0; font-variant-numeric: tabular-nums; }
+  .strategy-page summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+  .strategy-page small { display: block; color: var(--ink-2); font-size: var(--fs-meta); }
+  .strategy-table-scroll { max-width: 100%; overflow-x: auto; }
+  .strategy-table-scroll table { min-width: 740px; }
+  .strategy-table-scroll summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; }
+  .strategy-table-scroll :is(td, th) { vertical-align: top; }
+  .strategy-table-scroll ul { padding-left: 20px; font-weight: 400; }
+  .strategy-table-scroll:focus-visible { outline: 2px solid var(--line); outline-offset: 3px; }
+  .strategy-settings, .strategy-settings fieldset, .strategy-route { display: grid; gap: 16px; min-width: 0; }
+  .strategy-settings { padding: 20px; border: 1px solid var(--rule-strong); border-radius: var(--radius-sheet); }
+  .strategy-settings fieldset { margin: 0; border: 1px solid var(--rule); padding: 16px; }
+  .strategy-settings legend { font-size: var(--fs-title); font-weight: 620; }
+  .strategy-settings label { min-height: 44px; display: flex; align-items: center; gap: 8px; }
+  .strategy-route { border-top: 1px solid var(--rule); padding-top: 16px; }
+  .strategy-costs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .strategy-identity { font-variant-numeric: tabular-nums; }
+  @media (max-width: 767px) {
+    .strategy-facts, .strategy-costs { grid-template-columns: minmax(0, 1fr); }
+    .strategy-settings { padding: 12px; }
+    .strategy-settings fieldset { padding: 12px; }
+  }
+}

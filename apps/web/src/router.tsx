@@ -480,6 +480,12 @@ const portfolioRoute = createRoute({
   },
   component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioPage'),
 });
+const portfolioStrategyRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/portfolio/strategie',
+  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Trendstrategie' } },
+  component: lazyRouteComponent(() => import('./wealth/strategy-page'), 'PortfolioStrategyPage'),
+});
 const instrumentRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/vermoegen/portfolio/instrument/$id',
@@ -776,6 +782,7 @@ const routeTree = rootRoute.addChildren([
     freedomRoute,
     netWorthRoute,
     portfolioRoute,
+    portfolioStrategyRoute,
     instrumentRoute,
     savingsPlanRoute,
     debtsRoute,

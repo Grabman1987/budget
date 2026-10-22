@@ -1,3 +1,4 @@
+import { AppLink } from '../shell/app-link';
 import { useAmountPrivacy, Button, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ratioBp, type Period } from '@budget/domain';
@@ -153,6 +154,7 @@ export function PortfolioPage() {
           </>
         )}
         <SavingsSection />
+        <AppLink to="/vermoegen/portfolio/strategie" className="btn btn-ghost">Optionale Trendstrategie und Sparplanvorschau</AppLink>
         {instruments.isPending && <LoadingNote what="Instrumente" />}
         {instruments.isError && (
           <ErrorNote

@@ -53,3 +53,6 @@ export * from './statement-settlement';
 export * from './statement-automation';
 export * from './statement-automation-contract';
 export * from './statement-receipt-links';
+
+export * from './wealth/strategy-trend';
+export * from './wealth/strategy-plan';
