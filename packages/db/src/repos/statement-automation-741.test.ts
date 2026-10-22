@@ -22,6 +22,7 @@ import { createExpectedPayment } from './expected';
 import { loadFacts, scheduled } from './rule-inputs';
 import { accountPreview } from './account-preview';
 import { removeReceipt, unlinkReceipt } from './receipts';
+import { readStatementReceiptLinks, changeStatementReceiptLinks } from './statement-receipt-links';
 import {
   performStatementAutomation,
   prepareStatementAutomation,
@@ -239,6 +240,62 @@ const liveBookings = () =>
       'SELECT id, account_id, date, amount_cents, status, source, transfer_id FROM booking WHERE deleted_at IS NULL ORDER BY account_id, amount_cents',
     )
     .all();
+
+it('740 keeps all machine pairs visible and rejects mixed manual changes atomically', () => {
+  configure();
+  const gross = original(-9000);
+  const prepared = preparation(),
+    result = perform(prepared);
+  expect(result.status).toBe('saved');
+  const manual = original(-511);
+  const page = readStatementReceiptLinks(opened.db, prepared.source.intakeId);
+  expect(page.attached).toHaveLength(4);
+  expect(page.attached.every((row) => row.managed)).toBe(true);
+  expect(page.attached.some((row) => row.bookingId === gross.id)).toBe(true);
+  expect(page.attached.some((row) => row.accountId === FUND)).toBe(true);
+  const row = page.items.find((row) => row.bookingId === manual.id)!;
+  const before = snapshot();
+  for (const protectedRow of page.attached) {
+    expect(() =>
+      changeStatementReceiptLinks(
+        opened.db,
+        prepared.source.intakeId,
+        {
+          sourceCas: {
+            revision: page.source.revision,
+            sha256: page.source.sha256,
+            accountId: CARD,
+          },
+          linksRevision: page.linksRevision,
+          attach: [{ bookingId: row.bookingId, bookingRevision: row.bookingRevision }],
+          detach: [
+            { bookingId: protectedRow.bookingId, bookingRevision: protectedRow.bookingRevision },
+          ],
+        },
+        ctx,
+      ),
+    ).toThrow();
+    expect(snapshot()).toBe(before);
+  }
+  const sameAccount = page.attached.filter((row) => row.accountId === CARD);
+  expect(
+    changeStatementReceiptLinks(
+      opened.db,
+      prepared.source.intakeId,
+      {
+        sourceCas: { revision: page.source.revision, sha256: page.source.sha256, accountId: CARD },
+        linksRevision: page.linksRevision,
+        attach: sameAccount.map((row) => ({
+          bookingId: row.bookingId,
+          bookingRevision: row.bookingRevision,
+        })),
+        detach: [],
+      },
+      ctx,
+    ).groupId,
+  ).toBeNull();
+  expect(snapshot()).toBe(before);
+});
 
 it('posts the issued 8880 cents rather than the later deficit, with pending status and one audited receipt-linked action', () => {
   configure();

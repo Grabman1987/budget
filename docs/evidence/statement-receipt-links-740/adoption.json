@@ -1,0 +1,33 @@
+{
+  "originalBasesVerified": true,
+  "files": [
+    {
+      "path": "apps/server/src/api/statement-intake.ts",
+      "sha256": "2653c7d89f3d57c6222edff5c295e46492a1373773d6a762fd3f4f00c3416bc6"
+    },
+    {
+      "path": "apps/web/src/statement-intake/statement-booking-links.tsx",
+      "sha256": "60fb4365e38930cbaad0123aa1566ff041154fac4ce70494c7ed4f8ec282033e"
+    },
+    {
+      "path": "apps/web/src/statement-intake/statement-review-726.tsx",
+      "sha256": "72b226aaf5002a457a245c568feded2b20d533b0bcb20117662979cbc832f57c"
+    },
+    {
+      "path": "packages/db/src/repos/index.ts",
+      "sha256": "753e84b748592cebc7aeeb22f412e93aba1e6432bf948a74e04eebd80e0b574d"
+    },
+    {
+      "path": "packages/db/src/repos/statement-receipt-links.ts",
+      "sha256": "e8c2de18781660b9bcf322fbbef0afc2c7c4e2ccebef50c7a18a9c90ec4b52d4"
+    },
+    {
+      "path": "packages/domain/src/index.ts",
+      "sha256": "9e8975e88ec5d56357693c7cb7ef600874685d3cd68d21e9950fcee0e95e0b52"
+    },
+    {
+      "path": "packages/domain/src/statement-receipt-links.ts",
+      "sha256": "dc3e49cf74bff5e007140e1923c9aca0326a4d820aff664fdcee4f276af54fc7"
+    }
+  ]
+}
