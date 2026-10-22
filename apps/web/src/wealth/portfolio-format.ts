@@ -7,7 +7,7 @@ export const basisReason = (accounts: readonly PositionAccount[]) =>
     ? 'Wechselkurs für Einstand fehlt'
     : 'Einstand nicht vollständig dokumentiert';
 /** Formatting at the edge only; all valuation, basis, gain and shares arrive from the server. */
-function scaledText(value: number, digits: number, minimum = 0) {
+function scaledText(value: number | bigint, digits: number, minimum = 0) {
   const raw = BigInt(value);
   const absolute = raw < 0n ? -raw : raw;
   const scale = 10n ** BigInt(digits);
@@ -17,6 +17,19 @@ function scaledText(value: number, digits: number, minimum = 0) {
   return `${raw < 0n ? MINUS : ''}${whole}${fraction ? `,${fraction}` : ''}`;
 }
 export const unitsText = (value: number) => scaledText(value, 8);
+/** Round only the list label; exact units and server valuation remain untouched. */
+function compactScaledText(value: number, digits: number, shownDigits: number, minimum = 0) {
+  const raw = BigInt(value);
+  const absolute = raw < 0n ? -raw : raw;
+  const quantum = 10n ** BigInt(digits - shownDigits);
+  const rounded = ((absolute + quantum / 2n) / quantum) * quantum;
+  if (absolute !== 0n && rounded === 0n) {
+    const limit = scaledText(quantum, digits, shownDigits);
+    return raw < 0n ? `>${MINUS}${limit}` : `<${limit}`;
+  }
+  return scaledText(raw < 0n ? -rounded : rounded, digits, minimum);
+}
+export const unitsDisplayText = (value: number) => privateAmount(compactScaledText(value, 8, 4));
 export const percentText = (bp: number | null, signed = false) =>
   bp === null
     ? '—'
@@ -25,6 +38,10 @@ export const moneyText = (value: number | null) => (value === null ? '—' : eur
 export const quoteText = (quote: PositionQuote | null) =>
   quote
     ? `${privateAmount(scaledText(quote.priceMicro, 6, 2))} ${quote.currency === 'EUR' ? '€' : quote.currency}`
+    : 'Kurs fehlt';
+export const quoteDisplayText = (quote: PositionQuote | null) =>
+  quote
+    ? `${privateAmount(compactScaledText(quote.priceMicro, 6, 4, 2))} ${quote.currency === 'EUR' ? '€' : quote.currency}`
     : 'Kurs fehlt';
 export const SOURCE_TEXT: Record<string, string> = {
   manual: 'manuell',

@@ -35,6 +35,13 @@ export function ExplorerTemplates({
   const root = useRef<HTMLElement>(null);
   const detailHeading = useRef<HTMLHeadingElement>(null);
   const origin = useRef<HTMLButtonElement | null>(null);
+  const lastFullMonth = facts.lastFullMonth;
+  // The year model stays canonical (12 months, including CSV and source lookups).
+  // Only its trailing future columns are omitted from this report table.
+  const visibleMonths =
+    model.id === 'year' && lastFullMonth !== null
+      ? model.months.filter((month) => month <= lastFullMonth)
+      : model.months;
   const row = model.rows.find((candidate) => candidate.key === selectedRowKey);
   const columnIndex = model.months.indexOf(selectedColumn ?? '');
   const value = row
@@ -66,9 +73,9 @@ export function ExplorerTemplates({
       <div className="tbd-head">
         <h2 id={`${prefix}-title`}>{model.title}</h2>
       </div>
-      {model.months.length > 0 && (
+      {visibleMonths.length > 0 && (
         <p className="ov-note">
-          Angezeigte Monate: {monthLong(model.months[0]!)} bis {monthLong(model.months.at(-1)!)}.
+          Angezeigte Monate: {monthLong(visibleMonths[0]!)} bis {monthLong(visibleMonths.at(-1)!)}.
         </p>
       )}
       {model.id === 'category' && <ExplorerTemplateTrend model={model} />}
@@ -91,7 +98,7 @@ export function ExplorerTemplates({
                 <th scope="col" className="rg-first">
                   Position
                 </th>
-                {model.months.map((month) => (
+                {visibleMonths.map((month) => (
                   <th scope="col" key={month} className="n" title={monthLong(month)}>
                     {monthShort(month, true)}
                     {month === model.partialMonth ? '*' : ''}
@@ -126,8 +133,8 @@ export function ExplorerTemplates({
                       )}
                       {row.label}
                     </th>
-                    {row.vals.map((amount, index) => {
-                      const month = model.months[index]!;
+                    {row.vals.slice(0, visibleMonths.length).map((amount, index) => {
+                      const month = visibleMonths[index]!;
                       const heat = row.kind === 'pct' ? null : heatForCell(amount, stats, row.good);
                       return (
                         <td

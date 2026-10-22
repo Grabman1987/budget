@@ -1,4 +1,4 @@
-import { useAmountPrivacy, Button, DimensionChain } from '@budget/ui';
+import { useAmountPrivacy, privateAmount, Button, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ratioBp, type Period } from '@budget/domain';
 import { useNavigate, useSearch } from '@tanstack/react-router';
@@ -17,8 +17,10 @@ import {
   basisReason,
   moneyText,
   percentText,
+  quoteDisplayText,
   quoteText,
   quoteStand,
+  unitsDisplayText,
   unitsText,
 } from './portfolio-format';
 import { InstrumentPanel } from './portfolio-panel';
@@ -316,6 +318,8 @@ function PositionRow({
   const basis = basisReason(p.accounts);
   const gainReason =
     p.valueCents === null ? unavailable : p.costCents === null ? basis : 'Kein positiver Einstand';
+  const exactUnits = privateAmount(unitsText(p.unitsE8));
+  const exactQuote = quoteText(p.quote);
   return (
     <tr>
       <td className="kc-pos">
@@ -348,9 +352,17 @@ function PositionRow({
       <td className="portfolio-platform">
         {[...new Set(p.accounts.map((a) => a.institution ?? a.name))].join(' · ')}
       </td>
-      <td className="num portfolio-units">{unitsText(p.unitsE8)}</td>
+      <td className="num portfolio-units">
+        <span title={exactUnits}>
+          <span aria-hidden="true">{unitsDisplayText(p.unitsE8)}</span>
+          <span className="sr-only">{exactUnits}</span>
+        </span>
+      </td>
       <td className="num portfolio-quote" title={quoteStand(p.quote)}>
-        {quoteText(p.quote)}
+        <span title={`${exactQuote} · ${quoteStand(p.quote)}`}>
+          <span aria-hidden="true">{quoteDisplayText(p.quote)}</span>
+          <span className="sr-only">{exactQuote}</span>
+        </span>
       </td>
       <td className="num portfolio-value">{moneyText(p.valueCents)}</td>
       <td className="num portfolio-share">{percentText(p.shareBp)}</td>

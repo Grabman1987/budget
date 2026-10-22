@@ -1,5 +1,6 @@
 import {
   useAmountPrivacy,
+  privateAmount,
   Button,
   FormDialog,
   Field,
@@ -202,7 +203,7 @@ export function InstrumentPanel({
                         <small>{a.institution ?? 'Kein Institut zugeordnet'}</small>
                       </th>
                       <td className="num">
-                        {unitsText(a.unitsE8)}
+                        {privateAmount(unitsText(a.unitsE8))}
                         <small>
                           {a.valueCents === null
                             ? a.valueStatus === 'missing_price'

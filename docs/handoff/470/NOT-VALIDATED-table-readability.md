@@ -1,6 +1,6 @@
 # #470 table readability — NOT VALIDATED
 
-Source-only handoff for branch `codex/impl-470-table-readability`. The implementation commit is
+Source-only handoff for branch `codex/impl-470-table-readability`. The initial implementation commit is
 `7033155e6b4b1a79a55336e3dc75567f3d317ca8`, based on
 `4f50e612fed8d812ae054470a3e31ab9553e2732`. This branch contains no test, build, browser,
 CI, PR, merge, or deployment evidence. The issue's visual and accessibility acceptance criteria
@@ -14,7 +14,7 @@ The legacy year report defaulted to the grouped depth. Liquidity and report tabl
 horizontal scrollers, and the liquidity chart already had a minimum-height container. Portfolio
 `unitsText` and `quoteText` still exposed the complete source precision.
 
-The 13 implementation files are:
+The initial 13 implementation files are:
 
 - `apps/web/src/reports/{table-scroll,month-report,table-reports,reports-future,spending-analysis-report,explorer-report}.css` and `apps/web/src/pages/portfolio-report-shared.css`: local scroll shadows/focus, sticky income labels, wrapping status text, hover/focus underlines instead of persistent drilldown underlines, and 44 px report table controls.
 - `apps/web/src/reports/year-report.tsx`: hide only trailing future columns after the latest available full month. The view still uses `buildYearView` for amounts, comparison pairs, and totals. An unavailable month within the actual-data horizon remains visible as an unavailable month; this is a display projection, not a change to the report's financial period or calculation.
@@ -39,10 +39,12 @@ stored amounts, `yTicks`, and financial formulas were not changed.
 ## Remaining integration and acceptance
 
 - The legacy exported `kfmt` in `networth-model.ts` still emits `T` because existing test expectations depend on it; no production chart calls it after the follow-up. Removing that export belongs with an authorized test change. Axis-heading placement and narrow labels still require rendered review.
-- The newer fixed Explorer year template in `packages/domain/src/overview/explorer-templates.ts` still projects all 12 calendar columns. Reconcile its presentation with the #550/#551 composition branches; do not copy the legacy view's slicing into the domain calculation without checking its fixed-template and CSV contract.
-- Portfolio position units and prices remain fully precise in `apps/web/src/wealth/portfolio-format.ts`, `portfolio-page.tsx`, and `portfolio-panel.tsx`. Any C-22 shortening to four unit decimals or two-to-four price decimals needs an accessible full-precision value and must not alter `unitsE8`/`priceMicro` or valuation. Coordinate with the #544 portfolio work.
+- The fixed Explorer year model still contains all 12 months. `explorer-templates.tsx` now displays only months through `facts.lastFullMonth` for that template, including its month-range note and each row's month cells. Earlier unavailable months remain visible; sum/average, heat statistics, source lookup and CSV keep the canonical model. Other templates are unchanged. The prepared #550/#551 source retains the same month rendering seam, so carry this view-only hunk into its report component when assembling those branches.
+- `portfolio-format.ts` now has separate rounded list labels: at most four fractional places for units and two to four for quotes. Values below the last displayed place use a less-than/greater-than bound instead of appearing to be zero. `portfolio-page.tsx` exposes exact `unitsText`/`quoteText` in hover titles and screen-reader text, while the visible list uses compact labels. `portfolio-panel.tsx` keeps exact per-account units and quote details and masks its unit text when amount privacy is enabled. Existing `unitsE8`, `priceMicro`, server valuation, trade input, price history and exact formatters are unchanged. The prepared #544 source retains the same position-row and panel formatter seams; carry those small hunks into its newer page/panel during assembly.
 - The #488 depots/payroll shared-scale branch is separate. Reconcile its eventual chart unit treatment when integrating it; this branch did not edit those charts or their scale.
 - No trace supports a speculative #542 fix here. The iPhone page overflow, chart label spacing, FAB overlap, light/dark appearance, print appearance, 44 px rendered targets, Axe, and desktop/mobile/WebKit acceptance have not been established by source edits alone.
+
+Manual display examples for later validation (not executed): `0,12345678` units → `0,1235` in the list, exact `0,12345678` in its title and screen-reader text; `0,00000001` units → `<0,0001`, exact `0,00000001`; `60,250001 CHF` → `60,25 CHF` in the list, exact `60,250001 CHF`; `0,000001 €` → `<0,0001 €`, exact `0,000001 €`. A year whose latest full month is October shows January through October, including any unavailable earlier month, while its canonical model/CSV still has twelve months. These are source-level expectations, not validation results.
 
 ## Process note
 
