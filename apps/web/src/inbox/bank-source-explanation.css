@@ -1,0 +1,29 @@
+.bank-source-explanation {
+  color: var(--ink-2);
+  white-space: normal;
+  max-width: 72ch;
+  min-width: 0;
+  margin-block: .4rem;
+}
+.bank-source-explanation > summary,
+.bank-source-explanation-body details > summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding-block: .65rem;
+}
+.bank-source-explanation summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.bank-source-explanation-body {
+  border-block-start: 1px solid var(--rule);
+  padding-block: .5rem;
+  line-height: 1.5;
+  font-size: .875rem;
+}
+.bank-source-explanation-body p,
+.bank-source-explanation-body ul,
+.bank-source-explanation-body dl { margin-block: .65rem; }
+.bank-source-explanation-body ul { padding-inline-start: 1.2rem; }
+.bank-source-explanation-body dd { margin-inline-start: 0; margin-block-end: .4rem; }
+.bank-source-explanation-body code { overflow-wrap: anywhere; white-space: normal; }

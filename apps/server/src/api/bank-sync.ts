@@ -1,6 +1,7 @@
 import {
   acceptSafeBankInbox,
   readBankReviewRound,
+  readBankMatchExplanation,
   bankBookingMatches,
   candidateMatches,
   linkBankCandidate,
@@ -273,6 +274,13 @@ export function bankSyncRoutes(
         ),
       );
     });
+  // Explanations also work without a configured provider; they read stored data only.
+  for (const type of ['candidate', 'booking'] as const) {
+    const path = type === 'candidate' ? '/candidates/:id/explanation' : '/bookings/:id/explanation';
+    app.get(path, (c) => c.json(readBankMatchExplanation(db, {
+      type, id: z.string().min(1).max(200).parse(c.req.param('id')),
+    }, today())));
+  }
   // Decision 41: a booked bank row is already an unchecked booking, merged into an earlier manual one.
   app.get('/bookings/:id/matches', (c) =>
     c.json(bankBookingMatches(db, z.string().min(1).max(200).parse(c.req.param('id')))),

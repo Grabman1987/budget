@@ -100,3 +100,5 @@ export * from './statement-settlement-read';
 export * from './statement-automation';
 export * from './statement-receipt-links';
 export * from './inbox-bank-suggestions';
+
+export * from './bank-match-explanations';

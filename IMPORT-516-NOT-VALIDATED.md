@@ -1,0 +1,26 @@
+# #516 import explanations — NOT VALIDATED
+
+Pinned base: `5477fdb5b966e7a18aae3ff10c7937736f711ef9` (`codex/impl-562-563-inbox`). This branch adds only the bounded read-only explanation layer. Prefer the later ledger source when integrating independent ledger branches; do not replace it with the older ledger files inherited from this bank base.
+
+## Source implementation
+
+- `readBankMatchExplanation` reads a transactionally consistent projection of actual source/candidate/booking IDs, opaque stored identity hash, open source-revision warning IDs, canonical candidate/ready/rule revisions and current canonical merge/link/same-currency transfer suggestions. It reuses the existing matching and conservative inbox projections, not a parallel matcher. Stored identity hashes are returned only if they have the expected SHA-256 shape. Credentials, consent, provider references, raw bank text and source secrets are excluded.
+- Two session-protected, no-store GET routes work without configuring or calling a provider: `/api/bank-sync/candidates/:id/explanation` and `/api/bank-sync/bookings/:id/explanation`. No POST/schema/migration/writer change is included.
+- Lazy, keyboard-operable German disclosures appear in suggested bank rows, existing candidate/manual review and bank source-revision warnings. Opening them does not prepare/apply any mutation. A changed current ready revision prompts an inbox refresh; existing canonical CAS remains authoritative. Rule labels explicitly describe current configuration rather than a fabricated historical application record.
+- Labels distinguish the exact signed-cent/account/currency four-calendar-day automatic matcher, five-calendar-day manual suggestions, and 21-day fetch overlap clamped to configured source start. The stricter #562/#563 confirmation projection remains distinct. Null source starts and resolved/protected rows show unavailable state rather than invented data.
+- Operator-import warnings offer an explanation of YNAB row identity, occurrence ordinals, absence/deletion consent and latest-run-only reversal. No file upload, production import, provider setup, new FX pairing or financial write is added.
+
+## Deliberate limitations and contract discrepancy
+
+1. `bankTransactionKeys` prefers a reference unique in the fetched batch, otherwise fingerprint `(date, signed cents, currency, memo.trim())` plus occurrence ordinal. The persisted candidate contains only its hash. Historical key kind/reference/ordinal and original fetch ordering cannot be recovered from it. Existing links retaining a different migration import key cannot be reverse-matched reliably. The UI says unavailable; no historical provenance or identity is guessed, and no migration is introduced.
+2. Actual `matchBankLines` already pairs equal-sized identical-line/candidate groups in order. For several source lines claiming one target it selects nearest date, then source order; others remain new. Existing domain/service oracles explicitly retain this behavior. SPEC-004's blanket “multiple candidates stay open” wording is therefore broader than current behavior. This explanation discloses the existing behavior and does not change it. Do not claim AC-004-04 or the issue's universal ambiguity criterion complete without reconciling that contract and validation. The #562/#563 explicit ready projection remains conservative.
+3. This readout describes current canonical suggestions, not historical automatic-decision evidence. Existing revision warnings remain the review destination for changed recorded/resolved source data. No previous target/rule/ordinal is reconstructed.
+4. Fallback batching/ordinal stability, source revisions, rollback/Undo and #513 prerequisites are not proven or closed by these source changes. #516 remains open and is not a release.
+
+## Deferred validation and adapters
+
+Owner implementation-only direction from `/workspace/.budget-tools/cloud-control/implementation-only-20261022.md` overrides workflow validation for this checkpoint. No test files were created/edited; no tests, typechecks, builds, browser, CI, PR, merge or deployment were run. No dependency installation/copy or real financial/provider data was used. This is NOT VALIDATED.
+
+Later meaningful validation needs synthetic explanation route/repository cases: exact 4/5-day boundary separation, actual 21-day clamping/null source start, same-day competing rows, rule and candidate revision changes, stale ready revision, resolved source warnings, protected/tombstoned/import-key-preserving links, safe-field response allowlist and provider-not-configured reads. Preserve existing matching and financial oracles in `packages/domain/src/bank-sync.test.ts`, `apps/server/src/bank-sync/service.test.ts`, `packages/db/src/repos/bank-followups.test.ts`, `apps/server/src/api/bank-sync.test.ts` and the existing import suites. Add explanation mocks only when the lazy disclosure is opened in `e2e/bank-inbox-bulk.spec.ts`, `e2e/bank-followups.spec.ts`, `e2e/bank-sync.spec.ts` and inbox detail coverage. Browser/a11y/mobile/dark-mode review remains deferred; no snapshot update is implied.
+
+Workflow trigger source inspected: ordinary pushes to this non-main branch do not start CI (`ci.yml` pushes only main); remaining workflows are PR/manual or deploy after main CI. Checkpoint push is not a PR or validation claim.

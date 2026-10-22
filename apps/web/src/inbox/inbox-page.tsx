@@ -1,4 +1,5 @@
 import { BankReviewSession, BankSuggestedRow } from './bank-suggestion-review';
+import { BankSourceExplanation, OperatorImportExplanation } from './bank-source-explanation';
 import { InboxAccountReminders } from '../heute/account-reminders';
 import {
   BankBookingMerge,
@@ -993,6 +994,10 @@ function InboxRow({
             {item.refType === 'bank-sync-candidate' && item.refId && (
               <BankCandidate id={item.refId} onConfirmed={onBankConfirmed} />
             )}
+            {item.kind === 'revision' && item.refType === 'bank-sync' && item.refId && (
+              <BankSourceExplanation type="candidate" id={item.refId} />
+            )}
+            {item.kind === 'import' && detailView && <OperatorImportExplanation />}
             {item.kind === 'import' && !detailView && (
               <AppLink
                 className="btn btn-ghost btn-sm"

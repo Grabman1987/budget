@@ -8,6 +8,7 @@ import { LEDGER_KEY, lookupsQuery, payeesQuery } from '../ledger/queries';
 import { candidateAssignmentQuery } from '../assignment/api';
 import { AssignmentSummary } from '../assignment/review';
 import { ErrorNote, LoadingNote } from '../ledger/states';
+import { BankSourceExplanation } from './bank-source-explanation';
 import '../pages/data-sources.css';
 import '../assignment/assignment.css';
 
@@ -68,11 +69,13 @@ export function BankCandidate({
  * preparation never posts the candidate, and manual changes override every suggested action.
  */
 export function BankCandidateForm({
+  showSourceExplanation = true,
   id,
   onConfirmed,
   onPrepared,
 }: {
   id: string;
+  showSourceExplanation?: boolean;
   onConfirmed?: ((bookingId: string) => void) | undefined;
   onPrepared: PreparedCallback;
 }) {
@@ -165,6 +168,7 @@ export function BankCandidateForm({
   ]);
   return (
     <div className="bank-candidate assignment-review">
+      {showSourceExplanation && <BankSourceExplanation type="candidate" id={id} />}
       {matches.isError && (
         <ErrorNote
           what="Buchungsvorschläge"
@@ -373,13 +377,15 @@ export function BankCandidateForm({
 
 /**
  * A booked bank row is already an unchecked booking (decision 41). Offer the merge into an earlier
- * manual entry; nothing is shown while there is no match or the booking is not eligible.
+ * manual entry. Source explanations remain available when there is no eligible merge target.
  */
 export function BankBookingMerge({
+  showSourceExplanation = true,
   bookingId,
   onPrepared,
 }: {
   bookingId: string;
+  showSourceExplanation?: boolean;
   onPrepared?: PreparedCallback | undefined;
 }) {
   useAmountPrivacy();
@@ -409,9 +415,10 @@ export function BankBookingMerge({
         : undefined,
     );
   }, [onPrepared, selected, matches.isError, matches.isFetching, rows]);
-  if (!rows.length) return null;
+  if (!rows.length) return showSourceExplanation ? <BankSourceExplanation type="booking" id={bookingId} /> : null;
   return (
     <div className="bank-candidate">
+      {showSourceExplanation && <BankSourceExplanation type="booking" id={bookingId} />}
       <Field label="Passende eigene Buchung (geringster Datumsabstand zuerst)">
         {({ id: fieldId }) => (
           <Select

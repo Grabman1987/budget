@@ -11,6 +11,7 @@ import { BankBookingMerge, BankCandidateForm } from './bank-candidate';
 import { INBOX_KEY, resolveInbox, type InboxBooking, type InboxEntry, type InboxStored } from './api';
 import { acceptSafeBankSuggestions, readBankReviewRound } from './bank-suggestion-api';
 import { InboxTypeIcon } from './type-icon';
+import { BankSourceExplanation } from './bank-source-explanation';
 import './bank-suggestion.css';
 
 type BankRow = InboxBooking | InboxStored;
@@ -153,6 +154,8 @@ export function BankSuggestedRow({ item, busy, onConfirmed, onEdit, onConfirm }:
       <strong>{data ? <>{maskMoneyText(data.payeeName || data.memo || 'Bankumsatz')} · {nativeCurrency(data.amountCents, data.currency)}</> : 'Bankumsatz'}</strong>
       <span>{data ? maskMoneyText(`${longDay(data.date)} · ${data.accountName}${data.memo && data.memo !== data.payeeName ? ` · ${data.memo}` : ''}`) : ''}</span>
       <span className="bank-precomputed-suggestion">{ready ? 'Vorschlag passt · ' : 'Vorschlag prüfen · '}{maskMoneyText(suggestion?.label.replace(/^Vorschlag prüfen · /, '') ?? 'Einzeln zuordnen')}</span>
+      {suggestion && <BankSourceExplanation type={suggestion.type} id={suggestion.id}
+        preparedRevision={suggestion.state === 'ready' ? suggestion.revision : undefined} />}
     </td>
     <td className="rev-act kact">
       <div className="bank-suggestion-actions">
@@ -168,10 +171,10 @@ export function BankSuggestedRow({ item, busy, onConfirmed, onEdit, onConfirm }:
       {item.type === 'booking' && <p className="inbox-hint">Gebuchte Umsätze bleiben im Register; „Nicht übernehmen“ löscht keine Buchung.</p>}
       {changing && <fieldset className="bank-manual-fields" disabled={disabled}>
         {item.type === 'stored' && item.refId ?
-        <BankCandidateForm id={item.refId} onConfirmed={confirmed} onPrepared={noop} /> :
+        <BankCandidateForm showSourceExplanation={false} id={item.refId} onConfirmed={confirmed} onPrepared={noop} /> :
         item.type === 'booking' ? <div className="bank-manual-review">
           <BookingAssignmentReview id={item.bookingId} onApplied={(canLearn) => { if (canLearn) confirmed(item.bookingId); }} />
-          {item.status === 'pending' && <BankBookingMerge bookingId={item.bookingId} />}
+          {item.status === 'pending' && <BankBookingMerge showSourceExplanation={false} bookingId={item.bookingId} />}
           <Button variant="ghost" disabled={disabled} onClick={() => onEdit(item.bookingId)}>Zuordnen</Button>
           {item.status === 'pending' && <Button variant="ghost" disabled={disabled} onClick={() => onConfirm(item.bookingId)}>Bestätigen</Button>}
         </div> : null}
