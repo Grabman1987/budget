@@ -348,8 +348,8 @@ export function PortfolioOverview() {
           fortgeschrieben sein.
         </p>
       )}
-      <AppLink className="vlook" to="/reports/gruppe/portfolio">
-        Reportkatalog Portfolio öffnen
+      <AppLink className="vlook" to="/reports/prendite" search={{ zeitraum: period }}>
+        Portfolio-Auswertung öffnen
       </AppLink>
     </section>
   );

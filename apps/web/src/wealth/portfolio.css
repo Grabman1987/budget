@@ -429,3 +429,100 @@
     min-height: 44px;
   }
 }
+
+/* Five real portfolio routes, sharing the original controls and source reads. */
+.portfolio-registers {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  margin-block: 8px 16px;
+}
+.portfolio-registers a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 4px;
+  text-align: center;
+  overflow-wrap: anywhere;
+  color: var(--ink-2);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule);
+}
+.portfolio-registers a[aria-current='page'] {
+  color: var(--line);
+  border-bottom: 2px solid var(--line);
+}
+.portfolio-class-summary,
+.portfolio-metrics {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.portfolio-class-summary ul {
+  padding: 0;
+  margin: 8px 0;
+  list-style: none;
+}
+.portfolio-class-summary li {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-block: 8px;
+  border-top: 1px solid var(--rule);
+}
+.portfolio-class-summary li > span:first-child {
+  overflow-wrap: anywhere;
+}
+.portfolio-metrics-lead {
+  display: grid;
+  gap: 4px;
+  margin-block: 16px;
+}
+.portfolio-metrics-lead strong {
+  font-size: var(--fs-figure);
+  font-variant-numeric: tabular-nums;
+}
+.portfolio-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 16px;
+  margin-block: 16px;
+}
+.portfolio-metrics-grid dt {
+  color: var(--ink-2);
+}
+.portfolio-metrics-grid dd {
+  margin: 4px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+.portfolio-metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.portfolio-metrics-table :is(th, td) {
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--rule);
+  text-align: right;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.portfolio-metrics-table :is(th, td):first-child {
+  text-align: left;
+}
+.portfolio-metrics-table caption {
+  text-align: left;
+  padding-block: 8px;
+  color: var(--ink-2);
+}
+.portfolio-flow-table summary {
+  min-height: 44px;
+  padding-block: 12px;
+  cursor: pointer;
+}
+@media (max-width: 600px) {
+  .portfolio-registers {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

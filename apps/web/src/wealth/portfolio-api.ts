@@ -3,6 +3,7 @@ import type {
   PortfolioPositionsView,
   SecurityRecord,
   PortfolioSummary,
+  InstrumentHistory,
 } from '@budget/db';
 import type { Period } from '@budget/domain';
 import { queryOptions } from '@tanstack/react-query';
@@ -25,12 +26,12 @@ export const portfolioPerformanceQuery = (period: Period) =>
         `/api/portfolio?period=${period}&view=securities&history=performance&provenance=valuation-v1`,
       ),
   });
-export const portfolioPositionsQuery = () =>
+export const portfolioPositionsQuery = (asOf?: string) =>
   queryOptions({
-    queryKey: [...LEDGER_KEY, 'portfolio-positions'],
+    queryKey: [...LEDGER_KEY, 'portfolio-positions', ...(asOf ? [asOf] : [])],
     retry: false,
     queryFn: () =>
-      request<PortfolioPositionsView & WithValuationNotes>('GET', '/api/portfolio/positions'),
+      request<PortfolioPositionsView & WithValuationNotes>('GET', `/api/portfolio/positions${asOf ? `?asOf=${encodeURIComponent(asOf)}` : ''}`),
   });
 export const instrumentQuery = (id: string) =>
   queryOptions({
@@ -50,4 +51,18 @@ export const assetClassesQuery = () =>
     queryKey: [...LEDGER_KEY, 'asset-classes'],
     retry: false,
     queryFn: () => request<{ assetClasses: AssetClassRow[] }>('GET', '/api/asset-classes'),
+  });
+
+
+export const instrumentHistoryQuery = (securityId: string, from: string | undefined, to: string | undefined) =>
+  queryOptions({
+    queryKey: [...LEDGER_KEY, 'instrument-history', securityId, from ?? 'Max', to],
+    enabled: !!securityId && securityId !== 'neu' && !!to,
+    retry: false,
+    queryFn: () => {
+      if (!to) throw new Error('Der Stichtag fehlt.');
+      const params = new URLSearchParams({ to });
+      if (from) params.set('from', from);
+      return request<{ history: InstrumentHistory }>('GET', `/api/securities/${encodeURIComponent(securityId)}/history?${params.toString()}`);
+    },
   });

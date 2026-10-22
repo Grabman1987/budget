@@ -1,6 +1,6 @@
-import { useAmountPrivacy, Button, DimensionChain } from '@budget/ui';
+import { useAmountPrivacy, maskMoneyText, Button, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { ratioBp, type Period } from '@budget/domain';
+import { periodWindow, ratioBp, type Period } from '@budget/domain';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { VERMOEGEN_PORTFOLIO_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
@@ -9,6 +9,7 @@ import { ValuationHint } from '../ledger/valuation-hint';
 import { eurParts, eurWhole, longDay } from '../ledger/format';
 import {
   portfolioPositionsQuery,
+  portfolioPerformanceQuery,
   instrumentsQuery,
   type PortfolioPosition,
   type PortfolioPositionsView,
@@ -28,17 +29,35 @@ import { TradePanel } from './trade-panel';
 import './portfolio.css';
 import { PortfolioAllocation } from './allocation-section';
 import { PortfolioOverview } from './portfolio-overview';
+import { PortfolioMetrics } from './portfolio-metrics';
+import { PortfolioRegisters, portfolioRegisterPath, type PortfolioRegister } from './portfolio-registers';
+import { useZeitraum } from './zeitraum';
+import { ZeitraumSwitch } from './frame';
 
-export function PortfolioPage() {
+export function PortfolioPositionsPage() { return <PortfolioPage register="positions" />; }
+export function PortfolioAllocationPage() { return <PortfolioPage register="allocation" />; }
+export function PortfolioSavingsPage() { return <PortfolioPage register="savings" />; }
+export function PortfolioMetricsPage() { return <PortfolioPage register="metrics" />; }
+
+export function PortfolioPage({ register = 'overview' }: { register?: PortfolioRegister }) {
   useAmountPrivacy();
-  const query = useQuery(portfolioPositionsQuery());
-  const instruments = useQuery(instrumentsQuery());
+  const [period] = useZeitraum();
   const search = useSearch({ strict: false }) as {
     produkt?: string;
     handel?: string;
     sparplan?: string;
     zeitraum?: Period;
   };
+  const datedPositions = register === 'overview' || register === 'positions';
+  const performance = useQuery({ ...portfolioPerformanceQuery(period), enabled: datedPositions });
+  // Keep the existing current-position read usable if only historical performance is unavailable.
+  // A successful period read selects the identical historical endpoint for the lead and table.
+  const selectedEnd = performance.data ? performance.data.portfolio.performance?.to
+    ?? periodWindow(period, performance.data.portfolio.asOf).to : undefined;
+  const query = useQuery({ ...portfolioPositionsQuery(selectedEnd),
+    enabled: datedPositions || search.produkt === 'neu' || !!search.handel });
+  const path = portfolioRegisterPath(register);
+  const instruments = useQuery(instrumentsQuery());
   const navigate = useNavigate();
   const select = (produkt?: string, replace = false) =>
     void navigate(
@@ -51,13 +70,13 @@ export function PortfolioPage() {
             replace,
           }
         : {
-            to: '/vermoegen/portfolio',
+            to: path,
             search: { zeitraum: search.zeitraum, produkt },
           },
     );
   const trade = (handel?: string, produkt = search.produkt) =>
     void navigate({
-      to: '/vermoegen/portfolio',
+      to: path,
       search: ((prev: Record<string, unknown>) => ({
         ...prev,
         produkt,
@@ -66,26 +85,37 @@ export function PortfolioPage() {
         sparplan: undefined,
       })) as never,
     });
-  const view = query.data;
+  const view = datedPositions && performance.isPending ? undefined : query.data;
   const held = new Set(view?.classes.flatMap((group) => group.positions.map((p) => p.securityId)));
   const unheld = instruments.data?.securities.filter((security) => !held.has(security.id));
   return (
     <PageFrame meta={VERMOEGEN_PORTFOLIO_META}>
+      <PortfolioRegisters current={register} period={period} />
       <div className="kview vview portfolio-view">
-        {query.isPending && <LoadingNote what="Positionen" />}
+        {datedPositions && performance.isError && <ErrorNote what="Portfoliozeitraum" error={performance.error} onRetry={() => void performance.refetch()} />}
+        {datedPositions && performance.isPending && <LoadingNote what="Portfoliozeitraum" />}
+        {datedPositions && <>
+        {query.isPending && !performance.isPending && <LoadingNote what="Positionen" />}
         {query.isError && (
           <ErrorNote what="Positionen" error={query.error} onRetry={() => void query.refetch()} />
         )}
         <ValuationHint incomplete={query.data?.incomplete} />
         {view && <PortfolioLead view={view} />}
-        <PortfolioOverview />
+        {view && performance.isError && <p className="vnote">Die Zeitraum-Auswertung ist nicht verfügbar. Der separat bewertete Bestand oben gilt für {longDay(view.asOf)}; ein Vergleich mit einem fehlenden Kurvenendpunkt ist nicht möglich.</p>}
+        {register === 'positions' && <ZeitraumSwitch />}
+        </>}
+        {register === 'overview' && <><PortfolioOverview />{view && <section className="portfolio-class-summary" aria-labelledby="portfolio-classes-title">
+          <div className="head"><h2 id="portfolio-classes-title">Anlageklassen kurz</h2></div>
+          <ul>{view.classes.map((group) => <li key={group.id ?? 'none'}><span>{maskMoneyText(group.name)}</span><span>{moneyText(group.valueCents)}</span></li>)}</ul>
+        </section>}</>}
+        {register === 'positions' && <>
         <div className="instrument-actions">
           <Button variant="ghost" onClick={() => select('neu')}>
             Instrument anlegen
           </Button>
           <Button onClick={() => trade('neu', undefined)}>Handel erfassen</Button>
         </div>
-        <PortfolioAllocation />
+
         {view && (
           <>
             {view.classes.length === 0 ? (
@@ -152,7 +182,7 @@ export function PortfolioPage() {
             )}
           </>
         )}
-        <SavingsSection />
+
         {instruments.isPending && <LoadingNote what="Instrumente" />}
         {instruments.isError && (
           <ErrorNote
@@ -200,6 +230,10 @@ export function PortfolioPage() {
             </table>
           </details>
         )}
+        </>}
+        {register === 'allocation' && <PortfolioAllocation />}
+        {register === 'savings' && <SavingsSection navigationPath="/vermoegen/portfolio/sparplaene" />}
+        {register === 'metrics' && <PortfolioMetrics />}
       </div>
       {search.sparplan ? null : search.handel ? (
         <TradePanel
@@ -245,6 +279,7 @@ function PortfolioLead({ view }: { view: PortfolioPositionsView }) {
           <span className="portfolio-unavailable">Bewertung unvollständig</span>
         )}
       </div>
+      <p className="vnote">Wertpapiere ohne Depot-Bargeld</p>
       <p className="portfolio-lead-gain" data-testid="portfolio-gain">
         Gewinn seit Kauf {moneyText(view.gainCents)} ·{' '}
         {percentText(

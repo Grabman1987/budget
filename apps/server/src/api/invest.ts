@@ -31,6 +31,8 @@ import {
   setPortfolioBenchmark,
   ContributionHistoryLimitError,
   portfolioPositions,
+  instrumentHistory,
+  InstrumentHistoryRangeError,
   portfolioAllocation,
   depotComparison,
   allocationReport,
@@ -171,6 +173,28 @@ export function securityRoutes(db: Db, today: () => string): Hono {
       ctx,
     );
     return c.json({ security: row, groupId: ctx.groupId }, 201);
+  });
+  app.get('/:id/history', (c) => {
+    const securityId = c.req.param('id');
+    const { from, to } = readQuery(
+      c,
+      z.strictObject({ from: exposureDay.optional(), to: exposureDay }),
+    );
+    if (to > today() || (from !== undefined && from > to))
+      throw new ApiError(
+        400,
+        'invalid_history_window',
+        'Bitte einen vergangenen Zeitraum in aufsteigender Reihenfolge wählen.',
+      );
+    try {
+      return c.json({
+        history: db.transaction((tx) => instrumentHistory(tx, securityId, defined({ from, to }))),
+      });
+    } catch (error) {
+      if (error instanceof InstrumentHistoryRangeError)
+        throw new ApiError(400, 'history_window_limit', error.message);
+      throw error;
+    }
   });
   app.get('/:id/exposures', (c) => {
     const securityId = c.req.param('id');
@@ -658,7 +682,12 @@ const depotsQuery = z.object({
 
 export function portfolioRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
-  app.get('/positions', (c) => c.json(portfolioPositions(db, today())));
+  app.get('/positions', (c) => {
+    const { asOf } = readQuery(c, z.object({ asOf: exposureDay.optional() }));
+    if (asOf !== undefined && asOf > today())
+      throw new ApiError(400, 'invalid', 'Der Stichtag darf nicht in der Zukunft liegen.');
+    return c.json(portfolioPositions(db, asOf ?? today()));
+  });
   app.get('/benchmarks', (c) => c.json(benchmarkSelection(db)));
   app.patch('/benchmarks', async (c) => {
     const { ids } = await readBody(

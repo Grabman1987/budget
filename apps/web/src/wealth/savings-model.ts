@@ -1,4 +1,5 @@
-import { addDays, freedomSumCents, nextExecutionAfter, rowAppliesOn } from '@budget/domain';
+import { addDays, addMonths, monthOf, plannedExecutions, freedomSumCents, nextExecutionAfter, rowAppliesOn } from '@budget/domain';
+import type { TradeRow } from './trade-api';
 import type { SavingsPlanRecord } from './savings-api';
 
 export const BANK_NOTE =
@@ -100,4 +101,45 @@ export function currentRates(
   // An absent account could belong to any currency, so known currency totals may be partial too.
   if (missingAccount) for (const currency of totals.keys()) totals.set(currency, null);
   return totals;
+}
+
+
+export interface SavingsMonthSlot {
+  month: string;
+  status: 'not_planned' | 'open' | 'missing_link' | 'executed' | 'ambiguous';
+  plannedDate: string | null;
+  plannedCents: number | null;
+  amountCents: number | null;
+  unitsE8: number | null;
+  tradeDate: string | null;
+}
+
+/** Explicit retained execution links only. Approximate/manual recognition stays in the inbox. */
+export function savingsMonthStrip(rows: readonly SavingsPlanRecord[], trades: readonly TradeRow[], asOf: string): SavingsMonthSlot[] {
+  const first = rows[0];
+  const versions = first ? rows.filter((row) => row.accountId === first.accountId && row.securityId === first.securityId) : [];
+  return Array.from({ length: 12 }, (_, index): SavingsMonthSlot => {
+    const month = addMonths(monthOf(asOf), index - 11);
+    const base: SavingsMonthSlot = { month, status: 'not_planned', plannedDate: null,
+      plannedCents: null, amountCents: null, unitsE8: null, tradeDate: null };
+    if (!first) return base;
+    const planned = plannedExecutions(versions, month);
+    const linked = trades.filter((t) => t.kind === 'buy' && t.deletedAt === null &&
+      t.accountId === first.accountId && t.securityId === first.securityId &&
+      t.savingsMonth === month && t.date <= asOf);
+    if (versions.length !== rows.length || planned.length > 1 || linked.length > 1)
+      return { ...base, status: 'ambiguous' };
+    const schedule = planned[0];
+    const actual = linked[0];
+    if (!schedule) return actual ? { ...base, status: 'ambiguous' } : base;
+    const slot = { ...base, plannedDate: schedule.date, plannedCents: schedule.amountCents };
+    if (actual) {
+      if (actual.savingsPlanId !== schedule.planId || !Number.isSafeInteger(actual.amountCents) ||
+        !Number.isSafeInteger(actual.unitsE8) || actual.amountCents < 0 || actual.unitsE8 <= 0)
+        return { ...slot, status: 'ambiguous' };
+      return { ...slot, status: 'executed', amountCents: actual.amountCents,
+        unitsE8: actual.unitsE8, tradeDate: actual.date };
+    }
+    return { ...slot, status: schedule.date > asOf ? 'open' : 'missing_link' };
+  });
 }
