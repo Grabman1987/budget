@@ -24,6 +24,20 @@ export type TransferLotDerivation =
   | { readonly kind: 'received'; readonly pairId: string; readonly outTradeId: string;
       readonly inTradeId: string; readonly date: string; readonly sourceAccountId: string;
       readonly destinationAccountId: string; readonly source: TransferLotFragment };
+/** Analytical average ancestry. Split ratios never denote physical E8 trades or lot cents. */
+export type AveragePoolProvenance =
+  | { readonly kind: 'acquisition'; readonly securityId: string; readonly acquisitionId: string; readonly acquiredOn: string;
+      readonly acquisitionOrder: number; readonly accountId: string; readonly unitsE8: number }
+  | { readonly kind: 'documented-fragment'; readonly securityId: string; readonly accountId: string;
+      readonly fragment: TransferLotFragment }
+  | { readonly kind: 'split'; readonly date: string; readonly source: AveragePoolProvenance;
+      readonly numerator: number; readonly denominator: number; readonly saleId?: string }
+  | { readonly kind: 'received'; readonly date: string; readonly securityId: string;
+      readonly source: AveragePoolProvenance;
+      readonly pairId: string; readonly outTradeId: string; readonly inTradeId: string;
+      readonly sourceAccountId: string; readonly destinationAccountId: string }
+  | { readonly kind: 'merged'; readonly date: string;
+      readonly sources: readonly AveragePoolProvenance[] };
 export interface TransferPoolEvidence {
   accountId: string;
   securityId: string;
@@ -34,6 +48,8 @@ export interface TransferPoolEvidence {
   locked: boolean;
   unsupportedCorporateAction: boolean;
   fragments: readonly TransferLotFragment[];
+  /** Alternative to fragments for a documented average pool with fractional ancestry. */
+  averagePool?: { readonly unitsE8: number; readonly provenance: AveragePoolProvenance };
   /**
    * Moving-average basis belongs to the pool. Null fragment bases mean unit provenance only;
    * numeric fragment bases claim current allocated cents and must sum to this declared pool.
@@ -47,12 +63,12 @@ export interface KnownBasisTransferInput {
   source: TransferPoolEvidence;
   destination: TransferPoolEvidence;
 }
-/** Average fragments carry acquisition provenance/units only; pooled cents are returned separately. */
+/** FIFO economic fragments; average ancestry is returned separately as a pool graph. */
 export type AllocatedTransferFragment = TransferLotFragment;
 export type SecurityTransferPreviewError =
   | 'invalid_input' | 'unsupported_currency' | 'unknown_basis' | 'ambiguous_lineage'
   | 'unestablished_boundary' | 'locked' | 'unsupported_corporate_action'
-  | 'insufficient_units' | 'nonrepresentable_allocation' | 'basis_evidence_conflict';
+  | 'insufficient_units' | 'nonrepresentable_allocation' | 'basis_evidence_conflict' | 'provenance_limit';
 export type SecurityTransferPreview =
   | { available: false; reason: SecurityTransferPreviewError; message: string }
   | {
@@ -65,6 +81,10 @@ export type SecurityTransferPreview =
       moved: AllocatedTransferFragment[];
       sourceRemaining: AllocatedTransferFragment[];
       destinationExisting: AllocatedTransferFragment[];
+      /** Exact average ancestry, separate from integer holdings and pooled cents. */
+      movedAverageProvenance?: AveragePoolProvenance;
+      sourceRemainingAverageProvenance?: AveragePoolProvenance;
+      destinationExistingAverageProvenance?: AveragePoolProvenance;
       sourceRemainingBasisCents: number;
       destinationBasisAfterCents: number;
       cashDeltaCents: 0;
@@ -83,6 +103,7 @@ const MESSAGES: Record<SecurityTransferPreviewError, string> = {
   unsupported_corporate_action: 'Dieser Bestand enthält eine hier nicht unterstützte Kapitalmaßnahme.',
   insufficient_units: 'Am belegten Übertragszeitpunkt sind nicht genügend Stücke vorhanden.',
   nonrepresentable_allocation: 'Die Stückzahlanteile sind in E8-Einheiten nicht exakt darstellbar.',
+  provenance_limit: 'Die exakt belegte Anschaffungsherkunft überschreitet die Rechengrenze.',
 };
 const unavailable = (reason: SecurityTransferPreviewError): SecurityTransferPreview =>
   ({ available: false, reason, message: MESSAGES[reason] });
@@ -117,14 +138,6 @@ export function normalizeFifoAcquisitionFragments(fragments: readonly TransferLo
       derivation: { kind: 'reunited' as const, contributingFragments: [...group] },
     };
   }));
-}
-
-/** Average cents belong to the pool; retain any earlier numeric fragment claim as evidence. */
-function pooledAverageFragment(fragment: TransferLotFragment, date: string): TransferLotFragment {
-  return fragment.basisCents === null ? fragment : {
-    ...fragment, basisCents: null,
-    derivation: { kind: 'pooled-basis', date, source: fragment },
-  };
 }
 
 /** Check caller-supplied ancestry without treating an aggregate as one invented path. */
@@ -226,10 +239,253 @@ function hasTransferAncestry(root: TransferLotFragment): boolean {
   }
   return false;
 }
+function fragmentLatestDate(root: TransferLotFragment): string {
+  let latest = root.acquiredOn;
+  const pending = [root], seen = new Set<TransferLotFragment>();
+  while (pending.length) {
+    const fragment = pending.pop()!;
+    if (seen.has(fragment)) continue;
+    seen.add(fragment);
+    const derivation = fragment.derivation;
+    if (derivation?.kind === 'reunited') pending.push(...derivation.contributingFragments);
+    else if (derivation) {
+      if (derivation.date > latest) latest = derivation.date;
+      pending.push(derivation.source);
+    }
+  }
+  return latest;
+}
+
+type ExactMass = { numerator: bigint; denominator: bigint; accountId: string; latestDate: string };
+type RationalShare = { numerator: bigint; denominator: bigint };
+type ValidatedMass = ExactMass & { shares: Map<string, RationalShare> };
+const provenanceBits = (value: bigint) => value.toString(2).length <= 4096;
+function commonDivisor(a: bigint, b: bigint): bigint {
+  while (b) { const next = a % b; a = b; b = next; }
+  return a;
+}
+function exactMass(numerator: bigint, denominator: bigint, accountId: string, latestDate: string): ExactMass | null {
+  if (numerator <= 0n || denominator <= 0n) return null;
+  const divisor = commonDivisor(numerator, denominator);
+  const reducedNumerator = numerator / divisor, reducedDenominator = denominator / divisor;
+  return provenanceBits(reducedNumerator) && provenanceBits(reducedDenominator)
+    ? { numerator: reducedNumerator, denominator: reducedDenominator, accountId, latestDate } : null;
+}
+function addMass(a: ExactMass, b: ExactMass, date: string): ExactMass | null {
+  const divisor = commonDivisor(a.denominator, b.denominator);
+  return exactMass(a.numerator * (b.denominator / divisor) + b.numerator * (a.denominator / divisor),
+    a.denominator * (b.denominator / divisor), a.accountId, date);
+}
+function reducedShare(numerator: bigint, denominator: bigint): RationalShare | null {
+  if (numerator <= 0n || denominator <= 0n) return null;
+  const divisor = commonDivisor(numerator, denominator);
+  const reducedNumerator = numerator / divisor, reducedDenominator = denominator / divisor;
+  return provenanceBits(reducedNumerator) && provenanceBits(reducedDenominator)
+    ? { numerator: reducedNumerator, denominator: reducedDenominator } : null;
+}
+function sumShares(a: RationalShare, b: RationalShare): RationalShare | null {
+  const divisor = commonDivisor(a.denominator, b.denominator);
+  return reducedShare(a.numerator * (b.denominator / divisor) +
+    b.numerator * (a.denominator / divisor), a.denominator * (b.denominator / divisor));
+}
+/** Validate a bounded DAG, not a rounded allocation of its acquisition leaves. */
+export function validateAverageProvenance(root: AveragePoolProvenance, unitsE8: number, accountId: string,
+  securityId: string, asOf: string, acquisitions = new Map<string, string>(),
+  positions = new Map<string, string>(), acquisitionFacts = new Map<string, string>(),
+  fragmentHandles = new Map<string, TransferLotFragment>(),
+  acquisitionForms = new Map<string, 'acquisition' | 'documented-fragment'>(),
+  ownership = new Map<string, RationalShare>(),
+  receipts = new Map<string, string>(), legs = new Map<string, string>(),
+  sales = new Map<string, string>()): 'valid' | 'invalid' | 'limit' {
+  if (!root || !safe(unitsE8) || unitsE8 === 0 || !identity(accountId) ||
+      !identity(securityId) || !validDay(asOf)) return 'invalid';
+  const active = new Set<AveragePoolProvenance>();
+  const completed = new Map<AveragePoolProvenance, ValidatedMass>();
+  const stack: { node: AveragePoolProvenance; leaving: boolean }[] = [{ node: root, leaving: false }];
+  let edges = 0;
+  let shareWork = 0;
+  while (stack.length) {
+    const { node, leaving } = stack.pop()!;
+    if (!node || typeof node !== 'object') return 'invalid';
+    if (leaving) {
+      let mass: ExactMass | null = null;
+      let shares: Map<string, RationalShare>;
+      if (node.kind === 'acquisition') {
+        mass = exactMass(BigInt(node.unitsE8), 1n, node.accountId, node.acquiredOn);
+        shares = new Map([[`acquisition:${node.acquisitionId}`, { numerator: 1n, denominator: 1n }]]);
+      } else if (node.kind === 'documented-fragment') {
+        mass = exactMass(BigInt(node.fragment.unitsE8), 1n, node.accountId, fragmentLatestDate(node.fragment));
+        shares = new Map([[`fragment:${node.fragment.fragmentId}`, { numerator: 1n, denominator: 1n }]]);
+      } else if (node.kind === 'split') {
+        const source = completed.get(node.source)!;
+        if (node.date < source.latestDate) return 'invalid';
+        mass = exactMass(source.numerator * BigInt(node.numerator),
+          source.denominator * BigInt(node.denominator), source.accountId, node.date);
+        if (node.saleId) {
+          if (!mass || source.denominator !== 1n || source.numerator > limit ||
+              mass.denominator !== 1n || mass.numerator > limit) return 'invalid';
+          shareWork += source.shares.size;
+          if (shareWork > 1000000) return 'limit';
+          const signature = JSON.stringify([node.date, source.accountId,
+            source.numerator.toString(), mass.numerator.toString(),
+            node.numerator, node.denominator,
+            [...source.shares].sort(([a], [b]) => a.localeCompare(b))
+              .map(([key, share]) => [key, share.numerator.toString(), share.denominator.toString()])]);
+          if (sales.has(node.saleId) && sales.get(node.saleId) !== signature) return 'invalid';
+          sales.set(node.saleId, signature);
+        }
+        shares = new Map();
+        shareWork += source.shares.size;
+        if (shareWork > 1000000) return 'limit';
+        for (const [key, share] of source.shares) {
+          const reduced = reducedShare(share.numerator * BigInt(node.numerator),
+            share.denominator * BigInt(node.denominator));
+          if (!reduced) return 'limit';
+          shares.set(key, reduced);
+        }
+        if (node.saleId) {
+          const key = `sale:${node.saleId}`;
+          if (shares.has(key)) return 'invalid';
+          shares.set(key, { numerator: 1n, denominator: 1n });
+        }
+      } else if (node.kind === 'received') {
+        const source = completed.get(node.source)!;
+        if (source.accountId !== node.sourceAccountId || node.date < source.latestDate) return 'invalid';
+        if (source.denominator !== 1n || source.numerator > limit) return 'invalid';
+        shareWork += source.shares.size;
+        if (shareWork > 1000000) return 'limit';
+        const signature = JSON.stringify([node.outTradeId, node.inTradeId, node.date,
+          node.sourceAccountId, node.destinationAccountId, node.securityId,
+          source.numerator.toString(), [...source.shares].sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, share]) => [key, share.numerator.toString(), share.denominator.toString()])]);
+        if ((receipts.has(node.pairId) && receipts.get(node.pairId) !== signature) ||
+            (legs.has(node.outTradeId) && legs.get(node.outTradeId) !== node.pairId) ||
+            (legs.has(node.inTradeId) && legs.get(node.inTradeId) !== node.pairId)) return 'invalid';
+        receipts.set(node.pairId, signature);
+        legs.set(node.outTradeId, node.pairId); legs.set(node.inTradeId, node.pairId);
+        mass = { ...source, accountId: node.destinationAccountId, latestDate: node.date };
+        const key = `receipt:${node.pairId}`;
+        if (source.shares.has(key)) return 'invalid';
+        shares = new Map(source.shares);
+        shares.set(key, { numerator: 1n, denominator: 1n });
+      } else if (node.kind === 'merged') {
+        shares = new Map();
+        for (const item of node.sources) {
+          const source = completed.get(item)!;
+          if (node.date < source.latestDate || (mass && mass.accountId !== source.accountId)) return 'invalid';
+          mass = mass ? addMass(mass, source, node.date) : { ...source, latestDate: node.date };
+          if (!mass) return 'limit';
+          shareWork += source.shares.size;
+          if (shareWork > 1000000) return 'limit';
+          for (const [key, share] of source.shares) {
+            const prior = shares.get(key);
+            const combined = prior ? sumShares(prior, share) : share;
+            if (!combined) return 'limit';
+            if (combined.numerator > combined.denominator) return 'invalid';
+            shares.set(key, combined);
+          }
+        }
+      } else return 'invalid';
+      if (!mass) return 'limit';
+      completed.set(node, { ...mass, shares }); active.delete(node); continue;
+    }
+    if (active.has(node)) return 'invalid';
+    if (completed.has(node)) continue;
+    if (active.size + completed.size >= 12000 || edges > 12000) return 'limit';
+    let sources: readonly AveragePoolProvenance[] = [];
+    if (node.kind === 'acquisition') {
+      if (!identity(node.acquisitionId) || !validDay(node.acquiredOn) || node.acquiredOn > asOf ||
+          !safe(node.acquisitionOrder) || !safe(node.unitsE8) || node.unitsE8 === 0 ||
+          !identity(node.accountId) || node.securityId !== securityId) return 'invalid';
+      const position = `${node.acquiredOn}:${node.acquisitionOrder}`;
+      const previous = acquisitions.get(node.acquisitionId);
+      if ((previous !== undefined && previous !== position) ||
+          (positions.has(position) && positions.get(position) !== node.acquisitionId)) return 'invalid';
+      if (acquisitionForms.has(node.acquisitionId) &&
+          acquisitionForms.get(node.acquisitionId) !== 'acquisition') return 'invalid';
+      const facts = JSON.stringify([node.acquiredOn, node.acquisitionOrder,
+        node.accountId, node.unitsE8]);
+      if (acquisitionFacts.has(node.acquisitionId) && acquisitionFacts.get(node.acquisitionId) !== facts)
+        return 'invalid';
+      acquisitions.set(node.acquisitionId, position);
+      positions.set(position, node.acquisitionId);
+      acquisitionFacts.set(node.acquisitionId, facts);
+      acquisitionForms.set(node.acquisitionId, 'acquisition');
+    } else if (node.kind === 'documented-fragment') {
+      const fragment = node.fragment;
+      if (!identity(node.accountId) || node.securityId !== securityId || !fragment ||
+          !identity(fragment.acquisitionId) || !validDay(fragment.acquiredOn) || fragment.acquiredOn > asOf ||
+          !safe(fragment.acquisitionOrder) || !safe(fragment.unitsE8) || fragment.unitsE8 === 0 ||
+          (fragment.basisCents !== null && !safe(fragment.basisCents)) ||
+          !validDerivation(fragment, 'average', asOf, node.accountId)) return 'invalid';
+      const position = `${fragment.acquiredOn}:${fragment.acquisitionOrder}`;
+      const previous = acquisitions.get(fragment.acquisitionId);
+      if ((previous !== undefined && previous !== position) ||
+          (positions.has(position) && positions.get(position) !== fragment.acquisitionId)) return 'invalid';
+      if (acquisitionForms.has(fragment.acquisitionId) &&
+          acquisitionForms.get(fragment.acquisitionId) !== 'documented-fragment') return 'invalid';
+      if (fragmentHandles.has(fragment.fragmentId) && fragmentHandles.get(fragment.fragmentId) !== fragment)
+        return 'invalid';
+      acquisitions.set(fragment.acquisitionId, position);
+      positions.set(position, fragment.acquisitionId);
+      fragmentHandles.set(fragment.fragmentId, fragment);
+      acquisitionForms.set(fragment.acquisitionId, 'documented-fragment');
+    } else if (node.kind === 'split') {
+      if (!validDay(node.date) || node.date > asOf || !safe(node.numerator) ||
+          !safe(node.denominator) || node.numerator === 0 || node.numerator >= node.denominator ||
+          (node.saleId !== undefined && !identity(node.saleId)) ||
+          commonDivisor(BigInt(node.numerator), BigInt(node.denominator)) !== 1n) return 'invalid';
+      sources = [node.source];
+    } else if (node.kind === 'received') {
+      if (!validDay(node.date) || node.date > asOf || node.securityId !== securityId ||
+          !identity(node.pairId) || !identity(node.outTradeId) || !identity(node.inTradeId) ||
+          node.outTradeId === node.inTradeId || !identity(node.sourceAccountId) ||
+          !identity(node.destinationAccountId) || node.sourceAccountId === node.destinationAccountId)
+        return 'invalid';
+      sources = [node.source];
+    } else if (node.kind === 'merged') {
+      if (!validDay(node.date) || node.date > asOf || !Array.isArray(node.sources) ||
+          node.sources.length < 2 || node.sources.length > 2000 ||
+          new Set(node.sources).size !== node.sources.length) return 'invalid';
+      sources = node.sources;
+    } else return 'invalid';
+    active.add(node); stack.push({ node, leaving: true });
+    edges += sources.length;
+    if (edges > 12000) return 'limit';
+    for (const source of sources) stack.push({ node: source, leaving: false });
+  }
+  const mass = completed.get(root);
+  if (!mass || mass.accountId !== accountId ||
+      mass.numerator !== BigInt(unitsE8) * mass.denominator) return 'invalid';
+  for (const [key, share] of mass.shares) {
+    const prior = ownership.get(key);
+    const combined = prior ? sumShares(prior, share) : share;
+    if (!combined) return 'limit';
+    if (combined.numerator > combined.denominator) return 'invalid';
+  }
+  for (const [key, share] of mass.shares) {
+    const prior = ownership.get(key);
+    ownership.set(key, prior ? sumShares(prior, share)! : share);
+  }
+  return 'valid';
+}
+export function splitAverageProvenance(source: AveragePoolProvenance, date: string, numerator: bigint,
+  denominator: bigint, saleId?: string): AveragePoolProvenance | null {
+  if (!source || !validDay(date) || numerator <= 0n || denominator <= numerator ||
+      denominator > limit || (saleId !== undefined && !identity(saleId))) return null;
+  const divisor = commonDivisor(numerator, denominator);
+  return { kind: 'split', date, source, numerator: Number(numerator / divisor),
+    denominator: Number(denominator / divisor), ...(saleId ? { saleId } : {}) };
+}
+export function mergeAverageProvenance(date: string, roots: readonly (AveragePoolProvenance | undefined)[]):
+  AveragePoolProvenance | undefined {
+  const sources = roots.filter((root): root is AveragePoolProvenance => root !== undefined);
+  return sources.length > 1 ? { kind: 'merged', date, sources } : sources[0];
+}
 
 /**
  * Stage-A preparation with the approved source-residual policy: transfer floor(exact cents),
- * retaining residual cents at source until its eventual full transfer. E8 fragments stay exact.
+ * retaining residual cents at source until its eventual full transfer. Actual E8 units stay exact.
  * This does not replay trades, establish evidence, or authorize apply.
  */
 export function previewKnownBasisSecurityTransfer(input: KnownBasisTransferInput): SecurityTransferPreview {
@@ -255,8 +511,27 @@ export function previewKnownBasisSecurityTransfer(input: KnownBasisTransferInput
   const ids = new Set<string>();
   const order = new Map<string, TransferLotFragment>();
   const acquisitions = new Map<string, string>();
+  const graphPositions = new Map<string, string>();
+  const acquisitionFacts = new Map<string, string>();
+  const fragmentHandles = new Map<string, TransferLotFragment>();
+  const acquisitionForms = new Map<string, 'acquisition' | 'documented-fragment'>();
+  const ownership = new Map<string, RationalShare>();
+  const receipts = new Map<string, string>(), legs = new Map<string, string>();
+  const sales = new Map<string, string>();
   let sourceUnits = 0n, sourceBasis = 0n, destinationBasis = 0n, destinationUnits = 0n;
   for (const pool of [source, destination]) {
+    if (pool.averagePool !== undefined) {
+      if (method !== 'average' || pool.fragments.length !== 0 || !pool.averagePool ||
+          !safe(pool.averagePool.unitsE8) || pool.averagePool.unitsE8 === 0 ||
+          !safe(pool.poolBasisCents as number)) return unavailable('invalid_input');
+      const status = validateAverageProvenance(pool.averagePool.provenance, pool.averagePool.unitsE8,
+        pool.accountId, pool.securityId, date, acquisitions, graphPositions,
+        acquisitionFacts, fragmentHandles, acquisitionForms, ownership, receipts, legs, sales);
+      if (status !== 'valid') return unavailable(status === 'limit' ? 'provenance_limit' : 'ambiguous_lineage');
+      if (pool === source) { sourceUnits = BigInt(pool.averagePool.unitsE8); sourceBasis = BigInt(pool.poolBasisCents!); }
+      else { destinationUnits = BigInt(pool.averagePool.unitsE8); destinationBasis = BigInt(pool.poolBasisCents!); }
+      continue;
+    }
     let allFragmentBasisKnown = true;
     let anyFragmentBasisKnown = false;
     let fragmentBasis = 0n;
@@ -284,12 +559,23 @@ export function previewKnownBasisSecurityTransfer(input: KnownBasisTransferInput
       const acquisitionPosition = acquisitions.get(fragment.acquisitionId);
       if (ids.has(fragment.fragmentId) || (acquisitionPosition !== undefined && acquisitionPosition !== position))
         return unavailable('ambiguous_lineage');
+      if (graphPositions.has(position) && graphPositions.get(position) !== fragment.acquisitionId)
+        return unavailable('ambiguous_lineage');
+      if (acquisitionForms.has(fragment.acquisitionId) &&
+          acquisitionForms.get(fragment.acquisitionId) !== 'documented-fragment')
+        return unavailable('ambiguous_lineage');
       if (previous && (previous.acquisitionId !== fragment.acquisitionId ||
           !(hasTransferAncestry(previous) || hasTransferAncestry(fragment))))
         return unavailable('ambiguous_lineage');
       ids.add(fragment.fragmentId);
       order.set(position, fragment);
       acquisitions.set(fragment.acquisitionId, position);
+      graphPositions.set(position, fragment.acquisitionId);
+      if (fragmentHandles.has(fragment.fragmentId)) return unavailable('ambiguous_lineage');
+      fragmentHandles.set(fragment.fragmentId, fragment);
+      acquisitionForms.set(fragment.acquisitionId, 'documented-fragment');
+      if (method === 'average') ownership.set(`fragment:${fragment.fragmentId}`,
+        { numerator: 1n, denominator: 1n });
       if (pool === source) sourceUnits += BigInt(fragment.unitsE8);
       else destinationUnits += BigInt(fragment.unitsE8);
     }
@@ -313,43 +599,57 @@ export function previewKnownBasisSecurityTransfer(input: KnownBasisTransferInput
   if (sourceUnits > limit || destinationUnits + BigInt(unitsE8) > limit || sourceBasis + destinationBasis > limit) return unavailable('invalid_input');
   const requested = BigInt(unitsE8);
   if (requested > sourceUnits) return unavailable('insufficient_units');
+  if (method === 'average') {
+    const fromEvidence = (pool: TransferPoolEvidence): AveragePoolProvenance | undefined =>
+      pool.averagePool?.provenance ?? mergeAverageProvenance(date, pool.fragments.map((fragment) =>
+        ({ kind: 'documented-fragment' as const, securityId: pool.securityId,
+          accountId: pool.accountId, fragment })));
+    const sourceRoot = fromEvidence(source)!;
+    const destinationRoot = fromEvidence(destination);
+    const movedRoot = requested === sourceUnits ? sourceRoot
+      : splitAverageProvenance(sourceRoot, date, requested, sourceUnits);
+    const remainingRoot = requested === sourceUnits ? undefined
+      : splitAverageProvenance(sourceRoot, date, sourceUnits - requested, sourceUnits);
+    if (!movedRoot || remainingRoot === null) return unavailable('invalid_input');
+    const movedStatus = validateAverageProvenance(movedRoot, unitsE8, source.accountId,
+      source.securityId, date);
+    const remainingStatus = remainingRoot ? validateAverageProvenance(remainingRoot,
+      Number(sourceUnits - requested), source.accountId, source.securityId, date) : 'valid';
+    if (movedStatus !== 'valid' || remainingStatus !== 'valid')
+      return unavailable(movedStatus === 'limit' || remainingStatus === 'limit'
+        ? 'provenance_limit' : 'ambiguous_lineage');
+    const transferred = sourceBasis * requested / sourceUnits;
+    return {
+      available: true, method, date, unitsE8, transferredBasisCents: Number(transferred),
+      basisAllocation: 'average-pool', moved: [], sourceRemaining: [], destinationExisting: [],
+      movedAverageProvenance: movedRoot,
+      ...(remainingRoot ? { sourceRemainingAverageProvenance: remainingRoot } : {}),
+      ...(destinationRoot ? { destinationExistingAverageProvenance: destinationRoot } : {}),
+      sourceRemainingBasisCents: Number(sourceBasis - transferred),
+      destinationBasisAfterCents: Number(destinationBasis + transferred),
+      cashDeltaCents: 0, realizedGainDeltaCents: 0, applyAvailable: false,
+    };
+  }
   const moved: AllocatedTransferFragment[] = [], remaining: AllocatedTransferFragment[] = [];
   let left = requested, transferred = 0n;
-  for (const fragment of method === 'fifo'
-    ? normalizeFifoAcquisitionFragments(source.fragments) : ordered(source.fragments)) {
+  for (const fragment of normalizeFifoAcquisitionFragments(source.fragments)) {
     const units = BigInt(fragment.unitsE8);
-    const numerator = method === 'fifo' ? (left < units ? left : units) : units * requested;
-    const denominator = method === 'fifo' ? 1n : sourceUnits;
-    if (numerator % denominator !== 0n) return unavailable('nonrepresentable_allocation');
-    const take = numerator / denominator;
-    if (method === 'fifo') {
-      const basis = BigInt(fragment.basisCents!);
-      // Each FIFO lot retains its own fractional cent until all of that lot leaves.
-      const carry = basis * take / units;
-      if (take > 0n) moved.push({ ...fragment, unitsE8: Number(take), basisCents: Number(carry),
-        ...(take < units ? { derivation: { kind: 'allocated' as const, date, source: fragment } } : {}) });
-      if (units > take) remaining.push({ ...fragment, unitsE8: Number(units - take), basisCents: Number(basis - carry),
-        ...(take > 0n ? { derivation: { kind: 'allocated' as const, date, source: fragment } } : {}) });
-      transferred += carry;
-      left -= take;
-    } else {
-      // Do not assign pooled basis to acquisition fragments or floor each fragment separately.
-      const pooled = pooledAverageFragment(fragment, date);
-      if (take > 0n) moved.push({ ...pooled, unitsE8: Number(take),
-        ...(take < units ? { derivation: { kind: 'allocated' as const, date, source: pooled } } : {}) });
-      if (units > take) remaining.push({ ...pooled, unitsE8: Number(units - take),
-        ...(take > 0n ? { derivation: { kind: 'allocated' as const, date, source: pooled } } : {}) });
-    }
+    const take = left < units ? left : units;
+    const basis = BigInt(fragment.basisCents!);
+    // Each FIFO lot retains its own fractional cent until all of that lot leaves.
+    const carry = basis * take / units;
+    if (take > 0n) moved.push({ ...fragment, unitsE8: Number(take), basisCents: Number(carry),
+      ...(take < units ? { derivation: { kind: 'allocated' as const, date, source: fragment } } : {}) });
+    if (units > take) remaining.push({ ...fragment, unitsE8: Number(units - take), basisCents: Number(basis - carry),
+      ...(take > 0n ? { derivation: { kind: 'allocated' as const, date, source: fragment } } : {}) });
+    transferred += carry;
+    left -= take;
   }
-  // Average uses ONE pool-level division. Per-fragment floors would retain extra cents.
-  if (method === 'average') transferred = sourceBasis * requested / sourceUnits;
   return {
     available: true, method, date, unitsE8, transferredBasisCents: Number(transferred),
-    basisAllocation: method === 'fifo' ? 'fifo-lots' : 'average-pool',
+    basisAllocation: 'fifo-lots',
     moved, sourceRemaining: remaining,
-    destinationExisting: method === 'fifo'
-      ? normalizeFifoAcquisitionFragments(destination.fragments)
-      : ordered(destination.fragments).map((fragment) => pooledAverageFragment(fragment, date)),
+    destinationExisting: normalizeFifoAcquisitionFragments(destination.fragments),
     sourceRemainingBasisCents: Number(sourceBasis - transferred),
     destinationBasisAfterCents: Number(destinationBasis + transferred),
     cashDeltaCents: 0, realizedGainDeltaCents: 0, applyAvailable: false,

@@ -4,6 +4,10 @@ import { moneyRuleViolation, unitsRuleViolation } from './trade-rules';
 import {
   previewKnownBasisSecurityTransfer,
   normalizeFifoAcquisitionFragments,
+  mergeAverageProvenance,
+  splitAverageProvenance,
+  validateAverageProvenance,
+  type AveragePoolProvenance,
   type SecurityTransferPreview,
   type SecurityTransferPreviewError,
   type TransferLotFragment,
@@ -31,6 +35,8 @@ export interface ReplayedSecurityAccount {
   basisCents: number;
   realizedGainCents: number;
   fragments: TransferLotFragment[];
+  /** Exact analytical ancestry for average; current holdings remain integer units/cents. */
+  averageProvenance: AveragePoolProvenance | null;
 }
 export interface ReplayedSecurityTransfer {
   pairId: string;
@@ -38,6 +44,7 @@ export interface ReplayedSecurityTransfer {
   inTradeId: string;
   preview: Extract<SecurityTransferPreview, { available: true }>;
   incomingFragments: TransferLotFragment[];
+  incomingAverageProvenance?: AveragePoolProvenance;
 }
 const MESSAGES = {
   unestablished_history: 'Dokumentierter Nullbestand und vollständige, eindeutig begrenzte Historie fehlen.',
@@ -91,8 +98,9 @@ export function replayKnownSecurityTransfers(input: KnownSecurityReplayInput): K
       new Set(input.lockedAccountIds).size !== input.lockedAccountIds.length ||
       input.lockedAccountIds.some((account) => !input.accountIds.includes(account)))
     return fail('unestablished_history');
-  const states = new Map(input.accountIds.map((accountId) => [accountId, {
-    accountId, unitsE8: 0, basisCents: 0, realizedGainCents: 0, fragments: [] as TransferLotFragment[],
+  const states = new Map<string, ReplayedSecurityAccount>(input.accountIds.map((accountId) => [accountId, {
+    accountId, unitsE8: 0, basisCents: 0, realizedGainCents: 0,
+    fragments: [], averageProvenance: null,
   }]));
   const identities = new Set<string>(), positions = new Set<string>();
   for (const event of input.events) {
@@ -128,28 +136,29 @@ export function replayKnownSecurityTransfers(input: KnownSecurityReplayInput): K
       if (event.kind === 'buy') {
         if (!safe(state.unitsE8 + event.unitsE8) || !safe(state.basisCents + event.amountCents + event.feeCents))
           return fail('arithmetic_limit', event.id);
-        state.fragments.push({ fragmentId: `buy:${event.id}`, acquisitionId: event.id, acquiredOn: event.date,
-          acquisitionOrder: event.sequence, unitsE8: event.unitsE8,
-          basisCents: input.method === 'fifo' ? event.amountCents + event.feeCents : null,
-          transferPairIds: [] });
+        if (input.method === 'average') {
+          state.averageProvenance = mergeAverageProvenance(event.date, [
+            state.averageProvenance ?? undefined,
+            { kind: 'acquisition', securityId: input.securityId, acquisitionId: event.id,
+              acquiredOn: event.date, acquisitionOrder: event.sequence,
+              accountId: event.accountId, unitsE8: event.unitsE8 },
+          ])!;
+        } else {
+          state.fragments.push({ fragmentId: `buy:${event.id}`, acquisitionId: event.id,
+            acquiredOn: event.date, acquisitionOrder: event.sequence, unitsE8: event.unitsE8,
+            basisCents: event.amountCents + event.feeCents, transferPairIds: [] });
+        }
         state.unitsE8 += event.unitsE8;
         state.basisCents += event.amountCents + event.feeCents;
       } else {
-        const quantity = BigInt(-event.unitsE8), beforeUnits = totalUnits(state.fragments);
+        const quantity = BigInt(-event.unitsE8);
+        const beforeUnits = input.method === 'average' ? BigInt(state.unitsE8) : totalUnits(state.fragments);
         const fifoLots = input.method === 'fifo' ? normalizeFifoAcquisitionFragments(state.fragments) : [];
         if (quantity > beforeUnits || (input.method === 'fifo' && !unambiguous(fifoLots)))
           return fail('ambiguous_disposal', event.id);
         const remaining: TransferLotFragment[] = [];
         if (input.method === 'average') {
-          for (const fragment of state.fragments) {
-            const numerator = BigInt(fragment.unitsE8) * quantity;
-            if (numerator % beforeUnits !== 0n)
-              return fail('nonrepresentable_allocation', event.id);
-            const units = BigInt(fragment.unitsE8) - numerator / beforeUnits;
-            if (units > 0n) remaining.push({ ...fragment, unitsE8: Number(units), basisCents: null,
-              ...(numerator > 0n ? { derivation: { kind: 'sold-remainder' as const,
-                saleId: event.id, date: event.date, source: fragment } } : {}) });
-          }
+          if (!state.averageProvenance) return fail('ambiguous_disposal', event.id);
         } else {
           let left = quantity;
           for (const fragment of fifoLots) {
@@ -187,6 +196,12 @@ export function replayKnownSecurityTransfers(input: KnownSecurityReplayInput): K
             !Number.isSafeInteger(state.realizedGainCents + cost.realizedGainCents))
           return fail('arithmetic_limit', event.id);
         state.fragments = remaining; state.unitsE8 = cost.unitsE8; state.basisCents = cost.costBasisCents;
+        if (input.method === 'average') {
+          const source = state.averageProvenance!;
+          state.averageProvenance = cost.unitsE8 === 0 ? null
+            : splitAverageProvenance(source, event.date, beforeUnits - quantity, beforeUnits, event.id);
+          if (cost.unitsE8 > 0 && !state.averageProvenance) return fail('arithmetic_limit', event.id);
+        }
         state.realizedGainCents += cost.realizedGainCents;
       }
     } else if (event.kind === 'transfer') {
@@ -199,7 +214,11 @@ export function replayKnownSecurityTransfers(input: KnownSecurityReplayInput): K
         accountId: state.accountId, securityId: input.securityId, currency: 'EUR', asOf: event.date,
         boundary: 'immediately-before-transfer', lineage: 'documented',
         locked: input.lockedAccountIds.includes(state.accountId), unsupportedCorporateAction: false,
-        fragments: state.fragments, ...(input.method === 'average' ? { poolBasisCents: state.basisCents } : {}),
+        fragments: state.fragments, ...(input.method === 'average' ? {
+          poolBasisCents: state.basisCents,
+          ...(state.averageProvenance ? { averagePool: { unitsE8: state.unitsE8,
+            provenance: state.averageProvenance } } : {}),
+        } : {}),
       });
       const preview = previewKnownBasisSecurityTransfer({ date: event.date, unitsE8: event.unitsE8,
         method: input.method, source: evidence(source), destination: evidence(destination) });
@@ -208,6 +227,7 @@ export function replayKnownSecurityTransfers(input: KnownSecurityReplayInput): K
       // Keep historical previews independent of later buys that append to this account.
       source.fragments = [...preview.sourceRemaining];
       source.unitsE8 -= event.unitsE8; source.basisCents = preview.sourceRemainingBasisCents;
+      if (input.method === 'average') source.averageProvenance = preview.sourceRemainingAverageProvenance ?? null;
       const incomingFragments = preview.moved.map((fragment, index) => ({ ...fragment,
         fragmentId: `in:${event.inTradeId}:${index}`,
         transferPairIds: fragment.transferPairIds === undefined
@@ -219,11 +239,28 @@ export function replayKnownSecurityTransfers(input: KnownSecurityReplayInput): K
       }));
       destination.fragments.push(...incomingFragments);
       destination.unitsE8 += event.unitsE8; destination.basisCents = preview.destinationBasisAfterCents;
+      let incomingAverageProvenance: AveragePoolProvenance | undefined;
+      if (input.method === 'average') {
+        incomingAverageProvenance = {
+          kind: 'received', date: event.date, securityId: input.securityId,
+          pairId: event.id, outTradeId: event.outTradeId, inTradeId: event.inTradeId,
+          sourceAccountId: event.sourceAccountId, destinationAccountId: event.destinationAccountId,
+          source: preview.movedAverageProvenance!,
+        };
+        destination.averageProvenance = mergeAverageProvenance(event.date, [
+          preview.destinationExistingAverageProvenance, incomingAverageProvenance,
+        ])!;
+      }
       edges.set(event.sourceAccountId, new Set([...(edges.get(event.sourceAccountId) ?? []), event.destinationAccountId]));
-      transfers.push({ pairId: event.id, outTradeId: event.outTradeId, inTradeId: event.inTradeId, preview, incomingFragments });
+      transfers.push({ pairId: event.id, outTradeId: event.outTradeId, inTradeId: event.inTradeId,
+        preview, incomingFragments, ...(incomingAverageProvenance ? { incomingAverageProvenance } : {}) });
     } else return fail('unsupported_event', event.id);
     const totalBasis = [...states.values()].reduce((sum, state) => sum + BigInt(state.basisCents), 0n);
     if (totalBasis > limit || [...states.values()].some((state) => state.fragments.length > 2000))
+      return fail('scope_limit', event.id);
+    if (input.method === 'average' && [...states.values()].some((state) =>
+      state.averageProvenance && validateAverageProvenance(state.averageProvenance,
+        state.unitsE8, state.accountId, input.securityId, event.date) !== 'valid'))
       return fail('scope_limit', event.id);
   }
   return { available: true, accounts: [...states.values()].map((state) => ({ ...state, fragments: ordered(state.fragments) })),
