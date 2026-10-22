@@ -124,9 +124,10 @@ export function PortfolioPerformanceReport({
             incomplete={query.data.incomplete}
             onOpenPortfolio={() =>
               void navigate({
-                to: '/vermoegen/portfolio',
+                to: '/vermoegen/portfolio/kennzahlen',
                 search: ((previous: Record<string, unknown>) => ({
                   ...previous,
+                  zeitraum: period,
                   produkt: undefined,
                 })) as never,
               })
@@ -279,7 +280,7 @@ function PerformanceBody({
       )}
       <div className="performance-links">
         <Button variant="ghost" onClick={onOpenPortfolio}>
-          Portfolio öffnen
+          Portfolio-Kennzahlen öffnen
         </Button>
       </div>
     </>

@@ -314,9 +314,11 @@ export function PortfolioAllocation() {
                           variant="ghost"
                           size="sm"
                           onClick={() =>
-                            document
-                              .getElementById('positions-title')
-                              ?.scrollIntoView({ behavior: 'instant', block: 'start' })
+                            void navigate({
+                              to: '/vermoegen/portfolio/positionen',
+                              search: (previous) => ({ zeitraum: previous.zeitraum }),
+                              hash: 'positions-title',
+                            })
                           }
                         >
                           Positionen ansehen

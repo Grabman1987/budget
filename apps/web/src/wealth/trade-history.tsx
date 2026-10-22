@@ -1,4 +1,5 @@
-import { useAmountPrivacy, Button } from '@budget/ui';
+import { useAmountPrivacy, maskMoneyText, privateAmount, Button } from '@budget/ui';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
@@ -22,6 +23,9 @@ export function TradeHistory({
   useAmountPrivacy();
   const query = useQuery(tradesQuery(securityId));
   const accounts = useQuery({ ...accountsQuery(), retry: false });
+  const [all, setAll] = useState(false);
+  const ordered = [...(trades ?? query.data?.trades ?? [])].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  const visible = all ? ordered : ordered.slice(0, 12);
   return (
     <section className="trade-history" aria-labelledby="trade-history-title">
       <h3 id="trade-history-title">{purchases ? 'Käufe' : 'Handelsverlauf'}</h3>
@@ -58,7 +62,7 @@ export function TradeHistory({
                 'Gebühren',
                 'Steuer',
                 'Notiz',
-                ...(onEdit ? ['Aktion'] : []),
+
               ].map((label) => (
                 <th key={label} scope="col">
                   {label}
@@ -67,46 +71,39 @@ export function TradeHistory({
             </tr>
           </thead>
           <tbody>
-            {(trades ?? query.data?.trades ?? [])
-              .slice()
-              .reverse()
-              .map((trade) => {
+            {visible.map((trade) => {
                 const account = accounts.data?.accounts.find(
                   (account) => account.id === trade.accountId,
                 );
                 const money = (cents: number) =>
                   account ? sourceMoney(cents, account.currency) : 'Kontowährung wird geladen';
                 return (
-                  <tr key={trade.id} data-trade-id={trade.id}>
+                  <tr key={trade.id} data-trade-id={trade.id}
+                    onPointerUp={onEdit && !disabled ? (event) => {
+                      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || window.getSelection()?.toString()) return;
+                      if (event.target instanceof Element && event.target.closest('button,a,input,select,textarea')) return;
+                      onEdit(trade.id);
+                    } : undefined}>
                     <td>{longDay(trade.date)}</td>
                     <th scope="row">
-                      <strong>{KINDS[trade.kind]}</strong>
-                      <small>{account?.name ?? 'Konto wird geladen'}</small>
+                      {onEdit ? <button type="button" className="trade-row-edit" disabled={disabled}
+                        onClick={() => onEdit(trade.id)} aria-label={`${KINDS[trade.kind]} vom ${longDay(trade.date)} bearbeiten`}>
+                        {KINDS[trade.kind]}
+                      </button> : <strong>{KINDS[trade.kind]}</strong>}
+                      <small>{maskMoneyText(account?.name ?? 'Konto wird geladen')}</small>
                     </th>
                     <td className="num">
-                      {unitsText(
+                      {privateAmount(unitsText(
                         trade.kind === 'buy' || trade.kind === 'sell'
                           ? Math.abs(trade.unitsE8)
                           : trade.unitsE8,
-                      )}
+                      ))}
                     </td>
                     <td className="num">{money(trade.amountCents)}</td>
                     <td className="num">{money(trade.feeCents)}</td>
                     <td className="num">{money(trade.taxCents)}</td>
-                    <td>{trade.note ?? '—'}</td>
-                    {onEdit && (
-                      <td>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={disabled}
-                          onClick={() => onEdit(trade.id)}
-                          aria-label={`${KINDS[trade.kind]} vom ${longDay(trade.date)} bearbeiten`}
-                        >
-                          Bearbeiten
-                        </Button>
-                      </td>
-                    )}
+                    <td>{maskMoneyText(trade.note ?? '—')}</td>
+
                   </tr>
                 );
               })}
@@ -114,6 +111,9 @@ export function TradeHistory({
         </table>
       </div>
       {/* eslint-enable jsx-a11y/no-noninteractive-tabindex */}
+      {ordered.length > 12 && <Button variant="ghost" onClick={() => setAll((shown) => !shown)}>
+        {all ? 'Letzte zwölf anzeigen' : `Alle anzeigen (${ordered.length})`}
+      </Button>}
     </section>
   );
 }

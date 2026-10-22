@@ -84,3 +84,45 @@
   font-weight: 620;
   overflow-wrap: anywhere;
 }
+
+/* Explicit savings links: the strip never promotes an inferred/manual buy to an execution. */
+.savings-months ol {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0;
+  list-style: none;
+}
+.savings-months li {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--rule);
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.savings-months li small {
+  color: var(--ink-2);
+}
+.savings-purchases summary,
+.trade-row-edit {
+  min-height: 44px;
+  padding-block: 12px;
+}
+.trade-row-edit {
+  background: transparent;
+  border: 0;
+  color: var(--line);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+@media (max-width: 600px) {
+  .savings-months ol {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.trade-list tr:has(.trade-row-edit:enabled) {
+  cursor: pointer;
+}

@@ -7,8 +7,10 @@ import {
   TextInput,
   useToast,
   maskMoneyText,
+  privateAmount,
 } from '@budget/ui';
-import { formatDecimal, parseAmount, type Cents } from '@budget/domain';
+import { formatDecimal, parseAmount, parseScaledDecimal, type Cents } from '@budget/domain';
+import type { RecordedSecurityTransferPreview } from '@budget/db';
 import { confirmSavings, type SavingsExecutionProposal } from './savings-api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
@@ -20,7 +22,8 @@ import { accountsQuery, LEDGER_KEY, lookupsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { AccountRow } from '../ledger/types';
 import { instrumentsQuery, type SecurityRecord } from './portfolio-api';
-import { removeTrade, saveTrade, sourceMoney, tradeQuery, type TradeRow } from './trade-api';
+import { previewSecurityTransfer, removeTrade, saveTrade, sourceMoney, tradeQuery, type TradeRow } from './trade-api';
+import { unitsText } from './portfolio-format';
 import {
   hasUnits,
   hasDeductions,
@@ -54,8 +57,11 @@ export function TradePanel({
   const blockedDuringSaveRef = useRef(false);
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
+  const [mode, setMode] = useState<'trade' | 'transfer'>('trade');
+  const [hasDraft, setHasDraft] = useState(false);
   const setDirtyNow = useCallback((value: boolean) => {
     dirtyRef.current = value;
+    setHasDraft(value);
   }, []);
   const setBusyNow = useCallback((value: boolean) => {
     busyRef.current = value;
@@ -83,6 +89,7 @@ export function TradePanel({
   const close = () => {
     setDirtyNow(false);
     setAsking(false);
+    setMode('trade');
     onClose();
   };
   const eligible = accounts.data?.accounts.filter(
@@ -100,7 +107,7 @@ export function TradePanel({
     ? 'Sparplanausführung bestätigen'
     : editing
       ? 'Handel bearbeiten'
-      : 'Handel erfassen';
+      : mode === 'transfer' ? 'Wertpapierübertrag prüfen' : 'Handel erfassen';
   return (
     <FormDialog open={!!id} title={title} onClose={close} beforeClose={beforeClose}>
       <div className="bk-head">
@@ -115,6 +122,16 @@ export function TradePanel({
         </Button>
       </div>
       <div className="bk-body">
+        {!editing && !proposal && (
+          <div className="instrument-actions" aria-label="Art der Erfassung">
+            <Button type="button" variant={mode === 'trade' ? 'primary' : 'ghost'}
+              aria-pressed={mode === 'trade'} disabled={busy || hasDraft}
+              onClick={() => setMode('trade')}>Handel</Button>
+            <Button type="button" variant={mode === 'transfer' ? 'primary' : 'ghost'}
+              aria-pressed={mode === 'transfer'} disabled={busy || hasDraft}
+              onClick={() => setMode('transfer')}>Wertpapierübertrag</Button>
+          </div>
+        )}
         {accounts.isPending && <LoadingNote what="Anlagekonten" />}
         {securities.isPending && <LoadingNote what="Instrumente" />}
         {editing && trade.isPending && <LoadingNote what="Handel" />}
@@ -142,7 +159,17 @@ export function TradePanel({
             onRetry={() => void lookups.refetch()}
           />
         )}
-        {id && ready && (
+        {id && ready && mode === 'transfer' && !editing && !proposal && (
+          <TransferPreviewForm
+            date={accounts.data!.asOf}
+            securityId={securityId}
+            accounts={accounts.data!.accounts}
+            securities={securities.data!.securities}
+            onDirty={setDirtyNow}
+            onBusy={setBusyNow}
+          />
+        )}
+        {id && ready && (mode === 'trade' || editing || !!proposal) && (
           <TradeForm
             key={id}
             trade={editing ? trade.data?.trade : undefined}
@@ -165,7 +192,7 @@ export function TradePanel({
         )}
         {asking && (
           <div className="instrument-discard" role="alert">
-            <p>Ungespeicherte Handelsangaben verwerfen?</p>
+            <p>{mode === 'transfer' ? 'Angaben zur Übertragsvorschau verwerfen?' : 'Ungespeicherte Handelsangaben verwerfen?'}</p>
             <Button
               disabled={busy}
               onClick={() => {
@@ -556,6 +583,148 @@ function TradeForm({
             </Button>
           </div>
         )}
+      </fieldset>
+    </form>
+  );
+}
+
+/** Read-only transfer review in the existing trade dialog; no delivery is saved here. */
+function TransferPreviewForm({ date, securityId, accounts, securities, onDirty, onBusy }: {
+  date: string;
+  securityId?: string | undefined;
+  accounts: AccountRow[];
+  securities: SecurityRecord[];
+  onDirty: (dirty: boolean) => void;
+  onBusy: (busy: boolean) => void;
+}) {
+  useAmountPrivacy();
+  const eligible = accounts.filter((account) => account.role === 'investment' &&
+    !account.onBudget && account.currency === 'EUR' && !account.closedAt);
+  const [original] = useState(() => ({ securityId: securityId ?? '', sourceAccountId: '',
+    destinationAccountId: '', date, units: '' }));
+  const [draft, setDraft] = useState(original);
+  const [result, setResult] = useState<RecordedSecurityTransferPreview | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
+  const update = (key: keyof typeof draft, value: string) => {
+    const next = { ...draft, [key]: value,
+      ...(key === 'sourceAccountId' && value === draft.destinationAccountId
+        ? { destinationAccountId: '' } : {}) };
+    setDraft(next);
+    setResult(null);
+    setError('');
+    onDirty(JSON.stringify(next) !== JSON.stringify(original));
+  };
+  const calculate = async (event: FormEvent) => {
+    event.preventDefault();
+    if (pending.current) return;
+    setError('');
+    if (!draft.securityId || !draft.sourceAccountId || !draft.destinationAccountId ||
+        draft.sourceAccountId === draft.destinationAccountId) {
+      setError('Ein Wertpapier und zwei verschiedene Anlagekonten auswählen.');
+      return;
+    }
+    let unitsE8: number;
+    try {
+      const units = draft.units.trim().replace(',', '.');
+      if (!/^\d+(\.\d{1,8})?$/.test(units)) throw new RangeError();
+      unitsE8 = parseScaledDecimal(units, 8);
+      if (!Number.isSafeInteger(unitsE8) || unitsE8 <= 0) throw new RangeError();
+    } catch {
+      setError('Positive Stückzahl mit höchstens acht Nachkommastellen eingeben.');
+      return;
+    }
+    pending.current = true;
+    setBusy(true);
+    onBusy(true);
+    try {
+      setResult(await previewSecurityTransfer({ securityId: draft.securityId,
+        sourceAccountId: draft.sourceAccountId, destinationAccountId: draft.destinationAccountId,
+        date: draft.date, unitsE8 }));
+    } catch (cause) {
+      setResult(null);
+      setError(errorText(cause));
+    } finally {
+      pending.current = false;
+      setBusy(false);
+      onBusy(false);
+    }
+  };
+  return (
+    <form className="kform" onSubmit={(event) => void calculate(event)}>
+      <fieldset className="instrument-fields" disabled={busy}>
+        <p className="vnote">Vorschau aus gespeicherten Käufen, Verkäufen und Splits.
+          Sie erstellt weder eine Brokerorder noch eine Buchung.</p>
+        <Field label="Wertpapier">
+          {({ id }) => <Select id={id} value={draft.securityId} required
+            onChange={(event) => update('securityId', event.target.value)}>
+            <option value="">Wertpapier auswählen</option>
+            {securities.map((security) => <option key={security.id} value={security.id}>
+              {security.name} · {security.currency}
+            </option>)}
+          </Select>}
+        </Field>
+        <Field label="Abgang von">
+          {({ id }) => <Select id={id} value={draft.sourceAccountId} required
+            onChange={(event) => update('sourceAccountId', event.target.value)}>
+            <option value="">Quellkonto auswählen</option>
+            {eligible.map((account) => <option key={account.id} value={account.id}>
+              {account.name} · EUR
+            </option>)}
+          </Select>}
+        </Field>
+        <Field label="Zugang auf">
+          {({ id }) => <Select id={id} value={draft.destinationAccountId} required
+            onChange={(event) => update('destinationAccountId', event.target.value)}>
+            <option value="">Zielkonto auswählen</option>
+            {eligible.filter((account) => account.id !== draft.sourceAccountId)
+              .map((account) => <option key={account.id} value={account.id}>
+                {account.name} · EUR
+              </option>)}
+          </Select>}
+        </Field>
+        <Field label="Übertragsdatum">
+          {({ id }) => <TextInput id={id} type="date" value={draft.date} required
+            onChange={(event) => update('date', event.target.value)} />}
+        </Field>
+        <Field label="Stückzahl" hint="Positive Stückzahl, bis zu acht Nachkommastellen.">
+          {({ id, describedBy }) => <TextInput id={id} inputMode="decimal" value={draft.units}
+            money required maxLength={30} aria-describedby={describedBy}
+            onChange={(event) => update('units', event.target.value)} />}
+        </Field>
+        {!eligible.length && <p className="vnote">Zwei offene, budgetfreie EUR-Anlagekonten werden benötigt.</p>}
+        {error && <p className="field-error" role="alert">{maskMoneyText(error)}</p>}
+        <Button type="submit" disabled={busy || eligible.length < 2}>
+          {busy ? 'Vorschau wird berechnet …' : 'Übertrag prüfen'}
+        </Button>
+        {result && !result.available &&
+          <p className="field-error" role="alert">{maskMoneyText(result.message)}</p>}
+        {result?.available && <div className="vnote" role="status">
+          <p><strong>Übertrag von {privateAmount(unitsText(result.unitsE8))} Stück</strong>
+            {' · '}{result.method === 'fifo' ? 'FIFO' : 'Durchschnittseinstand'}</p>
+          <p>Abgang: {privateAmount(unitsText(result.source.beforeUnitsE8))} Stück /{' '}
+            {sourceMoney(result.source.beforeBasisCents, 'EUR')} Einstand →{' '}
+            {privateAmount(unitsText(result.source.remainingUnitsE8))} Stück /{' '}
+            {sourceMoney(result.source.remainingBasisCents, 'EUR')} verbleiben.</p>
+          <p>Zugang: {privateAmount(unitsText(result.destination.beforeUnitsE8))} Stück /{' '}
+            {sourceMoney(result.destination.beforeBasisCents, 'EUR')} Einstand →{' '}
+            {privateAmount(unitsText(result.destination.afterUnitsE8))} Stück /{' '}
+            {sourceMoney(result.destination.afterBasisCents, 'EUR')}.</p>
+          <p>Übertragener Einstand: {sourceMoney(result.transferredBasisCents, 'EUR')}.
+            Cent-Reste bleiben bis zum vollständigen Übertrag beim Quellbestand.</p>
+          {result.method === 'fifo' ? <details>
+            <summary>Betroffene Anschaffungen ({result.movedLots.length})</summary>
+            <ul>{result.movedLots.map((lot) => <li key={lot.acquisitionId}>
+              Kauf vom {lot.acquiredOn}: {privateAmount(unitsText(lot.unitsE8))} Stück /{' '}
+              {sourceMoney(lot.basisCents, 'EUR')} Einstand
+            </li>)}</ul>
+          </details> : <p>Die Kostenbasis stammt aus dem belegten Durchschnittspool;
+            einzelne Anschaffungen erhalten keinen erfundenen Cent-Anteil.</p>}
+          <p>Keine Barbewegung, kein realisierter Gewinn.</p>
+          {result.warnings.map((warning) => <p key={warning}>{warning}</p>)}
+        </div>}
+        <p className="vnote">Erfassen ist derzeit nicht verfügbar. Diese Vorschau speichert keinen Übertrag.</p>
       </fieldset>
     </form>
   );

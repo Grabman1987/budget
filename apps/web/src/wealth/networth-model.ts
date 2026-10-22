@@ -1,6 +1,6 @@
 import { privateAmount } from '@budget/ui';
 import type { ChainTerm, NetWorthWindow, Period } from '@budget/domain';
-import { cents } from '@budget/domain';
+import { cents, MINUS } from '@budget/domain';
 
 const MONTHS = ['Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 const monthShort = (day: string) => MONTHS[Number(day.slice(5, 7)) - 1] ?? '';
@@ -99,6 +99,25 @@ const whole = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 });
 /** Axis label: thousands as "80 T". */
 export const kfmt = (v: number): string =>
   privateAmount(Math.abs(v) >= 1000 ? `${whole.format(v / 1000)} T` : whole.format(v));
+
+/** Use one explicit euro unit for every tick of a chart, retaining distinct nice-number ticks. */
+export function euroAxis(ticks: readonly number[]): { unit: string; label: (value: number) => string } {
+  const thousands = ticks.some((value) => Math.abs(value) >= 1000);
+  const step = Math.min(...ticks.slice(1).map((value, index) => Math.abs(value - ticks[index]!)));
+  const scale = thousands ? 1000 : 1;
+  const digits =
+    Number.isFinite(step) && step > 0
+      ? Math.min(6, Math.max(0, Math.ceil(-Math.log10(step / scale)) + 1))
+      : 0;
+  const formatter = new Intl.NumberFormat('de-AT', { maximumFractionDigits: digits });
+  return {
+    unit: thousands ? 'Tsd. €' : '€',
+    label: (value) => {
+      const amount = thousands ? value / 1000 : value;
+      return privateAmount(`${amount < 0 ? MINUS : ''}${formatter.format(Math.abs(amount))}`);
+    },
+  };
+}
 
 /** Month starts on the x axis (index into `days`, never the first day), thinned to fit `width`. */
 export function monthTicks(

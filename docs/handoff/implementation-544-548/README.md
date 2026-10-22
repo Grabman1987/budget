@@ -1,0 +1,30 @@
+# Portfolio registers and detail pages — implementation checkpoint
+
+**NOT VALIDATED.** Source-only implementation for #544, #546, #547 and #548 under the owner's 2026-10-22 implementation-only direction. No tests, new test files, typechecks, builds, browser checks, CI dispatches, pull requests, merges or deployments were performed. Issues remain open.
+
+Based on main `6420676d257698767931dd151863765cec914acf`. Adopts only the feature hunks from prepared source `80c43a631a276df0a06c74bbdc690f3bc97fe521` and `addda5986563c9421d20e2efe5b57b410d45d55b`, including their preserved integration corrections. Mixed historical parent stacks were not adopted.
+
+Implemented source:
+
+- **#544:** five route-backed register components, selected-period positions and lead, grouped positions, allocation/rebalancing, savings navigation and originating-register detail returns. Rebalancing now navigates to the separate positions register. Orange out-of-band allocation uses existing tokens.
+- **#546:** the existing performance-report query supplies TTWROR period/p.a., XIRR, risk terms, benchmark differences and actual after-tax daily cash flows. Forward/reverse report links retain the selected period; existing financial formulas remain the source.
+- **#547:** one transactional historical read reuses daily valuation and canonical dated positions, with explicit missing/unsafe states and an inclusive 20,000-day limit. Default EUR value/native-price toggle, actual-date trade markers, documented endpoint basis, identical tooltip/table data and last-twelve/all trades preserve the existing edit controller. An empty native-price result has no chart.
+- **#548:** twelve calendar months use explicit live savings-month/version links, with planned/open/missing/ambiguous states kept distinct. Actual purchase dates remain visible, purchases start collapsed and rates/version history remain below. Existing approximate inbox proposals and all financial writers/Undo remain unchanged.
+
+The root writer applied the required shared integration: register routes/search/legacy redirects in `apps/web/src/router.tsx`, dated positions and transactional instrument-history GETs in `apps/server/src/api/invest.ts`, and the new repository export in `packages/db/src/repos/index.ts`. The exact patch is retained outside the repository at `/workspace/.budget-tools/cloud-control/impl-544-548-integration/root-owned.patch`. These three root-applied shared files are included in this source checkpoint. No other shared files were edited.
+
+Deferred acceptance includes literal dated endpoint/report/FX/account-rounding/basis and cash-flow parity, the PP 100 + 100 → 220 case, gap/zero/date-marker inspection, explicit missing/extra savings executions and unchanged inbox/Undo, editor dirty/save/back/reload behavior, desktop 1440/mobile 390/WebKit, both themes, keyboard/privacy/Axe, 44px targets, page overflow and two-screen geometry. Source reuse and historical source reviews do not establish these results.
+
+Existing tests are preserved. Later approved adapters will need to update `apps/web/src/wealth/price-history.test.tsx` to provide the shared history controller and explicitly select native Kurs mode while retaining its exact quote/range/retry assertions. `e2e/portfolio-instruments.spec.ts`, `e2e/portfolio-allocation.spec.ts`, `e2e/savings-plans.spec.ts`, `e2e/wealth-detail-pages.spec.ts`, `e2e/wealth-ux-v1.spec.ts` and `e2e/issue-512-investment-explanations.spec.ts` need route/return-target fixtures for separated registers; old trade selectors must use the native row action instead of separate Bearbeiten buttons. The performance-report navigation assertion must reflect the Kennzahlen destination. Keep all financial, security, locking, Undo and equivalent interaction coverage.
+
+Branch publication is a WIP checkpoint only. The inspected workflows trigger CI on pull requests or pushes to main, recovery/register workflows on pull requests, snapshots manually and deployment after main CI or manual dispatch. A push of this feature branch without a pull request does not match those triggers.
+
+## Source review chart corrections
+
+The independent source review ofce1e67b17a930d3441e827359f1adf5efcb38303 found two display defects in the new instrument chart. The native Kurs mode now uses the observed price range with padding (single price uses2% or one micro-unit) and keeps its horizontal axis inside the plot rather than projecting an off-plot zero. EUR Wert retains its zero basis. Its value ticks now use the existing #470 `euroAxis` formatter and explicit unit. Only that unchanged helper/import was carried from48c91868554647eb01dd9e61a03fc697b745c2fd; later assembly must retain one identical helper alongside #470 currencyAxis and other chart changes. Prices, cents, valuations, queries, tooltip/table source and basis calculations are unchanged.
+
+The original reviewer explicitly withdrew the risk-Term finding as a source-reading error; all three glossary controls already exist at the reviewed head, so no metrics change was made. See `SOURCE-REVIEW.md`. Correction-delta independent review pending. No tests, test edits, checks, builds, browser, CI, PR, merge or deployment executed; NOT VALIDATED / NOT LIVE.
+
+## Latest independent source review
+
+Independent review of 093228b8ab4336c48c7579500c0f9fca3e1e5fe3 found both chart-source findings addressed. See CHART-FIX-SOURCE-REVIEW.md. #470 helper assembly and rendered acceptance remain pending. NOT VALIDATED / NOT LIVE.

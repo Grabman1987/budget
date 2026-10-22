@@ -30,6 +30,8 @@ export * from './goals';
 export * from './rule-inputs';
 export * from './rules';
 export * from './trades';
+export { previewRecordedSecurityTransfer } from './security-transfer-history';
+export type { RecordedSecurityTransferPreview } from './security-transfer-history';
 export * from './securities';
 export * from './portfolio-summary';
 export * from './portfolio-benchmark';
@@ -99,7 +101,7 @@ export * from './statement-settlement-invariants';
 export * from './statement-settlement-read';
 export * from './statement-automation';
 export * from './statement-receipt-links';
-
 export * from './target-intent';
 export * from './selected-funding';
 export * from './fx-transfers';
+export * from './instrument-history';

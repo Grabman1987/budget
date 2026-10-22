@@ -19,21 +19,25 @@ import { instrumentQuery, type PortfolioPosition } from './portfolio-api';
 import { basisReason, moneyText, quoteStand, quoteText, unitsText } from './portfolio-format';
 import { InstrumentForm, INSTRUMENT_KIND } from './instrument-form';
 import { TradeHistory } from './trade-history';
-import { PriceHistory } from './price-history';
+import { PriceHistory, useInstrumentHistory } from './price-history';
+import type { Period } from '@budget/domain';
+import { longDay } from '../ledger/format';
 
 export function InstrumentPanel({
   id,
-  position,
+  position: currentPosition,
   asOf,
+  historyPeriod = 'YTD',
   onClose,
   onSelect,
-  positionState,
+  positionState: initialPositionState,
   onRetryPositions,
   onTrade,
 }: {
   id: string;
   position?: PortfolioPosition | undefined;
   asOf?: string | undefined;
+  historyPeriod?: Period | undefined;
   onClose: () => void;
   onSelect: (id?: string, replace?: boolean) => void;
   positionState: 'loading' | 'unavailable' | 'ready';
@@ -42,6 +46,11 @@ export function InstrumentPanel({
 }) {
   useAmountPrivacy();
   const creating = id === 'neu';
+  const history = useInstrumentHistory(creating ? '' : id, asOf, historyPeriod);
+  const historyView = history.query.isError ? undefined : history.query.data?.history;
+  const position = historyView?.position ?? undefined;
+  const positionState = !asOf ? initialPositionState : history.query.isError || historyView?.unavailable === 'calculation_limit'
+    ? 'unavailable' : history.query.isPending ? 'loading' : 'ready';
   const instrument = useQuery(instrumentQuery(creating ? '' : id));
   const [editing, setEditing] = useState(false);
   const [quoting, setQuoting] = useState(false);
@@ -164,10 +173,12 @@ export function InstrumentPanel({
           </Button>
           {!position && positionState === 'loading' && <LoadingNote what="Bestände" />}
           {!position && positionState === 'unavailable' && (
-            <ErrorNote what="Bestände" error={undefined} onRetry={onRetryPositions} />
+            <ErrorNote what="Bestände" error={history.query.error} onRetry={() => {
+              if (!asOf) onRetryPositions(); else void history.query.refetch();
+            }} />
           )}
           {!position && positionState === 'ready' && (
-            <p className="vnote">Dieses Instrument hat keinen aktuellen Bestand.</p>
+            <p className="vnote">Dieses Instrument hat am gewählten Stichtag keinen Bestand.</p>
           )}
           {position && (
             <>
@@ -178,10 +189,11 @@ export function InstrumentPanel({
               </p>
             </>
           )}
-          <PriceHistory key={id} securityId={id} asOf={asOf} />
+          <PriceHistory key={id} securityId={id} controller={history} />
           {position && (
             <>
               <h3>Bestand je Konto</h3>
+              {historyView && <p className="vnote">Stichtag {longDay(historyView.to)} · dieselbe Bewertung wie im Wertverlauf.</p>}
               <table className="instrument-accounts">
                 <caption className="sr-only">
                   Bestand des Instruments je Konto und Plattform
@@ -224,7 +236,7 @@ export function InstrumentPanel({
             </>
           )}
           <TradeHistory securityId={id} onEdit={openTrade} disabled={saving} />
-          {asOf && position && (
+          {asOf && currentPosition && (
             <Button variant="ghost" disabled={saving} onClick={() => setQuoting(true)}>
               Kurs eintragen
             </Button>

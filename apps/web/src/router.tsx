@@ -457,11 +457,7 @@ const netWorthRoute = createRoute({
   staticData: { meta: VERMOEGEN_NETTO_META },
   component: lazyRouteComponent(() => import('./wealth/networth-page'), 'NetWorthPage'),
 });
-const portfolioRoute = createRoute({
-  getParentRoute: () => shellRoute,
-  path: '/vermoegen/portfolio',
-  staticData: { meta: VERMOEGEN_PORTFOLIO_META },
-  validateSearch: (search: Record<string, unknown>) => ({
+const portfolioRegisterSearch = (search: Record<string, unknown>) => ({
     sparplan:
       typeof search['sparplan'] === 'string' && search['sparplan'].length <= 64
         ? search['sparplan']
@@ -475,8 +471,10 @@ const portfolioRoute = createRoute({
       typeof search['handel'] === 'string' && search['handel'].length <= 64
         ? search['handel']
         : undefined,
-  }),
-  beforeLoad: ({ search }) => {
+  });
+const portfolioLegacyRedirect = ({ search, location }: { search: ReturnType<typeof portfolioRegisterSearch> & { zeitraum?: Period | undefined }; location: { pathname: string } }) => {
+    if (search.sparplan === 'neu' && location.pathname !== '/vermoegen/portfolio/sparplaene')
+      throw redirect({ to: '/vermoegen/portfolio/sparplaene', search });
     if (search.sparplan && search.sparplan !== 'neu')
       throw redirect({
         to: '/vermoegen/portfolio/sparplan/$id',
@@ -489,8 +487,46 @@ const portfolioRoute = createRoute({
         params: { id: search.produkt },
         search: { zeitraum: search.zeitraum, handel: search.handel },
       });
-  },
+  };
+const portfolioRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/portfolio',
+  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Portfolio' } },
+  validateSearch: portfolioRegisterSearch,
+  beforeLoad: portfolioLegacyRedirect,
   component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioPage'),
+});
+const portfolioPositionsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/portfolio/positionen',
+  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Positionen' } },
+  validateSearch: portfolioRegisterSearch,
+  beforeLoad: portfolioLegacyRedirect,
+  component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioPositionsPage'),
+});
+const portfolioAllocationRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/portfolio/allokation',
+  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Allokation' } },
+  validateSearch: portfolioRegisterSearch,
+  beforeLoad: portfolioLegacyRedirect,
+  component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioAllocationPage'),
+});
+const portfolioSavingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/portfolio/sparplaene',
+  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Sparpläne' } },
+  validateSearch: portfolioRegisterSearch,
+  beforeLoad: portfolioLegacyRedirect,
+  component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioSavingsPage'),
+});
+const portfolioMetricsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/vermoegen/portfolio/kennzahlen',
+  staticData: { meta: { ...VERMOEGEN_PORTFOLIO_META, title: 'Kennzahlen' } },
+  validateSearch: portfolioRegisterSearch,
+  beforeLoad: portfolioLegacyRedirect,
+  component: lazyRouteComponent(() => import('./wealth/portfolio-page'), 'PortfolioMetricsPage'),
 });
 const instrumentRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -788,6 +824,10 @@ const routeTree = rootRoute.addChildren([
     freedomRoute,
     netWorthRoute,
     portfolioRoute,
+    portfolioPositionsRoute,
+    portfolioAllocationRoute,
+    portfolioSavingsRoute,
+    portfolioMetricsRoute,
     instrumentRoute,
     savingsPlanRoute,
     debtsRoute,
