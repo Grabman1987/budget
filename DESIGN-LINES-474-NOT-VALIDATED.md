@@ -15,3 +15,12 @@ Base: `9e9a997a0a5cde3c7df430dda2293acc037bf2fb` (includes the #489 and #471 sou
 - Validate desktop 1440, Chromium 390, and WebKit iPhone in both themes with Axe, overflow and touch targets, then capture synthetic desktop-light/iPhone-dark evidence. Verify the existing plotter guard in real navigation and with reduced motion. Check source, calculations and undo boundaries, run the required repository gates, and write any PR description in English ending `Refs #474`.
 
 No issue acceptance criterion or screenshot claim is made by this handoff.
+
+## Independent source review — NOT VALIDATED
+
+The [bounded review](DESIGN-LINES-474-SOURCE-REVIEW.md) compares #474 product
+source `dd11b4e03bdd79ce3074b2e504dd326453080470` with its actual parent
+`9e9a997a0a5cde3c7df430dda2293acc037bf2fb`. It found no concrete defect
+in the eight-file #474 delta. The other cumulative branch commits remain outside
+this review. This archive changes only documentation; desktop, phone, WebKit,
+touch, focus interaction, Axe, tests, CI and live acceptance remain unvalidated.
