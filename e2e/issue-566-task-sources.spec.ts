@@ -182,6 +182,7 @@ for (const [profile, desired, viewport] of [
       const status = page.getByRole('region', { name: 'Bankstatus' });
       await expect(status).toContainText('Bank: nicht verbunden');
       await expect(page.getByRole('region', { name: 'Bankstatus' })).toHaveCount(1);
+      await expect(page.locator('main')).not.toContainText('nicht eingerichtet');
       const setup = status.getByRole('link', { name: 'Einrichten', exact: true });
       await expect(setup).toHaveAttribute('href', '/einstellungen/datenquellen');
       await hit(setup);
@@ -219,6 +220,10 @@ for (const [profile, desired, viewport] of [
       }
       await expect(page.locator('html')).toHaveJSProperty('scrollWidth', viewport.width);
       expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
+      // Use an ordinary non-action heading click to clear focused skip-link UI, then capture
+      // from the document top so fixed navigation is represented in its normal position.
+      await page.getByRole('heading', { name: 'Offene Aufgaben · 5', exact: true }).click();
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
       await page.screenshot({
         path: info.outputPath(`task-sources-${profile}-${desired}.png`),
         fullPage: true,
