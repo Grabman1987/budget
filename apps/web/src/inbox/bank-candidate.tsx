@@ -67,7 +67,7 @@ export function BankCandidate({
  * Explicit owner confirmation; the regular editor remains available after posting. Rule
  * preparation never posts the candidate, and manual changes override every suggested action.
  */
-function BankCandidateForm({
+export function BankCandidateForm({
   id,
   onConfirmed,
   onPrepared,

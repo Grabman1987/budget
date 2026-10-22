@@ -1,3 +1,4 @@
+import type { BankInboxSuggestion } from '@budget/db';
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
 import type { InboxPeriod, InboxSegment } from '@budget/domain';
@@ -16,6 +17,7 @@ export type InboxKind =
   | 'backup'
   | 'other';
 export interface InboxBooking {
+  bankSuggestion?: BankInboxSuggestion;
   type: 'booking';
   id: string;
   bookingId: string;
@@ -32,6 +34,7 @@ export interface InboxBooking {
   missingSplits: number;
 }
 export interface InboxStored {
+  bankSuggestion?: BankInboxSuggestion;
   type: 'stored';
   id: string;
   kind: InboxKind;

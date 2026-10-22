@@ -1,3 +1,4 @@
+import { BankReviewSession, BankSuggestedRow } from './bank-suggestion-review';
 import { InboxAccountReminders } from '../heute/account-reminders';
 import {
   BankBookingMerge,
@@ -224,6 +225,7 @@ function InboxBody({
   if (bankAccountId)
     return (
       <AccountBankInboxBody
+        key={bankAccountId}
         accountId={bankAccountId}
         onEdit={onEdit}
         loadingId={loadingId}
@@ -641,17 +643,13 @@ function InboxBodyContent({
   const remaining = serverPaginated
     ? Math.max((totalEntries ?? entries.length) - entries.length, 0)
     : entries.length - shown;
-  if (
-    accountScoped &&
-    !pending &&
-    !error &&
-    !nextPageError &&
-    count === 0 &&
-    entries.length === 0 &&
-    !learnBookingId
-  )
-    return null;
   return (
+    <BankReviewSession
+      key={JSON.stringify([accountScoped, search.bankSource, search.aufgaben, search.dateSort, search.fromDate, segmentCounts?.shown])}
+      rows={entries}
+      fresh={!pending && !error && !loadingMore}
+      enabled={Boolean(accountScoped || search.bankSource || segmentCounts?.shown === 'umsaetze')}
+    >
     <section className="kinbox" aria-labelledby={headingId}>
       <SectionHead
         id={headingId}
@@ -698,7 +696,7 @@ function InboxBodyContent({
       )}
       {entries.length > 0 && (
         <>
-          {search.bankSource && (
+          {search.bankSource && !entries.some((entry) => (entry.type === 'booking' || entry.type === 'stored') && entry.bankSuggestion) && (
             <BankBulkActions
               rows={entries.filter(isBankInboxRow)}
               selected={selectedBank}
@@ -748,7 +746,7 @@ function InboxBodyContent({
                   ...items.flatMap((item) => {
                     const causeOf = (entry: InboxEntry) =>
                       groupByTitle && entry.type === 'stored' ? entry.title : inboxCause(entry);
-                    const cause = !serverPaginated || detailView ? null : causeOf(item);
+                    const cause = isBankInboxRow(item) || !serverPaginated || detailView ? null : causeOf(item);
                     const members = cause
                       ? items.filter((member) => causeOf(member) === cause)
                       : [item];
@@ -869,6 +867,7 @@ function InboxBodyContent({
         </>
       )}
     </section>
+    </BankReviewSession>
   );
 }
 
@@ -1017,7 +1016,15 @@ function InboxRow({
   );
 }
 
-function BankInboxRow({
+function BankInboxRow(props: ComponentProps<typeof LegacyBankInboxRow>) {
+  const item = props.item;
+  if ((item.type === 'booking' || item.type === 'stored') && item.bankSuggestion)
+    return <BankSuggestedRow item={item} busy={props.busy} onConfirmed={props.onConfirmed}
+      onEdit={props.onEdit} onConfirm={props.onConfirm} />;
+  return <LegacyBankInboxRow {...props} />;
+}
+
+function LegacyBankInboxRow({
   item,
   selected,
   onSelect,

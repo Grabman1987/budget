@@ -1,4 +1,6 @@
 import {
+  acceptSafeBankInbox,
+  readBankReviewRound,
   bankBookingMatches,
   candidateMatches,
   linkBankCandidate,
@@ -21,7 +23,7 @@ import { z } from 'zod';
 import { BankError } from '../bank-sync/provider';
 import type { BankSync } from '../bank-sync/service';
 import type { SessionRow } from '../auth/store';
-import { readBody } from './http';
+import { readBody, readQuery } from './http';
 import { bankConfirmSchema } from './assignment-rules';
 import { eq } from 'drizzle-orm';
 
@@ -223,6 +225,36 @@ export function bankSyncRoutes(
       return { groupId: ctx.groupId, changedCount, skippedCount };
     });
     return c.json(result);
+  });
+  app.post('/inbox/accept-safe', async (c) => {
+    const input = await readBody(c, z.strictObject({
+      rows: z.array(z.strictObject({
+        type: z.enum(['candidate', 'booking']),
+        id: shortId,
+        revision: revision.optional(),
+      })).min(1).max(100),
+      expectedChanged: z.number().int().min(0).max(100),
+    }).refine((value) => new Set(value.rows.map((row) => `${row.type}:${row.id}`)).size === value.rows.length,
+      'Jede Bankzeile nur einmal auswählen.'));
+    return c.json(acceptSafeBankInbox(
+      db, input.rows, input.expectedChanged, today(),
+      service?.clock().toISOString() ?? new Date().toISOString(),
+      { actor: 'owner', groupId: randomUUID() },
+      service ? (id, prepared, context) => service.confirm(id, null, prepared, context) : undefined,
+    ));
+  });
+  app.get('/inbox/review-round', (c) => {
+    const json = z.string().max(24000).transform((value, context) => {
+      try { return JSON.parse(value) as unknown; }
+      catch {
+        context.addIssue({ code: 'custom', message: 'Ungültige Prüfrunde.' });
+        return z.NEVER;
+      }
+    });
+    const { rows } = readQuery(c, z.object({ rows: json.pipe(z.array(z.strictObject({
+      type: z.enum(['candidate', 'booking']), id: shortId,
+    })).min(1).max(100)) }));
+    return c.json(readBankReviewRound(db, rows, today()));
   });
   app.get('/candidates/:id/matches', (c) =>
     c.json(candidateMatches(db, z.string().uuid().parse(c.req.param('id')))),

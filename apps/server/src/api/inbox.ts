@@ -1,4 +1,4 @@
-import { readInbox, readInboxCount, resolveInboxItem, type Db } from '@budget/db';
+import { prepareBankInboxEntries, readInbox, readInboxCount, resolveInboxItem, type Db } from '@budget/db';
 import { Hono } from 'hono';
 import { inboxCause, inboxMatchesPeriod, inboxSegment, type InboxSegment } from '@budget/domain';
 import { z } from 'zod';
@@ -21,7 +21,8 @@ const page = z.object({
 /** Actual queue behind the common session/origin guard; stored acknowledgement has one undo group. */
 export function inboxRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
-  app.get('/', (c) => {
+  app.get('/', (c) => db.transaction((tx) => {
+    const currentDay = today();
     const {
       limit,
       offset,
@@ -34,7 +35,7 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
       title,
       segment,
     } = readQuery(c, page);
-    const inbox = readInbox(db, today(), bankSource, readSource, {
+    const inbox = readInbox(tx, currentDay, bankSource, readSource, {
       excludeOverspent: segment !== undefined,
       ...(bankAccountId ? { bankAccountId } : {}),
     });
@@ -90,7 +91,7 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
     if (limit === undefined)
       return c.json({ ...inbox, entries: filtered, overspentSummary, ...segmentFields });
     const start = offset ?? 0;
-    const entries = filtered.slice(start, start + limit);
+    const entries = prepareBankInboxEntries(tx, filtered.slice(start, start + limit), currentDay);
     const next = start + entries.length < filtered.length ? start + entries.length : null;
     const countsByKind: Record<string, number> = {};
     const countsByCause: Record<string, number> = {};
@@ -112,7 +113,7 @@ export function inboxRoutes(db: Db, today: () => string): Hono {
       next,
       ...(readSource ? { countsByTitle } : {}),
     });
-  });
+  }));
   // The header pill is the Prüfen total (Umsätze + Aufgaben); overspent categories live in Heute/Plan.
   app.get('/count', (c) => c.json(readInboxCount(db, today(), { excludeOverspent: true })));
   app.get('/:id', (c) => {

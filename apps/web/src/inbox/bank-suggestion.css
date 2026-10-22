@@ -1,0 +1,45 @@
+.bank-review-round {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin-block: 16px;
+  padding-block: 16px;
+  border-block: 1px solid var(--rule);
+}
+.bank-review-round p {
+  margin: 0;
+}
+.bank-review-round progress {
+  width: 100%;
+  accent-color: var(--line);
+}
+.bank-review-round .btn,
+.bank-suggestion-actions .btn {
+  min-height: var(--touch);
+  max-width: 100%;
+  white-space: normal;
+}
+.bank-suggestion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bank-inbox-row .rev-what,
+.bank-inbox-row .kact {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.bank-precomputed-suggestion {
+  overflow-wrap: anywhere;
+  color: var(--ink-2);
+}
+.bank-manual-review {
+  min-width: 0;
+  margin-block: 12px;
+}
+.bank-manual-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
