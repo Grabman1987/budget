@@ -29,7 +29,5 @@ it('retains all five source rows with raw counts and opens the chosen source wit
   expect(screen.getByRole('button', { name: 'Plan schließen' }).getAttribute('aria-expanded')).toBe(
     'true',
   );
-  expect(
-    screen.getByRole('row', { name: 'Weitere Aufgaben 4 Weitere Aufgaben öffnen' }),
-  ).toBeTruthy();
+  expect(screen.getByRole('row', { name: 'Weitere Aufgaben 4 Öffnen' })).toBeTruthy();
 });
