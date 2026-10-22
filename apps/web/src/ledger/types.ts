@@ -225,7 +225,14 @@ export interface DuplicateCandidate {
   valuation?: CashValuation;
 }
 
+export interface ReconciliationCandidate {
+  id: string; date: string; payeeName: string | null; memo: string | null; amountCents: number;
+}
 export interface ReconciliationPreview {
+  candidateRevision?: string;
+  pendingCandidates?: ReconciliationCandidate[];
+  adjustmentCategories?: { id: string; name: string }[];
+  rememberedCategoryId?: string | null;
   currency?: string;
   valuations?: {
     booked: CashValuation;

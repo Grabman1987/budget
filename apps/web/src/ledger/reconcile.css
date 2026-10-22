@@ -1,0 +1,11 @@
+.kreconcile-candidates { min-width: 0; overflow-wrap: anywhere; }
+.kreconcile-candidates ul { list-style: none; padding: 0; margin: 0; }
+.kreconcile-candidates li { padding-block: 16px; border-bottom: 1px solid var(--rule); }
+.kreconcile-candidates .panel-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.kreconcile .panel-actions .btn,
+.kreconcile-candidates .btn,
+.kreconcile .assignment-check { min-height: var(--touch); min-width: var(--touch); }
+.kreconcile-candidates .btn { max-width: 100%; white-space: normal; }
+@media (max-width: 767px) {
+  .kreconcile-candidates .panel-actions .btn { flex: 1 1 100%; }
+}

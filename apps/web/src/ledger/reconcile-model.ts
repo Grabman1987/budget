@@ -27,3 +27,15 @@ export function findingOf(preview: ReconciliationPreview): Finding {
   }
   return { kind: 'other', amountCents: Math.abs(preview.differenceCents) };
 }
+
+/** Candidate review is local UI state bound to the actual preview, never a financial decision. */
+export function reconciliationReviewKey(preview: ReconciliationPreview): string {
+  return JSON.stringify([preview.candidateRevision, preview.accountId, preview.date, preview.statementBalanceCents,
+    preview.bookedBalanceCents, preview.pendingCandidates ?? [], preview.duplicates, preview.pendingMatches]);
+}
+export function reconciliationCandidateKeys(preview: ReconciliationPreview): string[] {
+  return [
+    ...(preview.pendingCandidates ?? []).map((row) => `pending:${row.id}`),
+    ...preview.duplicates.map((row) => `duplicate:${row.removeId}:${row.keepId}`),
+  ];
+}

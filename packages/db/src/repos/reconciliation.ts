@@ -1,8 +1,10 @@
-import { todayInVienna } from '@budget/domain';
+import { isReconcileAdjustCategoryKind, todayInVienna } from '@budget/domain';
+import { createHash } from 'node:crypto';
 import { and, asc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
-import { account, accountReconciliation, booking, payee, SYSTEM_PAYEE_IDS } from '../schema';
+import { account, accountReconciliation, appSetting, booking, bookingSplit, category, categoryGroup, payee, SYSTEM_PAYEE_IDS } from '../schema';
 import { insertTracked, updateTracked, withGroup, type AuditContext } from './audit';
 import { createBooking, deleteBooking } from './bookings';
+import { createEntity, getEntity, updateEntity } from './entities';
 import {
   BookingInvariantError,
   ConflictError,
@@ -35,7 +37,22 @@ export interface PendingMatch {
   sumCents: number;
 }
 
+export interface ReconciliationCandidate {
+  id: string;
+  date: string;
+  payeeName: string | null;
+  memo: string | null;
+  amountCents: number;
+}
+
 export interface ReconciliationPreview {
+  /** Display-review fence only; the ordinary reconciliation writer still validates live state. */
+  candidateRevision: string;
+  /** Actual pending bookings, not an assertion that the bank has already booked them. */
+  pendingCandidates: ReconciliationCandidate[];
+  adjustmentCategories: { id: string; name: string }[];
+  /** Null is the existing uncategorised/Zu verteilen posting, never an invented income type. */
+  rememberedCategoryId: string | null;
   accountId: string;
   date: string;
   statementBalanceCents: number;
@@ -66,7 +83,28 @@ function liveAccount(db: Executor, accountId: string) {
 
 const isDay = (value: string) =>
   /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+  Number.isFinite(Date.parse(`${value}T00:00:00Z`)) &&
   new Date(`${value}T00:00:00Z`).toISOString().startsWith(value);
+
+// Hash the account identity so even a maximum-length account ID fits app_setting's 64-char key.
+const categoryPreferenceKey = (accountId: string) =>
+  `reconcile.category.${createHash('sha256').update(accountId).digest('base64url')}`;
+
+function adjustmentCategories(db: Executor): { id: string; name: string }[] {
+  return db.select({ id: category.id, name: category.name, kind: category.kind })
+    .from(category).innerJoin(categoryGroup, eq(categoryGroup.id, category.groupId))
+    .where(and(isNull(category.deletedAt), isNull(category.hiddenAt), isNull(categoryGroup.deletedAt)))
+    .orderBy(asc(categoryGroup.sortOrder), asc(category.sortOrder), asc(category.name), asc(category.id))
+    .all().filter((row) => isReconcileAdjustCategoryKind(row.kind))
+    .map(({ id, name }) => ({ id, name }));
+}
+
+function rememberAdjustmentCategory(db: Executor, accountId: string, categoryId: string | null, ctx: AuditContext): void {
+  const id = categoryPreferenceKey(accountId), value = categoryId ?? '';
+  const current = getEntity(db, appSetting, id);
+  if (!current) createEntity(db, appSetting, { id, value }, ctx);
+  else if (current.value !== value) updateEntity(db, appSetting, id, { value }, ctx);
+}
 
 /**
  * A check is about a bank balance that exists: its day is today (Europe/Vienna) at the latest, so
@@ -159,10 +197,16 @@ export function previewReconciliation(
   const pendingCents = pending.reduce((a, r) => a + r.booking.amountCents, 0);
   const difference = input.statementBalanceCents - booked;
 
+  // A split transfer can have a null booking.transferId; never suggest deleting its
+  // whole parent as a duplicate, because that would affect the counterpart too.
+  const splitTransferParents = new Set(db.select({ id: bookingSplit.bookingId }).from(bookingSplit)
+    .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
+    .where(and(eq(booking.accountId, acct.id), isNull(booking.deletedAt), sql`${bookingSplit.transferId} IS NOT NULL`))
+    .all().map((row) => row.id));
   // "doppelt": same day, payee and amount twice among the booked bookings (plain, no transfer).
   const groups = new Map<string, typeof rows>();
   for (const r of rows) {
-    if (r.booking.status === 'pending' || r.booking.transferId) continue;
+    if (r.booking.status === 'pending' || r.booking.transferId || splitTransferParents.has(r.booking.id)) continue;
     const key = `${r.booking.date}|${r.booking.payeeId ?? ''}|${r.booking.amountCents}`;
     groups.set(key, [...(groups.get(key) ?? []), r]);
   }
@@ -198,9 +242,19 @@ export function previewReconciliation(
           ),
         }));
 
+  const head = db.get<{ ordinal: string; id: string }>(sql`SELECT CAST(rowid AS TEXT) AS ordinal,id FROM audit_log ORDER BY rowid DESC LIMIT 1`) ?? null;
+  const candidateRevision = createHash('sha256').update(JSON.stringify(['reconcile-review-v1', acct, input.date, input.statementBalanceCents, rows, head])).digest('hex');
+  const choices = adjustmentCategories(db);
+  const remembered = getEntity(db, appSetting, categoryPreferenceKey(acct.id))?.value;
   const explained = duplicates.some((d) => d.explainsDifference) || pendingMatches.length > 0;
   return {
     accountId: acct.id,
+    candidateRevision,
+    pendingCandidates: pending.map(({ booking: b, payeeName }) => ({
+      id: b.id, date: b.date, payeeName, memo: b.memo, amountCents: b.amountCents,
+    })),
+    adjustmentCategories: choices,
+    rememberedCategoryId: remembered && choices.some((row) => row.id === remembered) ? remembered : null,
     date: input.date,
     statementBalanceCents: input.statementBalanceCents,
     bookedBalanceCents: booked,
@@ -308,6 +362,8 @@ export function reconcileAccount(
           `The bank balance differs from the app by ${difference} cents; remove duplicates, confirm bookings or book the Ausgleich`,
         );
       }
+      if (input.categoryId !== undefined && !adjustmentCategories(tx).some((row) => row.id === input.categoryId))
+        throw new BookingInvariantError('Wähle eine aktive Ausgaben-Kategorie oder Zu verteilen für den Ausgleich.');
       adjustmentBookingId = createBooking(
         tx,
         {
@@ -323,6 +379,9 @@ export function reconcileAccount(
         grouped,
       );
     }
+
+    if (adjustmentBookingId !== null)
+      rememberAdjustmentCategory(tx, acct.id, input.categoryId ?? null, grouped);
 
     const toStamp = tx
       .select({ id: booking.id })
