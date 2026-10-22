@@ -1,62 +1,58 @@
-name: Update e2e snapshots
+name: Temporary native frame diagnostic (never integrate)
+run-name: Native frame diagnostic ${{ github.sha }}
 
-# Manual only. Regenerates the Playwright screenshot baselines on Linux (the CI platform) for one
-# branch and commits them back, for PRs that change the UI on purpose. The owner's Windows machine
-# and the cloud sessions cannot produce Linux baselines themselves.
-# Commits pushed with GITHUB_TOKEN do not start CI: push any commit afterwards (or re-run CI).
+# Diagnostic branch only. This registered manual workflow runs its --ref version.
+# It is never merged and never supplies acceptance or required-check evidence.
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch whose baselines to update (never main)
+        description: Must be diagnostic/589-native-frame-20261022
         required: true
       specs:
-        description: Space-separated spec paths (e.g. e2e/shell.spec.ts); empty = every spec that compares screenshots
+        description: Must remain empty; retained only for input compatibility
         required: false
         default: ''
+      expected_sha:
+        description: Exact independently reviewed diagnostic commit
+        required: true
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: update-snapshots-${{ inputs.branch }}
-  cancel-in-progress: true
+  group: native-frame-diagnostic-589
+  cancel-in-progress: false
 
 jobs:
-  update:
-    if: inputs.branch != 'main'
+  diagnostic:
+    if: >-
+      github.ref == 'refs/heads/diagnostic/589-native-frame-20261022'
+      && inputs.branch == 'diagnostic/589-native-frame-20261022'
+      && inputs.specs == ''
     runs-on: ubuntu-24.04
-    # A type-scale change regenerates nearly every baseline; give it room.
-    timeout-minutes: 75
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify requested revision
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: test "$GITHUB_SHA" = "$EXPECTED_SHA"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ inputs.branch }}
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify reviewed diagnostic source
+        run: echo '42b70eb85243d39246f4b40e04a13ba938ad8a5f23ba773b331e160595133007  scripts/diagnostics/webkit-native-frame-repro.cjs' | sha256sum --check
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Install Chromium and WebKit
-        run: npx playwright install --with-deps chromium webkit
-      # Non-screenshot failures are reported by the normal CI run on the PR, not here.
-      - name: Regenerate changed screenshots
-        env:
-          SPECS: ${{ inputs.specs }}
+      - name: Install pinned native WebKit
+        run: npx playwright install --with-deps webkit
+      - name: Record non-sensitive runtime metadata
         run: |
-          npm run build:e2e
-          read -r -a specs <<< "$SPECS"
-          if [ "${#specs[@]}" -eq 0 ]; then
-            mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
-          fi
-          npx playwright test --update-snapshots=changed "${specs[@]}" || true
-      - name: Commit the new baselines
-        env:
-          BRANCH: ${{ inputs.branch }}
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- e2e
-          if git diff --cached --quiet; then echo 'No baseline changes.'; exit 0; fi
-          git commit -m 'test: update e2e screenshot baselines (Linux)'
-          git push origin "HEAD:refs/heads/$BRANCH"
+          node -e 'const os = require("node:os"); console.log(JSON.stringify({node:process.version, platform:process.platform, arch:process.arch, release:os.release(), cpuCount:os.cpus().length, availableParallelism:os.availableParallelism()}))'
+          cat /etc/os-release
+      - name: Run synthetic diagnostic (not product acceptance)
+        run: node scripts/diagnostics/webkit-native-frame-repro.cjs "$GITHUB_WORKSPACE"
