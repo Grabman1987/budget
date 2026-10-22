@@ -107,3 +107,21 @@ The review found two market source-card feedback defects. The prices/FX action t
 ### Independent market source-card correction review
 
 The independent [source delta review](settings-485-486-market-source-fix-review.md) inspected the correction at `2af7e67f24c9f6fc7781bc21cd2f1cf2d294a13e` against `78fa4838953313be5134add009b9b261b34120a8` and found no concrete issue within the prices/FX response handling, separate CPI path or placement of action feedback. This is source-only evidence. Runtime and UI acceptance, and the remaining epic scope, are still **NOT VALIDATED / NOT LIVE**.
+
+## #486 A33 source-scope clarification — NOT VALIDATED / NOT LIVE
+
+The current issue asks Daten und Export to show its content, last export and backup
+status. The [pinned source-scope audit](settings-486-remaining-source-scope.md)
+found those three visible at this checkpoint: the 15 CSV files and exclusions,
+one durable observation of a completed server-side CSV response, and explicitly
+limited backup-scheduler observations. The earlier inventory idea of a full
+durable export history or restore certification is outside accepted A33 source
+scope, not an owner blocker. This source conclusion does not validate an actual
+device save, successful restore, runtime behavior or UI acceptance.
+
+The same audit records the portfolio-editor composition seam. This branch's
+allocation entry points to the canonical editor; the newer #521 provenance link
+and one unclassified-security link still use a functioning legacy redirect.
+Preserve their query/state and carry only the relevant direct-link hunks into
+the eventual combined portfolio source. No legacy-link cleanup or product source
+change was made for this documentation checkpoint.
