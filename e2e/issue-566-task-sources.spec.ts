@@ -37,13 +37,20 @@ async function theme(page: Page, desired: 'light' | 'dark') {
   await expect.poll(resolved).toBe(desired);
 }
 async function hit(control: Locator) {
-  await control.scrollIntoViewIfNeeded();
+  // Center assisted scrolling clears the fixed phone tab bar; viewport-only minimum scrolling
+  // can leave an otherwise reachable control beneath that overlay.
+  await control.evaluate((element) =>
+    element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }),
+  );
   const box = await control.evaluate((element) => {
     const r = element.getBoundingClientRect();
     const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
     return {
       width: r.width,
       height: r.height,
+      top: r.top,
+      bottom: r.bottom,
+      interceptor: top ? { tag: top.tagName, className: top.getAttribute('class') } : null,
       visible: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
       hit: top === element || element.contains(top),
     };
@@ -51,7 +58,7 @@ async function hit(control: Locator) {
   expect(box.width).toBeGreaterThanOrEqual(44);
   expect(box.height).toBeGreaterThanOrEqual(44);
   expect(box.visible).toBe(true);
-  expect(box.hit).toBe(true);
+  expect(box.hit, JSON.stringify(box)).toBe(true);
 }
 for (const [profile, desired, viewport] of [
   ['desktop', 'light', { width: 1440, height: 900 }],
