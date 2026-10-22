@@ -160,6 +160,7 @@
 /* Current Plan funding and the distinct future-only forecast remain explicit. */
 .plan.goals .goal-future-projection {
   display: block;
+  white-space: normal;
   margin-block-start: var(--space-xs);
   font-size: var(--fs-label);
   font-weight: 400;

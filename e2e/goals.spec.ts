@@ -59,6 +59,7 @@ sampleTest('the detail of a goal: chain, figures, axe', async ({ page }) => {
   await page.goto('/plan/sparziele');
   await page.getByRole('link', { name: 'Urlaub Sommer 2027' }).click();
   const panel = page.locator('main');
+  await panel.getByText('Beträge und Prognose erklärt', { exact: false }).click();
   await expect(panel.getByRole('group', { name: 'Maßkette Sparziel' })).toContainText('2.820,11 €');
   await expect(panel).toContainText('Monate bis dahin');
   await expect(
@@ -120,6 +121,9 @@ for (const scheme of ['light', 'dark'] as const) {
     sampleTest(`baseline and axe in the ${scheme} theme`, async ({ page }) => {
       await page.goto('/plan/sparziele');
       await expect(page.getByTestId('goals-summary')).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+        page.viewportSize()!.width,
+      );
       const axe = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
         .analyze();
