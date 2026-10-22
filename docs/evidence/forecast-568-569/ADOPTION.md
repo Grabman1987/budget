@@ -42,3 +42,11 @@ security/lock/audit/Undo assertion, tolerance, timeout or coverage was weakened.
 
 This checkpoint is source adoption only. Tests, runtime acceptance, publication,
 merge and live completion remain pending. Refs #568 and #569.
+
+## Account detail caller correction
+
+Independent review found the linked `35d` forecast was queried correctly by
+AccountPage but had no matching select option. Add only its existing-style
+35-day option. The new real Router/SQLite/API test covers initial selected
+representation, the 35d series read and switching away/back with URL state.
+Existing receipt links and all financial/Undo/timeouts stay unchanged.
