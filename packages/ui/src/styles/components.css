@@ -1274,6 +1274,14 @@ dialog.sheet-bottom.is-full .sheet-grip {
   }
 }
 
+/* Modal feedback needs room for its complete action label without changing page-toast geometry. */
+dialog .toast {
+  width: max-content;
+}
+dialog .toast button {
+  flex-shrink: 0;
+}
+
 /* A toast over a form dialog must not cover its footer buttons: it docks in the bottom right
    corner of the screen (desktop, beside the card) or at the top (phone, above the sheet). */
 dialog.is-bare .toast {
