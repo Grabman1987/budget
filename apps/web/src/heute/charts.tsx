@@ -557,3 +557,35 @@ function monthShort(month: string) {
     new Date(`${month}-15T12:00:00Z`),
   );
 }
+
+/** Stored month-end observations and today's shared net-worth value; no extra dated values. */
+export function HeuteWealthChart({ series }: { series: { day: string; cents: number }[] }) {
+  useAmountPrivacy();
+  const [ref, measured] = useWidth();
+  const width = Math.max(280, measured);
+  const height = 240, left = 68, right = 12, bottom = height - 30;
+  const values = series.map((point) => point.cents);
+  const y = scaleLinear().domain([Math.min(...values, 0), Math.max(...values, 1)])
+    .nice(4).range([bottom, 24]);
+  const first = dayValue(series[0]?.day ?? '1970-01-01');
+  const last = dayValue(series.at(-1)?.day ?? '1970-01-01');
+  const x = (index: number) => left + ((dayValue(series[index]!.day) - first) / Math.max(1, last - first)) * (width - left - right);
+  const ticks = y.ticks(4).map((value) => ({ y: y(value), label: number.format(value / 100) }));
+  return (
+    <div ref={ref} className="heute-wealth-chart">
+      {series.length ? <ChartSvg width={width} height={height}
+        label="Nettovermögen: Monatsendstände und heutiger Stand in Euro"
+        testId="heute-wealth-chart"
+        tooltipNote="Monatsendstände; letzter Punkt Stand heute. Es werden keine Tageswerte ergänzt."
+        points={chartPoints(series.map((point) => point.day), x, [{ name: 'Nettovermögen', values, color: 'var(--line)' }])}>
+        <Graticule x1={left} x2={width - right} lines={ticks} />
+        <AxisLine x1={left} x2={width - right} y={y(0)} />
+        <Line points={series.map((point, index): Point => [x(index), y(point.cents)])} kind="actual" draw={false} />
+        {series.map((point, index) => <circle key={point.day} cx={x(index)} cy={y(point.cents)} r={3} fill="var(--line)" />)}
+        <XTicks y={height - 7} ticks={series.flatMap((point, index) =>
+          index === 0 || index === series.length - 1 || index === Math.floor(series.length / 2)
+            ? [{ x: x(index), label: index === series.length - 1 ? 'heute' : shortDay(point.day) }] : [])} />
+      </ChartSvg> : <p>Keine Vermögensstände vorhanden.</p>}
+    </div>
+  );
+}

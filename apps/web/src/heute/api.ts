@@ -172,6 +172,11 @@ export interface Heute extends WithValuationNotes {
     pendingBefore: string;
     loanTermsMissing: boolean;
     quoteReview?: { securityIds: string[]; count: number };
+    /** Current server-day tasks, independent of the selected report month. */
+    monthCloseTasks?: {
+      tasks: Array<{ id: string; kind: 'close' | 'close-changed'; month: string; target: string }>;
+      unavailable: Array<{ month: string | null; reason: 'legacy' | 'invalid_state' | 'missing_price' | 'missing_fx' }>;
+    };
   };
   lastBookings: Array<{
     id: string;

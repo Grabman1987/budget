@@ -12,7 +12,7 @@ import {
 import { addDays, cents } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { AlertTriangle, ArrowDown, ArrowUp, ChevronRight } from 'lucide-react';
 import { PaceAccuracyNote } from '../reports/planning-accuracy-report';
 import { eur, longDay, shortDay } from '../ledger/format';
@@ -23,7 +23,7 @@ import { PageFrame } from '../pages/placeholder-page';
 import { monthLabel as monthName } from '../nav/month';
 import { currentMonth, useMonth } from '../shell/use-month';
 import { AppLink } from '../shell/app-link';
-import { HeutePaceChart } from './charts';
+import { HeutePaceChart, HeuteWealthChart } from './charts';
 import { LiquidityChart } from '../reports/liquidity-chart';
 import { liquidityQuery } from '../reports/liquidity-api';
 import { salaryDay } from '../reports/liquidity-selection';
@@ -51,6 +51,32 @@ const STATUS: Record<string, string> = {
   reconciled: 'abgeglichen',
 };
 
+function subscribeOnline(changed: () => void) {
+  window.addEventListener('online', changed);
+  window.addEventListener('offline', changed);
+  return () => {
+    window.removeEventListener('online', changed);
+    window.removeEventListener('offline', changed);
+  };
+}
+
+function useOnline() {
+  return useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
+}
+
+function CachedStand({ updatedAt }: { updatedAt: number }) {
+  const online = useOnline();
+  return !online && updatedAt > 0 ? <p className="heute-note" role="status">Offline · Stand vom{' '}
+    <time dateTime={new Date(updatedAt).toISOString()}>{new Date(updatedAt).toLocaleString('de-AT', { timeZone: 'Europe/Vienna' })}</time>
+  </p> : null;
+}
+
+function PendingSection({ title, chart = false }: { title: string; chart?: boolean }) {
+  return <section className={`heute-pending-section${chart ? ' is-chart' : ''}`} aria-label={title} aria-busy="true">
+    <h2>{title}</h2><LoadingNote what={title} />
+  </section>;
+}
+
 export function HeutePage() {
   useAmountPrivacy();
   const [month] = useMonth();
@@ -65,17 +91,24 @@ export function HeutePage() {
       standDay={data?.stand.today}
     >
       <div className="heute">
-        {query.isPending && <LoadingNote what="Heute" />}
+        {!data && <>
+          {query.isPending && <>
+            <PendingSection title="Kennzahlen" />
+            <div className="heute-overview-charts"><PendingSection title="Monat im Blick" chart /><PendingSection title="Nettovermögen · 12 Monate" chart /></div>
+          </>}
+          <CompactForecastCard />
+          {query.isPending && <><PendingSection title="Zu tun" /><PendingSection title="Fällig 14 Tage" /><PendingSection title="Letzte Buchungen" /></>}
+        </>}
         {query.isError && (
           <ErrorNote what="Heute" error={query.error} onRetry={() => void query.refetch()} />
         )}
-        {data && <HeuteBody data={data} />}
+        {data && <><CachedStand updatedAt={query.dataUpdatedAt} /><HeuteBody data={data} onReload={() => void query.refetch()} /></>}
       </div>
     </PageFrame>
   );
 }
 
-function HeuteBody({ data }: { data: Heute }) {
+function HeuteBody({ data, onReload }: { data: Heute; onReload: () => void }) {
   useAmountPrivacy();
   const heuteFacts = useMemo(() => heuteVerdictFacts(data), [data]);
   const [chainOpen, setChainOpen] = useState(false);
@@ -91,8 +124,8 @@ function HeuteBody({ data }: { data: Heute }) {
   const [, , setMonth] = useMonth();
   const away = data.stand.month !== data.stand.today.slice(0, 7);
   const net = 'unavailable' in data.netWorth ? null : data.netWorth;
-  const check = 'unavailable' in data.financeCheck ? null : data.financeCheck;
   const phone = useIsPhone();
+  const [showPinned, setShowPinned] = useStoredFlag('budget-heute-show-pinned');
   const savings = useQuery(savingsProposalsQuery());
   const budget = useQuery(budgetQuery(data.stand.month));
   const savingsRows: RevisionRow[] = (savings.data?.proposals ?? []).map((proposal, index) => ({
@@ -138,20 +171,7 @@ function HeuteBody({ data }: { data: Heute }) {
         chainOpen={chainOpen}
         onLeadClick={() => setChainOpen((open) => !open)}
       />
-      <VerdictLine facts={heuteFacts} />
-      <AttentionBar
-        data={data}
-        savingsRows={savingsRows}
-        savingsError={
-          savings.isError && (
-            <ErrorNote
-              what="Sparplanvorschläge"
-              error={savings.error}
-              onRetry={() => void savings.refetch()}
-            />
-          )
-        }
-      />
+      {chainOpen && (
       <section className="heute-lead" aria-labelledby="heute-lead-title">
         <div className="heute-lead-head">
           <div>
@@ -193,13 +213,12 @@ function HeuteBody({ data }: { data: Heute }) {
           </div>
         )}
       </section>
-
-      <CompactForecastCard />
-
+      )}
+      <div className="heute-overview-charts">
       <section className="heute-section heute-pace" aria-labelledby="heute-pace-title">
         <SectionHead
           id="heute-pace-title"
-          title={`${monthLabel(data.pace.month)} · Pace`}
+          title={`Monat im Blick · ${monthLabel(data.pace.month)}`}
           aside={
             data.pace.figures.over ? (
               <span className="heute-alert">
@@ -272,6 +291,24 @@ function HeuteBody({ data }: { data: Heute }) {
         </p>
       </section>
 
+        {!phone && <HeuteWealthLine data={data} onRetry={onReload} />}
+      </div>
+      <CompactForecastCard />
+      {phone && <HeuteWealthLine data={data} onRetry={onReload} />}
+      <AttentionBar
+        data={data}
+        savingsRows={savingsRows}
+        savingsError={
+          savings.isError && (
+            <ErrorNote
+              what="Sparplanvorschläge"
+              error={savings.error}
+              onRetry={() => void savings.refetch()}
+            />
+          )
+        }
+      />
+
       <Upcoming
         items={data.upcoming14}
         id="heute-upcoming-title"
@@ -279,101 +316,137 @@ function HeuteBody({ data }: { data: Heute }) {
         title="Fällig 14 Tage"
         standToday={away ? longDay(data.stand.today) : undefined}
       />
-      <HeuteWealthLine data={data} />
-      <section className="heute-section heute-finance-check" aria-labelledby="heute-check-title">
+      <section className="heute-section" aria-labelledby="heute-bookings-title">
         <SectionHead
-          id="heute-check-title"
-          title="Finanz-Check"
+          id="heute-bookings-title"
+          title="Letzte Buchungen"
           aside={
-            <AppLink to="/einstellungen/regelwerk">
-              Alle Regeln <ChevronRight size={15} aria-hidden="true" />
+            <AppLink to="/konten/buchungen">
+              Alle <ChevronRight size={15} aria-hidden="true" />
             </AppLink>
           }
         />
         {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
-        {check ? (
-          <CheckCounts check={check} date={data.stand.today} />
+        {data.lastBookings.length === 0 ? (
+          <EmptyNote>Noch keine Buchungen vorhanden.</EmptyNote>
         ) : (
-          'unavailable' in data.financeCheck && (
-            <ValuationNote message={data.financeCheck.unavailable.message} />
-          )
+          <ul className="heute-list">
+            {data.lastBookings.map((item) => (
+              <li key={item.id} className="heute-booking">
+                <span
+                  className={`heute-booking-class ${item.categoryClass ? `is-${item.categoryClass}` : ''}`}
+                  aria-hidden="true"
+                />
+                <div>
+                  <strong>{item.payeeName ?? 'Ohne Empfänger'}</strong>
+                  <span>
+                    {longDay(item.date)} ·{' '}
+                    {[item.categoryName, item.memo].filter(Boolean).join(' · ') ||
+                      'Ohne Kategorie'}
+                  </span>
+                </div>
+                <div>
+                  <AppLink to="/konten/buchungen" search={{ von: item.date, bis: item.date }}>
+                    {eur(item.amountCents, { sign: true })}
+                  </AppLink>
+                  <span>
+                    {STATUS[item.status] ?? item.status} · {item.accountName}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
+      <details className="heute-view-options">
+        <summary>Ansicht anpassen</summary>
+        <label>
+          <input
+            type="checkbox"
+            checked={showPinned}
+            onChange={(event) => setShowPinned(event.currentTarget.checked)}
+          />
+          Angepinnte Envelopes unter Mehr zum Monat anzeigen
+        </label>
+      </details>
       <MoreMonth key={phone ? 'phone' : 'desktop'} phone={phone}>
+        <VerdictLine facts={heuteFacts} />
         <div className="heute-detail-grid">
-          <section className="heute-section" aria-labelledby="heute-pinned-title">
-            <SectionHead
-              id="heute-pinned-title"
-              title="Angepinnte Envelopes"
-              aside={
-                <AppLink to="/plan/monat" search={{ monat: data.stand.month }}>
-                  Plan öffnen <ChevronRight size={15} aria-hidden="true" />
-                </AppLink>
-              }
-            />
-            {data.pinned.length === 0 ? (
-              <EmptyNote>Keine Envelopes angepinnt.</EmptyNote>
-            ) : (
-              <ul className="heute-list">
-                {data.pinned.map((item) => (
-                  <li key={item.id} className="heute-envelope">
-                    <div className="he-envelope-main">
-                      <div>
-                        <strong>{item.name}</strong>
-                        {item.class && (
-                          <ClassTag kind={item.class}>
-                            {item.class === 'need'
-                              ? 'Bedarf'
-                              : item.class === 'want'
-                                ? 'Wunsch'
-                                : 'Zukunft'}
-                          </ClassTag>
-                        )}
+          {showPinned && (
+            <section className="heute-section" aria-labelledby="heute-pinned-title">
+              <SectionHead
+                id="heute-pinned-title"
+                title="Angepinnte Envelopes"
+                aside={
+                  <AppLink to="/plan/monat" search={{ monat: data.stand.month }}>
+                    Plan öffnen <ChevronRight size={15} aria-hidden="true" />
+                  </AppLink>
+                }
+              />
+              {data.pinned.length === 0 ? (
+                <EmptyNote>Keine Envelopes angepinnt.</EmptyNote>
+              ) : (
+                <ul className="heute-list">
+                  {data.pinned.map((item) => (
+                    <li key={item.id} className="heute-envelope">
+                      <div className="he-envelope-main">
+                        <div>
+                          <strong>{item.name}</strong>
+                          {item.class && (
+                            <ClassTag kind={item.class}>
+                              {item.class === 'need'
+                                ? 'Bedarf'
+                                : item.class === 'want'
+                                  ? 'Wunsch'
+                                  : 'Zukunft'}
+                            </ClassTag>
+                          )}
+                        </div>
+                        <AppLink
+                          to="/plan/monat"
+                          search={{ monat: data.stand.month, kategorie: item.id }}
+                        >
+                          <strong className={item.availableCents < 0 ? 'heute-alert' : ''}>
+                            {eur(item.availableCents)}
+                          </strong>
+                        </AppLink>
                       </div>
-                      <AppLink
-                        to="/plan/monat"
-                        search={{ monat: data.stand.month, kategorie: item.id }}
+                      <ChartValue
+                        label={item.name}
+                        date={data.stand.today}
+                        series={[
+                          {
+                            name: 'Ausgegeben',
+                            value: eur(item.spentCents),
+                            color: `var(--${item.class ?? 'line'})`,
+                          },
+                          {
+                            name: 'Budgetiert',
+                            value: eur(item.budgetedCents),
+                            color: 'var(--line-2)',
+                          },
+                          { name: 'Pace', value: eur(item.paceMarkCents), color: 'var(--ink-3)' },
+                        ]}
                       >
-                        <strong className={item.availableCents < 0 ? 'heute-alert' : ''}>
-                          {eur(item.availableCents)}
-                        </strong>
-                      </AppLink>
-                    </div>
-                    <ChartValue
-                      label={item.name}
-                      date={data.stand.today}
-                      series={[
-                        {
-                          name: 'Ausgegeben',
-                          value: eur(item.spentCents),
-                          color: `var(--${item.class ?? 'line'})`,
-                        },
-                        {
-                          name: 'Budgetiert',
-                          value: eur(item.budgetedCents),
-                          color: 'var(--line-2)',
-                        },
-                        { name: 'Pace', value: eur(item.paceMarkCents), color: 'var(--ink-3)' },
-                      ]}
-                    >
-                      <div className="he-envelope-bar" aria-hidden="true">
-                        <span
-                          className={item.class ? `hatch-${item.class}` : ''}
-                          style={{
-                            width: `${Math.min(100, item.budgetedCents > 0 ? Math.max(0, (item.spentCents / item.budgetedCents) * 100) : 0)}%`,
-                          }}
-                        />
-                      </div>
-                    </ChartValue>
-                    <p>
-                      {eur(item.spentCents)} ausgegeben · {eur(item.budgetedCents)} budgetiert ·
-                      Pace {eur(item.paceMarkCents)}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+                        <div className="he-envelope-bar" aria-hidden="true">
+                          <span
+                            className={item.class ? `hatch-${item.class}` : ''}
+                            style={{
+                              width: `${Math.min(100, item.budgetedCents > 0 ? Math.max(0, (item.spentCents / item.budgetedCents) * 100) : 0)}%`,
+                            }}
+                          />
+                        </div>
+                      </ChartValue>
+                      <p>
+                        {eur(item.spentCents)} ausgegeben · {eur(item.budgetedCents)} budgetiert ·
+                        Pace {eur(item.paceMarkCents)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
 
           <section className="heute-section heute-net-worth" aria-labelledby="heute-net-title">
             <SectionHead
@@ -468,49 +541,6 @@ function HeuteBody({ data }: { data: Heute }) {
               )
             )}
           </section>
-
-          <section className="heute-section" aria-labelledby="heute-bookings-title">
-            <SectionHead
-              id="heute-bookings-title"
-              title="Letzte Buchungen"
-              aside={
-                <AppLink to="/konten/buchungen">
-                  Alle <ChevronRight size={15} aria-hidden="true" />
-                </AppLink>
-              }
-            />
-            {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
-            {data.lastBookings.length === 0 ? (
-              <EmptyNote>Noch keine Buchungen vorhanden.</EmptyNote>
-            ) : (
-              <ul className="heute-list">
-                {data.lastBookings.map((item) => (
-                  <li key={item.id} className="heute-booking">
-                    <span
-                      className={`heute-booking-class ${item.categoryClass ? `is-${item.categoryClass}` : ''}`}
-                      aria-hidden="true"
-                    />
-                    <div>
-                      <strong>{item.payeeName ?? 'Ohne Empfänger'}</strong>
-                      <span>
-                        {longDay(item.date)} ·{' '}
-                        {[item.categoryName, item.memo].filter(Boolean).join(' · ') ||
-                          'Ohne Kategorie'}
-                      </span>
-                    </div>
-                    <div>
-                      <AppLink to="/konten/buchungen" search={{ von: item.date, bis: item.date }}>
-                        {eur(item.amountCents, { sign: true })}
-                      </AppLink>
-                      <span>
-                        {STATUS[item.status] ?? item.status} · {item.accountName}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
         </div>
         <FundingNotes data={data} />
       </MoreMonth>
@@ -546,7 +576,8 @@ function CompactForecastCard() {
           Details
         </AppLink>
       </div>
-      {forecast.isFetching && <LoadingNote what="Kontoprognose" />}
+      <CachedStand updatedAt={forecast.dataUpdatedAt} />
+      {forecast.isFetching && <div className="heute-pending-chart"><LoadingNote what="Kontoprognose" /></div>}
       {forecast.isError && (
         <ErrorNote
           what="Kontoprognose"
@@ -600,7 +631,7 @@ function MoreMonth({ phone, children }: { phone: boolean; children: ReactNode })
         Mehr zum Monat
       </Button>
       <p className="heute-note">
-        Angepinnte Envelopes, Vermögensaufteilung, Ziele und letzte Buchungen.
+        Vermögensaufteilung und Ziele; angepinnte Envelopes nach Wahl unter Ansicht anpassen.
       </p>
       <div id="heute-more-content" hidden={!open}>
         {children}
@@ -612,8 +643,10 @@ function MoreMonth({ phone, children }: { phone: boolean; children: ReactNode })
 /** Visible independently of the optional month detail; provenance describes its current endpoint. */
 export function HeuteWealthLine({
   data,
+  onRetry,
 }: {
   data: Pick<Heute, 'stand' | 'netWorth' | 'valuationSources'>;
+  onRetry?: () => void;
 }) {
   useAmountPrivacy();
   const away = data.stand.month !== data.stand.today.slice(0, 7);
@@ -624,14 +657,14 @@ export function HeuteWealthLine({
       {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
       {net ? (
         <>
-          <WealthSparkline series={net.series} />
+          <HeuteWealthChart series={net.series} />
           <AppLink to="/vermoegen/nettovermoegen" search={{ zeitraum: '1J' }}>
             {eur(net.yearDeltaCents, { sign: true })} seit {shortDay(net.yearAgoDay)} vor 12 Monaten
           </AppLink>
         </>
       ) : (
         'unavailable' in data.netWorth && (
-          <ValuationNote message={data.netWorth.unavailable.message} />
+          <><ValuationNote message={data.netWorth.unavailable.message} />{onRetry && <Button variant="ghost" onClick={onRetry}>Erneut versuchen</Button>}</>
         )
       )}
       <ValuationSourceHint
@@ -639,35 +672,6 @@ export function HeuteWealthLine({
         label="Verlauf Nettovermögen · aktueller Stand"
       />
     </section>
-  );
-}
-
-function WealthSparkline({ series }: { series: { day: string; cents: number }[] }) {
-  const min = Math.min(...series.map((p) => p.cents));
-  const span = Math.max(1, Math.max(...series.map((p) => p.cents)) - min);
-  const points = series
-    .map(
-      (p, i) =>
-        `${4 + (i * 152) / Math.max(1, series.length - 1)},${32 - ((p.cents - min) * 28) / span}`,
-    )
-    .join(' ');
-  return (
-    <AppLink to="/vermoegen/nettovermoegen" search={{ zeitraum: '1J' }}>
-      <svg
-        viewBox="0 0 160 36"
-        width="160"
-        height="36"
-        role="img"
-        aria-label="Nettovermögen · Verlauf der letzten 12 Monate"
-      >
-        <polyline
-          points={points}
-          fill="none"
-          stroke="var(--line)"
-          strokeWidth="var(--stroke-measure)"
-        />
-      </svg>
-    </AppLink>
   );
 }
 

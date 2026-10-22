@@ -35,6 +35,39 @@ export function runWithRequestMemo<T>(fn: () => T): T {
   return storage.run({ byConnection: new WeakMap() }, fn);
 }
 
+interface ReadSnapshotMemo {
+  active: boolean;
+  connection: Database.Database;
+  stamp: string;
+  values: Map<string, unknown>;
+}
+const readSnapshots = new AsyncLocalStorage<ReadSnapshotMemo>();
+
+/**
+ * Explicit synchronous read-transaction scope only. Ordinary transaction memo policy below is
+ * unchanged; entries here cannot survive the callback, a connection change or any database write.
+ */
+export function withReadSnapshotMemo<T>(db: Executor, read: () => T): T {
+  const connection = connectionOf(db);
+  if (!connection || !isTransaction(db) || !connection.inTransaction)
+    throw new Error('A read snapshot requires an active transaction');
+  const stamp = databaseStamp(db);
+  const snapshot: ReadSnapshotMemo = { active: true, connection, stamp, values: new Map() };
+  return readSnapshots.run(snapshot, () => {
+    try {
+      const value = read();
+      if (value !== null && (typeof value === 'object' || typeof value === 'function') && 'then' in value)
+        throw new Error('A read snapshot must be synchronous');
+      if (databaseStamp(db) !== stamp)
+        throw new Error('The database changed during the read snapshot');
+      return value;
+    } finally {
+      snapshot.active = false;
+      snapshot.values.clear();
+    }
+  });
+}
+
 /** The connection under a database or transaction handle (`session.client` on both). */
 const connectionOf = (db: Executor): Database.Database | undefined =>
   (db as unknown as { session?: { client?: Database.Database } }).session?.client;
@@ -64,8 +97,23 @@ export function memoizedShared<T>(db: Executor, key: string, compute: () => T): 
 }
 
 function memoizedEntry<T>(db: Executor, key: string, compute: () => T, clone: boolean): T {
-  const memo = storage.getStore();
   const connection = connectionOf(db);
+  const snapshot = readSnapshots.getStore();
+  if (snapshot?.active && connection && connection === snapshot.connection && connection.inTransaction) {
+    const stamp = databaseStamp(db);
+    if (snapshot.stamp !== stamp) {
+      snapshot.stamp = stamp;
+      snapshot.values.clear();
+    }
+    if (snapshot.values.has(key)) {
+      const value = snapshot.values.get(key);
+      return (clone ? structuredClone(value) : value) as T;
+    }
+    const value = compute();
+    if (databaseStamp(db) === stamp) snapshot.values.set(key, clone ? structuredClone(value) : value);
+    return value;
+  }
+  const memo = storage.getStore();
   if (!memo || !connection || (!isTransaction(db) && connection.inTransaction)) return compute();
   const stamp = databaseStamp(db);
   const transaction = isTransaction(db);
