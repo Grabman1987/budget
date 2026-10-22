@@ -105,9 +105,14 @@
 .ex-table a {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
+  min-height: 44px;
   color: var(--ink);
+  text-decoration: none;
   text-decoration-color: var(--line-2);
+}
+.ex-table a:hover,
+.ex-table a:focus-visible {
+  text-decoration: underline;
 }
 .ex-table td.n,
 .ex-table th.n {

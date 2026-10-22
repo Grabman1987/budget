@@ -1,6 +1,39 @@
 .table-scroll-hint {
   display: none;
 }
+
+/* Keep the cue on the scrolling region: it fades at either end as that edge is reached. */
+.table-report .rscroll,
+.mr-scroll,
+.rf-scroll {
+  min-width: 0;
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
+  background-image:
+    linear-gradient(to right, var(--surface) 35%, transparent),
+    linear-gradient(to left, var(--surface) 35%, transparent),
+    linear-gradient(to right, color-mix(in srgb, var(--ink) 20%, transparent), transparent),
+    linear-gradient(to left, color-mix(in srgb, var(--ink) 20%, transparent), transparent);
+  background-position: left center, right center, left center, right center;
+  background-size: 16px 100%;
+  background-repeat: no-repeat;
+  background-attachment: local, local, scroll, scroll;
+}
+
+.table-report .rscroll:focus-visible,
+.mr-scroll:focus-visible,
+.rf-scroll:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+
+@media print {
+  .table-report .rscroll,
+  .mr-scroll,
+  .rf-scroll {
+    background-image: none;
+  }
+}
 @media (max-width: 767px) {
   .table-scroll-hint {
     display: block;

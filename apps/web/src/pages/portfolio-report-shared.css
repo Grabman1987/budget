@@ -31,14 +31,16 @@
 }
 .prep-product {
   color: var(--ink);
-  text-decoration: underline;
+  text-decoration: none;
   text-decoration-color: var(--line-2);
   text-underline-offset: 3px;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
 }
-.prep-product:hover {
+.prep-product:hover,
+.prep-product:focus-visible {
+  text-decoration: underline;
   text-decoration-color: var(--line);
 }
 .prep-good {

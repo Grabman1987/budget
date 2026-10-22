@@ -7,7 +7,8 @@
 .sa-group-name { display: flex; align-items: center; gap: 6px; min-height: 44px; min-width: 0; padding: 4px 0; border: 0; background: transparent; color: var(--ink); text-align: left; font-size: var(--fs-body); overflow-wrap: anywhere; }
 .sa-group-name svg { flex: none; transform: rotate(-90deg); }
 .sa-group-name[aria-expanded='true'] svg { transform: none; }
-.sa-amount { display: flex; align-items: center; justify-content: flex-end; min-height: 44px; padding: 4px; border: 0; background: transparent; color: var(--ink); font: inherit; font-variant-numeric: tabular-nums; text-align: right; text-decoration: underline; text-underline-offset: 3px; }
+.sa-amount { display: flex; align-items: center; justify-content: flex-end; min-height: 44px; padding: 4px; border: 0; background: transparent; color: var(--ink); font: inherit; font-variant-numeric: tabular-nums; text-align: right; text-decoration: none; text-underline-offset: 3px; }
+.sa-amount:hover, .sa-amount:focus-visible { text-decoration: underline; }
 .sa-delta { color: var(--ink-2); font-size: var(--fs-meta); font-variant-numeric: tabular-nums; text-align: right; }
 .sa-category-rows { padding-left: 22px; }
 .sa-category-name { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--fs-table); overflow-wrap: anywhere; }

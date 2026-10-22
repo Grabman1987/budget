@@ -577,17 +577,21 @@
   flex-direction: column;
   align-items: flex-start;
   padding: 2px 0;
-  min-height: 24px;
+  min-height: 44px;
   border: 0;
   background: none;
   color: var(--ink);
   font: inherit;
   font-weight: 560;
   text-align: left;
-  text-decoration: underline;
+  text-decoration: none;
   text-decoration-color: var(--rule-strong);
   text-underline-offset: 3px;
   cursor: pointer;
+}
+.rf-month-btn:hover,
+.rf-month-btn:focus-visible {
+  text-decoration: underline;
 }
 .rf-month-btn small {
   margin-top: 0;
@@ -595,6 +599,7 @@
   color: var(--ink-2);
 }
 .rf-month-btn[aria-pressed='true'] {
+  text-decoration: underline;
   text-decoration-color: var(--ink);
   text-decoration-thickness: 2px;
 }

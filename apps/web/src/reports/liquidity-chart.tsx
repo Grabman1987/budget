@@ -13,7 +13,7 @@ import {
 import type { LiquidityReport } from '@budget/domain';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur, longDay, shortDay } from '../ledger/format';
-import { kfmt, yTicks } from '../wealth/networth-model';
+import { euroAxis, yTicks } from '../wealth/networth-model';
 import { lowestPoint } from './liquidity-selection';
 import './reports-future.css';
 
@@ -98,7 +98,9 @@ function Drawing({
     y1: y(p.bufferCents / 100),
   }));
   const indexOfDay = new Map(points.map((p, i) => [p.day, i]));
-  const grid = yTicks(y0, y1).map((v) => ({ y: y(v), label: kfmt(v) }));
+  const tickValues = yTicks(y0, y1);
+  const axis = euroAxis(tickValues);
+  const grid = tickValues.map((v) => ({ y: y(v), label: axis.label(v) }));
   const preferredStep =
     report.horizon === '35d'
       ? 7
@@ -155,6 +157,9 @@ function Drawing({
         ],
       )}
     >
+      <text x={L} y={18} className="svg-label-line">
+        {axis.unit}
+      </text>
       <Graticule x1={L} x2={W - R} lines={grid} />
       <AxisLine x1={L} x2={W - R} y={y(0)} />
       <Band points={band} />

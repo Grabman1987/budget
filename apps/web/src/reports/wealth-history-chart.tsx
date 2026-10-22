@@ -1,13 +1,12 @@
 import { chartPoints } from '../charts/tooltip-data';
 import { useAmountPrivacy, AxisLine, ChartSvg, Graticule, Line, type Point } from '@budget/ui';
-import { MINUS } from '@budget/domain';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur, longDay } from '../ledger/format';
-import { kfmt, monthTickLabel, monthTicks, yTicks } from '../wealth/networth-model';
+import { euroAxis, monthTickLabel, monthTicks, yTicks } from '../wealth/networth-model';
 import type { NetWorthHistory } from './wealth-history-api';
 
 const L = 56;
-const T = 18;
+const T = 28;
 const B = 28;
 
 /** Ink tone of a type, stepped from solid to pale in display order (blueprint: tones of one ink). */
@@ -76,10 +75,9 @@ function Drawing({ history, width: W }: { history: NetWorthHistory; width: numbe
   const lastValue = daily[n]!.netWorthCents;
   const line: Point[] = daily.map((d, i) => [x(i), y(d.netWorthCents / 100)]);
   const last = line[n] as Point;
-  const grid = yTicks(y0, y1).map((v) => ({
-    y: y(v),
-    label: v === 0 ? '0' : v < 0 ? `${MINUS}${kfmt(-v)}` : kfmt(v),
-  }));
+  const tickValues = yTicks(y0, y1);
+  const axis = euroAxis(tickValues);
+  const grid = tickValues.map((v) => ({ y: y(v), label: axis.label(v) }));
   const ticks = monthTicks(days, W - L - R).filter((t) => x(t.index) <= W - R - 30);
   const summary =
     `Vermögen nach Kontotyp gestapelt, Schulden unter Null, Nettovermögen als Linie: von ` +
@@ -112,6 +110,9 @@ function Drawing({ history, width: W }: { history: NetWorthHistory; width: numbe
         ],
       )}
     >
+      <text x={L} y={16} className="svg-label-line">
+        {axis.unit}
+      </text>
       <Graticule x1={L} x2={W - R} lines={grid} />
       {assets.map(({ g, gi, d }) => (
         <path
@@ -135,7 +136,7 @@ function Drawing({ history, width: W }: { history: NetWorthHistory; width: numbe
       <g className="fade-in">
         <circle cx={last[0]} cy={last[1]} r={4} className="dot-actual" />
         <text x={last[0] + 8} y={last[1] + 4} className="svg-label-strong">
-          {kfmt(lastValue / 100)}
+          {axis.label(lastValue / 100)}
         </text>
       </g>
       {ticks.map((t) => (

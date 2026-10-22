@@ -162,7 +162,29 @@
   font-size: var(--fs-body);
   font-weight: 560;
   color: var(--ink-2);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.mr-status svg {
+  flex: none;
+}
+.mr-table.is-expected tr > :first-child,
+.mr-table.is-types tr > :first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+  box-shadow: inset -1px 0 var(--rule-strong);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.mr-table.is-expected tr > :first-child {
+  min-width: 160px;
+  max-width: 220px;
+}
+.mr-table.is-types tr > :first-child {
+  min-width: 140px;
+  max-width: 220px;
 }
 .mr-status.is-ok {
   color: var(--line);

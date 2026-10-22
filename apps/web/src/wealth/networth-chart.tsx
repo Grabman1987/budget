@@ -9,11 +9,10 @@ import {
   type Bar,
   type Point,
 } from '@budget/ui';
-import { MINUS } from '@budget/domain';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur } from '../ledger/format';
 import type { NetWorthView } from './api';
-import { kfmt, monthTickLabel, monthTicks, yTicks } from './networth-model';
+import { euroAxis, monthTickLabel, monthTicks, yTicks } from './networth-model';
 
 /** 320 px on desktop and phone alike, as in the prototype (`.vnw-wide .vline`). */
 const HEIGHT = 320;
@@ -103,7 +102,10 @@ function Drawing({
     daily.map((d) => d.date),
     W - L - R,
   ).filter((t) => x(t.index) <= W - R - 40);
-  const grid = yTicks(y0, y1).map((v) => ({ y: y(v), label: kfmt(v) }));
+  const tickValues = yTicks(y0, y1);
+  const axis = euroAxis(tickValues);
+  const barAxis = euroAxis([-bmax, 0, bmax]);
+  const grid = tickValues.map((v) => ({ y: y(v), label: axis.label(v) }));
   const first0 = daily[0]?.netWorthCents ?? 0;
   const summary =
     `Nettovermögen täglich, ${periodLabel}: von ${eur(first0)} auf ${eur(daily[n]?.netWorthCents ?? 0)}. ` +
@@ -150,10 +152,10 @@ function Drawing({
       })}
     >
       <text x={L} y={10} className="svg-label-line">
-        Nettovermögen
+        Nettovermögen · {axis.unit}
       </text>
       <text x={L} y={split + 14} className="svg-label-line">
-        {bars.unit === 'week' ? 'Veränderung je Woche' : 'Veränderung je Monat'}
+        {bars.unit === 'week' ? 'Veränderung je Woche' : 'Veränderung je Monat'} · {barAxis.unit}
       </text>
       <Graticule x1={L} x2={W - R} lines={grid} />
       <Line kind="actual" points={line} draw className="l-daily" />
@@ -173,8 +175,8 @@ function Drawing({
         x1={L}
         x2={W - R}
         lines={[
-          { y: zb - bh, label: `+${kfmt(bmax)}` },
-          { y: zb + bh, label: `${MINUS}${kfmt(bmax)}` },
+          { y: zb - bh, label: `+${barAxis.label(bmax)}` },
+          { y: zb + bh, label: barAxis.label(-bmax) },
         ]}
       />
       {pairs.map((p) => (

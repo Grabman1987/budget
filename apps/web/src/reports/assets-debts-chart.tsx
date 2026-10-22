@@ -9,15 +9,14 @@ import {
   type Bar,
   type Point,
 } from '@budget/ui';
-import { MINUS } from '@budget/domain';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur, monthName } from '../ledger/format';
-import { kfmt, yTicks } from '../wealth/networth-model';
+import { euroAxis, yTicks } from '../wealth/networth-model';
 import type { AssetsDebtsHistory } from './assets-debts-api';
 
 const L = 56;
 const R = 14;
-const T = 14;
+const T = 28;
 const B = 28;
 
 const short = (month: string) => `${monthName(`${month}-01`).slice(0, 3)} ${month.slice(2, 4)}`;
@@ -82,10 +81,9 @@ function Drawing({
   const y0 = lo < 0 ? lo - pad : 0;
   const y1 = hi + pad;
   const y = (v: number) => H - B - ((v - y0) / (y1 - y0)) * (H - B - T);
-  const grid = yTicks(y0, y1).map((v) => ({
-    y: y(v),
-    label: v === 0 ? '0' : v < 0 ? `${MINUS}${kfmt(-v)}` : kfmt(v),
-  }));
+  const tickValues = yTicks(y0, y1);
+  const axis = euroAxis(tickValues);
+  const grid = tickValues.map((v) => ({ y: y(v), label: axis.label(v) }));
   const gap = bw / 2 + 1;
   const assetBars: Bar[] = months.map((m, i) => ({
     x: x(i) - gap,
@@ -145,6 +143,9 @@ function Drawing({
           data-testid="assets-debts-pick"
         />
       )}
+      <text x={L} y={16} className="svg-label-line">
+        {axis.unit}
+      </text>
       <Graticule x1={L} x2={W - R} lines={grid} />
       <AxisLine x1={L} x2={W - R} y={y(0)} />
       <BarsAroundZero bars={assetBars} y={y} barWidth={bw} tone="ink" negativeTone="ink" />
@@ -169,7 +170,7 @@ function Drawing({
           textAnchor="end"
           className="svg-label-strong"
         >
-          {kfmt(net[n - 1] as number)}
+          {axis.label(net[n - 1] as number)}
         </text>
       </g>
       {months.map((m, i) =>

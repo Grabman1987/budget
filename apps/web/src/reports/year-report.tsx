@@ -84,13 +84,18 @@ function YearBody({ data, year }: { data: ReportTables; year: number }) {
     () => buildYearView(data.months, year, data.lastFullMonth),
     [data.months, year, data.lastFullMonth],
   );
+  const visibleCount = view.months.reduce((last, month, index) => (month ? index + 1 : last), 0);
+  const visibleMonths = useMemo(() => view.months.slice(0, visibleCount), [view, visibleCount]);
   const detail = depth === 'kategorien';
-  const rows = useMemo(() => buildTableRows(view.months, meta, detail), [view, meta, detail]);
+  const rows = useMemo(
+    () => buildTableRows(visibleMonths, meta, detail),
+    [visibleMonths, meta, detail],
+  );
   const previous = useMemo(
     () => previousTotals(buildTableRows(view.previous, meta, detail)),
     [view, meta, detail],
   );
-  const have = view.months.filter((m): m is TableMonth => m !== null);
+  const have = visibleMonths.filter((m): m is TableMonth => m !== null);
   const income = sum(have, (m) => monthHouseholdIncome(m, meta));
   const consumption = sum(have, (m) => monthConsumption(m, meta));
   const future = sum(have, (m) => monthClassSpending(m, meta, 'future'));
@@ -167,7 +172,7 @@ function YearBody({ data, year }: { data: ReportTables; year: number }) {
       )}
       <RowsGrid
         rows={rows}
-        columns={MONTH_SHORT.map((label, i) => ({
+        columns={MONTH_SHORT.slice(0, visibleCount).map((label, i) => ({
           key: `${year}-${i}`,
           label,
           title: monthShort(`${year}-${String(i + 1).padStart(2, '0')}`),
