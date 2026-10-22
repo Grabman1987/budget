@@ -39,3 +39,7 @@ This is an unreviewed, source-only checkpoint. **NOT VALIDATED / NOT LIVE.** No 
 ## #521 AppLink destination correction
 
 An independent review of the valuation-cause links found that `AppLink` does not accept a router `params` prop. The five affected-entity links now form their existing concrete route using `encodeURIComponent(id)`, matching established package call sites; route targets and quality IDs are unchanged. This is a bounded link-construction correction only. It remains **NOT VALIDATED / NOT LIVE** pending an independent exact-delta source review. No tests, checks, typecheck, build, browser, CI, PR, merge or deployment were performed.
+
+## #521 AppLink destination correction — independent source review
+
+The exact correction source `b7239d229414b7ca6d6673e8e266ad8fbb0ac460` was independently reviewed against `dea1e99ffdf46cc44d756b4fb24a2a5837429ea0`. The unsupported `params` props are removed from all five links and the P2 is closed in this bounded delta; the archived report is `explanations-518-521-allocation-links-fix-source-review.md`. No other finding was identified in the correction. This source review is not a compiler or runtime check. The package remains **NOT VALIDATED / NOT LIVE**.
