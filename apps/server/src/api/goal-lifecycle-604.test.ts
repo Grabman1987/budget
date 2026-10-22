@@ -145,9 +145,18 @@ it('returns six actual month-end history points from the explicitly selected ear
     '2026-08',
     '2026-09',
     '2026-10',
+    '2026-11',
+    '2026-12',
   ]);
-  expect(history.points.map((point: { actualCents: number }) => point.actualCents)).toEqual([
-    1000, 2000, 3000, 4000, 5000, 6000,
+  expect(history.points.map((point: { actualCents: number | null }) => point.actualCents)).toEqual([
+    1000,
+    2000,
+    3000,
+    4000,
+    5000,
+    6000,
+    null,
+    null,
   ]);
   expect(JSON.stringify(report.body)).not.toContain('lifecycleAnchorJson');
   expect(JSON.stringify(report.body)).not.toContain('lifecycle_anchor_json');
