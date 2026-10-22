@@ -144,6 +144,38 @@ export function readRecordedSecurityHistory(db: Executor, input: {
         return unavailable('invalid_trade', [row.id]);
       settlements.push({ tradeId: row.id, cash, part });
     }
+    // A past settlement can remain live after a trade was edited to zero cash or deleted.
+    // The canonical invariant checks old booking IDs from trade audit snapshots; retain
+    // that protection with explicit per-trade and aggregate read limits here.
+    let historicalAuditCount = 0;
+    const historicalBookings = new Map<string, typeof booking.$inferSelect | null>();
+    for (const row of allTrades) {
+      const audit = tx.select({ beforeJson: auditLog.beforeJson, afterJson: auditLog.afterJson })
+        .from(auditLog).where(and(eq(auditLog.entityType, 'trade'),
+          eq(auditLog.entityId, row.id))).limit(101).all();
+      historicalAuditCount += audit.length;
+      if (audit.length > 100 || historicalAuditCount > 5000)
+        return unavailable('scope_limit', [row.id]);
+      const oldIds = new Set<string>(row.bookingId ? [row.bookingId] : []);
+      for (const entry of audit) for (const json of [entry.beforeJson, entry.afterJson]) {
+        if (!json) continue;
+        try {
+          const snapshot = JSON.parse(json) as { booking_id?: unknown };
+          if (typeof snapshot.booking_id === 'string') oldIds.add(snapshot.booking_id);
+        } catch {
+          return unavailable('invalid_trade', [row.id]);
+        }
+      }
+      for (const bookingId of oldIds) {
+        if (!historicalBookings.has(bookingId)) historicalBookings.set(bookingId,
+          tx.select().from(booking).where(eq(booking.id, bookingId)).get() ?? null);
+        const cash = historicalBookings.get(bookingId);
+        if (cash && cash.deletedAt === null &&
+            (row.deletedAt !== null || bookingId !== row.bookingId))
+          return unavailable('invalid_trade', [row.id]);
+      }
+    }
+    if (historicalBookings.size > 5000) return unavailable('scope_limit');
 
     const method = investmentPreferences(tx).costMethod;
     const latest = [input.asOf, ...allTrades.map((row) => row.date),
@@ -157,6 +189,7 @@ export function readRecordedSecurityHistory(db: Executor, input: {
       ...settlements.flatMap(({ cash, part }): [string, string][] => [
         ['booking', cash.id], ['booking_split', part.id],
       ]),
+      ...[...historicalBookings.keys()].map((id): [string, string] => ['booking', id]),
     ];
     if (revisionKeys.length > 6000) return unavailable('scope_limit');
     revisionKeys.sort((a, b) => a[0]!.localeCompare(b[0]!) || a[1]!.localeCompare(b[1]!));
@@ -174,6 +207,7 @@ export function readRecordedSecurityHistory(db: Executor, input: {
       trades: allTrades.sort((a, b) => a.id.localeCompare(b.id)),
       snapshots: snapshots.sort((a, b) => a.id.localeCompare(b.id)),
       settlements: settlements.sort((a, b) => a.tradeId.localeCompare(b.tradeId)),
+      historicalBookings: [...historicalBookings].sort((a, b) => a[0].localeCompare(b[0])),
       auditRevisions,
     })).digest('hex');
 

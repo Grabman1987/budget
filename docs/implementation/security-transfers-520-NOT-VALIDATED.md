@@ -212,9 +212,10 @@ The reader compares both account results with the existing selected-method
 It reads the full current affected history for a deterministic fact fingerprint;
 the fingerprint also includes the latest existing audit revisions for the cost
 preference and relevant source rows, so an average → FIFO → average change cannot
-reuse the old preview identity. Current settlement links are read with bounded
-queries rather than scanning unbounded audit histories;
-the replay input returned for a possible preview ends at the requested day.
+reuse the old preview identity. Current settlement links and a capped trade audit
+history are read to reject still-live detached settlement bookings, including
+after a trade becomes zero-net or is deleted. The replay input returned for a
+possible preview ends at the requested day.
 Later recorded events are also replayed and must remain viable, so a backdated
 candidate cannot ignore an already recorded later sale. A future apply must reread
 the then-latest facts and compare the same full-scope fingerprint in a transaction.
