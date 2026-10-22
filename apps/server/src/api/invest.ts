@@ -521,11 +521,15 @@ export function tradeRoutes(db: Db): Hono {
     });
   });
   // Read-only recorded-ledger preview. No pair, delivery leg or audit row is written.
-  app.post('/transfer-preview', async (c) => c.json(previewRecordedSecurityTransfer(db,
-    await readBody(c, transferPreviewBody))));
+  app.post('/transfer-preview', async (c) => {
+    const input = await readBody(c, transferPreviewBody);
+    return c.json(previewRecordedSecurityTransfer(db,
+      { ...input, sourceReference: input.sourceReference ?? null }));
+  });
   app.post('/transfer-apply', async (c) => {
     const { confirmed: _confirmed, ...input } = await readBody(c, transferApplyBody);
-    const result = writeRecordedSecurityTransfer(db, input, audit());
+    const result = writeRecordedSecurityTransfer(db,
+      { ...input, sourceReference: input.sourceReference ?? null }, audit());
     return c.json({ pairId: result.pair.id, groupId: result.groupId,
       duplicate: result.duplicate, live: result.live }, result.duplicate ? 200 : 201);
   });

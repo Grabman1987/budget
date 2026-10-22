@@ -79,6 +79,7 @@ export function TradePanel({
   }, []);
   const setUncertainNow = useCallback((value: boolean) => {
     uncertainRef.current = value;
+    if (value) setAsking(false);
   }, []);
   const blocker = useBlocker({
     shouldBlockFn: () => {
@@ -100,6 +101,7 @@ export function TradePanel({
     setAsking(true);
   }, [blockerStatus, resetBlockedNavigation, busy]);
   const close = () => {
+    if (busyRef.current || uncertainRef.current) return;
     setDirtyNow(false);
     setAsking(false);
     setMode('trade');
@@ -183,6 +185,7 @@ export function TradePanel({
             onDirty={setDirtyNow}
             onBusy={setBusyNow}
             onUncertain={setUncertainNow}
+            onAttemptStart={() => setAsking(false)}
             onSaved={(savedSecurityId) => {
               setDirtyNow(false);
               setBusyNow(false);
@@ -216,7 +219,7 @@ export function TradePanel({
           <div className="instrument-discard" role="alert">
             <p>{mode === 'transfer' ? 'Angaben zur Übertragsvorschau verwerfen?' : 'Ungespeicherte Handelsangaben verwerfen?'}</p>
             <Button
-              disabled={busy}
+              disabled={busy || uncertainRef.current}
               onClick={() => {
                 setAsking(false);
                 if (blocker.status === 'blocked') blocker.reset();
@@ -225,9 +228,10 @@ export function TradePanel({
               Weiter bearbeiten
             </Button>
             <Button
-              disabled={busy}
+              disabled={busy || uncertainRef.current}
               variant="ghost"
               onClick={() => {
+                if (busyRef.current || uncertainRef.current) return;
                 if (blocker.status === 'blocked') {
                   setDirtyNow(false);
                   setAsking(false);
@@ -611,7 +615,8 @@ function TradeForm({
 }
 
 /** Recorded-ledger proposal, explicit confirmation and one idempotent audited action. */
-function TransferPreviewForm({ date, securityId, accounts, securities, onDirty, onBusy, onUncertain, onSaved }: {
+function TransferPreviewForm({ date, securityId, accounts, securities,
+  onDirty, onBusy, onUncertain, onAttemptStart, onSaved }: {
   date: string;
   securityId?: string | undefined;
   accounts: AccountRow[];
@@ -619,6 +624,7 @@ function TransferPreviewForm({ date, securityId, accounts, securities, onDirty, 
   onDirty: (dirty: boolean) => void;
   onBusy: (busy: boolean) => void;
   onUncertain: (uncertain: boolean) => void;
+  onAttemptStart: () => void;
   onSaved: (securityId: string) => void;
 }) {
   const hidden = useAmountPrivacy();
@@ -714,6 +720,7 @@ function TransferPreviewForm({ date, securityId, accounts, securities, onDirty, 
         !result.applyAvailable) return;
     const attempt = delivery ?? { proposal, factFingerprint: result.factFingerprint,
       intentKey: crypto.randomUUID() };
+    onAttemptStart();
     setDelivery(attempt);
     pending.current = true;
     setBusy(true);
@@ -744,13 +751,20 @@ function TransferPreviewForm({ date, securityId, accounts, securities, onDirty, 
       onSaved(attempt.proposal.securityId);
     } catch (cause) {
       if (cause instanceof ApiError && cause.status >= 400 && cause.status < 500) {
-        setDelivery(null);
-        onUncertain(false);
-        setResult(null);
-        setProposal(null);
-        setConfirmed(false);
-        setError('Der Übertrag wurde nicht gespeichert. Bitte die Angaben erneut prüfen. ' +
-          errorText(cause));
+        if (delivery) {
+          // A rejected retry does not tell us whether the earlier lost reply committed.
+          onUncertain(true);
+          setError('Der erneute Versuch wurde abgewiesen. Der erste Speicherstand bleibt unklar; ' +
+            'mit demselben Sendeschlüssel später erneut versuchen. ' + errorText(cause));
+        } else {
+          setDelivery(null);
+          onUncertain(false);
+          setResult(null);
+          setProposal(null);
+          setConfirmed(false);
+          setError('Der Übertrag wurde nicht gespeichert. Bitte die Angaben erneut prüfen. ' +
+            errorText(cause));
+        }
       } else {
         onUncertain(true);
         setError('Der Speicherstand ist unklar. Mit demselben Sendeschlüssel erneut versuchen. ' +

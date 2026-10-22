@@ -78,7 +78,9 @@ export function assertPairedScopes(db: Executor, scopes: readonly PairedHistoryS
       asOf: mutationDate ?? scope.asOf });
     if (!history.available)
       throw new ConflictError(`Die Übertragshistorie ist nach der Änderung widersprüchlich (${history.code}).`);
-    if (mutationDate && history.writeBlockers.length > 0)
+    // An earlier native fact may predate an account that joins the component only
+    // through a later pair. Pair endpoint lifetimes were checked at scope.asOf.
+    if (mutationDate && history.writeBlockers.some((blocker) => blocker !== 'account_unopened'))
       throw new ConflictError('Ein beteiligtes Anlagekonto ist geschlossen oder am Stichtag geprüft.');
   }
 }
