@@ -77,3 +77,7 @@ savings-rate proof, all rendering/packaging/auth/privacy/resource/error checks,
 1440/390/WebKit light/dark, focus, 44px targets, overflow and Axe remain pending.
 No issue acceptance or live completion is claimed. Workflow triggers are inspected
 before ordinary feature push; workflows/protections/STOP state remain unchanged.
+
+## Exact source review checkpoint
+
+Independent source review of6d85aab877d678c0a8f48df237486eaa9e50e36a against6420676d257698767931dd151863765cec914acf found no actionable issue in its stated PDF/security/financial-split/UI scope. The complete report is archived in `SOURCE-REVIEW.md`. This documentation-only checkpoint adds no runtime or acceptance evidence. All deferred validation above remains open.
