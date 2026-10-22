@@ -229,12 +229,12 @@ export function SankeyChart({
                 x={tx}
                 y={ty + (tall ? -3 : 4)}
                 textAnchor={anchor}
-                className={
-                  !tall && n.column >= 2 ? 'svg-label-strong svg-value' : 'svg-label-strong'
-                }
+                className="svg-label-strong"
               >
                 {n.name}
-                {!tall && n.column >= 2 ? ` · ${eur0(n.value)} · ${share(n.value)}` : ''}
+                {!tall && n.column >= 2 && (
+                  <tspan className="svg-value">{` · ${eur0(n.value)} · ${share(n.value)}`}</tspan>
+                )}
               </text>
             )}
             {showLabel && tall && (

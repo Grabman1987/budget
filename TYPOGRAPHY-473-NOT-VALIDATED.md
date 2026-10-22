@@ -10,7 +10,7 @@ A source search of current app/shared CSS found no remaining literal font-size d
 
 ## Bounded source changes
 
-Several concrete data values still inherited Barlow from the shared SVG label classes: chart endpoint amounts, low-point amounts, totals, inflation index/count results, Sankey amount/share lines and dimension-chain amounts. The additive `.svg-value` role sets Archivo (`--font-ui`), `tabular-nums` and neutral tracking while preserving each existing size/colour class. Existing axis/marker labels and label-only allocation/Sankey names retain their technical face. The amount-expression result and Plan's remaining-to-distribute money also use Archivo/tabular numbers. `ElevationMark.valueLabel` opts the actual Heute low-point amount into this role; label-only callers retain their prior role.
+Several concrete data values still inherited Barlow from the shared SVG label classes: chart endpoint amounts, low-point amounts, totals, inflation index/count results, Sankey amount/share lines and dimension-chain amounts. The additive `.svg-value` role sets Archivo (`--font-ui`), `tabular-nums` and neutral tracking while preserving each existing size/colour class. Existing axis/marker labels and label-only allocation/Sankey names retain their technical face. In compact Sankey labels, the node name remains `svg-label-strong` and only the numeric/share suffix uses a nested `.svg-value` span. The amount-expression result and Plan's remaining-to-distribute money also use Archivo/tabular numbers. `ElevationMark.valueLabel` opts the actual Heute low-point amount into this role; label-only callers retain their prior role.
 
 No financial expression, integer-cent value, masking, data source, projection, write, audit, lock, Undo, chart coordinate, path geometry, interaction target, focus behavior or existing selector/test is changed. Font metrics can nevertheless affect visual text width, so fit/overlap is not established by these source edits.
 
@@ -28,6 +28,8 @@ The branch has small class/prop hunks in the following potentially newer crossbr
 A separate newer-branch literal exists in #516 checkpoint `935f685baa16590c1e24c356401eacc926a97a32`, outside this pinned base: `apps/web/src/inbox/bank-source-explanation.css` has `font-size: .875rem` on explanation prose. At integration replace only that declaration with `font-size: var(--fs-body)` (T6 explanatory prose, responsive 15/16px). Do not overwrite the newer inbox files or alter the frozen #516 branch wholesale. Exact one-hunk patch supplied to the coordinator at `/workspace/.budget-tools/cloud-control/473-typography/crossbranch-516-css.patch`. Other source branches require a fresh residual inventory at integration; this checkpoint does not claim coverage of source absent from its base.
 
 ## Deferred validation
+
+An independent source review identified that compact Sankey labels originally applied `.svg-value` to a combined node-name/amount/share text node. This was corrected by keeping the node name in its existing label role and applying `.svg-value` only to the unchanged numeric/share suffix. The coordinate, anchor, content, masking, and calculations are unchanged. This correction has not been runtime-validated.
 
 Per the owner's 2026-10-22 implementation-only direction, no tests/new tests/test edits, typecheck, build, browser, CSS check, formatter/checker execution, CI, PR, merge or deployment occurred. No dependencies or evidence were installed/copied. Existing tests, snapshots, checks and financial protections remain unchanged.
 
