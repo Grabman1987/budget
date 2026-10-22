@@ -4,6 +4,8 @@ Current snapshot; supersedes older progress statements in CURRENT-COORDINATION.m
 
 ## Latest completed source work
 
+- #485/#486 direct Darstellung-route CSS import corrected at `79d9f35a4e87ab12f472a54035fac630b6f6888e`, independently reviewed, archive head `ad331cb8a30c8da1ecd1edbe58144962a99353cf`. Theme/Privacy/Undo unchanged. Selected remote head reread at 2026-10-22T23:24:40.507693+00:00.
+
 - #520: persistence/read projection/reporting, internal writer and whole-group Undo, authenticated Apply API and explicit UI confirmation are implemented. Independent correction reviews close the bounded findings at read source `e812fb40aac58905869b76b91950b3dc351ccba6`, writer source `7f3f39d8d3d2da78346e938d84e19cdf743b8042`, and Apply source `d52d3cbd37d2052f9d096f7e86057c5c1a474f23`. Final documentation head `ed1ad3a2722266d8cc1b4b6ee0256d0393c4cf08`. No migration, database or API execution. Runtime, concurrency, financial and integration acceptance remain outstanding.
 - #762: one-shot monthly service and audited rebalance proposal/actual-trade linkage lifecycle are implemented. Monthly source `c26a748d1090f7332449fd93dfd482ab92f02472` and final rebalance correction `8f1475709f50b706dbcba9e12c91deefc2579cc4` independently source-reviewed. Documentation head `4b403b8623167a8298c1a83528f3d25c963fedd6`. Actual trusted provider and scheduled invocation remain absent. No autonomous broker orders or runtime acceptance.
 - #469 glossary: cause-neutral negative available-to-assign explanation corrected at `47377c904544f3302cb55ddfc4b93b460eca2367`, independently reviewed, archived at `142aca8077cc2a80c455e9c1e78ef22b89e127b7`.
@@ -43,7 +45,7 @@ Heads read together at 2026-10-22T23:16:17.446848+00:00. Scope-specific reviewed
 | #607 | `codex/impl-607-payments` | `8325561b7a1a6e47ef0ef67d27d0959d9f7c5b84` |
 | #564, #565 | `codex/impl-564-565-reconcile` | `7d24f141e309af1cd531d898befaf0b6bf6b2329` |
 | #562, #563 | `codex/impl-562-563-inbox` | `f830a1d0b17ed6cedb8e9fed871d7d31b7145192` |
-| #485, #486 | `codex/impl-485-486-settings-navigation` | `ec1b973dfc5530cb62f0f209961cc93a381c8355` |
+| #485, #486 | `codex/impl-485-486-settings-navigation` | `ad331cb8a30c8da1ecd1edbe58144962a99353cf` |
 | #514 | `codex/impl-514-targets` | `4e4a938ee7cca6adeffc35849991a8abb3c4afc3` |
 | #519 | `codex/impl-519-fx-transfers` | `8b37818bf1c3160638b9909c8ad7feaf7af7c93b` |
 | #520 | `codex/impl-520-security-transfers` | `2de7fa9611e7a37683edabdaf8ba075c7c26b944` |
@@ -65,3 +67,7 @@ Heads read together at 2026-10-22T23:16:17.446848+00:00. Scope-specific reviewed
 | #486 | `codex/impl-486-manual-scan` | `ff620377e9f6905a3fa48f2464e1339269d4ea35` |
 | #727 | `codex/impl-727-source-reassessment` | `a6edf91a8bdd8e072c726acac7fafb6d44b5f0c6` |
 | #520 | `codex/impl-520-transfer-persistence` | `ed1ad3a2722266d8cc1b4b6ee0256d0393c4cf08` |
+
+## Source-only batch boundary
+
+The final issue read still shows94 OPEN,62 direct references and no newly added issue. All32 remaining issue mappings are in `remaining-open-reconciliation.md`; no separate uncovered source task was substantiated there. The remaining #762 provider/calendar contract and #516 ambiguity decision are individually described in `PHASE-RESIDUALS.md`. All assigned agents finished; tests and delivery remain separate and unexecuted.

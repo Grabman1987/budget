@@ -114,7 +114,7 @@
       ],
       "branch": "codex/impl-settings-469-486",
       "remote_sha": "09312b49e578db493bfe279133d30260c5e2ed44",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED; see handoff for partial AC"
+      "status": "Historical combined checkpoint retained; all seven product paths carried or superseded by direct descendant codex/impl-485-486-settings-navigation. No unique source to port; not retrospectively represented as fully reviewed. NOT VALIDATED / NOT LIVE."
     },
     {
       "issues": [
@@ -173,8 +173,8 @@
         486
       ],
       "branch": "codex/impl-485-486-settings-navigation",
-      "status": "Autosave and durable last server-completed CSV response observation; independent source reviews archived; NOT VALIDATED / NOT LIVE",
-      "remote_sha": "ec1b973dfc5530cb62f0f209961cc93a381c8355"
+      "status": "Settings sections, autosave, durable export observation and direct display-route CSS import implemented. Independent import fix review at79d9f35a4e87ab12f472a54035fac630b6f6888e; reports archived. NOT VALIDATED / NOT LIVE.",
+      "remote_sha": "ad331cb8a30c8da1ecd1edbe58144962a99353cf"
     },
     {
       "issues": [
@@ -365,8 +365,8 @@
     ],
     "520": "Non-divisible residual cent remains with source holding and accompanies its eventual full transfer; total basis conserved."
   },
-  "agent_state": "Assigned #520 and #762 source implementations and independent reviews finished; coordinator consolidating durable handoff. No agents claimed running after completion. No runtime validation, CI, merge or deployment.",
-  "board": "Fresh repository read: 94 OPEN issues; 62 have direct checkpoint references. This is not Projects Warteschlange count; no board status claimed.",
+  "agent_state": "Assigned source tasks and independent reviews completed; no active subagents. Remaining source blockers individually recorded in PHASE-RESIDUALS.md; no runtime validation, CI, merge or deploy.",
+  "board": "Fresh final read: 94 OPEN repository issues, 62 with direct checkpoint references, unchanged issue set. Not Projects Warteschlange count; no issue or board writes.",
   "coordination_owner": "Budget App Main / this chat, explicitly reconfirmed by owner; Codex CLI optional support only.",
   "goal_objective_received": true,
   "migration_reservations": {
@@ -376,9 +376,10 @@
   "active_source_tasks": [],
   "remote_heads_observed_at_utc": "2026-10-22T23:16:17.446848+00:00",
   "recovery_note": "Temporary /tmp evidence directory disappeared during executor recovery. cloud-control now points to /workspace/.budget-tools/cloud-control-persistent. Missing local evidence is not assumed recovered; committed package reports preserved. #520 writer plan explicitly reconstructed and reviewed provenance documented.",
-  "selected_heads_observed_at_utc": "2026-10-22T22:46:28.813075+00:00",
+  "selected_heads_observed_at_utc": "2026-10-22T23:24:40.507693+00:00",
   "remaining_source_dependencies": {
     "762": "Actual trusted market/calendar provider and scheduled invocation absent; source-only service is not automation readiness.",
     "516": "Previously requested equivalent-import-match policy remains pending; no matcher behavior changed."
-  }
+  },
+  "phase_residuals": "PHASE-RESIDUALS.md"
 }
