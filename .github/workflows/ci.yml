@@ -128,7 +128,10 @@ jobs:
           key: playwright-${{ runner.os }}-ubuntu-24.04-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
       # With a cache hit the browsers are not downloaded again; the system packages still are.
       - name: Install Chromium and WebKit
-        run: npx playwright install --with-deps chromium webkit
+        run: |
+          # Avoid the stalled Azure mirror; retain Ubuntu's suites and Signed-By verification.
+          sudo sed -i '/^URIs:/s|://azure\.archive\.ubuntu\.com/ubuntu|://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          npx playwright install --with-deps chromium webkit
       - name: Build (e2e mode)
         run: npm run build:e2e
       - name: E2E shard ${{ matrix.shard }}/${{ env.SHARDS }}
@@ -186,7 +189,10 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-ubuntu-24.04-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
       - name: Install Chromium and WebKit
-        run: npx playwright install --with-deps chromium webkit
+        run: |
+          # Avoid the stalled Azure mirror; retain Ubuntu's suites and Signed-By verification.
+          sudo sed -i '/^URIs:/s|://azure\.archive\.ubuntu\.com/ubuntu|://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          npx playwright install --with-deps chromium webkit
       - name: Build (e2e mode)
         run: npm run build:e2e
       - name: Visual specs

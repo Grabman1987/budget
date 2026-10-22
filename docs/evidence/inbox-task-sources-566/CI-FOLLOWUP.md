@@ -106,3 +106,31 @@ including setup in31.7s. Successful CI jobs uploaded no traces, so the original
 excluded. Two other jobs exhausted their30min job limit after unusually slow
 APT installation (one without reaching tests, one after23min installation).
 Their diagnosed failed-job rerun did not change code, limits or CI settings.
+
+## Repeated Ubuntu dependency-download stalls
+
+The next full run39801312391 on a1008e21 completed its executed tests, but five
+remaining jobs were still downloading Ubuntu dependencies after17-22minutes.
+Their exact install-only state and original logs were retained before a manual
+infrastructure cancellation. This was before the deadline, not an observed
+timeout. The failed-job-only second attempt progressed on three new runners,
+while two again remained in dependency installation. A green completion is not
+claimed for either superseded attempt.
+
+Both Chromium/WebKit install steps in `ci.yml` now replace only the Azure mirror
+URI with `archive.ubuntu.com` in the Ubuntu24.04 runner's Deb822 sources file.
+Ubuntu suites, components, architecture and Signed-By remain unchanged. The
+existing Playwright installer still runs its normal `apt-get update` and signed
+package installation. OS, Playwright version/cache, browser projects, test
+commands, shards, job deadlines and gate aggregation are unchanged. The new
+head requires complete fresh CI; improved download performance is not assumed.
+An exact synthetic Deb822 substitution check preserves all bytes except the
+intended host, including the separate security archive and keyring directive.
+
+In the superseded a1008 run, mobile `e2e/inbox.spec.ts` also passed on retry after
+its own row remained visible following category-editor save. Without a trace,
+the original PATCH/GET result and precise cause are unproven. Independent review
+found unchanged transaction query keys, writer invalidation, BookingPanel and
+category combobox; additional reads may affect timing. An unchanged focused
+desktop/mobile run passed5/5 including setup in38.1s. Original count, financial,
+Undo/redo and keyboard assertions remain. This qualification is retained.
