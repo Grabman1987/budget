@@ -1,7 +1,7 @@
 import {
   recordStrategyMonthlyDecision, saveStrategyConfiguration,
   portfolioStrategyWithRebalanceView, reviewStrategyRebalance, linkStrategyRebalanceTrade,
-  unlinkStrategyRebalanceTrade, closeStrategyRebalance,
+  unlinkStrategyRebalanceTrade, closeStrategyRebalance, strategyRebalanceTradeFacts,
   MISSING_STRATEGY_EVIDENCE, type Db, type StrategyEvidence,
 } from '@budget/db';
 import { STRATEGY_CATEGORIES, strategyConfigurationSchema, todayInVienna } from '@budget/domain';
@@ -41,13 +41,16 @@ export function portfolioStrategyRoutes(db: Db, now: () => string = () => new Da
   const revision = z.string().regex(/^[a-f0-9]{64}$/);
   const requestId = z.uuid();
   const eventBase = { month, revision, requestId };
+  app.get('/rebalance/trade/:id', (c) => c.json(strategyRebalanceTradeFacts(db, c.req.param('id'))));
   app.post('/rebalance/review', async (c) => {
-    const input = await readBody(c, z.strictObject({ ...eventBase, decisionRevision: revision }));
+    const input = await readBody(c, z.strictObject({ ...eventBase, decisionRevision: revision,
+      proposalRevision: revision }));
     return c.json(reviewStrategyRebalance(db, input, now(), { actor: ACTOR, groupId: randomUUID() }));
   });
   app.post('/rebalance/link', async (c) => {
     const input = await readBody(c, z.strictObject({ ...eventBase,
-      tradeId: z.string().min(1).max(200), category: z.enum(STRATEGY_CATEGORIES) }));
+      tradeId: z.string().min(1).max(200), tradeRevision: revision,
+      category: z.enum(STRATEGY_CATEGORIES) }));
     return c.json(linkStrategyRebalanceTrade(db, input, now(), { actor: ACTOR, groupId: randomUUID() }));
   });
   app.post('/rebalance/unlink', async (c) => {

@@ -36,7 +36,7 @@ const tradeFactsSchema = z.strictObject({
   id: z.string().min(1), accountId: z.string().min(1), securityId: z.string().min(1),
   date: z.iso.date(), kind: z.enum(['buy', 'sell']), unitsE8: money,
   amountCents: money.nonnegative(), feeCents: money.nonnegative(), taxCents: money.nonnegative(),
-  bookingId: z.string().nullable(), auditRevision: revisionSchema,
+  bookingId: z.string().nullable(), currency: z.string().min(3).max(3), auditRevision: revisionSchema,
 });
 const linkSchema = z.strictObject({ category: categorySchema, trade: tradeFactsSchema });
 const requestSchema = z.strictObject({ id: tokenSchema, action: actionSchema, intent: revisionSchema, groupId: tokenSchema });
@@ -73,7 +73,8 @@ function tradeAuditRevision(db: Executor, id: string): string {
 }
 function tradeFacts(db: Executor, id: string): TradeFacts | null {
   const row = getEntity(db, trade, id);
-  if (!row || (row.kind !== 'buy' && row.kind !== 'sell')) return null;
+  const owner = row && getEntity(db, account, row.accountId, { includeDeleted: true });
+  if (!row || !owner || (row.kind !== 'buy' && row.kind !== 'sell')) return null;
   try { assertTradeSettlementInvariants(db, row.bookingId ? [row.bookingId] : [], [id]); }
   catch (error) {
     if (error instanceof BookingInvariantError) return null;
@@ -82,7 +83,17 @@ function tradeFacts(db: Executor, id: string): TradeFacts | null {
   return { id, accountId: row.accountId, securityId: row.securityId, date: row.date,
     kind: row.kind, unitsE8: row.unitsE8, amountCents: row.amountCents,
     feeCents: row.feeCents, taxCents: row.taxCents, bookingId: row.bookingId,
+    currency: owner.currency,
     auditRevision: tradeAuditRevision(db, id) };
+}
+/** Server-reviewed economic facts; the token fences edits and Undo/redo before first attribution. */
+export function strategyRebalanceTradeFacts(db: Executor, id: string) {
+  return runInTransaction(db, (tx) => {
+    const facts = tradeFacts(tx, id);
+    if (!facts) throw new ConflictError('Der Handel fehlt oder seine Buchung ist nicht mehr konsistent.');
+    const owner = getEntity(tx, account, facts.accountId, { includeDeleted: true });
+    return { trade: facts, accountName: owner?.name ?? facts.accountId, revision: hash(facts) };
+  });
 }
 function eventIds(db: Executor): string[] {
   const historical = db.all<{ id: string }>(sql`SELECT DISTINCT entity_id AS id FROM audit_log
@@ -118,18 +129,21 @@ function conflicts(db: Executor, event: Event, owners: Map<string, string[]>): s
 }
 function sourceRevision(view: PortfolioStrategyView, decisionRevision: string): string {
   return hash({ config: view.config, configurationRevision: view.revision,
-    decisionRevision, valuation: view.valuation, rebalance: view.rebalance });
+    decisionRevision, binding: view.binding?.fingerprint,
+    universe: view.metadata.universe,
+    exposures: view.metadata.securities.map((row) => ({ id: row.id, exposure: row.exposure })),
+    valuation: view.valuation, rebalance: view.rebalance });
 }
 function proposalFromView(db: Executor, view: PortfolioStrategyView) {
   if (!view.binding || !view.config || !view.rebalance?.due || !view.rebalance.trigger)
     throw new ConflictError('Ein vollständiger aktueller Rebalancing-Vorschlag fehlt. Bitte neu laden.');
-  const month = view.binding.month, accounts = view.metadata.universe.accounts.map((row) => row.id);
+  const month = view.binding.month;
   return proposalSchema.parse({ asOf: view.asOf, effectiveDate: view.rebalance.effectiveDate,
     trigger: view.rebalance.trigger, decisionFingerprint: view.binding.fingerprint,
     decisionRevision: decisionAuditRevision(db, month), configurationRevision: view.revision,
     valuationRevision: sourceRevision(view, decisionAuditRevision(db, month)),
-    classes: view.config.classes, accountIds: accounts,
-    securityIds: view.metadata.universe.securities.map((row) => row.id),
+    classes: view.config.classes, accountIds: view.metadata.universe.accountIds,
+    securityIds: view.metadata.universe.securityIds,
     totalCents: view.rebalance.totalCents, cashCents: view.rebalance.cashCents,
     rows: view.rebalance.rows });
 }
@@ -150,7 +164,9 @@ export function strategyRebalanceLifecycle(db: Executor, view: PortfolioStrategy
   });
   const dueMonth = view.binding && view.rebalance?.due ? view.binding.month : null;
   return { events: rows, candidate: dueMonth ? { month: dueMonth, revision: revision(db, dueMonth),
-    decisionRevision: decisionAuditRevision(db, dueMonth), previouslyReviewed: eventIds(db).includes(eventKey(dueMonth)) } : null };
+    decisionRevision: decisionAuditRevision(db, dueMonth),
+    proposalRevision: sourceRevision(view, decisionAuditRevision(db, dueMonth)),
+    previouslyReviewed: eventIds(db).includes(eventKey(dueMonth)) } : null };
 }
 export function portfolioStrategyWithRebalanceView(db: Executor, asOf: string, evidence: StrategyEvidence) {
   return runInTransaction(db, (tx) => {
@@ -202,7 +218,7 @@ function write(db: Executor, event: Event, action: Action, requestId: string,
 
 /** Explicitly freeze the current advisory proposal. GET never creates an event. */
 export function reviewStrategyRebalance(db: Executor, input: { month: string; revision: string;
-  decisionRevision: string; requestId: string }, asOf: string, ctx: AuditContext) {
+  decisionRevision: string; proposalRevision: string; requestId: string }, asOf: string, ctx: AuditContext) {
   return runInTransaction(db, (tx) => {
     const month = monthSchema.parse(input.month), stored = getEntity(tx, appSetting, eventKey(month));
     const existing = stored ? parseEvent(stored.value, month) : null;
@@ -212,6 +228,8 @@ export function reviewStrategyRebalance(db: Executor, input: { month: string; re
     const view = portfolioStrategyView(tx, asOf);
     if (view.binding?.month !== month || decisionAuditRevision(tx, month) !== input.decisionRevision)
       throw new ConflictError('Die verbindliche Monatsentscheidung hat sich geändert. Bitte neu laden.');
+    if (sourceRevision(view, decisionAuditRevision(tx, month)) !== input.proposalRevision)
+      throw new ConflictError('Die angezeigten Rebalancing-Beträge oder ihre Quellen haben sich geändert. Bitte neu prüfen.');
     const proposal = proposalFromView(tx, view);
     const event = eventSchema.parse({ version: 1, month, proposal, state: 'reviewing', links: [], requests: [] });
     return write(tx, event, 'create', input.requestId, started.intent, ctx, false);
@@ -220,7 +238,7 @@ export function reviewStrategyRebalance(db: Executor, input: { month: string; re
 
 /** Attribution only: actual buy/sell and cash booking were already recorded by the ordinary trade writer. */
 export function linkStrategyRebalanceTrade(db: Executor, input: { month: string; revision: string;
-  requestId: string; tradeId: string; category: StrategyCategory }, asOf: string, ctx: AuditContext) {
+  requestId: string; tradeId: string; tradeRevision: string; category: StrategyCategory }, asOf: string, ctx: AuditContext) {
   return runInTransaction(db, (tx) => {
     const month = monthSchema.parse(input.month), stored = getEntity(tx, appSetting, eventKey(month));
     const event = stored ? parseEvent(stored.value, month) : null;
@@ -230,6 +248,8 @@ export function linkStrategyRebalanceTrade(db: Executor, input: { month: string;
     if (!event || event.state === 'cancelled' || event.state === 'completed' || event.state === 'partial_closed')
       throw new ConflictError('Dieses Rebalancing ist nicht für weitere Zuordnungen offen.');
     const facts = tradeFacts(tx, input.tradeId), accountRow = facts && getEntity(tx, account, facts.accountId);
+    if (!facts || hash(facts) !== input.tradeRevision)
+      throw new ConflictError('Der geprüfte Handel hat sich geändert. Bitte die tatsächlichen Angaben neu prüfen.');
     if (!facts || !accountRow || accountRow.role !== 'investment' ||
       getEntity(tx, trade, input.tradeId)?.savingsPlanId ||
       !event.proposal.accountIds.includes(facts.accountId) || !event.proposal.securityIds.includes(facts.securityId) ||

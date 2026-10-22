@@ -11,7 +11,7 @@ import { unitsText } from './portfolio-format';
 import { TradePanel } from './trade-panel';
 import { sourceMoney } from './trade-api';
 import { closeRebalance, linkRebalanceTrade, reviewRebalance, strategyTradesQuery,
-  unlinkRebalanceTrade } from './strategy-api';
+  strategyTradeFactsQuery, unlinkRebalanceTrade } from './strategy-api';
 
 type Event = PortfolioStrategyWithRebalanceView['rebalanceLifecycle']['events'][number];
 type Receipt = { groupId: string; changedCount: number };
@@ -64,8 +64,9 @@ export function StrategyRebalance({ data, fresh }: { data: Data; fresh: boolean 
           : 'Der aktuelle Bruttovorschlag kann für eine spätere Zuordnung geprüft und festgehalten werden.'}</p>
         <Button disabled={!fresh || busy || !data.rebalance?.due} onClick={() => void act(() => reviewRebalance({
           month: candidate.month, revision: candidate.revision, decisionRevision: candidate.decisionRevision,
-          requestId: reviewTokens.current.get(candidate.month) ?? (() => {
-            const id = crypto.randomUUID(); reviewTokens.current.set(candidate.month, id); return id;
+          proposalRevision: candidate.proposalRevision,
+          requestId: reviewTokens.current.get(`${candidate.month}:${candidate.revision}`) ?? (() => {
+            const id = crypto.randomUUID(); reviewTokens.current.set(`${candidate.month}:${candidate.revision}`, id); return id;
           })(),
         }), candidate.previouslyReviewed ? 'Monatsvorschlag erneut geprüft.' : 'Monatsvorschlag geprüft.')}>Vorschlag ausdrücklich prüfen</Button>
       </div>}
@@ -83,13 +84,14 @@ function RebalanceEvent({ event, data, fresh, trades, tradesPending, tradesError
 }) {
   const [selected, setSelected] = useState('');
   const [category, setCategory] = useState<keyof typeof NAMES>('global');
-  const [ack, setAck] = useState(false), [closeAck, setCloseAck] = useState(false);
+  const [ackToken, setAckToken] = useState<string | null>(null), [closeAck, setCloseAck] = useState(false);
   const [tradeOpen, setTradeOpen] = useState(false);
   const requestTokens = useRef(new Map<string, string>());
-  const current = trades?.find((trade) => trade.id === selected);
-  const eligible = trades?.filter((trade) => (trade.kind === 'buy' || trade.kind === 'sell') &&
-    event.proposal?.accountIds.includes(trade.accountId) && trade.date >= event.proposal.effectiveDate) ?? [];
-  const account = data.metadata.universe.accounts.find((row) => row.id === current?.accountId);
+  const facts = useQuery({ ...strategyTradeFactsQuery(selected), enabled: !!selected });
+  const current = facts.isError ? null : facts.data?.trade;
+  const proposal = event.proposal;
+  const eligible = trades?.filter((trade) => !!proposal && (trade.kind === 'buy' || trade.kind === 'sell') &&
+    proposal.accountIds.includes(trade.accountId) && trade.date >= proposal.effectiveDate) ?? [];
   const instrument = data.metadata.securities.find((row) => row.id === current?.securityId);
   const command = (action: string) => {
     let requestId = requestTokens.current.get(action);
@@ -107,9 +109,8 @@ function RebalanceEvent({ event, data, fresh, trades, tradesPending, tradesError
         <li key={row.category}>{NAMES[row.category]} · Verkauf {eur(row.sellCents)} · Kauf {eur(row.buyCents)}</li>)}</ul></details>
       {event.conflicts.length > 0 && <p role="alert">Mindestens ein zugeordneter Handel wurde geändert, zurückgenommen oder in einem anderen Monat erneut zugeordnet. Der Abschluss gilt erst nach ausdrücklichem Abgleich wieder.</p>}
       {event.links.length > 0 && <ul>{event.links.map((link) => {
-        const acct = data.metadata.universe.accounts.find((row) => row.id === link.trade.accountId);
         const name = data.metadata.securities.find((row) => row.id === link.trade.securityId)?.name ?? 'Gespeichertes Instrument';
-        return <li key={link.trade.id}>{longDay(link.trade.date)} · {link.trade.kind === 'sell' ? 'Verkauf' : 'Kauf'} {name} · {NAMES[link.category]} · {privateAmount(unitsText(Math.abs(link.trade.unitsE8)))} Anteile · {sourceMoney(link.trade.amountCents, acct?.currency ?? 'EUR')} brutto · Gebühren {sourceMoney(link.trade.feeCents, acct?.currency ?? 'EUR')} · Steuer {sourceMoney(link.trade.taxCents, acct?.currency ?? 'EUR')}
+        return <li key={link.trade.id}>{longDay(link.trade.date)} · {link.trade.kind === 'sell' ? 'Verkauf' : 'Kauf'} {name} · {NAMES[link.category]} · {privateAmount(unitsText(Math.abs(link.trade.unitsE8)))} Anteile · {sourceMoney(link.trade.amountCents, link.trade.currency)} brutto · Gebühren {sourceMoney(link.trade.feeCents, link.trade.currency)} · Steuer {sourceMoney(link.trade.taxCents, link.trade.currency)}
           <Button variant="ghost" disabled={!fresh} onClick={() => void act(() => unlinkRebalanceTrade({ ...command(`unlink:${link.trade.id}`), tradeId: link.trade.id }), 'Nur die Rebalancing-Zuordnung gelöst; der Handel bleibt bestehen.')}>Zuordnung lösen</Button></li>;
       })}</ul>}
       {open && <div className="strategy-rebalance-link">
@@ -118,20 +119,23 @@ function RebalanceEvent({ event, data, fresh, trades, tradesPending, tradesError
         {tradesPending && <LoadingNote what="Handelsliste" />}
         {tradesError && <ErrorNote what="Handelsliste" error={tradesError} onRetry={onRetryTrades} />}
         {trades && <><label>Ausgeführten Handel auswählen
-          <select value={selected} onChange={(e) => { setSelected(e.currentTarget.value); setAck(false); }}>
+          <select value={selected} onChange={(e) => { setSelected(e.currentTarget.value); setAckToken(null); }}>
             <option value="">Handel auswählen</option>
             {eligible.map((trade) => <option key={trade.id} value={trade.id}>{trade.date} · {trade.kind === 'sell' ? 'Verkauf' : 'Kauf'} · {data.metadata.securities.find((row) => row.id === trade.securityId)?.name ?? trade.securityId} · {trade.id}</option>)}
           </select></label>
-          {current && <p>Bitte mit der tatsächlichen Abrechnung abgleichen: {longDay(current.date)} · {current.kind === 'sell' ? 'Verkauf' : 'Kauf'} {instrument?.name ?? current.securityId} · {account?.name ?? current.accountId} · {privateAmount(unitsText(Math.abs(current.unitsE8)))} Anteile · Brutto {sourceMoney(current.amountCents, account?.currency ?? 'EUR')} · Gebühren {sourceMoney(current.feeCents, account?.currency ?? 'EUR')} · einbehaltene Steuer {sourceMoney(current.taxCents, account?.currency ?? 'EUR')}.</p>}
-          <label>Kategorie <select value={category} onChange={(e) => { setCategory(e.currentTarget.value as keyof typeof NAMES); setAck(false); }}>
+          {facts.isPending && selected && <LoadingNote what="Handelsangaben" />}
+          {facts.isError && <ErrorNote what="Handelsangaben" error={facts.error} onRetry={() => void facts.refetch()} />}
+          {current && <p>Bitte mit der tatsächlichen Abrechnung abgleichen: {longDay(current.date)} · {current.kind === 'sell' ? 'Verkauf' : 'Kauf'} {instrument?.name ?? current.securityId} · {facts.data?.accountName ?? current.accountId} · {privateAmount(unitsText(Math.abs(current.unitsE8)))} Anteile · Brutto {sourceMoney(current.amountCents, current.currency)} · Gebühren {sourceMoney(current.feeCents, current.currency)} · einbehaltene Steuer {sourceMoney(current.taxCents, current.currency)}.</p>}
+          <label>Kategorie <select value={category} onChange={(e) => { setCategory(e.currentTarget.value as keyof typeof NAMES); setAckToken(null); }}>
             {Object.entries(NAMES).map(([id, name]) => <option value={id} key={id}>{name}</option>)}
           </select></label>
-          <label><input type="checkbox" checked={ack} disabled={!current} onChange={(e) => setAck(e.currentTarget.checked)} /> Datum, Konto, Produkt, Stückzahl, Brutto, Gebühren und auch eine eingetragene Steuer von 0 wurden anhand der tatsächlichen Ausführung geprüft. Dieser Handel gehört zu diesem Monatsereignis.</label>
-          <Button disabled={!fresh || !current || !ack || event.status === 'needs_reconciliation'} onClick={() => void act(() => linkRebalanceTrade({ ...command(`link:${current!.id}:${category}`), tradeId: current!.id, category }), 'Ausgeführten Handel dem Rebalancing zugeordnet.')}>Handel zuordnen</Button>
+          <label><input type="checkbox" checked={!!facts.data && ackToken === facts.data.revision && !facts.isFetching}
+            disabled={!current || facts.isFetching} onChange={(e) => setAckToken(e.currentTarget.checked ? facts.data?.revision ?? null : null)} /> Datum, Konto, Produkt, Stückzahl, Brutto, Gebühren und auch eine eingetragene Steuer von 0 wurden anhand der tatsächlichen Ausführung geprüft. Dieser Handel gehört zu diesem Monatsereignis.</label>
+          <Button disabled={!fresh || !current || !facts.data || facts.isFetching || ackToken !== facts.data.revision || event.status === 'needs_reconciliation'} onClick={() => void act(() => linkRebalanceTrade({ ...command(`link:${current!.id}:${category}:${facts.data!.revision}`), tradeId: current!.id, tradeRevision: facts.data!.revision, category }), 'Ausgeführten Handel dem Rebalancing zugeordnet.')}>Handel zuordnen</Button>
         </>}
       </div>}
       {tradeOpen && <TradePanel id="neu" onClose={() => setTradeOpen(false)} onSaved={() => setTradeOpen(false)}
-        onTradeSaved={(saved) => { setSelected(saved.id); setAck(false); }} />}
+        onTradeSaved={(saved) => { setSelected(saved.id); setAckToken(null); }} />}
       {open && <div className="strategy-rebalance-close">
         <label><input type="checkbox" checked={closeAck} onChange={(e) => setCloseAck(e.currentTarget.checked)} /> Die tatsächlichen Zuordnungen, Gebühren, Steuern und der verbleibende Zielabstand wurden geprüft. Bei fehlender aktueller Bewertung bleibt der Zielabstand ausdrücklich unbekannt.</label>
         {event.links.length > 0 ? <>
