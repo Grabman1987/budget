@@ -314,9 +314,17 @@ function SavingsBody({
             </p>
           )}
           <p className="vnote">
-            Geldalter = wie viele Tage ein ausgegebener Euro im Schnitt auf dem Konto lag (zuerst
-            eingegangenes Geld wird zuerst ausgegeben, Durchschnitt der letzten zehn Ausgaben). Ab{' '}
-            {days(goal)} lebt ihr vom Geld des Vormonats. Der letzte Punkt ist der Stand heute.
+            Geldalter betrachtet die letzten bis zu zehn bewertbaren Abflüsse auf Budgetkonten.
+            Zuerst eingegangenes Geld wird zuerst verbraucht. Innerhalb jedes Abflusses zählt das
+            Alter nach Betrag; anschließend zählt jeder dieser Abflüsse gleich viel im Durchschnitt.
+            Positive Anfangssalden zählen ab dem Eröffnungstag, Umbuchungen zwischen Budgetkonten
+            nicht. Ohne bewertbare Abflüsse bleibt das Geldalter offen.
+          </p>
+          <p className="vnote">
+            Vergleichsziel: {days(goal)}. Die Monatsstände gelten zum Monatsende, im laufenden
+            Monat bis heute. Das Geldalter
+            beschreibt vergangene Abflüsse; ob kommende Rechnungen gedeckt sind, zeigen Plan und
+            Kontoprognose. Verfügbar und Frei bis Gehalt behalten ihre eigene Berechnung.
           </p>
         </section>
       </div>
