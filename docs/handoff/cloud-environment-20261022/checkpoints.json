@@ -174,7 +174,7 @@
       ],
       "branch": "codex/impl-485-486-settings-navigation",
       "status": "Autosave and durable last server-completed CSV response observation; independent source reviews archived; NOT VALIDATED / NOT LIVE",
-      "remote_sha": "29a9cf3e0e73ffb79248e1f14d0aed74df0ff348"
+      "remote_sha": "ec1b973dfc5530cb62f0f209961cc93a381c8355"
     },
     {
       "issues": [
@@ -262,7 +262,7 @@
       ],
       "branch": "codex/impl-762-strategy",
       "status": "SOURCE CHECKPOINT; consult revision-specific evidence; not a completion claim",
-      "remote_sha": "1ecd8b3d6935b9d4dc6c8d7bacc505d47d1a36ce"
+      "remote_sha": "bbec02b3177c94dac950d35493ea766f4f23a600"
     },
     {
       "issues": [
@@ -347,14 +347,13 @@
         520
       ],
       "branch": "codex/impl-520-transfer-persistence",
-      "remote_sha": "be9d6e9e331da033edf0aa4c4427cc6bcf61c223",
-      "status": "WIP persistence source; five P2 review findings being corrected; writer/Undo/apply not implemented. NOT VALIDATED / NOT LIVE."
+      "remote_sha": "e73ab07c1d58442c6d645a5ef7558169bf4a7e96",
+      "status": "WIP persistence: four P2 findings and missing transfer quote corrected; historical FX report fallback in progress. Writer/Undo/apply still open. NOT VALIDATED / NOT LIVE."
     }
   ],
   "remaining_agents": [
-    "design_474_remaining: #520 persistence corrections",
-    "copy_469_rule_names: #762 monthly automation source",
-    "small_516_typography: source review catalog refresh"
+    "design_474_remaining: #520 historical FX fallback and subsequent writer",
+    "review_520_lineage_policy: independent exact-source corrections review"
   ],
   "stop": [
     719
@@ -382,16 +381,10 @@
       "issues": [
         520
       ],
-      "scope": "Correct five independent persistence source review findings; writer and Undo integration still open. No migration execution/apply activation."
-    },
-    {
-      "issues": [
-        762
-      ],
-      "scope": "Automatic monthly evaluation source with atomic Undo-resistant first-write guard; verified data prerequisite preserved. No runtime scheduling or broker orders."
+      "scope": "Historical FX report fallback correction, then writer and grouped Undo invariants. No migration/runtime execution or apply activation before source guards."
     }
   ],
   "remote_heads_observed_at_utc": "2026-10-22T22:37:05.987728+00:00",
   "recovery_note": "Temporary /tmp evidence directory disappeared during executor recovery. cloud-control now points to /workspace/.budget-tools/cloud-control-persistent. Missing local evidence is not assumed recovered; committed package reports preserved. #520 writer plan explicitly reconstructed and reviewed provenance documented.",
-  "selected_heads_observed_at_utc": "2026-10-22T22:14:06.144467+00:00"
+  "selected_heads_observed_at_utc": "2026-10-22T22:46:28.813075+00:00"
 }

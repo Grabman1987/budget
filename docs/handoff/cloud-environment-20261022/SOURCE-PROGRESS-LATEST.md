@@ -4,8 +4,8 @@ Current snapshot; supersedes older progress statements in CURRENT-COORDINATION.m
 
 ## Active work
 
-- #520 persistence: source `be9d6e9e331da033edf0aa4c4427cc6bcf61c223` independently reviewed. Five P2 findings concern mixed-scope transfer flows, scoped unavailable returns, tombstone/audit revision coverage, migration snapshot, and unrelated-component limits. Author is correcting these. Writer, Undo mutation integration and apply API remain unimplemented; no migration execution.
-- #762: automatic monthly evaluation implementation assigned, reusing the verified provider seam and requiring an atomic absent-month plus zero-audit guard. Undo must not cause automatic recreation. No invented provider data, scheduler execution or broker orders. Actual verified market/calendar access and execution/rebalance lifecycle remain separate work.
+- #520 persistence correction `e73ab07c1d58442c6d645a5ef7558169bf4a7e96`: four original findings and missing-price handling source-cleared. One historical-FX report-path finding remains; bounded correction active. Writer, Undo mutation integration and apply API remain unimplemented; no migration execution. The next writer/Undo hookup map is archived alongside this snapshot.
+- #762: one-shot monthly evaluation source `c26a748d1090f7332449fd93dfd482ab92f02472` independently source-reviewed without a concrete finding; docs head `bbec02b3177c94dac950d35493ea766f4f23a600`. Atomic absent-month plus zero-audit guard prevents automatic recreation after Undo; post-provider UTC date is rechecked. It is not scheduled or connected to a real provider. Actual verified market/calendar access, scheduler wiring and execution/rebalance lifecycle remain open.
 
 ## Newly secured source and reviews
 
@@ -44,7 +44,7 @@ Current snapshot; supersedes older progress statements in CURRENT-COORDINATION.m
 | #607 | `codex/impl-607-payments` | `8325561b7a1a6e47ef0ef67d27d0959d9f7c5b84` |
 | #564, #565 | `codex/impl-564-565-reconcile` | `7d24f141e309af1cd531d898befaf0b6bf6b2329` |
 | #562, #563 | `codex/impl-562-563-inbox` | `f830a1d0b17ed6cedb8e9fed871d7d31b7145192` |
-| #485, #486 | `codex/impl-485-486-settings-navigation` | `29a9cf3e0e73ffb79248e1f14d0aed74df0ff348` |
+| #485, #486 | `codex/impl-485-486-settings-navigation` | `ec1b973dfc5530cb62f0f209961cc93a381c8355` |
 | #514 | `codex/impl-514-targets` | `4e4a938ee7cca6adeffc35849991a8abb3c4afc3` |
 | #519 | `codex/impl-519-fx-transfers` | `8b37818bf1c3160638b9909c8ad7feaf7af7c93b` |
 | #520 | `codex/impl-520-security-transfers` | `2de7fa9611e7a37683edabdaf8ba075c7c26b944` |
@@ -55,7 +55,7 @@ Current snapshot; supersedes older progress statements in CURRENT-COORDINATION.m
 | #469 | `codex/impl-469-glossary-goals` | `e0e39d4b0b5b04ad6966e8603d0bd91cf4b66cad` |
 | #473 | `codex/impl-473-typography` | `9ef01d05ade1a6f5ac3a2ac99dd5e8275888107c` |
 | #519 | `codex/impl-519-fx-posting` | `d6cb8e1c0555196c5dcdefa01784f621a4a0d521` |
-| #762 | `codex/impl-762-strategy` | `1ecd8b3d6935b9d4dc6c8d7bacc505d47d1a36ce` |
+| #762 | `codex/impl-762-strategy` | `bbec02b3177c94dac950d35493ea766f4f23a600` |
 | #586 | `codex/backlog-586-mobile-capture` | `df13e773cf355ec5ea082c7316b05df0b340c517` |
 | #550, #551 | `codex/backlog-550-551-composition` | `ecfdcef53317815c0363e0b1c67ca83bd95cd1b2` |
 | #470 | `codex/impl-470-table-readability` | `28b2b2784e63e7674ea9a9bd9a5b4ec4c3a53340` |
@@ -65,4 +65,6 @@ Current snapshot; supersedes older progress statements in CURRENT-COORDINATION.m
 | #487 | `codex/impl-487-portfolio-report` | `8ba342d00b995d8611af87e968ce159f54375382` |
 | #486 | `codex/impl-486-manual-scan` | `ff620377e9f6905a3fa48f2464e1339269d4ea35` |
 | #727 | `codex/impl-727-source-reassessment` | `a6edf91a8bdd8e072c726acac7fafb6d44b5f0c6` |
-| #520 | `codex/impl-520-transfer-persistence` | `be9d6e9e331da033edf0aa4c4427cc6bcf61c223` |
+| #520 | `codex/impl-520-transfer-persistence` | `e73ab07c1d58442c6d645a5ef7558169bf4a7e96` |
+
+Selected branch heads refreshed at 2026-10-22T22:46:28.813075+00:00. #486 A33 source scope audited: full export history and restore certification are not required by its accepted wording. See archived settings-486-remaining-source-scope.md on the settings branch; no functional legacy link was changed merely for cleanup.
