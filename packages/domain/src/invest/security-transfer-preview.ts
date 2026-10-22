@@ -9,6 +9,8 @@ export interface TransferLotFragment {
   acquisitionOrder: number;
   unitsE8: number;
   basisCents: number | null;
+  /** Explicit traversed transfer identities, supplied by documented replay; never inferred. */
+  transferPairIds?: readonly string[];
 }
 export interface TransferPoolEvidence {
   accountId: string;
@@ -20,7 +22,10 @@ export interface TransferPoolEvidence {
   locked: boolean;
   unsupportedCorporateAction: boolean;
   fragments: readonly TransferLotFragment[];
-  /** Moving-average basis belongs to the pool, independently of acquisition provenance. */
+  /**
+   * Moving-average basis belongs to the pool. Null fragment bases mean unit provenance only;
+   * numeric fragment bases claim current allocated cents and must sum to this declared pool.
+   */
   poolBasisCents?: number | null;
 }
 export interface KnownBasisTransferInput {
@@ -35,7 +40,7 @@ export type AllocatedTransferFragment = TransferLotFragment;
 export type SecurityTransferPreviewError =
   | 'invalid_input' | 'unsupported_currency' | 'unknown_basis' | 'ambiguous_lineage'
   | 'unestablished_boundary' | 'locked' | 'unsupported_corporate_action'
-  | 'insufficient_units' | 'nonrepresentable_allocation';
+  | 'insufficient_units' | 'nonrepresentable_allocation' | 'basis_evidence_conflict';
 export type SecurityTransferPreview =
   | { available: false; reason: SecurityTransferPreviewError; message: string }
   | {
@@ -56,6 +61,7 @@ export type SecurityTransferPreview =
       applyAvailable: false;
     };
 const MESSAGES: Record<SecurityTransferPreviewError, string> = {
+  basis_evidence_conflict: 'Poolbasis und die als aktuell belegten Fragmentkosten widersprechen einander.',
   invalid_input: 'Konten, Wertpapier, Datum, Stückzahl oder belegte Fragmente prüfen.',
   unsupported_currency: 'Diese Vorschau unterstützt nur eine durchgehend belegte Kostenbasis in EUR.',
   unknown_basis: 'Die ursprüngliche Kostenbasis ist nicht vollständig belegt. Bitte manuell prüfen.',
@@ -104,10 +110,13 @@ export function previewKnownBasisSecurityTransfer(input: KnownBasisTransferInput
     return unavailable('ambiguous_lineage');
   if (source.boundary !== 'immediately-before-transfer' || destination.boundary !== 'immediately-before-transfer' ||
       source.asOf !== date || destination.asOf !== date) return unavailable('unestablished_boundary');
-  const ids = new Set<string>(), order = new Set<string>();
+  const ids = new Set<string>();
+  const order = new Map<string, { accountId: string; fragment: TransferLotFragment }>();
+  const acquisitions = new Map<string, string>();
   let sourceUnits = 0n, sourceBasis = 0n, destinationBasis = 0n, destinationUnits = 0n;
   for (const pool of [source, destination]) {
     let allFragmentBasisKnown = true;
+    let anyFragmentBasisKnown = false;
     let fragmentBasis = 0n;
     for (const fragment of pool.fragments) {
       if (!fragment || !identity(fragment.fragmentId) || !identity(fragment.acquisitionId) || !validDay(fragment.acquiredOn) ||
@@ -118,19 +127,28 @@ export function previewKnownBasisSecurityTransfer(input: KnownBasisTransferInput
         allFragmentBasisKnown = false;
       } else {
         if (!safe(fragment.basisCents)) return unavailable('invalid_input');
+        anyFragmentBasisKnown = true;
         fragmentBasis += BigInt(fragment.basisCents);
       }
+      if (fragment.transferPairIds !== undefined &&
+          (!Array.isArray(fragment.transferPairIds) || fragment.transferPairIds.length > 1000 ||
+          fragment.transferPairIds.some((id) => !identity(id)) ||
+          new Set(fragment.transferPairIds).size !== fragment.transferPairIds.length))
+        return unavailable('ambiguous_lineage');
       const position = `${fragment.acquiredOn}:${fragment.acquisitionOrder}`;
-      if (ids.has(fragment.fragmentId) || order.has(position)) return unavailable('ambiguous_lineage');
+      const previous = order.get(position);
+      const acquisitionPosition = acquisitions.get(fragment.acquisitionId);
+      if (ids.has(fragment.fragmentId) || (acquisitionPosition !== undefined && acquisitionPosition !== position))
+        return unavailable('ambiguous_lineage');
+      if (previous && ((pool === source && method === 'fifo' && previous.accountId === pool.accountId) ||
+          previous.fragment.acquisitionId !== fragment.acquisitionId ||
+          !(previous.fragment.transferPairIds?.length || fragment.transferPairIds?.length)))
+        return unavailable('ambiguous_lineage');
       ids.add(fragment.fragmentId);
-      order.add(position);
-      if (pool === source) {
-        sourceUnits += BigInt(fragment.unitsE8);
-
-      } else {
-
-        destinationUnits += BigInt(fragment.unitsE8);
-      }
+      order.set(position, { accountId: pool.accountId, fragment });
+      acquisitions.set(fragment.acquisitionId, position);
+      if (pool === source) sourceUnits += BigInt(fragment.unitsE8);
+      else destinationUnits += BigInt(fragment.unitsE8);
     }
     let poolBasis = fragmentBasis;
     if (method === 'average') {
@@ -139,6 +157,9 @@ export function previewKnownBasisSecurityTransfer(input: KnownBasisTransferInput
       if (pool.poolBasisCents !== undefined) {
         if (!safe(pool.poolBasisCents)) return unavailable('invalid_input');
         poolBasis = BigInt(pool.poolBasisCents);
+        if ((allFragmentBasisKnown && fragmentBasis !== poolBasis) ||
+            (!allFragmentBasisKnown && anyFragmentBasisKnown))
+          return unavailable('basis_evidence_conflict');
       }
     }
     const poolUnits = pool === source ? sourceUnits : destinationUnits;
