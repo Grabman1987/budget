@@ -9,6 +9,9 @@ import {
   createExpectedPayment,
   createPayee,
   createTransfer,
+  createFxTransfer,
+  prepareFxTransfer,
+  readFxTransfer,
   deleteBooking,
   ensureAdvanceCategory,
   getBooking,
@@ -30,6 +33,7 @@ import { z } from 'zod';
 import { Hono } from 'hono';
 import { ACTOR, ApiError, defined, errorAnswer, readBody, readQuery } from './http';
 import { bookingDeleteQuery, bookingPatch, bookingQuery, bulkBody, createBody } from './schemas';
+import { fxTransferBody } from './fx-transfer-schema';
 
 /** Why a bulk action left a booking out. */
 type BulkSkipReason =
@@ -129,6 +133,42 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
       today(),
     );
     return c.json(page);
+  });
+
+  app.post('/fx/preview', async (c) => {
+    const input = await readBody(c, fxTransferBody);
+    return c.json(runInTransaction(db, (tx) => prepareFxTransfer(tx, input, today())));
+  });
+  app.get('/fx/:bookingId', (c) => {
+    const { asOf } = readQuery(c, z.object({ asOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }));
+    const day = asOf ?? today();
+    if (!Number.isFinite(Date.parse(`${day}T00:00:00Z`)) ||
+      !new Date(`${day}T00:00:00Z`).toISOString().startsWith(day) || day > today())
+      throw new ApiError(400, 'invalid', 'Ungültiger Bewertungstag.');
+    return c.json(readFxTransfer(db, z.string().min(1).max(64).parse(c.req.param('bookingId')), day));
+  });
+  app.post('/fx', async (c) => {
+    const { input, revision } = await readBody(c, z.strictObject({ input: fxTransferBody,
+      revision: z.string().regex(/^[a-f0-9]{64}$/) }));
+    const key = c.req.header('Idempotency-Key');
+    if (!key || !/^[a-zA-Z0-9-]{16,80}$/.test(key))
+      throw new ApiError(400, 'invalid', 'FX benötigt einen eindeutigen Sendeschlüssel.');
+    const hash = createHash('sha256').update(JSON.stringify({ type: 'manual-fx-v1', input })).digest('hex');
+    const ctx = audit();
+    const result = runInTransaction(db, (tx) => {
+      const previous = tx.select().from(bookingDelivery).where(eq(bookingDelivery.key, key)).get();
+      if (previous) {
+        if (previous.requestHash !== hash)
+          throw new ApiError(409, 'idempotency_conflict', 'Dieser Sendeschlüssel gehört zu anderen FX-Angaben.');
+        // An undone action remains delivered. Retrying never silently recreates its money.
+        return JSON.parse(previous.responseJson) as Record<string, unknown>;
+      }
+      const saved = createFxTransfer(tx, input, revision, today(), ctx);
+      const response = { ...saved, groupId: ctx.groupId };
+      tx.insert(bookingDelivery).values({ key, requestHash: hash, responseJson: JSON.stringify(response) }).run();
+      return response;
+    });
+    return c.json(result);
   });
 
   app.get('/:id', (c) => {

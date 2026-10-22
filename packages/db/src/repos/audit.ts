@@ -37,6 +37,8 @@ import { expectedLinkPatches } from './expected-links';
 import { assertLedgerInvariants, assertTradeSettlementInvariants } from './invariants';
 import { assertAccountBookingCurrencies, assertEurBudgetAccounts } from './account-invariants';
 import { runInTransaction, type Executor } from './types';
+import { fxLinksOfBooking, fxLinksOfBookings } from './fx-transfers';
+import { assertFxBookingInvariants } from './fx-transfer-invariants';
 
 export { AuditError } from './errors';
 
@@ -673,6 +675,9 @@ export function undo(
     }
     if ('auditId' in target) {
       const [entry] = originals as [AuditEntry];
+      if (entry.entityType === 'transfer_fx' ||
+        (entry.entityType === 'booking' && fxLinksOfBooking(tx, entry.entityId)))
+        throw new AuditError('FX-Übertrag und getrennte Gebühr nur als gesamte Aktion rückgängig machen.');
       if (
         entry.groupId &&
         tx
@@ -745,6 +750,19 @@ export function undo(
     }
     const paymentLifecycleUndo = preparePaymentLifecycleUndo(tx, originals);
     const touched = originals.map(bookingOf).filter((id): id is string => id !== undefined);
+    const fxRows = fxLinksOfBookings(tx, [...new Set(touched)]);
+    const fxIds = new Set(fxRows.flatMap((row) => [row.fromBookingId, row.toBookingId, row.feeBookingId]));
+    const fxMoneyChange = fxRows.length > 0 && originals.some((entry) => entry.entityType === 'transfer_fx' ||
+      (entry.entityType === 'booking_split' && fxIds.has(bookingOf(entry) ?? '')) ||
+      (entry.entityType === 'booking' && fxIds.has(entry.entityId) &&
+        (!entry.before || !entry.after || ['deleted_at', 'date', 'amount_cents', 'account_id', 'currency', 'transfer_id']
+          .some((key) => entry.before?.[key] !== entry.after?.[key]))));
+    if (fxMoneyChange) {
+      const linked = fxRows.flatMap((fx) => [fx.fromBookingId, fx.toBookingId, ...(fx.feeBookingId ? [fx.feeBookingId] : [])]);
+      if (linked.some((id) => tx.select({ id: schema.booking.id }).from(schema.booking)
+        .where(and(eq(schema.booking.id, id), isNull(schema.booking.deletedAt), eq(schema.booking.status, 'reconciled'))).get()))
+        throw new AuditError('Eine FX-Seite oder die Gebühr ist geprüft. Zuerst die Kontoprüfung rückgängig machen.');
+    }
     const expectedLinkBookings = new Set(touched);
     for (const entry of originals)
       for (const id of occurrenceBookingIds(entry)) expectedLinkBookings.add(id);
@@ -871,6 +889,12 @@ export function undo(
         throw new AuditError('Anlageklasse wird von einer Klassifikationshistorie verwendet.');
     }
     assertLedgerInvariants(tx, touched);
+    const categoryIds = originals.filter((entry) => entry.entityType === 'category').map((entry) => entry.entityId);
+    for (let offset = 0; offset < categoryIds.length; offset += 200) {
+      const ids = tx.select({ bookingId: schema.bookingSplit.bookingId }).from(schema.bookingSplit)
+        .where(inArray(schema.bookingSplit.categoryId, categoryIds.slice(offset, offset + 200))).all().map((row) => row.bookingId);
+      assertFxBookingInvariants(tx, ids);
+    }
     assertContactUndoDependencies(tx, originals);
     assertReceiptUndo(tx, originals);
     assertStatementSettlementInvariants(tx);

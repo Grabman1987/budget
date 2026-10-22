@@ -16,3 +16,4 @@ export * from './loans';
 export * from './statement-intake';
 export * from './statement-settlement';
 export * from './statement-automation';
+export * from './fx-transfers';

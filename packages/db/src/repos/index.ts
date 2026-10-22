@@ -102,3 +102,4 @@ export * from './statement-receipt-links';
 
 export * from './target-intent';
 export * from './selected-funding';
+export * from './fx-transfers';

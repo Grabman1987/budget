@@ -63,6 +63,7 @@ export function InlineBookingCell({
       setBusy(false);
     }
   };
+  if (booking.fxTransferId) return <span title="FX-Angaben bleiben mit dem Nachweis verbunden">{children}</span>;
   return editing ? (
     <div className="kinline">
       <TextInput

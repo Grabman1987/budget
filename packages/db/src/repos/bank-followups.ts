@@ -7,7 +7,7 @@ import {
   todayInVienna,
   type MatchBooking,
 } from '@budget/domain';
-import { and, desc, eq, isNull, lte, gte, notLike, or } from 'drizzle-orm';
+import { and, desc, eq, isNull, lte, gte, notLike, or, sql } from 'drizzle-orm';
 import {
   account,
   bankSyncAccount,
@@ -18,6 +18,7 @@ import {
   inboxItem,
   transfer,
   expectedOccurrence,
+  transferFx,
 } from '../schema';
 import { insertTracked, updateTracked, withGroup, type AuditContext } from './audit';
 import {
@@ -37,6 +38,8 @@ import { expectedLinkPatches } from './expected-links';
 import { ConflictError, EntityNotFoundError, ReconciledLockedError } from './errors';
 import { bookedBalance, listReconciliations, reconcileAccount } from './reconciliation';
 import { runInTransaction, type Executor } from './types';
+import { assertFxBookingPatch } from './fx-transfer-invariants';
+import { hasFxTransfers } from './fx-transfers';
 
 function openAccount(db: Executor, id: string) {
   const row = db.select().from(account).where(eq(account.id, id)).get();
@@ -55,6 +58,7 @@ function openCandidate(db: Executor, id: string) {
 }
 
 function mergeable(db: Executor, id: string) {
+  assertFxBookingPatch(db, id, ['source']);
   const row = getBooking(db, id);
   if (!row) throw new EntityNotFoundError('booking', id);
   openAccount(db, row.accountId);
@@ -68,6 +72,7 @@ function mergeable(db: Executor, id: string) {
 
 /** Eligibility excludes protected financial relationships, even from the suggestion list. */
 function linkable(db: Executor, id: string) {
+  assertFxBookingPatch(db, id, ['transferId']);
   const row = getBooking(db, id);
   if (!row) throw new EntityNotFoundError('booking', id);
   openAccount(db, row.accountId);
@@ -94,6 +99,8 @@ export function unlinkedBankTargets(db: Executor, accountId: string, from: strin
         isNull(booking.deletedAt),
         eq(booking.accountId, accountId),
         isNull(booking.bankSourceId),
+        hasFxTransfers(db) ? sql`NOT EXISTS (SELECT 1 FROM ${transferFx} WHERE ${transferFx.fromBookingId} = ${booking.id}
+          OR ${transferFx.toBookingId} = ${booking.id} OR ${transferFx.feeBookingId} = ${booking.id})` : undefined,
         or(isNull(booking.importKey), notLike(booking.importKey, BANK_KEY_PREFIX + '%')),
         gte(booking.date, from),
         lte(booking.date, to),
@@ -126,6 +133,7 @@ export function linkBankReference(
   line: { memo: string; rawPayee: string | null; sourceId: string | null; dedupeKey: string },
   ctx: AuditContext,
 ) {
+  assertFxBookingPatch(tx, bookingId, ['bankSourceId']);
   const row = getBooking(tx, bookingId);
   if (!row) throw new EntityNotFoundError('booking', bookingId);
   updateTracked(

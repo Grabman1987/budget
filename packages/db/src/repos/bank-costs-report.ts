@@ -41,6 +41,7 @@ import { fxRateOnOrBefore } from './prices';
 import { reportTables } from './report-tables';
 import { reportMonths } from './spending-report';
 import type { Executor } from './types';
+import { fxLinksOfBookings } from './fx-transfers';
 
 /**
  * Bank- und Zinskosten (2.6). Counts booked costs and estimates of missing loan interest only
@@ -176,10 +177,12 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
     return a && b.date >= a.openingDate && inWindow.has(monthKey(b.date)) && systemKind === null;
   });
   let foreignFeeBookings = 0;
+  const explicitFxFees = new Set(fxLinksOfBookings(db, rows.map(({ b }) => b.id))
+    .filter((row) => !row.deletedAt).map((row) => row.feeBookingId));
   for (const { b } of rows) {
-    if (b.fxFeeCents === null || b.fxFeeCents === 0 || b.transferId !== null) continue;
+    if (!explicitFxFees.has(b.id) && (b.fxFeeCents === null || b.fxFeeCents === 0 || b.transferId !== null)) continue;
     const month = monthKey(b.date);
-    const cost = convert(-b.fxFeeCents, b.currency, b.date);
+    const cost = convert(explicitFxFees.has(b.id) ? -b.amountCents : -b.fxFeeCents!, b.currency, b.date);
     if (cost === null) {
       skippedBookings.add(b.id);
       continue;
@@ -213,6 +216,7 @@ export function bankCostsReport(db: Executor, today: string): BankCostsReport {
   for (const { split, b, cat, groupName } of costSplits) {
     if (
       !liveIds.has(b.id) ||
+      explicitFxFees.has(b.id) ||
       b.transferId !== null ||
       split.transferId !== null ||
       split.contactId !== null

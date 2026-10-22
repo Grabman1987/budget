@@ -16,6 +16,7 @@ import {
 import { account, accountReconciliation, booking, bookingSplit, category, payee } from '../schema';
 import type { BOOKING_FLAGS, BOOKING_STATUSES } from '../schema';
 import type { Executor } from './types';
+import { fxLinksOfBookings } from './fx-transfers';
 
 /**
  * Read models for the Konten pages: account summaries with balances, the balance line of one
@@ -225,6 +226,8 @@ export interface ListedSplit {
 }
 
 export interface ListedBooking {
+  fxTransferId?: string;
+  fxTransferPart?: 'principal' | 'fee';
   categorySpendingCents?: number;
   id: string;
   accountId: string;
@@ -539,12 +542,21 @@ export function queryBookings(
     return null;
   };
 
+  const pageIds = page.map((row) => row.booking.id);
+  const fxRows = pageIds.length ? fxLinksOfBookings(db, pageIds).filter((row) => !row.deletedAt) : [];
+  const fxByBooking = new Map<string, { fxTransferId: string; fxTransferPart: 'principal' | 'fee' }>();
+  for (const row of fxRows) {
+    fxByBooking.set(row.fromBookingId, { fxTransferId: row.id, fxTransferPart: 'principal' });
+    fxByBooking.set(row.toBookingId, { fxTransferId: row.id, fxTransferPart: 'principal' });
+    if (row.feeBookingId) fxByBooking.set(row.feeBookingId, { fxTransferId: row.id, fxTransferPart: 'fee' });
+  }
   const items: ListedBooking[] = page.map((r) => {
     const b = r.booking;
     const own = splitsOf.get(b.id) ?? [];
     const tids = [b.transferId, ...own.map((s) => s.transferId)].filter((t): t is string => !!t);
     const other = otherLeg(b.id, tids);
     return {
+      ...fxByBooking.get(b.id),
       ...(contributions ? { categorySpendingCents: contributions.get(b.id) ?? 0 } : {}),
       id: b.id,
       accountId: b.accountId,

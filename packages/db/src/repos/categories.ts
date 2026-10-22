@@ -131,6 +131,12 @@ export function updateCategory(
 ) {
   return runInTransaction(db, (tx) => {
     const current = liveCategory(tx, id);
+    if (patch.kind !== undefined && patch.kind !== current.kind) {
+      const splits = tx.select({ bookingId: bookingSplit.bookingId }).from(bookingSplit)
+        .where(eq(bookingSplit.categoryId, id)).all();
+      if (fxLinksOfBookings(tx, splits.map((split) => split.bookingId)).length)
+        throw new CategoryRuleError('Die Kategorieart eines nachgewiesenen FX-Betrags bleibt erhalten.');
+    }
     // A card payment envelope stays one: its kind and card follow the card, not the owner.
     if (
       current.kind === 'card_payment' &&
@@ -322,10 +328,12 @@ export function mergeCategories(
     let opening = target.openingAvailableCents;
     for (const source of sources) {
       const splits = tx
-        .select({ id: bookingSplit.id })
+        .select({ id: bookingSplit.id, bookingId: bookingSplit.bookingId })
         .from(bookingSplit)
         .where(eq(bookingSplit.categoryId, source.id))
         .all();
+      if (fxLinksOfBookings(tx, splits.map((split) => split.bookingId)).length)
+        throw new CategoryRuleError('FX-Kategorien bleiben an den Nachweis gebunden. FX-Aktion zuerst vollständig klären.');
       for (const s of splits)
         updateTracked(tx, bookingSplit, [s.id], { categoryId: targetId }, grouped);
       movedSplits += splits.length;
@@ -475,7 +483,7 @@ export function splitOffCategory(
     const ids = [...new Set(splitIds)];
     const rows = ids.length
       ? tx
-          .select({ id: bookingSplit.id })
+          .select({ id: bookingSplit.id, bookingId: bookingSplit.bookingId })
           .from(bookingSplit)
           .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
           // Only splits of live bookings: a deleted booking is not re-categorised behind the back.
@@ -492,6 +500,8 @@ export function splitOffCategory(
       throw new CategoryRuleError(
         'Die gewählten Buchungen gehören nicht (mehr) zu dieser Kategorie.',
       );
+    if (fxLinksOfBookings(tx, rows.map((row) => row.bookingId)).length)
+      throw new CategoryRuleError('FX-Kategorien bleiben an den Nachweis gebunden. FX-Aktion zuerst vollständig klären.');
     for (const r of rows)
       updateTracked(tx, bookingSplit, [r.id], { categoryId: targetId }, grouped);
     assertContactSettlementInvariants(tx);
@@ -556,3 +566,4 @@ export function ensureAdvanceCategory(db: Executor, ctx: AuditContext): string {
   });
 }
 import { remapAssignmentReferences } from './assignment-rules';
+import { fxLinksOfBookings } from './fx-transfers';

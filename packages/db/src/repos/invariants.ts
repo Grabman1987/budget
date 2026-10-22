@@ -1,9 +1,11 @@
 import { assertContactSettlementInvariants } from './contact-invariants';
 import { isIncomeTrade, settlementCents, withinBankWindow } from '@budget/domain';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
-import { account, auditLog, booking, bookingSplit, category, INCOME_TYPES, trade } from '../schema';
+import { account, auditLog, booking, bookingSplit, category, INCOME_TYPES, trade, transferFx } from '../schema';
 import { BookingInvariantError } from './errors';
 import type { Executor } from './types';
+import { assertFxBookingInvariants, assertFxTransfer } from './fx-transfer-invariants';
+import { fxLinksOfBooking, hasFxTransfers } from './fx-transfers';
 
 /**
  * Ledger invariants that SQL cannot express (SPEC §5), checked after every write that could break
@@ -14,6 +16,8 @@ import type { Executor } from './types';
  * - a transfer has exactly two live legs (whole bookings or single splits) on two different
  *   accounts in the same currency, within five days, with opposite amounts; a leg never survives
  *   alone.
+ * - only an explicit manual FX record admits unequal native principals; its signed legs and any
+ *   separately evidenced fee must retain the complete recorded shape together.
  */
 export function assertLedgerInvariants(
   tx: Executor,
@@ -83,7 +87,14 @@ export function assertLedgerInvariants(
     }
   }
   const legs = transferLegsOfMany(tx, [...transferIds]);
-  for (const transferId of transferIds) assertTransfer(transferId, legs.get(transferId) ?? []);
+  assertFxBookingInvariants(tx, ids);
+  const hasFx = hasFxTransfers(tx);
+  for (const transferId of transferIds) {
+    // Only retained explicit manual FX metadata admits unequal native currencies/amounts.
+    const fx = hasFx ? tx.select().from(transferFx).where(eq(transferFx.id, transferId)).get() : undefined;
+    if (fx) assertFxTransfer(tx, fx);
+    else assertTransfer(transferId, legs.get(transferId) ?? []);
+  }
 }
 
 /** Validate the reciprocal trade/cash link after a complete repository action or undo group. */
@@ -344,6 +355,8 @@ function assertTransfer(transferId: string, legs: readonly Leg[]): void {
  * they are deleted and restored together.
  */
 export function relatedTransferBookings(tx: Executor, bookingId: string): string[] {
+  const fx = fxLinksOfBooking(tx, bookingId);
+  if (fx) return [fx.fromBookingId, fx.toBookingId, ...(fx.feeBookingId ? [fx.feeBookingId] : [])];
   const own = tx
     .select({ transferId: bookingSplit.transferId })
     .from(bookingSplit)

@@ -35,7 +35,7 @@ export interface BookingTableProps {
 }
 
 const canEditCategory = (b: ListedBooking) =>
-  !b.transferId && b.splits.length === 1 && b.status !== 'reconciled';
+  !b.transferId && !b.fxTransferId && b.splits.length === 1 && b.status !== 'reconciled';
 
 /**
  * Booking table shared by Einzelkonto and Alle Buchungen: the payee opens the booking, the

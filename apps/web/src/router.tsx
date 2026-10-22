@@ -203,6 +203,18 @@ const bookingsRoute = createRoute({
   validateSearch: validateBookingsSearch,
   component: lazyRouteComponent(() => import('./ledger/bookings-page'), 'BookingsPage'),
 });
+const fxTransferPreparationRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/konten/fx-vorbereitung',
+  staticData: { meta: KONTEN_BUCHUNGEN_META },
+  component: lazyRouteComponent(() => import('./ledger/fx-transfer-preparation'), 'FxTransferPreparationPage'),
+});
+const fxTransferDetailRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: '/konten/fx-uebertrag/$bookingId',
+  staticData: { meta: KONTEN_BUCHUNGEN_META },
+  component: lazyRouteComponent(() => import('./ledger/fx-transfer-detail'), 'FxTransferDetailPage'),
+});
 const inboxRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/konten/pruefen',
@@ -794,6 +806,8 @@ const routeTree = rootRoute.addChildren([
     settingsIndexRoute,
     overviewRoute,
     bookingsRoute,
+    fxTransferPreparationRoute,
+    fxTransferDetailRoute,
     contactsRoute,
     inboxRoute,
     inboxDetailRoute,

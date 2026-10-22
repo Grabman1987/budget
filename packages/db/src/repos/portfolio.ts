@@ -43,9 +43,11 @@ import {
   security,
   trade,
   valuation,
+  transferFx,
 } from '../schema';
 import { lastSuccessfulMarketRun } from './market';
 import { memoized, memoizedShared } from './request-memo';
+import { hasFxTransfers } from './fx-transfers';
 import { noteIncomplete } from './valuation-notes';
 import { accountBalances } from './queries';
 import { MissingFxRateError } from './errors';
@@ -1282,6 +1284,9 @@ function externalDeposits(
       .all()
       .map((r) => r.id as string),
   );
+  // An evidenced FX charge is a real internal cost, never an external withdrawal flow.
+  const fxFees = new Set(hasFxTransfers(db) ? db.select({ id: transferFx.feeBookingId }).from(transferFx)
+    .where(isNull(transferFx.deletedAt)).all().map((row) => row.id) : []);
   const plain = db
     .select({
       id: booking.id,
@@ -1300,7 +1305,7 @@ function externalDeposits(
       ),
     )
     .all()
-    .filter((b) => !settlements.has(b.id));
+    .filter((b) => !settlements.has(b.id) && !fxFees.has(b.id));
   if (plain.length === 0) return [];
   const splits = db
     .select({

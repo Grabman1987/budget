@@ -129,6 +129,8 @@ export interface ListedSplit {
 }
 
 export interface ListedBooking {
+  fxTransferId?: string;
+  fxTransferPart?: 'principal' | 'fee';
   categorySpendingCents?: number;
   id: string;
   accountId: string;

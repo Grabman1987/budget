@@ -10,6 +10,7 @@ import {
   ReconciledLockedError,
 } from './errors';
 import { runInTransaction, type Executor } from './types';
+import { fxLinksOfBookings, fxLinksOfBooking } from './fx-transfers';
 
 /**
  * Kontostand prüfen (Kontoprüfung): the owner enters the bank balance of a day, the app compares it
@@ -161,8 +162,10 @@ export function previewReconciliation(
 
   // "doppelt": same day, payee and amount twice among the booked bookings (plain, no transfer).
   const groups = new Map<string, typeof rows>();
+  const fxIds = new Set(fxLinksOfBookings(db, rows.map((row) => row.booking.id))
+    .flatMap((row) => [row.fromBookingId, row.toBookingId, row.feeBookingId]));
   for (const r of rows) {
-    if (r.booking.status === 'pending' || r.booking.transferId) continue;
+    if (r.booking.status === 'pending' || r.booking.transferId || fxIds.has(r.booking.id)) continue;
     const key = `${r.booking.date}|${r.booking.payeeId ?? ''}|${r.booking.amountCents}`;
     groups.set(key, [...(groups.get(key) ?? []), r]);
   }
@@ -289,7 +292,7 @@ export function reconcileAccount(
       return row;
     };
     for (const id of input.removeBookingIds ?? []) {
-      if (own(id).transferId)
+      if (own(id).transferId || fxLinksOfBooking(tx, id))
         throw new BookingInvariantError('Only plain bookings are removed as duplicates');
       deleteBooking(tx, id, grouped);
     }

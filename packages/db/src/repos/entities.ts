@@ -8,6 +8,7 @@ import { insertTracked, tableMeta, updateTracked, withGroup, type AuditContext }
 import { BookingInvariantError, EntityNotFoundError } from './errors';
 import { assertAccountBookingCurrencies, assertBudgetAccountCurrency } from './account-invariants';
 import { runInTransaction, type Executor } from './types';
+import { assertFxAccountInvariants } from './fx-transfer-invariants';
 
 /**
  * Generic repository for simple id-keyed tables (category, category_group, payee, contact,
@@ -152,6 +153,9 @@ export function updateEntity<T extends IdTable>(
       );
     }
     updateTracked(tx, table, [id], patch as Record<string, unknown>, grouped);
+    if (tableMeta(table).name === tableMeta(account).name &&
+      ['currency', 'onBudget', 'openingDate'].some((key) => Object.hasOwn(patch, key)))
+      assertFxAccountInvariants(tx, [id]);
     if (tableMeta(table).name === 'contact') assertContactName(tx, id);
     if (
       tableMeta(table).name === tableMeta(account).name &&

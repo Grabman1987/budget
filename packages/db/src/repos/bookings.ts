@@ -18,6 +18,7 @@ import {
   transfer,
   bankSyncCandidate,
   inboxItem,
+  transferFx,
 } from '../schema';
 import {
   deleteTracked,
@@ -27,7 +28,7 @@ import {
   type AuditContext,
   type GroupedContext,
 } from './audit';
-import { BookingInvariantError, EntityNotFoundError, ReconciledLockedError } from './errors';
+import { BookingInvariantError, ConflictError, EntityNotFoundError, ReconciledLockedError } from './errors';
 import {
   assertLedgerInvariants,
   assertTradeSettlementBookingWrite,
@@ -35,12 +36,15 @@ import {
 } from './invariants';
 import { expectedLinkPatches } from './expected-links';
 import { runInTransaction, type Executor } from './types';
+import { prepareFxTransfer, type FxTransferInput } from './fx-transfers';
+import { assertFxBookingPatch } from './fx-transfer-invariants';
 
 /**
  * Bookings, splits and transfers (SPEC §5). Invariants enforced here, not in SQL:
  * - the splits of a booking sum to its `amount_cents` (and there is at least one split);
  * - a transfer (Umbuchung) has exactly two legs with opposite amounts: two whole bookings, or one
  *   split and one booking (split-level transfer, e.g. part of a salary straight to savings);
+ *   explicit manual FX uses retained two-native-principal metadata instead of equal native cents;
  * - a transfer between two budget accounts is neutral and carries no category; between a budget
  *   and a tracking account the category sits on the budget leg (C2);
  * - imports are idempotent through `(account_id, import_key)`, also for soft-deleted rows;
@@ -488,6 +492,45 @@ export function createTransfer(
   });
 }
 
+/** Explicit two-native-principal manual variant. Never called by imports or bank matching. */
+export function createFxTransfer(
+  db: Executor, input: FxTransferInput, revision: string, today: string, ctx: AuditContext,
+) {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const preview = prepareFxTransfer(tx, input, today);
+    if (preview.revision !== revision)
+      throw new ConflictError('FX-Konten, Kategorien oder Referenzkurse haben sich geändert. Bitte erneut prüfen.');
+    const from = liveAccount(tx, input.fromAccountId), to = liveAccount(tx, input.toAccountId);
+    const categories = categoryLegs(from, to, input.categoryId);
+    const transferId = randomUUID();
+    tx.insert(transfer).values({ id: transferId }).run();
+    // All actual amounts stay native. The quote/reference effect never becomes an extra booking.
+    const common = { date: input.date, source: 'manual' as const, memo: input.provenance };
+    const fromBookingId = insertBooking(tx, { ...common, accountId: from.id,
+      status: from.type === 'cash' ? 'confirmed' : 'pending',
+      amountCents: -input.fromAmountCents,
+      splits: [{ categoryId: categories.from, amountCents: -input.fromAmountCents }] }, transferId, grouped);
+    const toBookingId = insertBooking(tx, { ...common, accountId: to.id,
+      status: to.type === 'cash' ? 'confirmed' : 'pending',
+      amountCents: input.toAmountCents,
+      splits: [{ categoryId: categories.to, amountCents: input.toAmountCents }] }, transferId, grouped);
+    const feeBookingId = input.fee ? insertBooking(tx, {
+      accountId: input.fee.accountId, date: input.fee.date, source: 'manual',
+      status: liveAccount(tx, input.fee.accountId).type === 'cash' ? 'confirmed' : 'pending',
+      memo: input.fee.provenance, amountCents: -input.fee.amountCents,
+      splits: [{ categoryId: input.fee.categoryId, amountCents: -input.fee.amountCents }],
+    }, null, grouped) : null;
+    insertTracked(tx, transferFx, { id: transferId, fromBookingId, toBookingId, feeBookingId,
+      factsJson: JSON.stringify({ version: 1, input }),
+      valuationJson: JSON.stringify({ ...preview.valuation,
+        principalCategories: { [fromBookingId]: categories.from, [toBookingId]: categories.to } }),
+    }, grouped);
+    assertLedgerInvariants(tx, [fromBookingId, toBookingId, ...(feeBookingId ? [feeBookingId] : [])]);
+    return { transferId, fromBookingId, toBookingId, feeBookingId, preview };
+  });
+}
+
 export interface ImportTransferResult extends TransferResult {
   /** `created`: both legs new; `linked`: an existing leg got its missing partner or both got
    * linked; `existing`: the pair was already there (or a leg was deleted by the user). */
@@ -651,6 +694,7 @@ function updateBookingImpl(
   runInTransaction(db, (tx) => {
     const cur = loadBooking(tx, id);
     if (!cur) throw new EntityNotFoundError('booking', id);
+    assertFxBookingPatch(tx, id, Object.entries(patch).filter(([, value]) => value !== undefined).map(([key]) => key));
     assertStatementBookingWrite(
       tx,
       id,

@@ -147,6 +147,7 @@ export function BookingsPage() {
             <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
             Buchung erfassen
           </Button>
+          <AppLink className="btn btn-ghost" to="/konten/fx-vorbereitung">Fremdwährungsübertrag</AppLink>
         </div>
         <section aria-labelledby="filter-title">
           <h2 className="sr-only" id="filter-title">

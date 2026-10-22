@@ -172,7 +172,8 @@ export function PayeeCell({
   /** The account register shows the note in its own column and phone line instead. */
   hideNote?: boolean;
 }) {
-  const name = booking.payeeName ?? (booking.transferId ? 'Umbuchung' : 'Ohne Empfänger');
+  const name = booking.payeeName ?? (booking.fxTransferId ?
+    booking.fxTransferPart === 'fee' ? 'FX-Gebühr' : 'FX-Übertrag' : booking.transferId ? 'Umbuchung' : 'Ohne Empfänger');
   return (
     <>
       <span className="kname-s">{name}</span>
