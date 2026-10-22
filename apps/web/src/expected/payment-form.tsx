@@ -242,8 +242,17 @@ export function PaymentForm({
         {pick('dateShift', 'Wochenende und Feiertag', SHIFTS)}
         <div className="kform-pair">
           {text('startDate', 'Start', { type: 'date' })}
-          {text('endDate', 'Ende', { type: 'date' })}
+          {text('endDate', 'Letzte Fälligkeit einschließlich', {
+            type: 'date',
+            readOnly: !creating,
+          })}
         </div>
+        {!creating && (
+          <p className="field-hint">
+            Das bestehende Enddatum ist hier schreibgeschützt. Zum Ändern die Aktion „Beenden ab“
+            verwenden; eine solche Endaktion lässt sich über „Rückgängig“ zurücknehmen.
+          </p>
+        )}
       </fieldset>
       <fieldset className="kform-set xp-set">
         <legend>Abgleich mit Buchungen</legend>

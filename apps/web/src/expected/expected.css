@@ -542,3 +542,12 @@ h4.xp-sub {
     min-height: 32px;
   }
 }
+
+/* #607: existing action/form controls retain at least the design touch target. */
+.xp-panel > .panel-actions .btn,
+.xp-lifecycle-actions .btn,
+.xp-lifecycle .btn,
+.xp-lifecycle input {
+  min-width: var(--touch);
+  min-height: var(--touch);
+}

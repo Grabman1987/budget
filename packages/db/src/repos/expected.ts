@@ -29,6 +29,7 @@ import {
   contact,
   expectedOccurrence,
   expectedPayment,
+  expectedPaymentPause,
   expectedPaymentVersion,
   incomeType,
   payee,
@@ -45,6 +46,16 @@ import type { NewRow, RowPatch } from './entities';
 import { ConflictError, EntityNotFoundError } from './errors';
 import { bookedAmountIn, expectedLinkPatches, expectedLinkedStatus } from './expected-links';
 import { runInTransaction, type Executor } from './types';
+import {
+  readPaymentLifecycles,
+  assertPaymentDeletable,
+  assertPaymentReview,
+  assertPaymentPauseRanges,
+  isPaymentLifecycleDay,
+  paymentDateSuppressed,
+  paymentOpenSuppressed,
+  type PaymentLifecycle,
+} from './expected-lifecycle-invariants';
 
 export { bookedAmountIn } from './expected-links';
 
@@ -88,7 +99,7 @@ export function occurrenceHorizon(today: string): { from: string; to: string } {
   };
 }
 
-export const schedulePayment = (p: Payment): SchedulePayment => ({
+export const schedulePayment = (p: Payment, lifecycle?: PaymentLifecycle): SchedulePayment => ({
   kind: p.kind,
   rhythm: p.rhythm,
   dueDay: p.dueDay,
@@ -98,6 +109,7 @@ export const schedulePayment = (p: Payment): SchedulePayment => ({
   endDate: p.endDate,
   intervalWeeks: p.intervalWeeks,
   contactShareBp: p.contactShareBp,
+  pauses: lifecycle?.pauses ?? [],
 });
 
 export const scheduleVersion = (v: Version): ScheduleVersion => ({
@@ -165,13 +177,16 @@ function replanPayment(
   payment: Payment,
   today: string,
   ctx: GroupedContext,
+  suppliedLifecycle?: PaymentLifecycle,
+  lifecycleOnly = false,
 ): ReplanResult {
   const result: ReplanResult = { created: 0, updated: 0, removed: 0 };
   const { from, to } = occurrenceHorizon(today);
   const versions = liveVersions(tx, payment.id);
+  const lifecycle = suppliedLifecycle ?? readPaymentLifecycles(tx, [payment.id]).get(payment.id);
   const desired =
     payment.deletedAt === null
-      ? occurrences(schedulePayment(payment), versions.map(scheduleVersion), from, to)
+      ? occurrences(schedulePayment(payment, lifecycle), versions.map(scheduleVersion), from, to)
       : [];
   const existing = new Map(
     tx
@@ -184,6 +199,7 @@ function replanPayment(
   const wanted = new Set<string>();
   for (const occ of desired) {
     wanted.add(occ.dueDate);
+    if (lifecycleOnly) continue;
     const row = existing.get(occ.dueDate);
     if (!row) {
       insertTracked(
@@ -200,7 +216,13 @@ function replanPayment(
         ctx,
       );
       result.created++;
-    } else if (row.deletedAt !== null) {
+    } else if (
+      row.deletedAt !== null &&
+      row.dueDate >= today &&
+      row.bookingId === null &&
+      row.status === 'expected' &&
+      lifecycle?.revivableOccurrenceIds.has(row.id)
+    ) {
       updateTracked(
         tx,
         expectedOccurrence,
@@ -217,7 +239,9 @@ function replanPayment(
       );
       result.created++;
     } else if (
+      row.deletedAt === null &&
       row.status === 'expected' &&
+      row.bookingId === null &&
       row.dueDate >= today &&
       (row.expectedAmountCents !== occ.amountCents ||
         row.contactShareCents !== occ.contactShareCents)
@@ -236,8 +260,9 @@ function replanPayment(
     if (
       row.deletedAt === null &&
       row.status === 'expected' &&
+      row.bookingId === null &&
       row.dueDate >= today &&
-      !wanted.has(row.dueDate)
+      (lifecycleOnly ? paymentDateSuppressed(lifecycle, row.dueDate) : !wanted.has(row.dueDate))
     ) {
       updateTracked(
         tx,
@@ -268,6 +293,10 @@ export function refreshOccurrences(
     for (const { id, patch } of expectedLinkPatches(tx))
       updateTracked(tx, expectedOccurrence, [id], patch, grouped);
     const payments = tx.select().from(expectedPayment).all();
+    const lifecycle = readPaymentLifecycles(
+      tx,
+      payments.map((p) => p.id),
+    );
     for (const payment of payments) {
       // Soft-deleted payments only matter while they still have future rows to remove.
       if (payment.deletedAt !== null) {
@@ -285,7 +314,7 @@ export function refreshOccurrences(
           .get();
         if (!open) continue;
       }
-      const r = replanPayment(tx, payment, today, grouped);
+      const r = replanPayment(tx, payment, today, grouped, lifecycle.get(payment.id));
       total.created += r.created;
       total.updated += r.updated;
       total.removed += r.removed;
@@ -380,11 +409,48 @@ export function updateExpectedPayment(
 ): { payment: Payment; groupId: string } {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
+    const before = livePayment(tx, id);
+    const changedEnd = patch.endDate !== undefined && patch.endDate !== before.endDate;
+    if (
+      changedEnd &&
+      patch.endDate !== null &&
+      (!isPaymentLifecycleDay(patch.endDate) || addDays(patch.endDate, 1) < today)
+    )
+      throw new ConflictError(
+        'Beenden ist nur ab heute möglich. Vergangene Termine bleiben erhalten.',
+      );
+    if (changedEnd) {
+      const lifecycle = readPaymentLifecycles(tx, [id]).get(id);
+      // Legacy generic PATCH is not a reviewed-token API. New UI end actions use /end.
+      if (!lifecycle?.reviewToken)
+        throw new ConflictError(
+          'Die Zahlungshistorie ist für eine sichere Änderung nicht vollständig lesbar.',
+        );
+      const scheduleKeys = [
+        'rhythm',
+        'dueDay',
+        'dueMonth',
+        'dateShift',
+        'startDate',
+        'intervalWeeks',
+      ] as const;
+      if (scheduleKeys.some((key) => patch[key] !== undefined && patch[key] !== before[key]))
+        throw new ConflictError(
+          'Bitte zuerst den Rhythmus speichern und den Endtermin danach separat ändern.',
+        );
+    }
     const clean = patch.name === undefined ? patch : { ...patch, name: cleanName(patch.name) };
     const payment = updateEntity(tx, expectedPayment, id, clean, grouped);
     if (payment.rhythm === 'weekly' && !payment.startDate)
       throw new ConflictError('Wöchentliche Zahlungen brauchen ein Startdatum.');
-    replanPayment(tx, payment, today, grouped);
+    if (changedEnd && payment.endDate !== null) {
+      const lifecycle = readPaymentLifecycles(tx, [id]).get(id);
+      if (lifecycle?.endedFrom !== addDays(payment.endDate, 1))
+        throw new ConflictError(
+          'Der neue Endtermin ist nicht eindeutig belegt. Die Änderung wurde nicht gespeichert.',
+        );
+      replanPayment(tx, payment, today, grouped, lifecycle, true);
+    } else replanPayment(tx, payment, today, grouped);
     return { payment, groupId: grouped.groupId };
   });
 }
@@ -395,14 +461,80 @@ export function deleteExpectedPayment(
   id: string,
   ctx: AuditContext,
   today: string,
+  reviewToken?: string,
 ): { groupId: string } {
   const grouped = withGroup(ctx);
   runInTransaction(db, (tx) => {
+    const lifecycle = readPaymentLifecycles(tx, [id]).get(id);
+    if (reviewToken !== undefined) assertPaymentReview(lifecycle, reviewToken);
+    assertPaymentDeletable(lifecycle);
     softDeleteEntity(tx, expectedPayment, id, grouped);
     const payment = getEntity(tx, expectedPayment, id, { includeDeleted: true })!;
     replanPayment(tx, payment, today, grouped);
   });
   return { groupId: grouped.groupId };
+}
+
+/** Forward-only interval; suppressed open rows and the interval share one audited action. */
+export function pauseExpectedPayment(
+  db: Executor,
+  id: string,
+  throughDate: string,
+  reviewToken: string,
+  ctx: AuditContext,
+  today: string,
+): { groupId: string } {
+  if (!isPaymentLifecycleDay(today) || !isPaymentLifecycleDay(throughDate) || throughDate < today)
+    throw new ConflictError('Die Pause braucht ein gültiges Enddatum ab heute.');
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const payment = livePayment(tx, id);
+    const before = readPaymentLifecycles(tx, [id]).get(id);
+    assertPaymentReview(before, reviewToken);
+    if (before?.pauses.some((p) => p.fromDate <= throughDate && p.throughDate >= today))
+      throw new ConflictError('Für diesen Zeitraum besteht bereits eine Pause.');
+    insertTracked(
+      tx,
+      expectedPaymentPause,
+      { id: randomUUID(), expectedPaymentId: id, fromDate: today, throughDate },
+      grouped,
+    );
+    const lifecycle = readPaymentLifecycles(tx, [id]).get(id);
+    assertPaymentPauseRanges(lifecycle);
+    replanPayment(tx, payment, today, grouped, lifecycle, true);
+    return { groupId: grouped.groupId };
+  });
+}
+
+/** Existing endDate stays inclusive; the explicit action names the first excluded day. */
+export function endExpectedPayment(
+  db: Executor,
+  id: string,
+  fromDate: string,
+  reviewToken: string,
+  ctx: AuditContext,
+  today: string,
+): { groupId: string } {
+  if (!isPaymentLifecycleDay(today) || !isPaymentLifecycleDay(fromDate) || fromDate < today)
+    throw new ConflictError(
+      'Beenden ist nur ab heute möglich. Vergangene Termine bleiben erhalten.',
+    );
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const current = livePayment(tx, id);
+    assertPaymentReview(readPaymentLifecycles(tx, [id]).get(id), reviewToken);
+    const endDate = addDays(fromDate, -1);
+    if (current.endDate === endDate)
+      throw new ConflictError('Diese Zahlung ist bereits ab diesem Datum beendet.');
+    const payment = updateEntity(tx, expectedPayment, id, { endDate }, grouped);
+    const lifecycle = readPaymentLifecycles(tx, [id]).get(id);
+    if (lifecycle?.endedFrom !== fromDate)
+      throw new ConflictError(
+        'Der neue Endtermin ist nicht eindeutig belegt. Die Änderung wurde nicht gespeichert.',
+      );
+    replanPayment(tx, payment, today, grouped, lifecycle, true);
+    return { groupId: grouped.groupId };
+  });
 }
 
 /** Bring a deleted payment back and plan its occurrences again. */
@@ -454,6 +586,13 @@ export interface ExpectedPaymentListing extends Payment {
   nextDueDate: string | null;
   monthlyEquivalentCents: number | null;
   yearlyEquivalentCents: number | null;
+  lifecycle: {
+    pauses: Array<{ fromDate: string; throughDate: string }>;
+    endedFrom: string | null;
+    endEvidence: 'none' | 'proven' | 'unavailable';
+    deletion: 'neverAssigned' | 'everAssigned' | 'unavailable';
+    reviewToken: string | null;
+  };
 }
 
 /** Payments with current version, next due date and monthly and yearly equivalents. */
@@ -462,6 +601,13 @@ export function listExpectedPayments(
   today: string,
   options: { includeDeleted?: boolean } = {},
 ): ExpectedPaymentListing[] {
+  return runInTransaction(db, (tx) => listExpectedPaymentsInSnapshot(tx, today, options));
+}
+function listExpectedPaymentsInSnapshot(
+  db: Executor,
+  today: string,
+  options: { includeDeleted?: boolean },
+): ExpectedPaymentListing[] {
   const payments = db
     .select()
     .from(expectedPayment)
@@ -469,13 +615,23 @@ export function listExpectedPayments(
     .orderBy(asc(expectedPayment.name), asc(expectedPayment.id))
     .all();
   const versions = versionsByPayment(db);
+  const lifecycle = readPaymentLifecycles(
+    db,
+    payments.map((p) => p.id),
+  );
   const horizon = lastDayOfMonth(addMonths(monthOf(today), 13));
   return payments.map((p) => {
     const list = versions.get(p.id) ?? [];
     const current = versionOn(list, today) ?? list[0] ?? null;
     const sign = p.kind === 'outflow' ? -1 : 1;
     const signed = current ? sign * current.amountCents : null;
-    const next = occurrences(schedulePayment(p), list.map(scheduleVersion), today, horizon)[0];
+    const state = lifecycle.get(p.id)!;
+    const next = occurrences(
+      schedulePayment(p, state),
+      list.map(scheduleVersion),
+      today,
+      horizon,
+    )[0];
     return {
       ...p,
       version: current && {
@@ -491,6 +647,13 @@ export function listExpectedPayments(
         signed === null ? null : monthlyEquivalent(p.rhythm, signed, p.intervalWeeks),
       yearlyEquivalentCents:
         signed === null ? null : yearlyEquivalent(p.rhythm, signed, p.intervalWeeks),
+      lifecycle: {
+        pauses: state.pauses,
+        endedFrom: state.endedFrom,
+        endEvidence: state.endEvidence,
+        deletion: state.deletion,
+        reviewToken: state.reviewToken,
+      },
     };
   });
 }
@@ -636,7 +799,7 @@ export function matchOccurrences(
     const summary: MatchSummary = { received: 0, deviating: 0, missed: 0 };
     for (const { id, patch } of expectedLinkPatches(tx))
       updateTracked(tx, expectedOccurrence, [id], patch, grouped);
-    const open = tx
+    const openCandidates = tx
       .select({ occ: expectedOccurrence, payment: expectedPayment })
       .from(expectedOccurrence)
       .innerJoin(expectedPayment, eq(expectedPayment.id, expectedOccurrence.expectedPaymentId))
@@ -649,6 +812,13 @@ export function matchOccurrences(
       )
       .all()
       .filter((r) => addDays(r.occ.dueDate, -r.payment.dateWindowDays) <= today);
+    const lifecycle = readPaymentLifecycles(
+      tx,
+      openCandidates.map((r) => r.payment.id),
+    );
+    const open = openCandidates.filter(
+      (r) => !paymentOpenSuppressed(lifecycle.get(r.payment.id), r.occ),
+    );
     if (open.length === 0) return summary;
 
     const versions = versionsByPayment(tx, [...new Set(open.map((r) => r.payment.id))]);
@@ -806,10 +976,11 @@ export function skipOccurrence(
   return runInTransaction(db, (tx) => {
     const payment = livePayment(tx, paymentId);
     const { from, to } = occurrenceHorizon(today);
+    const lifecycle = readPaymentLifecycles(tx, [paymentId]).get(paymentId);
     const planned =
       /^\d{4}-\d{2}-\d{2}$/.test(dueDate) && dueDate >= from && dueDate <= to
         ? occurrences(
-            schedulePayment(payment),
+            schedulePayment(payment, lifecycle),
             liveVersions(tx, paymentId).map(scheduleVersion),
             dueDate,
             dueDate,
@@ -846,6 +1017,13 @@ export function skipOccurrence(
         grouped,
       );
     } else if (row.deletedAt !== null) {
+      const generated = row.status === 'expected' && lifecycle?.revivableOccurrenceIds.has(row.id);
+      const repeatedSkip =
+        row.status === 'skipped' && lifecycle?.revivableSkippedOccurrenceIds.has(row.id);
+      if (row.dueDate < today || row.bookingId !== null || (!generated && !repeatedSkip))
+        throw new ConflictError(
+          'Dieser entfernte Termin hat einen erhaltenen Verlauf. Bitte die ursprüngliche Aktion verwenden; er wird nicht neu angelegt.',
+        );
       updateTracked(
         tx,
         expectedOccurrence,
@@ -854,8 +1032,8 @@ export function skipOccurrence(
           deletedAt: null,
           status: 'skipped',
           bookingId: null,
-          expectedAmountCents: planned.amountCents,
-          contactShareCents: planned.contactShareCents,
+          expectedAmountCents: repeatedSkip ? row.expectedAmountCents : planned.amountCents,
+          contactShareCents: repeatedSkip ? row.contactShareCents : planned.contactShareCents,
         },
         grouped,
         'restore',
@@ -885,6 +1063,10 @@ export function unskipOccurrence(
   return runInTransaction(db, (tx) => {
     const { occ, payment } = liveOccurrence(tx, occurrenceId);
     if (occ.status !== 'skipped') throw new ConflictError('This occurrence is not skipped');
+    if (paymentDateSuppressed(readPaymentLifecycles(tx, [payment.id]).get(payment.id), occ.dueDate))
+      throw new ConflictError(
+        'Dieser Termin ist pausiert oder beendet. Bitte zuerst die Zahlungsaktion rückgängig machen.',
+      );
     updateTracked(tx, expectedOccurrence, [occurrenceId], { status: 'expected' }, grouped);
     replanPayment(tx, payment, today, grouped);
     const after = tx
@@ -957,6 +1139,14 @@ export function upcoming(
   to: string,
   options: { kind?: Payment['kind']; includeSkipped?: boolean } = {},
 ): UpcomingRow[] {
+  return runInTransaction(db, (tx) => upcomingInSnapshot(tx, from, to, options));
+}
+function upcomingInSnapshot(
+  db: Executor,
+  from: string,
+  to: string,
+  options: { kind?: Payment['kind']; includeSkipped?: boolean },
+): UpcomingRow[] {
   const rows = db
     .select({
       occ: expectedOccurrence,
@@ -995,57 +1185,70 @@ export function upcoming(
     .orderBy(asc(expectedOccurrence.dueDate), asc(expectedPayment.name), asc(expectedOccurrence.id))
     .all();
   const versions = versionsByPayment(db, [...new Set(rows.map((r) => r.payment.id))]);
-  return rows.map((r) => {
-    const version = versionOn(versions.get(r.payment.id) ?? [], r.occ.dueDate);
-    const currency = version?.currency ?? 'EUR';
-    let suggestion: VersionSuggestion | null = null;
-    if (r.occ.status === 'deviating' && r.occ.bookingId !== null && r.bookingDate !== null) {
-      const booked = bookedAmountIn(
-        {
-          amountCents: r.bookingAmount!,
-          currency: r.bookingCurrency!,
-          originalAmountCents: r.bookingOriginalAmount,
-          originalCurrency: r.bookingOriginalCurrency,
-        },
-        currency,
-      );
-      suggestion = versionSuggestion(
-        r.payment.id,
-        {
+  const lifecycle = readPaymentLifecycles(
+    db,
+    rows.map((r) => r.payment.id),
+  );
+  return rows
+    .filter(
+      (r) =>
+        !paymentOpenSuppressed(lifecycle.get(r.payment.id), {
           dueDate: r.occ.dueDate,
-          amountCents: r.occ.expectedAmountCents,
-          amountMaxCents: null,
-          contactShareCents: r.occ.contactShareCents,
-        },
-        { id: r.occ.bookingId, date: r.bookingDate, amountCents: booked },
-      );
-    }
-    return {
-      occurrenceId: r.occ.id,
-      paymentId: r.payment.id,
-      name: r.payment.name,
-      kind: r.payment.kind,
-      dueDate: r.occ.dueDate,
-      status: r.bookingDate === null && r.occ.bookingId !== null ? 'expected' : r.occ.status,
-      amountCents: r.occ.expectedAmountCents,
-      currency,
-      contactShareCents: r.occ.contactShareCents,
-      accountId: r.payment.accountId,
-      accountName: r.accountName,
-      payeeId: r.payment.payeeId,
-      payeeName: r.payeeName,
-      contactId: r.payment.contactId,
-      contactName: r.contactName,
-      categoryId: r.payment.categoryId,
-      categoryName: r.categoryName,
-      categoryClass: r.categoryClass,
-      incomeTypeId: r.payment.incomeTypeId,
-      incomeTypeName: r.incomeTypeName,
-      bookingId: r.bookingDate === null ? null : r.occ.bookingId,
-      bookedAmountCents: r.bookingDate === null ? null : r.bookingAmount,
-      suggestion,
-    };
-  });
+          status: r.bookingDate === null && r.occ.bookingId !== null ? 'expected' : r.occ.status,
+          bookingId: r.bookingDate === null ? null : r.occ.bookingId,
+        }),
+    )
+    .map((r) => {
+      const version = versionOn(versions.get(r.payment.id) ?? [], r.occ.dueDate);
+      const currency = version?.currency ?? 'EUR';
+      let suggestion: VersionSuggestion | null = null;
+      if (r.occ.status === 'deviating' && r.occ.bookingId !== null && r.bookingDate !== null) {
+        const booked = bookedAmountIn(
+          {
+            amountCents: r.bookingAmount!,
+            currency: r.bookingCurrency!,
+            originalAmountCents: r.bookingOriginalAmount,
+            originalCurrency: r.bookingOriginalCurrency,
+          },
+          currency,
+        );
+        suggestion = versionSuggestion(
+          r.payment.id,
+          {
+            dueDate: r.occ.dueDate,
+            amountCents: r.occ.expectedAmountCents,
+            amountMaxCents: null,
+            contactShareCents: r.occ.contactShareCents,
+          },
+          { id: r.occ.bookingId, date: r.bookingDate, amountCents: booked },
+        );
+      }
+      return {
+        occurrenceId: r.occ.id,
+        paymentId: r.payment.id,
+        name: r.payment.name,
+        kind: r.payment.kind,
+        dueDate: r.occ.dueDate,
+        status: r.bookingDate === null && r.occ.bookingId !== null ? 'expected' : r.occ.status,
+        amountCents: r.occ.expectedAmountCents,
+        currency,
+        contactShareCents: r.occ.contactShareCents,
+        accountId: r.payment.accountId,
+        accountName: r.accountName,
+        payeeId: r.payment.payeeId,
+        payeeName: r.payeeName,
+        contactId: r.payment.contactId,
+        contactName: r.contactName,
+        categoryId: r.payment.categoryId,
+        categoryName: r.categoryName,
+        categoryClass: r.categoryClass,
+        incomeTypeId: r.payment.incomeTypeId,
+        incomeTypeName: r.incomeTypeName,
+        bookingId: r.bookingDate === null ? null : r.occ.bookingId,
+        bookedAmountCents: r.bookingDate === null ? null : r.bookingAmount,
+        suggestion,
+      };
+    });
 }
 
 export interface MonthIncomeLine {

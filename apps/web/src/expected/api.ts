@@ -45,6 +45,13 @@ export interface ExpectedPayment {
   /** Signed amount of that version (outflow negative), in its currency. */
   amountCents: number | null;
   nextDueDate: string | null;
+  lifecycle?: {
+    pauses: Array<{ fromDate: string; throughDate: string }>;
+    endedFrom: string | null;
+    endEvidence: 'none' | 'proven' | 'unavailable';
+    deletion: 'neverAssigned' | 'everAssigned' | 'unavailable';
+    reviewToken: string | null;
+  };
   monthlyEquivalentCents: number | null;
   yearlyEquivalentCents: number | null;
 }
@@ -227,7 +234,12 @@ export const createPayment = (
 export const patchPayment = (id: string, patch: Partial<PaymentFields>) =>
   request<WriteResult>('PATCH', url(`/${enc(id)}`), patch);
 
-export const deletePayment = (id: string) => request<WriteResult>('DELETE', url(`/${enc(id)}`));
+export const deletePayment = (id: string, reviewToken?: string) =>
+  request<WriteResult>('DELETE', url(`/${enc(id)}`) + queryString({ reviewToken }));
+export const pausePayment = (id: string, throughDate: string, reviewToken: string) =>
+  request<WriteResult>('POST', url(`/${enc(id)}/pause`), { throughDate, reviewToken });
+export const endPayment = (id: string, fromDate: string, reviewToken: string) =>
+  request<WriteResult>('POST', url(`/${enc(id)}/end`), { fromDate, reviewToken });
 
 export const addVersion = (id: string, version: VersionFields & { validFrom: string }) =>
   request<WriteResult>('POST', url(`/${enc(id)}/versions`), version);
