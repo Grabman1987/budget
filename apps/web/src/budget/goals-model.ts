@@ -6,11 +6,12 @@ import type { GoalView } from './goals-api';
  * beyond what the domain already delivered (`goalTotals`). */
 
 export interface GoalGroup {
-  key: 'open' | 'reached';
+  key: 'open' | 'reached' | 'completed';
   no: number;
   title: string;
   rows: GoalView[];
   totals: GoalTotals;
+  rateIncomplete: boolean;
 }
 
 const SHORT_MONTH = [
@@ -32,15 +33,35 @@ const SHORT_MONTH = [
 export const shortMonth = (month: string): string =>
   `${SHORT_MONTH[Number(month.slice(5, 7)) - 1] ?? ''} ${month.slice(0, 4)}`;
 
-/** "Offen" first, then "Erreicht"; empty groups are left out. Order within a group is kept. */
+/** Reached, open and retained completed goals; no record disappears on completion. */
+export const goalState = (goal: GoalView) =>
+  goal.lifecycle?.state ?? (goal.status === 'reached' ? 'reached' : 'open');
+
 export function goalGroups(goals: readonly GoalView[]): GoalGroup[] {
-  const groups: Array<Omit<GoalGroup, 'no' | 'totals'>> = [
-    { key: 'open', title: 'Offen', rows: goals.filter((g) => g.status !== 'reached') },
-    { key: 'reached', title: 'Erreicht', rows: goals.filter((g) => g.status === 'reached') },
+  const groups: Array<Omit<GoalGroup, 'no' | 'totals' | 'rateIncomplete'>> = [
+    { key: 'reached', title: 'Erreicht', rows: goals.filter((g) => goalState(g) === 'reached') },
+    { key: 'open', title: 'Offen', rows: goals.filter((g) => goalState(g) === 'open') },
+    {
+      key: 'completed',
+      title: 'Abgeschlossen',
+      rows: goals.filter((g) => goalState(g) === 'completed'),
+    },
   ];
   return groups
     .filter((g) => g.rows.length > 0)
-    .map((g, i) => ({ ...g, no: i + 1, totals: goalTotals(g.rows) }));
+    .map((g, i) => ({
+      ...g,
+      no: i + 1,
+      rateIncomplete: g.rows.some((row) => !row.funding || !!row.funding.conflict),
+      totals: goalTotals(
+        g.rows.map((row) => ({
+          ...row,
+          neededMonthlyCents: row.funding?.conflict
+            ? null
+            : (row.funding?.monthlyCents ?? row.neededMonthlyCents),
+        })),
+      ),
+    }));
 }
 
 /**
@@ -62,7 +83,13 @@ export interface GoalLine {
 
 /** The short status under the bar: what the forecast says, and what is missing if it is late. */
 export function goalLine(goal: GoalView, month: string): GoalLine {
-  if (goal.status === 'reached') return { tone: 'done', text: 'erreicht' };
+  if (goalState(goal) === 'completed') return { tone: 'done', text: 'abgeschlossen' };
+  if (goalState(goal) === 'reached') return { tone: 'done', text: 'erreicht' };
+  if (goal.funding?.conflict) return { tone: 'warn', text: 'Kategorie-Ziel abstimmen' };
+  if (goal.funding)
+    return goal.funding.remainingCents > 0
+      ? { tone: 'warn', text: `noch ${eur(goal.funding.remainingCents)} für diesen Monat zuweisen` }
+      : { tone: 'ok', text: 'Monatsrate zugewiesen' };
   if (goal.status === 'on_track')
     return {
       tone: 'ok',
@@ -73,7 +100,10 @@ export function goalLine(goal: GoalView, month: string): GoalLine {
   if (goal.averageRateCents <= 0)
     return { tone: 'warn', text: 'hinter Plan · zuletzt nichts gespart' };
   const more = (goal.neededMonthlyCents ?? 0) - goal.averageRateCents;
-  return { tone: 'warn', text: `hinter Plan · ${eur(Math.max(more, 0))} je Monat mehr nötig` };
+  return {
+    tone: 'warn',
+    text: `hinter Plan · ${eur(Math.max(more, 0))} je zukünftigem Monat mehr nötig`,
+  };
 }
 
 /** "3 von 5 im Plan" for the group note; reached goals count as in plan. */

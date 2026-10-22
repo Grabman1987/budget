@@ -149,3 +149,10 @@
   min-width: 0;
   margin-inline-end: 0.25em;
 }
+
+/* The existing table retains a direct, keyboard-accessible funding action at each rate. */
+.goals .col-rate > button {
+  display: block;
+  margin-inline-start: auto;
+  min-height: 44px;
+}

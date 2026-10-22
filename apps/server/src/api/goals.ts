@@ -1,6 +1,8 @@
 import {
   adoptGoalAsCategoryTarget,
   createGoal,
+  completeGoal,
+  fundGoalRate,
   deleteGoal,
   getGoal,
   listGoals,
@@ -15,7 +17,14 @@ import { monthOf } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { ACTOR, defined, readBody, readQuery } from './http';
-import { goalAdoptBody, goalCreate, goalListQuery, goalMonthQuery, goalPatch } from './schemas';
+import {
+  goalAdoptBody,
+  goalCreate,
+  goalFundBody,
+  goalListQuery,
+  goalMonthQuery,
+  goalPatch,
+} from './schemas';
 
 /**
  * Savings goals (Sparziele): every answer carries the figures of the viewed month (`?month=`,
@@ -29,10 +38,16 @@ export function goalRoutes(db: Db, today: () => string): Hono {
   app.get('/', (c) => {
     const { month, deleted } = readQuery(c, goalListQuery);
     const view = monthOrToday(month);
-    return c.json({ month: view, goals: listGoals(db, view, { includeDeleted: deleted === '1' }) });
+    return c.json({
+      month: view,
+      goals: listGoals(db, view, { includeDeleted: deleted === '1', today: today() }),
+    });
   });
 
-  app.get('/report', (c) => c.json(goalsReport(db, today())));
+  app.get('/report', (c) => {
+    const { month } = readQuery(c, goalMonthQuery);
+    return c.json(goalsReport(db, today(), monthOrToday(month)));
+  });
 
   app.post('/', async (c) => {
     const { month } = readQuery(c, goalMonthQuery);
@@ -40,8 +55,10 @@ export function goalRoutes(db: Db, today: () => string): Hono {
       db,
       defined<GoalInput>(await readBody(c, goalCreate)),
       audit(),
+      monthOrToday(month),
+      today(),
     );
-    return c.json({ goal: getGoal(db, goal.id, monthOrToday(month)), groupId }, 201);
+    return c.json({ goal: getGoal(db, goal.id, monthOrToday(month), today()), groupId }, 201);
   });
 
   app.patch('/:id', async (c) => {
@@ -51,16 +68,28 @@ export function goalRoutes(db: Db, today: () => string): Hono {
       c.req.param('id'),
       defined<GoalPatch>(await readBody(c, goalPatch)),
       audit(),
+      monthOrToday(month),
+      today(),
     );
-    return c.json({ goal: getGoal(db, goal.id, monthOrToday(month)), groupId });
+    return c.json({ goal: getGoal(db, goal.id, monthOrToday(month), today()), groupId });
   });
+
+  app.post('/:id/fund', async (c) => {
+    const { month } = readQuery(c, goalMonthQuery);
+    const { reviewToken } = await readBody(c, goalFundBody);
+    return c.json(
+      fundGoalRate(db, c.req.param('id'), monthOrToday(month), reviewToken, audit(), today()),
+    );
+  });
+
+  app.post('/:id/complete', (c) => c.json(completeGoal(db, c.req.param('id'), today(), audit())));
 
   app.delete('/:id', (c) => c.json(deleteGoal(db, c.req.param('id'), audit())));
 
   app.post('/:id/restore', (c) => {
     const { month } = readQuery(c, goalMonthQuery);
     const { goal, groupId } = restoreGoal(db, c.req.param('id'), audit());
-    return c.json({ goal: getGoal(db, goal.id, monthOrToday(month)), groupId });
+    return c.json({ goal: getGoal(db, goal.id, monthOrToday(month), today()), groupId });
   });
 
   // "Als Ziel der Kategorie übernehmen": a versioned by_date target, one undo.

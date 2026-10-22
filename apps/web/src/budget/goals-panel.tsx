@@ -17,7 +17,7 @@ import { eur, longDay } from '../ledger/format';
 import type { AccountRow } from '../ledger/types';
 import { AppLink } from '../shell/app-link';
 import type { CategoryRow, GroupRow } from './api';
-import { adoptGoal, createGoal, deleteGoal, patchGoal, type GoalView } from './goals-api';
+import { createGoal, deleteGoal, patchGoal, type GoalView } from './goals-api';
 import { goalLine, shortMonth } from './goals-model';
 import { useBudgetWrite } from './use-category-writes';
 
@@ -94,23 +94,33 @@ function GoalBody({
 }) {
   useAmountPrivacy();
   const write = useBudgetWrite();
+  const [initialGoal] = useState(() =>
+    goal ? { ...goal, effectiveStartMonth: goal.effectiveStartMonth ?? month } : undefined,
+  );
   const [name, setName] = useState(goal?.name ?? '');
   const [target, setTarget] = useState(goal ? formatDecimal(cents(goal.targetCents)) : '');
   const [date, setDate] = useState(goal?.targetDate ?? '');
+  const [startMonth, setStartMonth] = useState(goal?.effectiveStartMonth ?? month);
   const [link, setLink] = useState<'category' | 'account'>(
     goal?.accountId ? 'account' : 'category',
   );
   const [categoryId, setCategoryId] = useState(goal?.categoryId ?? '');
   const [accountId, setAccountId] = useState(goal?.accountId ?? '');
-  const [errors, setErrors] = useState<{ name?: string; target?: string; link?: string }>({});
+  const [errors, setErrors] = useState<{
+    name?: string;
+    target?: string;
+    link?: string;
+    start?: string;
+  }>({});
 
-  const category = categories.find((c) => c.id === (goal?.categoryId ?? ''));
   const savable = categories.filter(SAVABLE);
   const open = accounts.filter((a) => a.closedAt === null);
 
   const save = async () => {
     const parsed = parseAmount(target);
     const next: typeof errors = {};
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(startMonth))
+      next.start = 'Bitte einen gültigen Startmonat wählen.';
     if (name.trim() === '') next.name = 'Bitte einen Namen eintragen.';
     if (!parsed.ok || parsed.cents <= 0) next.target = 'Bitte ein Ziel über 0 eintragen.';
     if (link === 'category' ? categoryId === '' : accountId === '')
@@ -118,6 +128,7 @@ function GoalBody({
     setErrors(next);
     if (Object.keys(next).length > 0 || !parsed.ok) return;
     const values = {
+      startMonth,
       name: name.trim(),
       targetCents: parsed.cents,
       targetDate: date === '' ? null : date,
@@ -135,7 +146,12 @@ function GoalBody({
       return;
     }
     const changed = Object.fromEntries(
-      Object.entries(values).filter(([k, v]) => goal[k as keyof typeof values] !== v),
+      Object.entries(values).filter(
+        ([k, v]) =>
+          (k === 'startMonth'
+            ? initialGoal?.effectiveStartMonth
+            : initialGoal?.[k as keyof typeof values]) !== v,
+      ),
     );
     if (Object.keys(changed).length === 0) return onDone();
     if (
@@ -163,6 +179,21 @@ function GoalBody({
         )}
       </Field>
       <AmountInput label="Ziel" value={target} onChange={setTarget} error={errors.target} />
+      <Field
+        label="Zielbeginn"
+        error={errors.start}
+        hint="Die Historie beginnt mit diesem Monat; vorhandene Buchungen bleiben unverändert."
+      >
+        {({ id, describedBy }) => (
+          <TextInput
+            id={id}
+            type="month"
+            value={startMonth}
+            aria-describedby={describedBy}
+            onChange={(e) => setStartMonth(e.target.value)}
+          />
+        )}
+      </Field>
       <Field label="Zieldatum" hint="Ohne Datum gibt es keine nötige Monatsrate.">
         {({ id, describedBy }) => (
           <TextInput
@@ -243,30 +274,11 @@ function GoalBody({
         )}
       </div>
 
-      {goal && category && (
-        <>
-          <h3 className="panel-h">Ziel der Kategorie</h3>
-          <p className="panel-sub">
-            {goal.targetDate
-              ? `${category.name} bekommt das Ziel ${eur(goal.targetCents)} bis ${shortMonth(goal.targetDate.slice(0, 7))}, gültig ab ${shortMonth(month)}. Plan › Monat verteilt dann danach.`
-              : 'Für ein Ziel der Kategorie braucht das Sparziel ein Zieldatum.'}
-          </p>
-          <div className="panel-actions">
-            <Button
-              variant="ghost"
-              disabled={!goal.targetDate}
-              onClick={() =>
-                void write(
-                  () => adoptGoal(goal.id, month),
-                  () => `${category.name}: Ziel ${eur(goal.targetCents)} übernommen`,
-                )
-              }
-            >
-              Als Ziel der Kategorie übernehmen
-            </Button>
-          </div>
-        </>
-      )}
+      {goal?.funding?.conflict && <p role="status">{goal.funding.conflict}</p>}
+      <p className="panel-sub">
+        Ein eindeutiges Sparziel mit Zieldatum setzt das Ziel seiner Kategorie beim Speichern.
+        Bestehende abweichende Ziele bleiben erhalten.
+      </p>
     </div>
   );
 }
@@ -298,7 +310,7 @@ export function GoalFigures({
       </p>
       <dl className="kv-list">
         <div className="kv">
-          <dt>Envelope</dt>
+          <dt>Kategorie</dt>
           <dd>
             {category ? (
               <AppLink to="/plan/monat" search={(prev) => ({ ...prev, monat: month })}>
@@ -318,8 +330,16 @@ export function GoalFigures({
           <dd>{g.monthsLeft ?? '–'}</dd>
         </div>
         <div className="kv">
-          <dt>Nötige Rate</dt>
-          <dd>{g.neededMonthlyCents === null ? '–' : eur(g.neededMonthlyCents)}</dd>
+          <dt>{g.funding ? 'Rate im gewählten Monat' : 'Nötige künftige Rate'}</dt>
+          <dd>
+            {g.funding?.conflict
+              ? 'Ziel abstimmen'
+              : g.funding
+                ? eur(g.funding.monthlyCents)
+                : g.neededMonthlyCents === null
+                  ? '–'
+                  : eur(g.neededMonthlyCents)}
+          </dd>
         </div>
         <div className="kv">
           <dt>Ø letzte 3 Monate</dt>

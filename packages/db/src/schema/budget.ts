@@ -328,16 +328,33 @@ export const expectedPaymentVersion = sqliteTable(
   ],
 );
 
-export const savingsGoal = sqliteTable('savings_goal', {
-  id: id(),
-  name: text('name').notNull(),
-  targetCents: cents('target_cents').notNull(),
-  targetDate: text('target_date'),
-  categoryId: text('category_id').references(() => category.id),
-  accountId: text('account_id').references(() => account.id),
-  note: text('note'),
-  ...timestamps(),
-});
+export const savingsGoal = sqliteTable(
+  'savings_goal',
+  {
+    id: id(),
+    name: text('name').notNull(),
+    targetCents: cents('target_cents').notNull(),
+    targetDate: text('target_date'),
+    categoryId: text('category_id').references(() => category.id),
+    accountId: text('account_id').references(() => account.id),
+    /** NULL retains the legacy created-at month; existing dates are never rewritten. */
+    startMonth: text('start_month'),
+    /** Explicit Vienna calendar day for the user's audited manual completion. */
+    manualCompletedOn: text('manual_completed_on'),
+    /** Internal prospective evidence only; never serialized in public goal DTOs. */
+    lifecycleAnchorJson: text('lifecycle_anchor_json'),
+    note: text('note'),
+    ...timestamps(),
+  },
+  (t) => [
+    isoMonth('savings_goal_start_month_chk', t.startMonth),
+    isoDay('savings_goal_manual_completed_on_chk', t.manualCompletedOn),
+    check(
+      'savings_goal_lifecycle_anchor_chk',
+      sql`${t.lifecycleAnchorJson} IS NULL OR (json_valid(${t.lifecycleAnchorJson}) AND length(${t.lifecycleAnchorJson}) <= 2048)`,
+    ),
+  ],
+);
 
 /** Forecast events (Geplantes Ereignis): a purchase, a bonus, a move. */
 export const plannedEvent = sqliteTable(

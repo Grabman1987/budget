@@ -12,7 +12,7 @@ import { useMonth } from '../shell/use-month';
 import { CategoryPanel, type PanelState } from './category-panel';
 import { CategoryIcon } from './category-icon';
 import { GoalPanel } from './goals-panel';
-import { adoptGoal } from './goals-api';
+import { completeGoal, fundGoalRate } from './goals-api';
 import { KIND_LABEL, STAGES, targetText } from './labels';
 import { CLASS_TEXT } from './plan-model';
 import { categoriesQuery, useBudgetWrite } from './use-category-writes';
@@ -158,7 +158,6 @@ export function GoalDetailPage() {
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
   }, [row?.id]);
-  const category = query.data?.categories.categories.find((c) => c.id === goal?.categoryId);
   return (
     <PageFrame meta={PLAN_SPARZIELE}>
       <div className="plan plan-panel-detail">
@@ -187,31 +186,55 @@ export function GoalDetailPage() {
             <h2 id="goal-detail-title" ref={heading} tabIndex={-1}>
               {row.name}
             </h2>
-            <GoalDetail row={row} month={month} />
+            <GoalDetail row={row} month={month} showPlanLink={false} />
             <h3>Historie · Stand {ready.report.month}</h3>
             <GoalHistory
               points={ready.report.history.find((h) => h.id === id)?.points ?? []}
               name={row.name}
             />
-            <Button variant="ghost" onClick={() => setEditing(true)}>
-              Sparziel bearbeiten
-            </Button>
-            {goal && category && (
-              <div className="panel-actions">
+            <h3>Nächste Schritte</h3>
+            {goal?.funding?.conflict && <p role="status">{goal.funding.conflict}</p>}
+            {goal?.lifecycle?.evidence === 'unavailable' &&
+              goal.lifecycle.state !== 'completed' && (
+                <p>
+                  Ein automatischer Abschluss ist aus der vorhandenen Historie nicht eindeutig
+                  belegbar. Du kannst das Ziel manuell abschließen.
+                </p>
+              )}
+            <div className="panel-actions">
+              {goal?.funding && goal.lifecycle?.state !== 'completed' && (
                 <Button
-                  variant="ghost"
-                  disabled={!goal.targetDate}
+                  disabled={!!goal.funding.conflict || goal.funding.remainingCents <= 0}
                   onClick={() =>
                     void write(
-                      () => adoptGoal(id, month),
-                      () => `${category.name}: Ziel ${eur(goal.targetCents)} übernommen`,
+                      () => fundGoalRate(id, month, goal.funding!.reviewToken),
+                      (result) =>
+                        result.changedCount === 0
+                          ? 'Die Rate ist bereits zugewiesen.'
+                          : `${eur(result.assignedCents)} zugewiesen`,
                     )
                   }
                 >
-                  Als Ziel der Kategorie übernehmen
+                  Rate zuweisen
                 </Button>
-              </div>
-            )}
+              )}
+              <Button variant="ghost" onClick={() => setEditing(true)}>
+                Sparziel bearbeiten
+              </Button>
+              {goal && goal.lifecycle?.state !== 'completed' && (
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    void write(
+                      () => completeGoal(id),
+                      () => 'Sparziel abgeschlossen. Buchungen bleiben erhalten.',
+                    )
+                  }
+                >
+                  Manuell abschließen
+                </Button>
+              )}
+            </div>
           </section>
         )}
       </div>
