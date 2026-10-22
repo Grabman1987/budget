@@ -1,14 +1,14 @@
 ---
 name: budget-verified-delivery
-description: Deliver small independently reviewed Budget changes with meaningful financial regression evidence and authorized cheap-agent delegation.
+description: Deliver small independently reviewed Budget changes with meaningful evidence and the authorized serial integration process.
 ---
 
-Use for implementation and audits. Local adaptation of the owner's minimal-code, verification and orchestration descriptions.
+Use [`docs/queue/README.md`](../../../docs/queue/README.md) as the single source for coordination, test policy, verification, review, blockers and delivery. This skill adds implementation guidance only.
 
-1. Read the spec and current roadmap task; state a bounded acceptance case. Respect one task/branch/PR and integer-cent, shared-calculation and privacy rules.
-2. Prefer a small direct fix over speculative abstractions or unrelated refactoring. Preserve intentional placeholders and current feature scope.
-3. For financial defects, first reproduce with a literal expected result independent of the implementation. Cover the relevant mutation/undo paths and failure rollback; do not mirror the production formula in a test.
-4. When delegation is authorized, use a cheaper model for a scoped task. In a shared checkout assign one code writer at a time, define owned files and require a completion freeze. The lead reviews every diff and verifies results before delivery. Do not launch an unbounded swarm or let agents merge unreviewed work.
-5. Run focused checks during development, then the repository-required full check before PR creation; UI also needs required browser/visual evidence. Freeze the final tree during verification and recheck after material changes.
-6. Create the authorized draft PR when access and checks permit. Merge/deploy only through the authorized workflow with passing required checks; never bypass protections. Verify the actual deployed commit and distinguish skipped deployment from success.
-7. Record remaining acceptance/data/network blockers precisely. Do not claim complete product acceptance from unit-test totals or mark open audit findings solved by partial guards.
+1. Read `SPEC.md` and the current task. State a bounded acceptance case and respect product, privacy, integer-cent and shared-calculation rules.
+2. Prefer a small direct fix. Preserve intentional placeholders and current feature scope.
+3. For financial defects, establish the expected result independently of the implementation. Cover relevant mutation, undo and rollback behavior without duplicating the production formula in a test.
+4. When delegation is authorized, scope each assignment by owned files, acceptance criteria and dependencies. In a shared checkout, have one writer per file or migration sequence. Limit concurrency and require a completion freeze as described in the queue README. Review the full final diff before delivery.
+5. Run affected tests and static checks during implementation. Reuse suitable existing checks for acceptance criteria; do not add tests just to satisfy a documentation rule. Existing tests may receive authorized technical UI/API adaptations, with brief per-file rationale and independent review; preserve protected expectations. Follow the queue README for the checks needed before PR and merge.
+6. Open a reviewable PR when suitable targeted checks pass. Integrate and deploy only through the queue README's authorized serial workflow and existing required gates. Verify actual publication and report the revision.
+7. Record concrete acceptance gaps and data or network blockers. Do not claim completion based only on test totals or partial guards.
