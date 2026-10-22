@@ -129,6 +129,14 @@ async function scene(
   theme: 'light' | 'dark',
   info: TestInfo,
 ) {
+  const clickPlanControl = async (target: Locator) => {
+    // Keep mobile controls above the fixed tabbar before normal pointer actionability checks.
+    if (profile === 'configured')
+      await target.evaluate((element) =>
+        element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }),
+      );
+    await target.click();
+  };
   const writes: Array<{ path: string; body: unknown }> = [];
   page.on('request', (request) => {
     if (request.method() !== 'GET' && new URL(request.url()).pathname.startsWith('/api/'))
@@ -157,7 +165,7 @@ async function scene(
     'title',
     'Buchungen mit vorgemerktem Status oder mindestens einem Anteil ohne Kategorie. Jede Buchung wird einmal gezählt.',
   );
-  await page.locator(`.pname[data-category-id="${ids.recipientId}"]`).click();
+  await clickPlanControl(page.locator(`.pname[data-category-id="${ids.recipientId}"]`));
   await expect(
     page.getByRole('heading', { name: 'Synthetic Recipient', exact: true }),
   ).toBeVisible();
@@ -212,10 +220,145 @@ async function scene(
   }, theme);
   await expect(page.locator('tr.pgroup .grp-title')).toHaveText('Überzogen');
   await expect(page.locator('.ptable .pname')).toHaveCount(1);
-  await options.click();
+  await clickPlanControl(options);
   const views = page.getByRole('group', { name: 'Ansicht', exact: true });
   await expect(views.locator('[aria-pressed="true"]')).toHaveCount(0);
-  await views.getByRole('button', { name: 'Gruppen', exact: true }).click();
+  // Temporary native-frame diagnostic: only the first configured-profile Groups click.
+  const groupsProbe =
+    profile === 'configured'
+      ? await views
+          .getByRole('button', { name: 'Gruppen', exact: true })
+          .evaluateHandle((element) => {
+            type Builtins = Pick<
+              Window,
+              | 'requestAnimationFrame'
+              | 'cancelAnimationFrame'
+              | 'setTimeout'
+              | 'clearTimeout'
+              | 'performance'
+            >;
+            // Playwright 1.64.1 retains original browser APIs here; do not sample the emulated clock.
+            const native = (window as Window & { __pwClock?: { builtins?: Builtins } }).__pwClock
+              ?.builtins;
+            if (
+              !native?.requestAnimationFrame ||
+              !native.cancelAnimationFrame ||
+              !native.performance?.now ||
+              !native.setTimeout ||
+              !native.clearTimeout
+            )
+              return () => ({ unavailable: 'Original Playwright clock builtins unavailable' });
+            const started = native.performance.now();
+            const state = () => {
+              const rect = element.getBoundingClientRect();
+              return {
+                rect: [rect.x, rect.y, rect.width, rect.height],
+                scroll: [scrollX, scrollY],
+                viewport: [innerWidth, innerHeight],
+                visibility: document.visibilityState,
+                focus: document.hasFocus(),
+              };
+            };
+            type Sample = ReturnType<typeof state> & { atMs: number; gapMs: number };
+            const raf = { count: 0, maxGapMs: 0, samples: [] as Sample[] };
+            const timer = { count: 0, maxGapMs: 0, samples: [] as Sample[] };
+            const result = { durationMs: 0, stoppedBy: '', initial: state(), raf, timer };
+            let stopped = false;
+            let rafAt = started;
+            let timerAt = started;
+            let rafId = 0;
+            let timerId = 0;
+            let capId = 0;
+            const stop = (reason = 'click-settled') => {
+              if (!stopped) {
+                stopped = true;
+                native.cancelAnimationFrame(rafId);
+                native.clearTimeout(timerId);
+                native.clearTimeout(capId);
+                result.durationMs = native.performance.now() - started;
+                result.stoppedBy = reason;
+              }
+              return result;
+            };
+            const sample = (stream: typeof raf, previous: number) => {
+              const now = native.performance.now();
+              if (now - started >= 3000) {
+                stop('3-second-cap');
+                return now;
+              }
+              const gapMs = now - previous;
+              stream.count++;
+              stream.maxGapMs = Math.max(stream.maxGapMs, gapMs);
+              if (stream.samples.length < 64)
+                stream.samples.push({ atMs: now - started, gapMs, ...state() });
+              return now;
+            };
+            const frame = () => {
+              if (stopped) return;
+              rafAt = sample(raf, rafAt);
+              if (!stopped) rafId = native.requestAnimationFrame(frame);
+            };
+            const tick = () => {
+              if (stopped) return;
+              timerAt = sample(timer, timerAt);
+              if (!stopped) timerId = native.setTimeout(tick, 50);
+            };
+            rafId = native.requestAnimationFrame(frame);
+            timerId = native.setTimeout(tick, 50);
+            capId = native.setTimeout(() => stop('3-second-cap'), 3000);
+            return () => stop();
+          })
+      : undefined;
+  try {
+    await clickPlanControl(views.getByRole('button', { name: 'Gruppen', exact: true }));
+  } finally {
+    if (groupsProbe) {
+      const probe = await groupsProbe.evaluate((stop) => stop());
+      await groupsProbe.dispose();
+      await info.attach('First Groups native frame probe', {
+        body: JSON.stringify(probe),
+        contentType: 'application/json',
+      });
+      console.log(
+        `First Groups native frame probe [${info.project.name}/${profile}/${theme}]`,
+        'unavailable' in probe
+          ? probe.unavailable
+          : JSON.stringify(
+              (() => {
+                const stateChanges: Array<typeof probe.initial & { atMs: number }> = [];
+                let stateChangeCount = 0;
+                let previous = JSON.stringify(probe.initial);
+                for (const sample of [...probe.raf.samples, ...probe.timer.samples].sort(
+                  (a, b) => a.atMs - b.atMs,
+                )) {
+                  const { rect, scroll, viewport, visibility, focus } = sample;
+                  const state = { rect, scroll, viewport, visibility, focus };
+                  const current = JSON.stringify(state);
+                  if (current === previous) continue;
+                  previous = current;
+                  stateChangeCount++;
+                  if (stateChanges.length < 8) stateChanges.push({ atMs: sample.atMs, ...state });
+                }
+                return {
+                  durationMs: probe.durationMs,
+                  stoppedBy: probe.stoppedBy,
+                  rafCount: probe.raf.count,
+                  rafMaxGapMs: probe.raf.maxGapMs,
+                  timerCount: probe.timer.count,
+                  timerMaxGapMs: probe.timer.maxGapMs,
+                  initial: probe.initial,
+                  stateChangeCount,
+                  stateChanges,
+                  stateChangesTruncated: stateChangeCount > stateChanges.length,
+                  samplesTruncated:
+                    probe.raf.count > probe.raf.samples.length ||
+                    probe.timer.count > probe.timer.samples.length,
+                };
+              })(),
+            ),
+      );
+    }
+  }
   await expect(page.locator('.ptable .pname')).toHaveCount(3);
   expect(new URL(page.url()).searchParams.has('ansicht')).toBe(false);
   await page.goto('/plan/monat?monat=2026-10&ansicht=triage');
@@ -223,12 +366,12 @@ async function scene(
     document.documentElement.dataset['theme'] = value;
   }, theme);
   await expect(page.locator('tr.pgroup .grp-title')).toHaveText('Überzogen');
-  await options.click();
-  await views.getByRole('button', { name: 'Zeit', exact: true }).click();
+  await clickPlanControl(options);
+  await clickPlanControl(views.getByRole('button', { name: 'Zeit', exact: true }));
   await expect(page.locator('.ptable .pname')).toHaveCount(3);
   expect(new URL(page.url()).searchParams.has('ansicht')).toBe(false);
-  await options.click();
-  await views.getByRole('button', { name: 'Gruppen', exact: true }).click();
+  await clickPlanControl(options);
+  await clickPlanControl(views.getByRole('button', { name: 'Gruppen', exact: true }));
 
   const search = page.getByRole('searchbox', { name: 'Kategorie suchen' });
   await search.fill('Recipient');
@@ -270,9 +413,9 @@ async function scene(
   await expect(missing).toContainText('•••');
   await expect(missing).not.toContainText('1,50');
   await page.keyboard.press('Control+Shift+H');
-  await missing
-    .getByRole('link', { name: 'Synthetic missing classification', exact: true })
-    .click();
+  await clickPlanControl(
+    missing.getByRole('link', { name: 'Synthetic missing classification', exact: true }),
+  );
   await expect.poll(() => new URL(page.url()).pathname).toBe('/konten/buchungen');
   expect(new URL(page.url()).searchParams.get('buchung')).toBe(ids.missingId);
   await page.goBack();

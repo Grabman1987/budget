@@ -1,0 +1,142 @@
+[
+  {
+    "title": "584 capture transitions desktop light",
+    "name": "one-before",
+    "contentType": "image/png",
+    "sha256": "dcb98ac7aaaa0f8dbadc0cf8307a7d7e7dd7dc2b26422646edbf135c064acd18",
+    "path": "synthetic-artifacts/issue-584-capture-transiti-81f7b-e-transitions-desktop-light-webkit-iphone/attachments/one-before-c46d10437985afd59e59e7aed0a500f59d156812.png"
+  },
+  {
+    "title": "584 capture transitions desktop light",
+    "name": "two-nonzero-rest",
+    "contentType": "image/png",
+    "sha256": "72c14e01c080090fea92ab63b8713735f28cb1557b6090be72ea771aa8951cfc",
+    "path": "synthetic-artifacts/issue-584-capture-transiti-81f7b-e-transitions-desktop-light-webkit-iphone/attachments/two-nonzero-rest-244a8f81ef7ad4442f1e6452d7f22784ca6618ea.png"
+  },
+  {
+    "title": "584 capture transitions desktop light",
+    "name": "one-after",
+    "contentType": "image/png",
+    "sha256": "2fa06607e0d05088f150f60db33fdf1e9116e2851926a5fa84218fca0b8480b1",
+    "path": "synthetic-artifacts/issue-584-capture-transiti-81f7b-e-transitions-desktop-light-webkit-iphone/attachments/one-after-761226f23b382aa9e89f61cc0266a1c94ad719ea.png"
+  },
+  {
+    "title": "584 capture transitions desktop light",
+    "name": "three-exact-334-333-333",
+    "contentType": "image/png",
+    "sha256": "12b34de1d5ec17b0b1a3fbc380cdec8ada19fff4dc5bd41513166b0593d22e9f",
+    "path": "synthetic-artifacts/issue-584-capture-transiti-81f7b-e-transitions-desktop-light-webkit-iphone/attachments/three-exact-334-333-333-4d259b3017572427d89c7ed6d9f869501915bef1.png"
+  },
+  {
+    "title": "584 capture transitions desktop light",
+    "name": "capture-584-receipt",
+    "contentType": "application/json",
+    "sha256": "a7143461582a0912e699102a34ed31c2c3c9d7406e1a5a23a0ec0ef5a1985fff",
+    "path": "synthetic-artifacts/584-capture-transitions-desktop-light.json"
+  },
+  {
+    "title": "584 capture transitions desktop dark",
+    "name": "one-before",
+    "contentType": "image/png",
+    "sha256": "986970f0e81c68205e76ab69ac7d7fc13512c4193506dba5726af51156615e00",
+    "path": "synthetic-artifacts/issue-584-capture-transiti-0c71f-re-transitions-desktop-dark-webkit-iphone/attachments/one-before-cf79df93ff4e927da4154ed0c3940ba41d04440c.png"
+  },
+  {
+    "title": "584 capture transitions desktop dark",
+    "name": "two-nonzero-rest",
+    "contentType": "image/png",
+    "sha256": "51d3b8aa4fbc18663f12b94576e7ce081ea07bc8f3656b3717776297d7cc8ac2",
+    "path": "synthetic-artifacts/issue-584-capture-transiti-0c71f-re-transitions-desktop-dark-webkit-iphone/attachments/two-nonzero-rest-beae39b39eab19bc75a375abcfe64f4a6d8e69b2.png"
+  },
+  {
+    "title": "584 capture transitions desktop dark",
+    "name": "one-after",
+    "contentType": "image/png",
+    "sha256": "1d0042085eae788fba04a28a026c4c7e029943270164a12c231ebd5ae24339f4",
+    "path": "synthetic-artifacts/issue-584-capture-transiti-0c71f-re-transitions-desktop-dark-webkit-iphone/attachments/one-after-0357c2f1c5240660e60c9acde0a52818a09cad59.png"
+  },
+  {
+    "title": "584 capture transitions desktop dark",
+    "name": "three-exact-334-333-333",
+    "contentType": "image/png",
+    "sha256": "e0e89006728561c85270784f2e74c0c7a8ddf027c693f82969f9dce17454f5ec",
+    "path": "synthetic-artifacts/issue-584-capture-transiti-0c71f-re-transitions-desktop-dark-webkit-iphone/attachments/three-exact-334-333-333-8f2a6dc0e98934603f5d8b709775ea8edfc73bb5.png"
+  },
+  {
+    "title": "584 capture transitions desktop dark",
+    "name": "capture-584-receipt",
+    "contentType": "application/json",
+    "sha256": "0c1287e49af3e015e50e2b557d32825d33bbd17bd500e84fb4d154438a69d196",
+    "path": "synthetic-artifacts/584-capture-transitions-desktop-dark.json"
+  },
+  {
+    "title": "584 capture transitions configured light",
+    "name": "one-before",
+    "contentType": "image/png",
+    "sha256": "b9cf9827378a23d0e97e6ef0c1c99bd4aa1a81386f19b551950ea251862b1fa3",
+    "path": "synthetic-artifacts/issue-584-capture-transiti-1f616-ransitions-configured-light-webkit-iphone/attachments/one-before-a0c309fd01fbf6ca9195d86d3ef833e9b8bc4d61.png"
+  },
+  {
+    "title": "584 capture transitions configured light",
+    "name": "two-nonzero-rest",
+    "contentType": "image/png",
+    "sha256": "12502aa1d3ec84782f927c4414308b467400283f3ce8637db79f7d4d19028de7",
+    "path": "synthetic-artifacts/issue-584-capture-transiti-1f616-ransitions-configured-light-webkit-iphone/attachments/two-nonzero-rest-48531a1e351977c76be1efccba0fad0234ef5e65.png"
+  },
+  {
+    "title": "584 capture transitions configured light",
+    "name": "one-after",
+    "contentType": "image/png",
+    "sha256": "20f225efada9efca05b571fe75ab8036f5f1d84cdfede7e5b4efff907363d599",
+    "path": "synthetic-artifacts/issue-584-capture-transiti-1f616-ransitions-configured-light-webkit-iphone/attachments/one-after-0672b48fae78c64abc0a06e552c50c26922b9a34.png"
+  },
+  {
+    "title": "584 capture transitions configured light",
+    "name": "three-exact-334-333-333",
+    "contentType": "image/png",
+    "sha256": "5a84b766a7c222537686c3fe072342d28bb1ab00ff882efdb94860f0d179890d",
+    "path": "synthetic-artifacts/issue-584-capture-transiti-1f616-ransitions-configured-light-webkit-iphone/attachments/three-exact-334-333-333-77287ba25ec94d70df178edd18136eb590856f33.png"
+  },
+  {
+    "title": "584 capture transitions configured light",
+    "name": "capture-584-receipt",
+    "contentType": "application/json",
+    "sha256": "95f534e1ed117484f55f370cf0b476a4369f5fb137acbc12ed06f4558c27e729",
+    "path": "synthetic-artifacts/584-capture-transitions-configured-light.json"
+  },
+  {
+    "title": "584 capture transitions configured dark",
+    "name": "one-before",
+    "contentType": "image/png",
+    "sha256": "cc022e2eb6a198a27e66436375e0ea89211dc4462daa7ede70ed10db2843975f",
+    "path": "synthetic-artifacts/issue-584-capture-transiti-4de80-transitions-configured-dark-webkit-iphone/attachments/one-before-9a21768217e2007a33e093fbe0eabd4ac8f2e7b4.png"
+  },
+  {
+    "title": "584 capture transitions configured dark",
+    "name": "two-nonzero-rest",
+    "contentType": "image/png",
+    "sha256": "eef3f8aafe4eadef2bd04a42568499709029c42befbb9710c759a609bb18d807",
+    "path": "synthetic-artifacts/issue-584-capture-transiti-4de80-transitions-configured-dark-webkit-iphone/attachments/two-nonzero-rest-ce6429ef51a9061305a0ca5e98d620b4268b3aa8.png"
+  },
+  {
+    "title": "584 capture transitions configured dark",
+    "name": "one-after",
+    "contentType": "image/png",
+    "sha256": "51f70ab8c2561cc03cc5464158d55970730309bf5b8e65798ac7baad99368f8e",
+    "path": "synthetic-artifacts/issue-584-capture-transiti-4de80-transitions-configured-dark-webkit-iphone/attachments/one-after-40574a0ef19ef8598c64270060be5cf470727e19.png"
+  },
+  {
+    "title": "584 capture transitions configured dark",
+    "name": "three-exact-334-333-333",
+    "contentType": "image/png",
+    "sha256": "11a6a6499d5d5ec78402f78143a5dd5358c882b714b393c2cbe73aee63d5298b",
+    "path": "synthetic-artifacts/issue-584-capture-transiti-4de80-transitions-configured-dark-webkit-iphone/attachments/three-exact-334-333-333-b416fa58892ef02ac05296bb2186e2ebebd5967d.png"
+  },
+  {
+    "title": "584 capture transitions configured dark",
+    "name": "capture-584-receipt",
+    "contentType": "application/json",
+    "sha256": "0a7166fe97c09aa11a396c540f4ccc9d632727f0d1d13e7d30aff8c772721a6f",
+    "path": "synthetic-artifacts/584-capture-transitions-configured-dark.json"
+  }
+]
