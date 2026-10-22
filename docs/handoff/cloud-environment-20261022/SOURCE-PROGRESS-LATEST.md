@@ -1,4 +1,4 @@
-# Source progress — 2026-10-22T21:56:46.700094+00:00
+# Source progress — 2026-10-22T22:05:18.034155+00:00
 
 This snapshot supersedes historical source-head and active-task statements in CURRENT-COORDINATION.md. All branch heads below were freshly read from origin. No tests, builds, browser execution, CI dispatch, merges or deployments were performed. NOT VALIDATED / NOT LIVE; #719 STOP.
 
@@ -11,9 +11,9 @@ This snapshot supersedes historical source-head and active-task statements in CU
 - #619–623 report package: independent scoped source review complete; no concrete finding. Runtime/print/export acceptance remains open.
 - #762: four source findings corrected and reviewed. Actual market/calendar adapters, scheduled ingestion and remaining execution/rebalance lifecycle remain unfinished.
 
-- #594–597: independent source review found unchecked classified contribution sum and unmasked monetary strings in new batch descriptions; bounded correction underway.
+- #594–597: safe-cent aggregation and readonly monetary-text privacy corrections pushed; independent correction review archived. Source-clear for the bounded delta, runtime unvalidated.
 - #514 and #518/#521: completed source review reports now archived on their respective branches.
-- Heute/month-close: independent source review underway.
+- Heute/month-close: conflicting bank-balance and missing close-revision findings corrected, independently re-reviewed and archived. Router integration and runtime acceptance remain open.
 
 ## Dependency and policy notes
 
@@ -23,17 +23,21 @@ This snapshot supersedes historical source-head and active-task statements in CU
 - The last repository count was 94 OPEN issues; this is historical and is not the Projects Warteschlange count. No current board count is claimed.
 - Reviews are source-only, with scoped coverage; a pushed branch is not completed acceptance or live delivery.
 
+## Executor recovery
+
+Temporary local evidence storage disappeared during executor recovery. Pushed source and package reports survived. New local coordination files use a workspace-backed directory; reconstructed plans are explicitly labeled. The committed reports, not vanished temporary paths, are the preserved evidence.
+
 ## Remote checkpoints
 
 | Issues | Branch | Full remote SHA |
 |---|---|---|
 | #544, #546, #547, #548 | `codex/impl-544-548-portfolio` | `17ecb6e320b169c7cfab402dcff042e67398ef84` |
 | #591, #592, #593 | `codex/impl-591-593-plan` | `12dc0565e9b43b913b49214b9005d427f5ec56ce` |
-| #572, #573, #574, #575, #600, #601, #602, #603 | `codex/impl-heute-month-close` | `d27f9a2ff042d3c565009040c701ce37141efe98` |
+| #572, #573, #574, #575, #600, #601, #602, #603 | `codex/impl-heute-month-close` | `496b4e029585a2ddf2120442060244a14edc58e0` |
 | #558, #559, #699, #700 | `codex/impl-offline-558-700` | `f24d665fd69019f5b563977390f76fcef5d0ae4a` |
 | #611, #612 | `codex/impl-611-612-debt` | `a395db8c9f4990846bc3a3ec65db071d1c0e616c` |
 | #553, #554, #619, #620, #621, #622, #623, #628 | `codex/impl-619-623-reports` | `4c6827344f9853787c64bdf117f10e5cc9617653` |
-| #515, #594, #596, #597 | `codex/impl-594-597-ledger` | `385004715da6b5d2dca4880b474376e7b3703aba` |
+| #515, #594, #596, #597 | `codex/impl-594-597-ledger` | `f140d6ac8086f3902887f8d68660bc1a5f1bbde0` |
 | #608 | `codex/backlog-608-year-delivery` | `59dacbfd3c2c3d17910a81e2f8983533a960183b` |
 | #469, #471, #486 | `codex/impl-settings-469-486` | `09312b49e578db493bfe279133d30260c5e2ed44` |
 | #609 | `codex/impl-609-payslip-preview` | `813854c29ec095f47179f928fa43b5beb1b8679b` |
@@ -45,7 +49,7 @@ This snapshot supersedes historical source-head and active-task statements in CU
 | #485, #486 | `codex/impl-485-486-settings-navigation` | `78fa4838953313be5134add009b9b261b34120a8` |
 | #514 | `codex/impl-514-targets` | `4e4a938ee7cca6adeffc35849991a8abb3c4afc3` |
 | #519 | `codex/impl-519-fx-transfers` | `8b37818bf1c3160638b9909c8ad7feaf7af7c93b` |
-| #520 | `codex/impl-520-security-transfers` | `a7f67630cfa925ceb3d6d6ab8080a559ac2d43e8` |
+| #520 | `codex/impl-520-security-transfers` | `4d1a8242acf4087d484d03367878ec29628d5d78` |
 | #471 | `codex/impl-471-icons` | `178c80b15a8e1e6e66115c2635d8992bb703d662` |
 | #469 | `codex/impl-469-copy` | `65aee06ce8b5ae970a6b2bcb11b2ef652cddb132` |
 | #489 | `codex/impl-489-overview-design` | `9fab18bbb2a9b54b17bbc2e2ef06206212c18b5a` |
@@ -53,7 +57,7 @@ This snapshot supersedes historical source-head and active-task statements in CU
 | #469 | `codex/impl-469-glossary-goals` | `e0e39d4b0b5b04ad6966e8603d0bd91cf4b66cad` |
 | #473 | `codex/impl-473-typography` | `9ef01d05ade1a6f5ac3a2ac99dd5e8275888107c` |
 | #519 | `codex/impl-519-fx-posting` | `d6cb8e1c0555196c5dcdefa01784f621a4a0d521` |
-| #762 | `codex/impl-762-strategy` | `6fbd8475cdbd802cd81362395a34a7e200b458d1` |
+| #762 | `codex/impl-762-strategy` | `df57fa8dfc03dd29b974d8d454c77a6ee73f5c88` |
 | #586 | `codex/backlog-586-mobile-capture` | `4419698b95abd7603efb556198b38324b64ca554` |
 | #550, #551 | `codex/backlog-550-551-composition` | `11f870db580add0e5db94ddbc1de8621c0196608` |
 | #470 | `codex/impl-470-table-readability` | `28b2b2784e63e7674ea9a9bd9a5b4ec4c3a53340` |

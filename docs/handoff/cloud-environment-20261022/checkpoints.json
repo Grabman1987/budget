@@ -49,7 +49,7 @@
         603
       ],
       "branch": "codex/impl-heute-month-close",
-      "remote_sha": "d27f9a2ff042d3c565009040c701ce37141efe98",
+      "remote_sha": "496b4e029585a2ddf2120442060244a14edc58e0",
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED; see handoff for partial AC"
     },
     {
@@ -95,7 +95,7 @@
         597
       ],
       "branch": "codex/impl-594-597-ledger",
-      "remote_sha": "385004715da6b5d2dca4880b474376e7b3703aba",
+      "remote_sha": "f140d6ac8086f3902887f8d68660bc1a5f1bbde0",
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED; see handoff for partial AC"
     },
     {
@@ -198,7 +198,7 @@
       ],
       "branch": "codex/impl-520-security-transfers",
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; scope and review limitations in package handoff",
-      "remote_sha": "a7f67630cfa925ceb3d6d6ab8080a559ac2d43e8"
+      "remote_sha": "4d1a8242acf4087d484d03367878ec29628d5d78"
     },
     {
       "issues": [
@@ -262,7 +262,7 @@
       ],
       "branch": "codex/impl-762-strategy",
       "status": "SOURCE CHECKPOINT; consult revision-specific evidence; not a completion claim",
-      "remote_sha": "6fbd8475cdbd802cd81362395a34a7e200b458d1"
+      "remote_sha": "df57fa8dfc03dd29b974d8d454c77a6ee73f5c88"
     },
     {
       "issues": [
@@ -344,10 +344,8 @@
     }
   ],
   "remaining_agents": [
-    "tables_470_remaining: ledger source corrections",
-    "design_474_remaining: minimal #520 writer plan",
-    "copy_469_rule_names: #762 source/provider plan",
-    "review_519_financial_source: Heute/month-close source review"
+    "tables_470_remaining: contact source review",
+    "review_519_financial_source: composition source review"
   ],
   "stop": [
     719
@@ -372,38 +370,18 @@
   "active_source_tasks": [
     {
       "issues": [
-        515,
-        594,
-        596,
-        597
+        599
       ],
-      "scope": "Correcting independently identified safe-cent overflow and privacy findings; no execution."
+      "scope": "Independent source review of existing contact package."
     },
     {
       "issues": [
-        520
+        550,
+        551
       ],
-      "scope": "Minimal persistent transfer writer/API plan; split source reviewed; no migration reserved or schema executed."
-    },
-    {
-      "issues": [
-        762
-      ],
-      "scope": "Readonly provider/calendar feasibility and bounded adapter planning."
-    },
-    {
-      "issues": [
-        572,
-        573,
-        574,
-        575,
-        600,
-        601,
-        602,
-        603
-      ],
-      "scope": "Independent source review of preserved Heute/month-close package."
+      "scope": "Independent source review of existing composition package."
     }
   ],
-  "remote_heads_observed_at_utc": "2026-10-22T21:56:46.700094+00:00"
+  "remote_heads_observed_at_utc": "2026-10-22T22:05:18.034155+00:00",
+  "recovery_note": "Temporary /tmp evidence directory disappeared during executor recovery. cloud-control now points to /workspace/.budget-tools/cloud-control-persistent. Missing local evidence is not assumed recovered; committed package reports preserved. #520 writer plan explicitly reconstructed and reviewed provenance documented."
 }
