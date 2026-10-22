@@ -12,7 +12,7 @@ import { sourceMoney } from './trade-api';
 import { TRADE_LABELS } from './trade-draft';
 import { instrumentHistoryQuery } from './portfolio-api';
 import { useElementWidth } from '../charts/use-element-width';
-import { kfmt } from './networth-model';
+import { euroAxis } from './networth-model';
 import './price-history.css';
 
 const SOURCE_LABELS = { quote: 'Gespeicherter Kurs', execution: 'Ausführungskurs', cost: 'Einstandsschätzung', missing: 'Wert fehlt' };
@@ -84,7 +84,11 @@ function Drawing({ mode, width, prices, history, from, to }: {
   const basis = mode === 'value' && !history?.unavailable ? history?.position?.costCents ?? null : null;
   const known = rows.flatMap((p) => p.value === null ? [] : [p.value]);
   if (basis !== null) known.push(basis);
-  const lo = Math.min(0, ...known), hi = Math.max(0, ...known), pad = (hi - lo) * 0.08 || 1;
+  const lo = mode === 'price' && known.length ? Math.min(...known) : Math.min(0, ...known);
+  const hi = mode === 'price' && known.length ? Math.max(...known) : Math.max(0, ...known);
+  const pad = (hi - lo) * 0.08 || (mode === 'price' ? Math.max(Math.abs(hi) * 0.02, 1) : 1);
+  const ticks = [...new Set([lo, hi])];
+  const valueAxis = euroAxis(ticks.map((value) => value / 100));
   const day = (date: string) => Date.parse(`${date}T00:00:00Z`);
   const duration = day(to) - day(from);
   const x = (date: string) => left + (duration === 0 ? 0.5 : (day(date) - day(from)) / duration) * (width - left - right);
@@ -117,8 +121,9 @@ function Drawing({ mode, width, prices, history, from, to }: {
   return <ChartSvg width={width} height={height} testId={mode === 'value' ? 'instrument-value-chart' : 'price-history-chart'}
     label={mode === 'value' ? 'Täglicher Instrumentwert in EUR und dokumentierter Stichtag-Einstand' : `Gespeicherter Kurs je Stück in ${prices[0]?.currency ?? 'Kurswährung'}`}
     points={points} table>
-    <Graticule x1={left} x2={width - right} lines={[...new Set([lo, hi])].map((v) => ({ y: y(v), label: mode === 'value' ? kfmt(v / 100) : quoteText(prices[0] ? { ...prices[0], priceMicro: v } : null) }))} />
-    <AxisLine x1={left} x2={width - right} y={y(0)} />
+    {mode === 'value' && <text x={left} y={12} className="svg-label">Wert · {valueAxis.unit}</text>}
+    <Graticule x1={left} x2={width - right} lines={ticks.map((v) => ({ y: y(v), label: mode === 'value' ? valueAxis.label(v / 100) : quoteText(prices[0] ? { ...prices[0], priceMicro: v } : null) }))} />
+    <AxisLine x1={left} x2={width - right} y={mode === 'price' ? bottom : y(0)} />
     {segments.filter((segment) => segment.length > 0).map((segment, i) => <g key={i}>
       <Line kind="actual" points={segment} />
       {segment.length === 1 && <circle cx={segment[0]![0]} cy={segment[0]![1]} r={3} className="dot-actual" />}
