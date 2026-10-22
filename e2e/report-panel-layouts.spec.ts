@@ -27,6 +27,7 @@ test('secondary report sections follow their main content at full width', async 
   ];
   for (const item of cases) {
     await page.goto(item.path);
+    if (item.name === 'future-inline') await page.locator('details.rf-tools > summary').click();
     const main = page.locator(item.main);
     const secondary = page.locator(item.secondary);
     await expect(secondary).toBeVisible({ timeout: 40_000 });

@@ -304,6 +304,7 @@ function AccountBody({ account, bankReview }: { account: AccountRow; bankReview?
               }}
             >
               <option value="standard">Vorschau laut Einstellungen · {previewDays} Tage</option>
+              <option value="35d">Liquidität · 35 Tage</option>
               <option value="90d">Liquidität · 90 Tage</option>
               <option value="6m">Liquidität · 6 Monate</option>
               <option value="12m">Liquidität · 12 Monate</option>

@@ -76,7 +76,7 @@ test('three Kennzahlen use source cents, fit the phone and link to the current s
     'aria-label',
     new RegExp(`Tag ${payday.budgetAnswer.day} von ${payday.budgetAnswer.daysInMonth}$`),
   );
-  await expect(page.getByTestId('heute-balance-chart')).toBeVisible();
+  await expect(page.getByTestId('liquidity-chart')).toBeVisible();
   const dir = 'docs/evidence/heute-hints-1009/cards';
   mkdirSync(dir, { recursive: true });
   for (const theme of ['light', 'dark'] as const) {
