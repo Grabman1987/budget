@@ -79,12 +79,14 @@ export function monthCloseRoutes(db: Db, today: () => string): Hono {
         })
         .refine((v) => v.currentStep !== undefined || v.decisions !== undefined || v.close)
         .refine((v) => !v.close || (v.currentStep === undefined && v.decisions === undefined),
-          'Close separately after reviewing the current decisions'),
+          'Close separately after reviewing the current decisions')
+        .refine((v) => !v.close || v.sourceRevision !== undefined,
+          'Closing requires the reviewed source revision'),
     );
     const ctx = { actor: ACTOR, groupId: randomUUID() };
     const result = db.transaction((tx) => {
       const view = readMonthClose(tx, m, today());
-      if (patch.close && patch.sourceRevision && patch.sourceRevision !== view.sourceRevision)
+      if (patch.close && patch.sourceRevision !== view.sourceRevision)
         throw new ApiError(409, 'stale_close', 'Der Monatsstand hat sich geändert. Bitte neu laden und erneut prüfen.');
       if (patch.close && view.state.snapshot?.sourceRevision === view.sourceRevision)
         return { state: view.state, changedCount: 0 };

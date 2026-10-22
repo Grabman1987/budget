@@ -2,6 +2,18 @@
 
 Base: `6420676d257698767931dd151863765cec914acf`. Owner implementation-only direction: `/workspace/.budget-tools/cloud-control/implementation-only-20261022.md`. No tests added/changed/run, typechecks, builds, browsers, CI, PR, merge or deploy. No completion/live acceptance claimed.
 
+The [independent source review](HEUTE-MONTH-CLOSE-SOURCE-REVIEW.md) at
+`d27f9a2ff042d3c565009040c701ce37141efe98` found two bounded P2 cases.
+The unchanged-account batch now excludes a contradictory bank observation whose
+effective date is after the prior personal check and on or before the close day;
+the effective date uses the observed bank date or the Vienna fetch day when absent,
+as in the existing bank follow-up. The decision remains inside the transactional
+preview and its revision proof. Closing a month now requires a supplied
+`sourceRevision` and compares it with the current read before even returning an
+idempotent close; ordinary progress/decision patches keep the optional field.
+The fix awaits independent exact-delta source review. No close or provider action
+was executed. The known `/heute/finanzcheck` router integration remains separate.
+
 - #573/#603: canonical month-close descriptors, first four priority task rows plus accessible remainder, separately disclosed unavailable comparisons, optional pinned envelopes off by default, Fällig then recent bookings. Current-day reminders compare the retained version-1 source revision; close/changed rows remain one per month, without GET writes or month locks.
 - #600/#602: automatic empty-step skipping, task-only progress, Warum/Danach, report-sourced result, audited idempotent retained close/time and explicit changed/legacy state. A new optional 50/30/20 Zukunft share uses the existing report allocation; actual report savings rate is separately named. Earlier version-1 snapshots remain readable and revision facts retain their original order/content.
 - #601: conservative quiet-account preview; one canonical reconciliation per eligible account in one audited undo group, recomputed transactionally before any write. Missing lineage, movement, pending work, differences or holdings retain individual review. Root supplied the shared current category guard and close-mode reconciliation form hooks.

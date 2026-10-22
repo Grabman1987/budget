@@ -1,4 +1,4 @@
-import { lastDayOfMonth } from '@budget/domain';
+import { lastDayOfMonth, todayInVienna } from '@budget/domain';
 import { and, desc, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 import { account, accountReconciliation, bankSyncAccount, bankSyncCandidate, inboxItem } from '../schema';
@@ -129,8 +129,18 @@ export function previewMonthCloseReconciliation(db: Executor, month: string, tod
       const balance = bookedBalance(tx, row.id, asOf);
       if (!Number.isSafeInteger(balance) || !Number.isSafeInteger(prior.statementBalanceCents)) { omit('unsafe_balance'); continue; }
       if (balance !== prior.statementBalanceCents) { omit('difference'); continue; }
-      if (bank.some((value) => value.date === asOf && value.cents !== null &&
-        (value.currency !== row.currency || !Number.isSafeInteger(value.cents) || value.cents !== prior.statementBalanceCents))) {
+      // The effective bank day is the observed day, or the Vienna fetch day when absent.
+      // With no movements since the personal check, a newer contradictory observation must
+      // prevent a batch confirmation even when it predates the month-end asOf date.
+      if (bank.some((value) => {
+        const fetched = value.fetchedAt ? new Date(value.fetchedAt) : null;
+        const effectiveDate = value.date ||
+          (fetched && Number.isFinite(fetched.getTime()) ? todayInVienna(fetched) : null);
+        return effectiveDate !== null && effectiveDate > prior.date && effectiveDate <= asOf &&
+          value.cents !== null &&
+          (value.currency !== row.currency || !Number.isSafeInteger(value.cents) ||
+            value.cents !== prior.statementBalanceCents);
+      })) {
         omit('bank_difference'); continue;
       }
       accounts.push({ id: row.id, name: row.name, currency: row.currency,
