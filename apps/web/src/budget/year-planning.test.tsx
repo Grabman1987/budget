@@ -57,6 +57,7 @@ it('shows only the base amount and planning action without events', () => {
   expect(screen.getByRole('button', { name: 'Ereignis planen' })).toBeTruthy();
   expect(screen.getByText(/Noch keine Ereignisse geplant/)).toBeTruthy();
   expect(screen.getByTestId('scenario-year-end').textContent).toBe('100,00 €');
+  fireEvent.click(container.querySelector('.year-instructions > summary')!);
   expect(
     screen.getByRole('button', { name: 'Zu verteilen mit Ereignissen erklären' }),
   ).toBeTruthy();
@@ -64,7 +65,7 @@ it('shows only the base amount and planning action without events', () => {
   expect(container.querySelector('.year-scenario-lead')?.children).toHaveLength(2);
 });
 it('explains each scenario row on keyboard focus when events exist', () => {
-  show([
+  const { container } = show([
     {
       id: 'synthetic-event',
       name: 'Geplante Ausgabe',
@@ -82,6 +83,7 @@ it('explains each scenario row on keyboard focus when events exist', () => {
       status: 'in_horizon',
     } satisfies PlannedEventView,
   ]);
+  fireEvent.click(container.querySelector('.year-instructions > summary')!);
   const help = screen.getAllByRole('button', {
     name: 'Zu verteilen mit Ereignissen erklären',
   })[0]!;

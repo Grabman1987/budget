@@ -67,7 +67,9 @@ test('annual plan: independent figures, all metrics, year navigation and 375px r
   await expect(page.locator('.year-scenario-context')).toContainText('Einnahmen:');
   await expect(page.locator('.year-scenario-context')).toContainText('Konsum:');
   const mobile = page.viewportSize()!.width <= 767;
-  const groupButton = page.getByRole('button', { name: groupName, exact: true });
+  const groupButton = mobile
+    ? page.locator('.year-phone-summary').filter({ hasText: groupName })
+    : page.getByRole('button', { name: groupName, exact: true });
   await expect(groupButton).toHaveAttribute('aria-expanded', 'false');
   await groupButton.click();
   const row = mobile

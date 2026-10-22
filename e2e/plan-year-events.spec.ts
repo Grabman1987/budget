@@ -73,6 +73,7 @@ test('year events: create, edit recurrence, scenario without writes, off/delete 
   await panel.getByRole('button', { name: 'Ereignis speichern' }).click();
   await expect(panel).not.toBeVisible();
   await expect(page.getByTestId('scenario-year-effect')).toHaveText('−300,01 €');
+  await page.locator('.year-planning .year-instructions > summary').click();
   const help = page
     .getByRole('button', { name: 'Zu verteilen mit Ereignissen erklären' })
     .filter({ visible: true });

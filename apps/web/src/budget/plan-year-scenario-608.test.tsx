@@ -225,6 +225,10 @@ it('starts groups collapsed and preserves literal annual flows and December bala
   fireEvent.click(screen.getByRole('button', { name: 'Verfügbar' }));
   expect(table.querySelector('tbody .year-end')?.textContent).toBe('122,02 €');
   expect(table.querySelector('tfoot .year-end')?.textContent).toBe('122,02 €');
+  const phoneTotals = container.querySelector('.year-phone-annual .year-totals');
+  expect(phoneTotals?.textContent).toBe(
+    'Zugewiesen · Jahr150,01 €Aktivität · Jahr−27,99 €Verfügbar · Dezember122,02 €',
+  );
   const key = budgetMonthsQuery(planYearMonths(2026)).queryKey;
   await act(async () => {
     client.setQueryData<{ months: Record<string, BudgetMonthView> }>(key, (data) => ({

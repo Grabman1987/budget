@@ -212,16 +212,15 @@ export function YearScenarioChart({
       </div>
       <LineLegend
         items={[
-          { kind: 'actual', label: 'Gespeicherter Stand bis heute' },
+          { kind: 'actual', label: 'Stand bis heute' },
           {
             kind: 'plan',
-            label: without ? 'Plan ohne Ereignisse' : 'Plan mit ausgewählten Ereignissen',
+            label: without ? 'Plan ohne Ereignisse' : 'Plan mit Ereignissen',
           },
         ]}
       />
       <p className="year-chart-low">
-        Tiefpunkt der dargestellten Stände: <strong>{eur(low.value)}</strong> am {longDay(low.date)}
-        .
+        Tiefpunkt (dargestellte Stände): <strong>{eur(low.value)}</strong> · {longDay(low.date)}.
       </p>
     </div>
   );

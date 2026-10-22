@@ -226,6 +226,16 @@ function YearOverview({
     <section className="card year-sheet" aria-labelledby="year-title">
       <div className="year-toolbar">
         <h2 id="year-title">Jahresübersicht</h2>
+        <label className="year-month-choice">
+          <span className="sr-only">Monat</span>
+          <Select value={phoneMonth} onChange={(e) => setPhoneMonth(e.target.value)}>
+            {months.map((m) => (
+              <option key={m} value={m}>
+                {monthLabel(m)}
+              </option>
+            ))}
+          </Select>
+        </label>
         <div className="seg year-metric" role="group" aria-label="Kennzahl im Jahresplan">
           {metrics.map(([key, text]) => (
             <button
@@ -322,16 +332,6 @@ function YearOverview({
             </table>
           </div>
           <div className="year-phone">
-            <label className="year-month-choice">
-              Monat
-              <Select value={phoneMonth} onChange={(e) => setPhoneMonth(e.target.value)}>
-                {months.map((m) => (
-                  <option key={m} value={m}>
-                    {monthLabel(m)}
-                  </option>
-                ))}
-              </Select>
-            </label>
             <div className="year-phone-head">
               <span>Kategorie</span>
               <span>{label}</span>
