@@ -12,6 +12,7 @@ import {
   createFxTransfer,
   prepareFxTransfer,
   readFxTransfer,
+  fxLinksOfBooking,
   deleteBooking,
   ensureAdvanceCategory,
   getBooking,
@@ -75,6 +76,12 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
   const audit = () => ({ actor: ACTOR, groupId: randomUUID() });
 
   const repeatFrom = (tx: Executor, id: string, rhythm: Rhythm, ctx: AuditContext) => {
+    if (fxLinksOfBooking(tx, id))
+      throw new ApiError(
+        422,
+        'invalid',
+        'Buchungen eines Fremdwährungsübertrags einschließlich Gebühren können hier nicht wiederholt werden.',
+      );
     const b = queryBookings(tx, { ids: [id] }).items[0]!;
     if (b.transferId || b.splits.some((s) => s.transferId))
       throw new ApiError(422, 'invalid', 'Umbuchungen können hier nicht wiederholt werden.');
