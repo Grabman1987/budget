@@ -180,6 +180,7 @@ export function PlanMonthPage() {
             data={data}
             views={views}
             inspectorViews={budget.data?.months ?? {}}
+            inspectorSourceFresh={budget.isSuccess && !budget.isFetching && currentData !== undefined}
             onIncome={openIncome}
           />
         )}
@@ -194,6 +195,7 @@ function PlanBody({
   data,
   views,
   inspectorViews,
+  inspectorSourceFresh,
   onIncome,
 }: {
   month: string;
@@ -204,6 +206,8 @@ function PlanBody({
   views: BudgetMonthView[] | null;
   /** Read-only extra next month; never part of the displayed columns or action universe. */
   inspectorViews: Record<string, BudgetMonthView>;
+  /** A cached month stays visible after a failed/refetching bounded read, but cannot drive money shortcuts. */
+  inspectorSourceFresh: boolean;
   onIncome: () => void;
 }) {
   useAmountPrivacy();
@@ -471,7 +475,7 @@ function PlanBody({
   const desiredPanelMonth = open?.month ?? month;
   const currentPanelView = inspectorViews[desiredPanelMonth];
   const validPanelView = currentPanelView && currentPanelView.summary.month === desiredPanelMonth ? currentPanelView : null;
-  const panelReady = validPanelView !== null;
+  const panelReady = inspectorSourceFresh && validPanelView !== null;
   const [panelSnapshot, setPanelSnapshot] = useState(data);
   if (validPanelView && validPanelView !== panelSnapshot) setPanelSnapshot(validPanelView);
   // A missing response retains the previous source/draft read-only, never left-month fallback.
@@ -534,10 +538,15 @@ function PlanBody({
   const shownRows = groups.flatMap((g) => g.rows);
   const shownIds = new Set(shownRows.map((r) => r.id));
   const orderedRows = [...shownRows, ...rows.filter((r) => !shownIds.has(r.id))];
-  const actionIds = multi
-    ? visibleMultiGroups.flatMap((group) => group.rows.map((row) => row.id))
-    : shownRows.map((row) => row.id);
   const selectedScope = open ? new Set([open.id]) : selected;
+  const actionGroups = multi ? visibleMultiGroups : groups;
+  const actionIds = actionGroups
+    .filter((group) =>
+      selectedScope.size > 0 ||
+      !collapsed.has(group.key) ||
+      (!multi && shownView === 'group' && group.rows.length === 1),
+    )
+    .flatMap((group) => group.rows.map((row) => row.id));
   const actionById = new Map(panelRows.map((row) => [row.id, row]));
   const inspectorActionRows = !panelReady || filter === 'uncategorized' ? [] : actionIds.flatMap((id) => {
     if (selectedScope.size && !selectedScope.has(id)) return [];
@@ -1188,7 +1197,7 @@ function PlanBody({
           )
         }
         overview={
-          <MonthOverview data={data} rows={rows} nextView={inspectorViews[shiftMonth(month, 1)]} />
+          <MonthOverview data={data} nextView={inspectorViews[shiftMonth(month, 1)]} />
         }
         split={<SplitBand data={data} rows={rows} />}
         income={
@@ -1437,14 +1446,13 @@ function PlanTopBar({
 }
 
 /** Inspector: the month in figures, the overspending state and what is left in the envelopes. */
-function MonthOverview({ data, rows, nextView }: {
+function MonthOverview({ data, nextView }: {
   data: BudgetMonthView;
-  rows: PlanRow[];
   nextView: BudgetMonthView | undefined;
 }) {
   useAmountPrivacy();
   const totals = inspectorTotals(data.summary.envelopes);
-  const status = monthStatus(data.summary, rows);
+  const status = monthStatus(data.summary, data.summary.envelopes);
   const nextMonth = shiftMonth(data.summary.month, 1);
   const coverage = nextView?.summary.month === nextMonth
     ? inspectorCoverage(nextView.summary.envelopes)

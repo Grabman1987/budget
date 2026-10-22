@@ -615,10 +615,13 @@ export interface StatusLine {
 
 /**
  * The inspector's status of the month, every line that applies, worst first: too much assigned,
- * uncovered overspending carried from the previous month, all negative available envelopes.
+ * uncovered overspending carried from the previous month, all canonical month envelopes.
  * Only when none applies is the month calm; the line never says "nothing" while another says so.
  */
-export function monthStatus(summary: MonthSummary, rows: PlanRow[]): StatusLine[] {
+export function monthStatus(
+  summary: MonthSummary,
+  envelopes: ReadonlyArray<Pick<EnvelopeSummary, 'availableCents' | 'needCents'>>,
+): StatusLine[] {
   const lines: StatusLine[] = [];
   const tba = summary.toBeAssignedCents;
   if (tba < 0) lines.push({ tone: 'bad', text: `Zu viel zugewiesen: ${eur(-tba)} fehlen` });
@@ -627,13 +630,13 @@ export function monthStatus(summary: MonthSummary, rows: PlanRow[]): StatusLine[
       tone: 'bad',
       text: `Ungedeckt aus dem Vormonat: ${eur(summary.uncoveredCents)}`,
     });
-  const over = overspentEnvelopes({ envelopes: rows }).length;
+  const over = overspentEnvelopes({ envelopes }).length;
   if (over > 0)
     lines.push({
       tone: 'bad',
       text: `${over} ${over === 1 ? 'Envelope' : 'Envelopes'} überzogen`,
     });
-  const underfunded = rows.filter((row) => row.needCents > 0).length;
+  const underfunded = envelopes.filter((row) => row.needCents > 0).length;
   if (underfunded) lines.push({ tone: 'warn', text: `${underfunded} ${underfunded === 1 ? 'Kategorie' : 'Kategorien'} unterfinanziert` });
   if (!lines.length) lines.push({ tone: 'good', text: 'Nichts ist unterfinanziert oder überzogen.' });
   return lines;

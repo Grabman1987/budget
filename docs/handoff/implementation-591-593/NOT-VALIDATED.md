@@ -60,3 +60,23 @@ Axe. Existing-test adapters, if required, remain coordinator-owned.
 Before normal feature-branch push, all workflow triggers were read: CI push is
 main-only; recovery/register workflows are pull-request-only; snapshots are manual;
 deployment is main CI completion or manual main. No workflow or protection changed.
+
+## Follow-up to independent source review — NOT VALIDATED
+
+The [independent source review](591-593-plan-source-review.md) of
+`b5b971902416bd933e1185b261d247a6b766305e` identified three P2 read/scope
+defects. This follow-up limits the no-selection quick-action IDs to category rows
+actually rendered beneath expanded groups in both single- and multi-month tables.
+Explicit selections retain their prior scope and ordering, so the displayed
+preview and POST use the same ordered IDs. The global month status now counts
+underfunded and overspent envelopes from the complete canonical month summary,
+including hidden categories omitted from table rows. Finally, a failed or
+in-flight bounded month refetch may keep cached data and the inspector draft
+visible, but the inspector's money shortcuts stay unavailable until a successful
+fresh bounded read; the existing source-unavailable notice and disabled selected
+fieldset express that state. No financial formula, server writer or Undo path was
+changed.
+
+The corrected source awaits independent exact-delta review. No tests, test edits,
+checks, typechecks, builds, browser/accessibility run, CI, PR, merge or deployment
+were performed. All issue acceptance and LIVE status remain open.
