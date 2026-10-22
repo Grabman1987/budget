@@ -1,0 +1,7 @@
+# #485/#486 Marktquellen-Rückmeldung – unabhängiger Source-Deltareview
+
+Branch `codex/impl-485-486-settings-navigation`, Head `2af7e67f24c9f6fc7781bc21cd2f1cf2d294a13e` gegen `78fa4838953313be5134add009b9b261b34120a8`. Produktdelta nur `apps/web/src/pages/market-sources.tsx`; Dokumentation zusätzlich. Source-only, keine Tests/Checks/Build/Browser/API-Aufrufe oder Produktänderungen.
+
+**Kein konkreter Befund im eingegrenzten Delta.** `POST /api/market/refresh` gibt laut `apps/server/src/api/market.ts:49–55` das `MarketRefreshResult` aus `market/timer.ts:22–26,46–89` zurück: verschachtelte `prices.failed`, `fx.failed`, `prices.bySource[*].rows`, `fx.bySource.ecb.rows` und separater `cpi`. Die neue UI-Auswertung in `market-sources.tsx:41–53` unterscheidet keine Fehler, Fehler ohne geschriebene Zeilen und Teilfehler mit Zeilen entsprechend dem Serverlauf. `POST /api/market/cpi/refresh` liefert separat `failed`/`skipped` aus `market/refresh.ts:311–350`; `market-sources.tsx:54–61` verwendet dafür nur die VPI-Karte. Laufantworten und Request-Fehler stehen in den jeweils zugehörigen Karten (`:80`, `:101`) mit `status`/`alert`. Die anschließende Query-Invalidierung bleibt erhalten.
+
+Der Preis-/FX-Lauf kann selbst CPI anfragen; dessen Fehler ist absichtlich kein Bestandteil des Markt-Laufstatus (`market/timer.ts:56–82`) und bleibt über den separaten gespeicherten VPI-Warnstatus sichtbar. Die neuen UI-Texte behaupten keinen erfolgreichen Einzelkurs oder VPI-Wert. Kein Runtime- oder Kompilierungsnachweis.
