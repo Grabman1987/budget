@@ -8,7 +8,7 @@ import { eur, longDay } from '../ledger/format';
 import { ppText } from '../pages/portfolio-report-shared';
 import { ZeitraumSwitch } from './frame';
 import { useZeitraum } from './zeitraum';
-import { kfmt, monthTickLabel, monthTicks, portfolioIndexAxis } from './networth-model';
+import { euroAxis, monthTickLabel, monthTicks, portfolioIndexAxis } from './networth-model';
 import { AppLink } from '../shell/app-link';
 import { useElementWidth } from '../charts/use-element-width';
 import {
@@ -56,6 +56,7 @@ export function PortfolioOverview() {
   const hasHistory = levels.length > 0 && lines[0]!.points.length > 1;
   const axis = portfolioIndexAxis(valueMode ? [0, ...levels] : levels);
   if (valueMode && levels.every((v) => v >= 0)) axis.min = 0;
+  const valueAxis = euroAxis(axis.ticks.map((tick) => tick / 100));
   const rows = lines[0]!.points;
   const renderedWidth = chartFrameWidth || 340;
   const width = renderedWidth,
@@ -204,6 +205,11 @@ export function PortfolioOverview() {
               ],
             }))}
           >
+            {valueMode && (
+              <text x={left} y={12} className="svg-label-line">
+                {valueAxis.unit}
+              </text>
+            )}
             {axis.ticks
               .filter((tick) => !valueMode || tick >= axis.min)
               .map((tick) => (
@@ -217,7 +223,7 @@ export function PortfolioOverview() {
                   />
                   <text x={left - 8} y={y(tick) + 4} textAnchor="end" className="svg-label">
                     {valueMode
-                      ? `${kfmt(tick === 0 ? 0 : tick / 100)} €`
+                      ? valueAxis.label(tick / 100)
                       : `${new Intl.NumberFormat('de-AT', {
                           maximumFractionDigits: axis.fractionDigits,
                         }).format(tick - 100)} %`}

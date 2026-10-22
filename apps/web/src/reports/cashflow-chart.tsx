@@ -12,10 +12,9 @@ import {
   type Bar,
   type Point,
 } from '@budget/ui';
-import { MINUS } from '@budget/domain';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur, monthName } from '../ledger/format';
-import { kfmt, yTicks } from '../wealth/networth-model';
+import { euroAxis, yTicks } from '../wealth/networth-model';
 import type { CashflowReport } from './cashflow-api';
 
 const L = 56;
@@ -57,7 +56,9 @@ function Drawing({ report, width: W }: { report: CashflowReport; width: number }
   // Drawing geometry only: euros as plain numbers, never stored or summed again.
   const top = Math.max(...months.flatMap((m) => [m.incomeCents, m.consumptionCents]), 1) / 100;
   const y = (v: number) => H1 - 26 - (v / (top * 1.08)) * (H1 - 26 - 12);
-  const grid = yTicks(0, top * 1.08).map((v) => ({ y: y(v), label: kfmt(v) }));
+  const topTicks = yTicks(0, top * 1.08);
+  const topAxis = euroAxis(topTicks);
+  const grid = topTicks.map((v) => ({ y: y(v), label: topAxis.label(v) }));
   const income: Point[] = months.map((m, i) => [x(i), y(m.incomeCents / 100)]);
   const step = every(n, W - L - R);
 
@@ -66,10 +67,11 @@ function Drawing({ report, width: W }: { report: CashflowReport; width: number }
   const hi = Math.max(0, ...nets, ...caps, 1);
   const lo = Math.min(0, ...nets);
   const y2 = (v: number) => H2 - 14 - ((v - lo) / (hi - lo || 1)) * (H2 - 14 - 12);
+  const netAxis = euroAxis(lo < 0 ? [lo, 0, hi] : [0, hi]);
   const grid2 = [
-    { y: y2(hi), label: `+${kfmt(hi)}` },
-    { y: y2(0), label: '0' },
-    ...(lo < 0 ? [{ y: y2(lo), label: `${MINUS}${kfmt(-lo)}` }] : []),
+    { y: y2(hi), label: `+${netAxis.label(hi)}` },
+    { y: y2(0), label: netAxis.label(0) },
+    ...(lo < 0 ? [{ y: y2(lo), label: netAxis.label(lo) }] : []),
   ];
   const bw = Math.max(2, barW / 2 - 1);
   const netBars: Bar[] = months.map((m, i) => ({
@@ -115,6 +117,9 @@ function Drawing({ report, width: W }: { report: CashflowReport; width: number }
         )}
       >
         <ClassPatterns prefix={prefix} />
+        <text x={L} y={10} className="svg-label-line">
+          {topAxis.unit}
+        </text>
         <Graticule x1={L} x2={W - R} lines={grid} />
         {months.map((m, i) => {
           const need = m.needCents / 100;
@@ -176,6 +181,9 @@ function Drawing({ report, width: W }: { report: CashflowReport; width: number }
           ],
         )}
       >
+        <text x={L} y={10} className="svg-label-line">
+          {netAxis.unit}
+        </text>
         <Graticule x1={L} x2={W - R} lines={grid2} />
         <AxisLine x1={L} x2={W - R} y={y2(0)} />
         <BarsAroundZero bars={netBars} y={y2} barWidth={bw} tone="ink" negativeTone="ink" />

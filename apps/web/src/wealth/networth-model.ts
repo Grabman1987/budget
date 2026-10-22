@@ -119,6 +119,12 @@ export function euroAxis(ticks: readonly number[]): { unit: string; label: (valu
   };
 }
 
+/** Debt accounts may be denominated outside EUR; only the unit text changes. */
+export function currencyAxis(ticks: readonly number[], currency: string) {
+  const axis = euroAxis(ticks);
+  return { ...axis, unit: currency === 'EUR' ? axis.unit : axis.unit.replace('€', currency) };
+}
+
 /** Month starts on the x axis (index into `days`, never the first day), thinned to fit `width`. */
 export function monthTicks(
   days: ReadonlyArray<string>,

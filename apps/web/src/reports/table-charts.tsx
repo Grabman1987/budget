@@ -18,7 +18,7 @@ import { MINUS, type SpendClass } from '@budget/domain';
 import type { ReactNode } from 'react';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur } from '../ledger/format';
-import { kfmt, yTicks } from '../wealth/networth-model';
+import { euroAxis, yTicks } from '../wealth/networth-model';
 import { monthLong, monthShort } from './table-format';
 
 const L = 48;
@@ -89,6 +89,7 @@ export function CategoryChart({
         const x = (i: number) => L + (i + 0.5) * bw;
         const y = (v: number) => height - B - ((v - lo) / (hi - lo)) * (height - B - T);
         const ticks = yTicks(lo, hi, 3);
+        const axis = euroAxis(ticks);
         const labels = labelIndexes(n, W);
         const fill = cls === 'need' ? 'var(--need)' : patternFill(prefix, cls);
         const summary = `${name}: Ist und Plan der letzten ${n} Monate. Zuletzt ${eur(points[n - 1]?.spentCents ?? 0)} bei ${eur(points[n - 1]?.assignedCents ?? 0)} Plan.`;
@@ -117,7 +118,14 @@ export function CategoryChart({
             )}
           >
             <ClassPatterns prefix={prefix} />
-            <Graticule x1={L} x2={W - R} lines={ticks.map((v) => ({ y: y(v), label: kfmt(v) }))} />
+            <text x={L} y={10} className="svg-label-line">
+              {axis.unit}
+            </text>
+            <Graticule
+              x1={L}
+              x2={W - R}
+              lines={ticks.map((v) => ({ y: y(v), label: axis.label(v) }))}
+            />
             <AxisLine x1={L} x2={W - R} y={y(0)} />
             {points.map((p, i) => (
               <rect

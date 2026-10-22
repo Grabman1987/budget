@@ -5,7 +5,7 @@ import { useElementWidth } from '../charts/use-element-width';
 import type { SeriesPoint } from '../ledger/types';
 import type { DebtAccount, DebtProjection } from './debts-api';
 import { nativeCurrency } from '../ledger/format';
-import { kfmt, yTicks } from './networth-model';
+import { currencyAxis, yTicks } from './networth-model';
 
 /** Geometry only: actual balances and model rows are authoritative API values. */
 export function DebtChart({
@@ -47,6 +47,8 @@ export function DebtChart({
   const x = (date: string) => 56 + ((dateNumber(date) - from) / (to - from || 1)) * (width - 72);
   const y = (amount: number) => height - 30 - ((amount - low) / (high - low)) * (height - 48);
   const line = (p: typeof actual): Point[] => p.map((p) => [x(p.date), y(p.amount)]);
+  const tickValues = yTicks(low / 100, high / 100);
+  const axis = currencyAxis(tickValues, loan.currency);
   return (
     <div ref={ref} className="debt-chart">
       {width > 0 && (
@@ -86,10 +88,13 @@ export function DebtChart({
             ],
           )}
         >
+          <text x={56} y={16} className="svg-label-line">
+            {axis.unit}
+          </text>
           <Graticule
             x1={56}
             x2={width - 16}
-            lines={yTicks(low / 100, high / 100).map((v) => ({ y: y(v * 100), label: kfmt(v) }))}
+            lines={tickValues.map((v) => ({ y: y(v * 100), label: axis.label(v) }))}
           />
           {actual.length > 1 && <Line points={line(actual)} kind="actual" />}
           <circle cx={x(asOf)} cy={y(-loan.balanceCents)} r={3} fill="var(--line)" />

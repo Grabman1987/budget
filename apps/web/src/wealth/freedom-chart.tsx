@@ -15,7 +15,7 @@ import { addMonths, MAX_FREEDOM_MONTHS, type FreedomProjection } from '@budget/d
 import type { FreedomInvestedHistory } from '@budget/db';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur, longDay } from '../ledger/format';
-import { kfmt, yTicks } from './networth-model';
+import { euroAxis, yTicks } from './networth-model';
 import { monthText } from './freedom-model';
 import { freedomHistoryModel } from './freedom-history-model';
 import { freedomGoalAxis } from './freedom-goal-model';
@@ -55,6 +55,8 @@ export function FreedomChart({
   const low = Math.min(0, ...values, ...actualValues);
   const high = Math.max(target ?? 0, ...values, ...actualValues, 1);
   const span = (high - low) * 1.12;
+  const tickValues = yTicks(low / 100, (low + span) / 100);
+  const axis = euroAxis(tickValues);
   const y = (v: number) => B - ((v - low) / span) * (B - T);
   const points: Point[] = model.forecast.map((point) => [x(point.date), y(point.investedCents)]);
   const first = points[0];
@@ -115,12 +117,15 @@ export function FreedomChart({
           }))}
           label={label}
         >
+          <text x={L} y={16} className="svg-label-line">
+            {axis.unit}
+          </text>
           <Graticule
             x1={L}
             x2={width - R}
-            lines={yTicks(low / 100, (low + span) / 100).map((v) => ({
+            lines={tickValues.map((v) => ({
               y: y(v * 100),
-              label: kfmt(v),
+              label: axis.label(v),
             }))}
           />
           {target !== null && <path className="l-goal" d={`M${L} ${y(target)}H${width - R}`} />}

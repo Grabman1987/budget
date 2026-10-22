@@ -3,7 +3,7 @@ import { AxisLine, ChartSvg, Graticule, Line, XTicks, useAmountPrivacy } from '@
 import { chartPoints } from '../charts/tooltip-data';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur } from '../ledger/format';
-import { kfmt, yTicks } from '../wealth/networth-model';
+import { euroAxis, yTicks } from '../wealth/networth-model';
 import { monthShort } from './table-format';
 
 /** The owner-defined single-category line, independent of the future generic chart toggle. */
@@ -16,6 +16,8 @@ export function ExplorerTemplateTrend({ model }: { model: ExplorerTemplateModel 
   const average = tableRowAverage(row);
   const low = Math.min(0, ...values) / 100;
   const high = Math.max(1, ...values) / 100;
+  const tickValues = yTicks(low, high, 3);
+  const axis = euroAxis(tickValues);
   const x = (index: number) =>
     48 + ((index + 0.5) * (width - 60)) / Math.max(model.months.length, 1);
   const y = (value: number) => 192 - ((value / 100 - low) / (high - low)) * 176;
@@ -47,10 +49,13 @@ export function ExplorerTemplateTrend({ model }: { model: ExplorerTemplateModel 
             { name: 'Ø je Monat', values: model.months.map(() => average), color: 'var(--line-2)' },
           ])}
         >
+          <text x={48} y={12} className="svg-label-line">
+            {axis.unit}
+          </text>
           <Graticule
             x1={48}
             x2={width - 12}
-            lines={yTicks(low, high, 3).map((value) => ({ y: y(value * 100), label: kfmt(value) }))}
+            lines={tickValues.map((value) => ({ y: y(value * 100), label: axis.label(value) }))}
           />
           <AxisLine x1={48} x2={width - 12} y={y(0)} />
           {segments.map((points, index) => (

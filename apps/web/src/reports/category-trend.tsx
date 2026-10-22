@@ -13,7 +13,7 @@ import { useElementWidth } from '../charts/use-element-width';
 import { chartPoints } from '../charts/tooltip-data';
 import { eur } from '../ledger/format';
 import { AppLink } from '../shell/app-link';
-import { kfmt, yTicks } from '../wealth/networth-model';
+import { euroAxis, yTicks } from '../wealth/networth-model';
 import { monthLong, monthShort } from './table-format';
 
 export const categoryMonthSearch = (id: string, month: string) => ({
@@ -46,6 +46,8 @@ export function CategoryTrend({ series, previous }: { series: Series[]; previous
     .filter((v): v is number => v !== null);
   const lo = Math.min(0, ...values) / 100;
   const hi = Math.max(100, ...values) / 100;
+  const tickValues = yTicks(lo, hi, 3);
+  const axis = euroAxis(tickValues);
   const x = (i: number) => 48 + ((i + 0.5) * (width - 60)) / Math.max(1, months.length);
   const y = (v: number) => 192 - ((v / 100 - lo) / (hi - lo)) * 176;
   const path = (points: Series['points'], key: 'spentCents' | 'previousCents') =>
@@ -101,10 +103,13 @@ export function CategoryTrend({ series, previous }: { series: Series[]; previous
             )}
           >
             <ClassPatterns prefix={prefix} />
+            <text x={48} y={12} className="svg-label-line">
+              {axis.unit}
+            </text>
             <Graticule
               x1={48}
               x2={width - 12}
-              lines={yTicks(lo, hi, 3).map((v) => ({ y: y(v * 100), label: kfmt(v) }))}
+              lines={tickValues.map((v) => ({ y: y(v * 100), label: axis.label(v) }))}
             />
             <AxisLine x1={48} x2={width - 12} y={y(0)} />
             {series.map((s, i) => (

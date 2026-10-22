@@ -13,7 +13,7 @@ import {
 import type { YearMonthRow, YearNetWorth } from '@budget/domain';
 import { useElementWidth } from '../charts/use-element-width';
 import { eur } from '../ledger/format';
-import { kfmt, yTicks } from '../wealth/networth-model';
+import { euroAxis, yTicks } from '../wealth/networth-model';
 import { monthShort, monthShortYear } from './overview-format';
 
 const LEFT = 44;
@@ -36,6 +36,7 @@ export function YearCashflowChart({ year, rows }: { year: number; rows: YearMont
   const slot = plot / MONTH_SLOTS;
   const max = Math.max(1, ...rows.flatMap((r) => [r.incomeCents, r.consumptionCents])) / 100;
   const ticks = yTicks(0, max);
+  const axis = euroAxis(ticks);
   const hi = Math.max(max, ticks[ticks.length - 1] ?? max);
   const y = (euro: number) => bottom - (euro / hi) * (bottom - top);
   const index = (month: string) => Number(month.slice(5, 7)) - 1;
@@ -66,10 +67,13 @@ export function YearCashflowChart({ year, rows }: { year: number; rows: YearMont
           )}
         >
           <ClassPatterns prefix={prefix} />
+          <text x={LEFT} y={10} className="svg-label-line">
+            {axis.unit}
+          </text>
           <Graticule
             x1={LEFT}
             x2={width - RIGHT}
-            lines={ticks.map((v) => ({ y: y(v), label: kfmt(v) }))}
+            lines={ticks.map((v) => ({ y: y(v), label: axis.label(v) }))}
           />
           {rows.map((r) => {
             const cx = x(index(r.month));
@@ -148,6 +152,8 @@ export function YearNetWorthChart({ netWorth }: { netWorth: YearNetWorth }) {
   const pad = (hi - lo) * 0.1 || 1;
   const a = lo - pad;
   const b = hi + pad;
+  const tickValues = yTicks(a, b);
+  const axis = euroAxis(tickValues);
   const plot = Math.max(1, width - LEFT - RIGHT);
   const x = (i: number) => LEFT + (i / Math.max(values.length - 1, 1)) * plot;
   const y = (v: number) => bottom - ((v - a) / (b - a)) * (bottom - top);
@@ -177,10 +183,13 @@ export function YearNetWorthChart({ netWorth }: { netWorth: YearNetWorth }) {
             ],
           )}
         >
+          <text x={LEFT} y={10} className="svg-label-line">
+            {axis.unit}
+          </text>
           <Graticule
             x1={LEFT}
             x2={width - RIGHT}
-            lines={yTicks(a, b).map((v) => ({ y: y(v), label: kfmt(v) }))}
+            lines={tickValues.map((v) => ({ y: y(v), label: axis.label(v) }))}
           />
           <Line points={points} kind="actual" draw={false} />
           <circle
