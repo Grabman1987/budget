@@ -461,12 +461,12 @@ export function deleteExpectedPayment(
   id: string,
   ctx: AuditContext,
   today: string,
-  reviewToken?: string,
+  reviewToken: string,
 ): { groupId: string } {
   const grouped = withGroup(ctx);
   runInTransaction(db, (tx) => {
     const lifecycle = readPaymentLifecycles(tx, [id]).get(id);
-    if (reviewToken !== undefined) assertPaymentReview(lifecycle, reviewToken);
+    assertPaymentReview(lifecycle, reviewToken);
     assertPaymentDeletable(lifecycle);
     softDeleteEntity(tx, expectedPayment, id, grouped);
     const payment = getEntity(tx, expectedPayment, id, { includeDeleted: true })!;

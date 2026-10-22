@@ -402,10 +402,7 @@ export const expectedEndBody = z
   .object({ fromDate: day, reviewToken: z.string().regex(/^[a-f0-9]{64}$/) })
   .strict();
 export const expectedDeleteQuery = z.object({
-  reviewToken: z
-    .string()
-    .regex(/^[a-f0-9]{64}$/)
-    .optional(),
+  reviewToken: z.string().regex(/^[a-f0-9]{64}$/),
 });
 
 // ---------- savings goals ----------

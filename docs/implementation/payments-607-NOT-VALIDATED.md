@@ -64,3 +64,9 @@ review/execution; literal before/after history/report, resume, lifetime-delete,
 rollback/lock/Undo and API evidence; desktop/mobile/WebKit/light/dark/Axe/touch/overflow
 checks; ordinary required checks and authorized deployment/live verification.
 No issue is closed. The dependency branch is not represented as integrated or live.
+
+## Reviewed-state deletion correction
+
+Independent source review of5678b5fe5fd96edd38004294f62d7ed7cef5b24c found that the optional DELETE review token bypassed concurrency protection for a changed never-assigned payment. The HTTP query now requires the64-character digest and the repository writer always compares it transactionally before the existing lifetime-assignment guard and audited deletion. No production caller other than the HTTP route was found; the UI already supplies the token. No legacy bypass is introduced.
+
+Files: `apps/server/src/api/schemas.ts` (required DELETE token) and `packages/db/src/repos/expected.ts` (required argument and unconditional comparison). The independent review is archived alongside this handoff. Delta review remains pending. Existing test files remain unchanged; direct calls in `packages/db/src/repos/expected.test.ts` at the recorded source lines188,200,850 omit the token and require later contract adaptation before validation. Do not weaken lifetime-assignment or stale-state expectations when adapting them. No tests, typecheck, build, migration, CI, PR, merge or deployment executed. NOT VALIDATED / NOT LIVE.
