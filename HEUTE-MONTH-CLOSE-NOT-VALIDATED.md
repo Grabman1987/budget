@@ -11,8 +11,12 @@ as in the existing bank follow-up. The decision remains inside the transactional
 preview and its revision proof. Closing a month now requires a supplied
 `sourceRevision` and compares it with the current read before even returning an
 idempotent close; ordinary progress/decision patches keep the optional field.
-The fix awaits independent exact-delta source review. No close or provider action
-was executed. The known `/heute/finanzcheck` router integration remains separate.
+The [independent exact-delta source review](HEUTE-MONTH-CLOSE-FIX-SOURCE-REVIEW.md)
+is source-clear at `bf92474d06bdb500770ecd30fe3fb17355b5d79a` against
+`d27f9a2ff042d3c565009040c701ce37141efe98` for both P2 cases. No close or
+provider action was executed; runtime and acceptance remain NOT VALIDATED / NOT
+LIVE, with #719 STOP unchanged. The known `/heute/finanzcheck` router integration
+remains separate.
 
 - #573/#603: canonical month-close descriptors, first four priority task rows plus accessible remainder, separately disclosed unavailable comparisons, optional pinned envelopes off by default, Fällig then recent bookings. Current-day reminders compare the retained version-1 source revision; close/changed rows remain one per month, without GET writes or month locks.
 - #600/#602: automatic empty-step skipping, task-only progress, Warum/Danach, report-sourced result, audited idempotent retained close/time and explicit changed/legacy state. A new optional 50/30/20 Zukunft share uses the existing report allocation; actual report savings rate is separately named. Earlier version-1 snapshots remain readable and revision facts retain their original order/content.
