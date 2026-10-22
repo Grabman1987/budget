@@ -1,0 +1,15 @@
+diff --git a/packages/db/src/repos/statement-receipt-links.ts b/packages/db/src/repos/statement-receipt-links.ts
+index dd7fc7d501b23be05390b3749b45a7f838e0c64b..b23f6179d6fe6770380cc6a760cedcb598b6596f 100644
+--- a/packages/db/src/repos/statement-receipt-links.ts
++++ b/packages/db/src/repos/statement-receipt-links.ts
+@@ -86,8 +86,8 @@ export function readStatementReceiptLinks(db: Executor, intakeId: string, query:
+   if (!Number.isInteger(limit) || limit < 1 || limit > 100 || [query.offset ?? 0, query.attachedOffset ?? 0].some((n) => !Number.isInteger(n) || n < 0 || n > 100000) || (query.q?.length ?? 0) > 200)
+     throw new ConflictError('Ungültiger Buchungsausschnitt.');
+   const managed = managedIds(tx, state.source.receiptId);
+-  const items = state.source.currency ? bookingRows(tx, state.source.receiptId, managed, { accountId: state.source.accountId, currency: state.source.currency, q: query.q, offset: query.offset, limit: limit + 1 }) : [];
+-  const attached = bookingRows(tx, state.source.receiptId, managed, { attached: true, offset: query.attachedOffset, limit: limit + 1 });
++  const items = state.source.currency ? bookingRows(tx, state.source.receiptId, managed, { accountId: state.source.accountId, currency: state.source.currency, ...(query.q === undefined ? {} : { q: query.q }), ...(query.offset === undefined ? {} : { offset: query.offset }), limit: limit + 1 }) : [];
++  const attached = bookingRows(tx, state.source.receiptId, managed, { attached: true, ...(query.attachedOffset === undefined ? {} : { offset: query.attachedOffset }), limit: limit + 1 });
+   return { ...state, items: items.slice(0, limit), attached: attached.slice(0, limit),
+     nextOffset: items.length > limit ? (query.offset ?? 0) + limit : null,
+     nextAttachedOffset: attached.length > limit ? (query.attachedOffset ?? 0) + limit : null,

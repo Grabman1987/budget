@@ -1,5 +1,10 @@
 // @vitest-environment jsdom
-import { type StatementFacts, type StatementField, type StatementIntakeView } from '@budget/domain';
+import {
+  type StatementFacts,
+  type StatementField,
+  type StatementIntakeView,
+  type StatementReceiptBooking,
+} from '@budget/domain';
 import { setAmountsHidden, ToastProvider } from '@budget/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -10,7 +15,7 @@ import {
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { AccountRow } from '../ledger/types';
@@ -106,7 +111,10 @@ const json = (value: unknown, status = 200) =>
     headers: { 'content-type': 'application/json' },
   });
 type Call = { method: string; path: string; body: unknown };
-function transport(reply: (url: URL, init?: RequestInit) => Response | Promise<Response>) {
+function transport(
+  reply: (url: URL, init?: RequestInit) => Response | Promise<Response>,
+  linkItems: StatementReceiptBooking[] = [],
+) {
   const calls: Call[] = [];
   vi.stubGlobal('fetch', async (path: string, init?: RequestInit) => {
     const url = new URL(String(path), 'http://localhost');
@@ -122,6 +130,24 @@ function transport(reply: (url: URL, init?: RequestInit) => Response | Promise<R
     });
     if (url.pathname === '/api/accounts') return json({ accounts: [account(A), account(B)] });
     if ((init?.method ?? 'GET') === 'GET') {
+      if (url.pathname === `${PATH}/${ID}/booking-links`)
+        return json({
+          source: {
+            intakeId: ID,
+            revision: REV,
+            sha256: HASH,
+            accountId: A,
+            receiptId: RECEIPT,
+            currency: 'EUR',
+            accountName: 'Konto Muster',
+          },
+          linksRevision: 'd'.repeat(64),
+          items: linkItems,
+          attached: [],
+          nextOffset: null,
+          nextAttachedOffset: null,
+          unavailableReason: null,
+        });
       for (const accountId of [A, B]) {
         if (url.pathname + url.search === `${PATH}/automation/config?accountId=${accountId}`)
           return json({
@@ -392,14 +418,70 @@ it('retains a manual draft after stale CAS and only reloads after explicit disca
     screen.getByRole('button', { name: 'Entwurf speichern' }).getAttribute('disabled'),
   ).not.toBeNull();
   const reads = calls.filter((call) => call.path === `${PATH}/${ID}`).length;
-  await userEvent.click(screen.getAllByRole('button', { name: 'Stand neu laden' })[0]!);
+  const documentActions = within(
+    screen.getByRole('button', { name: 'Entwurf speichern' }).parentElement!,
+  );
+  await userEvent.click(documentActions.getByRole('button', { name: 'Stand neu laden' }));
   expect(calls.filter((call) => call.path === `${PATH}/${ID}`)).toHaveLength(reads);
   expect((screen.getByLabelText('Einzugsdatum') as HTMLInputElement).value).toBe('05.10.2026');
   vi.mocked(window.confirm).mockReturnValue(true);
-  await userEvent.click(screen.getAllByRole('button', { name: 'Stand neu laden' })[0]!);
+  await userEvent.click(documentActions.getByRole('button', { name: 'Stand neu laden' }));
   await waitFor(() =>
     expect((screen.getByLabelText('Einzugsdatum') as HTMLInputElement).value).toBe(''),
   );
+  expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(1);
+});
+
+it('740 keeps link selection through cancelled close and blocks sibling actions and navigation while saving', async () => {
+  const view = intake();
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const calls = transport(
+    async (url, init) => {
+      if (url.pathname === `${PATH}/${ID}/booking-links` && init?.method === 'POST') {
+        await gate;
+        return json({ groupId: null, changedCount: 0, attachedIds: [], detachedIds: [] });
+      }
+      return json(url.pathname === PATH ? { intakes: [view] } : { intake: view });
+    },
+    [
+      {
+        bookingId: 'synthetic-booking-740',
+        bookingRevision: 'b'.repeat(64),
+        accountId: A,
+        accountName: 'Konto Muster',
+        date: '2026-09-17',
+        description: 'Musterbuchung 740',
+        amountCents: -1251,
+        currency: 'EUR',
+        attached: false,
+        managed: false,
+      },
+    ],
+  );
+  const { router } = mount();
+  await openExisting();
+  await userEvent.click(screen.getByText('Vorhandene Buchungen mit diesem PDF verknüpfen'));
+  const choice = await screen.findByRole('checkbox', { name: /Musterbuchung 740/ });
+  await userEvent.click(choice);
+  await userEvent.click(screen.getByRole('button', { name: 'Schließen' }));
+  expect(window.confirm).toHaveBeenCalled();
+  expect((choice as HTMLInputElement).checked).toBe(true);
+  expect(screen.getByRole('dialog')).toBeTruthy();
+  await userEvent.click(screen.getByRole('button', { name: 'Verknüpfungen speichern' }));
+  for (const name of ['Entwurf speichern', 'Dokument entfernen', 'Erneut auswerten'])
+    expect((screen.getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(true);
+  vi.mocked(window.confirm).mockReturnValue(true);
+  await userEvent.click(screen.getByRole('button', { name: 'Schließen' }));
+  await act(async () => {
+    void router.navigate({ to: '/konten/$id', params: { id: B } });
+  });
+  expect(router.state.location.pathname).toBe(`/konten/${A}`);
+  expect(screen.getByRole('dialog')).toBeTruthy();
+  await act(async () => finish());
+  await screen.findByText('Die ausgewählten Verknüpfungen waren bereits im gewünschten Stand.');
   expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(1);
 });
 
