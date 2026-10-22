@@ -39,6 +39,10 @@ and `maskMoneyText` on SavedToday finance-check value text. The separate, unappl
 `docs/handoff/offline-574/01-offline-section-adapter.patch` carries the same
 value-text mask and masks its adjacent unavailable-wealth diagnostic. Preserve those
 lines when applying that patch once in the eventual #574 combined tree.
+The independent exact-delta source review of
+`3f09e1a664da3ac80c93651fed6becea6574153d` against the earlier head is
+archived in `offline-558-700-FIX-SOURCE-REVIEW.md`: both P2 findings are closed
+at source level, with no additional actionable finding in that correction.
 
 The coordinating owner applied all six shared-file integration patches into this
 checkpoint. Base-relative copies remain outside the checkout at
@@ -52,7 +56,7 @@ independent of logout HTTP; failed erasure remains fenced and visibly unresolved
 Generic auth expiry cleanup does not erase raw-file intents.
 
 Remaining: preserve those shared hooks/boundaries during cross-owner integration;
-independent review of this exact correction head; all acceptance evidence (real Blob restart/lost acknowledgment/quota/privacy,
+all acceptance evidence (real Blob restart/lost acknowledgment/quota/privacy,
 literal booking/receipt/idempotency/Undo, desktop/mobile/WebKit/a11y), ordinary
 required exact-head checks and authorized deployment/live verification. Existing
 historical evidence belongs to its original prepared commits, not this checkpoint.
