@@ -303,7 +303,9 @@ sampleTest(
   async ({ page }, info) => {
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
     await page.goto('/');
-    const chart = page.getByTestId('heute-balance-chart');
+    await expect(page.getByTestId('liquidity-chart')).toBeVisible();
+    await page.goto('/reports/finanzcheck');
+    const chart = page.getByTestId('r07-balance-chart');
     await expect(chart).toBeVisible();
     const inspection = chart.locator('..');
     await inspection.focus();
@@ -314,6 +316,8 @@ sampleTest(
       'stroke-dasharray',
       '7px, 5px',
     );
+    await page.goto('/');
+    await expect(page.getByTestId('liquidity-chart')).toBeVisible();
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,

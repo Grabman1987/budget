@@ -93,6 +93,7 @@ isolatedTest(
     await expect(forecastCard.getByText('Tiefpunkt im Grundplan', { exact: true })).toBeVisible();
     await expect(basis).toContainText('Grundplan');
     await expect(basis).toContainText('Noch keine geplanten Ereignisse eingerichtet');
+    await page.locator('details.rf-tools > summary').click();
     const trimLever = page.getByRole('checkbox', { name: /Variable Ausgaben um 10 % senken/ });
     await expect(trimLever).toBeVisible();
     for (const theme of ['light', 'dark']) {
@@ -186,6 +187,7 @@ test('figures, verdict, chart and tables agree with the forecast API', async ({ 
   await expect(rows).toHaveCount(report.months.length);
   await expect(rows.first().locator('td').nth(1)).toHaveText(eur(report.startCents));
   await expect(rows.last().locator('td').nth(6)).toContainText(eur(report.months.at(-1)!.endCents));
+  await page.locator('details.rf-tools > summary').click();
   for (const e of view.events.filter((x) => x.status === 'in_horizon'))
     await expect(page.getByTestId('liq-event').filter({ hasText: e.name })).toBeVisible();
   await inspect(page, info, 'liquidity');
@@ -196,6 +198,7 @@ test('horizon and levers change the forecast like the API says', async ({ page }
   const trimmed = (await api(page, '/api/liquidity?horizon=90d&levers=trim-variable')).report!;
   expect(trimmed.low!.cents).toBeGreaterThan(plain.low!.cents);
   await page.goto('/reports/liquiditaet');
+  await page.locator('details.rf-tools > summary').click();
   await page.getByRole('button', { name: '90 Tage' }).click();
   await expect(
     page.getByRole('heading', { name: 'Budget-Konten · nächste 90 Tage' }),
@@ -216,6 +219,7 @@ test('horizon and levers change the forecast like the API says', async ({ page }
 test('a planned event can be added, switched off and removed', async ({ page }, info) => {
   const name = `E2E Ereignis ${info.project.name} ${Date.now()}`;
   await page.goto('/reports/liquiditaet');
+  await page.locator('details.rf-tools > summary').click();
   // beyond 12 months: stored, but the shared sample forecast stays as it is
   await page.getByLabel('Ereignis', { exact: true }).fill(name);
   await page.getByLabel('Datum').fill('2028-01-15');
@@ -233,6 +237,7 @@ test('a planned event can be added, switched off and removed', async ({ page }, 
 
 test('refuses an incomplete event', async ({ page }) => {
   await page.goto('/reports/liquiditaet');
+  await page.locator('details.rf-tools > summary').click();
   await page.getByRole('button', { name: 'Ereignis', exact: true }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'benennen' })).toBeVisible();
 });
