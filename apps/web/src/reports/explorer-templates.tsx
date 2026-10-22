@@ -8,7 +8,7 @@ import {
   type TableRow,
 } from '@budget/domain';
 import { Button, ClassSwatch, useAmountPrivacy } from '@budget/ui';
-import { useEffect, useId, useRef, type CSSProperties, type MouseEvent } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { eur, longDay } from '../ledger/format';
 import { AppLink } from '../shell/app-link';
 import { ExplorerTemplateTrend } from './explorer-template-trend';
@@ -36,6 +36,24 @@ export function ExplorerTemplates({
   const detailHeading = useRef<HTMLHeadingElement>(null);
   const origin = useRef<HTMLButtonElement | null>(null);
   const lastFullMonth = facts.lastFullMonth;
+  const viewKey = model.id === 'year' ? `year:${model.months[0] ?? ''}` : model.id;
+  const [groups, setGroups] = useState<{ viewKey: string; expanded: Set<string> }>(() => ({
+    viewKey,
+    expanded: new Set(),
+  }));
+  const expandedGroups = groups.viewKey === viewKey ? groups.expanded : new Set<string>();
+  useEffect(() => {
+    setGroups({ viewKey, expanded: new Set() });
+  }, [viewKey]);
+  const categoryGroups = new Map<string, string>();
+  let groupKey: string | null = null;
+  for (const candidate of model.rows) {
+    if (candidate.kind === 'group') groupKey = candidate.key;
+    else if (candidate.kind === 'category' && groupKey)
+      categoryGroups.set(candidate.key, groupKey);
+    else groupKey = null;
+  }
+  const selectedGroupKey = categoryGroups.get(selectedRowKey ?? '') ?? null;
   // The year model stays canonical (12 months, including CSV and source lookups).
   // Only its trailing future columns are omitted from this report table.
   const visibleMonths =
@@ -120,10 +138,16 @@ export function ExplorerTemplates({
               {model.rows.map((row) => {
                 const stats = tableHeatStats(row.vals);
                 const summaries = explorerTemplateSummaries(row);
+                const expanded = expandedGroups.has(row.key) || selectedGroupKey === row.key;
+                const collapsedCategory =
+                  model.id === 'year' &&
+                  row.kind === 'category' &&
+                  !expandedGroups.has(categoryGroups.get(row.key) ?? '') &&
+                  selectedGroupKey !== categoryGroups.get(row.key);
                 return (
                   <tr
                     key={row.key}
-                    className={`rk-${row.kind} lv-${row.level}`}
+                    className={`rk-${row.kind} lv-${row.level}${collapsedCategory ? ' ex-year-category-collapsed' : ''}`}
                     data-template-row={row.key}
                     data-level={row.level}
                   >
@@ -131,7 +155,29 @@ export function ExplorerTemplates({
                       {row.swatch && (
                         <ClassSwatch kind={row.swatch === 'income' ? 'open' : row.swatch} />
                       )}
-                      {row.label}
+                      {model.id === 'year' && row.kind === 'group' ? (
+                        <button
+                          type="button"
+                          className="ex-year-group-toggle"
+                          aria-expanded={expanded}
+                          aria-label={`${row.label}: Kategorien ${expanded ? 'ausblenden' : 'anzeigen'}`}
+                          onClick={() => {
+                            setGroups((current) => {
+                              const next = new Set(
+                                current.viewKey === viewKey ? current.expanded : [],
+                              );
+                              if (expanded) next.delete(row.key);
+                              else next.add(row.key);
+                              return { viewKey, expanded: next };
+                            });
+                            if (expanded && selectedGroupKey === row.key) onClose();
+                          }}
+                        >
+                          {row.label}
+                        </button>
+                      ) : (
+                        row.label
+                      )}
                     </th>
                     {row.vals.slice(0, visibleMonths.length).map((amount, index) => {
                       const month = visibleMonths[index]!;
