@@ -228,45 +228,110 @@ it('hides stale account work on a fatal refresh error and offers retry and a tru
   expect(screen.queryByRole('alert')).toBeNull();
 });
 
-it('renders actual bank-candidate work before the account-reminder section without any display write', async () => {
+function taskPage(entries: InboxStored[] = [], next: number | null = null, total = entries.length) {
+  return {
+    ...page(entries, next, total),
+    count: 2 + total,
+    segment: 'aufgaben',
+    segments: { umsaetze: 1, aufgaben: 1 + total },
+    taskSources: { accounts: 1, plan: 0, receipts: 0, payslips: 0, other: total },
+    accountReminders: [
+      { accountId: a, accountName: 'Gleiches Konto', days: 30, dueOn: null, action: 'reconcile' },
+    ],
+  };
+}
+
+it('keeps actual bank-candidate work in Umsätze and opens account checks through its Aufgaben source without display writes', async () => {
   const calls = fetchFixture((url) =>
     url.pathname === '/api/bank-sync'
       ? json({ configured: false, connections: [], accounts: [] })
-      : url.pathname === '/api/accounts/reminders'
-        ? json({
-            reminders: [
-              {
-                accountId: a,
-                accountName: 'Gleiches Konto',
-                days: 30,
-                dueOn: null,
-                action: 'balance',
-              },
-            ],
-          })
+      : url.searchParams.get('segment') === 'aufgaben'
+        ? json(taskPage())
         : json({
             ...page([candidate('first', 'Ungeprüfter Bankumsatz')]),
+            count: 2,
             segment: 'umsaetze',
-            segments: { umsaetze: 1, aufgaben: 0 },
+            segments: { umsaetze: 1, aufgaben: 1 },
           }),
   );
   mount('/konten/pruefen?von=%2F', true);
-  const work = await screen.findByText(/Ungeprüfter Bankumsatz · −12,01\s€/);
+  expect(await screen.findByText(/Ungeprüfter Bankumsatz · −12,01\s€/)).toBeTruthy();
   const bankStatus = await screen.findByRole('region', { name: 'Bankstatus' });
   expect(bankStatus).toHaveTextContent('Bank: nicht verbunden');
-  expect(
-    within(bankStatus).getByRole('link', { name: 'Einrichten' }).getAttribute('href'),
-  ).toBe('/einstellungen/datenquellen');
-  const reminder = await screen.findByRole('heading', { name: 'Konten prüfen' });
-  expect(work.compareDocumentPosition(reminder) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  await waitFor(() =>
-    expect(calls.some((url) => url.pathname === '/api/accounts/reminders')).toBe(true),
+  expect(within(bankStatus).getByRole('link', { name: 'Einrichten' }).getAttribute('href')).toBe(
+    '/einstellungen/datenquellen',
   );
+  expect(screen.queryByRole('link', { name: 'Kontostand prüfen' })).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Aufgaben · 1' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Konten prüfen öffnen' }));
   expect(
-    calls.every((url) =>
-      ['/api/inbox', '/api/accounts/reminders', '/api/bank-sync'].includes(url.pathname),
+    (await screen.findByRole('link', { name: 'Kontostand prüfen' })).getAttribute('href'),
+  ).toBe(`/konten/${a}?pruefen=reconcile`);
+  expect(
+    calls.some(
+      (url) => url.pathname === '/api/inbox' && url.searchParams.get('segment') === 'aufgaben',
     ),
   ).toBe(true);
+  expect(calls.every((url) => ['/api/inbox', '/api/bank-sync'].includes(url.pathname))).toBe(true);
+});
+
+it('suppresses cached source counts and account actions after a fatal refetch, then restores them after retry', async () => {
+  let fail = false;
+  fetchFixture((url) =>
+    url.pathname === '/api/bank-sync'
+      ? json({ configured: false, connections: [], accounts: [] })
+      : fail
+        ? json({ error: 'unavailable' }, 503)
+        : json(taskPage()),
+  );
+  const { client } = mount('/konten/pruefen?teil=aufgaben', true);
+  await userEvent.click(await screen.findByRole('button', { name: 'Konten prüfen öffnen' }));
+  expect(await screen.findByRole('link', { name: 'Kontostand prüfen' })).toBeTruthy();
+  fail = true;
+  await act(async () => {
+    await client.invalidateQueries({
+      queryKey: inboxPagesQuery('all', undefined, undefined, undefined, 'aufgaben').queryKey,
+    });
+  });
+  const error = await screen.findByRole('alert');
+  expect(error).toHaveTextContent('Aufgaben konnten nicht geladen werden.');
+  expect(screen.queryByRole('table', { name: 'Alle offenen Aufgaben nach Quelle' })).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Kontostand prüfen' })).toBeNull();
+  fail = false;
+  await userEvent.click(within(error).getByRole('button', { name: 'Erneut versuchen' }));
+  expect(
+    await screen.findByRole('table', { name: 'Alle offenen Aufgaben nach Quelle' }),
+  ).toBeTruthy();
+  expect(await screen.findByRole('link', { name: 'Kontostand prüfen' })).toBeTruthy();
+});
+
+it('retains successful source counts and loaded work when only the next page fails', async () => {
+  const item: InboxStored = {
+    type: 'stored',
+    id: 'consent-one',
+    kind: 'consent',
+    title: 'Synthetic retained consent',
+    detail: null,
+    refType: null,
+    refId: null,
+    urgent: false,
+    createdAt: '2026-10-20T08:00:00Z',
+  };
+  fetchFixture((url) =>
+    url.pathname === '/api/bank-sync'
+      ? json({ configured: false, connections: [], accounts: [] })
+      : url.searchParams.get('offset') === '100'
+        ? json({ error: 'unavailable' }, 503)
+        : json(taskPage([item], 100, 2)),
+  );
+  mount('/konten/pruefen?teil=aufgaben', true);
+  await userEvent.click(await screen.findByRole('button', { name: 'Weitere Aufgaben öffnen' }));
+  expect(await screen.findByText('Synthetic retained consent')).toBeTruthy();
+  await userEvent.click(screen.getByRole('button', { name: /Weitere anzeigen/ }));
+  await screen.findByRole('alert');
+  expect(screen.getByRole('table', { name: 'Alle offenen Aufgaben nach Quelle' })).toBeTruthy();
+  expect(screen.getByText('Synthetic retained consent')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Konten prüfen öffnen' })).toBeTruthy();
 });
 
 it('shows the latest successful retrieval time for an active bank connection', async () => {

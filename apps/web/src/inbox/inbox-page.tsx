@@ -501,6 +501,9 @@ function PaginatedInboxBody({
   if (!search.teil && !pinned && resolved) setPinned(resolved);
   const segmentCounts =
     !bankSource && firstPage?.segments && shown ? { shown, counts: firstPage.segments } : undefined;
+  const fatalError = queue.isError && !queue.isFetchNextPageError ? queue.error : null;
+  const entrySourceSelected =
+    taskSource === 'plan' || taskSource === 'payslips' || taskSource === 'other';
   return (
     <>
       {segmentCounts && (
@@ -591,27 +594,31 @@ function PaginatedInboxBody({
       </div>
       {segmentCounts?.shown === 'aufgaben' && firstPage?.taskSources && (
         <section aria-label="Aufgaben nach Quelle">
-          {queue.isError && (
-            <ErrorNote what="Aufgaben" error={queue.error} onRetry={() => void queue.refetch()} />
+          {fatalError && !entrySourceSelected && (
+            <ErrorNote what="Aufgaben" error={fatalError} onRetry={() => void queue.refetch()} />
           )}
-          {firstPage.readSourceSummaries && (
-            <ReadSourceSummaries summaries={firstPage.readSourceSummaries} />
+          {!queue.isPending && !fatalError && (
+            <>
+              {firstPage.readSourceSummaries && (
+                <ReadSourceSummaries summaries={firstPage.readSourceSummaries} />
+              )}
+              <h2>Offene Aufgaben · {segmentCounts.counts.aufgaben}</h2>
+              <p>
+                Die Zahlen zählen alle offenen Aufgaben, nicht die Gruppenzeilen. Der Zeitraum
+                filtert die Einträge in Plan, Gehaltszettel und Weitere Aufgaben; fällige
+                Kontoprüfungen und offene Belege bleiben sichtbar.
+              </p>
+              <TaskSourceSummary
+                counts={firstPage.taskSources}
+                selected={taskSource}
+                onSelect={setTaskSource}
+              />
+              {taskSource === 'accounts' && (
+                <AccountReminderRows items={firstPage.accountReminders ?? []} />
+              )}
+              {taskSource === 'receipts' && <ReceiptSection />}
+            </>
           )}
-          <h2>Offene Aufgaben · {segmentCounts.counts.aufgaben}</h2>
-          <p>
-            Die Zahlen zählen alle offenen Aufgaben, nicht die Gruppenzeilen. Der Zeitraum filtert
-            die Einträge in Plan, Gehaltszettel und Weitere Aufgaben; fällige Kontoprüfungen und
-            offene Belege bleiben sichtbar.
-          </p>
-          <TaskSourceSummary
-            counts={firstPage.taskSources}
-            selected={taskSource}
-            onSelect={setTaskSource}
-          />
-          {taskSource === 'accounts' && (
-            <AccountReminderRows items={firstPage.accountReminders ?? []} />
-          )}
-          {taskSource === 'receipts' && <ReceiptSection />}
         </section>
       )}
       {(segmentCounts?.shown !== 'aufgaben' ||
