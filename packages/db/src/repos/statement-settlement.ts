@@ -364,6 +364,15 @@ function reassessRepresentedBonus(
         }))
         .sort((a, b) => a.splitId.localeCompare(b.splitId)),
       allocations: e.allocations.map((a) => [a.categoryId, a.amountCents]).sort(),
+      reconciliation: e.reconciliation
+        ? {
+            complete: e.reconciliation.complete,
+            noPartialOrPreviousCredit: e.reconciliation.noPartialOrPreviousCredit,
+            lines: e.reconciliation.lines
+              .map((line) => [line.splitId, line.page, line.line, line.chargedCents])
+              .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+          }
+        : null,
     });
   if (financialTerms(bonusEvidence(r.evidenceJson)) !== financialTerms(input.evidence))
     throw conflict();

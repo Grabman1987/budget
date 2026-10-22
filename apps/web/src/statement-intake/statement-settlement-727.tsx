@@ -56,6 +56,8 @@ const candidateId = (c: StatementCandidate) =>
       ? c.selection.bookingId
       : c.selection.transferId;
 const iso = (raw: string) => raw.replace(/^(\d{2})\.(\d{2})\.(\d{4})$/, '$3-$2-$1');
+const positiveLineNumber = (raw: string) =>
+  /^[1-9]\d*$/.test(raw) && Number.isSafeInteger(Number(raw)) ? Number(raw) : null;
 const sourceCas = (v: StatementIntakeView) => ({
   intakeId: v.id,
   revision: v.revision,
@@ -259,6 +261,11 @@ export function StatementSettlementReview({
   const [legacyKey, setLegacyKey] = useState('');
   const [bonusAmount, setBonusAmount] = useState(''),
     [creditDate, setCreditDate] = useState('');
+  const [bonusProof, setBonusProof] = useState<'explicit' | 'reconciliation'>('explicit');
+  const [lineAmounts, setLineAmounts] = useState<
+    Record<string, { charged: string; page: string; line: string }>
+  >({});
+  const [completeReconciliation, setCompleteReconciliation] = useState(false);
   const [treatment, setTreatment] = useState<StatementBonusEvidence['treatment'] | ''>('');
   const [reviewedCredits, setReviewedCredits] = useState(false),
     [reviewedFees, setReviewedFees] = useState(false);
@@ -376,18 +383,80 @@ export function StatementSettlementReview({
   const categoryName = (id: string) =>
     lookups.data?.categories.find((c) => c.id === id)?.name ?? 'Ausgabenkategorie';
   const amount = parseAmount(bonusAmount);
+  const reconciliationLines = originals.map((original) => {
+    const entered = lineAmounts[original.selection.splitId];
+    const charged = parseAmount(entered?.charged ?? '');
+    return {
+      splitId: original.selection.splitId,
+      page: positiveLineNumber(entered?.page ?? ''),
+      line: positiveLineNumber(entered?.line ?? ''),
+      chargedCents: charged.ok && charged.cents >= 0 ? charged.cents : null,
+    };
+  });
+  const reconciliationSums = new Map<string, bigint>();
+  let reconciliationValid = originals.length > 0 && reconciliationLines.every(
+    (line) =>
+      line.page !== null &&
+      line.page <= 30 &&
+      line.line !== null &&
+      line.line <= 200000 &&
+      line.chargedCents !== null,
+  );
+  if (
+    new Set(reconciliationLines.map((line) => `${line.page}:${line.line}`)).size !==
+    reconciliationLines.length
+  ) reconciliationValid = false;
+  originals.forEach((original, index) => {
+    const charged = reconciliationLines[index]?.chargedCents;
+    if (charged === null || charged === undefined) return;
+    const difference = -BigInt(original.selection.splitAmountCents) - BigInt(charged);
+    if (difference < 0n) reconciliationValid = false;
+    reconciliationSums.set(
+      original.selection.categoryId,
+      (reconciliationSums.get(original.selection.categoryId) ?? 0n) + difference,
+    );
+  });
+  const reconciliationTotal = [...reconciliationSums.values()].reduce((n, value) => n + value, 0n);
+  if (reconciliationTotal <= 0n || reconciliationTotal > BigInt(Number.MAX_SAFE_INTEGER))
+    reconciliationValid = false;
+  if ([...reconciliationSums.values()].some((value) => value > BigInt(Number.MAX_SAFE_INTEGER)))
+    reconciliationValid = false;
+  const reconciliationAllocations = [...reconciliationSums]
+    .filter(([, value]) => value > 0n && value <= BigInt(Number.MAX_SAFE_INTEGER))
+    .map(([categoryId, value]) => ({ categoryId, amountCents: Number(value) }));
   const evidenceResult = statementBonusEvidenceSchema.safeParse({
     origin: 'owner',
-    bonusCents: amount.ok ? amount.cents : null,
+    bonusCents:
+      bonusProof === 'reconciliation'
+        ? reconciliationValid
+          ? Number(reconciliationTotal)
+          : null
+        : amount.ok
+          ? amount.cents
+          : null,
     creditDate: iso(creditDate),
-    treatment,
+    treatment: bonusProof === 'reconciliation' ? 'gross_then_credit' : treatment,
     existingCreditsReviewed: reviewedCredits,
     feesAdjustmentsReviewed: reviewedFees,
+    ...(bonusProof === 'reconciliation'
+      ? {
+          reconciliation: {
+            complete: completeReconciliation,
+            noPartialOrPreviousCredit: completeReconciliation,
+            lines: reconciliationLines,
+          },
+        }
+      : {}),
     selectedOriginals: originals.map((o) => o.selection),
-    allocations: affectedCategories.flatMap((categoryId) => {
-      const value = parseAmount(allocationAmounts[categoryId] ?? '');
-      return value.ok && value.cents !== 0 ? [{ categoryId, amountCents: value.cents }] : [];
-    }),
+    allocations:
+      bonusProof === 'reconciliation'
+        ? reconciliationValid
+          ? reconciliationAllocations
+          : []
+        : affectedCategories.flatMap((categoryId) => {
+            const value = parseAmount(allocationAmounts[categoryId] ?? '');
+            return value.ok && value.cents !== 0 ? [{ categoryId, amountCents: value.cents }] : [];
+          }),
   });
   const sourceAmount = sourceReviewDraft?.amount.trim()
     ? parseAmount(sourceReviewDraft.amount)
@@ -442,6 +511,9 @@ export function StatementSettlementReview({
     setRetry(null);
     setOriginals([]);
     setAllocationAmounts({});
+    setBonusProof('explicit');
+    setLineAmounts({});
+    setCompleteReconciliation(false);
     setBonusAmount('');
     setCreditDate('');
     setTreatment('');
@@ -573,6 +645,9 @@ export function StatementSettlementReview({
         setBonusDirty(false);
         setOriginals([]);
         setAllocationAmounts({});
+        setBonusProof('explicit');
+        setLineAmounts({});
+        setCompleteReconciliation(false);
         setBonusAmount('');
         setCreditDate('');
         setTreatment('');
@@ -1064,24 +1139,43 @@ export function StatementSettlementReview({
           <fieldset disabled={blocked || !canConfirm || lookups.isError || lookups.isFetching}>
             <legend>Bonus separat prüfen</legend>
             <p>
-              Nur ausdrücklich nachgewiesene Gutschriften. Bruttokäufe bleiben unverändert; ein
-              bereits enthaltener Rabatt wird nicht nochmals gutgeschrieben. Aus Differenzen wird
-              kein Bonus berechnet.
+              Bruttokäufe bleiben unverändert. Ein Bonus braucht entweder eine ausdrücklich
+              ausgewiesene Gutschrift oder eine vollständig und eindeutig geprüfte Zuordnung
+              derselben Abrechnung. Bereits netto erfasste oder teilweise gutgeschriebene Beträge
+              dürfen nicht nochmals gutgeschrieben werden.
             </p>
-            <Field label="Geprüfter Bonusbetrag">
+            <Field label="Art des Bonusnachweises">
               {({ id }) => (
-                <TextInput
+                <Select
                   id={id}
-                  inputMode="decimal"
-                  money
-                  value={bonusAmount}
+                  value={bonusProof}
                   onChange={(e) => {
-                    setBonusAmount(e.target.value);
+                    setBonusProof(e.target.value === 'reconciliation' ? 'reconciliation' : 'explicit');
+                    setCompleteReconciliation(false);
                     changed('bonus');
                   }}
-                />
+                >
+                  <option value="explicit">Ausgewiesene Gutschrift ausdrücklich eingeben</option>
+                  <option value="reconciliation">Käufe mit Belastungszeilen abgleichen</option>
+                </Select>
               )}
             </Field>
+            {bonusProof === 'explicit' && (
+              <Field label="Geprüfter Bonusbetrag">
+                {({ id }) => (
+                  <TextInput
+                    id={id}
+                    inputMode="decimal"
+                    money
+                    value={bonusAmount}
+                    onChange={(e) => {
+                      setBonusAmount(e.target.value);
+                      changed('bonus');
+                    }}
+                  />
+                )}
+              </Field>
+            )}
             <Field
               label="Datum der Gutschrift"
               error={
@@ -1109,30 +1203,32 @@ export function StatementSettlementReview({
                 />
               )}
             </Field>
-            <Field label="Behandlung des Bonus">
-              {({ id }) => (
-                <Select
-                  id={id}
-                  value={treatment}
-                  onChange={(e) => {
-                    setTreatment(
-                      e.target.value === 'already_net'
-                        ? 'already_net'
-                        : e.target.value === 'gross_then_credit'
-                          ? 'gross_then_credit'
-                          : '',
-                    );
-                    changed('bonus');
-                  }}
-                >
-                  <option value="">Behandlung ausdrücklich wählen</option>
-                  <option value="gross_then_credit">Bruttokäufe und separate Gutschrift</option>
-                  <option value="already_net">
-                    Bereits im Nettobetrag enthalten · nicht buchen
-                  </option>
-                </Select>
-              )}
-            </Field>
+            {bonusProof === 'explicit' && (
+              <Field label="Behandlung des Bonus">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={treatment}
+                    onChange={(e) => {
+                      setTreatment(
+                        e.target.value === 'already_net'
+                          ? 'already_net'
+                          : e.target.value === 'gross_then_credit'
+                            ? 'gross_then_credit'
+                            : '',
+                      );
+                      changed('bonus');
+                    }}
+                  >
+                    <option value="">Behandlung ausdrücklich wählen</option>
+                    <option value="gross_then_credit">Bruttokäufe und separate Gutschrift</option>
+                    <option value="already_net">
+                      Bereits im Nettobetrag enthalten · nicht buchen
+                    </option>
+                  </Select>
+                )}
+              </Field>
+            )}
             <h4>Ursprüngliche Käufe ausdrücklich auswählen</h4>
             <CandidateChoices
               key={`original:${bonus?.id ?? 'new'}:${editingBonus ?? 'none'}`}
@@ -1156,6 +1252,7 @@ export function StatementSettlementReview({
                     ? old.filter((o) => candidateId(o) !== candidateId(c))
                     : [...old, c],
                 );
+                setCompleteReconciliation(false);
                 changed('bonus');
               }}
             />
@@ -1169,7 +1266,108 @@ export function StatementSettlementReview({
                 {nativeCurrency(c.selection.splitAmountCents, c.selection.currency)}
               </p>
             ))}
-            {affectedCategories.map((id) => (
+            {bonusProof === 'reconciliation' && (
+              <>
+                <p>
+                  Für jeden ausgewählten Kauf genau eine tatsächlich belastete Zeile im
+                  gespeicherten PDF derselben Abrechnung prüfen. Auch Zeilen
+                  mit Differenz 0 vollständig zuordnen. Gebühren, unbekannte Anpassungen oder
+                  Teilgutschriften nicht als Rabatt behandeln.
+                </p>
+                {originals.map((original) => {
+                  const splitId = original.selection.splitId;
+                  const draft = lineAmounts[splitId] ?? { charged: '', page: '', line: '' };
+                  const parsed = parseAmount(draft.charged);
+                  const difference = parsed.ok
+                    ? -BigInt(original.selection.splitAmountCents) - BigInt(parsed.cents)
+                    : null;
+                  const update = (field: 'charged' | 'page' | 'line', value: string) => {
+                    setLineAmounts((old) => ({
+                      ...old,
+                      [splitId]: { ...(old[splitId] ?? draft), [field]: value },
+                    }));
+                    setCompleteReconciliation(false);
+                    changed('bonus');
+                  };
+                  return (
+                    <fieldset key={splitId} className="statement-candidates-727">
+                      <legend>
+                        {longDay(original.date)} · {categoryName(original.selection.categoryId)} ·
+                        ursprünglicher Kauf{' '}
+                        {nativeCurrency(
+                          original.selection.splitAmountCents,
+                          original.selection.currency,
+                        )}
+                      </legend>
+                      <Field label="Tatsächlich belasteter Zeilenbetrag">
+                        {({ id }) => (
+                          <TextInput
+                            id={id}
+                            money
+                            inputMode="decimal"
+                            value={draft.charged}
+                            onChange={(event) => update('charged', event.target.value)}
+                          />
+                        )}
+                      </Field>
+                      <Field label="Seite im gespeicherten PDF">
+                        {({ id }) => (
+                          <TextInput
+                            id={id}
+                            inputMode="numeric"
+                            value={draft.page}
+                            onChange={(event) => update('page', event.target.value)}
+                          />
+                        )}
+                      </Field>
+                      <Field label="Zeilennummer auf der Seite">
+                        {({ id }) => (
+                          <TextInput
+                            id={id}
+                            inputMode="numeric"
+                            value={draft.line}
+                            onChange={(event) => update('line', event.target.value)}
+                          />
+                        )}
+                      </Field>
+                      {difference !== null &&
+                        difference >= 0n &&
+                        difference <= BigInt(Number.MAX_SAFE_INTEGER) && (
+                          <p>
+                            Geprüfte Differenz:{' '}
+                            {nativeCurrency(Number(difference), original.selection.currency)}
+                          </p>
+                        )}
+                    </fieldset>
+                  );
+                })}
+                {reconciliationValid && (
+                  <p>
+                    Rechnerische Gutschrift aus vollständig zugeordneten Zeilen:{' '}
+                    {nativeCurrency(Number(reconciliationTotal), originals[0]!.selection.currency)}
+                  </p>
+                )}
+                {reconciliationValid && reconciliationAllocations.map((allocation) => (
+                  <p key={allocation.categoryId}>
+                    {categoryName(allocation.categoryId)}:{' '}
+                    {nativeCurrency(allocation.amountCents, originals[0]!.selection.currency)}
+                  </p>
+                ))}
+                <label className="statement-choice-727">
+                  <input
+                    type="checkbox"
+                    checked={completeReconciliation}
+                    onChange={(event) => {
+                      setCompleteReconciliation(event.target.checked);
+                      changed('bonus');
+                    }}
+                  />
+                  Alle ausgewählten Käufe sind diesen Zeilen derselben Abrechnung vollständig und
+                  eindeutig zugeordnet; keine Teil- oder bereits erfasste Gutschrift ist enthalten.
+                </label>
+              </>
+            )}
+            {bonusProof === 'explicit' && affectedCategories.map((id) => (
               <Field key={id} label={`Bonusanteil · ${categoryName(id)}`}>
                 {({ id: input }) => (
                   <TextInput
@@ -1209,8 +1407,9 @@ export function StatementSettlementReview({
             </label>
             {!evidenceResult.success && dirty && (
               <p role="status">
-                Positiven Betrag, gültiges Datum, Originale und ausdrücklich zugeordnete
-                Kategorieanteile vollständig prüfen. Es wurde nichts berechnet oder gebucht.
+                {bonusProof === 'reconciliation'
+                  ? 'Alle Zeilen, Fundstellen und bestehenden Gutschriften vollständig prüfen. Nur eine eindeutige positive Gesamtdifferenz ist als Bonus möglich; es wurde nichts gebucht.'
+                  : 'Positiven Betrag, gültiges Datum, Originale und ausdrücklich zugeordnete Kategorieanteile vollständig prüfen. Es wurde nichts berechnet oder gebucht.'}
               </p>
             )}
             <Button
@@ -1243,6 +1442,16 @@ export function StatementSettlementReview({
                   </li>
                 ))}
               </ul>
+              {bonus.evidence.reconciliation && (
+                <ul aria-label="Geprüfte Belastungszeilen derselben Abrechnung">
+                  {bonus.evidence.reconciliation.lines.map((line) => (
+                    <li key={line.splitId}>
+                      Seite {line.page}, Zeile {line.line} · tatsächlich belastet{' '}
+                      {nativeCurrency(line.chargedCents, bonus.currency)}
+                    </li>
+                  ))}
+                </ul>
+              )}
               {bonus.state === 'ready' && (
                 <fieldset disabled={blocked || !canConfirm || !bonus.revision}>
                   <legend>Separate Gutschrift buchen oder zuordnen</legend>
@@ -1341,6 +1550,20 @@ export function StatementSettlementReview({
                     disabled={blocked}
                     onClick={() => {
                       setEditingBonus(bonus.id);
+                      setBonusProof(bonus.evidence.reconciliation ? 'reconciliation' : 'explicit');
+                      setLineAmounts(
+                        Object.fromEntries(
+                          bonus.evidence.reconciliation?.lines.map((line) => [
+                            line.splitId,
+                            {
+                              charged: formatDecimal(cents(line.chargedCents)),
+                              page: String(line.page),
+                              line: String(line.line),
+                            },
+                          ]) ?? [],
+                        ),
+                      );
+                      setCompleteReconciliation(false);
                       setBonusAmount(formatDecimal(cents(bonus.bonusCents)));
                       setCreditDate(longDay(bonus.creditDate));
                       setTreatment(bonus.evidence.treatment);

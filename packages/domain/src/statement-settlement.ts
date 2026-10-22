@@ -35,6 +35,26 @@ export const statementBonusEvidenceSchema = z
     treatment: z.enum(['gross_then_credit', 'already_net']),
     existingCreditsReviewed: z.literal(true),
     feesAdjustmentsReviewed: z.literal(true),
+    reconciliation: z
+      .object({
+        complete: z.literal(true),
+        noPartialOrPreviousCredit: z.literal(true),
+        lines: z
+          .array(
+            z
+              .object({
+                splitId: id,
+                page: z.number().int().min(1).max(30),
+                line: z.number().int().min(1).max(200000),
+                chargedCents: cents.nonnegative(),
+              })
+              .strict(),
+          )
+          .min(1)
+          .max(50),
+      })
+      .strict()
+      .optional(),
     selectedOriginals: z
       .array(
         originalCas
@@ -69,6 +89,51 @@ export const statementBonusEvidenceSchema = z
     ])
       if (new Set(values).size !== values.length)
         ctx.addIssue({ code: 'custom', message: 'Duplicate evidence identity.' });
+    if (v.reconciliation) {
+      const lines = v.reconciliation.lines;
+      const bySplit = new Map(lines.map((line) => [line.splitId, line]));
+      const locations = lines.map((line) => `${line.page}:${line.line}`);
+      if (
+        v.treatment !== 'gross_then_credit' ||
+        lines.length !== v.selectedOriginals.length ||
+        bySplit.size !== lines.length ||
+        new Set(locations).size !== lines.length ||
+        v.selectedOriginals.some((original) => !bySplit.has(original.splitId))
+      )
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Every original requires one unique statement line.',
+        });
+      const differences = new Map<string, bigint>();
+      for (const original of v.selectedOriginals) {
+        const line = bySplit.get(original.splitId);
+        if (!line) continue;
+        const difference = -BigInt(original.splitAmountCents) - BigInt(line.chargedCents);
+        if (difference < 0n)
+          ctx.addIssue({
+            code: 'custom',
+            message: 'A statement line exceeds its original gross amount.',
+          });
+        differences.set(
+          original.categoryId,
+          (differences.get(original.categoryId) ?? 0n) + difference,
+        );
+      }
+      const positiveDifferences = [...differences].filter(([, value]) => value > 0n);
+      if (
+        positiveDifferences.reduce((sum, [, value]) => sum + value, 0n) !==
+          BigInt(v.bonusCents) ||
+        positiveDifferences.length !== v.allocations.length ||
+        v.allocations.some(
+          (allocation) =>
+            differences.get(allocation.categoryId) !== BigInt(allocation.amountCents),
+        )
+      )
+        ctx.addIssue({
+          code: 'custom',
+          message: 'The complete positive difference must equal its category allocations.',
+        });
+    }
   });
 const common = { key };
 const source = { source: settlementSourceSchema, configRevision: revision };

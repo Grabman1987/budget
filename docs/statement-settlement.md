@@ -33,9 +33,21 @@ the selected payment/date, preserving other payments and later occurrences.
 
 Review a positive bonus, its actual credit date, selected existing expense splits,
 explicit affected-category allocations, existing credits and fees/adjustments.
-These are owner-entered facts, not automatically extracted items or differences.
+The explicit-bonus path uses owner-entered facts, not automatically extracted items.
 Acceptance alone creates no credit. Separately create a positive expense refund
 or link one exact whole existing credit with current booking/split revisions.
+
+A later source-only checkpoint adds a second manual evidence path: match each
+selected, unchanged purchase split to one uniquely located charged line in the
+retained PDF of the same accepted statement. The owner enters the charged amount,
+page and line, confirms that the association is complete and that no partial or
+previous credit is included, and reviews existing credits and adjustments. Zero
+differences may be included but contribute no credit. Only a complete positive
+gross-minus-charged sum becomes a separate bonus, with category allocations
+calculated from those exact selected splits. A negative, unmatched, duplicate,
+zero-only or uncertain association cannot confirm this path. The reviewed lines
+are stored with the accepted evidence and preserved on represented-source
+reassessment. This path is **NOT VALIDATED**; it uses no statement line extraction.
 
 Gross EUR 80.00 remains unchanged; an explicit EUR 1.25 refund produces EUR 78.75
 expense, not household income. If EUR 78.75 was already charged net, informational
@@ -97,7 +109,8 @@ warning. That failed check did not run a normal production build.
 
 The integrated checkpoint `5c1855e0` passed the required AGE1/one-worker full
 check: 575 files / 5,157 tests, 799.95s Vitest duration. The following
-normal production build passed. Exact-head CI and serial LIVE remain pending. Net-only/difference extraction/reconciliation, uncertain
-partial credits remain OPEN. The represented-source reassessment editor is only
-implemented in the later NOT VALIDATED source checkpoint.
+normal production build passed. Exact-head CI and serial LIVE remain pending. Automated
+line extraction and uncertain partial-credit reconciliation remain OPEN. Manual
+same-statement difference matching and the represented-source reassessment editor
+are only implemented in later NOT VALIDATED source checkpoints.
 #727 is not marked complete. All examples and committed evidence are synthetic.
