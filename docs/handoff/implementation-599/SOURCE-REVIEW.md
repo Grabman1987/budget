@@ -1,5 +1,7 @@
 #599 Kontakte — unabhängiger Quelltext-Review
 
+**Status:** Scoped source-clear at `5bac17b31026aae54e1063d4de607949c51abc1a` against base `6420676d257698767931dd151863765cec914acf`. **NOT VALIDATED / NOT LIVE.** Akzeptanz und Integration sind damit nicht bestätigt.
+
 **Geprüfter Branch:** `codex/impl-599-contacts`, `5bac17b31026aae54e1063d4de607949c51abc1a` gegen Basis `6420676d257698767931dd151863765cec914acf` (sieben Paketdateien). **Ergebnis:** Im begrenzten Source-Diff kein neuer konkreter Fehler gefunden. **NOT VALIDATED:** keine Tests, Builds, Browser-, Datenbank- oder CI-Ausführung; die Akzeptanz und Integration sind damit nicht bestätigt.
 
 ## Quellenbefund
