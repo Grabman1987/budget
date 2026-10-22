@@ -3,6 +3,7 @@ import { averageCost, fifoCost, type CostTrade } from './invest';
 import { moneyRuleViolation, unitsRuleViolation } from './trade-rules';
 import {
   previewKnownBasisSecurityTransfer,
+  fifoSplitLotUnits,
   normalizeFifoAcquisitionFragments,
   mergeAverageProvenance,
   splitAverageProvenance,
@@ -17,8 +18,9 @@ import {
 interface EventIdentity { id: string; date: string; sequence: number; securityId: string; currency: string }
 export type KnownSecurityReplayEvent =
   | (EventIdentity & { kind: 'buy' | 'sell'; accountId: string; unitsE8: number; amountCents: number; feeCents: number; taxCents: number })
+  | (EventIdentity & { kind: 'split'; accountId: string; unitsE8: number; amountCents: number; feeCents: number; taxCents: number })
   | (EventIdentity & { kind: 'transfer'; sourceAccountId: string; destinationAccountId: string; unitsE8: number; outTradeId: string; inTradeId: string })
-  | (EventIdentity & { kind: 'delivery_in' | 'delivery_out' | 'split' | 'snapshot' | 'merger' | 'spinoff' });
+  | (EventIdentity & { kind: 'delivery_in' | 'delivery_out' | 'snapshot' | 'merger' | 'spinoff' });
 export interface KnownSecurityReplayInput {
   securityId: string;
   method: CostMethod;
@@ -85,7 +87,7 @@ function unambiguous(fragments: readonly TransferLotFragment[]): boolean {
   return new Set(fragments.map((f) => `${f.acquiredOn}:${f.acquisitionOrder}`)).size === fragments.length;
 }
 /**
- * Pure dated replay for one security, an app-ledger zero seed, and explicit EUR buy/sell/pair
+ * Pure dated replay for one security, an app-ledger zero seed, and explicit EUR buy/sell/split/pair
  * events. It does not query, pair old deliveries, mutate rows, establish input evidence, or
  * assert that the recorded ledger is complete against an external broker.
  * Full-batch failure returns no partial plan. Caller-supplied event order must be authoritative.
@@ -133,7 +135,50 @@ export function replayKnownSecurityTransfers(input: KnownSecurityReplayInput): K
   };
   for (const event of [...input.events].sort((a, b) => a.date.localeCompare(b.date) || a.sequence - b.sequence)) {
     if (event.date !== graphDay) { graphDay = event.date; edges.clear(); }
-    if (event.kind === 'buy' || event.kind === 'sell') {
+    if (event.kind === 'split') {
+      const state = states.get(event.accountId);
+      if (!state || unitsRuleViolation('split', event.unitsE8) || moneyRuleViolation(event))
+        return fail('invalid_trade', event.id);
+      const before = BigInt(state.unitsE8), after = before + BigInt(event.unitsE8);
+      if (before <= 0n || after <= 0n || after > limit)
+        return fail('nonrepresentable_allocation', event.id);
+      const split: CostTrade = { kind: 'split', unitsE8: event.unitsE8,
+        amountCents: 0, feeCents: 0, taxCents: 0 };
+      if (input.method === 'fifo') {
+        const lots = normalizeFifoAcquisitionFragments(state.fragments);
+        if (!unambiguous(lots) || totalUnits(lots) !== before ||
+            lots.some((lot) => lot.basisCents === null))
+          return fail('ambiguous_disposal', event.id);
+        const outputs = fifoSplitLotUnits(lots, event.unitsE8);
+        if (!outputs) return fail('nonrepresentable_allocation', event.id);
+        const canonical = fifoCost({ unitsE8: 0, costBasisCents: 0 }, [
+          ...lots.map((lot): CostTrade => ({ kind: 'buy', unitsE8: lot.unitsE8,
+            amountCents: lot.basisCents!, feeCents: 0, taxCents: 0 })), split,
+        ]);
+        if (canonical.unitsE8 !== Number(after) || canonical.costBasisCents !== state.basisCents ||
+            canonical.realizedGainCents !== 0) return fail('arithmetic_limit', event.id);
+        state.fragments = lots.map((lot, index) => ({
+          fragmentId: `split:${event.id}:${index}`, acquisitionId: lot.acquisitionId,
+          acquiredOn: lot.acquiredOn, acquisitionOrder: lot.acquisitionOrder,
+          unitsE8: outputs[index]!, basisCents: lot.basisCents,
+          ...(lot.transferPairIds === undefined ? {} : { transferPairIds: lot.transferPairIds }),
+          derivation: { kind: 'unit-adjusted' as const, splitId: event.id,
+            date: event.date, accountId: event.accountId, deltaUnitsE8: event.unitsE8,
+            sourceIndex: index, splitSources: lots, source: lot },
+        }));
+      } else {
+        if (!state.averageProvenance) return fail('ambiguous_disposal', event.id);
+        const canonical = averageCost({ unitsE8: state.unitsE8,
+          costBasisCents: state.basisCents }, [split]);
+        if (canonical.unitsE8 !== Number(after) || canonical.costBasisCents !== state.basisCents ||
+            canonical.realizedGainCents !== 0) return fail('arithmetic_limit', event.id);
+        state.averageProvenance = { kind: 'unit-adjusted', date: event.date,
+          source: state.averageProvenance, securityId: input.securityId,
+          accountId: event.accountId, splitId: event.id,
+          beforeUnitsE8: state.unitsE8, afterUnitsE8: Number(after) };
+      }
+      state.unitsE8 = Number(after);
+    } else if (event.kind === 'buy' || event.kind === 'sell') {
       const state = states.get(event.accountId);
       if (!state || unitsRuleViolation(event.kind, event.unitsE8) || moneyRuleViolation(event))
         return fail('invalid_trade', event.id);

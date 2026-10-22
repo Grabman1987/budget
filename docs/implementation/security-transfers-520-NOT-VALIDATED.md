@@ -201,11 +201,11 @@ The [revised history-bridge plan](security-transfers-520-history-reader-plan.md)
 record the scope correction and source-only findings.
 
 `packages/db/src/repos/security-transfer-history.ts` reads one security in two
-investment accounts from a consistent DB snapshot. It accepts only validated
-native buys and sells with EUR account basis, selected persisted average/FIFO method
+investment accounts from a consistent DB snapshot. It accepts validated
+native buys, sells and zero-cash splits with EUR account basis, selected persisted average/FIFO method
 and their canonical same-day cost order; multiple native events on one day are not
 blanket-rejected. It validates zero-unit cash kinds and settlement links, but does
-not turn them into basis events. Unpaired deliveries, splits and nonredundant
+not turn them into basis events. Unpaired deliveries and nonredundant
 snapshots return typed unavailable results. A null-basis snapshot is ignored only
 when both canonical methods establish its units from native facts; otherwise it
 is an unknown-basis anchor. Numerically redundant snapshots only corroborate the recorded native history; they do not prove an
@@ -229,6 +229,26 @@ was added. Existing delivery legs stay unavailable; no amount/date/import-key
 matching creates a pair. The reader and changed helper contract are **NOT
 VALIDATED**; source review and executable acceptance remain separate gates.
 
+## Existing split replay — source only
+
+The pure dated replay now accepts a stored `split` as an absolute signed E8 unit
+delta with zero amount, fee and tax. It requires a positive proven pool before
+and after the event. Average preserves pool cents and acquisition ownership in
+an explicit `unit-adjusted` graph node carrying the split trade identity and
+integer before/after units. This is separate from the fractional graph node used
+for sales and transfers. FIFO first normalizes reunited same-acquisition fragments,
+then follows the existing canonical per-lot `Math.round` allocation and last-lot
+remainder. Each output fragment retains its source acquisition identity/date and
+lot cents, and references an immutable pre-split lot vector and split identity.
+The reader places split rows in the existing buy-first/date-and-ID cost order and
+compares replay units/basis with the canonical selected-method position projection.
+
+Zero or negative post-split pools, zero or negative individual FIFO lots, unsafe
+integer bounds and rounding disagreement are typed unavailable. No cost formula,
+trade writer, schema, public API, UI, or new split action changed. Source review
+and Stage A executable acceptance of this split slice are still open; this text
+does not assert AC-009-06 completion.
+
 ## Literal intended controls, not executed evidence
 
 The specified FIFO example (4 units / EUR 40 plus 6 / EUR 72, transfer 5) must carry
@@ -241,7 +261,7 @@ controls, not results obtained by running this source.
 
 Executable independent acceptance of the bounded dated replay, FIFO
 same-acquisition normalization and average rational graph;
-split/snapshot/unpaired-delivery provenance and wider supported history;
+split runtime/source acceptance, snapshot/unpaired-delivery provenance and wider supported history;
 explicit authoritative pair/lineage relation with migration reservation/review and
 same-day pair order;
 transactional backdated-edit revalidation; locks, stale preview,
@@ -249,6 +269,6 @@ idempotency, two-leg rollback, audit and exact apply/Undo/redo; public API/UI; a
 required independent literal/regression/financial/browser evidence and authorized
 integration/deployment/live gates. Stage A's tested replay exit criterion is not
 satisfied by these source helpers. Existing split behavior is unchanged; this narrow
-replay rejects split events rather than claiming AC-009-06 coverage. No issue or
+replay now recognizes supported split events but does not claim AC-009-06 coverage. No issue or
 private-financial validation is claimed. No persistence/API work follows this
 checkpoint until the replay contract and remaining provenance work are complete.

@@ -104,7 +104,8 @@ export function readRecordedSecurityHistory(db: Executor, input: {
       .limit(1001).all();
     if (snapshots.length > 1000) return unavailable('scope_limit');
     const liveTrades = allTrades.filter((row) => row.deletedAt === null);
-    const nativeInDbOrder = liveTrades.filter((row) => row.kind === 'buy' || row.kind === 'sell');
+    const nativeInDbOrder = liveTrades.filter((row) =>
+      row.kind === 'buy' || row.kind === 'sell' || row.kind === 'split');
     const relevant = ordered(nativeInDbOrder, accountIds);
     if (relevant.length > 1000) return unavailable('scope_limit');
     for (const row of liveTrades) {
@@ -112,8 +113,7 @@ export function readRecordedSecurityHistory(db: Executor, input: {
         return unavailable('invalid_trade', [row.id]);
       if (row.kind === 'delivery_in' || row.kind === 'delivery_out')
         return unavailable('unpaired_delivery', [row.id]);
-      if (row.kind === 'split') return unavailable('unsupported_event', [row.id]);
-      if (!['buy', 'sell', 'dividend', 'interest', 'fee', 'tax'].includes(row.kind))
+      if (!['buy', 'sell', 'split', 'dividend', 'interest', 'fee', 'tax'].includes(row.kind))
         return unavailable('unsupported_event', [row.id]);
     }
     const settlements: { tradeId: string; cash: typeof booking.$inferSelect;
@@ -238,7 +238,7 @@ export function readRecordedSecurityHistory(db: Executor, input: {
           const sequence = sequenceByDay.get(row.date) ?? 0;
           sequenceByDay.set(row.date, sequence + 1);
           return { id: row.id, date: row.date, sequence,
-            securityId: input.securityId, currency: 'EUR', kind: row.kind as 'buy' | 'sell',
+            securityId: input.securityId, currency: 'EUR', kind: row.kind as 'buy' | 'sell' | 'split',
             accountId: row.accountId, unitsE8: row.unitsE8, amountCents: row.amountCents,
             feeCents: row.feeCents, taxCents: row.taxCents };
         }),

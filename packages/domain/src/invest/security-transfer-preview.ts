@@ -21,6 +21,9 @@ export type TransferLotDerivation =
   | { readonly kind: 'allocated'; readonly date: string; readonly source: TransferLotFragment }
   | { readonly kind: 'sold-remainder'; readonly saleId: string; readonly date: string;
       readonly source: TransferLotFragment }
+  | { readonly kind: 'unit-adjusted'; readonly splitId: string; readonly date: string;
+      readonly accountId: string; readonly deltaUnitsE8: number; readonly sourceIndex: number;
+      readonly splitSources: readonly TransferLotFragment[]; readonly source: TransferLotFragment }
   | { readonly kind: 'received'; readonly pairId: string; readonly outTradeId: string;
       readonly inTradeId: string; readonly date: string; readonly sourceAccountId: string;
       readonly destinationAccountId: string; readonly source: TransferLotFragment };
@@ -32,6 +35,9 @@ export type AveragePoolProvenance =
       readonly fragment: TransferLotFragment }
   | { readonly kind: 'split'; readonly date: string; readonly source: AveragePoolProvenance;
       readonly numerator: number; readonly denominator: number; readonly saleId?: string }
+  | { readonly kind: 'unit-adjusted'; readonly date: string; readonly source: AveragePoolProvenance;
+      readonly securityId: string; readonly accountId: string; readonly splitId: string;
+      readonly beforeUnitsE8: number; readonly afterUnitsE8: number }
   | { readonly kind: 'received'; readonly date: string; readonly securityId: string;
       readonly source: AveragePoolProvenance;
       readonly pairId: string; readonly outTradeId: string; readonly inTradeId: string;
@@ -118,6 +124,36 @@ const limit = BigInt(Number.MAX_SAFE_INTEGER);
 const ordered = (fragments: readonly TransferLotFragment[]) => [...fragments].sort((a, b) =>
   a.acquiredOn.localeCompare(b.acquiredOn) || a.acquisitionOrder - b.acquisitionOrder);
 
+/** Canonical FIFO split allocation, with an exactness guard on Math.round's integer result. */
+export function fifoSplitLotUnits(lots: readonly TransferLotFragment[], deltaUnitsE8: number): number[] | null {
+  if (!lots.length || lots.length > 2000 || !Number.isSafeInteger(deltaUnitsE8) || deltaUnitsE8 === 0 ||
+      lots.some((lot) => !lot || !safe(lot.unitsE8) || lot.unitsE8 === 0)) return null;
+  const before = lots.reduce((sum, lot) => sum + BigInt(lot.unitsE8), 0n);
+  const after = before + BigInt(deltaUnitsE8);
+  if (before > limit || after <= 0n || after > limit) return null;
+  const outputs: number[] = [];
+  let given = 0n;
+  for (let i = 0; i < lots.length; i++) {
+    const source = lots[i]!;
+    let extra: bigint;
+    if (i === lots.length - 1) extra = BigInt(deltaUnitsE8) - given;
+    else {
+      const numerator = BigInt(deltaUnitsE8) * BigInt(source.unitsE8);
+      // floor(x + 1/2), including negative half-ties, exactly matches JS Math.round.
+      const shifted = 2n * numerator + before;
+      const divisor = 2n * before;
+      extra = shifted >= 0n ? shifted / divisor : -((-shifted + divisor - 1n) / divisor);
+      if (extra !== BigInt(Math.round((deltaUnitsE8 * source.unitsE8) / Number(before))))
+        return null;
+    }
+    const units = BigInt(source.unitsE8) + extra;
+    if (units <= 0n || units > limit) return null;
+    outputs.push(Number(units));
+    given += extra;
+  }
+  return outputs.reduce((sum, units) => sum + BigInt(units), 0n) === after ? outputs : null;
+}
+
 /** One current FIFO lot per original acquisition, retaining every branch as a snapshot. */
 export function normalizeFifoAcquisitionFragments(fragments: readonly TransferLotFragment[]): TransferLotFragment[] {
   const groups = new Map<string, TransferLotFragment[]>();
@@ -141,7 +177,8 @@ export function normalizeFifoAcquisitionFragments(fragments: readonly TransferLo
 }
 
 /** Check caller-supplied ancestry without treating an aggregate as one invented path. */
-function validDerivation(root: TransferLotFragment, method: CostMethod, asOf: string, accountId: string): boolean {
+function validDerivation(root: TransferLotFragment, method: CostMethod, asOf: string, accountId: string,
+  work = { remaining: 1000000 }, adjustments = new Map<string, string>()): boolean {
   const active = new Set<TransferLotFragment>(), complete = new Set<TransferLotFragment>();
   const currentAccount = new Map<TransferLotFragment, string | undefined>();
   const latestDate = new Map<TransferLotFragment, string>();
@@ -155,6 +192,10 @@ function validDerivation(root: TransferLotFragment, method: CostMethod, asOf: st
         if ((sourceAccount !== undefined && sourceAccount !== derivation.sourceAccountId) ||
             derivation.date < latestDate.get(derivation.source)!) return false;
         currentAccount.set(fragment, derivation.destinationAccountId);
+      } else if (derivation?.kind === 'unit-adjusted') {
+        const sourceAccount = currentAccount.get(derivation.source);
+        if (sourceAccount !== undefined && sourceAccount !== derivation.accountId) return false;
+        currentAccount.set(fragment, derivation.accountId);
       } else if (derivation?.kind === 'reunited') {
         const accounts = new Set(derivation.contributingFragments.map((item) => currentAccount.get(item))
           .filter((account): account is string => account !== undefined));
@@ -196,10 +237,16 @@ function validDerivation(root: TransferLotFragment, method: CostMethod, asOf: st
       for (const item of derivation.contributingFragments)
         stack.push({ fragment: item, leaving: false });
     } else if (derivation.kind === 'pooled-basis' || derivation.kind === 'allocated' ||
-        derivation.kind === 'sold-remainder' || derivation.kind === 'received') {
+        derivation.kind === 'sold-remainder' || derivation.kind === 'received' ||
+        derivation.kind === 'unit-adjusted') {
       if (!derivation.source ||
           !validDay(derivation.date) || derivation.date < fragment.acquiredOn || derivation.date > asOf ||
           (derivation.kind === 'sold-remainder' && !identity(derivation.saleId)) ||
+          (derivation.kind === 'unit-adjusted' &&
+            (!identity(derivation.splitId) || !identity(derivation.accountId) ||
+              !Number.isSafeInteger(derivation.deltaUnitsE8) || derivation.deltaUnitsE8 === 0 ||
+              !Array.isArray(derivation.splitSources) || derivation.splitSources.length > 2000 ||
+              !Number.isSafeInteger(derivation.sourceIndex))) ||
           (derivation.kind === 'received' &&
             (!identity(derivation.pairId) || !identity(derivation.outTradeId) || !identity(derivation.inTradeId) ||
               derivation.outTradeId === derivation.inTradeId || !identity(derivation.sourceAccountId) ||
@@ -207,6 +254,32 @@ function validDerivation(root: TransferLotFragment, method: CostMethod, asOf: st
               derivation.sourceAccountId === derivation.destinationAccountId)))
         return false;
       const previous = derivation.source;
+      if (derivation.kind === 'unit-adjusted') {
+        const sources = derivation.splitSources;
+        work.remaining -= sources.length;
+        if (work.remaining < 0) return false;
+        const outputs = fifoSplitLotUnits(sources, derivation.deltaUnitsE8);
+        if (!outputs) return false;
+        const sorted = ordered(sources);
+        if (derivation.sourceIndex < 0 || derivation.sourceIndex >= sources.length ||
+            sources[derivation.sourceIndex] !== previous ||
+            fragment.unitsE8 !== outputs[derivation.sourceIndex] ||
+            fragment.basisCents !== previous.basisCents ||
+            new Set(sources.map((item) => item.acquisitionId)).size !== sources.length ||
+            new Set(sources.map((item) => `${item.acquiredOn}:${item.acquisitionOrder}`)).size !== sources.length ||
+            sources.some((item, index) => !item || !identity(item.acquisitionId) ||
+              !validDay(item.acquiredOn) || item.acquiredOn > derivation.date ||
+              !safe(item.acquisitionOrder) || !safe(item.basisCents as number) ||
+              sorted[index] !== item || fragmentLatestDate(item, work) > derivation.date))
+          return false;
+        const signature = JSON.stringify([derivation.date, derivation.accountId,
+          derivation.deltaUnitsE8, sources.map((item) => [item.fragmentId,
+            item.acquisitionId, item.acquiredOn, item.acquisitionOrder,
+            item.unitsE8, item.basisCents])]);
+        if (adjustments.has(derivation.splitId) && adjustments.get(derivation.splitId) !== signature)
+          return false;
+        adjustments.set(derivation.splitId, signature);
+      }
       if ((derivation.kind === 'received' && (fragment.unitsE8 !== previous.unitsE8 || fragment.basisCents !== previous.basisCents)) ||
           (derivation.kind === 'pooled-basis' && (method !== 'average' || fragment.unitsE8 !== previous.unitsE8 ||
             fragment.basisCents !== null || previous.basisCents === null)) ||
@@ -239,16 +312,22 @@ function hasTransferAncestry(root: TransferLotFragment): boolean {
   }
   return false;
 }
-function fragmentLatestDate(root: TransferLotFragment): string {
+function fragmentLatestDate(root: TransferLotFragment, work?: { remaining: number }): string {
   let latest = root.acquiredOn;
   const pending = [root], seen = new Set<TransferLotFragment>();
   while (pending.length) {
     const fragment = pending.pop()!;
+    if (work && --work.remaining < 0) return '\uffff';
+    if (!fragment || typeof fragment !== 'object') return '\uffff';
     if (seen.has(fragment)) continue;
     seen.add(fragment);
     const derivation = fragment.derivation;
-    if (derivation?.kind === 'reunited') pending.push(...derivation.contributingFragments);
+    if (derivation?.kind === 'reunited') {
+      if (!Array.isArray(derivation.contributingFragments)) return '\uffff';
+      pending.push(...derivation.contributingFragments);
+    }
     else if (derivation) {
+      if (!derivation.source || !validDay(derivation.date)) return '\uffff';
       if (derivation.date > latest) latest = derivation.date;
       pending.push(derivation.source);
     }
@@ -296,7 +375,8 @@ export function validateAverageProvenance(root: AveragePoolProvenance, unitsE8: 
   acquisitionForms = new Map<string, 'acquisition' | 'documented-fragment'>(),
   ownership = new Map<string, RationalShare>(),
   receipts = new Map<string, string>(), legs = new Map<string, string>(),
-  sales = new Map<string, string>()): 'valid' | 'invalid' | 'limit' {
+  sales = new Map<string, string>(),
+  adjustments = new Map<string, string>()): 'valid' | 'invalid' | 'limit' {
   if (!root || !safe(unitsE8) || unitsE8 === 0 || !identity(accountId) ||
       !identity(securityId) || !validDay(asOf)) return 'invalid';
   const active = new Set<AveragePoolProvenance>();
@@ -348,6 +428,26 @@ export function validateAverageProvenance(root: AveragePoolProvenance, unitsE8: 
           if (shares.has(key)) return 'invalid';
           shares.set(key, { numerator: 1n, denominator: 1n });
         }
+      } else if (node.kind === 'unit-adjusted') {
+        const source = completed.get(node.source)!;
+        if (source.accountId !== node.accountId || node.date < source.latestDate ||
+            source.denominator !== 1n || source.numerator !== BigInt(node.beforeUnitsE8))
+          return 'invalid';
+        mass = exactMass(BigInt(node.afterUnitsE8), 1n, node.accountId, node.date);
+        if (!mass) return 'limit';
+        shareWork += source.shares.size;
+        if (shareWork > 1000000) return 'limit';
+        const signature = JSON.stringify([node.date, node.securityId, node.accountId,
+          node.beforeUnitsE8, node.afterUnitsE8,
+          [...source.shares].sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, share]) => [key, share.numerator.toString(), share.denominator.toString()])]);
+        if (adjustments.has(node.splitId) && adjustments.get(node.splitId) !== signature)
+          return 'invalid';
+        adjustments.set(node.splitId, signature);
+        const key = `unit-adjustment:${node.splitId}`;
+        if (source.shares.has(key)) return 'invalid';
+        shares = new Map(source.shares);
+        shares.set(key, { numerator: 1n, denominator: 1n });
       } else if (node.kind === 'received') {
         const source = completed.get(node.source)!;
         if (source.accountId !== node.sourceAccountId || node.date < source.latestDate) return 'invalid';
@@ -436,6 +536,13 @@ export function validateAverageProvenance(root: AveragePoolProvenance, unitsE8: 
           (node.saleId !== undefined && !identity(node.saleId)) ||
           commonDivisor(BigInt(node.numerator), BigInt(node.denominator)) !== 1n) return 'invalid';
       sources = [node.source];
+    } else if (node.kind === 'unit-adjusted') {
+      if (!validDay(node.date) || node.date > asOf || node.securityId !== securityId ||
+          !identity(node.accountId) || !identity(node.splitId) ||
+          !safe(node.beforeUnitsE8) || node.beforeUnitsE8 === 0 ||
+          !safe(node.afterUnitsE8) || node.afterUnitsE8 === 0 ||
+          node.afterUnitsE8 === node.beforeUnitsE8) return 'invalid';
+      sources = [node.source];
     } else if (node.kind === 'received') {
       if (!validDay(node.date) || node.date > asOf || node.securityId !== securityId ||
           !identity(node.pairId) || !identity(node.outTradeId) || !identity(node.inTradeId) ||
@@ -518,6 +625,9 @@ export function previewKnownBasisSecurityTransfer(input: KnownBasisTransferInput
   const ownership = new Map<string, RationalShare>();
   const receipts = new Map<string, string>(), legs = new Map<string, string>();
   const sales = new Map<string, string>();
+  const adjustments = new Map<string, string>();
+  const splitValidationWork = { remaining: 1000000 };
+  const fifoAdjustments = new Map<string, string>();
   let sourceUnits = 0n, sourceBasis = 0n, destinationBasis = 0n, destinationUnits = 0n;
   for (const pool of [source, destination]) {
     if (pool.averagePool !== undefined) {
@@ -526,7 +636,8 @@ export function previewKnownBasisSecurityTransfer(input: KnownBasisTransferInput
           !safe(pool.poolBasisCents as number)) return unavailable('invalid_input');
       const status = validateAverageProvenance(pool.averagePool.provenance, pool.averagePool.unitsE8,
         pool.accountId, pool.securityId, date, acquisitions, graphPositions,
-        acquisitionFacts, fragmentHandles, acquisitionForms, ownership, receipts, legs, sales);
+        acquisitionFacts, fragmentHandles, acquisitionForms, ownership, receipts, legs, sales,
+        adjustments);
       if (status !== 'valid') return unavailable(status === 'limit' ? 'provenance_limit' : 'ambiguous_lineage');
       if (pool === source) { sourceUnits = BigInt(pool.averagePool.unitsE8); sourceBasis = BigInt(pool.poolBasisCents!); }
       else { destinationUnits = BigInt(pool.averagePool.unitsE8); destinationBasis = BigInt(pool.poolBasisCents!); }
@@ -552,7 +663,8 @@ export function previewKnownBasisSecurityTransfer(input: KnownBasisTransferInput
           fragment.transferPairIds.some((id) => !identity(id)) ||
           new Set(fragment.transferPairIds).size !== fragment.transferPairIds.length))
         return unavailable('ambiguous_lineage');
-      if (fragment.derivation !== undefined && !validDerivation(fragment, method, date, pool.accountId))
+      if (fragment.derivation !== undefined && !validDerivation(fragment, method, date,
+        pool.accountId, splitValidationWork, fifoAdjustments))
         return unavailable('ambiguous_lineage');
       const position = `${fragment.acquiredOn}:${fragment.acquisitionOrder}`;
       const previous = order.get(position);
