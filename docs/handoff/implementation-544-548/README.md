@@ -24,3 +24,7 @@ Branch publication is a WIP checkpoint only. The inspected workflows trigger CI 
 The independent source review ofce1e67b17a930d3441e827359f1adf5efcb38303 found two display defects in the new instrument chart. The native Kurs mode now uses the observed price range with padding (single price uses2% or one micro-unit) and keeps its horizontal axis inside the plot rather than projecting an off-plot zero. EUR Wert retains its zero basis. Its value ticks now use the existing #470 `euroAxis` formatter and explicit unit. Only that unchanged helper/import was carried from48c91868554647eb01dd9e61a03fc697b745c2fd; later assembly must retain one identical helper alongside #470 currencyAxis and other chart changes. Prices, cents, valuations, queries, tooltip/table source and basis calculations are unchanged.
 
 The original reviewer explicitly withdrew the risk-Term finding as a source-reading error; all three glossary controls already exist at the reviewed head, so no metrics change was made. See `SOURCE-REVIEW.md`. Correction-delta independent review pending. No tests, test edits, checks, builds, browser, CI, PR, merge or deployment executed; NOT VALIDATED / NOT LIVE.
+
+## Latest independent source review
+
+Independent review of 093228b8ab4336c48c7579500c0f9fca3e1e5fe3 found both chart-source findings addressed. See CHART-FIX-SOURCE-REVIEW.md. #470 helper assembly and rendered acceptance remain pending. NOT VALIDATED / NOT LIVE.
