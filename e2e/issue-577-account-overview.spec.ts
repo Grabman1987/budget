@@ -252,6 +252,10 @@ async function scene(
     .locator('.overview-account-link, .overview-row-details .btn')
     .all()) {
     await target.scrollIntoViewIfNeeded();
+    if (profile === 'configured')
+      await target.evaluate((element) =>
+        element.scrollIntoView({ block: 'center', inline: 'nearest' }),
+      );
     await contained(target, profile === 'configured' ? 44 : 36);
   }
   const axe = await new AxeBuilder({ page })
