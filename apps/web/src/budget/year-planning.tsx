@@ -45,9 +45,24 @@ export function YearPlanning({
           (trigger ?? document.querySelector<HTMLButtonElement>('[data-event="neu"]'))?.focus();
         });
     });
-  if (query.isError)
-    return <ErrorNote what="Ereignisse" error={query.error} onRetry={() => void query.refetch()} />;
-  if (!query.data) return <LoadingNote what="Ereignisse" />;
+  if (query.isError || !query.data)
+    return (
+      <section
+        className="card year-planning"
+        aria-labelledby="year-scenario-title"
+        aria-busy={query.isFetching}
+      >
+        <div className="year-toolbar">
+          <h2 id="year-scenario-title">Geld bis Jahresende</h2>
+        </div>
+        <div className="year-scenario-context">{context}</div>
+        {query.isError ? (
+          <ErrorNote what="Ereignisse" error={query.error} onRetry={() => void query.refetch()} />
+        ) : (
+          <LoadingNote what="Ereignisse" />
+        )}
+      </section>
+    );
   const { events, asOf, budgetAccounts } = query.data;
   const eligible = events.filter(
     (e) => e.status !== 'off_budget' && e.status !== 'unknown_account',
