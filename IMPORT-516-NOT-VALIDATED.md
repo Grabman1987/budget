@@ -9,6 +9,7 @@ Pinned base: `5477fdb5b966e7a18aae3ff10c7937736f711ef9` (`codex/impl-562-563-inb
 - Lazy, keyboard-operable German disclosures appear in suggested bank rows, existing candidate/manual review and bank source-revision warnings. Opening them does not prepare/apply any mutation. A changed current ready revision prompts an inbox refresh; existing canonical CAS remains authoritative. Rule labels explicitly describe current configuration rather than a fabricated historical application record.
 - Labels distinguish the exact signed-cent/account/currency four-calendar-day automatic matcher, five-calendar-day manual suggestions, and 21-day fetch overlap clamped to configured source start. The stricter #562/#563 confirmation projection remains distinct. Null source starts and resolved/protected rows show unavailable state rather than invented data.
 - Operator-import warnings offer an explanation of YNAB row identity, occurrence ordinals, absence/deletion consent and latest-run-only reversal. No file upload, production import, provider setup, new FX pairing or financial write is added.
+- `apps/web/src/inbox/bank-source-explanation.css` uses the existing `--fs-body` typography token for explanation body text, replacing the local `.875rem` literal.
 
 ## Deliberate limitations and contract discrepancy
 
