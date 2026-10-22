@@ -51,3 +51,4 @@ export * from './statement-intake';
 export * from './statement-settlement';
 export * from './statement-automation';
 export * from './statement-automation-contract';
+export * from './reports/payslip-automation';
