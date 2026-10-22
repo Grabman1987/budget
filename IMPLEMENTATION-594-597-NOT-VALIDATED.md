@@ -19,8 +19,13 @@ The new read-only delete preview, bulk-edit preview and skipped-result descripti
 account names, and before/after memo or payee labels now use the existing
 `maskMoneyText` presentation helper. Editable draft values remain literal.
 Structured amounts retain their existing native-currency privacy formatting.
-The fix awaits independent exact-delta review. No tests, test edits, checks,
-typechecks, builds, browser validation, CI, PR, merge or deployment occurred.
+The [independent exact-delta review](594-597-ledger-fix-source-review.md) is
+source-clear at `385004715da6b5d2dca4880b474376e7b3703aba` against
+`6b5401d176658b4225f09d21c018a61cadfd90ea`: both original findings are
+addressed in the bounded source correction, with no new actionable finding.
+Runtime privacy and financial parity remain NOT VALIDATED / NOT LIVE; #719 STOP
+is unchanged. No tests, test edits, checks, typechecks, builds, browser
+validation, CI, PR, merge or deployment occurred.
 
 - **#594:** one live filter dialog on both layouts, removable chips, existing URL
   validation (including an invalid-date guard), full-history filter count and
