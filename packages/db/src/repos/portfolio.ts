@@ -17,6 +17,7 @@ import {
   sumValuationCents,
   unitsHeld,
   ValuationLimitError,
+  type NetWorthComponent,
   type CashFlow,
   type DatedPrice,
   type DatedRate,
@@ -503,6 +504,12 @@ export function netWorthValuationAsOf(
   return netWorthValuationRead(db, asOf, options).valuation;
 }
 
+/** Exact rounded terms of the same memoized producer; no second conversion or pricing path. */
+export function netWorthCompositionSource(db: Executor, asOf: string) {
+  const { valuation, components } = netWorthValuationRead(db, asOf);
+  return { valuation, components };
+}
+
 /** Fallible debt reads retain safe rows when only a final EUR result is out of range. */
 export function fallibleNetWorthValuationAsOf(db: Executor, asOf: string) {
   const { valuation, calculationLimitAccountIds, calculationLimitAccountSigns } =
@@ -549,6 +556,7 @@ function computeNetWorthValuation(
     }
   };
   const cashSources: ValuationSource[] = [];
+  const components: NetWorthComponent[] = [];
   const estimate = options.estimate ?? true;
   const accountRows = db
     .select({
@@ -635,15 +643,49 @@ function computeNetWorthValuation(
         calculationLimitAccountIds.push(balance.accountId);
       }
     }
+    components.push({
+      accountId: balance.accountId,
+      securityId: null,
+      kind: manualAccounts.has(balance.accountId) ? 'manual' : 'cash',
+      valueCents: byAccount[balance.accountId] ?? null,
+      quality: byAccount[balance.accountId] === null ? 'missing' : 'exact',
+      missing: rate === undefined ? 'fx' : null,
+    });
   }
 
   const holdingsByAccount: Record<string, number | null> = {};
   const holdingTerms = new Map<string, number[]>();
   for (const holding of holdings.values) {
+    components.push({
+      accountId: holding.accountId,
+      securityId: holding.securityId,
+      kind: 'holding',
+      valueCents: holding.valueCents,
+      quality: holding.quality,
+      missing: null,
+    });
     const terms = holdingTerms.get(holding.accountId) ?? [];
     terms.push(holding.valueCents);
     holdingTerms.set(holding.accountId, terms);
   }
+  for (const position of holdings.missingFxPositions)
+    components.push({
+      accountId: position.accountId,
+      securityId: position.securityId,
+      kind: 'holding',
+      valueCents: null,
+      quality: 'missing',
+      missing: 'fx',
+    });
+  for (const position of holdings.missingPricePositions)
+    components.push({
+      accountId: position.accountId,
+      securityId: position.securityId,
+      kind: 'holding',
+      valueCents: null,
+      quality: 'missing',
+      missing: 'price',
+    });
   for (const [accountId, currencies] of holdings.missingFxByAccount) {
     holdingsByAccount[accountId] = null;
     for (const currency of currencies) addMissing(accountId, currency);
@@ -695,6 +737,7 @@ function computeNetWorthValuation(
   };
   return {
     valuation: result,
+    components,
     cashSources,
     holdingSources: holdingRead.sources,
     calculationLimitAccountIds: calculationLimitAccountIds.sort(),

@@ -2,7 +2,7 @@ import { ChartValue } from '@budget/ui';
 import { useAmountPrivacy, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { VERMOEGEN_NETTO_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { eur, eurParts, eurWhole } from '../ledger/format';
@@ -10,6 +10,8 @@ import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { ValuationHint } from '../ledger/valuation-hint';
 import { netWorthQuery, type CompositionRow, type NetWorthView } from './api';
 import { NetWorthChart } from './networth-chart';
+import { AssetComposition } from './asset-composition';
+import { AssetCompositionChart } from './asset-composition-chart';
 import {
   chainTerms,
   compositionGeometry,
@@ -27,9 +29,11 @@ export function NetWorthPage() {
   const view = query.data;
   const empty =
     view &&
-    view.composition.assets.length === 0 &&
-    view.composition.debts.length === 0 &&
-    view.chain.nowCents === 0;
+    (view.assetComposition
+      ? view.assetComposition.accounts.length === 0
+      : view.composition.assets.length === 0 &&
+        view.composition.debts.length === 0 &&
+        view.chain.nowCents === 0);
 
   return (
     <PageFrame meta={VERMOEGEN_NETTO_META}>
@@ -47,7 +51,11 @@ export function NetWorthPage() {
           <>
             <ValuationHint incomplete={view.incomplete} />
             <Course view={view} />
-            <Composition view={view} />
+            {view.assetComposition ? (
+              <AssetComposition point={view.assetComposition} />
+            ) : (
+              <Composition view={view} />
+            )}
           </>
         )}
       </div>
@@ -58,6 +66,7 @@ export function NetWorthPage() {
 function Course({ view }: { view: NetWorthView }) {
   useAmountPrivacy();
   const { chain } = view;
+  const [historyMode, setHistoryMode] = useState<'total' | 'composition'>('total');
   const text = periodText(view.period, view.from);
   const { whole, fraction } = eurParts(chain.nowCents);
   const up = chain.deltaCents >= 0;
@@ -79,23 +88,53 @@ function Course({ view }: { view: NetWorthView }) {
         <span className="cents">,{fraction} €</span>
       </div>
       <ZeitraumSwitch />
-      <NetWorthChart view={view} periodLabel={text} />
-      <div className="legend" aria-hidden="true">
-        <span>
-          <svg viewBox="0 0 26 8">
-            <path className="l-actual" d="M0 4h26" />
-          </svg>
-          Nettovermögen, täglich
-        </span>
-        <span>
-          <i className="lg-sq lg-own" />
-          Gespart
-        </span>
-        <span>
-          <i className="lg-sq lg-mkt" />
-          Markt
-        </span>
-      </div>
+      {view.assetCompositionHistory && (
+        <div className="composition-switch" role="group" aria-label="Verlauf anzeigen">
+          <button
+            type="button"
+            aria-pressed={historyMode === 'total'}
+            onClick={() => setHistoryMode('total')}
+          >
+            Gesamt
+          </button>
+          <button
+            type="button"
+            aria-pressed={historyMode === 'composition'}
+            onClick={() => setHistoryMode('composition')}
+          >
+            Zusammensetzung
+          </button>
+        </div>
+      )}
+      {historyMode === 'composition' && view.assetCompositionHistory ? (
+        <AssetCompositionChart points={view.assetCompositionHistory} />
+      ) : (
+        <NetWorthChart view={view} periodLabel={text} />
+      )}
+      {historyMode === 'total' && (
+        <div className="legend" aria-hidden="true">
+          <span>
+            <svg viewBox="0 0 26 8">
+              <path className="l-actual" d="M0 4h26" />
+            </svg>
+            Nettovermögen, täglich
+          </span>
+          <span>
+            <i className="lg-sq lg-own" />
+            Gespart
+          </span>
+          <span>
+            <i className="lg-sq lg-mkt" />
+            Markt
+          </span>
+        </div>
+      )}
+      {view.assetComposition && !view.assetComposition.complete && (
+        <p className="vnote">
+          Die Gesamtzahl verwendet die bestehende Bewertungsbasis. Fehlende, geschätzte oder nicht
+          aktuelle Einzelwerte sind in der Zusammensetzung gekennzeichnet.
+        </p>
+      )}
       <DimensionChain
         terms={chainTerms(chain, view.from)}
         label="Maßkette Nettovermögen im Zeitraum"

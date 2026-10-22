@@ -66,38 +66,44 @@ test('Stand shows the day of the newest prices', async ({ page }) => {
 
 test('"Woraus es besteht": assets by size, debts dashed and subtracted', async ({ page }) => {
   await ready(page);
-  const values = await page.locator('.vbars li .vb-val').allTextContents();
-  const debts = await page.locator('.vbars li.is-debt .vb-val').allTextContents();
+  // #550 replaces the default account bars with asset groups; account mode retains their values/order.
+  await page.getByRole('button', { name: 'Nach Konto', exact: true }).click();
+  const table = page.getByRole('table', { name: 'Ganze Kontowerte am gewählten Stichtag' });
+  const values = await table
+    .locator('tbody .asset-composition-amount')
+    .evaluateAll((nodes) => nodes.map((node) => node.firstChild?.textContent ?? ''));
+  const debts = values.filter((value) => value.startsWith('−'));
   expect(debts.length).toBeGreaterThanOrEqual(2);
   expect(debts.every((d) => d.startsWith('−'))).toBe(true);
-  const tracks = page.locator('.vbars .vb-bar');
-  const zeroPositions = await tracks.evaluateAll((nodes) =>
-    nodes.map((node) => Number(node.getAttribute('data-zero-percent'))),
-  );
-  expect(new Set(zeroPositions).size).toBe(1);
-  const barGeometry = await page.locator('.vbars li').evaluateAll((rows) =>
-    rows.map((row) => {
-      const track = row.querySelector<HTMLElement>('.vb-bar')!;
-      const bar = track.querySelector<HTMLElement>('i')!;
-      return {
-        debt: row.classList.contains('is-debt'),
-        zero: Number(track.dataset['zeroPercent']),
-        left: Number.parseFloat(bar.style.left),
-        width: Number.parseFloat(bar.style.width),
-      };
-    }),
-  );
-  expect(
-    barGeometry.every(
-      (bar) => Math.abs((bar.debt ? bar.left + bar.width : bar.left) - bar.zero) < 1e-3,
-    ),
-  ).toBe(true);
-  const assets = values.slice(0, values.length - debts.length).map(euros);
+  // The account table uses cents; percentages are separate children, never part of the amount.
+  const assets = values.slice(0, values.length - debts.length).map((value) => euros(value) / 100);
   expect(assets).toEqual([...assets].sort((a, b) => b - a));
-  await expect(page.getByText('Gestrichelt: Schulden, werden abgezogen.')).toBeVisible();
-  // The parts add up to the net worth (whole euros, so within rounding of the rows).
-  const sum = values.map(euros).reduce((a, b) => a + b, 0);
+  const debtValues = debts.map((value) => euros(value) / 100);
+  expect(debtValues).toEqual([...debtValues].sort((a, b) => a - b));
+  const sum = values.map((value) => euros(value) / 100).reduce((a, b) => a + b, 0);
   expect(Math.abs(sum - NET_WORTH_EUROS)).toBeLessThanOrEqual(values.length);
+
+  // #551 moves signed geometry to the monthly chart: all debt coordinates stay below its one zero.
+  await page.getByRole('button', { name: 'Zusammensetzung', exact: true }).click();
+  const chart = page.getByTestId('asset-composition-chart');
+  const geometry = await chart.evaluate((svg) => {
+    const zero = Number(svg.querySelector('line.axis')!.getAttribute('y1'));
+    return [...svg.querySelectorAll('path[stroke="var(--ink-2)"]')].map((path) => ({
+      zero,
+      ys: path
+        .getAttribute('d')!
+        .match(/-?\d+(?:\.\d+)?/g)!
+        .map(Number)
+        .filter((_, i) => i % 2 === 1),
+      dash: path.getAttribute('stroke-dasharray'),
+      fill: path.getAttribute('fill'),
+    }));
+  });
+  expect(geometry.length).toBeGreaterThan(0);
+  expect(geometry.every((area) => area.dash === '7 5' && area.fill === 'none')).toBe(true);
+  expect(geometry.every((area) => area.ys.every((y) => y >= area.zero - 1e-3))).toBe(true);
+  expect(geometry.some((area) => area.ys.some((y) => y > area.zero))).toBe(true);
+  await expect(page.getByText('Schulden liegen unter null.', { exact: false })).toBeVisible();
 });
 
 test('the Zeitraum switch updates the URL, the figures and travels to Portfolio', async ({

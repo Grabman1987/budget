@@ -112,3 +112,4 @@ export {
   RECONCILE_ADJUST_CATEGORY_KINDS,
   isReconcileAdjustCategoryKind,
 } from './adjustment-categories';
+export * from './networth-composition';

@@ -3,6 +3,7 @@ import { debtRoutes } from './debts';
 import {
   freedomViewWithHistory,
   accountValuesAsOf,
+  netWorthAssetComposition,
   earliestAccountDate,
   netWorthAsOf,
   netWorthDaily,
@@ -45,6 +46,7 @@ export function wealthRoutes(db: Db, today: () => string): Hono {
     const nowCents = netWorthAsOf(db, to).totalCents;
     if (chain.nowCents !== nowCents) throw new Error('Net worth series and netWorthAsOf disagree');
 
+    const assetComposition = netWorthAssetComposition(db, from, to);
     const values = accountValuesAsOf(db, to);
     const byValue = (a: { valueCents: number }, b: { valueCents: number }) =>
       b.valueCents - a.valueCents;
@@ -62,6 +64,8 @@ export function wealthRoutes(db: Db, today: () => string): Hono {
         unit: period === '1M' || period === '3M' ? 'week' : 'month',
         buckets: bucketNetWorth(rows, period === '1M' || period === '3M' ? 'week' : 'month'),
       },
+      assetComposition: assetComposition.current,
+      assetCompositionHistory: assetComposition.history,
       composition: {
         assets: values.filter((a) => a.valueCents > 0).sort(byValue),
         debts: values.filter((a) => a.valueCents < 0).sort((a, b) => a.valueCents - b.valueCents),
