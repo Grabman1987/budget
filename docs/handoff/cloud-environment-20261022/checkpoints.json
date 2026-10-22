@@ -60,7 +60,7 @@
         700
       ],
       "branch": "codex/impl-offline-558-700",
-      "remote_sha": "f24d665fd69019f5b563977390f76fcef5d0ae4a",
+      "remote_sha": "0475743d467e4ebcdc1b489bb5d5054c360dd78d",
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED; see handoff for partial AC"
     },
     {
@@ -139,7 +139,7 @@
       ],
       "branch": "codex/impl-518-521-explanations",
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
-      "remote_sha": "4b5eba00bdc448c4f0285bd7d8070e7252eb9a04"
+      "remote_sha": "dfa0eafd0491157baca29b7e5678b8d0bc3e0ca1"
     },
     {
       "issues": [
@@ -174,7 +174,7 @@
       ],
       "branch": "codex/impl-485-486-settings-navigation",
       "status": "Autosave and durable last server-completed CSV response observation; independent source reviews archived; NOT VALIDATED / NOT LIVE",
-      "remote_sha": "78fa4838953313be5134add009b9b261b34120a8"
+      "remote_sha": "29a9cf3e0e73ffb79248e1f14d0aed74df0ff348"
     },
     {
       "issues": [
@@ -308,7 +308,7 @@
         700
       ],
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; see package handoff for scope and remaining work",
-      "remote_sha": "54fe17bc4447bfc8167af83deaef51ed0aac39c6"
+      "remote_sha": "798b7715e7703aec8f5a9c755cbbe239f9f06e12"
     },
     {
       "issues": [
@@ -347,13 +347,14 @@
         520
       ],
       "branch": "codex/impl-520-transfer-persistence",
-      "remote_sha": "f25067da1214b2d2199a80bf3a857545f46e28a5",
-      "status": "SOURCE DEPENDENCY ASSEMBLY ONLY \u2014 NOT VALIDATED / NOT LIVE; 0053 persistence stage in progress; original preview branch preserved"
+      "remote_sha": "be9d6e9e331da033edf0aa4c4427cc6bcf61c223",
+      "status": "WIP persistence source; five P2 review findings being corrected; writer/Undo/apply not implemented. NOT VALIDATED / NOT LIVE."
     }
   ],
   "remaining_agents": [
-    "design_474_remaining: transfer persistence source",
-    "review_520_lineage_policy: offline source review"
+    "design_474_remaining: #520 persistence corrections",
+    "copy_469_rule_names: #762 monthly automation source",
+    "small_516_typography: source review catalog refresh"
   ],
   "stop": [
     719
@@ -381,19 +382,16 @@
       "issues": [
         520
       ],
-      "scope": "Source dependency assembly and persistent pair relation/reader/projection stage. 0053 reserved to one author; no DB execution, API apply, merge or deployment."
+      "scope": "Correct five independent persistence source review findings; writer and Undo integration still open. No migration execution/apply activation."
     },
     {
       "issues": [
-        558,
-        559,
-        699,
-        700
+        762
       ],
-      "scope": "Independent source-only review of preserved offline and receipt retry package; no private operations."
+      "scope": "Automatic monthly evaluation source with atomic Undo-resistant first-write guard; verified data prerequisite preserved. No runtime scheduling or broker orders."
     }
   ],
-  "remote_heads_observed_at_utc": "2026-10-22T22:18:15.381810+00:00",
+  "remote_heads_observed_at_utc": "2026-10-22T22:37:05.987728+00:00",
   "recovery_note": "Temporary /tmp evidence directory disappeared during executor recovery. cloud-control now points to /workspace/.budget-tools/cloud-control-persistent. Missing local evidence is not assumed recovered; committed package reports preserved. #520 writer plan explicitly reconstructed and reviewed provenance documented.",
   "selected_heads_observed_at_utc": "2026-10-22T22:14:06.144467+00:00"
 }
