@@ -1,0 +1,37 @@
+{
+  "state": "WIP / UNINTEGRATED \u2014 preservation only; not implementation or validated adoption",
+  "branch": "codex/740-statement-receipt-links",
+  "sourceHead": "aac07204a865f53fff36afa8e5ebae8b498da9e4",
+  "originalBaseBeforeOwnedCommits": "7f0bb50f87da6f1adf0deceeee1d2dae7eab1a52",
+  "orderedCommits": [
+    {
+      "sha": "aac07204a865f53fff36afa8e5ebae8b498da9e4",
+      "parentBase": "7f0bb50f87da6f1adf0deceeee1d2dae7eab1a52",
+      "subject": "feat(statements): select retained PDF booking links with atomic CAS",
+      "paths": [
+        "apps/server/src/api/statement-intake.ts",
+        "apps/web/src/statement-intake/statement-booking-links.tsx",
+        "apps/web/src/statement-intake/statement-review-726.tsx",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/repos/statement-receipt-links.ts",
+        "packages/domain/src/index.ts",
+        "packages/domain/src/statement-receipt-links.ts"
+      ],
+      "exportCommand": "git format-patch -1 --binary --stdout aac07204a865f53fff36afa8e5ebae8b498da9e4 > OWN_OUTPUT/aac07204a865f53fff36afa8e5ebae8b498da9e4.patch",
+      "exportCommandExecuted": false,
+      "patchFile": "owned/01-aac07204a865f53fff36afa8e5ebae8b498da9e4.patch",
+      "copied": true
+    }
+  ],
+  "ownedPathSet": [
+    "apps/server/src/api/statement-intake.ts",
+    "apps/web/src/statement-intake/statement-booking-links.tsx",
+    "apps/web/src/statement-intake/statement-review-726.tsx",
+    "packages/db/src/repos/index.ts",
+    "packages/db/src/repos/statement-receipt-links.ts",
+    "packages/domain/src/index.ts",
+    "packages/domain/src/statement-receipt-links.ts"
+  ],
+  "mixedSourceAncestry": false,
+  "applyPolicy": "No apply/cherry-pick performed. Shared files/migration journals and dependent patches require future per-ticket review."
+}

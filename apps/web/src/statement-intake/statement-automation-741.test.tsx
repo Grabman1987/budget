@@ -139,6 +139,24 @@ function transport(
         missingPriceSecurityIds: [],
       });
     if (url.pathname === '/api/expected') return json({ payments: [] });
+    if (url.pathname === `${PATH}/${ID}/booking-links` && method === 'GET')
+      return json({
+        source: {
+          intakeId: ID,
+          revision: view.revision,
+          sha256: view.sha256,
+          accountId: view.accountId,
+          receiptId: view.receiptId,
+          currency: 'EUR',
+          accountName: account.name,
+        },
+        linksRevision: 'd'.repeat(64),
+        items: [],
+        attached: [],
+        nextOffset: null,
+        nextAttachedOffset: null,
+        unavailableReason: null,
+      });
     if (url.pathname === '/api/statement-settlements')
       return json({ config: null, settlements: [], bonuses: [] });
     if (url.pathname === PATH + '/automation/config') {

@@ -14,6 +14,8 @@ import {
   readStatementAutomationConfig,
   saveStatementAutomationConfig,
   readStatementAutomationOutcome,
+  readStatementReceiptLinks,
+  changeStatementReceiptLinks,
   receipt,
   type Db,
 } from '@budget/db';
@@ -93,6 +95,49 @@ export function statementIntakeRoutes(db: Db, dir: string) {
       ),
     ),
   );
+  api.get('/:id/booking-links', async (c) => {
+    const id = identity.parse(c.req.param('id'));
+    const query = readQuery(
+      c,
+      z
+        .object({
+          q: z.string().max(200).optional(),
+          offset: z.coerce.number().int().min(0).max(100000).optional(),
+          attachedOffset: z.coerce.number().int().min(0).max(100000).optional(),
+          limit: z.coerce.number().int().min(1).max(100).optional(),
+        })
+        .strict(),
+    );
+    await available(id);
+    return c.json(
+      readStatementReceiptLinks(db, id, {
+        ...(query.q === undefined ? {} : { q: query.q }),
+        ...(query.offset === undefined ? {} : { offset: query.offset }),
+        ...(query.attachedOffset === undefined ? {} : { attachedOffset: query.attachedOffset }),
+        ...(query.limit === undefined ? {} : { limit: query.limit }),
+      }),
+    );
+  });
+  api.post('/:id/booking-links', async (c) => {
+    const id = identity.parse(c.req.param('id'));
+    const selected = z
+      .object({ bookingId: identity, bookingRevision: z.string().regex(/^[a-f0-9]{64}$/) })
+      .strict();
+    const body = await readBody(
+      c,
+      z
+        .object({
+          sourceCas: cas,
+          linksRevision: z.string().regex(/^[a-f0-9]{64}$/),
+          attach: z.array(selected).max(100),
+          detach: z.array(selected).max(100),
+        })
+        .strict(),
+    );
+    // The bytes are verified before I/O returns; the repository revalidates all CAS in its transaction.
+    await available(id);
+    return c.json(changeStatementReceiptLinks(db, id, body, { actor: ACTOR }));
+  });
   api.get('/:id/automation', (c) => {
     const id = identity.parse(c.req.param('id'));
     getStatementIntake(db, id);
