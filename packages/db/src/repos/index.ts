@@ -32,6 +32,8 @@ export * from './rules';
 export * from './trades';
 export { previewRecordedSecurityTransfer } from './security-transfer-history';
 export type { RecordedSecurityTransferPreview } from './security-transfer-history';
+export { writeRecordedSecurityTransfer } from './security-transfer-writer';
+export type { RecordedSecurityTransferWrite } from './security-transfer-writer';
 export * from './securities';
 export * from './portfolio-summary';
 export * from './portfolio-benchmark';

@@ -22,7 +22,16 @@ import { accountsQuery, LEDGER_KEY, lookupsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { AccountRow } from '../ledger/types';
 import { instrumentsQuery, type SecurityRecord } from './portfolio-api';
-import { previewSecurityTransfer, removeTrade, saveTrade, sourceMoney, tradeQuery, type TradeRow } from './trade-api';
+import {
+  applySecurityTransfer,
+  previewSecurityTransfer,
+  removeTrade,
+  saveTrade,
+  sourceMoney,
+  tradeQuery,
+  type SecurityTransferProposal,
+  type TradeRow,
+} from './trade-api';
 import { unitsText } from './portfolio-format';
 import {
   hasUnits,
@@ -54,6 +63,7 @@ export function TradePanel({
   const lookups = useQuery({ ...lookupsQuery(), retry: false, enabled: !!id });
   const dirtyRef = useRef(false);
   const busyRef = useRef(false);
+  const uncertainRef = useRef(false);
   const blockedDuringSaveRef = useRef(false);
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -67,18 +77,21 @@ export function TradePanel({
     busyRef.current = value;
     setBusy(value);
   }, []);
+  const setUncertainNow = useCallback((value: boolean) => {
+    uncertainRef.current = value;
+  }, []);
   const blocker = useBlocker({
     shouldBlockFn: () => {
       if (busyRef.current) blockedDuringSaveRef.current = true;
-      return dirtyRef.current || busyRef.current;
+      return dirtyRef.current || busyRef.current || uncertainRef.current;
     },
     withResolver: true,
-    enableBeforeUnload: () => dirtyRef.current || busyRef.current,
+    enableBeforeUnload: () => dirtyRef.current || busyRef.current || uncertainRef.current,
   });
   const { status: blockerStatus, reset: resetBlockedNavigation } = blocker;
   useEffect(() => {
     if (blockerStatus !== 'blocked') return;
-    if (blockedDuringSaveRef.current || busyRef.current) {
+    if (blockedDuringSaveRef.current || busyRef.current || uncertainRef.current) {
       blockedDuringSaveRef.current = false;
       setAsking(false);
       resetBlockedNavigation();
@@ -90,6 +103,7 @@ export function TradePanel({
     setDirtyNow(false);
     setAsking(false);
     setMode('trade');
+    setUncertainNow(false);
     onClose();
   };
   const eligible = accounts.data?.accounts.filter(
@@ -97,7 +111,7 @@ export function TradePanel({
   );
   const ready = accounts.data && securities.data && (!editing || trade.data);
   const beforeClose = () => {
-    if (busyRef.current || blocker.status === 'blocked') return false;
+    if (busyRef.current || uncertainRef.current || blocker.status === 'blocked') return false;
     if (!dirtyRef.current) return true;
     setAsking(true);
     return false;
@@ -161,12 +175,20 @@ export function TradePanel({
         )}
         {id && ready && mode === 'transfer' && !editing && !proposal && (
           <TransferPreviewForm
+            key={id}
             date={accounts.data!.asOf}
             securityId={securityId}
             accounts={accounts.data!.accounts}
             securities={securities.data!.securities}
             onDirty={setDirtyNow}
             onBusy={setBusyNow}
+            onUncertain={setUncertainNow}
+            onSaved={(savedSecurityId) => {
+              setDirtyNow(false);
+              setBusyNow(false);
+              setAsking(false);
+              onSaved(savedSecurityId);
+            }}
           />
         )}
         {id && ready && (mode === 'trade' || editing || !!proposal) && (
@@ -588,37 +610,50 @@ function TradeForm({
   );
 }
 
-/** Read-only transfer review in the existing trade dialog; no delivery is saved here. */
-function TransferPreviewForm({ date, securityId, accounts, securities, onDirty, onBusy }: {
+/** Recorded-ledger proposal, explicit confirmation and one idempotent audited action. */
+function TransferPreviewForm({ date, securityId, accounts, securities, onDirty, onBusy, onUncertain, onSaved }: {
   date: string;
   securityId?: string | undefined;
   accounts: AccountRow[];
   securities: SecurityRecord[];
   onDirty: (dirty: boolean) => void;
   onBusy: (busy: boolean) => void;
+  onUncertain: (uncertain: boolean) => void;
+  onSaved: (securityId: string) => void;
 }) {
-  useAmountPrivacy();
+  const hidden = useAmountPrivacy();
+  const qc = useQueryClient();
+  const toast = useToast();
   const eligible = accounts.filter((account) => account.role === 'investment' &&
     !account.onBudget && account.currency === 'EUR' && !account.closedAt);
   const [original] = useState(() => ({ securityId: securityId ?? '', sourceAccountId: '',
-    destinationAccountId: '', date, units: '' }));
+    destinationAccountId: '', date, units: '', sourceReference: '' }));
   const [draft, setDraft] = useState(original);
   const [result, setResult] = useState<RecordedSecurityTransferPreview | null>(null);
+  const [proposal, setProposal] = useState<SecurityTransferProposal | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+  const [delivery, setDelivery] = useState<{
+    proposal: SecurityTransferProposal; factFingerprint: string; intentKey: string;
+  } | null>(null);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   const update = (key: keyof typeof draft, value: string) => {
+    if (pending.current || delivery || saved) return;
     const next = { ...draft, [key]: value,
       ...(key === 'sourceAccountId' && value === draft.destinationAccountId
         ? { destinationAccountId: '' } : {}) };
     setDraft(next);
     setResult(null);
+    setProposal(null);
+    setConfirmed(false);
     setError('');
     onDirty(JSON.stringify(next) !== JSON.stringify(original));
   };
   const calculate = async (event: FormEvent) => {
     event.preventDefault();
-    if (pending.current) return;
+    if (pending.current || delivery || saved) return;
     setError('');
     if (!draft.securityId || !draft.sourceAccountId || !draft.destinationAccountId ||
         draft.sourceAccountId === draft.destinationAccountId) {
@@ -639,12 +674,88 @@ function TransferPreviewForm({ date, securityId, accounts, securities, onDirty, 
     setBusy(true);
     onBusy(true);
     try {
-      setResult(await previewSecurityTransfer({ securityId: draft.securityId,
+      const input: SecurityTransferProposal = { securityId: draft.securityId,
         sourceAccountId: draft.sourceAccountId, destinationAccountId: draft.destinationAccountId,
-        date: draft.date, unitsE8 }));
+        date: draft.date, unitsE8, sourceReference: draft.sourceReference.trim() || null };
+      const preview = await previewSecurityTransfer(input);
+      setProposal(input);
+      setResult(preview);
+      setConfirmed(false);
     } catch (cause) {
       setResult(null);
+      setProposal(null);
       setError(errorText(cause));
+    } finally {
+      pending.current = false;
+      setBusy(false);
+      onBusy(false);
+    }
+  };
+  const refresh = async () => {
+    try {
+      await qc.invalidateQueries();
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const reverse = (groupId: string, redo = false) =>
+    void undoGroup(groupId).then(async (undone) => {
+      const refreshed = await refresh();
+      toast.show({
+        message: `${redo ? 'Wiederholt.' : 'Rückgängig gemacht.'}${refreshed ? '' :
+          ' Andere Ansichten konnten nicht aktualisiert werden.'}`,
+        actionLabel: redo ? 'Rückgängig' : 'Wiederholen',
+        onAction: () => reverse(undone.groupId, !redo),
+      });
+    }, (cause: unknown) => toast.show({ message: errorText(cause) }));
+  const save = async () => {
+    if (pending.current || saved || !confirmed || !proposal || !result?.available ||
+        !result.applyAvailable) return;
+    const attempt = delivery ?? { proposal, factFingerprint: result.factFingerprint,
+      intentKey: crypto.randomUUID() };
+    setDelivery(attempt);
+    pending.current = true;
+    setBusy(true);
+    onBusy(true);
+    setError('');
+    try {
+      const written = await applySecurityTransfer(attempt.proposal,
+        attempt.factFingerprint, attempt.intentKey);
+      setDelivery(null);
+      onUncertain(false);
+      if (!written.live) {
+        setResult(null);
+        setProposal(null);
+        setConfirmed(false);
+        setError('Dieser Übertrag wurde bereits rückgängig gemacht. Für eine neue Aktion bitte erneut prüfen.');
+        return;
+      }
+      setSaved(true);
+      onDirty(false);
+      const refreshed = await refresh();
+      toast.show({
+        message: `${written.duplicate ? 'Übertrag war bereits gespeichert.' :
+          'Wertpapierübertrag als eine Aktion gespeichert.'}${refreshed ? '' :
+          ' Andere Ansichten konnten nicht aktualisiert werden.'}`,
+        actionLabel: 'Rückgängig',
+        onAction: () => reverse(written.groupId),
+      });
+      onSaved(attempt.proposal.securityId);
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status >= 400 && cause.status < 500) {
+        setDelivery(null);
+        onUncertain(false);
+        setResult(null);
+        setProposal(null);
+        setConfirmed(false);
+        setError('Der Übertrag wurde nicht gespeichert. Bitte die Angaben erneut prüfen. ' +
+          errorText(cause));
+      } else {
+        onUncertain(true);
+        setError('Der Speicherstand ist unklar. Mit demselben Sendeschlüssel erneut versuchen. ' +
+          errorText(cause));
+      }
     } finally {
       pending.current = false;
       setBusy(false);
@@ -653,9 +764,9 @@ function TransferPreviewForm({ date, securityId, accounts, securities, onDirty, 
   };
   return (
     <form className="kform" onSubmit={(event) => void calculate(event)}>
-      <fieldset className="instrument-fields" disabled={busy}>
+      <fieldset className="instrument-fields" disabled={busy || Boolean(delivery) || saved}>
         <p className="vnote">Vorschau aus gespeicherten Käufen, Verkäufen und Splits.
-          Sie erstellt weder eine Brokerorder noch eine Buchung.</p>
+          Sie erstellt keine Brokerorder; das Erfassen bucht nur zwei Wertpapierlieferungen ohne Geldbewegung.</p>
         <Field label="Wertpapier">
           {({ id }) => <Select id={id} value={draft.securityId} required
             onChange={(event) => update('securityId', event.target.value)}>
@@ -693,6 +804,11 @@ function TransferPreviewForm({ date, securityId, accounts, securities, onDirty, 
             money required maxLength={30} aria-describedby={describedBy}
             onChange={(event) => update('units', event.target.value)} />}
         </Field>
+        <Field label="Belegreferenz (optional)" hint="Nur eine tatsächlich vorhandene Referenz eintragen.">
+          {({ id, describedBy }) => <TextInput id={id} type={hidden ? 'password' : 'text'}
+            value={draft.sourceReference} maxLength={200} aria-describedby={describedBy}
+            onChange={(event) => update('sourceReference', event.target.value)} />}
+        </Field>
         {!eligible.length && <p className="vnote">Zwei offene, budgetfreie EUR-Anlagekonten werden benötigt.</p>}
         {error && <p className="field-error" role="alert">{maskMoneyText(error)}</p>}
         <Button type="submit" disabled={busy || eligible.length < 2}>
@@ -724,8 +840,24 @@ function TransferPreviewForm({ date, securityId, accounts, securities, onDirty, 
           <p>Keine Barbewegung, kein realisierter Gewinn.</p>
           {result.warnings.map((warning) => <p key={warning}>{warning}</p>)}
         </div>}
-        <p className="vnote">Erfassen ist derzeit nicht verfügbar. Diese Vorschau speichert keinen Übertrag.</p>
       </fieldset>
+      {result?.available && result.applyAvailable && !saved && !delivery && <div className="vnote">
+        <label><input type="checkbox" checked={confirmed}
+          onChange={(event) => setConfirmed(event.target.checked)} />{' '}
+          Ich bestätige, dass beide Konten dasselbe Wertpapier betreffen und der gezeigte
+          Einstand aus meinen gespeicherten Buchungen für diesen Übertrag verwendet werden soll.
+        </label>
+        <Button type="button" disabled={!confirmed || busy} onClick={() => void save()}>
+          Übertrag als eine Aktion erfassen
+        </Button>
+      </div>}
+      {result?.available && !result.applyAvailable &&
+        <p className="vnote">Dieser Übertrag kann wegen der angezeigten Konten- oder Stichtagssperre nicht erfasst werden.</p>}
+      {delivery && !busy && <div className="vnote" role="alert">
+        <p>Der Ausgang des Speicherns ist unklar. Angaben und Sendeschlüssel bleiben erhalten;
+          erneut versuchen, damit kein zweiter Übertrag entsteht. Bis zur Klärung bleibt dieses Fenster offen.</p>
+        <Button type="button" onClick={() => void save()}>Mit gleichem Sendeschlüssel erneut versuchen</Button>
+      </div>}
     </form>
   );
 }

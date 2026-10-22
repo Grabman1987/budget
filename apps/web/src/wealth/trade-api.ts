@@ -44,8 +44,18 @@ export const removeTrade = (id: string) =>
   request<{ groupId: string }>('DELETE', `/api/trades/${encodeURIComponent(id)}`);
 export const previewSecurityTransfer = (input: {
   securityId: string; sourceAccountId: string; destinationAccountId: string;
-  date: string; unitsE8: number;
+  date: string; unitsE8: number; sourceReference?: string | null;
 }) => request<RecordedSecurityTransferPreview>('POST', '/api/trades/transfer-preview',
   input, undefined, { notifyWrite: false });
+export interface SecurityTransferProposal {
+  securityId: string; sourceAccountId: string; destinationAccountId: string;
+  date: string; unitsE8: number; sourceReference?: string | null;
+}
+export const applySecurityTransfer = (proposal: SecurityTransferProposal,
+  factFingerprint: string, intentKey: string) =>
+  request<{ pairId: string; groupId: string; duplicate: boolean; live: boolean }>(
+    'POST', '/api/trades/transfer-apply',
+    { ...proposal, factFingerprint, intentKey, confirmed: true },
+  );
 export const sourceMoney = (cents: number, currency: string) =>
   `${privateAmount(formatDecimal(cents as Cents))} ${currency === 'EUR' ? '€' : currency}`;

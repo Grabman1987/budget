@@ -32,6 +32,7 @@ import {
   ContributionHistoryLimitError,
   portfolioPositions,
   previewRecordedSecurityTransfer,
+  writeRecordedSecurityTransfer,
   instrumentHistory,
   InstrumentHistoryRangeError,
   portfolioAllocation,
@@ -485,13 +486,19 @@ const tradeQuery = z.object({
   limit: z.coerce.number().int().min(1).max(1000).optional(),
   offset: z.coerce.number().int().min(0).optional(),
 });
-const transferPreviewBody = z.object({
+const transferPreviewBody = z.strictObject({
   securityId: id,
   sourceAccountId: id,
   destinationAccountId: id,
   date: exposureDay,
   unitsE8: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   sourceReference: z.string().max(200).nullable().optional(),
+});
+const transferApplyBody = z.strictObject({
+  ...transferPreviewBody.shape,
+  factFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+  intentKey: z.string().uuid(),
+  confirmed: z.literal(true),
 });
 
 export function tradeRoutes(db: Db): Hono {
@@ -516,6 +523,12 @@ export function tradeRoutes(db: Db): Hono {
   // Read-only recorded-ledger preview. No pair, delivery leg or audit row is written.
   app.post('/transfer-preview', async (c) => c.json(previewRecordedSecurityTransfer(db,
     await readBody(c, transferPreviewBody))));
+  app.post('/transfer-apply', async (c) => {
+    const { confirmed: _confirmed, ...input } = await readBody(c, transferApplyBody);
+    const result = writeRecordedSecurityTransfer(db, input, audit());
+    return c.json({ pairId: result.pair.id, groupId: result.groupId,
+      duplicate: result.duplicate, live: result.live }, result.duplicate ? 200 : 201);
+  });
   app.get('/:id', (c) => c.json({ trade: getTrade(db, c.req.param('id')) }));
 
   app.post('/', async (c) => {

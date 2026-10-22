@@ -72,7 +72,7 @@ export type RecordedSecurityHistory =
       canonical: { accountId: string; unitsE8: number; basisCents: number }[];
       relevantTradeIds: string[];
       /** Historical calculation remains readable when a later reconciliation bars a write. */
-      writeBlockers: ('reconciled' | 'account_closed')[];
+      writeBlockers: ('reconciled' | 'account_closed' | 'account_unopened')[];
       relevantPairIds: string[];
     };
 
@@ -197,10 +197,12 @@ export function readRecordedSecurityHistory(db: Executor, input: {
     const reconciliations = tx.select().from(accountReconciliation)
       .where(inArray(accountReconciliation.accountId, accountIds)).limit(1001).all();
     if (reconciliations.length > 1000) return unavailable('scope_limit');
-    const writeBlockers: ('reconciled' | 'account_closed')[] = [];
+    const writeBlockers: ('reconciled' | 'account_closed' | 'account_unopened')[] = [];
     if (reconciliations.some((row) => row.deletedAt === null && row.date >= input.asOf))
       writeBlockers.push('reconciled');
     if (accounts.some((row) => row.closedAt !== null)) writeBlockers.push('account_closed');
+    if (candidateAccounts.some((row) => row.openingDate > input.asOf))
+      writeBlockers.push('account_unopened');
 
     // Include tombstones and later rows in the CAS facts; only live rows enter basis replay.
     const allTrades = accountIds.flatMap((accountId) => listTrades(tx, {
@@ -448,7 +450,7 @@ export type RecordedSecurityTransferPreview =
       cashDeltaCents: 0;
       realizedGainDeltaCents: 0;
       warnings: string[];
-      applyAvailable: false;
+      applyAvailable: boolean;
     };
 
 const historyMessage: Record<RecordedSecurityHistoryFailure, string> = {
@@ -530,12 +532,14 @@ export function previewRecordedSecurityTransfer(db: Executor, input: {
     cashDeltaCents: 0, realizedGainDeltaCents: 0,
     warnings: [
       'Vorschau auf Basis gespeicherter Budget-Buchungen; keine Bestätigung einer vollständigen Brokerhistorie.',
-      'Stichtag nach allen bereits gespeicherten Buchungen dieses Tages; die spätere Übertragsreihenfolge ist noch nicht festgelegt.',
+      'Der Übertrag steht nach bereits gespeicherten Buchungen dieses Tages und erhält beim Erfassen die nächste belegte Übertragsreihenfolge.',
       ...(history.writeBlockers.includes('reconciled')
         ? ['Eine Kontoprüfung sperrt Änderungen am oder nach diesem Stichtag.'] : []),
       ...(history.writeBlockers.includes('account_closed')
         ? ['Ein beteiligtes Anlagekonto ist geschlossen und kann keinen neuen Übertrag erfassen.'] : []),
+      ...(history.writeBlockers.includes('account_unopened')
+        ? ['Ein beteiligtes Anlagekonto war am Übertragstag noch nicht eröffnet.'] : []),
     ],
-    applyAvailable: false,
+    applyAvailable: history.writeBlockers.length === 0,
   };
 }
