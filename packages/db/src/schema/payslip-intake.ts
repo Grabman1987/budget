@@ -40,6 +40,10 @@ export const payslipScan = sqliteTable('payslip_scan', {
   filesFound: integer('files_found').notNull().default(0),
   errors: integer('errors').notNull().default(0),
   errorCode: text('error_code'),
+  requestAt: text('request_at'),
+  leaseToken: text('lease_token'),
+  leaseUntil: text('lease_until'),
+  fullScanKey: text('full_scan_key'),
 });
 
 /**

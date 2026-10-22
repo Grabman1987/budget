@@ -189,9 +189,10 @@ export function stagePayslip(
     settle?: string;
   },
   ctx: AuditContext,
+  scanLease?: PayslipScanLease,
 ) {
   const grouped = withGroup(ctx);
-  return runInTransaction(db, (tx) => {
+  return withPayslipScanLease(db, scanLease, (tx) => {
     const staged = stageRow(tx, input, grouped);
     if (input.settle && !staged.duplicate) settleIntake(tx, staged.id, input.settle, grouped);
     return staged;
@@ -359,9 +360,10 @@ export function reevaluatePayslipIntake(
   id: string,
   folderYear: number | null,
   ctx: AuditContext,
+  scanLease?: PayslipScanLease,
 ): PayslipScope {
   const grouped = withGroup(ctx);
-  return runInTransaction(db, (tx) => {
+  return withPayslipScanLease(db, scanLease, (tx) => {
     const row = getPayslipIntake(tx, id);
     if (row.status !== 'pending' || row.source !== 'dropbox') return 'in_scope';
     const scope = payslipScope(
@@ -403,9 +405,10 @@ export function replaceParsedPayslip(
   id: string,
   parsed: ParsedPayrollDocument,
   ctx: AuditContext,
+  scanLease?: PayslipScanLease,
 ) {
   const grouped = withGroup(ctx);
-  return runInTransaction(db, (tx) => {
+  return withPayslipScanLease(db, scanLease, (tx) => {
     const row = getPayslipIntake(tx, id);
     if (row.status !== 'pending')
       throw new ConflictError('Diese Aufgabe wurde bereits entschieden.');
@@ -779,11 +782,176 @@ export function decidePayslipIntake(
 }
 export const readPayslipScan = (db: Executor) =>
   db.select().from(payslipScan).where(eq(payslipScan.id, 'dropbox')).get();
-export function writePayslipScan(db: Executor, patch: typeof payslipScan.$inferInsert) {
-  db.insert(payslipScan)
-    .values(patch)
-    .onConflictDoUpdate({ target: payslipScan.id, set: patch })
-    .run();
+export type PayslipScanLease = { root: string; token: string };
+export class PayslipScanLeaseLost extends Error {
+  constructor() {
+    super('payslip_scan_lease_lost');
+  }
+}
+const scanRetryAt = (now: Date) => new Date(now.getTime() + 15 * 60_000).toISOString();
+const activeScanLease = (row: NonNullable<ReturnType<typeof readPayslipScan>>, now: string) =>
+  row.leaseToken !== null && row.leaseUntil !== null && row.leaseUntil > now;
+export function assertPayslipScanLease(db: Executor, lease: PayslipScanLease) {
+  const row = readPayslipScan(db);
+  if (
+    !row ||
+    row.root !== lease.root ||
+    row.leaseToken !== lease.token ||
+    !activeScanLease(row, nowIso())
+  )
+    throw new PayslipScanLeaseLost();
+}
+/** Every scanner-caused durable mutation checks ownership in its own short transaction. */
+export function withPayslipScanLease<T>(
+  db: Executor,
+  lease: PayslipScanLease | undefined,
+  write: (tx: Executor) => T,
+): T {
+  return runInTransaction(db, (tx) => {
+    if (lease) assertPayslipScanLease(tx, lease);
+    return write(tx);
+  });
+}
+export function requestPayslipScan(db: Executor, root: string, now = new Date()) {
+  return runInTransaction(db, (tx) => {
+    const iso = now.toISOString();
+    tx.insert(payslipScan)
+      .values({ id: 'dropbox', root, nextRunAt: iso })
+      .onConflictDoNothing()
+      .run();
+    const row = readPayslipScan(tx)!;
+    if (activeScanLease(row, iso)) return { state: 'running' as const, retryAt: null };
+    if (row.requestAt) return { state: 'queued' as const, retryAt: null };
+    if (
+      row.nextRunAt > iso &&
+      (row.leaseToken !== null ||
+        (row.errorCode !== null && row.errorCode !== 'document_warning'))
+    )
+      return { state: 'backoff' as const, retryAt: row.nextRunAt };
+    tx.update(payslipScan)
+      .set({ requestAt: iso })
+      .where(eq(payslipScan.id, 'dropbox'))
+      .run();
+    return { state: 'queued' as const, retryAt: null };
+  });
+}
+/** Scheduled and manual work use the same authoritative SQLite claim. */
+export function claimPayslipScan(
+  db: Executor,
+  root: string,
+  parserVersion: number,
+  now = new Date(),
+) {
+  return runInTransaction(db, (tx) => {
+    const iso = now.toISOString();
+    tx.insert(payslipScan)
+      .values({ id: 'dropbox', root, nextRunAt: iso })
+      .onConflictDoNothing()
+      .run();
+    const row = readPayslipScan(tx)!;
+    if (activeScanLease(row, iso)) return null;
+    const retryWaiting =
+      row.nextRunAt > iso &&
+      (row.leaseToken !== null ||
+        (row.errorCode !== null && row.errorCode !== 'document_warning'));
+    if (retryWaiting) return null;
+    const rootChanged = row.root !== root;
+    const start = payslipRecordsStart(tx);
+    const parserStale = readPayslipParserVersion(tx) !== String(parserVersion);
+    const stale = start !== null && readPayslipScanStart(tx) !== start;
+    const fullScanKey = JSON.stringify([start, parserVersion]);
+    const continuingFull = !rootChanged && row.fullScanKey === fullScanKey;
+    const full = rootChanged || stale || parserStale || continuingFull;
+    if (continuingFull && row.nextRunAt > iso) return null;
+    if (!row.requestAt && row.nextRunAt > iso && !full) return null;
+    const token = randomUUID();
+    const claimed = tx
+      .update(payslipScan)
+      .set({
+        root,
+        cursor: rootChanged || (full && !continuingFull) ? null : row.cursor,
+        requestAt: null,
+        leaseToken: token,
+        leaseUntil: new Date(now.getTime() + 120_000).toISOString(),
+        nextRunAt: scanRetryAt(now),
+        errorCode: null,
+        fullScanKey: full ? fullScanKey : null,
+      })
+      .where(
+        and(
+          eq(payslipScan.id, 'dropbox'),
+          or(isNull(payslipScan.leaseUntil), lte(payslipScan.leaseUntil, iso)),
+        ),
+      )
+      .returning()
+      .get();
+    return claimed
+      ? {
+          lease: { root, token } as PayslipScanLease,
+          cursor: claimed.cursor,
+          full,
+          parserStale,
+          start,
+        }
+      : null;
+  });
+}
+export function renewPayslipScan(db: Executor, lease: PayslipScanLease, now = new Date()) {
+  return Boolean(
+    db
+      .update(payslipScan)
+      .set({ leaseUntil: new Date(now.getTime() + 120_000).toISOString() })
+      .where(
+        and(
+          eq(payslipScan.id, 'dropbox'),
+          eq(payslipScan.root, lease.root),
+          eq(payslipScan.leaseToken, lease.token),
+          gt(payslipScan.leaseUntil, now.toISOString()),
+        ),
+      )
+      .returning({ id: payslipScan.id })
+      .get(),
+  );
+}
+export function commitPayslipScan(
+  db: Executor,
+  lease: PayslipScanLease,
+  patch: {
+    cursor: string | null;
+    nextRunAt?: string;
+    filesFound: number;
+    errors: number;
+    errorCode: string | null;
+    lastScanAt: string;
+  },
+  options: {
+    release?: boolean;
+    completedFull?: boolean;
+    start?: string | null;
+    parserVersion?: number;
+  } = {},
+) {
+  return withPayslipScanLease(db, lease, (tx) => {
+    tx
+      .update(payslipScan)
+      .set({
+        ...patch,
+        ...(options.release ? { leaseToken: null, leaseUntil: null } : {}),
+        ...(options.completedFull ? { fullScanKey: null } : {}),
+      })
+      .where(
+        and(
+          eq(payslipScan.id, 'dropbox'),
+          eq(payslipScan.root, lease.root),
+          eq(payslipScan.leaseToken, lease.token),
+        ),
+      )
+      .run();
+    if (options.completedFull && options.start != null)
+      writePayslipScanStart(tx, options.start, { actor: 'system' });
+    if (options.completedFull && options.parserVersion !== undefined)
+      writePayslipParserVersion(tx, options.parserVersion, { actor: 'system' });
+  });
 }
 
 const PASSWORD_ID = 'pdf-password';

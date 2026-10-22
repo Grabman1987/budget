@@ -10,11 +10,12 @@ import {
   listPayees,
   INCOME_TYPES,
   readPayslipScan,
+  requestPayslipScan,
   setPayslipSourceConfig,
   type Db,
 } from '@budget/db';
 import { payslipSourceConfig, proposedPayslipPayoutDate, wageTypes } from '@budget/domain';
-import { Hono } from 'hono';
+import { Hono, type MiddlewareHandler } from 'hono';
 import { z } from 'zod';
 import { PayslipIntakeService } from '../payslips/service';
 import {
@@ -119,10 +120,18 @@ export function payslipIntakeRoutes(
   db: Db,
   dir: string,
   service = new PayslipIntakeService(db, dir),
+  passkeySession?: MiddlewareHandler,
 ) {
   const api = new Hono();
   api.get('/status', (c) => {
     const scan = readPayslipScan(db);
+    const now = new Date().toISOString();
+    const scanRunning = Boolean(scan?.leaseToken && scan.leaseUntil && scan.leaseUntil > now);
+    const scanQueued = Boolean(scan?.requestAt);
+    const retryAt =
+      scan && scan.nextRunAt > now && (scan.leaseToken || isScanFailure(scan.errorCode))
+        ? scan.nextRunAt
+        : null;
     const passwordSource = payslipPasswordSource(db);
     return c.json({
       passwordSet: passwordSource !== null,
@@ -135,6 +144,9 @@ export function payslipIntakeRoutes(
         !isScanFailure(scan?.errorCode),
       dropboxConfigured: dropboxConfigured(),
       dropboxWrite: dropboxWriteEnabled(),
+      scanState: scanRunning ? 'running' : scanQueued ? 'queued' : retryAt ? 'backoff' : 'idle',
+      manualAvailable: dropboxConfigured() && !scanRunning && !scanQueued && !retryAt,
+      retryAt,
       lastScanAt: scan?.lastScanAt ?? null,
       filesFound: scan?.filesFound ?? 0,
       errors: scan?.errors ?? 0,
@@ -155,6 +167,28 @@ export function payslipIntakeRoutes(
       config: getPayslipSourceConfig(db),
     });
   });
+  if (passkeySession)
+    api.post('/scan', passkeySession, async (c) => {
+      await readBody(c, z.strictObject({}));
+      if (!dropboxConfigured())
+        throw new ApiError(409, 'source_unavailable', 'Dropbox ist nicht eingerichtet.');
+      const root = process.env['DROPBOX_PAYSLIP_ROOT']!.replace(/\/$/, '');
+      try {
+        const result = requestPayslipScan(db, root);
+        if (result.state === 'backoff')
+          throw new ApiError(409, 'scan_backoff', 'Abruf wird nach der Wartezeit erneut versucht.', {
+            retryAt: result.retryAt,
+          });
+        return c.json(result, 202);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          /SQLITE_(BUSY|LOCKED)/.test(String((error as { code?: string }).code ?? ''))
+        )
+          throw new ApiError(409, 'scan_busy', 'Abruf ist gerade belegt. Bitte erneut versuchen.');
+        throw error;
+      }
+    });
   api.put('/config', async (c) =>
     c.json(setPayslipSourceConfig(db, await readBody(c, payslipSourceConfig), { actor: ACTOR })),
   );

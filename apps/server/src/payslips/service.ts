@@ -15,6 +15,8 @@ import {
   replaceParsedPayslip,
   replacePayslipMappings,
   stagePayslip,
+  assertPayslipScanLease,
+  type PayslipScanLease,
   type Db,
 } from '@budget/db';
 import {
@@ -77,6 +79,8 @@ export type PasswordOptions = {
   folderYear?: number | null | undefined;
   /** Only explicit new manual-upload clients request deterministic automatic capture. */
   automation?: 'eligible' | undefined;
+  /** Internal worker ownership; never accepted from an HTTP request body. */
+  scanLease?: PayslipScanLease | undefined;
 };
 /** 'off': not requested; 'unavailable': BUDGET_PEPPER missing; 'not_opened': did not open the PDF. */
 export type PasswordRemember = 'saved' | 'unavailable' | 'not_opened' | 'off';
@@ -199,6 +203,7 @@ export class PayslipIntakeService {
     contentHash?: string,
     options: PasswordOptions = {},
   ): Promise<Staged | Skipped> {
+    if (options.scanLease) assertPayslipScanLease(this.db, options.scanLease);
     if (!bytes.length || bytes.length > RECEIPT_LIMIT || receiptMime(bytes) !== 'application/pdf')
       throw new RangeError('Bitte eine PDF-Datei bis 15 MB wählen.');
     const sha256 = digest(bytes);
@@ -247,6 +252,7 @@ export class PayslipIntakeService {
         ...(scope === 'recorded' ? { settle: payslipScopeReason(scope) } : {}),
       },
       { actor: source === 'manual' ? 'owner' : 'system' },
+      options.scanLease,
     );
     let automation: PayslipAutomationOutcome | undefined;
     if (source === 'manual' && options.automation === 'eligible') {
@@ -304,14 +310,15 @@ export class PayslipIntakeService {
    * Read a pending intake again with the current parser (after a parser update). The stored PDF
    * stays as it is; a document that cannot be opened keeps its earlier result and throws.
    */
-  async reparse(id: string) {
+  async reparse(id: string, scanLease?: PayslipScanLease) {
+    if (scanLease) assertPayslipScanLease(this.db, scanLease);
     const row = getPayslipIntake(this.db, id),
       receipt = getReceipt(this.db, row.receiptId);
     const bytes = await readFile(await verifyReceiptFile(this.dir, row.sha256, receipt.sizeBytes));
     const { parsed } = await this.evaluate(bytes, receipt.originalFilename ?? '');
     if (parsed.documentType === 'unknown' && /^PDF/.test(parsed.warnings[0] ?? ''))
       throw new Error('reparse');
-    return replaceParsedPayslip(this.db, id, parsed, { actor: 'system' });
+    return replaceParsedPayslip(this.db, id, parsed, { actor: 'system' }, scanLease);
   }
   async retry(id: string, options: PasswordOptions = {}) {
     const row = getPayslipIntake(this.db, id),

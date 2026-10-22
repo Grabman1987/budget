@@ -736,6 +736,9 @@ type SourceStatus = {
   lastScanAt: string | null;
   filesFound: number;
   errors: number;
+  scanState: 'idle' | 'queued' | 'running' | 'backoff';
+  manualAvailable: boolean;
+  retryAt: string | null;
   config: PayslipSourceConfig;
   payees?: { id: string; name: string }[];
 };
@@ -743,19 +746,20 @@ export function PayslipSourceSection() {
   const query = useQuery({
     queryKey: ['payslip-source'],
     queryFn: () => request<SourceStatus>('GET', PATH + '/status'),
+    refetchInterval: 30_000,
   });
   return (
     <section className="data-source-section" aria-labelledby="payslip-source-title">
       <SectionHead id="payslip-source-title" title="Gehaltszettel" />
-      {query.isFetching && <LoadingNote what="Gehaltszettel-Datenquelle" />}
-      {query.isError && (
+      {query.isPending && <LoadingNote what="Gehaltszettel-Datenquelle" />}
+      {query.isError && !query.data && (
         <ErrorNote
           what="Gehaltszettel-Datenquelle"
           error={query.error}
           onRetry={() => void query.refetch()}
         />
       )}
-      {query.isSuccess && !query.isFetching && (
+      {query.data && (
         <>
           <dl className="source-status">
             <div>
@@ -799,6 +803,7 @@ export function PayslipSourceSection() {
               <dd>{query.data.errors}</dd>
             </div>
           </dl>
+          <ManualPayslipScan status={query.data} />
           <PayslipPasswordControls
             source={query.data.passwordSource}
             available={query.data.passwordRememberAvailable}
@@ -810,8 +815,47 @@ export function PayslipSourceSection() {
           />
         </>
       )}
-      <p>Dropbox wird nachts gelesen. PDFs erscheinen zur Bestätigung unter Prüfen.</p>
+      <p>Dropbox wird nachts oder auf Abruf gelesen. PDFs erscheinen zur Bestätigung unter Prüfen.</p>
     </section>
+  );
+}
+function ManualPayslipScan({ status }: { status: SourceStatus }) {
+  const [busy, setBusy] = useState(false);
+  const qc = useQueryClient();
+  const toast = useToast();
+  const run = async () => {
+    if (busy || !status.manualAvailable) return;
+    setBusy(true);
+    try {
+      const result = await request<{ state: 'queued' | 'running' }>('POST', PATH + '/scan', {});
+      await qc.invalidateQueries({ queryKey: ['payslip-source'] });
+      toast.show({
+        message: result.state === 'queued' ? 'Abruf vorgemerkt.' : 'Abruf läuft bereits.',
+      });
+    } catch (error) {
+      toast.show({ message: errorText(error) });
+      await qc.invalidateQueries({ queryKey: ['payslip-source'] });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="sources-actions">
+      <Button variant="ghost" disabled={busy || !status.manualAvailable} onClick={() => void run()}>
+        Jetzt abrufen
+      </Button>
+      <span role="status">
+        {status.scanState === 'queued'
+          ? 'Abruf vorgemerkt; der Hintergrunddienst startet ihn.'
+          : status.scanState === 'running'
+            ? 'Abruf läuft.'
+            : status.scanState === 'backoff' && status.retryAt
+              ? `Nächster Versuch ab ${new Date(status.retryAt).toLocaleString('de-AT')}.`
+              : !status.dropboxConfigured
+                ? 'Dropbox ist nicht eingerichtet.'
+                : ''}
+      </span>
+    </div>
   );
 }
 function PayslipPasswordControls({

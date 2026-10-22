@@ -143,7 +143,7 @@ export function createLedgerApi({
     });
   });
   api.route('/payslips', payrollRoutes(db, today));
-  api.route('/payslip-intake', payslipIntakeRoutes(db, receiptsDir));
+  api.route('/payslip-intake', payslipIntakeRoutes(db, receiptsDir, undefined, passkeyGate));
   api.route('/statement-intake', statementIntakeRoutes(db, receiptsDir));
   api.route('/statement-settlements', statementSettlementRoutes(db, receiptsDir));
   api.route('/projects', projectRoutes(db, today));
