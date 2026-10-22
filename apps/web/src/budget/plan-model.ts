@@ -5,6 +5,8 @@ import {
   percentShares,
   overspentEnvelopes,
   waterfallFill,
+  quickAssignPlan,
+  type QuickAssignMode,
 } from '@budget/domain';
 import { eur } from '../ledger/format';
 import type { CategoryClass, CategoryKind } from './api';
@@ -59,6 +61,35 @@ export const CLASS_TEXT = { need: 'Bedarf', want: 'Wunsch', future: 'Zukunft' } 
 /** What is left in the envelopes of the month: the one sum Plan (inspector) and Heute both show. */
 export const availableInEnvelopes = (rows: ReadonlyArray<{ availableCents: number }>) =>
   rows.reduce((sum, r) => sum + r.availableCents, 0);
+
+/** Inspector accounting uses one complete canonical envelope scope, never TBA carry-in. */
+export function inspectorTotals(rows: ReadonlyArray<EnvelopeSummary>) {
+  const sum = (key: 'carryCents' | 'assignedCents' | 'activityCents' | 'availableCents') =>
+    rows.reduce((total, row) => total + row[key], 0);
+  return { carryCents: sum('carryCents'), assignedCents: sum('assignedCents'),
+    activityCents: sum('activityCents'), availableCents: sum('availableCents') };
+}
+
+/** Target funding comes from the next canonical month; excess never hides another row's need. */
+export function inspectorCoverage(rows: ReadonlyArray<EnvelopeSummary>) {
+  const targeted = rows.filter((row) => row.target !== null);
+  const goalCents = targeted.reduce((sum, row) => sum + row.goalCents, 0);
+  const assignedCents = targeted.reduce((sum, row) => sum + row.assignedCents, 0);
+  const needCents = targeted.reduce((sum, row) => sum + row.needCents, 0);
+  const excessCents = targeted.reduce((sum, row) => sum + Math.max(0, row.assignedCents - row.goalCents), 0);
+  const fundedCents = goalCents - needCents;
+  return { goalCents, assignedCents, fundedCents, needCents, excessCents,
+    percent: goalCents > 0 ? Math.max(0, fundedCents) / goalCents * 100 : null };
+}
+
+/** The canonical plan returns absolute assignments; action labels show only their signed change. */
+export function inspectorQuickAssign(rows: ReadonlyArray<PlanRow>, mode: QuickAssignMode, tba: number) {
+  const eligible = rows.filter((row) => row.quickAssign);
+  const plan = quickAssignPlan(eligible.map((row) => ({ ...row, categoryId: row.id })), mode, tba);
+  const before = new Map(eligible.map((row) => [row.id, row.assignedCents]));
+  const deltaCents = plan.items.reduce((sum, item) => sum + item.assignedCents - before.get(item.categoryId)!, 0);
+  return { ...plan, deltaCents, ids: eligible.map((row) => row.id) };
+}
 
 /** Rows in list order; hidden categories only while they still hold or move money. */
 export function planRows(view: BudgetMonthView): PlanRow[] {
@@ -602,7 +633,9 @@ export function monthStatus(summary: MonthSummary, rows: PlanRow[]): StatusLine[
       tone: 'bad',
       text: `${over} ${over === 1 ? 'Envelope' : 'Envelopes'} überzogen`,
     });
-  if (!lines.length) lines.push({ tone: 'good', text: 'Nichts ist überzogen.' });
+  const underfunded = rows.filter((row) => row.needCents > 0).length;
+  if (underfunded) lines.push({ tone: 'warn', text: `${underfunded} ${underfunded === 1 ? 'Kategorie' : 'Kategorien'} unterfinanziert` });
+  if (!lines.length) lines.push({ tone: 'good', text: 'Nichts ist unterfinanziert oder überzogen.' });
   return lines;
 }
 

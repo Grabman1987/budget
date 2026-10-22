@@ -1,15 +1,19 @@
-import { Button, cx, useAmountPrivacy } from '@budget/ui';
-import { ChevronDown, X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Button, cx, maskMoneyText, useAmountPrivacy } from '@budget/ui';
+import { ChevronDown, Info, X } from 'lucide-react';
+import { useId, useLayoutEffect, useRef, useState, type MouseEventHandler, type ReactNode } from 'react';
 import { eur, longDay } from '../ledger/format';
 import { AppLink } from '../shell/app-link';
 import type { CategoryRow } from './api';
 import { EnvelopeBody } from './envelope-panel';
 import { ActivityLink } from './activity-link';
 import { targetText } from './labels';
-import type { PlanRow } from './plan-model';
+import { CLASS_TEXT, type PlanRow } from './plan-model';
+import { monthLabel } from '../nav/month';
+import { useStoredFlag } from '../shell/use-stored-flag';
 import { QuickAssignActions } from './quick-assign-actions';
 import type { PanelState } from './category-panel';
+
+const moneyWords = (text: string) => maskMoneyText(text).replace(/ (?=€)/g, '\u00a0');
 
 declare module '@tanstack/history' {
   interface HistoryState {
@@ -18,12 +22,49 @@ declare module '@tanstack/history' {
 }
 
 /** Disclosure title with the grid's chevron instead of the browser marker. */
-export function FoldTitle({ children, className }: { children: ReactNode; className?: string }) {
+export function FoldTitle({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: MouseEventHandler<HTMLElement> }) {
   return (
-    <summary className={className}>
+    <summary className={className} onClick={onClick}>
       <ChevronDown className="insp-chev" size={16} strokeWidth={1.75} aria-hidden="true" />
       {children}
     </summary>
+  );
+}
+
+/** Only disclosure booleans are stored on this device, never financial values. */
+function RememberedSection({ name, title, defaultOpen = false, children, id }: {
+  name: string; title: string; defaultOpen?: boolean; children: ReactNode; id?: string;
+}) {
+  const [flag, setFlag] = useStoredFlag(`budget.plan.inspector.${name}`);
+  const open = defaultOpen ? !flag : flag;
+  return <details className="inspector-section" id={id} open={open}
+    onToggle={(event) => {
+      const next = event.currentTarget.open;
+      if (next !== open) setFlag(defaultOpen ? !next : next);
+    }}>
+    <FoldTitle>{title}</FoldTitle>
+    {children}
+  </details>;
+}
+
+/** Pace stays available on hover, keyboard focus and touch without another permanent text row. */
+function PaceHint({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <span className="inspector-pace"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}>
+      <Button variant="ghost" aria-label="Pace erklären"
+        aria-describedby={open ? id : undefined}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onClick={() => setOpen(true)}
+        onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false); }}>
+        <Info size={16} strokeWidth={1.75} aria-hidden="true" />
+      </Button>
+      {open && <span id={id} role="tooltip" className="inspector-pace-tooltip">{moneyWords(text)}</span>}
+    </span>
   );
 }
 
@@ -42,6 +83,12 @@ export function PlanInspector({
   income,
   money,
   rail,
+  actionRows,
+  actionScopeLabel,
+  inspectionIntent,
+  coverCapCents,
+  pace,
+  sourceUnavailable,
 }: {
   month: string;
   rows: PlanRow[];
@@ -56,19 +103,59 @@ export function PlanInspector({
   income: ReactNode;
   money: ReactNode;
   rail: ReactNode;
+  actionRows: PlanRow[];
+  actionScopeLabel: string;
+  inspectionIntent: number;
+  coverCapCents: number | undefined;
+  pace: string;
+  sourceUnavailable: boolean;
 }) {
   useAmountPrivacy();
   const row = selected.length === 1 ? selected[0] : undefined;
+  const [collapsed, setCollapsed] = useStoredFlag('budget.plan.inspector.collapsed');
+  const hasSelection = selected.length > 0;
+  const [fold, setFold] = useState({ intent: inspectionIntent, selected: hasSelection, open: !collapsed });
+  // Only deliberate inspection opens the fold; leaving selection restores the overview preference.
+  if (fold.intent !== inspectionIntent || fold.selected !== hasSelection) setFold({
+    intent: inspectionIntent, selected: hasSelection,
+    open: fold.intent !== inspectionIntent ? true : !hasSelection ? !collapsed : fold.open,
+  });
+  const heading = useRef<HTMLHeadingElement>(null);
+  const focusedIntent = useRef(inspectionIntent);
+  useLayoutEffect(() => {
+    if (focusedIntent.current === inspectionIntent) return;
+    focusedIntent.current = inspectionIntent;
+    if (!window.matchMedia('(max-width: 1179px)').matches || !heading.current) return;
+    heading.current.focus({ preventScroll: true });
+    heading.current.scrollIntoView({ block: 'start', behavior:
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }, [inspectionIntent]);
+  const actions = <QuickAssignActions month={month} emptyIds={[]} selectedIds={actionRows.map((r) => r.id)}
+    preview={{ rows: actionRows, tba, scopeLabel: actionScopeLabel }} />;
   return (
     <aside className="plan-inspector card" aria-label="Plan-Inspektor">
-      <details className="inspector-fold" open key={selected.map((r) => r.id).join(':')}>
-        <FoldTitle className="inspector-fold-title">
-          {row ? 'Kategorie-Details' : selected.length ? 'Auswahl' : 'Monatszahlen'}
+      <details className="inspector-fold" open={fold.open}
+        onToggle={(event) => {
+          const open = event.currentTarget.open;
+          if (open !== fold.open) {
+            setFold({ intent: inspectionIntent, selected: hasSelection, open });
+          }
+        }}>
+        <FoldTitle className="inspector-fold-title" onClick={(event) => {
+          // Click also covers native summary keyboard activation. Programmatic toggles and
+          // inspection auto-open update only local state, never the remembered overview choice.
+          event.preventDefault();
+          const open = !fold.open;
+          setFold({ intent: inspectionIntent, selected: hasSelection, open });
+          setCollapsed(!open);
+        }}>
+          <span>{selected.length ? 'Kategorie-Details' : 'Monatsüberblick'}<span className="insp-month"> · {monthLabel(month)}</span></span>
         </FoldTitle>
+        {sourceUnavailable && <p className="panel-sub inspector-source-warning" role="alert">Die Monatsquelle ist gerade nicht verfügbar. Die bisherige Ansicht und deine Eingaben bleiben erhalten; Geldaktionen im Inspektor sind bis zum Neuladen gesperrt.</p>}
         {selected.length ? (
           <div className="inspector-selection">
             <div className="inspector-head">
-              <h2>{row?.name ?? `${selected.length} Kategorien ausgewählt`}</h2>
+              <h2 ref={heading} tabIndex={-1}>{row ? maskMoneyText(row.name) : `${selected.length} Kategorien ausgewählt`}</h2>
               <Button
                 variant="ghost"
                 className="inspector-close"
@@ -79,6 +166,8 @@ export function PlanInspector({
                 <X size={18} strokeWidth={1.75} aria-hidden="true" />
               </Button>
             </div>
+            <fieldset className="inspector-source-fields" disabled={sourceUnavailable}>
+              <legend className="sr-only">Kategorie und Geldaktionen für {monthLabel(month)}</legend>
             {row ? (
               <>
                 <div className="inspector-activity">
@@ -92,7 +181,7 @@ export function PlanInspector({
                 </div>
                 <div className="inspector-target">
                   <h3 className="panel-h">Ziel</h3>
-                  <p className="panel-sub">{row.target ? targetText(row.target) : 'Kein Ziel.'}</p>
+                  <p className="panel-sub">{row.target ? moneyWords(targetText(row.target)) : 'Kein Ziel.'}</p>
                   {row.target && (
                     <>
                       <progress
@@ -107,6 +196,7 @@ export function PlanInspector({
                     </>
                   )}
                 </div>
+                {actions}
                 <EnvelopeBody
                   key={`${month}:${row.id}:${row.assignedCents}`}
                   month={month}
@@ -114,15 +204,19 @@ export function PlanInspector({
                   rows={rows}
                   tba={tba}
                   onDone={() => {}}
-                  quickValues
+                  coverCapCents={coverCapCents}
                   compact
                 />
                 {row.due?.source === 'expected' && (
                   <p className="panel-sub">
-                    erwartet {longDay(row.due.date)} · {row.due.name}
-                    {row.due.amountCents != null && ` · ${eur(row.due.amountCents)}`}
+                    erwartet {longDay(row.due.date)} · {moneyWords(row.due.name ?? '')}
+                    {row.due.amountCents != null && <> · <span className="insp-amount">{eur(row.due.amountCents)}</span></>}
                   </p>
                 )}
+                <div className="panel-sub inspector-pace">
+                  {row.cls && <span>{CLASS_TEXT[row.cls]}</span>}
+                  <PaceHint key={`${month}:${row.id}`} text={pace || 'Keine Pace-Angabe.'} />
+                </div>
                 <AppLink
                   to={`/plan/monat/envelope/${encodeURIComponent(row.id)}`}
                   search={{ monat: month }}
@@ -185,34 +279,29 @@ export function PlanInspector({
                     </div>
                   ))}
                 </dl>
-                <QuickAssignActions
-                  month={month}
-                  emptyIds={[]}
-                  selectedIds={selected.map((r) => r.id)}
-                  inline
-                />
+                {actions}
               </>
             )}
+            </fieldset>
           </div>
         ) : (
           <>
-            <details className="inspector-section" open>
-              <FoldTitle>Monatsüberblick</FoldTitle>
+            <RememberedSection name="overview-closed" title="Monatsaufstellung" defaultOpen>
               {overview}
-            </details>
-            <details className="inspector-section">
-              <FoldTitle>50/30/20</FoldTitle>
+            </RememberedSection>
+            {actions}
+            <RememberedSection name="split-closed" title="50/30/20" defaultOpen>
               {split}
-            </details>
-            <details className="inspector-section" id="inspector-income">
-              <FoldTitle>Erwartetes Einkommen vs. Monatsziele</FoldTitle>
+            </RememberedSection>
+            <RememberedSection id="inspector-income" name="income" title="Erwartetes Einkommen vs. Monatsziele">
               {income}
-            </details>
-            {money}
-            <details className="inspector-section">
-              <FoldTitle>Wasserfall-Stufen</FoldTitle>
+            </RememberedSection>
+            <RememberedSection name="money" title="Geld auf Budget-Konten">
+              {money}
+            </RememberedSection>
+            <RememberedSection name="waterfall" title="Wasserfall-Stufen">
               {rail}
-            </details>
+            </RememberedSection>
           </>
         )}
       </details>
