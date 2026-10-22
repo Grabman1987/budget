@@ -48,3 +48,16 @@ The rollback is explicitly disposable-copy only, requires stopped workers/transa
 ## Disposition
 
 Request the four bounded source corrections above, then review their precise delta. No additional owner financial/product/retention decision is needed. This report provides no runtime, database-application, provider, browser or release approval claim.
+
+## Follow-up: correction delta independently reviewed
+
+Reviewed **04f8ab9aa9942aa382a4e67e65ce148f2a28e8dd..9664552b062391c070ca8315286ff71a2b631063**, pinned Git source, on 2026-10-22. Scope was the six-file correction delta and relevant existing config/read/write callers. **All four findings above are addressed in source; no further actionable issue was identified in this bounded delta.**
+
+- Retry and page-cap deadlines now use `Date.now()` at the write site; the next daily slot uses a fresh `Date`, and progress timestamps likewise use current time. Claim-time crash fallback remains unchanged.
+- A non-null mismatching full-scan key now sets `interruptedDifferentFull`, forcing a full scan with a null cursor, including the completed-A/partial-B/return-to-A scenario and in-progress null/non-null scope transitions. Matching-key continuation and its existing delay are preserved. Root replacement additionally clears its previous timestamp and counts.
+- `PayslipSourceForm` is keyed only by serialized persisted config. Status-only refetches keep the same key and drafts; actual config changes returned after Save/Undo/Redo change the key and reinitialize the form. The existing config getter returns stable parsed persisted data, and the existing write/undo/redo hook invalidates the source query. No entire-response key or polling-driven unconditional reset was added.
+- Status hides historical timestamp/counts/error class when the persisted root differs from the configured root. Global running/queued/backoff calculations and request admission remain independent of that presentation filter, so this correction does not admit overlapping scans or bypass retry delay.
+
+This delta adds no migration/schema changes and does not alter endpoint authorization, lease predicates, intake transaction fences or automation eligibility. The original migration source conclusions therefore remain applicable without a new executable migration claim. The archived original review correctly describes the original pinned checkpoint; the NOTVALIDATED note describes the corrections and still disclaims runtime validation.
+
+Limits: source inspection only; no tests, type/build checks, browser, database/migration, provider or CI operations; no repository modifications. This closes the four source findings, not runtime acceptance or deployment gates.
