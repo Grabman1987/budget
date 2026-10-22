@@ -2,13 +2,14 @@ import type { Heute } from './api';
 
 export type AttentionData = Pick<
   Heute,
-  'stand' | 'nextSteps' | 'financeCheck' | 'attention' | 'accountReminders'
->;
+  'nextSteps' | 'financeCheck' | 'attention' | 'accountReminders' | 'contactReminders'
+> & { stand: Pick<Heute['stand'], 'today' | 'month'> };
 
 type MonthCloseTasks = NonNullable<Heute['attention']['monthCloseTasks']>;
 
 export type AttentionTask =
   | { id: string; kind: 'plan' | 'rules' | 'review' | 'accounts' }
+  | { id: string; kind: 'contact'; reminder: NonNullable<Heute['contactReminders']>[number] }
   | { id: string; kind: 'month-close'; task: MonthCloseTasks['tasks'][number] };
 
 export type AttentionAvailability =
@@ -48,6 +49,9 @@ export function attentionModel(
     (data.attention.quoteReview?.count ?? 0) > 0 || data.attention.loanTermsMissing
   ) {
     candidates.push({ id: 'accounts:review', kind: 'accounts' });
+  }
+  for (const reminder of data.contactReminders ?? []) {
+    candidates.push({ id: `contact:${reminder.contactId}`, kind: 'contact', reminder });
   }
   const closes = data.attention.monthCloseTasks;
   if (closes) {

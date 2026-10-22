@@ -479,287 +479,369 @@ export function paceOfMonth(
   };
 }
 
-export function heute(db: Executor, query: HeuteQuery): Heute {
+/** Cache only inside this synchronous read; never share a failed or stale computation. */
+function once<T>(read: () => T): () => T {
+  let saved: { value: T } | undefined;
+  return () => {
+    if (!saved) saved = { value: read() };
+    return saved.value;
+  };
+}
+
+/** Each section calls the same canonical calculation as the complete legacy Heute response. */
+function heuteReaders(db: Executor, query: HeuteQuery) {
   const today = query.today;
   const month = query.month ?? monthOf(today);
-  const facts = loadFacts(db, latest(lastDayOfMonth(month), today));
-  const todayBudget = facts.budgetByMonth.get(monthOf(today));
-  const monthBudget = facts.budgetByMonth.get(month);
-  const categories = new Map(facts.categories.map((c) => [c.id, c]));
-  const budgetAccounts = facts.accounts.filter((a) => a.onBudget && a.role === 'budget');
-  const budgetIds = budgetAccounts.map((a) => a.id);
-  const valuation = netWorthValuationAsOf(db, today);
-  // Forecast only consumes budget accounts; an unknown depot cannot block daily cash planning.
-  const budgetValues = Object.fromEntries(
-    budgetIds.map((id) => {
-      const value = valuation.byAccount[id] ?? (Object.hasOwn(valuation.byAccount, id) ? null : 0);
-      if (value === null) {
-        const currency = valuation.missingFxByAccount[id]?.[0];
-        if (currency) throw new MissingFxRateError(currency, today);
-        throw new PriceUnavailableError(id, valuation.missingPriceByAccount[id]![0]!, today);
-      }
-      return [id, value];
-    }),
-  );
-  const sumBudget = (balanceOf: (id: string) => number) =>
-    budgetIds.reduce((s, id) => s + balanceOf(id), 0);
-
-  // ---- occurrences, payday, window ----
-  const all = occurrencesBetween(
-    db,
-    facts,
-    earliest(`${month}-01`, addDays(today, -OPEN_LOOKBACK_DAYS)),
-    latest(lastDayOfMonth(month), addDays(today, 400)),
-    today,
-    todayBudget,
-  );
-  const pausedCashSchedule = scheduled(
-    facts,
-    earliest(`${month}-01`, addDays(today, -OPEN_LOOKBACK_DAYS)),
-    latest(lastDayOfMonth(month), addDays(today, 400)),
-    today,
-    { applyIncomePauses: true },
-  );
-  const pausedSalaryDates = new Set(
-    pausedCashSchedule
-      .filter(
-        (o) =>
-          o.payment.kind === 'inflow' &&
-          o.cents === 0 &&
-          o.payment.incomeTypeId === INCOME_TYPES.salary.id,
-      )
-      .map((o) => `${o.payment.id}|${o.dueDate}`),
-  );
-  const isSalary = (paymentId: string) =>
-    facts.payments.find((p) => p.id === paymentId)?.incomeTypeId === INCOME_TYPES.salary.id;
-  const salary = all.filter(
-    (o) =>
-      o.kind === 'inflow' &&
-      o.status === 'expected' &&
-      o.amountCents > 0 &&
-      isSalary(o.paymentId) &&
-      !pausedSalaryDates.has(`${o.paymentId}|${o.dueDate}`),
-  );
   const payday = nextPayday(today);
   const window = heuteWindow(query.period ?? 'month', month, today, payday.day);
-
-  // ---- lead: free until payday ----
-  const envelopes: FreeEnvelope[] = [];
-  for (const c of facts.categories) {
-    if (c.class !== 'need' && c.class !== 'want') continue;
-    envelopes.push({
-      id: c.id,
-      name: c.name,
-      class: c.class,
-      availableCents: todayBudget?.envelopes[c.id]?.availableCents ?? 0,
-    });
-  }
-  // Open = still expected, not covered by a Zukunft envelope (those are transfers, not spending).
-  const openOutflows: OpenOutflow[] = all
-    .filter((o) => o.kind === 'outflow' && o.status === 'expected' && o.categoryClass !== 'future')
-    .map((o) => ({
-      id: o.occurrenceId ?? `${o.paymentId}|${o.dueDate}`,
-      label: o.name,
-      day: o.dueDate,
-      cents: -o.amountCents,
-    }));
-  const lead = freeUntilPayday({ envelopes, openOutflows, payday: payday.day, today });
-
-  // ---- balance: actual up to today, forecast after ----
-  const actualDays: string[] = [];
-  for (let d = window.from; d <= window.to && d <= today; d = addDays(d, 1)) actualDays.push(d);
-  const series = cashSeries(db, actualDays, budgetIds);
-  const history = actualDays.map((day, i) => ({
-    day,
-    balanceCents: sumBudget((id) => series.get(id)?.[i] ?? 0),
-  }));
-  const inputs = forecastInputs(facts, today, { byAccount: budgetValues });
-  const { actual, forecast: projected, low } = balanceForecast(inputs, window, history);
-  const forecast: Heute['balance']['forecast'] = budgetAccounts.length > 0 ? projected : [];
-  let salaryJump: Heute['balance']['salary'] = null;
-  if (window.to > today && budgetAccounts.length > 0) {
-    // A planning boundary must never invent or move a salary receipt in the cash forecast.
-    const salaryDay = salary.find((o) => o.dueDate > today && o.dueDate <= window.to)?.dueDate;
-    if (salaryDay) {
-      const jump = salary.filter((o) => o.dueDate === salaryDay);
-      salaryJump = { day: salaryDay, cents: jump.reduce((a, o) => a + o.amountCents, 0) };
-    }
-  }
-
-  // ---- pace of Bedarf and Wunsch ----
-  const {
-    forecast: paceForecast,
-    previousMonth: paceMonthBefore,
-    ...model
-  } = paceOfMonth(facts, month, today, all);
-
-  // ---- pinned envelopes, in the order they were pinned ----
-  const pinned: HeutePinned[] = facts.categories
-    .filter((c) => c.pinnedAt !== null)
-    .sort(
-      (a, b) =>
-        (a.pinnedAt as string).localeCompare(b.pinnedAt as string) || a.name.localeCompare(b.name),
-    )
-    .map((c) => {
-      const e = monthBudget?.envelopes[c.id];
-      const budgetedCents = (e?.carryCents ?? 0) + (e?.assignedCents ?? 0);
-      return {
+  const stand = { today, month, period: window.period };
+  const factsOf = once(() => loadFacts(db, latest(lastDayOfMonth(month), today)));
+  const scheduleOf = once(() => {
+    const facts = factsOf();
+    const todayBudget = facts.budgetByMonth.get(monthOf(today));
+    const all = occurrencesBetween(
+      db,
+      facts,
+      earliest(`${month}-01`, addDays(today, -OPEN_LOOKBACK_DAYS)),
+      latest(lastDayOfMonth(month), addDays(today, 400)),
+      today,
+      todayBudget,
+    );
+    return all;
+  });
+  const leadOf = once(() => {
+    const facts = factsOf(), all = scheduleOf();
+    const todayBudget = facts.budgetByMonth.get(monthOf(today));
+    // ---- lead: free until payday ----
+    const envelopes: FreeEnvelope[] = [];
+    for (const c of facts.categories) {
+      if (c.class !== 'need' && c.class !== 'want') continue;
+      envelopes.push({
         id: c.id,
         name: c.name,
-        icon: c.icon,
         class: c.class,
-        availableCents: e?.availableCents ?? 0,
-        assignedCents: e?.assignedCents ?? 0,
-        budgetedCents,
-        spentCents: -(e?.activityCents ?? 0),
-        paceMarkCents: roundDiv(Math.max(0, budgetedCents) * model.todayDay, model.daysInMonth),
-        overspentCents: e?.overspentCents ?? 0,
-      };
-    });
+        availableCents: todayBudget?.envelopes[c.id]?.availableCents ?? 0,
+      });
+    }
+    // Open = still expected, not covered by a Zukunft envelope (those are transfers, not spending).
+    const openOutflows: OpenOutflow[] = all
+      .filter((o) => o.kind === 'outflow' && o.status === 'expected' && o.categoryClass !== 'future')
+      .map((o) => ({
+        id: o.occurrenceId ?? `${o.paymentId}|${o.dueDate}`,
+        label: o.name,
+        day: o.dueDate,
+        cents: -o.amountCents,
+      }));
+    const lead = freeUntilPayday({ envelopes, openOutflows, payday: payday.day, today });
 
-  // ---- upcoming, Finanz-Check, net worth, bookings, next steps ----
-  const upcomingRows = all.filter(
-    (o) => o.dueDate >= today && o.dueDate <= addDays(today, UPCOMING_DAYS),
-  );
-  const upcomingMonths = [...new Set(upcomingRows.map((o) => monthOf(o.dueDate)))];
-  const available = Object.fromEntries(
-    readBudget(db, upcomingMonths).map((m) => [
-      m.month,
-      Object.fromEntries(Object.entries(m.envelopes).map(([id, e]) => [id, e.availableCents])),
-    ]),
-  );
-  const upcoming14 = paymentCoverage(upcomingRows, available);
-  const check = availableSection(() => {
-    const result = financeCheck(db, today, facts);
-    return { counts: result.counts, keyRules: result.keyRules, actionRules: result.actionRules };
+    return lead;
   });
-  const netWorth = availableSection(() => {
-    const nw = netWorthAsOf(db, today);
-    const { assetsCents, liabilitiesCents } = netWorthSides(Object.values(nw.byAccount));
-    const monthChange = availableSection(() => {
-      const currentMonth = monthOf(today);
-      const { totals } = wholePicture(db, today, `${currentMonth}..${currentMonth}`);
-      return {
-        deltaCents: totals.deltaCents,
-        investmentsInCents: totals.investmentsInCents,
-        marketCents: totals.marketCents,
-      };
-    });
-
-    const roles = new Map(facts.accounts.map((a) => [a.id, a.role]));
-    const parts = netWorthParts(
-      Object.entries(nw.byAccount).flatMap(([id, valueCents]) => {
-        const role = roles.get(id);
-        return role ? [{ role, valueCents }] : [];
+  const balanceOf = once(() => {
+    const facts = factsOf(), all = scheduleOf(), lead = leadOf();
+    const budgetAccounts = facts.accounts.filter((a) => a.onBudget && a.role === 'budget');
+    const budgetIds = budgetAccounts.map((a) => a.id);
+    const valuation = netWorthValuationAsOf(db, today);
+    // Forecast only consumes budget accounts; an unknown depot cannot block daily cash planning.
+    const budgetValues = Object.fromEntries(
+      budgetIds.map((id) => {
+        const value = valuation.byAccount[id] ?? (Object.hasOwn(valuation.byAccount, id) ? null : 0);
+        if (value === null) {
+          const currency = valuation.missingFxByAccount[id]?.[0];
+          if (currency) throw new MissingFxRateError(currency, today);
+          throw new PriceUnavailableError(id, valuation.missingPriceByAccount[id]![0]!, today);
+        }
+        return [id, value];
       }),
     );
-    const nwSeries = netWorthDays(today).map((day) => ({
-      day,
-      cents: day === today ? nw.totalCents : netWorthAsOf(db, day).totalCents,
-    }));
-    const previousMonthEndCents = nwSeries[nwSeries.length - 2]?.cents ?? nw.totalCents;
+    const sumBudget = (balanceOf: (id: string) => number) =>
+      budgetIds.reduce((s, id) => s + balanceOf(id), 0);
 
-    const yearAgoMonth = addMonths(monthOf(today), -12);
-    const yearAgoDay = earliest(`${yearAgoMonth}-${today.slice(8)}`, lastDayOfMonth(yearAgoMonth));
-    const yearAgoCents = netWorthAsOf(db, yearAgoDay).totalCents;
+    const pausedCashSchedule = scheduled(
+      facts,
+      earliest(`${month}-01`, addDays(today, -OPEN_LOOKBACK_DAYS)),
+      latest(lastDayOfMonth(month), addDays(today, 400)),
+      today,
+      { applyIncomePauses: true },
+    );
+    const pausedSalaryDates = new Set(
+      pausedCashSchedule
+        .filter(
+          (o) =>
+            o.payment.kind === 'inflow' &&
+            o.cents === 0 &&
+            o.payment.incomeTypeId === INCOME_TYPES.salary.id,
+        )
+        .map((o) => `${o.payment.id}|${o.dueDate}`),
+    );
+    const isSalary = (paymentId: string) =>
+      facts.payments.find((p) => p.id === paymentId)?.incomeTypeId === INCOME_TYPES.salary.id;
+    const salary = all.filter(
+      (o) =>
+        o.kind === 'inflow' &&
+        o.status === 'expected' &&
+        o.amountCents > 0 &&
+        isSalary(o.paymentId) &&
+        !pausedSalaryDates.has(`${o.paymentId}|${o.dueDate}`),
+    );
+    // ---- balance: actual up to today, forecast after ----
+    const actualDays: string[] = [];
+    for (let d = window.from; d <= window.to && d <= today; d = addDays(d, 1)) actualDays.push(d);
+    const series = cashSeries(db, actualDays, budgetIds);
+    const history = actualDays.map((day, i) => ({
+      day,
+      balanceCents: sumBudget((id) => series.get(id)?.[i] ?? 0),
+    }));
+    const inputs = forecastInputs(facts, today, { byAccount: budgetValues });
+    const { actual, forecast: projected, low } = balanceForecast(inputs, window, history);
+    const forecast: Heute['balance']['forecast'] = budgetAccounts.length > 0 ? projected : [];
+    let salaryJump: Heute['balance']['salary'] = null;
+    if (window.to > today && budgetAccounts.length > 0) {
+      // A planning boundary must never invent or move a salary receipt in the cash forecast.
+      const salaryDay = salary.find((o) => o.dueDate > today && o.dueDate <= window.to)?.dueDate;
+      if (salaryDay) {
+        const jump = salary.filter((o) => o.dueDate === salaryDay);
+        salaryJump = { day: salaryDay, cents: jump.reduce((a, o) => a + o.amountCents, 0) };
+      }
+    }
+
     return {
-      ...parts,
-      assetsCents,
-      liabilitiesCents,
-      monthChange,
-      totalCents: nw.totalCents,
-      yearAgoDay,
-      yearAgoCents,
-      yearDeltaCents: nw.totalCents - yearAgoCents,
-      asOf: today,
-      previousMonthEndCents,
-      deltaCents: nw.totalCents - previousMonthEndCents,
-      deltaBp: changeBp(nw.totalCents, previousMonthEndCents),
-      series: nwSeries,
+      stand: {
+        today,
+        month,
+        period: window.period,
+        from: window.from,
+        to: window.to,
+        payday: { ...payday, daysToPayday: lead.daysToPayday },
+        budgetBalanceCents: sumBudget((id) => budgetValues[id] ?? 0),
+      },
+      lead,
+      dailyBudget: dailyBudget(lead),
+      balance: { actual, forecast, salary: salaryJump, low },
     };
   });
-
-  const lastBookings: HeuteLastBooking[] = queryBookings(db, { limit: 5, to: today }).items.map(
-    (b) => {
-      const first = b.splits[0];
-      const single = b.splits.length === 1 ? first : undefined;
-      const categoryId = single?.categoryId ?? null;
-      return {
-        id: b.id,
-        date: b.date,
-        payeeName: b.payeeName,
-        categoryName: single?.categoryName ?? null,
-        categoryClass: (categoryId ? categories.get(categoryId)?.class : null) ?? null,
-        memo: b.memo ?? first?.memo ?? null,
-        amountCents: b.amountCents,
-        status: b.status,
-        accountName: b.accountName,
-      };
-    },
-  );
-
-  const currentPace =
-    month === monthOf(today) ? model : paceOfMonth(facts, monthOf(today), today, all);
-  const goal = listGoals(db, monthOf(today)).find((g) => g.remainingCents > 0);
-  return {
-    monthResult: monthResultRead(db, today, monthOf(today)),
-    budgetAnswer: {
-      spentCents: currentPace.figures.spentCents,
-      plannedCents: currentPace.figures.limitCents,
-      remainingCents: currentPace.figures.limitCents - currentPace.figures.spentCents,
-      day: currentPace.todayDay,
-      daysInMonth: currentPace.daysInMonth,
-    },
-    nearestGoal: goal
-      ? {
-          id: goal.id,
-          name: goal.name,
-          savedCents: goal.savedCents,
-          remainingCents: goal.remainingCents,
-        }
-      : null,
-    stand: {
-      today,
-      month,
-      period: window.period,
-      from: window.from,
-      to: window.to,
-      payday: { ...payday, daysToPayday: lead.daysToPayday },
-      budgetBalanceCents: sumBudget((id) => budgetValues[id] ?? 0),
-    },
-    lead,
-    dailyBudget: dailyBudget(lead),
-    balance: { actual, forecast, salary: salaryJump, low },
-    pace: { ...model, forecast: paceForecast, previousMonth: paceMonthBefore },
-    pinned,
-    upcoming14,
-    upcomingEvents: facts.plannedEvents
-      .filter((e) => e.recurrence === 'once')
-      .flatMap((e) => plannedEventOccurrences(e, today, addDays(today, 35)))
+  const paceOf = once(() => paceOfMonth(factsOf(), month, today, scheduleOf()));
+  const pinnedOf = once(() => {
+    const facts = factsOf(), model = paceOf();
+    const monthBudget = facts.budgetByMonth.get(month);
+    const pinned: HeutePinned[] = facts.categories
+      .filter((c) => c.pinnedAt !== null)
       .sort(
         (a, b) =>
-          a.date.localeCompare(b.date) ||
-          a.name.localeCompare(b.name) ||
-          a.eventId.localeCompare(b.eventId),
-      ),
-    accountReminders: accountReminders(db, today),
-    financeCheck: check,
-    netWorth,
-    attention: {
-      // Same rule as the header pill and `/inbox/count`: overspent envelopes are counted in
-      // `nextSteps` (own "N überzogen" row), not here.
-      inboxCount: readInboxCount(db, today, { excludeOverspent: true }).count,
-      pendingCount: queryBookings(db, { status: 'pending', to: addDays(today, -7), limit: 1 })
-        .total,
-      pendingBefore: addDays(today, -7),
-      loanTermsMissing: facts.accounts.some(
-        (a) =>
-          a.type === 'loan' &&
-          a.closedAt === null &&
-          (a.installmentCents === null || a.interestRateBp === null),
-      ),
-    },
-    lastBookings,
-    nextSteps: nextSteps(db, today, facts),
+          (a.pinnedAt as string).localeCompare(b.pinnedAt as string) || a.name.localeCompare(b.name),
+      )
+      .map((c) => {
+        const e = monthBudget?.envelopes[c.id];
+        const budgetedCents = (e?.carryCents ?? 0) + (e?.assignedCents ?? 0);
+        return {
+          id: c.id,
+          name: c.name,
+          icon: c.icon,
+          class: c.class,
+          availableCents: e?.availableCents ?? 0,
+          assignedCents: e?.assignedCents ?? 0,
+          budgetedCents,
+          spentCents: -(e?.activityCents ?? 0),
+          paceMarkCents: roundDiv(Math.max(0, budgetedCents) * model.todayDay, model.daysInMonth),
+          overspentCents: e?.overspentCents ?? 0,
+        };
+      });
+
+    return pinned;
+  });
+  const upcomingOf = once(() => {
+    const all = scheduleOf();
+    const upcomingRows = all.filter(
+      (o) => o.dueDate >= today && o.dueDate <= addDays(today, UPCOMING_DAYS),
+    );
+    const upcomingMonths = [...new Set(upcomingRows.map((o) => monthOf(o.dueDate)))];
+    const available = Object.fromEntries(
+      readBudget(db, upcomingMonths).map((m) => [
+        m.month,
+        Object.fromEntries(Object.entries(m.envelopes).map(([id, e]) => [id, e.availableCents])),
+      ]),
+    );
+    const upcoming14 = paymentCoverage(upcomingRows, available);
+    const facts = factsOf();
+    return {
+      upcoming14,
+      upcomingEvents: facts.plannedEvents
+        .filter((e) => e.recurrence === 'once')
+        .flatMap((e) => plannedEventOccurrences(e, today, addDays(today, 35)))
+        .sort(
+          (a, b) =>
+            a.date.localeCompare(b.date) ||
+            a.name.localeCompare(b.name) ||
+            a.eventId.localeCompare(b.eventId),
+        ),
+    };
+  });
+  const checkOf = once(() => {
+    const facts = factsOf();
+    const check = availableSection(() => {
+      const result = financeCheck(db, today, facts);
+      return { counts: result.counts, keyRules: result.keyRules, actionRules: result.actionRules };
+    });
+    return check;
+  });
+  const wealthOf = once(() => {
+    const facts = factsOf();
+    const netWorth = availableSection(() => {
+      const nw = netWorthAsOf(db, today);
+      const { assetsCents, liabilitiesCents } = netWorthSides(Object.values(nw.byAccount));
+      const monthChange = availableSection(() => {
+        const currentMonth = monthOf(today);
+        const { totals } = wholePicture(db, today, `${currentMonth}..${currentMonth}`);
+        return {
+          deltaCents: totals.deltaCents,
+          investmentsInCents: totals.investmentsInCents,
+          marketCents: totals.marketCents,
+        };
+      });
+
+      const roles = new Map(facts.accounts.map((a) => [a.id, a.role]));
+      const parts = netWorthParts(
+        Object.entries(nw.byAccount).flatMap(([id, valueCents]) => {
+          const role = roles.get(id);
+          return role ? [{ role, valueCents }] : [];
+        }),
+      );
+      const nwSeries = netWorthDays(today).map((day) => ({
+        day,
+        cents: day === today ? nw.totalCents : netWorthAsOf(db, day).totalCents,
+      }));
+      const previousMonthEndCents = nwSeries[nwSeries.length - 2]?.cents ?? nw.totalCents;
+
+      const yearAgoMonth = addMonths(monthOf(today), -12);
+      const yearAgoDay = earliest(`${yearAgoMonth}-${today.slice(8)}`, lastDayOfMonth(yearAgoMonth));
+      const yearAgoCents = netWorthAsOf(db, yearAgoDay).totalCents;
+      return {
+        ...parts,
+        assetsCents,
+        liabilitiesCents,
+        monthChange,
+        totalCents: nw.totalCents,
+        yearAgoDay,
+        yearAgoCents,
+        yearDeltaCents: nw.totalCents - yearAgoCents,
+        asOf: today,
+        previousMonthEndCents,
+        deltaCents: nw.totalCents - previousMonthEndCents,
+        deltaBp: changeBp(nw.totalCents, previousMonthEndCents),
+        series: nwSeries,
+      };
+    });
+
+    return netWorth;
+  });
+  const bookingsOf = once(() => {
+    const categories = new Map(factsOf().categories.map((c) => [c.id, c]));
+    const lastBookings: HeuteLastBooking[] = queryBookings(db, { limit: 5, to: today }).items.map(
+      (b) => {
+        const first = b.splits[0];
+        const single = b.splits.length === 1 ? first : undefined;
+        const categoryId = single?.categoryId ?? null;
+        return {
+          id: b.id,
+          date: b.date,
+          payeeName: b.payeeName,
+          categoryName: single?.categoryName ?? null,
+          categoryClass: (categoryId ? categories.get(categoryId)?.class : null) ?? null,
+          memo: b.memo ?? first?.memo ?? null,
+          amountCents: b.amountCents,
+          status: b.status,
+          accountName: b.accountName,
+        };
+      },
+    );
+
+    return lastBookings;
+  });
+  const overviewOf = once(() => {
+    const facts = factsOf(), model = paceOf(), all = scheduleOf();
+    const currentPace =
+      month === monthOf(today) ? model : paceOfMonth(facts, monthOf(today), today, all);
+    const goal = listGoals(db, monthOf(today)).find((g) => g.remainingCents > 0);
+    return {
+      monthResult: monthResultRead(db, today, monthOf(today)),
+      budgetAnswer: {
+        spentCents: currentPace.figures.spentCents,
+        plannedCents: currentPace.figures.limitCents,
+        remainingCents: currentPace.figures.limitCents - currentPace.figures.spentCents,
+        day: currentPace.todayDay,
+        daysInMonth: currentPace.daysInMonth,
+      },
+      nearestGoal: goal
+        ? {
+            id: goal.id,
+            name: goal.name,
+            savedCents: goal.savedCents,
+            remainingCents: goal.remainingCents,
+          }
+        : null,
+      ...balanceOf(),
+    };
+  });
+  const tasksOf = once(() => {
+    const facts = factsOf();
+    return {
+      stand,
+      accountReminders: accountReminders(db, today),
+      financeCheck: checkOf(),
+      attention: {
+        // Same rule as the header pill and `/inbox/count`: overspent envelopes are counted in
+        // `nextSteps` (own "N überzogen" row), not here.
+        inboxCount: readInboxCount(db, today, { excludeOverspent: true }).count,
+        pendingCount: queryBookings(db, { status: 'pending', to: addDays(today, -7), limit: 1 })
+          .total,
+        pendingBefore: addDays(today, -7),
+        loanTermsMissing: facts.accounts.some(
+          (a) =>
+            a.type === 'loan' &&
+            a.closedAt === null &&
+            (a.installmentCents === null || a.interestRateBp === null),
+        ),
+      },
+      nextSteps: nextSteps(db, today, facts),
+    };
+  });
+  return {
+    overview: overviewOf,
+    pace: () => ({ stand, pace: paceOf() }),
+    wealth: () => ({ stand, netWorth: wealthOf() }),
+    tasks: tasksOf,
+    upcoming: () => ({ stand, ...upcomingOf() }),
+    bookings: () => ({ stand, lastBookings: bookingsOf() }),
+    pinned: () => ({ stand, pinned: pinnedOf() }),
+  };
+}
+
+export type HeuteSections = {
+  [Section in keyof ReturnType<typeof heuteReaders>]: ReturnType<ReturnType<typeof heuteReaders>[Section]>;
+};
+export type HeuteSection = keyof HeuteSections;
+
+/** No error is swallowed: the HTTP boundary keeps each section's authentication/read failure. */
+export function heuteSection<S extends HeuteSection>(db: Executor, query: HeuteQuery, section: S): HeuteSections[S] {
+  return heuteReaders(db, query)[section]() as HeuteSections[S];
+}
+
+/** Backward-compatible complete response for existing details, reports and consumers. */
+export function heute(db: Executor, query: HeuteQuery): Heute {
+  const reads = heuteReaders(db, query);
+  const overview = reads.overview();
+  const tasks = reads.tasks();
+  const upcoming = reads.upcoming();
+  return {
+    ...overview,
+    pace: reads.pace().pace,
+    pinned: reads.pinned().pinned,
+    upcoming14: upcoming.upcoming14,
+    upcomingEvents: upcoming.upcomingEvents,
+    accountReminders: tasks.accountReminders,
+    financeCheck: tasks.financeCheck,
+    netWorth: reads.wealth().netWorth,
+    attention: tasks.attention,
+    lastBookings: reads.bookings().lastBookings,
+    nextSteps: tasks.nextSteps,
   };
 }

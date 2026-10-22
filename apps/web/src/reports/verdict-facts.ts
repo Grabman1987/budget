@@ -89,7 +89,7 @@ export function onePagerVerdictFacts(data: OnePagerData): VerdictFacts {
       : {}),
   };
 }
-export function heuteVerdictFacts(data: Heute): VerdictFacts {
+export function heuteVerdictFacts(data: Pick<Heute, 'stand' | 'monthResult' | 'balance'>): VerdictFacts {
   const salary = data.balance.salary;
   const currentMonth = data.stand.today.slice(0, 7);
   const pendingSalary =

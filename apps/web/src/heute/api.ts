@@ -1,3 +1,4 @@
+import type { HeuteSections } from '@budget/db';
 import type { AccountReviewStatus, PlannedEventOccurrence } from '@budget/domain';
 import { queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
@@ -14,6 +15,10 @@ export interface AccountReminder {
   policy?: AccountReviewStatus['policy'];
   supported?: boolean;
 }
+
+export type ContactReminder =
+  | { contactId: string; name: string; status: 'overdue'; oldestOpenDate: string; ageDays: number }
+  | { contactId: string; name: string; status: 'unavailable'; reason: 'unsupported_currency' };
 
 export interface HeuteUnavailable {
   unavailable: { reason: 'missing_price' | 'missing_fx'; message: string; asOf: string };
@@ -124,6 +129,7 @@ export interface Heute extends WithValuationNotes {
   upcoming14: HeuteOccurrence[];
   upcomingEvents: PlannedEventOccurrence[];
   accountReminders: AccountReminder[];
+  contactReminders?: ContactReminder[];
   financeCheck:
     | {
         counts: { ok: number; warn: number; bad: number; total: number; notEvaluated: number };
@@ -211,3 +217,17 @@ export const heuteQuery = (month: string, period: HeutePeriod) =>
     queryFn: () =>
       request<Heute>('GET', `/api/heute?period=${period}&month=${encodeURIComponent(month)}`),
   });
+
+/** Sections preserve their own HTTP failure and cache timestamp; no partial object is a full Heute. */
+export type HeuteSectionData = Omit<HeuteSections, 'wealth' | 'tasks'> & {
+  accuracy: { stand: Pick<Heute['stand'], 'today' | 'month'>; summary: NonNullable<Heute['planningAccuracy']> };
+  wealth: HeuteSections['wealth'] & Pick<Heute, 'valuationSources'> & WithValuationNotes;
+  tasks: Omit<HeuteSections['tasks'], 'attention'> & Pick<Heute, 'attention' | 'contactReminders'>;
+};
+export const heuteSectionQuery = <S extends keyof HeuteSectionData>(
+  section: S, month: string, period: HeutePeriod,
+) => queryOptions({
+  queryKey: [...HEUTE_KEY, 'section', section, month, period],
+  queryFn: () => request<HeuteSectionData[S]>('GET',
+    `/api/heute/sections/${section}?period=${period}&month=${encodeURIComponent(month)}`),
+});

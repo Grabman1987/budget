@@ -1165,3 +1165,9 @@
 }
 .heute-pending-section.is-chart, .heute-pending-chart { min-height: 280px; }
 .heute-pending-section h2 { font-size: var(--fs-title); }
+
+.heute-read-section { min-width: 0; }
+.heute-read-section.is-chart { min-height: 420px; }
+.heute-read-section > .heute-pending-section { min-height: inherit; }
+
+.heute-detail-grid > .heute-read-section:last-child { grid-column: 1 / -1; }

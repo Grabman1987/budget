@@ -9,7 +9,7 @@ import { monthLabel } from '../nav/month';
 import { ErrorNote } from '../ledger/states';
 import { ValuationSourceHint } from '../ledger/valuation-hint';
 import { AppLink } from '../shell/app-link';
-import type { Heute } from './api';
+import type { Heute, HeuteSectionData } from './api';
 
 /**
  * The three Kennzahlen of Heute (#571): Zu verteilen · Verfügbar im Budget · Nettovermögen, each
@@ -22,36 +22,45 @@ export function Kennzahlen({
   budget,
   chainOpen = false,
   onLeadClick,
+  overviewState,
+  wealthState,
+  stand: suppliedStand,
 }: {
-  data: Pick<
+  data?: Pick<
     Heute,
     | 'stand'
-    | 'netWorth'
     | 'budgetAnswer'
     | 'nearestGoal'
     | 'monthResult'
     | 'lead'
     | 'balance'
-    | 'valuationSources'
-  >;
+  > & Partial<Pick<Heute, 'netWorth' | 'valuationSources'>> | undefined;
+  stand?: Pick<Heute['stand'], 'today' | 'month' | 'period'>;
+  overviewState?: UseQueryResult<unknown>;
+  wealthState?: UseQueryResult<HeuteSectionData['wealth']>;
   budget: UseQueryResult<BudgetMonthView>;
   chainOpen?: boolean;
   onLeadClick: () => void;
 }) {
   useAmountPrivacy();
-  const net = 'unavailable' in data.netWorth ? null : data.netWorth;
+  const stand = data?.stand ?? suppliedStand;
+  if (!stand) return null;
+  const wealthData = wealthState?.isError ? undefined : wealthState?.data;
+  const netWorth = wealthState ? wealthData?.netWorth : data?.netWorth;
+  const sources = wealthState ? wealthData?.valuationSources : data?.valuationSources;
+  const net = netWorth && !('unavailable' in netWorth) ? netWorth : null;
   const change = net && !('unavailable' in net.monthChange) ? net.monthChange : null;
-  const plan = data.budgetAnswer;
-  const householdMonth = data.stand.today.slice(0, 7);
-  const payday = data.stand.period === 'payday';
+  const plan = data?.budgetAnswer;
+  const householdMonth = stand.today.slice(0, 7);
+  const payday = stand.period === 'payday';
   const month = budget.data;
   const summary = month?.summary;
   const available = month ? availableInEnvelopes(planRows(month)) : null;
-  const goal = data.nearestGoal;
+  const goal = data?.nearestGoal;
   return (
     <div className="heute-answers heute-kennzahlen" data-testid="heute-kennzahlen">
-      {data.stand.month && data.stand.month !== householdMonth && (
-        <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>
+      {stand.month && stand.month !== householdMonth && (
+        <p className="heute-note">Stand heute · {longDay(stand.today)}</p>
       )}
       <div className="heute-answer-grid">
         <Kennzahl
@@ -61,7 +70,7 @@ export function Kennzahlen({
           value={summary?.toBeAssignedCents ?? 0}
           alert={(summary?.toBeAssignedCents ?? 0) < 0}
           nonpositive={summary?.toBeAssignedCents === 0}
-          href={{ to: '/plan/monat', search: { monat: data.stand.month } }}
+          href={{ to: '/plan/monat', search: { monat: stand.month } }}
           bar={
             summary && {
               value: summary.assignedCents,
@@ -74,7 +83,7 @@ export function Kennzahlen({
             summary && (
               <>
                 {`Geld, das noch keinem Envelope zugewiesen ist: Übertrag ${eur(summary.carryInCents)} + Einnahmen ${eur(summary.incomeCents)} − Ungedeckt ${eur(summary.uncoveredCents)} − Zugewiesen ${eur(summary.assignedCents)} − Gehalten ${eur(summary.heldCents)}. Dieselbe Zahl wie im Plan. `}
-                {`Haushaltseinnahmen ${eur(data.monthResult.earnedCents)} im ${monthLabel(householdMonth)} nach Buchungsdatum. Mit „Für nächsten Monat“ zählt der Zufluss im Plan erst im Folgemonat. `}
+                {data && `Haushaltseinnahmen ${eur(data.monthResult.earnedCents)} im ${monthLabel(householdMonth)} nach Buchungsdatum. Mit „Für nächsten Monat“ zählt der Zufluss im Plan erst im Folgemonat. `}
                 <AppLink to="/plan/monat/einnahmen" search={{ monat: householdMonth }}>
                   Planmonat {monthLabel(householdMonth)} ansehen
                 </AppLink>
@@ -82,10 +91,14 @@ export function Kennzahlen({
             )
           }
         />
-        {payday ? (
+        {payday && !data ? (
+          <Kennzahl id="frei-bis-gehalt" label="Frei bis Gehalt" value={0} state={overviewState}
+            missing={!overviewState && <p>Herleitung nicht verfügbar.</p>} />
+        ) : payday && data ? (
           <Kennzahl
             id="frei-bis-gehalt"
             label="Frei bis Gehalt"
+            state={overviewState}
             value={data.lead.freeCents}
             alert={data.lead.freeCents < 0}
             onValueClick={onLeadClick}
@@ -94,13 +107,13 @@ export function Kennzahlen({
             testId="heute-lead-value"
             ariaLabel={`Frei verfügbar bis Gehalt: ${eur(data.lead.freeCents)}. Herleitung ${chainOpen ? 'ausblenden' : 'zeigen'}`}
             bar={{
-              value: plan.spentCents,
-              total: plan.plannedCents,
-              label: `Ausgegeben ${eur(plan.spentCents)} von Plan ${eur(plan.plannedCents)} · Tag ${plan.day} von ${plan.daysInMonth}`,
-              marker: plan.day / plan.daysInMonth,
+              value: data.budgetAnswer.spentCents,
+              total: data.budgetAnswer.plannedCents,
+              label: `Ausgegeben ${eur(data.budgetAnswer.spentCents)} von Plan ${eur(data.budgetAnswer.plannedCents)} · Tag ${data.budgetAnswer.day} von ${data.budgetAnswer.daysInMonth}`,
+              marker: data.budgetAnswer.day / data.budgetAnswer.daysInMonth,
             }}
             line={`Bis ${shortDay(data.stand.payday.day)} · noch ${data.stand.payday.daysToPayday} Tage`}
-            note={`Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind. Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Plan-Rest ${eur(plan.remainingCents)}. Plan-Rest: geplante Monatsausgaben minus bisher ausgegeben, kein Kontoguthaben. ${
+            note={`Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind. Ausgabenplan: ${eur(data.budgetAnswer.spentCents)} ausgegeben von ${eur(data.budgetAnswer.plannedCents)} · Plan-Rest ${eur(data.budgetAnswer.remainingCents)}. Plan-Rest: geplante Monatsausgaben minus bisher ausgegeben, kein Kontoguthaben. ${
               data.balance.salary
                 ? `Nächster erwarteter Geldeingang: ${shortDay(data.balance.salary.day)} · ${eur(data.balance.salary.cents)}`
                 : 'Kein Geldeingang im Prognosezeitraum erwartet.'
@@ -114,34 +127,35 @@ export function Kennzahlen({
             value={available ?? 0}
             alert={(available ?? 0) < 0}
             nonpositive={available === 0}
-            href={{ to: '/plan/monat', search: { monat: data.stand.month } }}
-            bar={{
+            href={{ to: '/plan/monat', search: { monat: stand.month } }}
+            bar={plan && {
               value: plan.spentCents,
               total: plan.plannedCents,
               label: `Ausgegeben ${eur(plan.spentCents)} von Plan ${eur(plan.plannedCents)} · Tag ${plan.day} von ${plan.daysInMonth}`,
               marker: plan.day / plan.daysInMonth,
             }}
             line={
-              available === null
+              available === null || !plan
                 ? undefined
                 : `Ausgegeben ${eurWhole(plan.spentCents)} von ${eurWhole(plan.plannedCents)}`
             }
-            note={`Summe „Verfügbar“ aller Envelopes im Monat, wie im Plan-Inspektor. Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Plan-Rest ${eur(plan.remainingCents)}.`}
+            note={plan && `Summe „Verfügbar“ aller Envelopes im Monat, wie im Plan-Inspektor. Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Plan-Rest ${eur(plan.remainingCents)}.`}
           />
         )}
         <Kennzahl
           id="nettovermoegen"
           label="Nettovermögen"
+          state={wealthState}
           value={net?.totalCents ?? 0}
           sourceHint={
-            <ValuationSourceHint sources={data.valuationSources} label="Nettovermögen · Kennzahl" />
+            <ValuationSourceHint sources={sources} label="Nettovermögen · Kennzahl" />
           }
           nonpositive={Boolean(net && net.totalCents <= 0)}
           href={net ? { to: '/vermoegen/nettovermoegen', search: { zeitraum: '1J' } } : undefined}
           missing={
             net ? undefined : (
               <p className="heute-kennzahl-missing">
-                {'unavailable' in data.netWorth && data.netWorth.unavailable.message}
+                {netWorth && 'unavailable' in netWorth ? netWorth.unavailable.message : 'Vermögensstand nicht verfügbar.'}
               </p>
             )
           }
@@ -223,7 +237,7 @@ function Kennzahl({
   testId?: string;
   ariaLabel?: string;
   /** The source query of a tile that waits for its own data (errors stay in that tile). */
-  state?: UseQueryResult<unknown>;
+  state?: UseQueryResult<unknown> | undefined;
   bar?: BarSpec | undefined;
   line?: string | undefined;
   note?: ReactNode | undefined;
@@ -313,10 +327,15 @@ function Kennzahl({
       ) : (
         figure
       )}
-      {missing}
-      {bar && <Bar {...bar} />}
-      {line && <p className="heute-kennzahl-line">{line}</p>}
-      {info && note && (
+      {state && state.dataUpdatedAt > 0 && (state.isError || state.isFetching || !navigator.onLine) && (
+        <p className="heute-note" role="status">Stand vom{' '}
+          <time dateTime={new Date(state.dataUpdatedAt).toISOString()}>{new Date(state.dataUpdatedAt).toLocaleString('de-AT', { timeZone: 'Europe/Vienna' })}</time>
+        </p>
+      )}
+      {!state?.isError && !state?.isPending && missing}
+      {!state?.isError && !state?.isPending && bar && <Bar {...bar} />}
+      {!state?.isError && !state?.isPending && line && <p className="heute-kennzahl-line">{line}</p>}
+      {!state?.isError && !state?.isPending && info && note && (
         <p id={noteId} className="heute-kennzahl-note">
           {line && <span className="heute-phone-only">{line} · </span>}
           {note}

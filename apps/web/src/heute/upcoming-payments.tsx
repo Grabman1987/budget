@@ -14,12 +14,14 @@ export function Upcoming({
   id,
   title,
   standToday,
+  readOnly = false,
 }: {
   items: HeuteOccurrence[];
   events?: PlannedEventOccurrence[];
   id: string;
   title: string;
   standToday?: string | undefined;
+  readOnly?: boolean;
 }) {
   useAmountPrivacy();
   const selection = readLiquiditySelection();
@@ -121,7 +123,7 @@ export function Upcoming({
                     )}
                   </span>
                   {item.kind === 'inflow' && item.status === 'expected' && (
-                    <StrikeButton item={item} />
+                    <StrikeButton item={item} disabled={readOnly} />
                   )}
                 </div>
               </li>
@@ -134,15 +136,16 @@ export function Upcoming({
 }
 
 /** Take this one income out of the plan; the rule stays, "Rückgängig" brings it back. */
-function StrikeButton({ item }: { item: HeuteOccurrence }) {
+function StrikeButton({ item, disabled }: { item: HeuteOccurrence; disabled: boolean }) {
   const write = useBudgetWrite();
   return (
     <Button
       size="sm"
+      disabled={disabled}
       variant="ghost"
       aria-label={`Diesen Monat streichen: ${item.name}, ${shortDay(item.dueDate)}`}
       onClick={() =>
-        void write(
+        !disabled && void write(
           () => skipOccurrence(item.paymentId, item.dueDate),
           () => `${item.name}: ${shortDay(item.dueDate)} gestrichen`,
         )

@@ -9,10 +9,10 @@ import {
   type DimensionChainTerm,
   type RevisionRow,
 } from '@budget/ui';
-import { addDays, cents } from '@budget/domain';
-import { useQuery } from '@tanstack/react-query';
+import { addDays, cents, todayInVienna } from '@budget/domain';
+import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import { AlertTriangle, ArrowDown, ArrowUp, ChevronRight } from 'lucide-react';
 import { PaceAccuracyNote } from '../reports/planning-accuracy-report';
 import { eur, longDay, shortDay } from '../ledger/format';
@@ -28,7 +28,8 @@ import { LiquidityChart } from '../reports/liquidity-chart';
 import { liquidityQuery } from '../reports/liquidity-api';
 import { salaryDay } from '../reports/liquidity-selection';
 import { expectedQuery } from '../expected/api';
-import { heuteQuery, type Heute } from './api';
+import { heuteSectionQuery, type Heute, type HeutePeriod, type HeuteSectionData } from './api';
+import { ApiError } from '../api/http';
 import { useBalancePeriod } from './use-balance-period';
 import './heute.css';
 import { useIsPhone } from '../budget/month-span';
@@ -59,86 +60,105 @@ function subscribeOnline(changed: () => void) {
     window.removeEventListener('offline', changed);
   };
 }
-
 function useOnline() {
   return useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
 }
-
-function CachedStand({ updatedAt }: { updatedAt: number }) {
+function CachedStand({ updatedAt, stale = false }: { updatedAt: number; stale?: boolean }) {
   const online = useOnline();
-  return !online && updatedAt > 0 ? <p className="heute-note" role="status">Offline · Stand vom{' '}
+  return (!online || stale) && updatedAt > 0 ? <p className="heute-note" role="status">
+    {online ? 'Zuletzt geladen' : 'Offline'} · Stand vom{' '}
     <time dateTime={new Date(updatedAt).toISOString()}>{new Date(updatedAt).toLocaleString('de-AT', { timeZone: 'Europe/Vienna' })}</time>
   </p> : null;
 }
-
 function PendingSection({ title, chart = false }: { title: string; chart?: boolean }) {
   return <section className={`heute-pending-section${chart ? ' is-chart' : ''}`} aria-label={title} aria-busy="true">
     <h2>{title}</h2><LoadingNote what={title} />
   </section>;
 }
+/** A refused session never falls back to financial data left in memory. */
+function readableData<T>(query: UseQueryResult<T>): T | undefined {
+  if (query.error instanceof ApiError && (query.error.status === 401 || query.error.status === 403)) return undefined;
+  return query.data;
+}
+function SectionRead<T>({ query, title, chart = false, children }: {
+  query: UseQueryResult<T>; title: string; chart?: boolean; children: (data: T) => ReactNode;
+}) {
+  const data = readableData(query);
+  return <div className={`heute-read-section${chart ? ' is-chart' : ''}`}>
+    {query.isPending && <PendingSection title={title} chart={chart} />}
+    {query.isError && <ErrorNote what={title} error={query.error} onRetry={() => void query.refetch()} />}
+    {data !== undefined && <><CachedStand updatedAt={query.dataUpdatedAt} stale={query.isError || query.isFetching} />{children(data)}</>}
+  </div>;
+}
 
 export function HeutePage() {
   useAmountPrivacy();
-  const [month] = useMonth();
+  const [month, , setMonth] = useMonth();
   const { period, setPeriod } = useBalancePeriod();
-  const query = useQuery(heuteQuery(month, period));
-  const data = query.data;
-  return (
-    <PageFrame
-      meta={HEUTE}
-      heutePeriod={data?.stand.period ?? period}
-      onHeutePeriodChange={setPeriod}
-      standDay={data?.stand.today}
-    >
-      <div className="heute">
-        {!data && <>
-          {query.isPending && <>
-            <PendingSection title="Kennzahlen" />
-            <div className="heute-overview-charts"><PendingSection title="Monat im Blick" chart /><PendingSection title="Nettovermögen · 12 Monate" chart /></div>
-          </>}
-          <CompactForecastCard />
-          {query.isPending && <><PendingSection title="Zu tun" /><PendingSection title="Fällig 14 Tage" /><PendingSection title="Letzte Buchungen" /></>}
-        </>}
-        {query.isError && (
-          <ErrorNote what="Heute" error={query.error} onRetry={() => void query.refetch()} />
-        )}
-        {data && <><CachedStand updatedAt={query.dataUpdatedAt} /><HeuteBody data={data} onReload={() => void query.refetch()} /></>}
-      </div>
-    </PageFrame>
-  );
-}
-
-function HeuteBody({ data, onReload }: { data: Heute; onReload: () => void }) {
-  useAmountPrivacy();
-  const heuteFacts = useMemo(() => heuteVerdictFacts(data), [data]);
-  const [chainOpen, setChainOpen] = useState(false);
-  const [leadDetail, setLeadDetail] = useState<'need' | 'want' | 'open' | null>(null);
-  const [paceDetail, setPaceDetail] = useState<'spent' | 'plan' | 'forecast' | null>(null);
-  const navigate = useNavigate();
-  const openNetDetail = (kind: DimensionKind) =>
-    void navigate({
-      to: '/heute/details/$kind',
-      params: { kind },
-      search: { monat: data.stand.month, period: data.stand.period },
-    });
-  const [, , setMonth] = useMonth();
-  const away = data.stand.month !== data.stand.today.slice(0, 7);
-  const net = 'unavailable' in data.netWorth ? null : data.netWorth;
   const phone = useIsPhone();
   const [showPinned, setShowPinned] = useStoredFlag('budget-heute-show-pinned');
-  const savings = useQuery(savingsProposalsQuery());
-  const budget = useQuery(budgetQuery(data.stand.month));
-  const savingsRows: RevisionRow[] = (savings.data?.proposals ?? []).map((proposal, index) => ({
-    id: proposal.id,
-    letter: String.fromCharCode(65 + (index % 26)),
-    urgent: false,
-    title: `Sparplan: ${proposal.securityName}`,
-    detail: `${longDay(proposal.date)} · ${sourceMoney(proposal.amountCents, proposal.currency)} · ${proposal.accountName}`,
-    action: {
-      label: 'Ausführung prüfen',
-      onClick: () => void navigate({ to: '/konten/pruefen', search: { teil: 'aufgaben' } }),
-    },
-  }));
+  const [chainOpen, setChainOpen] = useState(false);
+  const online = useOnline();
+  const overview = useQuery(heuteSectionQuery('overview', month, period));
+  const pace = useQuery(heuteSectionQuery('pace', month, period));
+  const wealth = useQuery(heuteSectionQuery('wealth', month, period));
+  const tasks = useQuery(heuteSectionQuery('tasks', month, period));
+  const upcoming = useQuery(heuteSectionQuery('upcoming', month, period));
+  const bookings = useQuery(heuteSectionQuery('bookings', month, period));
+  const pinned = useQuery({ ...heuteSectionQuery('pinned', month, period), enabled: showPinned });
+  const budget = useQuery(budgetQuery(month));
+  const overviewData = readableData(overview);
+  const stand = overviewData?.stand ?? readableData(pace)?.stand ?? readableData(wealth)?.stand
+    ?? { today: todayInVienna(), month, period };
+  const away = month !== stand.today.slice(0, 7);
+  const wealthLine = <SectionRead query={wealth} title="Nettovermögen · 12 Monate" chart>
+    {(data) => <HeuteWealthLine data={data} onRetry={() => void wealth.refetch()} />}
+  </SectionRead>;
+  return <PageFrame meta={HEUTE} heutePeriod={stand.period} onHeutePeriodChange={setPeriod} standDay={stand.today}>
+    <div className="heute">
+      {away && <p className="heute-month-note" role="note" data-testid="heute-month-note">
+        <span>Ansicht: {monthName(month)} –</span>
+        <Button variant="ghost" size="sm" onClick={() => setMonth(currentMonth())}>Zum aktuellen Monat</Button>
+      </p>}
+      <div>
+        <CachedStand updatedAt={overview.dataUpdatedAt} stale={overview.isError || overview.isFetching} />
+        <Kennzahlen {...(overviewData && { data: overviewData })} stand={stand} overviewState={overview}
+          wealthState={wealth} budget={budget} chainOpen={chainOpen} onLeadClick={() => setChainOpen((open) => !open)} />
+        {overview.isError && <ErrorNote what="Monatskennzahlen und Herleitung" error={overview.error} onRetry={() => void overview.refetch()} />}
+      </div>
+      {chainOpen && overviewData && <LeadSection data={overviewData} onClose={() => setChainOpen(false)} />}
+      <div className="heute-overview-charts">
+        <SectionRead query={pace} title="Monat im Blick" chart>{(data) => <PaceSection data={data} />}</SectionRead>
+        {!phone && wealthLine}
+      </div>
+      <CompactForecastCard />
+      {phone && wealthLine}
+      <SectionRead query={tasks} title="Zu tun">{(data) => <TasksSection data={data} />}</SectionRead>
+      <SectionRead query={upcoming} title="Fällig 14 Tage">{(data) => <Upcoming items={data.upcoming14}
+        events={data.upcomingEvents.filter((event) => event.date <= addDays(data.stand.today, 14))}
+        id="heute-upcoming-title" title="Fällig 14 Tage" standToday={data.stand.month !== data.stand.today.slice(0, 7) ? longDay(data.stand.today) : undefined}
+        readOnly={!online || !upcoming.isSuccess || upcoming.isFetching} />}</SectionRead>
+      <SectionRead query={bookings} title="Letzte Buchungen">{(data) => <RecentBookings data={data} />}</SectionRead>
+      <details className="heute-view-options"><summary>Ansicht anpassen</summary><label>
+        <input type="checkbox" checked={showPinned} onChange={(event) => setShowPinned(event.currentTarget.checked)} />
+        Angepinnte Envelopes unter Mehr zum Monat anzeigen
+      </label></details>
+      <MoreMonth key={phone ? 'phone' : 'desktop'} phone={phone}>
+        {overviewData && <VerdictLine facts={heuteVerdictFacts(overviewData)} />}
+        <div className="heute-detail-grid">
+          {showPinned && <SectionRead query={pinned} title="Angepinnte Envelopes">{(data) => <PinnedSection data={data} />}</SectionRead>}
+          <SectionRead query={wealth} title="Vermögensaufteilung">{(data) => <WealthComposition data={data} />}</SectionRead>
+        </div>
+        <FundingNotes data={{ stand }} />
+      </MoreMonth>
+    </div>
+  </PageFrame>;
+}
+
+function LeadSection({ data, onClose }: { data: HeuteSectionData['overview']; onClose: () => void }) {
+  const [leadDetail, setLeadDetail] = useState<'need' | 'want' | 'open' | null>(null);
+  const away = data.stand.month !== data.stand.today.slice(0, 7);
+  const chainOpen = true;
   const leadTerms: DimensionChainTerm[] = data.lead.chain.map((term, index) => ({
     ...term,
     value: cents(term.value),
@@ -150,27 +170,7 @@ function HeuteBody({ data, onReload }: { data: Heute; onReload: () => void }) {
       ? { onSelect: () => setLeadDetail('open') }
       : {}),
   }));
-  const deltaText =
-    !net || net.deltaBp === null
-      ? 'keine Vergleichsbasis'
-      : `${net.deltaBp >= 0 ? '+' : ''}${pct.format(net.deltaBp / 100)} % zum Vormonatsende`;
-
-  return (
-    <>
-      {away && (
-        <p className="heute-month-note" role="note" data-testid="heute-month-note">
-          <span>Ansicht: {monthName(data.stand.month)} –</span>
-          <Button variant="ghost" size="sm" onClick={() => setMonth(currentMonth())}>
-            Zum aktuellen Monat
-          </Button>
-        </p>
-      )}
-      <Kennzahlen
-        data={data}
-        budget={budget}
-        chainOpen={chainOpen}
-        onLeadClick={() => setChainOpen((open) => !open)}
-      />
+  return <>
       {chainOpen && (
       <section className="heute-lead" aria-labelledby="heute-lead-title">
         <div className="heute-lead-head">
@@ -192,7 +192,7 @@ function HeuteBody({ data, onReload }: { data: Heute; onReload: () => void }) {
             size="sm"
             aria-expanded={chainOpen}
             aria-controls="heute-lead-chain"
-            onClick={() => setChainOpen((open) => !open)}
+            onClick={onClose}
           >
             {chainOpen ? 'Herleitung ausblenden' : 'Herleitung zeigen'}
           </Button>
@@ -214,7 +214,11 @@ function HeuteBody({ data, onReload }: { data: Heute; onReload: () => void }) {
         )}
       </section>
       )}
-      <div className="heute-overview-charts">
+  </>;
+}
+function PaceSection({ data }: { data: HeuteSectionData['pace'] }) {
+  const [paceDetail, setPaceDetail] = useState<'spent' | 'plan' | 'forecast' | null>(null);
+  return <>
       <section className="heute-section heute-pace" aria-labelledby="heute-pace-title">
         <SectionHead
           id="heute-pace-title"
@@ -260,7 +264,7 @@ function HeuteBody({ data, onReload }: { data: Heute; onReload: () => void }) {
           />
         </div>
         <HeutePaceChart data={data} />
-        <PaceAccuracyNote summary={data.planningAccuracy} />
+        <PlanningAccuracyRead month={data.stand.month} period={data.stand.period} />
         {paceDetail && (
           <div className="heute-figure-detail" role="status">
             <strong>
@@ -291,10 +295,23 @@ function HeuteBody({ data, onReload }: { data: Heute; onReload: () => void }) {
         </p>
       </section>
 
-        {!phone && <HeuteWealthLine data={data} onRetry={onReload} />}
-      </div>
-      <CompactForecastCard />
-      {phone && <HeuteWealthLine data={data} onRetry={onReload} />}
+  </>;
+}
+function TasksSection({ data }: { data: HeuteSectionData['tasks'] }) {
+  const navigate = useNavigate();
+  const savings = useQuery(savingsProposalsQuery());
+  const savingsRows: RevisionRow[] = (readableData(savings)?.proposals ?? []).map((proposal, index) => ({
+    id: proposal.id,
+    letter: String.fromCharCode(65 + (index % 26)),
+    urgent: false,
+    title: `Sparplan: ${proposal.securityName}`,
+    detail: `${longDay(proposal.date)} · ${sourceMoney(proposal.amountCents, proposal.currency)} · ${proposal.accountName}`,
+    action: {
+      label: 'Ausführung prüfen',
+      onClick: () => void navigate({ to: '/konten/pruefen', search: { teil: 'aufgaben' } }),
+    },
+  }));
+  return <>
       <AttentionBar
         data={data}
         savingsRows={savingsRows}
@@ -308,14 +325,11 @@ function HeuteBody({ data, onReload }: { data: Heute; onReload: () => void }) {
           )
         }
       />
-
-      <Upcoming
-        items={data.upcoming14}
-        id="heute-upcoming-title"
-        events={data.upcomingEvents.filter((event) => event.date <= addDays(data.stand.today, 14))}
-        title="Fällig 14 Tage"
-        standToday={away ? longDay(data.stand.today) : undefined}
-      />
+  </>;
+}
+function RecentBookings({ data }: { data: HeuteSectionData['bookings'] }) {
+  const away = data.stand.month !== data.stand.today.slice(0, 7);
+  return <>
       <section className="heute-section" aria-labelledby="heute-bookings-title">
         <SectionHead
           id="heute-bookings-title"
@@ -358,21 +372,10 @@ function HeuteBody({ data, onReload }: { data: Heute; onReload: () => void }) {
           </ul>
         )}
       </section>
-      <details className="heute-view-options">
-        <summary>Ansicht anpassen</summary>
-        <label>
-          <input
-            type="checkbox"
-            checked={showPinned}
-            onChange={(event) => setShowPinned(event.currentTarget.checked)}
-          />
-          Angepinnte Envelopes unter Mehr zum Monat anzeigen
-        </label>
-      </details>
-      <MoreMonth key={phone ? 'phone' : 'desktop'} phone={phone}>
-        <VerdictLine facts={heuteFacts} />
-        <div className="heute-detail-grid">
-          {showPinned && (
+  </>;
+}
+function PinnedSection({ data }: { data: HeuteSectionData['pinned'] }) {
+  return <>
             <section className="heute-section" aria-labelledby="heute-pinned-title">
               <SectionHead
                 id="heute-pinned-title"
@@ -446,8 +449,18 @@ function HeuteBody({ data, onReload }: { data: Heute; onReload: () => void }) {
                 </ul>
               )}
             </section>
-          )}
-
+  </>;
+}
+function WealthComposition({ data }: { data: HeuteSectionData['wealth'] }) {
+  useAmountPrivacy();
+  const navigate = useNavigate();
+  const away = data.stand.month !== data.stand.today.slice(0, 7);
+  const net = 'unavailable' in data.netWorth ? null : data.netWorth;
+  const deltaText = !net || net.deltaBp === null ? 'keine Vergleichsbasis'
+    : `${net.deltaBp >= 0 ? '+' : ''}${pct.format(net.deltaBp / 100)} % zum Vormonatsende`;
+  const openNetDetail = (kind: DimensionKind) => void navigate({ to: '/heute/details/$kind', params: { kind },
+    search: { monat: data.stand.month, period: data.stand.period } });
+  return <>
           <section className="heute-section heute-net-worth" aria-labelledby="heute-net-title">
             <SectionHead
               id="heute-net-title"
@@ -541,11 +554,14 @@ function HeuteBody({ data, onReload }: { data: Heute; onReload: () => void }) {
               )
             )}
           </section>
-        </div>
-        <FundingNotes data={data} />
-      </MoreMonth>
-    </>
-  );
+  </>;
+}
+function PlanningAccuracyRead({ month, period }: { month: string; period: HeutePeriod }) {
+  const query = useQuery(heuteSectionQuery('accuracy', month, period));
+  return <>
+    {query.isError && <ErrorNote what="Prognosegüte" error={query.error} onRetry={() => void query.refetch()} />}
+    {readableData(query) && <><CachedStand updatedAt={query.dataUpdatedAt} stale={query.isError || query.isFetching} /><PaceAccuracyNote summary={readableData(query)!.summary} /></>}
+  </>;
 }
 
 /** Stand-today forecast: exactly the same read and unmodified series as the linked detail. */
@@ -553,10 +569,10 @@ function CompactForecastCard() {
   useAmountPrivacy();
   const forecast = useQuery(liquidityQuery('35d', []));
   const payments = useQuery(expectedQuery());
-  const view = forecast.isSuccess ? forecast.data : undefined;
-  const report = !forecast.isFetching && !forecast.isError ? view?.report : undefined;
+  const view = readableData(forecast);
+  const report = view?.report;
   const salaryIds = new Set(
-    (payments.data ?? [])
+    (readableData(payments) ?? [])
       .filter((payment) => payment.incomeTypeId === 'income-salary')
       .map((payment) => payment.id),
   );
@@ -576,8 +592,8 @@ function CompactForecastCard() {
           Details
         </AppLink>
       </div>
-      <CachedStand updatedAt={forecast.dataUpdatedAt} />
-      {forecast.isFetching && <div className="heute-pending-chart"><LoadingNote what="Kontoprognose" /></div>}
+      <CachedStand updatedAt={forecast.dataUpdatedAt} stale={forecast.isError || forecast.isFetching} />
+      {forecast.isPending && <div className="heute-pending-chart"><LoadingNote what="Kontoprognose" /></div>}
       {forecast.isError && (
         <ErrorNote
           what="Kontoprognose"
@@ -585,6 +601,8 @@ function CompactForecastCard() {
           onRetry={() => void forecast.refetch()}
         />
       )}
+      {payments.isError && <ErrorNote what="Gehaltsmarkierung" error={payments.error} onRetry={() => void payments.refetch()} />}
+      {payments.isError && <p className="heute-note">Der Gehaltszeitpunkt ist nicht bestätigt. Die Kontoprognose verwendet weiterhin ihre geplanten Zahlungsdaten.</p>}
       {view && !view.available && (
         <EmptyNote>Ohne Budget-Konto gibt es keine Kontoprognose.</EmptyNote>
       )}
@@ -645,7 +663,7 @@ export function HeuteWealthLine({
   data,
   onRetry,
 }: {
-  data: Pick<Heute, 'stand' | 'netWorth' | 'valuationSources'>;
+  data: Pick<Heute, 'netWorth' | 'valuationSources'> & { stand: Pick<Heute['stand'], 'today' | 'month'> };
   onRetry?: () => void;
 }) {
   useAmountPrivacy();
@@ -675,7 +693,7 @@ export function HeuteWealthLine({
   );
 }
 
-function LeadDetail({ data, kind }: { data: Heute; kind: 'need' | 'want' | 'open' }) {
+function LeadDetail({ data, kind }: { data: Pick<Heute, 'lead'>; kind: 'need' | 'want' | 'open' }) {
   useAmountPrivacy();
   if (kind === 'open')
     return (
@@ -817,7 +835,7 @@ export function CheckCounts({
       {check.counts.notEvaluated > 0 && (
         <p>
           Eingangsdaten fehlen; diese Regeln zählen nicht als erfüllt.{' '}
-          <AppLink to="/einstellungen/regelwerk" hash="rw-pending">
+          <AppLink to="/heute/finanzcheck" hash="rw-pending">
             Fehlende Angaben ansehen
           </AppLink>
         </p>

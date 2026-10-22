@@ -4,6 +4,7 @@ import { RevisionTable, maskMoneyText, useAmountPrivacy, type RevisionRow } from
 import type { ReactNode } from 'react';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote } from '../ledger/states';
+import { ApiError } from '../api/http';
 import { budgetQuery } from '../budget/budget-api';
 import { goalsQuery } from '../budget/goals-api';
 import { monthLabel, shiftMonth } from '../nav/month';
@@ -85,7 +86,7 @@ function AttentionRow({ task, data, savingsRows, savingsError }: {
       return (
         <div className="attention-row">
           <span>{rules.length} {rules.length === 1 ? 'Regelbefund' : 'Regelbefunde'} zum Handeln</span>
-          <AppLink to="/einstellungen/regelwerk" hash={`rule-result-${rules[0]!.code}`}>Handeln</AppLink>
+          <AppLink to={`/heute/finanzcheck/${encodeURIComponent(rules[0]!.code)}`}>Handeln</AppLink>
         </div>
       );
     case 'review':
@@ -129,6 +130,15 @@ function AttentionRow({ task, data, savingsRows, savingsError }: {
           {savingsError}
         </div>
       );
+    case 'contact': {
+      const reminder = task.reminder;
+      return <div className="attention-row">
+        <span>{reminder.status === 'overdue'
+          ? <>{maskMoneyText(reminder.name)}: offene Auslage seit {longDay(reminder.oldestOpenDate)} ({reminder.ageDays} Tage)</>
+          : <>{maskMoneyText(reminder.name)}: Auslagenprüfung nicht verfügbar – Bewegungen außerhalb EUR</>}</span>
+        <AppLink to={`/konten/kontakte/${encodeURIComponent(reminder.contactId)}`}>Kontakt prüfen</AppLink>
+      </div>;
+    }
     case 'accounts':
       return (
         <div className="attention-row">
@@ -187,9 +197,9 @@ const comparisonReasons = {
 function AvailabilityNote({ item }: { item: AttentionAvailability }) {
   switch (item.kind) {
     case 'finance':
-      return <>{maskMoneyText(item.message)} <AppLink to="/einstellungen/regelwerk">Prüfgrundlagen ansehen</AppLink></>;
+      return <>{maskMoneyText(item.message)} <AppLink to="/heute/finanzcheck">Prüfgrundlagen ansehen</AppLink></>;
     case 'rules':
-      return <>{item.count} {item.count === 1 ? 'Regel konnte' : 'Regeln konnten'} nicht ausgewertet werden. <AppLink to="/einstellungen/regelwerk" hash="rw-pending">Fehlende Grundlagen prüfen</AppLink></>;
+      return <>{item.count} {item.count === 1 ? 'Regel konnte' : 'Regeln konnten'} nicht ausgewertet werden. <AppLink to="/heute/finanzcheck" hash="rw-pending">Fehlende Grundlagen prüfen</AppLink></>;
     case 'month-close-unknown':
       return <>Der Vergleich gespeicherter Monatsabschlüsse ist nicht verfügbar.</>;
     case 'month-close':
@@ -199,17 +209,22 @@ function AvailabilityNote({ item }: { item: AttentionAvailability }) {
   }
 }
 
+function availableData<T>(query: { data: T | undefined; error: unknown }): T | undefined {
+  return query.error instanceof ApiError && (query.error.status === 401 || query.error.status === 403)
+    ? undefined : query.data;
+}
+
 /** Ordinary funding work stays available below the fold, in ink. */
-export function FundingNotes({ data }: { data: Heute }) {
+export function FundingNotes({ data }: { data: { stand: Pick<Heute['stand'], 'today' | 'month'> } }) {
   const month = data.stand.today.slice(0, 7);
   const budget = useQuery(budgetQuery(month));
   const savings = useQuery(goalsQuery(month));
   const previous = useQuery(goalsQuery(shiftMonth(month, -1)));
-  const envelopes = budget.data?.summary.envelopes ?? [];
+  const envelopes = availableData(budget)?.summary.envelopes ?? [];
   const goals = envelopes.filter((e) => e.target && e.needCents > 0);
   const unfunded = unfundedSavingsGoals(
-    savings.data?.goals ?? [],
-    previous.data?.goals ?? [],
+    availableData(savings)?.goals ?? [],
+    availableData(previous)?.goals ?? [],
     envelopes.filter((e) => e.target).map((e) => e.categoryId),
   );
   if (!goals.length && !unfunded.length && !budget.isError && !savings.isError && !previous.isError)
@@ -217,6 +232,11 @@ export function FundingNotes({ data }: { data: Heute }) {
   return (
     <section className="heute-section" aria-label="Ziele finanzieren">
       <h2>Ziele finanzieren</h2>
+      {[{ label: 'Envelope-Ziele', query: budget }, { label: 'Sparziele', query: savings }, { label: 'Sparziele Vormonat', query: previous }].map(({ label, query }) =>
+        query.dataUpdatedAt > 0 && (query.isError || query.isFetching || !navigator.onLine)
+          ? <p className="heute-note" key={label}>{label} · Stand vom{' '}
+            <time dateTime={new Date(query.dataUpdatedAt).toISOString()}>{new Date(query.dataUpdatedAt).toLocaleString('de-AT', { timeZone: 'Europe/Vienna' })}</time>
+          </p> : null)}
       {data.stand.month !== month && (
         <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>
       )}
