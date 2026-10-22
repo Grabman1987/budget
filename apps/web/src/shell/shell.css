@@ -400,6 +400,10 @@ a.btn {
     --fab-size: 58px;
     --fab-gap: 16px;
   }
+  /* Page feedback must clear the capture action; dialogs retain their own toast placement. */
+  .toast:not(dialog .toast) {
+    bottom: calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 16px);
+  }
   .app {
     display: block;
     background: none;

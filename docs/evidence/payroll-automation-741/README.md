@@ -27,10 +27,15 @@ Actual WebKit image inspection also found the automatic-result Undo label extend
 past its shrunken button and toast background. A button-box check alone passed and
 was insufficient; a DOM text Range check reproduced the defect (`342.96 > 310.10`
 CSS pixels). The shared toast now has intrinsic content width capped by its unchanged
-viewport maximum, and its action cannot shrink. No position, focus, expiry, layer or
+viewport maximum, and its action cannot shrink. No focus, expiry, layer or
 Undo code changed. The same phone-dark test then passed with the complete label
 inside the button and toast. The 15 existing Toast/Layer tests passed; final combined
 browser coverage below subsequently passed.
+
+The first full CI then exposed a page-level Toast/FAB collision. The narrow mobile
+shell now places page feedback above its existing safe-area-aware capture action;
+all dialog descendants are excluded from that rule. [Diagnosis and regression](ci-toast-fab.md)
+retain the failing CI and the independently reproduced `756 > 706px` overlap.
 
 ## Financial contract and focused runtime evidence
 
@@ -84,17 +89,30 @@ Unknown or conflicting facts remain in review.
   pending-result text. Both fixtures remain manually reviewed without a configured
   automatic employer; financial/confirm/Undo/reject/download/mapping assertions and
   existing waits remain unchanged.
+- NEW `e2e/issue-757-toast-fab.spec.ts`: actual booking save, literal balance,
+  visible Undo feedback, no Toast/FAB overlap, ordinary second FAB click and amount
+  focus. Its initial post-click layer assertion incorrectly expected page placement;
+  the unchanged host resolver correctly returns a capture-origin toast to the same
+  reopened capture host. The new expectation was corrected to that existing contract;
+  reachability, geometry and money assertions were retained.
 
 ## Browser and delivery status
 
 Complete workspace typecheck, scoped lint/format and fresh E2E builds passed.
-The final combined browser run passed **30/30 in 3.8 minutes**, without retry:
+The initial combined browser run passed **30/30 in 3.8 minutes**, without retry:
 three setup cases, twelve automatic source/payout/Undo profile/theme cases,
 three actual booking-link/reload cases, nine existing manual intake cases and
 three unchanged toast/dialog interaction regressions. Final independent whole-diff
-HIGH review is CLEAR, including all15 source hashes, all30 original browser artifacts
-and42 archived source files. Exact-head CI and normal protected merge/live
-verification remain pending.
+HIGH review was CLEAR, including all15 source hashes, all30 original browser artifacts
+and42 archived source files. After the CI layout correction, the expanded browser
+run passed **62 cases** (all 32 unchanged capture cases plus the original 30) and
+failed only the three new cases at their mistaken post-click layer assertion.
+All three had already passed geometry, actual FAB click and amount focus. That
+assertion is corrected as described above; the focused final run passed **6/6 in 33 seconds** (three setup plus all three
+engine/profile cases), without retry. These are separate runs, not a single 65/65
+run. The refreshed payroll artifacts below come from the 62 passing cases.
+[Toast/FAB images](toast-fab-manifest.json) are the three original final captures. Exact-head CI and normal protected
+merge/live verification remain pending.
 
 [Original-image manifest](browser-manifest.json) records twelve PNG/runtime-JSON
 pairs and three actual-destination PNG/JSON pairs, copied without image editing.

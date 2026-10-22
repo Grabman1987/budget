@@ -96,7 +96,7 @@
     "source": "issue-741-payroll-automati-e5cbe-nancial-Undo-in-phone-light-webkit-iphone/payroll-result-phone-light.png"
   },
   "desktop-booking-destination.json": {
-    "sha256": "d501804a7575a417e2390aca665a45e716728fe82709a723f8e529ca7a90e407",
+    "sha256": "b67bb46034a38da1a1976a03f889fc8768db28472022edfef1139d62f380d17b",
     "source": "issue-741-payroll-automati-1a510-out-changing-existing-money-desktop/payroll-booking-destination.json"
   },
   "desktop-booking-destination.png": {
@@ -104,7 +104,7 @@
     "source": "issue-741-payroll-automati-1a510-out-changing-existing-money-desktop/payroll-booking-destination.png"
   },
   "mobile-booking-destination.json": {
-    "sha256": "405689c11c6288e8d53faf0261f55ca25c9419b63f638ad4daaeb5c2e9978992",
+    "sha256": "fff480544f1ffd3e445792ae4d0aa62468a186cb38bce49fdd593cbdc9f07f0a",
     "source": "issue-741-payroll-automati-1a510-out-changing-existing-money-mobile/payroll-booking-destination.json"
   },
   "mobile-booking-destination.png": {
@@ -112,7 +112,7 @@
     "source": "issue-741-payroll-automati-1a510-out-changing-existing-money-mobile/payroll-booking-destination.png"
   },
   "webkit-iphone-booking-destination.json": {
-    "sha256": "3bcdd17f2b9ba3c5c59e176c107944e839340e5b59827064f2c6c9de3b52196d",
+    "sha256": "7a9bb13978e17420c0904631f45619f4d76aaa82fe35506dd4e313eb99b5dd7d",
     "source": "issue-741-payroll-automati-1a510-out-changing-existing-money-webkit-iphone/payroll-booking-destination.json"
   },
   "webkit-iphone-booking-destination.png": {
