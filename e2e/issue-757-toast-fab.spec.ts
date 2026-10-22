@@ -19,12 +19,24 @@ test('a saved booking toast leaves the mobile capture action reachable', async (
   await expect(toast(page)).toContainText('Buchung gespeichert');
   // Ordinary focus keeps the real Undo toast open throughout the reachability check.
   await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).focus();
-  const geometry = await fab.evaluate((element) => ({
-    fabTop: element.getBoundingClientRect().top,
-    toastBottom: document.querySelector('.toast.is-open .toast-body')!.getBoundingClientRect()
-      .bottom,
-  }));
-  expect(geometry.toastBottom).toBeLessThanOrEqual(geometry.fabTop);
+  const geometry = await fab.evaluate((element) => {
+    const action = element.getBoundingClientRect();
+    const feedback = document.querySelector('.toast.is-open .toast-body')!.getBoundingClientRect();
+    const x = action.x + action.width / 2;
+    const y = action.y + action.height / 2;
+    const hit = document.elementFromPoint(x, y);
+    return {
+      width: action.width,
+      height: action.height,
+      centreClear:
+        x < feedback.left || x > feedback.right || y < feedback.top || y > feedback.bottom,
+      centreHitsAction: hit !== null && element.contains(hit),
+    };
+  });
+  expect(geometry.width).toBeGreaterThanOrEqual(44);
+  expect(geometry.height).toBeGreaterThanOrEqual(44);
+  expect(geometry.centreClear).toBe(true);
+  expect(geometry.centreHitsAction).toBe(true);
   await page.screenshot({ path: info.outputPath('toast-fab.png'), animations: 'disabled' });
   await fab.click();
   await expect(dialog).toBeVisible();

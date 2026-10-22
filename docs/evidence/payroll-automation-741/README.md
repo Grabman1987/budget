@@ -26,16 +26,19 @@ found no open source defect; final runtime evidence review subsequently passed.
 Actual WebKit image inspection also found the automatic-result Undo label extending
 past its shrunken button and toast background. A button-box check alone passed and
 was insufficient; a DOM text Range check reproduced the defect (`342.96 > 310.10`
-CSS pixels). The shared toast now has intrinsic content width capped by its unchanged
-viewport maximum, and its action cannot shrink. No focus, expiry, layer or
+CSS pixels). Dialog toasts now have intrinsic content width capped by their unchanged
+viewport maximum, and their actions cannot shrink. No focus, expiry, layer or
 Undo code changed. The same phone-dark test then passed with the complete label
 inside the button and toast. The 15 existing Toast/Layer tests passed; final combined
 browser coverage below subsequently passed.
 
-The first full CI then exposed a page-level Toast/FAB collision. The narrow mobile
-shell now places page feedback above its existing safe-area-aware capture action;
-all dialog descendants are excluded from that rule. [Diagnosis and regression](ci-toast-fab.md)
-retain the failing CI and the independently reproduced `756 > 706px` overlap.
+The initial global styling exposed a page-level Toast/FAB collision; moving page
+feedback upward then obstructed other page actions in full CI. The final correction
+is restricted to `dialog .toast` and its action. General page-toast rules and
+`shell.css` are identical to the verified base. [Diagnosis and regression](ci-toast-fab.md)
+retain both failures and the reproduced overlap. The new regression verifies a
+free FAB center, its actual hit target, at least 44px bounds and an ordinary click.
+It does not claim that the entire circular button's bounding rectangle is uncovered.
 
 ## Financial contract and focused runtime evidence
 
@@ -89,8 +92,13 @@ Unknown or conflicting facts remain in review.
   pending-result text. Both fixtures remain manually reviewed without a configured
   automatic employer; financial/confirm/Undo/reject/download/mapping assertions and
   existing waits remain unchanged.
+- EXISTING `e2e/checkbox-appearance.spec.ts`: wait for a visible, enabled
+  budget-backed category button before the unchanged `c` shortcut. CI trace proves
+  the key preceded budget-query completion while the page still showed its loading
+  state. All surface, chevron, touch-height assertions and deadlines are unchanged.
 - NEW `e2e/issue-757-toast-fab.spec.ts`: actual booking save, literal balance,
-  visible Undo feedback, no Toast/FAB overlap, ordinary second FAB click and amount
+  visible Undo feedback, free FAB center and actual hit target, 44px bounds,
+  ordinary second FAB click and amount
   focus. Its initial post-click layer assertion incorrectly expected page placement;
   the unchanged host resolver correctly returns a capture-origin toast to the same
   reopened capture host. The new expectation was corrected to that existing contract;
@@ -110,8 +118,9 @@ failed only the three new cases at their mistaken post-click layer assertion.
 All three had already passed geometry, actual FAB click and amount focus. That
 assertion is corrected as described above; the focused final run passed **6/6 in 33 seconds** (three setup plus all three
 engine/profile cases), without retry. These are separate runs, not a single 65/65
-run. The refreshed payroll artifacts below come from the 62 passing cases.
-[Toast/FAB images](toast-fab-manifest.json) are the three original final captures. Exact-head CI and normal protected
+run. At that checkpoint, the payroll artifacts came from the 62 passing cases;
+the final modal-scoped validation below supersedes them with refreshed originals.
+[Toast/FAB manifest](toast-fab-manifest.json) records the three current final captures. Exact-head CI and normal protected
 merge/live verification remain pending.
 
 [Original-image manifest](browser-manifest.json) records twelve PNG/runtime-JSON
@@ -133,3 +142,19 @@ as actually measured (zero on this Windows host), despite configured touch/coars
 emulation; no physical iPhone claim is made. The project Impeccable adapter and
 manual source/image checks were used; no unavailable upstream engine run is claimed.
 PR #719 remains stopped.
+
+## Final modal-scoped validation
+
+The final product restores all page-toast and shell rules to the verified base;
+[base correspondence](modal-scope-base-correspondence.json) records the comparison.
+The expanded run passed **97 prior cases in9.8 minutes**, including unchanged
+capture, plan quick assignment, payroll projects, portfolio instrument editing,
+manual intake and modal interaction, plus the technically synchronized checkbox
+style checks on Chromium and native WebKit. Three new cases failed only the overly
+strict whole-rectangle geometry assumption. The final free-center/hit-target/44px
+checks then passed **6/6 including setup in31.4 seconds**, without retry. These
+are separate runs, not a single100/100 result. Current30 payroll artifacts come
+from that97-case passing coverage; three current FAB images come from the final
+focused run. The preceding global-width and raised-page-toast CI failures are
+retained in the diagnosis and are not presented as green. Final headCI and exact
+protected live verification remain required.

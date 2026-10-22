@@ -114,6 +114,10 @@ test.describe('select appearance', () => {
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
       // #588: the toolbar select is gone; the category dialog (key C) holds a plain select.
       await page.goto('/plan/monat');
+      // The category shortcut mounts with the budget-backed plan body, after its initial query.
+      const ready = page.getByRole('button', { name: /^Kategorie in .+ anlegen$/ }).first();
+      await expect(ready).toBeVisible();
+      await expect(ready).toBeEnabled();
       await page.locator('body').click({ position: { x: 2, y: 2 } });
       await page.keyboard.press('c');
       const select = page

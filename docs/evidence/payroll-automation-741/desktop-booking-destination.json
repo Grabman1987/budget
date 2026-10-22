@@ -5,9 +5,9 @@
     "width": 1440,
     "height": 900
   },
-  "clickedBookingId": "fe22d27f-c556-4dfb-b4dc-15cb8961229c",
-  "accountId": "73f6e14e-8055-4ef4-a838-0d110f94a038",
-  "actualUrl": "http://localhost:4330/konten/buchungen?konto=73f6e14e-8055-4ef4-a838-0d110f94a038&buchung=fe22d27f-c556-4dfb-b4dc-15cb8961229c",
+  "clickedBookingId": "80b48ab7-55ec-4bb7-aab3-ab7a06a3dc33",
+  "accountId": "f20e5aef-a824-45e9-b8dc-701857d4f303",
+  "actualUrl": "http://localhost:4330/konten/buchungen?konto=f20e5aef-a824-45e9-b8dc-701857d4f303&buchung=80b48ab7-55ec-4bb7-aab3-ab7a06a3dc33",
   "exactSingleRowBeforeAndAfterReload": true,
   "editorAmount": "2.975,00",
   "originalBookingAndAuditPreserved": true,
