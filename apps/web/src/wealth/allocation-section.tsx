@@ -377,8 +377,7 @@ function AllocationEvidence({ view }: { view: PortfolioAllocationView }) {
               Kurs fehlt:{' '}
               <AppLink
                 className="allocation-security-link"
-                to="/vermoegen/portfolio/instrument/$id"
-                params={{ id }}
+                to={`/vermoegen/portfolio/instrument/${encodeURIComponent(id)}`}
               >
                 {maskMoneyText(view.names.securities[id] ?? 'Instrument')}
               </AppLink>
@@ -389,8 +388,7 @@ function AllocationEvidence({ view }: { view: PortfolioAllocationView }) {
               Wechselkurs fehlt:{' '}
               <AppLink
                 className="allocation-security-link"
-                to="/vermoegen/portfolio/instrument/$id"
-                params={{ id }}
+                to={`/vermoegen/portfolio/instrument/${encodeURIComponent(id)}`}
               >
                 {maskMoneyText(view.names.securities[id] ?? 'Instrument')}
               </AppLink>
@@ -399,7 +397,10 @@ function AllocationEvidence({ view }: { view: PortfolioAllocationView }) {
           {view.quality.missingFxAccountIds.map((id) => (
             <li key={`missing-fx-account:${id}`}>
               Wechselkurs fehlt:{' '}
-              <AppLink className="allocation-security-link" to="/konten/$id" params={{ id }}>
+              <AppLink
+                className="allocation-security-link"
+                to={`/konten/${encodeURIComponent(id)}`}
+              >
                 Betroffenes Konto öffnen
               </AppLink>
             </li>
@@ -409,8 +410,7 @@ function AllocationEvidence({ view }: { view: PortfolioAllocationView }) {
               Bewertung geschätzt:{' '}
               <AppLink
                 className="allocation-security-link"
-                to="/vermoegen/portfolio/instrument/$id"
-                params={{ id }}
+                to={`/vermoegen/portfolio/instrument/${encodeURIComponent(id)}`}
               >
                 {maskMoneyText(view.names.securities[id] ?? 'Instrument')}
               </AppLink>
@@ -421,8 +421,7 @@ function AllocationEvidence({ view }: { view: PortfolioAllocationView }) {
               Bewertung veraltet:{' '}
               <AppLink
                 className="allocation-security-link"
-                to="/vermoegen/portfolio/instrument/$id"
-                params={{ id }}
+                to={`/vermoegen/portfolio/instrument/${encodeURIComponent(id)}`}
               >
                 {maskMoneyText(view.names.securities[id] ?? 'Instrument')}
               </AppLink>
