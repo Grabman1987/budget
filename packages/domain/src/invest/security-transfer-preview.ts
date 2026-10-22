@@ -20,6 +20,8 @@ export interface TransferPoolEvidence {
   locked: boolean;
   unsupportedCorporateAction: boolean;
   fragments: readonly TransferLotFragment[];
+  /** Moving-average basis belongs to the pool, independently of acquisition provenance. */
+  poolBasisCents?: number | null;
 }
 export interface KnownBasisTransferInput {
   date: string;
@@ -28,9 +30,8 @@ export interface KnownBasisTransferInput {
   source: TransferPoolEvidence;
   destination: TransferPoolEvidence;
 }
-export interface AllocatedTransferFragment extends Omit<TransferLotFragment, 'basisCents'> {
-  basisCents: number;
-}
+/** Average fragments carry acquisition provenance/units only; pooled cents are returned separately. */
+export type AllocatedTransferFragment = TransferLotFragment;
 export type SecurityTransferPreviewError =
   | 'invalid_input' | 'unsupported_currency' | 'unknown_basis' | 'ambiguous_lineage'
   | 'unestablished_boundary' | 'locked' | 'unsupported_corporate_action'
@@ -43,6 +44,7 @@ export type SecurityTransferPreview =
       date: string;
       unitsE8: number;
       transferredBasisCents: number;
+      basisAllocation: 'fifo-lots' | 'average-pool';
       moved: AllocatedTransferFragment[];
       sourceRemaining: AllocatedTransferFragment[];
       destinationExisting: AllocatedTransferFragment[];
@@ -62,7 +64,7 @@ const MESSAGES: Record<SecurityTransferPreviewError, string> = {
   locked: 'Ein beteiligter Bestand ist gesperrt. Zuerst die bestehende Sperre prüfen.',
   unsupported_corporate_action: 'Dieser Bestand enthält eine hier nicht unterstützte Kapitalmaßnahme.',
   insufficient_units: 'Am belegten Übertragszeitpunkt sind nicht genügend Stücke vorhanden.',
-  nonrepresentable_allocation: 'Die Aufteilung ist ohne Rundungsentscheidung nicht exakt darstellbar.',
+  nonrepresentable_allocation: 'Die Stückzahlanteile sind in E8-Einheiten nicht exakt darstellbar.',
 };
 const unavailable = (reason: SecurityTransferPreviewError): SecurityTransferPreview =>
   ({ available: false, reason, message: MESSAGES[reason] });
@@ -78,8 +80,9 @@ const ordered = (fragments: readonly TransferLotFragment[]) => [...fragments].so
   a.acquiredOn.localeCompare(b.acquiredOn) || a.acquisitionOrder - b.acquisitionOrder);
 
 /**
- * Exact-only Stage-A preparation. Fractional cents/E8 fragments fail closed until an approved
- * allocation/tie policy exists. This does not replay trades, establish evidence, or authorize apply.
+ * Stage-A preparation with the approved source-residual policy: transfer floor(exact cents),
+ * retaining residual cents at source until its eventual full transfer. E8 fragments stay exact.
+ * This does not replay trades, establish evidence, or authorize apply.
  */
 export function previewKnownBasisSecurityTransfer(input: KnownBasisTransferInput): SecurityTransferPreview {
   const { source, destination, date, unitsE8, method } = input;
@@ -104,24 +107,44 @@ export function previewKnownBasisSecurityTransfer(input: KnownBasisTransferInput
   const ids = new Set<string>(), order = new Set<string>();
   let sourceUnits = 0n, sourceBasis = 0n, destinationBasis = 0n, destinationUnits = 0n;
   for (const pool of [source, destination]) {
+    let allFragmentBasisKnown = true;
+    let fragmentBasis = 0n;
     for (const fragment of pool.fragments) {
       if (!fragment || !identity(fragment.fragmentId) || !identity(fragment.acquisitionId) || !validDay(fragment.acquiredOn) ||
           fragment.acquiredOn > date || !safe(fragment.acquisitionOrder) ||
           !safe(fragment.unitsE8) || fragment.unitsE8 === 0) return unavailable('invalid_input');
-      if (fragment.basisCents === null) return unavailable('unknown_basis');
-      if (!safe(fragment.basisCents)) return unavailable('invalid_input');
+      if (fragment.basisCents === null) {
+        if (method === 'fifo') return unavailable('unknown_basis');
+        allFragmentBasisKnown = false;
+      } else {
+        if (!safe(fragment.basisCents)) return unavailable('invalid_input');
+        fragmentBasis += BigInt(fragment.basisCents);
+      }
       const position = `${fragment.acquiredOn}:${fragment.acquisitionOrder}`;
       if (ids.has(fragment.fragmentId) || order.has(position)) return unavailable('ambiguous_lineage');
       ids.add(fragment.fragmentId);
       order.add(position);
       if (pool === source) {
         sourceUnits += BigInt(fragment.unitsE8);
-        sourceBasis += BigInt(fragment.basisCents);
+
       } else {
-        destinationBasis += BigInt(fragment.basisCents);
+
         destinationUnits += BigInt(fragment.unitsE8);
       }
     }
+    let poolBasis = fragmentBasis;
+    if (method === 'average') {
+      if (pool.poolBasisCents === null || (pool.poolBasisCents === undefined && !allFragmentBasisKnown))
+        return unavailable('unknown_basis');
+      if (pool.poolBasisCents !== undefined) {
+        if (!safe(pool.poolBasisCents)) return unavailable('invalid_input');
+        poolBasis = BigInt(pool.poolBasisCents);
+      }
+    }
+    const poolUnits = pool === source ? sourceUnits : destinationUnits;
+    if (poolUnits === 0n && poolBasis !== 0n) return unavailable('invalid_input');
+    if (pool === source) sourceBasis = poolBasis;
+    else destinationBasis = poolBasis;
   }
   if (sourceUnits > limit || destinationUnits + BigInt(unitsE8) > limit || sourceBasis + destinationBasis > limit) return unavailable('invalid_input');
   const requested = BigInt(unitsE8);
@@ -129,26 +152,32 @@ export function previewKnownBasisSecurityTransfer(input: KnownBasisTransferInput
   const moved: AllocatedTransferFragment[] = [], remaining: AllocatedTransferFragment[] = [];
   let left = requested, transferred = 0n;
   for (const fragment of ordered(source.fragments)) {
-    const units = BigInt(fragment.unitsE8), basis = BigInt(fragment.basisCents!);
+    const units = BigInt(fragment.unitsE8);
     const numerator = method === 'fifo' ? (left < units ? left : units) : units * requested;
     const denominator = method === 'fifo' ? 1n : sourceUnits;
     if (numerator % denominator !== 0n) return unavailable('nonrepresentable_allocation');
     const take = numerator / denominator;
-    const basisNumerator = basis * take;
-    if (basisNumerator % units !== 0n) return unavailable('nonrepresentable_allocation');
-    const carry = basisNumerator / units;
-    if (take > 0n) moved.push({ ...fragment, unitsE8: Number(take), basisCents: Number(carry) });
-    if (units > take) remaining.push({ ...fragment, unitsE8: Number(units - take), basisCents: Number(basis - carry) });
-    transferred += carry;
-    if (method === 'fifo') left -= take;
+    if (method === 'fifo') {
+      const basis = BigInt(fragment.basisCents!);
+      // Each FIFO lot retains its own fractional cent until all of that lot leaves.
+      const carry = basis * take / units;
+      if (take > 0n) moved.push({ ...fragment, unitsE8: Number(take), basisCents: Number(carry) });
+      if (units > take) remaining.push({ ...fragment, unitsE8: Number(units - take), basisCents: Number(basis - carry) });
+      transferred += carry;
+      left -= take;
+    } else {
+      // Do not assign pooled basis to acquisition fragments or floor each fragment separately.
+      if (take > 0n) moved.push({ ...fragment, unitsE8: Number(take), basisCents: null });
+      if (units > take) remaining.push({ ...fragment, unitsE8: Number(units - take), basisCents: null });
+    }
   }
-  // Reject fractional pool basis even when per-fragment allocations happened to be integral.
-  if (method === 'average' && sourceBasis * requested !== transferred * sourceUnits)
-    return unavailable('nonrepresentable_allocation');
+  // Average uses ONE pool-level division. Per-fragment floors would retain extra cents.
+  if (method === 'average') transferred = sourceBasis * requested / sourceUnits;
   return {
     available: true, method, date, unitsE8, transferredBasisCents: Number(transferred),
+    basisAllocation: method === 'fifo' ? 'fifo-lots' : 'average-pool',
     moved, sourceRemaining: remaining,
-    destinationExisting: ordered(destination.fragments).map((fragment) => ({ ...fragment, basisCents: fragment.basisCents! })),
+    destinationExisting: ordered(destination.fragments).map((fragment) => ({ ...fragment, basisCents: method === 'fifo' ? fragment.basisCents : null })),
     sourceRemainingBasisCents: Number(sourceBasis - transferred),
     destinationBasisAfterCents: Number(destinationBasis + transferred),
     cashDeltaCents: 0, realizedGainDeltaCents: 0, applyAvailable: false,

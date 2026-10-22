@@ -35,14 +35,15 @@ replay; a future repository adapter must derive them and revalidate transactiona
 The helper does not accept caller-entered fragments through an authenticated API.
 
 - FIFO consumes the declared acquisition order, retaining every carried fragment's
-  original acquisition identity/date/order. Average moves an exact proportional
-  share of each documented remaining fragment and its basis. No method defaults
+  original acquisition identity/date/order. Average moves exact proportional
+  acquisition-unit fragments, with one separately allocated pool basis. No method defaults
   or switches are introduced.
-- BigInt intermediate arithmetic accepts only exact integral E8 units and cents.
+- BigInt intermediate arithmetic preserves exact E8 units and applies the approved
+  source-residual cent policy.
   Source remaining basis plus moved basis conserves the supplied basis. Destination
   existing fragments remain separate; the preview does not invent new persisted
   fragment IDs or claim a complete destination replay.
-- Fractional cents or E8 fragment units are rejected, not rounded. Unknown basis,
+- Unrepresentable E8 fragment units are rejected, not rounded. Unknown basis,
   ambiguous/duplicate fragment identity or acquisition order, insufficient units,
   unsupported corporate actions, unestablished transfer boundary, declared locks,
   unsupported currency and unsafe integer bounds fail closed.
@@ -56,14 +57,23 @@ The helper does not accept caller-entered fragments through an authenticated API
   booking or envelope activity is created. Unsupported non-EUR basis/valuation
   stays unavailable in this deliberately narrow first preview.
 
-## Concrete unresolved allocation policy
+## Approved residual-cent policy — owner decision 2026-10-22
 
-Two units have a total known basis of **1 cent**. Transfer one unit. Proportional
-basis is **0.5 cent moved / 0.5 cent retained**. Largest remainder alone leaves a
-tie: moved **1**, retained **0**, or moved **0**, retained **1** both conserve the
-cent. They lead to different one-cent sale gains later. No accepted tie winner or
-persistent residual-allocation rule was found. This preview rejects the case;
-it does not decide which account/fragment receives the cent.
+The user approved retaining residual cents at source until its eventual full transfer.
+For two units / **1 cent** basis, transferring one unit carries **0 cents** and
+leaves **1 cent** at source. The eventual full transfer of the remaining unit carries
+the retained cent. This decision supersedes this checkpoint's earlier fractional-cent
+rejection; it does not approve rounding unrepresentable E8 acquisition fragments.
+
+FIFO applies the floor to the consumed fraction of each source lot; the unconsumed
+lot keeps the remainder. Full-lot transfer carries that lot's complete remaining basis.
+Average applies the floor **once to the whole moving-average pool**. It does not
+independently floor each acquisition fragment: two equal fragments of 3 cents each,
+with half the pool moved, transfer **3 cents**, not 1 + 1 = 2. Average acquisition
+fragments retain original identities/dates and exact units, while their individual
+basis remains null because basis is pooled. The result exposes `basisAllocation`
+and separate transferred/source/destination pool totals. Subsequent previews can
+supply explicit `poolBasisCents`; fragment provenance is not fabricated lot economics.
 
 A similar lineage choice arises for two fragments of one E8 micro-unit each when
 one micro-unit is transferred proportionally: each fragment would contribute half
@@ -75,14 +85,13 @@ that allocation rather than choosing which original acquisition date moves.
 The specified FIFO example (4 units / EUR 40 plus 6 / EUR 72, transfer 5) must carry
 EUR 52 and leave EUR 60 with dates retained. An exactly representable average pool
 of 10 units / EUR 102 transferring 5 must carry EUR 51 and leave EUR 51. The two-unit
-one-cent tie above must remain unavailable. These are future independent acceptance
+one-cent case above must carry zero and retain one cent under the approved policy. These are future independent acceptance
 controls, not results obtained by running this source.
 
 ## Remaining before any canonical financial mutation
 
 Full dated cross-account replay of acquisitions/disposals/transfers, including
-subsequent sales, same-day dependencies/cycles and backdated edits; confirmed
-allocation/tie policy; explicit authoritative pair/lineage relation with migration
+subsequent sales, same-day dependencies/cycles and backdated edits; implementation of the approved residual-cent policy throughout full replay; explicit authoritative pair/lineage relation with migration
 reservation/review; snapshot/unpaired-delivery provenance; locks, stale preview,
 idempotency, two-leg rollback, audit and exact apply/Undo/redo; public API/UI; all
 required independent literal/regression/financial/browser evidence and authorized
