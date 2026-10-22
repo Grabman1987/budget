@@ -136,3 +136,19 @@ or hidden-action bypass, and does not manufacture historic points or change
 dates/money. Original pace absence, selected period and new stand-today HEUTE
 checks remain. All deadlines/tolerances remain unchanged; independent review
 and root execution required.
+
+## Final CI caller review
+
+Independent Sol cleared `a6833ecc`: pace adjacency reflects the inserted compact
+forecast card, historical stroke assertions remain on visible R07, and two ordinary
+Werkzeuge disclosure clicks expose their existing controls. Root independently
+reviewed `ae628328`: salary marker maps to the shared liquidity chart; unchanged
+15-day/28-day bracket literals remain on R07, where the historical drawing lives.
+For the empty August history, the test first requires the visible R07 section and
+then either the visible chart or the exact empty-state message, determined from
+the real history API. The zero out-of-range marker expectations remain. All money,
+date, Undo, stroke, geometry and deadline expectations are retained.
+
+Root scoped ESLint/Prettier passed for all five final adapter files. Complete
+Chromium execution of these adapters remains required in CI; product source and
+prior native evidence are unchanged by these commits.
