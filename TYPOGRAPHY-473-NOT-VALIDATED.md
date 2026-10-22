@@ -29,7 +29,7 @@ A separate newer-branch literal exists in #516 checkpoint `935f685baa16590c1e24c
 
 ## Deferred validation
 
-An independent source review identified that compact Sankey labels originally applied `.svg-value` to a combined node-name/amount/share text node. This was corrected by keeping the node name in its existing label role and applying `.svg-value` only to the unchanged numeric/share suffix. The coordinate, anchor, content, masking, and calculations are unchanged. This correction has not been runtime-validated.
+Reviewed source revision: `0a673beb9a344f7cb3a460dfcab92e29a0ac6af5` — **NOT VALIDATED / NOT LIVE**. A source review identified that compact Sankey labels originally applied `.svg-value` to a combined node-name/amount/share text node. This was corrected by keeping the node name in its existing label role and applying `.svg-value` only to the unchanged numeric/share suffix. The coordinate, anchor, content, masking, and calculations are unchanged. The exact delta received an independent source-clear review, archived in `TYPOGRAPHY-473-FIX-SOURCE-REVIEW.md`; runtime typography and fit remain unvalidated.
 
 Per the owner's 2026-10-22 implementation-only direction, no tests/new tests/test edits, typecheck, build, browser, CSS check, formatter/checker execution, CI, PR, merge or deployment occurred. No dependencies or evidence were installed/copied. Existing tests, snapshots, checks and financial protections remain unchanged.
 

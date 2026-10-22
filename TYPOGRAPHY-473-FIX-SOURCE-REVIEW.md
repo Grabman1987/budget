@@ -1,0 +1,7 @@
+# #473 Sankey typography — exact-delta source review
+
+Reviewed `/workspace/impl-473-typography` at `0a673beb9a344f7cb3a460dfcab92e29a0ac6af5` against `9e9a997a0a5cde3c7df430dda2293acc037bf2fb`. Scope: `apps/web/src/charts/sankey-chart.tsx` and the updated `TYPOGRAPHY-473-NOT-VALIDATED.md`. I did not author this correction. **Source-clear for the bounded finding; no new actionable defect found. NOT VALIDATED / NOT LIVE.**
+
+The compact Sankey `<text>` retains `svg-label-strong`, so `n.name` continues to use the technical label face, measure size, weight, tracking and color. Only the pre-existing ` · ${eur0(n.value)} · ${share(n.value)}` suffix moves into a nested `<tspan className="svg-value">`; that class changes its font family to Archivo, tabular figures and tracking while inheriting the parent size, weight and fill. The tall-node second line already uses `svg-label svg-value` and is unchanged. The conditional `!tall && n.column >= 2`, formatter calls, text order, title, privacy hook, x/y/anchor, rectangle/path layout and interactions are unchanged in this delta. Text metrics may affect rendered width; source review cannot establish overlap or final geometry.
+
+The handoff accurately describes the corrected label/value roles and keeps runtime typography, privacy rendering and fit validation open. No tests, checks, typecheck, build, browser, CI, PR, merge or deployment were performed for this review.
