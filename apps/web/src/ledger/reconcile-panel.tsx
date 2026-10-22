@@ -411,7 +411,7 @@ export function ReconcileFlow({
                 <p className="field-error" role="alert">Dieses Datum liegt in einem bereits geprüften Zeitraum (bis {longDay(account.lastReconciledOn!)}). Der Ausgleich ändert diesen Zeitraum.</p>
                 <label className="assignment-check"><input type="checkbox" checked={unlock} disabled={busy} onChange={(event) => setUnlock(event.target.checked)} />Geprüften Zeitraum trotzdem ändern</label>
               </>}
-              <p className="text-muted">Eine echte Buchung über {money(data.differenceCents, true)} wird am {longDay(adjustmentDay)} mit {effectiveCategoryId ? `Kategorie „${categoryName}“` : 'Zu verteilen'} erstellt und festgeschrieben.</p>
+              <p className="text-muted">Eine echte Buchung über {money(data.differenceCents, true)} wird am {longDay(adjustmentDay)} mit {effectiveCategoryId ? `Kategorie „${maskMoneyText(categoryName)}“` : 'Zu verteilen'} erstellt und festgeschrieben.</p>
             </div>
             <div className="panel-actions">
               {finding.kind === 'missing' && <Button disabled={busy || staleClose} onClick={() => setBookingState({ mode: 'create', accountId: account.id, prefill: { kind: finding.type, amount: formatDecimal(cents(finding.amountCents)), date, status: 'confirmed' } })}>Fehlende Buchung erfassen</Button>}

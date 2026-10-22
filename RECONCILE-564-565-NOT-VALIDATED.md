@@ -40,8 +40,9 @@ Source progress does not establish acceptance or live completion.
   Zu verteilen. An invalid explicitly submitted category is rejected before the
   correction is created. The actual amount remains the canonical residual
   `statement − cleared`; cent, date, lock and rollback semantics are unchanged.
-- New candidate payee/memo display text passes through the existing money-text
-  privacy mask. The stored names, notes, candidate revision and editable drafts
+- New candidate payee/memo display text and the read-only correction category
+  sentence pass through the existing money-text privacy mask. The stored names,
+  notes, selected category identity, candidate revision and editable drafts
   retain their exact source values.
 
 Changed source: reconciliation repo, ledger DTO/model/flow and scoped reconcile.css;
@@ -70,3 +71,9 @@ The independent source review of the first package head (`e04b3002d5b843f6de35f3
 is archived in `RECONCILE-564-565-SOURCE-REVIEW.md`; its two findings motivated
 the bounded source correction above. An independent final-delta review is still
 required. This checkpoint is not runtime-validated or live.
+
+The independent review of the first correction head (`217f43a6652c234f764a53ff79094ac48a57e039`)
+is archived in `RECONCILE-564-565-FIX-SOURCE-REVIEW.md`. It cleared the original
+P2/P3 in source and identified the remaining read-only category-name privacy gap;
+that display text is now masked. The final one-line delta still needs independent
+review, and no execution evidence has been added.
