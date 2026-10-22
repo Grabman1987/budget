@@ -249,6 +249,33 @@ export const trade = sqliteTable(
   ],
 );
 
+/** Immutable identity and replay order of two audited zero-cash security delivery legs. */
+export const securityTransferPair = sqliteTable(
+  'security_transfer_pair',
+  {
+    id: id(),
+    securityId: text('security_id').notNull().references(() => security.id),
+    outTradeId: text('out_trade_id').notNull().references(() => trade.id),
+    inTradeId: text('in_trade_id').notNull().references(() => trade.id),
+    creationOrder: integer('creation_order', { mode: 'number' }).notNull(),
+    sourceReference: text('source_reference'),
+    intentKey: text('intent_key').notNull(),
+    intentHash: text('intent_hash').notNull(),
+    auditGroupId: text('audit_group_id').notNull(),
+    ...timestamps(),
+  },
+  (t) => [
+    uniqueIndex('security_transfer_pair_out_uq').on(t.outTradeId),
+    uniqueIndex('security_transfer_pair_in_uq').on(t.inTradeId),
+    uniqueIndex('security_transfer_pair_order_uq').on(t.creationOrder),
+    uniqueIndex('security_transfer_pair_intent_uq').on(t.intentKey),
+    index('security_transfer_pair_security_idx').on(t.securityId),
+    check('security_transfer_pair_legs_chk', sql`${t.outTradeId} <> ${t.inTradeId}`),
+    check('security_transfer_pair_order_chk', sql`${t.creationOrder} > 0`),
+    check('security_transfer_pair_reference_chk', sql`${t.sourceReference} IS NULL OR length(${t.sourceReference}) BETWEEN 1 AND 200`),
+  ],
+);
+
 /** Holding snapshot (Bestand), e.g. from the initial import; otherwise derived from trades. */
 export const holding = sqliteTable(
   'holding',

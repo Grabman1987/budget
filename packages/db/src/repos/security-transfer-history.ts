@@ -13,23 +13,59 @@ import {
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import {
   account, accountReconciliation, auditLog, booking, bookingSplit, holding,
-  INCOME_TYPES, security, trade,
+  INCOME_TYPES, security, securityTransferPair, trade,
 } from '../schema';
 import { investmentPreferences } from './investment-preferences';
+import { memoizedShared } from './request-memo';
 import { listTrades, type TradeRow } from './trades';
 import { runInTransaction, type Executor } from './types';
+
+/** `null` means this position has no live paired history by the requested day. */
+export function pairedRecordedPositionAsOf(db: Executor, input: {
+  accountId: string; securityId: string; asOf: string; method: 'fifo' | 'average';
+}): null | { available: false; code: RecordedSecurityHistoryFailure } |
+  { available: true; unitsE8: number; basisCents: number; realizedGainCents: number } {
+  return memoizedShared(db, `pairedPosition|${input.accountId}|${input.securityId}|${input.asOf}|${input.method}`, () => {
+    const pairs = db.select().from(securityTransferPair).where(and(
+      eq(securityTransferPair.securityId, input.securityId), isNull(securityTransferPair.deletedAt)))
+      .limit(501).all();
+    if (pairs.length > 500) return { available: false as const, code: 'scope_limit' as const };
+    let counterpart: string | null = null;
+    for (const pair of pairs) {
+      const out = db.select().from(trade).where(eq(trade.id, pair.outTradeId)).get();
+      const incoming = db.select().from(trade).where(eq(trade.id, pair.inTradeId)).get();
+      if (!out || !incoming) return { available: false as const, code: 'invalid_pair' as const };
+      if (out.date > input.asOf || (out.accountId !== input.accountId && incoming.accountId !== input.accountId))
+        continue;
+      counterpart = out.accountId === input.accountId ? incoming.accountId : out.accountId;
+      break;
+    }
+    if (!counterpart) return null;
+    const history = readRecordedSecurityHistory(db, { securityId: input.securityId,
+      sourceAccountId: input.accountId, destinationAccountId: counterpart, asOf: input.asOf });
+    if (!history.available) return { available: false as const, code: history.code };
+    const replay = input.method === history.input.method ? history.state
+      : replayKnownSecurityTransfers({ ...history.input, method: input.method });
+    if (!replay.available) return { available: false as const, code: 'replay_conflict' as const };
+    const state = replay.accounts.find((row) => row.accountId === input.accountId);
+    return state ? { available: true as const, unitsE8: state.unitsE8,
+      basisCents: state.basisCents, realizedGainCents: state.realizedGainCents }
+      : { available: false as const, code: 'replay_conflict' as const };
+  });
+}
 
 export type RecordedSecurityHistoryFailure =
   | 'invalid_scope' | 'account_or_currency' | 'scope_limit'
   | 'unsupported_snapshot' | 'unsupported_event' | 'unpaired_delivery'
-  | 'invalid_trade' | 'canonical_conflict' | 'replay_conflict';
+  | 'invalid_trade' | 'invalid_pair' | 'ambiguous_pair_order'
+  | 'canonical_conflict' | 'replay_conflict';
 
 export type RecordedSecurityHistory =
   | { available: false; code: RecordedSecurityHistoryFailure; offendingIds: string[] }
   | {
       available: true;
       /** App-ledger basis only; this is not a certificate of external broker completeness. */
-      evidenceClass: 'recorded-native';
+      evidenceClass: 'recorded-native' | 'recorded-paired';
       replayThrough: string;
       fingerprintThrough: string;
       factFingerprint: string;
@@ -41,8 +77,7 @@ export type RecordedSecurityHistory =
       relevantTradeIds: string[];
       /** Historical calculation remains readable when a later reconciliation bars a write. */
       writeBlockers: ('reconciled' | 'account_closed')[];
-      /** Empty until a persisted, validated security-transfer pair relation exists. */
-      relevantPairIds: [];
+      relevantPairIds: string[];
     };
 
 const unavailable = (code: RecordedSecurityHistoryFailure, offendingIds: string[] = []): RecordedSecurityHistory =>
@@ -56,7 +91,7 @@ const rank = (row: TradeRow) => row.kind === 'buy' ? 0 : 1;
 const ordered = (rows: TradeRow[], accountIds: readonly string[]) => {
   // Each account's rows arrive in SQLite (date, id) order. The canonical cost
   // projection retains that order within same-day kind; cross-account ties have
-  // no economic effect while persisted security-transfer pairs are unavailable.
+  // no economic effect between independent accounts.
   const index = new Map(rows.map((row, i) => [row.id, i]));
   return [...rows].sort((a, b) => a.date.localeCompare(b.date) || rank(a) - rank(b) ||
     accountIds.indexOf(a.accountId) - accountIds.indexOf(b.accountId) ||
@@ -67,8 +102,8 @@ const series = (row: TradeRow): SeriesTrade => ({ date: row.date, kind: row.kind
   feeCents: row.feeCents, taxCents: row.taxCents, currency: 'EUR' });
 
 /**
- * Read-only native-history bridge. A buy is an app-ledger acquisition; an old delivery is never
- * guessed into a transfer. No public route, pair persistence or apply capability is created here.
+ * Read-only recorded-history bridge. A buy is an app-ledger acquisition; an old delivery is never
+ * guessed into a transfer. Pair writes and apply remain unavailable.
  */
 export function readRecordedSecurityHistory(db: Executor, input: {
   securityId: string;
@@ -84,11 +119,71 @@ export function readRecordedSecurityHistory(db: Executor, input: {
   return runInTransaction(db, (tx) => {
     const instrument = tx.select().from(security).where(and(
       eq(security.id, input.securityId), isNull(security.deletedAt))).get();
-    const accountIds = [input.sourceAccountId, input.destinationAccountId];
-    const accounts = tx.select().from(account).where(inArray(account.id, accountIds)).all();
-    if (!instrument || accounts.length !== 2 || accounts.some((row) =>
+    const candidateIds = [input.sourceAccountId, input.destinationAccountId];
+    const candidateAccounts = tx.select().from(account).where(inArray(account.id, candidateIds)).all();
+    if (!instrument || candidateAccounts.length !== 2 || candidateAccounts.some((row) =>
       row.deletedAt !== null || row.role !== 'investment' || row.onBudget || row.currency !== 'EUR'))
       return unavailable('account_or_currency');
+
+    // Bounded explicit relation scan. Only live pairs connect economic components; tombstones
+    // remain CAS evidence when adjacent to one of those accounts. No date/note matching.
+    const allPairs = tx.select().from(securityTransferPair).where(
+      eq(securityTransferPair.securityId, input.securityId)).limit(501).all();
+    if (allPairs.length > 500) return unavailable('scope_limit');
+    const legRows = new Map<string, TradeRow>();
+    for (const pair of allPairs) for (const legId of [pair.outTradeId, pair.inTradeId]) {
+      if (legRows.has(legId)) continue;
+      const row = tx.select().from(trade).where(eq(trade.id, legId)).get();
+      if (row) legRows.set(legId, row);
+    }
+    const accountSet = new Set(candidateIds);
+    let expanded = true;
+    while (expanded) {
+      expanded = false;
+      for (const pair of allPairs) {
+        if (pair.deletedAt !== null) continue;
+        const out = legRows.get(pair.outTradeId), incoming = legRows.get(pair.inTradeId);
+        if (!out || !incoming) continue;
+        if (!accountSet.has(out.accountId) && !accountSet.has(incoming.accountId)) continue;
+        for (const id of [out.accountId, incoming.accountId]) if (!accountSet.has(id)) {
+          accountSet.add(id); expanded = true;
+        }
+      }
+      if (accountSet.size > 50) return unavailable('scope_limit');
+    }
+    const accountIds = [...accountSet];
+    const accounts = tx.select().from(account).where(inArray(account.id, accountIds)).all();
+    if (accounts.length !== accountIds.length || accounts.some((row) =>
+      row.deletedAt !== null || row.role !== 'investment' || row.onBudget || row.currency !== 'EUR'))
+      return unavailable('account_or_currency');
+    const adjacentPairs = allPairs.filter((pair) => {
+      const out = legRows.get(pair.outTradeId), incoming = legRows.get(pair.inTradeId);
+      return (out !== undefined && accountSet.has(out.accountId)) ||
+        (incoming !== undefined && accountSet.has(incoming.accountId));
+    });
+    const livePairs = adjacentPairs.filter((pair) => pair.deletedAt === null);
+    const anyPairMembership = new Set<string>();
+    for (const pair of adjacentPairs) for (const legId of [pair.outTradeId, pair.inTradeId]) {
+      if (anyPairMembership.has(legId)) return unavailable('invalid_pair', [pair.id]);
+      anyPairMembership.add(legId);
+    }
+    const pairLegIds = new Set<string>();
+    for (const pair of livePairs) {
+      const out = legRows.get(pair.outTradeId), incoming = legRows.get(pair.inTradeId);
+      if (!out || !incoming || out.deletedAt !== null || incoming.deletedAt !== null ||
+          pair.outTradeId === pair.inTradeId || pairLegIds.has(pair.outTradeId) ||
+          pairLegIds.has(pair.inTradeId) || !Number.isSafeInteger(pair.creationOrder) ||
+          pair.creationOrder <= 0 || out.securityId !== input.securityId ||
+          incoming.securityId !== input.securityId || out.accountId === incoming.accountId ||
+          out.date !== incoming.date || out.kind !== 'delivery_out' ||
+          incoming.kind !== 'delivery_in' || out.unitsE8 !== -incoming.unitsE8 ||
+          out.unitsE8 >= 0 || out.amountCents !== 0 || incoming.amountCents !== 0 ||
+          out.feeCents !== 0 || incoming.feeCents !== 0 || out.taxCents !== 0 ||
+          incoming.taxCents !== 0 || out.bookingId !== null || incoming.bookingId !== null ||
+          !accountSet.has(out.accountId) || !accountSet.has(incoming.accountId))
+        return unavailable('invalid_pair', [pair.id]);
+      pairLegIds.add(pair.outTradeId); pairLegIds.add(pair.inTradeId);
+    }
 
     // Reconciliations affect mutation eligibility, not historical basis projection.
     const reconciliations = tx.select().from(accountReconciliation)
@@ -112,15 +207,28 @@ export function readRecordedSecurityHistory(db: Executor, input: {
     const nativeInDbOrder = liveTrades.filter((row) =>
       row.kind === 'buy' || row.kind === 'sell' || row.kind === 'split');
     const relevant = ordered(nativeInDbOrder, accountIds);
-    if (relevant.length > 1000) return unavailable('scope_limit');
+    if (relevant.length + livePairs.length > 1000) return unavailable('scope_limit');
     for (const row of liveTrades) {
       if (!validDay(row.date) || unitsRuleViolation(row.kind, row.unitsE8) || moneyRuleViolation(row))
         return unavailable('invalid_trade', [row.id]);
-      if (row.kind === 'delivery_in' || row.kind === 'delivery_out')
+      if ((row.kind === 'delivery_in' || row.kind === 'delivery_out') && !pairLegIds.has(row.id))
         return unavailable('unpaired_delivery', [row.id]);
-      if (!['buy', 'sell', 'split', 'dividend', 'interest', 'fee', 'tax'].includes(row.kind))
+      if (!['buy', 'sell', 'split', 'delivery_in', 'delivery_out',
+        'dividend', 'interest', 'fee', 'tax'].includes(row.kind))
         return unavailable('unsupported_event', [row.id]);
     }
+    // Native buys have the canonical buy-first position. No recorded order establishes
+    // where a sale or split sits relative to an interacting same-day pair.
+    const pairAccountsByDay = new Map<string, Set<string>>();
+    for (const pair of livePairs) {
+      const out = legRows.get(pair.outTradeId)!, incoming = legRows.get(pair.inTradeId)!;
+      const accountsOnDay = pairAccountsByDay.get(out.date) ?? new Set<string>();
+      accountsOnDay.add(out.accountId); accountsOnDay.add(incoming.accountId);
+      pairAccountsByDay.set(out.date, accountsOnDay);
+    }
+    for (const row of relevant) if (row.kind !== 'buy' &&
+      pairAccountsByDay.get(row.date)?.has(row.accountId))
+      return unavailable('ambiguous_pair_order', [row.id]);
     const settlements: { tradeId: string; cash: typeof booking.$inferSelect;
       part: typeof bookingSplit.$inferSelect }[] = [];
     for (const row of liveTrades) {
@@ -190,6 +298,7 @@ export function readRecordedSecurityHistory(db: Executor, input: {
       ...accounts.map((row): [string, string] => ['account', row.id]),
       ...allTrades.map((row): [string, string] => ['trade', row.id]),
       ...snapshots.map((row): [string, string] => ['holding', row.id]),
+      ...adjacentPairs.map((row): [string, string] => ['security_transfer_pair', row.id]),
       ...reconciliations.map((row): [string, string] => ['account_reconciliation', row.id]),
       ...settlements.flatMap(({ cash, part }): [string, string][] => [
         ['booking', cash.id], ['booking_split', part.id],
@@ -207,7 +316,8 @@ export function readRecordedSecurityHistory(db: Executor, input: {
     // This is the current complete set of recorded facts for these two accounts, not a claim
     // that an external broker's older or omitted events are present.
     const factFingerprint = createHash('sha256').update(JSON.stringify({
-      version: 1, scope: input, method, instrument, accounts: accounts.sort((a, b) => a.id.localeCompare(b.id)),
+      version: 2, scope: input, method, instrument, accounts: accounts.sort((a, b) => a.id.localeCompare(b.id)),
+      pairs: adjacentPairs.sort((a, b) => a.id.localeCompare(b.id)),
       reconciliations: reconciliations.sort((a, b) => a.id.localeCompare(b.id)),
       trades: allTrades.sort((a, b) => a.id.localeCompare(b.id)),
       snapshots: snapshots.sort((a, b) => a.id.localeCompare(b.id)),
@@ -219,36 +329,61 @@ export function readRecordedSecurityHistory(db: Executor, input: {
     const canonicalAt = (accountId: string, through: string) => documentedCostOf(
       nativeInDbOrder.filter((row) => row.accountId === accountId && row.date <= through).map(series),
       undefined, method);
-    for (const snapshot of snapshots) if (snapshot.deletedAt === null) {
-      const native = nativeInDbOrder.filter((row) =>
-        row.accountId === snapshot.accountId && row.date <= snapshot.asOf).map(series);
-      const average = documentedCostOf(native, undefined, 'average');
-      const fifo = documentedCostOf(native, undefined, 'fifo');
-      if (!average || !fifo || average.unitsE8 !== snapshot.unitsE8 ||
-          fifo.unitsE8 !== snapshot.unitsE8 ||
-          (snapshot.costBasisCents !== null &&
-            snapshot.costBasisCents !== average.costBasisCents &&
-            snapshot.costBasisCents !== fifo.costBasisCents))
-        return unavailable('unsupported_snapshot', [snapshot.id]);
-    }
-
     const makeInput = (through: string): KnownSecurityReplayInput => {
       const sequenceByDay = new Map<string, number>();
+      const events = [
+        ...relevant.filter((row) => row.date <= through).map((row) => ({
+          id: row.id, date: row.date, securityId: input.securityId, currency: 'EUR',
+          kind: row.kind as 'buy' | 'sell' | 'split', accountId: row.accountId,
+          unitsE8: row.unitsE8, amountCents: row.amountCents,
+          feeCents: row.feeCents, taxCents: row.taxCents, sequence: 0,
+        })),
+        ...livePairs.filter((pair) => legRows.get(pair.outTradeId)!.date <= through)
+          .map((pair) => {
+            const out = legRows.get(pair.outTradeId)!, incoming = legRows.get(pair.inTradeId)!;
+            return { id: pair.id, date: out.date, securityId: input.securityId,
+              currency: 'EUR', kind: 'transfer' as const, sequence: 0,
+              sourceAccountId: out.accountId, destinationAccountId: incoming.accountId,
+              unitsE8: incoming.unitsE8, outTradeId: out.id, inTradeId: incoming.id,
+              creationOrder: pair.creationOrder };
+          }),
+      ].sort((a, b) => a.date.localeCompare(b.date) ||
+        (a.kind === 'buy' ? 0 : a.kind === 'transfer' ? 2 : 1) -
+        (b.kind === 'buy' ? 0 : b.kind === 'transfer' ? 2 : 1) ||
+        (a.kind === 'transfer' && b.kind === 'transfer'
+          ? a.creationOrder - b.creationOrder : 0));
+      const sequenced: KnownSecurityReplayInput['events'][number][] = events.map((event) => {
+        const sequence = sequenceByDay.get(event.date) ?? 0;
+        sequenceByDay.set(event.date, sequence + 1);
+        if (event.kind === 'transfer') {
+          const { creationOrder: _order, ...transfer } = event;
+          return { ...transfer, sequence };
+        }
+        return { ...event, sequence };
+      });
       return {
         securityId: input.securityId, method,
         opening: 'recorded-ledger-zero-seed',
         coverage: { kind: 'all-supported-recorded-facts', through },
         accountIds, lockedAccountIds: [],
-        events: relevant.filter((row) => row.date <= through).map((row) => {
-          const sequence = sequenceByDay.get(row.date) ?? 0;
-          sequenceByDay.set(row.date, sequence + 1);
-          return { id: row.id, date: row.date, sequence,
-            securityId: input.securityId, currency: 'EUR', kind: row.kind as 'buy' | 'sell' | 'split',
-            accountId: row.accountId, unitsE8: row.unitsE8, amountCents: row.amountCents,
-            feeCents: row.feeCents, taxCents: row.taxCents };
-        }),
+        events: sequenced,
       };
     };
+    if (snapshots.filter((row) => row.deletedAt === null).length *
+        (relevant.length + livePairs.length) > 50_000) return unavailable('scope_limit');
+    for (const snapshot of snapshots) if (snapshot.deletedAt === null) {
+      const at = makeInput(snapshot.asOf);
+      const average = replayKnownSecurityTransfers({ ...at, method: 'average' });
+      const fifo = replayKnownSecurityTransfers({ ...at, method: 'fifo' });
+      const averageAccount = average.available && average.accounts.find((row) => row.accountId === snapshot.accountId);
+      const fifoAccount = fifo.available && fifo.accounts.find((row) => row.accountId === snapshot.accountId);
+      if (!averageAccount || !fifoAccount || averageAccount.unitsE8 !== snapshot.unitsE8 ||
+          fifoAccount.unitsE8 !== snapshot.unitsE8 ||
+          (snapshot.costBasisCents !== null &&
+            snapshot.costBasisCents !== averageAccount.basisCents &&
+            snapshot.costBasisCents !== fifoAccount.basisCents))
+        return unavailable('unsupported_snapshot', [snapshot.id]);
+    }
     // Later recorded facts are part of the same snapshot and must also have a viable native
     // replay before a backdated preview can be considered for a future transactional action.
     const fullInput = makeInput(latest);
@@ -260,18 +395,20 @@ export function readRecordedSecurityHistory(db: Executor, input: {
     for (const result of [
       { through: input.asOf, state }, { through: latest, state: full },
     ]) for (const accountState of result.state.accounts) {
+      if (livePairs.some((pair) => legRows.get(pair.outTradeId)!.date <= result.through)) continue;
       const expected = canonicalAt(accountState.accountId, result.through);
       if (!expected || expected.unitsE8 !== accountState.unitsE8 ||
           expected.costBasisCents !== accountState.basisCents)
         return unavailable('canonical_conflict', [accountState.accountId]);
     }
     return {
-      available: true, evidenceClass: 'recorded-native',
+      available: true, evidenceClass: livePairs.length ? 'recorded-paired' : 'recorded-native',
       replayThrough: input.asOf, fingerprintThrough: latest,
       factFingerprint, input: replayInput, fullInput, state,
       canonical: state.accounts.map((row) => ({ accountId: row.accountId,
         unitsE8: row.unitsE8, basisCents: row.basisCents })),
-      relevantTradeIds: liveTrades.map((row) => row.id), relevantPairIds: [],
+      relevantTradeIds: liveTrades.map((row) => row.id),
+      relevantPairIds: livePairs.map((row) => row.id),
       writeBlockers,
     };
   });
@@ -282,7 +419,7 @@ export type RecordedSecurityTransferPreview =
   | { available: false; reason: string; message: string; applyAvailable: false }
   | {
       available: true;
-      evidenceClass: 'recorded-native';
+      evidenceClass: 'recorded-native' | 'recorded-paired';
       method: 'fifo' | 'average';
       date: string;
       unitsE8: number;
@@ -306,6 +443,8 @@ const historyMessage: Record<RecordedSecurityHistoryFailure, string> = {
   unsupported_event: 'Diese Buchungshistorie enthält eine nicht unterstützte Kapitalmaßnahme.',
   unpaired_delivery: 'Eine frühere Lieferung ist nicht ausdrücklich als Übertragspaar belegt.',
   invalid_trade: 'Eine gespeicherte Buchung oder ihre Kontobuchung ist nicht schlüssig.',
+  invalid_pair: 'Ein gespeichertes Übertragspaar hat widersprüchliche Buchungsseiten.',
+  ambiguous_pair_order: 'Die Reihenfolge zwischen Übertrag und anderer Depotbuchung am selben Tag ist nicht belegt.',
   canonical_conflict: 'Der belegte Einstand stimmt nicht mit der bestehenden Bestandsrechnung überein.',
   replay_conflict: 'Die gespeicherte Buchungshistorie kann nicht vollständig nachgerechnet werden.',
 };
@@ -322,6 +461,11 @@ export function previewRecordedSecurityTransfer(db: Executor, input: {
     asOf: input.date });
   if (!history.available) return { available: false, reason: history.code,
     message: historyMessage[history.code], applyAvailable: false };
+  if (history.fullInput.events.some((event) => event.date === input.date &&
+      (event.kind === 'sell' || event.kind === 'split') &&
+      (event.accountId === input.sourceAccountId || event.accountId === input.destinationAccountId)))
+    return { available: false, reason: 'ambiguous_pair_order',
+      message: historyMessage.ambiguous_pair_order, applyAvailable: false };
   const source = history.state.accounts.find((row) => row.accountId === input.sourceAccountId)!;
   const destination = history.state.accounts.find((row) => row.accountId === input.destinationAccountId)!;
   const candidateId = randomUUID();

@@ -434,6 +434,8 @@ export interface ValuationOptions {
   estimate?: boolean;
   /** DAILY-only observation; callers receive no price/rate/input references or monetary data. */
   observe?: (fact: Readonly<DailyValuationObservation>) => void;
+  /** Repository-proven basis for explicit paired transfers; undefined keeps local legacy replay. */
+  costBasisOverride?: (accountId: string, securityId: string, day: string) => number | null | undefined;
 }
 
 /**
@@ -514,7 +516,9 @@ export function dailyValuation(
       } else if (!estimate) {
         throw new PriceUnavailableError(p.accountId, p.securityId, day);
       } else {
-        const cost = p.cost ? costBasisOnDay(p.snapshots, p.cost, day) : null;
+        const proven = options.costBasisOverride?.(p.accountId, p.securityId, day);
+        const cost = proven !== undefined ? proven
+          : p.cost ? costBasisOnDay(p.snapshots, p.cost, day) : null;
         const eur =
           cost === null || !p.cost ? null : costInEur(cost, p.cost.currency, rates, day, observeFx);
         value = eur ?? 0;

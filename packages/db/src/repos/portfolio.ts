@@ -12,6 +12,8 @@ import {
   netWorthAttribution,
   pickPrice,
   pickTradePrice,
+  previewSecurityTransferScope,
+  PriceUnavailableError,
   securityFlows,
   toEurCents,
   sumValuationCents,
@@ -44,10 +46,12 @@ import {
   trade,
   valuation,
   transferFx,
+  securityTransferPair,
 } from '../schema';
 import { lastSuccessfulMarketRun } from './market';
 import { memoized, memoizedShared } from './request-memo';
 import { hasFxTransfers } from './fx-transfers';
+import { pairedRecordedPositionAsOf, readRecordedSecurityHistory } from './security-transfer-history';
 import { noteIncomplete } from './valuation-notes';
 import { accountBalances } from './queries';
 import { MissingFxRateError } from './errors';
@@ -302,13 +306,13 @@ function computeHoldingValuation(db: Executor, asOf: string, estimate: boolean) 
         snapshots: mySnapshots.map((r) => ({ date: r.asOf, costBasisCents: r.costBasisCents })),
         trades: myTrades,
       };
-      const basis = estimate
-        ? costBasisOnDay(
+      const paired = estimate ? pairedRecordedPositionAsOf(db,
+        { accountId, securityId, asOf, method: 'average' }) : null;
+      const basis = !estimate ? null : paired === null ? costBasisOnDay(
             mySnapshots.map((r) => ({ date: r.asOf, unitsE8: r.unitsE8 })),
             cost,
             asOf,
-          )
-        : null;
+          ) : paired.available ? paired.basisCents : null;
       const fx = rateSource(rates, accountCurrency, asOf);
       sources.push({
         accountId,
@@ -1010,7 +1014,11 @@ export function valuationSeries(
     ),
     days,
     rateTable(db, filter.to, options.observe !== undefined),
-    options,
+    { ...options, costBasisOverride: (accountId, securityId, day) => {
+      const paired = pairedRecordedPositionAsOf(db,
+        { accountId, securityId, asOf: day, method: 'average' });
+      return paired === null ? undefined : paired.available ? paired.basisCents : null;
+    } },
   );
   noteIncomplete(series.incomplete);
   return { ...series, positions: series.positions.filter((p) => p.unitsE8.some((u) => u !== 0)) };
@@ -1094,9 +1102,10 @@ function tradesOf(
   db: Executor,
   filter: FlowFilter,
   after: string,
-): (SeriesTrade & { accountId: string; securityId: string; settlementAccountId: string | null })[] {
+): (SeriesTrade & { id: string; accountId: string; securityId: string; settlementAccountId: string | null })[] {
   return db
     .select({
+      id: trade.id,
       accountId: trade.accountId,
       securityId: trade.securityId,
       date: trade.date,
@@ -1131,6 +1140,66 @@ function tradesOf(
     );
 }
 
+/** Classify audited pair legs before the selected side is aggregated into gross daily flows. */
+function pairedFlowTrades(db: Executor, filter: FlowFilter & {
+  view?: 'securities' | 'depot'; externalAccounts?: ReadonlyArray<string>;
+},
+  selected: ReturnType<typeof tradesOf>) {
+  const pairs = db.select().from(securityTransferPair)
+    .where(isNull(securityTransferPair.deletedAt)).limit(1001).all();
+  if (pairs.length > 1000) throw new RangeError('Die Übertragshistorie überschreitet die Auswertungsgrenze.');
+  const selectedById = new Map(selected.map((row) => [row.id, row]));
+  const adjusted = new Map<string, (typeof selected)[number]>();
+  const pairedIds = new Set<string>();
+  const boundary: { date: string; cents: number; currency: string }[] = [];
+  for (const pair of pairs) {
+    const outSelected = selectedById.get(pair.outTradeId);
+    const inSelected = selectedById.get(pair.inTradeId);
+    if (!outSelected && !inSelected) continue;
+    const out = db.select().from(trade).where(eq(trade.id, pair.outTradeId)).get();
+    const incoming = db.select().from(trade).where(eq(trade.id, pair.inTradeId)).get();
+    if (!out || !incoming || out.deletedAt !== null || incoming.deletedAt !== null ||
+        out.securityId !== pair.securityId || incoming.securityId !== pair.securityId ||
+        out.date !== incoming.date || out.kind !== 'delivery_out' ||
+        incoming.kind !== 'delivery_in' || out.amountCents !== 0 || incoming.amountCents !== 0 ||
+        out.feeCents !== 0 || incoming.feeCents !== 0 || out.taxCents !== 0 || incoming.taxCents !== 0 ||
+        out.bookingId !== null || incoming.bookingId !== null)
+      throw new RangeError('Ein gespeichertes Wertpapierübertragspaar ist widersprüchlich.');
+    const history = readRecordedSecurityHistory(db, { securityId: pair.securityId,
+      sourceAccountId: out.accountId, destinationAccountId: incoming.accountId, asOf: out.date });
+    if (!history.available) throw new RangeError('Die belegte Übertragshistorie ist nicht vollständig auswertbar.');
+    pairedIds.add(out.id); pairedIds.add(incoming.id);
+    const oneSide = !!outSelected !== !!inSelected;
+    if (!oneSide) continue;
+    const counterpart = outSelected ? incoming.accountId : out.accountId;
+    if (filter.externalAccounts !== undefined &&
+        (filter.view ?? 'securities') === 'depot' &&
+        !filter.externalAccounts.includes(counterpart)) continue;
+    const prices = db.select({ date: price.date, priceMicro: price.priceMicro,
+      currency: price.currency }).from(price).where(and(eq(price.securityId, pair.securityId),
+      lte(price.date, out.date))).orderBy(price.date).all();
+    const choice = pickPrice(prices, out.date, false);
+    if (!choice) throw new PriceUnavailableError(out.accountId, pair.securityId, out.date);
+    const valueCents = valueAtPrice(incoming.unitsE8, choice,
+      fxOn(rateTable(db, out.date), choice.price.currency, out.date));
+    const scope = previewSecurityTransferScope({ id: pair.id,
+      out: { id: out.id, accountId: out.accountId, securityId: out.securityId,
+        date: out.date, unitsE8: out.unitsE8, currency: 'EUR' },
+      incoming: { id: incoming.id, accountId: incoming.accountId,
+        securityId: incoming.securityId, date: incoming.date,
+        unitsE8: incoming.unitsE8, currency: 'EUR' },
+    }, outSelected ? [out.accountId] : [incoming.accountId],
+    { date: out.date, securityId: pair.securityId, unitsE8: incoming.unitsE8,
+      currency: 'EUR', valueCents });
+    if (!scope.available) throw new RangeError(scope.message);
+    const selectedLeg = outSelected ?? inSelected!;
+    adjusted.set(selectedLeg.id, { ...selectedLeg, amountCents: valueCents, currency: 'EUR' });
+    boundary.push({ date: out.date, cents: scope.externalContributionCents, currency: 'EUR' });
+  }
+  return { trades: selected.filter((row) => !pairedIds.has(row.id))
+    .concat([...adjusted.values()]), pairedIds, boundary };
+}
+
 /**
  * Cash flows of a portfolio (a set of accounts) in EUR cents, positive = money in, for the days
  * after `from` up to `to`:
@@ -1160,9 +1229,10 @@ export function portfolioFlows(
   },
 ): CashFlow[] {
   const rates = rateTable(db, filter.to);
+  const scoped = pairedFlowTrades(db, filter, tradesOf(db, filter, filter.from));
   if ((filter.view ?? 'securities') === 'securities')
     return securityFlows(
-      tradesOf(db, filter, filter.from).filter(
+      scoped.trades.filter(
         (t) =>
           t.settlementAccountId === null ||
           !filter.includedCashAccounts?.includes(t.settlementAccountId),
@@ -1226,7 +1296,7 @@ export function portfolioFlows(
     list.push(leg);
     byTransfer.set(leg.transferId as string, list);
   }
-  const boundary: { date: string; cents: number; currency: string }[] = [];
+  const boundary: { date: string; cents: number; currency: string }[] = [...scoped.boundary];
   for (const leg of legs) {
     if (!reference.has(leg.accountId) || leg.date <= filter.from) continue;
     const others = (byTransfer.get(leg.transferId as string) ?? []).filter((l) => l !== leg);
@@ -1255,9 +1325,10 @@ export function portfolioFlows(
   // Deliveries in and out move value across the boundary without cash, as in Portfolio
   // Performance: capital in or out at their stored amount. Unlinked deliveries remain external;
   // equal opposing amounts alone are not proof of an internal security transfer.
-  for (const t of tradesOf(db, filter, filter.from))
+  for (const t of scoped.trades)
     if (
       filter.externalAccounts === undefined &&
+      !scoped.pairedIds.has(t.id) &&
       (t.kind === 'delivery_in' || t.kind === 'delivery_out')
     )
       boundary.push({

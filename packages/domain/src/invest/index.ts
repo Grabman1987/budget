@@ -10,3 +10,4 @@ export * from './costs-taxes';
 export * from './performance-report';
 export * from './benchmark-quotes';
 export * from './security-transfer-replay';
+export { previewSecurityTransferScope } from './security-transfer-preview';

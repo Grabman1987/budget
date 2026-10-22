@@ -66,6 +66,7 @@ import {
 } from './portfolio';
 import { MissingFxRateError } from './errors';
 import { investmentPreferences } from './investment-preferences';
+import { pairedRecordedPositionAsOf } from './security-transfer-history';
 import type { Executor } from './types';
 import { portfolioBenchmark } from './portfolio-benchmark';
 import {
@@ -364,6 +365,8 @@ function effectiveSnapshots(
 
 /** Cost basis of one position after ignoring only checkpoints proved redundant from source rows. */
 function positionCost(
+  db: Executor,
+  asOf: string,
   snapshots: PositionSnapshot[],
   trades: (ProductTrade & { accountId: string; securityId: string; currency: string })[],
   accountId: string,
@@ -372,6 +375,13 @@ function positionCost(
   rates: RateTable,
   method: CostMethod,
 ) {
+  // The caller's dated input is authoritative for this position. A linked delivery carries
+  // its source basis through cross-account replay, never its stored zero amount.
+  const paired = pairedRecordedPositionAsOf(db, { accountId, securityId, asOf, method });
+  if (paired !== null) return paired.available ? {
+    unitsE8: paired.unitsE8, costBasisCents: paired.basisCents,
+    realizedGainCents: paired.realizedGainCents,
+  } : null;
   const mine = trades.filter((t) => t.accountId === accountId && t.securityId === securityId);
   const snap = effectiveSnapshots(
     snapshots.filter((s) => s.accountId === accountId && s.securityId === securityId),
@@ -401,6 +411,8 @@ function positionCost(
  * its basis, while gains already recorded before it remain part of the lifetime total.
  */
 function realizedByPosition(
+  db: Executor,
+  asOf: string,
   snapshots: PositionSnapshot[],
   trades: (ProductTrade & { accountId: string; securityId: string; currency: string })[],
   accountCurrency: ReadonlyMap<string, string>,
@@ -418,6 +430,14 @@ function realizedByPosition(
   const gains = new Map<string, { cents: number; complete: boolean }>();
   for (const { accountId, securityId } of pairs.values()) {
     const key = `${accountId}\0${securityId}`;
+    const paired = pairedRecordedPositionAsOf(db,
+      { accountId, securityId, asOf, method });
+    if (paired !== null) {
+      gains.set(key, paired.available
+        ? { cents: paired.realizedGainCents, complete: true }
+        : { cents: 0, complete: false });
+      continue;
+    }
     const mine = trades
       .filter((t) => t.accountId === accountId && t.securityId === securityId)
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -511,6 +531,8 @@ export function positionLines(db: Executor, asOf: string): PositionLine[] {
     .all();
   const trades = tradesUpTo(db, asOf);
   const realized = realizedByPosition(
+    db,
+    asOf,
     snapshots,
     trades,
     accountCurrency,
@@ -526,6 +548,8 @@ export function positionLines(db: Executor, asOf: string): PositionLine[] {
     const currency = accountCurrency.get(h.accountId);
     if (currency === undefined) throw new Error(`Missing account currency for ${h.accountId}`);
     const cost = positionCost(
+      db,
+      asOf,
       snapshots,
       trades,
       h.accountId,
@@ -620,6 +644,8 @@ export function positionCostDetailsAsOf(
       const currency = accountCurrency.get(accountId);
       if (!currency) throw new Error(`Missing account currency for ${accountId}`);
       const cost = positionCost(
+        db,
+        asOf,
         snapshots,
         trades,
         accountId,
@@ -808,6 +834,8 @@ function portfolioSummaryInRange(
   const realizedTrades = tradesUpTo(db, today);
   const realizedResults = [
     ...realizedByPosition(
+      db,
+      today,
       realizedSnapshots,
       realizedTrades,
       loaded.accountCurrency,
