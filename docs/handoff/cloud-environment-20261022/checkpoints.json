@@ -174,7 +174,7 @@
       ],
       "branch": "codex/impl-485-486-settings-navigation",
       "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
-      "remote_sha": "07cd4c8984c25343dab801199ba30f0e08524448"
+      "remote_sha": "41222031dd0ba702265be5b9b395be5da1a01cdf"
     },
     {
       "issues": [
@@ -238,7 +238,7 @@
       ],
       "branch": "codex/impl-469-glossary-goals",
       "status": "SOURCE CHECKPOINT; consult revision-specific evidence; not a completion claim",
-      "remote_sha": "9220ca1cd6b4951c1f92b2aac4f45cadfb06a21f"
+      "remote_sha": "e0e39d4b0b5b04ad6966e8603d0bd91cf4b66cad"
     },
     {
       "issues": [
@@ -346,5 +346,33 @@
   },
   "agent_state": "Two active bounded implementation tasks; no queue loop.",
   "board": "94 open repository issues at last fresh read; project board inaccessible: Resource not accessible by integration (user.projectV2). Do not call 94 the Warteschlange column count.",
-  "coordination_owner": "Budget App Main / this chat, explicitly reconfirmed by owner; Codex CLI optional support only."
+  "coordination_owner": "Budget App Main / this chat, explicitly reconfirmed by owner; Codex CLI optional support only.",
+  "goal_objective_received": true,
+  "migration_reservations": {
+    "0052": "#486 manual Dropbox scan coordination; base d6cb8e1c0555196c5dcdefa01784f621a4a0d521, after #604/0048 -> #607/0049 -> #514/0050 -> #519/0051; source only, never applied"
+  },
+  "active_source_tasks": [
+    {
+      "issues": [
+        520
+      ],
+      "branch": "codex/impl-520-security-transfers",
+      "scope": "Exact rational moving-average lineage pure helpers; author plus independent source review; no DB/API/apply enablement"
+    },
+    {
+      "issues": [
+        486
+      ],
+      "branch": "codex/impl-486-manual-scan",
+      "base": "d6cb8e1c0555196c5dcdefa01784f621a4a0d521",
+      "scope": "Durable manual request to existing scanner worker, token-fenced operational row, reserved0052; source in progress, not a pushed checkpoint"
+    },
+    {
+      "issues": [
+        486
+      ],
+      "branch": "codex/impl-485-486-settings-navigation",
+      "scope": "Autosave correction41222031 source review, docs archival pending"
+    }
+  ]
 }

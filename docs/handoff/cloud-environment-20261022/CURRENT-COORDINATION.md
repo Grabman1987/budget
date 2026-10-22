@@ -64,3 +64,15 @@ Remote reread confirms #487 `8ba342d00b995d8611af87e968ce159f54375382` and #520 
 ### #520 correction checkpoint
 
 Author confirms normal push of `31c94f331233e397540383b24cae9c95030feb19`. Independent source review found an average numeric-receipt ancestry regression in the first FIFO checkpoint; a dedicated pooled-basis projection now preserves that receipt below the null-basis pool representation. Narrow independent re-review of the correction delta found no further actionable finding. Source review and addendum are archived at `docs/implementation/security-transfers-520-fifo-source-review.md` on its branch. No executable validation. The rational average ancestry and authoritative persistence/API work remain open. Current bounded agent assignments are complete; do not infer an autonomous app Goal has been created from the supplied Goal prompt.
+
+
+## Goal objective received — next source continuation
+
+The owner supplied an explicit `external_goal_objective`; implementation and independent source review continue under the same no-tests/no-CI/no-merge/no-deploy limits. This supersedes the prior prompt-only observation, without promising uninterrupted execution.
+
+- #469 residual labels are pushed at `e0e39d4b0b5b04ad6966e8603d0bd91cf4b66cad`; shared canonical rule names in One-Pager, annual findings heading corrected. Independent narrow source review found no issue; report archived here. NOT VALIDATED.
+- #486 preference autosave first checkpoint `baa966cc3e1c4a3085c6997430f8f8c61d9edc52` had a source-reviewed stale-clean-draft issue; correction `41222031dd0ba702265be5b9b395be5da1a01cdf` is pushed and narrow independent review is pending. Existing writers have no same-field cross-device CAS, explicitly not claimed by this feature.
+- #520 exact rational average provenance is being implemented in its existing pure-helper branch; FIFO normalization source remains pinned to the preceding checkpoint until the next commit. No database/API/apply path is enabled.
+- #486 manual Dropbox trigger has a separate isolated source worktree and branch `codex/impl-486-manual-scan`, base `d6cb8e1c0555196c5dcdefa01784f621a4a0d521`. Migration 0052 is reserved after the complete 0048–0051 source dependency stack. Main's GitHub migration listing ended0047 and all preserved source checkpoint trees had no0052 when reserved. Durable enqueue uses only the existing worker, fenced ownership/progress/intake transactions, no network operation from the endpoint. Explicit full-scan continuation state must remain separate from error classifications. Design report archived here. No migration executed or external PDF operation performed.
+
+Fresh repository issue listing returned94OPEN; it is not a Projects column count. Coverage audit is being refined to avoid treating missing manifest references or historical dependency labels as missing code. #516 owner question is pending about multiple matching import candidates: retain current date/order tie selection or require manual review. Existing bookings stay unchanged either way. All other independent source work continues.
