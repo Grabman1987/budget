@@ -99,3 +99,21 @@ Compact card scope copy now explicitly states budget credit cards included and
 reserve accounts excluded. This matches `liquidityReportView`'s actual
 `onBudget && role === 'budget'` account filter; no type exclusion or calculation
 was introduced. Existing scoped-finance tests retain their literal amounts.
+
+## Additional exact-head CI caller adapters
+
+CI run 39773139962 exposed three remaining historical structure assumptions.
+These technical changes need independent delta review; no local heavy tests
+were run by the author. Every financial amount/date/API/Undo assertion, geometry
+threshold, stroke width/dash/tolerance and timeout remains unchanged.
+
+| File                               | Adapter and preserved coverage                                                                                                                                                                                                                          |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `e2e/pace-marker.spec.ts`          | Ordered DOM check now requires lead→new compact forecast→pace, with actual shared chart visible. Old actual/forecast stroke-width invariants run on visible surviving R07; every pace tooltip/value/geometry/dash/motion/Plan marker assertion remains. |
+| `e2e/report-panel-layouts.spec.ts` | Ordinary Werkzeuge summary click only for liquidity case before reading relocated lever geometry; all exact rectangle/tolerance and report accessibility checks remain.                                                                                 |
+| `e2e/salary-skip-288.spec.ts`      | Ordinary Werkzeuge summary click before original strike interaction; all literal salary/date, API delta, Undo, restore, and Heute strike checks remain byte-identical.                                                                                  |
+
+A scoped grep of old Heute chart/lead stroke selectors, liquidity lever references
+and strike accessible names found no further untouched occurrences requiring the
+same adapter; domain/component legacy chart tests remain valid for their own
+unchanged components. This static sweep is not execution proof.
