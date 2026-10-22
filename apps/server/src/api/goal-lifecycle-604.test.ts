@@ -11,6 +11,9 @@ import {
   schema,
   setAssigned,
   type OpenedDatabase,
+  type getGoal,
+  type goalsReport,
+  type fundGoalRate,
 } from '@budget/db';
 import { createApp, type AuthGate } from '../app';
 
@@ -65,14 +68,17 @@ afterEach(() => {
   opened.close();
   rmSync(directory, { recursive: true, force: true });
 });
-async function call(method: string, path: string, data?: unknown) {
+type GoalResponse = { goal: ReturnType<typeof getGoal>; groupId: string };
+type GoalListResponse = { month: string; goals: ReturnType<typeof getGoal>[] };
+type GroupResponse = { groupId: string };
+async function call<T = unknown>(method: string, path: string, data?: unknown) {
   const response = await app.request('/api' + path, {
     method,
     ...(data === undefined
       ? {}
       : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) }),
   });
-  return { status: response.status, body: await response.json() };
+  return { status: response.status, body: (await response.json()) as T };
 }
 const goalInput = {
   name: 'Synthetic HTTP goal',
@@ -84,7 +90,7 @@ const goalInput = {
 
 it('exposes only public intent, funds the missing literal25000 through HTTP and restores manual completion with public Undo', async () => {
   setAssigned(opened.db, 'category-604-http', '2026-10', 15000, ctx);
-  const created = await call('POST', '/goals?month=2026-10', goalInput);
+  const created = await call<GoalResponse>('POST', '/goals?month=2026-10', goalInput);
   expect(created.status).toBe(201);
   const initial = created.body.goal;
   expect(initial).toMatchObject({
@@ -93,33 +99,44 @@ it('exposes only public intent, funds the missing literal25000 through HTTP and 
   });
   expect(initial).not.toHaveProperty('lifecycleAnchorJson');
   expect(initial).not.toHaveProperty('lifecycle_anchor_json');
-  const funded = await call('POST', `/goals/${initial.id}/fund?month=2026-10`, {
-    reviewToken: initial.funding.reviewToken,
-  });
+  if (!initial.funding) throw new Error('Expected category goal funding DTO');
+  const funded = await call<ReturnType<typeof fundGoalRate>>(
+    'POST',
+    `/goals/${initial.id}/fund?month=2026-10`,
+    {
+      reviewToken: initial.funding.reviewToken,
+    },
+  );
   expect(funded.status).toBe(200);
   expect(funded.body).toMatchObject({ assignedCents: 25000, changedCount: 1 });
-  const current = await call('GET', '/goals?month=2026-10');
+  const current = await call<GoalListResponse>('GET', '/goals?month=2026-10');
   expect(current.body.goals[0]).toMatchObject({
     savedCents: 40000,
     funding: { monthlyCents: 40000, remainingCents: 0 },
   });
   expect((await call('POST', '/undo', { groupId: funded.body.groupId })).status).toBe(200);
-  expect((await call('GET', '/goals?month=2026-10')).body.goals[0]).toMatchObject({
-    savedCents: 15000,
-    funding: { remainingCents: 25000 },
-  });
-  const completed = await call('POST', `/goals/${initial.id}/complete`);
+  expect((await call<GoalListResponse>('GET', '/goals?month=2026-10')).body.goals[0]).toMatchObject(
+    {
+      savedCents: 15000,
+      funding: { remainingCents: 25000 },
+    },
+  );
+  const completed = await call<GroupResponse>('POST', `/goals/${initial.id}/complete`);
   expect(completed.status).toBe(200);
-  expect((await call('GET', '/goals?month=2026-10')).body.goals[0]).toMatchObject({
-    lifecycle: { state: 'completed' },
-    savedCents: 15000,
-  });
+  expect((await call<GoalListResponse>('GET', '/goals?month=2026-10')).body.goals[0]).toMatchObject(
+    {
+      lifecycle: { state: 'completed' },
+      savedCents: 15000,
+    },
+  );
   expect(opened.sqlite.prepare('SELECT id FROM booking').all()).toEqual([]);
   expect((await call('POST', '/undo', { groupId: completed.body.groupId })).status).toBe(200);
-  expect((await call('GET', '/goals?month=2026-10')).body.goals[0]).toMatchObject({
-    lifecycle: { state: 'open' },
-    savedCents: 15000,
-  });
+  expect((await call<GoalListResponse>('GET', '/goals?month=2026-10')).body.goals[0]).toMatchObject(
+    {
+      lifecycle: { state: 'open' },
+      savedCents: 15000,
+    },
+  );
   expect(
     opened.sqlite.prepare('SELECT id FROM savings_goal WHERE deleted_at IS NULL').all(),
   ).toHaveLength(1);
@@ -128,16 +145,17 @@ it('exposes only public intent, funds the missing literal25000 through HTTP and 
 it('returns six actual month-end history points from the explicitly selected earlier start', async () => {
   for (const month of ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'])
     setAssigned(opened.db, 'category-604-http', month, 1000, ctx);
-  const created = await call('POST', '/goals?month=2026-10', {
+  const created = await call<GoalResponse>('POST', '/goals?month=2026-10', {
     ...goalInput,
     startMonth: '2026-05',
   });
   expect(created.status).toBe(201);
-  const report = await call('GET', '/goals/report?month=2026-10');
+  const report = await call<ReturnType<typeof goalsReport>>('GET', '/goals/report?month=2026-10');
   expect(report.status).toBe(200);
   const history = report.body.history.find(
     (entry: { id: string }) => entry.id === created.body.goal.id,
   );
+  if (!history) throw new Error('Expected retained goal history');
   expect(history.points.map((point: { month: string }) => point.month)).toEqual([
     '2026-05',
     '2026-06',

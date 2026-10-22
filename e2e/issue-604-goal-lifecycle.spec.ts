@@ -184,7 +184,10 @@ for (const profile of ['desktop', 'phone'] as const)
         expect(await current()).toMatchObject({ savedCents: 15000, lifecycle: { state: 'open' } });
         expect(opened.sqlite.pragma('foreign_key_check')).toEqual([]);
       } finally {
-        await context.close();
-        opened.close();
+        try {
+          await context.close();
+        } finally {
+          opened.close();
+        }
       }
     });
