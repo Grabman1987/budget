@@ -214,15 +214,26 @@ export function nextStrategyContribution(today: string, executionCalendar?: {
   id: string; verifiedComplete: true; from: string; through: string; days: readonly string[];
 }) {
   if (!validDay(today)) throw new RangeError('Invalid contribution date');
-  const month = today.slice(8) <= '15' ? today.slice(0, 7) : addMonths(today.slice(0, 7), 1);
-  const nominalDate = `${month}-15`;
-  if (!executionCalendar) return { nominalDate, executionDate: null, calendarId: null,
+  const currentMonth = today.slice(0, 7);
+  const currentNominal = `${currentMonth}-15`;
+  const nextMonth = addMonths(currentMonth, 1);
+  const nominalMonth = today <= currentNominal ? currentMonth : nextMonth;
+  if (!executionCalendar) return { nominalDate: `${nominalMonth}-15`, executionDate: null, calendarId: null,
     provisional: true, reason: 'execution_calendar_unavailable' as const };
   if (!executionCalendar.id.trim() || executionCalendar.verifiedComplete !== true ||
-    !validDay(executionCalendar.from) || !validDay(executionCalendar.through) || executionCalendar.from > nominalDate || executionCalendar.through < nominalDate ||
-    executionCalendar.days.some((day, index) => !validDay(day) || day < executionCalendar.from || day > executionCalendar.through || (index > 0 && day <= executionCalendar.days[index - 1]!)))
+    !validDay(executionCalendar.from) || !validDay(executionCalendar.through) ||
+    executionCalendar.from > executionCalendar.through ||
+    executionCalendar.days.some((day, index) => !validDay(day) || day < executionCalendar.from || day > executionCalendar.through ||
+      (index > 0 && day <= executionCalendar.days[index - 1]!)))
     throw new RangeError('Invalid verified execution calendar');
-  const executionDate = executionCalendar.days.find((day) => day >= nominalDate) ?? null;
+  const covers = (day: string) => executionCalendar.from <= day && executionCalendar.through >= day;
+  const executionAfter = (day: string) => executionCalendar.days.find((date) => date >= day) ?? null;
+  const currentExecution = covers(currentNominal) ? executionAfter(currentNominal) : null;
+  // The nominal 15th may have passed while its verified shifted execution is still upcoming.
+  const month = today > currentNominal && covers(currentNominal) &&
+    (currentExecution === null || currentExecution >= today) ? currentMonth : nominalMonth;
+  const nominalDate = `${month}-15`;
+  const executionDate = covers(nominalDate) ? executionAfter(nominalDate) : null;
   return { nominalDate, executionDate, calendarId: executionCalendar.id, provisional: executionDate === null,
     reason: executionDate ? null : 'execution_calendar_incomplete' as const };
 }

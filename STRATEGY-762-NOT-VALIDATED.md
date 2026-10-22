@@ -37,3 +37,11 @@ Independent literal review examples (documented expectations only; not executed 
 Refs #762.
 
 Branch-push preparation: inspected all workflow triggers and confirmed no open PR for `codex/impl-762-strategy`. CI push is restricted to `main`; the other workflows require a PR, successful main CI, or explicit dispatch. Ordinary feature-branch push only; no workflow dispatched.
+
+## Bounded corrections after independent source review — NOT VALIDATED
+
+The original pinned source review of `3fef2d5d4d76921e4f1539f5604fd3937aa98827` is archived in [`STRATEGY-762-SOURCE-REVIEW.md`](STRATEGY-762-SOURCE-REVIEW.md). It identified four source defects: the settings form used JSX where the shared `Field` requires a callback, strategy decisions lacked a month-specific history fence after Undo, the next-contribution display skipped a still-upcoming shifted execution after the nominal 15th, and editable money fields did not use amount-privacy masking.
+
+This follow-up uses the existing `Field` render callback and its generated label/description IDs for every strategy control, with `money` privacy on the rate, minimum purchase and fixed fee inputs. A monthly candidate now carries a decision-specific revision derived from that month's current setting value and retained audit-event count. POST requires that token and checks it inside the existing write transaction before creating an absent decision; a still-present identical decision keeps the prior no-change response. A delayed request after Undo cannot recreate the removed month without a fresh read. No migration or provider behavior changed. The contribution preview first resolves the verified current-month execution date and retains a shifted day that has not passed; uncovered dates remain provisional rather than guessed.
+
+Only source and documentation were changed. No tests, test edits, checks, typechecks, build, browser/accessibility run, CI, PR, merge or deployment were performed for these corrections. The corrected source requires a new independent exact-delta review and later runtime, trusted-provider and delivery validation; the feature remains NOT VALIDATED and NOT LIVE.

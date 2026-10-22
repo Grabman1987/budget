@@ -37,6 +37,12 @@ function configurationRevision(db: Executor, value: string | null): string {
   const events = db.get<{ count: number }>(sql`SELECT COUNT(*) AS count FROM audit_log WHERE entity_type='app_setting' AND entity_id=${CONFIG}`)!.count;
   return hash({ value, events });
 }
+function decisionRevision(db: Executor, month: string): string {
+  const id = `${DECISION}${month}`;
+  const value = getEntity(db, appSetting, id)?.value ?? null;
+  const events = db.get<{ count: number }>(sql`SELECT COUNT(*) AS count FROM audit_log WHERE entity_type='app_setting' AND entity_id=${id}`)!.count;
+  return hash({ value, events });
+}
 export function strategyConfiguration(db: Executor) {
   const value = getEntity(db, appSetting, CONFIG)?.value ?? null;
   return { config: value === null ? null : strategyConfigurationSchema.parse(JSON.parse(value)),
@@ -130,7 +136,7 @@ function assertEvidence(evidence: Extract<StrategyEvidence, { status: 'verified'
 }
 /** Append-only explicit internal decision ceremony; GET previews never call this writer. */
 export function recordStrategyMonthlyDecision(db: Executor, evidence: Extract<StrategyEvidence, { status: 'verified' }>,
-  month: string, asOf: string, revision: string, ctx: AuditContext,
+  month: string, asOf: string, revision: string, expectedDecisionRevision: string, ctx: AuditContext,
 ) {
   assertEvidence(evidence, asOf);
   const calendar = evidence.months.find((entry) => entry.month === month);
@@ -155,6 +161,8 @@ export function recordStrategyMonthlyDecision(db: Executor, evidence: Extract<St
       if (existing.fingerprint !== fingerprint) throw new ConflictError('Die verbindliche Monatsentscheidung besteht bereits und wird nicht überschrieben.');
       return { decision: existing, groupId: grouped.groupId, changedCount: 0 };
     }
+    if (decisionRevision(tx, month) !== expectedDecisionRevision)
+      throw new ConflictError('Die Monatsentscheidung wurde inzwischen geändert oder zurückgenommen. Bitte neu laden.');
     const sessions = evidence.input.calendar.sessions.filter((session) => session.date <= monthly.signalDate).slice(-220);
     const closes = sessions.map((session) => evidence.input.closes.find((close) => close.sessionDate === session.date)!);
     const decision = decisionSchema.parse({ ...facts, fingerprint, knownAt: asOf, sessions, closes });
@@ -226,7 +234,7 @@ export function portfolioStrategyView(db: Executor, asOf: string, evidence: Stra
       (calendar.effectiveDate === today && !valid.some((decision) => decision.month === calendar.month))).sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate))[0] ?? null;
     const monthCalendar = evidence.status === 'verified' ? evidence.months.find((entry) => entry.month === today.slice(0, 7)) : undefined;
     const candidate = evidence.status === 'verified' && monthCalendar ? strategyMonthlySignal(evidence.input, monthCalendar) : null;
-    const monthlyCandidate = candidate ? { ...candidate, signal: jsonSignal(candidate.signal),
+    const monthlyCandidate = candidate ? { ...candidate, decisionRevision: decisionRevision(tx, monthCalendar!.month), signal: jsonSignal(candidate.signal),
       canRecord: candidate.signal.status === 'available' && today >= candidate.signalDate && today <= candidate.effectiveDate } : null;
     const next = nextStrategyContribution(today, evidence.status === 'verified' ? evidence.executionCalendar : undefined);
     const provisional = next.provisional || !nextDecision || nextDecision.effectiveDate <= (next.executionDate ?? next.nominalDate);

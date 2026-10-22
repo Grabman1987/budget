@@ -27,11 +27,12 @@ export function portfolioStrategyRoutes(db: Db, now: () => string = () => new Da
   });
   app.post('/decision', async (c) => {
     const input = await readBody(c, z.strictObject({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
-      revision: z.string().regex(/^[a-f0-9]{64}$/) }));
+      revision: z.string().regex(/^[a-f0-9]{64}$/),
+      decisionRevision: z.string().regex(/^[a-f0-9]{64}$/) }));
     const asOf = now(), evidence = await provider(asOf);
     if (evidence.status !== 'verified') throw new ApiError(409, 'strategy_evidence_unavailable',
       'Ohne verifizierte Indexdaten und vollständigen US-Handelskalender wird keine Monatsentscheidung gespeichert.');
-    return c.json(recordStrategyMonthlyDecision(db, evidence, input.month, asOf, input.revision,
+    return c.json(recordStrategyMonthlyDecision(db, evidence, input.month, asOf, input.revision, input.decisionRevision,
       { actor: ACTOR, groupId: randomUUID() }));
   });
   return app;

@@ -69,7 +69,7 @@ function StrategyPreview({ data, fresh }: { data: PortfolioStrategyView & WithVa
   const record = async () => {
     if (!fresh || !candidate?.canRecord || saving.current) return;
     saving.current = true; setBusy(true);
-    try { await write(() => saveStrategyDecision(candidate.month, data.revision),
+    try { await write(() => saveStrategyDecision(candidate.month, data.revision, candidate.decisionRevision),
       (result) => result.changedCount ? 'Verbindliche Monatsentscheidung gespeichert.' : 'Diese Monatsentscheidung ist bereits gespeichert.'); }
     finally { saving.current = false; setBusy(false); }
   };
@@ -191,27 +191,43 @@ function StrategySettings({ data, fresh, onSaved }: { data: PortfolioStrategyVie
     <p>Wähle vorhandene Anlageklassen. Ihre bisherigen Zielversionen und deine Sparpläne bleiben eigenständig. Einander überschneidende globale Fonds bedeuten nicht automatisch zusätzliche Diversifikation.</p>
     <fieldset disabled={busy}><legend>Rate und Guthaben</legend>
       <label><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.currentTarget.checked)} /> Strategie ausdrücklich aktivieren</label>
-      <Field label="Monatliche Rate in EUR"><TextInput inputMode="decimal" value={amount} onChange={(event) => setAmount(event.currentTarget.value)} /></Field>
+      <Field label="Monatliche Rate in EUR">{({ id, describedBy, invalid }) =>
+        <TextInput id={id} aria-describedby={describedBy} aria-invalid={invalid} money inputMode="decimal" value={amount} onChange={(event) => setAmount(event.currentTarget.value)} />}
+      </Field>
       <label><input type="checkbox" checked={cash} onChange={(event) => setCash(event.currentTarget.checked)} /> Positives saldiertes Anlageguthaben zusätzlich zur Rate einbeziehen</label>
     </fieldset>
     {STRATEGY_CATEGORIES.map((category) => <fieldset disabled={busy} key={category}><legend>{NAMES[category]}</legend>
-      <Field label="Bestehende Anlageklasse"><Select value={classes[category]} onChange={(event) => setClasses((current) => ({ ...current, [category]: event.currentTarget.value }))}>
-        <option value="">Bitte auswählen</option>{data.metadata.classes.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
-      </Select></Field>
+      <Field label="Bestehende Anlageklasse">{({ id, describedBy, invalid }) =>
+        <Select id={id} aria-describedby={describedBy} aria-invalid={invalid} value={classes[category]} onChange={(event) => setClasses((current) => ({ ...current, [category]: event.currentTarget.value }))}>
+          <option value="">Bitte auswählen</option>{data.metadata.classes.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
+        </Select>}
+      </Field>
       {routes.map((route, index) => route.category !== category ? null : <div className="strategy-route" key={index}>
-        <Field label="Produkt für neue Käufe"><Select value={route.securityId} onChange={(event) => patchRoute(index, { securityId: event.currentTarget.value })}>
-          <option value="">Bitte auswählen</option>{data.metadata.securities.filter((row) => row.leverageFactor === (category === 'nasdaq2x' ? 20 : 10) && row.exposure?.complete && row.exposure.weights.some((weight) => weight.assetClassId === classes[category] && weight.weightBp === 10000))
-            .map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
-        </Select></Field>
-        <Field label="Internes Kaufziel in %"><TextInput inputMode="decimal" value={route.weight} onChange={(event) => patchRoute(index, { weight: event.currentTarget.value })} /></Field>
+        <Field label="Produkt für neue Käufe">{({ id, describedBy, invalid }) =>
+          <Select id={id} aria-describedby={describedBy} aria-invalid={invalid} value={route.securityId} onChange={(event) => patchRoute(index, { securityId: event.currentTarget.value })}>
+            <option value="">Bitte auswählen</option>{data.metadata.securities.filter((row) => row.leverageFactor === (category === 'nasdaq2x' ? 20 : 10) && row.exposure?.complete && row.exposure.weights.some((weight) => weight.assetClassId === classes[category] && weight.weightBp === 10000))
+              .map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
+          </Select>}
+        </Field>
+        <Field label="Internes Kaufziel in %">{({ id, describedBy, invalid }) =>
+          <TextInput id={id} aria-describedby={describedBy} aria-invalid={invalid} inputMode="decimal" value={route.weight} onChange={(event) => patchRoute(index, { weight: event.currentTarget.value })} />}
+        </Field>
         {category === 'nasdaq2x' && <label><input type="checkbox" checked={route.daily2xNasdaqConfirmed} onChange={(event) => patchRoute(index, { daily2xNasdaqConfirmed: event.currentTarget.checked })} /> Dieses gewählte Produkt bildet den Nasdaq-100 mit täglichem Zweifachhebel ab.</label>}
         <label><input type="checkbox" checked={route.limits} onChange={(event) => patchRoute(index, { limits: event.currentTarget.checked })} /> Gebühren und Kaufgrenzen ausdrücklich hinterlegen</label>
         {route.limits && <div className="strategy-costs">
-          <Field label="Mindestkauf ohne Gebühren in EUR"><TextInput inputMode="decimal" value={route.minimum} onChange={(event) => patchRoute(index, { minimum: event.currentTarget.value })} /></Field>
-          <Field label="Fixe Kaufgebühr in EUR"><TextInput inputMode="decimal" value={route.fee} onChange={(event) => patchRoute(index, { fee: event.currentTarget.value })} /></Field>
-          <Field label="Variable Kaufgebühr in %"><TextInput inputMode="decimal" value={route.feePercent} onChange={(event) => patchRoute(index, { feePercent: event.currentTarget.value })} /></Field>
+          <Field label="Mindestkauf ohne Gebühren in EUR">{({ id, describedBy, invalid }) =>
+            <TextInput id={id} aria-describedby={describedBy} aria-invalid={invalid} money inputMode="decimal" value={route.minimum} onChange={(event) => patchRoute(index, { minimum: event.currentTarget.value })} />}
+          </Field>
+          <Field label="Fixe Kaufgebühr in EUR">{({ id, describedBy, invalid }) =>
+            <TextInput id={id} aria-describedby={describedBy} aria-invalid={invalid} money inputMode="decimal" value={route.fee} onChange={(event) => patchRoute(index, { fee: event.currentTarget.value })} />}
+          </Field>
+          <Field label="Variable Kaufgebühr in %">{({ id, describedBy, invalid }) =>
+            <TextInput id={id} aria-describedby={describedBy} aria-invalid={invalid} inputMode="decimal" value={route.feePercent} onChange={(event) => patchRoute(index, { feePercent: event.currentTarget.value })} />}
+          </Field>
           <label><input type="checkbox" checked={route.amountBased} onChange={(event) => patchRoute(index, { amountBased: event.currentTarget.checked })} /> Betragskäufe mit Bruchstücken sind möglich</label>
-          {!route.amountBased && <Field label="Stückelung in Anteilen, z. B. 1 für ganze Stücke"><TextInput inputMode="decimal" value={route.step} onChange={(event) => patchRoute(index, { step: event.currentTarget.value })} /></Field>}
+          {!route.amountBased && <Field label="Stückelung in Anteilen, z. B. 1 für ganze Stücke">{({ id, describedBy, invalid }) =>
+            <TextInput id={id} aria-describedby={describedBy} aria-invalid={invalid} inputMode="decimal" value={route.step} onChange={(event) => patchRoute(index, { step: event.currentTarget.value })} />}
+          </Field>}
         </div>}
         <Button type="button" variant="ghost" onClick={() => setRoutes((current) => current.filter((_, at) => at !== index))}>Kaufprodukt entfernen</Button>
       </div>)}

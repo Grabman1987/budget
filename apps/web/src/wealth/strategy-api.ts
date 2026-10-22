@@ -10,5 +10,5 @@ export const strategyQuery = () => queryOptions({
 });
 export const saveStrategy = (config: StrategyConfiguration, revision: string) =>
   request<{ groupId: string; changedCount: number }>('PUT', '/api/portfolio-strategy/configuration', { config, revision });
-export const saveStrategyDecision = (month: string, revision: string) =>
-  request<{ groupId: string; changedCount: number }>('POST', '/api/portfolio-strategy/decision', { month, revision });
+export const saveStrategyDecision = (month: string, revision: string, decisionRevision: string) =>
+  request<{ groupId: string; changedCount: number }>('POST', '/api/portfolio-strategy/decision', { month, revision, decisionRevision });
