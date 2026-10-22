@@ -1,8 +1,10 @@
 import {
-  portfolioStrategyView, recordStrategyMonthlyDecision, saveStrategyConfiguration,
+  recordStrategyMonthlyDecision, saveStrategyConfiguration,
+  portfolioStrategyWithRebalanceView, reviewStrategyRebalance, linkStrategyRebalanceTrade,
+  unlinkStrategyRebalanceTrade, closeStrategyRebalance,
   MISSING_STRATEGY_EVIDENCE, type Db, type StrategyEvidence,
 } from '@budget/db';
-import { strategyConfigurationSchema, todayInVienna } from '@budget/domain';
+import { STRATEGY_CATEGORIES, strategyConfigurationSchema, todayInVienna } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -18,7 +20,7 @@ export function portfolioStrategyRoutes(db: Db, now: () => string = () => new Da
   const app = new Hono();
   app.get('/', async (c) => {
     const asOf = now(), evidence = await provider(asOf);
-    return c.json(portfolioStrategyView(db, asOf, evidence));
+    return c.json(portfolioStrategyWithRebalanceView(db, asOf, evidence));
   });
   app.put('/configuration', async (c) => {
     const input = await readBody(c, z.strictObject({ config: strategyConfigurationSchema,
@@ -34,6 +36,28 @@ export function portfolioStrategyRoutes(db: Db, now: () => string = () => new Da
       'Ohne verifizierte Indexdaten und vollständigen US-Handelskalender wird keine Monatsentscheidung gespeichert.');
     return c.json(recordStrategyMonthlyDecision(db, evidence, input.month, asOf, input.revision, input.decisionRevision,
       { actor: ACTOR, groupId: randomUUID() }));
+  });
+  const month = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+  const revision = z.string().regex(/^[a-f0-9]{64}$/);
+  const requestId = z.uuid();
+  const eventBase = { month, revision, requestId };
+  app.post('/rebalance/review', async (c) => {
+    const input = await readBody(c, z.strictObject({ ...eventBase, decisionRevision: revision }));
+    return c.json(reviewStrategyRebalance(db, input, now(), { actor: ACTOR, groupId: randomUUID() }));
+  });
+  app.post('/rebalance/link', async (c) => {
+    const input = await readBody(c, z.strictObject({ ...eventBase,
+      tradeId: z.string().min(1).max(200), category: z.enum(STRATEGY_CATEGORIES) }));
+    return c.json(linkStrategyRebalanceTrade(db, input, now(), { actor: ACTOR, groupId: randomUUID() }));
+  });
+  app.post('/rebalance/unlink', async (c) => {
+    const input = await readBody(c, z.strictObject({ ...eventBase, tradeId: z.string().min(1).max(200) }));
+    return c.json(unlinkStrategyRebalanceTrade(db, input, { actor: ACTOR, groupId: randomUUID() }));
+  });
+  app.post('/rebalance/close', async (c) => {
+    const input = await readBody(c, z.strictObject({ ...eventBase,
+      outcome: z.enum(['completed', 'cancelled', 'partial_closed', 'reopen']) }));
+    return c.json(closeStrategyRebalance(db, input, { actor: ACTOR, groupId: randomUUID() }));
   });
   return app;
 }

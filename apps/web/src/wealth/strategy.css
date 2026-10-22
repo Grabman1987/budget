@@ -23,6 +23,13 @@
   .strategy-route { border-top: 1px solid var(--rule); padding-top: 16px; }
   .strategy-costs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .strategy-identity { font-variant-numeric: tabular-nums; }
+  .strategy-rebalance-lifecycle, .strategy-rebalance-event, .strategy-rebalance-link, .strategy-rebalance-close { display: grid; gap: 12px; min-width: 0; }
+  .strategy-rebalance-event { border: 1px solid var(--rule); border-radius: var(--radius-sheet); padding: 16px; }
+  .strategy-rebalance-event :is(label, select) { max-width: 100%; }
+  .strategy-rebalance-event label { display: grid; gap: 6px; }
+  .strategy-rebalance-event label:has(input[type='checkbox']) { display: flex; align-items: flex-start; }
+  .strategy-rebalance-event input[type='checkbox'] { flex: none; margin-top: 5px; }
+  .strategy-rebalance-event select { min-height: 44px; }
   @media (max-width: 767px) {
     .strategy-facts, .strategy-costs { grid-template-columns: minmax(0, 1fr); }
     .strategy-settings { padding: 12px; }

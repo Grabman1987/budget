@@ -37,12 +37,15 @@ export function TradePanel({
   proposal,
   onClose,
   onSaved,
+  onTradeSaved,
 }: {
   id: string;
   securityId?: string | undefined;
   proposal?: SavingsExecutionProposal | undefined;
   onClose: () => void;
   onSaved: (securityId: string) => void;
+  /** Optional handoff for an explicit later attribution; saving alone never links a trade. */
+  onTradeSaved?: (trade: TradeRow) => void;
 }) {
   const editing = !!id && id !== 'neu';
   const trade = useQuery(tradeQuery(editing ? id : ''));
@@ -155,10 +158,11 @@ export function TradePanel({
             institutions={lookups.data?.institutions ?? []}
             onDirty={setDirtyNow}
             onBusy={setBusyNow}
-            onSaved={(securityId) => {
+            onSaved={(securityId, saved) => {
               setDirtyNow(false);
               setBusyNow(false);
               setAsking(false);
+              if (saved) onTradeSaved?.(saved);
               onSaved(securityId);
             }}
           />
@@ -217,7 +221,7 @@ function TradeForm({
   institutions: { id: string; name: string }[];
   onDirty: (dirty: boolean) => void;
   onBusy: (busy: boolean) => void;
-  onSaved: (securityId: string) => void;
+  onSaved: (securityId: string, saved?: TradeRow) => void;
 }) {
   useAmountPrivacy();
   const [original] = useState(() => ({
@@ -250,7 +254,10 @@ function TradeForm({
     setErrors({});
     onDirty(JSON.stringify(next) !== JSON.stringify(original));
   };
-  const refresh = () => qc.invalidateQueries({ queryKey: LEDGER_KEY });
+  const refresh = async () => {
+    try { await qc.invalidateQueries({ queryKey: LEDGER_KEY }); }
+    catch { toast.show({ message: 'Der Handel wurde geändert. Der neue Anzeigestand konnte nicht geladen werden; bitte aktualisieren.' }); }
+  };
   const reverse = (groupId: string, redo = false) =>
     void undoGroup(groupId).then(
       async (result) => {
@@ -278,7 +285,7 @@ function TradeForm({
         : await saveTrade(validated.values, trade?.id);
       onDirty(false);
       await refresh();
-      onSaved(result.trade.securityId);
+      onSaved(result.trade.securityId, result.trade);
       toast.show({
         message: proposal
           ? 'Sparplanausführung erfasst.'

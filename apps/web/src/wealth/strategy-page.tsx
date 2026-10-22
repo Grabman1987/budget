@@ -3,7 +3,7 @@ import {
   STRATEGY_CATEGORIES, STRATEGY_TARGETS, cents, formatDecimal, parseAmount, parseScaledDecimal,
   strategyConfigurationSchema, type StrategyCategory, type StrategyConfiguration,
 } from '@budget/domain';
-import type { PortfolioStrategyView } from '@budget/db';
+import type { PortfolioStrategyView, PortfolioStrategyWithRebalanceView } from '@budget/db';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useState, type FormEvent } from 'react';
 import { VERMOEGEN_PORTFOLIO_META } from '../nav/pages';
@@ -15,6 +15,7 @@ import { ErrorNote, LoadingNote } from '../ledger/states';
 import { ValuationHint, ValuationSourceHint, type WithValuationNotes } from '../ledger/valuation-hint';
 import { ApiError } from '../api/http';
 import { strategyQuery, saveStrategy, saveStrategyDecision } from './strategy-api';
+import { StrategyRebalance } from './strategy-rebalance';
 import { unitsText } from './portfolio-format';
 import './strategy.css';
 
@@ -60,7 +61,7 @@ export function PortfolioStrategyPage() {
     </div>}
   </PageFrame>;
 }
-function StrategyPreview({ data, fresh }: { data: PortfolioStrategyView & WithValuationNotes; fresh: boolean }) {
+function StrategyPreview({ data, fresh }: { data: PortfolioStrategyWithRebalanceView & WithValuationNotes; fresh: boolean }) {
   const write = useBudgetWrite();
   const saving = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -145,8 +146,9 @@ function StrategyPreview({ data, fresh }: { data: PortfolioStrategyView & WithVa
         <p>Vor einer Ausführung sind konkrete Verkaufsprodukte, Gebühren, Stückelung und mögliche österreichische Steuerfolgen getrennt zu prüfen. Hier werden keine Steuerbeträge angenommen.</p>
       </> : <p>Ohne monatlichen Trendwechsel ist zwischen Quartalsenden kein vollständiges Rebalancing vorgesehen.</p>
         : <p>Ohne passenden verbindlichen Trend und vollständige Bewertung bleibt ein Rebalancing-Vorschlag offen.</p>}
+      <StrategyRebalance data={data} fresh={fresh} />
     </section>
-    <p>Diese Ansicht erzeugt Vorschläge und speichert nur ausdrücklich bestätigte Strategieeinstellungen oder Monatsentscheidungen. Tatsächliche Ausführungen gehören weiterhin in die bestehende Trade-Erfassung.</p>
+    <p>Vorschläge ändern keine Bestände. Tatsächliche Ausführungen werden im bestehenden Handelsdialog erfasst und erst danach ausdrücklich diesem Rebalancing zugeordnet; die Zuordnung schreibt keinen zweiten Handel.</p>
     <AppLink to="/vermoegen/portfolio">Zum Portfolio und zur Trade-Erfassung</AppLink>
   </>;
 }

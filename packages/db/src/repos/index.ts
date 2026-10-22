@@ -101,3 +101,4 @@ export * from './statement-automation';
 export * from './statement-receipt-links';
 
 export * from './portfolio-strategy';
+export * from './strategy-rebalance';
