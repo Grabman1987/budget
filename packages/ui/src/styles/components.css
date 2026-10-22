@@ -918,10 +918,12 @@ button.ct-term .ct-val {
   background: var(--need);
 }
 .sw-want {
+  border-radius: 50%;
   background: var(--hatch-want);
   box-shadow: inset 0 0 0 1px var(--want);
 }
 .sw-future {
+  clip-path: polygon(50% 0, 0 100%, 100% 100%);
   background: var(--hatch-future);
   box-shadow: inset 0 0 0 1px var(--future);
 }
@@ -935,6 +937,19 @@ button.ct-term .ct-val {
 }
 .sw-open {
   border: var(--stroke-hairline) solid var(--line);
+}
+.sw-class-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  vertical-align: middle;
+  flex: none;
+}
+.sw-class-abbreviation {
+  color: var(--ink-2);
+  font-size: var(--fs-label);
+  font-weight: 620;
+  line-height: 1;
 }
 .class-tag {
   display: inline-flex;
