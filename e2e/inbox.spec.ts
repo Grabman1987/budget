@@ -150,6 +150,7 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
     .getByRole('button', { name: /^Aufgaben · \d+$/ });
   await aufgaben.click();
   await expect(aufgaben).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Weitere Aufgaben öffnen', exact: true }).click();
   const resolve = warning.getByRole('button', { name: 'Als erledigt markieren' });
   await expect(resolve).toHaveClass(/btn-ghost/);
   await expect(resolve).not.toHaveClass(/btn-alert/);

@@ -13,7 +13,7 @@ import { InboxTypeIcon } from './type-icon';
 import { ReadSourceDetail, sourceWarningReason } from './read-source-detail';
 import { ReadSourceSummaries } from './read-source-summaries';
 import { inboxCause, type InboxSegment } from '@budget/domain';
-import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
+import { useLocation, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { InboxBack, type InboxSearch } from './navigation';
 import {
   useAmountPrivacy,
@@ -463,17 +463,22 @@ function PaginatedInboxBody({
   const navigate = useNavigate();
   // `auto` lets the server open on the part with open work; the part then stays put while the
   // user works through it, even when it empties.
+  const hash = useLocation({ select: (location) => location.hash });
+  const accountAnchor = !bankSource && hash === 'account-reminder-title';
   const [pinned, setPinned] = useState<InboxSegment>();
   const [taskSource, setTaskSource] = useState<
     'accounts' | 'plan' | 'receipts' | 'payslips' | 'other'
-  >();
+  >(() => (accountAnchor ? 'accounts' : undefined));
+  useEffect(() => {
+    if (accountAnchor) setTaskSource('accounts');
+  }, [accountAnchor]);
   const queue = useInfiniteQuery(
     inboxPagesQuery(
       search.aufgaben,
       bankSource,
       bankSource ? (search.dateSort ?? 'newest') : undefined,
       bankSource ? search.fromDate : undefined,
-      search.teil ?? 'auto',
+      search.teil ?? (accountAnchor ? 'aufgaben' : 'auto'),
       pinned,
       undefined,
       !bankSource &&
@@ -502,6 +507,10 @@ function PaginatedInboxBody({
   const segmentCounts =
     !bankSource && firstPage?.segments && shown ? { shown, counts: firstPage.segments } : undefined;
   const fatalError = queue.isError && !queue.isFetchNextPageError ? queue.error : null;
+  useEffect(() => {
+    if (accountAnchor && shown === 'aufgaben' && taskSource === 'accounts' && !fatalError)
+      document.getElementById('account-reminder-title')?.scrollIntoView?.({ block: 'start' });
+  }, [accountAnchor, shown, taskSource, fatalError, firstPage]);
   const entrySourceSelected =
     taskSource === 'plan' || taskSource === 'payslips' || taskSource === 'other';
   return (
@@ -614,7 +623,10 @@ function PaginatedInboxBody({
                 onSelect={setTaskSource}
               />
               {taskSource === 'accounts' && (
-                <AccountReminderRows items={firstPage.accountReminders ?? []} />
+                <section aria-labelledby="account-reminder-title">
+                  <h3 id="account-reminder-title">Konten prüfen</h3>
+                  <AccountReminderRows items={firstPage.accountReminders ?? []} />
+                </section>
               )}
               {taskSource === 'receipts' && <ReceiptSection />}
             </>

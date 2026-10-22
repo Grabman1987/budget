@@ -275,6 +275,31 @@ it('keeps actual bank-candidate work in Umsätze and opens account checks throug
   expect(calls.every((url) => ['/api/inbox', '/api/bank-sync'].includes(url.pathname))).toBe(true);
 });
 
+it('preserves the existing account-reminder hash deep link with actual Aufgaben source data and no display writes', async () => {
+  const calls = fetchFixture((url) =>
+    url.pathname === '/api/bank-sync'
+      ? json({ configured: false, connections: [], accounts: [] })
+      : json(taskPage()),
+  );
+  const { router } = mount('/konten/pruefen#account-reminder-title', true);
+  expect(await screen.findByRole('heading', { name: 'Konten prüfen', exact: true })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Aufgaben · 1' }).getAttribute('aria-pressed')).toBe(
+    'true',
+  );
+  expect(
+    screen.getByRole('button', { name: 'Konten prüfen schließen' }).getAttribute('aria-expanded'),
+  ).toBe('true');
+  expect(screen.getByRole('link', { name: 'Kontostand prüfen' }).getAttribute('href')).toBe(
+    `/konten/${a}?pruefen=reconcile`,
+  );
+  expect(router.state.location.href).toBe('/konten/pruefen#account-reminder-title');
+  expect(
+    calls
+      .filter((url) => url.pathname === '/api/inbox')
+      .every((url) => url.searchParams.get('segment') === 'aufgaben'),
+  ).toBe(true);
+});
+
 it('suppresses cached source counts and account actions after a fatal refetch, then restores them after retry', async () => {
   let fail = false;
   fetchFixture((url) =>
