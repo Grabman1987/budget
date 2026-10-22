@@ -59,8 +59,21 @@ six-file source/test freeze, including the two audited existing mobile geometry 
 [dark](phone-dark.png) shows its top. Both show the fixed save bar. These captures use the iPhone
 profile's 390 CSS px viewport (1170 physical px at its device scale factor).
 
-The two existing mobile geometry consumer adaptations have source review; their targeted
-runtime check remains queued. Desktop/Chromium 390 light/dark proof, CI and live verification
+The final retained capture M04 inside-tap/actual-close case also passes: **4/4**, including
+three API setup cases. This supplemental run used the same native engine/device, a read-only
+common Git metadata mount and `GIT_OPTIONAL_LOCKS=0`. The runtime has no Git executable, so it
+explicitly did not run `booking-acceptance` (whose evidence helper invokes real Git). That existing
+geometry consumer remains for the genuine canonical CI runner; no Git metadata was fabricated,
+no helper changed and no test skipped in source. The approved external configuration only added
+that file to the WebKit test selection; it changed no device, timeout or engine setting. The
+actual executed fallback was:
+
+```sh
+playwright test e2e/mobile-panels.spec.ts --project=webkit-iphone --workers=1 --grep='M04: Buchung erfassen'
+```
+
+Raw output is retained for the [initial layout run](webkit-layout-first-run.txt),
+[final focused cases](webkit-focused-final.txt) and [supplemental close case](webkit-consumer-close.txt). Desktop/Chromium 390 light/dark proof, CI and live verification
 remain pending. No existing screenshot baseline captures an open BookingPanel: all changed
 capture screenshots are evidence captures. The seven baseline-spec callers render other views,
 so no snapshot regeneration is expected or dispatched. Per the coordinator's resource direction, full-check coverage is delegated to

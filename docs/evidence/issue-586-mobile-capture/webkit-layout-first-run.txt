@@ -1,0 +1,66 @@
+[WebServer] Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).
+[WebServer] Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).
+[WebServer] Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).
+[WebServer] npm notice
+[WebServer] npm notice New major version of npm available! 10.9.9 -> 12.2.1
+[WebServer] npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+[WebServer] npm notice To update run: npm install -g npm@12.2.1
+[WebServer] npm notice
+[WebServer] Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).
+
+Running 14 tests using 1 worker
+
+  ✓   1 [setup] › e2e/auth.setup.ts:10:1 › register the first passkey and store the session (88ms)
+  ✓   2 [setup] › e2e/ledger.setup.ts:17:1 › seed categories for the ledger tests (98ms)
+  ✓   3 [setup-sample] › e2e/sample.setup.ts:6:1 › register the first passkey on the sample server (106ms)
+  ✓   4 [webkit-iphone] › e2e/capture-dialog-layout.spec.ts:9:1 › only Escape, close and a genuine outside click ask to discard a dirty booking (6.6s)
+  ✓   5 [webkit-iphone] › e2e/capture-dialog-layout.spec.ts:36:1 › capture rows, native calendar and dropdowns keep the draft on desktop and 390px (10.4s)
+  ✓   6 [webkit-iphone] › e2e/capture-dialog-layout.spec.ts:231:3 › booking lines: category, exact splits and edit round trip (7.8s)
+  ✓   7 [webkit-iphone] › e2e/capture-dialog-layout.spec.ts:231:3 › booking lines: outlay, exact splits and edit round trip (8.1s)
+  ✓   8 [webkit-iphone] › e2e/capture-dialog-layout.spec.ts:231:3 › booking lines: percent, exact splits and edit round trip (9.2s)
+  ✓   9 [webkit-iphone] › e2e/capture-dialog-layout.spec.ts:231:3 › booking lines: amount, exact splits and edit round trip (8.1s)
+  ✓  10 [webkit-iphone] › e2e/capture-dialog-layout.spec.ts:231:3 › booking lines: several, exact splits and edit round trip (9.2s)
+  ✓  11 [webkit-iphone] › e2e/capture-dialog-layout.spec.ts:433:1 › cash capture confirms immediately while bank capture stays pending (2.0s)
+  ✓  12 [webkit-iphone] › e2e/capture-dialog-layout.spec.ts:477:1 › sharing before entering an amount keeps the discard guard (1.9s)
+  ✓  13 [webkit-iphone] › e2e/issue-586-mobile-capture.spec.ts:43:1 › capture keeps save visible with many lines, status, targets and both themes (11.7s)
+  ✘  14 [webkit-iphone] › e2e/issue-586-mobile-capture.spec.ts:119:1 › desktop card stays bounded and phone save follows keyboard-sized visual viewport (12.9s)
+
+
+  1) [webkit-iphone] › e2e/issue-586-mobile-capture.spec.ts:119:1 › desktop card stays bounded and phone save follows keyboard-sized visual viewport 
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator:  getByRole('dialog', { name: 'Buchung erfassen' }).getByLabel('Betrag', { exact: true })
+    Expected: "120"
+    Received: "120,00"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveValue" getByRole('dialog', { name: 'Buchung erfassen' }).getByLabel('Betrag', { exact: true }) with timeout 5000ms
+      - waiting for getByRole('dialog', { name: 'Buchung erfassen' }).getByLabel('Betrag', { exact: true })
+        13 × locator resolved to <input id="_r_7_" type="text" autofocus="" value="120,00" inputmode="text" autocomplete="off" spellcheck="false" placeholder="0,00" class="amount-input" aria-invalid="false" aria-describedby="_r_7_-hint"/>
+           - unexpected value "120,00"
+
+
+      156 |     await saveWithin(dialog, top!, height!);
+      157 |     await dialog.getByRole('button', { name: 'Weiter bearbeiten', exact: true }).click();
+    > 158 |     await expect(dialog.getByLabel('Betrag', { exact: true })).toHaveValue('120');
+          |                                                                ^
+      159 |   }
+      160 | });
+      161 |
+        at /app/e2e/issue-586-mobile-capture.spec.ts:158:64
+
+    Error Context: test-results/issue-586-mobile-capture-d-c6bb3-board-sized-visual-viewport-webkit-iphone/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/issue-586-mobile-capture-d-c6bb3-board-sized-visual-viewport-webkit-iphone/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/issue-586-mobile-capture-d-c6bb3-board-sized-visual-viewport-webkit-iphone/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [webkit-iphone] › e2e/issue-586-mobile-capture.spec.ts:119:1 › desktop card stays bounded and phone save follows keyboard-sized visual viewport 
+  13 passed (1.8m)
