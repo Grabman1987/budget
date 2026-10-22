@@ -1,5 +1,7 @@
 # Budget cloud handoff — 2026-10-22
 
+> Current owner clarification and resumed implementation results: [CURRENT-COORDINATION.md](CURRENT-COORDINATION.md). This supersedes the historical coordination assignment below.
+
 This is a documentation-only checkpoint. Existing feature branches are preserved. It is not a combined product branch, release, completed acceptance or validation report. Do not merge this older-base handoff branch as a way to integrate features.
 
 ## Current instructions and ownership

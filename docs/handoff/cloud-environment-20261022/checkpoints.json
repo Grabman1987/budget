@@ -13,7 +13,7 @@
     "deployments",
     "queue loops"
   ],
-  "integration_owner": "01a16218-41fd-70d0-9b2a-60b070a1659a — pause requested twice, acknowledgment outstanding; no claim external work stopped",
+  "integration_owner": "No merges or deployments allowed in current implementation-only mode. Earlier external coordinator assignment superseded by latest owner clarification.",
   "pause_comment": "https://github.com/Grabman1987/budget/pull/758#issuecomment-6345239425",
   "source_checkpoints": [
     {
@@ -229,7 +229,7 @@
         516
       ],
       "branch": "codex/impl-516-import-explanations",
-      "remote_sha": "935f685baa16590c1e24c356401eacc926a97a32",
+      "remote_sha": "eef0bec42421abb73f05b2dd8c336431ba584a18",
       "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; documented provenance limitations"
     },
     {
@@ -238,7 +238,7 @@
       ],
       "branch": "codex/impl-469-glossary-goals",
       "status": "SOURCE CHECKPOINT; consult revision-specific evidence; not a completion claim",
-      "remote_sha": "b94f8b722f3daacf5e7bd7a49d8e8ea5239a3a68"
+      "remote_sha": "9220ca1cd6b4951c1f92b2aac4f45cadfb06a21f"
     },
     {
       "issues": [
@@ -254,7 +254,7 @@
       ],
       "branch": "codex/impl-519-fx-posting",
       "status": "SOURCE CHECKPOINT; consult revision-specific evidence; not a completion claim",
-      "remote_sha": "5e2ab4b4785d1a9f67dd442d96240f369e62ffe4"
+      "remote_sha": "d6cb8e1c0555196c5dcdefa01784f621a4a0d521"
     },
     {
       "issues": [
@@ -280,6 +280,35 @@
       "branch": "codex/backlog-550-551-composition",
       "status": "SOURCE CHECKPOINT; consult revision-specific evidence; not a completion claim",
       "remote_sha": "11f870db580add0e5db94ddbc1de8621c0196608"
+    },
+    {
+      "branch": "codex/impl-470-table-readability",
+      "issues": [
+        470
+      ],
+      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance documented",
+      "remote_sha": "ea373624f4abd0344ecef92102fbe2730aafb5bf"
+    },
+    {
+      "branch": "codex/impl-474-design-lines",
+      "issues": [
+        474
+      ],
+      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance documented",
+      "remote_sha": "dd11b4e03bdd79ce3074b2e504dd326453080470"
+    },
+    {
+      "branch": "codex/impl-574-offline-contact-assembly",
+      "issues": [
+        574,
+        599,
+        558,
+        559,
+        699,
+        700
+      ],
+      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance documented",
+      "remote_sha": "3526611528c3b653ff58d78ba417ab2bae157a02"
     }
   ],
   "remaining_agents": [],
@@ -287,7 +316,7 @@
     719
   ],
   "completion_policy": "No issue closures/Live status from unvalidated source; existing financial/security/Undo semantics and evidence preserved.",
-  "observed_at_utc": "2026-10-22T18:59:53.752971+00:00",
+  "observed_at_utc": "2026-10-22T20:01:11.145373+00:00",
   "owner_decisions": {
     "519": [
       "Preserve actual native amounts and disclose quoted-rate discrepancy",
@@ -296,6 +325,7 @@
     ],
     "520": "Non-divisible residual cent remains with source holding and accompanies its eventual full transfer; total basis conserved."
   },
-  "agent_state": "All six delegated implementation agents completed their assigned bounded source packages; no active background implementation as of handoff.",
-  "board": "94 open repository issues at last fresh read; project board inaccessible: Resource not accessible by integration (user.projectV2). Do not call 94 the Warteschlange column count."
+  "agent_state": "Current resumed batch completed and pushed. No active background agent work at this checkpoint.",
+  "board": "94 open repository issues at last fresh read; project board inaccessible: Resource not accessible by integration (user.projectV2). Do not call 94 the Warteschlange column count.",
+  "coordination_owner": "Budget App Main / this chat, explicitly reconfirmed by owner; Codex CLI optional support only."
 }
