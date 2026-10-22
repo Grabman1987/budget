@@ -1,5 +1,5 @@
 import { FormDialog } from '@budget/ui';
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { CaptureForm } from './capture-form';
 import type { ListedBooking } from './types';
 import { AssignmentLearnOffer } from '../assignment/review';
@@ -25,6 +25,8 @@ export function BookingPanel({
   onClose: () => void;
 }) {
   const dirty = useRef(false);
+  const deleteBusy = useRef(false);
+  const onDeleteBusy = useCallback((busy: boolean) => { deleteBusy.current = busy; }, []);
   const [learnBookingId, setLearnBookingId] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
   const focusScope = useRef<HTMLDivElement>(null);
@@ -35,7 +37,7 @@ export function BookingPanel({
   }, [asking]);
   const keepEditing = () => {
     setAsking(false);
-    resumeFocus.current?.focus();
+    requestAnimationFrame(() => resumeFocus.current?.focus());
   };
   // Native dialogs make the page inert, but Tab at the boundary can reach browser chrome.
   const wrapFocus = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -88,9 +90,11 @@ export function BookingPanel({
   const close = () => {
     setAsking(false);
     dirty.current = false;
+    deleteBusy.current = false;
     onClose();
   };
   const beforeClose = () => {
+    if (deleteBusy.current) return false;
     if (!dirty.current) return true;
     if (!asking) resumeFocus.current = document.activeElement as HTMLElement | null;
     setAsking(true);
@@ -112,6 +116,7 @@ export function BookingPanel({
             onDone={close}
             onBankCategorized={setLearnBookingId}
             dirtyRef={dirty}
+            onDeleteBusy={onDeleteBusy}
             requestClose={() => beforeClose() && close()}
             discard={{ asking, keep: keepEditing, discard: close }}
           />

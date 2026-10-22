@@ -1,3 +1,4 @@
+import './ledger-batch.css';
 import { BookingAssignmentReview } from '../assignment/review';
 import {
   useAmountPrivacy,
@@ -23,7 +24,8 @@ import {
 } from 'react';
 import { ApiError } from '../api/http';
 import { budgetQuery } from '../budget/budget-api';
-import { fetchBookings, createPayee, setPayeeDefaultCategory } from './api';
+import { fetchBookings, createPayee, setPayeeDefaultCategory, readBookingDeletePreview, type BookingDeletePreview } from './api';
+import { BookingDeletePreviewPanel } from './booking-delete-preview';
 import {
   buildCreate,
   buildPatch,
@@ -116,6 +118,7 @@ export function CaptureForm({
   dirtyRef,
   discard,
   requestClose,
+  onDeleteBusy,
   queued,
 }: {
   state: NonNullable<BookingPanelState>;
@@ -125,6 +128,7 @@ export function CaptureForm({
   dirtyRef: MutableRefObject<boolean>;
   discard: DiscardAsk;
   requestClose: () => void;
+  onDeleteBusy?: (busy: boolean) => void;
   queued?: QueuedBooking;
 }) {
   useAmountPrivacy();
@@ -180,8 +184,10 @@ export function CaptureForm({
   }, []);
   const [unlock, setUnlock] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [deletePreview, setDeletePreview] = useState<BookingDeletePreview | null>(null);
   // Guards save() itself: held or repeated Ctrl+Enter must not send the booking twice.
   const saving = useRef(false);
+  useEffect(() => () => { onDeleteBusy?.(false); }, [onDeleteBusy]);
   const [moreOpen, setMoreOpen] = useState(Boolean(draft.projectId || draft.flag));
   // The category the last chosen payee's default filled in; only that one is replaced by the next.
   const appliedByPayee = useRef<string | null>(null);
@@ -508,18 +514,16 @@ export function CaptureForm({
   };
 
   const remove = async () => {
-    if (!editing) return;
-    if (locked && !unlock)
-      return setErrors({ form: 'Diese Buchung ist geprüft. Bestätige die Freigabe zum Löschen.' });
-    setBusy(true);
+    if (!editing || saving.current || busy) return;
+    saving.current = true; setBusy(true); onDeleteBusy?.(true);
     try {
-      await writes.remove.mutateAsync({ id: editing.id, unlock });
+      const preview = await readBookingDeletePreview([editing.id], 'single');
+      if (preview.protected || preview.blocked) { setDeletePreview(preview); return; }
+      // Ordinary deletion is still immediate: no user confirmation for an unlinked open row.
+      await writes.remove.mutateAsync({ id: editing.id, unlock: false, previewRevision: preview.revision });
       onDone();
-    } catch (error) {
-      setErrors({ form: errorText(error) });
-    } finally {
-      setBusy(false);
-    }
+    } catch (error) { setErrors({ form: errorText(error) }); }
+    finally { saving.current = false; setBusy(false); onDeleteBusy?.(false); }
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
@@ -681,6 +685,37 @@ export function CaptureForm({
       singleMetadata={singleMetadata}
     />
   );
+
+  const discardQuestion = discard.asking && (
+        <div
+          className="kdiff is-bad bk-discard"
+          role="alertdialog"
+          aria-label="Eingaben verwerfen?"
+        >
+          <span>Eingaben verwerfen?</span>
+          <Button size="sm" variant="ghost" onClick={discard.keep}>
+            Weiter bearbeiten
+          </Button>
+          <Button size="sm" onClick={discard.discard}>
+            Verwerfen
+          </Button>
+        </div>
+      );
+
+  if (deletePreview && editing) return <>
+    <BookingDeletePreviewPanel
+    ids={[editing.id]} mode="single" initialPreview={deletePreview} pending={busy || writes.remove.isPending || discard.asking}
+    onCancel={() => { onDeleteBusy?.(false); setDeletePreview(null); requestAnimationFrame(() => formRef.current?.querySelector<HTMLButtonElement>('[data-booking-delete]')?.focus()); }}
+    onConfirm={async (preview, confirmedUnlock) => {
+      if (saving.current) return;
+      saving.current = true; setBusy(true); onDeleteBusy?.(true);
+      try {
+        await writes.remove.mutateAsync({ id: editing.id, unlock: confirmedUnlock, previewRevision: preview.revision });
+        onDone();
+      } finally { saving.current = false; setBusy(false); onDeleteBusy?.(false); }
+    }} />
+    {discardQuestion}
+  </>;
 
   return (
     // Keyboard flow is handled once for all fields of the form.
@@ -982,21 +1017,7 @@ export function CaptureForm({
           {CAPTURE_SHORTCUT_HINT}
         </p>
       </div>
-      {discard.asking && (
-        <div
-          className="kdiff is-bad bk-discard"
-          role="alertdialog"
-          aria-label="Eingaben verwerfen?"
-        >
-          <span>Eingaben verwerfen?</span>
-          <Button size="sm" variant="ghost" onClick={discard.keep}>
-            Weiter bearbeiten
-          </Button>
-          <Button size="sm" onClick={discard.discard}>
-            Verwerfen
-          </Button>
-        </div>
-      )}
+      {discardQuestion}
       {blocked && (
         <p id="booking-save-reason" className="bk-save-reason" role="status">
           {lineProblem}
@@ -1005,7 +1026,7 @@ export function CaptureForm({
       <div className="bk-foot">
         {editing && (
           <div className="bk-foot-extra">
-            <Button variant="ghost" onClick={() => void remove()} disabled={busy}>
+            <Button data-booking-delete variant="ghost" onClick={() => void remove()} disabled={busy}>
               <Trash2 size={16} strokeWidth={1.75} aria-hidden="true" />
               Löschen
             </Button>

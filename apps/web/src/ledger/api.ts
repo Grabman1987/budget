@@ -1,6 +1,6 @@
 import type { Rhythm } from '../expected/api';
 import type { LiquidityHorizon, LiquidityLeverId } from '@budget/domain';
-import { queryString, request } from '../api/http';
+import { ApiError, queryString, request } from '../api/http';
 import type {
   AccountList,
   AccountRow,
@@ -27,6 +27,7 @@ const filterParams = (filter: BookingFilter) => ({
   from: filter.from,
   to: filter.to,
   categoryId: filter.categoryId,
+  categoryGroupId: filter.categoryGroupId,
   payeeId: filter.payeeId,
   status: filter.status,
   flag: filter.flag,
@@ -120,10 +121,10 @@ export const reopenAccount = (id: string) =>
     {},
   );
 
-export const fetchBookings = (filter: BookingFilter, cursor?: string, limit = 50) =>
+export const fetchBookings = (filter: BookingFilter, cursor?: string, limit = 50, nativeSummary = false) =>
   request<BookingPage>(
     'GET',
-    `/api/bookings${queryString({ ...filterParams(filter), cursor, limit })}`,
+    `/api/bookings${queryString({ ...filterParams(filter), cursor, limit, ...(nativeSummary ? { nativeSummary: '1' } : {}) })}`,
   );
 
 export const fetchLookups = (bookingId?: string) =>
@@ -215,30 +216,49 @@ export const patchBooking = (id: string, patch: BookingPatch, key?: string) =>
     key ? { 'Idempotency-Key': key } : undefined,
   );
 
-export const deleteBooking = (id: string, unlock = false) =>
+export const deleteBooking = (id: string, unlock = false, previewRevision?: string) =>
   request<WriteResult>(
     'DELETE',
-    `/api/bookings/${encodeURIComponent(id)}${unlock ? '?unlock=1' : ''}`,
+    `/api/bookings/${encodeURIComponent(id)}${queryString({ unlock: unlock ? '1' : undefined, previewRevision })}`,
   );
 
 /** Why the server left a booking out of a bulk action. */
 export type BulkSkipReason =
-  'not_found' | 'reconciled_locked' | 'split' | 'transfer' | 'transfer_pair' | 'invalid';
+  'not_found' | 'reconciled_locked' | 'split' | 'transfer' | 'transfer_pair' | 'invalid' | 'unchanged' |
+  'linked_transfer' | 'linked_contact' | 'linked_expected' | 'linked_trade' | 'linked_payroll' |
+  'linked_statement' | 'linked_document' | 'linked_bank' | 'source_effect';
+export interface BulkSelectionItem {
+  id: string; date: string; description: string; accountId: string; accountName: string;
+  amountCents: number | null; currency: string; projectId: string | null; reason: BulkSkipReason | null;
+}
+export interface BulkSelection {
+  selectedCount: number; items: BulkSelectionItem[]; missingIds: string[];
+  totals: { currency: string; count: number; cents: number | null; unavailable: 'unsafe_total' | null }[];
+}
+export const readBulkSelection = (ids: string[]) => request<BulkSelection>('POST', '/api/bookings/selection', { ids });
 
 export interface BulkResult extends WriteResult {
   changed: string[];
-  skipped: { id: string; reason: BulkSkipReason; message: string }[];
+  skipped: { id: string; reason: BulkSkipReason; message: string; booking?: BulkSelectionItem }[];
   /** Transfers with both legs in the selection (one Umbuchung each). */
   transferPairs: number;
 }
 
 export const bulkUpdateBookings = (
   ids: string[],
-  set: { categoryId?: string | null; flag?: BookingFlag | null; status?: 'pending' | 'confirmed' },
+  set: { categoryId?: string | null; flag?: BookingFlag | null; status?: 'pending' | 'confirmed'; projectId?: string | null },
 ) => request<BulkResult>('POST', '/api/bookings/bulk', { action: 'update', ids, set });
 
-export const bulkDeleteBookings = (ids: string[]) =>
-  request<BulkResult>('POST', '/api/bookings/bulk', { action: 'delete', ids });
+export interface BookingDeletePreview {
+  mode: 'bulk' | 'single'; ids: string[]; affectedIds: string[]; selection: BulkSelection;
+  eligibleIds: string[]; skipped: { id: string; reason: BulkSkipReason; booking?: BulkSelectionItem }[];
+  eligibleTotals: BulkSelection['totals']; revision: string; protected: boolean;
+  requiresUnlock: boolean; blocked: 'not_found' | 'invalid' | 'protected_link' | null; expectedLinkCount: number;
+}
+export const readBookingDeletePreview = (ids: string[], mode: 'bulk' | 'single' = 'bulk') =>
+  request<BookingDeletePreview>('POST', '/api/bookings/delete-preview', { ids, mode });
+export const bulkDeleteBookings = (ids: string[], previewRevision: string) =>
+  request<BulkResult>('POST', '/api/bookings/bulk', { action: 'delete', ids, previewRevision });
 
 export const undoGroup = (groupId: string) =>
   request<WriteResult>('POST', '/api/undo', { groupId });
@@ -273,3 +293,48 @@ export const reconcileAccount = (accountId: string, input: ReconcileRequest) =>
     `/api/accounts/${encodeURIComponent(accountId)}/reconciliation`,
     input,
   );
+
+/** Complete filtered history export; the caller owns cancellation and stale-filter rejection. */
+export async function downloadBookingsCsv(filter: BookingFilter, signal: AbortSignal): Promise<Blob> {
+  const response = await fetch(`/api/bookings/csv${queryString(filterParams(filter))}`, {
+    credentials: 'same-origin', signal,
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({})) as { error?: string; message?: string };
+    throw new ApiError(response.status, payload.error ?? 'csv_unavailable', payload.message);
+  }
+  const length = Number(response.headers.get('Content-Length'));
+  if (!/^text\/csv(?:;|$)/i.test(response.headers.get('Content-Type') ?? '') ||
+    !/^attachment; filename="budget-bookings-\d{4}-\d{2}-\d{2}\.csv"$/.test(response.headers.get('Content-Disposition') ?? '') ||
+    !Number.isSafeInteger(length) || length < 3 || length > 64 * 1024 * 1024 || !response.body) {
+    await response.body?.cancel();
+    throw new ApiError(422, 'csv_unavailable', 'Der Export ist nicht vollständig verfügbar.');
+  }
+  const reader = response.body.getReader();
+  const chunks: Uint8Array<ArrayBuffer>[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const next = await reader.read();
+      if (next.done) break;
+      size += next.value.byteLength;
+      if (signal.aborted || size > length) throw new ApiError(422, 'csv_unavailable', 'Der Export wurde abgebrochen.');
+      chunks.push(new Uint8Array(next.value));
+    }
+    if (signal.aborted || size !== length) throw new ApiError(422, 'csv_unavailable', 'Der Export ist unvollständig.');
+    return new Blob(chunks, { type: 'text/csv;charset=utf-8' });
+  } finally {
+    try { await reader.cancel(); } finally { reader.releaseLock(); }
+  }
+}
+
+export type ProtectedBulkSet = { date: string } | { memo: string | null } | { payeeId: string | null };
+export interface BookingBulkEditPreview {
+  ids: string[]; set: ProtectedBulkSet; selection: BulkSelection;
+  rows: { id: string; before: string | null; after: string | null; reason: BulkSkipReason | null; unchanged: boolean }[];
+  eligibleIds: string[]; revision: string;
+}
+export const readBookingBulkEditPreview = (ids: string[], set: ProtectedBulkSet) =>
+  request<BookingBulkEditPreview>('POST', '/api/bookings/bulk-preview', { ids, set });
+export const applyBookingBulkEdit = (ids: string[], set: ProtectedBulkSet, previewRevision: string) =>
+  request<BulkResult>('POST', '/api/bookings/bulk-apply', { ids, set, previewRevision });

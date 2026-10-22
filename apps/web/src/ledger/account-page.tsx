@@ -246,7 +246,7 @@ function AccountBody({ account, bankReview }: { account: AccountRow; bankReview?
         <div className="fig kacct-month">
           <small>{monthName(today)}</small>
           <strong className="muted">
-            {movement.data
+            {movement.data && movement.data.sumCents !== null
               ? valuedMovement(movement.data.sumCents, account.currency, movement.data.sumEurCents)
               : '–'}
           </strong>

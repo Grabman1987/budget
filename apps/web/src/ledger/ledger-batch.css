@@ -1,0 +1,134 @@
+
+/* Account-local bulk surface: immutable ordinary row writers remain in their own controls. */
+.kbulk-readonly-surface,
+.kbulk-controls {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.kselection-bar {
+  position: fixed;
+  z-index: 30;
+  inset-inline-start: calc(var(--sidebar) + 28px);
+  inset-inline-end: 28px;
+  bottom: 16px;
+  margin: 0;
+  max-height: 50dvh;
+  overflow: auto;
+  align-items: stretch;
+  background: var(--raised);
+}
+.kselection-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+.kbulk-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+.kselection-bar .btn,
+.kselection-bar select,
+.kselection-bar summary {
+  min-height: var(--touch);
+  min-width: var(--touch);
+}
+.kselection-bar summary {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.kbulk-result {
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.kbulk-result ul {
+  margin: 0;
+  padding-inline-start: 20px;
+}
+.kbulk-result a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  min-width: var(--touch);
+}
+@media (max-width: 767px) {
+  .kselection-bar {
+    inset-inline: 16px;
+    /* Keep both the safe-area-aware tab bar and the existing capture FAB reachable. */
+    bottom: calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 8px);
+  }
+  .kselection-bar select {
+    flex: 1 1 44%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .kselection-bar .btn {
+    white-space: normal;
+  }
+}
+
+/* Local destructive preview inside the existing form dialog; no shared modal or money policy. */
+.kdelete-preview .bk-body {
+  display: grid;
+  gap: 16px;
+  overflow-wrap: anywhere;
+}
+.kdelete-preview ul {
+  margin: 0;
+  padding-inline-start: 24px;
+}
+.kdelete-preview li + li {
+  margin-block-start: 8px;
+}
+.kdelete-preview .bk-foot {
+  flex-wrap: wrap;
+}
+.kdelete-preview .bk-foot .btn,
+.kdelete-preview .kcheck {
+  min-height: var(--touch);
+}
+
+.kfilter-search-row {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.kfilter-search-row .kf-search { flex: 1 1 240px; min-width: 0; }
+.kfilter-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 8px; }
+.kfilter-live .kfilter { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.kfilter-live .kf { min-width: 0; }
+.kfilter-live .bk-body { overflow: auto; }
+.kfilter-live .btn, .kfilter-chip, .kfilter-search-row .btn,
+.kcsv-menu summary, .kcsv-menu .btn { min-height: var(--touch); min-width: var(--touch); }
+.kcsv-menu { margin-block: 8px; }
+.kcsv-menu summary { display: inline-flex; align-items: center; cursor: pointer; padding-inline: 12px; }
+.kcsv-menu .btn { white-space: normal; max-width: 100%; }
+.ksum { overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+  .kfilter-live .kfilter { grid-template-columns: minmax(0, 1fr); }
+  .kfilter-search-row .kf-search { flex-basis: 60%; }
+  .kfilter-chips .btn { max-width: 100%; white-space: normal; text-align: start; }
+}
+
+.kprotected-edit .bk-body { overflow-wrap: anywhere; }
+.kprotected-edit ul { padding-inline-start: 20px; }
+.kprotected-edit li { margin-block: 12px; white-space: pre-wrap; }
+.kprotected-edit fieldset { display: grid; gap: 16px; }
+.kprotected-edit .btn { min-height: var(--touch); min-width: var(--touch); }
+.kfilter-live .kfilter { border-bottom: 0; padding-bottom: 0; }
+.kfilter-live .kfilter > .kf > .kf-closed {
+  position: static;
+  margin: 0;
+  min-height: var(--touch);
+  white-space: normal;
+}

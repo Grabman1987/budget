@@ -19,6 +19,7 @@ export function patchListed(b: ListedBooking, patch: BookingPatch, names: Names)
   if (patch.memo !== undefined) next.memo = patch.memo;
   if (patch.status !== undefined) next.status = patch.status;
   if (patch.flag !== undefined) next.flag = patch.flag;
+  if (patch.projectId !== undefined) next.projectId = patch.projectId;
   if (patch.payeeId !== undefined) {
     next.payeeId = patch.payeeId;
     next.payeeName = names.payee(patch.payeeId);
@@ -47,12 +48,14 @@ export interface BulkSet {
   categoryId?: string | null;
   flag?: BookingFlag | null;
   status?: 'pending' | 'confirmed';
+  projectId?: string | null;
 }
 
 export const patchOfBulk = (set: BulkSet): BookingPatch => {
   const patch: BookingPatch = {};
   if (set.flag !== undefined) patch.flag = set.flag;
   if (set.status !== undefined) patch.status = set.status;
+  if (set.projectId !== undefined) patch.projectId = set.projectId;
   return patch;
 };
 
@@ -88,13 +91,16 @@ export function mapCachedBookings<T extends PageLike | undefined>(
       const next = fn(item);
       if (next === null) {
         removed += 1;
-        sumCents -= item.amountCents;
+        if (sumCents !== null) sumCents -= item.amountCents;
       } else {
-        sumCents += next.amountCents - item.amountCents;
+        if (sumCents !== null) sumCents += next.amountCents - item.amountCents;
         items.push(next);
       }
     }
-    return { ...page, items, total: page.total - removed, sumCents };
+    // Filter-wide native totals cannot be recomputed from a loaded page. Withdraw them until
+    // the canonical refetch completes rather than showing old totals next to changed rows.
+    const { nativeTotals: _nativeTotals, ...rest } = page;
+    return { ...rest, items, total: page.total - removed, sumCents };
   };
   if (isInfinite(data)) return { ...data, pages: data.pages.map(mapPage) } as T;
   return mapPage(data as BookingPage) as T;

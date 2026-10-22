@@ -13,6 +13,11 @@ import {
   ensureAdvanceCategory,
   getBooking,
   queryBookings,
+  readBookingBulkSelection,
+  readBookingBulkEditPreview,
+  readBookingDeletePreview,
+  type BookingBulkItem,
+  type BookingBulkReason,
   ReconciledLockedError,
   relatedTransferBookings,
   runInTransaction,
@@ -27,13 +32,13 @@ import {
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { filteredBookingCsv } from './booking-csv';
 import { Hono } from 'hono';
 import { ACTOR, ApiError, defined, errorAnswer, readBody, readQuery } from './http';
-import { bookingDeleteQuery, bookingPatch, bookingQuery, bulkBody, createBody } from './schemas';
+import { bookingDeleteQuery, bookingDeletePreviewBody, bookingPatch, bookingQuery, bulkBody, createBody } from './schemas';
 
 /** Why a bulk action left a booking out. */
-type BulkSkipReason =
-  'not_found' | 'reconciled_locked' | 'split' | 'transfer' | 'transfer_pair' | 'invalid';
+type BulkSkipReason = BookingBulkReason | 'split' | 'transfer' | 'transfer_pair' | 'unchanged';
 
 class Skip extends Error {
   constructor(
@@ -118,17 +123,31 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
   };
 
   app.get('/', (c) => {
-    const { q, ids, ...rest } = readQuery(c, bookingQuery);
+    const { q, ids, nativeSummary, ...rest } = readQuery(c, bookingQuery);
     const page = queryBookings(
       db,
       defined({
         ...rest,
+        ...(nativeSummary === '1' ? { nativeSummary: true } : {}),
         text: q,
         ids: ids ? ids.split(',').filter(Boolean).slice(0, 200) : undefined,
       }),
       today(),
     );
     return c.json(page);
+  });
+
+  // Uses the exact booking query contract, excluding caller pagination. A separate immutable
+  // snapshot and private bounded spool keep an export complete across concurrent writes.
+  app.get('/csv', async (c) => {
+    const { q, ids, ...filter } = readQuery(c, bookingQuery.omit({ cursor: true, limit: true, nativeSummary: true }).strict());
+    const asOf = today();
+    return filteredBookingCsv(db, defined({
+      ...filter,
+      to: filter.to && filter.to < asOf ? filter.to : asOf,
+      text: q,
+      ids: ids ? ids.split(',').filter(Boolean).slice(0, 200) : undefined,
+    }), asOf, c.req.raw.signal);
   });
 
   app.get('/:id', (c) => {
@@ -300,18 +319,27 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
 
   app.delete('/:id', (c) => {
     const id = c.req.param('id');
-    const { unlock } = readQuery(c, bookingDeleteQuery);
-    if (!getBooking(db, id)) throw new ApiError(404, 'not_found', 'Booking not found');
+    const { unlock, previewRevision } = readQuery(c, bookingDeleteQuery);
     const ctx = audit();
-    deleteBooking(db, id, ctx, { unlockReconciled: unlock !== undefined });
+    runInTransaction(db, (tx) => {
+      if (!getBooking(tx, id)) throw new ApiError(404, 'not_found', 'Booking not found');
+      if (previewRevision && readBookingDeletePreview(tx, [id], 'single').revision !== previewRevision)
+        throw new ApiError(409, 'stale_delete_preview', 'Die Buchung wurde geändert. Bitte die Löschvorschau neu laden.');
+      deleteBooking(tx, id, ctx, { unlockReconciled: unlock !== undefined });
+    });
     return c.json({ deleted: id, groupId: ctx.groupId });
+  });
+
+  app.post('/delete-preview', async (c) => {
+    const body = await readBody(c, bookingDeletePreviewBody);
+    return c.json(readBookingDeletePreview(db, body.ids, body.mode));
   });
 
   /**
    * Bulk edit or delete for the multi-select: one audit group, so one undo. A booking that cannot
    * take the change is skipped and reported with a reason code, the rest goes through. Both legs
-   * of a transfer in one selection are one Umbuchung: a delete takes the pair once (the second leg
-   * counts as changed), a category is refused for both with `transfer_pair`.
+   * of a transfer remain protected in bulk. A delete requires a confirmed source revision before
+   * any write; item-level rejection after a valid preview remains explicit partial success.
    */
   app.post('/link-transfer', async (c) => {
     const body = await readBody(
@@ -321,18 +349,72 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
     return c.json(linkBookings(db, body.ids, audit()));
   });
 
+  // Complete native selected-row facts; this does not authorize a later write or preview deletion.
+  app.post('/selection', async (c) => {
+    const body = await readBody(c, z.object({ ids: z.array(z.string().min(1).max(200)).min(1).max(500) }).strict());
+    return c.json(readBookingBulkSelection(db, body.ids));
+  });
+
+  // One selected field per request, reusing the ordinary field validation contract. Memo
+  // remains literal plain text; source/control characters are not executed or rendered as HTML.
+  const protectedSet = z.union([
+    bookingPatch.pick({ date: true }).required().strict(),
+    bookingPatch.pick({ memo: true }).required().strict(),
+    bookingPatch.pick({ payeeId: true }).required().strict(),
+  ]);
+  const protectedPreviewBody = z.object({
+    ids: z.array(z.string().min(1).max(64)).min(1).max(100)
+      .refine((ids) => new Set(ids).size === ids.length, 'Select distinct bookings'),
+    set: protectedSet,
+  }).strict();
+  app.post('/bulk-preview', async (c) => {
+    const body = await readBody(c, protectedPreviewBody);
+    return c.json(readBookingBulkEditPreview(db, body.ids, body.set));
+  });
+  app.post('/bulk-apply', async (c) => {
+    const body = await readBody(c, protectedPreviewBody.extend({ previewRevision: z.string().regex(/^[a-f0-9]{64}$/) }));
+    const ctx = audit();
+    return c.json(runInTransaction(db, (tx) => {
+      const preview = readBookingBulkEditPreview(tx, body.ids, body.set);
+      if (preview.revision !== body.previewRevision)
+        throw new ApiError(409, 'stale_bulk_preview', 'Die Auswahl wurde geändert. Bitte die Änderung neu prüfen.');
+      // Only the exact previewed eligible set changes; any unexpected second-write failure
+      // unwinds this entire transaction, including the first write and its audit records.
+      const changed: string[] = [];
+      for (const id of preview.eligibleIds) {
+        updateBooking(tx, id, body.set, ctx, { unlockReconciled: false });
+        changed.push(id);
+      }
+      return {
+        groupId: ctx.groupId, changed, transferPairs: 0,
+        skipped: preview.rows.filter((row) => !changed.includes(row.id)).map((row) => ({
+          id: row.id, reason: row.reason ?? 'unchanged', message: 'Unverändert',
+          ...(preview.selection.items.find((item) => item.id === row.id)
+            ? { booking: preview.selection.items.find((item) => item.id === row.id) } : {}),
+        })),
+      };
+    }));
+  });
+
   app.post('/bulk', async (c) => {
     const body = await readBody(c, bulkBody);
     const ctx = audit();
     const ids = [...new Set(body.ids)];
     const selected = new Set(ids);
     const changed: string[] = [];
-    const skipped: { id: string; reason: BulkSkipReason; message: string }[] = [];
+    const skipped: { id: string; reason: BulkSkipReason; message: string; booking?: BookingBulkItem }[] = [];
     /** Legs deleted together with an earlier id of this request. */
     const goneWith = new Set<string>();
     const pairedLegs = new Set<string>();
     let transferPairs = 0;
     runInTransaction(db, (tx) => {
+      // One locked transaction snapshot for the batch; metadata updates below cannot create
+      // cross-row financial owners. Ordinary writers still check current invariants per item.
+      const deletion = body.action === 'delete' ? readBookingDeletePreview(tx, ids) : null;
+      if (body.action === 'delete' && deletion?.revision !== body.previewRevision)
+        throw new ApiError(409, 'stale_delete_preview', 'Die Auswahl wurde geändert. Bitte die Löschvorschau neu laden.');
+      const selection = deletion?.selection ?? readBookingBulkSelection(tx, ids);
+      const eligibility = new Map(selection.items.map((item) => [item.id, item]));
       for (const id of ids) {
         if (goneWith.has(id)) {
           changed.push(id);
@@ -342,18 +424,24 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
           runInTransaction(tx, (inner) => {
             const current = getBooking(inner, id);
             if (!current) throw new Skip('not_found', 'Booking not found');
+            const item = eligibility.get(id);
+            if (!item) throw new Skip('not_found', 'Booking not found');
+            if (item.reason) throw new Skip(item.reason, 'Protected or linked booking left unchanged');
             const partners = relatedTransferBookings(inner, id).filter((leg) => leg !== id);
             const paired = partners.some((leg) => selected.has(leg));
             if (paired && !pairedLegs.has(id)) transferPairs += 1;
             if (paired) for (const leg of [id, ...partners]) pairedLegs.add(leg);
-            const options = { unlockReconciled: body.unlockReconciled };
             if (body.action === 'delete') {
-              deleteBooking(inner, id, ctx, options);
+              deleteBooking(inner, id, ctx, { unlockReconciled: false });
               for (const leg of partners) goneWith.add(leg);
               return;
             }
-            const { categoryId, flag, status } = body.set;
-            const patch: BookingPatch = defined({ flag, status });
+            const { categoryId, flag, status, projectId } = body.set;
+            const patch: BookingPatch = defined({
+              flag: flag !== current.flag ? flag : undefined,
+              status: status !== current.status ? status : undefined,
+              projectId: projectId !== current.projectId ? projectId : undefined,
+            });
             if (categoryId !== undefined) {
               const [only] = current.splits;
               if (current.transferId || current.splits.some((s) => s.transferId)) {
@@ -364,7 +452,7 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
               }
               if (!only || current.splits.length !== 1)
                 throw new Skip('split', 'Only single-split bookings take a category');
-              patch.splits = [
+              if (only.categoryId !== categoryId) patch.splits = [
                 {
                   categoryId,
                   amountCents: only.amountCents,
@@ -374,7 +462,9 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
                 },
               ];
             }
-            updateBooking(inner, id, patch, ctx, options);
+            if (Object.keys(patch).length === 0) throw new Skip('unchanged', 'Already in the requested state');
+            // Bulk has no unlock path, even for otherwise free metadata such as flags.
+            updateBooking(inner, id, patch, ctx, { unlockReconciled: false });
           });
           changed.push(id);
         } catch (error) {
@@ -388,6 +478,7 @@ export function bookingRoutes(db: Db, today = () => todayInVienna()): Hono {
             id,
             reason,
             message: error instanceof Skip ? error.message : errorAnswer(error).body.message,
+            ...(eligibility.get(id) ? { booking: eligibility.get(id)! } : {}),
           });
         }
       }

@@ -156,11 +156,12 @@ export interface ListedBooking {
 }
 
 export interface BookingPage {
+  nativeTotals?: { currency: string; count: number; cents: number | null }[];
   categorySpendingCents?: number;
   items: ListedBooking[];
   nextCursor: string | null;
   total: number;
-  sumCents: number;
+  sumCents: number | null;
   sumEurCents?: number | null;
 }
 
@@ -174,6 +175,7 @@ export interface BookingFilter {
   from?: string | undefined;
   to?: string | undefined;
   categoryId?: string | undefined;
+  categoryGroupId?: string | undefined;
   payeeId?: string | undefined;
   status?: BookingStatus | undefined;
   flag?: BookingFlag | 'none' | undefined;

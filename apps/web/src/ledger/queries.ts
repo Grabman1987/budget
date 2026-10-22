@@ -86,10 +86,10 @@ export const payeesQuery = () =>
   });
 
 /** Alle Buchungen and Einzelkonto: pages of the filtered list, loaded by cursor. */
-export const bookingsInfiniteQuery = (filter: BookingFilter, limit?: number) =>
+export const bookingsInfiniteQuery = (filter: BookingFilter, limit?: number, nativeSummary = false) =>
   infiniteQueryOptions({
-    queryKey: [...LEDGER_KEY, 'bookings', 'infinite', filter, limit ?? null],
-    queryFn: ({ pageParam }) => fetchBookings(filter, pageParam, limit),
+    queryKey: [...LEDGER_KEY, 'bookings', 'infinite', filter, limit ?? null, ...(nativeSummary ? ['native-summary-v1'] : [])],
+    queryFn: ({ pageParam }) => fetchBookings(filter, pageParam, limit, nativeSummary),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });

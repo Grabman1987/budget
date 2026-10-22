@@ -187,14 +187,16 @@ export const bookingPatch = z
   })
   .partial();
 
-export const bookingDeleteQuery = z.object({ unlock: z.enum(['1', 'true']).optional() });
+export const bookingDeleteQuery = z.object({ unlock: z.enum(['1', 'true']).optional(), previewRevision: z.string().regex(/^[a-f0-9]{64}$/).optional() });
+export const bookingDeletePreviewBody = z.object({ ids: z.array(id).min(1).max(500), mode: z.enum(['bulk', 'single']).default('bulk') }).strict()
+  .refine((value) => value.mode !== 'single' || value.ids.length === 1, 'Single deletion takes one booking');
 
 export const bulkBody = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('update'),
     ids: z.array(id).min(1).max(500),
     set: z
-      .object({ categoryId: id.nullable(), flag: flag.nullable(), status: writableStatus })
+      .object({ categoryId: id.nullable(), flag: flag.nullable(), status: writableStatus, projectId: id.nullable() })
       .partial()
       .refine((s) => Object.keys(s).length > 0, 'Nothing to set'),
     unlockReconciled: z.boolean().default(false),
@@ -202,6 +204,7 @@ export const bulkBody = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('delete'),
     ids: z.array(id).min(1).max(500),
+    previewRevision: z.string().regex(/^[a-f0-9]{64}$/),
     unlockReconciled: z.boolean().default(false),
   }),
 ]);
@@ -209,10 +212,12 @@ export const bulkBody = z.discriminatedUnion('action', [
 const csv = z.string().optional();
 export const bookingQuery = z.object({
   basis: z.literal('category-spending').optional(),
+  nativeSummary: z.literal('1').optional(),
   accountId: id.optional(),
   from: day.optional(),
   to: day.optional(),
   categoryId: id.optional(),
+  categoryGroupId: id.optional(),
   payeeId: id.optional(),
   status: z.enum(BOOKING_STATUSES).optional(),
   flag: z.enum([...BOOKING_FLAGS, 'none']).optional(),

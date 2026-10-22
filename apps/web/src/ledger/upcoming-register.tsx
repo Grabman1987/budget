@@ -111,6 +111,10 @@ export function useUpcomingRegister(
       (!filter.from || s.dueDate >= filter.from) &&
       (!filter.to || s.dueDate <= filter.to) &&
       !filter.id &&
+      // Report drill-downs contain classified actual contributions. An unbooked schedule
+      // has no such fact and must not be mixed into that register slice.
+      !filter.categoryGroupId &&
+      filter.basis !== 'category-spending' &&
       !filter.status &&
       !filter.flag &&
       (!filter.q ||

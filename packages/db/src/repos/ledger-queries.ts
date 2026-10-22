@@ -190,6 +190,8 @@ export const BOOKING_SORTS = ['date', 'amount', 'payee', 'account'] as const;
 export type BookingSort = (typeof BOOKING_SORTS)[number];
 
 export interface BookingQuery {
+  /** Opt-in full-filter totals grouped by the original booking currency. */
+  nativeSummary?: boolean;
   /** Exactly these bookings (after a write, to read them back). */
   ids?: string[];
   accountId?: string;
@@ -198,6 +200,8 @@ export interface BookingQuery {
   to?: string;
   /** A category id, or `'none'` for bookings with an uncategorised split. */
   categoryId?: string;
+  /** Report group drill-down: Bedarf/Wunsch categories only, with classified net contributions. */
+  categoryGroupId?: string;
   /** Report drill-down: classified net category spending, rather than whole cash movements. */
   basis?: 'category-spending';
   payeeId?: string;
@@ -256,12 +260,13 @@ export interface ListedBooking {
 }
 
 export interface BookingPage {
+  nativeTotals?: { currency: string; count: number; cents: number | null }[];
   categorySpendingCents?: number;
   items: ListedBooking[];
   nextCursor: string | null;
   /** All bookings matching the filter and their summed amount (not only this page). */
   total: number;
-  sumCents: number;
+  sumCents: number | null;
   sumEurCents: number | null;
 }
 
@@ -314,10 +319,16 @@ export function queryBookings(
 
   const conditions: (SQL | undefined)[] = [isNull(booking.deletedAt), isNull(account.deletedAt)];
   const contributions =
-    query.basis === 'category-spending' && query.categoryId ? new Map<string, number>() : null;
+    (query.basis === 'category-spending' && query.categoryId) || query.categoryGroupId
+      ? new Map<string, number>() : null;
   if (contributions) {
-    for (const s of reportTables(db, { today, withSources: true }).splits ?? []) {
-      if (s.kind === 'spend' && s.categoryId === query.categoryId)
+    const facts = reportTables(db, { today, withSources: true });
+    const groupCategories = query.categoryGroupId ? new Set(facts.categories
+      .filter((c) => c.groupId === query.categoryGroupId && c.class !== 'future').map((c) => c.id)) : null;
+    for (const s of facts.splits ?? []) {
+      if (s.kind === 'spend' && s.categoryId !== null &&
+        (!query.categoryId || s.categoryId === query.categoryId) &&
+        (!groupCategories || groupCategories.has(s.categoryId)))
         contributions.set(s.bookingId, (contributions.get(s.bookingId) ?? 0) + s.amountCents);
     }
     conditions.push(inArray(booking.id, [...contributions.keys()]));
@@ -381,13 +392,33 @@ export function queryBookings(
   const totals = db
     .select({
       total: sql<number>`COUNT(*)`.mapWith(Number),
-      sum: sql<number>`COALESCE(SUM(${booking.amountCents}), 0)`.mapWith(Number),
+      sum: query.nativeSummary ? sql<null>`NULL` : sql<number>`COALESCE(SUM(${booking.amountCents}), 0)`.mapWith(Number),
     })
     .from(booking)
     .innerJoin(account, eq(account.id, booking.accountId))
     .leftJoin(payee, eq(payee.id, booking.payeeId))
     .where(base)
-    .get() as { total: number; sum: number };
+    .get() as { total: number; sum: number | null };
+
+  // Do not use floating-point or SQLite SUM for native summaries: a large selection may
+  // exceed the integer range even though individual rows are valid. Preserve unknown totals.
+  const nativeTotals = query.nativeSummary ? (() => {
+    const groups = new Map<string, { count: number; cents: bigint; safe: boolean }>();
+    for (const row of db.select({ currency: booking.currency, cents: booking.amountCents })
+      .from(booking).innerJoin(account, eq(account.id, booking.accountId))
+      .leftJoin(payee, eq(payee.id, booking.payeeId)).where(base).all()) {
+      const group = groups.get(row.currency) ?? { count: 0, cents: 0n, safe: true };
+      group.count++;
+      if (Number.isSafeInteger(row.cents)) group.cents += BigInt(row.cents);
+      else group.safe = false;
+      groups.set(row.currency, group);
+    }
+    const bound = BigInt(Number.MAX_SAFE_INTEGER);
+    return [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([currency, g]) => ({
+      currency, count: g.count,
+      cents: g.safe && g.cents >= -bound && g.cents <= bound ? Number(g.cents) : null,
+    }));
+  })() : undefined;
 
   const categorySpendingCents = contributions
     ? db
@@ -578,8 +609,9 @@ export function queryBookings(
     ...(categorySpendingCents !== undefined ? { categorySpendingCents } : {}),
     items,
     nextCursor: rows.length > limit && last ? encodeCursor(last.sortValue, last.booking.id) : null,
+    ...(nativeTotals ? { nativeTotals } : {}),
     total: totals.total,
-    sumCents: totals.sum,
+    sumCents: nativeTotals ? (nativeTotals.length === 0 ? 0 : nativeTotals.length === 1 ? nativeTotals[0]!.cents : null) : totals.sum,
     sumEurCents,
   };
 }
