@@ -38,6 +38,8 @@ export interface ExplorerTemplateChoice {
   period: Period;
   year?: number;
   categoryId?: string;
+  /** Explicit spending-report handoff only; existing heatmap defaults remain unchanged. */
+  exactWindow?: boolean;
 }
 export interface ExplorerTemplateModel {
   id: ExplorerTemplateId;
@@ -99,6 +101,25 @@ export function explorerTemplate(
       previousMonths: null,
       available,
     });
+    if (choice.exactWindow) {
+      const selected = new Map(facts.months.map((month) => [month.month, month]));
+      return {
+        ...model,
+        months: window,
+        rows: analysis.breakdown.map((row): TableRow => ({
+          key: `cat:${row.id}`,
+          label: row.name,
+          kind: 'category',
+          level: 0,
+          swatch: row.class,
+          good: 'low',
+          vals: window.map((month) => {
+            const source = selected.get(month);
+            return source ? source.spending[row.id] ?? 0 : null;
+          }),
+        })),
+      };
+    }
     return {
       ...model,
       months: analysis.heatMonths,

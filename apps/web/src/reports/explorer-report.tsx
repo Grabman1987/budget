@@ -62,6 +62,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
   const toast = useToast();
   const search = useSearch({ strict: false }) as {
     vorlage?: unknown;
+    exakt?: boolean;
     ansicht?: string;
     kategorien?: string[];
     zelle?: string;
@@ -77,6 +78,7 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
   const chooseTemplate = (id: typeof template) =>
     changeTemplateSearch({
       vorlage: id,
+      exakt: undefined,
       ansicht: undefined,
       zelle: undefined,
       spalte: undefined,
@@ -93,11 +95,12 @@ export function ExplorerReportPage({ report, meta }: { report: ReportEntry; meta
         ? explorerTemplate(templateRead.data, {
             id: template,
             period: templatePeriod,
+            ...(template === 'heatmap' && search.exakt ? { exactWindow: true } : {}),
             ...(templateCategory ? { categoryId: templateCategory } : {}),
             ...(templatePeriod.includes('..') ? { year: Number(templatePeriod.slice(0, 4)) } : {}),
           })
         : undefined,
-    [template, templateRead.data, templatePeriod, templateCategory],
+    [template, templateRead.data, templatePeriod, templateCategory, search.exakt],
   );
   const [query, setQuery] = useState<ExplorerQuery>(DEFAULT_EXPLORER_QUERY);
   const entryInstance = useId();

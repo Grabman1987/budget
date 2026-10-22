@@ -213,6 +213,7 @@ export const bookingQuery = z.object({
   from: day.optional(),
   to: day.optional(),
   categoryId: id.optional(),
+  categoryGroupId: id.optional(),
   payeeId: id.optional(),
   status: z.enum(BOOKING_STATUSES).optional(),
   flag: z.enum([...BOOKING_FLAGS, 'none']).optional(),
