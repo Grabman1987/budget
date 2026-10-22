@@ -213,12 +213,12 @@
     "shadows": [
       {
         "name": "float",
-        "value": "0 10px 22px -10px rgba(11, 27, 51, 0.30), 0 2px 5px rgba(11, 27, 51, 0.08)",
+        "value": "0 10px 22px -10px rgba(11, 27, 51, 0.30)",
         "purpose": "Nur schwebende Ebenen: Seitenpanel, Buchungsdialog, Combobox, Toast, Buchungsknopf."
       },
       {
         "name": "float-dark",
-        "value": "0 12px 24px -10px rgba(2, 10, 26, 0.7), 0 2px 6px rgba(2, 10, 26, 0.4)",
+        "value": "0 12px 24px -10px rgba(2, 10, 26, 0.7)",
         "purpose": "Dasselbe im dunklen Modus."
       },
       {

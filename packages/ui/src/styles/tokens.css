@@ -38,7 +38,7 @@
   --tint: rgba(23, 71, 166, 0.06);
   --tint-2: rgba(23, 71, 166, 0.11);
   --overlay: rgba(11, 27, 51, 0.32);
-  --shadow: 0 10px 22px -10px rgba(11, 27, 51, 0.30), 0 2px 5px rgba(11, 27, 51, 0.08);
+  --shadow: 0 10px 22px -10px rgba(11, 27, 51, 0.30);
   --heat-red: #f3b3a9;
   --heat-green: #a9dbb8;
   --plus-ink: #0b7285;
@@ -86,7 +86,7 @@
     --tint: rgba(210, 236, 255, 0.07);
     --tint-2: rgba(210, 236, 255, 0.13);
     --overlay: rgba(4, 14, 32, 0.55);
-    --shadow: 0 12px 24px -10px rgba(2, 10, 26, 0.7), 0 2px 6px rgba(2, 10, 26, 0.4);
+    --shadow: 0 12px 24px -10px rgba(2, 10, 26, 0.7);
     --heat-red: #b8665d;
     --heat-green: #4f9a6c;
     --plus-ink: #4fe3d0;
@@ -133,7 +133,7 @@
   --tint: rgba(210, 236, 255, 0.07);
   --tint-2: rgba(210, 236, 255, 0.13);
   --overlay: rgba(4, 14, 32, 0.55);
-  --shadow: 0 12px 24px -10px rgba(2, 10, 26, 0.7), 0 2px 6px rgba(2, 10, 26, 0.4);
+  --shadow: 0 12px 24px -10px rgba(2, 10, 26, 0.7);
   --heat-red: #b8665d;
   --heat-green: #4f9a6c;
   --plus-ink: #4fe3d0;
@@ -182,7 +182,7 @@
     --tint: rgba(23, 71, 166, 0.06);
     --tint-2: rgba(23, 71, 166, 0.11);
     --overlay: rgba(11, 27, 51, 0.32);
-    --shadow: 0 10px 22px -10px rgba(11, 27, 51, 0.30), 0 2px 5px rgba(11, 27, 51, 0.08);
+    --shadow: 0 10px 22px -10px rgba(11, 27, 51, 0.30);
     --heat-red: #f3b3a9;
     --heat-green: #a9dbb8;
     --plus-ink: #0b7285;

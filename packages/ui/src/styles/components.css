@@ -1144,7 +1144,7 @@ dialog.overlay.modal {
   height: fit-content;
   max-height: calc(100dvh - 48px);
   border: 1px solid var(--rule-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-sheet);
   overflow: visible;
 }
 dialog.overlay.modal .overlay-inner {

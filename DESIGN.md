@@ -427,7 +427,7 @@ Berührflächen mindestens 44 px auf Mobilgeräten.
 Drei Ebenen: Grund (`ground`), Karte (`surface` mit `card-border` und dem weichen `card-shadow`) und schwebende Ebenen. Innerhalb einer Karte gliedern Haarlinien, nie verschachtelte Karten. Der Schwebeschatten gehört nur schwebenden Ebenen: Seitenpanel, Buchungsdialog, Combobox-Liste, Toast und rundem Buchungsknopf. Kopf- und Tab-Leiste sind leicht durchscheinend (88 % bzw. 92 % Grund, Weichzeichner 10–12 px).
 
 ### Shadow Vocabulary
-- **Schwebeebene** (`box-shadow: 0 10px 22px -10px rgba(11, 27, 51, 0.30), 0 2px 5px rgba(11, 27, 51, 0.08)`, dunkel `0 12px 24px -10px rgba(2, 10, 26, 0.7), 0 2px 6px rgba(2, 10, 26, 0.4)`): nur für Ebenen über dem Blatt.
+- **Schwebeebene** (`box-shadow: 0 10px 22px -10px rgba(11, 27, 51, 0.30)`, dunkel `0 12px 24px -10px rgba(2, 10, 26, 0.7)`): eine Schattenlage nur für Ebenen über dem Blatt.
 
 ### Named Rules
 **The One Card Rule.** Eine Arbeitsfläche ist eine Karte; in ihr gliedern Linien. Karten in Karten gibt es nicht, Kachelwände aus gleichwertigen Karten auch nicht.
@@ -468,7 +468,7 @@ Die Radienleiter ist 4 · 8 · 12 px, Pille nur für Status und 50 % für runde
 Elemente. Ausnahmen: Diagrammmarken 1 px, Schriftfeld 2 px, Quellstempel 3 px.
 Karten haben eine Schattenlage (hell `0 1px 2px rgba(15, 34, 64, 0.04)`,
 dunkel `0 1px 2px rgba(2, 10, 26, 0.35)`) oder nur eine Haarlinie.
-Der bestehende Schwebeschatten bleibt Panels, Dialogen, Combobox-Listen,
+Der einlagige Schwebeschatten bleibt Panels, Dialogen, Combobox-Listen,
 Toasts und dem FAB vorbehalten.
 
 ### Shared chart inspection
