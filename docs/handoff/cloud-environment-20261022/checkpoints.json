@@ -84,7 +84,7 @@
         628
       ],
       "branch": "codex/impl-619-623-reports",
-      "remote_sha": "4f50e612fed8d812ae054470a3e31ab9553e2732",
+      "remote_sha": "4c6827344f9853787c64bdf117f10e5cc9617653",
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED; see handoff for partial AC"
     },
     {
@@ -95,7 +95,7 @@
         597
       ],
       "branch": "codex/impl-594-597-ledger",
-      "remote_sha": "6b5401d176658b4225f09d21c018a61cadfd90ea",
+      "remote_sha": "385004715da6b5d2dca4880b474376e7b3703aba",
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED; see handoff for partial AC"
     },
     {
@@ -139,7 +139,7 @@
       ],
       "branch": "codex/impl-518-521-explanations",
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
-      "remote_sha": "e52447882b1def73d3ec9cced5d777c417bf7a35"
+      "remote_sha": "4b5eba00bdc448c4f0285bd7d8070e7252eb9a04"
     },
     {
       "issues": [
@@ -182,7 +182,7 @@
       ],
       "branch": "codex/impl-514-targets",
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
-      "remote_sha": "ce7c59df2ad5c962b80cd2236cc7ffb502c21113"
+      "remote_sha": "4e4a938ee7cca6adeffc35849991a8abb3c4afc3"
     },
     {
       "issues": [
@@ -198,7 +198,7 @@
       ],
       "branch": "codex/impl-520-security-transfers",
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; scope and review limitations in package handoff",
-      "remote_sha": "76b49651e06ca7eb1cc41bd5c2d40eeaf16fbcf8"
+      "remote_sha": "a7f67630cfa925ceb3d6d6ab8080a559ac2d43e8"
     },
     {
       "issues": [
@@ -222,7 +222,7 @@
       ],
       "branch": "codex/impl-489-overview-design",
       "status": "SOURCE CHECKPOINT \u2014 NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
-      "remote_sha": "0154ab19c9cf10030acc67283cfa41c91a0397df"
+      "remote_sha": "9fab18bbb2a9b54b17bbc2e2ef06206212c18b5a"
     },
     {
       "issues": [
@@ -246,7 +246,7 @@
       ],
       "branch": "codex/impl-473-typography",
       "status": "SOURCE CHECKPOINT; consult revision-specific evidence; not a completion claim",
-      "remote_sha": "0a673beb9a344f7cb3a460dfcab92e29a0ac6af5"
+      "remote_sha": "9ef01d05ade1a6f5ac3a2ac99dd5e8275888107c"
     },
     {
       "issues": [
@@ -344,7 +344,10 @@
     }
   ],
   "remaining_agents": [
-    "design_474_remaining: revise #520 minimal authoritative recorded-ledger reader plan with independent review"
+    "tables_470_remaining: ledger source corrections",
+    "design_474_remaining: minimal #520 writer plan",
+    "copy_469_rule_names: #762 source/provider plan",
+    "review_519_financial_source: Heute/month-close source review"
   ],
   "stop": [
     719
@@ -359,7 +362,7 @@
     ],
     "520": "Non-divisible residual cent remains with source holding and accompanies its eventual full transfer; total basis conserved."
   },
-  "agent_state": "One bounded read-only design follow-up active; completed source checkpoints archived; no automatic queue loop.",
+  "agent_state": "Parallel source-only work continues; no runtime validation, CI, merge or deployment.",
   "board": "94 open repository issues at last fresh read; project board inaccessible: Resource not accessible by integration (user.projectV2). Do not call 94 the Warteschlange column count.",
   "coordination_owner": "Budget App Main / this chat, explicitly reconfirmed by owner; Codex CLI optional support only.",
   "goal_objective_received": true,
@@ -369,11 +372,38 @@
   "active_source_tasks": [
     {
       "issues": [
+        515,
+        594,
+        596,
+        597
+      ],
+      "scope": "Correcting independently identified safe-cent overflow and privacy findings; no execution."
+    },
+    {
+      "issues": [
         520
       ],
-      "branch": "codex/impl-520-security-transfers",
-      "scope": "Revising read-only DB history bridge plan after independent minimality critique; no unnecessary certificate ledger; no new persistence or writer yet"
+      "scope": "Minimal persistent transfer writer/API plan; split source reviewed; no migration reserved or schema executed."
+    },
+    {
+      "issues": [
+        762
+      ],
+      "scope": "Readonly provider/calendar feasibility and bounded adapter planning."
+    },
+    {
+      "issues": [
+        572,
+        573,
+        574,
+        575,
+        600,
+        601,
+        602,
+        603
+      ],
+      "scope": "Independent source review of preserved Heute/month-close package."
     }
   ],
-  "remote_heads_observed_at_utc": "2026-10-22T21:49:14.266771+00:00"
+  "remote_heads_observed_at_utc": "2026-10-22T21:56:46.700094+00:00"
 }
