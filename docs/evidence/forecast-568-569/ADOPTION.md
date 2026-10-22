@@ -80,3 +80,22 @@ replacement and the owner's per-file adapter authorization. Workflow
 39769372353 reported job success but actually had four shell readiness failures
 and 40 passes; no baseline changed. Independent adapter review and rerun of only
 the same affected snapshot workflow remain required.
+
+## Remaining chart caller adapters
+
+The owner-approved #569 card is stand-today 35d, while the historical Heute/R07
+API period contracts remain unchanged. No financial literal/date/API assertion,
+Axe check, timeout, retry or tolerance is changed by these adapters. No duplicate
+legacy chart is rendered. Independent full adapter review is required.
+
+| File                             | Change and equivalent retained coverage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `e2e/heute-cards.spec.ts`        | Visibility selector follows the actual shared liquidity chart; every KPI money/date assertion remains.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `e2e/account-scope-267.spec.ts`  | Shared chart summary selector and visible scope prose replace old chart-specific ARIA/prose representation; all literal money/API expectations remain.                                                                                                                                                                                                                                                                                                                                                                                      |
+| `e2e/booking-acceptance.spec.ts` | Actual-solid/forecast-dashed tooltip invariants run on surviving R07 historical chart. Return to Heute for original Axe, overflow and evidence checks; shared card visibility is additionally required.                                                                                                                                                                                                                                                                                                                                     |
+| `e2e/heute.spec.ts`              | Period-specific endpoint/payment tooltip/label and historical join/animation checks run on surviving R07, retaining original literal API/date/low-point and join tolerance checks. Lead brackets stay on Heute. Historical selected-month marker absence stays on R07 and pace; stand-today card explicitly requires HEUTE. Mobile exact height follows actual compact drawing 220px instead of removed historical 232px. Composition checks remain on Heute in both motion modes. NEW acceptance separately proves 35d card/detail parity. |
+
+Compact card scope copy now explicitly states budget credit cards included and
+reserve accounts excluded. This matches `liquidityReportView`'s actual
+`onBudget && role === 'budget'` account filter; no type exclusion or calculation
+was introduced. Existing scoped-finance tests retain their literal amounts.

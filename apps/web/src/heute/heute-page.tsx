@@ -561,6 +561,9 @@ function CompactForecastCard() {
         <>
           <p className="heute-note">
             Stand heute · {longDay(view?.asOf ?? report.startDay)} · ohne Stellschrauben
+            {
+              ' · Budget-Konten; Kreditkarten im Budget eingeschlossen, Reservekonten ausgeschlossen.'
+            }
           </p>
           <LiquidityChart report={report} salaryDay={salaryDay(report, salaryIds)} compact />
           <p
