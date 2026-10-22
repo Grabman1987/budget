@@ -481,21 +481,6 @@ export async function updateReceiptUploadStatus(
   });
   listChanged();
 }
-/** A complete validation rejection proves that this immutable upload has no server action.
- * Unlike network/auth/5xx/conflict replies, it can safely be cancelled without a fresh key retry.
- */
-export async function rejectReceiptUpload(token: ReceiptQueueToken, id: string) {
-  await guarded<void>(token, 'readwrite', (store, finish) => {
-    const request = store.get(id);
-    request.onsuccess = () => {
-      const current = request.result as QueuedReceiptUpload | undefined;
-      if (current) store.put({ ...current, uncertain: false, failure: 'rejected' });
-      finish(undefined);
-    };
-  });
-  listChanged();
-}
-
 export async function acknowledgeReceiptUpload(token: ReceiptQueueToken, id: string) {
   await guarded<void>(token, 'readwrite', (store, finish) => {
     store.delete(id);

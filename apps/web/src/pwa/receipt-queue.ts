@@ -9,7 +9,6 @@ import {
   beginReceiptQueue,
   claimReceiptUpload,
   listReceiptUploads,
-  rejectReceiptUpload,
   updateReceiptUploadStatus,
   withReceiptQueueLock,
   type ReceiptUploadFailure,
@@ -31,7 +30,7 @@ export function receiptQueueReason(reason: ReceiptUploadFailure) {
     login: 'Bitte erneut anmelden. Der Beleg bleibt auf diesem Gerät.',
     server: 'Serverempfang unklar. Bitte denselben Beleg erneut senden.',
     conflict: 'Der Sendeschlüssel ist bereits anders belegt. Bitte den Serverstand prüfen.',
-    rejected: 'Der Server hat den Beleg abgelehnt. Datei und Buchungsziel prüfen.',
+    rejected: 'Der Server hat diesen Sendeversuch abgelehnt. Der Empfang anderer Versuche bleibt ungeklärt.',
     cleanup: 'Der Belegspeicher ist nicht verfügbar. Bitte denselben Eintrag erneut prüfen.',
   };
   return messages[reason];
@@ -58,12 +57,8 @@ export const sendReceiptQueue = (
       } catch (error) {
         const blocked = failureReason(error);
         try {
-          if (
-            error instanceof ApiError &&
-            [400, 413, 415, 422].includes(error.status) &&
-            blocked === 'rejected'
-          ) await rejectReceiptUpload(token, item.id);
-          else await updateReceiptUploadStatus(token, item.id, blocked);
+          // A rejection of this request cannot rule out an earlier lost ACK or another tab's claim.
+          await updateReceiptUploadStatus(token, item.id, blocked);
         } catch {
           // A newer privacy fence must never be bypassed to recreate a failure/old payload.
           return { sent, blocked: 'cleanup' as const };

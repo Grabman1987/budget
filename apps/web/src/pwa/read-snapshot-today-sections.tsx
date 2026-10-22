@@ -116,7 +116,7 @@ function PartBody({ part }: { part: SavedPart }): ReactNode {
     }
     case 'wealth': {
       const net = part.data.netWorth;
-      return 'unavailable' in net ? <p>Nicht verfügbar · {net.unavailable.message}</p> : <Facts rows={[
+      return 'unavailable' in net ? <p>Nicht verfügbar · {maskMoneyText(net.unavailable.message)}</p> : <Facts rows={[
         ['Vermögen', net.totalCents], ['Veränderung zum Vormonat', net.deltaCents],
         ['Liquid', net.liquidCents], ['Anlagen', net.investedCents], ['Schulden', net.debtCents],
       ]} />;
@@ -141,7 +141,7 @@ function PartBody({ part }: { part: SavedPart }): ReactNode {
         {'unavailable' in check ? <p>Finanz-Check nicht verfügbar.</p> : <>
           <p>{check.counts.ok} erfüllt · {check.counts.warn} Warnungen · {check.counts.bad} verletzt ·
             {check.counts.notEvaluated} nicht bewertet</p>
-          {check.keyRules.map((item) => <p key={item.code}>{item.name} · {item.valueText}</p>)}
+          {check.keyRules.map((item) => <p key={item.code}>{item.name} · {maskMoneyText(item.valueText)}</p>)}
         </>}
       </>;
     }
