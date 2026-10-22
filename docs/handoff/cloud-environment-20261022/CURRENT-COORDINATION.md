@@ -1,3 +1,5 @@
+> Current snapshot: [SOURCE-PROGRESS-LATEST.md](SOURCE-PROGRESS-LATEST.md). It supersedes the historical head and active-task snapshots below.
+
 # Current coordination — owner reaffirmed Budget App Main
 
 This note supersedes historical handoff instructions assigning coordination to a new or external chat. The owner explicitly identifies this Budget App Main chat as the coordinator; local Codex CLI is optional support. No merge/deployment authority is exercised because the implementation-only instruction remains active.
