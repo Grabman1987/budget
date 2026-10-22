@@ -68,6 +68,18 @@ CI39709414769 on4a73c025 completed all22 required jobs, plus register and recove
 
 Desktop originals were refreshed after the group-target correction; phone originals additionally include the final group-placement correction. Matching JSON files record the exact geometry and browser profile. These are full-page images: the fixed mobile navigation/FAB appears over the captured document at its viewport position. Normal scrolling and target-hit checks separately prove the exercised controls; a full-page image is not a taller physical phone. Root visually checked desktop light and phone dark, including the corrected column alignment. Data is synthetic. System Chromium is supplemental; pinned WebKit/visual CI and physical-device testing are not claimed.
 
+## Calendar hit area after the Main update — 2026-10-22
+
+The Main merge at `d2a8b95b` preserves both parents exactly outside the ROADMAP concatenation; independent merge-resolution review was clear. Its [CI39729018206](https://github.com/Grabman1987/budget/actions/runs/39729018206) failed only the configured desktop #724 calendar target and the derived aggregate. The other CI jobs passed. The unchanged #581 category-edit test passed its built-in retry; that transient remains evidence, not a claimed fix.
+
+Both #724 attempts measured a native calendar height of `43.999969482421875` against the unchanged minimum of44px. The trace measurements occur about214–216ms after opening the dialog, whose translation lasts240ms. A deterministic reproduction using the actual calendar CSS and eleven fractional parent translations reproduced the shortfall in four Chromium samples; the layout height remained44px.
+
+The product-only correction expands the transparent native date input by1px on each side to46×46px. The visible44px calendar, dialog motion, native picker, keyboard/focus behavior and financial paths remain unchanged. The adjacent field retains3px of the original4px gap. The same reproduction passes11/11 positions in pinned Chromium and11/11 in WebKit; the smallest measured corrected height is `45.999969482421875`. Independent Codex delta review is clear (CSS SHA256 `a47dc70f2e77e89f62f9999feb5c63947dea9b80df291ac5e0feb81a7bd6f63f`).
+
+No existing test, tolerance, deadline, retry setting, baseline or CI gate was edited. CSS scale, scoped formatting, diff checks and the E2E build passed. Both unchanged capture unit files passed23/23 in a fresh local run. An earlier local unit attempt had a dependency-loading error; its output is retained separately and is not counted as a pass. Required full CI on the published correction remains a delivery gate.
+
+The complete unchanged #724 and #584 browser files then passed39/39 including three setup tests in5.4min, using the pinned desktop/mobile Chromium and native WebKit projects, one worker and zero retries. This covers the strict target dimensions, trusted native pointer/touch input without showPicker, German date entry, retained draft, exact booking cents, actual database readback, Undo, light/dark Axe and overflow checks. Root inspected the fresh desktop and phone calendar screenshots. The earlier incomplete local run had passed the original failing configured-calendar case but timed out in the separate desktop fixture's normal native click; its trace and partial results remain retained and are not counted as a full pass.
+
 ## Remaining gates
 
 Required full CI, protected serial merge, regular deployment and actual live-revision verification. No issue closure or Board completion is claimed.

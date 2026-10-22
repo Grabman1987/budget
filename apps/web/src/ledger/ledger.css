@@ -2004,10 +2004,11 @@ button.kstatus-btn:focus-visible {
 }
 .bk-calendar input {
   position: absolute;
-  inset: -1px;
+  /* Keep the native hit area above the 44px floor during fractional dialog translation. */
+  inset: -2px;
   opacity: 0;
-  width: calc(100% + 2px);
-  height: calc(100% + 2px);
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
   cursor: pointer;
 }
 .bk-calendar input::-webkit-calendar-picker-indicator {
