@@ -76,3 +76,20 @@ The owner supplied an explicit `external_goal_objective`; implementation and ind
 - #486 manual Dropbox trigger has a separate isolated source worktree and branch `codex/impl-486-manual-scan`, base `d6cb8e1c0555196c5dcdefa01784f621a4a0d521`. Migration 0052 is reserved after the complete 0048–0051 source dependency stack. Main's GitHub migration listing ended0047 and all preserved source checkpoint trees had no0052 when reserved. Durable enqueue uses only the existing worker, fenced ownership/progress/intake transactions, no network operation from the endpoint. Explicit full-scan continuation state must remain separate from error classifications. Design report archived here. No migration executed or external PDF operation performed.
 
 Fresh repository issue listing returned94OPEN; it is not a Projects column count. Coverage audit is being refined to avoid treating missing manifest references or historical dependency labels as missing code. #516 owner question is pending about multiple matching import candidates: retain current date/order tie selection or require manual review. Existing bookings stay unchanged either way. All other independent source work continues.
+
+
+## Goal source batch — remote heads confirmed
+
+All following heads were read from origin after their normal pushes; none is validated or live.
+
+| Issue/package | Branch | Full remote SHA | Source result / next step |
+|---|---|---|---|
+| #469 | `codex/impl-469-glossary-goals` | `e0e39d4b0b5b04ad6966e8603d0bd91cf4b66cad` | Residual rule-name/year heading copy; scoped source review found no issue. |
+| #485/#486 | `codex/impl-485-486-settings-navigation` | `f0cf0a7fecd51ed6d119497982135539c87cfa56` | Autosave correction41222031 independently source-reviewed and archived. Last-export durable observation is next bounded source preparation. |
+| #520 | `codex/impl-520-security-transfers` | `0d38d341618a61a47eae56cc59de9cdbf6b9419b` | Exact rational average ancestry with integer actual units/cents, immutable receipt/sale evidence and bounded ownership checks. Independent source re-review found no further actionable issue in final inspected delta. Authoritative database history/writer integration still absent. |
+| #486 manual scan | `codex/impl-486-manual-scan` | `04f8ab9aa9942aa382a4e67e65ce148f2a28e8dd` | Durable enqueue, token-fenced worker/intake, reserved0052 and UI. Full source/security/migration review in progress; preliminary completion-deadline finding is not yet cleared. |
+| #727 source reassessment | `codex/impl-727-source-reassessment` | `f3321ea0392eee3a7026e6921c2cac626307e489` | Existing represented-bonus writer now has explicit documentary-facts UI with unchanged bonus evidence. No backend/schema change; independent source review in progress. Net-only/partial difference cases remain separate. |
+
+The fresh coverage audit is archived alongside this note. It corrected stale dependency assumptions: #561 is closed; #566 has open source PR758; #476 has open PR759 and earlier forecast source; #604 has open PR760. #467 child source is delivered, not a new implementation gap. Local #517 worktree is clean at the same4f50e612 source already preserved under the reports branch, though its local alias has no remote ref. Do not recreate these packages.
+
+For #542, source inspection found the former unclamped low-point chart label already constrained by later#580 code. The exact old overflow node and current rendering remain unproven; no speculative source patch was made. Existing run log access returned403 and large artifacts were not downloaded. This is a later validation/diagnosis item, not a claim that the original issue is resolved.

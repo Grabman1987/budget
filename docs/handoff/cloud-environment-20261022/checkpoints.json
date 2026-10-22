@@ -173,8 +173,8 @@
         486
       ],
       "branch": "codex/impl-485-486-settings-navigation",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
-      "remote_sha": "41222031dd0ba702265be5b9b395be5da1a01cdf"
+      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; scope and review limitations in package handoff",
+      "remote_sha": "f0cf0a7fecd51ed6d119497982135539c87cfa56"
     },
     {
       "issues": [
@@ -197,8 +197,8 @@
         520
       ],
       "branch": "codex/impl-520-security-transfers",
-      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; partial acceptance criteria documented in handoff",
-      "remote_sha": "31c94f331233e397540383b24cae9c95030feb19"
+      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; scope and review limitations in package handoff",
+      "remote_sha": "0d38d341618a61a47eae56cc59de9cdbf6b9419b"
     },
     {
       "issues": [
@@ -325,6 +325,22 @@
       "branch": "codex/impl-487-portfolio-report",
       "remote_sha": "8ba342d00b995d8611af87e968ce159f54375382",
       "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; see package handoff for scope and remaining work"
+    },
+    {
+      "issues": [
+        486
+      ],
+      "branch": "codex/impl-486-manual-scan",
+      "remote_sha": "04f8ab9aa9942aa382a4e67e65ce148f2a28e8dd",
+      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; scope and review limitations in package handoff"
+    },
+    {
+      "issues": [
+        727
+      ],
+      "branch": "codex/impl-727-source-reassessment",
+      "remote_sha": "f3321ea0392eee3a7026e6921c2cac626307e489",
+      "status": "SOURCE CHECKPOINT — NOT VALIDATED / NOT LIVE; scope and review limitations in package handoff"
     }
   ],
   "remaining_agents": [
@@ -357,22 +373,28 @@
         520
       ],
       "branch": "codex/impl-520-security-transfers",
-      "scope": "Exact rational moving-average lineage pure helpers; author plus independent source review; no DB/API/apply enablement"
+      "scope": "Rational graph source pushed; read-only plan for authoritative history bridge, no writer or persistence implemented"
     },
     {
       "issues": [
         486
       ],
       "branch": "codex/impl-486-manual-scan",
-      "base": "d6cb8e1c0555196c5dcdefa01784f621a4a0d521",
-      "scope": "Durable manual request to existing scanner worker, token-fenced operational row, reserved0052; source in progress, not a pushed checkpoint"
+      "scope": "Pinned04f8ab9 full security/migration source review; deadline source finding under investigation; no execution"
+    },
+    {
+      "issues": [
+        727
+      ],
+      "branch": "codex/impl-727-source-reassessment",
+      "scope": "Pinnedf3321ea UI independent source review"
     },
     {
       "issues": [
         486
       ],
       "branch": "codex/impl-485-486-settings-navigation",
-      "scope": "Autosave correction41222031 source review, docs archival pending"
+      "scope": "Bounded durable last-export observation preparation, no invented restore/history claims"
     }
   ]
 }
