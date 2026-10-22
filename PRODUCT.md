@@ -270,3 +270,16 @@ Owner UX Q1 (2026-10-14, #464): normal text has at least 4.5:1 contrast and cont
 - Berührflächen mindestens 44 × 44 px; Erfassung und Suchfelder sind mit Tastatur und Touch bedienbar (eigene Combobox statt `<datalist>`, die auf iOS Safari versagt).
 - Reduzierte Bewegung wird respektiert.
 - Vollwertiger Dunkelmodus.
+
+
+### UI-Begriffe nach #469
+
+- **Kategorie** ist der sichtbare Begriff für einen Budget-Umschlag. Interne `Envelope`-Bezeichner und bestehende URLs bleiben erhalten.
+- **Verplantes Geld** bezeichnet die Summe „Verfügbar“ in den Kategorien. Es ist kein zusätzliches Kontoguthaben.
+- **Ausgabentempo** bezeichnet die zeitbezogene Ausgabenbetrachtung; **Noch im Plan** die geplanten Monatsausgaben abzüglich der bisherigen Ausgaben.
+- **Monatsziel** ist die monatliche Zuweisungsabsicht einer Kategorie; **Sparziel** ein gewünschter Betrag bis zu einem Datum. Wöchentliche Zielabsichten werden ausdrücklich als solche bezeichnet.
+- **Berücksichtigter Portfoliowert** meint nur die ausgewählten Positionen einschließlich signierter Anlage-Kassa. Die erklärten Bewertungsgrenzen und Nenner bleiben unverändert.
+- **Abweichung vom Ziel** ersetzt „Umschichtungsabstand“; sie ist keine automatische Orderempfehlung.
+- **Buchungsübersicht**, **Allokation**, **Gewinn/Verlust** ersetzen „Kontoblatt“, „Allocation“ und „für uns/gegen uns“. Technische Regelkennungen gehören in Details oder Hilfetexte.
+
+Diese Begriffe ändern keine Beträge, Bewertungen oder Buchungsregeln.
