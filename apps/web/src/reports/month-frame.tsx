@@ -172,6 +172,7 @@ export function MonthReportFrame({
   basis,
   print = false,
   extraFields = [],
+  initialCollapsed,
   children,
   verdict,
 }: {
@@ -188,9 +189,10 @@ export function MonthReportFrame({
   basis?: ReactNode;
   print?: boolean;
   extraFields?: Array<{ label: string; value: ReactNode }>;
+  initialCollapsed?: readonly string[];
   children: ReactNode;
 }) {
-  const sectionsRef = useCollapsibleSections(report.id);
+  const sectionsRef = useCollapsibleSections(report.id, initialCollapsed);
   return (
     <PageFrame
       verdict={verdict}

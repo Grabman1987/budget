@@ -16,6 +16,7 @@ import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import type { Period } from '@budget/domain';
 import type { PageMeta } from '../nav/pages';
 import { Term } from '../reports/term';
+import { useCollapsibleSections } from '../reports/month-frame';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from './placeholder-page';
 import {
@@ -42,12 +43,14 @@ const depotsQuery = (period: Period) =>
 const MIN_VOLATILITY_FOR_SHARPE = 0.005;
 
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
+const DEPOT_INITIAL_COLLAPSED = ['depots-kpi-title'] as const;
 
 export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   useAmountPrivacy();
   const [period, setPeriod] = useZeitraum();
   const query = useQuery(depotsQuery(period));
   const data = query.data?.depots;
+  const sectionsRef = useCollapsibleSections(report.id, DEPOT_INITIAL_COLLAPSED);
   return (
     <PageFrame
       verdict={
@@ -91,7 +94,7 @@ export function PortfolioDepotsReport({ report, meta }: { report: ReportEntry; m
         },
       ]}
     >
-      <div className="prep portfolio-depots-report">
+      <div ref={sectionsRef} className="prep portfolio-depots-report">
         {query.isPending && <LoadingNote what="Depots" />}
         {query.isError && (
           <ReportUnavailable

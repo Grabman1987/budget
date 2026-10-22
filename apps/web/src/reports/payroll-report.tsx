@@ -16,6 +16,9 @@ import { PayslipPanel, PayslipUploadDialog } from './payslip-panel';
 import { ReportDetailNav } from './report-detail-nav';
 import './payroll-projects.css';
 
+// The five main-page sections keep their existing positional storage keys, including saved choices.
+const PAYROLL_INITIAL_COLLAPSED = ['#1', '#2', '#3', '#4'] as const;
+
 const pct = (ratio: number | null) =>
   ratio === null
     ? '–'
@@ -165,6 +168,7 @@ export function PayrollReport({
       current={current}
       asOf={data?.asOf}
       basis={query.isError ? 'nicht verfügbar' : 'Erfasste Gehaltszettel · EUR'}
+      initialCollapsed={history ? undefined : PAYROLL_INITIAL_COLLAPSED}
     >
       <div className="mrep pp-report" data-testid="payroll-report">
         {history && (
