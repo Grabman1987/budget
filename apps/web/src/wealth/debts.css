@@ -310,3 +310,93 @@
     white-space: normal;
   }
 }
+
+
+/* Read-only selected-loan scenario; aggregate debt and saved planning stay separate. */
+.debt-live {
+  min-width: 0;
+}
+.debt-live .debt-live-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-block: 20px;
+}
+.debt-live-inputs > * {
+  min-width: 0;
+}
+.debt-live .btn,
+.debt-live-method > summary {
+  min-height: 44px;
+}
+.debt-live .btn {
+  max-width: 100%;
+  white-space: normal;
+}
+.debt-live-result,
+.debt-live-refresh {
+  margin-block: 20px;
+  padding-block: 12px;
+  border-block: 1px solid var(--rule-strong);
+}
+.debt-live-result h3 {
+  font-size: var(--fs-headline);
+  margin: 0 0 8px;
+}
+.debt-live-result p,
+.debt-live-refresh p {
+  margin-block: 8px;
+}
+.debt-live-result strong {
+  font-size: var(--fs-figure);
+  font-variant-numeric: tabular-nums;
+}
+.debt-live-method {
+  border-top: 1px solid var(--rule);
+  margin-top: 16px;
+}
+.debt-live-method > summary {
+  cursor: pointer;
+  align-content: center;
+}
+.debt-live-method > summary:focus-visible,
+.debt-live-scroll:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+.debt-live-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  margin-block: 12px 24px;
+}
+.debt-live-scroll .vtable {
+  display: table;
+  min-width: 100%;
+  width: max-content;
+  font-variant-numeric: tabular-nums;
+}
+.debt-live-scroll .vtable thead {
+  display: table-header-group;
+}
+.debt-live-scroll .vtable tbody {
+  display: table-row-group;
+}
+.debt-live-scroll .vtable tr {
+  display: table-row;
+}
+.debt-live-scroll .vtable th,
+.debt-live-scroll .vtable td {
+  display: table-cell;
+  white-space: nowrap;
+}
+.debt-live-scroll td {
+  text-align: right;
+}
+.debt-live .chart-data-scroll {
+  max-width: 100%;
+}
+@media (max-width: 767px) {
+  .debt-live .debt-live-inputs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

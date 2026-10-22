@@ -1,0 +1,18 @@
+# Debt history and live repayment — source checkpoint
+
+**NOT VALIDATED.** Implements source for #611 and #612 under the owner's 2026-10-22 implementation-only direction. No tests, new test files, typechecks, builds, browser checks, CI dispatches, pull requests, merges or deployments were performed. Acceptance and issues remain open.
+
+Base: main `6420676d257698767931dd151863765cec914acf`. Adopts only the four feature paths from prepared `4f9090f1f16613727c3172ab14065e9f3233e5ce`, preserved by handoff `e577a148`. Historical mixed parent stacks, Roadmap entries and tests were not restored.
+
+- **#611 source:** twelve completed month-end observations for the selected loan, a separate current anchor, dashed canonical repayment through the payoff month, labelled axes, identical tooltip/table values and existing privacy formatting. Missing observations remain gaps. Native selected-loan values remain separate from aggregate EUR debt history.
+- **#612 source:** monthly and explicitly dated one-off extra repayments update the same canonical `simulateLoan` schedules used for the curve, payoff comparison, interest saving, yearly table and monthly table. Invalid or missing terms stay explicit. Input changes remain local; saved planning, existing write/audit/Undo operations and all domain formulas remain unchanged.
+- **Paired-read P2:** the adopted final source already includes the reviewed correction: one query publishes a completed plan/history pair from the same client fetch generation, separate from the saved-plan cache. Identity/date/current-balance guards reject mismatched history. A captured basis and draft survive refresh until explicit rebase. Two existing GETs do **not** establish an atomic server database snapshot.
+- **Additional integration correction:** saved loan changes and the existing Undo/redo refresh now invalidate the paired-read query as well as the existing planning/strategy queries. An explicit pair-reload button also refreshes both reads without discarding the current draft. Only read invalidation was added to `useLoanWrite`; its requests, audit groups and Undo callbacks are unchanged.
+
+No root-owned router/barrel/API integration is required. No backend or domain source changed.
+
+Unresolved acceptance input: the V16 statement “4,200 EUR, 200 EUR/month, 4%, 500 EUR extra → two months earlier, 32.63 EUR interest saved” does not name the one-off execution month. The existing #612 issue comment records this gap. No month, rate, fee or expected result was invented, and no formula was tuned to force that number. The UI requires an explicit month for a positive one-off payment.
+
+Later validation must establish independent literal schedules, the fully dated V16 oracle, dated-rate changes, final-payment rounding, historical gaps, native currency, chart/table/payoff identity, no writes/audit from live inputs, failure/race/rebase behavior, saved-rate changes and Undo refreshing the pair, privacy, keyboard/table access, 44px controls, both themes and 1440/390/WebKit/Axe/overflow geometry. Existing tests remain untouched. Later approved adapters are needed in `e2e/debts.spec.ts` and `e2e/debts-scope.spec.ts` for immediate local inputs, saved-term fixtures, the relocated model, paired-read failures and explicit rebase; retain equivalent amount-parser, numeric, scope, pending/error, cross-origin, audit and Undo coverage. Existing `e2e/loan-planning.spec.ts` continues to guard the separate saved planner.
+
+The inspected workflows trigger CI on pull requests/main pushes, recovery/register checks on pull requests, snapshot updates manually and deployment after main CI or manual dispatch. Publishing this feature branch without a pull request matches none of those triggers.

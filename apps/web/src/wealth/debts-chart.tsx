@@ -1,141 +1,115 @@
-import { chartPoints } from '../charts/tooltip-data';
-import { useAmountPrivacy, ChartSvg, Graticule, Line, type Point } from '@budget/ui';
-import { addDays, addMonths } from '@budget/domain';
+import {
+  AxisLine,
+  ChartSvg,
+  Graticule,
+  Line,
+  LineLegend,
+  TodayLine,
+  XTicks,
+  maskMoneyText,
+  useAmountPrivacy,
+  type ChartTooltipPoint,
+  type Point,
+} from '@budget/ui';
+import { lastDayOfMonth, type LoanSchedule } from '@budget/domain';
 import { useElementWidth } from '../charts/use-element-width';
 import type { SeriesPoint } from '../ledger/types';
-import type { DebtAccount, DebtProjection } from './debts-api';
-import { nativeCurrency } from '../ledger/format';
+import { longDay, nativeCurrency } from '../ledger/format';
+import type { LoanPlanView } from './loan-planning-api';
 import { kfmt, yTicks } from './networth-model';
 
-/** Geometry only: actual balances and model rows are authoritative API values. */
-export function DebtChart({
-  loan,
-  asOf,
-  history,
-  result,
-}: {
-  loan: DebtAccount;
-  asOf: string;
-  history: SeriesPoint[];
-  result: DebtProjection | null;
+type Observation = { date: string; amount: number };
+const dayNumber = (date: string) => Date.parse(`${date}T00:00:00Z`);
+const monthNumber = (date: string) => Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7));
+
+/** Geometry only: exact selected-account observations and the canonical monthly schedules. */
+export function DebtChart({ basis, history, baseline, scenario }: {
+  basis: LoanPlanView;
+  history: readonly SeriesPoint[];
+  baseline: LoanSchedule | null;
+  scenario: LoanSchedule | null;
 }) {
   useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
-  const dateNumber = (date: string) => Date.parse(`${date.slice(0, 10)}T00:00:00Z`);
-  const actual = history.map((p) => ({ date: p.date, amount: -p.balanceCents }));
-  const model = (rows: DebtProjection['plan']['base']['rows']) =>
-    result
-      ? [
-          {
-            date: `${result.startMonth}-01` < asOf ? asOf : `${result.startMonth}-01`,
-            amount: result.balanceCents,
-          },
-          ...rows.map((r) => ({
-            date: addDays(`${addMonths(r.month, 1)}-01`, -1),
-            amount: r.closingCents,
-          })),
-        ]
-      : [];
-  const base = model(result?.plan.base.rows ?? []);
-  const extra = model(result?.plan.withExtra.rows ?? []);
-  const points = [...actual, ...base, ...extra];
-  const from = Math.min(...points.map((p) => dateNumber(p.date)), dateNumber(asOf));
-  const to = Math.max(...points.map((p) => dateNumber(p.date)), dateNumber(asOf));
-  const low = Math.min(0, ...points.map((p) => p.amount));
-  const high = Math.max(-loan.balanceCents, ...points.map((p) => p.amount), 1) * 1.08;
-  const height = width < 500 ? 220 : 260;
-  const x = (date: string) => 56 + ((dateNumber(date) - from) / (to - from || 1)) * (width - 72);
-  const y = (amount: number) => height - 30 - ((amount - low) / (high - low)) * (height - 48);
-  const line = (p: typeof actual): Point[] => p.map((p) => [x(p.date), y(p.amount)]);
+  const anchor = { date: basis.asOf, amount: basis.balanceCents };
+  const actual = [...history.map((point) => ({ date: point.date, amount: -point.balanceCents })), anchor];
+  const model = (schedule: LoanSchedule | null): Observation[] => schedule
+    ? [anchor, ...schedule.rows.map((row) => ({ date: lastDayOfMonth(row.month), amount: row.closingCents }))]
+    : [];
+  const base = model(baseline);
+  const extra = model(scenario);
+  const all = [...actual, ...base, ...extra];
+  const from = Math.min(...all.map((point) => dayNumber(point.date)));
+  const to = Math.max(...all.map((point) => dayNumber(point.date)));
+  const low = Math.min(0, ...all.map((point) => point.amount));
+  const high = Math.max(1, ...all.map((point) => point.amount)) * 1.08;
+  const height = width < 500 ? 240 : 280;
+  const left = 56, right = Math.max(left + 1, width - 16);
+  const x = (date: string) => left + ((dayNumber(date) - from) / (to - from || 1)) * (right - left);
+  const y = (amount: number) => height - 34 - ((amount - low) / (high - low)) * (height - 60);
+  const line = (points: readonly Observation[]): Point[] => points.map((point) => [x(point.date), y(point.amount)]);
+  const segments: Observation[][] = [];
+  for (const point of actual) {
+    const segment = segments.at(-1);
+    if (!segment || monthNumber(point.date) - monthNumber(segment.at(-1)!.date) > 1)
+      segments.push([point]);
+    else segment.push(point);
+  }
+  // One inspection target per date retains every current/start/month-end value at coincident dates.
+  const byDate = new Map<string, ChartTooltipPoint>();
+  const add = (point: Observation, name: string) => {
+    const known = byDate.get(point.date);
+    byDate.set(point.date, {
+      date: point.date,
+      x: x(point.date),
+      series: [...(known?.series ?? []), { name, value: nativeCurrency(point.amount, basis.currency) }],
+    });
+  };
+  history.forEach((point) => add({ date: point.date, amount: -point.balanceCents }, 'Ist · tatsächliches Monatsende'));
+  add(anchor, 'Aktuelle Restschuld · Stichtag, vor Modellzahlungen');
+  for (const [label, schedule] of [['Basis', baseline], ['Live-Szenario', scenario]] as const) {
+    if (!schedule) continue;
+    add(anchor, `${label} · Ausgangspunkt`);
+    schedule.rows.forEach((row) => add({ date: lastDayOfMonth(row.month), amount: row.closingCents }, `${label} · nach Modellzahlung am Monatsende`));
+  }
+  const inspection = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+  const ticks = [from, from + (to - from) / 2, to].filter((value, i, values) => values.indexOf(value) === i);
   return (
     <div ref={ref} className="debt-chart">
       {width > 0 && (
-        <ChartSvg
-          width={width}
-          height={height}
-          label={`Restschuld ${loan.name} in ${loan.currency}: erfasste Kontohistorie${result ? ', Modell ohne und mit monatlicher Sondertilgung' : ', noch kein Modell berechnet'}.`}
-          testId="debt-chart"
-          points={chartPoints(
-            [...new Set(points.map((p) => p.date))].sort(),
-            (i) => x([...new Set(points.map((p) => p.date))].sort()[i]!),
-            [
-              {
-                name: 'Restschuld',
-                values: [...new Set(points.map((p) => p.date))]
-                  .sort()
-                  .map((date) => actual.find((p) => p.date === date)?.amount),
-                color: 'var(--line)',
-                format: (v) => nativeCurrency(v, loan.currency),
-              },
-              {
-                name: 'Ohne Sondertilgung',
-                values: [...new Set(points.map((p) => p.date))]
-                  .sort()
-                  .map((date) => base.find((p) => p.date === date)?.amount),
-                color: 'var(--line-2)',
-                format: (v) => nativeCurrency(v, loan.currency),
-              },
-              {
-                name: 'Mit Sondertilgung',
-                values: [...new Set(points.map((p) => p.date))]
-                  .sort()
-                  .map((date) => extra.find((p) => p.date === date)?.amount),
-                color: 'var(--line)',
-                format: (v) => nativeCurrency(v, loan.currency),
-              },
-            ],
-          )}
-        >
-          <Graticule
-            x1={56}
-            x2={width - 16}
-            lines={yTicks(low / 100, high / 100).map((v) => ({ y: y(v * 100), label: kfmt(v) }))}
-          />
-          {actual.length > 1 && <Line points={line(actual)} kind="actual" />}
-          <circle cx={x(asOf)} cy={y(-loan.balanceCents)} r={3} fill="var(--line)" />
-          {base.length > 1 && <Line points={line(base)} kind="plan" />}
-          {extra.length > 1 && <Line points={line(extra)} kind="forecast" />}
-          {result &&
-            (
-              [
-                ['ohne', result.plan.base],
-                ['mit', result.plan.withExtra],
-              ] as const
-            ).map(([label, plan], i) => {
-              const last = plan.rows.at(-1);
-              if (!last) return null;
-              const px = x(addDays(`${addMonths(last.month, 1)}-01`, -1));
-              const baseline = y(0);
-              return (
-                <g key={label}>
-                  <path d={`M${px - 5},${baseline - 10}h10l-5,9Z`} className="kote" />
-                  <text
-                    x={px}
-                    y={baseline - 16 - i * 16}
-                    textAnchor={px > width - 100 ? 'end' : 'middle'}
-                    className="svg-label"
-                  >
-                    {label}: {last.month.slice(5)}.{last.month.slice(0, 4)}
-                  </text>
-                </g>
-              );
-            })}
-          {[0, 1, 2].map((i) => {
-            const date = new Date(from + ((to - from) * i) / 2).toISOString().slice(0, 7);
-            return (
-              <text
-                key={i}
-                x={56 + ((width - 72) * i) / 2}
-                y={height - 6}
-                textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'}
-                className="svg-label"
-              >
-                {date.slice(5, 7)}.{date.slice(0, 4)}
+        <ChartSvg width={width} height={height}
+          label={`Restschuld ${maskMoneyText(basis.name)} in ${basis.currency}: tatsächliche Monatsenden, Kontostand ${longDay(basis.asOf)} und getrennte monatliche Tilgungsmodelle.`}
+          testId="debt-chart" points={inspection} table
+          tooltipNote="Ist sind echte Monatsendwerte. Der Stichtag ist vor Modellzahlungen; am gleichen Datum kann daneben eine Modellzahlung zum Monatsende stehen. Zwischen beobachteten Werten werden keine neuen Finanzdaten berechnet.">
+          <Graticule x1={left} x2={right} lines={yTicks(low / 100, high / 100).map((value) => ({ y: y(value * 100), label: kfmt(value) }))} />
+          <AxisLine x1={left} x2={right} y={y(0)} />
+          <TodayLine x={x(basis.asOf)} y1={16} y2={height - 34} />
+          {segments.map((segment) => <Line key={segment[0]!.date} points={line(segment)} kind="actual" draw={false} />)}
+          {actual.map((point) => <circle key={point.date} cx={x(point.date)} cy={y(point.amount)} r={3} fill="var(--ink)" />)}
+          {base.length > 1 && <Line points={line(base)} kind="plan" draw={false} />}
+          {extra.length > 1 && <Line points={line(extra)} kind="forecast" draw={false} />}
+          {([['Basis', baseline], ['Szenario', scenario]] as const).map(([label, schedule], index) => {
+            if (!schedule?.payoffMonth) return null;
+            const date = lastDayOfMonth(schedule.payoffMonth);
+            const position = x(date);
+            return <g key={label}>
+              <path d={`M${position - 5},${y(0) - 9}h10l-5,8Z`} className="kote" />
+              <text x={position} y={y(0) - 16 - index * 16} textAnchor={position > right - 80 ? 'end' : 'start'} className="svg-label">
+                {label}: {schedule.payoffMonth.slice(5)}.{schedule.payoffMonth.slice(0, 4)}
               </text>
-            );
+            </g>;
           })}
+          <XTicks y={height - 8} ticks={ticks.map((value) => ({
+            x: left + ((value - from) / (to - from || 1)) * (right - left),
+            label: new Intl.DateTimeFormat('de-AT', { month: 'short', year: '2-digit', timeZone: 'UTC' }).format(new Date(value)),
+          }))} />
         </ChartSvg>
       )}
+      <LineLegend items={[
+        { kind: 'actual', label: 'Ist des ausgewählten Kredits' },
+        ...(baseline ? [{ kind: 'plan' as const, label: 'Basis ohne Sondertilgung' }] : []),
+        ...(scenario ? [{ kind: 'forecast' as const, label: 'Live-Szenario mit Sondertilgung' }] : []),
+      ]} />
     </div>
   );
 }
