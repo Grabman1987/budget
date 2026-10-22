@@ -24,11 +24,11 @@ Owner authorization transferred by the coordinating chat permits technical test
 adapters with per-file justification and independent review. No financial oracle,
 security/lock/audit/Undo assertion, tolerance, timeout or coverage was weakened.
 
-| File | Technical adaptation | Decision and preserved coverage |
-| --- | --- | --- |
-| `e2e/income-pause.spec.ts` | Two ordinary Werkzeuge summary clicks after initial navigation and document reload. | #568 owner-approved default-closed tools disclosure; every original pause/date/amount/action/assertion remains. |
-| `e2e/liquidity-report.spec.ts` | Five ordinary Werkzeuge summary clicks before accessing relocated controls. First click precedes horizon selection to exercise retained open state. | #568 tools relocation; unchanged levers, event writers, amounts, dates, Undo, privacy, accessibility, touch and timeout checks. |
-| `apps/web/src/reports/liquidity-lowpoint.test.ts` | Handcrafted salaryDay DTO fixture now provides scheduledInflows instead of display-only movements. Same three dates, cents and payment references. | #569 shared chart salary marker must retain real inflows below the movement cutoff; every existing expected salary date/null assertion remains byte-identical. |
+| File                                              | Technical adaptation                                                                                                                                | Decision and preserved coverage                                                                                                                                |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `e2e/income-pause.spec.ts`                        | Two ordinary Werkzeuge summary clicks after initial navigation and document reload.                                                                 | #568 owner-approved default-closed tools disclosure; every original pause/date/amount/action/assertion remains.                                                |
+| `e2e/liquidity-report.spec.ts`                    | Five ordinary Werkzeuge summary clicks before accessing relocated controls. First click precedes horizon selection to exercise retained open state. | #568 tools relocation; unchanged levers, event writers, amounts, dates, Undo, privacy, accessibility, touch and timeout checks.                                |
+| `apps/web/src/reports/liquidity-lowpoint.test.ts` | Handcrafted salaryDay DTO fixture now provides scheduledInflows instead of display-only movements. Same three dates, cents and payment references.  | #569 shared chart salary marker must retain real inflows below the movement cutoff; every existing expected salary date/null assertion remains byte-identical. |
 
 ## Required verification (not executed by adoption)
 
@@ -56,3 +56,10 @@ register the jest-dom `toHaveValue` matcher (Invalid Chai property), rather than
 a mismatched selected value. Use equivalent native `value` property assertions;
 production router accepts 35d through LIQUIDITY_HORIZONS and the test validator
 uses the same shared horizon/lever validation. No source or expectation changed.
+
+## Validation status update
+
+The pending-check list above records the historical adoption checkpoint. Current
+verified source results and remaining gates are in [README](README.md). Required
+complete checks can be fulfilled by exact-head CI under the current delivery
+rules; this does not claim a full local `npm run check` execution.
