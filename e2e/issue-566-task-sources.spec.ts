@@ -55,6 +55,8 @@ async function hit(control: Locator) {
 }
 for (const [profile, desired, viewport] of [
   ['desktop', 'light', { width: 1440, height: 900 }],
+  ['desktop', 'dark', { width: 1440, height: 900 }],
+  ['phone', 'light', { width: 390, height: 844 }],
   ['phone', 'dark', { width: 390, height: 844 }],
 ] as const)
   test(`566 real task sources, counts and read-only actions in ${profile} ${desired}`, async ({
