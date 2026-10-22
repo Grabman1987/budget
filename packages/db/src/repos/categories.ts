@@ -24,6 +24,7 @@ import { createEntity, getEntity, updateEntity } from './entities';
 import { setAssigned } from './envelopes';
 import { CategoryRuleError, EntityNotFoundError } from './errors';
 import { runInTransaction, type Executor } from './types';
+import { readCategoryTargets } from './target-intent';
 
 /**
  * Categories and groups (Einstellungen › Kategorien): create, edit, hide, sort, targets, and the
@@ -54,6 +55,7 @@ export interface TargetInput {
   everyMonths?: number;
   targetDate?: string | null;
   dueDay?: number | null;
+  weeklyDay?: number | null;
 }
 
 /** One emoji (with modifiers, ZWJ sequences, flags), at most 16 UTF-16 units. */
@@ -243,12 +245,21 @@ export function setCategoryTarget(
     }
     if (target.kind === 'by_date' && !target.targetDate)
       throw new CategoryRuleError('Ein Ziel bis zu einem Datum braucht das Datum.');
+    if (target.weeklyDay != null) {
+      const owner = liveCategory(tx, categoryId);
+      if (!owner.class || ['income', 'card_payment', 'advance'].includes(owner.kind) ||
+        target.kind !== 'monthly' || (target.everyMonths ?? 1) !== 1 || target.targetDate != null ||
+        target.dueDay != null || !Number.isInteger(target.weeklyDay) || target.weeklyDay < 1 || target.weeklyDay > 7 ||
+        !Number.isSafeInteger(target.amountCents) || target.amountCents < 0 || !Number.isSafeInteger(target.amountCents * 5))
+        throw new CategoryRuleError('Ein Wochenziel braucht einen gültigen Wochentag und einen sicheren Betrag; andere Fälligkeiten entfallen.');
+    }
     const values = {
       kind: target.kind,
       amountCents: target.amountCents,
       everyMonths: target.everyMonths ?? 1,
       targetDate: target.targetDate ?? null,
       dueDay: target.dueDay ?? null,
+      weeklyDay: target.weeklyDay ?? null,
     };
     const same = versions.find((v) => v.validFrom === validFrom);
     if (same) updateTracked(tx, categoryTarget, [same.id], { ...values, deletedAt: null }, grouped);
@@ -517,12 +528,7 @@ export function categoryTree(db: Executor) {
     .orderBy(asc(category.sortOrder), asc(category.name))
     .all()
     .map((c) => ({ ...c, splitCount: counts.get(c.id) ?? 0 }));
-  const targets = db
-    .select()
-    .from(categoryTarget)
-    .where(isNull(categoryTarget.deletedAt))
-    .orderBy(asc(categoryTarget.validFrom))
-    .all();
+  const targets = readCategoryTargets(db);
   return { groups, categories, targets };
 }
 

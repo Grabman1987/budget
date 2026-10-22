@@ -1,4 +1,5 @@
 import { readPaymentLifecycles, type PaymentLifecycle } from './expected-lifecycle-invariants';
+import { readCategoryTargets } from './target-intent';
 import { allocationInputsAsOf } from './allocation-inputs';
 import { cashlessContactBookingIds } from './contact-invariants';
 import { resolvePortfolioRiskPolicy } from './portfolio-risk-policy';
@@ -45,7 +46,6 @@ import {
   booking,
   bookingSplit,
   category,
-  categoryTarget,
   envelopeMonth,
   expectedOccurrence,
   expectedPayment,
@@ -94,7 +94,7 @@ interface IncomeSplit {
 export interface RuleFacts {
   accounts: AccountRow[];
   categories: CategoryRow[];
-  targets: (typeof categoryTarget.$inferSelect)[];
+  targets: ReturnType<typeof readCategoryTargets>;
   payments: PaymentRow[];
   paymentLifecycles?: Map<string, PaymentLifecycle>;
   versions: Map<string, VersionRow[]>;
@@ -246,7 +246,7 @@ function readFacts(db: Executor, upTo: string, ledger: ReturnType<typeof budgetL
   return {
     accounts,
     categories,
-    targets: db.select().from(categoryTarget).where(isNull(categoryTarget.deletedAt)).all(),
+    targets: readCategoryTargets(db),
     payments,
     paymentLifecycles,
     versions,
@@ -332,6 +332,8 @@ function targetOf(f: RuleFacts, categoryId: string, month: string): CategoryTarg
         amountCents: hit.amountCents,
         everyMonths: hit.everyMonths,
         targetDate: hit.targetDate,
+        weeklyDay: hit.weeklyDay,
+        snoozedMonths: hit.snoozedMonths,
       }
     : null;
 }

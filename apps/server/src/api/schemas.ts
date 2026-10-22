@@ -277,7 +277,11 @@ export const targetBody = z.object({
       everyMonths: z.int().min(1).max(120).default(1),
       targetDate: day.nullable().optional(),
       dueDay: z.int().min(1).max(31).nullable().optional(),
+      weeklyDay: z.int().min(1).max(7).nullable().optional(),
     })
+    .refine((t) => t.weeklyDay == null || (t.kind === 'monthly' && t.everyMonths === 1
+      && t.targetDate == null && t.dueDay == null && Number.isSafeInteger(t.amountCents * 5)),
+      'Weekly set-aside requires an ISO weekday, safe cents and no other cadence')
     .nullable(),
 });
 export const categoryCreate = z.object({ ...categoryFields, target: targetBody.optional() });

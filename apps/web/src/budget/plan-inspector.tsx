@@ -12,6 +12,8 @@ import { monthLabel } from '../nav/month';
 import { useStoredFlag } from '../shell/use-stored-flag';
 import { QuickAssignActions } from './quick-assign-actions';
 import type { PanelState } from './category-panel';
+import { TargetSnooze } from './target-snooze';
+import { SelectedFunding } from './selected-funding';
 
 const moneyWords = (text: string) => maskMoneyText(text).replace(/ (?=€)/g, '\u00a0');
 
@@ -112,6 +114,7 @@ export function PlanInspector({
 }) {
   useAmountPrivacy();
   const row = selected.length === 1 ? selected[0] : undefined;
+  const snoozed = row?.target?.snoozedMonths?.includes(month) ?? false;
   const [collapsed, setCollapsed] = useStoredFlag('budget.plan.inspector.collapsed');
   const hasSelection = selected.length > 0;
   const [fold, setFold] = useState({ intent: inspectionIntent, selected: hasSelection, open: !collapsed });
@@ -132,6 +135,8 @@ export function PlanInspector({
   }, [inspectionIntent]);
   const actions = <QuickAssignActions month={month} emptyIds={[]} selectedIds={actionRows.map((r) => r.id)}
     preview={{ rows: actionRows, tba, scopeLabel: actionScopeLabel }} />;
+  const fundingIds = selected.length ? actionRows.map((row) => row.id) : [];
+  const guardedFunding = <SelectedFunding key={`${month}:${fundingIds.join(':')}`} month={month} categoryIds={fundingIds} />;
   return (
     <aside className="plan-inspector card" aria-label="Plan-Inspektor">
       <details className="inspector-fold" open={fold.open}
@@ -184,19 +189,21 @@ export function PlanInspector({
                   <p className="panel-sub">{row.target ? moneyWords(targetText(row.target)) : 'Kein Ziel.'}</p>
                   {row.target && (
                     <>
-                      <progress
+                      {!snoozed && <progress
                         aria-label="Zielfortschritt"
                         className={cx(row.needCents <= 0 && 'is-done')}
                         max={Math.max(1, row.goalCents)}
                         value={Math.max(0, row.goalCents - row.needCents)}
-                      />
+                      />}
                       <p className="panel-sub">
-                        {row.needCents > 0 ? `fehlt ${eur(row.needCents)}` : 'Ziel finanziert.'}
+                        {snoozed ? 'Ziel diesen Monat ausgesetzt.' : row.needCents > 0 ? `fehlt ${eur(row.needCents)}` : 'Ziel finanziert.'}
                       </p>
+                      <TargetSnooze key={`${month}:${row.id}`} month={month} categoryId={row.id} snoozed={snoozed} disabled={sourceUnavailable} />
                     </>
                   )}
                 </div>
                 {actions}
+                {guardedFunding}
                 <EnvelopeBody
                   key={`${month}:${row.id}:${row.assignedCents}`}
                   month={month}
@@ -280,6 +287,7 @@ export function PlanInspector({
                   ))}
                 </dl>
                 {actions}
+                {guardedFunding}
               </>
             )}
             </fieldset>
@@ -290,6 +298,7 @@ export function PlanInspector({
               {overview}
             </RememberedSection>
             {actions}
+            {guardedFunding}
             <RememberedSection name="split-closed" title="50/30/20" defaultOpen>
               {split}
             </RememberedSection>

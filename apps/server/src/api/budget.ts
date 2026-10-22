@@ -6,6 +6,9 @@ import {
   queryBookings,
   assignMany,
   quickAssignMany,
+  previewSelectedFunding,
+  applySelectedFunding,
+  setTargetSnooze,
   categoryTree,
   coverOverspending,
   coverAllOverspending,
@@ -162,6 +165,21 @@ export function budgetRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   const monthParam = (value: string) => month.parse(value);
   const cursorEpoch = randomUUID();
+
+  app.post('/:month/target-snoozes', async (c) => {
+    const input = await readBody(c, z.strictObject({ categoryId: z.string().min(1).max(64), snoozed: z.boolean() }));
+    return c.json(setTargetSnooze(db, monthParam(c.req.param('month')), input.categoryId, input.snoozed, audit()));
+  });
+  app.post('/:month/funding-preview', async (c) => {
+    const input = await readBody(c, z.strictObject({
+      mode: z.enum(['fund', 'reset']), categoryIds: z.array(z.string().min(1).max(64)).min(1).max(100),
+    }));
+    return c.json(db.transaction((tx) => previewSelectedFunding(tx, monthParam(c.req.param('month')), input.mode, input.categoryIds, today())));
+  });
+  app.post('/:month/funding-apply', async (c) => {
+    const input = await readBody(c, z.strictObject({ token: z.string().uuid() }));
+    return c.json(applySelectedFunding(db, monthParam(c.req.param('month')), input.token, audit(), today()));
+  });
 
   /** Several months at once: `{ months: { 'YYYY-MM': <the answer of GET /:month> } }`. */
   app.get('/months', (c) => {

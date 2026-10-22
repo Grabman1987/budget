@@ -225,6 +225,8 @@ export const categoryTarget = sqliteTable(
     targetDate: text('target_date'),
     /** Day of month (1–31, 31 = last day) a `monthly` target falls due (Fixkosten: "am 1."). */
     dueDay: integer('due_day'),
+    /** ISO Monday=1 through Sunday=7; null retains legacy target intent. */
+    weeklyDay: integer('weekly_day'),
     /** `YYYY-MM` from which this target applies; the next version replaces it. */
     validFrom: text('valid_from').notNull(),
     ...timestamps(),
@@ -232,6 +234,11 @@ export const categoryTarget = sqliteTable(
   (t) => [
     oneOf('category_target_kind_chk', t.kind, TARGET_KINDS),
     check('category_target_amount_chk', sql`${t.amountCents} >= 0`),
+    check('category_target_weekly_chk', sql`${t.weeklyDay} IS NULL OR (
+      typeof(${t.weeklyDay}) = 'integer' AND ${t.weeklyDay} BETWEEN 1 AND 7
+      AND typeof(${t.amountCents}) = 'integer' AND ${t.amountCents} BETWEEN 0 AND 1801439850948198
+      AND ${t.kind} = 'monthly' AND ${t.everyMonths} = 1
+      AND ${t.targetDate} IS NULL AND ${t.dueDay} IS NULL)`),
     check('category_target_every_chk', sql`${t.everyMonths} BETWEEN 1 AND 120`),
     check('category_target_due_day_chk', sql`${t.dueDay} BETWEEN 1 AND 31`),
     check('category_target_date_chk', sql`${t.kind} <> 'by_date' OR ${t.targetDate} IS NOT NULL`),
@@ -240,6 +247,18 @@ export const categoryTarget = sqliteTable(
     uniqueIndex('category_target_uq').on(t.categoryId, t.validFrom),
   ],
 );
+
+/** One category's target funding intent for one month; audited and soft-deleted independently. */
+export const categoryTargetSnooze = sqliteTable('category_target_snooze', {
+  id: id(),
+  categoryId: text('category_id').notNull().references(() => category.id),
+  month: text('month').notNull(),
+  ...timestamps(),
+}, (t) => [
+  uniqueIndex('category_target_snooze_uq').on(t.categoryId, t.month),
+  isoMonth('category_target_snooze_month_chk', t.month),
+  check('category_target_snooze_month_range_chk', sql`substr(${t.month}, 6, 2) BETWEEN '01' AND '12'`),
+]);
 
 /**
  * Recurring or one-off expected payment; the amount lives in versions (price changes).

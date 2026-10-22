@@ -10,12 +10,13 @@ import {
   TextInput,
   maskMoneyText,
 } from '@budget/ui';
-import { cents, formatDecimal, parseAmount, todayInVienna } from '@budget/domain';
+import { cents, formatDecimal, parseAmount, targetNeed, todayInVienna, weeklyOccurrences } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useState, type FormEvent } from 'react';
 import { AccountOptions } from '../ledger/account-options';
 import { accountsQuery } from '../ledger/queries';
 import { eur, longDay } from '../ledger/format';
+import { monthLabel } from '../nav/month';
 import {
   CATEGORY_KINDS,
   CLASSLESS_KINDS,
@@ -148,7 +149,7 @@ function GroupForm({ group, onDone }: { group: GroupRow | undefined; onDone: () 
 }
 
 const month = () => todayInVienna().slice(0, 7);
-type TargetChoice = 'none' | TargetKind;
+type TargetChoice = 'none' | 'weekly' | TargetKind;
 
 function CategoryForm({
   state,
@@ -181,11 +182,14 @@ function CategoryForm({
   const [inflationMethod, setInflationMethod] = useState(
     c?.inflationTrailingMean == null ? 'auto' : c.inflationTrailingMean ? 'mean' : 'contracts',
   );
-  const [targetKind, setTargetKind] = useState<TargetChoice>(current?.kind ?? 'none');
+  const [targetKind, setTargetKind] = useState<TargetChoice>(current?.weeklyDay != null ? 'weekly' : current?.kind ?? 'none');
   const [amount, setAmount] = useState(current ? formatDecimal(cents(current.amountCents)) : '');
   const [every, setEvery] = useState(String(current?.everyMonths ?? 1));
   const [dueDay, setDueDay] = useState(current?.dueDay ? String(current.dueDay) : '');
   const [dueDate, setDueDate] = useState(current?.targetDate ?? '');
+  const [weeklyDay, setWeeklyDay] = useState(current?.weeklyDay != null ? String(current.weeklyDay) : '');
+  const [validFrom, setValidFrom] = useState(current && current.validFrom > month() ? current.validFrom : month());
+  const [versionTouched, setVersionTouched] = useState(false);
   const [error, setError] = useState<string>();
   const classless = CLASSLESS_KINDS.has(kind);
 
@@ -194,6 +198,10 @@ function CategoryForm({
     const parsed = targetKind === 'none' ? null : parseAmount(amount || '0');
     if (parsed && !parsed.ok) return setError('Der Zielbetrag lässt sich nicht ausrechnen.');
     if (targetKind === 'by_date' && !dueDate) return setError('Bitte das Zieldatum wählen.');
+    if (targetKind === 'weekly' && (!weeklyDay || Number(weeklyDay) < 1 || Number(weeklyDay) > 7))
+      return setError('Bitte den Wochentag für das Wochenziel wählen.');
+    if (targetKind !== 'none' && !/^\d{4}-(0[1-9]|1[0-2])$/.test(validFrom))
+      return setError('Bitte den Monat wählen, ab dem das Ziel gelten soll.');
     setError(undefined);
     const fields = {
       name,
@@ -207,11 +215,12 @@ function CategoryForm({
     const target =
       parsed && targetKind !== 'none'
         ? {
-            kind: targetKind,
+            kind: targetKind === 'weekly' ? 'monthly' as const : targetKind,
             amountCents: parsed.cents,
             everyMonths: targetKind === 'monthly' ? Number(every) : 1,
-            targetDate: targetKind === 'by_date' || Number(every) > 1 ? dueDate || null : null,
+            targetDate: targetKind === 'by_date' || (targetKind === 'monthly' && Number(every) > 1) ? dueDate || null : null,
             dueDay: targetKind === 'monthly' && dueDay ? Number(dueDay) : null,
+            weeklyDay: targetKind === 'weekly' ? Number(weeklyDay) : null,
           }
         : null;
     // The target is written with the category (one audit group) only when it changed.
@@ -221,9 +230,10 @@ function CategoryForm({
       everyMonths: current.everyMonths,
       targetDate: current.targetDate,
       dueDay: current.dueDay,
+      weeklyDay: current.weeklyDay ?? null,
     };
-    const changed = JSON.stringify(target) !== JSON.stringify(was ?? null);
-    const withTarget = changed ? { target: { validFrom: month(), target } } : {};
+    const changed = JSON.stringify(target) !== JSON.stringify(was ?? null) || versionTouched;
+    const withTarget = changed ? { target: { validFrom, target } } : {};
     const done = await write(
       () =>
         c
@@ -379,14 +389,32 @@ function CategoryForm({
             >
               <option value="none">kein Ziel</option>
               <option value="monthly">Betrag im Rhythmus</option>
+              {!classless && <option value="weekly">Wöchentlich zurücklegen</option>}
               <option value="by_date">Betrag bis Datum</option>
               <option value="keep_balance">Guthaben halten</option>
             </Select>
           )}
         </Field>
         {targetKind !== 'none' && (
-          <AmountInput label="Betrag" value={amount} onChange={setAmount} />
+          <>
+            <AmountInput label={targetKind === 'weekly' ? 'Betrag je Wochentag' : 'Betrag'} value={amount} onChange={setAmount} />
+            <Field label="Gültig ab" hint="Die vorhandenen Zielversionen vor diesem Monat bleiben erhalten.">
+              {({ id }) => <TextInput id={id} type="month" value={validFrom} onChange={(event) => {
+                setValidFrom(event.target.value); setVersionTouched(true);
+              }} />}
+            </Field>
+          </>
         )}
+        {targetKind === 'weekly' && <>
+          <Field label="Wochentag">
+            {({ id }) => <Select id={id} value={weeklyDay} onChange={(event) => setWeeklyDay(event.target.value)}>
+              <option value="">Wochentag auswählen</option>
+              {['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'].map((day, i) =>
+                <option key={day} value={i + 1}>{day}</option>)}
+            </Select>}
+          </Field>
+          <WeeklyTargetIntent month={validFrom} amount={amount} weekday={weeklyDay} />
+        </>}
         {targetKind === 'monthly' && (
           <Field label="Rhythmus">
             {({ id }) => (
@@ -457,6 +485,18 @@ function CategoryForm({
       </div>
     </form>
   );
+}
+
+function WeeklyTargetIntent({ month: selectedMonth, amount, weekday }: { month: string; amount: string; weekday: string }) {
+  const parsed = parseAmount(amount || '0');
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(selectedMonth) || !weekday || !parsed.ok ||
+    parsed.cents < 0 || !Number.isSafeInteger(parsed.cents * 5))
+    return <p className="field-hint">Wähle Betrag, Wochentag und Gültigkeitsmonat für die Monatsaufstellung.</p>;
+  const occurrences = weeklyOccurrences(selectedMonth, Number(weekday));
+  const goal = targetNeed({ kind: 'monthly', amountCents: parsed.cents, everyMonths: 1, targetDate: null,
+    weeklyDay: Number(weekday) }, { month: selectedMonth, carryCents: 0, assignedCents: 0, refill: false });
+  return <p className="field-hint">{monthLabel(selectedMonth)}: {occurrences} Raten à {eur(parsed.cents)} = {eur(goal.goalCents)}.
+    {' '}Übertrag mindert dieses Wochenziel nicht; jeder Monat zählt seine tatsächlichen Wochentage.</p>;
 }
 
 function MergeForm({

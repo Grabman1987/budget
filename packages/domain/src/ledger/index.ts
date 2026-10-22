@@ -71,6 +71,7 @@ export {
 } from './networth-structure';
 export {
   targetNeed,
+  weeklyOccurrences,
   waterfallFill,
   waterfallOrder,
   type CategoryTarget,

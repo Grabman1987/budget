@@ -3129,3 +3129,45 @@
   border-radius: var(--radius-md);
   font-size: var(--fs-meta);
 }
+
+.selected-funding {
+  min-width: 0;
+  padding: 12px 16px;
+}
+.inspector-source-fields > .selected-funding {
+  padding-inline: 0;
+}
+.selected-funding .btn,
+.selected-funding-preview .btn {
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+}
+.selected-funding-preview {
+  min-width: 0;
+  max-width: 100%;
+}
+.selected-funding-preview .insp-amount,
+.selected-funding-preview td:not(:last-child) {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.selected-funding-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.selected-funding-scroll table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--fs-table);
+}
+.selected-funding-scroll th,
+.selected-funding-scroll td {
+  padding: 8px;
+  border-bottom: 1px solid var(--card-border);
+  text-align: left;
+}
+.selected-funding-scroll:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}

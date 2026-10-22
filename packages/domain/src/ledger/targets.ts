@@ -1,4 +1,4 @@
-import { addMonths, monthOf, monthsBetween } from '../date';
+import { addMonths, lastDayOfMonth, monthOf, monthsBetween } from '../date';
 
 /**
  * Category targets (Ziel je Kategorie, concept §5.1) and the money-flow waterfall (SPEC §4).
@@ -15,6 +15,10 @@ export interface CategoryTarget {
   everyMonths: number;
   /** `YYYY-MM-DD`: the date of a `by_date` target, or a due date of a rhythm > 1 month. */
   targetDate: string | null;
+  /** Optional ISO weekday (Monday=1 through Sunday=7): weekly set-aside, never refill. */
+  weeklyDay?: number | null;
+  /** Read-only category/month intent supplied from the audited snooze records. */
+  snoozedMonths?: ReadonlyArray<string>;
 }
 
 export interface TargetEnvelope {
@@ -40,6 +44,15 @@ export interface TargetNeed {
 
 const ceilDiv = (a: number, b: number) => Math.ceil(a / b);
 
+/** Count an ISO weekday in the actual calendar month, independently of local time zones. */
+export function weeklyOccurrences(month: string, weekday: number): number {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || !Number.isInteger(weekday) || weekday < 1 || weekday > 7)
+    throw new RangeError('Invalid weekly target month or ISO weekday');
+  const first = new Date(`${month}-01T00:00:00Z`).getUTCDay() || 7;
+  const days = Number(lastDayOfMonth(month).slice(8, 10));
+  return 1 + Math.floor((days - 1 - (weekday - first + 7) % 7) / 7);
+}
+
 /** Months from `month` to `due` including both ends; 1 when `due` has passed. */
 function monthsLeft(month: string, due: string): number {
   return due < month ? 1 : monthsBetween(month, due).length;
@@ -56,11 +69,19 @@ function monthsLeft(month: string, due: string): number {
  */
 export function targetNeed(target: CategoryTarget, envelope: TargetEnvelope): TargetNeed {
   const { month, carryCents, assignedCents } = envelope;
+  if (target.snoozedMonths?.includes(month)) return { goalCents: 0, needCents: 0, dueMonth: null };
   const amount = target.amountCents;
   const result = (goal: number, dueMonth: string | null): TargetNeed => {
     const goalCents = Math.max(0, goal);
     return { goalCents, needCents: Math.max(0, goalCents - assignedCents), dueMonth };
   };
+  if (target.weeklyDay != null) {
+    if (target.kind !== 'monthly' || target.everyMonths !== 1 || target.targetDate !== null ||
+      !Number.isSafeInteger(amount) || amount < 0) throw new RangeError('Invalid weekly set-aside target');
+    const gross = amount * weeklyOccurrences(month, target.weeklyDay);
+    if (!Number.isSafeInteger(gross)) throw new RangeError('Weekly target exceeds safe cents');
+    return result(gross, null);
+  }
   if (target.kind === 'keep_balance') return result(amount - carryCents, null);
   if (target.kind === 'by_date') {
     const due = monthOf(target.targetDate ?? `${month}-01`);

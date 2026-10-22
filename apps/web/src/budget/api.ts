@@ -55,6 +55,8 @@ export interface TargetRow {
   everyMonths: number;
   targetDate: string | null;
   dueDay: number | null;
+  weeklyDay?: number | null;
+  snoozedMonths?: string[];
   validFrom: string;
 }
 
@@ -81,6 +83,7 @@ export interface TargetInput {
   everyMonths: number;
   targetDate?: string | null;
   dueDay?: number | null;
+  weeklyDay?: number | null;
 }
 
 export interface SplitCandidate {

@@ -578,12 +578,16 @@ export function barFor(r: PlanRow, ctx: PlanContext): Bar {
         ? `${eur(spent)} von ${eur(base)} · neue Kartenschuld ${eur(r.creditOverspentCents)}`
         : spent > 0 || inMonth
           ? `${eur(spent)} von ${eur(base)} ausgegeben${pace !== null && fill > pace + 0.08 ? ' · über Pace' : ''}`
+          : t?.snoozedMonths?.includes(ctx.month)
+            ? 'Ziel diesen Monat ausgesetzt.'
           : t
-            ? `Ziel ${eur(t.amountCents)} verfügbar${r.carryCents > 0 ? ` · Übertrag ${eur(r.carryCents)}` : ''}`
+            ? `Ziel ${eur(t.weeklyDay != null ? r.goalCents : t.amountCents)} verfügbar${r.carryCents > 0 ? ` · Übertrag ${eur(r.carryCents)}` : ''}`
             : '';
     return { fill, over: isCashOver(r), pace, goalMark: false, icon: null, meta };
   }
   if (!t) return { fill: null, over: false, pace: null, goalMark: false, icon: null, meta: '' };
+  if (t.snoozedMonths?.includes(ctx.month))
+    return { fill: null, over: false, pace: null, goalMark: false, icon: null, meta: 'Ziel diesen Monat ausgesetzt.' };
   if (r.kind === 'fixed' && t.kind === 'monthly' && t.everyMonths === 1 && t.dueDay) {
     const day = String(t.dueDay).padStart(2, '0');
     const paid = r.activityCents < 0;
@@ -596,7 +600,7 @@ export function barFor(r: PlanRow, ctx: PlanContext): Bar {
       meta: paid ? `bezahlt · nächste am ${day}.` : `fällig am ${day}.`,
     };
   }
-  const total = t.amountCents;
+  const total = t.weeklyDay != null ? r.goalCents : t.amountCents;
   const have = t.kind === 'monthly' && t.everyMonths === 1 ? r.assignedCents : base;
   const fill = total > 0 ? Math.min(1, Math.max(0, have / total)) : 0;
   const due = r.dueMonth ? ` · bis ${r.dueMonth.slice(5)}.${r.dueMonth.slice(0, 4)}` : '';

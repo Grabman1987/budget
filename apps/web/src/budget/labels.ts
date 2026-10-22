@@ -42,6 +42,7 @@ const monthYear = (day: string) => `${day.slice(5, 7)}.${day.slice(0, 4)}`;
 /** "890,00 € jeden Monat, am 1." / "486,00 € bis 01.2027" / "Guthaben 500,00 €". */
 export function targetText(t: TargetRow): string {
   const amount = eur(t.amountCents);
+  if (t.weeklyDay != null) return `${amount} wöchentlich zurücklegen · ${['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'][t.weeklyDay - 1]}`;
   if (t.kind === 'keep_balance') return `Guthaben ${amount} halten`;
   if (t.kind === 'by_date') return `${amount} bis ${monthYear(t.targetDate ?? '')}`;
   const rhythm = RHYTHM_LABEL[t.everyMonths] ?? `alle ${t.everyMonths} Monate`;
