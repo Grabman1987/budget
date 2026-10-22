@@ -170,6 +170,7 @@ for (const profile of ['desktop', 'phone'] as const)
             };
       let context: Awaited<ReturnType<typeof browser.newContext>> | undefined;
       let failed = false;
+      let failure: unknown;
       try {
         context = await browser.newContext({
           baseURL: isolatedLedger.origin,
@@ -325,16 +326,26 @@ for (const profile of ['desktop', 'phone'] as const)
         await info.attach('payroll-source-payout-proof', { path, contentType: 'application/json' });
       } catch (error) {
         failed = true;
-        throw error;
+        failure = error;
       } finally {
         try {
           await context?.close();
         } catch (error) {
-          if (!failed) throw error;
-        } finally {
+          if (!failed) {
+            failed = true;
+            failure = error;
+          }
+        }
+        try {
           seeded.opened.close();
+        } catch (error) {
+          if (!failed) {
+            failed = true;
+            failure = error;
+          }
         }
       }
+      if (failed) throw failure;
     });
 
 test('741 links an existing payout, opens its actual booking route and reloads it without changing existing money', async ({
