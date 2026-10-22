@@ -231,6 +231,12 @@ VALIDATED**; source review and executable acceptance remain separate gates.
 
 ## Existing split replay — source only
 
+The [independent split source review](security-transfers-520-split-source-review.md)
+identified two FIFO evidence gaps in the first checkpoint. The follow-up source
+now traverses every pre-split lot's ancestry and account under one bounded graph
+walk, and validates each lot's scalar shape before ordering. The corrected delta
+awaits a pinned independent re-review; no executable check has been run.
+
 The pure dated replay now accepts a stored `split` as an absolute signed E8 unit
 delta with zero amount, fee and tax. It requires a positive proven pool before
 and after the event. Average preserves pool cents and acquisition ownership in
@@ -245,7 +251,7 @@ compares replay units/basis with the canonical selected-method position projecti
 
 Zero or negative post-split pools, zero or negative individual FIFO lots, unsafe
 integer bounds and rounding disagreement are typed unavailable. No cost formula,
-trade writer, schema, public API, UI, or new split action changed. Source review
+trade writer, schema, public API, UI, or new split action changed. Final source re-review
 and Stage A executable acceptance of this split slice are still open; this text
 does not assert AC-009-06 completion.
 
