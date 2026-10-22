@@ -1,0 +1,207 @@
+[
+  {
+    "path": "docs/handoff/741-payroll/CURRENT-AUTHORIZATION.md",
+    "size": 1204,
+    "sha256": "fa26321b383cd1df6331b7c1b840cef9d02666396ced2d0e251bcc448e79b2b1"
+  },
+  {
+    "path": "docs/handoff/741-payroll/README.md",
+    "size": 420,
+    "sha256": "01faee4b0bdf928a3e467b99f9f665506fb57aed8259bcbe06c92e9ed70f61e8"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/PLAN.md",
+    "size": 3094,
+    "sha256": "48d1d93d90b0ca930875854c8fbca562480a70ff255e04366a3501a63b11f4f3"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/before/apps/server/src/api/payslip-intake.ts",
+    "size": 9953,
+    "sha256": "9f92289ae3f67f396b64930e25363369b8654a936800c9a8c39a4d7f1af89105"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/before/apps/server/src/payslips/service.ts",
+    "size": 12958,
+    "sha256": "9c076252c5aa6a45458045c7f4cda46b51e7df61dd70722a95d7144925f6ee95"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/before/apps/web/src/reports/payslip-intake.tsx",
+    "size": 36516,
+    "sha256": "384e2af88d02ef7058fad8ec5062a777333364fa586131af3240f74910886521"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/before/packages/db/src/repos/payslip-intake.ts",
+    "size": 34339,
+    "sha256": "66bb11c0b0611dffd8a188f94959d9cfa2784bd07708dc77f09a1ffddb16fc6b"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/before/packages/domain/src/index.ts",
+    "size": 1639,
+    "sha256": "2046bfa117a63c11b0910ccd4de890c94a57197d153dd71659fe406bf15a17c7"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/before/packages/domain/src/reports/payslip-automation.ts",
+    "size": 6678,
+    "sha256": "8594786f53c991af2c4e3aa0efdfd7d10229edee932a0106970ad43d0dbe3347"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/before/packages/domain/src/reports/payslip-intake.ts",
+    "size": 7899,
+    "sha256": "cb737d7645a80d9b639b5de3274aa892c0e9fd87c3e826c0d4ca738e6decd4a7"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/continuation-only.diff",
+    "size": 14663,
+    "sha256": "c52d72e8c166ac30e4dbb1c82902fab466ffd6f10a720976bf7cae7cf6276a88"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/files/apps/server/src/api/payslip-intake.ts",
+    "size": 10039,
+    "sha256": "39eba97649f9a64bde9fa982b7b8f4470aa366ab0ee51d3861ba0a7e257f2b34"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/files/apps/server/src/payslips/service.ts",
+    "size": 12958,
+    "sha256": "9c076252c5aa6a45458045c7f4cda46b51e7df61dd70722a95d7144925f6ee95"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/files/apps/web/src/reports/payslip-intake.tsx",
+    "size": 37003,
+    "sha256": "68bf737a00cac8921ace0a356a5b260bb15eb21badc1c89d1b900dfb6a7ef35b"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/files/packages/db/src/repos/payslip-intake.ts",
+    "size": 35495,
+    "sha256": "8da674376f2b1ab93798850be2d6a5a961443856d6e16fc5d232e5f3ae30dcd9"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/files/packages/domain/src/index.ts",
+    "size": 1639,
+    "sha256": "2046bfa117a63c11b0910ccd4de890c94a57197d153dd71659fe406bf15a17c7"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/files/packages/domain/src/reports/payslip-automation-741.test.ts",
+    "size": 11083,
+    "sha256": "e4ba8729c74ea201242ce82cf5ae2f52e5f71d7ddac53a20ad71f6d8cc9bcdaa"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/files/packages/domain/src/reports/payslip-automation.ts",
+    "size": 6678,
+    "sha256": "8594786f53c991af2c4e3aa0efdfd7d10229edee932a0106970ad43d0dbe3347"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/files/packages/domain/src/reports/payslip-intake.ts",
+    "size": 7899,
+    "sha256": "cb737d7645a80d9b639b5de3274aa892c0e9fd87c3e826c0d4ca738e6decd4a7"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-continuation-outside-source/manifest.json",
+    "size": 3016,
+    "sha256": "caebf02ad833da9aaa87b1b52e2a914bc79505faf7dcbfed367199fcb761e0f0"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-new-validation-source-proposal-v2/PLAN.md",
+    "size": 6988,
+    "sha256": "624c15bcbf7180e6c9f7249115bc8fd2642199cf8ad7b0a6ce0d0b1a0e42cad8"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-new-validation-source-proposal-v2/baseline/apps/server/src/api/payslip-intake.ts",
+    "size": 10039,
+    "sha256": "39eba97649f9a64bde9fa982b7b8f4470aa366ab0ee51d3861ba0a7e257f2b34"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-new-validation-source-proposal-v2/baseline/apps/server/src/payslips/service.ts",
+    "size": 12958,
+    "sha256": "9c076252c5aa6a45458045c7f4cda46b51e7df61dd70722a95d7144925f6ee95"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-new-validation-source-proposal-v2/baseline/apps/web/src/reports/payslip-intake.tsx",
+    "size": 37003,
+    "sha256": "68bf737a00cac8921ace0a356a5b260bb15eb21badc1c89d1b900dfb6a7ef35b"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-new-validation-source-proposal-v2/baseline/packages/db/src/repos/payslip-intake.ts",
+    "size": 35495,
+    "sha256": "8da674376f2b1ab93798850be2d6a5a961443856d6e16fc5d232e5f3ae30dcd9"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-new-validation-source-proposal-v2/baseline/packages/domain/src/index.ts",
+    "size": 1639,
+    "sha256": "2046bfa117a63c11b0910ccd4de890c94a57197d153dd71659fe406bf15a17c7"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-new-validation-source-proposal-v2/baseline/packages/domain/src/reports/payslip-automation-741.test.ts",
+    "size": 11083,
+    "sha256": "e4ba8729c74ea201242ce82cf5ae2f52e5f71d7ddac53a20ad71f6d8cc9bcdaa"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-new-validation-source-proposal-v2/baseline/packages/domain/src/reports/payslip-automation.ts",
+    "size": 6678,
+    "sha256": "8594786f53c991af2c4e3aa0efdfd7d10229edee932a0106970ad43d0dbe3347"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-new-validation-source-proposal-v2/baseline/packages/domain/src/reports/payslip-intake.ts",
+    "size": 7899,
+    "sha256": "cb737d7645a80d9b639b5de3274aa892c0e9fd87c3e826c0d4ca738e6decd4a7"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-new-validation-source-proposal-v2/files/apps/server/src/api/payslip-automation-741.test.ts",
+    "size": 8621,
+    "sha256": "bf501855e354540809f1d7c3ed96658b4a5bcf4c6ca00ac3a73a764d43235317"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-new-validation-source-proposal-v2/files/apps/web/src/reports/payslip-automation-741.test.tsx",
+    "size": 7715,
+    "sha256": "52b0a4a6a75b439b403b08657b0b4195d43584a8ea165e702dd37422d731ef8e"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-new-validation-source-proposal-v2/files/e2e/issue-741-payroll-automation.spec.ts",
+    "size": 13658,
+    "sha256": "1e0d1cc6ef1fb38b3ce82f0c3528e3c430361fb7db5af49737539fa74ab81a76"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-new-validation-source-proposal-v2/files/packages/db/src/repos/payslip-automation-741.test.ts",
+    "size": 9542,
+    "sha256": "7487e8cb719fb2b77ee02a2968eb279e136b2e10a2446cc1aac3a29daefaf782"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-new-validation-source-proposal-v2/manifest.json",
+    "size": 4246,
+    "sha256": "28f189a4c3c4609fd9dddb685d4f8ea235d042695f11ebda44c1405b74fd9fdd"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-new-validation-source-proposal-v2/new-four-only.diff",
+    "size": 40523,
+    "sha256": "bc5aa21d4eeee77a3b53a7f92ec7d4cbe438cdaad119a0261c99ac4e28044496"
+  },
+  {
+    "path": "docs/handoff/741-payroll/prepared-only/741-payroll-new-validation-source-proposal-v2/v2-native-scope-only.diff",
+    "size": 2329,
+    "sha256": "24d9a5fa76ce135ec205c2057d1af55f50e0bb542d89108f8f39730969b52ff7"
+  },
+  {
+    "path": "docs/handoff/741-payroll/provenance.json",
+    "size": 163,
+    "sha256": "a185b453d3265851c3c0909f117b98b3eb083d8cb976e90c864aa065e720517b"
+  },
+  {
+    "path": "docs/handoff/741-payroll/reviews/741-payroll-continuation-independent-source-high.md",
+    "size": 5202,
+    "sha256": "1492df2f00bb724007786d747cc51c89c2991a0437be80e2569ceccb1258df15"
+  },
+  {
+    "path": "docs/handoff/741-payroll/reviews/741-payroll-first-whole-source-independent-high.md",
+    "size": 3778,
+    "sha256": "45714ce9cc1ad033b185b27653678618cc27c2983d5fb27f1ec79918b93ba0f3"
+  },
+  {
+    "path": "docs/handoff/741-payroll/reviews/741-payroll-new-four-v2-independent-source-high.md",
+    "size": 3959,
+    "sha256": "e09adb1ea05185192df47f6d45a06989b305a7f6b4f967a9645cec50a8e24612"
+  },
+  {
+    "path": "docs/handoff/741-payroll/source.patch",
+    "size": 33686,
+    "sha256": "3299d6413f67e0a241736ec443531b4da81c3c9e4955bf1d076d75eff049896c"
+  }
+]

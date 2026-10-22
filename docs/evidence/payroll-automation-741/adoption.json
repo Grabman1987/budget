@@ -1,0 +1,78 @@
+{
+  "base": "1c19a465649490417f174787a9806b3347b7b7a6",
+  "archive": "ddba1ccc379eb09d7ebc0523c2ba057845090a2a",
+  "files": {
+    "apps/server/src/api/payslip-intake.ts": {
+      "sourceSHA256": "39eba97649f9a64bde9fa982b7b8f4470aa366ab0ee51d3861ba0a7e257f2b34",
+      "beforeSHA256": "3f48a98aca5436492384e62407efdd802c95411cf641ed3a7da556ec16b5c3e9",
+      "adoptedRawSHA256": "39eba97649f9a64bde9fa982b7b8f4470aa366ab0ee51d3861ba0a7e257f2b34",
+      "formattedSHA256": "579ea6fdd7d80749f04b23374c4fccab52201b95df0fcb06d5b7452b01bc7316"
+    },
+    "apps/server/src/payslips/service.ts": {
+      "sourceSHA256": "9c076252c5aa6a45458045c7f4cda46b51e7df61dd70722a95d7144925f6ee95",
+      "beforeSHA256": "5cc2149ab7287ff5d7783ee74e20a25f808c86a80613e74fc0bd8b17638ec7bc",
+      "adoptedRawSHA256": "9c076252c5aa6a45458045c7f4cda46b51e7df61dd70722a95d7144925f6ee95",
+      "formattedSHA256": "9bb1e26024b1192c84917209c2cb67e13c3560e7257fe0614453b53c4771e0cc"
+    },
+    "apps/web/src/reports/payslip-intake.tsx": {
+      "sourceSHA256": "68bf737a00cac8921ace0a356a5b260bb15eb21badc1c89d1b900dfb6a7ef35b",
+      "beforeSHA256": "d0ebed591a2fac399170d30c5bdcbc87e1aba0d4f0e73442ab39c66966fcf999",
+      "adoptedRawSHA256": "68bf737a00cac8921ace0a356a5b260bb15eb21badc1c89d1b900dfb6a7ef35b",
+      "formattedSHA256": "b6d3e1babbb1e31a17333d47bc2d258b4f12f58feeee453106e6ad83e6faa661"
+    },
+    "packages/db/src/repos/payslip-intake.ts": {
+      "sourceSHA256": "8da674376f2b1ab93798850be2d6a5a961443856d6e16fc5d232e5f3ae30dcd9",
+      "beforeSHA256": "1265fc4869dcbb823a70071a803535ec2a2535a49edb4af7de715d55e47aa84a",
+      "adoptedRawSHA256": "8da674376f2b1ab93798850be2d6a5a961443856d6e16fc5d232e5f3ae30dcd9",
+      "formattedSHA256": "100f7b8013a880b4f161d40795a77d0b61c53eae58b990cdebb3ad074ee9e2fe"
+    },
+    "packages/domain/src/index.ts": {
+      "sourceSHA256": "2046bfa117a63c11b0910ccd4de890c94a57197d153dd71659fe406bf15a17c7",
+      "beforeSHA256": "9e8975e88ec5d56357693c7cb7ef600874685d3cd68d21e9950fcee0e95e0b52",
+      "adoptedRawSHA256": "d889667682e700ca607dc12abac6db85e6c7a6b3a06b281931bda04e10b84bf4",
+      "formattedSHA256": "d889667682e700ca607dc12abac6db85e6c7a6b3a06b281931bda04e10b84bf4"
+    },
+    "packages/domain/src/reports/payslip-automation-741.test.ts": {
+      "sourceSHA256": "e4ba8729c74ea201242ce82cf5ae2f52e5f71d7ddac53a20ad71f6d8cc9bcdaa",
+      "beforeSHA256": null,
+      "adoptedRawSHA256": "e4ba8729c74ea201242ce82cf5ae2f52e5f71d7ddac53a20ad71f6d8cc9bcdaa",
+      "formattedSHA256": "075f8af35084d7e655eadebe1a809f1d7647360667991d6d758a019f40136620"
+    },
+    "packages/domain/src/reports/payslip-automation.ts": {
+      "sourceSHA256": "8594786f53c991af2c4e3aa0efdfd7d10229edee932a0106970ad43d0dbe3347",
+      "beforeSHA256": null,
+      "adoptedRawSHA256": "8594786f53c991af2c4e3aa0efdfd7d10229edee932a0106970ad43d0dbe3347",
+      "formattedSHA256": "144dfe9c4fb2bfb96c6d82cd29e9fa7fe1d5989a9e0b2a2c675cd81354971323"
+    },
+    "packages/domain/src/reports/payslip-intake.ts": {
+      "sourceSHA256": "cb737d7645a80d9b639b5de3274aa892c0e9fd87c3e826c0d4ca738e6decd4a7",
+      "beforeSHA256": "0ddd0bf1f6fd8b7411ed29f586ea1c551a7f89ee99b74fcdb3ed25f6510759a6",
+      "adoptedRawSHA256": "cb737d7645a80d9b639b5de3274aa892c0e9fd87c3e826c0d4ca738e6decd4a7",
+      "formattedSHA256": "cb737d7645a80d9b639b5de3274aa892c0e9fd87c3e826c0d4ca738e6decd4a7"
+    },
+    "apps/server/src/api/payslip-automation-741.test.ts": {
+      "sourceSHA256": "bf501855e354540809f1d7c3ed96658b4a5bcf4c6ca00ac3a73a764d43235317",
+      "beforeSHA256": null,
+      "adoptedRawSHA256": "bf501855e354540809f1d7c3ed96658b4a5bcf4c6ca00ac3a73a764d43235317",
+      "formattedSHA256": "d032c9cc7e72a01803f941d4ef1d52bbfe7cd4d7a1adbadade176f83b2dcb27e"
+    },
+    "apps/web/src/reports/payslip-automation-741.test.tsx": {
+      "sourceSHA256": "52b0a4a6a75b439b403b08657b0b4195d43584a8ea165e702dd37422d731ef8e",
+      "beforeSHA256": null,
+      "adoptedRawSHA256": "52b0a4a6a75b439b403b08657b0b4195d43584a8ea165e702dd37422d731ef8e",
+      "formattedSHA256": "ed7b92b6218ff847a38d8b376554bd2b0e84695e81dfbee75a3942171d689d14"
+    },
+    "e2e/issue-741-payroll-automation.spec.ts": {
+      "sourceSHA256": "1e0d1cc6ef1fb38b3ce82f0c3528e3c430361fb7db5af49737539fa74ab81a76",
+      "beforeSHA256": null,
+      "adoptedRawSHA256": "1e0d1cc6ef1fb38b3ce82f0c3528e3c430361fb7db5af49737539fa74ab81a76",
+      "formattedSHA256": "99577f6e26ea27bb79021fff95e5ed917a5fc0b3b2e2731cacd45326bd545856"
+    },
+    "packages/db/src/repos/payslip-automation-741.test.ts": {
+      "sourceSHA256": "7487e8cb719fb2b77ee02a2968eb279e136b2e10a2446cc1aac3a29daefaf782",
+      "beforeSHA256": null,
+      "adoptedRawSHA256": "7487e8cb719fb2b77ee02a2968eb279e136b2e10a2446cc1aac3a29daefaf782",
+      "formattedSHA256": "31d5572fc86e2322692fde8f40d88e4b49bff43f7bdda871e7e58dd0e786f82d"
+    }
+  }
+}
