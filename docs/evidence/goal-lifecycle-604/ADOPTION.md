@@ -81,3 +81,39 @@ Further API auth/public DTO, UI/native start/fund/manual/grouping/history flows,
 seeded/imported prospective evidence and adversarial chronology acceptance are
 not inferred from the three prepared suites or source clearance. Account-goal
 and unsupported historical evidence remain conservative/manual as documented.
+
+## Compatibility follow-up after root's actual run
+
+Root ran six existing files on `97313b4a`: 40 passed and six failed. This follow-up
+keeps every financial amount, action, assertion strength, timeout and Undo oracle.
+
+| Existing file | Technical adaptation and preserved contract |
+| --- | --- |
+| `packages/db/src/repos/goals.test.ts` | Only the standalone legacy adopt→Undo case now seeds a retained pre-sync goal using audited `createEntity(savingsGoal)`, without a category target/start/anchor. New `createGoal` intentionally creates the target already. All existing by-date300000/validFrom and Undo-removes-target assertions remain byte-for-byte unchanged. |
+| `apps/server/src/api/goals.test.ts` | Same true legacy fixture adjustment for the standalone public adopt route; real HTTP adopt/Undo actions and all target300000/removal expectations remain unchanged. Other new-goal HTTP tests retain the actual new writer. |
+| `apps/web/src/budget/goals-model.test.ts` | Follow owner-required reached-first group order and locate the open totals by key. Preserve all open totals and6-euro future-rate amount; qualify displayed text as “je zukünftigem Monat” to match the retained separate future-only forecast. |
+
+The two existing `goals-progress-query.test.ts` failures exposed a source
+regression rather than a permitted financial-oracle adaptation: selected detail
+month and current report month were previously explicitly separate. No owner
+request changes the “bis heute” report convention. The query now again requests
+`/api/goals/report` without the selected detail month, retaining `/api/goals?month=`
+for the selected figures. Both existing query tests and their month/value/URL
+assertions remain unchanged. Explicit report-month support remains available at
+the API for intentional consumers and the new history test.
+
+## Additional bounded acceptance candidates
+
+No prepared API/UI/native acceptance files were present in the handoff capsule;
+only the three adopted pure/DB/migration suites existed. Added:
+
+| NEW file | Scope and fixture requirements |
+| --- | --- |
+| `apps/server/src/api/goal-lifecycle-604.test.ts` | Two HTTP cases on a disposable DB: public DTO anchor stripping, literal40000/25000 rate/fill, real public funding/manual Undo, retained rows/no bookings; explicit May start returns six literal month-end values1000..6000. Uses existing API unit-test AuthGate stub, so this is not authentication evidence. Requires normal API Vitest setup only. |
+| `e2e/issue-604-goal-lifecycle.spec.ts` | Four real isolated-ledger flow candidates across1440/390 and both themes; current test engine follows selected Playwright project, including canonical WebKit. Actual create selectsNovember, edit retains then changesOctober, missing25000 funding and UI Undo, manual completion/Undo, chart retained/reload, synthetic DB readback/no bookings/FKs,44px/hit checks and main Axe. Requires existing isolated-ledger setup and fresh root-owned E2E build. No new auth/session mechanism, timers, tolerance or screenshots baseline changed. |
+
+The native candidate does not claim six-month native history, automatic expense
+completion, physical-device behavior or privacy-toggle acceptance. Six-point
+history is checked over HTTP; actual expense completion is covered by the
+existing new repository suite. All additions and adapters require independent
+review and root-owned execution; the adopter ran no heavy checks.

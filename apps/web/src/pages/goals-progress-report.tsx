@@ -45,7 +45,7 @@ export const goalsProgressReportQuery = (month?: string) =>
       const [categories, accounts, report] = await Promise.all([
         fetchCategories(),
         fetchAccounts(lastDayOfMonth(data.month)),
-        request<ReturnType<typeof goalsReport>>('GET', `/api/goals/report?month=${data.month}`),
+        request<ReturnType<typeof goalsReport>>('GET', '/api/goals/report'),
       ]);
       if (!Array.isArray(categories.categories) || !Array.isArray(accounts.accounts))
         throw new ApiError(503, 'unavailable', 'Quellenangaben der Sparziele sind unvollständig.');
