@@ -1,6 +1,6 @@
-# #604 WIP evidence checkpoint — NOT READY
+# #604 goal funding and retained lifecycle
 
-**Integration owner:** the local chat “Merge-Konflikt753” now owns all integration and follow-up fixes. Cloud writers stop after this evidence checkpoint. No readiness, merge, deployment or completion claim is made. The four regenerated baseline PNGs are **UNREVIEWED**. Three snapshot scenarios remain failing. See [HANDOFF.md](HANDOFF.md).
+**Integration owner:** the local chat “Merge-Konflikt753” owns the serial integration. Cloud writers remain stopped. The preserved cloud checkpoint below is historical. Local source/adapter/integration review is CLEAR at `90273f2ac211243e3e32b47a1ca46858d800f1f7`; the15 legacy goal scenarios,15 Chromium/WebKit lifecycle cases and67financial/migration/compatibility checks pass. The final narrow Linux run passes15/15, including the previously failing mobile click; all four intended images are regenerated at65fc79fe. Final full CI remains required. See [current follow-up](CI-FOLLOWUP.md), [new original browser proof](final-browser/proof.json), [Linux proof](final-linux.json), and the preserved [handoff](HANDOFF.md). No merge/live/completion claim.
 
 The bounded #604 package adds explicit goal start months, current-month Plan funding, and retained reached/completed lifecycle state with guarded manual completion. Funding assigns only the missing monthly amount through the existing writer; completed goals and bookings remain available for history and Undo. Prospective automatic completion requires proven goal reach followed by a first actual expense. The separate future-only forecast remains intact.
 

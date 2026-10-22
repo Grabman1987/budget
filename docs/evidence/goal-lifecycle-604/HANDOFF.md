@@ -1,5 +1,7 @@
 # #604 WIP evidence handoff — all cloud writers stopped
 
+Historical handoff at25769708. The receiving local owner has continued work; current results are in [CI-FOLLOWUP.md](CI-FOLLOWUP.md). The checkpoint restrictions below describe the stopped cloud writer, not a new approval requirement for the authorized local integrator.
+
 Integration and follow-up source/test fixes now belong to the local chat
 “Merge-Konflikt753”. This is preservation only, NOT READY and not a delivery.
 
