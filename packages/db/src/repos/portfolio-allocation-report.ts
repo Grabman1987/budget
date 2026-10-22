@@ -27,8 +27,11 @@ import {
 } from '@budget/domain';
 import { and, eq, isNull } from 'drizzle-orm';
 import { account, security } from '../schema';
-import { portfolioFlowsRead, valuationSeries,
-  type SecurityTransferFlowUnavailableReason } from './portfolio';
+import {
+  portfolioFlowsRead,
+  valuationSeriesRead,
+  type PortfolioReturnUnavailableReason,
+} from './portfolio';
 import { firstDay, riskOf } from './portfolio-summary';
 import { listAssetClasses } from './securities';
 import type { Executor } from './types';
@@ -42,7 +45,7 @@ export interface AllocationProduct {
   depots: string[];
   /** Time-weighted return of the last 12 months; `null` without a valued start in the window. */
   ttwror12: number | null;
-  returnUnavailable: SecurityTransferFlowUnavailableReason | null;
+  returnUnavailable: PortfolioReturnUnavailableReason | null;
 }
 
 export interface AllocationClass {
@@ -108,6 +111,7 @@ export interface AllocationReport {
   cluster: ClusterRisk;
   /** Month ends from the first day to today; `null` without history. */
   history: AllocationHistory | null;
+  historyUnavailable: 'missing_valuation_fx' | null;
 }
 
 export type AllocationGroup = ReturnType<typeof compositionGroups<AllocationClass>>[number];
@@ -176,20 +180,29 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
       : budgetStart && budgetStart > portfolioStart
         ? budgetStart
         : portfolioStart;
-  const series =
-    start === null
-      ? null
-      : valuationSeries(db, {
-          from: start,
-          to: today,
-          accounts: universe.accounts.map((a) => a.id),
-          securities: universe.securities.map((s) => s.id),
-        });
   const ttwror12 = new Map<string, number | null>();
-  const returnUnavailable = new Map<string, SecurityTransferFlowUnavailableReason>();
-  if (series && series.days.length > 0) {
-    const window = periodWindow('1J', today, series.days[0]);
+  const returnUnavailable = new Map<string, PortfolioReturnUnavailableReason>();
+  if (start !== null) {
+    const wholeRead = valuationSeriesRead(db, {
+      from: start,
+      to: today,
+      accounts: universe.accounts.map((a) => a.id),
+      securities: universe.securities.map((s) => s.id),
+    });
     for (const line of lines) {
+      const read = wholeRead.available ? wholeRead : valuationSeriesRead(db, {
+        from: start,
+        to: today,
+        accounts: universe.accounts.map((a) => a.id),
+        securities: [line.securityId],
+      });
+      if (!read.available) {
+        returnUnavailable.set(line.securityId, read.reason);
+        ttwror12.set(line.securityId, null);
+        continue;
+      }
+      const series = read.series;
+      const window = periodWindow('1J', today, series.days[0]);
       const mine = series.positions.filter((p) => p.securityId === line.securityId);
       const values = sumSeries(...mine.map((p) => p.valueCents));
       const valuations: Valuation[] = series.days.map((date, i) => ({
@@ -396,41 +409,47 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
     shareBp: compositionRegionShares[i]!,
   }));
 
-  // Soll/Ist at the month ends, from the same daily series.
+  // Soll/Ist at the month ends uses canonical dated allocation inputs independently of returns.
   let history: AllocationHistory | null = null;
-  if (series && start !== null && series.days.length > 0) {
-    const dates = monthBoundaries(start, today);
-    const quality: AllocationQuality[] = [];
-    let previous: ReturnType<typeof resolvePortfolioRiskPolicy> | undefined;
-    const snapshots = dates.map((date) => {
-      const input = allocationInputsAsOf(db, date);
-      if (input.valueCents === null) throwAllocationUnavailable(input, date);
-      quality.push(input.quality);
-      const policy = resolvePortfolioRiskPolicy(db, date, input.valueCents, previous);
-      previous = policy;
-      return { date, positions: input.positions, targets: policy.targets, bandPolicy: policy.R13 };
-    });
-    const timeline = allocationTimeline(snapshots);
-    const composition = allocationTimeline(
-      snapshots.map((s) => ({ ...s, positions: allocationChartPositions(s.positions) })),
-    );
-    history = {
-      dates: timeline.dates,
-      quality,
-      classifiedCents: composition.totalCents,
-      totalCents: timeline.totalCents,
-      classes: timeline.classes.map((c) => ({
-        assetClassId: c.assetClass === NO_CLASS ? null : c.assetClass,
-        name: className(c.assetClass),
-        istBp: c.istBp,
-        chartBp:
-          composition.classes.find((r) => r.assetClass === c.assetClass)?.istBp ??
-          dates.map(() => 0),
-        targetBp: c.targetBp,
-        bandBp: c.bandBp,
-        breach: c.breach,
-      })),
-    };
+  let historyUnavailable: 'missing_valuation_fx' | null = null;
+  if (start !== null) {
+    try {
+      const dates = monthBoundaries(start, today);
+      const quality: AllocationQuality[] = [];
+      let previous: ReturnType<typeof resolvePortfolioRiskPolicy> | undefined;
+      const snapshots = dates.map((date) => {
+        const input = allocationInputsAsOf(db, date);
+        if (input.valueCents === null) throwAllocationUnavailable(input, date);
+        quality.push(input.quality);
+        const policy = resolvePortfolioRiskPolicy(db, date, input.valueCents, previous);
+        previous = policy;
+        return { date, positions: input.positions, targets: policy.targets, bandPolicy: policy.R13 };
+      });
+      const timeline = allocationTimeline(snapshots);
+      const composition = allocationTimeline(
+        snapshots.map((s) => ({ ...s, positions: allocationChartPositions(s.positions) })),
+      );
+      history = {
+        dates: timeline.dates,
+        quality,
+        classifiedCents: composition.totalCents,
+        totalCents: timeline.totalCents,
+        classes: timeline.classes.map((c) => ({
+          assetClassId: c.assetClass === NO_CLASS ? null : c.assetClass,
+          name: className(c.assetClass),
+          istBp: c.istBp,
+          chartBp:
+            composition.classes.find((r) => r.assetClass === c.assetClass)?.istBp ??
+            dates.map(() => 0),
+          targetBp: c.targetBp,
+          bandBp: c.bandBp,
+          breach: c.breach,
+        })),
+      };
+    } catch (error) {
+      if (!(error instanceof ExchangeRateUnavailableError)) throw error;
+      historyUnavailable = 'missing_valuation_fx';
+    }
   }
 
   return {
@@ -450,6 +469,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
     speculative: risk.speculative,
     cluster: risk.cluster,
     history,
+    historyUnavailable,
   };
 }
 

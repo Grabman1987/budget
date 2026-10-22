@@ -20,6 +20,7 @@ import {
   ReportUnavailable,
   bpText,
   percentText,
+  portfolioReturnReasonText,
 } from './portfolio-report-shared';
 import './portfolio-allocation-report.css';
 import { BookRuleMetric } from '../rules/book-rule-metric';
@@ -164,7 +165,9 @@ function AllocationBody({ data }: { data: AllocationReport }) {
           />
         ) : (
           <p className="prep-empty" role="status">
-            Für den Verlauf liegt keine bewertbare Historie vor.
+            {data.historyUnavailable
+              ? 'Der Verlauf ist wegen eines fehlenden historischen Wechselkurses nicht berechenbar. Die aktuelle Verteilung bleibt sichtbar.'
+              : 'Für den Verlauf liegt keine bewertbare Historie vor.'}
           </p>
         )}
         <p className="vnote">
@@ -551,7 +554,7 @@ function ClassTable({ groups, totalCents }: { groups: AllocationGroup[]; totalCe
                     <td />
                     <td />
                     <td className="n" title={p.returnUnavailable
-                      ? `Rendite nicht verfügbar: ${p.returnUnavailable === 'missing_transfer_fx' ? 'Wechselkurs' : 'Wertpapierkurs'} am Übertragstag fehlt.`
+                      ? `Rendite nicht verfügbar: ${portfolioReturnReasonText(p.returnUnavailable)} fehlt.`
                       : undefined}>{percentText(p.ttwror12, { sign: true })}</td>
                   </tr>
                 ))}

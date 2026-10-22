@@ -509,13 +509,15 @@ export function fundCostsReport(db: Executor, today: string): FundCostsReport {
   let unavailable = false;
   try {
     const summary = portfolioSummary(db, { today, period: '1J' });
-    if (summary.valueCents > 0)
+    if (summary.valueCents > 0 && summary.costs.terCents !== null &&
+        summary.costs.costRateBp !== null)
       fundCosts = {
         terCents: summary.costs.terCents,
         feesCents: summary.costs.feesCents,
         costRateBp: summary.costs.costRateBp,
         valueCents: summary.valueCents,
       };
+    else if (summary.costs.terCents === null) unavailable = true;
   } catch (error) {
     if (
       error instanceof MissingFxRateError ||

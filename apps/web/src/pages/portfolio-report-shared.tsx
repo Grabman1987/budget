@@ -1,4 +1,5 @@
 import { useAmountPrivacy, Button } from '@budget/ui';
+import type { PortfolioReturnUnavailableReason } from '@budget/db';
 import type { ReactNode } from 'react';
 import { isUserText, userText } from '../api/error-text';
 import { ApiError } from '../api/http';
@@ -9,6 +10,10 @@ import './portfolio-report-shared.css';
 const percentFormat = (digits: number) =>
   new Intl.NumberFormat('de-AT', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const formats = new Map<number, Intl.NumberFormat>();
+export const portfolioReturnReasonText = (reason: PortfolioReturnUnavailableReason) =>
+  reason === 'missing_transfer_price' ? 'Wertpapierkurs am Übertragstag'
+    : reason === 'missing_transfer_fx' ? 'Wechselkurs am Übertragstag'
+      : 'historischer Wechselkurs für die Bewertung';
 const format = (digits: number) => {
   let existing = formats.get(digits);
   if (!existing) {

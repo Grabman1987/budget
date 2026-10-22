@@ -28,7 +28,7 @@ export interface CostsTaxesProduct {
   /** Illustrative KESt on the unrealised gain; `null` without a documented basis. */
   latentTaxCents: number | null;
   terBp: number;
-  terCents: number;
+  terCents: number | null;
   feesCents: number;
   incomeGrossCents: number;
   /** Tax withheld by the broker on the product's income. */
@@ -49,14 +49,14 @@ export interface CostsTaxesReport {
   /** Taxes exactly as the broker booked them; nothing is computed here. */
   taxes: TaxBreakdown;
   costs: {
-    terCents: number;
+    terCents: number | null;
     fees: FeeBreakdown;
-    totalCents: number;
-    costRateBp: number;
+    totalCents: number | null;
+    costRateBp: number | null;
     targetBp: number;
   };
   /** Erträge brutto − Steuern auf Erträge − Gebühren und TER. */
-  net: { grossCents: number; taxOnIncomeCents: number; costsCents: number; netCents: number };
+  net: { grossCents: number; taxOnIncomeCents: number; costsCents: number | null; netCents: number | null };
   latent: {
     rateBp: number;
     /** Sum over products with a documented basis (an upper bound: no loss netting). */
@@ -104,7 +104,8 @@ export function costsTaxesReport(db: Executor, options: { today: string }): Cost
   const held = new Map(summary.positions.map((p) => [p.securityId, p]));
 
   const ids = new Set<string>([...held.keys()]);
-  for (const [id, c] of costsOf) if (c.terCents > 0 || c.feesCents > 0) ids.add(id);
+  for (const [id, c] of costsOf)
+    if (c.terCents === null || c.terCents > 0 || c.feesCents > 0) ids.add(id);
   for (const id of income.keys()) ids.add(id);
 
   const products = [...ids]
@@ -125,7 +126,7 @@ export function costsTaxesReport(db: Executor, options: { today: string }): Cost
           unrealizedGainCents: position ? gain : 0,
           latentTaxCents: position ? (gain === null ? null : latentTaxCents(gain)) : 0,
           terBp: sec.terBp,
-          terCents: cost?.terCents ?? 0,
+          terCents: cost?.terCents ?? (summary.costs.terCents === null ? null : 0),
           feesCents: cost?.feesCents ?? 0,
           incomeGrossCents: earned?.gross ?? 0,
           incomeTaxCents: earned?.tax ?? 0,
@@ -134,7 +135,7 @@ export function costsTaxesReport(db: Executor, options: { today: string }): Cost
     })
     .sort((a, b) => b.valueCents - a.valueCents || a.securityId.localeCompare(b.securityId));
 
-  const costsCents = summary.costs.terCents + fees.totalCents;
+  const costsCents = summary.costs.terCents === null ? null : summary.costs.terCents + fees.totalCents;
   return {
     asOf: today,
     from,
@@ -146,15 +147,15 @@ export function costsTaxesReport(db: Executor, options: { today: string }): Cost
       terCents: summary.costs.terCents,
       fees,
       totalCents: costsCents,
-      costRateBp:
-        summary.valueCents > 0 ? Math.round((costsCents * 10_000) / summary.valueCents) : 0,
+      costRateBp: costsCents === null ? null
+        : summary.valueCents > 0 ? Math.round((costsCents * 10_000) / summary.valueCents) : 0,
       targetBp: COST_RATE_TARGET_BP,
     },
     net: {
       grossCents,
       taxOnIncomeCents: taxes.onIncomeCents,
       costsCents,
-      netCents: grossCents - taxes.onIncomeCents - costsCents,
+      netCents: costsCents === null ? null : grossCents - taxes.onIncomeCents - costsCents,
     },
     latent: {
       rateBp: KEST_RATE_BP,

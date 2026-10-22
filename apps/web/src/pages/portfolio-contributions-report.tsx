@@ -19,6 +19,7 @@ import { PageFrame } from './placeholder-page';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import './portfolio-contributions-report.css';
+import { portfolioReturnReasonText } from './portfolio-report-shared';
 
 interface ContributionsPortfolio extends PortfolioSummary {
   contributionHistory?: ContributionHistory | null;
@@ -145,7 +146,7 @@ export function PortfolioContributionsReport({
         {!query.isError && query.data && history === null && (
           <p className="contributions-empty" role="status">
             {query.data.portfolio.returnUnavailable
-              ? `Einzahlungen und Wertzuwachs können wegen eines fehlenden ${query.data.portfolio.returnUnavailable === 'missing_transfer_fx' ? 'Wechselkurses' : 'Wertpapierkurses'} am Übertragstag nicht berechnet werden. Bestände und belegte Kosten bleiben verfügbar.`
+              ? `Einzahlungen und Wertzuwachs können nicht berechnet werden: ${portfolioReturnReasonText(query.data.portfolio.returnUnavailable)} fehlt. Bestände und belegte Kosten bleiben verfügbar.`
               : 'Für die Wertpapiere liegt noch keine bewertbare Historie vor. Es wird kein Anfangswert oder Nullertrag angenommen.'}
           </p>
         )}

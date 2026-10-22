@@ -2,6 +2,7 @@ import { portfolioBenchmarks, type PortfolioBenchmarkSeries } from './portfolio-
 import { cashValuer } from './cash-valuation';
 import {
   ExchangeRateUnavailableError,
+  eachDay,
   benchmarkQuotesInEur,
   performanceReportSeries,
   depotIndexLine,
@@ -22,7 +23,8 @@ import {
   cashSeries,
   portfolioFlowsRead,
   valuationSeries,
-  type SecurityTransferFlowUnavailableReason,
+  valuationSeriesRead,
+  type PortfolioReturnUnavailableReason,
 } from './portfolio';
 import { firstDay, positionLines, ratesAsOf } from './portfolio-summary';
 import type { Executor } from './types';
@@ -106,8 +108,9 @@ export function depotComparison(
   };
   if (start === null) return empty;
 
-  const series = valuationSeries(db, { from: start, to: today });
-  if (series.days.length === 0) return empty;
+  const wholeRead = valuationSeriesRead(db, { from: start, to: today });
+  const days = wholeRead.available ? wholeRead.series.days : eachDay(start, today);
+  if (days.length === 0) return empty;
   const investmentAccounts = db
     .select({ id: account.id })
     .from(account)
@@ -137,10 +140,10 @@ export function depotComparison(
   );
 
   type InputRead = { available: true; input: PerformanceInput } | {
-    available: false; reason: SecurityTransferFlowUnavailableReason;
+    available: false; reason: PortfolioReturnUnavailableReason;
   };
   const inputOf = (values: number[], accounts: ReadonlyArray<string>): InputRead => {
-    const valuations: Valuation[] = series.days.map((date, i) => ({
+    const valuations: Valuation[] = days.map((date, i) => ({
       date,
       valueCents: values[i] as number,
     }));
@@ -213,8 +216,10 @@ export function depotComparison(
   const withBenchmark = (input: PerformanceInput): PerformanceInput =>
     levels.length > 0 ? { ...input, benchmark: levels } : input;
 
-  const values = new Map<string, number[]>();
-  for (const a of accounts) {
+  const valuesOf = (
+    a: (typeof accounts)[number],
+    series: ReturnType<typeof valuationSeries>,
+  ): number[] => {
     const mine = series.positions.filter((p) => p.accountId === a.id);
     const held = sumSeries(...mine.map((p) => p.valueCents));
     const cash =
@@ -232,9 +237,7 @@ export function depotComparison(
     const value = cashValuer(db);
     let cursor = 0;
     let latest: (typeof manual)[number] | undefined;
-    values.set(
-      a.id,
-      series.days.map((day, i) => {
+    return series.days.map((day, i) => {
         while (cursor < manual.length && manual[cursor]!.date <= day) latest = manual[cursor++];
         if (a.type === 'brokerage' || a.type === 'crypto') return held[i] ?? 0;
         const manualCents =
@@ -244,12 +247,31 @@ export function depotComparison(
         if (manualCents && manualCents.eurCents === null)
           throw new ExchangeRateUnavailableError(a.currency, day);
         return manualCents?.eurCents ?? (held[i] ?? 0) + cash[i]!;
-      }),
-    );
+      });
+  };
+  const values = new Map<string, number[]>();
+  const endValues = new Map<string, number>();
+  const valuationUnavailable = new Map<string, 'missing_valuation_fx'>();
+  for (const a of accounts) {
+    try {
+      const series = wholeRead.available ? wholeRead.series
+        : valuationSeries(db, { from: start, to: today, accounts: [a.id] });
+      const accountValues = valuesOf(a, series);
+      values.set(a.id, accountValues);
+      endValues.set(a.id, accountValues.at(-1)!);
+    } catch (error) {
+      if (!(error instanceof ExchangeRateUnavailableError)) throw error;
+      valuationUnavailable.set(a.id, 'missing_valuation_fx');
+      // A known current value is independent of the unknown historical return.
+      const current = valuationSeries(db, { from: today, to: today, accounts: [a.id] });
+      endValues.set(a.id, valuesOf(a, current)[0]!);
+    }
   }
-  const allValues = sumSeries(...values.values());
-  const totalRead = inputOf(allValues, investmentAccounts);
-  const window = periodWindow(period, today, series.days[0]);
+  const allValues = valuationUnavailable.size ? null : sumSeries(...values.values());
+  const totalRead: InputRead = allValues === null
+    ? { available: false, reason: 'missing_valuation_fx' }
+    : inputOf(allValues, investmentAccounts);
+  const window = periodWindow(period, today, days[0]);
   const totalPerformance = totalRead.available
     ? windowPerformance(withBenchmark(totalRead.input), window) : null;
   const effective = totalPerformance
@@ -276,27 +298,30 @@ export function depotComparison(
       : null;
 
   // Closed zero-value accounts remain visible only when this period contains value or flows.
-  const inputByAccount = new Map(
-    accounts.map((row) => [row.id, inputOf(values.get(row.id)!, [row.id])] as const),
-  );
+  const inputByAccount = new Map(accounts.map((row): readonly [string, InputRead] => [
+    row.id,
+    valuationUnavailable.has(row.id)
+      ? { available: false, reason: 'missing_valuation_fx' }
+      : inputOf(values.get(row.id)!, [row.id]),
+  ]));
   const accountIds = accounts
     .filter((a) => {
       const read = inputByAccount.get(a.id)!;
+      if (!read.available) return true;
       return (
         !a.closedAt ||
-        series.days.some(
-          (day, i) => day >= effective.from && day <= effective.to && values.get(a.id)![i] !== 0,
+        days.some(
+          (day, i) => day >= effective.from && day <= effective.to &&
+            values.get(a.id)![i] !== 0,
         ) ||
-        !read.available ||
         read.input.flows.some(
           (f) => f.date > effective.from && f.date <= effective.to && f.cents !== 0,
         )
       );
     })
     .map((a) => a.id);
-  const lastIndex = series.days.length - 1;
-  const endValue = (id: string) => (values.get(id) as number[])[lastIndex] as number;
-  const totalValue = allValues[lastIndex] as number;
+  const endValue = (id: string) => endValues.get(id)!;
+  const totalValue = [...endValues.values()].reduce((sum, value) => sum + value, 0);
   const shares = shareBps(
     accountIds.map(endValue),
     accountIds.reduce((sum, id) => sum + endValue(id), 0),

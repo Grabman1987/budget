@@ -24,6 +24,7 @@ import {
   SignedMoney,
   bpText,
   percentText,
+  portfolioReturnReasonText,
 } from './portfolio-report-shared';
 import './portfolio-depots-report.css';
 
@@ -304,8 +305,7 @@ function KpiTable({ columns }: { columns: DepotColumn[] }) {
                 {depot.name}
                 {depot.returnUnavailable && (
                   <small className="prep-muted" role="status">
-                    {' '}· Rendite nicht verfügbar: {depot.returnUnavailable === 'missing_transfer_fx'
-                      ? 'Wechselkurs' : 'Wertpapierkurs'} am Übertragstag fehlt
+                    {' '}· Rendite nicht verfügbar: {portfolioReturnReasonText(depot.returnUnavailable)} fehlt
                   </small>
                 )}
               </th>

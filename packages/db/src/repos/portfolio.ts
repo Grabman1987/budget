@@ -1228,6 +1228,7 @@ function pairedFlowTrades(db: Executor, filter: FlowFilter & {
 }
 
 export type SecurityTransferFlowUnavailableReason = 'missing_transfer_price' | 'missing_transfer_fx';
+export type PortfolioReturnUnavailableReason = SecurityTransferFlowUnavailableReason | 'missing_valuation_fx';
 
 /** A report's boundary flow is missing valuation evidence; the security basis remains readable. */
 export class SecurityTransferFlowUnavailableError extends Error {
@@ -1396,6 +1397,22 @@ export function portfolioFlowsRead(
   } catch (error) {
     if (!(error instanceof SecurityTransferFlowUnavailableError)) throw error;
     return { available: false, reason: error.reason, asOf: error.asOf };
+  }
+}
+
+/** Only a missing historical FX valuation becomes a partial report; all other failures propagate. */
+export function valuationSeriesRead(
+  db: Executor,
+  filter: Parameters<typeof valuationSeries>[1],
+  options: Parameters<typeof valuationSeries>[2] = {},
+):
+  | { available: true; series: ValuationSeries }
+  | { available: false; reason: 'missing_valuation_fx'; asOf: string } {
+  try {
+    return { available: true, series: valuationSeries(db, filter, options) };
+  } catch (error) {
+    if (!(error instanceof ExchangeRateUnavailableError)) throw error;
+    return { available: false, reason: 'missing_valuation_fx', asOf: error.asOf };
   }
 }
 

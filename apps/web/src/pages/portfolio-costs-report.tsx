@@ -89,7 +89,7 @@ function Row({
 }: {
   pos: string;
   label: string;
-  cents: number;
+  cents: number | null;
   note?: string;
 }) {
   useAmountPrivacy();
@@ -100,7 +100,7 @@ function Row({
         {label}
         {note && <small>{note}</small>}
       </td>
-      <td className="n">{eur(value)}</td>
+      <td className="n">{value === null ? '–' : eur(value)}</td>
     </tr>
   );
 }
@@ -126,18 +126,26 @@ function CostsBody({ data }: { data: CostsTaxesReport }) {
           </div>
           <div className="prep-lead">
             <span className="tech">Netto nach Steuern und Kosten</span>
-            <strong data-testid="costs-net">{eur(net.netCents)}</strong>
+            <strong data-testid="costs-net">{net.netCents === null ? '–' : eur(net.netCents)}</strong>
           </div>
-          <DimensionChain
-            precision="cent"
-            label="Maßkette Kosten und Steuern"
-            terms={[
-              { label: 'Erträge brutto', value: cents(net.grossCents) },
-              { label: 'Steuern auf Erträge', value: cents(net.taxOnIncomeCents), op: '-' },
-              { label: 'Gebühren und TER', value: cents(net.costsCents), op: '-' },
-              { label: 'Netto', value: cents(net.netCents), op: '=', result: true },
-            ]}
-          />
+          {net.costsCents !== null && net.netCents !== null ? (
+            <DimensionChain
+              precision="cent"
+              label="Maßkette Kosten und Steuern"
+              terms={[
+                { label: 'Erträge brutto', value: cents(net.grossCents) },
+                { label: 'Steuern auf Erträge', value: cents(net.taxOnIncomeCents), op: '-' },
+                { label: 'Gebühren und TER', value: cents(net.costsCents), op: '-' },
+                { label: 'Netto', value: cents(net.netCents), op: '=', result: true },
+              ]}
+            />
+          ) : (
+            <p className="vnote" role="status">
+              Der TER und damit der Nettoertrag sind wegen eines fehlenden historischen
+              Wechselkurses nicht berechenbar. Gebuchte Gebühren, Erträge und Steuern bleiben
+              sichtbar.
+            </p>
+          )}
           <div className="prep-scroll">
             <table
               className="prep-table costs-parts"
@@ -165,7 +173,7 @@ function CostsBody({ data }: { data: CostsTaxesReport }) {
                 <Row pos="2.2" label="auf Zinsen" cents={-taxes.interestCents} />
                 <tr className="is-group">
                   <td colSpan={2}>Gebühren und TER</td>
-                  <td className="n">{eur(-costs.totalCents)}</td>
+                  <td className="n">{costs.totalCents === null ? '–' : eur(-costs.totalCents)}</td>
                 </tr>
                 <Row
                   pos="3.1"
@@ -185,11 +193,11 @@ function CostsBody({ data }: { data: CostsTaxesReport }) {
                   pos={costs.fees.otherCents > 0 ? '3.5' : '3.4'}
                   label="Fondskosten (TER)"
                   note="laufend im Kurs enthalten, hier als Kostenanteil gerechnet"
-                  cents={-costs.terCents}
+                  cents={costs.terCents === null ? null : -costs.terCents}
                 />
                 <tr className="is-total">
                   <td colSpan={2}>Netto</td>
-                  <td className="n">{eur(net.netCents)}</td>
+                  <td className="n">{net.netCents === null ? '–' : eur(net.netCents)}</td>
                 </tr>
               </tbody>
             </table>
@@ -245,10 +253,11 @@ function CostsBody({ data }: { data: CostsTaxesReport }) {
             <div>
               <dt className="tech">Kostenquote</dt>
               <dd data-testid="cost-rate">
-                {bpText(costs.costRateBp, { digits: 2 })}
+                {costs.costRateBp === null ? '–' : bpText(costs.costRateBp, { digits: 2 })}
                 <small>
                   Ziel ≤ {bpText(costs.targetBp, { digits: 2 })} ·{' '}
-                  {costs.costRateBp <= costs.targetBp ? 'eingehalten' : 'überschritten'}
+                  {costs.costRateBp === null ? 'nicht berechenbar'
+                    : costs.costRateBp <= costs.targetBp ? 'eingehalten' : 'überschritten'}
                 </small>
               </dd>
             </div>
@@ -310,7 +319,7 @@ function CostsBody({ data }: { data: CostsTaxesReport }) {
                   <td className="n">
                     {p.terBp > 0 || p.feesCents > 0 ? (
                       <>
-                        {eur(p.terCents + p.feesCents)}
+                        {p.terCents === null ? '–' : eur(p.terCents + p.feesCents)}
                         {p.terBp > 0 && <small>TER {bpText(p.terBp, { digits: 2 })}</small>}
                       </>
                     ) : (
@@ -348,7 +357,8 @@ function CostsBody({ data }: { data: CostsTaxesReport }) {
                 </td>
                 <td className="n">{eur(-latent.totalCents)}</td>
                 <td className="n">
-                  {eur(data.products.reduce((a, p) => a + p.terCents + p.feesCents, 0))}
+                  {data.products.some((p) => p.terCents === null) ? '–'
+                    : eur(data.products.reduce((a, p) => a + p.terCents! + p.feesCents, 0))}
                 </td>
                 <td className="n">{eur(income.grossCents)}</td>
               </tr>

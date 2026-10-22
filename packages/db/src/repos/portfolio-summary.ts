@@ -63,7 +63,9 @@ import {
   portfolioFlowsRead,
   SecurityTransferFlowUnavailableError,
   valuationSeries,
+  valuationSeriesRead,
   valuationProvenanceCollector,
+  type PortfolioReturnUnavailableReason,
   type SecurityTransferFlowUnavailableReason,
   type ValuationProvenance,
 } from './portfolio';
@@ -155,8 +157,8 @@ export interface PortfolioSummary {
   realizedGainCents: number;
   /** `null` while the portfolio has no history (no holding or trade yet). */
   performance: WindowPerformance | null;
-  /** A recorded one-sided transfer lacks the dated value required for returns. */
-  returnUnavailable: SecurityTransferFlowUnavailableReason | null;
+  /** A boundary flow or historical daily valuation lacks evidence required for returns. */
+  returnUnavailable: PortfolioReturnUnavailableReason | null;
   /** A selected product series may be unavailable even when the aggregate return is known. */
   performanceHistoryUnavailable: SecurityTransferFlowUnavailableReason | null;
   /** Optional securities-only contribution report, derived from the same daily series and flows. */
@@ -166,12 +168,12 @@ export interface PortfolioSummary {
   benchmark: { securityId: string; name: string } | null;
   /** TER on month ends plus the fees of 12 months, over the current value. */
   costs: {
-    terCents: number;
+    terCents: number | null;
     feesCents: number;
-    totalCents: number;
-    costRateBp: number;
+    totalCents: number | null;
+    costRateBp: number | null;
     /** The same costs per security (fees only on securities that are still live). */
-    bySecurity: Array<{ securityId: string; terCents: number; feesCents: number }>;
+    bySecurity: Array<{ securityId: string; terCents: number | null; feesCents: number }>;
   };
   /** Dividends and interest of the 12 months up to `asOf`. */
   income: IncomeSummary;
@@ -875,7 +877,9 @@ function portfolioSummaryInRange(
         )
       : undefined;
   let performance: WindowPerformance | null = null;
-  let returnUnavailable: SecurityTransferFlowUnavailableReason | null = null;
+  let returnUnavailable: PortfolioReturnUnavailableReason | null = null;
+  let historicalValuationUnavailable = false;
+  let historicalTerUnavailable = false;
   let performanceHistoryUnavailable: SecurityTransferFlowUnavailableReason | null = null;
   let performanceHistory: PortfolioPerformanceHistory | null = null;
   let benchmark: PortfolioSummary['benchmark'] = null;
@@ -884,255 +888,280 @@ function portfolioSummaryInRange(
   let contributionHistory: ContributionHistory | null | undefined =
     options.includeContributionHistory ? null : undefined;
   if (start !== null) {
-    const series = valuationSeries(
+    const seriesRead = valuationSeriesRead(
       db,
       { from: start, to: today },
       provenance ? { observe: provenance.observe } : {},
     );
-    const days = series.days;
-    let total = series.totalCents;
-    if (view === 'depot') {
-      const reference = options.referenceAccounts ?? investmentAccounts;
-      const cash = cashSeries(db, days, reference);
-      total = sumSeries(series.totalCents, ...cash.values());
-    }
-    const valuations: Valuation[] = days.map((date, i) => ({
-      date,
-      valueCents: total[i] as number,
-    }));
-    const flowsRead = portfolioFlowsRead(db, {
-      from: start,
-      to: today,
-      view,
-      referenceAccounts: options.referenceAccounts ?? investmentAccounts,
-      accounts: investmentAccounts,
-    });
-    const returnFlowsRead =
-      view === 'securities'
-        ? portfolioFlowsRead(db, {
-            from: start,
-            to: today,
-            view,
-            accounts: investmentAccounts,
-            taxBasis: 'before-tax',
-          })
-        : flowsRead;
-    const irrFlowsRead =
-      view === 'securities'
-        ? portfolioFlowsRead(db, {
-            from: start,
-            to: today,
-            view,
-            accounts: investmentAccounts,
-            taxBasis: 'pp-irr',
-          })
-        : flowsRead;
-    if (!flowsRead.available) returnUnavailable = flowsRead.reason;
-    else if (!returnFlowsRead.available) returnUnavailable = returnFlowsRead.reason;
-    else if (!irrFlowsRead.available) returnUnavailable = irrFlowsRead.reason;
-    else {
-    const flows = flowsRead.flows;
-    const returnFlows = returnFlowsRead.flows;
-    const irrFlows = irrFlowsRead.flows;
-    const performanceInput = { series: valuations, flows, returnFlows, irrFlows };
-
-    const benchmarkId = options.benchmarkSecurityId ?? lines[0]?.securityId;
-    let levels: ReportQuote[] | undefined;
-    const benchmarkSecurity = benchmarkId ? loaded.securities.get(benchmarkId) : undefined;
-    if (benchmarkSecurity) {
-      const rows = db
-        .select()
-        .from(price)
-        .where(and(eq(price.securityId, benchmarkSecurity.id), lte(price.date, today)))
-        .orderBy(asc(price.date))
-        .all();
-      levels = benchmarkQuotesInEur(rows, rates, benchmarkSecurity.kind);
-      if (levels.length > 0)
-        benchmark = { securityId: benchmarkSecurity.id, name: benchmarkSecurity.name };
-      else levels = undefined;
-    }
-    performance = periodPerformance(
-      { ...performanceInput, ...(levels ? { benchmark: levels } : {}) },
-      period,
-      today,
-    );
-
-    benchmarks = portfolioBenchmarks(db, performanceInput, performance);
-    if (options.includePerformanceHistory) {
-      const selected = portfolioBenchmark(db);
-      const rows =
-        selected.available && selected.securityId
-          ? db
-              .select()
-              .from(price)
-              .where(and(eq(price.securityId, selected.securityId), lte(price.date, today)))
-              .orderBy(asc(price.date))
-              .all()
-          : [];
-      const benchmarkKind = selected.securityId
-        ? loaded.securities.get(selected.securityId)?.kind
-        : undefined;
-      const quotes = benchmarkQuotesInEur(rows, rates, benchmarkKind);
-      const groups = [...loaded.classNames].map(([assetClassId, name]) => ({
-        assetClassId: assetClassId as string | null,
-        name,
+    if (!seriesRead.available) {
+      returnUnavailable = seriesRead.reason;
+      historicalValuationUnavailable = true;
+      historicalTerUnavailable = true;
+      // TER needs only its twelve month-end marks. Recover those independently when
+      // the missing historical FX day falls elsewhere; never replace a missing mark by zero.
+      const ends = lastTwelveMonthEnds(today);
+      const recovered = new Map<string, number[]>();
+      for (const [index, day] of ends.entries()) {
+        if (day < start) continue;
+        const mark = valuationSeriesRead(db, { from: day, to: day });
+        if (!mark.available) break;
+        for (const position of mark.series.positions) {
+          const row = recovered.get(position.securityId) ?? ends.map(() => 0);
+          row[index] = row[index]! + position.valueCents[0]!;
+          recovered.set(position.securityId, row);
+        }
+        if (index === ends.length - 1) {
+          for (const [id, row] of recovered) monthEndValues.set(id, row);
+          historicalTerUnavailable = false;
+        }
+      }
+    } else {
+      const series = seriesRead.series;
+      const days = series.days;
+      let total = series.totalCents;
+      if (view === 'depot') {
+        const reference = options.referenceAccounts ?? investmentAccounts;
+        const cash = cashSeries(db, days, reference);
+        total = sumSeries(series.totalCents, ...cash.values());
+      }
+      const valuations: Valuation[] = days.map((date, i) => ({
+        date,
+        valueCents: total[i] as number,
       }));
-      groups.push({ assetClassId: null, name: 'Ohne Anlageklasse' });
-      try {
-        performanceHistory = portfolioPerformanceHistory(
-          db,
-          performanceInput,
-          performance,
-          series,
-          groups,
-          (securities, taxBasis = 'after-tax') =>
-            portfolioFlows(db, {
+      const flowsRead = portfolioFlowsRead(db, {
+        from: start,
+        to: today,
+        view,
+        referenceAccounts: options.referenceAccounts ?? investmentAccounts,
+        accounts: investmentAccounts,
+      });
+      const returnFlowsRead =
+        view === 'securities'
+          ? portfolioFlowsRead(db, {
               from: start,
               to: today,
-              view: 'securities',
+              view,
               accounts: investmentAccounts,
-              securities,
-              taxBasis,
-            }),
-          selected.securityId ? quotes : undefined,
-        );
-      } catch (error) {
-        if (!(error instanceof SecurityTransferFlowUnavailableError)) throw error;
-        performanceHistory = null;
-        performanceHistoryUnavailable = error.reason;
-      }
-      benchmark = selected.securityId
-        ? { securityId: selected.securityId, name: selected.name ?? 'Wertpapier nicht verfügbar' }
-        : null;
-      const months = performanceHistory?.months ?? [];
-      const beta =
-        months.length > 1 && months.every((m) => m.rate !== null && m.benchmarkRate !== null)
-          ? monthlyFigures(
-              months.map((m) => m.rate!),
-              months.map((m) => m.benchmarkRate!),
-            ).beta
-          : null;
-      if (performanceHistory)
-        performance = { ...performance, benchmarkTtwror: performanceHistory.benchmarkReturn, beta };
-    }
+              taxBasis: 'before-tax',
+            })
+          : flowsRead;
+      const irrFlowsRead =
+        view === 'securities'
+          ? portfolioFlowsRead(db, {
+              from: start,
+              to: today,
+              view,
+              accounts: investmentAccounts,
+              taxBasis: 'pp-irr',
+            })
+          : flowsRead;
+      if (!flowsRead.available) returnUnavailable = flowsRead.reason;
+      else if (!returnFlowsRead.available) returnUnavailable = returnFlowsRead.reason;
+      else if (!irrFlowsRead.available) returnUnavailable = irrFlowsRead.reason;
+      else {
+        const flows = flowsRead.flows;
+        const returnFlows = returnFlowsRead.flows;
+        const irrFlows = irrFlowsRead.flows;
+        const performanceInput = { series: valuations, flows, returnFlows, irrFlows };
 
-    if (options.includeContributionHistory) {
-      if (!performance) {
-        contributionHistory = null;
-      } else {
-        const selectedPerformance = performance;
-        const assertSafeCents = (values: number[]) => {
-          if (values.some((value) => !Number.isSafeInteger(value)))
-            throw new ContributionHistoryLimitError();
-        };
-        assertSafeCents([
-          selectedPerformance.startValueCents,
-          selectedPerformance.endValueCents,
-          selectedPerformance.contributionsCents,
-          selectedPerformance.gainCents,
-        ]);
-        const selectedFlows = flows
-          .filter((f) => f.date > selectedPerformance.from && f.date <= selectedPerformance.to)
-          .sort((a, b) => a.date.localeCompare(b.date));
-        let flowIndex = 0;
-        let dailyFlow = 0;
-        const daily = valuations
-          .filter((v) => v.date >= selectedPerformance.from && v.date <= selectedPerformance.to)
-          .map((v) => {
-            while (flowIndex < selectedFlows.length && selectedFlows[flowIndex]!.date <= v.date) {
-              dailyFlow += selectedFlows[flowIndex++]!.cents;
-              assertSafeCents([dailyFlow]);
-            }
-            const investedCents = selectedPerformance.startValueCents + dailyFlow;
-            assertSafeCents([v.valueCents, investedCents]);
-            return { ...v, investedCents };
-          });
-        const windowInput = performanceInput;
-        const bounds = monthBoundaries(selectedPerformance.from, selectedPerformance.to);
-        let cumulativeFlow = 0;
-        const months = bounds.slice(1).map((to, index) => {
-          const from = bounds[index] as string;
-          const segment = windowPerformance(windowInput, { from, to });
-          cumulativeFlow += segment.contributionsCents;
-          const row = {
-            from,
-            to,
-            valueCents: segment.endValueCents,
-            investedCents: selectedPerformance.startValueCents + cumulativeFlow,
-            startValueCents: segment.startValueCents,
-            inflowsCents: flows
-              .filter((f) => f.date > from && f.date <= to && f.cents > 0)
-              .reduce((sum, f) => sum + f.cents, 0),
-            outflowsCents: flows
-              .filter((f) => f.date > from && f.date <= to && f.cents < 0)
-              .reduce((sum, f) => sum + f.cents, 0),
-            contributionsCents: segment.contributionsCents,
-            gainCents: segment.gainCents,
-          };
-          assertSafeCents([
-            cumulativeFlow,
-            row.valueCents,
-            row.investedCents,
-            row.contributionsCents,
-            row.gainCents,
-          ]);
-          return row;
-        });
-        const years: ContributionHistory['years'] = [];
-        for (
-          let year = Number(selectedPerformance.from.slice(0, 4));
-          year <= Number(selectedPerformance.to.slice(0, 4));
-          year++
-        ) {
-          const yearStart = `${year - 1}-12-31`;
-          const from = yearStart < selectedPerformance.from ? selectedPerformance.from : yearStart;
-          const to =
-            `${year}-12-31` > selectedPerformance.to ? selectedPerformance.to : `${year}-12-31`;
-          if (to <= from) continue;
-          const yearPerformance = windowPerformance(windowInput, { from, to });
-          assertSafeCents([
-            yearPerformance.startValueCents,
-            yearPerformance.endValueCents,
-            yearPerformance.contributionsCents,
-            yearPerformance.gainCents,
-          ]);
-          years.push({
-            year,
-            months: yearPerformance.monthCount,
-            performance: yearPerformance,
-          });
+        const benchmarkId = options.benchmarkSecurityId ?? lines[0]?.securityId;
+        let levels: ReportQuote[] | undefined;
+        const benchmarkSecurity = benchmarkId ? loaded.securities.get(benchmarkId) : undefined;
+        if (benchmarkSecurity) {
+          const rows = db
+            .select()
+            .from(price)
+            .where(and(eq(price.securityId, benchmarkSecurity.id), lte(price.date, today)))
+            .orderBy(asc(price.date))
+            .all();
+          levels = benchmarkQuotesInEur(rows, rates, benchmarkSecurity.kind);
+          if (levels.length > 0)
+            benchmark = { securityId: benchmarkSecurity.id, name: benchmarkSecurity.name };
+          else levels = undefined;
         }
-        contributionHistory = {
-          from: selectedPerformance.from,
-          to: selectedPerformance.to,
-          startValueCents: selectedPerformance.startValueCents,
-          endValueCents: selectedPerformance.endValueCents,
-          contributionsCents: selectedPerformance.contributionsCents,
-          gainCents: selectedPerformance.gainCents,
-          months,
-          years,
-          daily,
-        };
-      }
-    }
-    }
+        performance = periodPerformance(
+          { ...performanceInput, ...(levels ? { benchmark: levels } : {}) },
+          period,
+          today,
+        );
 
-    // Month-end values per security for the TER (from the same series).
-    const ends = lastTwelveMonthEnds(today);
-    const index = new Map(days.map((d, i) => [d, i]));
-    for (const p of series.positions) {
-      const list = monthEndValues.get(p.securityId) ?? ends.map(() => 0);
-      ends.forEach((day, k) => {
-        const i = index.get(day);
-        if (i !== undefined) list[k] = (list[k] as number) + (p.valueCents[i] as number);
-      });
-      monthEndValues.set(p.securityId, list);
+        benchmarks = portfolioBenchmarks(db, performanceInput, performance);
+        if (options.includePerformanceHistory) {
+          const selected = portfolioBenchmark(db);
+          const rows =
+            selected.available && selected.securityId
+              ? db
+                  .select()
+                  .from(price)
+                  .where(and(eq(price.securityId, selected.securityId), lte(price.date, today)))
+                  .orderBy(asc(price.date))
+                  .all()
+              : [];
+          const benchmarkKind = selected.securityId
+            ? loaded.securities.get(selected.securityId)?.kind
+            : undefined;
+          const quotes = benchmarkQuotesInEur(rows, rates, benchmarkKind);
+          const groups = [...loaded.classNames].map(([assetClassId, name]) => ({
+            assetClassId: assetClassId as string | null,
+            name,
+          }));
+          groups.push({ assetClassId: null, name: 'Ohne Anlageklasse' });
+          try {
+            performanceHistory = portfolioPerformanceHistory(
+              db,
+              performanceInput,
+              performance,
+              series,
+              groups,
+              (securities, taxBasis = 'after-tax') =>
+                portfolioFlows(db, {
+                  from: start,
+                  to: today,
+                  view: 'securities',
+                  accounts: investmentAccounts,
+                  securities,
+                  taxBasis,
+                }),
+              selected.securityId ? quotes : undefined,
+            );
+          } catch (error) {
+            if (!(error instanceof SecurityTransferFlowUnavailableError)) throw error;
+            performanceHistory = null;
+            performanceHistoryUnavailable = error.reason;
+          }
+          benchmark = selected.securityId
+            ? { securityId: selected.securityId, name: selected.name ?? 'Wertpapier nicht verfügbar' }
+            : null;
+          const months = performanceHistory?.months ?? [];
+          const beta =
+            months.length > 1 && months.every((m) => m.rate !== null && m.benchmarkRate !== null)
+              ? monthlyFigures(
+                  months.map((m) => m.rate!),
+                  months.map((m) => m.benchmarkRate!),
+                ).beta
+              : null;
+          if (performanceHistory)
+            performance = { ...performance, benchmarkTtwror: performanceHistory.benchmarkReturn, beta };
+        }
+
+        if (options.includeContributionHistory) {
+          if (!performance) {
+            contributionHistory = null;
+          } else {
+            const selectedPerformance = performance;
+            const assertSafeCents = (values: number[]) => {
+              if (values.some((value) => !Number.isSafeInteger(value)))
+                throw new ContributionHistoryLimitError();
+            };
+            assertSafeCents([
+              selectedPerformance.startValueCents,
+              selectedPerformance.endValueCents,
+              selectedPerformance.contributionsCents,
+              selectedPerformance.gainCents,
+            ]);
+            const selectedFlows = flows
+              .filter((f) => f.date > selectedPerformance.from && f.date <= selectedPerformance.to)
+              .sort((a, b) => a.date.localeCompare(b.date));
+            let flowIndex = 0;
+            let dailyFlow = 0;
+            const daily = valuations
+              .filter((v) => v.date >= selectedPerformance.from && v.date <= selectedPerformance.to)
+              .map((v) => {
+                while (flowIndex < selectedFlows.length && selectedFlows[flowIndex]!.date <= v.date) {
+                  dailyFlow += selectedFlows[flowIndex++]!.cents;
+                  assertSafeCents([dailyFlow]);
+                }
+                const investedCents = selectedPerformance.startValueCents + dailyFlow;
+                assertSafeCents([v.valueCents, investedCents]);
+                return { ...v, investedCents };
+              });
+            const windowInput = performanceInput;
+            const bounds = monthBoundaries(selectedPerformance.from, selectedPerformance.to);
+            let cumulativeFlow = 0;
+            const months = bounds.slice(1).map((to, index) => {
+              const from = bounds[index] as string;
+              const segment = windowPerformance(windowInput, { from, to });
+              cumulativeFlow += segment.contributionsCents;
+              const row = {
+                from,
+                to,
+                valueCents: segment.endValueCents,
+                investedCents: selectedPerformance.startValueCents + cumulativeFlow,
+                startValueCents: segment.startValueCents,
+                inflowsCents: flows
+                  .filter((f) => f.date > from && f.date <= to && f.cents > 0)
+                  .reduce((sum, f) => sum + f.cents, 0),
+                outflowsCents: flows
+                  .filter((f) => f.date > from && f.date <= to && f.cents < 0)
+                  .reduce((sum, f) => sum + f.cents, 0),
+                contributionsCents: segment.contributionsCents,
+                gainCents: segment.gainCents,
+              };
+              assertSafeCents([
+                cumulativeFlow,
+                row.valueCents,
+                row.investedCents,
+                row.contributionsCents,
+                row.gainCents,
+              ]);
+              return row;
+            });
+            const years: ContributionHistory['years'] = [];
+            for (
+              let year = Number(selectedPerformance.from.slice(0, 4));
+              year <= Number(selectedPerformance.to.slice(0, 4));
+              year++
+            ) {
+              const yearStart = `${year - 1}-12-31`;
+              const from = yearStart < selectedPerformance.from ? selectedPerformance.from : yearStart;
+              const to =
+                `${year}-12-31` > selectedPerformance.to ? selectedPerformance.to : `${year}-12-31`;
+              if (to <= from) continue;
+              const yearPerformance = windowPerformance(windowInput, { from, to });
+              assertSafeCents([
+                yearPerformance.startValueCents,
+                yearPerformance.endValueCents,
+                yearPerformance.contributionsCents,
+                yearPerformance.gainCents,
+              ]);
+              years.push({
+                year,
+                months: yearPerformance.monthCount,
+                performance: yearPerformance,
+              });
+            }
+            contributionHistory = {
+              from: selectedPerformance.from,
+              to: selectedPerformance.to,
+              startValueCents: selectedPerformance.startValueCents,
+              endValueCents: selectedPerformance.endValueCents,
+              contributionsCents: selectedPerformance.contributionsCents,
+              gainCents: selectedPerformance.gainCents,
+              months,
+              years,
+              daily,
+            };
+          }
+        }
+      }
+
+      // Month-end values per security for the TER (from the same series).
+      const ends = lastTwelveMonthEnds(today);
+      const index = new Map(days.map((d, i) => [d, i]));
+      for (const p of series.positions) {
+        const list = monthEndValues.get(p.securityId) ?? ends.map(() => 0);
+        ends.forEach((day, k) => {
+          const i = index.get(day);
+          if (i !== undefined) list[k] = (list[k] as number) + (p.valueCents[i] as number);
+        });
+        monthEndValues.set(p.securityId, list);
+      }
     }
   }
 
   // ---- costs and income of 12 months ----
   const allTrades = tradesInEur(tradesUpTo(db, today), ratesAsOf(db, today));
-  let terCents = 0;
+  let terCents: number | null = historicalTerUnavailable ? null : 0;
   let feesCents = 0;
   const costsBySecurity: PortfolioSummary['costs']['bySecurity'] = [];
   for (const sec of loaded.securities.values()) {
@@ -1145,20 +1174,21 @@ function portfolioSummaryInRange(
       today,
       valueCents: line?.valueCents ?? 0,
     });
-    terCents += costs.terCents;
+    if (terCents !== null) terCents += costs.terCents;
     feesCents += costs.feesCents;
     costsBySecurity.push({
       securityId: sec.id,
-      terCents: costs.terCents,
+      terCents: historicalTerUnavailable ? null : costs.terCents,
       feesCents: costs.feesCents,
     });
   }
-  const totalCostCents = terCents + feesCents;
+  const totalCostCents = terCents === null ? null : terCents + feesCents;
   const costs = {
     terCents,
     feesCents,
     totalCents: totalCostCents,
-    costRateBp: valueCents > 0 ? Math.round((totalCostCents * 10_000) / valueCents) : 0,
+    costRateBp: totalCostCents === null ? null
+      : valueCents > 0 ? Math.round((totalCostCents * 10_000) / valueCents) : 0,
     bySecurity: costsBySecurity,
   };
   const income = incomeLast12Months(allTrades, today);
@@ -1228,7 +1258,8 @@ function portfolioSummaryInRange(
       securities: Object.fromEntries([...loaded.securities].map(([id, s]) => [id, s.name])),
       institutions: Object.fromEntries(loaded.institutions),
     },
-    ...(provenance ? { valuationProvenance: provenance.finish() } : {}),
+    ...(provenance && !historicalValuationUnavailable
+      ? { valuationProvenance: provenance.finish() } : {}),
   };
 }
 

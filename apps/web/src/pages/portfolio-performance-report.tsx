@@ -24,6 +24,7 @@ import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import './portfolio-performance-report.css';
 import { PerformanceComparisons } from './portfolio-performance-comparisons';
+import { portfolioReturnReasonText } from './portfolio-report-shared';
 
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
 
@@ -252,7 +253,7 @@ function PerformanceBody({
         ) : (
           <p className="performance-empty" role="status">
             {summary.returnUnavailable
-              ? `Die Rendite kann wegen eines fehlenden ${summary.returnUnavailable === 'missing_transfer_fx' ? 'Wechselkurses' : 'Wertpapierkurses'} am Übertragstag nicht berechnet werden. Bestände und belegte Kosten bleiben sichtbar.`
+              ? `Die Rendite kann nicht berechnet werden: ${portfolioReturnReasonText(summary.returnUnavailable)} fehlt. Bestände und belegte Kosten bleiben sichtbar.`
               : 'Für das Portfolio liegt keine Renditehistorie vor. Eine Rendite wird nicht als null angenommen.'}
           </p>
         )}
