@@ -300,6 +300,37 @@ it('preserves the existing account-reminder hash deep link with actual Aufgaben 
   ).toBe(true);
 });
 
+it('opens the account anchor on already mounted navigation and retains a subsequent source choice', async () => {
+  const item: InboxStored = {
+    type: 'stored',
+    id: 'anchor-other',
+    kind: 'consent',
+    title: 'Synthetic anchor fallback',
+    detail: null,
+    refType: null,
+    refId: null,
+    urgent: false,
+    createdAt: '2026-10-20T08:00:00Z',
+  };
+  fetchFixture((url) =>
+    url.pathname === '/api/bank-sync'
+      ? json({ configured: false, connections: [], accounts: [] })
+      : json(taskPage([item])),
+  );
+  const { router } = mount('/konten/pruefen', true);
+  await userEvent.click(await screen.findByRole('button', { name: 'Weitere Aufgaben öffnen' }));
+  expect(await screen.findByText('Synthetic anchor fallback')).toBeTruthy();
+  await act(async () => {
+    await router.navigate({ to: '/konten/pruefen', hash: 'account-reminder-title' });
+  });
+  expect(await screen.findByRole('heading', { name: 'Konten prüfen' })).toBeTruthy();
+  expect(screen.getByRole('link', { name: 'Kontostand prüfen' })).toBeTruthy();
+  await userEvent.click(screen.getByRole('button', { name: 'Weitere Aufgaben öffnen' }));
+  expect(await screen.findByText('Synthetic anchor fallback')).toBeTruthy();
+  expect(screen.queryByRole('link', { name: 'Kontostand prüfen' })).toBeNull();
+  expect(router.state.location.hash).toBe('account-reminder-title');
+});
+
 it('suppresses cached source counts and account actions after a fatal refetch, then restores them after retry', async () => {
   let fail = false;
   fetchFixture((url) =>

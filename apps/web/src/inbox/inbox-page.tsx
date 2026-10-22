@@ -454,24 +454,33 @@ function FilteredInboxBody({
   );
 }
 
-function PaginatedInboxBody({
+function PaginatedInboxBody(props: InboxBodyProps & { bankSource?: string | undefined }) {
+  const hash = useLocation({ select: (location) => location.hash });
+  const accountAnchor = !props.bankSource && hash === 'account-reminder-title';
+  // A new anchor landing initializes its source once; later user selections keep this lifecycle.
+  return (
+    <PaginatedInboxBodyContent
+      key={accountAnchor ? 'account-anchor' : 'queue'}
+      {...props}
+      accountAnchor={accountAnchor}
+    />
+  );
+}
+
+function PaginatedInboxBodyContent({
   bankSource,
+  accountAnchor,
   ...props
-}: InboxBodyProps & { bankSource?: string | undefined }) {
+}: InboxBodyProps & { bankSource?: string | undefined; accountAnchor: boolean }) {
   useAmountPrivacy();
   const search = useSearch({ strict: false }) as InboxSearch;
   const navigate = useNavigate();
   // `auto` lets the server open on the part with open work; the part then stays put while the
   // user works through it, even when it empties.
-  const hash = useLocation({ select: (location) => location.hash });
-  const accountAnchor = !bankSource && hash === 'account-reminder-title';
   const [pinned, setPinned] = useState<InboxSegment>();
   const [taskSource, setTaskSource] = useState<
     'accounts' | 'plan' | 'receipts' | 'payslips' | 'other' | undefined
   >(() => (accountAnchor ? 'accounts' : undefined));
-  useEffect(() => {
-    if (accountAnchor) setTaskSource('accounts');
-  }, [accountAnchor]);
   const queue = useInfiniteQuery(
     inboxPagesQuery(
       search.aufgaben,
