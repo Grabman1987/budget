@@ -270,12 +270,19 @@ async function scene(
     exact: true,
   });
   await hit(strike, minimum);
+  // Start at the disclosure, then reach the row action through the real native tab order.
+  await summary.focus();
+  for (let tab = 0; tab < 64; tab++) {
+    await page.keyboard.press('Tab');
+    if (await strike.evaluate((element) => element === document.activeElement)) break;
+  }
+  await expect(strike).toBeFocused();
   const skippedResponse = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
       new URL(response.url()).pathname === `/api/expected/${ids.debitId}/skip`,
   );
-  await strike.click();
+  await page.keyboard.press('Enter');
   const skipped = await skippedResponse;
   expect(skipped.status()).toBe(200);
   const skipResult = (await skipped.json()) as { groupId: string };

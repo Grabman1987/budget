@@ -152,3 +152,16 @@ date, Undo, stroke, geometry and deadline expectations are retained.
 Root scoped ESLint/Prettier passed for all five final adapter files. Complete
 Chromium execution of these adapters remains required in CI; product source and
 prior native evidence are unchanged by these commits.
+
+## Explicit row-action keyboard proof plan
+
+The NEW native acceptance now reaches the first strike button through actual Tab
+presses starting at the open tools summary, asserts that the accessible row
+action owns focus, then presses Enter. A bounded 64-Tab traversal covers the
+synthetic tools form without assuming a fragile exact index; failure to reach
+the button fails the unchanged focus assertion. The action itself never receives
+programmatic focus or a forced click. Existing pointer-target geometry remains
+checked before navigation, and every skip response/date/amount, audit Undo,
+unskip, money-state and timeout assertion remains unchanged. Second strike
+remains a pointer activation, retaining both interaction modes. This is planned
+proof only until root executes the targeted native profile and required CI.
