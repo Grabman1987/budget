@@ -917,13 +917,17 @@ button.ct-term .ct-val {
 .sw-need {
   background: var(--need);
 }
-.sw-want {
+.sw.sw-want {
   border-radius: 50%;
+}
+.sw-want {
   background: var(--hatch-want);
   box-shadow: inset 0 0 0 1px var(--want);
 }
-.sw-future {
+.sw.sw-future {
   clip-path: polygon(50% 0, 0 100%, 100% 100%);
+}
+.sw-future {
   background: var(--hatch-future);
   box-shadow: inset 0 0 0 1px var(--future);
 }
