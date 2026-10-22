@@ -36,7 +36,7 @@ export function TaskSourceSummary({
             <td>
               <Button
                 variant="ghost"
-                disabled={counts[source] === 0 && selected !== source}
+                disabled={source !== 'receipts' && counts[source] === 0 && selected !== source}
                 aria-expanded={selected === source}
                 aria-label={`${label} ${selected === source ? 'schließen' : 'öffnen'}`}
                 onClick={() => onSelect(selected === source ? undefined : source)}

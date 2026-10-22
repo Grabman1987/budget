@@ -5,7 +5,7 @@ import { test } from './isolated-ledger';
 import { syntheticPayslipPdf } from '../apps/server/src/payslips/testing';
 import { inspectReport } from './spending-helpers';
 import { toast } from './ledger-helpers';
-import { openPruefenPart } from './pruefen-part';
+import { openPruefenPart, openPruefenSource } from './pruefen-part';
 
 test.describe.configure({ timeout: 120000 });
 
@@ -105,6 +105,7 @@ test('synthetic encrypted PDF upload, confirm, undo and reject on phone and desk
   await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
   await page.goto('/konten/posteingang');
   await openPruefenPart(page, 'Aufgaben');
+  await openPruefenSource(page, 'Gehaltszettel');
   const row = page.getByTestId('inbox-row').filter({ hasText: 'Gehaltszettel 09/2026 erkannt' });
   await row.getByText('Gehaltszettel prüfen', { exact: true }).click();
   const inboxReview = page.getByRole('dialog', { name: 'Gehaltszettel prüfen' });
@@ -216,6 +217,7 @@ for (const intakeMethod of ['chooser', 'drop'] as const) {
     ]);
     await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
     await page.goto('/konten/posteingang');
+    await openPruefenSource(page, 'Gehaltszettel');
     await expect(page.getByTestId('inbox-row')).toHaveCount(1);
     expect((await (await request.get('/api/bookings')).json()).items).toHaveLength(0);
     expect((await (await request.get('/api/payslips?month=2026-09')).json()).captured).toHaveLength(

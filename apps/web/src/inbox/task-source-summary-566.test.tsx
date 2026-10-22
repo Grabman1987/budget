@@ -4,6 +4,20 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { TaskSourceSummary } from './task-source-summary';
 
 afterEach(cleanup);
+it('keeps receipt intake reachable before any unlinked receipt exists', () => {
+  const select = vi.fn();
+  render(
+    <TaskSourceSummary
+      counts={{ accounts: 0, plan: 0, receipts: 0, payslips: 0, other: 0 }}
+      selected={undefined}
+      onSelect={select}
+    />,
+  );
+  const uploadSource = screen.getByRole('button', { name: 'Belege ohne Buchung öffnen' });
+  expect((uploadSource as HTMLButtonElement).disabled).toBe(false);
+  fireEvent.click(uploadSource);
+  expect(select).toHaveBeenCalledExactlyOnceWith('receipts');
+});
 it('retains all five source rows with raw counts and opens the chosen source without counting rows as tasks', () => {
   const select = vi.fn();
   const { rerender } = render(

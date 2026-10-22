@@ -1,3 +1,4 @@
+import { openPruefenSource } from './pruefen-part';
 import AxeBuilder from '@axe-core/playwright';
 import { inboxItem, insertTracked, openDatabase } from '@budget/db';
 import { expect } from '@playwright/test';
@@ -47,6 +48,7 @@ test('inbox periods, repeated causes and warning details preserve context and op
   await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-09$/);
   await prufen.click();
   await page.getByLabel('Zeitraum der Aufgaben').selectOption('current');
+  await openPruefenSource(page, 'Weitere Aufgaben');
   await expect(page.getByText('4 offen', { exact: true })).toBeVisible();
   await expect(page.getByTestId('inbox-row')).toHaveCount(1);
   const group = page.getByRole('button', { name: /Synthetische Datenprüfung.*2 Aufgaben/ });
@@ -77,10 +79,12 @@ test('inbox periods, repeated causes and warning details preserve context and op
   }
   await page.reload();
   await page.getByRole('link', { name: 'Zurück zu Prüfen' }).click();
+  await openPruefenSource(page, 'Weitere Aufgaben');
   await expect(page.getByLabel('Zeitraum der Aufgaben')).toHaveValue('current');
   await expect(group).toHaveAttribute('aria-expanded', 'true');
   await detailLink.click();
   await page.goBack();
+  await openPruefenSource(page, 'Weitere Aufgaben');
   await expect(group).toHaveAttribute('aria-expanded', 'true');
   await page.getByLabel('Zeitraum der Aufgaben').selectOption('historical');
   await expect(page.getByTestId('inbox-row')).toHaveCount(1);
@@ -91,6 +95,7 @@ test('inbox periods, repeated causes and warning details preserve context and op
   await page.goto('/konten/posteingang/check-b?aufgaben=historical');
   await expect(page.locator('.source-inbox-detail')).toBeVisible();
   await page.getByRole('link', { name: 'Zurück zu Prüfen' }).click();
+  await openPruefenSource(page, 'Weitere Aufgaben');
   await expect(page.getByLabel('Zeitraum der Aufgaben')).toHaveValue('historical');
 });
 
@@ -119,6 +124,7 @@ test('repeated data checks retain whole-cause counts across network pages', asyn
     opened.close();
   }
   await page.goto('/konten/posteingang?aufgaben=current');
+  await openPruefenSource(page, 'Weitere Aufgaben');
   const group = page.getByRole('button', { name: /Wiederholte Zuordnung.*101 Aufgaben/ });
   await expect(group).toBeVisible();
   await expect(page.getByTestId('inbox-row')).toHaveCount(0);
@@ -138,6 +144,7 @@ test('repeated data checks retain whole-cause counts across network pages', asyn
   await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();
   await expect(resolve).toBeVisible();
   await page.getByRole('link', { name: 'Zurück zu Prüfen' }).click();
+  await openPruefenSource(page, 'Weitere Aufgaben');
   await expect(page.getByTestId('inbox-row')).toHaveCount(101);
   expect((await (await page.request.get('/api/inbox')).json()).count).toBe(101);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

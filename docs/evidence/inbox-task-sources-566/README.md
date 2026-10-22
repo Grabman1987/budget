@@ -1,5 +1,11 @@
 # #566 task-source grouping and counts
 
+The receiving local integrator's [CI follow-up](CI-FOLLOWUP.md) records the
+current corrections, separately scoped successful runs and failed diagnostics.
+Its [final browser manifest](final-browser/proof.json) pins16 source/test files
+and16 original artifacts. Earlier revision-specific evidence below is retained;
+new exact-head full CI and protected live verification remain pending.
+
 ## Delivered contract
 
 The owner-approved #477/#561 contract is implemented: due account checks are counted once inside Aufgaben, the global Prüfen count remains Umsätze + Aufgaben, and displayed source counts represent raw outstanding work rather than visual rows. The five exhaustive Aufgaben sources are Konten, Plan, receipts, payslips, and other existing tasks. Source classification uses persisted source identifiers, never titles or generic kinds; savings proposals are not double-counted. Existing booking/receipt/payroll actions and pagination remain the drilldown destinations. Bank status remains read-only.
