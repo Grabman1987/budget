@@ -16,6 +16,7 @@ it('retains all five source rows with raw counts and opens the chosen source wit
   expect(screen.getAllByRole('row')).toHaveLength(6);
   const plan = screen.getByRole('row', { name: 'Plan 9 Plan öffnen' });
   expect(within(plan).getByRole('cell', { name: '9' })).toBeTruthy();
+  expect(within(plan).getByRole('button', { name: 'Plan öffnen' }).textContent).toBe('Öffnen');
   fireEvent.click(within(plan).getByRole('button', { name: 'Plan öffnen' }));
   expect(select).toHaveBeenCalledExactlyOnceWith('plan');
   rerender(

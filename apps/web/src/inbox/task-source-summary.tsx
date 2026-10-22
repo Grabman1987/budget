@@ -11,7 +11,7 @@ export function TaskSourceSummary({
   onSelect: (source: InboxTaskSource | undefined) => void;
 }) {
   return (
-    <table className="rev-table">
+    <table className="rev-table inbox-task-sources">
       <caption className="sr-only">Alle offenen Aufgaben nach Quelle</caption>
       <thead>
         <tr>
@@ -38,9 +38,10 @@ export function TaskSourceSummary({
                 variant="ghost"
                 disabled={counts[source] === 0 && selected !== source}
                 aria-expanded={selected === source}
+                aria-label={`${label} ${selected === source ? 'schließen' : 'öffnen'}`}
                 onClick={() => onSelect(selected === source ? undefined : source)}
               >
-                {label} {selected === source ? 'schließen' : 'öffnen'}
+                {selected === source ? 'Schließen' : 'Öffnen'}
               </Button>
             </td>
           </tr>

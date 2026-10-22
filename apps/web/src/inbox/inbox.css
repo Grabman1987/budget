@@ -265,3 +265,29 @@
 .inbox-segments button {
   min-height: 44px;
 }
+
+/* Source names may wrap; fixed action/count columns keep the phone table inside its page. */
+.inbox-task-sources {
+  table-layout: fixed;
+}
+.inbox-task-sources th,
+.inbox-task-sources td {
+  overflow-wrap: anywhere;
+  padding-inline-end: var(--space-sm);
+}
+.inbox-task-sources th:nth-child(2),
+.inbox-task-sources td:nth-child(2) {
+  width: var(--touch);
+}
+.inbox-task-sources th:last-child,
+.inbox-task-sources td:last-child {
+  width: calc(var(--touch) * 2 + var(--space-lg));
+  padding-inline-end: 0;
+}
+.inbox-task-sources .btn {
+  width: 100%;
+  max-width: 100%;
+  min-width: var(--touch);
+  min-height: var(--touch);
+  white-space: normal;
+}

@@ -613,9 +613,8 @@ function PaginatedInboxBody({
               )}
               <h2>Offene Aufgaben · {segmentCounts.counts.aufgaben}</h2>
               <p>
-                Die Zahlen zählen alle offenen Aufgaben, nicht die Gruppenzeilen. Der Zeitraum
-                filtert die Einträge in Plan, Gehaltszettel und Weitere Aufgaben; fällige
-                Kontoprüfungen und offene Belege bleiben sichtbar.
+                Der Zeitraum gilt für Plan, Gehaltszettel und Weitere Aufgaben. Kontoprüfungen und
+                Belege bleiben unabhängig davon sichtbar.
               </p>
               <TaskSourceSummary
                 counts={firstPage.taskSources}
