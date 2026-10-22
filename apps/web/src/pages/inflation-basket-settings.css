@@ -99,3 +99,5 @@
 .basket-coicop:not([open]) > :not(summary) {
   display: none;
 }
+
+.basket-filter { display: inline-flex; align-items: center; gap: 8px; min-height: var(--touch); margin-block: 8px; }

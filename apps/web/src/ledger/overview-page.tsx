@@ -105,6 +105,8 @@ export function OverviewPage() {
     <PageFrame meta={KONTEN_META}>
       <div className="kview account-overview-577">
         <div className="overview-actions">
+          <Link className="btn btn-ghost" to="/konten/verwalten">Konten verwalten</Link>
+          <Link className="btn btn-ghost" to="/konten/portfolio-einstellungen">Portfolio-Auswertung einstellen</Link>
           {presentation && presentation.visible.length > 0 && (
             <Button
               size="sm"

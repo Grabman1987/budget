@@ -7,7 +7,7 @@ import { request } from '../api/http';
 import { AccountOptions } from '../ledger/account-options';
 import { errorText } from '../ledger/labels';
 import type { AccountRow } from '../ledger/types';
-import { PAGES } from '../nav/pages';
+import { settingsSectionMeta } from '../settings/navigation';
 import { PageFrame } from './placeholder-page';
 import { CryptoReadSourceSection } from './read-source';
 import { PayslipSourceSection } from '../reports/payslip-intake';
@@ -74,7 +74,7 @@ const statuses: Record<string, string> = {
 export function DataSourcesPage() {
   return (
     <PageFrame
-      meta={PAGES.find((p) => p.path === '/einstellungen/datenquellen')!}
+      meta={settingsSectionMeta('verbindungen')}
       revealCurrentRegister
     >
       <div className="data-sources">

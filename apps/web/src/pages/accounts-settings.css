@@ -74,3 +74,6 @@
     justify-content: flex-start;
   }
 }
+
+/* Drag and the grip's arrow-key alternative share the existing audited ordering action. */
+.accounts-settings .order-step { display: none; }

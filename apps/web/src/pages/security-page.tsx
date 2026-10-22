@@ -22,7 +22,7 @@ import { defaultDeviceName } from '../auth/device-name';
 import { RecoveryCodesGate } from '../auth/recovery-codes';
 import { PASSKEYS_KEY } from '../auth/status-query';
 import { authErrorMessage, registerPasskey, withStepUp } from '../auth/webauthn';
-import { SECURITY_META } from '../nav/pages';
+import { settingsSectionMeta } from '../settings/navigation';
 import { PageFrame } from './placeholder-page';
 import { clearDeviceFinancialData } from '../pwa/local-data';
 import { StorageStatus } from '../pwa/storage-status';
@@ -40,9 +40,9 @@ export function SecurityPage() {
   useAmountPrivacy();
   const navigate = useNavigate();
   return (
-    <PageFrame meta={SECURITY_META}>
-      <StorageStatus />
+    <PageFrame meta={settingsSectionMeta('sicherheit')}>
       <SecurityPanel onLoggedOut={() => void navigate({ to: '/login' })} />
+      <StorageStatus />
     </PageFrame>
   );
 }

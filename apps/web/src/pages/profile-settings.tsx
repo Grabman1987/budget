@@ -1,4 +1,3 @@
-import { FuturePreviewSetting } from './future-preview-setting';
 import {
   Button,
   Field,
@@ -24,11 +23,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ApiError, request } from '../api/http';
 import { errorText } from '../ledger/labels';
-import { PROFILE_META } from '../nav/pages';
+import { undoGroup } from '../ledger/api';
+import { RELOCATED_PAGES } from '../settings/navigation';
+import { useUnsavedSettings } from '../settings/use-unsaved-settings';
 import { PROFILE_KEY, PROFILE_PATH, profileQuery } from '../shell/use-profile';
 import { PageFrame } from './placeholder-page';
 import './profile-settings.css';
-import { DisplayPreferences } from './display-preferences';
 
 interface Draft {
   name: string;
@@ -55,10 +55,7 @@ type Errors = Partial<Record<'birthDate' | 'household', string>>;
 export function ProfileSettingsPage() {
   useAmountPrivacy();
   return (
-    <PageFrame meta={PROFILE_META} revealCurrentRegister>
-      <DisplayPreferences />
-      <FuturePreviewSetting />
-      <FuturePreviewSetting reminder />
+    <PageFrame meta={RELOCATED_PAGES.profile} revealCurrentRegister>
       <ProfilePanel />
     </PageFrame>
   );
@@ -115,6 +112,8 @@ function ProfileForm({ saved }: { saved: Profile }) {
     body.household !== saved.household ||
     body.region !== saved.region;
 
+  useUnsavedSettings(dirty, busy);
+
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
@@ -141,7 +140,12 @@ function ProfileForm({ saved }: { saved: Profile }) {
         region: result.region,
       };
       client.setQueryData(PROFILE_KEY, profile);
-      toast.show({ message: 'Profil gespeichert.' });
+      toast.show({
+        message: 'Profil gespeichert.', actionLabel: 'Rückgängig',
+        onAction: () => void undoGroup(result.groupId)
+          .then(() => client.invalidateQueries())
+          .catch((error: unknown) => toast.show({ message: errorText(error) })),
+      });
     } catch (e) {
       setError(
         e instanceof ApiError && e.status === 422

@@ -298,6 +298,7 @@ export function OptionenMenu({
         <AppLink className="plan-menu-item" to={`/monatsabschluss/${month}`} search={{}}>
           Monatsabschluss starten oder fortsetzen
         </AppLink>
+        <AppLink className="plan-menu-item" to="/plan/kategorien" search={{ monat: month }}>Kategorien verwalten</AppLink>
       </div>
     </PlanMenu>
   );

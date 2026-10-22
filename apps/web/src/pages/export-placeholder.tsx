@@ -2,7 +2,7 @@ import { Button, SectionHead, maskMoneyText, useAmountPrivacy } from '@budget/ui
 import { useState } from 'react';
 import { ApiError } from '../api/http';
 import { authErrorMessage, withStepUp } from '../auth/webauthn';
-import { CSV_EXPORT_META } from '../nav/pages';
+import { settingsSectionMeta } from '../settings/navigation';
 import { PageFrame } from './placeholder-page';
 
 async function downloadCsvZip(): Promise<void> {
@@ -51,7 +51,7 @@ export function ExportPlaceholderPage() {
   };
 
   return (
-    <PageFrame meta={CSV_EXPORT_META}>
+    <PageFrame meta={settingsSectionMeta('daten-export')}>
       <section className="placeholder" aria-labelledby="export-title">
         <SectionHead id="export-title" title="CSV-Export" />
         <p>Alle Konten und Depots als CSV-Dateien in einer ZIP-Datei herunterladen.</p>

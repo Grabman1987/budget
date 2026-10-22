@@ -107,7 +107,7 @@ export function AccountTree() {
           </button>
           <AppLink
             className="acct-head-action"
-            to="/einstellungen/konten"
+            to="/konten/verwalten"
             aria-label="Konten verwalten"
             title="Konten verwalten"
           >

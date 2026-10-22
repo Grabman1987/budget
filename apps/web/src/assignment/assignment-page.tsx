@@ -7,7 +7,7 @@ import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { LEDGER_KEY } from '../ledger/queries';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
-import { PAGES } from '../nav/pages';
+import { RELOCATED_PAGES } from '../settings/navigation';
 import { IncomeMonthRulesSection } from '../pages/income-month-rules';
 import { PageFrame } from '../pages/placeholder-page';
 import { ScrollRegion } from '../reports/spending-shared';
@@ -51,7 +51,7 @@ export function AssignmentPage() {
   };
   return (
     <PageFrame
-      meta={PAGES.find((p) => p.path === '/einstellungen/zuordnung')!}
+      meta={RELOCATED_PAGES.assignment}
       revealCurrentRegister
     >
       <div className="assignment-page">

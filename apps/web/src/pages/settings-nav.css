@@ -134,3 +134,7 @@
     font-weight: 640;
   }
 }
+
+.settings-section-links { display: grid; gap: 12px; }
+.settings-section-links > a { display: flex; align-items: center; min-height: var(--touch); padding-block: 4px; }
+.settings-nav a { min-height: var(--touch); }

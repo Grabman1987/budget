@@ -10,7 +10,10 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { request } from '../api/http';
-import { INVESTMENT_SETTINGS_META } from '../nav/pages';
+import { undoGroup } from '../ledger/api';
+import { errorText } from '../ledger/labels';
+import { RELOCATED_PAGES } from '../settings/navigation';
+import { useUnsavedSettings } from '../settings/use-unsaved-settings';
 import { PageFrame } from './placeholder-page';
 import './investment-settings.css';
 import { PortfolioBenchmarkSettings } from './portfolio-benchmark-settings';
@@ -25,7 +28,7 @@ const KEY = ['investment-preferences'] as const;
 export function InvestmentSettingsPage() {
   useAmountPrivacy();
   return (
-    <PageFrame meta={INVESTMENT_SETTINGS_META} revealCurrentRegister>
+    <PageFrame meta={RELOCATED_PAGES.investment} title="Portfolio-Auswertung" revealCurrentRegister>
       <InvestmentSettingsPanel />
       <PortfolioBenchmarkSettings />
     </PageFrame>
@@ -42,16 +45,22 @@ export function InvestmentSettingsPanel() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const method = chosen ?? query.data?.costMethod ?? 'average';
+  useUnsavedSettings(chosen !== undefined && chosen !== query.data?.costMethod, busy);
 
   const save = async () => {
     setBusy(true);
     setError(undefined);
     try {
-      const saved = await request<Preferences>('PATCH', PATH, { costMethod: method });
+      const saved = await request<Preferences & { groupId: string }>('PATCH', PATH, { costMethod: method });
       client.setQueryData(KEY, saved);
       setChosen(undefined);
       await client.invalidateQueries();
-      toast.show({ message: 'Einstandskostenmethode gespeichert.' });
+      toast.show({
+        message: 'Einstandskostenmethode gespeichert.', actionLabel: 'Rückgängig',
+        onAction: () => void undoGroup(saved.groupId)
+          .then(() => client.invalidateQueries())
+          .catch((error: unknown) => toast.show({ message: errorText(error) })),
+      });
     } catch {
       setError('Die Einstellung konnte nicht gespeichert werden. Bitte erneut versuchen.');
     } finally {

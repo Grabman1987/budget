@@ -13,6 +13,7 @@ import { Search } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
+import { SETTINGS_SEARCH_PAGES } from '../settings/navigation';
 import { AREAS } from '../nav/areas';
 import { REPORTS } from '../nav/reports-catalog';
 import { isTyping } from './capture-shortcut';
@@ -61,6 +62,7 @@ const COMMANDS: PaletteItem[] = [
 const STATIC_ITEMS: PaletteItem[] = [
   ...COMMANDS,
   ...PAGES,
+  ...SETTINGS_SEARCH_PAGES.map((page) => ({ kind: 'page' as const, id: page.to, label: page.label, detail: null })),
   ...REPORTS.map((r) => ({
     kind: 'report' as const,
     id: r.id,

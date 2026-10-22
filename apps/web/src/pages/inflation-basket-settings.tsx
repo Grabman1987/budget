@@ -8,7 +8,7 @@ import { request } from '../api/http';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { LEDGER_KEY } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
-import { PAGES } from '../nav/pages';
+import { RELOCATED_PAGES } from '../settings/navigation';
 import { AppLink } from '../shell/app-link';
 import { PageFrame } from './placeholder-page';
 import '../reports/spending-reports.css';
@@ -56,6 +56,7 @@ export function InflationBasketSettingsPage() {
   });
   const write = useBudgetWrite();
   const [pending, setPending] = useState<Change[]>([]);
+  const [showAll, setShowAll] = useState(false);
   const save = async (changes: Change[]) => {
     setPending(changes);
     await write(
@@ -79,13 +80,14 @@ export function InflationBasketSettingsPage() {
       })),
     };
   });
+  const visible = showAll ? rows : rows.filter((row) => row.inclusion !== null || row.method !== null || row.trailingMean !== null || row.excludedPayeeIds.length > 0);
   const included = rows.filter((c) => c.included);
   const manual = included.filter(
     (c) => c.inclusion === 'always' || c.method === 'cpi' || c.trailingMean !== null,
   ).length;
   return (
     <PageFrame
-      meta={PAGES.find((p) => p.path === '/einstellungen/warenkorb')!}
+      meta={RELOCATED_PAGES.basket}
       title="Warenkorb (Teuerung)"
     >
       <section className="sr-card basket-settings" aria-labelledby="basket-settings-title">
@@ -116,10 +118,15 @@ export function InflationBasketSettingsPage() {
         {query.isSuccess && !rows.length && (
           <p className="sr-note">Noch keine Ausgabenkategorien angelegt.</p>
         )}
-        {[...new Set(rows.map((c) => c.groupId))].map((group) => (
+        <label className="basket-filter">
+          <input type="checkbox" checked={showAll} onChange={(event) => setShowAll(event.target.checked)} />
+          Alle Kategorien anzeigen
+        </label>
+        {!showAll && visible.length === 0 && query.isSuccess && <p>Keine eigenen Abweichungen gespeichert. Über „Alle Kategorien anzeigen“ kannst du die automatische Auswahl bearbeiten.</p>}
+        {[...new Set(visible.map((c) => c.groupId))].map((group) => (
           <fieldset className="basket-group" key={group} disabled={pending.length > 0}>
             <legend>{rows.find((c) => c.groupId === group)!.groupName}</legend>
-            {rows
+            {visible
               .filter((c) => c.groupId === group)
               .map((c) => (
                 <div className="basket-category" key={c.id} data-testid={'basket-category-' + c.id}>

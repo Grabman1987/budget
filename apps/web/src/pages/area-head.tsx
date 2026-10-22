@@ -89,6 +89,12 @@ export function AreaHead({
 
   switch (meta.area) {
     case 'heute':
+      if (meta.register === 'finanzcheck') {
+        titleNode = title ?? meta.title;
+        titleOnMobile = false;
+        fields = [];
+        break;
+      }
       titleNode = <MonthSwitch heading={monthLabel(month)} />;
       titleOnMobile = TITLE_ON_MOBILE_AREAS.has('heute');
       fields = [
@@ -115,6 +121,12 @@ export function AreaHead({
       ];
       break;
     case 'plan':
+      if (meta.register === 'kategorien') {
+        titleNode = title ?? meta.title;
+        titleOnMobile = false;
+        fields = [];
+        break;
+      }
       titleNode =
         meta.register === 'prognose' ? (
           (title ?? meta.title)

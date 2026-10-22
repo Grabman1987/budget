@@ -1,3 +1,4 @@
+import { useUnsavedSettings } from '../settings/use-unsaved-settings';
 import { validFuturePreviewDays } from '@budget/domain';
 import { Button, Field, SectionHead, TextInput, useToast } from '@budget/ui';
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -47,6 +48,7 @@ function FuturePreviewEditor() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const value = draft ?? String(query.data?.futurePreviewDays ?? '');
+  useUnsavedSettings(draft !== undefined && value !== String(query.data?.futurePreviewDays ?? ''), busy);
   return (
     <section className="profile-settings" aria-labelledby="preview-title">
       <SectionHead id="preview-title" title="Darstellung · Kontovorschau" />

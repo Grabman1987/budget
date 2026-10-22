@@ -24,7 +24,7 @@ import { nativeCurrency } from '../ledger/format';
 import { accountsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { ACCOUNT_TYPES, type AccountRow, type AccountType } from '../ledger/types';
-import { KONTEN_SETTINGS_META } from '../nav/pages';
+import { RELOCATED_PAGES } from '../settings/navigation';
 import { PageFrame } from './placeholder-page';
 import { SettingsFormDialog } from './settings-form-dialog';
 import { assetClassesQuery } from '../wealth/portfolio-api';
@@ -61,7 +61,7 @@ const rateText = (bp: number | null) => (bp === null ? '' : formatDecimal(cents(
 export function AccountsSettingsPage() {
   useAmountPrivacy();
   return (
-    <PageFrame meta={KONTEN_SETTINGS_META} revealCurrentRegister>
+    <PageFrame meta={RELOCATED_PAGES.accounts} title="Konten verwalten" revealCurrentRegister>
       <AccountsSettings />
     </PageFrame>
   );
@@ -91,7 +91,7 @@ export function AccountsSettings() {
       />
       <p className="accounts-purpose">
         Hier pflegst du Name, Typ, Reihenfolge und Konditionen deiner Konten. Das Gehaltskonto wird
-        bei den <a href="/einstellungen/datenquellen">Datenquellen</a> festgelegt. Bei Krediten
+        bei den <a href="/einstellungen/verbindungen">Datenquellen</a> festgelegt. Bei Krediten
         bilden Zinssatz, Monatsrate, Laufzeit und ursprünglicher Betrag die Grundlage für den
         Schuldenrechner unter Vermögen und den Report Bank- und Zinskosten. Jede Änderung ist
         protokolliert und lässt sich rückgängig machen.

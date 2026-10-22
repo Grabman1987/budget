@@ -18,7 +18,7 @@ export function PortfolioAllocation() {
   const navigate = useNavigate();
   const select = () =>
     void navigate({
-      to: '/einstellungen/anlageklassen',
+      to: '/vermoegen/portfolio/allokation/bearbeiten',
       search: { panel: 'sollquoten' },
       state: { panelOpenedInApp: true },
     });

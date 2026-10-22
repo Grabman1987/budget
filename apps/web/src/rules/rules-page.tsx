@@ -7,6 +7,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { HEUTE_KEY } from '../heute/api';
 import { EINSTELLUNGEN_REGELWERK } from '../nav/pages';
+import { RELOCATED_PAGES, SETTINGS_DESTINATIONS } from '../settings/navigation';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
 import { longDay } from '../ledger/format';
@@ -27,7 +28,9 @@ const onOff = (on: boolean) => (on ? 'an' : 'aus');
  * registered rules with their thresholds. Switches and thresholds save at once; every write is one
  * "Rückgängig". The Finanz-Check reads these rules.
  */
-export function RulesPage() {
+export function RulesMonitorPage() { return <RulesPage monitorOnly />; }
+
+export function RulesPage({ monitorOnly = false }: { monitorOnly?: boolean }) {
   useAmountPrivacy();
   const rules = useQuery(rulesQuery());
   const check = useQuery(rulesCheckQuery());
@@ -198,18 +201,18 @@ export function RulesPage() {
                 id={`rule-settings-${r.code}`}
                 className="btn btn-ghost btn-xs"
                 aria-label={`Einstellen ${r.code} ${r.name}`}
-                to={`/einstellungen/regelwerk/${r.code}`}
+                to={`${SETTINGS_DESTINATIONS.rules}/${r.code}`}
                 search={(previous) => ({ monat: previous['monat'] })}
                 state={{ ruleDetailOpenedInApp: true }}
               >
                 Einstellen
               </AppLink>
-              <Switch
+              {!monitorOnly && <Switch
                 id={`rule-switch-${r.code}`}
                 label={`${r.code} ${r.name}`}
                 checked={enabled}
                 onChange={(on) => toggleRule(r, on)}
-              />
+              />}
             </div>
           </li>
         );
@@ -218,7 +221,7 @@ export function RulesPage() {
   );
 
   return (
-    <PageFrame meta={EINSTELLUNGEN_REGELWERK}>
+    <PageFrame meta={monitorOnly ? RELOCATED_PAGES.check : EINSTELLUNGEN_REGELWERK}>
       <div className="kview rw">
         {rules.isPending && <LoadingNote what="Regeln" />}
         {rules.isError && (
@@ -325,11 +328,11 @@ export function RulesPage() {
                                 )}
                               </small>
                             </span>
-                            <Switch
+                            {!monitorOnly && <Switch
                               label={c.name}
                               checked={shown[c.code] ?? c.enabled}
                               onChange={(on) => toggleItem(c, on)}
-                            />
+                            />}
                           </li>
                         ))}
                     </ul>
@@ -337,7 +340,7 @@ export function RulesPage() {
                 ))}
               </div>
             </section>
-            <BookInputForm />
+            {!monitorOnly && <BookInputForm />}
           </>
         )}
       </div>

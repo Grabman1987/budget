@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { SETTINGS_GROUPS, areaById } from '../nav/areas';
+import { useLocation } from '@tanstack/react-router';
+import { SETTINGS_SECTIONS } from '../settings/navigation';
 import { AppLink } from '../shell/app-link';
 import './settings-nav.css';
 
@@ -9,43 +10,32 @@ export interface SettingsNavProps {
 }
 
 /**
- * Grouped navigation of Einstellungen (Daten, Automatik, System). One list for both layouts: the
+ * The six task sections of Einstellungen. One list for both layouts: the
  * rail sits left of every settings page on desktop, the index lists the same links as full-width
- * rows on the phone. The router marks the open page with `aria-current="page"` (exact match, like
- * the sidebar), so the mark follows the URL even while a lazy page is still loading.
+ * rows on the phone. The current section remains marked on its nested editor routes,
+ * including while a lazy page is still loading.
  */
 export function SettingsNav({ variant }: SettingsNavProps) {
+  const pathname = useLocation({ select: (location) => location.pathname });
   return (
     <nav className={`settings-nav settings-nav-${variant}`} aria-label="Einstellungen">
-      {SETTINGS_GROUPS.map((group) => (
-        <div key={group.id} className="settings-group">
-          <p className="tech settings-group-label" id={`settings-group-${group.id}`}>
-            {group.label}
-          </p>
-          <ul aria-labelledby={`settings-group-${group.id}`}>
-            {group.items.map((item) => (
-              <li key={item.id}>
-                <AppLink to={item.to}>
-                  <span className="settings-item-label">{item.label}</span>
-                  <ChevronRight
-                    className="settings-chevron"
-                    size={16}
-                    strokeWidth={1.75}
-                    aria-hidden="true"
-                  />
-                </AppLink>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      <ul>
+        {SETTINGS_SECTIONS.map((section) => (
+          <li key={section.id}>
+            <AppLink to={section.to} aria-current={pathname === section.to || pathname.startsWith(`${section.to}/`) ? 'page' : undefined}>
+              <span className="settings-item-label">{section.label}</span>
+              <ChevronRight className="settings-chevron" size={16} strokeWidth={1.75} aria-hidden="true" />
+            </AppLink>
+          </li>
+        ))}
+      </ul>
     </nav>
   );
 }
 
 /** Phone only: back link to the index plus the name of the open page (the title block has no room). */
 export function SettingsBack({ current }: { current: string | undefined }) {
-  const label = areaById('einstellungen').registers.find((r) => r.id === current)?.label;
+  const label = SETTINGS_SECTIONS.find((section) => section.id === current)?.label;
   return (
     <div className="settings-back">
       <AppLink to="/einstellungen">

@@ -6,7 +6,7 @@ import { request } from '../api/http';
 import { errorText } from '../ledger/labels';
 import { eur } from '../ledger/format';
 import { LoadingNote, ErrorNote } from '../ledger/states';
-import { PAGES } from '../nav/pages';
+import { RELOCATED_PAGES, SETTINGS_DESTINATIONS } from '../settings/navigation';
 import { AppLink } from '../shell/app-link';
 import { PageFrame } from './placeholder-page';
 import {
@@ -46,7 +46,7 @@ function SettingsPanelLink({
   return (
     <AppLink
       className="btn btn-ghost"
-      to="/einstellungen/anlageklassen"
+      to={SETTINGS_DESTINATIONS.allocation}
       search={() => ({ panel, klasse, instrument })}
       state={{ panelOpenedInApp: true }}
     >
@@ -61,7 +61,7 @@ export function AssetClassesSettingsPage() {
   const active = data?.classes.filter((c) => c.deletedAt === null) ?? [];
   return (
     <PageFrame
-      meta={PAGES.find((p) => p.path === '/einstellungen/anlageklassen')!}
+      meta={RELOCATED_PAGES.allocation}
       title="Anlageklassen"
       extraFields={
         allocation

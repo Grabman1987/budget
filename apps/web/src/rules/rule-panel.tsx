@@ -8,7 +8,8 @@ import {
   Switch,
 } from '@budget/ui';
 import { cents, formatDecimal, parseAmount } from '@budget/domain';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useBlocker } from '@tanstack/react-router';
 import { patchRule, type RuleRow } from './api';
 import { RULE_FIELDS, fieldError, fieldText, fieldValue, type FieldSpec } from './rules-model';
 import { useRuleWrite } from './use-rule-writes';
@@ -18,15 +19,24 @@ import { SettingsFormDialog } from '../pages/settings-form-dialog';
 /** Input dialog for thresholds; status belongs to the rule sub-page. */
 export function RulePanel({ rule, onClose }: { rule: RuleRow | null; onClose: () => void }) {
   useAmountPrivacy();
+  const form = useRef({ dirty: false, busy: false });
+  const canClose = () => {
+    if (form.current.busy) return false;
+    if (form.current.dirty && !window.confirm('Ungespeicherte Schwellen verwerfen?')) return false;
+    form.current.dirty = false;
+    return true;
+  };
+  useBlocker({ shouldBlockFn: () => !canClose(), enableBeforeUnload: () => form.current.dirty || form.current.busy });
   return (
     <SettingsFormDialog
       open={rule !== null}
+      beforeClose={canClose}
       onClose={onClose}
       title={rule ? `Schwellen bearbeiten · ${rule.code} ${rule.name}` : ''}
     >
       {rule && (
         // Remounts when the stored parameters change (saved, undone, redone).
-        <RuleForm key={`${rule.code}:${JSON.stringify(rule.params)}`} rule={rule} />
+        <RuleForm key={`${rule.code}:${JSON.stringify(rule.params)}`} rule={rule} onState={(state) => { form.current = state; }} />
       )}
     </SettingsFormDialog>
   );
@@ -36,7 +46,7 @@ export function RulePanel({ rule, onClose }: { rule: RuleRow | null; onClose: ()
 const initial = (spec: FieldSpec, value: unknown): string =>
   spec.unit === 'euro' ? formatDecimal(cents(Number(value ?? 0))) : fieldText(spec, value);
 
-function RuleForm({ rule }: { rule: RuleRow }) {
+function RuleForm({ rule, onState }: { rule: RuleRow; onState: (state: { dirty: boolean; busy: boolean }) => void }) {
   useAmountPrivacy();
   const write = useRuleWrite();
   const specs = RULE_FIELDS[rule.code] ?? [];
@@ -77,6 +87,11 @@ function RuleForm({ rule }: { rule: RuleRow }) {
     if (value !== rule.params[s.key]) changed[s.key] = value;
   }
   const dirty = Object.keys(changed).length > 0;
+  const unsaved = specs.some((spec) => (texts[spec.key] ?? '') !== initial(spec, rule.params[spec.key]));
+  useEffect(() => {
+    onState({ dirty: unsaved, busy });
+    return () => onState({ dirty: false, busy: false });
+  }, [unsaved, busy, onState]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();

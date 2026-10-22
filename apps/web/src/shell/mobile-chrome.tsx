@@ -73,12 +73,13 @@ export function MobileHeader({
           <div className="m-profile-actions">
             <PrivacyButton text />
             <ThemeButton variant="side" />
+            <AppLink className="btn btn-ghost" to="/einstellungen/darstellung" onClick={(event) => event.currentTarget.closest('details')?.removeAttribute('open')}>Darstellung</AppLink>
             <AppLink
               className="btn btn-ghost"
               to="/einstellungen"
               onClick={(event) => event.currentTarget.closest('details')?.removeAttribute('open')}
             >
-              Profil und Einstellungen
+              Einstellungen
             </AppLink>
           </div>
         </details>

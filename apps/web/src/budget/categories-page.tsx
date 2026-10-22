@@ -4,7 +4,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import { AppLink } from '../shell/app-link';
 import { ArrowDown, ArrowUp, EyeOff, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
-import { EINSTELLUNGEN_KATEGORIEN } from '../nav/pages';
+import { RELOCATED_PAGES } from '../settings/navigation';
 import { PageFrame } from '../pages/placeholder-page';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { deleteGroup, sortCategories, type CategoryRow } from './api';
@@ -112,7 +112,7 @@ export function CategoriesPage() {
   });
 
   return (
-    <PageFrame meta={EINSTELLUNGEN_KATEGORIEN}>
+    <PageFrame meta={RELOCATED_PAGES.categories}>
       <div className="kview">
         <div className="kbar cat-bar">
           <span className="cat-hidden-toggle">
@@ -354,7 +354,7 @@ function GroupRows(props: {
             <td>
               <AppLink
                 className="kname-btn"
-                to={`/einstellungen/kategorien/${c.id}`}
+                to={`/plan/kategorien/${c.id}`}
                 search={{ ausgeblendet: props.showHidden || undefined }}
                 state={{ planPanelDetailOpenedInApp: true }}
               >

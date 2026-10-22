@@ -8,7 +8,8 @@ import { useBudgetWrite } from '../budget/use-category-writes';
 import { LEDGER_KEY } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { PageFrame } from './placeholder-page';
-import { PAGES } from '../nav/pages';
+import { RELOCATED_PAGES } from '../settings/navigation';
+import { useUnsavedSettings } from '../settings/use-unsaved-settings';
 import '../reports/payroll-projects.css';
 const projectsQuery = queryOptions({
   queryKey: [...LEDGER_KEY, 'project-management'],
@@ -21,6 +22,7 @@ export function ProjectSettings() {
   const [name, setName] = useState(''),
     [editing, setEditing] = useState<string | null>(null),
     [busy, setBusy] = useState(false);
+  useUnsavedSettings(editing ? name !== query.data?.projects.find((entry) => entry.id === editing)?.name : name !== '', busy);
   const save = async () => {
     if (!name.trim()) return;
     setBusy(true);
@@ -51,7 +53,7 @@ export function ProjectSettings() {
     setBusy(false);
   };
   return (
-    <PageFrame meta={PAGES.find((p) => p.path === '/einstellungen/projekte')!}>
+    <PageFrame meta={RELOCATED_PAGES.projects}>
       <section className="pp-settings">
         <h2>Projekte verwalten</h2>
         <p>

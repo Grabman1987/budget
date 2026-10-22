@@ -1,3 +1,4 @@
+import { SETTINGS_SECTIONS } from '../settings/navigation';
 import { BarChart3, Home, Landmark, TrendingUp, Wallet, type LucideIcon } from 'lucide-react';
 
 /** The five areas of the sitemap (SPEC §3) plus settings. Same order on desktop and phone. */
@@ -79,21 +80,8 @@ export const AREAS: ReadonlyArray<AreaDef> = [
   {
     id: 'einstellungen',
     label: 'Einstellungen',
-    to: '/einstellungen/konten',
-    registers: [
-      { id: 'konten', label: 'Konten', to: '/einstellungen/konten' },
-      { id: 'projekte', label: 'Projekte', to: '/einstellungen/projekte' },
-      { id: 'warenkorb', label: 'Warenkorb (Teuerung)', to: '/einstellungen/warenkorb' },
-      { id: 'kategorien', label: 'Kategorien', to: '/einstellungen/kategorien' },
-      { id: 'regelwerk', label: 'Regelwerk', to: '/einstellungen/regelwerk' },
-      { id: 'zuordnung', label: 'Zuordnungsregeln', to: '/einstellungen/zuordnung' },
-      { id: 'datenquellen', label: 'Datenquellen', to: '/einstellungen/datenquellen' },
-      { id: 'anlageklassen', label: 'Anlageklassen', to: '/einstellungen/anlageklassen' },
-      { id: 'export', label: 'CSV-Export', to: '/einstellungen/export' },
-      { id: 'sicherheit', label: 'Sicherheit', to: '/einstellungen/sicherheit' },
-      { id: 'depots', label: 'Portfolio-Auswertung', to: '/einstellungen/depots' },
-      { id: 'profil', label: 'Profil', to: '/einstellungen/profil' },
-    ],
+    to: '/einstellungen',
+    registers: SETTINGS_SECTIONS.map((section) => ({ id: section.id, label: section.label, to: section.to })),
   },
 ];
 
@@ -114,22 +102,6 @@ export interface SettingsGroup {
 }
 
 /** Register ids of Einstellungen per group, in display order. Every register is in exactly one. */
-const SETTINGS_GROUP_IDS: ReadonlyArray<{ id: string; label: string; registers: string[] }> = [
-  {
-    id: 'daten',
-    label: 'Daten',
-    registers: ['konten', 'kategorien', 'warenkorb', 'projekte', 'anlageklassen', 'depots'],
-  },
-  { id: 'automatik', label: 'Automatik', registers: ['regelwerk', 'zuordnung', 'datenquellen'] },
-  { id: 'system', label: 'System', registers: ['sicherheit', 'export', 'profil'] },
-];
-
-export const SETTINGS_GROUPS: ReadonlyArray<SettingsGroup> = SETTINGS_GROUP_IDS.map((group) => ({
-  id: group.id,
-  label: group.label,
-  items: group.registers.map((id) => {
-    const register = areaById('einstellungen').registers.find((r) => r.id === id);
-    if (!register) throw new Error(`Unknown settings register ${id}`);
-    return register;
-  }),
-}));
+export const SETTINGS_GROUPS: ReadonlyArray<SettingsGroup> = [{
+  id: 'aufgaben', label: 'Einstellungen', items: areaById('einstellungen').registers,
+}];

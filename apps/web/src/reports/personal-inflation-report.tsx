@@ -75,7 +75,7 @@ export function PersonalInflationReport({ report, meta }: { report: ReportEntry;
       reportStand={{ label: 'Stichtag', value: 'Monatsende' }}
     >
       <p>
-        <AppLink to="/einstellungen/warenkorb">Warenkorb bearbeiten</AppLink>
+        <AppLink to="/reports/inflation/warenkorb">Warenkorb bearbeiten</AppLink>
       </p>
       <div className="kview sr" data-testid="personal-inflation">
         <ReportQuery query={query} what="Persönliche Inflation">

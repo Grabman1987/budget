@@ -4,7 +4,8 @@ import { useLocation, useParams, useRouter, useSearch } from '@tanstack/react-ro
 import { useEffect, useRef, useState } from 'react';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { eur } from '../ledger/format';
-import { EINSTELLUNGEN_KATEGORIEN, PLAN_SPARZIELE } from '../nav/pages';
+import { RELOCATED_PAGES } from '../settings/navigation';
+import { PLAN_SPARZIELE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { GoalDetail, GoalHistory, goalsProgressReportQuery } from '../pages/goals-progress-report';
 import { AppLink } from '../shell/app-link';
@@ -68,9 +69,9 @@ export function CategoryDetailPage() {
   }, [category?.id]);
   const target = query.data?.targets.filter((t) => t.categoryId === id).at(-1);
   return (
-    <PageFrame meta={EINSTELLUNGEN_KATEGORIEN} detail>
+    <PageFrame meta={RELOCATED_PAGES.categories} detail>
       <div className="kview plan plan-panel-detail">
-        <DetailBack to="/einstellungen/kategorien" search={{ ausgeblendet }} label="Kategorien" />
+        <DetailBack to="/plan/kategorien" search={{ ausgeblendet }} label="Kategorien" />
         {query.isPending && <LoadingNote what="Kategorie" />}
         {query.isError && (
           <ErrorNote what="Kategorie" error={query.error} onRetry={() => void query.refetch()} />

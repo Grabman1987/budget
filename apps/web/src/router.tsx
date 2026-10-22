@@ -56,6 +56,7 @@ import type { PageTitleData } from './shell/page-meta';
 import { isMonth } from './nav/month';
 import { isZeitraum } from './wealth/zeitraum';
 import { isPanelId, type PanelId } from './shell/panels';
+import { LEGACY_SETTINGS_TARGETS, RELOCATED_PAGES, SETTINGS_DESTINATIONS, settingsSectionMeta, relocatedSettingsHref } from './settings/navigation';
 import { validateReportSearch } from './reports/report-search';
 import { validateLiquiditySearch } from './reports/liquidity-selection';
 
@@ -243,8 +244,8 @@ const securityRoute = createRoute({
 });
 const inflationBasketSettingsRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: '/einstellungen/warenkorb',
-  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/warenkorb')! },
+  path: SETTINGS_DESTINATIONS.basket,
+  staticData: { meta: RELOCATED_PAGES.basket },
   component: lazyRouteComponent(
     () => import('./pages/inflation-basket-settings'),
     'InflationBasketSettingsPage',
@@ -252,14 +253,14 @@ const inflationBasketSettingsRoute = createRoute({
 });
 const projectsSettingsRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: '/einstellungen/projekte',
-  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/projekte')! },
+  path: SETTINGS_DESTINATIONS.projects,
+  staticData: { meta: RELOCATED_PAGES.projects },
   component: lazyRouteComponent(() => import('./pages/project-settings'), 'ProjectSettings'),
 });
 const assetClassesSettingsRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: '/einstellungen/anlageklassen',
-  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/anlageklassen')! },
+  path: SETTINGS_DESTINATIONS.allocation,
+  staticData: { meta: RELOCATED_PAGES.allocation },
   component: lazyRouteComponent(
     () => import('./pages/asset-classes-settings'),
     'AssetClassesSettingsPage',
@@ -267,14 +268,14 @@ const assetClassesSettingsRoute = createRoute({
 });
 const profileRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: PROFILE_META.path,
-  staticData: { meta: PROFILE_META },
+  path: SETTINGS_DESTINATIONS.profile,
+  staticData: { meta: RELOCATED_PAGES.profile },
   component: lazyRouteComponent(() => import('./pages/profile-settings'), 'ProfileSettingsPage'),
 });
 const investmentSettingsRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: INVESTMENT_SETTINGS_META.path,
-  staticData: { meta: INVESTMENT_SETTINGS_META },
+  path: SETTINGS_DESTINATIONS.investment,
+  staticData: { meta: RELOCATED_PAGES.investment },
   component: lazyRouteComponent(
     () => import('./pages/investment-settings'),
     'InvestmentSettingsPage',
@@ -282,28 +283,28 @@ const investmentSettingsRoute = createRoute({
 });
 const accountsSettingsRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: KONTEN_SETTINGS_META.path,
-  staticData: { meta: KONTEN_SETTINGS_META },
+  path: SETTINGS_DESTINATIONS.accounts,
+  staticData: { meta: RELOCATED_PAGES.accounts },
   component: lazyRouteComponent(() => import('./pages/accounts-settings'), 'AccountsSettingsPage'),
 });
 const categoriesRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: EINSTELLUNGEN_KATEGORIEN.path,
+  path: SETTINGS_DESTINATIONS.categories,
   validateSearch: (search: Record<string, unknown>) => ({
     ausgeblendet:
       search['ausgeblendet'] === true || search['ausgeblendet'] === 'true' ? true : undefined,
   }),
-  staticData: { meta: EINSTELLUNGEN_KATEGORIEN },
+  staticData: { meta: RELOCATED_PAGES.categories },
   component: lazyRouteComponent(() => import('./budget/categories-page'), 'CategoriesPage'),
 });
 const categoryDetailRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: '/einstellungen/kategorien/$id',
+  path: '/plan/kategorien/$id',
   validateSearch: (search: Record<string, unknown>) => ({
     ausgeblendet:
       search['ausgeblendet'] === true || search['ausgeblendet'] === 'true' ? true : undefined,
   }),
-  staticData: { meta: { ...EINSTELLUNGEN_KATEGORIEN, title: 'Kategorie' } },
+  staticData: { meta: { ...RELOCATED_PAGES.categories, title: 'Kategorie' } },
   component: lazyRouteComponent(() => import('./budget/plan-panel-pages'), 'CategoryDetailPage'),
 });
 const goalDetailRoute = createRoute({
@@ -317,14 +318,14 @@ const goalDetailRoute = createRoute({
 });
 const rulesRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: EINSTELLUNGEN_REGELWERK.path,
-  staticData: { meta: EINSTELLUNGEN_REGELWERK },
-  component: lazyRouteComponent(() => import('./rules/rules-page'), 'RulesPage'),
+  path: SETTINGS_DESTINATIONS.rules,
+  staticData: { meta: RELOCATED_PAGES.rules },
+  component: lazyRouteComponent(() => import('./rules/rules-configuration-page'), 'RulesConfigurationPage'),
 });
 const ruleStatusRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: '/einstellungen/regelwerk/$code',
-  staticData: { meta: EINSTELLUNGEN_REGELWERK },
+  path: '/heute/finanzcheck/$code',
+  staticData: { meta: RELOCATED_PAGES.check },
   validateSearch: (search: Record<string, unknown>) => ({
     bearbeiten: search['bearbeiten'] === true || search['bearbeiten'] === 'true' ? true : undefined,
   }),
@@ -332,8 +333,8 @@ const ruleStatusRoute = createRoute({
 });
 const assignmentRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: '/einstellungen/zuordnung',
-  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/zuordnung')! },
+  path: SETTINGS_DESTINATIONS.assignment,
+  staticData: { meta: RELOCATED_PAGES.assignment },
   component: lazyRouteComponent(() => import('./assignment/assignment-page'), 'AssignmentPage'),
 });
 const planMonthRoute = createRoute({
@@ -373,14 +374,14 @@ const planIncomeRoute = createRoute({
 });
 const dataSourcesRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: '/einstellungen/datenquellen',
-  staticData: { meta: PAGES.find((p) => p.path === '/einstellungen/datenquellen')! },
+  path: '/einstellungen/verbindungen',
+  staticData: { meta: settingsSectionMeta('verbindungen') },
   component: lazyRouteComponent(() => import('./pages/data-sources'), 'DataSourcesPage'),
 });
 const exportRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: CSV_EXPORT_META.path,
-  staticData: { meta: CSV_EXPORT_META },
+  path: '/einstellungen/daten-export',
+  staticData: { meta: settingsSectionMeta('daten-export') },
   component: lazyRouteComponent(
     () => import('./pages/export-placeholder'),
     'ExportPlaceholderPage',
@@ -528,10 +529,28 @@ const settingsIndexRoute = createRoute({
   path: '/einstellungen',
   staticData: { meta: SETTINGS_INDEX },
   beforeLoad: () => {
-    if (isDesktopViewport()) throw redirect({ to: '/einstellungen/konten' as never });
+    if (isDesktopViewport()) throw redirect({ to: '/einstellungen/darstellung' as never });
   },
   component: lazyRouteComponent(() => import('./pages/settings-index'), 'SettingsIndexPage'),
 });
+const settingsSectionRoutes = [
+  createRoute({ getParentRoute: () => shellRoute, path: '/einstellungen/darstellung', staticData: { meta: settingsSectionMeta('darstellung') }, component: lazyRouteComponent(() => import('./pages/settings-sections'), 'DisplaySettingsPage') }),
+  createRoute({ getParentRoute: () => shellRoute, path: '/einstellungen/regeln-automatik', staticData: { meta: settingsSectionMeta('regeln-automatik') }, component: lazyRouteComponent(() => import('./pages/settings-sections'), 'AutomationSettingsPage') }),
+  createRoute({ getParentRoute: () => shellRoute, path: '/einstellungen/erweitert', staticData: { meta: settingsSectionMeta('erweitert') }, component: lazyRouteComponent(() => import('./pages/settings-sections'), 'AdvancedSettingsPage') }),
+  createRoute({ getParentRoute: () => shellRoute, path: '/einstellungen/regeln-automatik/regeln/$code', staticData: { meta: RELOCATED_PAGES.rules }, component: lazyRouteComponent(() => import('./rules/rules-configuration-page'), 'RuleConfigurationDetailPage') }),
+  createRoute({ getParentRoute: () => shellRoute, path: '/heute/finanzcheck', staticData: { meta: RELOCATED_PAGES.check }, component: lazyRouteComponent(() => import('./rules/rules-page'), 'RulesMonitorPage') }),
+];
+const legacySettingsRoutes = [
+  ...Object.entries(LEGACY_SETTINGS_TARGETS).filter(([from, to]) => from !== to).map(([from]) => from),
+  '/einstellungen/kategorien/$id',
+  '/einstellungen/regelwerk/$code',
+].map((path) => createRoute({
+  getParentRoute: () => shellRoute, path,
+  beforeLoad: ({ location }) => {
+    const href = relocatedSettingsHref(location.pathname, location.searchStr, location.hash);
+    if (href) throw redirect({ href, replace: true });
+  },
+}));
 const redirects = [
   redirectRoute('/reports/liquiditaet', '/plan/prognose'),
   redirectRoute('/konten/posteingang', '/konten/pruefen'),
@@ -792,6 +811,8 @@ const routeTree = rootRoute.addChildren([
     }),
     ...redirects,
     settingsIndexRoute,
+    ...settingsSectionRoutes,
+    ...legacySettingsRoutes,
     overviewRoute,
     bookingsRoute,
     contactsRoute,
@@ -815,6 +836,7 @@ export const router = createRouter({
     location.pathname.startsWith('/plan/monat') ||
     location.pathname.startsWith('/plan/sparziele') ||
     location.pathname.startsWith('/einstellungen/kategorien') ||
+    location.pathname.startsWith('/plan/kategorien') ||
     location.pathname === '/reports/sparziele' ||
     location.pathname.startsWith('/vermoegen/portfolio') ||
     location.pathname.startsWith('/einstellungen/regelwerk') ||

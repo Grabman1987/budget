@@ -100,9 +100,9 @@ export function Sidebar({
       <div className="sidebar-foot">
         <AppLink
           className="profile"
-          to="/einstellungen/profil"
-          title="Profil / Einstellungen"
-          aria-label="Profil / Einstellungen"
+          to="/einstellungen"
+          title="Einstellungen"
+          aria-label="Einstellungen"
           aria-current={area === 'einstellungen' ? 'page' : undefined}
         >
           <span className="avatar" aria-hidden="true">
