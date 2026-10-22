@@ -148,14 +148,26 @@ export function createApp({
         c.header('Cache-Control', 'no-store');
         return c.text('Not found', 404);
       }
+      // An escape still present at the bound could reveal a dev path after further decoding.
+      if (path.includes('%')) {
+        c.header('Cache-Control', 'no-store');
+        return c.text('Not found', 404);
+      }
       if (path === '/dev' || path.startsWith('/dev/') || path.startsWith('/dev%')) {
         c.header('Cache-Control', 'no-store');
         if (
           rawPath === '/dev/bauteile' &&
           (c.req.method === 'GET' || c.req.method === 'HEAD') &&
           bauteileEnabled && auth
-        )
-          return next();
+        ) {
+          try {
+            await next();
+          } finally {
+            // The SPA fallback sets no-cache. Retain no-store on the final protected response.
+            c.header('Cache-Control', 'no-store');
+          }
+          return;
+        }
         return c.text('Not found', 404);
       }
       await next();

@@ -47,6 +47,14 @@ browser validation, CI, PR, merge or deployment was performed. No real data used
   links are hidden in production. Missing AuthGate with a requested production
   enablement fails at start. No role model, step-up, API write or financial-data
   path was added. The flag was not activated.
+- The [independent production-boundary source review](overview-design-489-production-flag-source-review.md)
+  at `8a534c8de543ba2e8c72a264c3c8dec2a357577d` found two bounded P2 cases.
+  A corrective source delta now reapplies `no-store` after downstream SPA/static
+  delivery of the canonical authenticated gallery (including HEAD/error responses),
+  and rejects unresolved percent escapes after the bounded decode pass with
+  404/no-store. This keeps deeply encoded aliases out of SPA fallback. The flag,
+  owner-session requirement and refusal of other developer paths are unchanged.
+  The correction awaits an independent exact-delta review; no HTTP case was run.
 - CSP is unchanged. No console-message filters, eval relaxation or test harness
   changes were introduced. The historical eval-source allegation remains unproven.
 
