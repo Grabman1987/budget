@@ -163,5 +163,7 @@ the button fails the unchanged focus assertion. The action itself never receives
 programmatic focus or a forced click. Existing pointer-target geometry remains
 checked before navigation, and every skip response/date/amount, audit Undo,
 unskip, money-state and timeout assertion remains unchanged. Second strike
-remains a pointer activation, retaining both interaction modes. This is planned
-proof only until root executes the targeted native profile and required CI.
+remains a pointer activation, retaining both interaction modes. Root executed configured light/dark native WebKit at `748a957c`: five tests
+PASS including three setup, 55.4 seconds, no retry; scoped ESLint/Prettier and
+fresh build also PASS. Independent root delta review CLEAR. See
+[keyboard proof and receipt hashes](KEYBOARD.md). Required exact-head CI remains.
