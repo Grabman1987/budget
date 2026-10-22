@@ -60,6 +60,20 @@ async function hit(control: Locator) {
   expect(box.visible).toBe(true);
   expect(box.hit, JSON.stringify(box)).toBe(true);
 }
+async function singleLineText(control: Locator) {
+  const geometry = await control.evaluate((element) => {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    const lines = Array.from(range.getClientRects());
+    const bounds = element.getBoundingClientRect();
+    return {
+      lines: lines.length,
+      contained: lines.every((line) => line.left >= bounds.left && line.right <= bounds.right),
+    };
+  });
+  expect(geometry.lines).toBe(1);
+  expect(geometry.contained).toBe(true);
+}
 for (const [profile, desired, viewport] of [
   ['desktop', 'light', { width: 1440, height: 900 }],
   ['desktop', 'dark', { width: 1440, height: 900 }],
@@ -191,14 +205,18 @@ for (const [profile, desired, viewport] of [
       expect((await pill.json()).count).toBe(6);
       const sources = page.getByRole('table', { name: 'Alle offenen Aufgaben nach Quelle' });
       await expect(sources.getByRole('row')).toHaveCount(6);
+      await singleLineText(sources.getByRole('columnheader', { name: 'Offen', exact: true }));
       for (const label of [
         'Konten prüfen',
         'Plan',
         'Belege ohne Buchung',
         'Gehaltszettel',
         'Weitere Aufgaben',
-      ])
-        await hit(sources.getByRole('button', { name: `${label} öffnen`, exact: true }));
+      ]) {
+        const action = sources.getByRole('button', { name: `${label} öffnen`, exact: true });
+        await hit(action);
+        await singleLineText(action);
+      }
       await expect(page.locator('html')).toHaveJSProperty('scrollWidth', viewport.width);
       expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
       await page.screenshot({
@@ -219,6 +237,9 @@ for (const [profile, desired, viewport] of [
         '/reports/gehalt',
       );
       await sources.getByRole('button', { name: 'Konten prüfen öffnen', exact: true }).click();
+      await singleLineText(
+        sources.getByRole('button', { name: 'Konten prüfen schließen', exact: true }),
+      );
       const reminder = page.getByRole('link', { name: 'Kontostand prüfen', exact: true });
       await hit(reminder);
       await reminder.click();

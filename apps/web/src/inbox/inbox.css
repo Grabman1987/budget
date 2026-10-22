@@ -272,12 +272,13 @@
 }
 .inbox-task-sources th,
 .inbox-task-sources td {
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   padding-inline-end: var(--space-sm);
 }
 .inbox-task-sources th:nth-child(2),
 .inbox-task-sources td:nth-child(2) {
-  width: var(--touch);
+  width: calc(var(--touch) + var(--space-lg));
+  white-space: nowrap;
 }
 .inbox-task-sources th:last-child,
 .inbox-task-sources td:last-child {
@@ -289,5 +290,6 @@
   max-width: 100%;
   min-width: var(--touch);
   min-height: var(--touch);
-  white-space: normal;
+  padding-inline: var(--space-sm);
+  white-space: nowrap;
 }
