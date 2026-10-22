@@ -82,7 +82,7 @@ export function Kennzahlen({
           note={
             summary && (
               <>
-                {`Geld, das noch keinem Envelope zugewiesen ist: Übertrag ${eur(summary.carryInCents)} + Einnahmen ${eur(summary.incomeCents)} − Ungedeckt ${eur(summary.uncoveredCents)} − Zugewiesen ${eur(summary.assignedCents)} − Gehalten ${eur(summary.heldCents)}. Dieselbe Zahl wie im Plan. `}
+                {`Geld, das noch keiner Kategorie zugewiesen ist: Übertrag ${eur(summary.carryInCents)} + Einnahmen ${eur(summary.incomeCents)} − Ungedeckt ${eur(summary.uncoveredCents)} − Zugewiesen ${eur(summary.assignedCents)} − Gehalten ${eur(summary.heldCents)}. Dieselbe Zahl wie im Plan. `}
                 {data && `Haushaltseinnahmen ${eur(data.monthResult.earnedCents)} im ${monthLabel(householdMonth)} nach Buchungsdatum. Mit „Für nächsten Monat“ zählt der Zufluss im Plan erst im Folgemonat. `}
                 <AppLink to="/plan/monat/einnahmen" search={{ monat: householdMonth }}>
                   Planmonat {monthLabel(householdMonth)} ansehen
@@ -113,7 +113,7 @@ export function Kennzahlen({
               marker: data.budgetAnswer.day / data.budgetAnswer.daysInMonth,
             }}
             line={`Bis ${shortDay(data.stand.payday.day)} · noch ${data.stand.payday.daysToPayday} Tage`}
-            note={`Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind. Ausgabenplan: ${eur(data.budgetAnswer.spentCents)} ausgegeben von ${eur(data.budgetAnswer.plannedCents)} · Plan-Rest ${eur(data.budgetAnswer.remainingCents)}. Plan-Rest: geplante Monatsausgaben minus bisher ausgegeben, kein Kontoguthaben. ${
+            note={`Verfügbar in allen Kategorien für Bedarf und Wunsch, abzüglich der Rechnungen, die vor dem Gehalt noch fällig sind. Ausgabenplan: ${eur(data.budgetAnswer.spentCents)} ausgegeben von ${eur(data.budgetAnswer.plannedCents)} · Noch im Plan ${eur(data.budgetAnswer.remainingCents)}. Noch im Plan: geplante Monatsausgaben minus bisher ausgegeben, kein Kontoguthaben. ${
               data.balance.salary
                 ? `Nächster erwarteter Geldeingang: ${shortDay(data.balance.salary.day)} · ${eur(data.balance.salary.cents)}`
                 : 'Kein Geldeingang im Prognosezeitraum erwartet.'
@@ -139,7 +139,7 @@ export function Kennzahlen({
                 ? undefined
                 : `Ausgegeben ${eurWhole(plan.spentCents)} von ${eurWhole(plan.plannedCents)}`
             }
-            note={plan && `Summe „Verfügbar“ aller Envelopes im Monat, wie im Plan-Inspektor. Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Plan-Rest ${eur(plan.remainingCents)}.`}
+            note={plan && `Summe „Verfügbar“ aller Kategorien im Monat, wie im Plan-Inspektor. Ausgabenplan: ${eur(plan.spentCents)} ausgegeben von ${eur(plan.plannedCents)} · Noch im Plan ${eur(plan.remainingCents)}.`}
           />
         )}
         <Kennzahl

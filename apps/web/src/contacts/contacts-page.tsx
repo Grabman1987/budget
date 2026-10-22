@@ -344,10 +344,10 @@ export function ContactStatementPage() {
             Zurück zu Kontakte
           </AppLink>
         </nav>
-        {statement.isPending && <LoadingNote what="Kontoblatt" />}
+        {statement.isPending && <LoadingNote what="Buchungsübersicht" />}
         {statement.isError && (
           <ErrorNote
-            what="Kontoblatt"
+            what="Buchungsübersicht"
             error={statement.error}
             onRetry={() => void statement.refetch()}
           />

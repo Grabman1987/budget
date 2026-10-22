@@ -138,7 +138,7 @@ function ReportBody({
           </span>
         </div>
         <p className="vnote">
-          Monatsstand aus den gespeicherten Sparzielen. Gespart entspricht dem verfügbaren Envelope
+          Monatsstand aus den gespeicherten Sparzielen. Gespart entspricht dem verfügbaren Kategorie
           oder dem Geldsaldo des verknüpften Kontos am Monatsende. Die Monatsrate folgt den letzten
           drei Monaten.
         </p>
@@ -162,7 +162,7 @@ function ReportBody({
           ))}
         </ul>
         <p className="vnote">
-          Kategorieziele sind Budget-Envelopes und keinem bestimmten Tagesgeldkonto zugeordnet.
+          Kategorieziele sind Budget-Kategorien und keinem bestimmten Tagesgeldkonto zugeordnet.
           Geteilte Quellen bleiben ungeklärt, bis eigene Mittel pro Ziel gespeichert werden.
         </p>
         {rows.length === 0 && (

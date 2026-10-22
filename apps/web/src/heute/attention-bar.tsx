@@ -232,7 +232,7 @@ export function FundingNotes({ data }: { data: { stand: Pick<Heute['stand'], 'to
   return (
     <section className="heute-section" aria-label="Ziele finanzieren">
       <h2>Ziele finanzieren</h2>
-      {[{ label: 'Envelope-Ziele', query: budget }, { label: 'Sparziele', query: savings }, { label: 'Sparziele Vormonat', query: previous }].map(({ label, query }) =>
+      {[{ label: 'Monatsziele', query: budget }, { label: 'Sparziele', query: savings }, { label: 'Sparziele Vormonat', query: previous }].map(({ label, query }) =>
         query.dataUpdatedAt > 0 && (query.isError || query.isFetching || !navigator.onLine)
           ? <p className="heute-note" key={label}>{label} · Stand vom{' '}
             <time dateTime={new Date(query.dataUpdatedAt).toISOString()}>{new Date(query.dataUpdatedAt).toLocaleString('de-AT', { timeZone: 'Europe/Vienna' })}</time>
@@ -243,7 +243,7 @@ export function FundingNotes({ data }: { data: { stand: Pick<Heute['stand'], 'to
       {goals.length > 0 && (
         <p>
           <AppLink to="/plan/monat" search={{ monat: month, ansicht: 'triage' }}>
-            {goals.length} Envelope-Ziele noch nicht finanziert
+            {goals.length} Monatsziele noch nicht finanziert
           </AppLink>
         </p>
       )}
@@ -256,7 +256,7 @@ export function FundingNotes({ data }: { data: { stand: Pick<Heute['stand'], 'to
       )}
       {budget.isError && (
         <ErrorNote
-          what="Envelope-Ziele"
+          what="Monatsziele"
           error={budget.error}
           onRetry={() => void budget.refetch()}
         />

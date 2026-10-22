@@ -362,7 +362,7 @@ const planMonthRoute = createRoute({
 const envelopeRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/plan/monat/envelope/$id',
-  staticData: { meta: { ...PLAN_MONAT, title: 'Envelope' } },
+  staticData: { meta: { ...PLAN_MONAT, title: 'Kategorie' } },
   component: lazyRouteComponent(() => import('./budget/envelope-page'), 'EnvelopePage'),
 });
 const planIncomeRoute = createRoute({

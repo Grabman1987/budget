@@ -44,7 +44,7 @@ export function Upcoming({
       {standToday && <p className="heute-note">Stand heute · {standToday}</p>}
       <>
         <p className="heute-note">
-          Die Budgetrücklage vergleicht nur das Verfügbar im Envelope mit der Zahlung. Kontostand
+          Die Budgetrücklage vergleicht nur das Verfügbar in der Kategorie mit der Zahlung. Kontostand
           und Überziehungsrahmen werden nicht geprüft.
         </p>
         <ul className="heute-list">

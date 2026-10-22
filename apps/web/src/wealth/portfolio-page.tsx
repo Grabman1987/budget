@@ -141,7 +141,7 @@ export function PortfolioPage() {
                 <p className="vnote">
                   Anteil = Klassen- oder Positionswert / Marktwert aller gehaltenen Wertpapiere (
                   {moneyText(view.valueCents)}), ohne Kassa. Die Aufteilung Soll/Ist verwendet
-                  dagegen das ausgewählte Netto-Allokationsuniversum einschließlich Anlage-Kassa.
+                  dagegen den Wert des ausgewählten Portfolios einschließlich Anlage-Kassa.
                 </p>
                 <p className="vnote">
                   Werte in EUR, Kurse in der gespeicherten Kurswährung. „seit Kauf“ zeigt den

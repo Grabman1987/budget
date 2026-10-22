@@ -22,7 +22,7 @@ const META = {
   area: 'reports' as const,
   register: 'ueberblick',
   fills: 'P6 Reports und Umstellung',
-  spec: '5.4 Saldenlinie und Kontoblatt',
+  spec: '5.4 Saldenlinie und Buchungsübersicht',
 };
 const balanceLabel = (amount: number) =>
   amount > 0 ? 'Kontakt schuldet dir' : amount < 0 ? 'Du schuldest dem Kontakt' : 'Ausgeglichen';
@@ -182,10 +182,10 @@ export function ContactReportPage() {
             </section>
             {selected && (
               <>
-                {statement.isPending && <LoadingNote what="Kontoblatt" />}
+                {statement.isPending && <LoadingNote what="Buchungsübersicht" />}
                 {statement.isError && (
                   <ReportError
-                    what="Kontoblatt"
+                    what="Buchungsübersicht"
                     error={statement.error}
                     retry={() => void statement.refetch()}
                   />
@@ -197,7 +197,7 @@ export function ContactReportPage() {
                         <span className="avatar kt-av" aria-hidden="true">
                           {initials(person.contact.name)}
                         </span>
-                        Kontoblatt {person.contact.name}
+                        Buchungsübersicht {person.contact.name}
                       </h2>
                       <strong className="kt-sum">
                         {eur(person.balanceCents)} · {balanceLabel(person.balanceCents)}

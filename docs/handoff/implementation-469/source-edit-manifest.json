@@ -1,0 +1,70 @@
+[
+  {
+    "file": "apps/web/src/budget/envelope-page.tsx",
+    "textNodes": 2
+  },
+  {
+    "file": "apps/web/src/budget/goals-panel.tsx",
+    "textNodes": 1
+  },
+  {
+    "file": "apps/web/src/budget/plan-multi.tsx",
+    "textNodes": 1
+  },
+  {
+    "file": "apps/web/src/budget/plan-page.tsx",
+    "textNodes": 8
+  },
+  {
+    "file": "apps/web/src/budget/plan-year-page.tsx",
+    "textNodes": 5
+  },
+  {
+    "file": "apps/web/src/contacts/contacts-page.tsx",
+    "textNodes": 2
+  },
+  {
+    "file": "apps/web/src/heute/attention-bar.tsx",
+    "textNodes": 3
+  },
+  {
+    "file": "apps/web/src/heute/charts.tsx",
+    "textNodes": 1
+  },
+  {
+    "file": "apps/web/src/heute/heute-page.tsx",
+    "textNodes": 11
+  },
+  {
+    "file": "apps/web/src/heute/kennzahlen.tsx",
+    "textNodes": 6
+  },
+  {
+    "file": "apps/web/src/heute/upcoming-payments.tsx",
+    "textNodes": 1
+  },
+  {
+    "file": "apps/web/src/pages/goals-progress-report.tsx",
+    "textNodes": 2
+  },
+  {
+    "file": "apps/web/src/reports/contact-report.tsx",
+    "textNodes": 4
+  },
+  {
+    "file": "apps/web/src/reports/planning-accuracy-report.tsx",
+    "textNodes": 2
+  },
+  {
+    "file": "apps/web/src/router.tsx",
+    "textNodes": 1
+  },
+  {
+    "file": "apps/web/src/routes/components-page.tsx",
+    "textNodes": 1
+  },
+  {
+    "file": "apps/web/src/wealth/allocation-section.tsx",
+    "textNodes": 2
+  }
+]

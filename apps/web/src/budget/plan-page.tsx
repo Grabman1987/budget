@@ -156,9 +156,9 @@ export function PlanMonthPage() {
   return (
     <PageFrame meta={PLAN_MONAT} income={income}>
       <div className="plan plan-month">
-        {budget.isPending && <LoadingNote what="Envelopes" />}
+        {budget.isPending && <LoadingNote what="Kategorien" />}
         {budget.isError && (
-          <ErrorNote what="Envelopes" error={budget.error} onRetry={() => void budget.refetch()} />
+          <ErrorNote what="Kategorien" error={budget.error} onRetry={() => void budget.refetch()} />
         )}
         {data && (
           <PlanBody
@@ -581,7 +581,7 @@ function PlanBody({
       : 'suggested';
   const coverLabel =
     source === 'suggested'
-      ? 'verfügbaren Envelopes'
+      ? 'verfügbaren Kategorien'
       : source === ''
         ? 'Zu verteilen'
         : byId.get(source)!.name;
@@ -629,12 +629,12 @@ function PlanBody({
     <section className="triage" aria-labelledby="triage-title">
       <div className="head">
         <h2 id="triage-title">
-          {urgent.length} Envelopes überzogen ·{' '}
+          {urgent.length} Kategorien überzogen ·{' '}
           {eur(rows.reduce((sum, r) => sum + r.overspentCents, 0))} zu decken
         </h2>
       </div>
       <p className="panel-sub">
-        Decken verschiebt freies Geld zwischen Envelopes; die Summe auf deinen Konten bleibt gleich.
+        Decken verschiebt freies Geld zwischen Kategorien; die Summe auf deinen Konten bleibt gleich.
       </p>
       {missing > 0 && (
         <div className="cover-missing" role="note">
@@ -740,7 +740,7 @@ function PlanBody({
         />
         <section className="ptable-wrap card" aria-labelledby="table-title">
           <h2 className="sr-only" id="table-title">
-            Envelopes im Monat
+            Kategorien im Monat
           </h2>
           <div className="plan-filterbar" aria-label="Kategorien filtern">
             <label className="plan-category-search" htmlFor="plan-category-search">
@@ -912,7 +912,7 @@ function PlanBody({
             <div className="pmulti-scroll">
               <table className={cx('ptable ptable-zero', distribute && 'is-distributing')}>
                 <caption className="sr-only">
-                  Envelopes mit Zugewiesen, Aktivität und Verfügbar
+                  Kategorien mit Zugewiesen, Aktivität und Verfügbar
                 </caption>
                 <thead>
                   <tr>
@@ -1442,7 +1442,7 @@ function MonthOverview({
           <dd>{eur(activity)}</dd>
         </div>
         <div className="insp-total">
-          <dt>Verfügbar in Envelopes</dt>
+          <dt>Verplantes Geld</dt>
           <dd>
             <span className={cx('pill', available > 0 ? 'is-good' : available < 0 && 'is-bad')}>
               {eur(available)}

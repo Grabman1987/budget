@@ -62,7 +62,7 @@ const columns: ReadonlyArray<{ key: keyof Row; label: string; report?: string; s
     { key: 'endCents', label: 'Nettovermögen Ende', report: 'vermoegen-schulden' },
     { key: 'deltaCents', label: 'Veränderung zum Vormonat', report: 'vermoegen', signed: true },
   ];
-const verdict = (value: number) => (value > 0 ? 'für uns' : value < 0 ? 'gegen uns' : 'neutral');
+const verdict = (value: number) => (value > 0 ? 'Gewinn' : value < 0 ? 'Verlust' : 'neutral');
 const tone = (value: number) => (value > 0 ? 'is-up' : value < 0 ? 'is-down' : '');
 const cellText = (row: Row, c: (typeof columns)[number], estimated: boolean) => {
   const value = row[c.key];

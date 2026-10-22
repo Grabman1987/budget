@@ -326,7 +326,7 @@ function Lists() {
     <section aria-labelledby="stueckliste" id="stueckliste">
       <SectionHead id="stueckliste" title="Stückliste" detail={5} />
       <PartsList<Envelope>
-        caption="Envelopes nach Stufen"
+        caption="Kategorien nach Stufen"
         getRowKey={(r) => r.id}
         groups={GROUPS}
         columns={[

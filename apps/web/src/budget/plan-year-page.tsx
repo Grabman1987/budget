@@ -127,7 +127,7 @@ export function PlanYearPage() {
                     <p className="year-note">
                       Abgeschlossene Monate wie im Jahresreport. Erstattungen mindern Konsum;
                       Kapitalerträge, Umbuchungen und Eröffnungssalden sind keine
-                      Haushaltseinnahmen. Die Envelope-Tabelle zeigt Budgetbewegungen und den
+                      Haushaltseinnahmen. Die Kategorientabelle zeigt Budgetbewegungen und den
                       gespeicherten Plan.
                     </p>
                   </section>
@@ -236,7 +236,7 @@ function YearOverview({
       </p>
       {shown.length === 0 ? (
         <p className="year-empty">
-          Noch keine Envelopes vorhanden. Kategorien legst du unter Einstellungen an.
+          Noch keine Kategorien vorhanden. Kategorien legst du unter Einstellungen an.
         </p>
       ) : (
         <>
@@ -301,7 +301,7 @@ function YearOverview({
               ))}
               <tfoot>
                 <tr>
-                  <th scope="row">Alle Envelopes</th>
+                  <th scope="row">Alle Kategorien</th>
                   <YearCells row={total} metric={metric} />
                 </tr>
               </tfoot>
@@ -359,7 +359,7 @@ function YearOverview({
               </section>
             ))}
             <div className="year-phone-total">
-              <strong>Alle Envelopes</strong>
+              <strong>Alle Kategorien</strong>
               <Amount amount={total.months[monthIndex]!} metric={metric} />
             </div>
             <details className="year-phone-annual">
@@ -377,7 +377,7 @@ function YearOverview({
               ))}
             </details>
           </div>
-          <dl className="year-totals" aria-label="Jahreswerte aller Envelopes">
+          <dl className="year-totals" aria-label="Jahreswerte aller Kategorien">
             {metrics.map(([key, text]) => (
               <div key={key}>
                 <dt>{key === 'availableCents' ? 'Verfügbar · Dezember' : `${text} · Jahr`}</dt>

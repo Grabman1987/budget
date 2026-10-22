@@ -54,7 +54,7 @@ export function MultiTable({
     <div className="pmulti-scroll">
       <table className={cx('ptable ptable-multi', `has-${months.length}`)}>
         <caption className="sr-only">
-          Envelopes mit Zugewiesen, Aktivität und Verfügbar für {months.length} Monate
+          Kategorien mit Zugewiesen, Aktivität und Verfügbar für {months.length} Monate
         </caption>
         <thead>
           <tr>

@@ -437,7 +437,7 @@ function PaceDrawing({ data, width }: { data: PaceChartData; width: number }) {
   const overCap = m.figures.forecastEndCents > m.figures.limitCents;
   const forecastClass = overCap ? 'is-over-cap' : '';
   const forecastColor = overCap ? 'var(--red)' : 'var(--on-good-soft)';
-  const summary = `Pace ${m.month}: Tag ${m.todayDay} von ${m.daysInMonth}, Ist ${eur(m.figures.spentCents)}, Plan bis heute ${eur(m.figures.planToDateCents)}, Hochrechnung ${m.figures.forecastAvailable ? eur(m.figures.forecastEndCents) : 'noch nicht verlässlich'}${m.figures.forecastAvailable && overCap ? ' über Deckel' : ''}, Deckel ${eur(m.figures.limitCents)}.`;
+  const summary = `Ausgabentempo ${m.month}: Tag ${m.todayDay} von ${m.daysInMonth}, Ist ${eur(m.figures.spentCents)}, Plan bis heute ${eur(m.figures.planToDateCents)}, Hochrechnung ${m.figures.forecastAvailable ? eur(m.figures.forecastEndCents) : 'noch nicht verlässlich'}${m.figures.forecastAvailable && overCap ? ' über Deckel' : ''}, Deckel ${eur(m.figures.limitCents)}.`;
   return (
     <>
       <ChartSvg

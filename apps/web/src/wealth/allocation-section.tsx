@@ -80,9 +80,9 @@ export function PortfolioAllocation() {
             <details className="wealth-details">
               <summary>Wie wird gerechnet?</summary>
               <p className="vnote">
-                Netto-Allokationsuniversum:{' '}
+                Berücksichtigter Portfoliowert:{' '}
                 {view.valueCents === null ? 'Wert nicht verfügbar' : eurWhole(view.valueCents)}.
-                Ist-Anteil = Klassenwert / Netto-Allokationsuniversum. Einbezogene Positionen plus
+                Ist-Anteil = Klassenwert / berücksichtigter Portfoliowert. Einbezogene Positionen plus
                 Anlage-Kassa einschließlich negativer Salden bilden den Nenner. Negative Kassa
                 mindert ihn; negative Klassenwerte ergeben negative Anteile, positive Klassen können
                 über 100 % liegen. Die Auswahl kann von der Bestandsliste abweichen. Bewertung{' '}
@@ -106,7 +106,7 @@ export function PortfolioAllocation() {
               {risk && (
                 <p className="vnote">
                   Brutto-Exposure: {eurWhole(risk.cluster.totalGrossExposureCents)}. R14/R15 teilen
-                  das jeweilige Brutto-Exposure durch den Marktwert des Netto-Allokationsuniversums
+                  das jeweilige Brutto-Exposure durch den Marktwert des berücksichtigten Portfolios
                   ({eurWhole(risk.cluster.totalCents)}), nicht durch die Brutto-Summe. Hebel erhöhen
                   den Zähler; negative Kassa senkt den Nenner. Risikoanteile können deshalb über 100
                   % liegen.
@@ -171,7 +171,7 @@ export function PortfolioAllocation() {
                         {row.name}
                         <small>
                           {actual
-                            ? `${provisional ? 'Vorläufig · ' : ''}${actual.breach ? 'Außerhalb des Bands · ' : ''}${actual.targetBp === null ? 'Kein Soll festgelegt' : `${actual.side === 'under' ? 'Unter Soll' : actual.side === 'over' ? 'Über Soll' : 'Im Soll'} · Umschichtungsabstand ${eurWhole(Math.abs(actual.gapCents))}`}`
+                            ? `${provisional ? 'Vorläufig · ' : ''}${actual.breach ? 'Außerhalb des Bands · ' : ''}${actual.targetBp === null ? 'Kein Soll festgelegt' : `${actual.side === 'under' ? 'Unter Soll' : actual.side === 'over' ? 'Über Soll' : 'Im Soll'} · Abweichung vom Ziel ${eurWhole(Math.abs(actual.gapCents))}`}`
                             : row.targetBp === null
                               ? 'Kein Soll festgelegt'
                               : `Band ±${percentText(row.bandBp)}`}
@@ -197,7 +197,7 @@ export function PortfolioAllocation() {
                           ))}
                       </span>
                       <ChartValue
-                        label="Allocation Soll/Ist"
+                        label="Allokation Soll/Ist"
                         date={view!.asOf}
                         series={[
                           {
@@ -361,7 +361,7 @@ function proposalText(proposal: RebalanceProposal, view: PortfolioAllocationView
   if (proposal.rule === 'R13')
     return {
       title: `${name} ${proposal.direction === 'add' ? 'unter' : 'über'} Soll`,
-      body: `${percentText(proposal.shareBp)} statt ${percentText(proposal.referenceBp)} · Umschichtungsabstand ${amount} bei unverändertem Gesamtwert.${proposal.newCapitalCents !== null ? ` Neues Kapital bis Soll: ${eurWhole(proposal.newCapitalCents)} bei Einzahlung nur in diese Klasse.` : ''}${unheldNames.length ? ` Zugeordnet, noch nicht gekauft: ${unheldNames.join(', ')}.` : ''}`,
+      body: `${percentText(proposal.shareBp)} statt ${percentText(proposal.referenceBp)} · Abweichung vom Ziel ${amount} bei unverändertem Gesamtwert.${proposal.newCapitalCents !== null ? ` Neues Kapital bis Soll: ${eurWhole(proposal.newCapitalCents)} bei Einzahlung nur in diese Klasse.` : ''}${unheldNames.length ? ` Zugeordnet, noch nicht gekauft: ${unheldNames.join(', ')}.` : ''}`,
     };
   if (proposal.rule === 'R15')
     return {

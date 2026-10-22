@@ -80,10 +80,10 @@ export function PortfolioAllocationReport({
     >
       <div className="prep portfolio-allocation-report">
         <BookRuleMetric code="R21" />
-        {query.isPending && <LoadingNote what="Allocation" />}
+        {query.isPending && <LoadingNote what="Allokation" />}
         {query.isError && (
           <ReportUnavailable
-            what="Die Allocation"
+            what="Die Allokation"
             error={query.error}
             onRetry={() => void query.refetch()}
           />
@@ -711,7 +711,7 @@ function SollTable({ data }: { data: AllocationReport }) {
           : spec.breach
             ? ', überschritten.'
             : ', eingehalten.'}{' '}
-        Zähler: {eur(spec.grossExposureCents)}; Nenner: Netto-Allokationsuniversum einschließlich
+        Zähler: {eur(spec.grossExposureCents)}; Nenner: berücksichtigter Portfoliowert einschließlich
         signierter Anlage-Kassa ({eur(spec.totalCents)}). Hebel erhöhen den Zähler, negative Kassa
         mindert den Nenner; der Anteil kann über 100 % liegen.
       </p>

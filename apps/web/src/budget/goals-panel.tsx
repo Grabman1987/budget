@@ -298,7 +298,7 @@ export function GoalFigures({
       </p>
       <dl className="kv-list">
         <div className="kv">
-          <dt>Envelope</dt>
+          <dt>Kategorie</dt>
           <dd>
             {category ? (
               <AppLink to="/plan/monat" search={(prev) => ({ ...prev, monat: month })}>

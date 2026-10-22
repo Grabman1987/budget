@@ -141,12 +141,12 @@ export function HeutePage() {
       <SectionRead query={bookings} title="Letzte Buchungen">{(data) => <RecentBookings data={data} />}</SectionRead>
       <details className="heute-view-options"><summary>Ansicht anpassen</summary><label>
         <input type="checkbox" checked={showPinned} onChange={(event) => setShowPinned(event.currentTarget.checked)} />
-        Angepinnte Envelopes unter Mehr zum Monat anzeigen
+        Angepinnte Kategorien unter Mehr zum Monat anzeigen
       </label></details>
       <MoreMonth key={phone ? 'phone' : 'desktop'} phone={phone}>
         {overviewData && <VerdictLine facts={heuteVerdictFacts(overviewData)} />}
         <div className="heute-detail-grid">
-          {showPinned && <SectionRead query={pinned} title="Angepinnte Envelopes">{(data) => <PinnedSection data={data} />}</SectionRead>}
+          {showPinned && <SectionRead query={pinned} title="Angepinnte Kategorien">{(data) => <PinnedSection data={data} />}</SectionRead>}
           <SectionRead query={wealth} title="Vermögensaufteilung">{(data) => <WealthComposition data={data} />}</SectionRead>
         </div>
         <FundingNotes data={{ stand }} />
@@ -177,7 +177,7 @@ function LeadSection({ data, onClose }: { data: HeuteSectionData['overview']; on
           <div>
             <h2 id="heute-lead-title">Spielraum bis Gehalt</h2>
             <p>
-              Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor
+              Verfügbar in allen Kategorien für Bedarf und Wunsch, abzüglich der Rechnungen, die vor
               dem Gehalt noch fällig sind.
             </p>
             {away && (
@@ -207,7 +207,7 @@ function LeadSection({ data, onClose }: { data: HeuteSectionData['overview']; on
             />
             {leadDetail && <LeadDetail data={data} kind={leadDetail} />}
             <p className="heute-note">
-              Wähle Bedarf, Wunsch oder offen bis Gehalt für die zugehörigen Envelopes und
+              Wähle Bedarf, Wunsch oder offen bis Gehalt für die zugehörigen Kategorien und
               Zahlungen.
             </p>
           </div>
@@ -379,7 +379,7 @@ function PinnedSection({ data }: { data: HeuteSectionData['pinned'] }) {
             <section className="heute-section" aria-labelledby="heute-pinned-title">
               <SectionHead
                 id="heute-pinned-title"
-                title="Angepinnte Envelopes"
+                title="Angepinnte Kategorien"
                 aside={
                   <AppLink to="/plan/monat" search={{ monat: data.stand.month }}>
                     Plan öffnen <ChevronRight size={15} aria-hidden="true" />
@@ -387,7 +387,7 @@ function PinnedSection({ data }: { data: HeuteSectionData['pinned'] }) {
                 }
               />
               {data.pinned.length === 0 ? (
-                <EmptyNote>Keine Envelopes angepinnt.</EmptyNote>
+                <EmptyNote>Keine Kategorien angepinnt.</EmptyNote>
               ) : (
                 <ul className="heute-list">
                   {data.pinned.map((item) => (
@@ -428,7 +428,7 @@ function PinnedSection({ data }: { data: HeuteSectionData['pinned'] }) {
                             value: eur(item.budgetedCents),
                             color: 'var(--line-2)',
                           },
-                          { name: 'Pace', value: eur(item.paceMarkCents), color: 'var(--ink-3)' },
+                          { name: 'Ausgabentempo', value: eur(item.paceMarkCents), color: 'var(--ink-3)' },
                         ]}
                       >
                         <div className="he-envelope-bar" aria-hidden="true">
@@ -442,7 +442,7 @@ function PinnedSection({ data }: { data: HeuteSectionData['pinned'] }) {
                       </ChartValue>
                       <p>
                         {eur(item.spentCents)} ausgegeben · {eur(item.budgetedCents)} budgetiert ·
-                        Pace {eur(item.paceMarkCents)}
+                        Ausgabentempo {eur(item.paceMarkCents)}
                       </p>
                     </li>
                   ))}
@@ -649,7 +649,7 @@ function MoreMonth({ phone, children }: { phone: boolean; children: ReactNode })
         Mehr zum Monat
       </Button>
       <p className="heute-note">
-        Vermögensaufteilung und Ziele; angepinnte Envelopes nach Wahl unter Ansicht anpassen.
+        Vermögensaufteilung und Ziele; angepinnte Kategorien nach Wahl unter Ansicht anpassen.
       </p>
       <div id="heute-more-content" hidden={!open}>
         {children}
@@ -718,7 +718,7 @@ function LeadDetail({ data, kind }: { data: Pick<Heute, 'lead'>; kind: 'need' | 
   const list = data.lead.items[kind];
   return (
     <div className="heute-breakdown" aria-live="polite">
-      <h3>Envelopes {kind === 'need' ? 'Bedarf' : 'Wunsch'}</h3>
+      <h3>Kategorien {kind === 'need' ? 'Bedarf' : 'Wunsch'}</h3>
       {list.length ? (
         <ul>
           {list.map((item) => (
@@ -729,7 +729,7 @@ function LeadDetail({ data, kind }: { data: Pick<Heute, 'lead'>; kind: 'need' | 
           ))}
         </ul>
       ) : (
-        <p>Keine Envelopes in dieser Klasse.</p>
+        <p>Keine Kategorien in dieser Klasse.</p>
       )}
     </div>
   );

@@ -76,7 +76,7 @@ export function PlanningAccuracyReportPage({
       meta={meta}
       title={report.name}
       subtitle={`${report.pos} · ${report.question}`}
-      reportDataBasis="Pace am 15. · Bedarf und Wunsch"
+      reportDataBasis="Ausgabentempo am 15. · Bedarf und Wunsch"
       reportStand={{ label: 'Stichtag', value: 'Abgeschlossene Monate' }}
       extraFields={[
         {
@@ -115,7 +115,7 @@ export function PlanningAccuracyReportPage({
                   Abweichung = Prognose − Ist; Prozent bezogen auf Ist. Treffer: höchstens ±5 %. Der
                   Schnitt verwendet absolute Abweichungen der letzten sechs abgeschlossenen
                   Kalendermonate. Ohne positives Ist gibt es keine Prozentwertung. Bedarf und Wunsch
-                  entsprechen Pace.
+                  entsprechen Ausgabentempo.
                 </p>
                 <p>
                   {data.summary.count} auswertbare Monate im Sechsmonatsfenster. Fehlende Prognosen
