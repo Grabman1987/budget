@@ -53,15 +53,11 @@ test('year events: create, edit recurrence, scenario without writes, off/delete 
       financialWrites.push(r.method());
   });
   await page.goto('/plan/jahr?monat=2026-11');
-  await expect(page.locator('.event-grid tfoot tr')).toHaveCount(1);
-  await expect(page.locator('.year-phone dl > div')).toHaveCount(1);
-  const baseline =
-    info.project.name === 'mobile'
-      ? page.locator('.year-phone dl')
-      : page.locator('.event-grid tfoot');
-  await expect(baseline).toContainText('Zu verteilen');
+  const baseline = page.locator('.year-scenario-lead');
+  await expect(baseline).toHaveCount(1);
+  await expect(baseline).toContainText('Freies Geld am 31.12.2026');
   await expect(baseline).toContainText('10.000,00 €');
-  await expect(page.getByTestId('scenario-year-end')).toHaveCount(0);
+  await expect(page.getByTestId('scenario-year-end')).toHaveText('10.000,00 €');
   await page.getByRole('button', { name: 'Ereignis planen', exact: true }).click();
   let panel = page.getByRole('dialog', { name: 'Ereignis einplanen' });
   await expect(page.locator('dialog.panel[open]')).toHaveCount(0);
@@ -78,13 +74,14 @@ test('year events: create, edit recurrence, scenario without writes, off/delete 
   await expect(panel).not.toBeVisible();
   await expect(page.getByTestId('scenario-year-effect')).toHaveText('−300,01 €');
   const help = page
-    .getByRole('button', { name: 'Geplante Ereignisse in diesem Monat erklären' })
+    .getByRole('button', { name: 'Zu verteilen mit Ereignissen erklären' })
     .filter({ visible: true });
   await help.focus();
   await help.click();
   await expect(page.getByRole('tooltip')).toContainText('geplanten Beträge');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('tooltip')).toHaveCount(0);
+  await page.locator('.year-events > summary').click();
   await page.getByRole('button', { name: 'Urlaub bearbeiten', exact: true }).click();
   panel = page.getByRole('dialog', { name: 'Ereignis bearbeiten' });
   await panel.getByLabel('Datum / Beginn', { exact: true }).fill('2026-10-31');
@@ -97,10 +94,10 @@ test('year events: create, edit recurrence, scenario without writes, off/delete 
   await expect(page.getByTestId('scenario-year-end')).toHaveText('9.699,97 €');
   await expect(page.getByRole('button', { name: 'Urlaub bearbeiten', exact: true })).toBeFocused();
   await expect(page.getByTestId('scenario-year-effect')).toHaveText('−300,03 €');
-  if (info.project.name === 'mobile') {
-    await expect(page.locator('.event-phone-row')).toContainText('Reisen');
-    await expect(page.locator('.event-phone-row')).toContainText('Monatlich');
-    await expect(page.locator('.event-phone-row')).toContainText('−100,01 €');
+  if (page.viewportSize()!.width <= 767) {
+    await expect(page.locator('.year-event-list > li')).toContainText('Reisen');
+    await expect(page.locator('.year-event-list > li')).toContainText('Monatlich');
+    await expect(page.locator('.year-event-list > li')).toContainText('−100,01 €');
   }
   const scenarioWrites: string[] = [];
   const listener = (r: Request) => {

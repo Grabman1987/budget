@@ -1,27 +1,29 @@
-import { plannedEventOccurrences, planYearMonths, planYearScenario } from '@budget/domain';
-import { Button, Select } from '@budget/ui';
+import { plannedEventOccurrences, planYearScenario } from '@budget/domain';
+import { Button, maskMoneyText, useAmountPrivacy } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { useId, useState } from 'react';
-import { Info } from 'lucide-react';
+import { useId, useState, type ReactNode } from 'react';
+import { ChevronDown, Info } from 'lucide-react';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
-import { monthLabel } from '../nav/month';
 import { plannedEventsQuery, type PlannedEventView } from '../reports/liquidity-api';
 import type { BudgetMonthView } from './budget-api';
 import { EventPanel, RECURRENCE_LABELS } from './event-panel';
+import { YearScenarioChart } from './year-scenario-chart';
 
 export function YearPlanning({
   year,
   selectedMonth,
   views,
+  context,
 }: {
   year: number;
   selectedMonth: string;
   views: BudgetMonthView[];
+  context?: ReactNode;
 }) {
+  useAmountPrivacy();
   const query = useQuery(plannedEventsQuery());
-  const [phoneMonth, setPhoneMonth] = useState(selectedMonth);
   const [without, setWithout] = useState(false);
   // A selection is local to this view/year. New events are included by default.
   const [excluded, setExcluded] = useState<readonly string[]>([]);
@@ -47,7 +49,6 @@ export function YearPlanning({
     return <ErrorNote what="Ereignisse" error={query.error} onRetry={() => void query.refetch()} />;
   if (!query.data) return <LoadingNote what="Ereignisse" />;
   const { events, asOf, budgetAccounts } = query.data;
-  const months = planYearMonths(year);
   const eligible = events.filter(
     (e) => e.status !== 'off_budget' && e.status !== 'unknown_account',
   );
@@ -59,7 +60,6 @@ export function YearPlanning({
     ids,
     asOf,
   );
-  const activeMonth = scenario.months.find((m) => m.month === phoneMonth)!;
   const categories = [
     ...new Map(views.flatMap((v) => v.categories.map((c) => [c.id, c] as const))).values(),
   ];
@@ -67,12 +67,19 @@ export function YearPlanning({
     event,
     occurrences: plannedEventOccurrences(event, `${year}-01-01`, `${year}-12-31`),
   }));
+  const selectedOccurrences = without
+    ? []
+    : rows.flatMap(({ event, occurrences }) =>
+        event.enabled && eligible.includes(event) && ids.includes(event.id)
+          ? occurrences.filter((o) => o.date > asOf)
+          : [],
+      );
   const edit = events.find((e) => e.id === search.ereignis);
   const selection = (e: PlannedEventView) => (
     <label className="event-check">
       <input
         type="checkbox"
-        aria-label={`${e.name} im Szenario`}
+        aria-label={`${maskMoneyText(e.name)} im Szenario`}
         checked={ids.includes(e.id) && e.enabled}
         disabled={!e.enabled || !eligible.includes(e)}
         onChange={(change) =>
@@ -82,7 +89,7 @@ export function YearPlanning({
         }
       />
       <span>
-        {e.name}
+        {maskMoneyText(e.name)}
         {!e.enabled ? ' · ausgeschaltet' : !eligible.includes(e) ? ' · Konto nicht verfügbar' : ''}
       </span>
     </label>
@@ -90,231 +97,129 @@ export function YearPlanning({
   return (
     <section
       className="card year-planning"
-      aria-labelledby="events-title"
+      aria-labelledby="year-scenario-title"
       aria-busy={query.isFetching}
     >
       <div className="year-toolbar">
-        <h2 id="events-title">Ereignisse und Szenario</h2>
+        <h2 id="year-scenario-title">Reicht das Geld bis Jahresende?</h2>
+        <div className="seg" role="group" aria-label="Szenario">
+          <button type="button" aria-pressed={!without} onClick={() => setWithout(false)}>
+            Mit Auswahl
+          </button>
+          <button type="button" aria-pressed={without} onClick={() => setWithout(true)}>
+            Ohne Auswahl
+          </button>
+        </div>
+      </div>
+      <dl className="year-scenario-lead" aria-live="polite">
+        <dt>
+          Freies Geld am 31.12.{year} {without ? 'ohne Ereignisse' : 'mit Ereignissen'}
+        </dt>
+        <dd data-testid="scenario-year-end">
+          {eur(without ? scenario.yearEnd.withoutCents : scenario.yearEnd.withCents)}
+        </dd>
+      </dl>
+      <div className="year-scenario-context">
+        {context}
+        <span>
+          Ereignisse:{' '}
+          <strong data-testid="scenario-year-effect">
+            {eur(without ? 0 : scenario.yearEnd.effectCents, { sign: true })}
+          </strong>
+        </span>
+      </div>
+      <YearScenarioChart
+        year={year}
+        scenario={scenario}
+        without={without}
+        asOf={asOf}
+        occurrences={selectedOccurrences}
+      />
+      <p className="year-note">
+        <ScenarioLabel kind="available" />
+      </p>
+      <div className="year-toolbar">
+        <h3 id="events-title">Ereignisse</h3>
         <Button data-event="neu" onClick={() => select('neu')}>
           Ereignis planen
         </Button>
       </div>
-      {events.length > 0 && (
-        <>
+      {!rows.length ? (
+        <p className="year-empty">
+          Noch keine Ereignisse geplant. Auch ohne Ereignisse gilt der gespeicherte Jahresplan.
+        </p>
+      ) : (
+        <details className="year-events">
+          <summary>
+            <ChevronDown aria-hidden="true" size={16} /> {rows.length}{' '}
+            {rows.length === 1 ? 'Ereignis' : 'Ereignisse'} ansehen und auswählen
+          </summary>
           <p className="year-note">
-            Gestrichelt: geplante Beträge je Termin, getrennt von Zugewiesen und Aktivität.
-            Wiederholungen gelten ab dem Beginn. Bereits gebuchte Zahlungen werden nicht automatisch
-            mit Ereignissen abgeglichen.
+            Auswahl nur für dieses Szenario; ein Häkchen bucht kein Geld. „Ohne Auswahl“ blendet
+            alle Wirkungen aus.
           </p>
-          <div className="year-toolbar">
-            <div className="seg" role="group" aria-label="Szenario">
-              <button type="button" aria-pressed={!without} onClick={() => setWithout(false)}>
-                Mit Auswahl
-              </button>
-              <button type="button" aria-pressed={without} onClick={() => setWithout(true)}>
-                Ohne Auswahl
-              </button>
-            </div>
-          </div>
-          <p className="year-note">
-            Zu verteilen mit Ereignissen = „Zu verteilen“ laut gespeichertem Monatsplan + kumulierte
-            Ereignisse nach {longDay(asOf)}. Keine zusätzlichen Gehaltsannahmen, keine
-            Kontostandsprognose. Die Auswahl wird nicht gespeichert; ausgeschaltete Ereignisse
-            zählen auch in der Liquiditätsprognose nicht.
-          </p>
-          <dl className="year-totals" aria-live="polite">
-            <div>
-              <dt>Freies Geld · Jahresende · {without ? 'ohne Auswahl' : 'mit Auswahl'}</dt>
-              <dd data-testid="scenario-year-end">
-                {eur(without ? scenario.yearEnd.withoutCents : scenario.yearEnd.withCents)}
-              </dd>
-            </div>
-            <div>
-              <dt>Ereigniseffekt · Jahresende</dt>
-              <dd data-testid="scenario-year-effect">
-                {eur(without ? 0 : scenario.yearEnd.effectCents, { sign: true })}
-              </dd>
-            </div>
-          </dl>
-        </>
-      )}
-      <div
-        className="year-desktop"
-        role="region"
-        aria-label="Ereignisse und Szenario, horizontal scrollbar"
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Allow keyboard scrolling of the calendar.
-        tabIndex={0}
-      >
-        <table className="year-table event-grid">
-          <caption className="sr-only">
-            Geplante Ereignisse nach Kategorie und Monat {year}, und freies Geld im Szenario.
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Ereignis · Kategorie</th>
-              {months.map((m) => (
-                <th key={m} scope="col">
-                  <abbr title={monthLabel(m)}>{monthLabel(m).split(' ')[0]}</abbr>
-                </th>
-              ))}
-              <th scope="col">Bearbeiten</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ event: e, occurrences }) => (
-              <tr key={e.id}>
-                <th scope="row">
-                  {selection(e)}
-                  <small>
-                    {e.categoryName ??
-                      (e.categoryId ? 'Kategorie nicht verfügbar' : 'Ohne Kategorie')}{' '}
-                    · {RECURRENCE_LABELS[e.recurrence]}
-                  </small>
-                </th>
-                {months.map((m) => (
-                  <td key={m}>
-                    {occurrences
-                      .filter((o) => o.date.startsWith(m))
-                      .map((o) => (
-                        <button
-                          type="button"
-                          className="event-plan"
-                          key={o.date}
-                          onClick={() => select(e.id)}
-                          aria-label={`${e.name} am ${longDay(o.date)} bearbeiten`}
-                        >
-                          {eur(o.amountCents, { sign: true })}
-                          {!e.enabled && <small>ausgeschaltet</small>}
-                        </button>
-                      ))}
-                  </td>
-                ))}
-                <td>
+          <ul className="year-event-list" aria-labelledby="events-title">
+            {rows.map(({ event: e, occurrences }) => {
+              const upcoming = occurrences.find((o) => o.date > asOf);
+              const date = upcoming?.date ?? occurrences[0]?.date ?? e.date;
+              return (
+                <li key={e.id}>
+                  <div className="year-event-date">
+                    <time dateTime={date}>{longDay(date)}</time>
+                    <small>{RECURRENCE_LABELS[e.recurrence]}</small>
+                  </div>
+                  <div>
+                    {selection(e)}
+                    <small>
+                      {maskMoneyText(
+                        e.categoryName ??
+                          (e.categoryId ? 'Kategorie nicht verfügbar' : 'Ohne Kategorie'),
+                      )}
+                    </small>
+                    {!upcoming && (
+                      <small>
+                        Kein weiterer Termin in diesem Jahr; keine neue Szenariowirkung.
+                      </small>
+                    )}
+                  </div>
+                  <strong className="year-event-amount">
+                    {eur(e.amountCents, { sign: true })}
+                  </strong>
                   <Button
                     variant="ghost"
                     data-event={e.id}
                     onClick={() => select(e.id)}
-                    aria-label={`${e.name} bearbeiten`}
+                    aria-label={`${maskMoneyText(e.name)} bearbeiten`}
                   >
                     Bearbeiten
                   </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <th scope="row">Zu verteilen</th>
-              {scenario.months.map((m) => (
-                <td key={m.month}>{eur(m.withoutCents)}</td>
-              ))}
-              <td />
-            </tr>
-            {events.length > 0 && (
-              <>
-                <tr>
-                  <th scope="row">
-                    <ScenarioLabel kind="month" />
-                  </th>
-                  {scenario.months.map((m) => (
-                    <td key={m.month}>{eur(without ? 0 : m.eventCents, { sign: true })}</td>
-                  ))}
-                  <td />
-                </tr>
-                <tr>
-                  <th scope="row">
-                    <ScenarioLabel kind="sum" />
-                  </th>
-                  {scenario.months.map((m) => (
-                    <td key={m.month}>{eur(without ? 0 : m.effectCents, { sign: true })}</td>
-                  ))}
-                  <td />
-                </tr>
-                <tr>
-                  <th scope="row">
-                    <ScenarioLabel kind="available" />
-                  </th>
-                  {scenario.months.map((m) => (
-                    <td key={m.month}>{eur(without ? m.withoutCents : m.withCents)}</td>
-                  ))}
-                  <td />
-                </tr>
-              </>
-            )}
-          </tfoot>
-        </table>
-      </div>
-      <div className="year-phone">
-        <label className="year-month-choice">
-          Ereignismonat
-          <Select value={phoneMonth} onChange={(e) => setPhoneMonth(e.target.value)}>
-            {months.map((m) => (
-              <option key={m} value={m}>
-                {monthLabel(m)}
-              </option>
-            ))}
-          </Select>
-        </label>
-        {rows.map(({ event: e, occurrences }) => (
-          <div className="event-phone-row" key={e.id}>
-            {selection(e)}
-            <small>
-              {e.categoryName ?? (e.categoryId ? 'Kategorie nicht verfügbar' : 'Ohne Kategorie')} ·{' '}
-              {RECURRENCE_LABELS[e.recurrence]}
-            </small>
-            <div className="event-actions">
-              {occurrences
-                .filter((o) => o.date.startsWith(phoneMonth))
-                .map((o) => (
-                  <span className="event-plan" key={o.date}>
-                    {eur(o.amountCents, { sign: true })}
-                  </span>
-                ))}
-              <Button
-                variant="ghost"
-                data-event={e.id}
-                onClick={() => select(e.id)}
-                aria-label={`${e.name} bearbeiten`}
-              >
-                Bearbeiten
-              </Button>
-            </div>
-          </div>
-        ))}
-        <dl className="year-totals">
-          <div>
-            <dt>Zu verteilen</dt>
-            <dd>{eur(activeMonth.withoutCents)}</dd>
-          </div>
-          {events.length > 0 && (
-            <>
-              <div>
-                <dt>
-                  <ScenarioLabel kind="month" />
-                </dt>
-                <dd>{eur(without ? 0 : activeMonth.eventCents, { sign: true })}</dd>
-              </div>
-              <div>
-                <dt>
-                  <ScenarioLabel kind="sum" />
-                </dt>
-                <dd>{eur(without ? 0 : activeMonth.effectCents, { sign: true })}</dd>
-              </div>
-              <div>
-                <dt>
-                  <ScenarioLabel kind="available" /> · {monthLabel(phoneMonth)}
-                </dt>
-                <dd>{eur(without ? activeMonth.withoutCents : activeMonth.withCents)}</dd>
-              </div>
-            </>
-          )}
-        </dl>
-      </div>
-      {!events.length && (
-        <p className="year-empty">
-          Noch keine Ereignisse geplant. Plane eine einmalige Zahlung oder eine Wiederholung ein.
-        </p>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="year-note">
+            Wirkung auf den Jahresendstand:{' '}
+            {eur(without ? 0 : scenario.yearEnd.effectCents, { sign: true })}. Nur ausgewählte,
+            eingeschaltete Termine nach {longDay(asOf)} auf verfügbaren Budgetkonten zählen.
+          </p>
+        </details>
       )}
+      <details className="year-instructions">
+        <summary>
+          <Info aria-hidden="true" size={16} /> Grundlage und Grenzen der Planung
+        </summary>
+        <p className="year-note">
+          Zu verteilen mit Ereignissen = „Zu verteilen“ laut gespeichertem Monatsplan plus
+          kumulierte ausgewählte Ereignisse nach {longDay(asOf)}. Keine zusätzlichen
+          Gehaltsannahmen. Wiederholungen gelten ab ihrem Beginn. Bereits gebuchte Zahlungen werden
+          nicht automatisch mit Ereignissen abgeglichen.
+        </p>
+        <p className="year-note">
+          Einnahmen und Konsum oben beziehen sich wie im Jahresreport auf abgeschlossene Monate.
+          Erstattungen mindern Konsum; Kapitalerträge, Umbuchungen und Eröffnungssalden sind keine
+          Haushaltseinnahmen. Die Ereignisauswahl wird nicht gespeichert.
+        </p>
+      </details>
       {search.ereignis &&
         (edit || search.ereignis === 'neu' ? (
           <EventPanel

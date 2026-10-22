@@ -64,13 +64,12 @@ test('annual plan: independent figures, all metrics, year navigation and 375px r
   });
   await page.goto('/plan/jahr?monat=2026-01');
   await expect(page.getByRole('heading', { name: '2026', exact: true })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Jahressummen des Haushalts' })).toContainText(
-    'Haushaltseinnahmen',
-  );
-  await expect(page.getByRole('region', { name: 'Jahressummen des Haushalts' })).toContainText(
-    'Konsum (Bedarf und Wunsch)',
-  );
-  const mobile = info.project.name === 'mobile';
+  await expect(page.locator('.year-scenario-context')).toContainText('Einnahmen:');
+  await expect(page.locator('.year-scenario-context')).toContainText('Konsum:');
+  const mobile = page.viewportSize()!.width <= 767;
+  const groupButton = page.getByRole('button', { name: groupName, exact: true });
+  await expect(groupButton).toHaveAttribute('aria-expanded', 'false');
+  await groupButton.click();
   const row = mobile
     ? page.locator('.year-phone-row', { hasText: categoryName }).first()
     : page.locator('.year-sheet .year-table tbody tr', { hasText: categoryName });
@@ -98,7 +97,6 @@ test('annual plan: independent figures, all metrics, year navigation and 375px r
       page.locator('.year-phone-annual .year-phone-row', { hasText: categoryName }),
     ).toContainText('122,02 €');
   } else await expect(row.locator('.year-end')).toHaveText('122,02 €');
-  const groupButton = page.getByRole('button', { name: new RegExp(groupName) });
   await groupButton.click();
   await expect(groupButton).toHaveAttribute('aria-expanded', 'false');
   await groupButton.click();
@@ -118,6 +116,7 @@ test('annual plan: independent figures, all metrics, year navigation and 375px r
   await expect(page.getByRole('heading', { name: '2025', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Nächstes Jahr', exact: true }).click();
   await expect(page).toHaveURL(/monat=2026-01/);
+  await groupButton.click();
   await expect(row).toBeVisible();
   expect(writes).toEqual([]);
 });
