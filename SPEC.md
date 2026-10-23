@@ -1,5 +1,17 @@
 # Budget — Specification
 
+Owner savings-goal decision (2026-10-21, #604): category-goal funding uses the
+existing Plan target including the current month. “Rate zuweisen” adds only the
+remaining current-month need through the existing guarded, audited assignment
+path; it does not add a second full rate. Preserve the separate future-month
+forecast where still used. New goals have a selectable start month; existing
+goals retain their previous start until explicitly edited. A goal completes after
+proven reaching followed by its first actual expense, or by explicit manual
+completion. Assignment changes do not qualify as expenses. Undo must restore the
+derived or stored state; goals and bookings are never deleted by completion.
+Unproven historical ordering must remain explicit rather than inventing an
+automatic completion. These decisions supplement the existing goal requirements.
+
 Owner document-automation directive (2026-10-21, #741): a new explicit manual PDF
 upload may automatically save fully validated, unambiguous payroll or issued-card
 statement results and link their retained originals to the matching bookings.

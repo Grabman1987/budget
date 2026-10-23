@@ -1,0 +1,28 @@
+{
+  "sourceRevision": "90273f2ac211243e3e32b47a1ca46858d800f1f7",
+  "botCommit": "65fc79fed61cac6ea8d3a6c147e5ed02bae90f0f",
+  "workflow": 39798166665,
+  "actualTests": "15/15 passed in31.6s, no failures or flaky summaries",
+  "artifacts": {
+    "e2e/goals.spec.ts-snapshots/sparziele-dark-desktop-linux.png": {
+      "sha256": "91bec0745a312cc90cb0428289f163bc0056fbfb19b5ac797abf3bd3915a1ec9",
+      "width": 1440,
+      "height": 1184
+    },
+    "e2e/goals.spec.ts-snapshots/sparziele-dark-mobile-linux.png": {
+      "sha256": "335d7171421237f3540b109a74e35097ed8855d492d23437013645841f74963b",
+      "width": 390,
+      "height": 2474
+    },
+    "e2e/goals.spec.ts-snapshots/sparziele-light-desktop-linux.png": {
+      "sha256": "f3af662dc9dee403c29d9004804a063eb4de037def80e498ca23270ba7245f1b",
+      "width": 1440,
+      "height": 1184
+    },
+    "e2e/goals.spec.ts-snapshots/sparziele-light-mobile-linux.png": {
+      "sha256": "a8082464f13a22ee01b5b010aa3566d399ea33f3b0cf866b0a2383c12e3d5c07",
+      "width": 390,
+      "height": 2474
+    }
+  }
+}

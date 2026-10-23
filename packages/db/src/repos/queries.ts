@@ -6,11 +6,11 @@ import {
   type BudgetInput,
   type BudgetMonth,
   type CardRule,
-  type LedgerSplit,
 } from '@budget/domain';
 import { and, asc, count, eq, gte, isNull, lte, sql } from 'drizzle-orm';
 import { account, booking, bookingSplit, budgetMonth, category } from '../schema';
 import { assignedByMonth } from './envelopes';
+import { budgetInputFromRows } from './budget-ledger-input';
 import { assertEurBudgetAccounts } from './account-invariants';
 import { memoizedShared } from './request-memo';
 import type { Executor } from './types';
@@ -110,33 +110,6 @@ function readBudgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
     .innerJoin(account, eq(account.id, booking.accountId))
     .where(and(isNull(booking.deletedAt), isNull(account.deletedAt)))
     .all();
-  // Legs per transfer: (booking id, account) of a whole-booking leg or of a split's booking.
-  const legs = new Map<string, { bookingId: string; accountId: string }[]>();
-  const addLeg = (transferId: string, bookingId: string, accountId: string) => {
-    const list = legs.get(transferId) ?? [];
-    if (!list.some((l) => l.bookingId === bookingId)) list.push({ bookingId, accountId });
-    legs.set(transferId, list);
-  };
-  for (const r of rows) {
-    if (r.bookingTransferId) addLeg(r.bookingTransferId, r.bookingId, r.accountId);
-    if (r.splitTransferId) addLeg(r.splitTransferId, r.bookingId, r.accountId);
-  }
-  const partnerOf = (transferId: string | null, bookingId: string) =>
-    transferId === null
-      ? null
-      : (legs.get(transferId)?.find((l) => l.bookingId !== bookingId)?.accountId ?? null);
-  const splits: LedgerSplit[] = rows.map((r) => ({
-    bookingId: r.bookingId,
-    splitId: r.splitId,
-    payeeId: r.payeeId,
-    status: r.status,
-    accountId: r.accountId,
-    date: r.date,
-    incomeNextMonth: r.incomeNextMonth,
-    amountCents: r.amountCents,
-    categoryId: r.categoryId,
-    transferAccountId: partnerOf(r.splitTransferId ?? r.bookingTransferId, r.bookingId),
-  }));
   const held = Object.fromEntries(
     db
       .select({ month: budgetMonth.month, heldCents: budgetMonth.heldCents })
@@ -145,12 +118,7 @@ function readBudgetLedger(db: Executor): Omit<BudgetInput, 'months'> {
       .all()
       .map((r) => [r.month, r.heldCents]),
   );
-  const openingCarry = Object.fromEntries(
-    categories
-      .filter((c) => c.openingAvailableCents !== 0)
-      .map((c) => [c.id, c.openingAvailableCents]),
-  );
-  return { accounts, categories, splits, assigned: assignedByMonth(db), held, openingCarry };
+  return budgetInputFromRows({ accounts, categories, rows, assigned: assignedByMonth(db), held });
 }
 
 /**

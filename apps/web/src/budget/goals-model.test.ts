@@ -41,10 +41,10 @@ describe('goalGroups', () => {
       }),
     ]);
     expect(groups.map((g) => [g.key, g.no, g.rows.map((r) => r.id)])).toEqual([
-      ['open', 1, ['a', 'b']],
-      ['reached', 2, ['c']],
+      ['reached', 1, ['c']],
+      ['open', 2, ['a', 'b']],
     ]);
-    expect(groups[0]?.totals).toEqual({
+    expect(groups.find((group) => group.key === 'open')?.totals).toEqual({
       targetCents: 600_000,
       savedCents: 108_000,
       remainingCents: 492_000,
@@ -77,7 +77,9 @@ describe('goalLine', () => {
   });
   it('names the missing monthly amount when behind', () => {
     const slow = goal({ status: 'behind', averageRateCents: 24_000, forecastMonth: '2027-08' });
-    expect(goalLine(slow, '2026-09').text).toBe('hinter Plan · 6,00 € je Monat mehr nötig');
+    expect(goalLine(slow, '2026-09').text).toBe(
+      'hinter Plan · 6,00 € je zukünftigem Monat mehr nötig',
+    );
   });
   it('says so when nothing was saved lately or the date has come', () => {
     expect(goalLine(goal({ status: 'behind', averageRateCents: 0 }), '2026-09').text).toBe(

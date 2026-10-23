@@ -53,3 +53,10 @@ export * from './statement-settlement';
 export * from './statement-automation';
 export * from './statement-automation-contract';
 export * from './statement-receipt-links';
+export {
+  goalLifecycle,
+  activeGoalAuditEntries,
+  type GoalLifecycle,
+  type GoalLifecyclePoint,
+  type GoalAuditLink,
+} from './goals/lifecycle';
