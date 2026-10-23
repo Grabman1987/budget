@@ -1,0 +1,26 @@
+# #741 existing OLD726/727 UI transport adapters — technical source HIGH CLEAR
+
+Application remains HOLD pending specific owner approval for these two existing financial test files. Reviewer did not apply changes or run tests. This is exact outside-proposal review, not permission or a corrected runtime PASS claim.
+
+Bound manifest481ba7b8c2b1971703f3c16f24bedb73a129486e5bfbaba2f277d1cfa94321a2, baseline16d3ae1c53055cf1960b0e19e36359836b6896a8, patchde4bc27e9f22fdc6444348526415d0feb38e78656682d4e55f55e7213bf6d60e.
+
+|Existing file|Before|Candidate|Exact reason|
+|---|---|---|---|
+|apps/web/src/statement-intake/statement-review-726.test.tsx|6d6bfe0c6b67a9fd34438d4189e5b230b92535b59e817987abb7f7454fa40dee|e158e476537096c6cf8c6127991aabe30f20529dc5b3e66669448e24069e3ebd|Serve actual read-only automation/settings dependencies; assert exact new explicit upload intent.|
+|apps/web/src/statement-intake/statement-settlement-727.test.tsx|60eafa37f8b379a752306482f8db99b1396ad460ae3b33aaced7db0818c9ebea|7fc25b17c965e7f822d9cd015d0493086787441ac19c207ef2ff3cf56bb32025|Permit and answer precisely four newly required GET paths, leaving strict rejection and financial write handling intact.|
+
+## Actual cause reconciled with production source
+
+Actual741-rollback-db-three-old-eight-and-types-second-actual old-eight-unit-report.json records94 tests:77PASS,17FAIL. OLD726 UI has7PASS/2FAIL: exact FormData keys now include intended automation=eligible; the final read-path assertion rejects actual additional settings reads. OLD727 UI has15FAIL before reviewed-source adoption. The raw log's unexpected-call list identifies GET /api/statement-intake/automation/config?accountId=A, GET /api/expected and GET /api/statement-intake/ID/automation. The new UI openView awaits Promise.all of source and automation-outcome reads before adopting the source, so rejecting the new read prevents all downstream settlement fixtures from opening. These observed failures establish stale transport expectations, not an observed change to balances, CAS, Undo or booking eligibility. They do not prove every downstream oracle already passes.
+
+The proposal's GET fixtures match real consumers/routes: disabled config has every current StatementAutomationConfig field (accountId,enabled:false,revision:null,mappedCards:[],scheduledPayment:null,opaque mappingKey); expectedQuery reads {payments:[]}; readStatementAutomationOutcome absence returns {automation:null}; funding absence returns the existing {config:null,settlements:[],bonuses:[]}. The opaque synthetic mappingKey is not represented as a real database revision or authority, and no financial action is enabled by it. Null historical outcome for ID_B is necessary for the existing explicit sourceB→editor/download/CAS case.
+
+## No weakening / exact boundaries
+
+- Whole before blobs match the pinned baseline. Independently reconstructing both candidates from every exact unified-diff context/deletion/addition yields the complete frozen candidate files. No hidden extra change exists.
+- OLD726 adds only finite, method=GET, exact path+query replies for accountA/accountB config/funding, empty expected list and the one actual source outcome. The pre-existing PATH-prefix allowance remains byte-identical; no new broad prefix allowance is introduced. Its two final read assertions extend only GET fundingA and exact GET /api/expected.
+- Multipart exact keys remain exact, updated to [accountId,automation,file], and a NEW assertion requires automation to equal eligible. Actual account UUID and original filename/file assertions, exactly one POST/upload and absence of other mutations remain. This reflects the explicitly approved new upload intent rather than pretending upload is globally incapable of writing money. These legacy fixtures explicitly exercise disabled automation/manual review.
+- OLD727 adds exactly four finite knownRead paths: configA, sourceID outcome, sourceID_B outcome and /api/expected. The existing method=GET gate still applies. Unknown query variants, unknown source/account IDs and all unexpected requests continue to fail. remainingWrites, knownWrite operations/budgets, allowDocumentReopen and unexpected[] assertions are unchanged. No new mutation path is permitted and no GET consumes or adds a write budget.
+- Every original literal amount/date/source ID, field/CAS request body, financial no-write assertion, retry key, history/download identity, zero/credit_manual/already-net behavior, privacy, dirty/stale/config-busy protection, Undo observation and timeout is retained. The entire old test declaration set is unchanged; OLD726 contains one additional eligible-value assertion, OLD727 no assertion removal/addition. No production, OLD API/DB or other test change is included.
+
+Specific approval scope must identify exactly these two paths/candidate hashes (or a separately reviewed formatting-only equivalent) and the stated transport/upload-intent adaptation. Existing receipt44/payment fixture approvals do not authorize it. Root owns that permission, application and separately scheduled targeted rerun. Keep the actual77/94 result and its17 failures as historical evidence until corrected execution supplies new evidence.

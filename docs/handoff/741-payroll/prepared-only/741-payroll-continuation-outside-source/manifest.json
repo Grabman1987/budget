@@ -1,0 +1,68 @@
+{
+  "sourceOnly": true,
+  "repositoryAdopted": false,
+  "runtimeExecuted": false,
+  "formatPending": true,
+  "payrollCheckpoint": "883a7dcf234a49c736deb54da160521182bbe0b9",
+  "cardExtractionBase": "16d3ae1c53055cf1960b0e19e36359836b6896a8",
+  "files": {
+    "apps/server/src/api/payslip-intake.ts": {
+      "sha256": "39eba97649f9a64bde9fa982b7b8f4470aa366ab0ee51d3861ba0a7e257f2b34",
+      "beforeSHA256": "9f92289ae3f67f396b64930e25363369b8654a936800c9a8c39a4d7f1af89105",
+      "mode": 33188,
+      "changedFromExtractedPacket": true
+    },
+    "apps/server/src/payslips/service.ts": {
+      "sha256": "9c076252c5aa6a45458045c7f4cda46b51e7df61dd70722a95d7144925f6ee95",
+      "beforeSHA256": "9c076252c5aa6a45458045c7f4cda46b51e7df61dd70722a95d7144925f6ee95",
+      "mode": 33188,
+      "changedFromExtractedPacket": false
+    },
+    "apps/web/src/reports/payslip-intake.tsx": {
+      "sha256": "68bf737a00cac8921ace0a356a5b260bb15eb21badc1c89d1b900dfb6a7ef35b",
+      "beforeSHA256": "384e2af88d02ef7058fad8ec5062a777333364fa586131af3240f74910886521",
+      "mode": 33188,
+      "changedFromExtractedPacket": true
+    },
+    "packages/db/src/repos/payslip-intake.ts": {
+      "sha256": "8da674376f2b1ab93798850be2d6a5a961443856d6e16fc5d232e5f3ae30dcd9",
+      "beforeSHA256": "66bb11c0b0611dffd8a188f94959d9cfa2784bd07708dc77f09a1ffddb16fc6b",
+      "mode": 33188,
+      "changedFromExtractedPacket": true
+    },
+    "packages/domain/src/index.ts": {
+      "sha256": "2046bfa117a63c11b0910ccd4de890c94a57197d153dd71659fe406bf15a17c7",
+      "beforeSHA256": "2046bfa117a63c11b0910ccd4de890c94a57197d153dd71659fe406bf15a17c7",
+      "mode": 33188,
+      "changedFromExtractedPacket": false
+    },
+    "packages/domain/src/reports/payslip-automation-741.test.ts": {
+      "sha256": "e4ba8729c74ea201242ce82cf5ae2f52e5f71d7ddac53a20ad71f6d8cc9bcdaa",
+      "beforeSHA256": null,
+      "mode": 33188,
+      "changedFromExtractedPacket": true
+    },
+    "packages/domain/src/reports/payslip-automation.ts": {
+      "sha256": "8594786f53c991af2c4e3aa0efdfd7d10229edee932a0106970ad43d0dbe3347",
+      "beforeSHA256": "8594786f53c991af2c4e3aa0efdfd7d10229edee932a0106970ad43d0dbe3347",
+      "mode": 33188,
+      "changedFromExtractedPacket": false
+    },
+    "packages/domain/src/reports/payslip-intake.ts": {
+      "sha256": "cb737d7645a80d9b639b5de3274aa892c0e9fd87c3e826c0d4ca738e6decd4a7",
+      "beforeSHA256": "cb737d7645a80d9b639b5de3274aa892c0e9fd87c3e826c0d4ca738e6decd4a7",
+      "mode": 33188,
+      "changedFromExtractedPacket": false
+    }
+  },
+  "changedPaths": [
+    "apps/server/src/api/payslip-intake.ts",
+    "apps/web/src/reports/payslip-intake.tsx",
+    "packages/db/src/repos/payslip-intake.ts",
+    "packages/domain/src/reports/payslip-automation-741.test.ts"
+  ],
+  "unchangedRootBarrel": true,
+  "diffSHA256": "c52d72e8c166ac30e4dbb1c82902fab466ffd6f10a720976bf7cae7cf6276a88",
+  "planSHA256": "48d1d93d90b0ca930875854c8fbca562480a70ff255e04366a3501a63b11f4f3",
+  "existingTestsEdited": false
+}

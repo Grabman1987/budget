@@ -90,8 +90,17 @@ test('Heute has eight warning items once, two first, neutral debts and accessibl
   const tasks = page.getByRole('region', { name: 'Zu tun', exact: true });
   await expect(tasks).toContainText('8 Kategorien überzogen');
   await expect(tasks).not.toContainText('Testenvelope');
-  // #613 (owner decision #527 V05/V16): the sample loan lacks terms, so a fifth row asks for them.
-  await expect(tasks.locator('.attention-row')).toHaveCount(5);
+  // Q3 #466 and #511: loan terms share the account-check source row.
+  await expect(tasks.locator('.attention-row')).toHaveCount(4);
+  const accounts = tasks
+    .locator('.attention-row')
+    .filter({ hasText: '8 Konten warten auf Prüfung' });
+  await expect(accounts).toHaveCount(1);
+  await expect(accounts).toContainText('Kreditkonditionen fehlen');
+  await expect(accounts.getByRole('link', { name: 'Prüfen', exact: true })).toHaveCount(1);
+  await expect(
+    accounts.getByRole('link', { name: 'Konditionen ergänzen', exact: true }),
+  ).toHaveAttribute('href', '/einstellungen/konten');
   await expect(tasks).toContainText('Kreditkonditionen fehlen');
   await expect(page.locator('.heute-envelope .heute-alert')).toHaveCount(1);
   await expect(page.locator('.heute-envelope')).not.toContainText('überzogen');
@@ -164,7 +173,7 @@ isolatedTest(
       '1 gedeckt, 2 offen · 15,00 € fehlen',
     );
     const value = (name: string) =>
-      page.locator('tr.prow', { hasText: name }).locator('.col-avail');
+      page.locator('tr.prow', { hasText: name }).locator('.col-avail .pill');
     await expect(value('Zuerst')).toHaveText('0,00 €');
     await expect(value('Später')).toHaveText('−12,00 €');
     await expect(value('Zuletzt')).toHaveText('−3,00 €');

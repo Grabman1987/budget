@@ -1,0 +1,816 @@
+{
+  "runtimeWorkingTreeHead": "218679c8dfefe1438fbf58039f852fa1366b70b2",
+  "runtimeHistoricalMain": "525b0c32d72748c99812b8f7dae58310c9f21875",
+  "fullCheckHead": "908e090c2a2789781ab81d0436addfebdece05ca",
+  "fullCheckHistoricalLiveMain": "bf11eebd1b14bbadbd5186be98fab3a0316c632e",
+  "qualification": "Actual native15/15 and four images at218679. Final normal-main merged908 has all28 non-Roadmap/old9/productCSS/page/NEWspec byte-identical. Required aggregate+normal production actually executed at908. Later evidence-only changes do not constitute another runtime.",
+  "syntheticLocalOnly": true,
+  "checks": {
+    "native": {
+      "engine": "webkit",
+      "browserVersion": "27.2",
+      "buildExit": 0,
+      "collected": 15,
+      "passed": 15,
+      "failed": 0,
+      "exit": 0,
+      "reportedDuration": "3.0m",
+      "unchangedFrozenFiles": 29
+    },
+    "requiredAggregate": {
+      "head": "908e090c2a2789781ab81d0436addfebdece05ca",
+      "BUDGET_REQUIRE_AGE": 1,
+      "VITEST_MAX_WORKERS": 2,
+      "node": "v22.23.3",
+      "age": "1.2.1",
+      "checkExit": 0,
+      "testFilesPassed": 519,
+      "testsPassed": 4573,
+      "vitestDurationSeconds": 390.34,
+      "normalProductionBuildExit": 0,
+      "wrapperExit": 0,
+      "unchangedFrozenFiles": 29,
+      "unchangedTrackedFiles": 3337,
+      "headAndCleanStatusUnchanged": true
+    }
+  },
+  "phoneMeasurement": {
+    "groups": 19,
+    "categories": 36,
+    "singles": 11,
+    "combinedGroups": 19,
+    "oldRows": 55,
+    "newRows": 36,
+    "reductionPercent": 34.54545454545455,
+    "browserVersion": "27.2",
+    "viewport": {
+      "width": 390,
+      "height": 664
+    },
+    "physicalTableHeightPx": 3842.25
+  },
+  "desktopMeasurements": [
+    {
+      "engine": "webkit",
+      "browserVersion": "27.2",
+      "theme": "light",
+      "configuredDesktopFlags": {
+        "isMobile": false,
+        "hasTouch": false
+      },
+      "oldRows": 55,
+      "newRows": 36,
+      "reductionPercent": 34.54545454545455,
+      "tableHeight": 1746.625,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "observedTouchPoints": 0,
+      "observedCoarsePointer": false,
+      "documentWidth": 1440,
+      "fontsStatus": "loaded"
+    },
+    {
+      "engine": "webkit",
+      "browserVersion": "27.2",
+      "theme": "dark",
+      "configuredDesktopFlags": {
+        "isMobile": false,
+        "hasTouch": false
+      },
+      "oldRows": 55,
+      "newRows": 36,
+      "reductionPercent": 34.54545454545455,
+      "tableHeight": 1746.625,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "observedTouchPoints": 0,
+      "observedCoarsePointer": false,
+      "documentWidth": 1440,
+      "fontsStatus": "loaded"
+    }
+  ],
+  "parentContrast": [
+    {
+      "theme": "light",
+      "testedAllDistinctParentIndices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "groupIds": [
+        "grp-grp-wohnen",
+        "grp-grp-kredite",
+        "grp-grp-versicherungen",
+        "grp-grp-abos",
+        "grp-grp-freizeit",
+        "grp-grp-mobilitaet",
+        "grp-grp-genuss",
+        "grp-grp-geschenke"
+      ],
+      "testedElementRoles": [
+        "BUTTON",
+        "SPAN",
+        "svg"
+      ],
+      "minimumOpaqueWCAGContrast": 16.194976611718243,
+      "foregrounds": [
+        "rgb(11, 27, 51)"
+      ],
+      "backgrounds": [
+        "rgb(246, 248, 251)",
+        "rgb(255, 255, 255)"
+      ],
+      "actualScopedAxeIncompleteParentCount": 8,
+      "actualIncompleteReasonKeys": [
+        "pseudoContent"
+      ],
+      "allIncompleteReasonsKnownPseudoContent": true,
+      "qualification": "Scoped Axe incompletes were not treated as passes; unchanged assertion requires known reasons plus all actual opaque-background WCAG ratios>=4.5 and exact root ink. Strict main Axe violations0 separately retained. Detailed safe per-parent proofs remain in immutable raw archive."
+    },
+    {
+      "theme": "dark",
+      "testedAllDistinctParentIndices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "groupIds": [
+        "grp-grp-wohnen",
+        "grp-grp-kredite",
+        "grp-grp-versicherungen",
+        "grp-grp-abos",
+        "grp-grp-freizeit",
+        "grp-grp-mobilitaet",
+        "grp-grp-genuss",
+        "grp-grp-geschenke"
+      ],
+      "testedElementRoles": [
+        "BUTTON",
+        "SPAN",
+        "svg"
+      ],
+      "minimumOpaqueWCAGContrast": 10.592548771062878,
+      "foregrounds": [
+        "rgb(238, 246, 252)"
+      ],
+      "backgrounds": [
+        "rgb(13, 54, 87)",
+        "rgb(15, 59, 96)"
+      ],
+      "actualScopedAxeIncompleteParentCount": 8,
+      "actualIncompleteReasonKeys": [
+        "pseudoContent"
+      ],
+      "allIncompleteReasonsKnownPseudoContent": true,
+      "qualification": "Scoped Axe incompletes were not treated as passes; unchanged assertion requires known reasons plus all actual opaque-background WCAG ratios>=4.5 and exact root ink. Strict main Axe violations0 separately retained. Detailed safe per-parent proofs remain in immutable raw archive."
+    }
+  ],
+  "responsiveProfiles": [
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "theme": "light",
+      "documentWidth": 1440,
+      "fullRoleMaxHeights": {
+        "categoryHeight": 39.140625,
+        "parentHeight": 32,
+        "wholeHeight": 48.390625
+      },
+      "minimumPositiveParentWidth": 36.984375,
+      "minimumPositiveCategoryWidth": 89.953125,
+      "minimumPositiveStatusWidth": 89.953125,
+      "scrollReachability": {
+        "usesExistingScroller": true,
+        "overflowX": "auto",
+        "clientWidth": 786,
+        "scrollWidth": 786,
+        "initialScrollLeft": 0,
+        "rightScrollLeft": 0,
+        "focusedExistingControl": true,
+        "documentWidthAfterFocus": 1440,
+        "outerLeft": 277,
+        "outerRight": 1062.984375,
+        "finalHeaderRight": 1062.984375,
+        "targetLeft": 1022.984375,
+        "targetRight": 1050.984375
+      },
+      "absoluteSrOnlyCount": 61,
+      "tableAbsoluteSrOnlyCount": 55,
+      "tableOffsetParents": [
+        "pmulti-scroll"
+      ],
+      "nonScrollerOverflowWitnessCount": 0
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "theme": "dark",
+      "documentWidth": 1440,
+      "fullRoleMaxHeights": {
+        "categoryHeight": 39.140625,
+        "parentHeight": 32,
+        "wholeHeight": 48.390625
+      },
+      "minimumPositiveParentWidth": 36.984375,
+      "minimumPositiveCategoryWidth": 89.953125,
+      "minimumPositiveStatusWidth": 89.953125,
+      "scrollReachability": {
+        "usesExistingScroller": true,
+        "overflowX": "auto",
+        "clientWidth": 786,
+        "scrollWidth": 786,
+        "initialScrollLeft": 0,
+        "rightScrollLeft": 0,
+        "focusedExistingControl": true,
+        "documentWidthAfterFocus": 1440,
+        "outerLeft": 277,
+        "outerRight": 1062.984375,
+        "finalHeaderRight": 1062.984375,
+        "targetLeft": 1022.984375,
+        "targetRight": 1050.984375
+      },
+      "absoluteSrOnlyCount": 61,
+      "tableAbsoluteSrOnlyCount": 55,
+      "tableOffsetParents": [
+        "pmulti-scroll"
+      ],
+      "nonScrollerOverflowWitnessCount": 0
+    },
+    {
+      "viewport": {
+        "width": 1439,
+        "height": 900
+      },
+      "theme": "light",
+      "documentWidth": 1439,
+      "fullRoleMaxHeights": {
+        "categoryHeight": 39.6875,
+        "parentHeight": 28,
+        "wholeHeight": 64
+      },
+      "minimumPositiveParentWidth": 36.984375,
+      "minimumPositiveCategoryWidth": 171.171875,
+      "minimumPositiveStatusWidth": 171.1875,
+      "scrollReachability": {
+        "usesExistingScroller": true,
+        "overflowX": "auto",
+        "clientWidth": 785,
+        "scrollWidth": 785,
+        "initialScrollLeft": 0,
+        "rightScrollLeft": 0,
+        "focusedExistingControl": true,
+        "documentWidthAfterFocus": 1439,
+        "outerLeft": 277,
+        "outerRight": 1062,
+        "finalHeaderRight": 1062,
+        "targetLeft": 1022,
+        "targetRight": 1050
+      },
+      "absoluteSrOnlyCount": 61,
+      "tableAbsoluteSrOnlyCount": 55,
+      "tableOffsetParents": [
+        "pmulti-scroll"
+      ],
+      "nonScrollerOverflowWitnessCount": 0
+    },
+    {
+      "viewport": {
+        "width": 1439,
+        "height": 900
+      },
+      "theme": "dark",
+      "documentWidth": 1439,
+      "fullRoleMaxHeights": {
+        "categoryHeight": 39.6875,
+        "parentHeight": 28,
+        "wholeHeight": 64
+      },
+      "minimumPositiveParentWidth": 36.984375,
+      "minimumPositiveCategoryWidth": 171.171875,
+      "minimumPositiveStatusWidth": 171.1875,
+      "scrollReachability": {
+        "usesExistingScroller": true,
+        "overflowX": "auto",
+        "clientWidth": 785,
+        "scrollWidth": 785,
+        "initialScrollLeft": 0,
+        "rightScrollLeft": 0,
+        "focusedExistingControl": true,
+        "documentWidthAfterFocus": 1439,
+        "outerLeft": 277,
+        "outerRight": 1062,
+        "finalHeaderRight": 1062,
+        "targetLeft": 1022,
+        "targetRight": 1050
+      },
+      "absoluteSrOnlyCount": 61,
+      "tableAbsoluteSrOnlyCount": 55,
+      "tableOffsetParents": [
+        "pmulti-scroll"
+      ],
+      "nonScrollerOverflowWitnessCount": 0
+    },
+    {
+      "viewport": {
+        "width": 1400,
+        "height": 900
+      },
+      "theme": "light",
+      "documentWidth": 1400,
+      "fullRoleMaxHeights": {
+        "categoryHeight": 39.6875,
+        "parentHeight": 28,
+        "wholeHeight": 64
+      },
+      "minimumPositiveParentWidth": 36.984375,
+      "minimumPositiveCategoryWidth": 151.671875,
+      "minimumPositiveStatusWidth": 151.6875,
+      "scrollReachability": {
+        "usesExistingScroller": true,
+        "overflowX": "auto",
+        "clientWidth": 746,
+        "scrollWidth": 746,
+        "initialScrollLeft": 0,
+        "rightScrollLeft": 0,
+        "focusedExistingControl": true,
+        "documentWidthAfterFocus": 1400,
+        "outerLeft": 277,
+        "outerRight": 1023,
+        "finalHeaderRight": 1023,
+        "targetLeft": 983,
+        "targetRight": 1011
+      },
+      "absoluteSrOnlyCount": 61,
+      "tableAbsoluteSrOnlyCount": 55,
+      "tableOffsetParents": [
+        "pmulti-scroll"
+      ],
+      "nonScrollerOverflowWitnessCount": 0
+    },
+    {
+      "viewport": {
+        "width": 1400,
+        "height": 900
+      },
+      "theme": "dark",
+      "documentWidth": 1400,
+      "fullRoleMaxHeights": {
+        "categoryHeight": 39.6875,
+        "parentHeight": 28,
+        "wholeHeight": 64
+      },
+      "minimumPositiveParentWidth": 36.984375,
+      "minimumPositiveCategoryWidth": 151.671875,
+      "minimumPositiveStatusWidth": 151.6875,
+      "scrollReachability": {
+        "usesExistingScroller": true,
+        "overflowX": "auto",
+        "clientWidth": 746,
+        "scrollWidth": 746,
+        "initialScrollLeft": 0,
+        "rightScrollLeft": 0,
+        "focusedExistingControl": true,
+        "documentWidthAfterFocus": 1400,
+        "outerLeft": 277,
+        "outerRight": 1023,
+        "finalHeaderRight": 1023,
+        "targetLeft": 983,
+        "targetRight": 1011
+      },
+      "absoluteSrOnlyCount": 61,
+      "tableAbsoluteSrOnlyCount": 55,
+      "tableOffsetParents": [
+        "pmulti-scroll"
+      ],
+      "nonScrollerOverflowWitnessCount": 0
+    },
+    {
+      "viewport": {
+        "width": 1200,
+        "height": 900
+      },
+      "theme": "light",
+      "documentWidth": 1200,
+      "fullRoleMaxHeights": {
+        "categoryHeight": 39.6875,
+        "parentHeight": 28,
+        "wholeHeight": 64
+      },
+      "minimumPositiveParentWidth": 36.984375,
+      "minimumPositiveCategoryWidth": 72.96875,
+      "minimumPositiveStatusWidth": 72.96875,
+      "scrollReachability": {
+        "usesExistingScroller": true,
+        "overflowX": "auto",
+        "clientWidth": 546,
+        "scrollWidth": 589,
+        "initialScrollLeft": 0,
+        "rightScrollLeft": 43,
+        "focusedExistingControl": true,
+        "documentWidthAfterFocus": 1200,
+        "outerLeft": 277,
+        "outerRight": 823,
+        "finalHeaderRight": 822.578125,
+        "targetLeft": 782.578125,
+        "targetRight": 810.578125
+      },
+      "absoluteSrOnlyCount": 61,
+      "tableAbsoluteSrOnlyCount": 55,
+      "tableOffsetParents": [
+        "pmulti-scroll"
+      ],
+      "nonScrollerOverflowWitnessCount": 0
+    },
+    {
+      "viewport": {
+        "width": 1200,
+        "height": 900
+      },
+      "theme": "dark",
+      "documentWidth": 1200,
+      "fullRoleMaxHeights": {
+        "categoryHeight": 39.6875,
+        "parentHeight": 28,
+        "wholeHeight": 64
+      },
+      "minimumPositiveParentWidth": 36.984375,
+      "minimumPositiveCategoryWidth": 72.96875,
+      "minimumPositiveStatusWidth": 72.96875,
+      "scrollReachability": {
+        "usesExistingScroller": true,
+        "overflowX": "auto",
+        "clientWidth": 546,
+        "scrollWidth": 589,
+        "initialScrollLeft": 0,
+        "rightScrollLeft": 43,
+        "focusedExistingControl": true,
+        "documentWidthAfterFocus": 1200,
+        "outerLeft": 277,
+        "outerRight": 823,
+        "finalHeaderRight": 822.578125,
+        "targetLeft": 782.578125,
+        "targetRight": 810.578125
+      },
+      "absoluteSrOnlyCount": 61,
+      "tableAbsoluteSrOnlyCount": 55,
+      "tableOffsetParents": [
+        "pmulti-scroll"
+      ],
+      "nonScrollerOverflowWitnessCount": 0
+    },
+    {
+      "viewport": {
+        "width": 1180,
+        "height": 900
+      },
+      "theme": "light",
+      "documentWidth": 1180,
+      "fullRoleMaxHeights": {
+        "categoryHeight": 39.6875,
+        "parentHeight": 28,
+        "wholeHeight": 64
+      },
+      "minimumPositiveParentWidth": 36.984375,
+      "minimumPositiveCategoryWidth": 72.96875,
+      "minimumPositiveStatusWidth": 72.96875,
+      "scrollReachability": {
+        "usesExistingScroller": true,
+        "overflowX": "auto",
+        "clientWidth": 550,
+        "scrollWidth": 589,
+        "initialScrollLeft": 0,
+        "rightScrollLeft": 39,
+        "focusedExistingControl": true,
+        "documentWidthAfterFocus": 1180,
+        "outerLeft": 265,
+        "outerRight": 814.984375,
+        "finalHeaderRight": 814.578125,
+        "targetLeft": 774.578125,
+        "targetRight": 802.578125
+      },
+      "absoluteSrOnlyCount": 61,
+      "tableAbsoluteSrOnlyCount": 55,
+      "tableOffsetParents": [
+        "pmulti-scroll"
+      ],
+      "nonScrollerOverflowWitnessCount": 0
+    },
+    {
+      "viewport": {
+        "width": 1180,
+        "height": 900
+      },
+      "theme": "dark",
+      "documentWidth": 1180,
+      "fullRoleMaxHeights": {
+        "categoryHeight": 39.6875,
+        "parentHeight": 28,
+        "wholeHeight": 64
+      },
+      "minimumPositiveParentWidth": 36.984375,
+      "minimumPositiveCategoryWidth": 72.96875,
+      "minimumPositiveStatusWidth": 72.96875,
+      "scrollReachability": {
+        "usesExistingScroller": true,
+        "overflowX": "auto",
+        "clientWidth": 550,
+        "scrollWidth": 589,
+        "initialScrollLeft": 0,
+        "rightScrollLeft": 39,
+        "focusedExistingControl": true,
+        "documentWidthAfterFocus": 1180,
+        "outerLeft": 265,
+        "outerRight": 814.984375,
+        "finalHeaderRight": 814.578125,
+        "targetLeft": 774.578125,
+        "targetRight": 802.578125
+      },
+      "absoluteSrOnlyCount": 61,
+      "tableAbsoluteSrOnlyCount": 55,
+      "tableOffsetParents": [
+        "pmulti-scroll"
+      ],
+      "nonScrollerOverflowWitnessCount": 0
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 900
+      },
+      "theme": "light",
+      "documentWidth": 1024,
+      "fullRoleMaxHeights": {
+        "categoryHeight": 39.6875,
+        "parentHeight": 28,
+        "wholeHeight": 64
+      },
+      "minimumPositiveParentWidth": 36.984375,
+      "minimumPositiveCategoryWidth": 143.671875,
+      "minimumPositiveStatusWidth": 143.6875,
+      "scrollReachability": {
+        "usesExistingScroller": true,
+        "overflowX": "auto",
+        "clientWidth": 730,
+        "scrollWidth": 730,
+        "initialScrollLeft": 0,
+        "rightScrollLeft": 0,
+        "focusedExistingControl": true,
+        "documentWidthAfterFocus": 1024,
+        "outerLeft": 265,
+        "outerRight": 995,
+        "finalHeaderRight": 995,
+        "targetLeft": 955,
+        "targetRight": 983
+      },
+      "absoluteSrOnlyCount": 61,
+      "tableAbsoluteSrOnlyCount": 55,
+      "tableOffsetParents": [
+        "pmulti-scroll"
+      ],
+      "nonScrollerOverflowWitnessCount": 0
+    },
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 900
+      },
+      "theme": "dark",
+      "documentWidth": 1024,
+      "fullRoleMaxHeights": {
+        "categoryHeight": 39.6875,
+        "parentHeight": 28,
+        "wholeHeight": 64
+      },
+      "minimumPositiveParentWidth": 36.984375,
+      "minimumPositiveCategoryWidth": 143.671875,
+      "minimumPositiveStatusWidth": 143.6875,
+      "scrollReachability": {
+        "usesExistingScroller": true,
+        "overflowX": "auto",
+        "clientWidth": 730,
+        "scrollWidth": 730,
+        "initialScrollLeft": 0,
+        "rightScrollLeft": 0,
+        "focusedExistingControl": true,
+        "documentWidthAfterFocus": 1024,
+        "outerLeft": 265,
+        "outerRight": 995,
+        "finalHeaderRight": 995,
+        "targetLeft": 955,
+        "targetRight": 983
+      },
+      "absoluteSrOnlyCount": 61,
+      "tableAbsoluteSrOnlyCount": 55,
+      "tableOffsetParents": [
+        "pmulti-scroll"
+      ],
+      "nonScrollerOverflowWitnessCount": 0
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 900
+      },
+      "theme": "light",
+      "documentWidth": 768,
+      "fullRoleMaxHeights": {
+        "categoryHeight": 39.6875,
+        "parentHeight": 28,
+        "wholeHeight": 64
+      },
+      "minimumPositiveParentWidth": 36.984375,
+      "minimumPositiveCategoryWidth": 72.96875,
+      "minimumPositiveStatusWidth": 72.96875,
+      "scrollReachability": {
+        "usesExistingScroller": true,
+        "overflowX": "auto",
+        "clientWidth": 474,
+        "scrollWidth": 589,
+        "initialScrollLeft": 0,
+        "rightScrollLeft": 115,
+        "focusedExistingControl": true,
+        "documentWidthAfterFocus": 768,
+        "outerLeft": 265,
+        "outerRight": 739,
+        "finalHeaderRight": 738.578125,
+        "targetLeft": 698.578125,
+        "targetRight": 726.578125
+      },
+      "absoluteSrOnlyCount": 61,
+      "tableAbsoluteSrOnlyCount": 55,
+      "tableOffsetParents": [
+        "pmulti-scroll"
+      ],
+      "nonScrollerOverflowWitnessCount": 0
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 900
+      },
+      "theme": "dark",
+      "documentWidth": 768,
+      "fullRoleMaxHeights": {
+        "categoryHeight": 39.6875,
+        "parentHeight": 28,
+        "wholeHeight": 64
+      },
+      "minimumPositiveParentWidth": 36.984375,
+      "minimumPositiveCategoryWidth": 72.96875,
+      "minimumPositiveStatusWidth": 72.96875,
+      "scrollReachability": {
+        "usesExistingScroller": true,
+        "overflowX": "auto",
+        "clientWidth": 474,
+        "scrollWidth": 589,
+        "initialScrollLeft": 0,
+        "rightScrollLeft": 115,
+        "focusedExistingControl": true,
+        "documentWidthAfterFocus": 768,
+        "outerLeft": 265,
+        "outerRight": 739,
+        "finalHeaderRight": 738.578125,
+        "targetLeft": 698.578125,
+        "targetRight": 726.578125
+      },
+      "absoluteSrOnlyCount": 61,
+      "tableAbsoluteSrOnlyCount": 55,
+      "tableOffsetParents": [
+        "pmulti-scroll"
+      ],
+      "nonScrollerOverflowWitnessCount": 0
+    }
+  ],
+  "exactFixtureProfiles": [
+    {
+      "profile": "true-desktop-webkit-1440",
+      "expanded": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "documentWidth": 1440,
+        "table": {
+          "top": 267.6875,
+          "bottom": 927.46875,
+          "left": 277,
+          "right": 1062.984375,
+          "width": 785.984375,
+          "height": 659.78125
+        },
+        "beforeGrid": 92,
+        "visibleCategoryRows": 17
+      }
+    },
+    {
+      "profile": "canonical-iphone-webkit",
+      "expanded": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "documentWidth": 390,
+        "table": {
+          "top": 429.390625,
+          "bottom": 1987.953125,
+          "left": 17,
+          "right": 373,
+          "width": 356,
+          "height": 1558.5625
+        },
+        "beforeGrid": 168,
+        "visibleCategoryRows": 1
+      }
+    },
+    {
+      "profile": "historical-height-comparison-390x844",
+      "expanded": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "documentWidth": 390,
+        "table": {
+          "top": 429.390625,
+          "bottom": 1987.953125,
+          "left": 17,
+          "right": 373,
+          "width": 356,
+          "height": 1558.5625
+        },
+        "beforeGrid": 168,
+        "visibleCategoryRows": 3
+      }
+    }
+  ],
+  "existingTestHashes": {
+    "apps/web/src/budget/budget-ui.test.tsx": "c67c3adf13eabd8ee452e56c8bc312ec36fd0bc771673289cd6c1d629715a854",
+    "e2e/plan-detail-pages.spec.ts": "a0703c630c55f04477c1379e3b671c11d829a5439ed4fd9ba4cbfa9fa5c0d2a6",
+    "e2e/issue-588-plan-menus.spec.ts": "ad4fd03f4b1f87e5b63efd12bcfca453e4fcb50e66724ce027c9b4e5c84581f2",
+    "e2e/plan-compact-grid.spec.ts": "516d16705a13e0a63d8891d7337f82a3f25c561a778ddc8ab0f5967174af4e41",
+    "e2e/plan.spec.ts": "248319957b33b3a8e687b98391f11cd9206d6bfbfeba7a4fad0c229abad9463a",
+    "e2e/ux-distill.spec.ts": "588a8040a758f30e378966962b12e11357070ebd93239a7fd451a7653fea9955",
+    "e2e/ux-cover-limits.spec.ts": "51424704cd46b26a7b82c0e74bd53e5b0ad2777c4da3ba590bb125b52d75b3d8",
+    "e2e/issue-588-plan-menus-undo.spec.ts": "f51538b5f89a4327d209c248698f1d2765b7d87fb74fc4d3129fb1ded0c51741",
+    "e2e/month-nav.spec.ts": "2bb3ec1c0a5a6e1bd4669e28bbc93522113e9685f83c59bf6635bd31c2148d13"
+  },
+  "images": {
+    "webkit-desktop-light.png": {
+      "sha256": "df074afbbfa907fd30b7cb798c40d614be8ee30ec975f551a778556d7f6acd9a",
+      "pixelDimensions": [
+        4320,
+        6261
+      ],
+      "actualSource": "218679c8dfefe1438fbf58039f852fa1366b70b2"
+    },
+    "webkit-desktop-dark.png": {
+      "sha256": "ab583cf8c662a9117c11fd84a277d91a81a93558160f98f18fbda220262e5812",
+      "pixelDimensions": [
+        4320,
+        6261
+      ],
+      "actualSource": "218679c8dfefe1438fbf58039f852fa1366b70b2"
+    },
+    "webkit-iphone-light.png": {
+      "sha256": "a92e9e8db54d5ddbb2bb53385117b316fd72b2ab4d646b3d3f107397391eeb4b",
+      "pixelDimensions": [
+        1170,
+        15258
+      ],
+      "actualSource": "218679c8dfefe1438fbf58039f852fa1366b70b2"
+    },
+    "webkit-iphone-dark.png": {
+      "sha256": "1825e49c77f9b4a2a19e042dffea8db13f0616379ac7030a3600c63daed7e72b",
+      "pixelDimensions": [
+        1170,
+        15258
+      ],
+      "actualSource": "218679c8dfefe1438fbf58039f852fa1366b70b2"
+    }
+  },
+  "limits": [
+    "Owner approved55\u219236 logicalrows=34.5454545%; physicalheights separately1746.625px desktop/3842.25px phone, no physical30%claim.",
+    "Fullsemanticroleunions include actualfinancialcontrols andbartick; original desktopcategory40/parent36, phonecategory76 retained; addedparentphone76/whole76desktop152phone.",
+    "Known scopedAxe color-contrast pseudoContent incompletes retained; actualonscreenopaqueWCAG>=4.5 and rootink checks preserved. Parenttests do not independently assert text-fill.",
+    "Fullpage phone fixednavigation/FAB capture retained; target size does not establish every unobscured hit point.",
+    "CanonicalChromium exactheadCI, remainingcaller compatibility, serialintegration/live still pending; genuineWebKit is not Chromium."
+  ]
+}

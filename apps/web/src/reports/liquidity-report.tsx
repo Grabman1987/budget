@@ -18,7 +18,15 @@ import {
   type LiquidityReport,
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, AlertTriangle, CheckCircle2, Plus, X } from 'lucide-react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  CircleMinus,
+  Plus,
+  X,
+} from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { eur, longDay, monthName, shortDay } from '../ledger/format';
@@ -45,11 +53,13 @@ import './reports-future.css';
 import { salaryDay, upcomingEvents, useLiquiditySelection } from './liquidity-selection';
 
 const HORIZON_OPTIONS: ReadonlyArray<{ value: LiquidityHorizon; label: string }> = [
+  { value: '35d', label: '35 Tage' },
   { value: '90d', label: '90 Tage' },
   { value: '6m', label: '6 Monate' },
   { value: '12m', label: '12 Monate' },
 ];
 const HORIZON_TITLE: Record<LiquidityHorizon, string> = {
+  '35d': 'nächste 35 Tage',
   '90d': 'nächste 90 Tage',
   '6m': 'nächste 6 Monate',
   '12m': 'nächste 12 Monate',
@@ -84,6 +94,7 @@ const monthLong = (month: string) => `${monthName(`${month}-01`)} ${month.slice(
 export function LiquidityReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   useAmountPrivacy();
   const { horizon, setHorizon, levers, setLevers } = useLiquiditySelection();
+  const [toolsOpen, setToolsOpen] = useState(false);
   const query = useQuery(liquidityQuery(horizon, levers));
   // Never mix cached figures with a failed or loading read of another horizon.
   const view = query.isSuccess ? query.data : undefined;
@@ -130,16 +141,29 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
               levers={levers}
               stale={query.isFetching}
             />
-            <IncomePausesCard view={view} />
-            <EventsCard view={view} />
-            <LeversCard
-              report={view.report}
-              onToggle={(id, on) =>
-                setLevers(on ? [...levers, id] : levers.filter((l) => l !== id))
-              }
-            />
+            <details
+              className="card rf-tools rf-wide"
+              open={toolsOpen}
+              onToggle={(event) => setToolsOpen(event.currentTarget.open)}
+            >
+              <summary>
+                <span>Werkzeuge</span>
+                <small>Einkommenspausen · Ereignisse · Stellschrauben · Buchungen streichen</small>
+                <ChevronDown size={18} aria-hidden="true" />
+              </summary>
+              <div className="rf-tools-content">
+                <IncomePausesCard view={view} />
+                <EventsCard view={view} />
+                <LeversCard
+                  report={view.report}
+                  onToggle={(id, on) =>
+                    setLevers(on ? [...levers, id] : levers.filter((l) => l !== id))
+                  }
+                />
+                <MovementsCard report={view.report} />
+              </div>
+            </details>
             <OutlookCard report={view.report} />
-            <MovementsCard report={view.report} />
           </>
         )}
       </div>
@@ -1029,6 +1053,8 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
                       <Button
                         size="sm"
                         variant="ghost"
+                        className="rf-strike"
+                        title={`${strikeLabel(r.cents)}: ${r.label}, ${shortDay(r.day)}`}
                         aria-label={`${strikeLabel(r.cents)}: ${r.label}, ${shortDay(r.day)}`}
                         onClick={() => {
                           const ref = r.ref!;
@@ -1038,7 +1064,7 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
                           );
                         }}
                       >
-                        {strikeLabel(r.cents)}
+                        <CircleMinus size={18} aria-hidden="true" />
                       </Button>
                     )}
                   </td>

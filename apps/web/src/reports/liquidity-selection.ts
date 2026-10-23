@@ -7,6 +7,7 @@ import {
   type LiquidityReport,
 } from '@budget/domain';
 import { useState } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 
 type Selection = { horizon: LiquidityHorizon; levers: LiquidityLeverId[] };
 const KEY = 'budget-liquidity-selection';
@@ -27,15 +28,49 @@ export function readLiquiditySelection(): Selection {
   return { horizon: '6m', levers: [] };
 }
 
+/** Explicit URL state wins over the previous local preference, including an empty lever set. */
+export function validateLiquiditySearch(search: Record<string, unknown>) {
+  return {
+    horizon: LIQUIDITY_HORIZONS.includes(search['horizon'] as LiquidityHorizon)
+      ? (search['horizon'] as LiquidityHorizon)
+      : undefined,
+    levers:
+      typeof search['levers'] === 'string' && search['levers'].length <= 200
+        ? LIQUIDITY_LEVERS.filter((id) =>
+            (search['levers'] as string).split(',').includes(id),
+          ).join(',')
+        : undefined,
+  };
+}
+
 export function useLiquiditySelection() {
-  const [selection, setSelection] = useState(readLiquiditySelection);
+  const [fallback] = useState(readLiquiditySelection);
+  const search = useSearch({ strict: false }) as ReturnType<typeof validateLiquiditySearch>;
+  const navigate = useNavigate();
+  const selection: Selection = {
+    horizon: search.horizon ?? fallback.horizon,
+    levers:
+      search.levers !== undefined
+        ? LIQUIDITY_LEVERS.filter((id) => search.levers?.split(',').includes(id))
+        : search.horizon !== undefined
+          ? []
+          : fallback.levers,
+  };
   const update = (next: Selection) => {
-    setSelection(next);
     try {
       localStorage.setItem(KEY, JSON.stringify(next));
     } catch {
-      /* In-memory choice still works. */
+      /* The URL still retains the chosen view when preference storage is unavailable. */
     }
+    void navigate({
+      to: '.',
+      resetScroll: false,
+      search: ((previous: Record<string, unknown>) => ({
+        ...previous,
+        horizon: next.horizon,
+        levers: next.levers.join(','),
+      })) as never,
+    });
   };
   return {
     ...selection,
@@ -64,11 +99,8 @@ export function salaryDay(
   report: LiquidityReport,
   salaryPaymentIds: ReadonlySet<string>,
 ): string | null {
-  const row = report.movements
-    .flatMap((m) => m.rows)
-    .find(
-      (r) =>
-        r.day > report.startDay && r.cents > 0 && !!r.ref && salaryPaymentIds.has(r.ref.paymentId),
-    );
+  const row = report.scheduledInflows.find(
+    (r) => r.day > report.startDay && r.cents > 0 && salaryPaymentIds.has(r.ref.paymentId),
+  );
   return row?.day ?? null;
 }

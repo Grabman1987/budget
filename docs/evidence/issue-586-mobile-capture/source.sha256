@@ -1,0 +1,6 @@
+0dac98bcdfab1b0b0d8bba5a64766f45f5d6cbfdef3cf0e221ded98fe2337bce  apps/web/src/ledger/booking-panel.tsx
+8bae7b79354d1262574ea2c09a43a0eacea24bf056269c7c6bdba2529bd3b7b8  apps/web/src/ledger/ledger.css
+0bac77007bfa24619c9fa137b20bb29197174be447110fe9890e7061ebe0fad5  e2e/capture-dialog-layout.spec.ts
+5c60cbe8c427842bd3b1ef79aff752b5d14545b06a5321be8c85da15a020731b  e2e/issue-586-mobile-capture.spec.ts
+eeecf348cfb1a4649945f42143aabc20d172e954f00655c760aa8b4d7da75bbd  e2e/booking-acceptance.spec.ts
+d64e31a95120f5bf064dd6be635d576dcd6d6df0378d1245c89be3cf4c89d77b  e2e/mobile-panels.spec.ts

@@ -15,7 +15,14 @@ test('only Escape, close and a genuine outside click ask to discard a dirty book
   for (const close of ['escape', 'button', 'outside']) {
     if (close === 'escape') await dialog.getByLabel('Notiz').press('Escape');
     else if (close === 'button') await dialog.getByRole('button', { name: 'Schließen' }).click();
-    else await page.mouse.click(2, 2);
+    else if (page.viewportSize()!.width < 768) {
+      // #586: a full-screen phone sheet has no exposed scrim; its close control keeps the guard.
+      const bounds = (await dialog.boundingBox())!;
+      expect(bounds.x).toBe(0);
+      expect(bounds.y).toBe(0);
+      expect(bounds.width).toBe(page.viewportSize()!.width);
+      await dialog.getByRole('button', { name: 'Schließen' }).click();
+    } else await page.mouse.click(2, 2);
     await expect(dialog.getByRole('alertdialog')).toBeVisible();
     await dialog.getByRole('button', { name: 'Weiter bearbeiten' }).click();
     await expect(dialog.getByRole('alertdialog')).toHaveCount(0);
@@ -101,8 +108,9 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
   await expect(dialog.getByRole('button', { name: 'Gestern' })).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: 'Heute', exact: true })).toHaveCount(0);
   await date.click();
-  await escapePicker();
-  await dialog.getByRole('button', { name: 'Kalender öffnen' }).click();
+  await expect(date).toBeFocused();
+  await expect(discard).toHaveCount(0);
+  await dialog.getByLabel('Datum im Kalender').click();
   await escapePicker();
   await dialog.getByLabel('Datum im Kalender').fill('2026-10-02');
   await expect(date).toHaveValue('02.10.2026');
@@ -141,6 +149,15 @@ test('capture rows, native calendar and dropdowns keep the draft on desktop and 
     await page.evaluate((value) => {
       document.documentElement.dataset['theme'] = value;
     }, theme);
+    const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+    await expect(save).toHaveCSS(
+      'background-color',
+      theme === 'light' ? 'rgb(23, 71, 166)' : 'rgb(208, 244, 255)',
+    );
+    await expect(save).toHaveCSS(
+      'color',
+      theme === 'light' ? 'rgb(255, 255, 255)' : 'rgb(11, 49, 82)',
+    );
     await expect(dialog.getByRole('button', { name: 'Speichern', exact: true })).toBeInViewport();
     const controls = await dialog
       .locator('button, input, select, textarea, summary')

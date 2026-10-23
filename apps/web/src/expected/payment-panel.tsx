@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { eur, longDay, shortDay } from '../ledger/format';
+import { AppLink } from '../shell/app-link';
 import { bookingsQuery } from '../ledger/queries';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import {
@@ -23,7 +24,7 @@ import {
   expectedQuery,
   linkOccurrence,
   markMissed,
-  occurrencesQuery,
+  paymentDetailQuery,
   patchPayment,
   skipOccurrence,
   unlinkOccurrence,
@@ -31,6 +32,7 @@ import {
   versionsQuery,
   type ExpectedPayment,
   type Occurrence,
+  type PaymentDetailRow,
 } from './api';
 import { cadenceText, money, needsAction, versionAmount, versionLetter } from './expected-model';
 import {
@@ -362,130 +364,203 @@ function VersionsSection({ payment: p }: { payment: ExpectedPayment }) {
   );
 }
 
-// ---------- Zahlungen der letzten und nächsten 12 Monate ----------
+// ---------- Factual stored history and read-only future terms ----------
+
+function detailMoney(value: number, currency: string | null) {
+  return currency === null
+    ? `${eur(value, { sign: true }).replace(/ €$/, '')} (Währung nicht dokumentiert)`
+    : money(value, currency, true);
+}
 
 function OccurrencesSection({ payment: p }: { payment: ExpectedPayment }) {
   useAmountPrivacy();
   const [today] = useState(todayInVienna);
-  const from = `${addMonths(monthOf(today), -12)}-01`;
-  const to = `${addMonths(monthOf(today), 12)}-28`;
-  const all = useQuery(occurrencesQuery(from, to, true));
-  const rows = (all.data ?? []).filter((o) => o.paymentId === p.id);
+  const detail = useQuery(paymentDetailQuery(p.id, today));
+  const [more, setMore] = useState(false);
   const [linking, setLinking] = useState<string | null>(null);
   const write = useBudgetWrite();
+  const data = detail.data;
+  const allRows = [...(data?.history ?? []), ...(data?.future ?? [])];
+  const selected = allRows.find((row) => row.occurrenceId === linking && linking !== null);
   const name = p.name;
-
+  const renderRow = (row: PaymentDetailRow) => {
+    const id = row.occurrenceId;
+    return (
+      <li
+        key={id ?? `preview:${row.dueDate}`}
+        className={needsAction(row, today) ? 'is-alert' : undefined}
+      >
+        <span className="xp-occ-date">{longDay(row.dueDate)}</span>
+        <span className="xp-occ-amt">
+          <span className="xp-sub">Soll </span>
+          {detailMoney(row.expectedAmountCents, row.currency)}
+        </span>
+        <StatusStamp status={row.status} alert={needsAction(row, today)} />
+        <span className="xp-occ-actual">
+          <span className="xp-sub">Ist </span>
+          {row.actualComparableCents === null
+            ? '–'
+            : detailMoney(row.actualComparableCents, row.currency)}
+        </span>
+        <span className="xp-occ-delta">
+          <span className="xp-sub">Abweichung </span>
+          {row.deviationCents === null ? '–' : detailMoney(row.deviationCents, row.currency)}
+        </span>
+        <span className="xp-occ-book">
+          {row.booking === null ? (
+            'Keine zugeordnete Buchung.'
+          ) : (
+            <AppLink to="/konten/buchungen" search={{ buchung: row.booking.id }}>
+              {`Buchung ${longDay(row.booking.date)} · ${money(row.booking.amountCents, row.booking.currency, true)}`}
+            </AppLink>
+          )}
+          {row.unavailableReason === 'currency_mismatch' &&
+            ' Währung nicht vergleichbar; Originalbetrag fehlt.'}
+          {row.unavailableReason === 'missing_currency' &&
+            ' Ursprüngliche Währung nicht dokumentiert; Abweichung nicht verfügbar.'}
+          {row.unavailableReason === 'unsafe_difference' &&
+            ' Abweichung außerhalb des darstellbaren Centbereichs.'}
+          {row.source === 'preview' && ' Vorschau aus aktueller Regel · nicht gespeichert.'}
+        </span>
+        {id !== null && (
+          <span className="xp-occ-act">
+            {row.booking !== null ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  void write(
+                    () => unlinkOccurrence(id),
+                    () => `${name}: Verknüpfung vom ${longDay(row.dueDate)} gelöst`,
+                  )
+                }
+              >
+                Lösen
+              </Button>
+            ) : row.status === 'skipped' ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  void write(
+                    () => unskipOccurrence(id),
+                    () => `${name}: ${longDay(row.dueDate)} wiederhergestellt`,
+                  )
+                }
+              >
+                Wiederherstellen
+              </Button>
+            ) : (
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setLinking(linking === id ? null : id)}
+                >
+                  Verknüpfen
+                </Button>
+                {row.dueDate >= today && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      void write(
+                        () => skipOccurrence(p.id, row.dueDate),
+                        () => `${name}: ${longDay(row.dueDate)} gestrichen`,
+                      )
+                    }
+                  >
+                    Streichen
+                  </Button>
+                )}
+                {row.status !== 'missed' && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      void write(
+                        () => markMissed(id),
+                        () => `${name}: ${longDay(row.dueDate)} als ausgefallen markiert`,
+                      )
+                    }
+                  >
+                    Ausgefallen
+                  </Button>
+                )}
+              </>
+            )}
+          </span>
+        )}
+      </li>
+    );
+  };
   return (
     <section aria-labelledby="xp-occ">
       <h3 id="xp-occ" className="panel-h">
-        Zahlungen · letzte und nächste 12 Monate
+        Soll gegen Ist
       </h3>
-      {all.isPending && <LoadingNote what="Zahlungen" />}
-      {all.isError && (
-        <ErrorNote what="Zahlungen" error={all.error} onRetry={() => void all.refetch()} />
+      {detail.isPending && <LoadingNote what="Fälligkeiten" />}
+      {detail.isError && (
+        <ErrorNote what="Fälligkeiten" error={detail.error} onRetry={() => void detail.refetch()} />
       )}
-      {all.data && rows.length === 0 && (
-        <p className="rev-empty">Keine Fälligkeiten im Zeitraum.</p>
-      )}
-      {rows.length > 0 && (
-        <p className="field-hint">
-          Streichen nimmt nur diese Fälligkeit aus der Planung, die Regel bleibt. Ausgefallen meldet
-          eine Zahlung, die nicht eingegangen ist.
-        </p>
-      )}
-      {rows.length > 0 && (
-        <ul className="xp-occ" aria-label={`Fälligkeiten von ${name}`}>
-          {rows.map((o) => (
-            <li key={o.occurrenceId} className={needsAction(o, today) ? 'is-alert' : undefined}>
-              <span className="xp-occ-date">{longDay(o.dueDate)}</span>
-              <span className="xp-occ-amt">
-                {money(o.amountCents, o.currency, o.kind === 'inflow')}
-              </span>
-              <StatusStamp status={o.status} alert={needsAction(o, today)} />
-              <span className="xp-occ-book">
-                {o.bookingId !== null && o.bookedAmountCents !== null
-                  ? `Buchung ${eur(o.bookedAmountCents, { sign: true })}`
-                  : ''}
-              </span>
-              <span className="xp-occ-act">
-                {o.bookingId !== null ? (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      void write(
-                        () => unlinkOccurrence(o.occurrenceId),
-                        () => `${name}: Verknüpfung vom ${longDay(o.dueDate)} gelöst`,
-                      )
-                    }
-                  >
-                    Lösen
-                  </Button>
-                ) : o.status === 'skipped' ? (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      void write(
-                        () => unskipOccurrence(o.occurrenceId),
-                        () => `${name}: ${longDay(o.dueDate)} wiederhergestellt`,
-                      )
-                    }
-                  >
-                    Wiederherstellen
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setLinking(linking === o.occurrenceId ? null : o.occurrenceId)}
-                    >
-                      Verknüpfen
-                    </Button>
-                    {o.dueDate >= today && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                          void write(
-                            () => skipOccurrence(o.paymentId, o.dueDate),
-                            () => `${name}: ${longDay(o.dueDate)} gestrichen`,
-                          )
-                        }
-                      >
-                        Streichen
-                      </Button>
-                    )}
-                    {o.status !== 'missed' && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                          void write(
-                            () => markMissed(o.occurrenceId),
-                            () => `${name}: ${longDay(o.dueDate)} als ausgefallen markiert`,
-                          )
-                        }
-                      >
-                        Ausgefallen
-                      </Button>
-                    )}
-                  </>
-                )}
-              </span>
-            </li>
-          ))}
-        </ul>
+      {data && (
+        <>
+          <h4 className="panel-h">Letzte Fälligkeiten</h4>
+          <p className="field-hint">
+            {data.sparseHistory
+              ? `${data.history.length} vergangene Fälligkeiten gespeichert. Ältere Termine werden nicht nachgebildet.`
+              : 'Die letzten zwölf gespeicherten Fälligkeiten.'}
+          </p>
+          <ul className="xp-occ" aria-label={`Vergangene Fälligkeiten von ${name}`}>
+            {data.history.map(renderRow)}
+          </ul>
+          <h4 className="panel-h">Nächste Termine</h4>
+          <p className="field-hint">
+            Vorschau aus aktueller Regel und gültiger Betragsversion. Gespeicherte Zuordnungen und
+            Entscheidungen bleiben erhalten.
+          </p>
+          {data.future.length === 0 ? (
+            <p className="rev-empty">Keine weiteren Termine nach aktueller Regel.</p>
+          ) : (
+            <ul className="xp-occ" aria-label={`Kommende Fälligkeiten von ${name}`}>
+              {data.future.slice(0, more ? 12 : 3).map(renderRow)}
+            </ul>
+          )}
+          {data.future.length > 3 && (
+            <Button
+              className="xp-more"
+              variant="ghost"
+              aria-expanded={more}
+              onClick={() => setMore(!more)}
+            >
+              {more ? 'Weniger Termine' : 'Weitere Termine'}
+            </Button>
+          )}
+          {more && data.hasFurtherFuture && (
+            <p className="field-hint">Die Vorschau ist auf zwölf kommende Termine begrenzt.</p>
+          )}
+          {allRows.some((row) => row.occurrenceId !== null) && (
+            <p className="field-hint">
+              Streichen nimmt nur diese gespeicherte Fälligkeit aus der Planung, die Regel bleibt.
+              Ausgefallen meldet eine Zahlung, die nicht eingegangen ist. Vorschauen sind
+              schreibgeschützt.
+            </p>
+          )}
+        </>
       )}
       <PaymentDialog
-        open={linking !== null}
+        open={selected !== undefined}
         title="Buchung verknüpfen"
         onClose={() => setLinking(null)}
       >
-        {rows.find((o) => o.occurrenceId === linking) && (
+        {selected?.occurrenceId && (
           <LinkPicker
-            occurrence={rows.find((o) => o.occurrenceId === linking)!}
+            occurrence={{
+              occurrenceId: selected.occurrenceId,
+              dueDate: selected.dueDate,
+              kind: p.kind,
+              name,
+            }}
             accountId={p.accountId}
             onDone={() => setLinking(null)}
           />
@@ -501,7 +576,7 @@ function LinkPicker({
   accountId,
   onDone,
 }: {
-  occurrence: Occurrence;
+  occurrence: Pick<Occurrence, 'occurrenceId' | 'dueDate' | 'kind' | 'name'>;
   accountId: string | null;
   onDone: () => void;
 }) {

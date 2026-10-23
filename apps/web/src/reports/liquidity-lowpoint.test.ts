@@ -83,29 +83,10 @@ describe('upcomingEvents', () => {
 describe('salaryDay', () => {
   const report = {
     startDay: '2026-09-17',
-    movements: [
-      {
-        rows: [
-          {
-            day: '2026-09-20',
-            cents: 90_000,
-            planned: false,
-            ref: { paymentId: 'x', dueDate: '' },
-          },
-          {
-            day: '2026-09-30',
-            cents: 250_000,
-            planned: false,
-            ref: { paymentId: 's', dueDate: '' },
-          },
-          {
-            day: '2026-10-30',
-            cents: 250_000,
-            planned: false,
-            ref: { paymentId: 's', dueDate: '' },
-          },
-        ],
-      },
+    scheduledInflows: [
+      { day: '2026-09-20', cents: 90_000, ref: { paymentId: 'x', dueDate: '' } },
+      { day: '2026-09-30', cents: 250_000, ref: { paymentId: 's', dueDate: '' } },
+      { day: '2026-10-30', cents: 250_000, ref: { paymentId: 's', dueDate: '' } },
     ],
   } as unknown as LiquidityReport;
 

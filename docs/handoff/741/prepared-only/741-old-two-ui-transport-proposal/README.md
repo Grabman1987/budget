@@ -1,0 +1,9 @@
+# Existing UI transport adapter proposal — not applied
+
+Actual OLD8: 77 passed, 17 failed, two UI files. Source HEAD16d3 is unchanged.
+
+726: exact upload key assertion rejects the approved `automation=eligible` flag. Two existing route allowlists omit the new exact read-only settlement and expected-payment endpoints. Proposal adds the eligible-value assertion, supplies explicitly scoped GET fixtures for disabled automation/config, null outcome, no recurring payments and no settlement config, and extends only those two endpoint assertions with method=GET and exact paths. Existing account/file/one-upload, manual-review facts and all other assertions remain untouched.
+
+727: all15 fail before their real financial assertions because strict transport rejects configuration/expected/outcome GETs; `openView` awaits both intake and outcome, so the missing outcome response prevents the review dialog opening. Raw log has the three exact rejected requests at lines701–711. Proposal permits only the specific GET paths for accountA, intakeID and explicit historic intakeID_B; it returns disabled/null/empty synthetic state. Existing `remainingWrites`, candidate-route constraints, unexpected-request throwing, final unexpected[]/writes[], all amounts/action payloads/privacy/Undo/CAS assertions and timeouts remain byte-for-byte intact. Existing settlement GET continues to use each test's existing response, not a global replacement.
+
+The source supports a transport incompatibility, not a demonstrated product financial defect. No claim is made that all15 downstream oracles pass until the authorized actual run. No live API, PDF, source, old test or product file has been changed by this proposal. Root must obtain the specific protected-test approval before adoption; independent review precedes that request.

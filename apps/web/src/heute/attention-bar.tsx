@@ -26,6 +26,7 @@ export function AttentionBar({
   const overspending = data.nextSteps.items.filter((i) => i.kind === 'overspent').length;
   const reminders = data.accountReminders?.length ?? 0;
   const loanTermsMissing = data.attention.loanTermsMissing;
+  const quoteReview = data.attention.quoteReview?.count ?? 0;
   const month = data.stand.today.slice(0, 7);
   const closeMonth = closeEntryMonth(data.stand.today);
   if (
@@ -37,7 +38,8 @@ export function AttentionBar({
     !savingsRows.length &&
     !savingsError &&
     !reminders &&
-    !loanTermsMissing
+    !loanTermsMissing &&
+    !quoteReview
   )
     return null;
   return (
@@ -123,20 +125,41 @@ export function AttentionBar({
           {savingsError}
         </div>
       )}
-      {reminders > 0 && (
+      {(reminders > 0 || quoteReview > 0 || loanTermsMissing) && (
         <div className="attention-row">
           <span>
-            {reminders} {reminders === 1 ? 'Konto wartet' : 'Konten warten'} auf Prüfung
+            {reminders > 0 && (
+              <span>
+                {reminders} {reminders === 1 ? 'Konto wartet' : 'Konten warten'} auf Prüfung
+              </span>
+            )}
+            {quoteReview > 0 && (
+              <>
+                {reminders > 0 && ' · '}
+                <span>
+                  {quoteReview}{' '}
+                  {quoteReview === 1
+                    ? 'Wertpapier ohne aktuellen Kurs'
+                    : 'Wertpapiere ohne aktuellen Kurs'}
+                </span>
+              </>
+            )}
+            {loanTermsMissing && (
+              <>
+                {(reminders > 0 || quoteReview > 0) && ' · '}
+                <span>Kreditkonditionen fehlen</span>
+              </>
+            )}
           </span>
-          <AppLink to="/konten/pruefen" hash="account-reminder-title">
-            Prüfen
-          </AppLink>
-        </div>
-      )}
-      {loanTermsMissing && (
-        <div className="attention-row">
-          <span>Kreditkonditionen fehlen</span>
-          <AppLink to="/einstellungen/konten">Konditionen ergänzen</AppLink>
+          <div className="attention-actions">
+            {reminders > 0 && (
+              <AppLink to="/konten/pruefen" hash="account-reminder-title">
+                Prüfen
+              </AppLink>
+            )}
+            {quoteReview > 0 && <AppLink to="/vermoegen/portfolio">Kurse prüfen</AppLink>}
+            {loanTermsMissing && <AppLink to="/einstellungen/konten">Konditionen ergänzen</AppLink>}
+          </div>
         </div>
       )}
     </section>

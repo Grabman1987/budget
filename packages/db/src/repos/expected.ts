@@ -19,6 +19,7 @@ import {
   type VersionSuggestion,
 } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
+import { assertStatementExpectedLink, statementOwnedBookingIds } from './statement-settlement-read';
 import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, ne } from 'drizzle-orm';
 import {
   account,
@@ -594,8 +595,9 @@ function plannedOccurrence(
 }
 
 const liveClaimedBookings = (tx: Executor): Set<string> =>
-  new Set(
-    tx
+  new Set([
+    ...statementOwnedBookingIds(tx),
+    ...tx
       .select({ bookingId: expectedOccurrence.bookingId })
       .from(expectedOccurrence)
       .innerJoin(booking, eq(booking.id, expectedOccurrence.bookingId))
@@ -608,7 +610,7 @@ const liveClaimedBookings = (tx: Executor): Set<string> =>
       )
       .all()
       .map((r) => r.bookingId!),
-  );
+  ]);
 
 export interface MatchSummary {
   received: number;
@@ -736,6 +738,7 @@ export function linkOccurrence(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const { occ, payment } = liveOccurrence(tx, occurrenceId);
+    assertStatementExpectedLink(tx, bookingId, payment.id, occ.dueDate);
     const b = tx
       .select()
       .from(booking)

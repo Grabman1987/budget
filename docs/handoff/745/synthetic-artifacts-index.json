@@ -1,0 +1,86 @@
+[
+  {
+    "title": "745 category contribution table desktop light",
+    "name": "Activity page original",
+    "contentType": "image/png",
+    "sha256": "1c9e87fed1fa3baba46bedc043b4be45688b1e5017dbc3deef5a3b5dc29f4649",
+    "path": "synthetic-artifacts/issue-745-activity-table-7-6c6ab-ibution-table-desktop-light-webkit-iphone/attachments/Activity-page-original-6207f73f1c41bc6aab7b026696091e1b1893b3d7.png"
+  },
+  {
+    "title": "745 category contribution table desktop light",
+    "name": "Activity table original",
+    "contentType": "image/png",
+    "sha256": "89722e35cd1b644fa8871769cd60136838400b3789ee5eea7eed8b27dd6297e8",
+    "path": "synthetic-artifacts/issue-745-activity-table-7-6c6ab-ibution-table-desktop-light-webkit-iphone/attachments/Activity-table-original-845e819b5037b1606dcb81482ecab2e19c0635a9.png"
+  },
+  {
+    "title": "745 category contribution table desktop light",
+    "name": "Activity table geometry",
+    "contentType": "application/json",
+    "sha256": "25e3c3390c3cce6dd938fd96532860b83e781efa539e6b718186dd91da3ca241",
+    "path": "synthetic-artifacts/issue-745-activity-table-7-6c6ab-ibution-table-desktop-light-webkit-iphone/attachments/Activity-table-geometry-151048bfce8ad1607b98fb6e3ae4ff058028e863.json"
+  },
+  {
+    "title": "745 category contribution table desktop dark",
+    "name": "Activity page original",
+    "contentType": "image/png",
+    "sha256": "fb988fd85c56133e2ef9a4e77c2eda568f1c66269665f9bf427890a8782c5a40",
+    "path": "synthetic-artifacts/issue-745-activity-table-7-5ff5b-ribution-table-desktop-dark-webkit-iphone/attachments/Activity-page-original-49519e7a1c7ce4ef1b4febf76ffb7449c197d90d.png"
+  },
+  {
+    "title": "745 category contribution table desktop dark",
+    "name": "Activity table original",
+    "contentType": "image/png",
+    "sha256": "1ddd06700d1962e4fc889a46a346b7dabd67994a4b96d4dcdbca665d47a03f3d",
+    "path": "synthetic-artifacts/issue-745-activity-table-7-5ff5b-ribution-table-desktop-dark-webkit-iphone/attachments/Activity-table-original-b69c735230ec133622885d5f310c5ca9da3c046d.png"
+  },
+  {
+    "title": "745 category contribution table desktop dark",
+    "name": "Activity table geometry",
+    "contentType": "application/json",
+    "sha256": "92e1af7d13a47a5311d26906ce7f0ad439001523fce4c0d68d7d30040fb0702d",
+    "path": "synthetic-artifacts/issue-745-activity-table-7-5ff5b-ribution-table-desktop-dark-webkit-iphone/attachments/Activity-table-geometry-745cbab51cafe186d99a98eb1f5c89b52f9659d5.json"
+  },
+  {
+    "title": "745 category contribution table configured light",
+    "name": "Activity page original",
+    "contentType": "image/png",
+    "sha256": "41ed48952462a7056adaf80c1316a09db6a90b1a12ca478ae5407914ee3d5729",
+    "path": "synthetic-artifacts/issue-745-activity-table-7-42188-tion-table-configured-light-webkit-iphone/attachments/Activity-page-original-5430a1cb63d696f0533fe8633ed9a4943a8c8c3e.png"
+  },
+  {
+    "title": "745 category contribution table configured light",
+    "name": "Activity table original",
+    "contentType": "image/png",
+    "sha256": "6df50116109e6cadd59a4cf7fe7c0b5ebd7a2c7df8023439b198e693affc3d57",
+    "path": "synthetic-artifacts/issue-745-activity-table-7-42188-tion-table-configured-light-webkit-iphone/attachments/Activity-table-original-9455edd3f00700c302680787a499a552d5cb8d22.png"
+  },
+  {
+    "title": "745 category contribution table configured light",
+    "name": "Activity table geometry",
+    "contentType": "application/json",
+    "sha256": "5dfb45c100e58355b07774208a3da8b68925d1b0769d630c94ee50fa233409c2",
+    "path": "synthetic-artifacts/issue-745-activity-table-7-42188-tion-table-configured-light-webkit-iphone/attachments/Activity-table-geometry-406f213bf530c34d45dc552bb775b948fc1104b3.json"
+  },
+  {
+    "title": "745 category contribution table configured dark",
+    "name": "Activity page original",
+    "contentType": "image/png",
+    "sha256": "b5334767bc8cf7820093de2d1fdffab67f815f3d48cf6e2dc3ffd71b33cb00f8",
+    "path": "synthetic-artifacts/issue-745-activity-table-7-ab665-ution-table-configured-dark-webkit-iphone/attachments/Activity-page-original-b0cb58cbd751b891e0a51ceb883b7b2d863e3aa0.png"
+  },
+  {
+    "title": "745 category contribution table configured dark",
+    "name": "Activity table original",
+    "contentType": "image/png",
+    "sha256": "d511b341ee6e73c5677538420063d28a95bae08906238de8f2c2041e9ca3fec0",
+    "path": "synthetic-artifacts/issue-745-activity-table-7-ab665-ution-table-configured-dark-webkit-iphone/attachments/Activity-table-original-71f090caa02b7ae26dd8ff282fc2327000265fb8.png"
+  },
+  {
+    "title": "745 category contribution table configured dark",
+    "name": "Activity table geometry",
+    "contentType": "application/json",
+    "sha256": "09fc17cc2d53b8bb3caf8b2b7dc98c47b2fc96f558a801efbc2cf190f4dd1d30",
+    "path": "synthetic-artifacts/issue-745-activity-table-7-ab665-ution-table-configured-dark-webkit-iphone/attachments/Activity-table-geometry-be095e964e9a8d9b8aff6ed43c933c3d2ab5e997.json"
+  }
+]

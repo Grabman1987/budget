@@ -1,0 +1,48 @@
+{
+  "profile": "desktop",
+  "selectedTheme": "dark",
+  "project": "webkit-iphone",
+  "configuredViewport": {
+    "width": 390,
+    "height": 664
+  },
+  "actualViewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "actualUserAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Mobile/15E148 Safari/604.1",
+  "manualRecovery": false,
+  "bookingLinkDestinationExercised": false,
+  "realWorker": true,
+  "issuedCents": 17000,
+  "laterExpenseCents": 2300,
+  "postedCents": [
+    -17000,
+    -7000,
+    17000
+  ],
+  "balancesAfterPosting": [
+    33000,
+    -2300
+  ],
+  "balancesAfterUndo": [
+    50000,
+    -12300
+  ],
+  "protectedHistoryUnchanged": true,
+  "retainedSourceBytesEqual": true,
+  "undoGeometry": {
+    "width": 108.578125,
+    "height": 44,
+    "left": 863.3125,
+    "right": 971.890625,
+    "top": 816,
+    "bottom": 860,
+    "viewportWidth": 1440,
+    "viewportHeight": 900,
+    "ownsCenter": true
+  },
+  "privacyScope": "untouched editable amount presentation",
+  "axeScope": "open statement dialog",
+  "noRepostAfterUndo": true
+}

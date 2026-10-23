@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ToastProvider } from '@budget/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PayslipIntakeDetail, PayslipSourceSection, PayslipUpload } from './payslip-intake';
 
@@ -66,7 +66,9 @@ it('accepts a dropped PDF without the native chooser and rejects ambiguous or no
   vi.stubGlobal('fetch', fetch);
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <PayslipUpload />
+      <ToastProvider>
+        <PayslipUpload />
+      </ToastProvider>
     </QueryClientProvider>,
   );
   const drop = screen.getByRole('region', { name: 'Gehaltszettel-PDF ablegen' });
@@ -80,7 +82,7 @@ it('accepts a dropped PDF without the native chooser and rejects ambiguous or no
   expect(fetch).not.toHaveBeenCalled();
   fireEvent.drop(drop, { dataTransfer: { files: [pdf] } });
   await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
-  await screen.findByRole('status');
+  await within(drop).findByRole('status');
 });
 
 describe('Gehaltskonto', () => {

@@ -11,9 +11,10 @@ import {
 } from '@budget/domain';
 import { Button, Field, Select, TextInput, maskMoneyText } from '@budget/ui';
 import { useBlocker } from '@tanstack/react-router';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { request } from '../api/http';
 import { errorText } from '../ledger/labels';
+import { longDay } from '../ledger/format';
 import { useAssetWrite } from '../pages/asset-classes-api';
 import type { PortfolioAllocationView, TargetVersion } from './allocation-api';
 import type { AllocationAccountChange } from '@budget/db';
@@ -205,13 +206,11 @@ export function TargetEditor({
     controls.onDirty(true);
     setErrors({});
   };
-  const update = (id: string, patch: Partial<Entry>) => {
+  const update = (id: string, patch: Partial<Entry>, row = selected) => {
     changed();
     setTiers(
       tiers.map((t, i) =>
-        i !== selected
-          ? t
-          : { ...t, entries: { ...t.entries, [id]: { ...t.entries[id]!, ...patch } } },
+        i !== row ? t : { ...t, entries: { ...t.entries, [id]: { ...t.entries[id]!, ...patch } } },
       ),
     );
   };
@@ -270,7 +269,7 @@ export function TargetEditor({
         ];
       });
       if (sums[i] !== 10000)
-        nextErrors['sum'] =
+        nextErrors[dynamic ? 'sum:' + i : 'sum'] =
           'Stufe ' +
           (i + 1) +
           ': Die Sollquoten ergeben ' +
@@ -330,6 +329,36 @@ export function TargetEditor({
     }
   };
   const tier = tiers[selected]!;
+  const rowErrorPrefix = useId();
+  const [visibleClasses, setVisibleClasses] = useState(() => view.classes.map((c) => c.id));
+  const columns = view.classes.filter((c) => visibleClasses.includes(c.id));
+  const savedRows =
+    !dirty && initial?.validFrom === view.policy.targetValidFrom && date <= view.asOf;
+  const savedStage = view.policy.tierIndex;
+  const stageStatus = (index: number) =>
+    !savedRows
+      ? 'Entwurf'
+      : savedStage === null
+        ? 'Nicht ermittelt'
+        : index === savedStage
+          ? view.policy.wealthStage?.inBuffer
+            ? 'Puffer'
+            : 'aktiv'
+          : 'aus';
+  const patchTier = (index: number, patch: Partial<Omit<TierDraft, 'entries'>>) => {
+    changed();
+    setTiers(tiers.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  };
+  const scope = (
+    <AllocationScopeEditor
+      view={view}
+      changes={allocationAccounts}
+      onChange={(next) => {
+        changed();
+        setAllocationAccounts(next);
+      }}
+    />
+  );
   return (
     <form
       className="kform asset-target-form"
@@ -340,170 +369,181 @@ export function TargetEditor({
       }}
     >
       <fieldset disabled={busy}>
-        <AllocationScopeEditor
-          view={view}
-          changes={allocationAccounts}
-          onChange={(next) => {
-            changed();
-            setAllocationAccounts(next);
-          }}
-        />
-        <h3>2. Sollmodell und Vermögensstufen</h3>
-        <p className="vnote">
-          <AppLink to="/einstellungen/anlageklassen" search={{}}>
-            Anlageklassen und Wertpapiere verwalten
-          </AppLink>
-        </p>
-        <details
-          className="wealth-details"
-          open={exampleOpen}
-          onToggle={(e) => setExampleOpen(e.currentTarget.open)}
-        >
-          <summary>Beispielplan mit sieben Vermögensstufen</summary>
-          <p className="vnote">
-            0 / 10.000 / 50.000 / 100.000 / 500.000 / 1 Mio. / 2 Mio. €. Ordne zuerst vorhandene
-            Anlageklassen zu. Ihre Wertpapiere bleiben erhalten. Jede Stufe ist anschließend frei
-            bearbeitbar.
-          </p>
-          {WEALTH_STAGE_ROLES.map(([role, name]) => (
-            <Field key={role} label={'Vorlage · ' + name}>
+        {dynamic ? (
+          <details className="stage-scope">
+            <summary>Konten und Depots auswählen</summary>
+            {scope}
+          </details>
+        ) : (
+          scope
+        )}
+        <details className="stage-reference" open={!dynamic}>
+          <summary>Vorlagen und Erläuterungen</summary>
+          <div className="stage-reference-content">
+            <h3>2. Sollmodell und Vermögensstufen</h3>
+            <p className="vnote">
+              <AppLink to="/einstellungen/anlageklassen" search={{}}>
+                Anlageklassen und Wertpapiere verwalten
+              </AppLink>
+            </p>
+            <details
+              className="wealth-details"
+              open={exampleOpen}
+              onToggle={(e) => setExampleOpen(e.currentTarget.open)}
+            >
+              <summary>Beispielplan mit sieben Vermögensstufen</summary>
+              <p className="vnote">
+                0 / 10.000 / 50.000 / 100.000 / 500.000 / 1 Mio. / 2 Mio. €. Ordne zuerst vorhandene
+                Anlageklassen zu. Ihre Wertpapiere bleiben erhalten. Jede Stufe ist anschließend
+                frei bearbeitbar.
+              </p>
+              {WEALTH_STAGE_ROLES.map(([role, name]) => (
+                <Field key={role} label={'Vorlage · ' + name}>
+                  {({ id }) => (
+                    <Select
+                      id={id}
+                      value={exampleClasses[role]}
+                      onChange={(e) => {
+                        setExampleClasses({ ...exampleClasses, [role]: e.target.value });
+                        setConfirmExample(false);
+                      }}
+                    >
+                      <option value="">Anlageklasse auswählen</option>
+                      {view.classes.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </Field>
+              ))}
+              <p className="vnote">
+                Start: 85 % Weltaktien und 15 % Aktien mit Hebel; als Sparratenbeispiel 340 € + 60 €
+                pro Monat. Ab 10.000 €: 75 / 5 / 20 %. Ab 500.000 € bei Liquiditätsbedarf: 65 / 5 /
+                20 / 10 %. Ab 1 Mio. € bei Entnahmen: 60 / 5 / 20 / 15 %.
+              </p>
+              <p className="vnote">
+                Jede Stufe gilt automatisch ab ihrem Schwellenwert; die Voraussetzung ist ein
+                Hinweis. Eine erreichte Stufe bleibt aktiv, bis die Anlagesumme an einem Monatsende
+                10 % unter ihren Schwellenwert fällt. Sparraten werden hier nicht geändert.
+              </p>
+              {confirmExample && (
+                <p role="alert">Die Vorlage ersetzt deine ungespeicherten Stufen und Quoten.</p>
+              )}
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (dirty && !confirmExample) {
+                    setConfirmExample(true);
+                    return;
+                  }
+                  try {
+                    const template = wealthStageTemplate(exampleClasses);
+                    changed();
+                    setDynamic(true);
+                    setSelected(0);
+                    setLabel('Vermögensstufen');
+                    setTiers(
+                      template.map((t, i) => ({
+                        limit: bpText(targetTierStarts(template)[i]!),
+                        entries: entriesFor(view, t.targets),
+                        label: t.label ?? '',
+                        condition: t.condition ?? '',
+                      })),
+                    );
+                    setConfirmExample(false);
+                    setExampleOpen(false);
+                  } catch (e) {
+                    setErrors({ form: errorText(e) });
+                  }
+                }}
+              >
+                {confirmExample ? 'Stufen durch Beispielplan ersetzen' : 'Beispielplan übernehmen'}
+              </Button>
+            </details>
+
+            <Field label="Vorlage">
               {({ id }) => (
                 <Select
                   id={id}
-                  value={exampleClasses[role]}
+                  defaultValue=""
                   onChange={(e) => {
-                    setExampleClasses({ ...exampleClasses, [role]: e.target.value });
-                    setConfirmExample(false);
+                    const v = versions.find((v) => v.validFrom === e.target.value);
+                    if (v) {
+                      if (dirty) setWantedTemplate(v);
+                      else load(v);
+                    }
                   }}
                 >
-                  <option value="">Anlageklasse auswählen</option>
-                  {view.classes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
+                  <option value="">Heute wirksame Quoten</option>
+                  {versions.map((v) => (
+                    <option key={v.validFrom} value={v.validFrom}>
+                      Version ab {v.validFrom}
+                      {v.label ? ' · ' + v.label : ''}
                     </option>
                   ))}
                 </Select>
               )}
             </Field>
-          ))}
-          <p className="vnote">
-            Start: 85 % Weltaktien und 15 % Aktien mit Hebel; als Sparratenbeispiel 340 € + 60 € pro
-            Monat. Ab 10.000 €: 75 / 5 / 20 %. Ab 500.000 € bei Liquiditätsbedarf: 65 / 5 / 20 / 10
-            %. Ab 1 Mio. € bei Entnahmen: 60 / 5 / 20 / 15 %.
-          </p>
-          <p className="vnote">
-            Jede Stufe gilt automatisch ab ihrem Schwellenwert; die Voraussetzung ist ein Hinweis.
-            Eine erreichte Stufe bleibt aktiv, bis die Anlagesumme an einem Monatsende 10 % unter
-            ihren Schwellenwert fällt. Sparraten werden hier nicht geändert.
-          </p>
-          {confirmExample && (
-            <p role="alert">Die Vorlage ersetzt deine ungespeicherten Stufen und Quoten.</p>
-          )}
-          <Button
-            variant="ghost"
-            onClick={() => {
-              if (dirty && !confirmExample) {
-                setConfirmExample(true);
-                return;
-              }
-              try {
-                const template = wealthStageTemplate(exampleClasses);
-                changed();
-                setDynamic(true);
-                setSelected(0);
-                setLabel('Vermögensstufen');
-                setTiers(
-                  template.map((t, i) => ({
-                    limit: bpText(targetTierStarts(template)[i]!),
-                    entries: entriesFor(view, t.targets),
-                    label: t.label ?? '',
-                    condition: t.condition ?? '',
-                  })),
-                );
-                setConfirmExample(false);
-                setExampleOpen(false);
-              } catch (e) {
-                setErrors({ form: errorText(e) });
-              }
-            }}
-          >
-            {confirmExample ? 'Stufen durch Beispielplan ersetzen' : 'Beispielplan übernehmen'}
-          </Button>
-        </details>
-
-        <Field label="Vorlage">
-          {({ id }) => (
-            <Select
-              id={id}
-              defaultValue=""
-              onChange={(e) => {
-                const v = versions.find((v) => v.validFrom === e.target.value);
-                if (v) {
-                  if (dirty) setWantedTemplate(v);
-                  else load(v);
-                }
-              }}
-            >
-              <option value="">Heute wirksame Quoten</option>
-              {versions.map((v) => (
-                <option key={v.validFrom} value={v.validFrom}>
-                  Version ab {v.validFrom}
-                  {v.label ? ' · ' + v.label : ''}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
-        {wantedTemplate && (
-          <div role="alert" className="instrument-discard">
-            <p>Ungespeicherte Änderungen durch diese Vorlage ersetzen?</p>
-            <Button variant="ghost" onClick={() => setWantedTemplate(null)}>
-              Weiter bearbeiten
-            </Button>
-            <Button onClick={() => load(wantedTemplate)}>Vorlage laden</Button>
+            {wantedTemplate && (
+              <div role="alert" className="instrument-discard">
+                <p>Ungespeicherte Änderungen durch diese Vorlage ersetzen?</p>
+                <Button variant="ghost" onClick={() => setWantedTemplate(null)}>
+                  Weiter bearbeiten
+                </Button>
+                <Button onClick={() => load(wantedTemplate)}>Vorlage laden</Button>
+              </div>
+            )}
+            <p className="vnote">
+              Ausgewählte Konten zählen einschließlich negativer Salden. Sollgewichte lösen keine
+              Kauf- oder Verkaufsaufträge aus.
+            </p>
           </div>
-        )}
-        <Field label="Gültig ab" error={errors['date']}>
-          {({ id, describedBy, invalid }) => (
-            <TextInput
-              id={id}
-              type="date"
-              value={date}
-              aria-invalid={invalid}
-              aria-describedby={describedBy}
-              onChange={(e) => {
-                changed();
-                setDate(e.target.value);
-              }}
-            />
-          )}
-        </Field>
-        <Field label="Bezeichnung (optional)">
-          {({ id }) => (
-            <TextInput
-              id={id}
-              maxLength={80}
-              value={label}
-              onChange={(e) => {
-                changed();
-                setLabel(e.target.value);
-              }}
-            />
-          )}
-        </Field>
-        <Field label="Begründung (optional)">
-          {({ id }) => (
-            <TextInput
-              id={id}
-              maxLength={500}
-              value={reason}
-              onChange={(e) => {
-                changed();
-                setReason(e.target.value);
-              }}
-            />
-          )}
-        </Field>
+        </details>
+        <div className={dynamic ? 'stage-version-fields' : undefined}>
+          <Field label="Gültig ab" error={errors['date']}>
+            {({ id, describedBy, invalid }) => (
+              <TextInput
+                id={id}
+                type="date"
+                value={date}
+                aria-invalid={invalid}
+                aria-describedby={describedBy}
+                onChange={(e) => {
+                  changed();
+                  setDate(e.target.value);
+                }}
+              />
+            )}
+          </Field>
+          <Field label="Bezeichnung (optional)">
+            {({ id }) => (
+              <TextInput
+                id={id}
+                maxLength={80}
+                value={label}
+                onChange={(e) => {
+                  changed();
+                  setLabel(e.target.value);
+                }}
+              />
+            )}
+          </Field>
+          <Field label="Begründung (optional)">
+            {({ id }) => (
+              <TextInput
+                id={id}
+                maxLength={500}
+                value={reason}
+                onChange={(e) => {
+                  changed();
+                  setReason(e.target.value);
+                }}
+              />
+            )}
+          </Field>
+        </div>
         <p className="vnote">
           {versions.some((v) => v.validFrom === date)
             ? 'Die Version dieses Datums wird ersetzt.'
@@ -516,214 +556,433 @@ export function TargetEditor({
             Cash-Abhängigkeiten können das Archivieren weiterhin verhindern.
           </p>
         )}
-        <label className="asset-check">
-          <input
-            type="checkbox"
-            checked={dynamic}
-            onChange={(e) => {
-              changed();
-              setDynamic(e.target.checked);
-              setSelected(0);
-              setTiers(
-                e.target.checked
-                  ? [0, 1000000, 2000000, 5000000].map((limit) => ({
-                      limit: bpText(limit),
-                      entries: { ...tiers[0]!.entries },
-                    }))
-                  : [tiers[selected]!],
-              );
-            }}
-          />
-          Dynamische Stufen nach Anlagesumme
-        </label>
+        <div className={dynamic ? 'stage-grid-tools' : undefined}>
+          <label className="asset-check">
+            <input
+              type="checkbox"
+              checked={dynamic}
+              onChange={(e) => {
+                changed();
+                setDynamic(e.target.checked);
+                setSelected(0);
+                setTiers(
+                  e.target.checked
+                    ? [0, 1000000, 2000000, 5000000].map((limit) => ({
+                        limit: bpText(limit),
+                        entries: { ...tiers[0]!.entries },
+                      }))
+                    : [tiers[selected]!],
+                );
+              }}
+            />
+            Dynamische Stufen nach Anlagesumme
+          </label>
+          {dynamic && (
+            <details className="stage-columns">
+              <summary>Anlageklassenspalten</summary>
+              <div className="stage-options-panel">
+                {view.classes.map((c) => (
+                  <label className="asset-check" key={c.id}>
+                    <input
+                      type="checkbox"
+                      checked={visibleClasses.includes(c.id)}
+                      onChange={(e) =>
+                        setVisibleClasses(
+                          e.target.checked
+                            ? [...visibleClasses, c.id]
+                            : visibleClasses.filter((id) => id !== c.id),
+                        )
+                      }
+                    />
+                    {c.name} anzeigen
+                  </label>
+                ))}
+                <p className="vnote">
+                  Spalten ändern keine gespeicherten Quoten oder die Berücksichtigung einer Klasse.
+                </p>
+              </div>
+            </details>
+          )}
+        </div>
         {dynamic && (
-          <>
-            <p className="vnote">
-              Die Stufe gilt ab dem eingetragenen Vermögen in den ausgewählten Konten,
-              einschließlich negativer Salden. Jedes Monatsende wählt seine eigene Stufe.
-              Sollgewichte lösen keine Kauf- oder Verkaufsaufträge aus.
+          <section className="stage-grid-section" aria-label="Alle Vermögensstufen bearbeiten">
+            <div className="stage-grid-tools">
+              <p className="vnote">Bedingungen sind nur Hinweise. 10 % Puffer am Monatsende.</p>
+            </div>
+            <p className="vnote stage-saved-state">
+              Gespeicherter Stand {longDay(view.asOf)} · Version{' '}
+              {view.policy.targetValidFrom
+                ? longDay(view.policy.targetValidFrom)
+                : 'nicht vorhanden'}{' '}
+              ·{' '}
+              {savedStage === null
+                ? 'Stufe nicht ermittelt'
+                : `${view.policy.wealthStage?.label || `Stufe ${savedStage + 1}`} · ${view.policy.wealthStage?.inBuffer ? 'Puffer' : 'aktiv'}`}
+              {!savedRows && ' · Eingaben sind noch nicht angewendet.'}
             </p>
-            <Field label="Stufe bearbeiten">
-              {({ id }) => (
-                <Select
-                  id={id}
-                  value={selected}
-                  onChange={(e) => setSelected(Number(e.target.value))}
-                >
-                  {tiers.map((t, i) => (
-                    <option key={i} value={i}>
-                      {'Ab ' + (i === 0 ? '0,00' : t.limit || '…') + ' €'}
-                    </option>
+            <table className="stage-grid" aria-label="Vermögensstufen">
+              <thead>
+                <tr>
+                  <th className="stage-limit-col" scope="col">
+                    Ab €
+                  </th>
+                  <th className="stage-name-col" scope="col">
+                    Name
+                  </th>
+                  <th className="stage-status-col" scope="col">
+                    Status
+                  </th>
+                  <th className="stage-action-col" scope="col">
+                    Hinweis
+                  </th>
+                  {columns.map((c) => (
+                    <th className="stage-share-col" key={c.id} scope="col">
+                      {c.name} %
+                    </th>
                   ))}
-                </Select>
-              )}
-            </Field>
-            {selected > 0 && (
-              <Field label="Ab Vermögen (€)" error={errors['limit:' + selected]}>
-                {({ id, invalid, describedBy }) => (
-                  <TextInput
-                    id={id}
-                    inputMode="decimal"
-                    value={tier.limit}
-                    aria-invalid={invalid}
-                    aria-describedby={describedBy}
-                    onChange={(e) => {
-                      changed();
-                      setTiers(
-                        tiers.map((t, i) => (i === selected ? { ...t, limit: e.target.value } : t)),
-                      );
-                    }}
-                  />
-                )}
-              </Field>
-            )}
-            <Field label="Name der Vermögensstufe (optional)">
-              {({ id }) => (
-                <TextInput
-                  id={id}
-                  maxLength={80}
-                  value={tier.label ?? ''}
-                  onChange={(e) => {
-                    changed();
-                    setTiers(
-                      tiers.map((t, i) => (i === selected ? { ...t, label: e.target.value } : t)),
-                    );
-                  }}
-                />
-              )}
-            </Field>
-            <Field label="Voraussetzung für diese Stufe (optional)">
-              {({ id }) => (
-                <TextInput
-                  id={id}
-                  maxLength={240}
-                  value={tier.condition ?? ''}
-                  onChange={(e) => {
-                    changed();
-                    setTiers(
-                      tiers.map((t, i) =>
-                        i === selected ? { ...t, condition: e.target.value } : t,
-                      ),
-                    );
-                  }}
-                />
-              )}
-            </Field>
-            <div className="asset-actions">
+                  <th className="stage-sum-col" scope="col">
+                    Summe
+                  </th>
+                  <th className="stage-action-col" scope="col">
+                    Einfach
+                  </th>
+                  <th className="stage-action-col" scope="col">
+                    Entfernen
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {tiers.map((row, index) => {
+                  const rowErrors = Object.entries(errors).filter(
+                    ([key]) =>
+                      key === 'sum:' + index ||
+                      key === 'limit:' + index ||
+                      key.startsWith(index + ':'),
+                  );
+                  return (
+                    <tr key={index} aria-label={`Stufe ${index + 1}`} data-stage-index={index}>
+                      <td className="stage-main-cell">
+                        <Field label={`Stufe ${index + 1} · Ab Vermögen (€)`}>
+                          {({ id }) => (
+                            <TextInput
+                              id={id}
+                              inputMode="decimal"
+                              readOnly={index === 0}
+                              value={index === 0 ? '0,00' : row.limit}
+                              aria-invalid={Boolean(errors['limit:' + index])}
+                              aria-describedby={
+                                errors['limit:' + index] ? `${rowErrorPrefix}-${index}` : undefined
+                              }
+                              onChange={(e) => patchTier(index, { limit: e.target.value })}
+                            />
+                          )}
+                        </Field>
+                      </td>
+                      <td>
+                        <Field label={`Stufe ${index + 1} · Name (optional)`}>
+                          {({ id }) => (
+                            <TextInput
+                              id={id}
+                              maxLength={80}
+                              value={row.label ?? ''}
+                              onChange={(e) => patchTier(index, { label: e.target.value })}
+                            />
+                          )}
+                        </Field>
+                      </td>
+                      <td className="stage-row-status">
+                        <span className="stage-phone-label">Status</span>
+                        {stageStatus(index)}
+                      </td>
+                      <td>
+                        <details className="stage-cell-options">
+                          <summary aria-label={`Stufe ${index + 1} · Bedingung bearbeiten`}>
+                            …
+                          </summary>
+                          <div className="stage-options-panel">
+                            <Field label={`Stufe ${index + 1} · Bedingung (nur Hinweis)`}>
+                              {({ id }) => (
+                                <TextInput
+                                  id={id}
+                                  maxLength={240}
+                                  value={row.condition ?? ''}
+                                  onChange={(e) => patchTier(index, { condition: e.target.value })}
+                                />
+                              )}
+                            </Field>
+                            <p className="vnote">
+                              Die Stufe gilt ab ihrem Schwellenwert; diese Bedingung sperrt sie
+                              nicht.
+                            </p>
+                          </div>
+                        </details>
+                      </td>
+                      {columns.map((c) => {
+                        const entry = row.entries[c.id]!;
+                        const share = readBp(entry.share);
+                        const band =
+                          entry.bandMode === 'standard'
+                            ? defaultBandBp(share ?? 0, view.policy.R13)
+                            : readBp(entry.band);
+                        return (
+                          <td key={c.id}>
+                            <div className="stage-share-cell">
+                              {entry.included ? (
+                                <Field label={c.name + ' · Soll (%)'}>
+                                  {({ id }) => (
+                                    <TextInput
+                                      id={id}
+                                      inputMode="decimal"
+                                      maxLength={6}
+                                      value={entry.share}
+                                      aria-invalid={Boolean(errors[index + ':' + c.id + ':share'])}
+                                      aria-describedby={
+                                        errors[index + ':' + c.id + ':share']
+                                          ? `${rowErrorPrefix}-${index}`
+                                          : undefined
+                                      }
+                                      onChange={(e) =>
+                                        update(c.id, { share: e.target.value }, index)
+                                      }
+                                    />
+                                  )}
+                                </Field>
+                              ) : (
+                                <span className="stage-unmanaged">{c.name}: unverwaltet</span>
+                              )}
+                              <details className="stage-cell-options">
+                                <summary aria-label={`Stufe ${index + 1} · ${c.name} · Optionen`}>
+                                  …
+                                </summary>
+                                <div className="stage-options-panel">
+                                  <label className="asset-check">
+                                    <input
+                                      type="checkbox"
+                                      checked={entry.included}
+                                      onChange={(e) =>
+                                        update(c.id, { included: e.target.checked }, index)
+                                      }
+                                    />
+                                    Im Sollmodell berücksichtigen · {c.name}
+                                  </label>
+                                  {entry.included && (
+                                    <>
+                                      <Field label={c.name + ' · Band'}>
+                                        {({ id }) => (
+                                          <Select
+                                            id={id}
+                                            value={entry.bandMode}
+                                            onChange={(e) =>
+                                              update(
+                                                c.id,
+                                                {
+                                                  bandMode:
+                                                    e.target.value === 'custom'
+                                                      ? 'custom'
+                                                      : 'standard',
+                                                },
+                                                index,
+                                              )
+                                            }
+                                          >
+                                            <option value="standard">Standard</option>
+                                            <option value="custom">Individuell</option>
+                                          </Select>
+                                        )}
+                                      </Field>
+                                      {entry.bandMode === 'custom' && (
+                                        <Field label={c.name + ' · Band (Prozentpunkte)'}>
+                                          {({ id }) => (
+                                            <TextInput
+                                              id={id}
+                                              inputMode="decimal"
+                                              value={entry.band}
+                                              aria-invalid={Boolean(
+                                                errors[index + ':' + c.id + ':band'],
+                                              )}
+                                              aria-describedby={
+                                                errors[index + ':' + c.id + ':band']
+                                                  ? `${rowErrorPrefix}-${index}`
+                                                  : undefined
+                                              }
+                                              onChange={(e) =>
+                                                update(c.id, { band: e.target.value }, index)
+                                              }
+                                            />
+                                          )}
+                                        </Field>
+                                      )}
+                                      <p className="vnote">
+                                        Soll {bpText(share ?? 0)} % · Band ±
+                                        {band === null ? 'nicht gültig' : bpText(band)}{' '}
+                                        Prozentpunkte.
+                                      </p>
+                                    </>
+                                  )}
+                                </div>
+                              </details>
+                            </div>
+                          </td>
+                        );
+                      })}
+                      <td className="stage-row-sum" id={`${rowErrorPrefix}-${index}`}>
+                        <span className="stage-phone-label">Summe</span>
+                        <span aria-live="polite">{bpText(sums[index]!)} %</span>
+                        {rowErrors.map(([key, message]) => (
+                          <p className="field-error" role="alert" key={key}>
+                            {maskMoneyText(message)}
+                          </p>
+                        ))}
+                      </td>
+                      <td>
+                        <label className="stage-choose">
+                          <input
+                            type="radio"
+                            name="stage-for-static"
+                            checked={selected === index}
+                            onChange={() => setSelected(index)}
+                            aria-label={`Stufe ${index + 1} für einfache Sollquoten behalten`}
+                          />
+                          <span className="stage-phone-label">
+                            Für einfache Sollquoten behalten
+                          </span>
+                        </label>
+                      </td>
+                      <td>
+                        <Button
+                          variant="ghost"
+                          aria-label={`Stufe ${index + 1} entfernen`}
+                          disabled={index === 0 || tiers.length <= 1}
+                          onClick={() => {
+                            changed();
+                            setTiers(tiers.filter((_, i) => i !== index));
+                            setSelected(
+                              selected === index ? 0 : selected > index ? selected - 1 : selected,
+                            );
+                          }}
+                        >
+                          −
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="stage-grid-tools">
               <Button
                 variant="ghost"
                 disabled={tiers.length >= 10}
                 onClick={() => {
                   changed();
                   setSelected(tiers.length);
-                  setTiers([...tiers, { limit: '', entries: { ...tiers.at(-1)!.entries } }]);
+                  setTiers([
+                    ...tiers,
+                    { limit: '', entries: { ...tiers.at(-1)!.entries }, label: '', condition: '' },
+                  ]);
                 }}
               >
                 Vermögensstufe hinzufügen
               </Button>
-              <Button
-                variant="ghost"
-                disabled={tiers.length <= 1 || selected === 0}
-                onClick={() => {
-                  changed();
-                  setTiers(tiers.filter((_, i) => i !== selected));
-                  setSelected(0);
-                }}
-              >
-                Stufe entfernen
-              </Button>
-            </div>
-          </>
-        )}
-        {view.classes.map((c) => {
-          const entry = tier.entries[c.id]!;
-          const share = readBp(entry.share);
-          const band =
-            entry.bandMode === 'standard'
-              ? defaultBandBp(share ?? 0, view.policy.R13)
-              : (readBp(entry.band) ?? 0);
-          return (
-            <div className="asset-target-class" key={c.id}>
-              <h3>{c.name}</h3>
               <p className="vnote">
-                Wertpapiere:{' '}
-                {c.assignedSecurities?.length
-                  ? c.assignedSecurities.map((s) => s.name).join(', ')
-                  : 'Noch keine zugeordnet'}
-                . Zuordnungen unter Anlageklassen bearbeiten.
+                Beim Abschalten der Stufen bleibt:{' '}
+                {tiers[selected]?.label || `Stufe ${selected + 1}`}.
               </p>
-              <label className="asset-check">
-                <input
-                  type="checkbox"
-                  checked={entry.included}
-                  onChange={(e) => update(c.id, { included: e.target.checked })}
-                />
-                Im Sollmodell berücksichtigen · {c.name}
-              </label>
-              {entry.included ? (
-                <>
-                  <Field
-                    label={c.name + ' · Soll (%)'}
-                    error={errors[selected + ':' + c.id + ':share']}
-                  >
-                    {({ id, describedBy, invalid }) => (
-                      <TextInput
-                        id={id}
-                        inputMode="decimal"
-                        value={entry.share}
-                        maxLength={6}
-                        aria-invalid={invalid}
-                        aria-describedby={describedBy}
-                        onChange={(e) => update(c.id, { share: e.target.value })}
-                      />
-                    )}
-                  </Field>
-                  <Field label={c.name + ' · Band'}>
-                    {({ id }) => (
-                      <Select
-                        id={id}
-                        value={entry.bandMode}
-                        onChange={(e) =>
-                          update(c.id, { bandMode: e.target.value as Entry['bandMode'] })
-                        }
-                      >
-                        <option value="standard">Standard</option>
-                        <option value="custom">Individuell</option>
-                      </Select>
-                    )}
-                  </Field>
-                  {entry.bandMode === 'custom' && (
+            </div>
+          </section>
+        )}
+        {!dynamic &&
+          view.classes.map((c) => {
+            const entry = tier.entries[c.id]!;
+            const share = readBp(entry.share);
+            const band =
+              entry.bandMode === 'standard'
+                ? defaultBandBp(share ?? 0, view.policy.R13)
+                : (readBp(entry.band) ?? 0);
+            return (
+              <div className="asset-target-class" key={c.id}>
+                <h3>{c.name}</h3>
+                <p className="vnote">
+                  Wertpapiere:{' '}
+                  {c.assignedSecurities?.length
+                    ? c.assignedSecurities.map((s) => s.name).join(', ')
+                    : 'Noch keine zugeordnet'}
+                  . Zuordnungen unter Anlageklassen bearbeiten.
+                </p>
+                <label className="asset-check">
+                  <input
+                    type="checkbox"
+                    checked={entry.included}
+                    onChange={(e) => update(c.id, { included: e.target.checked })}
+                  />
+                  Im Sollmodell berücksichtigen · {c.name}
+                </label>
+                {entry.included ? (
+                  <>
                     <Field
-                      label={c.name + ' · Band ± (Prozentpunkte)'}
-                      error={errors[selected + ':' + c.id + ':band']}
+                      label={c.name + ' · Soll (%)'}
+                      error={errors[selected + ':' + c.id + ':share']}
                     >
                       {({ id, describedBy, invalid }) => (
                         <TextInput
                           id={id}
                           inputMode="decimal"
-                          value={entry.band}
+                          value={entry.share}
                           maxLength={6}
                           aria-invalid={invalid}
                           aria-describedby={describedBy}
-                          onChange={(e) => update(c.id, { band: e.target.value })}
+                          onChange={(e) => update(c.id, { share: e.target.value })}
                         />
                       )}
                     </Field>
-                  )}
-                  <p className="vnote">
-                    Soll {bpText(share ?? 0)} % · Band {bpText(Math.max(0, (share ?? 0) - band))}–
-                    {bpText(Math.min(10000, (share ?? 0) + band))} %
-                  </p>
-                </>
-              ) : (
-                <p className="vnote">Ohne Sollquote · unverwaltet</p>
-              )}
-            </div>
-          );
-        })}
-        <p className="target-total" aria-live="polite">
-          Summe: {bpText(sums[selected]!)} % · erforderlich 100,00 %
-        </p>
+                    <Field label={c.name + ' · Band'}>
+                      {({ id }) => (
+                        <Select
+                          id={id}
+                          value={entry.bandMode}
+                          onChange={(e) =>
+                            update(c.id, { bandMode: e.target.value as Entry['bandMode'] })
+                          }
+                        >
+                          <option value="standard">Standard</option>
+                          <option value="custom">Individuell</option>
+                        </Select>
+                      )}
+                    </Field>
+                    {entry.bandMode === 'custom' && (
+                      <Field
+                        label={c.name + ' · Band ± (Prozentpunkte)'}
+                        error={errors[selected + ':' + c.id + ':band']}
+                      >
+                        {({ id, describedBy, invalid }) => (
+                          <TextInput
+                            id={id}
+                            inputMode="decimal"
+                            value={entry.band}
+                            maxLength={6}
+                            aria-invalid={invalid}
+                            aria-describedby={describedBy}
+                            onChange={(e) => update(c.id, { band: e.target.value })}
+                          />
+                        )}
+                      </Field>
+                    )}
+                    <p className="vnote">
+                      Soll {bpText(share ?? 0)} % · Band {bpText(Math.max(0, (share ?? 0) - band))}–
+                      {bpText(Math.min(10000, (share ?? 0) + band))} %
+                    </p>
+                  </>
+                ) : (
+                  <p className="vnote">Ohne Sollquote · unverwaltet</p>
+                )}
+              </div>
+            );
+          })}
+        {!dynamic && (
+          <p className="target-total" aria-live="polite">
+            Summe: {bpText(sums[selected]!)} % · erforderlich 100,00 %
+          </p>
+        )}
         {Object.entries(errors)
           .filter(([key]) => key === 'form' || key === 'sum')
           .map(([key, error]) => (

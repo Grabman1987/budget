@@ -1,0 +1,322 @@
+{
+  "issue": 585,
+  "source": {
+    "head": "605bd6799a00c5ca4c4f5b8f1a6468b686b038ce",
+    "mainBase": "e020e36867fd949372b294c99fcbde22a6a77cf4",
+    "owned12": {
+      "apps/server/src/api/bookings.ts": "df7b37a9753c81ef4cf8b5b4ee9dab0c1b743f7ee2dc00f79723faf04d58f410",
+      "apps/server/src/api/cash-bank-transfer-585.test.ts": "d81955adcf74c968a1112fa5a05133a62a286fdc69a4e7498e6294bc029ab60f",
+      "apps/server/src/api/schemas.ts": "3c5aa67ba2f1fdc644abc17b633d28f9f54445fcfc3784a33bb5bf56a4d4dd50",
+      "apps/web/src/ledger/api.ts": "a3d88bca5ed047219f7048c060763416843db3bcaec2fd1af1cbf3ca76ded42f",
+      "apps/web/src/ledger/capture-cash-bank-585.test.tsx": "a76a6394b538911aa5ba44403c5df0de8291ffcf53d320fd954e75cd5a64dab9",
+      "apps/web/src/ledger/capture-form.tsx": "8518f69a49a1b53d8731f7599ef908e227bf320cb6e942efbcd9cf71179741f6",
+      "e2e/issue-585-cash-bank-transfer.spec.ts": "9213391cf25b6b6e3f366574911d8568e805699ad964eb2a6730d0edf307bfa1",
+      "packages/db/src/repos/bookings.ts": "8c8d26a79e601ccda2e4559c958ebf83a9c8c78c17d10e6348371a1260476cd0",
+      "packages/db/src/repos/cash-bank-transfer-controls-585.test.ts": "ae20287569187c7b967e3d6fb52436c935b6d0440e668cb03f16a0a6f7aa6ced",
+      "packages/domain/src/ledger/index.ts": "e16815f9ca83a96f2a14c9baf70031c6986daef60d5188fd0c30ea1173d2f0a5",
+      "packages/domain/src/ledger/manual-transfer-status-585.test.ts": "bcebf2c2dd189503ff80d04cf57b836cc7fc734b04f60d4e81f6699d0aef6582",
+      "packages/domain/src/ledger/manual-transfer-status.ts": "dd91815da847bff2b77454c07176d3e4fddbfa0ce9917e2b571e3c166629586e"
+    },
+    "sourceFreezeSHA256": "7cb3a1968b14108cf23f6534246d5b262fb543cb1db578f0328b1c38972a0139",
+    "trackedFiles": 3471,
+    "postSourceGuardExit": 0,
+    "postIndexAndFullModesExact": true
+  },
+  "validation": {
+    "newUnitCasesPassedAcrossCheckpoints": 79,
+    "unchangedNeighborCasesPassed": 215,
+    "initialCombined": {
+      "total": 294,
+      "passed": 293,
+      "failed": 1,
+      "cause": "NEW async disabled-state fixture asserted before account query resolved"
+    },
+    "correctedRTL": {
+      "total": 25,
+      "passed": 25,
+      "durationSeconds": 5.52
+    },
+    "domainDBServerWebTypes": 0,
+    "lint12": 0,
+    "format12": 0,
+    "requiredFullCheck": {
+      "sourceHead": "605bd6799a00c5ca4c4f5b8f1a6468b686b038ce",
+      "sourceFreezeSHA256": "6ce18b57272c160ed10115293bfce7f01f9a77f59831627178e14a91aa4e33ae",
+      "command": "BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check",
+      "exit": 0,
+      "testFilesPassed": 548,
+      "testsPassed": 4927,
+      "durationSeconds": 405.77,
+      "node": "22.23.3",
+      "age": "1.2.1",
+      "workingFiles": 3477,
+      "ownedPaths": 19,
+      "sourcePaths": 12,
+      "allWorkingBytesFullModesHeadIndexExactDirtyStatusUnchanged": true,
+      "actualExitFiles": {
+        "build.exit": 0,
+        "check.exit": 0,
+        "docs-check.exit": 0,
+        "docs-static-qualification.exit": 0,
+        "file-info-docs__ROADMAP.md.exit": 0,
+        "file-info-docs__evidence__cash-bank-transfer-585.md.exit": 0,
+        "file-info-docs__evidence__cash-bank-transfer-585__runtime-proof.json.exit": 0,
+        "lock-free.exit": 0,
+        "postguard.exit": 0,
+        "process-guard.exit": 0,
+        "wrapper.exit": 0
+      },
+      "checkLogSHA256": "d9786c7a00d69f797e9b3fccfa0cfc2eebf9462d4bd0e01e46d4ccbb33b345e8",
+      "qualification": "Full passed at the exact reviewed evidence-dirty candidate; only own result documentation changes afterward. Own docs Prettier paths were ignored/no-op0 by the existing ignore policy."
+    },
+    "normalProductionBuild": {
+      "command": "npm run build",
+      "exit": 0,
+      "buildLogSHA256": "6c19ad10447d786b310a3b6717c3ceaa5ef8affd3446192f69213139f785aee1"
+    }
+  },
+  "native": {
+    "freshE2EBuildExit": 0,
+    "nativeCommandExit": 0,
+    "actualStats": {
+      "startTime": "2026-10-20T06:54:03.763Z",
+      "duration": 53619.47,
+      "expected": 5,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "actualCases": [
+      {
+        "title": "register the first passkey and store the session",
+        "file": "auth.setup.ts",
+        "project": "setup",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 86
+          }
+        ]
+      },
+      {
+        "title": "seed categories for the ledger tests",
+        "file": "ledger.setup.ts",
+        "project": "setup",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 52
+          }
+        ]
+      },
+      {
+        "title": "register the first passkey on the sample server",
+        "file": "sample.setup.ts",
+        "project": "setup-sample",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 86
+          }
+        ]
+      },
+      {
+        "title": "cash/bank transfer capture persists both directions and explicit confirmation with literal balances and grouped undo",
+        "file": "issue-585-cash-bank-transfer.spec.ts",
+        "project": "webkit-iphone",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 17023
+          }
+        ]
+      },
+      {
+        "title": "cash and bank leg controls stay accessible in true desktop and configured phone light/dark without ledger writes",
+        "file": "issue-585-cash-bank-transfer.spec.ts",
+        "project": "webkit-iphone",
+        "status": "expected",
+        "results": [
+          {
+            "status": "passed",
+            "retry": 0,
+            "duration": 17860
+          }
+        ]
+      }
+    ],
+    "compiledFiles": 168,
+    "compiledManifestSHA256": "f9611f3999ce044d29969f2533123e125cf06762c6a50770ed00c095267e0da9",
+    "postCompiledBytesAndFullModesExit": 0,
+    "processGuardExit": 0,
+    "sourceGuardExit": 0,
+    "lockReleaseExit": 0,
+    "rawReportSHA256": "1b64fbfc5a1017846a3f840c97413a2c80e958490aaf33c4e09aee97da774a29",
+    "originalWrapperExit": 47,
+    "originalInventoryExit": 1,
+    "inventoryReconciliationExit": 0,
+    "inventoryCause": "Original profile glob counted four physical JSON files and four reporter copies as eight; no browser or source failure. All original artifacts and exits were preserved.",
+    "originalPhysicalProfileCount": 4,
+    "reporterProfileCopyCount": 4,
+    "allFourCopyBytesEqual": true,
+    "profiles": [
+      {
+        "originalFile": "cash-bank-configured-profile-dark.json",
+        "sha256": "afc5ec3b3c40a3b32db8ae42e55f2e6506ca9bb33cd910b8a0c8a5f5b290f955",
+        "runtime": {
+          "engine": "webkit",
+          "project": "webkit-iphone",
+          "label": "configured-profile",
+          "configuredContext": {
+            "viewport": {
+              "width": 390,
+              "height": 664
+            },
+            "isMobile": true,
+            "hasTouch": true,
+            "deviceScaleFactor": 3
+          },
+          "selected": "dark",
+          "resolvedTheme": "dark",
+          "actions": "Playwright click/focus/keyboard; no observed physical touch claim",
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "coarse": true,
+          "deviceScaleFactor": 3,
+          "rawMaxTouchPoints": 0,
+          "theme": "dark"
+        }
+      },
+      {
+        "originalFile": "cash-bank-configured-profile-light.json",
+        "sha256": "c629b1b59e9f53d5b3a41d32e5ebce5aa2d940c942d2796fc5eb82588701b8ef",
+        "runtime": {
+          "engine": "webkit",
+          "project": "webkit-iphone",
+          "label": "configured-profile",
+          "configuredContext": {
+            "viewport": {
+              "width": 390,
+              "height": 664
+            },
+            "isMobile": true,
+            "hasTouch": true,
+            "deviceScaleFactor": 3
+          },
+          "selected": "light",
+          "resolvedTheme": "light",
+          "actions": "Playwright click/focus/keyboard; no observed physical touch claim",
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "coarse": true,
+          "deviceScaleFactor": 3,
+          "rawMaxTouchPoints": 0,
+          "theme": "system"
+        }
+      },
+      {
+        "originalFile": "cash-bank-desktop-layout-dark.json",
+        "sha256": "78f3f39e580a3e4a3d7fdec257fd062d66eb74cf1cf72a1116851154231e5cbc",
+        "runtime": {
+          "engine": "webkit",
+          "project": "webkit-iphone",
+          "label": "desktop-layout",
+          "configuredContext": {
+            "viewport": {
+              "width": 1440,
+              "height": 900
+            },
+            "isMobile": false,
+            "hasTouch": false,
+            "deviceScaleFactor": 1
+          },
+          "selected": "dark",
+          "resolvedTheme": "dark",
+          "actions": "Playwright click/focus/keyboard; no observed physical touch claim",
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "coarse": false,
+          "deviceScaleFactor": 1,
+          "rawMaxTouchPoints": 0,
+          "theme": "dark"
+        }
+      },
+      {
+        "originalFile": "cash-bank-desktop-layout-light.json",
+        "sha256": "363499d6e7d7fa2503b2c1e5447cfa20475b44f427704011ea894b1bb3140a7b",
+        "runtime": {
+          "engine": "webkit",
+          "project": "webkit-iphone",
+          "label": "desktop-layout",
+          "configuredContext": {
+            "viewport": {
+              "width": 1440,
+              "height": 900
+            },
+            "isMobile": false,
+            "hasTouch": false,
+            "deviceScaleFactor": 1
+          },
+          "selected": "light",
+          "resolvedTheme": "light",
+          "actions": "Playwright click/focus/keyboard; no observed physical touch claim",
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "coarse": false,
+          "deviceScaleFactor": 1,
+          "rawMaxTouchPoints": 0,
+          "theme": "system"
+        }
+      }
+    ]
+  },
+  "images": [
+    {
+      "file": "docs/evidence/cash-bank-transfer-585/cash-bank-configured-profile-dark.png",
+      "sha256": "67f1d30750c945b74f344bbc26bcb721dfc30113c85b3effc884292822d03814",
+      "width": 1170,
+      "height": 2625
+    },
+    {
+      "file": "docs/evidence/cash-bank-transfer-585/cash-bank-configured-profile-light.png",
+      "sha256": "87d0d70fe121d8d762c1f2e655e797cd3750b1ffd387a6394247c5f7297f25fd",
+      "width": 1170,
+      "height": 2625
+    },
+    {
+      "file": "docs/evidence/cash-bank-transfer-585/cash-bank-desktop-layout-dark.png",
+      "sha256": "f17fd61d5c265d77deef89f95c6f62d51792a1b35ef86d9496df019cfdbcf3c3",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "docs/evidence/cash-bank-transfer-585/cash-bank-desktop-layout-light.png",
+      "sha256": "a9444cd74f57bd84a085eb71b1e450d7e55d906a66ce02bdf473b175df7ff52c",
+      "width": 1440,
+      "height": 900
+    }
+  ],
+  "limits": [
+    "Genuine WebKit configured phone390x664/coarse/DPR3 and separate1440x900/fine/DPR1; raw maxTouchPoints0 in both contexts.",
+    "System theme resolving light is recorded as system, not forced-light. Actions were Playwright click/focus/keyboard, with no observed physical/native-touch claim.",
+    "Axe scans targeted the actual open capture dialog. The separate five-table view-only snapshot is not a full-database-readonly guarantee.",
+    "Phone full-page photos include a sticky capture footer partly covering older More content; no whole-form unobscured or general hit-test claim.",
+    "Exact Chromium desktop/mobile/Windows CI and serial LIVE acceptance remain pending. Required full/normal production build passed at the qualified frozen19-path evidence candidate; native evidence remains its original source605 checkpoint."
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "source": "synthetic-only",
+  "engine": "chromium",
+  "project": "desktop",
+  "profile": "phone",
+  "runtime": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "dpr": 3,
+    "maxTouchPoints": 1,
+    "coarse": true,
+    "themePreference": "dark",
+    "resolvedTheme": "dark"
+  },
+  "linkSize": {
+    "width": 167,
+    "height": 44
+  },
+  "sourceBytesPreserved": true,
+  "salaryCents": 287500,
+  "reimbursementCents": 10000,
+  "payoutCents": 297500,
+  "balances": [
+    62345,
+    359845,
+    62345
+  ],
+  "groupedUndoReached": true,
+  "duplicateDidNotRepost": true,
+  "clickedPayoutDestination": false,
+  "unobstructedPayoutLinkClaim": false,
+  "physicalTouchClaim": false,
+  "privacyToggleExercised": true,
+  "toastGeometry": {
+    "actionLeft": 247.78125,
+    "actionRight": 362,
+    "bodyLeft": 16,
+    "bodyRight": 374,
+    "labelLeft": 259.78125,
+    "labelRight": 350
+  }
+}

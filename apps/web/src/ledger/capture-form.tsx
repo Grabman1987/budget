@@ -10,7 +10,7 @@ import {
   type SegmentedOption,
   maskMoneyText,
 } from '@budget/ui';
-import { todayInVienna } from '@budget/domain';
+import { manualTransferStatus, todayInVienna, type ManualBankStatus } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Trash2, X } from 'lucide-react';
 import {
@@ -74,6 +74,12 @@ const KINDS: ReadonlyArray<SegmentedOption<BookingKind>> = [
 const EDIT_KINDS = KINDS.slice(0, 2);
 const NONE = '__none';
 const LOCKED = 'Diese Buchung ist geprüft. Bestätige die Freigabe, um sie zu ändern.';
+const REMAINDER_SAVE_ERROR = 'Speichern geht erst, wenn der Rest 0,00 € ist.';
+interface BankIntent {
+  fromAccountId: string;
+  toAccountId: string;
+  status: ManualBankStatus;
+}
 
 /**
  * Focusable fields in reading order; the operator buttons of the amount field are skipped. Fields
@@ -139,6 +145,16 @@ export function CaptureForm({
   const editDraft = editing ? draftFromBooking(editing) : null;
   const repeatKey = useRef(crypto.randomUUID());
   const [statusChosen, setStatusChosen] = useState(false);
+  // Restore explicit queued intent before choices load; shared draft.status is never that intent.
+  const queuedBankIntent: BankIntent | null =
+    queued?.input.type === 'transfer' && queued.input.bankStatus !== undefined
+      ? {
+          fromAccountId: queued.input.fromAccountId,
+          toAccountId: queued.input.toAccountId,
+          status: queued.input.bankStatus,
+        }
+      : null;
+  const [bankIntent, setBankIntent] = useState<BankIntent | null>(queuedBankIntent);
   const [draft, setDraft] = useState<BookingDraft>(() =>
     queued
       ? queued.draft
@@ -171,19 +187,31 @@ export function CaptureForm({
   const appliedByPayee = useRef<string | null>(null);
   // The payee "Speichern und neu" carried over: context, so it does not make the form dirty.
   const [keptPayee, setKeptPayee] = useState('');
-  const set = <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) =>
+  const set = <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) => {
+    if ((key === 'accountId' || key === 'toAccountId') && value !== draft[key]) setBankIntent(null);
     setDraft((d) => ({ ...d, [key]: value }));
+  };
 
   const open = useMemo(
     () => orderAccounts(accounts.data?.accounts ?? offlineChoices?.accounts ?? [], memory.accounts),
     [accounts.data, offlineChoices, memory],
   );
   const accountId = draft.accountId || accountFromPayee(open, memory.accounts, undefined);
+  const explicitAccountId =
+    state.mode === 'create' ? (state.prefill?.accountId ?? state.accountId) : undefined;
+  const hasAccountContext = open.some((account) => account.id === explicitAccountId);
   const isTransfer = draft.kind === 'transfer';
   const legOfTransfer = editing !== null && isTransferBooking(editing);
   const locked = editing?.status === 'reconciled';
   const from = open.find((a) => a.id === accountId);
   const to = open.find((a) => a.id === draft.toAccountId);
+  const manualPair =
+    !editing && isTransfer && from && to ? manualTransferStatus(from.type, to.type) : null;
+  const currentBankIntent =
+    bankIntent?.fromAccountId === accountId && bankIntent?.toAccountId === draft.toAccountId
+      ? bankIntent
+      : null;
+  const bankStatus = currentBankIntent?.status ?? 'pending';
   const needsCategory = Boolean(isTransfer && from && to && from.onBudget !== to.onBudget);
   const singleMetadata =
     editing?.splits.length === 1
@@ -268,13 +296,15 @@ export function CaptureForm({
   });
   const lineProblem = !lineValidation.ok ? lineValidation.errors.splits : undefined;
   const blocked = !isTransfer && Boolean(lineProblem);
+  const splitError = errors.splits === REMAINDER_SAVE_ERROR && !blocked ? undefined : errors.splits;
 
-  const dirty = queued
+  const draftDirty = queued
     ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(queued.draft))
     : editing
       ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(editDraft!))
       : captureDirty(draft, keptPayee) ||
         Boolean(draft.repeat || draft.lines?.some((line) => line.shares.length));
+  const dirty = draftDirty || JSON.stringify(bankIntent) !== JSON.stringify(queuedBankIntent);
 
   useEffect(() => {
     dirtyRef.current = dirty;
@@ -292,6 +322,7 @@ export function CaptureForm({
     if (
       !editing &&
       !queued &&
+      !hasAccountContext &&
       draft.kind !== 'transfer' &&
       key &&
       (chosen || key !== accountPayee.current)
@@ -327,7 +358,8 @@ export function CaptureForm({
     });
   };
 
-  const changeKind = (kind: BookingKind) =>
+  const changeKind = (kind: BookingKind) => {
+    if (kind !== draft.kind) setBankIntent(null);
     setDraft((d) => {
       accountRequest.current++;
       appliedByPayee.current = null;
@@ -346,6 +378,7 @@ export function CaptureForm({
         next.lines = next.lines.map((line) => ({ ...line, categoryId: '' }));
       return next;
     });
+  };
 
   const typedPayee = () => {
     const name = draft.payee.trim();
@@ -385,8 +418,13 @@ export function CaptureForm({
   const save = async (andNew: boolean) => {
     if (saving.current) return;
     if (!editing && !from) return setErrors({ account: 'Bitte ein verfügbares Konto wählen.' });
-    if (blocked) return setErrors({ splits: 'Speichern geht erst, wenn der Rest 0,00 € ist.' });
-    const filled = { ...lineDraft, date: parsedDate ?? '', accountId, status: effectiveStatus };
+    if (blocked) return setErrors({ splits: REMAINDER_SAVE_ERROR });
+    const filled = {
+      ...lineDraft,
+      date: parsedDate ?? '',
+      accountId,
+      status: queued && isTransfer ? draft.status : effectiveStatus,
+    };
     const advance = { advanceCategoryId, trackingAccountIds };
     saving.current = true;
     setBusy(true);
@@ -424,9 +462,11 @@ export function CaptureForm({
       const built = buildCreate(filled, known?.id ?? null, options);
       if (!built.ok) return setErrors(built.errors);
       const input =
-        built.value.type === 'booking' && name && !known
-          ? { ...built.value, payeeName: name }
-          : built.value;
+        built.value.type === 'transfer' && currentBankIntent
+          ? { ...built.value, bankStatus: currentBankIntent.status }
+          : built.value.type === 'booking' && name && !known
+            ? { ...built.value, payeeName: name }
+            : built.value;
       if (queued) {
         await editQueued(queued.id, input, filled);
         return onDone();
@@ -437,6 +477,7 @@ export function CaptureForm({
       if (!andNew) return onDone();
       // The next booking keeps the context (kind, account, date, payee and its category).
       setStatusChosen(false);
+      setBankIntent(null);
       setKeptPayee(draft.payee);
       setDraft((d) => ({
         ...emptyDraft(accountId, d.date),
@@ -534,27 +575,46 @@ export function CaptureForm({
     : !editing && !queued && !statusChosen && !(state.mode === 'create' && state.prefill?.status)
       ? 'pending'
       : draft.status;
+  const shownStatus = manualPair ? bankStatus : effectiveStatus;
+  const bankAccount = manualPair?.cashSide === 'from' ? to : from;
+  const cashAccount = manualPair?.cashSide === 'from' ? from : to;
   const moreSummary = [draft.projectId && 'Projekt', draft.flag && 'Markierung']
     .filter(Boolean)
     .join(', ');
-  const statusControl =
+  const statusControl = (id?: string, describedBy?: string) =>
     locked && !unlock ? (
       <span className="status">geprüft</span>
     ) : (
       <button
+        id={id}
+        aria-describedby={describedBy}
         type="button"
         className="icon-btn bk-status"
-        aria-label={effectiveStatus === 'confirmed' ? 'Bestätigt' : 'Vorgemerkt'}
-        title={
-          automaticCashStatus
-            ? 'Bargeldbuchungen sind sofort bestätigt'
+        aria-label={
+          manualPair
+            ? `${bankAccount?.name}: Status ${shownStatus === 'confirmed' ? 'Bestätigt' : 'Vorgemerkt'}`
             : effectiveStatus === 'confirmed'
               ? 'Bestätigt'
               : 'Vorgemerkt'
         }
-        disabled={automaticCashStatus}
-        aria-pressed={effectiveStatus === 'confirmed'}
+        title={
+          automaticCashStatus && !manualPair
+            ? 'Bargeldbuchungen sind sofort bestätigt'
+            : shownStatus === 'confirmed'
+              ? 'Bestätigt'
+              : 'Vorgemerkt'
+        }
+        disabled={automaticCashStatus && !manualPair}
+        aria-pressed={shownStatus === 'confirmed'}
         onClick={() => {
+          if (manualPair) {
+            setBankIntent({
+              fromAccountId: accountId,
+              toAccountId: draft.toAccountId,
+              status: bankStatus === 'confirmed' ? 'pending' : 'confirmed',
+            });
+            return;
+          }
           setStatusChosen(true);
           set('status', effectiveStatus === 'confirmed' ? 'pending' : 'confirmed');
         }}
@@ -570,7 +630,7 @@ export function CaptureForm({
         >
           <path
             d="m4 12 5 5L20 6l-2-2-9 9-3-3z"
-            fill={effectiveStatus === 'confirmed' ? 'currentColor' : 'none'}
+            fill={shownStatus === 'confirmed' ? 'currentColor' : 'none'}
           />
         </svg>
       </button>
@@ -616,7 +676,7 @@ export function CaptureForm({
       contacts={contacts}
       hasAdvanceCategory={Boolean(advanceCategoryId)}
       locked={splitLocked}
-      error={errors.splits ?? errors.category}
+      error={splitError ?? errors.category}
       suggestions={chips}
       singleMetadata={singleMetadata}
     />
@@ -780,10 +840,32 @@ export function CaptureForm({
                       )}
                     </Field>
                   ) : (
-                    statusControl
+                    statusControl()
                   )}
                 </div>
-                {isTransfer && statusControl}
+                {isTransfer &&
+                  (manualPair && cashAccount && bankAccount ? (
+                    <div className="kform-pair">
+                      <Field
+                        label={`${cashAccount.name}: Status`}
+                        hint="Bargeld ist sofort bestätigt."
+                      >
+                        {({ id, describedBy }) => (
+                          <TextInput
+                            id={id}
+                            value="Bestätigt"
+                            readOnly
+                            aria-describedby={describedBy}
+                          />
+                        )}
+                      </Field>
+                      <Field label={`${bankAccount.name}: Status`}>
+                        {({ id, describedBy }) => statusControl(id, describedBy)}
+                      </Field>
+                    </div>
+                  ) : (
+                    statusControl()
+                  ))}
                 {dateAndRepeat}
               </div>
             </div>
@@ -792,6 +874,7 @@ export function CaptureForm({
             {isTransfer && showCategory && (
               <CategoryCombobox
                 label="Kategorie"
+                capturePicker
                 categories={pickable}
                 leading={leading}
                 selectedName={categoryName}
@@ -965,7 +1048,6 @@ function DateField({
   year: string;
 }) {
   useAmountPrivacy();
-  const pickerRef = useRef<HTMLInputElement>(null);
   const parsed = captureDate(draft.date, year);
   return (
     <div className="kdate">
@@ -978,30 +1060,19 @@ function DateField({
               ref={inputRef}
               value={draft.date.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3.$2.$1')}
               placeholder="TT.MM.JJJJ"
-              inputMode="numeric"
+              inputMode="text"
               autoComplete="off"
               aria-invalid={invalid}
               aria-describedby={describedBy}
               onChange={(e) => set('date', e.target.value)}
               onBlur={() => parsed && set('date', parsed)}
-              onClick={() => pickerRef.current?.showPicker?.()}
             />
             <span className="bk-calendar">
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label="Kalender öffnen"
-                title="Kalender öffnen"
-                onClick={() => pickerRef.current?.showPicker?.()}
-              >
-                <CalendarDays size={18} aria-hidden="true" />
-              </button>
+              <CalendarDays size={18} aria-hidden="true" />
               <input
-                ref={pickerRef}
                 type="date"
                 aria-label="Datum im Kalender"
-                aria-hidden="true"
-                tabIndex={-1}
+                title="Kalender öffnen"
                 value={parsed ?? ''}
                 onChange={(e) => set('date', e.target.value)}
               />

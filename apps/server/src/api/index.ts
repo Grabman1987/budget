@@ -144,6 +144,8 @@ export function createLedgerApi({
   });
   api.route('/payslips', payrollRoutes(db, today));
   api.route('/payslip-intake', payslipIntakeRoutes(db, receiptsDir));
+  api.route('/statement-intake', statementIntakeRoutes(db, receiptsDir));
+  api.route('/statement-settlements', statementSettlementRoutes(db, receiptsDir));
   api.route('/projects', projectRoutes(db, today));
   api.route('/income-month-rules', incomeMonthRoutes(db));
   api.route('/assignment-rules', assignmentRoutes(db));
@@ -192,3 +194,5 @@ export function createLedgerApi({
   api.onError(errorResponse);
   return Object.assign(api, { warm: () => warmReadModels(api, today) });
 }
+import { statementIntakeRoutes } from './statement-intake';
+import { statementSettlementRoutes } from './statement-settlement';

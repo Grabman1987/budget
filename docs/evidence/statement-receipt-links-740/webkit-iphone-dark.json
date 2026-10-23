@@ -1,0 +1,82 @@
+{
+  "project": "webkit-iphone",
+  "theme": "dark",
+  "ids": [
+    "81709dbe-444d-40da-b34c-8c0b93a3083e",
+    "d5ab122b-88b2-4d7f-82f2-90f1d9b18e73"
+  ],
+  "sourceHash": "fac9491b74ab1085755cfb1aada44f75f6765aa8b87a949522c42cadcfbaa3df",
+  "attached": [
+    {
+      "bookingId": "d5ab122b-88b2-4d7f-82f2-90f1d9b18e73",
+      "bookingRevision": "a6850e05e5f9c7da723d23b6a6bb01ddc528f1ec292dc01ca3c9f77d3575fda5",
+      "accountId": "2459a771-bdce-413e-9ea6-62725ad308b6",
+      "accountName": "Belegkonto Muster",
+      "date": "2026-09-17",
+      "description": "Musterbeleg 2",
+      "amountCents": -5749,
+      "currency": "EUR",
+      "attached": true,
+      "managed": false
+    },
+    {
+      "bookingId": "81709dbe-444d-40da-b34c-8c0b93a3083e",
+      "bookingRevision": "8ad2dee817849ed06d951993766e631315410a856c2d8e24ec3b4f40e344baa4",
+      "accountId": "2459a771-bdce-413e-9ea6-62725ad308b6",
+      "accountName": "Belegkonto Muster",
+      "date": "2026-09-17",
+      "description": "Musterbeleg 1",
+      "amountCents": -1251,
+      "currency": "EUR",
+      "attached": true,
+      "managed": false
+    }
+  ],
+  "geometry": [
+    {
+      "width": 44,
+      "height": 44,
+      "left": 26,
+      "top": 342.328125,
+      "right": 70,
+      "bottom": 386.328125,
+      "viewportWidth": 390,
+      "viewportHeight": 664,
+      "ownsCenter": true
+    },
+    {
+      "width": 44,
+      "height": 44,
+      "left": 26,
+      "top": 341.765625,
+      "right": 70,
+      "bottom": 385.765625,
+      "viewportWidth": 390,
+      "viewportHeight": 664,
+      "ownsCenter": true
+    },
+    {
+      "width": 167,
+      "height": 44,
+      "left": 24,
+      "top": 342.40625,
+      "right": 191,
+      "bottom": 386.40625,
+      "viewportWidth": 390,
+      "viewportHeight": 664,
+      "ownsCenter": true
+    },
+    {
+      "width": 114.21875,
+      "height": 44,
+      "left": 247.78125,
+      "top": 519.4369506835938,
+      "right": 362,
+      "bottom": 563.4369506835938,
+      "viewportWidth": 390,
+      "viewportHeight": 664,
+      "ownsCenter": true
+    }
+  ],
+  "financialUnchanged": true
+}

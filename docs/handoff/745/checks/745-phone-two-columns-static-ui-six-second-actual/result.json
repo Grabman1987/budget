@@ -1,0 +1,29 @@
+{
+  "head": "ad4a34dac18f00d3dd36f3e9dcbf1286b54bba54",
+  "phases": [
+    {
+      "name": "eslint2",
+      "exit": 0,
+      "wallSeconds": 1.929
+    },
+    {
+      "name": "prettier3",
+      "exit": 0,
+      "wallSeconds": 0.769
+    },
+    {
+      "name": "css-scale",
+      "exit": 0,
+      "wallSeconds": 0.164
+    },
+    {
+      "name": "new-ui6",
+      "exit": 0,
+      "wallSeconds": 3.687
+    }
+  ],
+  "processGuard": 0,
+  "sourceGuard": 0,
+  "allPhases0": true,
+  "lockReleased": true
+}

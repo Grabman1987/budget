@@ -1,6 +1,6 @@
 import { addDays, daysBetween } from '../date';
 import { costOf, type ProductTrade } from './cost';
-import { marketValueEurCents, toEurCents } from './invest';
+import { marketValueEurCents, toEurCents, ValuationLimitError } from './invest';
 import type { CashFlow } from './returns';
 
 /**
@@ -63,11 +63,56 @@ export interface DatedPrice {
   date: string;
   priceMicro: number;
   currency: string;
+  /** Present only in an opted-in historical observation read. */
+  source?: string;
 }
 
 export interface DatedRate {
   date: string;
   rateMicro: number;
+  source?: string;
+}
+
+export type ValuationFxObservation =
+  | { kind: 'identity' }
+  | { kind: 'rate'; date: string; source: 'ecb' | 'manual' | 'import' | null }
+  | { kind: 'missing' }
+  | { kind: 'not-evaluated' };
+
+/** Fresh, nonmonetary facts from the selection actually used for one nonzero closing position. */
+export interface DailyValuationObservation {
+  accountId: string;
+  securityId: string;
+  day: string;
+  kind: 'quote' | 'execution' | 'cost' | 'missing';
+  quality: ValuationQuality;
+  date: string | null;
+  currency: string | null;
+  source: 'manual' | 'import' | 'yfinance' | 'ariva' | 'cryptocalc' | 'coingecko' | null;
+  lookAhead: boolean;
+  fx: ValuationFxObservation;
+  costMethod?: 'average';
+  missing?: 'price-or-basis' | 'fx';
+}
+
+function observedRate(found: DatedRate): ValuationFxObservation {
+  const source = found.source;
+  return {
+    kind: 'rate',
+    date: found.date,
+    source: source === 'ecb' || source === 'manual' || source === 'import' ? source : null,
+  };
+}
+
+function observedQuoteSource(source: string | undefined): DailyValuationObservation['source'] {
+  return source === 'manual' ||
+    source === 'import' ||
+    source === 'yfinance' ||
+    source === 'ariva' ||
+    source === 'cryptocalc' ||
+    source === 'coingecko'
+    ? source
+    : null;
 }
 
 /** ECB rates per currency (EUR per unit, micro), ascending by date. EUR needs no entry. */
@@ -127,10 +172,19 @@ export function latestOnOrBefore<T extends { date: string }>(
 }
 
 /** EUR per unit of `currency` on a day: the latest rate on or before it. A missing rate is an error. */
-export function fxOn(rates: RateTable, currency: string, day: string): number {
-  if (currency === 'EUR') return 1_000_000;
+export function fxOn(
+  rates: RateTable,
+  currency: string,
+  day: string,
+  observe?: (fact: ValuationFxObservation) => void,
+): number {
+  if (currency === 'EUR') {
+    observe?.({ kind: 'identity' });
+    return 1_000_000;
+  }
   const found = latestOnOrBefore(rates.get(currency) ?? [], day);
   if (!found) throw new ExchangeRateUnavailableError(currency, day);
+  observe?.(observedRate(found));
   return found.rateMicro;
 }
 
@@ -182,11 +236,21 @@ export interface PriceChoice {
 /** One cent rounding, also when an execution price lies between stored micro-units. */
 export function valueAtPrice(unitsE8: number, choice: PriceChoice, fxRateMicro: number): number {
   if (!choice.execution) return marketValueEurCents(unitsE8, choice.price.priceMicro, fxRateMicro);
+  if (
+    ![unitsE8, fxRateMicro, choice.execution.amountCents, choice.execution.unitsE8].every(
+      Number.isSafeInteger,
+    )
+  )
+    throw new ValuationLimitError('Execution valuation requires safe integer operands', 'operand');
   const scaled = BigInt(unitsE8) * BigInt(choice.execution.amountCents) * BigInt(fxRateMicro);
   const denominator = BigInt(Math.abs(choice.execution.unitsE8)) * 1_000_000n;
   const negative = scaled < 0n;
   const rounded = ((negative ? -scaled : scaled) + denominator / 2n) / denominator;
-  return Number(negative ? -rounded : rounded);
+  const signed = negative ? -rounded : rounded;
+  const maximum = BigInt(Number.MAX_SAFE_INTEGER);
+  if (signed > maximum || signed < -maximum)
+    throw new ValuationLimitError('Execution valuation exceeds safe integer range', 'result');
+  return Number(signed);
 }
 
 /**
@@ -303,9 +367,14 @@ export function costInEur(
   currency: string,
   rates: RateTable,
   day: string,
+  observe?: (fact: ValuationFxObservation) => void,
 ): number | null {
-  if (currency === 'EUR') return costCents;
+  if (currency === 'EUR') {
+    observe?.({ kind: 'identity' });
+    return costCents;
+  }
   const found = latestOnOrBefore(rates.get(currency) ?? [], day);
+  observe?.(found ? observedRate(found) : { kind: 'missing' });
   return found ? toEurCents(costCents, found.rateMicro) : null;
 }
 
@@ -363,6 +432,8 @@ export interface ValuationOptions {
    * `PriceUnavailableError` (Portfolio Performance comparisons).
    */
   estimate?: boolean;
+  /** DAILY-only observation; callers receive no price/rate/input references or monetary data. */
+  observe?: (fact: Readonly<DailyValuationObservation>) => void;
 }
 
 /**
@@ -412,22 +483,63 @@ export function dailyValuation(
       if (units === 0) return 0;
       let value: number;
       let dayQuality: ValuationQuality;
+      let observation: DailyValuationObservation | undefined;
+      let fx: ValuationFxObservation = { kind: 'not-evaluated' };
+      const observeFx = options.observe
+        ? (fact: ValuationFxObservation) => {
+            fx = fact;
+          }
+        : undefined;
       const choice =
         pickPrice(prices, day, false) ??
         (estimate
           ? pickTradePrice(p.priceTrades ?? p.cost?.trades ?? [], day, p.cost?.currency)
           : undefined);
       if (choice) {
-        value = valueAtPrice(units, choice, fxOn(rates, choice.price.currency, day));
+        value = valueAtPrice(units, choice, fxOn(rates, choice.price.currency, day, observeFx));
         dayQuality = choice.quality;
+        if (options.observe)
+          observation = {
+            accountId: p.accountId,
+            securityId: p.securityId,
+            day,
+            kind: choice.execution ? 'execution' : 'quote',
+            quality: dayQuality,
+            date: choice.price.date,
+            currency: choice.price.currency,
+            source: choice.execution ? null : observedQuoteSource(choice.price.source),
+            lookAhead: choice.price.date > day,
+            fx,
+          };
       } else if (!estimate) {
         throw new PriceUnavailableError(p.accountId, p.securityId, day);
       } else {
         const cost = p.cost ? costBasisOnDay(p.snapshots, p.cost, day) : null;
-        const eur = cost === null || !p.cost ? null : costInEur(cost, p.cost.currency, rates, day);
+        const eur =
+          cost === null || !p.cost ? null : costInEur(cost, p.cost.currency, rates, day, observeFx);
         value = eur ?? 0;
         dayQuality = eur === null ? 'missing' : 'estimated';
+        if (options.observe)
+          observation = {
+            accountId: p.accountId,
+            securityId: p.securityId,
+            day,
+            kind: cost === null || !p.cost ? 'missing' : 'cost',
+            quality: dayQuality,
+            date: null,
+            currency: p.cost?.currency ?? null,
+            source: null,
+            lookAhead: false,
+            fx,
+            ...(cost === null || !p.cost
+              ? { missing: 'price-or-basis' as const }
+              : {
+                  costMethod: 'average' as const,
+                  ...(eur === null ? { missing: 'fx' as const } : {}),
+                }),
+          };
       }
+      if (observation) options.observe?.(observation);
       quality = worstQuality(quality, dayQuality);
       if (isIncompleteQuality(dayQuality)) {
         const f = flagged.get(dayQuality);

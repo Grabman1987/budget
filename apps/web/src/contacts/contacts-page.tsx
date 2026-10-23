@@ -34,8 +34,13 @@ import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { PAGES } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
-import { contactBalanceLine, contactBalanceWords, receivableDelta } from './contact-balance';
+import { contactBalanceLine, contactBalanceWords } from './contact-balance';
 import { ContactActionsMenu } from './contact-menu';
+import {
+  ContactBookingSource,
+  ContactMovementTable,
+  type ContactSourceOpening,
+} from './contact-movement-table';
 import './contacts.css';
 import '../ledger/ledger.css';
 interface ContactRow {
@@ -44,7 +49,7 @@ interface ContactRow {
   balanceCents: number;
   creditCents: number;
 }
-interface Statement {
+export interface Statement {
   contact: { id: string; name: string };
   asOf: string;
   balanceCents: number;
@@ -363,8 +368,13 @@ function ContactBody({ statement }: { statement: Statement }) {
   const [writeOff, setWriteOff] = useState(false);
   const [info, setInfo] = useState(false);
   const noteId = useId();
+  const [sourceOpening, setSourceOpening] = useState<ContactSourceOpening | null>(null);
+  const sourceGeneration = useRef(0);
+  const openSource = (movement: ContactMovement) =>
+    setSourceOpening({ movement, generation: ++sourceGeneration.current });
   const balance = contactBalanceWords(statement.balanceCents);
   const currentMonth = statement.asOf.slice(0, 7);
+  const monthTitle = `Zahlungen im ${new Intl.DateTimeFormat('de-AT', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${currentMonth}-01T00:00:00Z`))}`;
   const closureIndex = statement.movements.findIndex(
     (movement) => movement.splitId === statement.closedThroughSplitId,
   );
@@ -384,44 +394,6 @@ function ContactBody({ statement }: { statement: Statement }) {
     (outlay) => outlay.remainingCents > 0 && outlay.date.slice(0, 7) !== currentMonth,
   );
   const openOlderIds = new Set(openOlderOutlays.map((outlay) => outlay.splitId));
-  const renderMovement = (m: ContactMovement) => {
-    const repayment = statement.receipts.find((r) => r.receiptSplitId === m.splitId);
-    const outlay = statement.outlays.find((o) => o.splitId === m.splitId);
-    return (
-      <tr key={m.splitId}>
-        <td>
-          {longDay(m.date)} ·{' '}
-          {m.memo?.startsWith('Ausgleich Kontakt')
-            ? 'Ausgleich'
-            : m.amountCents < 0
-              ? 'Auslage'
-              : 'Rückzahlung'}
-          {m.memo && <small>{m.memo}</small>}
-          {outlay && outlay.remainingCents > 0 && (
-            <small>Offen: {eur(outlay.remainingCents)}</small>
-          )}
-          {repayment && (
-            <small>
-              {repayment.recorded ? (
-                <>
-                  {repayment.allocations
-                    .map(
-                      (a) =>
-                        `${longDay(statement.outlays.find((o) => o.splitId === a.outlaySplitId)!.date)}: ${eur(a.amountCents)}`,
-                    )
-                    .join(' · ')}
-                  {repayment.creditCents > 0 && ` · Guthaben: ${eur(repayment.creditCents)}`}
-                </>
-              ) : (
-                'Zuordnung nicht protokolliert'
-              )}
-            </small>
-          )}
-        </td>
-        <td className="num">{eur(receivableDelta(m.amountCents), { sign: true })}</td>
-      </tr>
-    );
-  };
   const visibleHistory = (closureIndex < 0 ? statement.movements : postClosure).filter(
     (movement) => movement.date.slice(0, 7) !== currentMonth && !openOlderIds.has(movement.splitId),
   );
@@ -468,84 +440,63 @@ function ContactBody({ statement }: { statement: Statement }) {
           onClose={() => setWriteOff(false)}
         />
       )}
-      <h3>
-        Zahlungen im{' '}
-        {new Intl.DateTimeFormat('de-AT', {
-          month: 'long',
-          year: 'numeric',
-          timeZone: 'UTC',
-        }).format(new Date(`${currentMonth}-01T00:00:00Z`))}
-      </h3>
       {currentMonthMovements.length === 0 ? (
-        <p>In diesem Monat gibt es noch keine Kontaktbuchungen.</p>
+        <>
+          <h3>{monthTitle}</h3>
+          <p>In diesem Monat gibt es noch keine Kontaktbuchungen.</p>
+        </>
       ) : (
-        <table className="contacts-table">
-          <caption className="sr-only">Kontaktbuchungen im aktuellen Monat</caption>
-          <thead>
-            <tr>
-              <th scope="col">Datum / Buchung</th>
-              <th scope="col">Betrag</th>
-            </tr>
-          </thead>
-          <tbody>{currentMonthMovements.map(renderMovement)}</tbody>
-        </table>
+        <ContactMovementTable
+          statement={statement}
+          movements={currentMonthMovements}
+          title={monthTitle}
+          caption="Kontaktbuchungen im aktuellen Monat"
+          onOpen={openSource}
+        />
       )}
       {openOlderOutlays.length > 0 && (
         <section aria-labelledby="contacts-open-older">
-          <h3 id="contacts-open-older">Offene ältere Auslagen</h3>
-          <table className="contacts-table">
-            <caption className="sr-only">Noch offene Auslagen aus früheren Monaten</caption>
-            <thead>
-              <tr>
-                <th scope="col">Datum / Auslage</th>
-                <th scope="col">Noch offen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {openOlderOutlays.map((outlay) => (
-                <tr key={outlay.splitId}>
-                  <td>
-                    {longDay(outlay.date)} · Auslage{outlay.memo && <small>{outlay.memo}</small>}
-                  </td>
-                  <td className="num">{eur(outlay.remainingCents)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ContactMovementTable
+            statement={statement}
+            movements={openOlderOutlays}
+            title="Offene ältere Auslagen"
+            headingId="contacts-open-older"
+            caption="Noch offene Auslagen aus früheren Monaten"
+            onOpen={openSource}
+          />
         </section>
       )}
-      <h3>Verlauf</h3>
       {visibleHistory.length === 0 ? (
-        <p>Noch keine ältere oder spätere Kontaktbewegung.</p>
+        <>
+          <h3>Verlauf</h3>
+          <p>Noch keine ältere oder spätere Kontaktbewegung.</p>
+        </>
       ) : (
-        <table className="contacts-table">
-          <caption className="sr-only">Kontaktbuchungen außerhalb des aktuellen Monats</caption>
-          <thead>
-            <tr>
-              <th scope="col">Datum / Buchung</th>
-              <th scope="col">Betrag</th>
-            </tr>
-          </thead>
-          <tbody>{visibleHistory.map(renderMovement)}</tbody>
-        </table>
+        <ContactMovementTable
+          statement={statement}
+          movements={visibleHistory}
+          title="Verlauf außerhalb des aktuellen Monats"
+          heading="Verlauf"
+          caption="Kontaktbuchungen außerhalb des aktuellen Monats"
+          onOpen={openSource}
+        />
       )}
       {archived.length > 0 && (
         <details className="contacts-closed-history">
           <summary>
             Abgeschlossene Historie bis zum Ausgleich anzeigen ({archived.length} Buchungen)
           </summary>
-          <table className="contacts-table">
-            <caption className="sr-only">Abgeschlossene Kontaktbuchungen bis zum Ausgleich</caption>
-            <thead>
-              <tr>
-                <th scope="col">Datum / Buchung</th>
-                <th scope="col">Betrag</th>
-              </tr>
-            </thead>
-            <tbody>{archived.map(renderMovement)}</tbody>
-          </table>
+          <ContactMovementTable
+            statement={statement}
+            movements={archived}
+            title="Abgeschlossene Historie bis zum Ausgleich"
+            heading={false}
+            caption="Abgeschlossene Kontaktbuchungen bis zum Ausgleich"
+            onOpen={openSource}
+          />
         </details>
       )}
+      <ContactBookingSource opening={sourceOpening} onClose={() => setSourceOpening(null)} />
     </div>
   );
 }

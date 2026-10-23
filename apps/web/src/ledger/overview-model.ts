@@ -1,17 +1,20 @@
 import { bySortOrder, groupAccounts } from './account-groups';
 import { accountValueEur, type AccountGroup } from './labels';
 import type { AccountRow, SeriesPoint } from './types';
-import { daysBetween } from '@budget/domain';
 import { longDay } from './format';
 import { sumTreeValues, type TreeValue } from './tree-values';
 
 /** Stored owner checks are independent of provider observation/retrieval dates. */
-export function accountCheck(account: AccountRow, today: string) {
+export function accountCheck(account: AccountRow) {
+  const review = account.reviewStatus;
+  if (!review) return { text: 'Prüfstatus nicht verfügbar', stale: false, state: 'unavailable' };
   const manual = account.type === 'p2p' || account.type === 'other_asset';
-  const date = manual ? account.lastValuedOn : account.lastReconciledOn;
+  const date = review.checkedOn;
+  const checked = date ? `${manual ? 'Wert vom' : 'geprüft am'} ${longDay(date)}` : 'nie geprüft';
   return {
-    text: date ? `${manual ? 'Wert vom' : 'geprüft am'} ${longDay(date)}` : 'nie geprüft',
-    stale: Boolean(date && daysBetween(date, today) >= 35),
+    text: review.state === 'due' ? `Fällig · ${checked}` : checked,
+    stale: review.state === 'due',
+    state: review.state,
   };
 }
 
@@ -58,6 +61,31 @@ export function overviewModel(
       ...new Set(accounts.flatMap((a) => a.missingPriceSecurityIds ?? [])),
     ].sort(),
     missingFxCurrencies: [...new Set(accounts.flatMap((a) => a.missingFxCurrencies))].sort(),
+  };
+}
+
+/** Page-only identities and counts; shared sums, group membership and account order stay intact. */
+export function accountOverviewPresentation(model: ReturnType<typeof overviewModel>) {
+  const visible = model.groups.flatMap((group) => group.accounts);
+  const byId = new Map(visible.map((a) => [a.id, a]));
+  const related = new Map<string, AccountRow[]>();
+  for (const depot of visible) {
+    if (!['brokerage', 'crypto'].includes(depot.type) || !depot.referenceAccountId) continue;
+    const reference = byId.get(depot.referenceAccountId);
+    if (!reference || reference.id === depot.id) continue;
+    const add = (id: string, account: AccountRow) => {
+      const linked = related.get(id) ?? [];
+      if (!linked.some((a) => a.id === account.id)) related.set(id, [...linked, account]);
+    };
+    add(depot.id, reference);
+    add(reference.id, depot);
+  }
+  return {
+    visible,
+    budget: model.groups.find((group) => group.group.id === 'budget'),
+    checked: visible.filter((account) => account.reviewStatus?.state === 'checked').length,
+    reviewUnavailable: visible.filter((account) => !account.reviewStatus).length,
+    related,
   };
 }
 

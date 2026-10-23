@@ -1,7 +1,7 @@
-import type { CashValuation } from '@budget/domain';
+import type { AccountReviewStatus, CashValuation, ValuationQuality } from '@budget/domain';
 
 /** Shapes of the ledger API (`docs/api-ledger.md`); amounts are integer cents, days `YYYY-MM-DD`. */
-import type { WithValuationNotes } from './valuation-hint';
+import type { ValuationSource, WithValuationNotes } from './valuation-hint';
 
 export const ACCOUNT_ROLES = ['budget', 'reserve', 'investment', 'debt', 'receivable'] as const;
 export type AccountRole = (typeof ACCOUNT_ROLES)[number];
@@ -27,6 +27,8 @@ export const BOOKING_FLAGS = ['red', 'orange', 'yellow', 'green', 'blue', 'purpl
 export type BookingFlag = (typeof BOOKING_FLAGS)[number];
 
 export interface AccountRow {
+  /** Present in current account reads; missing older cached data is not proof of a quiet account. */
+  reviewStatus?: AccountReviewStatus;
   allocationScope?: 'default' | 'included' | 'excluded';
   allocationAssetClassId?: string | null;
   id: string;
@@ -61,6 +63,7 @@ export interface AccountRow {
   holdingsCents: number | null;
   /** Entire account value in EUR, or null when a required security quote or FX rate is missing. */
   valueEurCents: number | null;
+  valuationSources?: ValuationSource[];
   cashValuation?: CashValuation;
   pendingValuation?: CashValuation;
   /** FX currencies that prevented this account's EUR valuation. */
@@ -86,6 +89,7 @@ export interface AccountRow {
 }
 
 export interface AccountList extends WithValuationNotes {
+  valuationSources?: ValuationSource[];
   asOf: string;
   accounts: AccountRow[];
   netWorthEurCents: number | null;
@@ -97,6 +101,20 @@ export interface SeriesPoint {
   date: string;
   balanceCents: number;
   valuation?: CashValuation;
+}
+
+/** Explicit quality=1 sibling data, from the same snapshot as its account/date series point. */
+export interface AccountSeriesDayQuality {
+  source: 'native_cash' | 'account_value_eur';
+  currency: string;
+  known: boolean;
+  quality: ValuationQuality;
+  missing: 'price' | 'fx' | null;
+}
+export interface AccountSeriesBatch {
+  series: Record<string, { accountId: string; points: SeriesPoint[] }>;
+  /** Absent on legacy/default replies. Absence is not proof of valuation completeness. */
+  quality?: Record<string, Record<string, AccountSeriesDayQuality>>;
 }
 
 export interface ListedSplit {

@@ -119,8 +119,10 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     const box = await dialog.boundingBox();
     expect(box!.y).toBeGreaterThanOrEqual(0);
     expect(box!.y + box!.height).toBeLessThanOrEqual(page.viewportSize()!.height + 1);
-    if (info.project.name === 'mobile') {
-      expect(box!.height).toBeLessThanOrEqual(844 * 0.88 + 1);
+    if (page.viewportSize()!.width < 768) {
+      // #586: capture fills the visible phone viewport; other sheets retain their own caps.
+      expect(box!.y).toBe(0);
+      expect(box!.height).toBe(await page.evaluate(() => window.visualViewport!.height));
       const small = await dialog
         .locator('button, input, textarea, select, summary')
         .evaluateAll((els) =>
@@ -216,8 +218,13 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Datum', { exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Kalender öffnen' })).toBeFocused();
-  await page.keyboard.press('Tab');
+  const calendar = dialog.getByLabel('Datum im Kalender');
+  await expect(calendar).toBeFocused();
+  // Native date segments can retain focus within the same input before its next control.
+  for (let step = 0; step < 4; step++) {
+    await page.keyboard.press('Tab');
+    if (!(await calendar.evaluate((node) => document.activeElement === node))) break;
+  }
   await expect(dialog.getByLabel('Wiederholen')).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Kategorie', { exact: true })).toBeFocused();
@@ -298,7 +305,9 @@ sampleTest(
   async ({ page }, info) => {
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
     await page.goto('/');
-    const chart = page.getByTestId('heute-balance-chart');
+    await expect(page.getByTestId('liquidity-chart')).toBeVisible();
+    await page.goto('/reports/finanzcheck');
+    const chart = page.getByTestId('r07-balance-chart');
     await expect(chart).toBeVisible();
     const inspection = chart.locator('..');
     await inspection.focus();
@@ -309,6 +318,8 @@ sampleTest(
       'stroke-dasharray',
       '7px, 5px',
     );
+    await page.goto('/');
+    await expect(page.getByTestId('liquidity-chart')).toBeVisible();
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,

@@ -5,6 +5,10 @@ import { assertIncomePauseInvariants } from './income-pause-invariants';
 import { assertContactName, assertContactUndoDependencies } from './contact-invariants';
 import { isDuplicatePayslip } from '@budget/domain';
 import { assertReceiptUndo } from './receipts';
+import {
+  assertStatementSettlementInvariants,
+  assertStatementUndoTarget,
+} from './statement-settlement-invariants';
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import {
@@ -628,6 +632,7 @@ export function undo(
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const originals = loadTarget(tx, target);
+    assertStatementUndoTarget(tx, originals, 'auditId' in target);
     // Protocol state cannot be replayed by undo: callbacks are one-shot and remote consent is external.
     if (
       originals.some((entry) =>
@@ -862,6 +867,7 @@ export function undo(
     assertLedgerInvariants(tx, touched);
     assertContactUndoDependencies(tx, originals);
     assertReceiptUndo(tx, originals);
+    assertStatementSettlementInvariants(tx);
     if (
       originals.some((e) =>
         ['payslip_intake', 'receipt', 'inbox_item', 'payslip'].includes(e.entityType),

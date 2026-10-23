@@ -1,0 +1,39 @@
+{
+  "head": "90ac54dd59a0cf2daacf81aba7f60bc6fa8a2303",
+  "phases": [
+    {
+      "name": "prettier-write24",
+      "exit": 0,
+      "wallSeconds": 1.431
+    },
+    {
+      "name": "format-semantics24",
+      "exit": 0,
+      "wallSeconds": 0.67
+    }
+  ],
+  "processGuard": 0,
+  "changedPaths": [
+    "apps/server/src/api/statement-automation-741.test.ts",
+    "apps/server/src/api/statement-intake.ts",
+    "apps/server/src/statements/automation-service.ts",
+    "apps/web/src/statement-intake/statement-automation-741.test.tsx",
+    "apps/web/src/statement-intake/statement-review-726.tsx",
+    "e2e/issue-741-card-automation.spec.ts",
+    "packages/db/src/repos/statement-automation-741.test.ts",
+    "packages/db/src/repos/statement-automation-invariants.ts",
+    "packages/db/src/repos/statement-automation-settlement.ts",
+    "packages/db/src/repos/statement-automation.ts",
+    "packages/db/src/repos/statement-settlement-invariants.ts",
+    "packages/db/src/schema/statement-automation.ts",
+    "packages/db/src/schema/statement-settlement.ts",
+    "packages/db/src/statement-automation-migration-741.test.ts",
+    "packages/domain/src/statement-automation-741.test.ts",
+    "packages/domain/src/statement-automation-contract.ts",
+    "packages/domain/src/statement-automation.ts"
+  ],
+  "sourceGuard": 0,
+  "oldAndUnownedSourceExact": true,
+  "allPhases0": true,
+  "lockReleased": true
+}

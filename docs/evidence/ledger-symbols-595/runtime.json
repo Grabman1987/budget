@@ -1,0 +1,187 @@
+{
+  "issue": 595,
+  "mainBase": "f3aafd78e2832bbe3110dde436ecfb5eaebafa80",
+  "sharedCommittedHead": "5be538a0712394bd81058f7f6de28120c99e5598",
+  "featureState": "Ten own files were frozen and uncommitted during validation; shared eight paths exactly matched committed head. Evidence-only files added after successful check/build.",
+  "frozen18Files": {
+    "apps/web/src/ledger/booking-cells.tsx": "b516ffe6e48b9203bba987763ae36a0dbec2aaf97a24d2bde7d35cbf34f7427d",
+    "apps/web/src/ledger/booking-table.tsx": "fb770daceb21dcdf2dae46a1208961f8a53d7c50a9831f7ae1561615c98491f1",
+    "apps/web/src/ledger/bookings-page.tsx": "eebd5360e30af18130258f712a1acaeb5c2c60972bce04158babf81ea2a67f33",
+    "apps/web/src/ledger/flag-picker.tsx": "0ddbdbc6bbb890e267ab5c5a88753c84d1fe13dd2db4e59de3946015ca09da6b",
+    "apps/web/src/ledger/ledger.css": "c14555341defbdf868202161d9fbc2aa24cb5fefac35fee7ff861d2851ad5c0c",
+    "apps/web/src/ledger/booking-legend.tsx": "630a2bdc8117eee6e3e14c75b673367dbfc048b56b5af07356267940bd6aea0a",
+    "apps/web/src/ledger/booking-status-chips.tsx": "3bd80dd2fa1237359db6bc8fe10c4decf13f92da85f834ca66700931d1cc771f",
+    "apps/web/src/ledger/ledger-symbols-595.test.tsx": "e5cd8584d841c75e020df4f5c92a3cb6a9afa6f4af8946be737cd203cab15d88",
+    "apps/web/src/ledger/status-chips-595.test.tsx": "0368cc1bcfc523e943f169e6a61d6dd10c0d51071be346a9fa29777aa63965f6",
+    "e2e/issue-595-ledger-symbols.spec.ts": "9a334943632e97c675badaeae27ceebbb509798f37c4af4088afaf72d6c6c589",
+    "docs/evidence/reduced-motion-481-595/README.md": "edfdedd9d3408ba43f122f86106b2ab3efc9edf4176c1a29c2dae9af8fb8ed26",
+    "docs/evidence/reduced-motion-481-595/desktop-dark.png": "3e71892d808b36dcb7f2c91ebf765242b9e07dad577eecef6c43fb284f0bc7e0",
+    "docs/evidence/reduced-motion-481-595/desktop-light.png": "b50bd74ca9e3725516be6fcfb42dc218d8cf8938ce72a37be794433c77e0eb18",
+    "docs/evidence/reduced-motion-481-595/phone-dark.png": "a19c7093280c53a29ba6f778bd8fea38790f82d511da14f861fddf99b8b8de29",
+    "docs/evidence/reduced-motion-481-595/phone-light.png": "f3f17a93b86046cf9edcc0c5317aaf087cd0cf97d2d2fb477e51bc5f15c3dac7",
+    "docs/evidence/reduced-motion-481-595/runtime.json": "afa95715ca7bbc39df441f93caaaeda36fec728d77c3495b4d162f908b19b087",
+    "e2e/issue-481-reduced-motion-theme.spec.ts": "5c46dd12b15a3bd9d43f3818a891956910794a725e70b0e42034fc97cd5559c2",
+    "packages/ui/src/styles/base.css": "18efd62204e13d3ec7ad1036a3210761c0f169af2d224bfd4d3d2e8c0f4175ea"
+  },
+  "freshE2EBuild": {
+    "exitCode": 0,
+    "completedAt": "2026-10-19T17:24:57.134867+00:00"
+  },
+  "native": {
+    "selection": {
+      "setup": 3,
+      "new595": 2,
+      "unchanged581": 2,
+      "newSharedTheme": 2
+    },
+    "stats": {
+      "startTime": "2026-10-19T17:25:00.903Z",
+      "duration": 100194.341,
+      "expected": 9,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "exitCode": 0,
+    "sourceHashesUnchanged": true,
+    "completedAt": "2026-10-19T17:26:42.024494+00:00"
+  },
+  "profiles": [
+    {
+      "label": "webkit-iphone",
+      "browser": "webkit",
+      "version": "27.2",
+      "width": 390,
+      "height": 664,
+      "coarse": true,
+      "fine": false,
+      "maxTouchPoints": 0,
+      "dpr": 3
+    },
+    {
+      "label": "webkit-desktop1440",
+      "browser": "webkit",
+      "version": "27.2",
+      "width": 1440,
+      "height": 900,
+      "coarse": false,
+      "fine": true,
+      "maxTouchPoints": 0,
+      "dpr": 1
+    }
+  ],
+  "nativePointerAssertions": {
+    "canonicalPhone": "touch",
+    "explicitDesktopLayout": "mouse"
+  },
+  "firstViewport": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "navigation": {
+      "x": 0,
+      "y": 780,
+      "width": 390,
+      "height": 64
+    },
+    "controls": [
+      {
+        "name": "payee",
+        "x": 108,
+        "y": 730.453125,
+        "width": 104.78125,
+        "height": 44
+      },
+      {
+        "name": "amount",
+        "x": 318.46875,
+        "y": 730.453125,
+        "width": 55.53125,
+        "height": 44
+      },
+      {
+        "name": "flag",
+        "x": 62,
+        "y": 720.453125,
+        "width": 44,
+        "height": 44
+      }
+    ]
+  },
+  "sharedThemeRoles": [
+    {
+      "profile": "desktop",
+      "theme": "light",
+      "rootColor": "rgb(11, 27, 51)",
+      "normalMinimumContrastRatio": 15.454544764184512,
+      "normalRolesMatchInk": true,
+      "semanticRolesMatchTokens": true
+    },
+    {
+      "profile": "desktop",
+      "theme": "dark",
+      "rootColor": "rgb(238, 246, 252)",
+      "normalMinimumContrastRatio": 10.592548771062878,
+      "normalRolesMatchInk": true,
+      "semanticRolesMatchTokens": true
+    },
+    {
+      "profile": "phone",
+      "theme": "light",
+      "rootColor": "rgb(11, 27, 51)",
+      "normalMinimumContrastRatio": 15.756669916063565,
+      "normalRolesMatchInk": true,
+      "semanticRolesMatchTokens": true
+    },
+    {
+      "profile": "phone",
+      "theme": "dark",
+      "rootColor": "rgb(238, 246, 252)",
+      "normalMinimumContrastRatio": 10.592548771062878,
+      "normalRolesMatchInk": true,
+      "semanticRolesMatchTokens": true
+    }
+  ],
+  "fullCheck": {
+    "environment": {
+      "BUDGET_REQUIRE_AGE": "1",
+      "VITEST_MAX_WORKERS": "2"
+    },
+    "exitCode": 0,
+    "testFiles": 507,
+    "tests": 4495,
+    "vitestDurationSeconds": 392.09
+  },
+  "productionBuildExit": 0,
+  "headUnchanged": true,
+  "all18HashesUnchanged": true,
+  "completedAt": "2026-10-19T17:42:59.794003+00:00",
+  "warnings": [
+    "Existing panel.tsx208 unused eslint-disable directive (zero ESLint errors)",
+    "JSDOM Window.scrollTo not implemented",
+    "Build bundle size notices"
+  ],
+  "limits": [
+    "RealWebKit27.2, not Chromium/Windows acceptance",
+    "Canonical phone390x664 coarse/DPR3 pointerType touch asserted; unfilteredguard390x844",
+    "Explicit WebKit desktopLAYOUT1440x900 fine/noTouch/DPR1 inherits iphoneUA/screen; no Chromium substitution",
+    "Manualdesktop clock remains host19Oct while isolatedserver/phonefixture2Oct; synthetic nonbaseline images",
+    "Firstviewport rectangle guard abovebottomnav passes; existing fixedFAB may overlap amount and no hit-test assurance inferred",
+    "Fullpage phone screenshots retain fixednavigation at captureviewportedge; actualpage scroll remains available, not baseline approvals",
+    "Full check/build passed; exact-head Chromium/Windows CI, required baseline review, serial integration and live revision remain open",
+    "Existing fixed capture button can overlap first amount despite full rectangles above navigation; no unobscured hit-test claim",
+    "No raw traces, session state or databases committed"
+  ],
+  "actualImages": {
+    "symbols-webkit-iphone-light.png": "b7d1ca7df3c8147142a9f0c7265da4e9171c3e9417714586db6b40657c2e6cb2",
+    "symbols-webkit-iphone-dark.png": "bf66a19cddc978cb3265aac070f62f65d92c4c935f0d7b877d83646bf1eed4ac",
+    "symbols-webkit-desktop1440-light.png": "eeabd88bc3caa43d233df92068991f3279110d1ae82678f4f69570a27cc0d2aa",
+    "symbols-webkit-desktop1440-dark.png": "7846db65966b2500f97099f749276db907d4b4a1c05848c1ab71304c18545313",
+    "account-webkit-iphone-light.png": "73b2d1b5a9bb8177522c103ddc0a9f6adbdbc2a89c423234362ac2326c2a5530",
+    "account-webkit-iphone-dark.png": "32d911d3553181c3b222402325d1df31c6d3e044cc3d604df1c7e6cb8e7daf3c",
+    "account-webkit-desktop1440-light.png": "a48c596efb43f56c489b74a3d5faaf12261b8fd129c0f8215facc2827181695e",
+    "account-webkit-desktop1440-dark.png": "9565526e3ed396bba5d99be6e4fcfe6fd0198a463e7ce38eff32a4111c0c3d29",
+    "unfiltered-first-controls-390x844.png": "6d1caf2b92bf47d4e9a8919517c42cdb784c3f6eb7eacfcc451f090a5ee5aa9b"
+  }
+}

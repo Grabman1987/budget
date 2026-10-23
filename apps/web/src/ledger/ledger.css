@@ -331,7 +331,7 @@
   color: var(--ink-3);
 }
 .kcheck.is-stale {
-  color: var(--red);
+  color: var(--minus-ink);
 }
 .kutil .pbar {
   position: relative;
@@ -1249,6 +1249,25 @@
   padding: 10px;
   color: var(--ink-2);
 }
+.is-capture-category .combo-list {
+  box-sizing: border-box;
+  min-width: 0;
+}
+.is-capture-category .combo-option > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 768px) and (pointer: fine) {
+  .bkform .is-capture-category .combo-option {
+    min-height: 36px;
+    padding-block: 4px;
+  }
+}
+@media (pointer: coarse) {
+  .is-capture-category .combo-option {
+    min-height: 44px;
+  }
+}
 .kchips {
   display: flex;
   flex-wrap: wrap;
@@ -1518,6 +1537,8 @@
   font-size: var(--fs-title);
 }
 .bk-body {
+  /* Keep native scroll alignment clear of fractional clipping at the sheet edge. */
+  scroll-padding-block: 1px;
   min-height: 0;
   overflow: auto;
   padding: 16px 20px 12px;
@@ -1712,6 +1733,113 @@
   cursor: text;
   max-width: 100%;
 }
+.kcell-edit:hover,
+.kcell-edit:focus-visible {
+  background: var(--ground-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+button.kstatus-btn:hover,
+button.kstatus-btn:focus-visible {
+  background: var(--ground-2);
+  color: var(--ink);
+}
+.kstatus-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 8px;
+}
+.kstatus-chips > .btn {
+  min-height: var(--touch);
+  border: 1px solid var(--rule);
+}
+.kstatus-chips > .btn[aria-pressed='true'] {
+  background: var(--ground-2);
+  border-color: var(--line);
+}
+.kstatus-chips .status {
+  margin: 0;
+}
+.klegend-short,
+.kstatus-all-short {
+  display: none;
+}
+.kbooking-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.kbooking-tools > .kbooking-legend[open] {
+  flex-basis: 100%;
+}
+.kbooking-legend {
+  margin-block: 8px;
+  font-size: var(--fs-label);
+}
+.kbooking-legend > summary {
+  width: fit-content;
+  max-width: 100%;
+  min-height: var(--touch);
+  align-content: center;
+  cursor: pointer;
+  color: var(--ink-2);
+}
+.kbooking-legend-body {
+  padding: 8px 0;
+  border-block: 1px solid var(--rule);
+}
+.kbooking-legend-body ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.kbooking-legend-body ul + ul {
+  margin-top: 8px;
+}
+.kbooking-legend-body li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.kbooking-legend-body .status {
+  margin: 0;
+}
+@media (max-width: 767px) {
+  .kstatus-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    margin-top: 0;
+    gap: var(--space-xs);
+  }
+  .kstatus-chips > .btn {
+    flex-shrink: 0;
+    padding-inline: var(--space-sm);
+  }
+  .klegend-full,
+  .kstatus-all-full {
+    display: none;
+  }
+  .klegend-short,
+  .kstatus-all-short {
+    display: inline;
+  }
+  /* Pack only the new tools into the existing select-all row; retain full 44px targets. */
+  .kbooking-tools:has(> .kselect-all) {
+    margin-block: calc(-1 * var(--space-sm));
+  }
+  .kbooking-tools > .kbooking-legend,
+  .kbooking-tools > .kselect-all {
+    margin: 0;
+  }
+}
 .kc-num .kcell-edit {
   text-align: right;
 }
@@ -1876,12 +2004,20 @@
 }
 .bk-calendar input {
   position: absolute;
-  inset: -1px;
+  /* Keep the native hit area above the 44px floor during fractional dialog translation. */
+  inset: -2px;
   opacity: 0;
-  width: calc(100% + 2px);
-  height: calc(100% + 2px);
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
   cursor: pointer;
-  pointer-events: none;
+}
+.bk-calendar input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
 }
 .bk-calendar:focus-within {
   outline: 2px solid var(--line);
@@ -2136,5 +2272,42 @@
   }
   .bk-split-cols .bk-share {
     align-items: end;
+  }
+}
+
+/* Capture fills the phone's visible viewport, including when the keyboard pans or resizes it.
+   The body owns scrolling; the save bar stays in the sheet above the bottom safe area. */
+@media (max-width: 767px) {
+  .bk-focus-scope dialog.sheet-bottom:has(.bkform) {
+    inset: var(--bk-viewport-top, 0px) 0 auto;
+    width: 100%;
+    height: var(--bk-viewport-height, 100dvh);
+    max-height: var(--bk-viewport-height, 100dvh);
+    border: 0;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top);
+    overflow: hidden;
+  }
+  .bk-focus-scope dialog.sheet-bottom:has(.bkform) .overlay-inner {
+    height: 100%;
+    max-height: 100%;
+  }
+  .bk-focus-scope dialog.sheet-bottom:has(.bkform) .sheet-grip {
+    display: none;
+  }
+  .bk-focus-scope dialog.sheet-bottom .bkform {
+    height: 100%;
+  }
+  .bk-focus-scope .bk-body {
+    flex: 1 1 auto;
+  }
+  .bk-focus-scope .bk-foot {
+    border-radius: 0;
+  }
+  .bk-focus-scope .bk-discard,
+  .bk-focus-scope .bk-save-reason {
+    flex-shrink: 1;
+    min-height: 44px;
+    overflow: auto;
   }
 }

@@ -32,7 +32,7 @@ export function DateInput({
         else if (ref) ref.current = node;
       }}
       type="text"
-      inputMode="numeric"
+      inputMode="text"
       placeholder="TT.MM.JJJJ"
       pattern="[0-9]{2}\.[0-9]{2}\.[0-9]{4}"
       value={raw.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3.$2.$1')}

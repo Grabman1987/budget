@@ -1,6 +1,6 @@
 # Ponytail summary (core rules)
 
-Source: the Ponytail skill. Applies to all coding in the queue; CLAUDE.md wins on conflict.
+Source: the Ponytail skill. Applies to code changes; `SPEC.md` and [`../queue/README.md`](README.md) govern product invariants and delivery policy.
 
 1. Ladder, stop at the first rung that holds: needed at all? already in this codebase? stdlib? native platform feature? already-installed dependency? one line? only then the minimum code.
 2. Read and understand the task and the code it touches first; the ladder shortens the solution, never the reading.
@@ -10,4 +10,4 @@ Source: the Ponytail skill. Applies to all coding in the queue; CLAUDE.md wins o
 6. Mark deliberate shortcuts with a known ceiling as `ponytail: <ceiling and upgrade path>`.
 7. Never simplify away validation at trust boundaries, error handling that prevents data loss, security, or accessibility.
 8. Money paths keep their invariants (integer cents, shared domain functions, no float arithmetic).
-9. Repo override: Ponytail leaves "one small check"; here every acceptance criterion gets a test, and calculation logic gets tests first (CLAUDE.md).
+9. Use suitable existing checks for acceptance criteria; do not add tests merely to satisfy this summary. Follow `docs/queue/README.md` for test edits, targeted local checks, required CI and independent review. For calculations, preserve financial expectations and follow `SPEC.md`.

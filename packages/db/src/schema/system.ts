@@ -65,6 +65,13 @@ export const bookingDelivery = sqliteTable('booking_delivery', {
   responseJson: text('response_json').notNull(),
 });
 
+/** Durable physical-upload intents; undo never releases an upload key. Not a physical receipt. */
+export const receiptDelivery = sqliteTable('receipt_delivery', {
+  key: text('key').primaryKey().notNull(),
+  requestHash: text('request_hash').notNull(),
+  responseJson: text('response_json').notNull(),
+});
+
 /**
  * Change log. `before_json` / `after_json` hold row snapshots; `undo` replays them. `group_id`
  * ties the entries of one user action together (a booking with its splits, a transfer pair).

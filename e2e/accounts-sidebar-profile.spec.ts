@@ -10,14 +10,18 @@ sampleTest(
   'accounts are grouped like YNAB in overview, chain, filter and sidebar',
   async ({ page }, testInfo) => {
     await page.goto('/konten');
-    await expect(page.getByTestId('net-worth')).toBeVisible();
+    await expect(page.getByTestId('budget-accounts-balance')).toBeVisible();
     await expect(page.locator('.kgroup .grp-title')).toHaveText(GROUPS);
     // The phone layout has no column header row.
     if (!isPhone(testInfo))
-      await expect(page.getByRole('columnheader', { name: '90 Tage' })).toBeVisible();
-    await expect(page.getByText('in 90 Tagen')).toBeVisible();
-    const chain = page.getByRole('group', { name: 'Maßkette Nettovermögen nach Kontogruppen' });
-    for (const label of GROUPS) await expect(chain.getByText(label, { exact: true })).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: '30 Tage' })).toBeVisible();
+    await expect(
+      page.getByRole('group', { name: /Kontoverlauf der letzten 30 Tage/ }).first(),
+    ).toBeVisible();
+    const groups = page.locator('.overview-group');
+    await expect(groups).toHaveCount(GROUPS.length);
+    for (const label of GROUPS)
+      await expect(groups.getByText(label, { exact: true })).toBeVisible();
     await expect(page.getByText('Schulden', { exact: true })).toHaveCount(0);
 
     await page.goto('/konten/buchungen');

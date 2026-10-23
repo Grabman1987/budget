@@ -117,6 +117,7 @@ export const inboxPagesQuery = (
   segment: InboxSegment | 'auto' = 'auto',
   /** Keeps the shown part stable after `auto` has picked one (same cache entry). */
   pinned?: InboxSegment,
+  bankAccountId?: string,
 ) =>
   infiniteQueryOptions({
     queryKey: [
@@ -128,11 +129,12 @@ export const inboxPagesQuery = (
       dateSort ?? null,
       fromDate ?? null,
       bankSource ? null : segment,
+      ...(bankAccountId ? ['bank-account', bankAccountId] : []),
     ] as const,
     queryFn: ({ pageParam }) =>
       request<InboxPage>(
         'GET',
-        `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}${period === 'all' ? '' : `&period=${period}`}${bankSource ? `&bankSource=${encodeURIComponent(bankSource)}` : ''}${dateSort ? `&dateSort=${dateSort}` : ''}${fromDate ? `&fromDate=${encodeURIComponent(fromDate)}` : ''}${bankSource ? '' : `&segment=${segment === 'auto' ? (pinned ?? segment) : segment}`}`,
+        `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}${period === 'all' ? '' : `&period=${period}`}${bankSource ? `&bankSource=${encodeURIComponent(bankSource)}` : ''}${dateSort ? `&dateSort=${dateSort}` : ''}${fromDate ? `&fromDate=${encodeURIComponent(fromDate)}` : ''}${bankSource ? '' : `&segment=${segment === 'auto' ? (pinned ?? segment) : segment}`}${bankAccountId ? `&bankAccountId=${encodeURIComponent(bankAccountId)}` : ''}`,
       ),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.next ?? undefined,

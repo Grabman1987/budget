@@ -1,0 +1,70 @@
+{
+  "base": "331bf3750341e0ad90f2392a2290160c6149bafb",
+  "archive": "043b7d28e127782597fb97a96650c5545a22700f",
+  "patches": [
+    {
+      "patch": "owned/01-aac07204a865f53fff36afa8e5ebae8b498da9e4.patch",
+      "sha256": "1efb2185ca7192832e962b931d111280c3f7f55b950172823e948fee89727880",
+      "paths": [
+        "apps/server/src/api/statement-intake.ts",
+        "apps/web/src/statement-intake/statement-booking-links.tsx",
+        "apps/web/src/statement-intake/statement-review-726.tsx",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/repos/statement-receipt-links.ts",
+        "packages/domain/src/index.ts",
+        "packages/domain/src/statement-receipt-links.ts"
+      ]
+    },
+    {
+      "patch": "integration/1d0c7b1af8d67dab7dcb1a8c567c20c3f44a1c48.patch",
+      "sha256": "6a014e80430ac37319c4d4d62240a039b635418067d1bc355bcf94180f402785",
+      "paths": [
+        "packages/db/src/repos/statement-receipt-links.ts"
+      ]
+    },
+    {
+      "patch": "integration/221e607c8937d7e3cdcb318e3ca13a8b90b8914d.patch",
+      "sha256": "95bc0364c1c091134f3c54eeae0ff8a6b3f8d925558ed0fecd922fb0c3f820ac",
+      "paths": [
+        "apps/server/src/api/statement-intake.ts"
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "path": "apps/server/src/api/statement-intake.ts",
+      "blob": "34abc4fc280430e6f886dfd4fa475970e9ab4a09",
+      "sha256": "3f63a0dff8a6c181f48b6ded43752020b828a89c91529808adec25ff37e8df56"
+    },
+    {
+      "path": "apps/web/src/statement-intake/statement-booking-links.tsx",
+      "blob": "f204b53bf66075d7de8c27f4bbc49273bfd09cf3",
+      "sha256": "1525fb5075afb1e752b138b7feda7d1e5ccb727815f44211fcd62b81b9ea0a3b"
+    },
+    {
+      "path": "apps/web/src/statement-intake/statement-review-726.tsx",
+      "blob": "4e99a866e2b409e0ad8171bfb10dc015fa05e55a",
+      "sha256": "d41f3b8ee03f82c61abb69d46bee4e0be2f7ee8a3de09651e04ddc3794832bed"
+    },
+    {
+      "path": "packages/db/src/repos/index.ts",
+      "blob": "ad88165cfcc5e5b704aa45c6b48ec5fd9b3a0d72",
+      "sha256": "753e84b748592cebc7aeeb22f412e93aba1e6432bf948a74e04eebd80e0b574d"
+    },
+    {
+      "path": "packages/db/src/repos/statement-receipt-links.ts",
+      "blob": "b23f6179d6fe6770380cc6a760cedcb598b6596f",
+      "sha256": "a3e99ab43e8afd1c336d21f87399fffea744d733ad26ad0f300108b2ffb54db5"
+    },
+    {
+      "path": "packages/domain/src/index.ts",
+      "blob": "2c3941f2c6763c64776183b02ca28a137d2e2c87",
+      "sha256": "9e8975e88ec5d56357693c7cb7ef600874685d3cd68d21e9950fcee0e95e0b52"
+    },
+    {
+      "path": "packages/domain/src/statement-receipt-links.ts",
+      "blob": "1d2d712357b7c26a86594ea00d102d583d0edded",
+      "sha256": "9ccbea74ba9ee003ee54986d4f9b7ca4278d98fbd59b047757970de0b2fb8f9c"
+    }
+  ]
+}

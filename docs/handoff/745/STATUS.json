@@ -1,0 +1,8 @@
+{
+  "ticket": "745",
+  "testedSource": "ad4a34dac18f00d3dd36f3e9dcbf1286b54bba54",
+  "passed": "Full check: 590 files / 5219 tests; build exit 0. WebKit 7/7 (3 setup + 4 feature cases).",
+  "remaining": "Prepared OLD735 date/account assertion adapter is preserved, not applied. Validate after adoption; Chromium / required CI and integration pending.",
+  "notLive": true,
+  "preparedDiffsApplied": false
+}

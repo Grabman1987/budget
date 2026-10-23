@@ -59,16 +59,27 @@ test('Schulden: cards are debt, "laufend ausgeglichen", Restschuld = negative ac
     originalAmountCents: 200_000,
   });
 
-  // Konten: the negative account values and the net worth.
+  // Read the actual account values in Konten and the retained net worth in Wealth.
   await page.goto('/konten');
-  await expect(page.getByTestId('net-worth')).toBeVisible();
-  const negatives = (await page.locator('.krow .kc-num.is-neg').allTextContents()).map(toCents);
-  const positives = (await page.locator('.krow .kc-num:not(.is-neg)').allTextContents()).map(
-    toCents,
-  );
+  await expect(page.getByTestId('budget-accounts-balance')).toBeVisible();
+  const negatives = (
+    await page
+      .locator('.overview-account-row .overview-row-value.is-neg [data-testid="account-value"]')
+      .allTextContents()
+  ).map(toCents);
+  const positives = (
+    await page
+      .locator(
+        '.overview-account-row .overview-row-value:not(.is-neg) [data-testid="account-value"]',
+      )
+      .allTextContents()
+  ).map(toCents);
   expect(negatives.slice().sort((a, b) => a - b)).toEqual([-100_000, -30_010, -15_025]);
   expect(positives).toEqual([50_000]);
-  expect(toCents(await page.getByTestId('net-worth').innerText())).toBe(-95_035);
+  await noHorizontalScroll(page);
+  await page.goto('/vermoegen/nettovermoegen');
+  await expect(page.getByTestId('nw-figure')).toBeVisible();
+  expect(toCents(await page.getByTestId('nw-figure').innerText())).toBe(-95_035);
   await noHorizontalScroll(page);
 
   // Schulden: Restschuld is exactly the sum of the negative accounts, the card included.
@@ -138,10 +149,17 @@ test('Schulden: a lone card without terms stays quiet and matches Konten to the 
 
   // The same amount is the only negative value in Konten.
   await page.goto('/konten');
-  await expect(page.getByTestId('net-worth')).toBeVisible();
-  expect((await page.locator('.krow .kc-num.is-neg').allTextContents()).map(toCents)).toEqual([
-    -30_010,
-  ]);
-  expect(toCents(await page.getByTestId('net-worth').innerText())).toBe(-30_010);
+  await expect(page.getByTestId('budget-accounts-balance')).toBeVisible();
+  expect(
+    (
+      await page
+        .locator('.overview-account-row .overview-row-value.is-neg [data-testid="account-value"]')
+        .allTextContents()
+    ).map(toCents),
+  ).toEqual([-30_010]);
+  await noHorizontalScroll(page);
+  await page.goto('/vermoegen/nettovermoegen');
+  await expect(page.getByTestId('nw-figure')).toBeVisible();
+  expect(toCents(await page.getByTestId('nw-figure').innerText())).toBe(-30_010);
   await noHorizontalScroll(page);
 });

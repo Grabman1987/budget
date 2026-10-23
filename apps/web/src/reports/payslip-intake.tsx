@@ -2,8 +2,18 @@ import {
   payrollTotals,
   type ParsedPayrollDocument,
   type PayslipSourceConfig,
+  type PayslipAutomationOutcome,
 } from '@budget/domain';
-import { Button, Field, SectionHead, Select, TextInput, useToast, WideDialog } from '@budget/ui';
+import {
+  Button,
+  Field,
+  SectionHead,
+  Select,
+  TextInput,
+  useAmountPrivacy,
+  useToast,
+  WideDialog,
+} from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { ApiError, notifyApiWrite, request } from '../api/http';
@@ -73,6 +83,7 @@ export type PayslipUploadResult = {
   duplicate: boolean;
   dropboxCopy?: 'saved' | 'failed' | 'off';
   passwordRemember?: RememberResult;
+  automation?: PayslipAutomationOutcome;
 };
 export function PayslipUpload({
   onBusyChange,
@@ -90,6 +101,8 @@ export function PayslipUpload({
     [remember, setRemember] = useState(false),
     [rememberNote, setRememberNote] = useState('');
   const qc = useQueryClient();
+  const acknowledgeWrite = useBudgetWrite();
+  const toast = useToast();
   function receive(files: File[]) {
     if (busy || !files.length) return;
     const file = files[0]!;
@@ -114,6 +127,7 @@ export function PayslipUpload({
     try {
       const body = new FormData();
       body.set('file', file);
+      body.set('automation', 'eligible');
       if (password) {
         body.set('password', password);
         if (remember) body.set('remember', '1');
@@ -128,6 +142,7 @@ export function PayslipUpload({
         duplicate: boolean;
         dropboxCopy?: 'saved' | 'failed' | 'off';
         passwordRemember?: RememberResult;
+        automation?: PayslipAutomationOutcome;
         error?: string;
         message?: string;
       };
@@ -136,12 +151,36 @@ export function PayslipUpload({
       if (!result.id) throw new ApiError(0, 'invalid_upload_response');
       notifyApiWrite();
       setMessage(
-        result.duplicate
-          ? 'Dieses PDF wurde bereits aufgenommen. Die vorhandene Prüfung wird geöffnet.'
-          : 'PDF ausgewertet. Die Prüfung ist jetzt geöffnet.',
+        result.automation?.status === 'booked'
+          ? 'Gehaltszettel gespeichert und Auszahlung erfasst.'
+          : result.automation?.status === 'linked'
+            ? 'Gehaltszettel gespeichert und mit der vorhandenen Auszahlung verknüpft.'
+            : result.duplicate
+              ? 'Dieses PDF wurde bereits aufgenommen. Die vorhandene Abrechnung wird geöffnet.'
+              : 'PDF gespeichert. Nicht eindeutige Angaben bleiben unter Prüfen.',
       );
       setDropbox(result.duplicate ? 'off' : (result.dropboxCopy ?? 'off'));
       setRememberNote(rememberText(result.passwordRemember));
+      if (result.automation?.groupId && ['booked', 'linked'].includes(result.automation.status)) {
+        // Acknowledge the already committed financial group through the shared Undo/redo UI.
+        // The earlier staging group is deliberately NOT the financial Undo target.
+        const groupId = result.automation.groupId;
+        await acknowledgeWrite(
+          async () => ({ groupId }),
+          () => 'Gehaltszettel automatisch gespeichert.',
+        );
+      }
+      if (result.automation?.status === 'pruefen') {
+        const reason = result.automation.reason;
+        toast.show({
+          message:
+            reason === 'source_not_configured'
+              ? 'PDF gespeichert. Bitte Gehaltskonto und Arbeitgeber/Absender einmal einrichten.'
+              : reason === 'payroll_already_exists'
+                ? 'PDF gespeichert. Eine Abrechnung ist bereits erfasst; bitte die Zuordnung unter Prüfen kontrollieren.'
+                : 'PDF gespeichert. Auszahlung oder Angaben sind nicht eindeutig; bitte unter Prüfen kontrollieren.',
+        });
+      }
       onUploaded?.(result);
       await qc.invalidateQueries();
     } catch (e) {
@@ -185,6 +224,11 @@ export function PayslipUpload({
       </Button>
       <span>PDF · höchstens 15 MB{busy ? ' · Wird ausgewertet …' : ''}</span>
       <p className="payslip-drop-hint">PDF hier ablegen oder über den Button auswählen.</p>
+      <p>
+        Mit eingerichteter Gehaltsquelle werden eindeutige neue Gehaltszettel automatisch
+        gespeichert und passende Auszahlungen verknüpft. Neue Auszahlungen werden vorgemerkt
+        (Bargeld bestätigt). Unklare Angaben bleiben unter Prüfen.
+      </p>
       <details className="payslip-password-details">
         <summary>PDF-Passwort eingeben (optional)</summary>
         <PasswordFields
@@ -213,6 +257,8 @@ export function PayslipUpload({
 type Intake = {
   id: string;
   receiptId: string;
+  /** Older responses may omit the live, persisted source association. */
+  payout?: { payslipId: string; bookingId: string; accountId: string } | null;
   status: string;
   parsed: ParsedPayrollDocument & {
     unmappedWageTypes?: { code: string; label: string; amountCents: number }[];
@@ -252,6 +298,7 @@ export function PayslipIntakeDetail({
   inline?: boolean;
   duplicate?: boolean;
 }) {
+  useAmountPrivacy();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [accountId, setAccountId] = useState<string>();
   const [payoutDate, setPayoutDate] = useState<string | null | undefined>();
@@ -613,6 +660,14 @@ export function PayslipIntakeDetail({
             <a className="btn btn-ghost" href={`/api/receipts/${data.receiptId}/download`}>
               Original-PDF herunterladen
             </a>
+            {data.status === 'confirmed' && data.payout && (
+              <a
+                className="btn btn-ghost"
+                href={`/konten/buchungen?konto=${encodeURIComponent(data.payout.accountId)}&buchung=${encodeURIComponent(data.payout.bookingId)}`}
+              >
+                Gespeicherte Auszahlung öffnen
+              </a>
+            )}
             <Button
               disabled={busy || !canConfirm || data.status !== 'pending'}
               onClick={() => void act('confirm')}
@@ -644,7 +699,13 @@ export function PayslipIntakeDetail({
         {duplicate && (
           <p role="status">Duplikat erkannt. Die bestehende Abrechnung wird angezeigt.</p>
         )}
-        {!duplicate && <p role="status">PDF ausgewertet. Prüfung ohne automatische Buchung.</p>}
+        {!duplicate && (
+          <p role="status">
+            {data?.status === 'confirmed'
+              ? 'Gehaltszettel gespeichert.'
+              : 'PDF gespeichert. Offene Angaben bitte prüfen.'}
+          </p>
+        )}
         {review}
       </section>
     );
@@ -676,6 +737,7 @@ type SourceStatus = {
   filesFound: number;
   errors: number;
   config: PayslipSourceConfig;
+  payees?: { id: string; name: string }[];
 };
 export function PayslipSourceSection() {
   const query = useQuery({
@@ -741,7 +803,11 @@ export function PayslipSourceSection() {
             source={query.data.passwordSource}
             available={query.data.passwordRememberAvailable}
           />
-          <PayslipSourceForm initial={query.data.config} accounts={query.data.accounts} />
+          <PayslipSourceForm
+            initial={query.data.config}
+            accounts={query.data.accounts}
+            payees={query.data.payees ?? []}
+          />
         </>
       )}
       <p>Dropbox wird nachts gelesen. PDFs erscheinen zur Bestätigung unter Prüfen.</p>
@@ -841,11 +907,14 @@ const WAGE_LABELS = {
 function PayslipSourceForm({
   initial,
   accounts,
+  payees,
 }: {
   initial: PayslipSourceConfig;
   accounts: SourceStatus['accounts'];
+  payees: { id: string; name: string }[];
 }) {
   const [salaryAccountId, setAccount] = useState(initial.salaryAccountId ?? '');
+  const [automaticPayeeId, setAutomaticPayee] = useState(initial.automation?.payeeId ?? '');
   const [rows, setRows] = useState(() =>
     Object.entries(initial.wageTypes).map(([code, type]) => ({ code, type })),
   );
@@ -868,6 +937,7 @@ function PayslipSourceForm({
       () =>
         request<{ groupId: string }>('PUT', PATH + '/config', {
           salaryAccountId: salaryAccountId || null,
+          ...(automaticPayeeId ? { automation: { payeeId: automaticPayeeId } } : {}),
           wageTypes: Object.fromEntries(rows.map((r) => [r.code, r.type])),
         }),
       () => 'Gehaltsquelle gespeichert.',
@@ -894,6 +964,27 @@ function PayslipSourceForm({
           </Select>
         )}
       </Field>
+      <Field label="Arbeitgeber / Absender für automatische Gehaltszettel">
+        {({ id }) => (
+          <Select
+            id={id}
+            value={automaticPayeeId}
+            disabled={busy}
+            onChange={(event) => setAutomaticPayee(event.target.value)}
+          >
+            <option value="">Automatische Speicherung aus</option>
+            {payees.map((person) => (
+              <option key={person.id} value={person.id}>
+                {person.name}
+              </option>
+            ))}
+          </Select>
+        )}
+      </Field>
+      <p>
+        Einmal dem Gehaltskonto und einem vorhandenen Absender zuordnen. Nur eindeutig validierte
+        neue Uploads werden automatisch gespeichert; bestehende Buchungen bleiben unverändert.
+      </p>
       <p>
         Lohnarten aus dem Dokument zuordnen. Bezüge sind bereits in der Bruttosumme enthalten.
         Aufrollungen behalten ihr Vorzeichen.

@@ -107,6 +107,33 @@ function PreviewBody({ data }: { data: PaymentsPreview }) {
   const eur = data.currencies.find((g) => g.currency === 'EUR')!;
   return (
     <>
+      {data.statementTransfers && data.statementTransfers.length > 0 && (
+        <section aria-labelledby="statement-transfer-preview-title">
+          <h2 id="statement-transfer-preview-title">Abrechnungsausgleich · Umbuchungen</h2>
+          <p>
+            Angenommene Rechnungsbeträge werden getrennt angezeigt. Sie sind keine zusätzlichen
+            Kategorieausgaben oder Einnahmen. „Zugeordnet“ ist keine Bestätigung des Bankeinzugs.
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Einzugstermin</th>
+                <th>Betrag</th>
+                <th>Stand</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.statementTransfers.map((r) => (
+                <tr key={r.id}>
+                  <td>{longDay(r.date)}</td>
+                  <td>{money(r.amountCents, r.currency)}</td>
+                  <td>{r.state === 'represented' ? 'Zugeordnet' : 'Offen'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
       <section aria-labelledby="preview-title">
         <div className="preview-head">
           <h2 id="preview-title">
