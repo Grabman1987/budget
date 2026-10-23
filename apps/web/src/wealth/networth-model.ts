@@ -101,7 +101,10 @@ export const kfmt = (v: number): string =>
   privateAmount(Math.abs(v) >= 1000 ? `${whole.format(v / 1000)} T` : whole.format(v));
 
 /** Use one explicit euro unit for every tick of a chart, retaining distinct nice-number ticks. */
-export function euroAxis(ticks: readonly number[]): { unit: string; label: (value: number) => string } {
+export function euroAxis(ticks: readonly number[]): {
+  unit: string;
+  label: (value: number) => string;
+} {
   const thousands = ticks.some((value) => Math.abs(value) >= 1000);
   const step = Math.min(...ticks.slice(1).map((value, index) => Math.abs(value - ticks[index]!)));
   const scale = thousands ? 1000 : 1;

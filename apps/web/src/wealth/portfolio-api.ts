@@ -31,7 +31,10 @@ export const portfolioPositionsQuery = (asOf?: string) =>
     queryKey: [...LEDGER_KEY, 'portfolio-positions', ...(asOf ? [asOf] : [])],
     retry: false,
     queryFn: () =>
-      request<PortfolioPositionsView & WithValuationNotes>('GET', `/api/portfolio/positions${asOf ? `?asOf=${encodeURIComponent(asOf)}` : ''}`),
+      request<PortfolioPositionsView & WithValuationNotes>(
+        'GET',
+        `/api/portfolio/positions${asOf ? `?asOf=${encodeURIComponent(asOf)}` : ''}`,
+      ),
   });
 export const instrumentQuery = (id: string) =>
   queryOptions({
@@ -53,8 +56,11 @@ export const assetClassesQuery = () =>
     queryFn: () => request<{ assetClasses: AssetClassRow[] }>('GET', '/api/asset-classes'),
   });
 
-
-export const instrumentHistoryQuery = (securityId: string, from: string | undefined, to: string | undefined) =>
+export const instrumentHistoryQuery = (
+  securityId: string,
+  from: string | undefined,
+  to: string | undefined,
+) =>
   queryOptions({
     queryKey: [...LEDGER_KEY, 'instrument-history', securityId, from ?? 'Max', to],
     enabled: !!securityId && securityId !== 'neu' && !!to,
@@ -63,6 +69,9 @@ export const instrumentHistoryQuery = (securityId: string, from: string | undefi
       if (!to) throw new Error('Der Stichtag fehlt.');
       const params = new URLSearchParams({ to });
       if (from) params.set('from', from);
-      return request<{ history: InstrumentHistory }>('GET', `/api/securities/${encodeURIComponent(securityId)}/history?${params.toString()}`);
+      return request<{ history: InstrumentHistory }>(
+        'GET',
+        `/api/securities/${encodeURIComponent(securityId)}/history?${params.toString()}`,
+      );
     },
   });

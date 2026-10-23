@@ -446,36 +446,42 @@ const netWorthRoute = createRoute({
   component: lazyRouteComponent(() => import('./wealth/networth-page'), 'NetWorthPage'),
 });
 const portfolioRegisterSearch = (search: Record<string, unknown>) => ({
-    sparplan:
-      typeof search['sparplan'] === 'string' && search['sparplan'].length <= 64
-        ? search['sparplan']
-        : undefined,
-    allokation: search['allokation'] === 'ziele' ? 'ziele' : undefined,
-    produkt:
-      typeof search['produkt'] === 'string' && search['produkt'].length <= 64
-        ? search['produkt']
-        : undefined,
-    handel:
-      typeof search['handel'] === 'string' && search['handel'].length <= 64
-        ? search['handel']
-        : undefined,
-  });
-const portfolioLegacyRedirect = ({ search, location }: { search: ReturnType<typeof portfolioRegisterSearch> & { zeitraum?: Period | undefined }; location: { pathname: string } }) => {
-    if (search.sparplan === 'neu' && location.pathname !== '/vermoegen/portfolio/sparplaene')
-      throw redirect({ to: '/vermoegen/portfolio/sparplaene', search });
-    if (search.sparplan && search.sparplan !== 'neu')
-      throw redirect({
-        to: '/vermoegen/portfolio/sparplan/$id',
-        params: { id: search.sparplan },
-        search: { zeitraum: search.zeitraum },
-      });
-    if (!search.sparplan && search.produkt && search.produkt !== 'neu')
-      throw redirect({
-        to: '/vermoegen/portfolio/instrument/$id',
-        params: { id: search.produkt },
-        search: { zeitraum: search.zeitraum, handel: search.handel },
-      });
-  };
+  sparplan:
+    typeof search['sparplan'] === 'string' && search['sparplan'].length <= 64
+      ? search['sparplan']
+      : undefined,
+  allokation: search['allokation'] === 'ziele' ? 'ziele' : undefined,
+  produkt:
+    typeof search['produkt'] === 'string' && search['produkt'].length <= 64
+      ? search['produkt']
+      : undefined,
+  handel:
+    typeof search['handel'] === 'string' && search['handel'].length <= 64
+      ? search['handel']
+      : undefined,
+});
+const portfolioLegacyRedirect = ({
+  search,
+  location,
+}: {
+  search: ReturnType<typeof portfolioRegisterSearch> & { zeitraum?: Period | undefined };
+  location: { pathname: string };
+}) => {
+  if (search.sparplan === 'neu' && location.pathname !== '/vermoegen/portfolio/sparplaene')
+    throw redirect({ to: '/vermoegen/portfolio/sparplaene', search });
+  if (search.sparplan && search.sparplan !== 'neu')
+    throw redirect({
+      to: '/vermoegen/portfolio/sparplan/$id',
+      params: { id: search.sparplan },
+      search: { zeitraum: search.zeitraum },
+    });
+  if (!search.sparplan && search.produkt && search.produkt !== 'neu')
+    throw redirect({
+      to: '/vermoegen/portfolio/instrument/$id',
+      params: { id: search.produkt },
+      search: { zeitraum: search.zeitraum, handel: search.handel },
+    });
+};
 const portfolioRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/vermoegen/portfolio',

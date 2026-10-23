@@ -49,8 +49,13 @@ export function InstrumentPanel({
   const history = useInstrumentHistory(creating ? '' : id, asOf, historyPeriod);
   const historyView = history.query.isError ? undefined : history.query.data?.history;
   const position = historyView?.position ?? undefined;
-  const positionState = !asOf ? initialPositionState : history.query.isError || historyView?.unavailable === 'calculation_limit'
-    ? 'unavailable' : history.query.isPending ? 'loading' : 'ready';
+  const positionState = !asOf
+    ? initialPositionState
+    : history.query.isError || historyView?.unavailable === 'calculation_limit'
+      ? 'unavailable'
+      : history.query.isPending
+        ? 'loading'
+        : 'ready';
   const instrument = useQuery(instrumentQuery(creating ? '' : id));
   const [editing, setEditing] = useState(false);
   const [quoting, setQuoting] = useState(false);
@@ -173,9 +178,14 @@ export function InstrumentPanel({
           </Button>
           {!position && positionState === 'loading' && <LoadingNote what="Bestände" />}
           {!position && positionState === 'unavailable' && (
-            <ErrorNote what="Bestände" error={history.query.error} onRetry={() => {
-              if (!asOf) onRetryPositions(); else void history.query.refetch();
-            }} />
+            <ErrorNote
+              what="Bestände"
+              error={history.query.error}
+              onRetry={() => {
+                if (!asOf) onRetryPositions();
+                else void history.query.refetch();
+              }}
+            />
           )}
           {!position && positionState === 'ready' && (
             <p className="vnote">Dieses Instrument hat am gewählten Stichtag keinen Bestand.</p>
@@ -193,7 +203,11 @@ export function InstrumentPanel({
           {position && (
             <>
               <h3>Bestand je Konto</h3>
-              {historyView && <p className="vnote">Stichtag {longDay(historyView.to)} · dieselbe Bewertung wie im Wertverlauf.</p>}
+              {historyView && (
+                <p className="vnote">
+                  Stichtag {longDay(historyView.to)} · dieselbe Bewertung wie im Wertverlauf.
+                </p>
+              )}
               <table className="instrument-accounts">
                 <caption className="sr-only">
                   Bestand des Instruments je Konto und Plattform

@@ -14,11 +14,25 @@ export function portfolioRegisterPath(key: PortfolioRegister) {
 }
 
 /** Real routes: reload/back work independently of the selected register. */
-export function PortfolioRegisters({ current, period }: { current: PortfolioRegister; period: Period }) {
-  return <nav className="portfolio-registers" aria-label="Portfolio-Register">
-    {PORTFOLIO_REGISTERS.map((entry) => <AppLink key={entry.key} to={entry.path}
-      search={{ zeitraum: period }} aria-current={entry.key === current ? 'page' : undefined}>
-      {entry.label}
-    </AppLink>)}
-  </nav>;
+export function PortfolioRegisters({
+  current,
+  period,
+}: {
+  current: PortfolioRegister;
+  period: Period;
+}) {
+  return (
+    <nav className="registers portfolio-registers" aria-label="Portfolio-Register">
+      {PORTFOLIO_REGISTERS.map((entry) => (
+        <AppLink
+          key={entry.key}
+          to={entry.path}
+          search={{ zeitraum: period }}
+          aria-current={entry.key === current ? 'page' : undefined}
+        >
+          {entry.label}
+        </AppLink>
+      ))}
+    </nav>
+  );
 }

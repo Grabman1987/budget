@@ -12,7 +12,11 @@ import { BANK_NOTE, currentRates, planGroups } from './savings-model';
 import { SavingsPanel } from './savings-panel';
 import './savings.css';
 
-export function SavingsSection({ navigationPath = '/vermoegen/portfolio' }: { navigationPath?: '/vermoegen/portfolio' | '/vermoegen/portfolio/sparplaene' }) {
+export function SavingsSection({
+  navigationPath = '/vermoegen/portfolio',
+}: {
+  navigationPath?: '/vermoegen/portfolio' | '/vermoegen/portfolio/sparplaene';
+}) {
   useAmountPrivacy();
   const plans = useQuery(savingsPlansQuery());
   const accounts = useQuery(accountsQuery());
@@ -25,10 +29,7 @@ export function SavingsSection({ navigationPath = '/vermoegen/portfolio' }: { na
   const [includeEnded, setIncludeEnded] = useState(false);
   const select = (sparplan?: string) =>
     void navigate({
-      to:
-        sparplan && sparplan !== 'neu'
-          ? '/vermoegen/portfolio/sparplan/$id'
-          : navigationPath,
+      to: sparplan && sparplan !== 'neu' ? '/vermoegen/portfolio/sparplan/$id' : navigationPath,
       params: { id: sparplan ?? '' },
       state: { wealthDetailOpenedInApp: true },
       search: ((prev: Record<string, unknown>) => ({

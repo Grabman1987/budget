@@ -431,7 +431,7 @@
 }
 
 /* Five real portfolio routes, sharing the original controls and source reads. */
-.portfolio-registers {
+.sheet > .portfolio-registers {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
@@ -445,13 +445,13 @@
   padding: 8px 4px;
   text-align: center;
   overflow-wrap: anywhere;
+  white-space: normal;
   color: var(--ink-2);
   text-decoration: none;
   border-bottom: 1px solid var(--rule);
 }
 .portfolio-registers a[aria-current='page'] {
   color: var(--line);
-  border-bottom: 2px solid var(--line);
 }
 .portfolio-class-summary,
 .portfolio-metrics {
@@ -522,7 +522,7 @@
   cursor: pointer;
 }
 @media (max-width: 600px) {
-  .portfolio-registers {
+  .sheet > .portfolio-registers {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

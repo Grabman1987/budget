@@ -24,7 +24,9 @@ export function TradeHistory({
   const query = useQuery(tradesQuery(securityId));
   const accounts = useQuery({ ...accountsQuery(), retry: false });
   const [all, setAll] = useState(false);
-  const ordered = [...(trades ?? query.data?.trades ?? [])].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  const ordered = [...(trades ?? query.data?.trades ?? [])].sort(
+    (a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id),
+  );
   const visible = all ? ordered : ordered.slice(0, 12);
   return (
     <section className="trade-history" aria-labelledby="trade-history-title">
@@ -54,66 +56,90 @@ export function TradeHistory({
           <caption className="sr-only">Handel je Datum und Konto; Beträge in Kontowährung</caption>
           <thead>
             <tr>
-              {[
-                'Datum',
-                'Art / Konto',
-                'Stück',
-                'Bruttobetrag',
-                'Gebühren',
-                'Steuer',
-                'Notiz',
-
-              ].map((label) => (
-                <th key={label} scope="col">
-                  {label}
-                </th>
-              ))}
+              {['Datum', 'Art / Konto', 'Stück', 'Bruttobetrag', 'Gebühren', 'Steuer', 'Notiz'].map(
+                (label) => (
+                  <th key={label} scope="col">
+                    {label}
+                  </th>
+                ),
+              )}
             </tr>
           </thead>
           <tbody>
             {visible.map((trade) => {
-                const account = accounts.data?.accounts.find(
-                  (account) => account.id === trade.accountId,
-                );
-                const money = (cents: number) =>
-                  account ? sourceMoney(cents, account.currency) : 'Kontowährung wird geladen';
-                return (
-                  <tr key={trade.id} data-trade-id={trade.id}
-                    onPointerUp={onEdit && !disabled ? (event) => {
-                      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || window.getSelection()?.toString()) return;
-                      if (event.target instanceof Element && event.target.closest('button,a,input,select,textarea')) return;
-                      onEdit(trade.id);
-                    } : undefined}>
-                    <td>{longDay(trade.date)}</td>
-                    <th scope="row">
-                      {onEdit ? <button type="button" className="trade-row-edit" disabled={disabled}
-                        onClick={() => onEdit(trade.id)} aria-label={`${KINDS[trade.kind]} vom ${longDay(trade.date)} bearbeiten`}>
+              const account = accounts.data?.accounts.find(
+                (account) => account.id === trade.accountId,
+              );
+              const money = (cents: number) =>
+                account ? sourceMoney(cents, account.currency) : 'Kontowährung wird geladen';
+              return (
+                <tr
+                  key={trade.id}
+                  data-trade-id={trade.id}
+                  onPointerUp={
+                    onEdit && !disabled
+                      ? (event) => {
+                          if (
+                            event.button !== 0 ||
+                            event.ctrlKey ||
+                            event.metaKey ||
+                            event.shiftKey ||
+                            event.altKey ||
+                            window.getSelection()?.toString()
+                          )
+                            return;
+                          if (
+                            event.target instanceof Element &&
+                            event.target.closest('button,a,input,select,textarea')
+                          )
+                            return;
+                          onEdit(trade.id);
+                        }
+                      : undefined
+                  }
+                >
+                  <td>{longDay(trade.date)}</td>
+                  <th scope="row">
+                    {onEdit ? (
+                      <button
+                        type="button"
+                        className="trade-row-edit"
+                        disabled={disabled}
+                        onClick={() => onEdit(trade.id)}
+                        aria-label={`${KINDS[trade.kind]} vom ${longDay(trade.date)} bearbeiten`}
+                      >
                         {KINDS[trade.kind]}
-                      </button> : <strong>{KINDS[trade.kind]}</strong>}
-                      <small>{maskMoneyText(account?.name ?? 'Konto wird geladen')}</small>
-                    </th>
-                    <td className="num">
-                      {privateAmount(unitsText(
+                      </button>
+                    ) : (
+                      <strong>{KINDS[trade.kind]}</strong>
+                    )}
+                    <small>{maskMoneyText(account?.name ?? 'Konto wird geladen')}</small>
+                  </th>
+                  <td className="num">
+                    {privateAmount(
+                      unitsText(
                         trade.kind === 'buy' || trade.kind === 'sell'
                           ? Math.abs(trade.unitsE8)
                           : trade.unitsE8,
-                      ))}
-                    </td>
-                    <td className="num">{money(trade.amountCents)}</td>
-                    <td className="num">{money(trade.feeCents)}</td>
-                    <td className="num">{money(trade.taxCents)}</td>
-                    <td>{maskMoneyText(trade.note ?? '—')}</td>
-
-                  </tr>
-                );
-              })}
+                      ),
+                    )}
+                  </td>
+                  <td className="num">{money(trade.amountCents)}</td>
+                  <td className="num">{money(trade.feeCents)}</td>
+                  <td className="num">{money(trade.taxCents)}</td>
+                  <td>{maskMoneyText(trade.note ?? '—')}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
       {/* eslint-enable jsx-a11y/no-noninteractive-tabindex */}
-      {ordered.length > 12 && <Button variant="ghost" onClick={() => setAll((shown) => !shown)}>
-        {all ? 'Letzte zwölf anzeigen' : `Alle anzeigen (${ordered.length})`}
-      </Button>}
+      {ordered.length > 12 && (
+        <Button variant="ghost" onClick={() => setAll((shown) => !shown)}>
+          {all ? 'Letzte zwölf anzeigen' : `Alle anzeigen (${ordered.length})`}
+        </Button>
+      )}
     </section>
   );
 }

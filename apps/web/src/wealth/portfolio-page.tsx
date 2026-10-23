@@ -30,14 +30,26 @@ import './portfolio.css';
 import { PortfolioAllocation } from './allocation-section';
 import { PortfolioOverview } from './portfolio-overview';
 import { PortfolioMetrics } from './portfolio-metrics';
-import { PortfolioRegisters, portfolioRegisterPath, type PortfolioRegister } from './portfolio-registers';
+import {
+  PortfolioRegisters,
+  portfolioRegisterPath,
+  type PortfolioRegister,
+} from './portfolio-registers';
 import { useZeitraum } from './zeitraum';
 import { ZeitraumSwitch } from './frame';
 
-export function PortfolioPositionsPage() { return <PortfolioPage register="positions" />; }
-export function PortfolioAllocationPage() { return <PortfolioPage register="allocation" />; }
-export function PortfolioSavingsPage() { return <PortfolioPage register="savings" />; }
-export function PortfolioMetricsPage() { return <PortfolioPage register="metrics" />; }
+export function PortfolioPositionsPage() {
+  return <PortfolioPage register="positions" />;
+}
+export function PortfolioAllocationPage() {
+  return <PortfolioPage register="allocation" />;
+}
+export function PortfolioSavingsPage() {
+  return <PortfolioPage register="savings" />;
+}
+export function PortfolioMetricsPage() {
+  return <PortfolioPage register="metrics" />;
+}
 
 export function PortfolioPage({ register = 'overview' }: { register?: PortfolioRegister }) {
   useAmountPrivacy();
@@ -52,10 +64,14 @@ export function PortfolioPage({ register = 'overview' }: { register?: PortfolioR
   const performance = useQuery({ ...portfolioPerformanceQuery(period), enabled: datedPositions });
   // Keep the existing current-position read usable if only historical performance is unavailable.
   // A successful period read selects the identical historical endpoint for the lead and table.
-  const selectedEnd = performance.data ? performance.data.portfolio.performance?.to
-    ?? periodWindow(period, performance.data.portfolio.asOf).to : undefined;
-  const query = useQuery({ ...portfolioPositionsQuery(selectedEnd),
-    enabled: datedPositions || search.produkt === 'neu' || !!search.handel });
+  const selectedEnd = performance.data
+    ? (performance.data.portfolio.performance?.to ??
+      periodWindow(period, performance.data.portfolio.asOf).to)
+    : undefined;
+  const query = useQuery({
+    ...portfolioPositionsQuery(selectedEnd),
+    enabled: datedPositions || search.produkt === 'neu' || !!search.handel,
+  });
   const path = portfolioRegisterPath(register);
   const instruments = useQuery(instrumentsQuery());
   const navigate = useNavigate();
@@ -92,147 +108,194 @@ export function PortfolioPage({ register = 'overview' }: { register?: PortfolioR
     <PageFrame meta={VERMOEGEN_PORTFOLIO_META}>
       <PortfolioRegisters current={register} period={period} />
       <div className="kview vview portfolio-view">
-        {datedPositions && performance.isError && <ErrorNote what="Portfoliozeitraum" error={performance.error} onRetry={() => void performance.refetch()} />}
-        {datedPositions && performance.isPending && <LoadingNote what="Portfoliozeitraum" />}
-        {datedPositions && <>
-        {query.isPending && !performance.isPending && <LoadingNote what="Positionen" />}
-        {query.isError && (
-          <ErrorNote what="Positionen" error={query.error} onRetry={() => void query.refetch()} />
+        {datedPositions && performance.isError && (
+          <ErrorNote
+            what="Portfoliozeitraum"
+            error={performance.error}
+            onRetry={() => void performance.refetch()}
+          />
         )}
-        <ValuationHint incomplete={query.data?.incomplete} />
-        {view && <PortfolioLead view={view} />}
-        {view && performance.isError && <p className="vnote">Die Zeitraum-Auswertung ist nicht verfügbar. Der separat bewertete Bestand oben gilt für {longDay(view.asOf)}; ein Vergleich mit einem fehlenden Kurvenendpunkt ist nicht möglich.</p>}
-        {register === 'positions' && <ZeitraumSwitch />}
-        </>}
-        {register === 'overview' && <><PortfolioOverview />{view && <section className="portfolio-class-summary" aria-labelledby="portfolio-classes-title">
-          <div className="head"><h2 id="portfolio-classes-title">Anlageklassen kurz</h2></div>
-          <ul>{view.classes.map((group) => <li key={group.id ?? 'none'}><span>{maskMoneyText(group.name)}</span><span>{moneyText(group.valueCents)}</span></li>)}</ul>
-        </section>}</>}
-        {register === 'positions' && <>
-        <div className="instrument-actions">
-          <Button variant="ghost" onClick={() => select('neu')}>
-            Instrument anlegen
-          </Button>
-          <Button onClick={() => trade('neu', undefined)}>Handel erfassen</Button>
-        </div>
-
-        {view && (
+        {datedPositions && performance.isPending && <LoadingNote what="Portfoliozeitraum" />}
+        {datedPositions && (
           <>
-            {view.classes.length === 0 ? (
-              <EmptyNote>Keine Positionen zum {longDay(view.asOf)} vorhanden.</EmptyNote>
-            ) : (
-              <section className="portfolio-positions" aria-labelledby="positions-title">
+            {query.isPending && !performance.isPending && <LoadingNote what="Positionen" />}
+            {query.isError && (
+              <ErrorNote
+                what="Positionen"
+                error={query.error}
+                onRetry={() => void query.refetch()}
+              />
+            )}
+            <ValuationHint incomplete={query.data?.incomplete} />
+            {view && <PortfolioLead view={view} />}
+            {view && performance.isError && (
+              <p className="vnote">
+                Die Zeitraum-Auswertung ist nicht verfügbar. Der separat bewertete Bestand oben gilt
+                für {longDay(view.asOf)}; ein Vergleich mit einem fehlenden Kurvenendpunkt ist nicht
+                möglich.
+              </p>
+            )}
+            {register === 'positions' && <ZeitraumSwitch />}
+          </>
+        )}
+        {register === 'overview' && (
+          <>
+            <PortfolioOverview />
+            {view && (
+              <section
+                className="portfolio-class-summary"
+                aria-labelledby="portfolio-classes-title"
+              >
                 <div className="head">
-                  <h2 id="positions-title">Positionen</h2>
-                  <span className="aside">
-                    {view.costCents === null
-                      ? basisReason(
-                          view.classes.flatMap((g) => g.positions.flatMap((p) => p.accounts)),
-                        )
-                      : `Einstand ${eurWhole(view.costCents)}`}
-                  </span>
+                  <h2 id="portfolio-classes-title">Anlageklassen kurz</h2>
                 </div>
-                <table className="ktable vtable portfolio-table">
-                  <caption className="sr-only">Positionen nach Anlageklasse</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col" className="tech">
-                        Pos.
-                      </th>
-                      <th scope="col" className="tech">
-                        Position
-                      </th>
-                      <th scope="col" className="tech">
-                        Plattform
-                      </th>
-                      <th scope="col" className="num tech">
-                        Stück
-                      </th>
-                      <th scope="col" className="num tech">
-                        Kurs
-                      </th>
-                      <th scope="col" className="num tech">
-                        Wert
-                      </th>
-                      <th scope="col" className="num tech">
-                        Anteil · Marktwert
-                      </th>
-                      <th scope="col" className="num tech">
-                        seit Kauf
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {view.classes.map((group, gi) => (
-                      <GroupRows key={group.id ?? 'none'} group={group} gi={gi} onSelect={select} />
-                    ))}
-                  </tbody>
-                </table>
-                <p className="vnote">
-                  Anteil = Klassen- oder Positionswert / Marktwert aller gehaltenen Wertpapiere (
-                  {moneyText(view.valueCents)}), ohne Kassa. Die Aufteilung Soll/Ist verwendet
-                  dagegen das ausgewählte Netto-Allokationsuniversum einschließlich Anlage-Kassa.
-                </p>
-                <p className="vnote">
-                  Werte in EUR, Kurse in der gespeicherten Kurswährung. „seit Kauf“ zeigt den
-                  Wertzuwachs auf den dokumentierten Einstand (
-                  {view.costMethod === 'fifo' ? 'FIFO' : 'gleitender Durchschnitt'}).
-                </p>
+                <ul>
+                  {view.classes.map((group) => (
+                    <li key={group.id ?? 'none'}>
+                      <span>{maskMoneyText(group.name)}</span>
+                      <span>{moneyText(group.valueCents)}</span>
+                    </li>
+                  ))}
+                </ul>
               </section>
             )}
           </>
         )}
+        {register === 'positions' && (
+          <>
+            <div className="instrument-actions">
+              <Button variant="ghost" onClick={() => select('neu')}>
+                Instrument anlegen
+              </Button>
+              <Button onClick={() => trade('neu', undefined)}>Handel erfassen</Button>
+            </div>
 
-        {instruments.isPending && <LoadingNote what="Instrumente" />}
-        {instruments.isError && (
-          <ErrorNote
-            what="Instrumente"
-            error={instruments.error}
-            onRetry={() => void instruments.refetch()}
-          />
+            {view && (
+              <>
+                {view.classes.length === 0 ? (
+                  <EmptyNote>Keine Positionen zum {longDay(view.asOf)} vorhanden.</EmptyNote>
+                ) : (
+                  <section className="portfolio-positions" aria-labelledby="positions-title">
+                    <div className="head">
+                      <h2 id="positions-title">Positionen</h2>
+                      <span className="aside">
+                        {view.costCents === null
+                          ? basisReason(
+                              view.classes.flatMap((g) => g.positions.flatMap((p) => p.accounts)),
+                            )
+                          : `Einstand ${eurWhole(view.costCents)}`}
+                      </span>
+                    </div>
+                    <table className="ktable vtable portfolio-table">
+                      <caption className="sr-only">Positionen nach Anlageklasse</caption>
+                      <thead>
+                        <tr>
+                          <th scope="col" className="tech">
+                            Pos.
+                          </th>
+                          <th scope="col" className="tech">
+                            Position
+                          </th>
+                          <th scope="col" className="tech">
+                            Plattform
+                          </th>
+                          <th scope="col" className="num tech">
+                            Stück
+                          </th>
+                          <th scope="col" className="num tech">
+                            Kurs
+                          </th>
+                          <th scope="col" className="num tech">
+                            Wert
+                          </th>
+                          <th scope="col" className="num tech">
+                            Anteil · Marktwert
+                          </th>
+                          <th scope="col" className="num tech">
+                            seit Kauf
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {view.classes.map((group, gi) => (
+                          <GroupRows
+                            key={group.id ?? 'none'}
+                            group={group}
+                            gi={gi}
+                            onSelect={select}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="vnote">
+                      Anteil = Klassen- oder Positionswert / Marktwert aller gehaltenen Wertpapiere
+                      ({moneyText(view.valueCents)}), ohne Kassa. Die Aufteilung Soll/Ist verwendet
+                      dagegen das ausgewählte Netto-Allokationsuniversum einschließlich
+                      Anlage-Kassa.
+                    </p>
+                    <p className="vnote">
+                      Werte in EUR, Kurse in der gespeicherten Kurswährung. „seit Kauf“ zeigt den
+                      Wertzuwachs auf den dokumentierten Einstand (
+                      {view.costMethod === 'fifo' ? 'FIFO' : 'gleitender Durchschnitt'}).
+                    </p>
+                  </section>
+                )}
+              </>
+            )}
+
+            {instruments.isPending && <LoadingNote what="Instrumente" />}
+            {instruments.isError && (
+              <ErrorNote
+                what="Instrumente"
+                error={instruments.error}
+                onRetry={() => void instruments.refetch()}
+              />
+            )}
+            {view && unheld && unheld.length > 0 && (
+              <details className="instrument-catalog">
+                <summary>Instrumente ohne Bestand ({unheld.length})</summary>
+                <table className="ktable">
+                  <caption className="sr-only">Instrumente ohne aktuellen Bestand</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col" className="tech">
+                        Instrument
+                      </th>
+                      <th scope="col" className="tech">
+                        Art
+                      </th>
+                      <th scope="col" className="tech">
+                        Währung
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {unheld.map((security) => (
+                      <tr key={security.id}>
+                        <td>
+                          <button
+                            type="button"
+                            className="portfolio-product"
+                            data-portfolio-security={security.id}
+                            onClick={() => select(security.id)}
+                          >
+                            {security.name}
+                          </button>
+                        </td>
+                        <td>{INSTRUMENT_KIND[security.kind]}</td>
+                        <td>{security.currency}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </details>
+            )}
+          </>
         )}
-        {view && unheld && unheld.length > 0 && (
-          <details className="instrument-catalog">
-            <summary>Instrumente ohne Bestand ({unheld.length})</summary>
-            <table className="ktable">
-              <caption className="sr-only">Instrumente ohne aktuellen Bestand</caption>
-              <thead>
-                <tr>
-                  <th scope="col" className="tech">
-                    Instrument
-                  </th>
-                  <th scope="col" className="tech">
-                    Art
-                  </th>
-                  <th scope="col" className="tech">
-                    Währung
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {unheld.map((security) => (
-                  <tr key={security.id}>
-                    <td>
-                      <button
-                        type="button"
-                        className="portfolio-product"
-                        data-portfolio-security={security.id}
-                        onClick={() => select(security.id)}
-                      >
-                        {security.name}
-                      </button>
-                    </td>
-                    <td>{INSTRUMENT_KIND[security.kind]}</td>
-                    <td>{security.currency}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </details>
-        )}
-        </>}
         {register === 'allocation' && <PortfolioAllocation />}
-        {register === 'savings' && <SavingsSection navigationPath="/vermoegen/portfolio/sparplaene" />}
+        {register === 'savings' && (
+          <SavingsSection navigationPath="/vermoegen/portfolio/sparplaene" />
+        )}
         {register === 'metrics' && <PortfolioMetrics />}
       </div>
       {search.sparplan ? null : search.handel ? (
