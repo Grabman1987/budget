@@ -1,5 +1,5 @@
 import { ChartValue } from '@budget/ui';
-import type { RebalanceProposal } from '@budget/domain';
+import type { Period, RebalanceProposal } from '@budget/domain';
 import { Button } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
@@ -316,7 +316,9 @@ export function PortfolioAllocation() {
                           onClick={() =>
                             void navigate({
                               to: '/vermoegen/portfolio/positionen',
-                              search: (previous) => ({ zeitraum: previous.zeitraum }),
+                              search: (previous: { zeitraum?: Period | undefined }) => ({
+                                zeitraum: previous.zeitraum,
+                              }),
                               hash: 'positions-title',
                             })
                           }
