@@ -1,0 +1,19 @@
+[WebServer] Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).
+[WebServer] Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).
+[WebServer] Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).
+[WebServer] npm notice
+[WebServer] npm notice New major version of npm available! 10.9.9 -> 12.2.1
+[WebServer] npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+[WebServer] npm notice To update run: npm install -g npm@12.2.1
+[WebServer] npm notice
+[WebServer] Encrypted backup is off (BUDGET_BACKUP_RECIPIENT not set).
+
+Running 5 tests using 1 worker
+
+  ✓  1 [setup] › e2e/auth.setup.ts:10:1 › register the first passkey and store the session (85ms)
+  ✓  2 [setup] › e2e/ledger.setup.ts:17:1 › seed categories for the ledger tests (81ms)
+  ✓  3 [setup-sample] › e2e/sample.setup.ts:6:1 › register the first passkey on the sample server (87ms)
+  ✓  4 [webkit-iphone] › e2e/issue-586-mobile-capture.spec.ts:43:1 › capture keeps save visible with many lines, status, targets and both themes (12.5s)
+  ✓  5 [webkit-iphone] › e2e/issue-586-mobile-capture.spec.ts:119:1 › desktop card stays bounded and phone save follows keyboard-sized visual viewport (6.0s)
+
+  5 passed (34.7s)
