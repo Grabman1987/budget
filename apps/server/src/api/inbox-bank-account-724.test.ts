@@ -25,6 +25,18 @@ beforeEach(() => {
         openingBalanceCents: 100_000,
       })
       .run();
+  // Existing account-scoped queue fixtures have recent checks, not extra global due work.
+  for (const accountId of [A, B])
+    opened.db
+      .insert(schema.accountReconciliation)
+      .values({
+        id: `recent-${accountId}`,
+        accountId,
+        date: DAY,
+        statementBalanceCents: 100000,
+        clearedBalanceCents: 100000,
+      })
+      .run();
   bookedId = createBooking(
     opened.db,
     {

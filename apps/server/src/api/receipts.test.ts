@@ -28,6 +28,22 @@ let opened: OpenedDatabase, dir: string, bookingId: string, app: ReturnType<type
 beforeEach(() => {
   opened = createTestDatabase();
   seedBasics(opened.db);
+  // Keep the receipt-count fixture independent of newly counted due account checks.
+  for (const [accountId, balance] of [
+    ['giro', 100000],
+    ['spar', 0],
+    ['usd', 0],
+  ] as const)
+    opened.db
+      .insert(schema.accountReconciliation)
+      .values({
+        id: `recent-${accountId}`,
+        accountId,
+        date: '2026-09-17',
+        statementBalanceCents: balance,
+        clearedBalanceCents: balance,
+      })
+      .run();
   dir = mkdtempSync(join(tmpdir(), 'budget-receipts-test-'));
   bookingId = createBooking(
     opened.db,

@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { inboxItem, openDatabase } from '@budget/db';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
-import { openPruefenPart } from './pruefen-part';
+import { openPruefenPart, openPruefenSource } from './pruefen-part';
 
 test.setTimeout(120_000);
 test('source summaries leave decisions clear and retain grouped, filtered, paged movement actions', async ({
@@ -53,6 +53,7 @@ test('source summaries leave decisions clear and retain grouped, filtered, paged
   }
   await page.goto('/konten/posteingang');
   await openPruefenPart(page, 'Aufgaben');
+  await openPruefenSource(page, 'Weitere Aufgaben');
   const summary = page.getByRole('link', { name: 'Krypto-Lesequelle: 102 Bewegungen zu prüfen' });
   await expect(summary).toBeVisible();
   await expect(page.getByTestId('inbox-row')).toHaveCount(1);

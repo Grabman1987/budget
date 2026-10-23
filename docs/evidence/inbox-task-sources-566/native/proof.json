@@ -1,0 +1,14 @@
+{
+  "sourceRevision": "03e1505b428c82603b6cd8973dfffef140f38fd7",
+  "syntheticOnly": true,
+  "artifacts": {
+    "task-sources-desktop-dark.png": "0b9bc0c19c6fcf4cff193d4e86f940d962067b34e654c2349bf61b5027918c3a",
+    "task-sources-desktop-dark.json": "cc6ae3c5693f66c1ab8e1f3ba27d5492d53e5b234932e5bcb2058c77c00060f4",
+    "task-sources-phone-dark.json": "193afb1ee5d6dacc8c1e36b30757e0713f3687b67cc586b4022c2abffb881e6e",
+    "task-sources-phone-dark.png": "c22803947f41b7ecc95a1b4e2fa079ff6a56f53f87c3077e8dce837a2b224f3f",
+    "task-sources-desktop-light.png": "fe88b7c5f17e5e200a3879b1c63fab4ddda068e19dfe4a16ad20769c7a9553a1",
+    "task-sources-desktop-light.json": "5c5af08c061dbd4ffb0aed6e3820407df74e32d8edf20bc93aa143a7cd56a7a9",
+    "task-sources-phone-light.png": "e0d625643f87b11473150b13dff755c1d7205c57d4fe338d592ff9c5938edcc4",
+    "task-sources-phone-light.json": "1d269d7edaa5574e204ba8f78f32dc9672d3b0fdaa7729a7448161f81edb3113"
+  }
+}

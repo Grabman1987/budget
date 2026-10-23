@@ -51,3 +51,13 @@ export function inboxSegment(item: { type: string; refType?: string | null }): I
     ? 'umsaetze'
     : 'aufgaben';
 }
+
+export type InboxTaskSource = 'accounts' | 'plan' | 'receipts' | 'payslips' | 'other';
+
+/** Only persisted source identity classifies tasks; unfamiliar work stays visible. */
+export function inboxTaskSource(item: { type: string; refType?: string | null }): InboxTaskSource {
+  if (item.type === 'savings' || (item.type === 'stored' && item.refType === 'savings_plan'))
+    return 'plan';
+  if (item.type === 'stored' && item.refType === 'payslip-intake') return 'payslips';
+  return 'other';
+}

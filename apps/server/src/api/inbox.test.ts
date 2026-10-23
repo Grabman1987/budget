@@ -18,6 +18,22 @@ let app: ReturnType<typeof createLedgerApi>;
 beforeEach(() => {
   opened = createTestDatabase();
   seedBasics(opened.db);
+  // Recent review checkpoints keep the existing queue cases independent of account reminders.
+  for (const [accountId, balance] of [
+    ['giro', 100000],
+    ['spar', 0],
+    ['usd', 0],
+  ] as const)
+    opened.db
+      .insert(schema.accountReconciliation)
+      .values({
+        id: `recent-${accountId}`,
+        accountId,
+        date: '2026-09-17',
+        statementBalanceCents: balance,
+        clearedBalanceCents: balance,
+      })
+      .run();
   app = createLedgerApi({
     db: opened.db,
     today: () => '2026-09-17',
@@ -242,6 +258,16 @@ describe('inbox API', () => {
       },
       ctx,
     );
+    opened.db
+      .insert(schema.accountReconciliation)
+      .values({
+        id: 'recent-card',
+        accountId: 'card',
+        date: '2026-09-17',
+        statementBalanceCents: -5000,
+        clearedBalanceCents: -5000,
+      })
+      .run();
     categories.create(
       opened.db,
       {
@@ -472,10 +498,12 @@ describe('inbox API', () => {
     expect(whole.body.entries.map((entry: any) => entry.id)).toEqual(expectedIds);
     expect(whole.body.count).toBe(302);
     expect(Object.keys(whole.body).sort()).toEqual([
+      'accountReminders',
       'asOf',
       'count',
       'entries',
       'readSourceSummaries',
+      'unlinkedReceiptCount',
     ]);
     const pages = await Promise.all(
       [0, 100, 200, 300].map((offset) => call('GET', `/inbox?limit=100&offset=${offset}`)),
