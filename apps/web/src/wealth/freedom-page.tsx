@@ -9,13 +9,15 @@ import {
   formatDecimal,
   freedomMonths,
   MINUS,
+  freedomGoalRate,
 } from '@budget/domain';
 import { VERMOEGEN_FREIHEIT_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { AppLink } from '../shell/app-link';
-import { freedomQuery, type FreedomView } from './freedom-api';
+import { freedomQuery, freedomGoalQuery, type FreedomView } from './freedom-api';
+import { FreedomGoalForm, type FreedomGoalRequest } from './freedom-goal-form';
 import { freedomScenario, monthText, percent } from './freedom-model';
 import { FreedomChart } from './freedom-chart';
 import './freedom.css';
@@ -60,6 +62,7 @@ function InfoText({ id, open, children }: { id: string; open: boolean; children:
 export function FreedomPage() {
   useAmountPrivacy();
   const query = useQuery(freedomQuery());
+  const goal = useQuery(freedomGoalQuery());
   return (
     <PageFrame meta={VERMOEGEN_FREIHEIT_META} revealCurrentRegister>
       <div className="kview vview freedom-view">
@@ -71,13 +74,32 @@ export function FreedomPage() {
             onRetry={() => void query.refetch()}
           />
         )}
-        {query.data && <FreedomContent view={query.data} />}
+        {query.data && (
+          <FreedomContent
+            view={query.data}
+            goalRequest={{
+              state: goal.data,
+              pending: goal.isPending,
+              error: goal.isError,
+              refresh: async () => {
+                const fresh = await goal.refetch();
+                return fresh.isError ? undefined : fresh.data;
+              },
+            }}
+          />
+        )}
       </div>
     </PageFrame>
   );
 }
 
-export function FreedomContent({ view }: { view: FreedomView }) {
+export function FreedomContent({
+  view,
+  goalRequest,
+}: {
+  view: FreedomView;
+  goalRequest?: FreedomGoalRequest;
+}) {
   const hidden = useAmountPrivacy();
   const defaultSaving =
     view.defaultSavingCents === null ? '' : formatDecimal(cents(view.defaultSavingCents));
@@ -90,6 +112,15 @@ export function FreedomContent({ view }: { view: FreedomView }) {
       ? freedomMonths(view.investedCents, view.annualSpendCents)
       : null;
   const { projection, error } = freedomScenario(view, saving, returnBp);
+  const goalYear =
+    goalRequest?.state && !goalRequest.state.unavailable ? goalRequest.state.goalYear : null;
+  const goalRate = freedomGoalRate({
+    goalYear,
+    asOf: view.asOf,
+    investedCents: view.investedCents,
+    targetCents: view.targetCents,
+    realReturnBp: returnBp,
+  });
   const commitSaving = () => {
     const parsed = parseAmount(saving);
     if (parsed.ok && parsed.cents >= 0) setSaving(formatDecimal(parsed.cents));
@@ -225,7 +256,8 @@ export function FreedomContent({ view }: { view: FreedomView }) {
           </p>
           <p>
             Diese Annahmen werden nicht gespeichert und ändern keine Sparpläne. Der historische
-            Soll-Pfad und ein persönliches Zieljahr sind noch nicht eingerichtet.
+            Soll-Pfad ist noch nicht eingerichtet. Das persönliche Zieljahr wird getrennt
+            gespeichert.
           </p>
         </InfoText>
         <Field label="Sparrate pro Monat" error={error || undefined}>
@@ -305,20 +337,30 @@ export function FreedomContent({ view }: { view: FreedomView }) {
             Gib deine angenommene Sparrate ein, um ab heute zu rechnen. Auch 0 ist möglich.
           </p>
         )}
+        {goalRequest && <FreedomGoalForm request={goalRequest} rate={goalRate} />}
       </section>
       <section className="freedom-wide" aria-labelledby="freedom-way">
         <div className="head">
           <h2 id="freedom-way">Weg zum Ziel</h2>
-          <span className="aside">Prognose ab heute · keine Garantie</span>
+          <span className="aside">
+            {view.investedHistory ? 'Ist seit Okt. 2023 · ' : ''}Prognose ab heute · keine Garantie
+          </span>
         </div>
         <p className="vnote">Kontenauswahl Stand heute · gilt auch für historische Bewertungen.</p>
-        {projection && view.targetCents !== null ? (
+        {(projection && view.targetCents !== null) || view.investedHistory ? (
           <FreedomChart
             projection={projection}
-            target={view.targetCents}
+            target={view.targetCents !== null && view.targetCents > 0 ? view.targetCents : null}
             startMonth={view.asOf.slice(0, 7)}
+            history={view.investedHistory}
+            goalYear={goalYear}
           />
         ) : (
+          <p className="vnote">
+            {reason || error || 'Die Prognose beginnt nach Eingabe einer Sparrate.'}
+          </p>
+        )}
+        {!projection && view.investedHistory && (
           <p className="vnote">
             {reason || error || 'Die Prognose beginnt nach Eingabe einer Sparrate.'}
           </p>

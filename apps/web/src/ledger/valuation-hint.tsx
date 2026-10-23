@@ -1,3 +1,7 @@
+import { useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import '../reports/term.css';
+import { longDay } from './format';
 import { Info } from 'lucide-react';
 
 /** A held security valued at cost or left out, without a quote or execution price. */
@@ -63,5 +67,121 @@ export function ValuationHint({ incomplete }: { incomplete?: ValuationNote[] | u
         {names.length > 0 && <> Betroffen: {names.join(', ')}.</>}
       </span>
     </p>
+  );
+}
+
+/** Nonmonetary mirror of the endpoint-local current valuation sources. */
+export interface ValuationSource {
+  accountId: string;
+  securityId: string | null;
+  name: string | null;
+  asOf: string;
+  kind: 'quote' | 'execution' | 'cost' | 'missing' | 'cash';
+  quality: 'exact' | 'stale' | 'estimated' | 'missing';
+  date: string | null;
+  currency: string;
+  source: string | null;
+  lookAhead: boolean;
+  positiveHolding: boolean;
+  quoteNeeded: boolean;
+  missing: 'price' | 'fx' | null;
+  fx: { kind: 'identity' | 'rate' | 'missing'; date: string | null; source: string | null };
+}
+
+/** No stale-age policy is recomputed in the UI; this only explains the selected source. */
+export function valuationSourceText(source: ValuationSource): string {
+  const parts: string[] = [];
+  if (source.name) parts.push(source.name);
+  if (source.kind === 'missing') parts.push('Bewertung fehlt');
+  else if (source.kind === 'cost')
+    parts.push('Einstandswert als Schätzung · kein verwendbarer Kurs');
+  else if (source.kind === 'execution')
+    parts.push(
+      `Brutto-Ausführung vom ${longDay(source.date!)}${source.lookAhead ? ' · später als der Stichtag' : ''}`,
+    );
+  else if (source.kind === 'quote')
+    parts.push(
+      `Kurs vom ${longDay(source.date!)}${source.date! < source.asOf ? ' fortgeschrieben' : ''}${source.source ? ` · ${source.source === 'manual' ? 'manuell' : source.source}` : ''}`,
+    );
+  if (source.kind !== 'missing') parts.push(source.currency);
+  if (source.fx.kind === 'missing') parts.push(`EUR-Umrechnung fehlt · ${source.currency}`);
+  else if (source.fx.kind === 'rate')
+    parts.push(
+      `Wechselkurs ${source.currency}/EUR vom ${longDay(source.fx.date!)}${source.fx.date! < source.asOf ? ' fortgeschrieben' : ''} · ${source.fx.source === 'ecb' ? 'EZB' : source.fx.source}`,
+    );
+  return parts.join(' · ');
+}
+
+function needsSourceHint(source: ValuationSource): boolean {
+  return (
+    source.kind === 'missing' ||
+    source.kind === 'cost' ||
+    source.lookAhead ||
+    (source.kind !== 'cash' && source.date !== null && source.date < source.asOf) ||
+    source.fx.kind === 'missing' ||
+    (source.fx.date !== null && source.fx.date < source.asOf)
+  );
+}
+
+/** Adjacent to its figure; source details retain no private amount in any channel. */
+export function ValuationSourceHint({
+  sources,
+  label,
+}: {
+  sources?: ReadonlyArray<ValuationSource> | undefined;
+  label: string;
+}) {
+  const id = useId();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
+  const affected = sources?.filter(needsSourceHint) ?? [];
+  if (!affected.length) return null;
+  const explain = () => popup.current?.showPopover?.();
+  const hide = () => popup.current?.hidePopover?.();
+  return (
+    <>
+      <button
+        ref={trigger}
+        type="button"
+        className="term-trigger"
+        aria-label={`Bewertungsgrundlage · ${label}`}
+        aria-describedby={id}
+        onFocus={explain}
+        onBlur={hide}
+        onMouseEnter={explain}
+        onClick={explain}
+      >
+        ≈
+      </button>
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={popup}
+            id={id}
+            popover="auto"
+            role="tooltip"
+            className="term-popover"
+
+            onToggle={(event) => {
+              const box = event.currentTarget;
+              if (!box.matches(':popover-open') || !trigger.current) return;
+              const anchor = trigger.current.getBoundingClientRect();
+              const { width, height } = box.getBoundingClientRect();
+              box.style.left = `${Math.max(8, Math.min(anchor.left, window.innerWidth - width - 8))}px`;
+              box.style.top = `${Math.max(8, Math.min(anchor.bottom + 8, window.innerHeight - height - 8))}px`;
+            }}
+          >
+            <strong>Bewertungsgrundlage · {label}</strong>
+            <ul>
+              {affected.map((source, index) => (
+                <li key={`${source.accountId}/${source.securityId}/${index}`}>
+                  {valuationSourceText(source)}
+                </li>
+              ))}
+            </ul>
+          </div>,
+          document.querySelector('main') ?? document.body,
+        )}
+    </>
   );
 }

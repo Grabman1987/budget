@@ -17,12 +17,12 @@ export type {
 } from '@budget/db';
 export const portfolioPerformanceQuery = (period: Period) =>
   queryOptions({
-    queryKey: [...LEDGER_KEY, 'portfolio-performance-report', period, 'securities'],
+    queryKey: [...LEDGER_KEY, 'portfolio-performance-report', period, 'securities', 'valuation-v1'],
     retry: false,
     queryFn: () =>
       request<{ portfolio: PortfolioSummary } & WithValuationNotes>(
         'GET',
-        `/api/portfolio?period=${period}&view=securities&history=performance`,
+        `/api/portfolio?period=${period}&view=securities&history=performance&provenance=valuation-v1`,
       ),
   });
 export const portfolioPositionsQuery = () =>

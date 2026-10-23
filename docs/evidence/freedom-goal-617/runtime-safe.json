@@ -1,0 +1,138 @@
+{
+  "issue": 617,
+  "recordedAt": "2026-10-19T19:17:09.145981+00:00",
+  "sourceHead": "e73102ccc2848fab2ef79960b7debfed175382e5",
+  "sourceFreezeSha256": "5cfd872a9b1dde85b7fea4e0f0cb691c05841a6e9b0087c6cc7c8848a3ba81a4",
+  "newSpecSHA256": "b5475071a1a9c1bfa11eb4d4001eb6c808c0d9933478442acecac6e741ba1e99",
+  "session": 43816,
+  "actualExit": 0,
+  "stats": {
+    "startTime": "2026-10-19T19:15:05.440Z",
+    "duration": 40395.691,
+    "expected": 5,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "cases": [
+    {
+      "file": "auth.setup.ts",
+      "title": "register the first passkey and store the session",
+      "status": "expected",
+      "project": "setup"
+    },
+    {
+      "file": "ledger.setup.ts",
+      "title": "seed categories for the ledger tests",
+      "status": "expected",
+      "project": "setup"
+    },
+    {
+      "file": "sample.setup.ts",
+      "title": "register the first passkey on the sample server",
+      "status": "expected",
+      "project": "setup-sample"
+    },
+    {
+      "file": "issue-617-freedom-goal.spec.ts",
+      "title": "stored year and age survive reload, audited undo/redo and a real second-context conflict",
+      "status": "expected",
+      "project": "webkit-iphone"
+    },
+    {
+      "file": "issue-617-freedom-goal.spec.ts",
+      "title": "goal deadline geometry, exact values and privacy remain accessible in both themes at actual profile sizes",
+      "status": "expected",
+      "project": "webkit-iphone"
+    }
+  ],
+  "build": "No rebuild. Actual successful e731 build from first session61647 reused; all169 compiled files exact before/after.",
+  "sourceGuards": "Current19 + protected12 + HEAD/status exact before/after; only pre-existing NEWspec delta uncommitted.",
+  "observedPaint": {
+    "webkit-iphone-goal-stroke": {
+      "display": "inline",
+      "visibility": "visible",
+      "opacity": 1,
+      "effectiveOpacity": 1,
+      "stroke": "rgb(103, 134, 172)",
+      "strokeOpacity": 1,
+      "strokeAlpha": 255,
+      "strokeWidth": 1,
+      "hairline": 1,
+      "x1": 337,
+      "x2": 337,
+      "y1": 28,
+      "y2": 232,
+      "height": 204,
+      "insideChart": true
+    },
+    "webkit-desktop-layout1440-goal-stroke": {
+      "display": "inline",
+      "visibility": "visible",
+      "opacity": 1,
+      "effectiveOpacity": 1,
+      "stroke": "rgb(103, 134, 172)",
+      "strokeOpacity": 1,
+      "strokeAlpha": 255,
+      "strokeWidth": 1,
+      "hairline": 1,
+      "x1": 1103,
+      "x2": 1103,
+      "y1": 28,
+      "y2": 232,
+      "height": 204,
+      "insideChart": true
+    }
+  },
+  "images": {
+    "goal-webkit-iphone-dark.png": {
+      "path": "/workspace/.budget-tools/cloud-control/617-native-svg5-e731/actual-test-results/issue-617-freedom-goal-goa-8b74b-mes-at-actual-profile-sizes-webkit-iphone/goal-webkit-iphone-dark.png",
+      "sha256": "c91c35bbaa1010e73d705c551004c61a08bec115b4cfddadde369351421806c5",
+      "width": 1170,
+      "height": 7902,
+      "fullPage": true
+    },
+    "goal-webkit-iphone-light.png": {
+      "path": "/workspace/.budget-tools/cloud-control/617-native-svg5-e731/actual-test-results/issue-617-freedom-goal-goa-8b74b-mes-at-actual-profile-sizes-webkit-iphone/goal-webkit-iphone-light.png",
+      "sha256": "7eebbc5083a598fb69e38f6d01537799efaaf1ffbdf01d214c58f21c4cfd4993",
+      "width": 1170,
+      "height": 7902,
+      "fullPage": true
+    },
+    "goal-webkit-desktop-layout1440-dark.png": {
+      "path": "/workspace/.budget-tools/cloud-control/617-native-svg5-e731/actual-test-results/issue-617-freedom-goal-goa-8b74b-mes-at-actual-profile-sizes-webkit-iphone/goal-webkit-desktop-layout1440-dark.png",
+      "sha256": "009828a414a49fa49d659c358ce52ffe29d2a0df92897ac66dba98507493d902",
+      "width": 1440,
+      "height": 1946,
+      "fullPage": true
+    },
+    "goal-webkit-desktop-layout1440-light.png": {
+      "path": "/workspace/.budget-tools/cloud-control/617-native-svg5-e731/actual-test-results/issue-617-freedom-goal-goa-8b74b-mes-at-actual-profile-sizes-webkit-iphone/goal-webkit-desktop-layout1440-light.png",
+      "sha256": "4131746c4d28ca8a69210149ad50ea27c493710f18f94b0704bbcf9f7e634a49",
+      "width": 1440,
+      "height": 1946,
+      "fullPage": true
+    }
+  },
+  "configuredProfiles": {
+    "canonical": {
+      "source": "unchanged playwright.config.ts uses project webkit-iphone and pinned devices[iPhone 13]",
+      "CSSWidth": 390,
+      "screenshotPixelWidth": 1170,
+      "deviceScaleFactor": 3,
+      "engine": "WebKit",
+      "mode": "canonical coarse/touch iPhone profile",
+      "measurementQualifier": "Source/configured context, actual safe paint observed separately; no separate UA/device probe was run."
+    },
+    "additionalDesktop": "NEWspec explicit1440x900/isMobilefalse/hasTouchfalse/DPR1/lightinitial/reduced-motion; WebKit desktop layout only"
+  },
+  "compatibilityHistory": "Unchanged618four ACTUALLY PASS in prior session61647 at exactsameproduction/oldtest bytes. Prior run overall8/9 because old NEWvertical line bbox assertion failed. Current run EXACT5 includes3setup+NEW2; not fresh9 or additive14.",
+  "visualAuthorReview": "All4 actual PNGs opened; painted right-edge goal-year line visible in both sizes/themes; no new finding. Phone full-page fixed-nav capture overlay retained; no unobstructed-input/hit-test claim.",
+  "remainingGates": [
+    "Independent current-runtime/all4visual review",
+    "Age-required aggregate check and normal production build",
+    "Evidence/ROADMAP whole-diff review",
+    "Exact-head Chromium/Windows CI",
+    "Serial merge/live/health acceptance"
+  ]
+}

@@ -1,0 +1,18 @@
+diff --git a/apps/server/src/api/statement-intake.ts b/apps/server/src/api/statement-intake.ts
+index e74870c57e55773c41279dd2c59d8397bfc784ba..34abc4fc280430e6f886dfd4fa475970e9ab4a09 100644
+--- a/apps/server/src/api/statement-intake.ts
++++ b/apps/server/src/api/statement-intake.ts
+@@ -83,7 +83,12 @@ export function statementIntakeRoutes(db: Db, dir: string) {
+       limit: z.coerce.number().int().min(1).max(100).optional(),
+     }).strict());
+     await available(id);
+-    return c.json(readStatementReceiptLinks(db, id, query));
++    return c.json(readStatementReceiptLinks(db, id, {
++      ...(query.q === undefined ? {} : { q: query.q }),
++      ...(query.offset === undefined ? {} : { offset: query.offset }),
++      ...(query.attachedOffset === undefined ? {} : { attachedOffset: query.attachedOffset }),
++      ...(query.limit === undefined ? {} : { limit: query.limit }),
++    }));
+   });
+   api.post('/:id/booking-links', async (c) => {
+     const id = identity.parse(c.req.param('id'));

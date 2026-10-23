@@ -7,6 +7,7 @@ import type { BudgetMonthView } from '../budget/budget-api';
 import { eur, eurWhole, longDay, shortDay } from '../ledger/format';
 import { monthLabel } from '../nav/month';
 import { ErrorNote } from '../ledger/states';
+import { ValuationSourceHint } from '../ledger/valuation-hint';
 import { AppLink } from '../shell/app-link';
 import type { Heute } from './api';
 
@@ -22,7 +23,17 @@ export function Kennzahlen({
   chainOpen = false,
   onLeadClick,
 }: {
-  data: Heute;
+  data: Pick<
+    Heute,
+    | 'stand'
+    | 'netWorth'
+    | 'budgetAnswer'
+    | 'nearestGoal'
+    | 'monthResult'
+    | 'lead'
+    | 'balance'
+    | 'valuationSources'
+  >;
   budget: UseQueryResult<BudgetMonthView>;
   chainOpen?: boolean;
   onLeadClick: () => void;
@@ -122,6 +133,9 @@ export function Kennzahlen({
           id="nettovermoegen"
           label="Nettovermögen"
           value={net?.totalCents ?? 0}
+          sourceHint={
+            <ValuationSourceHint sources={data.valuationSources} label="Nettovermögen · Kennzahl" />
+          }
           nonpositive={Boolean(net && net.totalCents <= 0)}
           href={net ? { to: '/vermoegen/nettovermoegen', search: { zeitraum: '1J' } } : undefined}
           missing={
@@ -195,6 +209,7 @@ function Kennzahl({
   line,
   note,
   missing,
+  sourceHint,
 }: {
   id: string;
   label: string;
@@ -213,6 +228,7 @@ function Kennzahl({
   line?: string | undefined;
   note?: ReactNode | undefined;
   missing?: ReactNode | undefined;
+  sourceHint?: ReactNode | undefined;
 }) {
   const [info, setInfo] = useState(false);
   const titleId = `kennzahl-${id}-title`;
@@ -289,6 +305,11 @@ function Kennzahl({
       )}
       {state?.isError ? (
         <ErrorNote what={label} error={state.error} onRetry={() => void state.refetch()} />
+      ) : sourceHint ? (
+        <span className="heute-kennzahl-figure">
+          {figure}
+          {sourceHint}
+        </span>
       ) : (
         figure
       )}

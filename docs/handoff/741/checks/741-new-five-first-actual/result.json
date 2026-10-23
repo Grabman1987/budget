@@ -1,0 +1,14 @@
+{
+  "head": "d644bbca75a4a09028af27eaeae97d6557297e8f",
+  "phases": [
+    {
+      "name": "new-five",
+      "exit": 1,
+      "wallSeconds": 16.948
+    }
+  ],
+  "processGuard": 0,
+  "sourceGuard": 0,
+  "allPhases0": false,
+  "lockReleased": true
+}

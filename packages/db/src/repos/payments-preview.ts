@@ -21,10 +21,18 @@ import {
 } from '../schema';
 import { schedulePayment, scheduleVersion } from './expected';
 import type { Executor } from './types';
+import {
+  statementSettlementRead,
+  statementLegacyKeys,
+  statementOwnedBookingIds,
+} from './statement-settlement-read';
 
 /** Pure read: neither materialises occurrences nor refreshes status or audit. */
 export function readPaymentsPreview(db: Executor, asOf: string) {
   const { from, to } = paymentsPreviewWindow(asOf);
+  const accepted = statementSettlementRead(db),
+    replaced = statementLegacyKeys(db),
+    owned = statementOwnedBookingIds(db);
   const versions = db
     .select()
     .from(expectedPaymentVersion)
@@ -103,7 +111,8 @@ export function readPaymentsPreview(db: Executor, asOf: string) {
   }
   for (const [id, legs] of transfers) {
     const debit = legs.filter((r) => r.split.amountCents < 0);
-    if (debit.length === 0 || debit.some((r) => linkedBookings.has(r.b.id))) continue;
+    if (debit.length === 0 || debit.some((r) => linkedBookings.has(r.b.id) || owned.has(r.b.id)))
+      continue;
     const first = debit[0]!;
     const target = legs.find((r) => r.b.accountId !== first.b.accountId && r.split.amountCents > 0);
     if (!target || !accounts.has(first.b.accountId) || !accounts.has(target.b.accountId)) continue;
@@ -178,15 +187,53 @@ export function readPaymentsPreview(db: Executor, asOf: string) {
       ],
     });
   }
-  return paymentsPreview(
+  const result = paymentsPreview(
     asOf,
     projected,
-    stored.map((s) => ({
-      ...s,
-      status:
-        s.bookingId === null && (s.status === 'received' || s.status === 'deviating')
-          ? 'expected'
-          : s.status,
-    })),
+    stored
+      .map((s) => ({
+        ...s,
+        status: replaced.has(s.paymentId + '|' + s.dueDate)
+          ? 'skipped'
+          : s.bookingId === null && (s.status === 'received' || s.status === 'deviating')
+            ? 'expected'
+            : s.status,
+      }))
+      .concat(
+        [...replaced]
+          .filter((key) => !stored.some((s) => s.paymentId + '|' + s.dueDate === key))
+          .map((key) => {
+            const [paymentId, dueDate] = key.split('|') as [string, string];
+            return {
+              paymentId,
+              dueDate,
+              occurrenceId: 'statement-replacement:' + key,
+              status: 'skipped' as const,
+              storedExpectedCents: 0,
+              bookingId: null,
+              bookedAmountCents: null,
+              bookedCurrency: null,
+            };
+          }),
+      ),
   );
+  if (accepted.settlements.length === 0) return result;
+  return {
+    ...result,
+    statementTransfers: accepted.settlements.flatMap((r) =>
+      (r.state === 'open' || r.state === 'represented') && r.debitDate >= from && r.debitDate <= to
+        ? [
+            {
+              id: r.id,
+              date: r.debitDate,
+              amountCents: r.payableCents,
+              currency: r.currency,
+              fundingAccountId: r.fundingAccountId,
+              cardAccountId: r.cardAccountId,
+              state: r.state,
+            },
+          ]
+        : [],
+    ),
+  };
 }

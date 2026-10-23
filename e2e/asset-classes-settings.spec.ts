@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { sampleTest, SAMPLE_URL } from './sample';
+import { again } from './ledger-helpers';
 
 // These complete owner flows include both themes, repeated Axe scans and WebKit rotation.
 test.setTimeout(90_000);
@@ -8,7 +9,7 @@ test.setTimeout(90_000);
 test('groups can be created, renamed and selected; a P2P account keeps its assigned class', async ({
   page,
 }, info) => {
-  const suffix = info.project.name;
+  const suffix = info.project.name + again(info);
   const groupName = `Gruppe G ${suffix}`,
     className = `Klasse C ${suffix}`,
     accountName = `Plattform P ${suffix}`;
@@ -24,6 +25,8 @@ test('groups can be created, renamed and selected; a P2P account keeps its assig
     .click();
   await dialog.getByLabel('Name der Gruppe').fill(groupName + ' neu');
   await dialog.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(page).toHaveURL(/\/einstellungen\/anlageklassen$/);
   const headers = { Origin: new URL(page.url()).origin };
   const res = await page.request.post('/api/asset-classes', { headers, data: { name: className } });
   expect(res.status()).toBe(201);
@@ -91,12 +94,18 @@ sampleTest(
     try {
       await page.goto('/einstellungen/anlageklassen?panel=sollquoten');
       const panel = page.getByRole('dialog', { name: 'Sollquoten bearbeiten' });
+      const collapsedScope = panel.locator('details.stage-scope:not([open])');
+      if (await collapsedScope.count())
+        await collapsedScope.getByText('Konten und Depots auswählen', { exact: true }).click();
       await expect(
         panel.getByRole('heading', { name: '1. Konten und Depots auswählen' }),
       ).toBeVisible();
       const accounts = (await (await page.request.get('/api/accounts')).json()).accounts;
       const wallet = accounts.find((a: { type: string }) => a.type === 'cash');
       await expect(panel.getByLabel(wallet.name, { exact: true })).not.toBeChecked();
+      const collapsedReference = panel.locator('details.stage-reference:not([open])');
+      if (await collapsedReference.count())
+        await collapsedReference.getByText('Vorlagen und Erläuterungen', { exact: true }).click();
       await panel.getByText('Beispielplan mit sieben Vermögensstufen', { exact: true }).click();
       const allClasses = (
         await (await page.request.get('/api/asset-classes')).json()
@@ -114,12 +123,13 @@ sampleTest(
       for (let i = 0; i < 4; i++)
         await panel.getByLabel('Vorlage · ' + labels[i]).selectOption(classes[i].id);
       await panel.getByRole('button', { name: 'Beispielplan übernehmen', exact: true }).click();
-      await expect(panel.getByLabel('Stufe bearbeiten').locator('option')).toHaveCount(7);
-      await panel.getByLabel('Stufe bearbeiten').selectOption('4');
-      await expect(panel.getByLabel('Ab Vermögen (€)')).toHaveValue('500000,00');
+      const stageTable = panel.getByRole('table', { name: 'Vermögensstufen', exact: true });
+      await expect(stageTable.locator('tbody > tr')).toHaveCount(7);
+      const fifthStage = stageTable.getByRole('row', { name: 'Stufe 5', exact: true });
+      await expect(fifthStage.getByLabel('Stufe 5 · Ab Vermögen (€)')).toHaveValue('500000,00');
       await expect(panel.getByLabel('Stufe zur automatischen Auswahl freigegeben')).toHaveCount(0);
-      await expect(panel.getByLabel(classes[0].name + ' · Soll (%)')).toHaveValue('65,00');
-      await panel.getByLabel('Ab Vermögen (€)').fill('500.000,-');
+      await expect(fifthStage.getByLabel(classes[0].name + ' · Soll (%)')).toHaveValue('65,00');
+      await fifthStage.getByLabel('Stufe 5 · Ab Vermögen (€)').fill('500.000,-');
       for (const theme of ['light', 'dark']) {
         await page.evaluate((t) => (document.documentElement.dataset['theme'] = t), theme);
         await panel.screenshot({ path: info.outputPath(`wealth-stages-${theme}.png`) });
@@ -330,8 +340,10 @@ test('U02-U12: create, German field errors, duplicate, rename, reorder, safe/blo
   await panel.getByLabel('Gültig ab').fill(date);
   await panel.getByLabel('Bezeichnung (optional)').fill('Synthetische Strategie');
   await panel.getByLabel('Dynamische Stufen nach Anlagesumme').check();
-  await panel.getByLabel('Stufe bearbeiten').selectOption('1');
-  await panel.getByLabel('Ab Vermögen (€)').fill('12.000,00');
+  await panel
+    .getByRole('row', { name: 'Stufe 2', exact: true })
+    .getByLabel('Stufe 2 · Ab Vermögen (€)')
+    .fill('12.000,00');
   await clean(page);
   await panel.getByRole('button', { name: 'Sollquoten speichern', exact: true }).click();
   await expect(page.locator('dialog[open]')).toHaveCount(0);

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type * as Router from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -10,7 +11,8 @@ import { ExpectedPage } from './expected-page';
 import { PaymentPanel } from './payment-panel';
 
 const navigate = vi.fn();
-vi.mock('@tanstack/react-router', () => ({
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof Router>()),
   useNavigate: () => navigate,
   useLocation: ({ select }: { select: (location: object) => unknown }) => select({ state: {} }),
 }));

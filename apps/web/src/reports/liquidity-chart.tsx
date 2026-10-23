@@ -15,6 +15,7 @@ import { useElementWidth } from '../charts/use-element-width';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { kfmt, yTicks } from '../wealth/networth-model';
 import { lowestPoint } from './liquidity-selection';
+import './reports-future.css';
 
 const MONTHS = ['Jän', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 const L = 56;
@@ -26,7 +27,7 @@ const LOW_ROOM = 40;
 /** Tick label: day and month for 90 days, month and year beyond. */
 function tickLabel(day: string, horizon: LiquidityReport['horizon']): string {
   const month = Number(day.slice(5, 7));
-  return horizon === '90d'
+  return horizon === '35d' || horizon === '90d'
     ? `${Number(day.slice(8))}.${month}.`
     : `${MONTHS[month - 1]} ${day.slice(2, 4)}`;
 }
@@ -42,16 +43,18 @@ function tickLabel(day: string, horizon: LiquidityReport['horizon']): string {
 export function LiquidityChart({
   report,
   salaryDay = null,
+  compact = false,
 }: {
   report: LiquidityReport;
   salaryDay?: string | null;
+  compact?: boolean;
 }) {
   useAmountPrivacy();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   return (
     <div ref={ref} className="rf-chart">
       {width > 0 && report.points.length > 1 && (
-        <Drawing report={report} width={width} salaryDay={salaryDay} />
+        <Drawing report={report} width={width} salaryDay={salaryDay} compact={compact} />
       )}
     </div>
   );
@@ -61,14 +64,16 @@ function Drawing({
   report,
   width: W,
   salaryDay,
+  compact,
 }: {
   report: LiquidityReport;
   width: number;
   salaryDay: string | null;
+  compact: boolean;
 }) {
   useAmountPrivacy();
   const narrow = W < 520;
-  const H = narrow ? 260 : 320;
+  const H = compact ? (narrow ? 220 : 248) : narrow ? 260 : 320;
   const R = narrow ? 64 : 92;
   const { points } = report;
   const low = lowestPoint(points);
@@ -94,7 +99,14 @@ function Drawing({
   }));
   const indexOfDay = new Map(points.map((p, i) => [p.day, i]));
   const grid = yTicks(y0, y1).map((v) => ({ y: y(v), label: kfmt(v) }));
-  const preferredStep = report.horizon === '90d' ? 14 : report.horizon === '6m' ? 30 : 61;
+  const preferredStep =
+    report.horizon === '35d'
+      ? 7
+      : report.horizon === '90d'
+        ? 14
+        : report.horizon === '6m'
+          ? 30
+          : 61;
   const step = Math.max(preferredStep, Math.ceil((60 * n) / (W - L - R)));
   const ticks = points
     .map((p, i) => ({ p, i }))

@@ -1,0 +1,62 @@
+[
+  {
+    "path": "desktop-light.json",
+    "size": 2125,
+    "sha256": "8765ca6c8132bf9f1d359ed6abce23082f5c52e7e9b8cb05c1d7c78dcef2435f"
+  },
+  {
+    "path": "desktop-light.png",
+    "size": 164642,
+    "sha256": "521f63ed4c4654c97f8ffcc3c4c9edc398a056f6930f5e712f2cd05e1b13266d"
+  },
+  {
+    "path": "mobile-light.json",
+    "size": 2091,
+    "sha256": "8e6b1a7eb580a16e62afca60aa674fceddd2adf9107a25c744b1a38fc0474119"
+  },
+  {
+    "path": "mobile-light.png",
+    "size": 97898,
+    "sha256": "6533202f2d220bda8e8d4dbf58b2cb0d1a0e918effd416b402996f9752a73190"
+  },
+  {
+    "path": "webkit-iphone-light.json",
+    "size": 2098,
+    "sha256": "105681e88ced7ac214d37bbf6bdb39e28fb7289c7b526899b34821c63fb50d84"
+  },
+  {
+    "path": "webkit-iphone-light.png",
+    "size": 240321,
+    "sha256": "2ab7fa9fde05203e608006dbe9619d6092df01dd012406f5f70bbe55ecc3b703"
+  },
+  {
+    "path": "desktop-dark.json",
+    "size": 2124,
+    "sha256": "e8a1c975581111def0999e53d34fc2a12b42f82675b1c8d506385b385264a878"
+  },
+  {
+    "path": "desktop-dark.png",
+    "size": 163680,
+    "sha256": "62ec54ee82757f6f27908549402961a9ea1d4765d3b09a23aac1c0126756de50"
+  },
+  {
+    "path": "mobile-dark.json",
+    "size": 2090,
+    "sha256": "2c49bbbc93251f4285aed8b0beaad7b2dc8b3cb5f1d4b8f774da735164a3b306"
+  },
+  {
+    "path": "mobile-dark.png",
+    "size": 102929,
+    "sha256": "1f32286c7b4426ac9158253aad90c220982f906fc056134b1ddc866683c44c79"
+  },
+  {
+    "path": "webkit-iphone-dark.json",
+    "size": 2097,
+    "sha256": "f2426cbd82bb3bbbe92c08f8bf124aecf3c7b1f56a5801f2ca60839a17fc56bd"
+  },
+  {
+    "path": "webkit-iphone-dark.png",
+    "size": 246921,
+    "sha256": "22135632b3dd2ffe1d72a7c0a06fa566bc5d99311254a997f1ca0042a15c5315"
+  }
+]

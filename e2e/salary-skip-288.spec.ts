@@ -54,6 +54,7 @@ test('a single salary is struck from the forecast, Heute and Plan, and comes bac
 
   // Liquiditätsprognose: strike the October salary, the movement and the income vanish.
   await page.goto('/reports/liquiditaet');
+  await page.locator('details.rf-tools > summary').click();
   const strike = page.getByRole('button', {
     name: `Diesen Monat streichen: ${name}, 15.10.`,
     exact: true,

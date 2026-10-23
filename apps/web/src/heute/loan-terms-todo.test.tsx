@@ -42,7 +42,14 @@ it('adds the terms row next to the other to-dos without replacing them', () => {
       }
     />,
   );
-  expect(container.querySelectorAll('.attention-row')).toHaveLength(4);
+  expect(container.querySelectorAll('.attention-row')).toHaveLength(3);
+  const accountRow = screen.getByRole('link', { name: 'Prüfen' }).closest('.attention-row');
+  expect(accountRow).not.toBeNull();
+  expect(accountRow?.contains(screen.getByRole('link', { name: 'Konditionen ergänzen' }))).toBe(
+    true,
+  );
+  expect(accountRow?.textContent).toContain('1 Konto wartet auf Prüfung');
+  expect(accountRow?.textContent).toContain('Kreditkonditionen fehlen');
   for (const name of ['Plan prüfen', 'Zuordnen', 'Prüfen', 'Konditionen ergänzen'])
     expect(screen.getByRole('link', { name })).toBeTruthy();
 });

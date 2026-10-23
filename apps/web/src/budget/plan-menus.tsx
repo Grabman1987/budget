@@ -240,6 +240,8 @@ export function OptionenMenu({
   multi,
   phone,
   collapsed,
+  selectionMode = false,
+  onSelectionMode,
   onView,
   onToggleAll,
 }: {
@@ -249,12 +251,19 @@ export function OptionenMenu({
   multi: boolean;
   phone: boolean;
   collapsed: boolean;
+  selectionMode?: boolean;
+  onSelectionMode?: () => void;
   onView: (view: PlanView) => void;
   onToggleAll: () => void;
 }) {
   const span = useStoredMonthSpan();
   return (
-    <PlanMenu label="Optionen">
+    <PlanMenu label="Optionen" className="plan-menu-optionen">
+      {phone && onSelectionMode && (
+        <MenuAction pressed={selectionMode} onSelect={onSelectionMode}>
+          {selectionMode ? 'Auswahl beenden' : 'Auswählen'}
+        </MenuAction>
+      )}
       <div role="group" aria-label="Ansicht" className="plan-menu-group">
         <span className="plan-menu-heading" aria-hidden="true">
           Ansicht

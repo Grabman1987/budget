@@ -1,6 +1,36 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { test } from './isolated-ledger';
+
+/** Phone-only equivalents for the owner-approved explicit selection controls. */
+async function enterPhoneSelection(page: Page) {
+  const options = page.locator('details.plan-menu').filter({
+    has: page.locator('summary', { hasText: 'Optionen' }),
+  });
+  await options.locator('summary').click();
+  await options.getByRole('button', { name: 'Auswählen', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Kategorienauswahl', exact: true })).toBeVisible();
+}
+async function expectPhoneSelectionTargets(page: Page) {
+  const categories = page.locator('.ptable .pname:visible');
+  const toggles = page.locator('.ptable .plan-select-toggle:visible');
+  expect(await categories.count()).toBeGreaterThan(0);
+  const headings = page.locator('.ptable .group-heading:visible');
+  expect(await headings.count()).toBeGreaterThan(0);
+  await expect(toggles).toHaveCount(await headings.count());
+  for (const heading of await headings.all())
+    await expect(heading.locator('.plan-select-toggle')).toHaveCount(1);
+  await expect(
+    page.getByRole('button', { name: 'Alle Kategorien auswählen', exact: true }),
+  ).toHaveCount(1);
+  for (const controls of [categories, toggles]) {
+    for (let index = 0; index < (await controls.count()); index++) {
+      const bounds = (await controls.nth(index).boundingBox())!;
+      expect(bounds.width).toBeGreaterThanOrEqual(44);
+      expect(bounds.height).toBeGreaterThanOrEqual(44);
+    }
+  }
+}
 
 /**
  * Plan › Monat "Verteilen ▾" (#588): every action sends the existing quick-assign call and is one
@@ -82,7 +112,17 @@ test('"Verteilen ▾" actions book like the quick-assign calls and each undo res
   );
   await verteilen.click();
 
-  await page.getByRole('checkbox', { name: 'Testhistorie auswählen' }).check();
+  if (page.viewportSize()!.width < 768) {
+    await enterPhoneSelection(page);
+    await page.locator(`.pname[data-category-id="${history.id}"]`).click();
+    await expect(page.locator(`.pname[data-category-id="${history.id}"]`)).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expectPhoneSelectionTargets(page);
+  } else {
+    await page.getByRole('checkbox', { name: 'Testhistorie auswählen' }).check();
+  }
   await run('Wie letzter Monat');
   await expect(assigned('Testhistorie')).toHaveText(shown('333,33 €'));
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
@@ -93,8 +133,24 @@ test('"Verteilen ▾" actions book like the quick-assign calls and each undo res
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(assigned('Testhistorie')).toHaveText(shown('≈ 190,02 €'));
 
-  await page.getByRole('checkbox', { name: 'Testhistorie auswählen' }).uncheck();
-  await page.getByRole('checkbox', { name: 'Testziel auswählen' }).check();
+  if (page.viewportSize()!.width < 768) {
+    await page.locator(`.pname[data-category-id="${history.id}"]`).click();
+    await expect(page.locator(`.pname[data-category-id="${history.id}"]`)).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    await expect(
+      page.getByRole('region', { name: 'Kategorienauswahl', exact: true }),
+    ).toBeVisible();
+    await page.locator(`.pname[data-category-id="${goal.id}"]`).click();
+    await expect(page.locator(`.pname[data-category-id="${goal.id}"]`)).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  } else {
+    await page.getByRole('checkbox', { name: 'Testhistorie auswählen' }).uncheck();
+    await page.getByRole('checkbox', { name: 'Testziel auswählen' }).check();
+  }
   await run('Ziel');
   await expect(assigned('Testziel')).toHaveText(shown('400,01 €'));
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
@@ -172,8 +228,8 @@ test('"Überzogene decken" covers from the named source and its undo restores th
   const row = (name: string) => page.locator('tr.prow', { hasText: name });
   const toast = page.locator('.toast.is-open');
   const tba = page.getByTestId('to-be-assigned');
-  await expect(row('Testessen').locator('.col-avail')).toHaveText('−50,00 €');
-  await expect(row('Testcafe').locator('.col-avail')).toHaveText('100,00 €');
+  await expect(row('Testessen').locator('.col-avail .pill')).toHaveText('−50,00 €');
+  await expect(row('Testcafe').locator('.col-avail .pill')).toHaveText('100,00 €');
   await expect(tba).toHaveText('900,00 €');
 
   await page.locator('.plan-menu summary', { hasText: 'Verteilen' }).click();
@@ -183,14 +239,14 @@ test('"Überzogene decken" covers from the named source and its undo restores th
   await expect(cover).toHaveAccessibleDescription('1 überzogen · aus verfügbaren Envelopes');
   await cover.click();
   await expect(toast).toContainText('1 gedeckt, 0 offen · 0,00 € fehlen');
-  await expect(row('Testessen').locator('.col-avail')).toHaveText('0,00 €');
+  await expect(row('Testessen').locator('.col-avail .pill')).toHaveText('0,00 €');
   await expect(row('Testessen')).not.toHaveClass(/is-over/);
-  await expect(row('Testcafe').locator('.col-avail')).toHaveText('100,00 €');
+  await expect(row('Testcafe').locator('.col-avail .pill')).toHaveText('100,00 €');
   await expect(tba).toHaveText('850,00 €');
 
   await toast.getByRole('button', { name: 'Rückgängig' }).click();
-  await expect(row('Testessen').locator('.col-avail')).toHaveText('−50,00 €');
+  await expect(row('Testessen').locator('.col-avail .pill')).toHaveText('−50,00 €');
   await expect(row('Testessen')).toHaveClass(/is-over/);
-  await expect(row('Testcafe').locator('.col-avail')).toHaveText('100,00 €');
+  await expect(row('Testcafe').locator('.col-avail .pill')).toHaveText('100,00 €');
   await expect(tba).toHaveText('900,00 €');
 });

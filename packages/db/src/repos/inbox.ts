@@ -1,4 +1,4 @@
-import { and, asc, count, countDistinct, desc, eq, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, count, countDistinct, desc, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { cents, formatEuro, monthOf, overspentEnvelopes, summarizeMonth } from '@budget/domain';
 import { categoryTree } from './categories';
 import { budget } from './queries';
@@ -158,10 +158,10 @@ export function readInbox(
   bankSource?: string,
   readSource?: string,
   /** Konten › Prüfen leaves overspent categories to Heute and Plan. */
-  options: InboxOptions = {},
+  options: InboxOptions & { bankAccountId?: string } = {},
 ) {
   return runInTransaction(db, (tx) => {
-    const bookings = uncategorizedBookings(tx, today);
+    const bookings = options.bankAccountId ? [] : uncategorizedBookings(tx, today);
     const mappings = readSourceMappings(tx);
     // One read for compact bank rows. Matching and assignment checks stay on demand.
     const candidates = new Map(
@@ -178,14 +178,38 @@ export function readInbox(
         .from(bankSyncCandidate)
         .innerJoin(account, eq(account.id, bankSyncCandidate.accountId))
         .innerJoin(inboxItem, eq(inboxItem.id, bankSyncCandidate.id))
-        .where(isNull(inboxItem.resolvedAt))
+        .where(
+          and(
+            isNull(inboxItem.resolvedAt),
+            options.bankAccountId
+              ? eq(bankSyncCandidate.accountId, options.bankAccountId)
+              : undefined,
+          ),
+        )
         .all()
         .map(({ id, ...row }) => [id, row]),
     );
     const stored: InboxStored[] = tx
       .select()
       .from(inboxItem)
-      .where(readSource ? sourceMovementsWhere(readSource) : storedWhere())
+      .where(
+        and(
+          readSource ? sourceMovementsWhere(readSource) : storedWhere(),
+          options.bankAccountId
+            ? and(
+                eq(inboxItem.refType, 'bank-sync-candidate'),
+                eq(inboxItem.refId, inboxItem.id),
+                inArray(
+                  inboxItem.id,
+                  tx
+                    .select({ id: bankSyncCandidate.id })
+                    .from(bankSyncCandidate)
+                    .where(eq(bankSyncCandidate.accountId, options.bankAccountId)),
+                ),
+              )
+            : undefined,
+        ),
+      )
       .orderBy(desc(inboxItem.urgent), asc(inboxItem.createdAt), asc(inboxItem.id))
       .all()
       .map((row) => ({
@@ -205,22 +229,25 @@ export function readInbox(
           ? { bankCandidate: candidates.get(row.refId) }
           : {}),
       }));
-    let entries: InboxEntry[] = readSource
-      ? stored
-      : [
-          ...(options.excludeOverspent ? [] : envelopeTasks(tx, today)),
-          ...bookings,
-          ...savingsExecutionProposals(tx, today),
-          ...stored,
-        ];
+    let entries: InboxEntry[] =
+      readSource || options.bankAccountId
+        ? stored
+        : [
+            ...(options.excludeOverspent ? [] : envelopeTasks(tx, today)),
+            ...bookings,
+            ...savingsExecutionProposals(tx, today),
+            ...stored,
+          ];
     if (bankSource) entries = filterBankSourceInbox(tx, entries, bankSource);
-    const unlinkedReceipts = listReceipts(tx);
+    const unlinkedReceipts = options.bankAccountId ? [] : listReceipts(tx);
     return {
       asOf: today,
-      count: entries.length + (bankSource || readSource ? 0 : unlinkedReceipts.length),
+      count:
+        entries.length +
+        (bankSource || readSource || options.bankAccountId ? 0 : unlinkedReceipts.length),
       entries,
       readSourceSummaries:
-        bankSource || readSource
+        bankSource || readSource || options.bankAccountId
           ? []
           : tx
               .select({ sourceId: inboxItem.refId, count: count() })

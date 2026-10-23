@@ -1,0 +1,67 @@
+.statement-settlement-727 {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.statement-settlement-727 fieldset,
+.statement-settlement-727 section {
+  min-width: 0;
+  margin-block: 16px;
+  padding: 12px;
+  border: 1px solid var(--rule);
+}
+.statement-settlement-727 .field-row {
+  margin-block: 12px;
+}
+.statement-settlement-727 .input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+}
+.statement-settlement-727 .btn,
+.statement-settlement-727 summary {
+  min-width: 44px;
+  min-height: 44px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.statement-actions-727 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 12px;
+}
+.statement-choice-727 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 44px;
+  padding-block: 4px;
+}
+.statement-choice-727 input {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+}
+.statement-candidates-727 ul {
+  list-style: none;
+  padding: 0;
+}
+.statement-candidates-727 li + li {
+  border-top: 1px solid var(--rule);
+}
+.statement-settlement-727 summary {
+  padding-block: 12px;
+  cursor: pointer;
+}
+@media (max-width: 767px) {
+  .statement-settlement-727 fieldset,
+  .statement-settlement-727 section {
+    padding: 8px;
+  }
+  .statement-actions-727 > .btn {
+    flex: 1 1 44%;
+    min-width: 44px;
+  }
+}

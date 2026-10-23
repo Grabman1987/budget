@@ -1,6 +1,41 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { test } from './isolated-ledger';
+
+/** Phone-only equivalents for the owner-approved explicit selection controls. */
+async function enterPhoneSelection(page: Page) {
+  const options = page.locator('details.plan-menu').filter({
+    has: page.locator('summary', { hasText: 'Optionen' }),
+  });
+  await options.locator('summary').click();
+  await options.getByRole('button', { name: 'Auswählen', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Kategorienauswahl', exact: true })).toBeVisible();
+}
+async function exitPhoneSelection(page: Page) {
+  const bar = page.getByRole('region', { name: 'Kategorienauswahl', exact: true });
+  await bar.getByRole('button', { name: 'Auswahl beenden', exact: true }).click();
+  await expect(bar).toHaveCount(0);
+}
+async function expectPhoneSelectionTargets(page: Page) {
+  const categories = page.locator('.ptable .pname:visible');
+  const toggles = page.locator('.ptable .plan-select-toggle:visible');
+  expect(await categories.count()).toBeGreaterThan(0);
+  const headings = page.locator('.ptable .group-heading:visible');
+  expect(await headings.count()).toBeGreaterThan(0);
+  await expect(toggles).toHaveCount(await headings.count());
+  for (const heading of await headings.all())
+    await expect(heading.locator('.plan-select-toggle')).toHaveCount(1);
+  await expect(
+    page.getByRole('button', { name: 'Alle Kategorien auswählen', exact: true }),
+  ).toHaveCount(1);
+  for (const controls of [categories, toggles]) {
+    for (let index = 0; index < (await controls.count()); index++) {
+      const bounds = (await controls.nth(index).boundingBox())!;
+      expect(bounds.width).toBeGreaterThanOrEqual(44);
+      expect(bounds.height).toBeGreaterThanOrEqual(44);
+    }
+  }
+}
 
 test('inspector discloses month figures and reuses category writes, quick values and undo', async ({
   page,
@@ -94,6 +129,7 @@ test('inspector discloses month figures and reuses category writes, quick values
     body: { mode: 'target', categoryIds: [ids[0]] },
   });
   await expect(inspector.getByText('Ziel finanziert.')).toBeVisible();
+  await inspector.getByText('Geld verschieben', { selector: 'summary' }).click();
   await inspector.getByLabel('Nach', { exact: true }).selectOption(ids[1]!);
   await inspector.getByLabel('Betrag', { exact: true }).fill('0,01');
   await inspector.getByRole('button', { name: 'Verschieben', exact: true }).click();
@@ -152,8 +188,19 @@ test('inspector discloses month figures and reuses category writes, quick values
   await expect(inspector.getByRole('button', { name: 'Ausblenden', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(category).toBeFocused();
-  await page.getByRole('checkbox', { name: 'Musterziel auswählen' }).check();
-  await page.getByRole('checkbox', { name: 'Musterreserve auswählen' }).check();
+  if (page.viewportSize()!.width < 768) {
+    await enterPhoneSelection(page);
+    for (const [index, id] of ids.entries()) {
+      const control = page.locator(`.pname[data-category-id="${id}"]`);
+      await expect(control).toContainText(index === 0 ? 'Musterziel' : 'Musterreserve');
+      await control.click();
+      await expect(control).toHaveAttribute('aria-pressed', 'true');
+    }
+    await expectPhoneSelectionTargets(page);
+  } else {
+    await page.getByRole('checkbox', { name: 'Musterziel auswählen' }).check();
+    await page.getByRole('checkbox', { name: 'Musterreserve auswählen' }).check();
+  }
   await expect(inspector.getByRole('heading', { name: '2 Kategorien ausgewählt' })).toBeVisible();
   await inspector.getByRole('button', { name: 'Ziel', exact: true }).click();
   await expect(toast).toContainText('1 Kategorie zugewiesen');
@@ -161,6 +208,8 @@ test('inspector discloses month figures and reuses category writes, quick values
     path: `/api/budget/${month}/quick-assign`,
     body: { mode: 'target', categoryIds: ids },
   });
+  // Phone mode persists until explicitly ended; desktop keeps its original outside-click check.
+  if (page.viewportSize()!.width < 768) await exitPhoneSelection(page);
   // Any toolbar control outside the selection is an outside click: Optionen ▾ (opened, then closed).
   const optionen = page.locator('.plan-menu summary', { hasText: 'Optionen' });
   await optionen.click();

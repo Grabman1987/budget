@@ -17,6 +17,7 @@ import type { HeutePeriod } from './heute/api';
 import { AUTH_STATUS_KEY, authStatusQuery, queryClient } from './auth/status-query';
 import { clearDeviceFinancialData } from './pwa/local-data';
 import { validateBookingsSearch } from './ledger/bookings-search';
+import { validatePlanFilterSearch, type PlanFilterSearch } from './budget/plan-filters';
 import { validateInboxSearch } from './inbox/navigation';
 import { accountsQuery } from './ledger/queries';
 import { captureContinuation, validateCaptureSearch } from './ledger/capture-link';
@@ -56,6 +57,7 @@ import { isMonth } from './nav/month';
 import { isZeitraum } from './wealth/zeitraum';
 import { isPanelId, type PanelId } from './shell/panels';
 import { validateReportSearch } from './reports/report-search';
+import { validateLiquiditySearch } from './reports/liquidity-selection';
 
 // Route-level code splitting: everything except the shell and the generic placeholder page is
 // loaded when its route is first visited. Each page module below becomes its own chunk.
@@ -339,7 +341,8 @@ const planMonthRoute = createRoute({
   path: PLAN_MONAT.path,
   validateSearch: (
     search: Record<string, unknown>,
-  ): { ansicht?: 'triage'; kategorie?: string } => ({
+  ): PlanFilterSearch & { ansicht?: 'triage'; kategorie?: string } => ({
+    ...validatePlanFilterSearch(search),
     ...(search['ansicht'] === 'triage' ? { ansicht: 'triage' as const } : {}),
     ...(typeof search['kategorie'] === 'string' && search['kategorie'].length <= 64
       ? { kategorie: search['kategorie'] }
@@ -781,7 +784,10 @@ const routeTree = rootRoute.addChildren([
       getParentRoute: () => shellRoute,
       path: '/plan/prognose',
       staticData: { meta: PLAN_PROGNOSE },
-      validateSearch: validateReportSearch,
+      validateSearch: (search: Record<string, unknown>) => ({
+        ...validateReportSearch(search),
+        ...validateLiquiditySearch(search),
+      }),
       component: lazyRouteComponent(() => import('./reports/liquidity-report'), 'PlanPrognosePage'),
     }),
     ...redirects,

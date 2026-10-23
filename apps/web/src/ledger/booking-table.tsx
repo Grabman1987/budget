@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, CalendarDays, ChevronDown, Pencil } from 'lucide-react';
 import { Fragment, useId, useState, type ReactNode } from 'react';
 import { CategoryCell, FlagCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
+import { BookingLegend } from './booking-legend';
 import { dayHeading, nativeCurrency, valuedCurrency, shortDay, upcomingDate, eur } from './format';
 import { ScheduledRegisterRow } from './scheduled-register-row';
 import { upcomingEntries, upcomingSummary, type UpcomingModel } from './upcoming-register';
@@ -163,17 +164,20 @@ export function BookingTable({
   );
   return (
     <>
-      {selection && (
-        // The table head is hidden on the phone, so select-all is offered here as well.
-        <label className="kselect-all">
-          <input
-            type="checkbox"
-            checked={items.length > 0 && items.every((b) => selection.selected.has(b.id))}
-            onChange={() => selection.toggleAll(items.map((b) => b.id))}
-          />
-          Alle sichtbaren auswählen
-        </label>
-      )}
+      <div className="kbooking-tools">
+        <BookingLegend />
+        {selection && (
+          // The table head is hidden on the phone, so select-all is offered here as well.
+          <label className="kselect-all">
+            <input
+              type="checkbox"
+              checked={items.length > 0 && items.every((b) => selection.selected.has(b.id))}
+              onChange={() => selection.toggleAll(items.map((b) => b.id))}
+            />
+            Alle sichtbaren auswählen
+          </label>
+        )}
+      </div>
       <table className={cx('ktable ktx', all ? 'ktx-all' : 'ktx-account')}>
         <caption className="sr-only">{caption}</caption>
         {!all && (
@@ -405,7 +409,7 @@ function Row({
           <span className="kaccount-mobile-meta">
             <span>{shortDay(b.date)}</span>
             <span aria-hidden="true"> · </span>
-            <CategoryCell booking={b} classes={classes} />
+            <CategoryCell booking={b} classes={classes} showClass={false} />
             {b.memo && (
               <>
                 <span aria-hidden="true"> · </span>
@@ -464,11 +468,11 @@ function Row({
             aria-label={`Kategorie ändern: ${label}`}
             onClick={() => setEditing(true)}
           >
-            <CategoryCell booking={b} classes={classes} />
+            <CategoryCell booking={b} classes={classes} showClass={false} />
             <Pencil className="icon kcat-edit" size={12} strokeWidth={1.75} aria-hidden="true" />
           </button>
         ) : (
-          <CategoryCell booking={b} classes={classes} />
+          <CategoryCell booking={b} classes={classes} showClass={false} />
         )}
       </td>
       <td className="kc-num kx-amount">

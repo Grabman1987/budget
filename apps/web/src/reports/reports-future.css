@@ -620,3 +620,53 @@
 .rf-moves th.rf-act {
   position: relative;
 }
+
+/* Forecast tools remain mounted while folded, retaining local drafts and existing write paths. */
+.rf-tools > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  min-height: 44px;
+  padding: 12px 24px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 620;
+}
+.rf-tools > summary::-webkit-details-marker {
+  display: none;
+}
+.rf-tools > summary small {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+  font-weight: 400;
+}
+.rf-tools > summary svg {
+  margin-left: auto;
+  flex: none;
+}
+.rf-tools[open] > summary svg {
+  transform: rotate(180deg);
+}
+.rf-tools-content > .rf-card {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.rf-moves .rf-strike {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px;
+}
+@media (max-width: 767px) {
+  .rf-tools > summary {
+    padding-inline: 12px;
+  }
+  .rf-tools > summary small {
+    flex-basis: 100%;
+    order: 1;
+  }
+}

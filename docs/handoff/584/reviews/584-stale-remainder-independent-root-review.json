@@ -1,0 +1,9 @@
+{
+  "head": "3a1210cc3ddb229f00094cd6e851280335ae224c",
+  "implementer": "sol_forecast_salary_marker",
+  "reviewer": "root",
+  "result": "Source clear; corrected native execution pending",
+  "finding": "Initial real native screenshots retain exact stale remainder error after corrected sum and after two-to-one collapse. Functional writes/Undo passed, visual acceptance held.",
+  "correction": "Only exact local REMAINDER_SAVE_ERROR is excluded from rendered splitError when current validation no longer blocks. Existing category fallback, all other errors, save guards and writers unchanged. Original CtrlEnter refusal and original screenshots retained; own new test adds message/aria-invalid cleanup assertions.",
+  "existingTestsChanged": false
+}

@@ -64,6 +64,7 @@ import {
   nextExecutionAfter,
   parseScaledDecimal,
   parseRegionWeights,
+  ValuationLimitError,
 } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
@@ -630,15 +631,26 @@ export function savingsPlanRoutes(db: Db, today: () => string): Hono {
 }
 
 // ---------- portfolio ----------
-const portfolioQuery = z.object({
-  period: reportPeriodSchema.default('1J'),
-  view: z.enum(['securities', 'depot']).default('securities'),
-  benchmark: id.optional(),
-  /** Depot view: comma-separated reference account ids (default: the investment accounts). */
-  reference: z.string().max(2000).optional(),
-  /** Opt-in monthly/yearly series for report 4.3, derived from the portfolio summary read. */
-  history: z.enum(['contributions', 'performance']).optional(),
-});
+const portfolioQuery = z
+  .object({
+    period: reportPeriodSchema.default('1J'),
+    view: z.enum(['securities', 'depot']).default('securities'),
+    benchmark: id.optional(),
+    /** Depot view: comma-separated reference account ids (default: the investment accounts). */
+    reference: z.string().max(2000).optional(),
+    /** Opt-in monthly/yearly series for report 4.3, derived from the portfolio summary read. */
+    history: z.enum(['contributions', 'performance']).optional(),
+    provenance: z.literal('valuation-v1').optional(),
+  })
+  .refine(
+    (query) =>
+      query.provenance === undefined ||
+      (query.view === 'securities' && query.history === 'performance'),
+    {
+      path: ['provenance'],
+      message: 'Valuation provenance requires securities performance history',
+    },
+  );
 
 const depotsQuery = z.object({
   period: reportPeriodSchema.default('1J'),
@@ -692,7 +704,14 @@ export function portfolioRoutes(db: Db, today: () => string): Hono {
     return c.json({ ...setInvestmentCostMethod(db, costMethod, ctx), groupId: ctx.groupId });
   });
   app.get('/', (c) => {
-    const { period: rawPeriod, view, benchmark, reference, history } = readQuery(c, portfolioQuery);
+    const {
+      period: rawPeriod,
+      view,
+      benchmark,
+      reference,
+      history,
+      provenance,
+    } = readQuery(c, portfolioQuery);
     const period = checkedReportPeriod(rawPeriod, today());
     const refs = reference?.split(',').filter(Boolean);
     try {
@@ -707,11 +726,12 @@ export function portfolioRoutes(db: Db, today: () => string): Hono {
             referenceAccounts: refs && refs.length > 0 ? refs : undefined,
             includeContributionHistory: history === 'contributions' && view === 'securities',
             includePerformanceHistory: history === 'performance' && view === 'securities',
+            valuationProvenance: provenance,
           }),
         ),
       });
     } catch (error) {
-      if (error instanceof ContributionHistoryLimitError)
+      if (error instanceof ContributionHistoryLimitError || error instanceof ValuationLimitError)
         throw new ApiError(
           422,
           'calculation_limit',

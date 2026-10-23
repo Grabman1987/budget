@@ -16,6 +16,7 @@ import {
   monthIncome,
   refreshOccurrences,
   readPaymentsPreview,
+  readPaymentDetail,
   restoreExpectedPayment,
   skipOccurrence,
   unlinkOccurrence,
@@ -233,6 +234,9 @@ export function expectedRoutes(db: Db, today: () => string): Hono {
     const match = matchOccurrences(db, now, ctx);
     return c.json({ refresh, match, groupId: ctx.groupId });
   });
+
+  // Session guard and no-store policy are inherited from /api; this route never refreshes.
+  app.get('/:id/detail', (c) => c.json(readPaymentDetail(db, c.req.param('id'), today())));
 
   app.patch('/:id', async (c) => {
     const patch = await readBody(c, expectedPatch);

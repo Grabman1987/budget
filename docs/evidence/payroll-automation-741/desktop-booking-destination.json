@@ -1,0 +1,15 @@
+{
+  "source": "synthetic-only",
+  "project": "desktop",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "clickedBookingId": "80b48ab7-55ec-4bb7-aab3-ab7a06a3dc33",
+  "accountId": "f20e5aef-a824-45e9-b8dc-701857d4f303",
+  "actualUrl": "http://localhost:4330/konten/buchungen?konto=f20e5aef-a824-45e9-b8dc-701857d4f303&buchung=80b48ab7-55ec-4bb7-aab3-ab7a06a3dc33",
+  "exactSingleRowBeforeAndAfterReload": true,
+  "editorAmount": "2.975,00",
+  "originalBookingAndAuditPreserved": true,
+  "physicalTouchClaim": false
+}

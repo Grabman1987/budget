@@ -10,7 +10,10 @@ test('envelope details have a URL; browser back restores the scrolled list', asy
     page.viewportSize()!.width,
   );
   const trigger = page.locator('.ptable .pname').last();
-  const name = (await trigger.textContent())!.trim();
+  const name = 'Notgroschen';
+  await expect(trigger).toHaveAttribute('data-category-id', 'cat-notgroschen');
+  await expect(trigger.locator('.category-name')).toHaveText(name);
+  await expect(trigger).toHaveAccessibleName(name);
   await trigger.scrollIntoViewIfNeeded();
   await trigger.click();
   const history = page.getByRole('link', { name: 'Verlauf und Buchungen' });
