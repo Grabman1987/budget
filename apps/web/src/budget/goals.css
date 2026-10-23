@@ -149,3 +149,26 @@
   min-width: 0;
   margin-inline-end: 0.25em;
 }
+
+/* The existing table retains a direct, keyboard-accessible funding action at each rate. */
+.goals .col-rate > button {
+  display: block;
+  margin-inline-start: auto;
+  min-height: 44px;
+}
+
+/* Current Plan funding and the distinct future-only forecast remain explicit. */
+.plan.goals .goal-future-projection {
+  display: block;
+  white-space: normal;
+  margin-block-start: var(--space-xs);
+  font-size: var(--fs-label);
+  font-weight: 400;
+  color: var(--ink-2);
+}
+.plan.goals .goal-future-projection > span {
+  display: block;
+}
+.goal-actions > .btn {
+  min-height: var(--touch);
+}

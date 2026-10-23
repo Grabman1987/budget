@@ -17,6 +17,8 @@ export interface ScheduleRule {
   endDate: string | null;
   /** Weekly only: one due date every n weeks (1-52); absent, null or 1 = every week. */
   intervalWeeks?: number | null;
+  /** Inclusive pauses apply to the final shifted date; they never move the rhythm anchor. */
+  pauses?: readonly { fromDate: string; throughDate: string }[];
 }
 
 /** Weeks between two due dates of a weekly rhythm (absent or invalid = 1). */
@@ -51,6 +53,8 @@ const anchorMonth = (rule: ScheduleRule): number =>
  */
 export function dueDates(rule: ScheduleRule, from: string, to: string): string[] {
   if (to < from) return [];
+  const paused = (day: string) =>
+    rule.pauses?.some((p) => p.fromDate <= day && day <= p.throughDate) ?? false;
   if (rule.rhythm === 'weekly') {
     // Weekly schedules keep their weekday across month/year boundaries.
     if (!rule.startDate) throw new RangeError('Weekly schedules need a start date');
@@ -68,7 +72,8 @@ export function dueDates(rule: ScheduleRule, from: string, to: string): string[]
         day >= from &&
         day <= to &&
         (!rule.endDate || day <= rule.endDate) &&
-        (!rule.startDate || day >= rule.startDate)
+        (!rule.startDate || day >= rule.startDate) &&
+        !paused(day)
       )
         out.push(day);
     }
@@ -87,6 +92,7 @@ export function dueDates(rule: ScheduleRule, from: string, to: string): string[]
     if (day < from || day > to) continue;
     if (rule.startDate && day < rule.startDate) continue;
     if (rule.endDate && day > rule.endDate) continue;
+    if (paused(day)) continue;
     out.push(day);
   }
   return out;

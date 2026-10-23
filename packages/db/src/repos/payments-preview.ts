@@ -20,7 +20,8 @@ import {
   expectedPaymentVersion,
 } from '../schema';
 import { schedulePayment, scheduleVersion } from './expected';
-import type { Executor } from './types';
+import { runInTransaction, type Executor } from './types';
+import { readPaymentLifecycles, paymentOpenSuppressed } from './expected-lifecycle-invariants';
 import {
   statementSettlementRead,
   statementLegacyKeys,
@@ -29,6 +30,9 @@ import {
 
 /** Pure read: neither materialises occurrences nor refreshes status or audit. */
 export function readPaymentsPreview(db: Executor, asOf: string) {
+  return runInTransaction(db, (tx) => readPaymentsPreviewInSnapshot(tx, asOf));
+}
+function readPaymentsPreviewInSnapshot(db: Executor, asOf: string) {
   const { from, to } = paymentsPreviewWindow(asOf);
   const accepted = statementSettlementRead(db),
     replaced = statementLegacyKeys(db),
@@ -49,6 +53,10 @@ export function readPaymentsPreview(db: Executor, asOf: string) {
     .leftJoin(category, eq(category.id, expectedPayment.categoryId))
     .where(and(isNull(expectedPayment.deletedAt), eq(expectedPayment.kind, 'outflow')))
     .all();
+  const lifecycle = readPaymentLifecycles(
+    db,
+    payments.map((p) => p.payment.id),
+  );
   const stored = db
     .select({
       paymentId: expectedOccurrence.expectedPaymentId,
@@ -57,6 +65,7 @@ export function readPaymentsPreview(db: Executor, asOf: string) {
       status: expectedOccurrence.status,
       storedExpectedCents: expectedOccurrence.expectedAmountCents,
       bookingId: booking.id,
+      storedBookingId: expectedOccurrence.bookingId,
       bookedAmountCents: booking.amountCents,
       bookedCurrency: booking.currency,
     })
@@ -69,9 +78,20 @@ export function readPaymentsPreview(db: Executor, asOf: string) {
         lte(expectedOccurrence.dueDate, to),
       ),
     )
-    .all();
+    .all()
+    .filter(
+      (row) =>
+        !paymentOpenSuppressed(lifecycle.get(row.paymentId), {
+          ...row,
+          status: row.storedBookingId !== null && row.bookingId === null ? 'expected' : row.status,
+        }),
+    )
+    .map(({ storedBookingId, ...row }) => {
+      void storedBookingId; // Read-filter input only; preserve the existing public stored shape.
+      return row;
+    });
   const projected: PreviewPayment[] = payments.map(({ payment: p, ...c }) => ({
-    ...schedulePayment(p),
+    ...schedulePayment(p, lifecycle.get(p.id)),
     id: p.id,
     name: p.name,
     ...c,

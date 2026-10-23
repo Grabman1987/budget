@@ -8,6 +8,8 @@ import {
   runInTransaction,
   createExpectedPayment,
   deleteExpectedPayment,
+  pauseExpectedPayment,
+  endExpectedPayment,
   linkOccurrence,
   listExpectedPayments,
   listExpectedVersions,
@@ -45,6 +47,9 @@ import {
   expectedPatch,
   expectedSkipBody,
   expectedVersionCreate,
+  expectedPauseBody,
+  expectedEndBody,
+  expectedDeleteQuery,
 } from './schemas';
 
 /** Expected payments (Erwartete Zahlungen): payments, versions, occurrences, matching. */
@@ -250,7 +255,29 @@ export function expectedRoutes(db: Db, today: () => string): Hono {
       ),
     );
   });
-  app.delete('/:id', (c) => c.json(deleteExpectedPayment(db, c.req.param('id'), audit(), today())));
+  app.post('/:id/pause', async (c) => {
+    const { throughDate, reviewToken } = await readBody(c, expectedPauseBody);
+    return c.json(
+      pauseExpectedPayment(db, c.req.param('id'), throughDate, reviewToken, audit(), today()),
+    );
+  });
+  app.post('/:id/end', async (c) => {
+    const { fromDate, reviewToken } = await readBody(c, expectedEndBody);
+    return c.json(
+      endExpectedPayment(db, c.req.param('id'), fromDate, reviewToken, audit(), today()),
+    );
+  });
+  app.delete('/:id', (c) =>
+    c.json(
+      deleteExpectedPayment(
+        db,
+        c.req.param('id'),
+        audit(),
+        today(),
+        readQuery(c, expectedDeleteQuery).reviewToken,
+      ),
+    ),
+  );
   app.post('/:id/restore', (c) =>
     c.json(restoreExpectedPayment(db, c.req.param('id'), audit(), today())),
   );

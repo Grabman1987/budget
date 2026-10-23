@@ -1,0 +1,68 @@
+{
+  "revision": "90273f2ac211243e3e32b47a1ca46858d800f1f7",
+  "syntheticOnly": true,
+  "run": "native-final.log",
+  "sourceFiles": {
+    "apps/server/src/api/goal-lifecycle-604.test.ts": "c7d5eaf94a91e84eed94477142ac05ce4ede5aade65b3c52b92290e8ccd48729",
+    "apps/server/src/api/goals.test.ts": "1ce9af9159a411b8083664261b40ef76da11c9c6d0b9733e2b9635f0144aebc1",
+    "apps/server/src/api/goals.ts": "e0aba9aff34f1916667825867240050593392832dd3b43c4c6b2522c507a093e",
+    "apps/server/src/api/schemas.ts": "7174bb7e102c74774e8fb7ad3d0dd8e9ca6084cc80c80af19b44031b737f1a3c",
+    "apps/web/src/budget/goals-api.ts": "1ddbbe0a8a2c181f1500e06873c8f81659670bea31a2f723d5db59bcdb2bc2fd",
+    "apps/web/src/budget/goals-model.test.ts": "9af47f8d8e9775016494c1fb64316285b23749b922cb48ade8ac631161979096",
+    "apps/web/src/budget/goals-model.ts": "8664423e40de7661f42511c10074cc9bf5983243d65484a9cac2f795a0def82e",
+    "apps/web/src/budget/goals-page.tsx": "b9520f0cfee10ea1210bc26691f1f7ab215ef018b368d9943eed605055397197",
+    "apps/web/src/budget/goals-panel.tsx": "077ce6f4b89d66f8cc6d2d6887b4878aba090bc6d72886df60c8591c5534a501",
+    "apps/web/src/budget/goals.css": "7936a07482a6ace99578c999f94c7af11c2ef254dadf0e03c08af9432a029325",
+    "apps/web/src/budget/plan-panel-pages.tsx": "14e743e03663205ac34a6ed245f4ca076d228226680f62e0fbfb12435f1fb520",
+    "apps/web/src/pages/goals-progress-report.tsx": "cf79d924460c79a2b136e04e590eb082167688da4b83252547343861f1dbbe4d",
+    "e2e/goals.spec.ts": "c31eba89fc6b6aaa699a4b6ec78ad62179542db66a950ba40f80a7433a225e6a",
+    "e2e/issue-604-goal-lifecycle.spec.ts": "32858c42638be7ae5282f50df4302eb09277b6290492de35df87d0431c54a14b",
+    "packages/db/drizzle/0048_goal_lifecycle.sql": "f4250e2490cc14af45c6564d2faf7d75d9f45945bbf4abaa419e1c1300dd8ecc",
+    "packages/db/drizzle/rollback/0048_goal_lifecycle.sql": "6d2b4cbc3d525afeff41781738c28dbde0dd06e9e4d9559791fd9638a90ca17a",
+    "packages/db/src/goal-lifecycle-migration-604.test.ts": "e7901507cb6da6598d11438d9f0e1ec15f9827604c132bcb1fe4411bd5e04d90",
+    "packages/db/src/repos/budget-ledger-input.ts": "f1dd3a0e67866baeec574f091f55e3bb42237628120cdae1bf99929a0d3074a5",
+    "packages/db/src/repos/goal-lifecycle-plan-rate-604.test.ts": "55a11b787c90ca8efe4de219b0fab7c3cac271e06063edeedd090e2fac339736",
+    "packages/db/src/repos/goal-lifecycle.ts": "cde2987c09ff45eaf4285f3df7339be3f8c6d441c874f0ce3a314ec1949524fa",
+    "packages/db/src/repos/goals.test.ts": "d6ced08c659a88dcf6e95c31c584be2849a8526f98e090009f40ff7451365157",
+    "packages/db/src/repos/goals.ts": "224e696f24b38f63d912b6204788cf12f7c9d4301b01ec615dbf8b9b3b365a1d",
+    "packages/db/src/repos/queries.ts": "c29aea34f08744358a7b73a5c7e1c4a75e6cfa8f931c2cf43491f9069702bfc7",
+    "packages/db/src/schema/budget.ts": "aa91ba3b8e6b2de8709d4d75caa240105c9883a11eeee0557a2d2f936bed5ae2",
+    "packages/domain/src/goals/lifecycle-604.test.ts": "6272c0eadc7662e3a2c63a6a070240b624c77e86d527370b1e4a3021623528bc",
+    "packages/domain/src/goals/lifecycle.ts": "831c624a520b6f1bd2796f2fc4e1093aede7338457efad3dbe7c17cfb08e9345",
+    "packages/domain/src/index.ts": "5cbf258bbbc1e8fda97fd3d693519727dd5910aaaf696b2e7ce754a1442816bd"
+  },
+  "artifacts": {
+    "desktop-goal-completed-desktop-light.png": {
+      "sha256": "ae9389202722f3c70fb14d01f31d50f37ad2533d4308a2681009fd16372c6fff",
+      "source": "issue-604-goal-lifecycle-6-f0788-d-manual-Undo-desktop-light-desktop/goal-completed-desktop-light.png"
+    },
+    "desktop-goal-completed-desktop-dark.png": {
+      "sha256": "ed69691aea30fc264af258e5e5f548acd5c6f9df2e6b4cd5d7b8d494714539ed",
+      "source": "issue-604-goal-lifecycle-6-eac50-nd-manual-Undo-desktop-dark-desktop/goal-completed-desktop-dark.png"
+    },
+    "desktop-goal-completed-phone-light.png": {
+      "sha256": "da64d5922e5bb5ab561b096bc2ee1a0923b56a66c7fc99f60e933b05d10d13fd",
+      "source": "issue-604-goal-lifecycle-6-f9224-and-manual-Undo-phone-light-desktop/goal-completed-phone-light.png"
+    },
+    "desktop-goal-completed-phone-dark.png": {
+      "sha256": "a77cb4a036c67c69f94bb103d58369533b5c5541c389e5df462b141fdb419f7d",
+      "source": "issue-604-goal-lifecycle-6-81ab5--and-manual-Undo-phone-dark-desktop/goal-completed-phone-dark.png"
+    },
+    "webkit-iphone-goal-completed-desktop-light.png": {
+      "sha256": "86d0290173588961a83700a600fd4c4e14c24ab6a9b963828ecb6606629545b5",
+      "source": "issue-604-goal-lifecycle-6-f0788-d-manual-Undo-desktop-light-webkit-iphone/goal-completed-desktop-light.png"
+    },
+    "webkit-iphone-goal-completed-desktop-dark.png": {
+      "sha256": "46b5450ae6865e86cccb58e6310eaafc5643fcba123ca9e1534083287aee50a0",
+      "source": "issue-604-goal-lifecycle-6-eac50-nd-manual-Undo-desktop-dark-webkit-iphone/goal-completed-desktop-dark.png"
+    },
+    "webkit-iphone-goal-completed-phone-light.png": {
+      "sha256": "0b4f95f8f2deb46410e4f12f0a0e4e9433fe1c6d41cbbad61ad5617679092767",
+      "source": "issue-604-goal-lifecycle-6-f9224-and-manual-Undo-phone-light-webkit-iphone/goal-completed-phone-light.png"
+    },
+    "webkit-iphone-goal-completed-phone-dark.png": {
+      "sha256": "bcb03d21bdbe0b7afa44baefdce0b285f6c42766b2696a52930741682a218999",
+      "source": "issue-604-goal-lifecycle-6-81ab5--and-manual-Undo-phone-dark-webkit-iphone/goal-completed-phone-dark.png"
+    }
+  }
+}
