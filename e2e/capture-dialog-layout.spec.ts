@@ -15,7 +15,14 @@ test('only Escape, close and a genuine outside click ask to discard a dirty book
   for (const close of ['escape', 'button', 'outside']) {
     if (close === 'escape') await dialog.getByLabel('Notiz').press('Escape');
     else if (close === 'button') await dialog.getByRole('button', { name: 'Schließen' }).click();
-    else await page.mouse.click(2, 2);
+    else if (page.viewportSize()!.width < 768) {
+      // #586: a full-screen phone sheet has no exposed scrim; its close control keeps the guard.
+      const bounds = (await dialog.boundingBox())!;
+      expect(bounds.x).toBe(0);
+      expect(bounds.y).toBe(0);
+      expect(bounds.width).toBe(page.viewportSize()!.width);
+      await dialog.getByRole('button', { name: 'Schließen' }).click();
+    } else await page.mouse.click(2, 2);
     await expect(dialog.getByRole('alertdialog')).toBeVisible();
     await dialog.getByRole('button', { name: 'Weiter bearbeiten' }).click();
     await expect(dialog.getByRole('alertdialog')).toHaveCount(0);

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, expect, it } from 'vitest';
 import {
   accounts,
   categories,
+  createBooking,
   createEntity,
   createTestDatabase,
   schema,
@@ -178,4 +179,61 @@ it('returns six actual month-end history points from the explicitly selected ear
   ]);
   expect(JSON.stringify(report.body)).not.toContain('lifecycleAnchorJson');
   expect(JSON.stringify(report.body)).not.toContain('lifecycle_anchor_json');
+});
+
+it('keeps account history at the actual month end and never includes bookings after today', async () => {
+  accounts.create(
+    opened.db,
+    {
+      id: 'history-604-http',
+      name: 'Synthetic history reserve',
+      type: 'savings',
+      role: 'reserve',
+      onBudget: true,
+      openingDate: '2026-09-01',
+      openingBalanceCents: 10000,
+    },
+    ctx,
+  );
+  for (const [date, amountCents] of [
+    ['2026-09-15', 2000],
+    ['2026-10-10', 3000],
+    ['2026-10-20', 4000],
+  ] as const)
+    createBooking(
+      opened.db,
+      {
+        accountId: 'history-604-http',
+        date,
+        amountCents,
+        splits: [{ categoryId: 'category-604-http', amountCents }],
+      },
+      ctx,
+    );
+  const created = await call<GoalResponse>('POST', '/goals?month=2026-10', {
+    ...goalInput,
+    categoryId: null,
+    accountId: 'history-604-http',
+    startMonth: '2026-09',
+  });
+  expect(created.status).toBe(201);
+  for (const [month, expected] of [
+    ['2026-09', [12000, null, null, null]],
+    ['2026-10', [12000, 15000, null, null]],
+    ['2026-11', [12000, 15000, null, null]],
+  ] as const) {
+    const report = await call<ReturnType<typeof goalsReport>>(
+      'GET',
+      `/goals/report?month=${month}`,
+    );
+    expect(report.status).toBe(200);
+    const history = report.body.history.find((entry) => entry.id === created.body.goal.id);
+    expect(history?.points.map((point) => point.month)).toEqual([
+      '2026-09',
+      '2026-10',
+      '2026-11',
+      '2026-12',
+    ]);
+    expect(history?.points.map((point) => point.actualCents)).toEqual(expected);
+  }
 });

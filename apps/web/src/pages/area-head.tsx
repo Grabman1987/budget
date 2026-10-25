@@ -138,10 +138,11 @@ export function AreaHead({
       break;
     case 'konten':
       heading = 'Konten';
-      fields = accountFields ?? [
-        stand,
-        { label: 'Bank-Sync', value: 'nicht eingerichtet', labelOnMobile: true },
-      ];
+      fields =
+        accountFields ??
+        (meta.register === 'pruefen'
+          ? [stand]
+          : [stand, { label: 'Bank-Sync', value: 'nicht eingerichtet', labelOnMobile: true }]);
       break;
     case 'vermoegen':
       heading = 'Vermögen';

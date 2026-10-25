@@ -1,3 +1,4 @@
+import { openPruefenSource } from './pruefen-part';
 import AxeBuilder from '@axe-core/playwright';
 import type { InboxView } from '../apps/web/src/inbox/api';
 import { expect as baseExpect, sampleTest as test } from './sample';
@@ -43,6 +44,7 @@ for (const theme of ['light', 'dark'] as const) {
           // Axe must scan a populated part, never an empty Prüfen state. The sample seed (served by the real API,
           // not the mocked count in header-q5.spec) holds four open non-overspent items, so the shown part has rows.
           expect(counts[shown]).toBeGreaterThan(0);
+          if (shown === 'aufgaben') await openPruefenSource(page, 'Weitere Aufgaben');
           await expect(page.getByTestId('inbox-row').first()).toBeVisible();
           // The segment control has accessible names with the server counters and exactly one pressed part.
           const group = page.getByRole('group', { name: 'Teil von Prüfen' });

@@ -1,0 +1,69 @@
+# Independent source review #566 — HOLD
+
+Exact head `c005c05482330aba66e64b8a95fad39e4b45a38e` against `1c19a465649490417f174787a9806b3347b7b7a6`, read-only /workspace/sprint-566-review. Read full production/test diff and relevant reminder, bank-status, query/cache, segment and UI seams. No edits/tests/install/GitHub actions.
+
+## P2 — existing adapted bank-review test cannot reach its reminder assertion
+
+`apps/web/src/inbox/account-bank-review-724.test.tsx` test beginning line231 still returns `segment:'umsaetze'`, no `taskSources`, and expects a heading `Konten prüfen` plus `/api/accounts/reminders` request. Product removes `InboxAccountReminders` from InboxPage entirely; its sole replacement renders `AccountReminderRows` only after Aufgaben source selection, and those rows contain no such heading. Thus `findByRole('heading', {name:'Konten prüfen'})` cannot succeed and the expected reminders request never occurs. The added bank-status fixture alone does not adapt the test to the decided grouping. Replace its old reminder-placement expectation with equivalent actual Aufgaben-source navigation/reminder-action coverage, supplying actual new DTO shape; preserve candidate amount/no-write and bank status checks. No timeout increase.
+
+## P2 — failed Aufgaben refresh leaves stale source counts/reminder actions visible
+
+`apps/web/src/inbox/inbox-page.tsx:592–618` renders the source table, raw counts, read-source summaries and selected `AccountReminderRows` whenever cached `firstPage.taskSources` exists, including `queue.isError`. It merely prepends ErrorNote. Existing `InboxBodyContent` explicitly gates data summaries/work on !pending&&!error, so this new branch bypasses the previous fatal-refresh stale-content suppression. Reproduce: open Aufgaben→Konten prüfen with due reminder, then refresh /api/inbox fails after the reminder has changed elsewhere; stale reminder/action and counts remain actionable beneath the error. Gate grouped data on successful current query state while retaining ErrorNote/retry; add focused successful-load→failed-refetch→retry coverage. Do not hide stale next-page success merely because a later page fails; preserve existing next-page error distinction.
+
+## Assessed clear seams and limits
+
+Raw taskSources/segments are computed before period/source drilldown/pagination, reminders/receipts counted once and source-specific queue exclusions retained. Classification uses persisted source IDs, with unknown tasks retained as fallback; bank candidates stay Umsätze. Shared count reader includes reminder policy without changing policy/calculations. No writer/migration/dependency/auth-route change; bank-status GET remains existing guarded API and cache key matches data-sources page. Source actions retain existing AccountReminderRows/ReceiptSection/InboxBodyContent writers and detail routes.
+
+NEW API fixture uses actual SQLite/read API and literal movement1/tasks6/global7, checks source/period/page behavior and unchanged booking/audit/inbox rows. Domain classifier and isolated summary table test are meaningful but do not exercise integrated source switching or failed refetch; the above regression escapes them. README incorrectly says no existing tests changed while account-bank-review-724 is changed; ADOPTION still says grouping unimplemented, contradicting this head. Correct these historical notes when adopting. These documentation issues are secondary to the two concrete blockers.
+
+Review disposition HOLD until the two bounded corrections receive independent delta review and required actual checks. No runtime/type/build/browser pass inferred.
+
+## Four-file correction delta — CLEAR
+
+Independently reviewed exact `c005c05482330aba66e64b8a95fad39e4b45a38e..39dd34ec79fd68edec68d32b679f15e68915c4c2`. Both P2 findings resolved; no new concrete blocker in this bounded delta. No tests/edits/install performed.
+
+The existing724 test now supplies the real new segment/taskSources/accountReminders DTO shape and navigates Umsätze→Aufgaben→Konten prüfen. It keeps the actual bank candidate −12.01 amount, bank-status/setup destination and no-write guard, replacing obsolete external reminder placement/request with the actual account reconciliation link and exact read allowlist. This follows the decided UI, not a loosened assertion.
+
+Grouped data now requires !pending&&!fatalError; fatalError explicitly excludes isFetchNextPageError. Account/receipt/default source selection receives ErrorNote/retry locally, while entry sources retain the existing InboxBodyContent fatal/next-page presentation, avoiding duplicate fatal alerts. Cached counts/summaries/account/receipt actions are suppressed on fatal refresh; successful earlier pages remain visible on a next-page-only failure.
+
+NEW integrated Router/Query fixtures exercise loaded reminder→failed invalidation→hidden summary/action→retry restored action, and a separate source entry→next-page503 retaining counts/work case. These test meaningful different query states with existing retry:false setup; no production controller is faked. Existing candidate amount, financial/security/Undo checks, timeout/retry/tolerance values are unchanged. Documentation now acknowledges the existing adapter and implemented owner count contract instead of obsolete claims.
+
+Combined source review CLEAR at `39dd34ec79fd68edec68d32b679f15e68915c4c2`, subject to root's actual focused/compatibility/types/browser/CI checks. Source review is not execution evidence.
+
+## Existing count-fixture/matcher delta — CLEAR
+
+Reviewed only39dd34ec79fd68edec68d32b679f15e68915c4c2..593d20d3f7316f9d93ca26d587a2493d718e2d6f. Synthetic setup now directly inserts recent account_reconciliation metadata for old queue-count scenarios (including the custom card); it does not invoke reconciliation writers, alter any booking status/amount/date, create financial adjustments, add audit/Undo actions or pass an administrative bypass. Existing locks remain status-based and untouched. This makes the fixture's intended old queue work independent of newly counted due reminders, without changing any old count/finance/audit/Undo literal.
+
+The shared reminder reader legitimately uses recent persisted review checkpoints; NEW inbox-task-sources-566 real DB/API fixture remains unchanged and still checks the actual due account reminder among six tasks/seven global items plus read-only persisted rows. Thus reminder coverage is retained, not globally suppressed. Exact DTO-key check adds accountReminders and unlinkedReceiptCount, both actual reader fields; no removal of prior keys or weakening to a partial assertion.
+
+Three unavailable jest-dom text matchers become native textContent/toContain checks on already resolved actual status/alert regions, preserving the exact bank/error/retrieval text, roles, navigation/refetch and no-write checks. No timeout/retry/tolerance or production source changes. Per-file rationale accurately records scope; no concrete new finding. Combined source review CLEAR at593d20d3f7316f9d93ca26d587a2493d718e2d6f, pending root's actual runtime checks. Reviewer ran none.
+
+## Final native/wait delta — CLEAR
+
+Reviewed593d20d3f7316f9d93ca26d587a2493d718e2d6f..f1827bb25baecf9a3dd8751a430b459806db892d, source only. Existing bank-status text remains exact; wrapping the loaded06:12 text in the existing waitFor resolves its asynchronous region/content seam without changing any timeout, text, role or subsequent setup-link absence/count assertion.
+
+NEW two-scene native candidate uses real isolated authenticated server/SQLite, actual due policy, a literal−1201 booking and synthetic staged source metadata. Counts are independently literal movement1/tasks5/global6, all five source counts1, six source-table rows; count endpoint equality and visible drilldowns remain real reads. Account-review and booking editor actually open; editor12.01 and unchanged persisted booking/split/inbox/receipt/payroll/check/audit snapshot plus no browser API mutation requests protect read-only behavior.44px/full-viewport/actual-hit/Axe/overflow checks target actual controls, not absent/hidden zero-sized elements. Safe receipts label synthetic data and engine/viewport correctly; no download/parsing/physical-device claim.
+
+Coverage limits remain: desktop-light/phone-dark declarations do not establish both themes for each profile/engine, setup link destination is asserted but not followed, Axe covers source-summary main rather than every later dialog, and screenshot/readback execution is still root-owned. These limits do not weaken OLD contracts or introduce source defects. No test/runtime/type/browser result inferred; combined source review CLEAR atf1827bb25baecf9a3dd8751a430b459806db892d.
+
+## Hash navigation / source-table geometry delta — CLEAR
+
+Reviewed cumulativef1827bb25baecf9a3dd8751a430b459806db892d..1bf010ed960c94e2998927b5430698c8d8bd15de independently, source only. Hash landing now explicitly requests Aufgaben (rather than auto/pinned selection), opens account source and restores the real unique heading/anchor; bank-specific and explicit search.teil selection retain precedence. Loaded-heading scroll is guarded by matching source/segment and no fatal error. No URL rewrite or writer introduced. NEW component case proves real hash/unchanged URL, Aufgaben read and exact account action; existing fatal/next-page suppression remains untouched.
+
+Scoped source-table CSS uses existing tokens/fixed column allocation/wrapping and44px --touch minimums; full contextual aria names remain while visible Öffnen/Schließen shortens overflowing phone labels. Source counts/disabled-zero/expanded/onSelect behavior unchanged, component assertion added. Existing44px/hit/overflow thresholds are not relaxed. New native matrix adds missing desktop-dark/phone-light cases without changing any original scene oracle; requested-engine execution remains a separate gate.
+
+OLD inbox E2E adds ordinary Weitere Aufgaben opening before unchanged resolve/Undo/redo. OLD724 E2E asserts real candidate visible, switches to Aufgaben/account reminder with real heading/action destination, then returns to Umsätze and again requires candidate visible before every original financial merge/Undo proof. Obsolete simultaneous-placement comparison was intentionally superseded by segmented source navigation; no financial amount/date/snapshot, mutation rule, tolerance or deadline changed. No vacuous missing-node assertion identified. Combined source review CLEAR at1bf010ed960c94e2998927b5430698c8d8bd15de; pending additional independently reviewed724 fixtures/root runtime. Reviewer ran no tests.
+
+Root independent delta review: 4c8c617a only corrects NEW summary row accessible name to actual visible label; all counts/button names retained. ab282d7c adds undefined to intentionally optional state type (no runtime change) and removes unsupported redundant Testing Library exact option; literal name matching remains exact. CLEAR.
+
+Root independent source delta 65261b18: keyed queue-content lifecycle replaces prohibited synchronous effect-state update, initializes account anchor only on actual anchor transition, and preserves later user source choice under same key. New mounted-navigation regression covers transition and later choice without URL rewrite; no writer, cache invalidation, protected assertion or deadline change. CLEAR; actual scoped lint/web types/component10/10 recorded separately.
+
+Root independent delta16447cec/000a5070 CLEAR: actual trace/screencast shows fixed tabbar obscures minimally scrolled reminder while page retains scroll clearance; standard centered assisted scrolling preserves real hit,44px and viewport checks, adds interceptor diagnostics, no forcedclick. Scopedsource-table token padding/width and nowrap fix observed Offe/n and Schließe/n line breaks; source names still wrap atwords. NEWtextRange checks guard actual single-line containment without removing financial or navigation checks. Runtime remains pending separately.
+
+## Final bounded seam review — CLEAR
+
+Independent delta1bf010ed960c94e2998927b5430698c8d8bd15de..03e1505b428c82603b6cd8973dfffef140f38fd7, read-only/no tests.724 DB/API fixtures add only recent synthetic review metadata before original snapshots; all old count5/account identity/financial/audit/Undo/no-write expectations remain. Exact missing-account DTO adds two actual empty fields. NEW component selectors follow shortened rendered row text while retaining full contextual button aria names/counts; unsupported exact option removal preserves exact default string matching.
+
+Keyed anchor landing initializes/remounts queue source once when the hash intent changes, covering already-mounted navigation without continuously overwriting subsequent user choices. Added regression proves open account action then user-selected fallback with retained hash/no account action. Existing fatal-refetch and next-page distinctions remain intact. Scoped source-table count/action widths/nowrap/padding preserve44px and accessible context; added Range line containment asserts actual rendered labels, not just button boxes.
+
+Assisted centered scroll changes only positioning after documented fixed-footer interception; unchanged full-viewport44px/elementFromPoint checks still require a real hit, followed by ordinary clicks. No overlay removal/forced action/timeout or geometry tolerance change. Heading-click/top-scroll capture is ordinary nonfinancial positioning; no hidden/capture-only CSS. AreaHead omits only default Bank-Sync placeholder for real Prüfen metadata; Stand, other account headers and supplied fields preserved and explicitly tested. No source writer/auth/security/lock/audit/Undo changes or concrete new gap. Combined source review CLEAR at03e1505b428c82603b6cd8973dfffef140f38fd7; root's final actual checks/CI/live gates remain separate.
