@@ -53,3 +53,4 @@ export * from './statement-settlement';
 export * from './statement-automation';
 export * from './statement-automation-contract';
 export * from './statement-receipt-links';
+export * from './invest/funding-plan';
