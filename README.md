@@ -29,18 +29,25 @@ this documentation changes no application behavior or financial acceptance gate.
 | `docs/STATUS.md` | Current implementation, acceptance and operations status |
 | `docs/ACCEPTANCE.md` | Connected source, deployment evidence, remaining acceptance and ordered next steps |
 | `docs/prompts/` | Fertige Aufträge für die einzelnen Cloud-Sitzungen |
-| `docs/CLOUD-SETUP.md` | Anleitung: GitHub, Claude Code in der Cloud |
+| `docs/development-fast-path.md` | Current local/cloud setup, preview, focused checks and task prompt |
+| `docs/CLOUD-SETUP.md` | Historical initial setup; use the current development guide for new work |
 | `docs/ops.md` | Betrieb: erster Deploy, GitHub-Einstellungen, Backup (Litestream), Wiederherstellung, Rollback |
 | `reference/finance-hub/` | Getestete Rechenmodule des alten Cockpits zum Portieren (bereinigt) |
 | `CLAUDE.md`, `AGENTS.md` | Arbeitsregeln für Coding-Agenten |
 
 ## Entwickeln
 
+For daily work, use the [local/cloud development guide](docs/development-fast-path.md)
+and [delivery process](docs/queue/README.md). Run affected checks; the commands below
+are a reference, not a checklist to repeat before every PR. Full local test runs are
+not routinely required when CI covers them. Prefer existing prepared work over a new
+implementation of the same issue.
+
 Node `^22.14.0 || ^24.0.0` (`.nvmrc`: 22), npm workspaces. Läuft unter Windows, macOS und Linux; `.npmrc` setzt `ignore-scripts=true` (better-sqlite3 liefert fertige Binaries, es wird nichts kompiliert).
 
 ```bash
 npm ci
-npm run db:seed    # synthetische Beispieldaten nach data/dev.sqlite (siehe docs/data-model.md)
+npx tsx scripts/db-seed.ts # synthetic data; refuses to overwrite an existing database
 npm run dev        # Vite (:5173) + Server (:3000), Hot Reload
 npm run check      # Typecheck + Lint + Unit-Tests
 npm run test:e2e   # E2E-Build + Playwright (einmalig: npx playwright install chromium)
