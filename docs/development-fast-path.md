@@ -81,6 +81,8 @@ node scripts/ci/change-plan.mjs origin/main HEAD
 This command reads committed changes, not unstaged edits. It reports paths relative
 to the PR merge base and treats both sides of a rename as changes. Unknown paths,
 test changes, workflow changes and unavailable comparison evidence select `full`.
+The local command cannot read GitHub labels: set environment variable `HIGH_RISK=true`
+when reproducing a high-risk PR's plan locally.
 
 | Lane | Required coverage |
 | --- | --- |
