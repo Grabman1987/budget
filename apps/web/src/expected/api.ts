@@ -234,7 +234,7 @@ export const createPayment = (
 export const patchPayment = (id: string, patch: Partial<PaymentFields>) =>
   request<WriteResult>('PATCH', url(`/${enc(id)}`), patch);
 
-export const deletePayment = (id: string, reviewToken?: string) =>
+export const deletePayment = (id: string, reviewToken: string) =>
   request<WriteResult>('DELETE', url(`/${enc(id)}`) + queryString({ reviewToken }));
 export const pausePayment = (id: string, throughDate: string, reviewToken: string) =>
   request<WriteResult>('POST', url(`/${enc(id)}/pause`), { throughDate, reviewToken });

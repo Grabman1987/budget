@@ -263,9 +263,10 @@ function ViewBody({ payment: p, onDone }: { payment: ExpectedPayment; onDone: ()
           <Button
             disabled={busy}
             onClick={async () => {
+              if (deleting === null) return;
               setBusy(true);
               const done = await write(
-                () => deletePayment(p.id, deleting ?? undefined),
+                () => deletePayment(p.id, deleting),
                 () => `${p.name}: wiederkehrende Zahlung gelöscht`,
               );
               setBusy(false);
