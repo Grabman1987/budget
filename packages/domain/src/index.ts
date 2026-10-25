@@ -60,3 +60,5 @@ export {
   type GoalLifecyclePoint,
   type GoalAuditLink,
 } from './goals/lifecycle';
+
+export * from './invest/funding-plan';

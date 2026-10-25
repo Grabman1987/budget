@@ -119,8 +119,10 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     const box = await dialog.boundingBox();
     expect(box!.y).toBeGreaterThanOrEqual(0);
     expect(box!.y + box!.height).toBeLessThanOrEqual(page.viewportSize()!.height + 1);
-    if (info.project.name === 'mobile') {
-      expect(box!.height).toBeLessThanOrEqual(844 * 0.88 + 1);
+    if (page.viewportSize()!.width < 768) {
+      // #586: capture fills the visible phone viewport; other sheets retain their own caps.
+      expect(box!.y).toBe(0);
+      expect(box!.height).toBe(await page.evaluate(() => window.visualViewport!.height));
       const small = await dialog
         .locator('button, input, textarea, select, summary')
         .evaluateAll((els) =>

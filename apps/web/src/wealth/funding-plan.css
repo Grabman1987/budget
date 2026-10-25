@@ -1,0 +1,68 @@
+.funding-planner {
+  margin-top: var(--space-lg);
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-md);
+}
+.funding-planner summary {
+  min-height: 44px;
+  cursor: pointer;
+  padding-block: var(--space-sm);
+  font-weight: 620;
+}
+.funding-content {
+  min-width: 0;
+}
+.funding-content fieldset {
+  min-width: 0;
+  border: 1px solid var(--rule);
+  padding: var(--space-md);
+  margin-block: var(--space-md);
+}
+.funding-fields,
+.funding-rows {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+.funding-check {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  gap: var(--space-sm);
+}
+.funding-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.funding-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.funding-table th,
+.funding-table td {
+  text-align: left;
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--rule);
+}
+.funding-table-hint {
+  display: none;
+}
+.funding-scroll th,
+.funding-scroll td {
+  vertical-align: top;
+  min-width: 100px;
+}
+.funding-scroll small {
+  display: block;
+  color: var(--ink-2);
+}
+@media (max-width: 640px) {
+  .funding-table-hint {
+    display: block;
+    color: var(--ink-2);
+  }
+  .funding-fields,
+  .funding-rows {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

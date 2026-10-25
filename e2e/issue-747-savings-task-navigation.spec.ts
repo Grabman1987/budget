@@ -1,3 +1,4 @@
+import { openPruefenSource } from './pruefen-part';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
 
@@ -84,6 +85,7 @@ test('Today savings action opens Aufgaben when bank movements are also pending',
   await expect(page).toHaveURL(
     (url) => url.pathname === '/konten/pruefen' && url.searchParams.get('teil') === 'aufgaben',
   );
+  await openPruefenSource(page, 'Plan');
   const row = page.getByTestId('inbox-row').filter({ hasText: securityName });
   await row.getByRole('button', { name: 'Ausführung prüfen', exact: true }).click();
   const form = page.getByRole('dialog', { name: 'Sparplanausführung bestätigen', exact: true });
