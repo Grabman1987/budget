@@ -1,0 +1,35 @@
+{
+  "workflow_run": 39775332788,
+  "check_run": 119812716281,
+  "source": "GitHub check-run annotations retrieved directly; full job log redirect unavailable",
+  "sanitization": "Only synthetic test summary and relevant failure locations retained; browser launch logs, signed URLs, credentials and raw diagnostics excluded",
+  "actual_summary": {
+    "passed": 12,
+    "failed": 3,
+    "duration": "1.6m"
+  },
+  "failures": [
+    {
+      "project": "desktop",
+      "path": "e2e/goals.spec.ts",
+      "line": 62,
+      "scenario": "the detail of a goal: chain, figures, axe",
+      "message": "Expected the group named Maßkette Sparziel to contain the original literal2.820,11 €; group not found within unchanged5000ms."
+    },
+    {
+      "project": "mobile",
+      "path": "e2e/goals.spec.ts",
+      "line": 62,
+      "scenario": "the detail of a goal: chain, figures, axe",
+      "message": "Expected the group named Maßkette Sparziel to contain the original literal2.820,11 €; group not found within unchanged5000ms."
+    },
+    {
+      "project": "mobile",
+      "path": "e2e/goals.spec.ts",
+      "line": 142,
+      "scenario": "goals: create, edit, delete and undo",
+      "message": "locator.click exceeded unchanged30000ms test timeout; precise blocked action remains to diagnose."
+    }
+  ],
+  "workflow_conclusion": "success because regeneration uses || true; NOT acceptance"
+}

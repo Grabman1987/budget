@@ -398,6 +398,7 @@ export const expectedSkipBody = z.object({ dueDate: day });
 
 // ---------- savings goals ----------
 const goalFields = {
+  startMonth: month.nullable(),
   name: z.string().trim().min(1).max(120),
   targetCents: cents.positive(),
   targetDate: day.nullable(),
@@ -418,4 +419,5 @@ export const goalListQuery = z.object({
   deleted: z.enum(['0', '1']).optional(),
 });
 export const goalMonthQuery = z.object({ month: month.optional() });
+export const goalFundBody = z.object({ reviewToken: z.string().regex(/^[a-f0-9]{64}$/) });
 export const goalAdoptBody = z.object({ validFrom: month.optional() });

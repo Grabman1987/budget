@@ -337,6 +337,13 @@
       "when": 1792510000000,
       "tag": "0047_statement_automation",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "6",
+      "when": 1792520000000,
+      "tag": "0048_goal_lifecycle",
+      "breakpoints": true
     }
   ]
 }
