@@ -102,7 +102,9 @@ Browser/Windows jobs wait for static checks to pass. This avoids paying for a wh
 browser matrix when typechecking is already broken; on successful full runs it adds
 the static job to that critical path. Linux unit tests still run alongside static.
 Full audits run nightly at 02:17 UTC and can be started with **Actions → CI → Run
-workflow**. These audits never trigger deployment. A failed audit is investigated
+workflow**. These audits never execute deployment; the follow-up Deploy workflow
+may be entirely skipped. The merge gate ignores entirely skipped Deploy runs while
+retaining the newest real attempt, including failures and pending attempts. A failed audit is investigated
 before another integration. A push to main may reuse an identical validated PR tree;
 scheduled/manual audits always run the full suite.
 
