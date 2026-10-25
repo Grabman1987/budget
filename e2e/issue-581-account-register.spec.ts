@@ -184,6 +184,8 @@ test('inline writes keep exact cents, undo and reconciled locks', async ({
       },
       { date: '2026-10-16' },
     );
+    // Undo restores the API before the date-grouped row finishes refreshing.
+    await expect(row.getByRole('button', { name: /^Datum ändern/ })).toHaveText('17.10.');
     await change(
       async () => {
         await row.getByRole('button', { name: /^Kategorie ändern/ }).click();

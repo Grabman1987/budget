@@ -266,7 +266,9 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
       await page.keyboard.press('Escape');
     } else {
       await expect(page).toHaveURL(/\/konten\/pruefen/);
-      await expect(page.locator('.kinbox')).toBeVisible();
+      await expect(
+        page.getByRole('region', { name: 'Aufgaben nach Quelle', exact: true }),
+      ).toBeVisible();
     }
     await expect(page.getByRole('dialog')).toHaveCount(0);
   }
