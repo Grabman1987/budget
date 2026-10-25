@@ -36,6 +36,15 @@ The page already uses Plan metadata/registers; report navigation and report head
 classes are restricted to Reports. The later owner Plan-subpage decision therefore
 does not require reopening the delivered routing change. The subtitle is not claimed fixed.
 
-Independent final evidence review, affected Linux shell screenshots, required
+Independent final local-evidence review is CLEAR at `a027c7a1`: all 22 recorded
+hashes match both local files and immutable Git blobs, and all four retained PNGs
+and twelve receipts were inspected. The affected Linux snapshot workflow
+[40245437252](https://github.com/Grabman1987/budget/actions/runs/40245437252), limited
+to `e2e/shell.spec.ts`, actually passed **44 tests** (nine configured project skips)
+in 1.3 minutes, with no retry and **no baseline changes**. Its tolerant workflow
+exit was not used as a substitute for the actual Playwright result.
+
+Current main `9fda8be659d631cb85a22b1fb7d642f10ab9688a` (#760) was merged without
+conflicts at `3deafd2a`; the chart source and evidence remain unchanged. Required
 final-head CI and verified publication are still pending. #476 remains open until
 those gates pass.
