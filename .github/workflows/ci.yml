@@ -5,17 +5,43 @@ on:
   # The deploy workflow starts from a successful CI run on main, so CI must run there too.
   push:
     branches: [main]
+  # Full regression remains available independently of the focused pull-request lanes.
+  workflow_dispatch:
+  schedule:
+    - cron: '17 2 * * *'
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name }}
   # Never cancel the run on main that a deploy may be waiting for.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Push to main only: when this exact tree already passed the full suite as a pull request (same
+  plan:
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      lane: ${{ steps.plan.outputs.lane }}
+      shards: ${{ steps.plan.outputs.shards }}
+      specs: ${{ steps.plan.outputs.specs }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select affected checks (unknown changes use full coverage)
+        id: plan
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HIGH_RISK: ${{ contains(github.event.pull_request.labels.*.name, 'risk:high') }}
+        run: node scripts/ci/change-plan.mjs
+
+  # Push to main only: when this exact tree already passed its selected suite as a pull request (same
   # tree, PR head contains the previous main, check/check-windows/docker/restore-test green in this
   # workflow), the heavy jobs below are skipped and the aggregates report success, so deploy.yml
   # proceeds. Anything missing or unreadable means reuse=false, i.e. the full suite. Pull request
@@ -47,10 +73,10 @@ jobs:
         run: node scripts/ci/reuse-validated-tree.mjs
 
   # `check`, `check-windows`, `docker` and `restore-test` are the required status checks (branch
-  # protection, merge script): keep their names. `check` is the aggregate of `static`, `unit`, `e2e` and `visual`.
+  # protection, merge script): keep their names. `check` validates the lane's exact status vector.
   # Typecheck and lint (OS-independent) in one job, unit tests sharded in the next one.
   static:
-    needs: reuse
+    needs: [reuse, plan]
     if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -67,8 +93,8 @@ jobs:
       - run: npm run lint
 
   unit:
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
+    needs: [reuse, plan]
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' && needs.plan.result == 'success' && needs.plan.outputs.lane != 'docs' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -93,14 +119,15 @@ jobs:
           BUDGET_REQUIRE_AGE: '1'
         run: npx vitest run --shard=${{ matrix.shard }}/2
 
-  # E2E is split by Playwright sharding (SHARDS below must match the matrix). Every shard builds
+  # Full E2E is split by Playwright sharding (SHARDS below must match the full plan). Every shard builds
   # the bundle (seconds, so no shared build artifact) and starts its own set of test servers (fresh
   # databases, see playwright.config.ts), so shards share no state. Screenshot assertions are
   # skipped here (--ignore-snapshots, every other assertion runs): baselines are checked by the
-  # separate `visual` job (also part of `check`), so shards only prove behaviour.
+  # separate `visual` job (also part of `check`), so full shards only prove behaviour.
+  # The UI lane uses one job, mapped specs and enabled screenshot assertions instead.
   e2e:
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
+    needs: [reuse, plan, static]
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' && needs.plan.result == 'success' && needs.plan.outputs.lane != 'docs' && needs.static.result == 'success' }}
     runs-on: ubuntu-24.04
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
@@ -110,10 +137,12 @@ jobs:
     timeout-minutes: 30
     env:
       SHARDS: 12
+      CI_LANE: ${{ needs.plan.outputs.lane }}
+      SPECS: ${{ needs.plan.outputs.specs }}
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        shard: ${{ fromJSON(needs.plan.outputs.shards || '[1]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -128,7 +157,15 @@ jobs:
       - name: Build (e2e mode)
         run: npm run build:e2e
       - name: E2E shard ${{ matrix.shard }}/${{ env.SHARDS }}
-        run: npx playwright test --ignore-snapshots --shard=${{ matrix.shard }}/${{ env.SHARDS }}
+        run: |
+          if [ "$CI_LANE" = "ui" ]; then
+            read -r -a specs <<< "$SPECS"
+            [ "${#specs[@]}" -gt 0 ] || exit 1
+            # Focused runs retain screenshot assertions and every configured browser profile.
+            npx playwright test "${specs[@]}"
+          else
+            npx playwright test --ignore-snapshots --shard=${{ matrix.shard }}/${{ env.SHARDS }}
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
@@ -138,30 +175,27 @@ jobs:
             test-results/
           retention-days: 7
 
-  # Required status check: green only if static, unit, e2e and visual succeeded.
+  # Required status check: green only for the exact successful/skipped vector of the selected lane.
   check:
-    needs: [reuse, static, unit, e2e, visual]
+    needs: [reuse, plan, static, unit, e2e, visual]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require static, unit, e2e and visual
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require every check selected by the verified plan
         env:
-          REUSE: ${{ needs.reuse.outputs.reuse }}
-          RESULTS: ${{ needs.static.result }} ${{ needs.unit.result }} ${{ needs.e2e.result }} ${{ needs.visual.result }}
-        run: |
-          echo "reuse: ${REUSE:-false}; static / unit / e2e / visual: $RESULTS"
-          # A reused tree skips all four jobs on purpose (see the `reuse` job).
-          expected="success success success success"
-          [ "$REUSE" = "true" ] && expected="skipped skipped skipped skipped"
-          [ "$RESULTS" = "$expected" ]
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: node scripts/ci/change-plan.mjs --gate
 
   # The specs that compare screenshots (the only ones with baselines), without --ignore-snapshots.
   # Blocking via `check`. A PR that changes the UI on purpose commits reviewed Linux baselines first
   # (manual workflow update-snapshots.yml).
   visual:
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
+    needs: [reuse, plan, static]
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' && needs.plan.outputs.lane == 'full' && needs.static.result == 'success' }}
     runs-on: ubuntu-24.04
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble
@@ -199,8 +233,8 @@ jobs:
   # unit tests must pass there, including the path handling of the database package. Typecheck and
   # lint are OS-independent (.gitattributes pins eol=lf) and already run on ubuntu (`static`).
   windows-unit:
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
+    needs: [reuse, plan, static]
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' && needs.plan.outputs.lane == 'full' && needs.static.result == 'success' }}
     runs-on: windows-latest
     timeout-minutes: 20
     strategy:
@@ -219,22 +253,20 @@ jobs:
       - name: Unit tests, shard ${{ matrix.shard }}/2
         run: npx vitest run --shard=${{ matrix.shard }}/2
 
-  # Required status check: green only if every Windows shard succeeded.
+  # Required status check: Windows success for full runs; explicit non-Windows/reuse decision otherwise.
   check-windows:
-    needs: [reuse, windows-unit]
+    needs: [reuse, plan, windows-unit]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require every Windows shard
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require Windows coverage when selected
         env:
-          REUSE: ${{ needs.reuse.outputs.reuse }}
-          RESULT: ${{ needs.windows-unit.result }}
-        run: |
-          echo "reuse: ${REUSE:-false}; windows-unit: $RESULT"
-          expected=success
-          [ "$REUSE" = "true" ] && expected=skipped
-          [ "$RESULT" = "$expected" ]
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: node scripts/ci/change-plan.mjs --gate windows
 
   docker:
     needs: reuse
