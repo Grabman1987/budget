@@ -1,0 +1,26 @@
+{
+  "browser": "native WebKit, playwright1.64.1",
+  "tests": "7/7 pass including3 setup and4 desktop/phone light/dark cases",
+  "images": [
+    {
+      "name": "goal-completed-desktop-dark.png",
+      "sha256": "d6def6e2773435fb5f64caddfae277a48cd2752180a2635f351269efae0ffeb8",
+      "revision": "6c521d2cbd93b8c364cb5905f38fedff39ee9680"
+    },
+    {
+      "name": "goal-completed-desktop-light.png",
+      "sha256": "71f5ed5deb1043cc87cd6d1e1afe4de8669aa6dc01113f38e1784be72a96033c",
+      "revision": "6c521d2cbd93b8c364cb5905f38fedff39ee9680"
+    },
+    {
+      "name": "goal-completed-phone-light.png",
+      "sha256": "2d09f2b29d2a35dfb22d105aaece4a5e55f93fc7fc609d0b6cf94bf361bf28c2",
+      "revision": "6c521d2cbd93b8c364cb5905f38fedff39ee9680"
+    },
+    {
+      "name": "goal-completed-phone-dark.png",
+      "sha256": "1f5c7ed394a5060182842799e54ff92c133884c86200429471b0c4065e73ea28",
+      "revision": "6c521d2cbd93b8c364cb5905f38fedff39ee9680"
+    }
+  ]
+}
