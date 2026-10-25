@@ -38,7 +38,7 @@ if [ -f package-lock.json ]; then npm ci; elif [ -f package.json ]; then npm ins
 if [ -f package.json ] && grep -q '"@playwright/test"' package.json; then npx playwright install --with-deps chromium; fi
 ```
 
-Node 22 ist in der Cloud vorinstalliert; die Spezifikation ist darauf ausgelegt.
+Node 22.22.2 oder neuer in der 22.x-Reihe ist erforderlich (alternativ 24.15.0+ in der 24.x-Reihe). Vorinstallierte Cloud-Version prüfen; `setup-cloud.sh` erzwingt den Engine-Vertrag.
 
 ## 4. Arbeiten mit Aufträgen
 

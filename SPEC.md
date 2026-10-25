@@ -229,7 +229,7 @@ Build pages to match `design/prototype/` and `design/screens/`. When in doubt, o
 
 | Layer | Choice |
 | --- | --- |
-| Language | TypeScript (strict), Node 22 LTS (cloud default; concept said 24, 22 is fine); `engines`: `^22.14.0 \|\| ^24.0.0` |
+| Language | TypeScript (strict), Node 22 LTS (cloud default; concept said 24, 22 is fine); `engines`: `^22.22.2 \|\| ^24.15.0` |
 | Repo | npm workspaces monorepo (layout below) |
 | Frontend | React, Vite, TanStack Router + Query, Tailwind (theme only) with tokens generated from DESIGN.md, own accessible primitives in `packages/ui` on native elements (`<dialog>` panels); Radix is not used |
 | Charts | **Own SVG components** on d3-scale/d3-shape, ported from the prototype (the blueprint grammar is custom). Apache ECharts only if the P1 spike shows a clear need (proposed change to O1, confirm in P1a). |
