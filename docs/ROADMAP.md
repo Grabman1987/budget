@@ -1899,3 +1899,11 @@ Physical-device/keyboard/fullscreen acceptance belongs separately to #586.
 - [x] Complete workspace typecheck, scoped lint/format and fresh build; final browser30/30 across desktop/mobile/WebKit, including actual result links/reload, original downloads, privacy, grouped Undo and the existing toast/dialog regression. Reproduce and correct the visible Undo-label overflow with two CSS declarations;15/15 existing Toast/Layer tests passed.
 - [x] Final independent whole-diff HIGH review CLEAR, including final source hashes, original browser artifacts and preserved archive.
 - [ ] Complete exact-head CI, protected serial integration and exact live verification. This payroll packet is not yet delivered; the already-live card packet #752 is separate. No private historical archive operation is claimed, and #719 stays stopped.
+
+## Owner addition — portfolio funding plan (2026-10-25)
+
+- [x] Implement an editable six-sleeve scenario with separate recurring rate, one-off cash, free cash and current position values; gold/Bitcoin split in the explicit owner template.
+- [x] Exact-cent deficit budgets, fractional/whole units, fee guard and residual cash; no implicit trades or changes to class risk policy.
+- [x] Persist through audited settings with concurrency/undo guards; reuse the savings form for explicit confirmation.
+- [x] Full typecheck/lint, nine domain/API tests, desktop/phone acceptance and independent review; [synthetic evidence](evidence/portfolio-funding-plan/README.md).
+- [ ] Exact-head required CI, serial integration and verified live revision recorded on the delivery PR.
