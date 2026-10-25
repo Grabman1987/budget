@@ -7,8 +7,10 @@ test('package: contact history, search URL and developer details preserve naviga
   page,
 }, info) => {
   await page.goto('/konten/kontakte?verlauf=1');
-  const history = page.getByLabel('Auch ausgeglichene Kontakte');
-  await expect(history).toBeChecked();
+  const history = page
+    .getByRole('group', { name: 'Kontakte anzeigen' })
+    .getByRole('button', { name: 'Alle' });
+  await expect(history).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('link', { name: 'Kontakt M. Muster', exact: true }).click();
   await expect(page).toHaveURL(/\/konten\/kontakte\/[^?]+\?verlauf=1/);
   const detailUrl = page.url();
@@ -17,19 +19,19 @@ test('package: contact history, search URL and developer details preserve naviga
   await expect(capture.getByLabel('Bezahlt von', { exact: true })).not.toHaveValue('');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('region', { name: 'Kontaktkontoauszug' })).toContainText(
-    'Kontoblatt',
+    'Kontakt M. Muster',
   );
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.goBack();
-  await expect(history).toBeChecked();
+  await expect(history).toHaveAttribute('aria-pressed', 'true');
   await page.goForward();
   await page.reload();
   await expect(page.getByRole('region', { name: 'Kontaktkontoauszug' })).toContainText(
-    'Kontoblatt',
+    'Kontakt M. Muster',
   );
   await page.screenshot({ path: info.outputPath('contact-page.png'), fullPage: true });
   await page.getByRole('link', { name: 'Zurück zu Kontakte', exact: true }).click();
-  await expect(history).toBeChecked();
+  await expect(history).toHaveAttribute('aria-pressed', 'true');
   const contactId = new URL(detailUrl).pathname.split('/').at(-1)!;
   await page.goto(`/konten/kontakte?kontakt=${contactId}&verlauf=1`);
   await expect(page).toHaveURL(/\/konten\/kontakte\/[^?]+\?verlauf=1/);
@@ -40,18 +42,19 @@ test('package: contact history, search URL and developer details preserve naviga
   const input = page.getByRole('combobox', { name: 'Suchen', exact: true });
   await expect(input).toBeFocused();
   await input.fill('Girokonto');
+  await page.getByRole('button', { name: 'Alle Ergebnisse', exact: true }).click();
   await expect(page).toHaveURL(/q=Girokonto/);
-  await expect(page.getByRole('option').first()).toContainText('Girokonto');
+  await expect(page.getByRole('listbox').getByRole('option').first()).toContainText('Girokonto');
   await page.reload();
   await expect(input).toHaveValue('Girokonto');
-  await expect(page.getByRole('option').first()).toContainText('Girokonto');
+  await expect(page.getByRole('listbox').getByRole('option').first()).toContainText('Girokonto');
   await input.press('Enter');
   await expect(page).toHaveURL(/\/konten\/acc-giro$/);
   // Going back while the account page is still loading would leave the old search page mounted.
   await expect(page.getByRole('heading', { name: 'Girokonto', exact: true }).first()).toBeVisible();
   await page.goBack();
   await expect(input).toHaveValue('Girokonto');
-  await expect(page.getByRole('option').first()).toContainText('Girokonto');
+  await expect(page.getByRole('listbox').getByRole('option').first()).toContainText('Girokonto');
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);

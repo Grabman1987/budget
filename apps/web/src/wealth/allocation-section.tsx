@@ -61,30 +61,58 @@ export function PortfolioAllocation() {
         )}
         {view && (
           <>
-            <p className="vnote" role="status">
-              Netto-Allokationsuniversum:{' '}
-              {view.valueCents === null ? 'Wert nicht verfügbar' : eurWhole(view.valueCents)}.
-              Ist-Anteil = Klassenwert / Netto-Allokationsuniversum. Einbezogene Positionen plus
-              Anlage-Kassa einschließlich negativer Salden bilden den Nenner. Negative Kassa mindert
-              ihn; negative Klassenwerte ergeben negative Anteile, positive Klassen können über 100
-              % liegen. Die Auswahl kann von der Bestandsliste abweichen. Bewertung{' '}
-              {view.quality.valuationQuality === 'exact'
-                ? 'vollständig'
-                : view.quality.valuationQuality === 'estimated'
-                  ? 'teilweise geschätzt / veraltet'
-                  : 'unvollständig'}
-              . Unklassifiziert:{' '}
-              {view.quality.unclassifiedValueCents === null
-                ? 'Wert nicht verfügbar'
-                : eurWhole(view.quality.unclassifiedValueCents)}{' '}
-              · {percentText(view.quality.unclassifiedShareBp)} ·{' '}
-              {view.quality.unclassifiedProductCount} Produkte / Cash-Positionen.
-              {view.quality.valuationQuality === 'estimated' &&
-                ` Geschätzter / veralteter Anteil: ${percentText(view.quality.estimatedShareBp)}.`}
-              {` Geschätzte Werte: ${view.quality.estimatedSecurityIds.length} Produkte. Veraltete Werte: ${view.quality.staleSecurityIds.length} Produkte.`}
-              {provisional &&
-                ' Hinweise sind vorläufig; zuerst Klassifikation und Bewertung prüfen. Sparplanoptimierung wird zurückgehalten.'}
-            </p>
+            {view.policy.wealthStage && (
+              <p className="vnote">
+                Aktive Vermögensstufe: ab {eurWhole(view.policy.wealthStage.fromCents)}
+                {view.policy.wealthStage.label ? ' · ' + view.policy.wealthStage.label : ''}.
+                {view.policy.wealthStage.inBuffer &&
+                  ` Im Puffer: Die Stufe bleibt bis unter ${eurWhole(Math.ceil((view.policy.wealthStage.fromCents * 9) / 10))} aktiv.`}{' '}
+                Basis: {view.valueCents === null ? 'nicht ermittelbar' : eurWhole(view.valueCents)}{' '}
+                in {view.universe.accountIds.length} ausgewählten Konten und Depots.
+              </p>
+            )}
+            {provisional && (
+              <p className="vnote" role="status">
+                Aufteilung vorläufig: Klassifikation und Bewertung prüfen. Sparplanoptimierung wird
+                zurückgehalten.
+              </p>
+            )}
+            <details className="wealth-details">
+              <summary>Wie wird gerechnet?</summary>
+              <p className="vnote">
+                Netto-Allokationsuniversum:{' '}
+                {view.valueCents === null ? 'Wert nicht verfügbar' : eurWhole(view.valueCents)}.
+                Ist-Anteil = Klassenwert / Netto-Allokationsuniversum. Einbezogene Positionen plus
+                Anlage-Kassa einschließlich negativer Salden bilden den Nenner. Negative Kassa
+                mindert ihn; negative Klassenwerte ergeben negative Anteile, positive Klassen können
+                über 100 % liegen. Die Auswahl kann von der Bestandsliste abweichen. Bewertung{' '}
+                {view.quality.valuationQuality === 'exact'
+                  ? 'vollständig'
+                  : view.quality.valuationQuality === 'estimated'
+                    ? 'teilweise geschätzt / veraltet'
+                    : 'unvollständig'}
+                . Unklassifiziert:{' '}
+                {view.quality.unclassifiedValueCents === null
+                  ? 'Wert nicht verfügbar'
+                  : eurWhole(view.quality.unclassifiedValueCents)}{' '}
+                · {percentText(view.quality.unclassifiedShareBp)} ·{' '}
+                {view.quality.unclassifiedProductCount} Produkte / Cash-Positionen.
+                {view.quality.valuationQuality === 'estimated' &&
+                  ` Geschätzter / veralteter Anteil: ${percentText(view.quality.estimatedShareBp)}.`}
+                {` Geschätzte Werte: ${view.quality.estimatedSecurityIds.length} Produkte. Veraltete Werte: ${view.quality.staleSecurityIds.length} Produkte.`}
+                {provisional &&
+                  ' Hinweise sind vorläufig; zuerst Klassifikation und Bewertung prüfen. Sparplanoptimierung wird zurückgehalten.'}
+              </p>
+              {risk && (
+                <p className="vnote">
+                  Brutto-Exposure: {eurWhole(risk.cluster.totalGrossExposureCents)}. R14/R15 teilen
+                  das jeweilige Brutto-Exposure durch den Marktwert des Netto-Allokationsuniversums
+                  ({eurWhole(risk.cluster.totalCents)}), nicht durch die Brutto-Summe. Hebel erhöhen
+                  den Zähler; negative Kassa senkt den Nenner. Risikoanteile können deshalb über 100
+                  % liegen.
+                </p>
+              )}
+            </details>
             {view.quality.unclassifiedSecurityIds.length > 0 && (
               <ul
                 className="allocation-quality-links"
@@ -111,15 +139,6 @@ export function PortfolioAllocation() {
                   </li>
                 ))}
               </ul>
-            )}
-            {risk && (
-              <p className="vnote">
-                Brutto-Exposure: {eurWhole(risk.cluster.totalGrossExposureCents)}. R14/R15 teilen
-                das jeweilige Brutto-Exposure durch den Marktwert des Netto-Allokationsuniversums (
-                {eurWhole(risk.cluster.totalCents)}), nicht durch die Brutto-Summe. Hebel erhöhen
-                den Zähler; negative Kassa senkt den Nenner. Risikoanteile können deshalb über 100 %
-                liegen.
-              </p>
             )}
             {!known && (
               <p className="vnote" role="status">

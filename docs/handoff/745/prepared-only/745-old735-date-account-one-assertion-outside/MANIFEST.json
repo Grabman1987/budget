@@ -1,0 +1,15 @@
+{
+  "outsideOnly": true,
+  "notApplied": true,
+  "notApproved": true,
+  "runtimeExecuted": false,
+  "baseHead": "3ad87db1e82e57d2291379db9292f5927330366e",
+  "path": "e2e/issue-735-plan-activity.spec.ts",
+  "beforeSha256": "f4fc8d4819b8d169919705378398e142f248b8c8d671b1d1f3b95635ae28a5ed",
+  "candidateSha256": "5b2884aae4fe023f47abb162987507d127a759b04da24ef8700cd9388267923d",
+  "diffSha256": "c6c37db1a6fbb3e304da29df9c9be2ff6b67589f827d4b5f02f7998e668d5d94",
+  "wholeInverseExact": true,
+  "change": "One joined date/account assertion becomes two exact literal assertions on the already-defined first actual contribution row; separator punctuation no longer describes the semantic table.",
+  "preserved": "All imports, actions, API/body/literal money/count/order/viewport/keyboard/history/privacy/Axe/zero-write checks and timeouts byte-exact; neutral existing table/row class hooks retained by Root-approved product candidate.",
+  "requiresIndependentReviewAndOwnerDisposition": true
+}

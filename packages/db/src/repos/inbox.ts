@@ -1,4 +1,4 @@
-import { and, asc, count, countDistinct, desc, eq, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, count, countDistinct, desc, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { cents, formatEuro, monthOf, overspentEnvelopes, summarizeMonth } from '@budget/domain';
 import { categoryTree } from './categories';
 import { budget } from './queries';
@@ -61,11 +61,16 @@ export interface InboxEnvelope {
   kind: 'overspent';
   categoryId: string;
   month: string;
+  /** Positive amount in cents needed to bring the current envelope back to zero. */
+  deficitCents: number;
   title: string;
   detail: string;
   urgent: true;
 }
 export type InboxEntry = InboxBooking | InboxStored | InboxEnvelope | SavingsExecutionProposal;
+export interface InboxOptions {
+  excludeOverspent?: boolean;
+}
 
 /** Shared predicates keep task list and lightweight badge count in agreement. */
 const unclassifiedWhere = (today: string) =>
@@ -106,6 +111,7 @@ function envelopeTasks(db: Executor, today: string): InboxEnvelope[] {
     kind: 'overspent',
     categoryId: e.categoryId,
     month,
+    deficitCents: -e.availableCents,
     title: `${tree.categories.find((c) => c.id === e.categoryId)!.name} ist überzogen`,
     detail: `${formatEuro(cents(e.availableCents))} · im Plan decken`,
     urgent: true,
@@ -146,9 +152,16 @@ function uncategorizedBookings(db: Executor, today: string): InboxBooking[] {
 }
 
 /** Legacy classification/overspending summaries are replaced by live ledger work. */
-export function readInbox(db: Executor, today: string, bankSource?: string, readSource?: string) {
+export function readInbox(
+  db: Executor,
+  today: string,
+  bankSource?: string,
+  readSource?: string,
+  /** Konten › Prüfen leaves overspent categories to Heute and Plan. */
+  options: InboxOptions & { bankAccountId?: string } = {},
+) {
   return runInTransaction(db, (tx) => {
-    const bookings = uncategorizedBookings(tx, today);
+    const bookings = options.bankAccountId ? [] : uncategorizedBookings(tx, today);
     const mappings = readSourceMappings(tx);
     // One read for compact bank rows. Matching and assignment checks stay on demand.
     const candidates = new Map(
@@ -165,14 +178,38 @@ export function readInbox(db: Executor, today: string, bankSource?: string, read
         .from(bankSyncCandidate)
         .innerJoin(account, eq(account.id, bankSyncCandidate.accountId))
         .innerJoin(inboxItem, eq(inboxItem.id, bankSyncCandidate.id))
-        .where(isNull(inboxItem.resolvedAt))
+        .where(
+          and(
+            isNull(inboxItem.resolvedAt),
+            options.bankAccountId
+              ? eq(bankSyncCandidate.accountId, options.bankAccountId)
+              : undefined,
+          ),
+        )
         .all()
         .map(({ id, ...row }) => [id, row]),
     );
     const stored: InboxStored[] = tx
       .select()
       .from(inboxItem)
-      .where(readSource ? sourceMovementsWhere(readSource) : storedWhere())
+      .where(
+        and(
+          readSource ? sourceMovementsWhere(readSource) : storedWhere(),
+          options.bankAccountId
+            ? and(
+                eq(inboxItem.refType, 'bank-sync-candidate'),
+                eq(inboxItem.refId, inboxItem.id),
+                inArray(
+                  inboxItem.id,
+                  tx
+                    .select({ id: bankSyncCandidate.id })
+                    .from(bankSyncCandidate)
+                    .where(eq(bankSyncCandidate.accountId, options.bankAccountId)),
+                ),
+              )
+            : undefined,
+        ),
+      )
       .orderBy(desc(inboxItem.urgent), asc(inboxItem.createdAt), asc(inboxItem.id))
       .all()
       .map((row) => ({
@@ -192,22 +229,25 @@ export function readInbox(db: Executor, today: string, bankSource?: string, read
           ? { bankCandidate: candidates.get(row.refId) }
           : {}),
       }));
-    let entries: InboxEntry[] = readSource
-      ? stored
-      : [
-          ...envelopeTasks(tx, today),
-          ...bookings,
-          ...savingsExecutionProposals(tx, today),
-          ...stored,
-        ];
+    let entries: InboxEntry[] =
+      readSource || options.bankAccountId
+        ? stored
+        : [
+            ...(options.excludeOverspent ? [] : envelopeTasks(tx, today)),
+            ...bookings,
+            ...savingsExecutionProposals(tx, today),
+            ...stored,
+          ];
     if (bankSource) entries = filterBankSourceInbox(tx, entries, bankSource);
-    const unlinkedReceipts = listReceipts(tx);
+    const unlinkedReceipts = options.bankAccountId ? [] : listReceipts(tx);
     return {
       asOf: today,
-      count: entries.length + (bankSource || readSource ? 0 : unlinkedReceipts.length),
+      count:
+        entries.length +
+        (bankSource || readSource || options.bankAccountId ? 0 : unlinkedReceipts.length),
       entries,
       readSourceSummaries:
-        bankSource || readSource
+        bankSource || readSource || options.bankAccountId
           ? []
           : tx
               .select({ sourceId: inboxItem.refId, count: count() })
@@ -262,7 +302,7 @@ export function filterBankSourceInbox(db: Executor, entries: InboxEntry[], sourc
 }
 
 /** Booking/stored counts use SQL; derived tasks share the queue's read-only projections. */
-export function readInboxCount(db: Executor, today: string) {
+export function readInboxCount(db: Executor, today: string, options: InboxOptions = {}) {
   return runInTransaction(db, (tx) => {
     const bookings = tx
       .select({ count: countDistinct(booking.id) })
@@ -275,7 +315,7 @@ export function readInboxCount(db: Executor, today: string) {
     return {
       asOf: today,
       count:
-        envelopeTasks(tx, today).length +
+        (options.excludeOverspent ? 0 : envelopeTasks(tx, today).length) +
         bookings +
         stored +
         listReceipts(tx).length +

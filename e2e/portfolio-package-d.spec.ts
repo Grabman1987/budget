@@ -90,6 +90,7 @@ sampleTest(
     await page.goto('/vermoegen/portfolio');
     await expect(page.locator('.portfolio-positions')).toContainText('ohne Kassa');
     const allocation = page.getByRole('region', { name: 'Aufteilung Soll/Ist', exact: true });
+    await allocation.getByText('Wie wird gerechnet?', { exact: true }).click();
     await expect(allocation).toContainText('Netto-Allokationsuniversum');
     await expect(allocation).toContainText('negative Klassenwerte ergeben negative Anteile');
     await expect(allocation).toContainText('Risikoanteile können deshalb über 100 % liegen');

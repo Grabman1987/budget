@@ -1,4 +1,6 @@
 import { benchmarkSelection, setBenchmarkSelection, BENCHMARKS } from '@budget/db';
+import { fundingPlan, saveFundingPlan } from '@budget/db';
+import { fundingPlanSchema } from '@budget/domain';
 import { checkedReportPeriod, reportPeriodSchema } from './report-period';
 import {
   assetExposureOfSecurityAsOf,
@@ -64,6 +66,7 @@ import {
   nextExecutionAfter,
   parseScaledDecimal,
   parseRegionWeights,
+  ValuationLimitError,
 } from '@budget/domain';
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
@@ -271,13 +274,27 @@ const targetsBody = z.object({
   tiers: z
     .array(
       z.object({
-        upToCents: z.int().min(1).max(Number.MAX_SAFE_INTEGER).nullable(),
+        upToCents: z.int().min(0).max(Number.MAX_SAFE_INTEGER).nullable(),
         targets: targetRows,
+        label: z.string().trim().max(80).optional(),
+        condition: z.string().trim().max(240).optional(),
       }),
     )
     .max(10)
     .optional(),
   archiveClassId: id.optional(),
+  allocationAccounts: z
+    .array(
+      z.object({
+        id,
+        included: z.boolean(),
+        cashClassId: id.nullable(),
+        expectedScope: z.enum(['default', 'included', 'excluded']),
+        expectedCashClassId: id.nullable(),
+      }),
+    )
+    .max(500)
+    .optional(),
 });
 
 export function assetClassRoutes(db: Db, today: () => string): Hono {
@@ -288,7 +305,10 @@ export function assetClassRoutes(db: Db, today: () => string): Hono {
     const { deleted } = readQuery(c, deletedQuery);
     const policy = resolvePortfolioRiskPolicy(db, today());
     const current = new Map(
-      targetsAsOf(db, today(), true, policy.investmentCents).map((t) => [t.assetClassId, t]),
+      targetsAsOf(db, today(), true, policy.investmentCents, policy.tierIndex).map((t) => [
+        t.assetClassId,
+        t,
+      ]),
     );
     const inUse = assetClassesInUse(db);
     return c.json({
@@ -613,15 +633,26 @@ export function savingsPlanRoutes(db: Db, today: () => string): Hono {
 }
 
 // ---------- portfolio ----------
-const portfolioQuery = z.object({
-  period: reportPeriodSchema.default('1J'),
-  view: z.enum(['securities', 'depot']).default('securities'),
-  benchmark: id.optional(),
-  /** Depot view: comma-separated reference account ids (default: the investment accounts). */
-  reference: z.string().max(2000).optional(),
-  /** Opt-in monthly/yearly series for report 4.3, derived from the portfolio summary read. */
-  history: z.enum(['contributions', 'performance']).optional(),
-});
+const portfolioQuery = z
+  .object({
+    period: reportPeriodSchema.default('1J'),
+    view: z.enum(['securities', 'depot']).default('securities'),
+    benchmark: id.optional(),
+    /** Depot view: comma-separated reference account ids (default: the investment accounts). */
+    reference: z.string().max(2000).optional(),
+    /** Opt-in monthly/yearly series for report 4.3, derived from the portfolio summary read. */
+    history: z.enum(['contributions', 'performance']).optional(),
+    provenance: z.literal('valuation-v1').optional(),
+  })
+  .refine(
+    (query) =>
+      query.provenance === undefined ||
+      (query.view === 'securities' && query.history === 'performance'),
+    {
+      path: ['provenance'],
+      message: 'Valuation provenance requires securities performance history',
+    },
+  );
 
 const depotsQuery = z.object({
   period: reportPeriodSchema.default('1J'),
@@ -666,6 +697,16 @@ export function portfolioRoutes(db: Db, today: () => string): Hono {
   // Report 4.5: costs, broker taxes and income of the last 12 months, illustrative latent tax.
   app.get('/costs-taxes', (c) => c.json({ costs: costsTaxesReport(db, { today: today() }) }));
   app.get('/preferences', (c) => c.json(investmentPreferences(db)));
+  app.get('/funding-plan', (c) => c.json(fundingPlan(db)));
+  app.put('/funding-plan', async (c) => {
+    const input = await readBody(
+      c,
+      z.strictObject({ revision: z.string().min(1).max(64), plan: fundingPlanSchema }),
+    );
+    return c.json(
+      saveFundingPlan(db, input.revision, input.plan, { actor: ACTOR, groupId: randomUUID() }),
+    );
+  });
   app.patch('/preferences', async (c) => {
     const { costMethod } = await readBody(
       c,
@@ -675,7 +716,14 @@ export function portfolioRoutes(db: Db, today: () => string): Hono {
     return c.json({ ...setInvestmentCostMethod(db, costMethod, ctx), groupId: ctx.groupId });
   });
   app.get('/', (c) => {
-    const { period: rawPeriod, view, benchmark, reference, history } = readQuery(c, portfolioQuery);
+    const {
+      period: rawPeriod,
+      view,
+      benchmark,
+      reference,
+      history,
+      provenance,
+    } = readQuery(c, portfolioQuery);
     const period = checkedReportPeriod(rawPeriod, today());
     const refs = reference?.split(',').filter(Boolean);
     try {
@@ -690,11 +738,12 @@ export function portfolioRoutes(db: Db, today: () => string): Hono {
             referenceAccounts: refs && refs.length > 0 ? refs : undefined,
             includeContributionHistory: history === 'contributions' && view === 'securities',
             includePerformanceHistory: history === 'performance' && view === 'securities',
+            valuationProvenance: provenance,
           }),
         ),
       });
     } catch (error) {
-      if (error instanceof ContributionHistoryLimitError)
+      if (error instanceof ContributionHistoryLimitError || error instanceof ValuationLimitError)
         throw new ApiError(
           422,
           'calculation_limit',

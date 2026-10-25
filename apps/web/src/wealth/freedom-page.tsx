@@ -1,20 +1,68 @@
 import { useAmountPrivacy, privateAmount, Button, Field, Select } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
-import { lastDayOfMonth, parseAmount, formatDecimal, freedomMonths, MINUS } from '@budget/domain';
+import { Info } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import {
+  cents,
+  lastDayOfMonth,
+  parseAmount,
+  formatDecimal,
+  freedomMonths,
+  MINUS,
+  freedomGoalRate,
+} from '@budget/domain';
 import { VERMOEGEN_FREIHEIT_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { eur, longDay } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { AppLink } from '../shell/app-link';
-import { freedomQuery, type FreedomView } from './freedom-api';
+import { freedomQuery, freedomGoalQuery, type FreedomView } from './freedom-api';
+import { FreedomGoalForm, type FreedomGoalRequest } from './freedom-goal-form';
 import { freedomScenario, monthText, percent } from './freedom-model';
 import { FreedomChart } from './freedom-chart';
 import './freedom.css';
 
+/** The ⓘ button of a heading; the text it opens is an `InfoText` with the same id. */
+function InfoButton({
+  id,
+  label,
+  open,
+  onToggle,
+}: {
+  id: string;
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="icon-btn freedom-info"
+      aria-label={`Erklärung: ${label}`}
+      aria-expanded={open}
+      aria-controls={id}
+      onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && open) onToggle();
+      }}
+    >
+      <Info className="icon" size={18} strokeWidth={1.75} aria-hidden="true" />
+    </button>
+  );
+}
+
+function InfoText({ id, open, children }: { id: string; open: boolean; children: ReactNode }) {
+  return (
+    <div id={id} className="vnote freedom-info-text" hidden={!open}>
+      {children}
+    </div>
+  );
+}
+
 export function FreedomPage() {
   useAmountPrivacy();
   const query = useQuery(freedomQuery());
+  const goal = useQuery(freedomGoalQuery());
   return (
     <PageFrame meta={VERMOEGEN_FREIHEIT_META} revealCurrentRegister>
       <div className="kview vview freedom-view">
@@ -26,21 +74,53 @@ export function FreedomPage() {
             onRetry={() => void query.refetch()}
           />
         )}
-        {query.data && <FreedomContent view={query.data} />}
+        {query.data && (
+          <FreedomContent
+            view={query.data}
+            goalRequest={{
+              state: goal.data,
+              pending: goal.isPending,
+              error: goal.isError,
+              refresh: async () => {
+                const fresh = await goal.refetch();
+                return fresh.isError ? undefined : fresh.data;
+              },
+            }}
+          />
+        )}
       </div>
     </PageFrame>
   );
 }
 
-function FreedomContent({ view }: { view: FreedomView }) {
+export function FreedomContent({
+  view,
+  goalRequest,
+}: {
+  view: FreedomView;
+  goalRequest?: FreedomGoalRequest;
+}) {
   const hidden = useAmountPrivacy();
-  const [saving, setSaving] = useState('');
+  const defaultSaving =
+    view.defaultSavingCents === null ? '' : formatDecimal(cents(view.defaultSavingCents));
+  const [saving, setSaving] = useState(defaultSaving);
   const [returnBp, setReturnBp] = useState(view.defaultRealReturnBp);
+  const [info, setInfo] = useState<'figure' | 'assumptions' | null>(null);
+  const toggle = (key: 'figure' | 'assumptions') => setInfo((now) => (now === key ? null : key));
   const monthsFreedom =
     view.investedCents !== null && view.annualSpendCents !== null
       ? freedomMonths(view.investedCents, view.annualSpendCents)
       : null;
   const { projection, error } = freedomScenario(view, saving, returnBp);
+  const goalYear =
+    goalRequest?.state && !goalRequest.state.unavailable ? goalRequest.state.goalYear : null;
+  const goalRate = freedomGoalRate({
+    goalYear,
+    asOf: view.asOf,
+    investedCents: view.investedCents,
+    targetCents: view.targetCents,
+    realReturnBp: returnBp,
+  });
   const commitSaving = () => {
     const parsed = parseAmount(saving);
     if (parsed.ok && parsed.cents >= 0) setSaving(formatDecimal(parsed.cents));
@@ -63,8 +143,27 @@ function FreedomContent({ view }: { view: FreedomView }) {
       <section className="vnw" aria-labelledby="freedom-title">
         <div className="tbd-head">
           <h2 id="freedom-title">Freiheitszahl</h2>
-          <span className="tbd-state ink">R16 · Ziel 100 %</span>
+          <span className="freedom-head-end">
+            <span className="tbd-state ink">Ziel 100 %</span>
+            <InfoButton
+              id="freedom-info-figure"
+              label="Freiheitszahl"
+              open={info === 'figure'}
+              onToggle={() => toggle('figure')}
+            />
+          </span>
         </div>
+        <InfoText id="freedom-info-figure" open={info === 'figure'}>
+          <p>
+            Bedarf und Wunsch, ohne Zukunft.{' '}
+            {view.multiple === 25
+              ? 'Bei 100 % entsprechen 4 % Entnahme im Jahr dieser Ausgabenbasis.'
+              : `Ziel: ${view.multiple} Jahresausgaben.`}
+          </p>
+          <p>
+            Bewertung am {longDay(view.asOf)}. Ausgaben bis {monthText(view.refMonth)}.
+          </p>
+        </InfoText>
         <div className="tbd-fig" data-testid="freedom-figure">
           {view.progressBp === null ? '—' : percent(view.progressBp)}
           <span className="cents"> %</span>
@@ -131,28 +230,37 @@ function FreedomContent({ view }: { view: FreedomView }) {
         <p className="vnote" data-testid="freedom-annual-spend">
           {view.annualSpendCents === null
             ? 'Jahresausgaben unbekannt'
-            : `${eur(view.annualSpendCents)} Jahresausgaben`}{' '}
-          · Bedarf und Wunsch, ohne Zukunft.{' '}
-          {view.multiple === 25
-            ? 'Bei 100 % entsprechen 4 % Entnahme im Jahr dieser Ausgabenbasis.'
-            : `Ziel laut R16: ${view.multiple} Jahresausgaben.`}
+            : `${eur(view.annualSpendCents)} Jahresausgaben`}
         </p>
-        <p className="vnote">
-          Bewertung am {longDay(view.asOf)}. Ausgaben bis {monthText(view.refMonth)}.
-          {view.months.length > 0 &&
-            view.months.length < 12 &&
-            ` Erst ${view.months.length} abgeschlossene Monate: ihr Durchschnitt wurde auf zwölf Monate hochgerechnet.`}
-        </p>
+        {view.months.length > 0 && view.months.length < 12 && (
+          <p className="vnote">
+            Erst {view.months.length} abgeschlossene Monate: ihr Durchschnitt wurde auf zwölf Monate
+            hochgerechnet.
+          </p>
+        )}
       </section>
       <section className="vcomp" aria-labelledby="freedom-assumptions">
         <div className="tbd-head">
           <h2 id="freedom-assumptions">Annahmen</h2>
+          <InfoButton
+            id="freedom-info-assumptions"
+            label="Annahmen"
+            open={info === 'assumptions'}
+            onToggle={() => toggle('assumptions')}
+          />
         </div>
-        <Field
-          label="Sparrate pro Monat"
-          hint="Ungespeicherte Annahme in Euro. Rechnen erlaubt, z. B. 400+300. Enter übernimmt."
-          error={error || undefined}
-        >
+        <InfoText id="freedom-info-assumptions" open={info === 'assumptions'}>
+          <p>
+            Sparrate vorbelegt: Ø {view.savingMonths} abgeschlossene Monate für Zukunft,
+            Erstattungen gegengerechnet. Ungespeicherte Annahme; Rechnen erlaubt.
+          </p>
+          <p>
+            Diese Annahmen werden nicht gespeichert und ändern keine Sparpläne. Der historische
+            Soll-Pfad ist noch nicht eingerichtet. Das persönliche Zieljahr wird getrennt
+            gespeichert.
+          </p>
+        </InfoText>
+        <Field label="Sparrate pro Monat" error={error || undefined}>
           {({ id, describedBy, invalid }) => (
             <div className="amount-field amount-field-sm">
               <input
@@ -229,53 +337,37 @@ function FreedomContent({ view }: { view: FreedomView }) {
             Gib deine angenommene Sparrate ein, um ab heute zu rechnen. Auch 0 ist möglich.
           </p>
         )}
-        <p className="vnote">
-          Diese Annahmen werden nicht gespeichert und ändern keine Sparpläne. Der historische
-          Soll-Pfad und ein persönliches Zieljahr sind noch nicht eingerichtet.
-        </p>
+        {goalRequest && <FreedomGoalForm request={goalRequest} rate={goalRate} />}
       </section>
       <section className="freedom-wide" aria-labelledby="freedom-way">
         <div className="head">
           <h2 id="freedom-way">Weg zum Ziel</h2>
-          <span className="aside">Prognose ab heute · keine Garantie</span>
+          <span className="aside">
+            {view.investedHistory ? 'Ist seit Okt. 2023 · ' : ''}Prognose ab heute · keine Garantie
+          </span>
         </div>
-        {projection && view.targetCents !== null ? (
-          <>
-            <FreedomChart
-              projection={projection}
-              target={view.targetCents}
-              startMonth={view.asOf.slice(0, 7)}
-            />
-            <div className="legend" aria-hidden="true">
-              <span>
-                <svg viewBox="0 0 26 8">
-                  <path className="l-forecast" d="M0 4h26" />
-                </svg>
-                Prognose ab heute
-              </span>
-              <span>
-                <svg viewBox="0 0 26 8">
-                  <path className="l-goal" d="M0 4h26" />
-                </svg>
-                Ziel {eur(view.targetCents)}
-              </span>
-            </div>
-          </>
+        <p className="vnote">Kontenauswahl Stand heute · gilt auch für historische Bewertungen.</p>
+        {(projection && view.targetCents !== null) || view.investedHistory ? (
+          <FreedomChart
+            projection={projection}
+            target={view.targetCents !== null && view.targetCents > 0 ? view.targetCents : null}
+            startMonth={view.asOf.slice(0, 7)}
+            history={view.investedHistory}
+            goalYear={goalYear}
+          />
         ) : (
           <p className="vnote">
             {reason || error || 'Die Prognose beginnt nach Eingabe einer Sparrate.'}
           </p>
         )}
+        {!projection && view.investedHistory && (
+          <p className="vnote">
+            {reason || error || 'Die Prognose beginnt nach Eingabe einer Sparrate.'}
+          </p>
+        )}
       </section>
-      <section
-        className="freedom-wide"
-        id="freedom-expenses"
-        aria-labelledby="freedom-expense-title"
-      >
-        <div className="head">
-          <h2 id="freedom-expense-title">Woher die Jahresausgaben kommen</h2>
-          <span className="aside">Erstattungen sind gegengerechnet</span>
-        </div>
+      <details className="freedom-wide freedom-data" id="freedom-expenses">
+        <summary>Woher die Jahresausgaben kommen</summary>
         {view.months.length ? (
           <table className="kv-table">
             <caption>Bedarf und Wunsch · abgeschlossene Budgetmonate</caption>
@@ -313,7 +405,7 @@ function FreedomContent({ view }: { view: FreedomView }) {
         ) : (
           <p className="vnote">Noch keine abgeschlossenen Budgetmonate.</p>
         )}
-      </section>
+      </details>
       <section
         className="freedom-wide"
         id="freedom-accounts"
@@ -321,7 +413,7 @@ function FreedomContent({ view }: { view: FreedomView }) {
       >
         <div className="head">
           <h2 id="freedom-account-title">Investiert: Quellkonten</h2>
-          <span className="aside">Kontoguthaben plus Bestände · in Euro</span>
+          <span className="aside">Ausgewählte Anlagebasis · in Euro</span>
         </div>
         {view.accounts.length ? (
           <table className="kv-table">
@@ -361,7 +453,7 @@ function FreedomContent({ view }: { view: FreedomView }) {
         <Button
           variant="ghost"
           onClick={() => {
-            setSaving('');
+            setSaving(defaultSaving);
             setReturnBp(view.defaultRealReturnBp);
           }}
         >

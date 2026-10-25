@@ -36,19 +36,14 @@ export function DimensionPage() {
   }, [kind, net?.asOf]);
   const search = { monat: month, period };
   return (
-    <PageFrame meta={HEUTE} title={title} heutePeriod={period} standDay={query.data?.stand.today}>
+    <PageFrame meta={HEUTE} heutePeriod={period} standDay={query.data?.stand.today}>
       <div className="heute">
         <div className="heute-detail-nav">
           <nav aria-label="Brotkrumen">
             <AppLink to="/" search={search}>
-              Heute
+              Zurück zu Heute
             </AppLink>
-            {' › '}
-            <span aria-current="page">{title}</span>
           </nav>
-          <AppLink to="/" search={search}>
-            Zurück zu Heute
-          </AppLink>
         </div>
         {query.isPending && <LoadingNote what={title} />}
         {query.isError && (

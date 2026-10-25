@@ -2,7 +2,7 @@ import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
 import type { BudgetMonthView } from '../apps/web/src/budget/budget-api';
 
-test('top-bar overspending link opens real triage cover and undo on an isolated ledger', async ({
+test('phone status or Heute action opens real triage cover and undo on an isolated ledger', async ({
   page,
   request,
   baseURL,
@@ -66,12 +66,14 @@ test('top-bar overspending link opens real triage cover and undo on an isolated 
   };
   expect(await balances()).toEqual({ source: 8000, target: -5000 });
 
-  const bar = page.locator(info.project.name === 'mobile' ? '.m-head' : '.topbar');
+  const phone = info.project.name === 'mobile';
+  const status = page.locator('.m-status').getByRole('link', { name: '1 überzogen' });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  const chip = bar.getByRole('link', {
-    name: '1 Envelope überzogen, 50,00 € zu decken – Überziehungen prüfen',
-  });
+  const chip = phone
+    ? status
+    : page.locator('.heute-attention').getByRole('link', { name: 'Plan prüfen', exact: true });
+  await expect(page.locator('.topbar .overspent-chip')).toHaveCount(0);
   await expect(chip).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   for (const theme of ['light', 'dark'] as const) {
@@ -92,14 +94,23 @@ test('top-bar overspending link opens real triage cover and undo on an isolated 
   expect(url.pathname).toBe('/plan/monat');
   expect(url.searchParams.get('monat')).toBe(month);
   expect(url.searchParams.get('ansicht')).toBe('triage');
-  await page.locator('.plan-topbar summary').filter({ hasText: '1 überzogen' }).click();
+  // #587: no overspending chip in the head; the overspent row is marked and the cover actions
+  // open from the Zu verteilen disclosure.
+  const targetRow = page.locator('tr.prow', { hasText: 'Testziel' });
+  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
+  await expect(targetRow).toHaveClass(/is-over/);
+  await page.locator('.plan-tba').click();
   await expect(page.locator('.triage')).toContainText('1 Envelopes überzogen');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const sourceSelect = page.getByLabel('Quelle für alle Überziehungen');
   await sourceSelect.selectOption(source.id);
   await page.getByRole('button', { name: 'Alle aus Testquelle decken' }).click();
   await expect(page.locator('.toast.is-open')).toContainText('1 gedeckt, 0 offen');
-  await expect(bar.getByRole('link', { name: /Envelope überzogen/ })).toHaveCount(0);
+  await expect(status).toHaveCount(0);
+  // The triage view lists only overspent rows: the covered target leaves the marked rows.
+  await expect(page.locator('tr.prow.is-over', { hasText: 'Testziel' })).toHaveCount(0);
+  await expect(targetRow).toHaveCount(0);
+  await expect(page.locator('tr.prow.is-over')).toHaveCount(0);
   expect(await balances()).toEqual({ source: 3000, target: 0 });
 
   for (const theme of ['light', 'dark'] as const) {
@@ -116,5 +127,8 @@ test('top-bar overspending link opens real triage cover and undo on an isolated 
   await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();
   await expect(page.locator('.toast.is-open')).toContainText('Rückgängig gemacht');
   expect(await balances()).toEqual({ source: 8000, target: -5000 });
-  await expect(bar.getByRole('link', { name: /1 Envelope überzogen/ })).toBeVisible();
+  if (phone) await expect(status).toBeVisible();
+  await expect(targetRow).toHaveClass(/is-over/);
+  await expect(page.locator('tr.prow.is-over')).toHaveCount(1);
+  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
 });

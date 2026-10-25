@@ -74,16 +74,13 @@ test('cover limits protect commitments, explain missing money and show credit se
     amountCents: 2000,
   });
   await page.goto(`/plan/monat?monat=${month}`);
-  await page.locator('.plan-details > summary').click();
   const money = page.locator('.plan-budget-money');
   await expect(money.locator('summary')).toContainText('Geld auf Budget-Konten · 30,00 €');
   await expect(money.locator('summary')).toContainText('davon Dispo/Kreditrahmen genutzt −30,00 €');
   await money.locator('summary').click();
   await expect(money).toContainText('Rahmen 60,00 €');
-  await page
-    .locator('.plan-topbar summary')
-    .filter({ hasText: /^\d+ überzogen$/ })
-    .click();
+  // #587: the cover actions open from the Zu verteilen disclosure.
+  await page.locator('.plan-tba').click();
   const select = page.getByLabel('Quelle für alle Überziehungen');
   await expect(select.locator('option', { hasText: 'Testgesundheit' })).toContainText(
     'fest verplant 20,00 € · frei 40,00 €',
@@ -105,7 +102,8 @@ test('cover limits protect commitments, explain missing money and show credit se
   await page.getByRole('button', { name: 'Alle aus Testgesundheit decken' }).click();
   await expect(page.locator('.toast.is-open')).toContainText('0 gedeckt, 1 offen · 10,00 € fehlen');
   await expect(select.locator('option', { hasText: 'Testgesundheit' })).toHaveCount(0);
-  const value = (name: string) => page.locator('tr.prow', { hasText: name }).locator('.col-avail');
+  const value = (name: string) =>
+    page.locator('tr.prow', { hasText: name }).locator('.col-avail .pill');
   await expect(value('Testgesundheit')).toHaveText('20,00 €');
   await expect(value('Testalltag')).toHaveText('−10,00 €');
   await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();

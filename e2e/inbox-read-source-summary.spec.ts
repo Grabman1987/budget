@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { inboxItem, openDatabase } from '@budget/db';
 import { expect } from '@playwright/test';
 import { test } from './isolated-ledger';
+import { openPruefenPart } from './pruefen-part';
 
 test.setTimeout(120_000);
 test('source summaries leave decisions clear and retain grouped, filtered, paged movement actions', async ({
@@ -51,6 +52,7 @@ test('source summaries leave decisions clear and retain grouped, filtered, paged
     opened.close();
   }
   await page.goto('/konten/posteingang');
+  await openPruefenPart(page, 'Aufgaben');
   const summary = page.getByRole('link', { name: 'Krypto-Lesequelle: 102 Bewegungen zu prüfen' });
   await expect(summary).toBeVisible();
   await expect(page.getByTestId('inbox-row')).toHaveCount(1);
@@ -115,6 +117,7 @@ test('source summaries leave decisions clear and retain grouped, filtered, paged
   await page.goto('/konten/posteingang/balance');
   await page.getByRole('button', { name: 'Als erledigt markieren' }).click();
   await page.goto('/konten/posteingang');
+  await openPruefenPart(page, 'Aufgaben');
   await expect(summary).toBeVisible();
   await expect(page.getByTestId('inbox-row')).toHaveCount(0);
   expect((await (await page.request.get('/api/inbox/count')).json()).count).toBe(0);

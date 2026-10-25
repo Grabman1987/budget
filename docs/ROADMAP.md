@@ -1,4 +1,339 @@
+## #568/#569 forecast tools and shared 35-day card — adoption pending validation
+
+- [x] Reconstruct the reviewed eight-source package with controlled disclosure state and salary occurrence provenance, preserving current task navigation and Plan filters.
+- [x] Adopt final prepared domain/API/UI/native acceptance tests and document technical existing-test adapters in [adoption notes](evidence/forecast-568-569/ADOPTION.md).
+- [ ] Independent combined review and required focused/full/build/browser/CI checks.
+- [ ] Verify all acceptance criteria on the live revision; issues remain open.
+
 # Roadmap
+
+### #731 — punctuation-capable shared date entry (2026-10-20)
+
+- [x] Request a text keyboard for shared German date fields. Preserve partial editing, German/ISO conversion, calendar validity, limits and all financial actions.
+- [x] The new keyboard-hint regression first fails against the unchanged numeric hint. After the one-line correction, ten focused tests pass, including both unchanged shared-date tests and seven wealth-stage cases; UI/Web types, affected lint and formatting pass. The coordinator initially adapted the obsolete wealth-stage keyboard-hint expectation under the owner's decided-UI policy.
+- [x] Canonical WebKit passes four cases (one new phone flow and three setup cases), with no failures, skips, retries or flaky results. Sequential dotted input, validity, Tab, 44px date control and unchanged target versions/no writes are verified. [Unedited capture and scope](evidence/shared-date-keyboard-731/README.md); browser emulation does not certify a physical iPhone keyboard.
+- [x] Before the query-scoping follow-up, `BUDGET_REQUIRE_AGE=1 npm run check` passed 570 files / 5,076 tests with one worker, followed by a successful normal production build.
+- [x] On 21 October the owner separately approved exactly two existing-test query scopes. All ten focused cases, Web types, affected lint and format checks pass; financial expectations, actions, Save role/visibility checks and 5,000 ms limits remain intact. The two previously timing-out cases completed locally in 1.68s and 0.46s; fresh exact-head CI remains required.
+- [ ] Complete exact-head CI and serial live delivery.
+
+### #526 — edit wealth stages together (2026-10-20)
+
+- [x] Replace the stage selector with an editable stage-by-asset-class table, retaining dated versions, per-row validation, account scope, custom bands, unmanaged targets and the existing audited save path. Phones show one card per stage.
+- [x] Seven new focused component tests pass after independently splitting the draft-status case and removing redundant input updates/queries from the custom-band case; both CI timeouts remain documented and time limits remain unchanged. Canonical WebKit passes eleven tests, including the unchanged financial assertions in the coordinator-adapted existing tests: seven-by-six desktop fit, phone layout, 44px grid controls, keyboard, Axe in both themes, dated save, real Undo and stale-scope conflict. [Actual captures and qualifications](evidence/wealth-stage-table-526/README.md).
+- [x] Required-age single-worker full check passes 569 files / 5,074 tests and the normal production build passes; all 3,574 frozen source files and guard checks remain unchanged. This result precedes the subsequent new-test-only CI correction; its focused tests, Web types, lint and formatting pass. Product and browser-evidence bytes remain unchanged.
+- [x] Exact-head CI and serial live delivery verified at `dcc93c52ae5b7a459c04fc685bb1f05a8968e186`; Main CI, Deploy, fresh health and the complete reviewed Git tree match. Two unchanged older bank-inbox tests passed one unchanged failed-job retry.
+- [ ] Resolve the inherited shared-date keyboard limitation in #731 before closing #526.
+
+### #625 — four fixed Explorer report templates (2026-10-19)
+
+- [x] Add Heatmap Ausgaben, Jahresansicht, Gesamttabelle and Kategorie im Verlauf beside saved views, reusing canonical aggregation, the shared report period/header and per-row heat. Monetary cell drilldown preserves exact classified source shares, booking identity and reloadable selection; existing saved-query/custom CSV behavior remains available.
+- [x] Independently reviewed literal domain/API/UI proofs pass five files / 24 focused tests; affected Web types and changed-test lint/format pass. The sole existing #627 test adaptation is coordinator-authored router setup only, with all four original test bodies and financial/race/CSV oracles unchanged.
+- [x] Actual clean runtime `90da8fa9`, including verified live Main `3427d925`: fresh E2E build passes; genuine WebKit retry passes 12/12 (nine feature plus three setup), both themes at configured phone 390×664 and true desktop 1440×900. All 14 owned / 3,379 tracked / 12 protected source hashes and all 167 reused compiled files remain exact. Initial pre-collection ENOSPC and the separately verified storage repair are preserved; [16 original images and safe profile proof](evidence/explorer-templates-625/README.md) qualify touch, fixed-navigation and full-page capture limits.
+- [x] At clean evidence checkpoint `3c26f42b`, including verified live Main `3427d925`, the required-age two-worker full check passes 534 files / 4,676 tests (Vitest 410.52s), followed by the separate normal production build. Check/build/wrapper/guards exit zero; all 33 owned / 3,397 tracked hashes, 12 protected files, HEAD, file set and clean status remain exact. Product/test bytes and all 16 native PNGs are unchanged from the actual browser source; this result precedes only the README/own-Roadmap result update.
+- [x] Repair the observed canonical Chromium156 mobile NAV hit by moving the same close control/callback into the local source header. Corrected genuine WebKit passes12/12;16 original unforced mouse-close flows/48 trusted inputs clear URL selection and panel, with44px/nav-clear geometry at input. Four separate real-keyboard open-header images and safe proof supplement the immutable original16 table images. Initial5/7 premature NEW-guard result and one-file counter-wrapper1 remain qualified.
+- [x] At reviewed repaired-source freeze63bf6772 (HEAD67212, four modified source files), required-age two-worker full check passes534files/4682tests392.88s and normal production0; all3397/33owned/12protected hashes, permission bits/index and HEAD remain unchanged. Root first preguard wrapper1 ran no application checks; corrected second runner all0. Historical534/4676 above remains separately qualified.
+- [ ] Complete final delivery-delta review, exact-head canonical Chromium CI and coordinator integration/public-live verification. Keep #625 open; legacy-report removal #487 and generic chart switching #626 remain separate.
+
+### #509 — complete public reference-case assurance (2026-10-19)
+
+- [x] Complete the public CASE-001–007 inventory with independent literal cents/raw units across domain, real repositories and API: cash/card carry, full/partial card reserves, signed splits, transfer-scope classification and existing purchase/dividend conventions. The retained eight comparison cases and all existing tests remain unchanged; production formulas and write policy are untouched.
+- [x] Prove actual second-transfer-INSERT rollback after the first leg was reached, both-leg grouped undo with append-only audit identity, linked trade settlement undo/redo, dated pending exclusion and reconciliation locks. Reuse existing missing-debt-term proofs rather than inventing calculations ([public matrix](evidence/reference-adoption/wp-001-public-acceptance-509.md)).
+- [x] Three new suites pass 26 focused cases; all workspace types and lint pass. Actual native WebKit passes 5/5, including three setup cases plus desktop 1440 and phone 390 walkthroughs of drilldown, privacy, invalid-split blocking and grouped undo. Both themes pass strict Axe/overflow; four exact original PNGs and two safe profile proofs are independently reviewed with explicit toast/navigation capture limits.
+- [x] At frozen `aa98c7ae`, based on live Main713 `bf11eebd`, `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check` passes 526 files / 4,607 tests (Vitest 407.16s) and the separate normal production build passes. All 16 owned and all 3,340 tracked hashes, HEAD and clean status stay exact; this result precedes the following documentation-only update.
+- [ ] Final delivery-delta review, exact-head canonical Chromium CI, controlled integration/deployment and public-live verification. Keep #509 open until all public acceptance gates pass; #690 remains open until the combined delivery is live. Private holdings/returns/month-end #355/#356/#357 stay separate and open; no Gate3/Gate4 or owner acceptance is claimed.
+
+### Plan single-category bands — #481 (2026-10-19)
+
+- [x] Owner decision 7A combines single-category groups and multi-category group heads with their first category in the single-month Groups view. Group totals and category figures remain distinct; collapse/focus, selection, inspector and inline + remain available. Existing cent calculations, APIs and write/undo callbacks are unchanged.
+- [x] Current synthetic sample: 55 → 36 logical content rows, 34.55% fewer against the owner-approved 55-row main baseline; all 36 categories and 19 group contexts remain. Actual physical table heights 1746.625px at 1440×900 and 3842.25px at 390×664 are separate, with no physical-height percentage claim.
+- [x] Actual frozen `218679c8`: fresh E2E build and canonical WebKit 15/15 pass, including retained 768/1180/1439 regressions, strict seven-width/two-theme page/role bounds and genuine existing right-edge scrolling/focus. Four current desktop/phone light/dark images and safe proof are [recorded and independently reviewed](evidence/plan-single-category-481/README.md); known fixed-navigation/FAB hit-test limits remain explicit.
+- [x] Final clean normal-main merge `908e090c` includes verified live `bf11eebd`. Required-age two-worker check passes 519 files / 4573 tests, then normal production build passes; all 29 frozen plus 3337 tracked-file hashes, HEAD and clean status remain exact. Own product/test bytes remain exact `218679c8` through the mechanical main refresh; native evidence is qualified to its actual runtime head.
+- [x] All nine existing-test adaptations were applied only by the coordinator under named owner decisions and independently reviewed, retaining financial oracles and original size budgets. Independent Codex whole-diff, geometry-policy, runtime/visual and mechanical-merge reviews are clear under [owner model authorization #694](https://github.com/Grabman1987/budget/issues/694).
+- [ ] Complete exact-head Chromium desktop/mobile CI, affected-caller compatibility and final coordinator delivery review; local source/full evidence is not a remote-CI claim.
+- [ ] Complete serial integration and deployed-revision verification. #481 remains open until every acceptance criterion is live; old queue loops remain disabled.
+
+### #632 — pending and confirmed account-register proof (2026-10-19)
+
+- [x] Audit the existing account register, then add only a dedicated isolated-ledger regression: one pending and one confirmed booking in A, plus a pending B sentinel. Literal balances are 98,199 and 49,110 cents; no product calculation or status rule changes.
+- [x] Prove distinct rows, global-status-filter/account isolation and reload, unchanged raw booking/split/audit data during display, the separate planned #579 occurrence, and explicit existing confirmation/undo with exact amounts and audit linkage.
+- [x] Final actual phone WebKit passes 4/4 including three setup cases, both themes, strict Axe, overflow and 44px targets. Two genuine register viewports and safe actual JSON are independently reviewed; account header remains above the photographed viewport ([evidence](evidence/account-pending-632/README.md)).
+- [x] At frozen `8918df7c`, the age-required two-worker full check passes 514 files / 4,552 tests and the normal production build passes; all 3,307 tracked hashes, HEAD and clean status remain unchanged. This result precedes the following documentation-only update.
+- [ ] Canonical desktop 1440 / Chromium mobile 390 execution, exact-head CI, controlled integration/live verification and remaining issue acceptance gates. Do not close #632 from local phone/unit evidence alone.
+
+### #627 — CSV of the validated current Explorer table (2026-10-19)
+
+- [x] Add a read-only authenticated filtered CSV using the existing validated pivot, raw integer units, supplied footer/truncation metadata, safe text encoding and explicit empty marker. Compare the server recomputation with the displayed result before creating a file; changed data retains the view and offers reload.
+- [x] Literal projection/API/client/DOM checks and unchanged report/export neighbors pass seven files / 55 tests; the later identical-body relative-period fix passes three affected files / 17 tests. Download filenames identify the validated effective window. Existing tests and financial write paths remain unchanged ([evidence](evidence/reference-adoption/wp-009-explorer-csv-627.md)).
+- [x] Corrected actual WebKit composition passes 8/8, including all unchanged #624 cases and the complete CSV race/reload/retry. The initial 7/8 fixture-400 failure remains documented; only its required discriminator was corrected.
+- [x] Final genuine document-top capture passes 5/5, with four actual light/dark desktop/phone PNGs and safe geometry/focus evidence. Skip-link overlay is absent without CSS, hiding or focus mutation; root and independent review clear the new CSV visual scope. No whole-application or physical-device acceptance is implied.
+- [x] Independent HIGH source/security review and effective-window correction passed, including thirty new tests and independent literal/adversarial probes.
+- [x] At the reviewed 17-file candidate based on `74abab0`, the age-required two-worker full check passes 505 files / 4,507 tests and the normal production build passes. All candidate hashes remain unchanged after both commands; the following delivery update changes only these status documents.
+- [ ] Complete final evidence-delta review, exact-head CI and serial live verification. Templates, charts, hub integration and full export remain separate; do not close #627 or its parent from local checks.
+
+### #615 — shared Freiheit / R16 investment basis (2026-10-19)
+
+- [x] Current and historical Freiheit, R16 and Allokation use the same selected Anlagebasis; the page explains retrospective current membership. Existing R16 formulas, source money, locks and undo remain unchanged.
+- [x] Independent HIGH whole-diff review and literal scope-save/undo regressions passed. At candidate `1f8fad2`, the age-required full check passed 487 files / 4,401 tests and the production build passed; actual phone/1440px desktop WebKit passed 5/5 selected tests with both-theme Axe and overflow checks ([evidence](evidence/reference-adoption/wp-010-freedom-universe-615.md)).
+- [ ] Exact-head remote CI, serial integration and live verification remain required. Historical Ist chart (#616), personal goals/assumptions (#617), parent and private acceptance gates remain separate.
+
+### #677 — first-booking register refresh (2026-10-19)
+
+- [x] Cancel pre-write booking reads before scheduling ledger invalidation so a pending initial empty response cannot satisfy the refresh after the first capture.
+- [x] Deterministic register regression covers out-of-order empty/fresh responses, nonblocking save completion and undo; existing nonblocking edit and cache tests remain unchanged and pass.
+- [ ] Exact-head CI, `ledger.spec.ts:217` with `--repeat-each=5`, controlled integration and live verification remain required. Do not close #677 from unit evidence alone.
+
+### WP-001 — CASE-001 reference assurance, first bounded slice (#509, 2026-10-17)
+
+- [x] Inventory existing CASE-001–007 domain/repository tests; document coverage, boundary and missing API proof in `docs/evidence/reference-adoption/wp-001-case-audit-2026-10-17.md`.
+- [x] Add exact-cent domain and DB CASE-001 regressions (11,499-cent available, account balance independent of assignment, 10,000 cents moving from to-be-assigned into the envelope, real October to November rollover).
+- [x] Focused tests run locally: `npx vitest run packages/db/src/repos/ledger-rules.test.ts packages/domain/src/ledger/envelope.test.ts` — 2 files, 23 tests passed (includes the CASE-001 database test with before/after assignment cash and the month-rollover variant); eslint and prettier clean on the changed test file.
+- [ ] Full `npm run check` and PR CI at the exact branch head; no successful run claimed yet.
+- [ ] Add missing API evidence for CASE-001 and split subsequent CASE-002–005 gaps into separately reviewable tasks.
+- [ ] Complete independent review, controlled merge/deploy and private owner acceptance. Do not close #509 from this slice.
+
+### NAV3 — FAB, sidebar footer and detail focus/back paths, #468 part B2 (2026-10-17)
+
+- [x] Phone capture stays on every page, hides down and returns up without animation; existing safe-area/FAB bottom clearance retained. Desktop capture unchanged.
+- [x] One sidebar profile/settings link with adjacent persisted theme toggle and announced dark state; collapsed sidebar retained.
+- [x] Programmatic detail headings have no outline; interactive keyboard targets retain 2 px focus. Each touched detail name and contextual return link appears once; area registers retained.
+- [x] Category, account/depot, contact, goal, envelope, income/payment and Heute dimension details reviewed; no data, API, financial, router-path or write/undo changes.
+- [x] Focused units: 6 files / 12 tests; CSS scale: 0 violations. Browser validation includes 390 px, WebKit, light/dark Axe, return context and bounding-box clearance.
+- [x] Browser regressions: 75 passed / 16 intended skips / 6 failures initially; targeted serial shell/FAB rerun 13 passed / 6 skips / 2 early Chromium focus-style reads. Final updated FAB/focus spec: 9 passed / 3 skips / 0 failures across desktop, Chromium 390 and WebKit, including light/dark Axe. The account return target was raised to 44 px; assertions remain intact.
+- [x] One aggregate `npm run check` stopped on an unsupported `exact` option in the new contact unit. Fixed; separate Web typecheck and full lint passed (one existing UI warning). Complete serial unit suite: 443 files / 4,044 tests passed. E2E and production builds passed. No second aggregate run.
+- [x] Git commit/push/draft PR blocked by `index.lock: Permission denied`; complete checked patch and German PR description handed off in `test-results/nav3.patch` and `test-results/nav3-pr.md` for the project lead.
+- [ ] Fresh aggregate CI check, Linux snapshot refresh, actual draft PR and owner acceptance. No Windows baseline regeneration; `docs/evidence` restored and unchanged.
+
+### NAV2 — header and search orientation, #468 part B1 (2026-10-17)
+
+- [x] Desktop: one Prüfen pill, zero without a badge; existing amount privacy and booking action retained, overspent chip removed.
+- [x] Phone: title/search/avatar, conditional linked status line to review and current-month Plan triage.
+- [x] Search palette/results clear active area and show Suchen on phones; offline queue gets its own neutral status chip.
+- [x] Focused units: 6 files / 75 tests. Full unit run: 439 files / 4,036 tests passed, one contact-suite import error from its old router double; after adapting only the double, the contact and two header files passed 16/16 targeted tests.
+- [x] Browser regressions: 130 passed / 14 existing skips / 2 WebKit timeouts; both affected cases passed a targeted serial rerun (5/5 including setup). All 12 new header cases passed across desktop, Chromium 390 and WebKit; light/dark Axe, 44px targets and overflow passed.
+- [x] One final `npm run check`: all typechecks passed, stopped at CSS formatting before units. Formatting corrected; separate full lint passed (one existing UI warning), CSS scale has 0 violations, E2E and production builds passed. No second aggregate run.
+- [ ] Fresh aggregate CI check and Linux header snapshot refresh; no Windows baseline regeneration.
+- [ ] Draft PR/CI and owner acceptance. Part B2 retains FAB behavior, sidebar footer, focus rings and back paths.
+
+### NAV1 — area registers, #468 part A (2026-10-17)
+
+- [x] Short Plan/Konten registers, Plan › Prognose reusing the liquidity page, Konten › Prüfen and legacy URL redirects preserving search parameters.
+- [x] Internal links/search and minimal sitemap/glossary updates; phone register spacing retains the shared underline and scroll fade.
+- [x] Focused verification: 7 unit files / 85 tests; 12 browser cases including setup across desktop, Chromium 390 and WebKit iPhone; production and E2E builds. No Windows baseline regeneration.
+- [x] One final `npm run check` with one Vitest worker: 438 files / 4,027 tests passed; all workspace typechecks and formatting passed. Existing unused-disable warning in locked `packages/ui` remains.
+- [ ] Linux snapshot refresh in CI where register labels changed.
+- [ ] Draft PR/CI and owner acceptance. Header, FAB, sidebar and focus remain part B; page content remains #477.
+
+### DS3: line, bar, radius and shadow ladders — #474 (2026-10-16)
+
+- [x] Document the line ladder, 4/8/12 radii and one-layer card shadow in DESIGN.md; regenerate tokens.
+- [x] Migrate structural/chart strokes, thin progress/stacked bars and card ghost borders while retaining focus and touch geometry.
+- [x] Restrict plotter motion to the first chart per page on its first session visit, with storage-denial fallback and regression coverage.
+- [x] Extend CSS scale checks for border widths and exact active-register exceptions.
+- [x] Run the full check: typechecks/lint/format pass; 4,010 tests pass initially, one formatter assertion and three setup failures pass in isolated reruns (45 tests). Final UI run: 146 tests pass.
+- [x] Verify the four focused browser files on desktop/mobile/WebKit: 55 pass, three capture failures and one intentional skip; all seven selected serial capture rerun cases pass. Plan geometry, 44px targets, overflow and light/dark Axe pass on all three projects. Windows Linux-baseline comparisons remain skipped by the existing helper.
+- [ ] Green CI and Linux snapshot refresh; Windows baselines remain unchanged.
+
+### DS2: binding type scale — #473 (2026-10-16)
+
+- [x] Record owner decision 2B as T1–T12 in DESIGN.md; generate desktop/phone size and line-height tokens, with a restricted T12 role.
+- [x] Migrate all CSS font sizes (wealth included); enforce declared type tokens in longhand and shorthand while retaining radius checks.
+- [x] Cover literal rejection, valid tokens, T12 selectors, and responsive generation with focused tests.
+- [x] Inspect desktop 1440 / Chromium mobile 390 captures and pass the existing overflow/Axe assertions with the unchanged compiled synthetic seed (standard tsx startup is blocked by os.userInfo).
+- [ ] Green CI on the PR, including the Linux snapshot refresh (never regenerated on Windows).
+
+### K2 — depot account template (#478, owner review 2026-10-16)
+
+- [x] Reuse Portfolio's unsplit account positions and valuation date; literal database fixture proves 2,683 cents, identical units and unavailable missing prices.
+- [x] Separate Depotwert from linked settlement cash; Bestände / Trades / Verrechnung use URL state, the existing trade editor and one shared account money register.
+- [x] Suppress only actual investment trade-settlement category warnings; retain ordinary warnings and existing categories. No write, lock or undo path changes.
+- [x] Desktop 1440 / phone 390 / WebKit iPhone: all 12 isolated browser cases pass, including light/dark Axe, 44px targets and synthetic screenshots. [Evidence](evidence/depot-template/README.md).
+- [x] Eight new regressions and 47 existing investment/account regressions pass; follow-up workspace typechecks, lint/CSS scale and E2E build verified. No Windows baseline regeneration; no depot baseline refresh needed.
+- [x] Round 2: retain shared review actions/dialogs and stored check status; show integrated depot cash and its register without a second Saldo. Chromium review/trades/depot regressions and WebKit depot cases pass; unchanged verdict coverage and Main-path timeout are recorded in the [evidence](evidence/depot-template/README.md#round-2--retained-account-header-behaviour).
+- [ ] Required CI green on PR [#534](https://github.com/Grabman1987/budget/pull/534). Round 1's interrupted full-check history remains in the evidence; the owner explicitly requested focused checks and CI as the gate for round 2.
+- [ ] Commit/push round 2: staging is blocked by `index.lock` permission denied; owner instruction is to leave the verified changes uncommitted.
+
+### Reference adoption: PP returns and accepted follow-ups — 2026-10-15
+
+- [x] Record owner decisions: PP returns as standard, cross-device Explorer views, limited transfer preparation. [Contract](product/reference-adoption.md).
+- [x] Synchronize the WIP branch and all 14 package issues with GitHub/Project 1 under the owner's separate 2026-10-16 request. [Execution index](product/github-backlog.md), [overview #508](https://github.com/Grabman1987/budget/issues/508). Release/private gates remain open.
+- [x] Reproduce timing boundaries before changing the calculation; retain gross opposing flows and include initial buy fees.
+- [x] Separate after-tax cash facts from PP security TTWROR/XIRR flows, including currency rounding; share the method across overview, reports, depot indices and allocation.
+- [x] Explain timing, scope and tax basis in existing disclosure/glossary/report surfaces.
+- [x] Financial regressions, workspace typechecks/lint and independent final review; [evidence](evidence/reference-adoption/README.md) distinguishes the full run from the corrected assertion's targeted verification.
+- [x] Inspect rebuilt desktop/mobile reports and preserve current synthetic captures.
+- [ ] Complete final WebKit glossary/wealth checks within their unchanged time limits; isolated rerun still timed out at screenshot/Axe under observed memory pressure.
+- [ ] Single all-green exact-head full check and required CI before publication.
+- [ ] Private PP reconciliation with identical dates, instruments, accounts, prices, FX and tax scope; Gate 3 remains open.
+- [ ] Implement database-backed Explorer views, including legacy preference migration, conflict handling and undo.
+- [ ] Implement the limited transfer stages with explicit pairing and conservation/rollback proof.
+- [ ] Other [research work packages](product/roadmap/README.md) remain sequenced backlog, not shipped features.
+
+## Open wealth and Figma implementation gaps — owner 2026-10-15
+
+Implementation-ready scope, dependencies, sources and acceptance are in
+[GAP01–08](product/open-gaps.md). Every item remains open; recording the work is not delivery.
+
+- [ ] GAP08 — agree scope/measure/date and authoritative Figma matrix before wealth graph implementation (AC31).
+- [ ] GAP04 — reproduce/diagnose the existing total-net-worth EUR graph's missing visibility; fix only a verified defect (AC29).
+- [ ] GAP01 — compact benchmark selection/comparison, equal-period index and difference inside Vermögen; reconcile V02/V09 (AC26).
+- [ ] GAP02 — actual portfolio-value EUR history, distinct from return/index basis 100 (AC27).
+- [ ] GAP03 — asset-group composition and time development with explicit EUR/percentage denominators and aggregate reconciliation (AC28).
+- [ ] GAP05 — reconcile Plan/settings labels, destinations and financial glossary between Figma/docs/app; preserve deep links (AC30).
+- [ ] GAP06 — complete O01–O08 Figma states and ONB02–06 first-use implementation/evidence (AC24/25/31).
+- [ ] GAP07 — per-frame semantic requirement → design → source → acceptance matrix; record all partial/absent states (AC31).
+
+## Product foundation and first-use planning — 2026-10-15
+
+- [x] Locate original requirements and document source precedence without replacing existing decisions.
+- [x] Inventory current routes/features and distinguish implementation from acceptance.
+- [x] Draft routine contracts and financial first-use onboarding with resume/error/empty-data cases.
+- [x] Consolidate functional subrequirements, actor/state/data contracts, all reports/KPIs/rules and source/Figma/test traceability.
+- [x] Define literal acceptance cases, source/offline/recovery requirements and ordered implementation work packages.
+- [ ] Owner reviews DEC01–04 in the product delivery plan; existing manual categories and explicit account dates remain the baseline.
+- [ ] Design and implement the agreed onboarding; collect empty/populated/interrupted-installation evidence.
+
+Reading entry point: [Product foundation](product/README.md). This is a documentation
+proposal; no new financial onboarding UI or product gate is marked delivered.
+
+### Owner addition: asset allocation by wealth stage (2026-10-15)
+
+- [x] Reuse explicit account/instrument universe; edit eligible accounts and cash classes together with targets in one audited, conflict-checked transaction.
+- [x] Editable lower-bound wealth stages with exact-cent activation and unchanged legacy boundaries; retain one shared resolver.
+- [x] Seven-stage generic template with explicit class mapping and threshold activation with a 10 % hold-down buffer (owner decision 2026-10-16); native Desktop/iPhone Figma extension.
+- [x] Owner decision 2026-10-16 (threshold activation, 10 % hold-down); exact-head CI, merge #507 and live revision `20c24257` verified. See [contract](allocation-wealth-stages.md).
+
+### CI follow-up: consistent E2E observations — #465 / #499 (2026-10-15)
+
+- [x] Read paired report geometry in one browser turn; select exact contact options; split portfolio overview/detail while retaining every assertion and screenshot.
+- [x] Node22 full check434files /3,962tests, zero skips with required age and two workers; current WebKit capture12/12and diagnostic Chromium portfolio7/7. [Evidence](evidence/e2e-layout-2026-10-15.md).
+- [ ] Exact-head required CI, serial main/deployment/live proof.
+
+### Q2: Quiet historical reports and one inbox alert — #465 (2026-10-15)
+
+- [x] Historical negative charts/text use existing ink; debt bars use dashed outlines; shared live-warning defaults, values and geometry remain.
+- [x] Read-only inbox overview aggregate includes full filtered count/deficit before pagination; individual tasks, counts, privacy and Plan triage remain.
+- [x] Focused regressions and synthetic desktop/mobile/WebKit light/dark evidence: [Q2 evidence](evidence/q2/README.md).
+- [x] Apply and pin the five owner-requested skill sources through scoped project profiles: [adoption evidence](evidence/skill-adoption-2026-10-15.md).
+- [x] Final integration with payroll main: Node 22 full check, 434 files / 3,962 tests, zero skips; rebuilt current WebKit integration 7/7.
+- [ ] Exact-head required CI, serial merge and main CI/deployment/live proof.
+
+### Wealth composition and portfolio detail — #499 (2026-10-15)
+
+- [x] Align signed asset/debt account bars on one proportional zero axis.
+- [x] Add the Portfolio overview's daily base-100 index using shared flow-adjusted daily returns; keep unavailable returns as gaps, preserve date spacing and explain stored valuations/carried quotes.
+- [x] Keep SVG axis labels legible at responsive widths and place portfolio actions below the chart. Existing monthly report index, benchmarks, class series and financial formulas remain unchanged.
+- [x] Synthetic financial/model/API tests, desktop/mobile/WebKit chart and composition coverage, responsive rendered-text assertions, Axe checks and fresh evidence: [wealth #499 evidence](evidence/wealth-performance-499/README.md).
+- [x] Final combined Node 22 full check: 434 files / 3,962 tests, zero skips; rebuilt current WebKit integration 7/7 including wealth coverage.
+- [ ] Required CI, serial deployment/live proof and private owner financial reconciliation. This slice does not close Gate 3 or the broader K3 acceptance.
+
+### Direct payroll review, date and sender — #499 (2026-10-15)
+
+- [x] Implement direct wide upload review, payout date/sender/eligible expectation, and inline unknown wage-code mapping with existing formulas.
+- [x] Backend focused regressions: 49 tests; atomic mapping and payout/expectation undo; existing booking metadata retained.
+- [x] Final integrated Node 22 full check: 434 files / 3,955 tests, zero skips; original three-project browser matrix 12/12 plus integrated current WebKit 6/6. [Evidence](evidence/payslip-flow/README.md).
+- [ ] Exact-head required CI, serial merge, main CI, automatic deployment and live revision proof.
+- [ ] Original Windows Chrome pre-native-picker hang remains unproven; drag/drop is a separately tested alternative.
+
+### Contact history and monthly payments — #499 (2026-10-15)
+
+- [x] Balance/name share the contact detail; recorded full repayment defines retained, collapsible history.
+- [x] Itemize current-month payments, recorded allocations and credit; keep older open outlays visible and preserve same-day order. No financial writes or historical edits.
+- [x] Full cloud check: 433 files / 3,936 tests; desktop/mobile Chromium and WebKit iPhone flows, light/dark Axe and synthetic screenshots. [Evidence](evidence/contact-history/README.md).
+- [x] PR #502 final-head checks passed; main CI 38725948953 and automatic Deploy 38728003764 succeeded. Public health returned exact merge `501f2e8f0dec06c4bfd1d5a8faeed87256b04593`; tested-head ancestry verified. [Live proof](https://github.com/Grabman1987/budget/pull/502#issuecomment-6191133572).
+
+### Account properties — #499 (2026-10-15)
+
+- [x] Expose existing separate settlement cash on depot/crypto create/edit; integrated cash leaves the link empty, salary selection stays in Datenquellen and cash uses its existing account type.
+- [x] Validate new references and incompatible linked-account type/currency changes; preserve historical metadata, credit-card fields and audited undo.
+- [x] Focused API/UI and desktop/mobile/WebKit form flows, light/dark Axe and synthetic screenshots. [Evidence](evidence/account-properties/README.md).
+- [x] Full integrated Node 22 check with required age: 433 files, 3930 passed, no skips; combined browser regressions and repeated asynchronous-undo completion check.
+- [x] PR #500 final-head checks, main CI 38723344839 and automatic Deploy 38725377048 passed; exact live revision `5cf4f5f145e4bb210ae7fcf089dc3f60a88493fa` and ancestry verified. [Live proof](https://github.com/Grabman1987/budget/pull/500#issuecomment-6190736401).
+- [ ] Broader K2/K3 and cash import/transfer acceptance remain separate.
+
+### Payslip upload and payout review — #499 (2026-10-15)
+
+- [x] Preserve native chooser and accept one bounded PDF drop through existing analysis.
+- [x] Select payout account, reuse matching booking or confirm a pending payout (cash confirmed); exact salary/refund split and atomic undo.
+- [x] Nine synthetic chooser, drop, existing-match and payout/undo flows across Chromium desktop/mobile and WebKit iPhone; light/dark Axe and overflow checks. [Fresh cloud evidence](evidence/payslip-payout/README.md).
+- [x] Full integrated cloud check with required age: 433 files, 3930 passed, no skips; typecheck/lint/format and E2E build passed. All nine payout browser scenarios passed again.
+- [x] Delivered with account properties in PR #500; exact main/deploy/live proof above.
+- [ ] Owner retest of the original pre-file-chooser Chrome hang; not reproduced in an isolated profile.
+
+### Booking line model — #463 (2026-10-14)
+
+Owner follow-up #499: new cash capture is confirmed automatically; bank capture remains pending with manual confirmation. The coherent cash change shares this delivery under the owner-approved 15.10. batching rule.
+
+- [x] Pure percentage/fixed contact-share allocation using existing largest-remainder integer cents; draft lines map to the existing split create/patch payloads with saved metadata/order retained.
+- [x] Visible head before lines on all viewports, direct date/calendar and 2:1 repetition, one suggestion rail, inline contacts/shares and exact rest/save guard.
+- [x] Fresh web typecheck, E2E build and 73 affected unit tests in six files. No financial write, undo or lock boundaries changed.
+- [x] 30 dialog browser/setup cases across desktop, Chromium mobile and WebKit iPhone, including five exact split/edit scenarios, keyboard/dirty guards, light/dark Axe, 44px targets and actual viewport bounds; 30 refreshed synthetic screenshots. [Evidence](evidence/booking-lines/README.md).
+- [x] Broader capture/register regression run: 53 passed; two adapted save-guard/footer cases passed in a separate five-case desktop/mobile/setup run. Changed-file lint/format and CSS scale passed.
+- [x] Final-head CI and Linux snapshot workflow passed without baseline changes; main CI 38711473445 and automatic Deploy 38713559449 succeeded. Public health returned exact merge `514ed362ea7cbb422c60667003a5296e76904084`; tested-head ancestry verified. #463 closed after this evidence.
+- [ ] Physical-iPhone owner acceptance remains separate.
+
+## UX DS1 — signed-value palette and colour roles (#472)
+
+- [x] Exact owner teal/orange inks in generated light, system-dark, explicit themes and print; legacy signed-ink aliases retained.
+- [x] Signed CSS amounts/series use dedicated roles; available-money/OK green and act-now red stay distinct. No layout or money logic changes.
+- [x] Signed text reaches 4.5:1 on the five normal surfaces; role model and later single-hue heatmap/direct-label requirements documented in DESIGN.md.
+- [x] Colour-vision guard: Machado severity 1.0, CIE Delta E 1976 ≥ 25 between plus and minus (dark protanopia 29.12 is the minimum; retired red/green 7–18). Spending views map "less spent" to plus.
+- [ ] Green full check, browser acceptance and Linux CI snapshot refresh; no Windows baseline regeneration.
+
+## UX Q1 — control and metadata contrast (#464)
+
+- [x] Generated boundaries, secondary lines and positive dark fills meet 3:1; text and positive-button foregrounds meet 4.5:1, including print.
+- [x] Tinted hover/selection metadata uses stronger ink; the full DS1 palette remains separate.
+- [x] Focused desktop/mobile/WebKit, light/dark Axe and synthetic evidence verified.
+- [x] Required PR CI and live revision verified: PR #496, main CI 38702486658, Deploy 38704422686, exact health/ancestor `684495d3`.
+
+### UX Q3 — Today attention — #466 (2026-10-14)
+
+- [x] One nonempty Zu tun block with at most four source summaries, urgent sources first, existing account review and month-close destinations, and no duplicate savings proposal list.
+- [x] One nonempty Fällig 14 Tage list for recurring payments and planned one-off events; compact Finanz-Check tile and hidden empty funding notes.
+- [x] Decision 3B retained; short other-month return line and explicit Stand heute labels for current-only information.
+- [x] Synthetic red/green component regressions (4 files / 16 tests), changed-file lint/format/CSS scale and E2E build under the owner's scoped-check exception. [Evidence](evidence/heute-attention-q3/README.md).
+- [x] Six focused desktop/Chromium-mobile/WebKit-iPhone scenarios, current/other-month light/dark Axe, 44px changed-section targets, no horizontal page overflow and synthetic evidence images.
+- [x] Committed and pushed PR #494; fresh web typecheck, changed-file checks and prior required CI passed.
+- [ ] Required final-head CI after current-main integration, Linux visual baseline review, deployed revision and physical desktop/phone owner acceptance.
+
+### Z1 — Plan month grid in Zerosum arrangement — #448 (2026-10-13)
+
+- [x] Spaced rounded group bands, group/overall checkboxes (including mixed selection), header creation shortcuts and retained C/G forms, alternative views and multiple months.
+- [x] Cent-exact spending status with underfunded-target suffix; hatched spent/solid remaining green bars, red overspending and retained available pills. Class remains in the inspector.
+- [x] One scrolling sticky phone chip line; compact name/available, status/assigned and bar rows, 44px label/name/pill targets, existing inspector edits and same-line cover/suggestion actions.
+- [x] Fresh web typecheck, changed-file lint/format/CSS scale, 19 unit tests and 28 affected E2E/setup cases. Final compact-grid rerun: 6 desktop/Chromium-phone/WebKit cases with light/dark Axe, actual viewport-width guard and both touch dimensions at least 44px. Global checkbox/select correction integrated and six synthetic images refreshed. [Evidence and PR body](evidence/plan-zerosum-grid/PR.md).
+- [ ] Required final-head CI, Linux snapshot review, deployed revision and owner device acceptance. No local Linux baseline generation; Z2/Z3 and phone action layout remain separate packages.
+
+### UX S1 — search overlay palette — #484 (2026-10-14)
+
+- [x] Context-preserving native search dialog, phone full-screen sheet, actions first, grouped results and validated session recents without the empty catalog dump.
+- [x] Reuse existing navigation/actions and keyboard selection; Escape/focus return, all-results query/source links and reload-safe type filtering on `/suche`.
+- [ ] Reverify inherited component regressions and browser evidence on current main before delivery; [WIP notes](evidence/search-overlay/PR.md).
+- [ ] Required CI, Linux visual review and physical desktop/iPhone owner acceptance.
+
+### Account register: upcoming captures and next recurrence — #453 (2026-10-13)
+
+- [x] Remembered `Kommend · N` section in account and All Bookings registers, collapsed on phones; all future captures and only the next unbooked schedule occurrence, ascending date hints and distinct calendar/repeat icons.
+- [x] Today balance divider, native cent projections and historical balances excluding future captures; editable future captures and date rollover without automatic booking.
+- [x] Payment-detail links and explicit atomic book/link and existing skip actions with undo/redo; read-only deduplication shared with account preview, rollback/duplicate guards and synthetic financial tests.
+- [x] Focused type/lint/format/CSS/unit checks and desktop/390px browser evidence for weekly dialog repetition, 201 far-future captures, exact balances, actions/undo, expansion persistence, light/dark Axe and touch/overflow/text width. [Evidence](evidence/register-upcoming/README.md).
+- [ ] Required CI and physical desktop/phone owner acceptance; existing schedule materialization horizon and explicit FX capture remain unchanged.
+
+### Z4 — sidebar accounts in Zerosum arrangement — #451 (2026-10-13)
+
+- [x] Navigation icons without 01–05; KONTEN create/account-settings actions using the existing form and route, including an empty ledger.
+- [x] Uppercase account groups with chevron, icon and total, without subtitles; typed rows, right-aligned balances, red negatives and shared active navigation treatment. Existing light/dark tokens and footer retained.
+- [x] Existing grouping, closed-account filtering, drag/keyboard ordering, audit/undo and remembered group/sidebar collapse retained.
+- [x] Focused web typecheck, changed-file lint/format, 15 affected unit tests, desktop 9 passing browser/setup cases and mobile 7 passing/1 desktop-only skip. Synthetic desktop 1440/collapsed/mobile 390, light/dark Axe and screenshots: [delivery notes](evidence/sidebar-accounts-zerosum/PR.md).
+- [ ] Required CI, Linux visual baseline review and owner acceptance.
+
+### Plan #446 — month and category inspector — owner 2026-10-12
+
+- [x] Sticky 320px right inspector from 1180px; collapsible below the grid at smaller widths. Move temporary Monatsdetails into five keyboard disclosures, only Monatsüberblick open by default.
+- [x] Category-name selection, Escape/outside dismissal, target progress, existing assign/move/cover forms, expected-payment context, history URL and category lifecycle menu.
+- [x] Single/multiple selection quick values reuse the existing ordered server action and grouped undo; other Plan registers retain their existing styling.
+- [x] Focused web typecheck/lint/format/CSS scale, 48 unit tests and 23 desktop/mobile E2E cases; synthetic 1440px/390px light/dark evidence. See [delivery notes](evidence/plan-inspector/PR.md).
+- [ ] Required CI, pinned Linux visual review and owner acceptance; phone action layout remains package 3.
 
 ### Plan #441 — compact grouped grid — owner 2026-10-12
 
@@ -7,7 +342,7 @@
 - [x] Visible + Gruppe at the grid head/end and + Kategorie in each open group; C/G reuse the existing forms outside editable fields.
 - [x] Desktop 1440 × 900 fold (14 category rows, 120 px before the grid), mobile 390 touch/overflow and light/dark Axe evidence, focused typecheck/lint/format/unit/E2E verification. See [delivery evidence](evidence/plan-compact-grid/README.md).
 - [ ] Required CI and owner acceptance.
-- [ ] Package 2 inspector and package 3 phone action-only expansion remain separate.
+- [x] Package 2 inspector implemented in #446; package 3 phone action-only expansion remains separate.
 
 ### Booking dialog layout and input stability — #438 (2026-10-12)
 
@@ -39,7 +374,6 @@
 - [x] Focused type/lint/format/unit checks and all five changed desktop/mobile scenarios. [Evidence](evidence/bank-inbox-bulk/README.md).
 - [ ] Commit/push/PR (Git index lock permission denied), required CI and owner phone acceptance.
 
-
 ### Reports package P - history, cell links and full-width summaries (2026-10-09)
 
 - [x] #335/#336: payslip history/details subpage and existing capture/edit/upload form dialogs, with month context and audited-write reuse.
@@ -57,7 +391,6 @@
 - [x] Dev-only `/dev/details`; remove the example panel entry and use detail routes plus input dialogs in the gallery/harness.
 - [x] Synthetic component regressions, including preventing detail IDs from becoming capture account IDs; scoped verification is recorded in [package evidence](evidence/contacts-search-dev/README.md).
 - [ ] Required CI, Linux visual baseline review, integration after #406 and owner/device acceptance.
-
 
 ### P2 #316 / #317 / #328 / #329 / #341 — Today and Expected detail pages — 2026-10-09
 
@@ -335,7 +668,6 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Pinned Linux rule-book visual review; approved differences and all four image hashes are recorded in current evidence.
 - [ ] Required final-head CI and owner acceptance.
 
-
 ### Heute three answer cards — owner 05.10.2026
 
 - [x] Three current answer cards reuse Vermögen, Gesamtübersicht, One-Pager, Leitmaß and Pace sources; nearest unfinished Sparziel reuses saved/missing cents and date ordering.
@@ -380,7 +712,6 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Plan panels #323–#327: category detail and shared goal history routes, category/group/goal/event FormDialogs, preserved month/source/hidden-category context and existing audit/undo writes ([evidence](evidence/plan-panels-1009/README.md)).
 - [ ] Linux snapshot-baseline review, exact-head PR CI and remaining inventory; owner desktop/phone acceptance, physical iPhone Safari, private financial Gate 4 and live acceptance remain separate open gates.
 
-
 ### UX-3b — Shared touch controls (owner feedback 2026-10-05)
 
 - [x] Shared 44 × 44 px control floor for coarse pointers and phone widths, including separate booking-row selection/flag areas.
@@ -388,8 +719,6 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] Synthetic unit and bounding-box/hit-test phone regressions; [scope and baseline list](ux-tap-targets-1005.md).
 - [x] Final local check phases (336 files / 3,175 tests), production build and affected Chromium/WebKit browser checks; [verification evidence](ux-tap-targets-1005.md).
 - [ ] Pinned Linux screenshot review and owner phone acceptance (see delivery evidence).
-
-
 
 ### Heute daily budget — owner 05.10.2026
 
@@ -431,6 +760,7 @@ Older CI/publication checkboxes below describe their original deliveries. Curren
 - [x] User-invoked PR shipping/operator skills and read-only migration/money reviewers; see [Claude Code setup](claude-code.md).
 - [x] Windows full check (291 files, 2,808 tests) and build; local run used two workers and a 30-second test timeout without changing repository defaults. Delivery uses a separate git directory/bundle because the worktree commit could not create index.lock.
 - [x] Linux/Windows CI; owner acceptance in the next Claude session.
+- [ ] #649: reuse the pinned local Prettier API without npm/CLI startup; deterministic startup-failure, config, ignore and privacy regressions added. Exact-head Windows CI and independent hook review remain required.
 
 ### Owner directive PR3 — Allocation quality and scope (2026-10-04)
 
@@ -638,7 +968,6 @@ Process from P1f on: one branch per task, PRs ≤ ~1.500 changed lines, tick onl
 - [x] Reports catalog as in the prototype: Stand and Datenbasis, one table with quiet assembly rows, chart form in technical caps, Steuerung with print mark, row chevron, whole row clickable; stacked rows on the phone
 - [x] Motion as in the prototype: solid chart lines plot in 900 ms (optional 260/520 ms stagger), annotations fade in (500 ms after 380 ms); the Maßkette plots only its result line
 - [x] ElevationMark shelf under the label; Sankey want/future nodes hatched with outline
-
 
 ### Plan year follow-up — read-only overview (2026-10-02, PR #133)
 - [x] Connect Plan › Jahr to all twelve existing budget-month reads; category and group detail, signed assigned/activity annual sums and December available balance (never sum rollover balances).
@@ -874,10 +1203,11 @@ Price history (yfinance + Ariva, source per price), ECB rates, trades and holdin
 - [ ] Required CI and owner visual acceptance; pre-existing loan-dialog trigger-focus restoration remains a separate gap.
 
 ### P5.8 — Freiheitszahl: forecast from today
+- [x] #615: current #507 Anlagebasis shared by Freiheit and R16, applied to dated history with the visible current-selection note; literal scope-save/undo, missing valuation and read-only preview regressions ([evidence](evidence/reference-adoption/wp-010-freedom-universe-615.md)).
+- [ ] #615 required CI/live acceptance; historical Ist chart (#616) and persisted personal goal/assumptions (#617) remain separate.
 - [x] Connected current R16 expense/investment sources and configurable multiple; explicit unknown quote/FX and short-history annualisation, original lead/chain/quarter progress and source navigation.
 - [x] Explicit unsaved saving assumption and 5 % real-return default; shared monthly projection with +100 EUR comparison, bounded numeric errors, desktop/mobile light/dark and accessible values.
 - [ ] Historical Soll-Pfad, chosen goal year and persisted assumptions await separate owner decisions; the complete freedom workflow and private acceptance remain open.
-
 
 ## P6 Reports und Umstellung
 
@@ -1051,7 +1381,6 @@ Contract and baseline matrix: [asset-class settings](asset-classes-settings.md).
 Owner feedback 2026-10-04: spending/cost reports 1.4/1.10/2.3–2.6/3.4–3.5 and early Heute pace implemented on `codex/spending-reports-1004`; source-model limitations and evidence are recorded in [spending report feedback](spending-report-feedback.md).
 - [x] Owner booking UX 2026-10-04: inline date/amount, status/flags, cash default, Wiederholen/weekly schedules, no capture Budgetmonat, ranged account forecast and 0–365-day display setting; CI/owner visual acceptance pending.
 
-
 ### PR #190 money review — 2026-10-05
 
 - [x] Reuse 1.6/1.8 monthly spending and Zukunft set-aside for 1.10; disclose uncategorised spending and assert the exact Netto/Übrig identity.
@@ -1130,3 +1459,451 @@ Method, limits and owner steps: [inflation basket](inflation-basket.md#cpi-sub-i
 - [x] Bind sidebar and settings profile labels to the current server session method; preserve recovery/step-up restrictions.
 - [x] Separate account-specific source/observation state, stored owner check and technical retrieval dates; missing metadata stays explicit. No connection or sync action.
 - [ ] Required CI/PR integration after #405, Linux visual baseline review and physical-device/cloud owner acceptance. Targeted verification and task-scoped auth review: [evidence](evidence/auth-account-1009/README.md).
+
+### UX V1 — Vermögen, #480 (2026-10-14)
+
+- [x] Compact portfolio performance, chart-local period controls, total debt/history, collapsed scenarios, historical freedom default and savings execution/purchase details.
+- [x] Fresh web typecheck, changed-file ESLint/Prettier/CSS scale, 21 targeted unit tests and E2E build after integration. Existing calculation tests and write/undo assertions remain.
+- [x] Final 14-case desktop/Chromium-phone/WebKit run: all five pages, light/dark Axe and chart-label roles, 44px controls, actual viewport-width guards, debt models and audited actions. Synthetic desktop/phone images and the wider 53-pass regression run are recorded in [delivery evidence](evidence/ux-v1-vermoegen/README.md).
+- [ ] Required final-head CI, Linux baseline review, deployed revision and owner physical-device acceptance.
+### P525-A — Portfolio value/return chart, part 1 (#525)
+
+- [x] One value/TTWROR chart and shared period control; securities-only daily cents and gross flow markers, selected benchmarks only, and a link to the existing empty selection setting.
+- [x] Align benchmark comparison to valued portfolio months; literal unfunded-January, March-funding and 100 + 100 → 220 / +10% regressions.
+- [x] Remove Modified Dietz from report figures and glossary; retain the still-used domain approximation and its tests.
+- [x] Read issue #525 and all four comments through the connected GitHub app after the CLI returned HTTP 401.
+- [x] Final three-browser Portfolio spec: 9 feature cases plus 3 setup cases, including light/dark Axe, privacy, exact hover and no horizontal scroll. [Evidence](evidence/portfolio-chart/README.md).
+- [x] Full local check: 436 files / 4,006 tests passed, no failures or skips; final Portfolio browser spec 12/12 and E2E build passed.
+- [x] Round-1 delivery committed by the project lead; main merged into the branch, existing [PR #536](https://github.com/Grabman1987/budget/pull/536).
+- [x] Round-2 money review: benchmark boundaries follow daily funded stretches (including within-month gaps), resume from the last daily level, preserve missing bases and classify signed opening transfers consistently. Added gross-flow/start-boundary and actual depot-cash/selected-benchmark regressions. [Evidence](evidence/portfolio-chart/README.md).
+- [ ] Round-2 publication: `git add` blocked by `index.lock: Permission denied`; changes left uncommitted without a workaround.
+- [ ] Required PR CI and the remaining #525 packages; private PP reconciliation remains Gate 3.
+
+### #616 — actual Anlagebasis history (2026-10-19)
+
+- [x] Reuse #615's current selected universe retrospectively for exact calendar month ends since October2023, with explicit pre-ledger coverage and missing valuation gaps; preserve the shared current resolver and financial formulas.
+- [x] Display contiguous actual segments and the unchanged separate forecast, exact dates/values, keyboard/touch inspection, privacy and the existing forecast-table switch.
+- [x] Independent financial/source and coordinator-owned #618 test-delta review; all nine canonical WebKit cases, 390/1440 light/dark and strict native touch evidence passed. Age-required full check passed 491 files / 4,415 tests; production build passed with all twenty frozen hashes unchanged. [Evidence](evidence/reference-adoption/wp-011-freedom-history-616.md).
+- [ ] Exact-head Chromium/Windows CI, #615 parent integration and serial deployment/live revision. No issue closure or live acceptance from local evidence.
+
+
+## Personal freedom goal (#617) — local validation, 2026-10-19
+
+- [x] Private versioned goal-year setting, complete-DOB calendar-year age conversion, audit-head goal/DOB CAS before no-op, atomic undo/redo and ABA/rollback protection; malformed/future values remain unavailable without overwriting their bytes.
+- [x] Persist year/age, reload and clear with grouped undo; preserve dirty drafts through background refresh/conflicts and fence pending reload mode changes. Reuse unchanged January/minimum-cent formulas, canonical selected investment basis and local unsaved return assumption; no raw DOB output or invented forecast/history samples.
+- [x] Display the current required monthly saving and January deadline with existing amount privacy, actual light/dark WebKit 390/explicit1440 layout, strict paint proof, Axe, 44-pixel controls and no horizontal overflow. Five current native cases passed; four unchanged #618 cases passed separately on identical production bytes. Phone full-page fixed-navigation capture and Chromium coverage limits remain documented.
+- [x] Independent whole financial/migration/security and runtime/image reviews; focused types/lint and five new unit files (21 tests) passed before mechanical main refreshes. Required age-enabled full check at `4ffca1a9`: 519 test files / 4573 tests passed, followed by normal production build exit 0; all 24 owned files, 12 protected files, HEAD and status unchanged.
+- [ ] Final documentation-delta review, exact-head required CI including Chromium/Windows, serial integration and exact deployed health/live acceptance. No #617 completion or parent #528 acceptance is claimed before those gates.
+
+Evidence: [personal goal validation](evidence/reference-adoption/wp-personal-goal-617.md).
+
+
+## #578 — Account review deadlines and one Heute source
+
+Owner decision: [#467, 16 October](https://github.com/Grabman1987/budget/issues/467#issuecomment-6209941680); task [#578](https://github.com/Grabman1987/budget/issues/578). Budget accounts and credit cards use an inclusive fourteen-day deadline; loans and supported Investments use a clamped calendar month. Quiet actually checked accounts stay checked. A shared batched read-only model drives overview due badges, reminder details and Heute's one account source/count; real audit chronology covers same-day/backdated creation/restoration and preserves original check undo/redo boundaries. Legacy unsupported receivable hints/settings remain; no money, booking/check/lock, schema or undo writer changes. General account-list layout and #566 inbox grouping are outside this change.
+
+Local evidence: pre-merge Node 22 typecheck/lint exit 0 and six focused files **74/74 PASS** (17.27s); fresh E2E build exit 0 at `b6a03490`, followed by canonical real WebKit **5/5 PASS** (two new scenarios + three setup, 71.090s), both themes at actual 390 × 664 and a separate true 1440 × 900 desktop layout context. Independent whole financial/source, Root-owned four-existing-test delta, mechanical Main inheritance and actual eight-image/runtime reviews are clear. Runtime reports observed phone `maxTouchPoints: 0`; no native-touch or unobscured-hit guarantee. Fixed-nav/FAB full-page photo occlusion is explicitly qualified. See [evidence](evidence/account-review-578.md).
+
+**Required aggregate completed:** at frozen `2342ffc7`, Node 22.23.3 / age 1.2.1, `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check` passed **530 test files / 4,656 tests** (387.00s), followed by normal `npm run build` exit 0. All 32 owned / 3,370 tracked / 14 protected files, the four Root-owned existing tests, HEAD and clean status stayed exact; wrapper, postguard and lock-release checks exited 0. Existing lint/JSDOM/chunk-size warnings remain documented. Final changes are results-only in this block and the evidence document; all thirty other owned blobs remain exact.
+
+**Pending:** exact-head Chromium desktop/mobile CI (including the two old E2E specs not selected by WebKit), reviewed PR, serial integration and exact live revision. No completion of #467/#566 or deployed #578 behavior is claimed.
+## #606 — Recorded payment history and future read projection
+
+- [x] Reproduce the synthetic stale-detail false-empty path before product edits, distinguishing explicit refresh and the separate end-day28 boundary; historical production cause remains unverified.
+- [x] Preserve signed recorded-history/currency provenance, default3 future projection, sparse/unknown data, existing calendar/version rules and unchanged GET/write/ledger/undo policy. Independent whole financial and Root-owned old-test review remain clear.
+- [x] Preserve historical focused31 results, original native6/6 and failed first aggregate; Root-only router-mock correction retained all original bodies/oracles. Historical required ce54 recheck533files/4687tests385.88s and normal production build0 precede the later scoped CSS correction and do not claim current repaired full readiness.
+- [x] Preserve canonical f659 visual evidence: only mobile panel baseline differed20,661pixels/7%,1failed/17pre-existing skips/119passed. Targeted snapshot workflow39345877984 reported actual15passed, but its single bot5ec baseline was visually rejected for a real phone wrapped-date defect. No approval follows from workflow success or `|| true`.
+- [x] NEW real-API EUR-occurrence/backdatedUSD regression proves phone date4fragments/27.83px under old CSS. A separate NEW desktop oracle incorrectly sampled hidden0×0obstacles; corrected without removing visible navigation/text/control bounds. Exactly one scoped minmax two-column declaration fixes layout, without financial/oldtest/config changes.
+- [x] Actual repaired source448e: freshE2Ebuild0 and whole canonical WebKit8/8PASS59.5s(original3+NEW2+setup3), strictAxe0/44px/rawfinance/undo/containment; all3381/20/22/head/status/index/octal+full-lstat modes and169compiled files exact. Four NEW actual legacy images plus additive safe proof retain four original PNGs/runtime immutable. Newphone390×844 and original390×664 remain distinct; sampledpositiveFABrectangle is not confirmed visibleFAB/hittest, desktopstickyheading framing limit remains.
+- [ ] Corrected baseline actual-image approval and required final exact-head aggregate CI with every configured static/Linux/Windows unit/visual/browser/restore check, final PR and serial exact live revision. Local full533/4687 and normal production build0 remain historical; scoped CSS/lint/format and whole native8 cover the CSS-only local follow-up, without a new local full claim or any CI waiver. #606 and parent #482 remain unaccepted until their own gates pass.
+
+Evidence: [payment detail history](evidence/payment-history-606.md).
+
+## #590 — checkbox-free phone selection (current local proof; delivery pending)
+
+- [x] Phone checkbox-free category/group/all selection, explicit keyboard/menu entry, real hold and readonly exit remain distinct from ordinary inspection, collapse/add and unchanged financial callbacks.
+- [x] Historical26/26 component tests passed9.48s with affected types/lint/CSS/format/discovery0; compatibility-click shielding and deliberate fresh gestures remain protected.
+- [x] Root committed source5 at9cb82f44 and inherited verified LIVE Main9c509fae at167983. Root-only existing phone-UI adapters now preserve every logical category/membership, cent/source/undo oracle and original geometry limits.
+- [x] Current working freeze312a: clean85302 fresh REGULAR production build0, then canonical20/20PASS3.6m (NEW590four + existing481ten/588two/Compactone + setupthree); all18/3427/source modes/index/head and158freshcompiled bytes/modes exact, native/wrapper/guard/lock0. Original Compact public-scroll/sticky-toolbar assertion passes with phone/Plan-only actualroot scroll-padding64+56; ineffective targetmargin removed, no added stickybar.
+- [x] Literal4000/6000 assignment, actual undo0/0/TBA10000, existing cent/refusal/cover/keyboard flows and trusted703ms original-button/capture/touch identity, explicit cancel/move plus final noPOST/budget/accounts all reached/PASS. Native accepted compatibilityclick, automaticOS-pan and physical-phone proof are not claimed.
+- [x] Six actual current unedited images: NEWphone390×664/390×844 and EXISTING481 manual1440×900/noMobile/noTouch, both themes; source-specific profile/DPR/framing limits retained. Geometry boxes5/4 per measured band/parent are not logical category counts; phone inclusive70/72.78125/149.78125 within unchanged76/76/152.
+- [x] Historical40944seven-case proof/build39305reuse,84121two failures,6621targetmargin failure and isolatedprotocol controls remain qualified. First71913log20PASS was interrupted by environment restart without wrapper/postguards; current85302 is the completed independent clean rerun. Generatedlegacy481PNG preserved outside then exact originalHEADbytes/mode restored, not a baseline approval.
+- [x] Required `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check` at clean46767a26:538 files/4739 tests passed408.20s; normal production build0; all3429 source/full-mode/index/HEAD/process/wrapper/lock guards0. Only this evidence note and the matching README were added afterward; all product/tests/images/runtimeJSON remain byte-exact.
+- [ ] Exact-head canonical Chromium/remainingCI including protectedghost/inspector projects, serial integration and verified live revision. #590 remains open.
+
+Evidence: [phone selection590](evidence/phone-selection-590/README.md).
+
+
+## #511 — valuation quality and local provenance (candidate; delivery pending)
+
+The reviewed candidate (Main9c) preserves nullable EUR totals/native cash and existing valuation/FX/fallback policies while adding source/date/quality facts from the same memoized computation, local accessible≈ disclosures on Heute/Konten (including the TOP KPI with preserved phone right-column layout) and one current quote-work row. Exact integer safe operands/final ranges and individually rejected lossy PP quotes retain the approved scales/sign/rounding semantics. Root alone adapted four existing test files (PPmodel, two UI flows and the strict additiveHeute response-key oracle) under explicit owner decisions; the aggregate follow-up did not alter them.
+
+Local history remains qualified: initial financial RED23/8PASS15assertFAIL, reviewed coreGREEN23/neighbors88 and additive116 at their earlier checkpoints, manual-branch14+unchangedhint5, affected types/lint/CSS/format, and historical genuine WebKit77855 at clean667/Main9c: fresh E2E build0/whole5PASS49.094328s/setup3+OWN2, manual quote34000→36000→undo34000/count3→2→3/privacy and eight original phone390×664/true desktop1440×900 light/dark captures. All168 compiled bytes/modes and source/process guards stayed exact; actual actions are click/focus/keyboard, not observed physical touch. Fixed-nav/FAB full-page images do not prove unobstructed hit targets.
+
+The first requiredAGE full failed543files/4770tests (3failed/540passed suites;3failed/4767passed tests;401.77s); normalproductionbuildNOTRUN. Reviewed typed boundaries and Root's one exactHeute-key adaptation restored existing portfolio422/debt-safe-native200-null without weakening strict unsafe-native rejection. Focused130 and separate repeated6API cases are not136unique. The subsequent requiredAGE1/two-worker baseline at clean5973 actually passed543files/4777tests414.64s, followed by normalproductionbuild0 and all38/3435/18/full-mode/index/HEAD/process/lock guards0.
+
+Final whole financial review then found a material inherited Number-sum gap. NEW literal DB/API tests first produced actual55cases/38PASS17FAIL5.54s on unchanged production (all23 prior cases passed): real account/holdings/cash cancellation1vs2 and missing final-range rejection. Bounded exact BigInt final-field accumulation now preserves cancellation, missing masks, cash-only−0/seeded+0 and private debt sign/200-null semantics. NEW private-mode/helper controls plus original invest24/debts9 passed in actual five files/116cases9.74s; affected four workspace types/lint6/format6 and allsource/mode/index/lock guards0. No old test changed; raw RED and unreached assertions remain qualified.
+
+**Required final local checks passed:** at clean5565f653, AGE1/two-worker full543files/4820tests395.46s and normal production build0; all3435/38/protected18/full-mode/index/HEAD/source/process/wrapper/lock guards0. Only this own Roadmap note and matching evidence Markdown were added afterward; all other3433 tracked bytes/modes remain exact.
+
+**Pending:** exact-head Chromium/Windows CI, original two browser flows and serial exact live revision. Prior green baseline and historical native results are not relabeled as current post-aggregate delivery proof. See [valuation-quality evidence](evidence/valuation-quality-511.md).
+
+
+### #511 current UI compatibility follow-up (historical full retained; delivery pending)
+
+- [x] Preserve the pre-UI clean5565 AGE full543/4820/395.46s and normal production build0 as historical financial/source evidence; every financial/domain/API byte remains805e. The following four display corrections do not claim a repeated post-UI local aggregate.
+- [x] Reproduce actual Q3 six-versus-four source rows and duplicate two-versus-one amount selectors with NEW RTL RED12/10PASS2FAIL3.35s; preserve all original actions and amounts. Genuinely combine reminder/quote/loan work into one account row, retain a unique actual amount plus adjacent local≈ and the original phone column/order/44px amount-link.
+- [x] Six selected UI files42PASS10.54s; retain the later two test-fixture type errors and exact type-only corrections. Remaining webtypes/lint5/CSS-scale/format10/discovery exited0. Root-only old UI adapters retain all monetary/undo/Axe/geometry/timing oracles and yield seven unique old files overall, not an arbitrary financial rewrite.
+- [x] Root session22624: freshE2Ebuild0 and actual canonical11/11PASS95.898754s (setup3+OWN2+OLD582four+OLDloan2),0skip/flaky/unexpected/errors. Source41/current3435/protected18/full-mode/index/HEAD/status/process/168compiled/archive/lock guards and wrapper0; real quote34000→36000→undo34000/count3→2→3/privacy/source/actual44px amount-link remain strict.
+- [x] Add eight byte-identical current phone390×664/true1440×900 light/dark originals plus sanitized actual runtime proof, keeping all eight historical images/runtime immutable. Root and independent reviewer opened every current image; rawSYSTEMlight/maxTouch0, full-page sticky-shell/skiplink/nav/FAB photography limits and no physical-touch/unobstructed-hit/fullDBdiff claims remain qualified. [Current proof](evidence/valuation-quality-511.md#current-ui-compatibility-correction-after-exact-head-ci).
+- [ ] New exact-head Chromium desktop/mobile/Windows CI (including excluded missing-quotes/heute-cards and old582 desktop-only branch), only reviewed targeted mobile Heute shell baselines, serial integration and exact deployed health. No issue closure before LIVE; no blanket baseline refresh or extra local monetary full run inferred.
+
+
+### #511 final account/group figure containment — local proof, delivery pending
+
+- [x] Real desktop geometry RED88625 at unchanged product:1440 viewport/1461 document,132px cell with140.6195px unavailable label plus44px hint. Literal2468/9155/unavailable state already passed; later controls/profiles were unreached.
+- [x] Existing overview-only right-aligned wrapping figures preserve whole known money and allow unknown status/source buttons to wrap for accounts AND groups; no financial/column/global CSS change. NEW mixed and known-only123456789-cent fixtures strictly check large1.234.567,89€ one-line text, cell/document bounds,44px controls/popup/Escape in true1440 and configured390 WebKit, both themes.
+- [x] Actual90381: types/lint/format/AST/discovery/freshE2Ebuild0, canonical13/13PASS103.558092s (setup3+NEWgeometry2+OWN5112+OLD582four+loan2), all3455+NEW/source/index/head/full-mode/168compiled/process/archive/lock/wrapper0. Root separate65252 old attention5/5PASS32.243291s reuses exact build; overlapping setups not counted as18 unique. Two controlled old attention PNGs were regenerated/archived/restored byte/mode-exact, not unchanged throughout.
+- [x] Keep all prior tracked image/runtime checkpoints immutable; add curated8 original figure scenes plus safe full48 geometry/currentOWN8 profile inventory. Root-owned two extra count/group-link adapters preserve every original amount/action/undo/Axe/44px/geometry/timeout and expand the documented existing-source-test authority to nine files. [Final figure evidence](evidence/valuation-quality-511.md#final-accountgroup-figure-containment-after-desktop-ci).
+- [ ] Exact final-head Chromium desktop/mobile/all required CI and serial deployed revision/health. Prior Chromium launch/403 and ENOSPC attempts are pre-scenario failures, not geometry acceptance; WebKit does not replace Chromium. Historical5565 required full/normalbuild remains separately qualified; no issue closure or extra local financial full inferred.
+
+
+### #585 — unabhängiger Cash-/Bankstatus bei neuen Umbuchungen (lokal geprüft, Lieferung offen)
+
+- [x] Nur neue manuelle ganze Umbuchungen Bargeld↔Giro/Tagesgeld: Bargeld bestätigt/read-only mit Begründung, Bank zunächst vorgemerkt und vor dem Speichern tatsächlich bestätigbar. Bestehende Buchungen/Importe/Operator-/Split-/Karten-/Editpfade bleiben erhalten; keine neue Tabelle oder Migration.
+- [x] Optionale Bankabsicht ohne Schema-Default/Legacy-Hashänderung; Replay vor Kontoeligibilität, explizite nicht passende Absicht422 ohne Teilwrites, Queue-Bytes und Kontowechsel getrennt geprüft. Literale±12345-Cent-/Salden-/Undo/Redo-/echte Second-leg-Rollbackfälle.
+- [x] 79 neue und215 unveränderte Unitfälle über dokumentierte Checkpoints bestanden; betroffene Typen/Lint/Format/Discovery grün. Frischer E2E-Build0, kanonisch echte WebKit5/5PASS53.619470s (3Setup+2eigene), unveränderte30s-Grenzen,1440/390 hell/dunkel/Axe44/Keyboard/Salden/Undo. Wrapper47 war ausschließlich externer JSON-Kopienzähler; separate Byte-Reconciliation0, Quell-/Compiled-/Prozess-/Lockguards0.
+- [x] Bei Quellcheckpoint605bd679 mit eingefrorenem19-Pfad-Evidence-Kandidaten: `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check`548Dateien/4927TestsPASS405.77s, danach regulärer Produktionsbuild0. Alle11 tatsächlichen Exitdateien0;3477Arbeitsdateien/19eigene/12Quellpfade, volle Dateimodi, HEAD/Index/exakter Evidence-Dirty-Status und gesamter205490-Byte-Roadmap-Präfix+eigener Anhang unverändert. Danach nur eigener Ergebnisnachtrag.
+- [ ] Exakte Chromium/Windows-CI, serielle Integration und tatsächliche LIVE-Health noch offen. Fotos/Rawtouch0/Stickyfooter-Grenzen und vollständige Historie: [Evidence](evidence/cash-bank-transfer-585.md). Keine rückwirkenden Checkbox- oder Abschlussänderungen.
+
+
+## #512 / WP-004 — partial UI explanation stage (local evidence; acceptance open)
+
+- [x] Explain XIRR actual/365 and nonexclusive unavailability; retain existing Term/popover behavior. Existing Report and compact Wealth disclose only their SAME returned method/cost/period/scope and request-note bounds, separately from current allocation-as-of reasons. No calculation, resolver, API/DTO/router/CSS or existing-test change.
+- [x] Retain meaningful NEW-unit RED10/2PASS8FAIL8.32s; after bounded implementation, actual4files14/14PASS10.54s (NEW10+unchangedTerm4), WEBtypes/lint/format/AST/strict discovery/source/process/lock all0. Literal11400/1400/+14%, exact allocation versus historical bounds, privacy and real navigation remain strict.
+- [x] Actual43904: one freshE2Ebuild0, canonical WebKit6/6 firstPASS45.951220s (setup3+own3), default30/1worker, all17exitfiles0/source3482/fullmodes/index/HEAD/status/compiled168/process/container/archive/lock exact. Eight byte-identical originals plus safe profiles preserve390×664/true1440×900/both themes and explicit nav/FAB/skiplink/off-frame/closed-popover limits; Report-only Axe/privacy and configured-only empty503 scopes are qualified. [Evidence](evidence/investment-explanations-512.md).
+- [x] Actual5562 at frozen6757085d/HEAD208/sourcea29a: `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check`551files/4937testsPASS439.88s, then normal `npm run build`0. All8exitfiles0; all3492working/19owned/source8/fullmodes/index/HEAD/exactstatus/whole207308-byte incoming Roadmap prefix+append/process/lock stayed exact. Native safeJSON pending flags retain their earlier checkpoint meaning; afterward only this own result block and evidence result text change, other3490bytes/modes immutable.
+- [ ] Exact-head Chromium/Windows CI, final independent publication review and serial exact deployed health.
+
+**This is PARTIAL, not complete #512 acceptance:** all four public ACs remain unchecked. SPEC-008 AC-008-01/02 selected-performance historical-source/as-of/FX/look-ahead transport and corresponding consumer proofs remain OPEN. Inherited #511 current account/Heute provenance is not historical performance metadata. No old checkbox or original Roadmap byte is rewritten.
+
+
+### #481 follow-up — separate multi-category headings (2026-10-20)
+
+- [x] Owner 6285882335 explicitly accepts “Klare Trennung priorisieren; 44 Zeilen / 20 % akzeptieren”: retain 36 category rows and 11 single-category bands, restore 8 separate multi-category headings (44 content rows versus 55; 20% fewer). This supersedes the 19 October fusion extension; historical 36-row evidence stays qualified.
+- [x] One presentation predicate restores independent parent/category roles; cent/write/lock/Undo and #590 gesture handlers are unchanged. The later bounded desktop-only trailing-space CSS correction is documented below. Coordinator-owned four existing-test structural adapters and DESIGN/PRODUCT retain all financial oracles, original limits and single-category7A.
+- [x] NEW RTL 5/5 and scoped static pass. Fresh E2E build + canonical WebKit 29/29 (3 setup +26 feature) pass 5.3m at Main 208cf9d1 plus reviewed working freeze 34cbc6a8; all 3479 source/168 compiled/index/mode/process/archive/lock guards 0. Native 601/Undo, 4000/6000→Undo 0/0/TBA 10000 and trusted gesture/no-write guards reach PASS.
+- [x] [Four current original desktop/phone captures and compact six-profile proof](evidence/plan-separated-headings-481/README.md) are personally reviewed. Phone NAV/FAB occlusion, desktop focus/ellipsis, rawTouch 0 and logical-versus-physical height limits remain explicit.
+- [x] Historical required-age full check at freeze d13759cb: `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check` passes 549 files / 4932 tests (452.08s Vitest duration); separate normal production build 0. All seven exits/guards 0; all 3485 working paths / 16 owned paths, modes, HEAD 208cf9d1, index/status and process/lock checks preserved. Before commit7fb274b only factual result documents changed. The later post-CI source below requires a new full check; the original PNG/profile JSON checkpoints remain exact.
+- [x] Post-CI desktop selection boundary: only `.pgroup` added to the existing inside-selection selector. Meaningful NEW RTL first-Space RED, then all6 PASS5.71s with keyboard/mouse/outside/no-write checks. Existing old-test oracles, CSS and finance/590 callbacks unchanged.
+- [x] Actual fresh-E2E whole run39125:31PASS/2NEW outside-fixture FAIL5.2m, including all prior29 and both diagnostic768 cases PASS. Corrected failure-only run58516:5PASS26.1s (3setup+2themes), full outside-clear/budget/writes reached, exact168 prior compiled files reused/no newbuild. These runs are not one whole33PASS. Raw references and original four PNG/six-profile limits remain in [evidence](evidence/plan-separated-headings-481/README.md).
+- [x] Current selection-corrected source6171: `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check`549files/4933tests PASS427.89s Vitest duration; separate normal production build0. All7 exits/guards0,3485 working paths/16owned +modes/head7fb274b/index/status/process/lock unchanged at9244130d. This is Main208cf9d1-based validation, not subsequently LIVE d8bc8d34/combined-Main proof; afterwards only factual README/Roadmap results change.
+- [x] Ordinary inheritance of LIVE d8bc8d34 produced reviewed joint e8a08498. Exact jointCI39406413753 failed only strict old481768 boundary in both themes/retries: natural table579.421875, integer maxscroll105, header739.421875>739 despite explicit clamp. All other shards passed; no tolerance/font waiver or old-test edit.
+- [x] Controlled NEW width579.421875 first produced meaningful44013 RED3setupPASS/2endpointFAIL22.6s after width/hit/36IDs/44rows/document/fullbudget/writes checks. Header739.4375 is1/64px different from naturalCI, not an identical natural reproduction. Only desktop≥768 single-month trailing padding4px was added; phone/multi-month/financial handlers stay intact.
+- [x] Actual17855 CSS checks/freshE2Ebuild0/selected5PASS23.8s: unchanged forcedwidth579.421875, maxscroll109/header735.4375≤739. Actual59692 wholecanonical35/35PASS5.1m includes those controlled2 (not40unique), original natural896, selected-desktop keyboard/outside and all financial/Undo/590 contact/no-write oracles. Exact17855fresh168 reused/no newbuild; all3500/17/modes/head/index/status/compiled/process/container/archive/lock guards0. Two new original desktop captures +six compact current profiles supplement immutable original4PNG/profiles; current manual390×844 phone captures byte-equal original tracked phones. [Current proof](evidence/plan-separated-headings-481/README.md#current-trailing-space-correction--local-acceptance-exact-head-ci-pending).
+- [x] Preserve615 CI39412809115 shard2/7 NEW input failures before endpoint (Chromium intrinsic592.578125>requested579.421875), and intermediate97768 raw-style/CSP3setupPASS2fixtureFAIL. Only NEW controlled input becomes ceil(finitepositive natural)+literal.421875 using original CSSOM; exact actual fulltarget before/after and actualfraction remain strict, no CSP/product/old-test/timing change.
+- [x] Actual2056 targeted canonical5/5PASS21.5s (3setup+2themes), allstatic/AST/list/source3503/20/modes/head615/index/status/168compiled/process/archive/lock0. Two actual raw records reach full controls/budget/writes;579.421875/header735.4375≤739. Exact17855fresh168 reused/no newbuild. Earlierwhole35 and historical549/4933full remain separate checkpoints, not new35/40unique/newfull; originalmedia/proofJSON immutable.
+- [ ] Exact new-head all-required Chromium/WebKit/Windows CI, coordinator merge/deploy/public-LIVE acceptance. Historical549/4933 AGE full is Main208-based; no post-CSS/joint full claim. Keep #481 open.
+
+
+## #512 / WP-004 — selected closing-valuation metadata stage (local evidence; acceptance open)
+
+- [x] Add explicit valuation-v1 opt-in at original daily observation seams; preserve numerical order/rounding, legacy JSON/errors/cache and actual sold/negative/zero/window semantics. Report and compact Wealth reuse selected historical quote/execution/cost/FX facts; allocation context stays separate. No second resolver or invented historical source.
+- [x] Preserve setup-only60310 and genuine2954 RED2PASS/8FAIL; final36 NEW and55 unchanged neighbors pass across distinct documented checkpoints (not a single91/91 claim). Four affected types/lint12/format12 pass; strict256-run/64KiB prefix counters, missing/unknown labels, legacy/cache/no-write fixtures remain literal.
+- [x] Native55607: one freshE2Ebuild0, canonical8/8 firstPASS71.777407s (setup3+old512three+NEWtwo), defaults30s/1worker, all18exits0/source3497/current690d/compiled168/process/container/archive/lock exact. NEW8 original images+safe8 profiles preserve CSS390/DPR3→PNG1170 andtrue1440/DPR1, both themes, with actual fixedshell/nav/skiplink/off-frame occlusion and scoped ReportAxe/privacy/11-table/request-observer qualifiers. Root-only oldnative two-selector adapter retains every financial/action/timing oracle. [Evidence](evidence/investment-explanations-512.md#selected-closing-valuation-metadata-stage--local-evidence-delivery-pending).
+- [x] Actual53760 at current690d/HEADd8: required `BUDGET_REQUIRE_AGE=1 VITEST_MAX_WORKERS=2 npm run check`555files/4973testsPASS;437.97s Vitest duration, then normal production build0; all10actualexits0/source3497/fullmodes/index/head/status/process/lock exact. Native168 beforebaseline retained; normalprod159 output snapshot is separate, not repeated browser proof. SafeJSON fullpending remains historical atnative55607; prior PR722 full remains historical.
+- [ ] Exact-head Chromium/Windows CI, final publication and serial actual LIVE proof. No local aggregate/browser result completes the excluded-input contracts or all four public ACs.
+
+**All four public #512 ACs remain unchecked.** Only security closing valuations are observed; flows/their FX, fees/taxes, benchmarks, cash and class-sleeve provenance are excluded. No whole-return/SPEC008 completion or old checkbox/prefix rewrite.
+
+
+## #724 — account capture/date input; account bank review (#477 partial)
+
+- [x] Retain explicit account context through payee suggestions; preserve manual/outside defaults. Allow German date punctuation and actual native calendar touch/focus without showPicker.
+- [x] Show unresolved bank candidates by real account UUID before counts/paging, after account identity/balance and before history. Global review work precedes reminders; posted pending bookings and existing write/Undo rules remain. Wider #477 stays open.
+- [x] Required AGE full check: 562 files / 5,000 tests passed (506.15s); normal production build passed. Independent whole-source and Root-only existing UI test reviews completed.
+- [x] New WebKit scenarios9 passed in initial21/22 batch. Existing mixed-theme Axe failure corrected with two exact theme-color checks before unchanged Axe; separate old case/setup4/4 passed. No blanket22/22 rerun or baseline adoption. [Eight reviewed originals and limits](evidence/account-capture-724/README.md).
+- [ ] Final exact-head Chromium/Windows/static/recovery CI, serial merge/deploy and public health revision verification; keep #724 open until verified.
+
+### #725 correction validation
+
+- [x] Hide successful empty account review without unmounting its learning state; the new real-UI/synthetic-HTTP lifecycle case retains the learning offer after the last confirmation. NEW unit cases now22.
+- [x] A measured phone scroll clamp is corrected with one touch-row of account-only bottom padding. Original register/Toast tests are unchanged; corrected canonical WebKit7/7 passed55.2s, focused rendered5/5 plus types/lint/format passed and corrected production build passed. The initial AGE full5000 checkpoint remains5c8cd732; final-head CI revalidates the correction.
+- [x] Root-only existing-test adapters now cover four files: generic payee fixture enters outside an explicit account; native internal Tab steps may retain only the same date host before exact Wiederholen. All subsequent financial/focus/Axe/Undo checks remain.
+- [ ] Final exact-head CI and LIVE verification remain required.
+
+
+## #512 / WP-004 — visible historical-basis cue (current layout checks passed; delivery pending)
+
+Report TTWROR and compact Wealth qualify same-response selected security closing observations beside the result and open/focus existing source details. Carry, estimated cost, later execution, missing and unknown/truncated facts remain distinct; unrelated current cash FX cannot qualify fresh history. Original amounts/verdict/method/navigation, financial APIs/formulas/resolvers and existing tests stay unchanged.
+
+Current focused36/36 (NEW22+old14),14.30s Vitest; types/lint/check5 and two-UI AST0. The NEW unchanged-sample default1440×900 geometry case reproduced1002.375>900, then measured884.875<900 atscroll0 with fully visible44px source action/centre hit/Enter focus. One fresh E2E build, canonical9/9 firstPASS101.832271s (setup3+OWNfive+unchanged Wealth), all30 physical exits0. Seven old Wealth JPG outputs were archivedraw then exactprebytes/fullmodes restored; no unchanged-throughout/new-baseline claim. Eight current originals/profiles preserve both themes/configured390/true1440 and actual fixed-shell photo qualifications. [Evidence and8 originals](evidence/investment-explanations-512/visible-quality/README.md).
+
+Prior local36819 (B414+A540f, incoming tree equivalent to LIVE84bb) AGE1/workers2 full563files/5023PASS472.72s **Vitest duration** +normal build0 predates this layout correction; earlier failed/checkpoint archives remain historical. Current-layout normal production build0/all12 exits0/source3545 exact; native166→normal157 are distinct checkpoints, without a post-normal browser claim. Final exact-head CI and serial LIVE are pending. All four public512 ACs remain unchecked. Selected-closing scope excludes flow-FX/fee-tax/benchmark/cash/class provenance; parent508/privateGate3 remain open separately. Incoming Main Roadmap prefix and all earlier checkboxes are preserved.
+
+
+### #726 — Account-local statement PDF intake
+
+- Added protected original-PDF intake, bounded shared extraction and a private
+  read-only script, account-local document review, explicit unknown debit dates,
+  SHA deduplication, revision/hash/account checks and grouped document Undo.
+- Statement review creates no booking, payment, obligation, forecast or bank
+  order; financial settlement remains separate. Existing receipt-reference and
+  backup rules cover these documents, with synthetic migration-copy rollback and
+  source-backup/restore tests. Actual production-volume restore is unverified.
+- Focused units and canonical WebKit checks passed at separate checkpoints. The
+  final five-case statement batch includes real Undo activation, explicit reload,
+  normal-scroll footer access, dialog Axe and scoped privacy/conservation checks.
+  [Guide and synthetic originals](statement-intake.md).
+- First required AGE full: 5,064/5,067 tests passed across 568 files, including
+  all 44 new cases; 539.79s Vitest duration with two workers. Two unchanged
+  account-filter API tests timed out at 5,000 ms, then passed unchanged on both
+  selected source trees (four cases); the timeout cause remains unproven. An
+  existing migration-44 fixture assumed it was still the latest migration; its
+  expressly approved isolated setup correction preserves all assertions and
+  passed its selected test in 2.48s. The first full was red and did not run a build.
+- Before the Windows CLI correction, checkpoint `15aa5a8` passed the required
+  AGE full: all 568 files/5,067 tests with one worker, 833.67s Vitest duration,
+  followed by a successful normal production build.
+- Windows CI showed that POSIX mode bits did not establish private CLI output
+  there. The CLI now refuses Windows execution before source/password/output
+  access. Focused Linux integrity6/6 passed (6.17s Vitest duration), with server
+  types, lint and format checks; the guard-ordering probe and real POSIX private
+  output cases passed. Actual Windows refusal and fresh exact-head aggregate CI
+  and serial LIVE remain pending. Actual production receipt-volume/owner
+  backup-restore verification is still open; #726 remains a partial delivery.
+
+
+### #727 — Issued card settlement and explicit expense-credit stage
+
+- Opt-in account-local review keeps the previous issued payable, newer purchases,
+  explicit bonus evidence and actual payment/credit representations separate.
+  Gross purchases stay unchanged; an already-net bonus decision is nonposting.
+  No bank order or automatic difference-derived credit is created.
+- Source/configuration/monetary CAS, replay-first idempotency, independent grouped
+  Undo and account-scoped finite candidate pages protect explicit selections.
+  Backend acknowledged source reassessment preserves the same represented credit;
+  its UI editor remains OPEN.
+- Focused domain/DB/API, reassessment, candidate-read and copied-0046/AGE-backup
+  checkpoints passed separately. Projection cases passed across two checkpoints,
+  retaining the initial zero-currency-shape failures. Current UI 15/15 and
+  fresh-build canonical 7/7 (four manually configured desktop/phone-theme scenes
+  plus three setup cases) passed. Other focused results
+  remain checkpoint-specific; no summed aggregate is claimed.
+- Owner-approved integrity-726 setup now limits its disposable database through
+  0045 (“Ja, nur diesen Testaufbau begrenzen”), preserving every assertion. New
+  0046 upgrade/empty rollback/re-upgrade, populated refusal and encrypted restore
+  have independent synthetic coverage.
+- [Feature guide](statement-settlement.md) and [four synthetic originals with
+  photographic limits](evidence/statement-settlement-727/README.md). Full-page
+  captures include internal scroll/background and toast-overlapped prose; strict
+  action 44px/text/hit checks passed. Empty-draft privacy is scoped. The first integrated check stopped before units on generated 0046 JSON
+  formatting; no normal build ran. Later integrated AGE1/one-worker full check
+  at `5c1855e0` passed 575 files / 5,157 tests
+  (799.95s Vitest duration), then normal production build passed. Exact-head
+  CI and serial LIVE remain pending. Net-only/difference
+  reconciliation and uncertain partial credits remain OPEN; #727 is not marked complete.
+
+### #735 — Compact Plan inspector and exact category activity
+
+- [x] Keep goal, assignment and quick actions visible; fold routine money movement
+  without replacing drafts or existing financial handlers.
+- [x] Show exact contributing bookings from the same activity accumulator, with
+  actual source metadata and separately labelled card adjustments. Preserve Plan
+  state on Back and read future origins through the existing booking-ID GET.
+- [x] NEW literal domain/API/UI regressions and affected static checks passed at
+  their documented checkpoints. Final fresh-build canonical WebKit 9/9 passed
+  first attempt (66.968s reporter duration), including four explicit profile/theme
+  scenes, a future origin and multi-month navigation; no skips/retries/flaky cases.
+- [x] Preserve [eight synthetic originals and measured limits](evidence/plan-activity-735/README.md).
+  Same-fixture desktop inspector content is 790.578125px versus 1139.703125px before;
+  the first activity row is entirely visible initially on desktop and phone.
+- The first AGE full attempt passed types/lint/format but was stopped orderly by
+  Root when `/tmp` had zero free bytes. Existing fixtures had reported failures;
+  individual causes/aggregate results were not established. Source/compiled/process
+  guards passed; no normal build ran. This is an aborted attempt, not a full pass.
+- [x] Before the later comparator-only follow-up, after capacity repair, required
+  AGE1/two-worker full check passed 579 files /
+  5,176 tests (470.39s Vitest duration) on freeze `dea6bb3e` / base `9baa582f`,
+  followed by normal production build0. Commit `438ace6c` retained that product
+  source with factual result notes; later assertion-only changes have a separate
+  checkpoint below. No later Main join is claimed as locally tested.
+- [x] Owner explicitly approved exactly one disclosure-opening click in each of
+  the two existing financial E2E files; Root adopted both with all assertions intact.
+- [x] Execute the exact adapted band flow locally with three setup cases: 4/4
+  first-pass, 36.331s reporter duration, reusing the unchanged 166-file E2E build.
+- [x] Owner separately approved exactly four full-buffer equality substitutions in
+  three existing financial-conservation test files; every byte and all other
+  assertions/timeouts remain checked. Targeted three files passed 20/20 tests
+  (7.609s command elapsed). Previous CI timeout causality remains unproven.
+- [ ] Subsequent exact-head AGE1/two-worker full/build evidence after that
+  assertion-only follow-up is recorded in PR #737 before merge. The earlier full
+  pass is not used as a pass of the changed assertions.
+- [ ] Exact-head Chromium CI must exercise the adapted inspector flow and band
+  flow; review, merge and LIVE verification remain pending.
+### #734 — Grouped, reachable category pickers
+
+- Bank review retains exact eligible category IDs in native groups. Capture places
+  categories before contacts, including filtered matches, removes its 60-result
+  cap, bounds the popup to viewport/dialog clips and retains compact fine-pointer
+  rows and coarse targets of at least 44px. Other consumers retain their defaults.
+- [x] Independent source and original desktop/phone light/dark review;
+      [qualified current evidence](evidence/category-picker-734/README.md).
+- [x] Current canonical WebKit 9/9: four feature cases, two unchanged capture-dialog
+      regressions and three setup cases. New-focus recovery, root viewport clipping,
+      real one-pixel native-scroll clearance, strict header-aware upward traversal,
+      explicit phone 450px hidden/Enter recovery, manual hide/reopen, Axe and real
+      capture split/save/Undo passed. Bank confirmation transport alone is synthetic;
+      no real bank-confirmation/Undo claim. Phone 390 × 664, DPR 3, raw touch count 0;
+      current poststress popup 185px, initial 320px. Combined run reused exact 166 files
+      from the corrected fresh E2E build, with no rebuild or added historical totals.
+- Historical AGE1/one-worker full: 578 files / 5,162 tests and normal build passed on
+  base `9baa582f` plus freeze `4a22a00d`, before the PR736 interaction corrections.
+- Pre-inheritance AGE1/two-worker check: 577 files passed / 1 failed (578
+  total), 5,162 tests passed / 1 failed (5,163 total), 521.57s Vitest
+  duration. The unchanged #727 server test
+  `statement-settlement-727.test.ts:202` timed out at its existing 5,000ms
+  limit. Check exited 1; no pipeline build ran. Independent normal
+  production build subsequently passed (Vite 7.57s, esbuild 547ms); the
+  required full check remains failed. Base `9baa582f`, parent `a216d438`,
+  corrected freeze `b8e60568`. No retry/old-test edit; only factual result
+  prose changed afterwards.
+- [ ] Joined-head required AGE1/two-worker check and normal build: pending at this
+      checkpoint after ordinary inheritance of verified LIVE Main `a83855c7`,
+      including its owner-approved four existing #727 byte comparisons and #735
+      changes. The #734 product/NEW tests/images/profiles carry byte-exactly;
+      actual full results and required CI are tracked in
+      [PR #736](https://github.com/Grabman1987/budget/pull/736).
+- [ ] Exact new-head Chromium/required CI, serial merge and verified LIVE.
+
+
+## #739 — Issued-card summary field recognition
+
+- [x] Finite generic summary fields and explicit trailing balance signs; no booking, settlement-rule, API, schema or UI change.
+- [x] NEW8 synthetic parser/actual-worker cases plus existing parser13: all21 PASS; affected types/lint/format pass.
+- [x] Independent source review and private app-extraction field-name check; no private source data in fixtures.
+- [x] Required AGE-enabled full check: 583 files / 5,189 tests passed; normal production build passed on `cadfd183`. Product/test source and process guards passed; subsequent exact-head CI checks integration.
+- [ ] Exact-head CI and serial LIVE verification.
+
+Unknown reference/period remain manual; the next-notice date is never used as
+identity, period or debit-date fallback. Existing retained documents require
+explicit reanalysis/review. Upload and reanalysis never post money.
+
+## #738 – Contacts: compact statement, copying and source bookings
+
+- [x] Compact source-linked tables retain the existing current-month, older-open, remaining-history and closed-history sections and balances.
+- [x] Section-scoped plain text includes its period, signed movements, open amounts and explicitly overall balance; privacy and manual copy fallback apply. No messages are sent.
+- [x] A fresh booking GET precedes the existing editor. Synthetic gift correction preserves the bank payment and unrelated split, with real Save/Undo. Allocation/write-off guards remain; the exact known repayment guard has a German explanation.
+- [x] Focused UI/API/security regressions and static checks passed. Final canonical WebKit 8/8: four NEW profile/theme cases, the unchanged #598 signed-movement case and three setup cases; no retries or skips.
+- [x] [Four unchanged synthetic browser originals and evidence limits](evidence/contact-statement-738/README.md). No existing test file changed.
+- [x] Required AGE-enabled full check on clean source checkpoint `7169a0cba7ec70d0d25d8ed2bf24666d3142c5ee`: 584 files / 5,192 tests passed in 500.20s Vitest time with two workers; workspace static checks and normal production build passed. All 3,636 source hashes/full modes, HEAD and index stayed exact. Later ordinary Main inheritance and final-head CI are separate gates; the earlier owner-batching cancellation is retained.
+- [ ] Exact-head CI, serial integration and verified LIVE; no queue-completion claim.
+
+
+## #741 — Card upload automation (partial delivery; gates pending)
+
+- [x] Deterministic configured card upload uses original-source evidence, exact cents and audited pending writers; issued settlement preserves newer purchases and recorded originals unchanged. Payroll and manual receipt selection remain separate.
+- [x] Focused synthetic domain 21, DB 16 (13+3 separate runs), actual PDF/API 7, UI 7 and migration 10 passed; the initial rollback-negative failure was corrected without weakening its assertion. DB/server/Web types and scoped code checks passed.
+- [x] Canonical WebKit 7/7 (three setup plus four profile/theme cases), fresh E2E build and source/process guards passed on 88ee863b. Real posting/wholeUndo/no-repost and two phone manual nonmonetary reviews passed. [Four unchanged originals and exact evidence limits](evidence/card-automation-741/README.md).
+- [x] Standing technical-test authorization applied to the two preserved UI transport adapters. Fresh AGE-enabled card-statement selection: 18 files / 196 tests passed, including OLD726 9/9 and OLD727 15/15; financial oracles remain unchanged. Independent source/delta reviews passed.
+- [x] Normal production/E2E builds and workspace types passed (domain inference corrected and rerun separately). Supplemental real result-link desktop/mobile 5/5 including setup; corrected phone Undo scenarios 5/5 including setup after normal Redo-toast dismissal. Initial overlay failures and exact scope retained in linked evidence.
+- [ ] Required full CI, serial integration and verified LIVE.
+- [ ] Payroll and #740 manual receipt selection remain separate. No whole-issue closure, physical-device certification or real-data-change claim.
+
+## #589 — URL-backed Plan filters: isolated acceptance packet
+
+URL-backed category search/counts and the strict missing-category reader retain
+existing financial writers/formulas. The separate header union is explicitly
+labelled “vorgemerkt / ohne Kategorie”. Compact fine-pointer controls and legacy
+triage/view transitions are corrected without changing any existing test. The
+new compact CSS is scoped to the month-only root; shared Goals styles/baselines
+are unchanged.
+
+- [x] Earlier NEW pure3/API3 passed with literal counts/IDs, hidden/multi-month predicates, exact51/50+1 paging, cursor refusal and read-only conservation.
+- [x] On193f NEW RouterUI7 and unchanged compatibility8files/70tests passed; Web types and scoped lint/format/CSS passed. Legacy entry/view/All/explicit-filter and saved-state cases are covered.
+- [x] Current4d558 WebKit7/7 (80.325s) (setup3 + feature4), no skips/retries/flaky cases: both themes, desktop1440×900 table offset114px≤120 and configured390×664 with44px targets/no overflow; legacy triage roundtrips, keyboard/Axe/source links and real cover/audit/Undo passed. [Four current original images and limits](evidence/plan-filters-589/README.md).
+- [x] Separate unchanged OLD WebKit compact case plus setup3 passed4/4 on193f: all18 rows/two groups, unchanged76px row/group and152px band bounds/cents/keyboard/multi-month assertions. Current4d558 scoped static checks passed.
+- [x] Historical required AGE full check and normal production build passed onf40e0337:589 files/5211 tests, before the current compact/legacy correction; this is not a full-run result on current4d558.
+- [ ] Corrected exact-head required Chromium/CI, remaining required validation/build, serial integration and verified LIVE.
+
+First329d CI's unchanged compact/triage browser failures remain archived; current
+targeted/WebKit results and the separate OLD WebKit compact proof do not claim
+all old browser cases or current CI green. Later4dbab Goals visual failures are
+addressed by the month-only CSS boundary; updated exact-head Goals CI is pending.
+
+
+## #745 — compact category activity table (acceptance pending)
+
+The category/month detail uses a semantic table with distinct source totals and
+signed category contributions. Canonical totals, order, pagination and derived
+reserve explanations remain; the existing booking editor and writers are reused.
+Desktop shows five columns; the phone layout shows booking metadata and amount.
+
+- [x] Initial targeted validation: six NEW component cases plus seven unchanged UI and five unchanged API cases passed (18/18). The six affected component cases passed again after the phone layout correction.
+- [x] Canonical WebKit: seven passing cases including three setup cases, covering desktop1440 and phone390, light/dark, privacy, focus, 44px controls and scoped accessibility. Real synthetic source booking opens and cancels without writes.
+- [x] Current original screenshots and phone geometry (107–126px rows, 204px booking column, unbroken dates) personally reviewed; see [activity-table evidence](evidence/activity-table-745/README.md).
+- [x] Apply the preserved technical date/account assertion adapter under the owner’s standing authorization; all audited edit/Undo and financial expectations remain unchanged. Independent review and fresh targeted results are recorded in the activity-table evidence.
+- [x] Required AGE-enabled full check: 590 test files / 5219 tests passed, no failures/skips; normal production build passed.
+- [x] Fresh continuation: targeted UI/API 18/18, E2E build and scoped static checks; existing activity Chromium 12/12 plus final new table Chromium 11/11 (including three setup cases). Exact technical adapter and unobscured native scrolling independently reviewed, financial/Undo/44px/viewport/hit expectations unchanged.
+- [ ] Canonical Chromium CI, final required checks, serial integration and verified LIVE.
+
+No publication claim. This follow-up preserves the earlier #735 financial behavior.
+
+
+## #584 — Capture line transition and stale remainder feedback
+
+- [x] NEW real isolated-ledger one → two → one regression: one gross field, exact 1-cent remainder refusal including Ctrl+Enter, unchanged 1000-cent head total after removal, one stored split of −1000 cents and public Undo.
+- [x] Literal UI odd cents: −1000 → −334/−333/−333, real API and SQLite readback; both Save/Undo paths restore the literal 100000-cent account balance.
+- [x] Exact local stale remainder-save feedback is suppressed only after current split validation clears; unrelated errors, financial rules, save guards and writers remain unchanged. No existing test changed.
+- [x] Corrected source `3a1210cc`: actual WebKit 7/7 in 81.135s (three setup + four feature cases), desktop 1440×900/configured iPhone 390×664, both themes, scoped Axe, phone44px and no horizontal overflow. [Four byte-identical one-after originals and limits](evidence/capture-transition-584/README.md).
+- [x] Root reviewed all four corrected one-after originals and two odd-cent originals. The first functional PASS / visual HOLD for stale red feedback remains retained; corrected originals remove that defect.
+- [x] Required AGE-enabled full check on frozen source `3a1210cc`: 589 files / 5,213 tests; normal production build passed. The handoff only adds documentation/evidence, leaving product and test bytes unchanged.
+- [ ] Exact-head Chromium/required CI, serial integration and verified LIVE.
+
+CI `39661416902` on `e188323c` passed all 22 jobs; the additional first-booking regression `39661417099` also passed. Live Main `fb7490d3` is now inherited unchanged. Capture product/test files remain byte-identical to the checked source. Both ROADMAP append sections were retained; required CI on the updated PR #746 head and its own serial live delivery remain pending.
+
+The body scrolls; screenshots do not claim every split row is visible at once.
+Physical-device/keyboard/fullscreen acceptance belongs separately to #586.
+
+## #747 — Today savings action opens the task segment
+
+- [x] Identify the contextual-navigation defect: the generic inbox auto-selects movements while savings execution proposals belong to tasks.
+- [x] With one open movement and one savings proposal, the Today action opens `teil=aufgaben` and the matching confirmation dialog. Opening it creates no trade and preserves the literal account balances.
+- [x] Preserve and pass the existing portfolio execution, financial, Undo and Redo regression checks without modifying their expectations. New regression plus unchanged portfolio tests: system Chromium desktop/mobile 17/17 passed (including setup, 1.2 min). Before the one-line fix, the new desktop regression failed on the bare inbox URL and showed Umsätze selected; its trace was retained.
+- [x] Independent Codex full-diff review: no findings; existing tests, financial writers, locks, audit and Undo unchanged.
+- [x] Required full AGE-enabled check: typecheck, lint/format and 589 files / 5,213 tests passed (386.97 s Vitest); normal production build passed. Supplemental system Chromium is not canonical visual or WebKit evidence.
+- [x] Exact-head canonical CI `39664783674` passed.
+- [x] PR #748 is LIVE at `fb7490d3bb2855d618df89625f5166f4cf24ae13`: Main CI `39666973044` and deployment `39667052323` succeeded. Owner local CLI reported fresh matching health on 2026-10-21 at 22:06 Europe/Vienna; the coordinator independently verified GitHub evidence. #747 closed; board reconciliation remains pending without board access.
+
+
+### #577 — Operational account overview (targeted checks passed; delivery pending)
+
+- Replaced the overview’s net-worth hero with the existing Budget-Konten group balance and an explicit checked/visible-account count linking to Prüfen. Closed accounts are omitted; each physical account retains its original group, order, value and check state. Platform/reference relationships are visual links only, including shared or cross-group references.
+- Added a compact token-based list with the existing account/reorder controllers, 30-day sparklines and explicit details for source, cash, pending/review/bank/limit metadata. Main rows and their checked count use one account projection; no new deadline, financial formula or write path was introduced.
+- Enriched history is explicitly requested with quality=1, a separate client key and sibling quality facts from the same read transaction. Default batch/single JSON and old callers are preserved; daily missing/absent metadata produces gaps/unavailable, never invented zero. Native cash balances retain their actual currency even when EUR conversion is unknown. Legacy MiniLine defaults remain unchanged.
+- [x] Fresh focused 51/51 plus legacy MiniLine 2/2; affected workspace types, scoped lint/format/CSS and E2E build pass. Supplemental Chromium 15 passed / two existing project skips, including all eight new profile/theme cases with actual1440 fit,390 targets, keyboard/Axe/privacy and real reorder/Undo. Independent source/delta reviews passed. [Unedited images, per-file mappings and limits](evidence/account-overview-577/README.md).
+- [ ] Complete initial-CI follow-up: large-amount/source-target layout and WebKit target ownership; diagnose the month-close retry and inherited Plan-filter failures. Legacy mappings retain independently reviewed finance/lock/Undo expectations (see evidence). Required full CI, protected integration, deployment and actual LIVE revision remain pending; no complete #577 acceptance claim.
+
+## #740 — Retained statement PDF links
+
+- [x] Account-local explicit selection of existing bookings, immutable original download, same-account/currency candidates, current n:m links and protected machine pairs; no payment or financial-record creation.
+- [x] Source/target/pair-history CAS, complete batch validation before writes, audit-free no-ops and real grouped Undo/redo use existing receipt/audit writers.
+- [x] Independent full-diff HIGH review, scoped technical test-adapter review, targeted DB/API/UI regressions and fresh E2E build. Desktop/phone Chromium and native WebKit: 9/9 including three setup cases, both themes, exact financial state, real Undo/redo, privacy, keyboard, 44px/hit/Axe checks. [Original captures, provenance and evidence limits](evidence/statement-receipt-links-740/README.md).
+- [x] [PR #754](https://github.com/Grabman1987/budget/pull/754) verified live at `1c19a465649490417f174787a9806b3347b7b7a6` on 2026-10-22: exact-head CI `39764114897`, Main CI `39770495472`, deployment `39770557570` and fresh matching health. The PR retains the diagnosed installation-timeout rerun and unrelated existing report-test retry. Private historical archive linking remains separate; #719 remains stopped.
+
+## #741 — Deterministic payroll upload continuation
+
+- [x] Adopt the independently preserved payroll continuation on verified live #754, with source/manifest correspondence and only the owned shared-barrel export.
+- [x] Require fully reconciled known source evidence and unique configured matching; preserve existing payout values and original bytes, use existing atomic audited writers and the financial Undo group, and prevent replay after Undo or concurrent duplicate uploads.
+- [x] Independent full-product HIGH source review; new pure/DB/API 46/46, new UI 7/7, existing regressions and reproduced/corrected live amount-privacy regression. Existing test adaptations are limited to provider/status context and readiness copy. [Evidence and qualifications](evidence/payroll-automation-741/README.md).
+- [x] Complete workspace typecheck, scoped lint/format and fresh build; final browser30/30 across desktop/mobile/WebKit, including actual result links/reload, original downloads, privacy, grouped Undo and the existing toast/dialog regression. Reproduce and correct the visible Undo-label overflow with two CSS declarations;15/15 existing Toast/Layer tests passed.
+- [x] Final independent whole-diff HIGH review CLEAR, including final source hashes, original browser artifacts and preserved archive.
+- [ ] Complete exact-head CI, protected serial integration and exact live verification. This payroll packet is not yet delivered; the already-live card packet #752 is separate. No private historical archive operation is claimed, and #719 stays stopped.
+
+## Owner addition — portfolio funding plan (2026-10-25)
+
+- [x] Implement an editable six-sleeve scenario with separate recurring rate, one-off cash, free cash and current position values; gold/Bitcoin split in the explicit owner template.
+- [x] Exact-cent deficit budgets, fractional/whole units, fee guard and residual cash; no implicit trades or changes to class risk policy.
+- [x] Persist through audited settings with concurrency/undo guards; reuse the savings form for explicit confirmation.
+- [x] Full typecheck/lint, nine domain/API tests, desktop/phone acceptance and independent review; [synthetic evidence](evidence/portfolio-funding-plan/README.md).
+- [ ] Exact-head required CI, serial integration and verified live revision recorded on the delivery PR.

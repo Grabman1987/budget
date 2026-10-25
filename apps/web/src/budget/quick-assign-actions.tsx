@@ -12,23 +12,17 @@ const QUICK = [
 ] as const;
 const categories = (n: number) => `${n} ${n === 1 ? 'Kategorie' : 'Kategorien'}`;
 
-/** One server action and one undo for every selection, in the current table order. */
-export function QuickAssignActions({
-  month,
-  emptyIds,
-  selectedIds,
-}: {
-  month: string;
-  emptyIds: string[];
-  selectedIds: string[];
-}) {
-  useAmountPrivacy();
+/**
+ * The one quick-assign call (server action, one undo group): every entry point (inspector, envelope
+ * panel, "Verteilen ▾" in the plan toolbar) goes through here, so the bookings are identical.
+ */
+export function useQuickAssign(month: string) {
   const write = useBudgetWrite();
   const [busy, setBusy] = useState(false);
-  const apply = async (mode: QuickAssignMode) => {
+  const apply = async (mode: QuickAssignMode, ids: string[]) => {
     setBusy(true);
     await write(
-      () => quickAssign(month, mode, mode === 'empty' ? emptyIds : selectedIds),
+      () => quickAssign(month, mode, ids),
       (res) =>
         `${categories(res.changedCount)} ${mode === 'empty' ? 'befüllt' : 'zugewiesen'}${
           res.openCount ? ` · ${eur(res.missingCents)} fehlen für ${categories(res.openCount)}` : ''
@@ -36,10 +30,29 @@ export function QuickAssignActions({
     );
     setBusy(false);
   };
-  return (
-    <details className="quick-assign-actions plan-popover">
-      <summary>Schnell zuweisen ▾</summary>
-      <div className="plan-popover-content">
+  return { busy, apply };
+}
+
+/** One server action and one undo for every selection, in the current table order. */
+export function QuickAssignActions({
+  month,
+  emptyIds,
+  selectedIds,
+  inline = false,
+}: {
+  month: string;
+  emptyIds: string[];
+  selectedIds: string[];
+  inline?: boolean;
+}) {
+  useAmountPrivacy();
+  const quick = useQuickAssign(month);
+  const busy = quick.busy;
+  const apply = (mode: QuickAssignMode) =>
+    quick.apply(mode, mode === 'empty' ? emptyIds : selectedIds);
+  const actions = (
+    <div className={inline ? 'quick-assign-inline' : 'plan-popover-content'}>
+      {!inline && (
         <Button
           size="sm"
           variant="ghost"
@@ -48,23 +61,31 @@ export function QuickAssignActions({
         >
           Leere füllen
         </Button>
-        {selectedIds.length > 0 && (
-          <div role="group" aria-label={`Zuweisen für ${categories(selectedIds.length)}`}>
-            <span>{categories(selectedIds.length)} ausgewählt</span>
-            {QUICK.map(([mode, label]) => (
-              <Button
-                key={mode}
-                size="sm"
-                variant="ghost"
-                disabled={busy}
-                onClick={() => void apply(mode)}
-              >
-                {label}
-              </Button>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
+      {selectedIds.length > 0 && (
+        <div role="group" aria-label={`Zuweisen für ${categories(selectedIds.length)}`}>
+          {!inline && <span>{categories(selectedIds.length)} ausgewählt</span>}
+          {QUICK.map(([mode, label]) => (
+            <Button
+              key={mode}
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => void apply(mode)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+  return inline ? (
+    actions
+  ) : (
+    <details className="quick-assign-actions plan-popover">
+      <summary>Schnell zuweisen ▾</summary>
+      {actions}
     </details>
   );
 }

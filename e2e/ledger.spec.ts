@@ -35,6 +35,7 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
 
   await openAccount(page, giro);
   await expect(balance(page)).toHaveText('1.000,00 €');
+  await page.getByTestId('account-chart-toggle').click();
   await expect(page.getByTestId('balance-chart')).toBeVisible();
 
   // A plain expense with category.
@@ -59,17 +60,18 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   panel = page.getByRole('dialog', { name: 'Buchung erfassen' });
   await panel.getByLabel('Betrag', { exact: true }).fill('30');
   await panel.getByLabel('Empfänger').fill(`Splitmarkt ${tag}`);
-  await panel.locator('summary').click();
-  await panel.getByRole('button', { name: 'Split' }).click();
-  await panel.getByLabel('Kategorie 1').selectOption({ value: 'e2e-essen' });
+  await panel.getByRole('button', { name: '+ Weitere Kategorie' }).click();
+  await panel.getByLabel('Kategorie 1').fill('Essen');
+  await panel.getByRole('option', { name: /^Essen/ }).click();
   await panel.getByLabel('Betrag 1').fill('20');
-  await panel.getByLabel('Kategorie 2').selectOption({ value: 'e2e-reise' });
+  await panel.getByLabel('Kategorie 2').fill('Reise');
+  await panel.getByRole('option', { name: /^Reise/ }).click();
   await panel.getByLabel('Betrag 2').fill('5');
-  await expect(panel.getByText('Rest: 5,00 €')).toBeVisible();
+  await expect(panel.getByText('Rest: 5,00 €', { exact: false })).toBeVisible();
   // Saving waits until the split adds up.
   await expect(panel.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled();
   await panel.getByLabel('Betrag 2').fill('10');
-  await expect(panel.getByText('Aufteilung geht auf.')).toBeVisible();
+  await expect(panel.getByText('Rest: 0,00 €')).toBeVisible();
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(page.getByRole('row', { name: new RegExp(`Splitmarkt ${tag}`) })).toContainText(
     'Aufgeteilt (2)',
@@ -89,11 +91,21 @@ test('accounts, bookings, split, transfer, undo and redo', async ({ page }, test
   await expect(balance(page)).toHaveText('100,00 €');
   await expect(page.getByRole('row', { name: /Umbuchung von/ })).toBeVisible();
 
-  // Edit in place: change the category of the first expense without opening it.
+  // Desktop edits the category in place without opening the booking; the phone row is two-line
+  // without inline cells (owner decision 16.10., #581), so the phone changes it in the dialog.
   await openAccount(page, giro);
   const row = page.getByRole('row', { name: new RegExp(shop) });
-  await row.getByRole('button', { name: /Kategorie ändern/ }).click();
-  await page.getByLabel(/Kategorie für/).selectOption({ label: 'Miete' });
+  if (testInfo.project.name === 'desktop') {
+    await row.getByRole('button', { name: /Kategorie ändern/ }).click();
+    await page.getByLabel(/Kategorie für/).selectOption({ label: 'Miete' });
+  } else {
+    await expect(row.getByRole('button', { name: /Kategorie ändern/ })).toBeHidden();
+    await row.getByRole('button', { name: /bearbeiten/ }).click();
+    const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
+    await pickCategory(edit, 'Miete');
+    await edit.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await expect(edit).toBeHidden();
+  }
   await expect(row).toContainText('Miete');
   await expect(toast(page)).toContainText('Buchung geändert');
 
@@ -203,7 +215,7 @@ test('Alle Buchungen: filter in the URL, search, bulk edit with undo', async ({
 });
 
 test('Kontostand prüfen: doppelt, Ausgleich, geprüft sperrt, undo', async ({ page }, testInfo) => {
-  const tag = `${testInfo.project.name}${again(testInfo)}`;
+  const tag = `Kontostand ${testInfo.project.name}${again(testInfo)}`;
   const name = `Prüf ${tag}`;
   await createAccount(page, name, 'Giro', '500');
   await openAccount(page, name);

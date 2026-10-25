@@ -1,6 +1,6 @@
 .report-verdict {
   color: var(--ink-2);
-  font-size: 14px;
+  font-size: var(--fs-body);
   line-height: 1.45;
   margin: 12px 0 20px;
   overflow-wrap: anywhere;

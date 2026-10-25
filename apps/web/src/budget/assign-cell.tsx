@@ -5,6 +5,16 @@ import { eur } from '../ledger/format';
 import { monthLabel } from '../nav/month';
 import { assignGuard, readAssign, type PlanRow } from './plan-model';
 
+/** The quick-assign suggestion shown in place of an empty "Zugewiesen", if there is one. */
+export const assignGhost = (r: PlanRow) =>
+  r.assignedCents === 0 && (r.quickAssign?.ghostCents ?? 0) > 0 ? r.quickAssign : null;
+
+/** Where a suggestion comes from, for its tooltip. */
+export const ghostSource = (ghost: NonNullable<PlanRow['quickAssign']>) =>
+  ghost.ghostSource === 'target'
+    ? 'Ziel · noch zu finanzieren (Übertrag berücksichtigt)'
+    : `Median der Ausgaben · ${ghost.historyMonths.map(monthLabel).join(', ')} · leere Monate zählen als 0`;
+
 /**
  * Inline "Zugewiesen" of one envelope in one month: the amount as a button, the field while
  * editing (arithmetic allowed, a leading + or − typed first is relative) and the refusal of the
@@ -27,13 +37,8 @@ export function AssignCell({
   onCommit: (value: number) => void;
 }) {
   const hidden = useAmountPrivacy();
-  const ghost =
-    r.assignedCents === 0 && (r.quickAssign?.ghostCents ?? 0) > 0 ? r.quickAssign : null;
-  const source = ghost
-    ? ghost.ghostSource === 'target'
-      ? 'Ziel · noch zu finanzieren (Übertrag berücksichtigt)'
-      : `Median der Ausgaben · ${ghost.historyMonths.map(monthLabel).join(', ')} · leere Monate zählen als 0`
-    : undefined;
+  const ghost = assignGhost(r);
+  const source = ghost ? ghostSource(ghost) : undefined;
   const [text, setText] = useState('');
   const [invalid, setInvalid] = useState(false);
   /** Why the guard refused the typed amount, with the highest amount that is still allowed. */

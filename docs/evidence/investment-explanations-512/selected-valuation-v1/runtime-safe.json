@@ -1,0 +1,435 @@
+{
+  "checkpoint": "Native55607 on source690d/HEADd8; full/build/CI/LIVE pending at capture, not a later-current status feed",
+  "sourceHead": "d8bc8d34751b23214b921dba6fcf3ceb52903e0b",
+  "sourceFreezeSHA256": "690d9df0bc56261c08dd0d770699237faf9c4ffec1ab445fc2671d33b13de986",
+  "sourceOwned12SHA256": {
+    "packages/domain/src/invest/series.ts": "b94374f30b595d8e1572eb91baef63a05d01c7aa05e9cd3c9419c55fdd548ab3",
+    "packages/db/src/repos/portfolio.ts": "1b6d5bf033c576709300ffc298538da77ad1a3afeb959649926a55168cf64f5a",
+    "packages/db/src/repos/portfolio-summary.ts": "56f1a1ddb3e88011782ab6aec7491af26de8e9371ccb7186d0558429cb853bba",
+    "apps/server/src/api/invest.ts": "b84934b1c42bd2a27a44ab175721d8f882a1561b36c8c24d7772e388ed97f86e",
+    "apps/web/src/wealth/portfolio-api.ts": "43921a21abfda116dc9f94eabe50af426386badec3bb31c08eef5e7019344ae9",
+    "apps/web/src/reports/portfolio-calculation-disclosure-512.tsx": "ec51f005d10394dfce296054506437e4636bc8b656c7849feb21575c5ee6becb",
+    "packages/domain/src/invest/valuation-provenance-512.test.ts": "aa6e1150351b597b80a1c47f6803940d998c4ee42da72f78c54e0200eb80773b",
+    "packages/db/src/repos/portfolio-provenance-512.test.ts": "c4425dbbe7b27b14c431944a52645c814e67833904d74225e0645ad39ceebf80",
+    "apps/server/src/api/portfolio-provenance-512.test.ts": "b44692c83141c638437be1f691e9347194721abba879f39c33e0dbde2da1cf67",
+    "apps/web/src/reports/portfolio-calculation-provenance-512.test.tsx": "301fa0025be400f3ffc0d2639418d7f152431e954b22c8fb3f26a208bf038f76",
+    "e2e/issue-512-valuation-provenance.spec.ts": "2cea609dbfba4df40e4eefd1b8c5132b689c40980dc032fed31e402e568aaa86",
+    "e2e/issue-512-investment-explanations.spec.ts": "8f5d73b3307eb3120727f904fd41285f7400c6dbf37c3a5c88724d394002e960"
+  },
+  "native": {
+    "actualStats": {
+      "startTime": "2026-10-20T11:28:16.320Z",
+      "duration": 71777.407,
+      "expected": 8,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "cases": [
+      {
+        "file": "auth.setup.ts",
+        "title": "register the first passkey and store the session",
+        "project": "setup",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "file": "ledger.setup.ts",
+        "title": "seed categories for the ledger tests",
+        "project": "setup",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "file": "sample.setup.ts",
+        "title": "register the first passkey on the sample server",
+        "project": "setup-sample",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "file": "issue-512-investment-explanations.spec.ts",
+        "title": "existing investment explanations preserve real literal values and endpoint boundaries in configured-profile",
+        "project": "webkit-iphone",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "file": "issue-512-investment-explanations.spec.ts",
+        "title": "existing investment explanations preserve real literal values and endpoint boundaries in desktop-layout",
+        "project": "webkit-iphone",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "file": "issue-512-investment-explanations.spec.ts",
+        "title": "empty performance and genuine missing-FX failure remain unavailable instead of invented zero",
+        "project": "webkit-iphone",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "file": "issue-512-valuation-provenance.spec.ts",
+        "title": "selected closing valuation sources retain literal money and truthful scope in configured-profile",
+        "project": "webkit-iphone",
+        "status": "expected",
+        "attempts": 1
+      },
+      {
+        "file": "issue-512-valuation-provenance.spec.ts",
+        "title": "selected closing valuation sources retain literal money and truthful scope in desktop-layout",
+        "project": "webkit-iphone",
+        "status": "expected",
+        "attempts": 1
+      }
+    ],
+    "all18ExitFiles0": true,
+    "exitFiles": {
+      "artifact-copy.exit": "0",
+      "build.exit": "0",
+      "compiled-before-baseline.exit": "0",
+      "compiled-guard.exit": "0",
+      "compiled-snapshot.exit": "0",
+      "container-guard.exit": "0",
+      "container-storage.exit": "0",
+      "evidence-summary.exit": "0",
+      "host-storage.exit": "0",
+      "lock-free.exit": "0",
+      "native-list-guard.exit": "0",
+      "native-list.exit": "0",
+      "native.exit": "0",
+      "post-build-source-guard.exit": "0",
+      "postguard.exit": "0",
+      "preguard.exit": "0",
+      "process-guard.exit": "0",
+      "wrapper.exit": "0"
+    },
+    "freshE2EBuildExit": 0,
+    "compiledFiles": 168,
+    "compiledManifestSHA256": "18108e8c73d83ee8ef3ca3029a53a7c1c1f833513b3fa8441441ca3438b7f15c",
+    "all3497SourceFullModesMetaUnchanged": true,
+    "scope": {
+      "metadata": "Only actual security closing-valuation selections; no flows/tax/benchmarks/cash/class-sleeve provenance proof or complete512 claim.",
+      "families": "8NEW original images/profiles plus8existing512 originals/profiles from this current batch; all prior committed evidence stays unchanged.",
+      "database": "NEW2cases compare11selected tables; existing3cases compare8selected tables; no fullDB/auth-readonly claim.",
+      "network": "API write-request observers reject non-GET/HEAD/OPTIONS in four seeded explanation flows after setup; no blanket request absence claim.",
+      "accessibility": "Axe Report only; NEW privacy is Report DimensionChain +source disclosure, not every title/tooltip/Overview channel.",
+      "input": "NEW case uses click/keyboard; old Report light XIRR tap may record touch protocol only, never physical device or whole-page hit-test.",
+      "photos": "Potential fixed-nav/FAB/skiplink/sticky-shell/off-frame table occlusion must be reviewed; photos do not prove unobscured whole-page content.",
+      "emptyFX": "Original empty/missingFX case is configured-profile only; metadata missing/cost/negative/window/cap counterexamples rely on scoped unit/API evidence."
+    }
+  },
+  "evidenceInventory": {
+    "thisFolder": "8 NEW metadata original PNGs and8 physical JSON objects;16 reporter copies are equal duplicates",
+    "wholeCurrentBatch": "16 PNG originals+16 physical profiles+32 separate copies; other8 images/profiles belong existing512 compatibility and are not duplicated in this folder",
+    "images": [
+      {
+        "path": "docs/evidence/investment-explanations-512/selected-valuation-v1/phone-light-report.png",
+        "originalSHA256": "07e1fc2e509c2a509c638de924b81321cb51aca1e941221a9f7f2a1211c274b3",
+        "width": 1170,
+        "height": 14577,
+        "cssViewportWidth": 390,
+        "actualDevicePixelRatio": 3
+      },
+      {
+        "path": "docs/evidence/investment-explanations-512/selected-valuation-v1/phone-light-overview.png",
+        "originalSHA256": "cdc3cf9c8d26ebfd02a69ab2535b65ae17731348184eb43e3a054316a09207b4",
+        "width": 1170,
+        "height": 12720,
+        "cssViewportWidth": 390,
+        "actualDevicePixelRatio": 3
+      },
+      {
+        "path": "docs/evidence/investment-explanations-512/selected-valuation-v1/phone-dark-report.png",
+        "originalSHA256": "5f54c61c9220796ec3b8c73ec4ea79663e27857fcdc42b9df14a74c2bc9a9f54",
+        "width": 1170,
+        "height": 14577,
+        "cssViewportWidth": 390,
+        "actualDevicePixelRatio": 3
+      },
+      {
+        "path": "docs/evidence/investment-explanations-512/selected-valuation-v1/phone-dark-overview.png",
+        "originalSHA256": "dd0a35fa203816d94fe1bc3c7be7b95665d159440499d4dd701f233e25139083",
+        "width": 1170,
+        "height": 12720,
+        "cssViewportWidth": 390,
+        "actualDevicePixelRatio": 3
+      },
+      {
+        "path": "docs/evidence/investment-explanations-512/selected-valuation-v1/desktop-light-report.png",
+        "originalSHA256": "d1d9874b0552bd9a11e8dcd81a6552e37172d8c006e56e992df232c08c2266fc",
+        "width": 1440,
+        "height": 3688,
+        "cssViewportWidth": 1440,
+        "actualDevicePixelRatio": 1
+      },
+      {
+        "path": "docs/evidence/investment-explanations-512/selected-valuation-v1/desktop-light-overview.png",
+        "originalSHA256": "559c014d293ec3a2e05e0b1aa86eac13521e0afff31dadd9f9bf3523265ca818",
+        "width": 1440,
+        "height": 3349,
+        "cssViewportWidth": 1440,
+        "actualDevicePixelRatio": 1
+      },
+      {
+        "path": "docs/evidence/investment-explanations-512/selected-valuation-v1/desktop-dark-report.png",
+        "originalSHA256": "1e3d0127f783715d71a296064f2166667246f1c966cdf4eb26f294447f6afe03",
+        "width": 1440,
+        "height": 3688,
+        "cssViewportWidth": 1440,
+        "actualDevicePixelRatio": 1
+      },
+      {
+        "path": "docs/evidence/investment-explanations-512/selected-valuation-v1/desktop-dark-overview.png",
+        "originalSHA256": "777da3ff0e3768148764dfdd5d6012e4ffe56aad9662c4cab4e57d01f9509ce7",
+        "width": 1440,
+        "height": 3349,
+        "cssViewportWidth": 1440,
+        "actualDevicePixelRatio": 1
+      }
+    ],
+    "profiles": [
+      {
+        "key": "configured-profile-light-report",
+        "sha256": "2522d25f39228664acfefb975c7528acfe303d3af6289977e69a587190251508",
+        "runtime": {
+          "label": "configured-profile",
+          "selected": "light",
+          "surface": "report",
+          "project": "webkit-iphone",
+          "engine": "webkit",
+          "configuredContext": {
+            "viewport": {
+              "width": 390,
+              "height": 664
+            },
+            "isMobile": true,
+            "hasTouch": true,
+            "deviceScaleFactor": 3
+          },
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "coarse": true,
+          "DPR": 3,
+          "rawMaxTouchPoints": 0,
+          "themeAttribute": "system",
+          "path": "/reports/prendite?zeitraum=1M",
+          "qualification": "Synthetic security closing-valuation metadata only; click/keyboard protocol, no physical touch or whole-page unobscured proof; selected11table conservation only."
+        }
+      },
+      {
+        "key": "configured-profile-light-overview",
+        "sha256": "6788d70f18c30f01849b10e95e841fee66246b28429e199b1e319598fa3cbb38",
+        "runtime": {
+          "label": "configured-profile",
+          "selected": "light",
+          "surface": "overview",
+          "project": "webkit-iphone",
+          "engine": "webkit",
+          "configuredContext": {
+            "viewport": {
+              "width": 390,
+              "height": 664
+            },
+            "isMobile": true,
+            "hasTouch": true,
+            "deviceScaleFactor": 3
+          },
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "coarse": true,
+          "DPR": 3,
+          "rawMaxTouchPoints": 0,
+          "themeAttribute": "system",
+          "path": "/vermoegen/portfolio?zeitraum=1M",
+          "qualification": "Synthetic security closing-valuation metadata only; click/keyboard protocol, no physical touch or whole-page unobscured proof; selected11table conservation only."
+        }
+      },
+      {
+        "key": "configured-profile-dark-report",
+        "sha256": "ba846b098519f395308548768788beae4ce277bcdef6673546a762c28a95e26d",
+        "runtime": {
+          "label": "configured-profile",
+          "selected": "dark",
+          "surface": "report",
+          "project": "webkit-iphone",
+          "engine": "webkit",
+          "configuredContext": {
+            "viewport": {
+              "width": 390,
+              "height": 664
+            },
+            "isMobile": true,
+            "hasTouch": true,
+            "deviceScaleFactor": 3
+          },
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "coarse": true,
+          "DPR": 3,
+          "rawMaxTouchPoints": 0,
+          "themeAttribute": "dark",
+          "path": "/reports/prendite?zeitraum=1M",
+          "qualification": "Synthetic security closing-valuation metadata only; click/keyboard protocol, no physical touch or whole-page unobscured proof; selected11table conservation only."
+        }
+      },
+      {
+        "key": "configured-profile-dark-overview",
+        "sha256": "a8cf447b0932cf4da6ce1084b6b2482cdfc9359d7a3f903f0ab60e5df62d3458",
+        "runtime": {
+          "label": "configured-profile",
+          "selected": "dark",
+          "surface": "overview",
+          "project": "webkit-iphone",
+          "engine": "webkit",
+          "configuredContext": {
+            "viewport": {
+              "width": 390,
+              "height": 664
+            },
+            "isMobile": true,
+            "hasTouch": true,
+            "deviceScaleFactor": 3
+          },
+          "viewport": {
+            "width": 390,
+            "height": 664
+          },
+          "coarse": true,
+          "DPR": 3,
+          "rawMaxTouchPoints": 0,
+          "themeAttribute": "dark",
+          "path": "/vermoegen/portfolio?zeitraum=1M",
+          "qualification": "Synthetic security closing-valuation metadata only; click/keyboard protocol, no physical touch or whole-page unobscured proof; selected11table conservation only."
+        }
+      },
+      {
+        "key": "desktop-layout-light-report",
+        "sha256": "fb089814b4662a61c2079059f89a06bbbeeb33e8e4f5c90f598f6f4c10b5a182",
+        "runtime": {
+          "label": "desktop-layout",
+          "selected": "light",
+          "surface": "report",
+          "project": "webkit-iphone",
+          "engine": "webkit",
+          "configuredContext": {
+            "viewport": {
+              "width": 1440,
+              "height": 900
+            },
+            "isMobile": false,
+            "hasTouch": false,
+            "deviceScaleFactor": 1
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "coarse": false,
+          "DPR": 1,
+          "rawMaxTouchPoints": 0,
+          "themeAttribute": "system",
+          "path": "/reports/prendite?zeitraum=1M",
+          "qualification": "Synthetic security closing-valuation metadata only; click/keyboard protocol, no physical touch or whole-page unobscured proof; selected11table conservation only."
+        }
+      },
+      {
+        "key": "desktop-layout-light-overview",
+        "sha256": "cd2a90236973932f7d91c4a2fc97024e420d76387e2bf2de5e8b636607e6ba82",
+        "runtime": {
+          "label": "desktop-layout",
+          "selected": "light",
+          "surface": "overview",
+          "project": "webkit-iphone",
+          "engine": "webkit",
+          "configuredContext": {
+            "viewport": {
+              "width": 1440,
+              "height": 900
+            },
+            "isMobile": false,
+            "hasTouch": false,
+            "deviceScaleFactor": 1
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "coarse": false,
+          "DPR": 1,
+          "rawMaxTouchPoints": 0,
+          "themeAttribute": "system",
+          "path": "/vermoegen/portfolio?zeitraum=1M",
+          "qualification": "Synthetic security closing-valuation metadata only; click/keyboard protocol, no physical touch or whole-page unobscured proof; selected11table conservation only."
+        }
+      },
+      {
+        "key": "desktop-layout-dark-report",
+        "sha256": "0e109edfc8b485b53d6339285f7464a3df2eaa3750ac986148b89b27d54ecc5a",
+        "runtime": {
+          "label": "desktop-layout",
+          "selected": "dark",
+          "surface": "report",
+          "project": "webkit-iphone",
+          "engine": "webkit",
+          "configuredContext": {
+            "viewport": {
+              "width": 1440,
+              "height": 900
+            },
+            "isMobile": false,
+            "hasTouch": false,
+            "deviceScaleFactor": 1
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "coarse": false,
+          "DPR": 1,
+          "rawMaxTouchPoints": 0,
+          "themeAttribute": "dark",
+          "path": "/reports/prendite?zeitraum=1M",
+          "qualification": "Synthetic security closing-valuation metadata only; click/keyboard protocol, no physical touch or whole-page unobscured proof; selected11table conservation only."
+        }
+      },
+      {
+        "key": "desktop-layout-dark-overview",
+        "sha256": "a0fd1a6c4cde10a6fcd22102275871c76eda250fca1d9aeff02891ea17dc1c69",
+        "runtime": {
+          "label": "desktop-layout",
+          "selected": "dark",
+          "surface": "overview",
+          "project": "webkit-iphone",
+          "engine": "webkit",
+          "configuredContext": {
+            "viewport": {
+              "width": 1440,
+              "height": 900
+            },
+            "isMobile": false,
+            "hasTouch": false,
+            "deviceScaleFactor": 1
+          },
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "coarse": false,
+          "DPR": 1,
+          "rawMaxTouchPoints": 0,
+          "themeAttribute": "dark",
+          "path": "/vermoegen/portfolio?zeitraum=1M",
+          "qualification": "Synthetic security closing-valuation metadata only; click/keyboard protocol, no physical touch or whole-page unobscured proof; selected11table conservation only."
+        }
+      }
+    ]
+  },
+  "qualification": "Real WebKit only; CSS390x664/DPR3 yields1170px PNG; true1440x900/DPR1 yields1440px PNG. RawMaxTouchPoints0; click/keyboard protocol, no physical-device claim. Full-page fixed-shell/search/sidebar/nav/skiplink/FAB occlusion and off-frame tables are actual capture limits; no whole-page unobscured or hit-test guarantee. All4 public512 ACs remain unchecked; flows/fee-tax/benchmark/cash/class-sleeve provenance excluded."
+}

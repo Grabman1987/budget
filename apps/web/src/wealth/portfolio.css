@@ -47,7 +47,7 @@
   margin-top: 18px;
   padding: 12px 14px;
   border: 1px solid var(--line-2);
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--ink);
   text-decoration: none;
 }
@@ -109,7 +109,7 @@
 }
 .portfolio-status {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 400;
   color: var(--ink-2);
 }
@@ -128,6 +128,8 @@
 }
 .instrument-detail {
   display: grid;
+  /* Keep a wide trade table inside its own scroller, including on native-dialog pages. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 .instrument-detail h3 {
@@ -153,14 +155,14 @@
 }
 .instrument-quote {
   margin: 0;
-  font-size: 24px;
+  font-size: var(--fs-figure);
   font-weight: 620;
 }
 .instrument-quote small,
 .instrument-accounts small {
   display: block;
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 400;
 }
 .instrument-accounts {
@@ -303,6 +305,127 @@
 }
 .portfolio-detail {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   min-width: 0;
+}
+.portfolio-overview {
+  min-width: 0;
+}
+.portfolio-overview .head {
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+.portfolio-overview .wealth-details summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.portfolio-overview svg {
+  max-width: 100%;
+}
+.portfolio-chart-line-0 {
+  --portfolio-series: var(--line);
+}
+.portfolio-chart-line-1 {
+  --portfolio-series: var(--future);
+}
+.portfolio-chart-line-2 {
+  --portfolio-series: var(--want);
+}
+.portfolio-chart-line-3 {
+  --portfolio-series: var(--ink-3);
+}
+.portfolio-chart-line-4 {
+  --portfolio-series: var(--ink-2);
+}
+.portfolio-chart-line .l-actual,
+.portfolio-chart-line .l-prev {
+  stroke: var(--portfolio-series);
+}
+.portfolio-chart-line-2 .l-prev {
+  stroke-dasharray: 8 3 2 3;
+}
+.portfolio-chart-line-3 .l-prev {
+  stroke-dasharray: 4 3 2 3;
+}
+.portfolio-chart-line-4 .l-prev {
+  stroke-dasharray: 16 4 2 4;
+}
+.portfolio-chart-legends,
+.portfolio-chart-legends > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+.portfolio-chart-legends {
+  gap: var(--space-lg);
+  font-size: var(--fs-chart-label);
+  color: var(--ink-2);
+}
+.portfolio-deposit-marker,
+.portfolio-withdrawal-marker {
+  fill: var(--surface);
+  stroke: var(--line);
+  stroke-width: var(--stroke-hairline);
+}
+.portfolio-lead-gain {
+  font-weight: 620;
+}
+@media (max-width: 980px) {
+  .portfolio-overview {
+    grid-column: 1 / -1;
+  }
+}
+.wealth-table-scroll {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+.wealth-trades {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--fs-body);
+  text-align: left;
+}
+.wealth-trades th,
+.wealth-trades td {
+  padding: 0 var(--space-sm);
+  height: 36px;
+  border-bottom: 1px solid var(--rule);
+}
+.wealth-trades small {
+  display: inline;
+  color: var(--ink-2);
+  font-size: var(--fs-chart-label);
+  margin-left: var(--space-sm);
+}
+.wealth-trades .num {
+  text-align: right;
+  white-space: nowrap;
+}
+.wealth-details > summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+@media (max-width: 767px) {
+  .portfolio-view a,
+  .portfolio-detail a,
+  .debts-view a,
+  .freedom-view a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch);
+  }
+  .wealth-trades th,
+  .wealth-trades td {
+    height: 44px;
+  }
+  .wealth-trades .btn {
+    min-height: 44px;
+  }
 }

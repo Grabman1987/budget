@@ -1,16 +1,9 @@
 # AGENTS.md
 
-Instructions for any coding agent working in this repository (Claude Code, Codex, others).
+Instructions for coding agents working in this repository.
 
-The complete working rules are in [`CLAUDE.md`](CLAUDE.md); they apply to every agent. In short:
+[`SPEC.md`](SPEC.md) defines product scope, architecture, security and financial invariants. Read it first. For roadmap work, read the task in [`docs/ROADMAP.md`](docs/ROADMAP.md); for UI work, also read [`DESIGN.md`](DESIGN.md) and the matching prototype and screens. UI text is German (de-AT); code, comments and documentation are English. Money is stored as integer cents, and calculations use shared pure domain logic.
 
-1. `SPEC.md` defines scope, architecture and the precedence of all sources. Read it first.
-2. `docs/ROADMAP.md` holds the task you are working on, with acceptance criteria. Ready-made task prompts live in `docs/prompts/`.
-3. UI must match `design/prototype/` and `design/screens/` and follow `DESIGN.md`.
-4. Calculations must match `design/prototype/*.js`; port tested logic from `reference/finance-hub/` where listed.
-5. No real financial data, persons or providers anywhere in the repo. Money in integer cents. Pure domain logic with tests.
-6. One task, one branch, one pull request; `npm run check` green before the PR.
+[`docs/queue/README.md`](docs/queue/README.md) is the single source for workflow, testing, review, coordination, integration and delivery rules. Follow it for queue work. Do not duplicate its process rules here.
 
-## Project skill profiles
-
-See [`docs/skills.md`](docs/skills.md) for locally adapted skills and their provenance. Read only the matching `.agents/skills/<name>/SKILL.md`: `budget-caveman` for communication, `budget-impeccable` for UI, `budget-verified-delivery` for implementation/audits, and `budget-security-review` for auth/API/migration/backup/integrations. These profiles supplement the working rules and preserve `SPEC.md` and user instructions; they do not install upstream commands.
+Project skill profiles and their provenance are listed in [`docs/skills.md`](docs/skills.md). Read only the matching `.agents/skills/<name>/SKILL.md` for the task; these profiles supplement `SPEC.md` and the queue process.

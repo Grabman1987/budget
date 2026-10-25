@@ -6,7 +6,8 @@ import { BookingTable } from './booking-table';
 import { MiniLine } from './mini-line';
 import type { ListedBooking } from './types';
 
-vi.mock('./queries', () => ({
+vi.mock('./queries', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   lookupsQuery: () => ({
     queryKey: ['lookups'],
     queryFn: async () => ({ categories: [], groups: [] }),

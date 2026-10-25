@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SavingsPlanRecord } from './savings-api';
-import { currentRates, planGroups } from './savings-model';
+import { currentRates, planGroups, nextPlanExecution, planPurchases } from './savings-model';
 const row = (
   id: string,
   from: string,
@@ -20,6 +20,50 @@ const row = (
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
   deletedAt: null,
+});
+describe('next savings execution', () => {
+  it('sums recorded gross buys for this instrument/account since the first version only', () => {
+    const buy = {
+      id: 'purchase',
+      kind: 'buy',
+      date: '2026-02-01',
+      securityId: 'fund',
+      accountId: 'eur',
+      amountCents: 10001,
+    };
+    const trades = [
+      buy,
+      { ...buy, id: 'second', amountCents: 20002 },
+      { ...buy, kind: 'sell' },
+      { ...buy, accountId: 'other' },
+      { ...buy, date: '2025-12-31' },
+      { ...buy, date: '2026-11-01' },
+    ];
+    expect(
+      planPurchases([row('plan', '2026-01-01', null, 10000)], trades, '2026-10-01'),
+    ).toMatchObject({
+      totalCents: 30003,
+      since: '2026-01-01',
+      buys: [buy, { ...buy, id: 'second', amountCents: 20002 }],
+    });
+  });
+  it('uses the version effective on execution day and clamps short months', () => {
+    const plans = [
+      row('old', '2026-01-01', '2026-10-30', 10000),
+      row('new', '2026-10-31', null, 20000),
+    ];
+    expect(nextPlanExecution(plans, '2026-10-01')).toMatchObject({
+      date: '2026-10-31',
+      amountCents: 20000,
+    });
+    expect(nextPlanExecution(plans, '2027-02-01')?.date).toBe('2027-02-28');
+    expect(
+      nextPlanExecution([row('ended', '2026-01-01', '2026-09-30', 10000)], '2026-10-01'),
+    ).toBeNull();
+    expect(
+      nextPlanExecution([...plans, row('overlap', '2026-10-01', null, 30000)], '2026-10-01'),
+    ).toBeNull();
+  });
 });
 describe('savings-plan presentation uses inclusive real versions', () => {
   const rows = [

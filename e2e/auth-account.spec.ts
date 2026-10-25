@@ -134,6 +134,9 @@ sampleTest(
       await route.fulfill({ json: { ...(await response.json()), viaRecovery } });
     });
     await page.goto(`/konten/${target.id}`);
+    const source = page.locator('details.kacct-source > summary');
+    await expect(source).toBeVisible();
+    await source.click();
     const status = page.getByRole('group', { name: 'Datenstand', exact: true });
     await expect(status).toContainText('Unbekannt');
     await expect(status).toContainText('Bank-Sync: Nicht eingerichtet');
@@ -143,6 +146,7 @@ sampleTest(
     synced = true;
     viaRecovery = true;
     await page.reload();
+    await source.click();
     await expect(status).toContainText('15.09.2026');
     await expect(status).toContainText('Manuelle Prüfung');
     await expect(status).toContainText('Technischer Abruf: 17.09.2026');

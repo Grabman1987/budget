@@ -23,41 +23,34 @@ function DetailBack({
   to,
   search,
   label,
-  title,
 }: {
   to: string;
   search: Record<string, unknown>;
   label: string;
-  title: string;
 }) {
   const router = useRouter();
   const opened = useLocation({ select: (location) => location.state.planPanelDetailOpenedInApp });
   return (
     <div className="plan-panel-nav">
       <nav aria-label="Brotkrumen">
-        <AppLink to={to} search={search}>
-          {label}
+        <AppLink
+          to={to}
+          search={search}
+          onClick={(event) => {
+            if (opened && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
+              event.preventDefault();
+              router.history.back();
+            }
+          }}
+        >
+          Zurück{' '}
+          {label === 'Kategorien'
+            ? 'zu Kategorien'
+            : label === 'Sparziele'
+              ? 'zu Sparzielen'
+              : 'zum Sparzielreport'}
         </AppLink>
-        {' › '}
-        <span aria-current="page">{title}</span>
       </nav>
-      <AppLink
-        to={to}
-        search={search}
-        onClick={(event) => {
-          if (opened && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
-            event.preventDefault();
-            router.history.back();
-          }
-        }}
-      >
-        Zurück{' '}
-        {label === 'Kategorien'
-          ? 'zu Kategorien'
-          : label === 'Sparziele'
-            ? 'zu Sparzielen'
-            : 'zum Sparzielreport'}
-      </AppLink>
     </div>
   );
 }
@@ -75,14 +68,9 @@ export function CategoryDetailPage() {
   }, [category?.id]);
   const target = query.data?.targets.filter((t) => t.categoryId === id).at(-1);
   return (
-    <PageFrame meta={EINSTELLUNGEN_KATEGORIEN} title={category?.name ?? 'Kategorie'}>
+    <PageFrame meta={EINSTELLUNGEN_KATEGORIEN} detail>
       <div className="kview plan plan-panel-detail">
-        <DetailBack
-          to="/einstellungen/kategorien"
-          search={{ ausgeblendet }}
-          label="Kategorien"
-          title={category?.name ?? 'Kategorie'}
-        />
+        <DetailBack to="/einstellungen/kategorien" search={{ ausgeblendet }} label="Kategorien" />
         {query.isPending && <LoadingNote what="Kategorie" />}
         {query.isError && (
           <ErrorNote what="Kategorie" error={query.error} onRetry={() => void query.refetch()} />
@@ -91,7 +79,7 @@ export function CategoryDetailPage() {
         {category && (
           <section className="card insp-card" aria-labelledby="category-detail-title">
             <h2 id="category-detail-title" ref={heading} tabIndex={-1}>
-              <CategoryIcon icon={category.icon} /> {category.name}
+              <CategoryIcon icon={category.icon} name={category.name} /> {category.name}
             </h2>
             <dl className="kv-list">
               <div className="kv">
@@ -170,16 +158,14 @@ export function GoalDetailPage() {
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
   }, [row?.id]);
-  const title = row?.name ?? 'Sparziel';
   const category = query.data?.categories.categories.find((c) => c.id === goal?.categoryId);
   return (
-    <PageFrame meta={PLAN_SPARZIELE} title={title}>
+    <PageFrame meta={PLAN_SPARZIELE}>
       <div className="plan plan-panel-detail">
         <DetailBack
           to={quelle === 'report' ? '/reports/sparziele' : '/plan/sparziele'}
           search={quelle === 'report' ? {} : { monat: month }}
           label={quelle === 'report' ? 'Sparzielreport' : 'Sparziele'}
-          title={title}
         />
         {(query.isPending || query.isFetching) && <LoadingNote what="Sparziel und Quellen" />}
         {!query.isFetching && query.isError && (

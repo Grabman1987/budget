@@ -83,11 +83,9 @@ test.describe('routes', () => {
       await expect(nav.locator('[aria-current="page"]'), path).toHaveText(new RegExp(area));
     }
     await page.goto('/konten/buchungen');
-    await expect(page.locator('.registers [aria-current="page"]')).toHaveText('Alle Buchungen');
+    await expect(page.locator('.registers [aria-current="page"]')).toHaveText('Buchungen');
     await page.goto('/reports/geldfluss');
-    await expect(page.locator('.registers [aria-current="page"]')).toHaveText(
-      'Monat und Einkommen',
-    );
+    await expect(page.locator('.registers [aria-current="page"]')).toHaveText('Monat');
     // Einstellungen have a grouped navigation instead of register tabs (rail on desktop).
     await page.goto('/einstellungen/sicherheit');
     if (!isPhone(testInfo))
@@ -120,7 +118,7 @@ test.describe('routes', () => {
     page,
   }) => {
     await page.goto('/reports');
-    await expect(page.locator('.rcat-row')).toHaveCount(34);
+    await expect(page.locator('.rcat-row')).toHaveCount(33);
     await expect(page.locator('.rcat-grp')).toHaveCount(5);
     await expect(page.locator('.rcat-row .col-pos').first()).toHaveText('1.1');
     await expect(page.locator('.rcat-row .col-pos').last()).toHaveText('5.5');
@@ -179,7 +177,7 @@ test.describe('panel via route param', () => {
 
   test('legacy inbox links redirect to the page', async ({ page }) => {
     await page.goto('/konten?panel=posteingang');
-    await expect(page).toHaveURL(/\/konten\/posteingang/);
+    await expect(page).toHaveURL(/\/konten\/pruefen/);
     await expect(page.getByRole('dialog', { name: 'Posteingang' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
   });
@@ -240,7 +238,8 @@ test.describe('desktop shell', () => {
     await expect(page.locator('.m-head')).toBeHidden();
     const items = page.locator('.sheetlist li');
     await expect(items).toHaveCount(5);
-    await expect(items.locator('.sheet-no')).toHaveText(['01', '02', '03', '04', '05']);
+    await expect(items.locator('.sheet-no')).toHaveCount(0);
+    await expect(items.locator('svg.icon')).toHaveCount(5);
     await expect(items.locator('.label')).toHaveText([
       'Heute',
       'Plan',
@@ -314,25 +313,23 @@ test.describe('desktop shell', () => {
     await expect(page).toHaveURL(/\/konten$/);
   });
 
-  test('theme button names the other theme as in the prototype and persists the choice', async ({
-    page,
-  }) => {
+  test('theme icon announces the current dark state and persists the choice', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto('/');
     const html = page.locator('html');
     const button = page.locator('.sidebar').getByTitle('Hell/Dunkel umschalten');
-    // Follows the system until the first switch; the button names the target theme.
-    await expect(button).toHaveText('Dunkle Blaupause');
+    await expect(button).toHaveAccessibleName('Hell/Dunkel umschalten');
+    await expect(button).toHaveAttribute('aria-pressed', 'false');
     await expect(html).not.toHaveAttribute('data-theme', /.+/);
     await button.click();
     await expect(html).toHaveAttribute('data-theme', 'dark');
-    await expect(button).toHaveText('Heller Zeichenfilm');
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
     await page.reload();
     await expect(html).toHaveAttribute('data-theme', 'dark');
-    await expect(button).toHaveText('Heller Zeichenfilm');
+    await expect(button).toHaveAttribute('aria-pressed', 'true');
     await button.click();
     await expect(html).toHaveAttribute('data-theme', 'light');
-    await expect(button).toHaveText('Dunkle Blaupause');
+    await expect(button).toHaveAttribute('aria-pressed', 'false');
   });
 });
 
@@ -385,9 +382,10 @@ test.describe('phone shell', () => {
 
   test('phone header links to the inbox page and retains return context', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.route('**/api/inbox/count', (route) => route.fulfill({ json: { count: 4 } }));
     await page.goto('/konten?monat=2026-09');
-    await page.getByRole('link', { name: /Posteingang, \d+ offen/ }).click();
-    await expect(page).toHaveURL(/\/konten\/posteingang/);
+    await page.locator('.m-status').getByRole('link', { name: '4 zu prüfen' }).click();
+    await expect(page).toHaveURL(/\/konten\/pruefen/);
     await expect(page.getByRole('dialog', { name: 'Posteingang' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
     await page.getByRole('link', { name: 'Zur\u00fcck zur vorherigen Ansicht' }).click();
@@ -411,7 +409,7 @@ sampleTest.describe('regression baselines of the shell (own screenshots)', () =>
     sampleTest(`light ${name}`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
       if (name === 'heute') await freezeHeuteVisual(page);
-      await page.goto(name === 'heute' ? '/?monat=2026-09' : path);
+      await page.goto(name === 'heute' ? '/?monat=2026-09&period=payday' : path);
       await expect(page.locator('main')).toBeVisible();
       if (name === 'heute') {
         await expectHeuteVisualReady(page);
@@ -425,7 +423,7 @@ sampleTest.describe('regression baselines of the shell (own screenshots)', () =>
   sampleTest('dark heute', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
     await freezeHeuteVisual(page);
-    await page.goto('/?monat=2026-09');
+    await page.goto('/?monat=2026-09&period=payday');
     await expect(page.locator('main')).toBeVisible();
     await expectHeuteVisualReady(page);
     await page.screenshot({ path: test.info().outputPath('heute-viewport-dark.png') });

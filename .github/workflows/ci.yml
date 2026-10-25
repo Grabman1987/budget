@@ -5,26 +5,107 @@ on:
   # The deploy workflow starts from a successful CI run on main, so CI must run there too.
   push:
     branches: [main]
+  # Full regression remains available independently of the focused pull-request lanes.
+  workflow_dispatch:
+  schedule:
+    - cron: '17 2 * * *'
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name }}
   # Never cancel the run on main that a deploy may be waiting for.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  plan:
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      lane: ${{ steps.plan.outputs.lane }}
+      shards: ${{ steps.plan.outputs.shards }}
+      specs: ${{ steps.plan.outputs.specs }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select affected checks (unknown changes use full coverage)
+        id: plan
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HIGH_RISK: ${{ contains(github.event.pull_request.labels.*.name, 'risk:high') }}
+        run: node scripts/ci/change-plan.mjs
+
+  # Push to main only: when this exact tree already passed its selected suite as a pull request (same
+  # tree, PR head contains the previous main, check/check-windows/docker/restore-test green in this
+  # workflow), the heavy jobs below are skipped and the aggregates report success, so deploy.yml
+  # proceeds. Anything missing or unreadable means reuse=false, i.e. the full suite. Pull request
+  # runs skip this job and are unaffected. Logic and tests: scripts/ci/reuse-validated-tree.mjs.
+  reuse:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+      actions: read
+    outputs:
+      reuse: ${{ steps.decide.outputs.reuse }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # A crash must not fail the run: the output stays empty and the full suite runs.
+      - name: Decide
+        id: decide
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: node scripts/ci/reuse-validated-tree.mjs
+
   # `check`, `check-windows`, `docker` and `restore-test` are the required status checks (branch
-  # protection, merge script): keep their names. `check` is the aggregate of `unit` and `e2e`.
-  unit:
+  # protection, merge script): keep their names. `check` validates the lane's exact status vector.
+  # Typecheck and lint (OS-independent) in one job, unit tests sharded in the next one.
+  static:
+    needs: [reuse, plan]
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+
+  unit:
+    needs: [reuse, plan]
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' && needs.plan.result == 'success' && needs.plan.outputs.lane != 'docs' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -33,45 +114,59 @@ jobs:
       # BUDGET_REQUIRE_AGE=1 it fails instead of skipping when the binary is missing.
       - name: Install age
         run: sudo apt-get update && sudo apt-get install -y age
-      - name: Typecheck, lint, unit tests
+      - name: Unit tests, shard ${{ matrix.shard }}/2
         env:
           BUDGET_REQUIRE_AGE: '1'
-        run: npm run check
+        run: npx vitest run --shard=${{ matrix.shard }}/2
 
-  # E2E is split by Playwright sharding. Every shard builds the bundle and starts its own set of
-  # test servers (fresh databases, see playwright.config.ts), so shards share no state.
+  # Full E2E is split by Playwright sharding (SHARDS below must match the full plan). Every shard builds
+  # the bundle (seconds, so no shared build artifact) and starts its own set of test servers (fresh
+  # databases, see playwright.config.ts), so shards share no state. Screenshot assertions are
+  # skipped here (--ignore-snapshots, every other assertion runs): baselines are checked by the
+  # separate `visual` job (also part of `check`), so full shards only prove behaviour.
+  # The UI lane uses one job, mapped specs and enabled screenshot assertions instead.
   e2e:
-    runs-on: ubuntu-latest
+    needs: [reuse, plan, static]
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' && needs.plan.result == 'success' && needs.plan.outputs.lane != 'docs' && needs.static.result == 'success' }}
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+    defaults:
+      run:
+        shell: bash
     timeout-minutes: 30
+    env:
+      SHARDS: 12
+      CI_LANE: ${{ needs.plan.outputs.lane }}
+      SPECS: ${{ needs.plan.outputs.specs }}
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: ${{ fromJSON(needs.plan.outputs.shards || '[1]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Allow Git reads in the container workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Playwright version
-        id: playwright
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-      - name: Cache Playwright browsers
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      # With a cache hit the browsers are not downloaded again; the system packages still are.
-      - name: Install Chromium and WebKit
-        run: npx playwright install --with-deps chromium webkit
       - name: Build (e2e mode)
         run: npm run build:e2e
-      - name: E2E shard ${{ matrix.shard }}/3
-        run: npx playwright test --shard=${{ matrix.shard }}/3
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - name: E2E shard ${{ matrix.shard }}/${{ env.SHARDS }}
+        run: |
+          if [ "$CI_LANE" = "ui" ]; then
+            read -r -a specs <<< "$SPECS"
+            [ "${#specs[@]}" -gt 0 ] || exit 1
+            # Focused runs retain screenshot assertions and every configured browser profile.
+            npx playwright test "${specs[@]}"
+          else
+            npx playwright test --ignore-snapshots --shard=${{ matrix.shard }}/${{ env.SHARDS }}
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
           name: playwright-report-${{ matrix.shard }}
@@ -80,38 +175,102 @@ jobs:
             test-results/
           retention-days: 7
 
-  # Required status check: green only if the unit job and every e2e shard succeeded.
+  # Required status check: green only for the exact successful/skipped vector of the selected lane.
   check:
-    needs: [unit, e2e]
+    needs: [reuse, plan, static, unit, e2e, visual]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require unit and e2e
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require every check selected by the verified plan
         env:
-          RESULTS: ${{ needs.unit.result }} ${{ needs.e2e.result }}
-        run: |
-          echo "unit / e2e: $RESULTS"
-          [ "$RESULTS" = "success success" ]
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: node scripts/ci/change-plan.mjs --gate
 
-  # Windows is the owner's development machine: `npm ci` (no compiler needed, see .npmrc) and the
-  # unit tests must pass there, including the path handling of the database package.
-  check-windows:
-    runs-on: windows-latest
-    timeout-minutes: 20
+  # The specs that compare screenshots (the only ones with baselines), without --ignore-snapshots.
+  # Blocking via `check`. A PR that changes the UI on purpose commits reviewed Linux baselines first
+  # (manual workflow update-snapshots.yml).
+  visual:
+    needs: [reuse, plan, static]
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' && needs.plan.outputs.lane == 'full' && needs.static.result == 'success' }}
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+    defaults:
+      run:
+        shell: bash
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Allow Git reads in the container workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Typecheck, lint, unit tests
-        run: npm run check
+      - name: Build (e2e mode)
+        run: npm run build:e2e
+      - name: Visual specs
+        run: |
+          mapfile -t specs < <(grep -lE 'expectScreenshot|toHaveScreenshot' e2e/*.spec.ts)
+          npx playwright test "${specs[@]}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: playwright-report-visual
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  # Windows is the owner's development machine: `npm ci` (no compiler needed, see .npmrc) and the
+  # unit tests must pass there, including the path handling of the database package. Typecheck and
+  # lint are OS-independent (.gitattributes pins eol=lf) and already run on ubuntu (`static`).
+  windows-unit:
+    needs: [reuse, plan, static]
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' && needs.plan.outputs.lane == 'full' && needs.static.result == 'success' }}
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Unit tests, shard ${{ matrix.shard }}/2
+        run: npx vitest run --shard=${{ matrix.shard }}/2
+
+  # Required status check: Windows success for full runs; explicit non-Windows/reuse decision otherwise.
+  check-windows:
+    needs: [reuse, plan, windows-unit]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require Windows coverage when selected
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: node scripts/ci/change-plan.mjs --gate windows
 
   docker:
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -138,6 +297,8 @@ jobs:
           exit 1
 
   restore-test:
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.outputs.reuse != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

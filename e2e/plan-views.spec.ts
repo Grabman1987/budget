@@ -13,7 +13,6 @@ test('plan views: status, 50/30/20, triage groups and the time view', async ({ p
 
   // Uncovered overspending from the previous month and cash overspending are named, worst first;
   // "Nichts ist überzogen." never appears next to them.
-  await page.locator('.plan-details > summary').click();
   const status = page.getByRole('list', { name: 'Zustand des Monats' });
   await expect(status).toContainText('Ungedeckt aus dem Vormonat');
   await expect(status).toContainText('Envelopes überzogen');
@@ -22,11 +21,13 @@ test('plan views: status, 50/30/20, triage groups and the time view', async ({ p
   // Assigned money far above the income: the bar runs past 100 % with an overflow label
   // (owner 04.10.2026: overspending must be visible, shares are of income, not renormalised).
   const split = page.locator('.split-band');
+  await page.locator('.inspector-section > summary').filter({ hasText: '50/30/20' }).click();
   await expect(split).toContainText('über Einnahmen');
   await expect(split.locator('.sb-legend')).toContainText(/Bedarf \d+ %/);
 
   // Triage: title and hint left-aligned on their own lines, the affected envelopes inside.
-  await page.getByLabel('Ansicht', { exact: true }).selectOption('triage');
+  // #588: "Nur Überzogene" left the Ansicht menu; the Heute link (?ansicht=triage) opens the view.
+  await page.goto('/plan/monat?monat=2026-09&ansicht=triage');
   const over = page.locator('tr.pgroup', { hasText: 'Überzogen' });
   await expect(over.locator('.grp-title')).toHaveText('Überzogen');
   await expect(over.locator('.grp-toggle')).toHaveCSS('text-align', /^(left|start)$/);
@@ -35,7 +36,11 @@ test('plan views: status, 50/30/20, triage groups and the time view', async ({ p
   expect(axeTriage.violations.map((v) => `${v.id}: ${v.nodes[0]?.target}`)).toEqual([]);
 
   // Time: envelopes with expected payments are listed under their next date.
-  await page.getByLabel('Ansicht', { exact: true }).selectOption('time');
+  await page.locator('.plan-menu summary', { hasText: 'Optionen' }).click();
+  await page
+    .getByRole('group', { name: 'Ansicht', exact: true })
+    .getByRole('button', { name: 'Zeit', exact: true })
+    .click();
   const next14 = page.locator('tr.pgroup', { hasText: 'Nächste 14 Tage' });
   await expect(next14).toBeVisible();
   await expect(page.locator('tr.prow .pname[title*="erwartet"]').first()).toHaveAttribute(

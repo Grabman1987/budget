@@ -15,7 +15,7 @@
 .term-trigger:focus-visible {
   outline: 2px solid var(--line);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 .term-popover {
   position: fixed;
@@ -30,7 +30,7 @@
   background: var(--surface);
   color: var(--ink);
   box-shadow: var(--card-shadow);
-  font: 400 14px / 1.45 var(--font-ui);
+  font: 400 var(--fs-table) / 1.45 var(--font-ui);
   text-align: left;
 }
 @media print {

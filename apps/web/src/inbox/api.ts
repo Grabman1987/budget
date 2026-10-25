@@ -1,6 +1,6 @@
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
-import type { InboxPeriod } from '@budget/domain';
+import type { InboxPeriod, InboxSegment } from '@budget/domain';
 import { LEDGER_KEY } from '../ledger/queries';
 import type { SavingsExecutionProposal } from '../wealth/savings-api';
 export type InboxKind =
@@ -58,6 +58,8 @@ export interface InboxEnvelope {
   kind: 'overspent';
   categoryId: string;
   month: string;
+  /** Positive amount in cents needed to bring the current envelope back to zero. */
+  deficitCents: number;
   title: string;
   detail: string;
   urgent: true;
@@ -68,6 +70,7 @@ export interface InboxView {
   count: number;
   entries: InboxEntry[];
   readSourceSummaries: { sourceId: string | null; name: string; count: number }[];
+  overspentSummary?: { month: string; count: number; deficitCents: number } | undefined;
 }
 export interface InboxPage extends InboxView {
   totalEntries: number;
@@ -77,6 +80,9 @@ export interface InboxPage extends InboxView {
   offset: number;
   next: number | null;
   countsByTitle?: Record<string, number>;
+  /** Konten › Prüfen only: the part shown and the open work of both parts. */
+  segment?: InboxSegment;
+  segments?: Record<InboxSegment, number>;
 }
 export const readSourceMovementsQuery = (sourceId: string, title: string) =>
   infiniteQueryOptions({
@@ -107,6 +113,11 @@ export const inboxPagesQuery = (
   bankSource?: string,
   dateSort?: 'newest' | 'oldest',
   fromDate?: string,
+  /** Without a choice the server opens on the part that has open work. */
+  segment: InboxSegment | 'auto' = 'auto',
+  /** Keeps the shown part stable after `auto` has picked one (same cache entry). */
+  pinned?: InboxSegment,
+  bankAccountId?: string,
 ) =>
   infiniteQueryOptions({
     queryKey: [
@@ -117,11 +128,13 @@ export const inboxPagesQuery = (
       bankSource ?? null,
       dateSort ?? null,
       fromDate ?? null,
+      bankSource ? null : segment,
+      ...(bankAccountId ? ['bank-account', bankAccountId] : []),
     ] as const,
     queryFn: ({ pageParam }) =>
       request<InboxPage>(
         'GET',
-        `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}${period === 'all' ? '' : `&period=${period}`}${bankSource ? `&bankSource=${encodeURIComponent(bankSource)}` : ''}${dateSort ? `&dateSort=${dateSort}` : ''}${fromDate ? `&fromDate=${encodeURIComponent(fromDate)}` : ''}`,
+        `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}${period === 'all' ? '' : `&period=${period}`}${bankSource ? `&bankSource=${encodeURIComponent(bankSource)}` : ''}${dateSort ? `&dateSort=${dateSort}` : ''}${fromDate ? `&fromDate=${encodeURIComponent(fromDate)}` : ''}${bankSource ? '' : `&segment=${segment === 'auto' ? (pinned ?? segment) : segment}`}${bankAccountId ? `&bankAccountId=${encodeURIComponent(bankAccountId)}` : ''}`,
       ),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.next ?? undefined,

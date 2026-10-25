@@ -1,18 +1,15 @@
-import { Count } from '@budget/ui';
-import { Inbox, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { MAIN_AREAS, areaById, type AreaId } from '../nav/areas';
 import type { PageMeta } from '../nav/pages';
 import { AppLink } from './app-link';
 import { PanelLink } from './panel-link';
-import { InboxHeaderLink } from '../inbox/navigation';
-import { useInboxCount } from './inbox';
 import { GlobalSearch } from './global-search';
 import { ThemeButton } from './theme-button';
 import { useShellIdentity } from './use-profile';
-import { QueueBadge } from '../pwa/queue-ui';
-import { OverspentChip } from './overspent-chip';
+import { MobileStatusLine } from './header-status';
 import { PrivacyButton } from './privacy-button';
+import { useFabVisible } from './use-fab-visible';
 
 /**
  * What the phone header shows, as in the prototype: the area name (the month switch and the strip
@@ -27,9 +24,16 @@ export function phoneTitle(page: PageMeta | undefined, fallback: string): string
   return areaById(page.area).label;
 }
 
-/** Phone header (< 768 px): page title, search, inbox, profile. */
-export function MobileHeader({ title, asHeading }: { title: string; asHeading: boolean }) {
-  const inbox = useInboxCount();
+/** Phone header (< 768 px): page title, search, profile; linked status below. */
+export function MobileHeader({
+  title,
+  asHeading,
+  onSearchChange,
+}: {
+  title: string;
+  asHeading: boolean;
+  onSearchChange?: (open: boolean) => void;
+}) {
   const identity = useShellIdentity();
   const profileMenu = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
@@ -52,43 +56,41 @@ export function MobileHeader({ title, asHeading }: { title: string; asHeading: b
     };
   }, []);
   return (
-    <header className="m-head">
-      <div className="m-title">
-        {asHeading ? (
-          <h1 className="m-title-text">{title}</h1>
-        ) : (
-          <p className="m-title-text">{title}</p>
-        )}
-      </div>
-      <span className="spacer" />
-      <GlobalSearch mobile />
-      <InboxHeaderLink className="icon-btn" aria-label={inbox.label}>
-        <Inbox size={18} strokeWidth={1.75} aria-hidden="true" />
-        {inbox.count !== undefined && inbox.count > 0 && <Count>{inbox.count}</Count>}
-      </InboxHeaderLink>
-      <OverspentChip compact />
-      <details className="m-profile" ref={profileMenu}>
-        <summary className="avatar" aria-label={`${identity.name}: Profilmenü`}>
-          {identity.initials}
-        </summary>
-        <div className="m-profile-actions">
-          <PrivacyButton text />
-          <ThemeButton variant="side" />
-          <AppLink
-            className="btn btn-ghost"
-            to="/einstellungen"
-            onClick={(event) => event.currentTarget.closest('details')?.removeAttribute('open')}
-          >
-            Profil und Einstellungen
-          </AppLink>
+    <>
+      <header className="m-head">
+        <div className="m-title">
+          {asHeading ? (
+            <h1 className="m-title-text">{title}</h1>
+          ) : (
+            <p className="m-title-text">{title}</p>
+          )}
         </div>
-      </details>
-    </header>
+        <GlobalSearch mobile onOpenChange={onSearchChange} />
+        <details className="m-profile" ref={profileMenu}>
+          <summary className="avatar" aria-label={`${identity.name}: Profilmenü`}>
+            {identity.initials}
+          </summary>
+          <div className="m-profile-actions">
+            <PrivacyButton text />
+            <ThemeButton variant="side" />
+            <AppLink
+              className="btn btn-ghost"
+              to="/einstellungen"
+              onClick={(event) => event.currentTarget.closest('details')?.removeAttribute('open')}
+            >
+              Profil und Einstellungen
+            </AppLink>
+          </div>
+        </details>
+      </header>
+      <MobileStatusLine />
+    </>
   );
 }
 
 /** Bottom tab bar with the same five areas in the same order as the sidebar, plus the + button. */
 export function TabBar({ area }: { area: AreaId | undefined }) {
+  const fabVisible = useFabVisible();
   return (
     <>
       <nav className="tabbar" aria-label="Hauptnavigation">
@@ -98,13 +100,17 @@ export function TabBar({ area }: { area: AreaId | undefined }) {
             <AppLink key={a.id} to={a.to} aria-current={area === a.id ? 'page' : undefined}>
               {Icon && <Icon className="icon" size={22} strokeWidth={1.75} aria-hidden="true" />}
               {a.label}
-              {(a.id === 'heute' || a.id === 'konten') && <QueueBadge />}
             </AppLink>
           );
         })}
       </nav>
       <nav aria-label="Schnellerfassung">
-        <PanelLink className="fab" panel="buchung" aria-label="Buchung erfassen">
+        <PanelLink
+          className="fab"
+          panel="buchung"
+          aria-label="Buchung erfassen"
+          hidden={!fabVisible}
+        >
           <Plus size={26} strokeWidth={2} aria-hidden="true" />
         </PanelLink>
       </nav>

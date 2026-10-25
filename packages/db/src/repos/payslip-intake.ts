@@ -1,10 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, isNull, min, or } from 'drizzle-orm';
+import { and, eq, gt, gte, lte, isNull, min, or } from 'drizzle-orm';
 import {
   isDuplicatePayslip,
   payrollTotals,
   payslipInput,
   payslipSourceConfig,
+  proposedPayslipPayoutDate,
+  planPayslipAutomation,
+  sameAutomaticPayrollSlot,
+  sameAutomaticPayrollRecord,
+  lastDayOfMonth,
+  versionOn,
+  type PayslipAutomationOutcome,
   type ParsedPayrollDocument,
   type PayslipSourceConfig,
 } from '@budget/domain';
@@ -13,6 +20,7 @@ import {
   appSetting,
   booking,
   bookingSplit,
+  bookingReceipt,
   INCOME_TYPES,
   inboxItem,
   payslipIntake,
@@ -20,6 +28,10 @@ import {
   payslip,
   payslipSecret,
   receipt,
+  expectedOccurrence,
+  expectedPayment,
+  expectedPaymentVersion,
+  payee,
 } from '../schema';
 import {
   insertTracked,
@@ -27,14 +39,18 @@ import {
   recordAudit,
   withGroup,
   nowIso,
+  history,
   type AuditContext,
 } from './audit';
-import { ConflictError, EntityNotFoundError } from './errors';
+import { BookingInvariantError, ConflictError, EntityNotFoundError } from './errors';
+import { upcoming } from './expected';
 import { runInTransaction, type Executor } from './types';
 import { addReceipt, getReceipt, linkReceipt } from './receipts';
-import { savePayslip } from './payroll-projects';
+import { listPayslips, savePayslip } from './payroll-projects';
 import { earliestAccountDate } from './portfolio';
 import { listEntities } from './entities';
+import { createBooking } from './bookings';
+import { expectedLinkedStatus } from './expected-links';
 
 export const getPayslipSourceConfig = (db: Executor): PayslipSourceConfig => {
   const value = db
@@ -65,6 +81,22 @@ export function setPayslipSourceConfig(db: Executor, raw: PayslipSourceConfig, c
         .get()
     )
       throw new ConflictError('Bitte ein bestehendes EUR-Gehaltskonto wählen.');
+    if (
+      config.automation &&
+      (!config.salaryAccountId ||
+        !tx
+          .select()
+          .from(payee)
+          .where(
+            and(
+              eq(payee.id, config.automation.payeeId),
+              isNull(payee.deletedAt),
+              isNull(payee.systemKind),
+            ),
+          )
+          .get())
+    )
+      throw new ConflictError('Bitte Gehaltskonto und bestehenden Arbeitgeber/Absender wählen.');
     const id = 'payslip.source',
       value = JSON.stringify(config);
     if (tx.select().from(appSetting).where(eq(appSetting.id, id)).get())
@@ -95,6 +127,46 @@ export function getPayslipIntake(db: Executor, id: string) {
     .get();
   if (!row) throw new EntityNotFoundError('payslip_intake', id);
   return { ...row, parsed: JSON.parse(row.parsedJson) as ParsedPayrollDocument };
+}
+/** Live persisted source association only: never infer a payout from configuration or suggestions. */
+export function readPayslipPayoutAssociation(db: Executor, intakeId: string) {
+  return (
+    db
+      .select({ payslipId: payslip.id, bookingId: booking.id, accountId: account.id })
+      .from(payslipIntake)
+      .innerJoin(
+        payslip,
+        and(
+          eq(payslip.id, payslipIntake.payslipId),
+          eq(payslip.receiptId, payslipIntake.receiptId),
+        ),
+      )
+      .innerJoin(booking, eq(booking.id, payslip.bookingId))
+      .innerJoin(account, eq(account.id, booking.accountId))
+      .innerJoin(
+        receipt,
+        and(eq(receipt.id, payslipIntake.receiptId), eq(receipt.sha256, payslipIntake.sha256)),
+      )
+      .innerJoin(
+        bookingReceipt,
+        and(eq(bookingReceipt.bookingId, booking.id), eq(bookingReceipt.receiptId, receipt.id)),
+      )
+      .where(
+        and(
+          eq(payslipIntake.id, intakeId),
+          eq(payslipIntake.status, 'confirmed'),
+          isNull(payslipIntake.deletedAt),
+          isNull(payslip.deletedAt),
+          isNull(booking.deletedAt),
+          isNull(account.deletedAt),
+          isNull(receipt.deletedAt),
+          isNull(bookingReceipt.deletedAt),
+          eq(account.currency, 'EUR'),
+          eq(booking.currency, account.currency),
+        ),
+      )
+      .get() ?? null
+  );
 }
 const title = (parsed: ParsedPayrollDocument) =>
   parsed.draft
@@ -354,11 +426,68 @@ export function replaceParsedPayslip(
     return { groupId: grouped.groupId };
   });
 }
-export function payslipMatches(db: Executor, parsed: ParsedPayrollDocument) {
-  const config = getPayslipSourceConfig(db),
-    draft = parsed.draft;
-  if (!draft || !config.salaryAccountId) return [];
+/** Save an owner mapping and its reparse as one audited change after checking the read snapshot. */
+export function replacePayslipMappings(
+  db: Executor,
+  id: string,
+  expectedConfig: PayslipSourceConfig,
+  expectedParsed: ParsedPayrollDocument,
+  nextConfig: PayslipSourceConfig,
+  parsed: ParsedPayrollDocument,
+  ctx: AuditContext,
+) {
+  const grouped = withGroup(ctx);
+  return runInTransaction(db, (tx) => {
+    const row = getPayslipIntake(tx, id);
+    if (row.status !== 'pending')
+      throw new ConflictError('Diese Aufgabe wurde bereits entschieden.');
+    if (JSON.stringify(row.parsed) !== JSON.stringify(expectedParsed))
+      throw new ConflictError(
+        'Die Abrechnung wurde zwischenzeitlich neu ausgewertet. Bitte neu laden.',
+      );
+    const current = getPayslipSourceConfig(tx);
+    if (JSON.stringify(current) !== JSON.stringify(expectedConfig))
+      throw new ConflictError(
+        'Die Lohnarten-Zuordnung wurde zwischenzeitlich geändert. Bitte neu laden.',
+      );
+    const settingId = 'payslip.source';
+    const value = JSON.stringify(payslipSourceConfig.parse(nextConfig));
+    if (tx.select().from(appSetting).where(eq(appSetting.id, settingId)).get())
+      updateTracked(tx, appSetting, [settingId], { value }, grouped);
+    else insertTracked(tx, appSetting, { id: settingId, value }, grouped);
+    updateTracked(tx, payslipIntake, [id], { parsedJson: JSON.stringify(parsed) }, grouped);
+    const item = tx
+      .select()
+      .from(inboxItem)
+      .where(
+        and(
+          eq(inboxItem.refType, 'payslip-intake'),
+          eq(inboxItem.refId, id),
+          isNull(inboxItem.resolvedAt),
+        ),
+      )
+      .get();
+    if (!item) throw new ConflictError('Posteingang-Aufgabe fehlt.');
+    updateTracked(
+      tx,
+      inboxItem,
+      [item.id],
+      { title: title(parsed), urgent: parsed.warnings.length > 0 },
+      grouped,
+    );
+    return { config: payslipSourceConfig.parse(nextConfig), groupId: grouped.groupId };
+  });
+}
+export function payslipMatches(
+  db: Executor,
+  parsed: ParsedPayrollDocument,
+  accountId = getPayslipSourceConfig(db).salaryAccountId,
+  payoutDate?: string | null,
+) {
+  const draft = parsed.draft;
+  if (!draft || !accountId || payoutDate === null) return [];
   const anchor =
+    payoutDate ??
     parsed.payoutDate ??
     new Date(Date.UTC(Number(draft.month.slice(0, 4)), Number(draft.month.slice(5)), 0))
       .toISOString()
@@ -369,7 +498,7 @@ export function payslipMatches(db: Executor, parsed: ParsedPayrollDocument) {
     .innerJoin(account, eq(account.id, booking.accountId))
     .where(
       and(
-        eq(booking.accountId, config.salaryAccountId),
+        eq(booking.accountId, accountId),
         isNull(booking.deletedAt),
         isNull(account.deletedAt),
         isNull(booking.transferId),
@@ -407,14 +536,25 @@ export function payslipMatches(db: Executor, parsed: ParsedPayrollDocument) {
 export function decidePayslipIntake(
   db: Executor,
   id: string,
-  decision: { action: 'confirm' | 'reject'; bookingId: string | null },
+  decision: {
+    action: 'confirm' | 'reject';
+    bookingId: string | null;
+    accountId?: string | undefined;
+    payoutDate?: string | undefined;
+    payeeId?: string | null | undefined;
+    expectedOccurrenceId?: string | null | undefined;
+  },
   ctx: AuditContext,
+  /** Internal automatic attachment only; never accepted by the manual HTTP decision schema. */
+  attachExistingPayslipId?: string,
 ) {
   const grouped = withGroup(ctx);
   return runInTransaction(db, (tx) => {
     const row = getPayslipIntake(tx, id);
     if (row.status !== 'pending')
       throw new ConflictError('Diese Aufgabe wurde bereits entschieden.');
+    if (attachExistingPayslipId && (decision.action !== 'confirm' || !decision.bookingId))
+      throw new ConflictError('Bestehende Abrechnung und Auszahlung bitte prüfen.');
     let payslipId: string | null = null;
     if (decision.action === 'confirm') {
       const p = row.parsed;
@@ -425,11 +565,152 @@ export function decidePayslipIntake(
         Math.abs(p.differenceCents ?? 2) > 1
       )
         throw new ConflictError('Bitte zuerst die Warnungen beheben oder manuell erfassen.');
-      if (decision.bookingId && !payslipMatches(tx, p).some((b) => b.id === decision.bookingId))
+      const occurrence = decision.expectedOccurrenceId
+        ? tx
+            .select()
+            .from(expectedOccurrence)
+            .where(
+              and(
+                eq(expectedOccurrence.id, decision.expectedOccurrenceId),
+                isNull(expectedOccurrence.deletedAt),
+              ),
+            )
+            .get()
+        : null;
+      const expected = occurrence
+        ? tx
+            .select()
+            .from(expectedPayment)
+            .where(
+              and(
+                eq(expectedPayment.id, occurrence.expectedPaymentId),
+                isNull(expectedPayment.deletedAt),
+              ),
+            )
+            .get()
+        : null;
+      if (
+        decision.expectedOccurrenceId &&
+        (!occurrence ||
+          !expected ||
+          occurrence.bookingId ||
+          occurrence.status !== 'expected' ||
+          expected.kind !== 'inflow' ||
+          expected.accountId !== decision.accountId ||
+          occurrence.dueDate.slice(0, 7) !== p.draft.month ||
+          expected.incomeTypeId !==
+            (p.draft.kind === 'special' ? INCOME_TYPES.special.id : INCOME_TYPES.salary.id))
+      )
+        throw new ConflictError('Die erwartete Gehaltszahlung ist nicht mehr verfügbar.');
+      const date = decision.payoutDate ?? occurrence?.dueDate ?? proposedPayslipPayoutDate(p);
+      if (
+        decision.bookingId &&
+        (!date ||
+          !payslipMatches(tx, p, decision.accountId, date).some((b) => b.id === decision.bookingId))
+      )
         throw new ConflictError(
           'Gehaltsbuchung ist nicht mehr verfügbar oder außerhalb des Zeitfensters.',
         );
       getReceipt(tx, row.receiptId);
+      let payoutId = decision.bookingId;
+      if (decision.bookingId && occurrence) {
+        const matchedBooking = tx
+          .select()
+          .from(booking)
+          .where(and(eq(booking.id, decision.bookingId), isNull(booking.deletedAt)))
+          .get();
+        if (!matchedBooking || matchedBooking.accountId !== expected!.accountId)
+          throw new ConflictError('Die Buchung passt nicht zur erwarteten Gehaltszahlung.');
+        updateTracked(
+          tx,
+          expectedOccurrence,
+          [occurrence.id],
+          {
+            status: expectedLinkedStatus(tx, occurrence, expected!, matchedBooking),
+            bookingId: matchedBooking.id,
+          },
+          grouped,
+        );
+      }
+      if (!payoutId && decision.accountId) {
+        const target = tx
+          .select()
+          .from(account)
+          .where(and(eq(account.id, decision.accountId), isNull(account.deletedAt)))
+          .get();
+        if (!date) throw new ConflictError('Bitte ein Auszahlungsdatum wählen.');
+        const payeeId =
+          decision.payeeId === undefined ? (expected?.payeeId ?? null) : decision.payeeId;
+        if (
+          payeeId &&
+          !tx
+            .select()
+            .from(payee)
+            .where(and(eq(payee.id, payeeId), isNull(payee.deletedAt), isNull(payee.systemKind)))
+            .get()
+        )
+          throw new ConflictError('Die gewählte Person ist nicht mehr verfügbar.');
+        if (!target || target.closedAt || target.currency !== 'EUR' || date < target.openingDate)
+          throw new ConflictError(
+            'Bitte ein offenes EUR-Auszahlungskonto mit passendem Startdatum wählen.',
+          );
+        if (payslipMatches(tx, p, target.id, date).some((candidate) => candidate.exact))
+          throw new ConflictError(
+            'Eine passende Auszahlung ist bereits vorhanden. Bitte diese Buchung auswählen.',
+          );
+        const totals = payrollTotals([p.draft]);
+        const salaryCents = p.draft.netCents - totals.reimbursementsCents;
+        if (p.draft.netCents <= 0 || salaryCents <= 0)
+          throw new ConflictError('Für diese Auszahlung bitte eine bestehende Buchung auswählen.');
+        payoutId = createBooking(
+          tx,
+          {
+            accountId: target.id,
+            date,
+            payeeId,
+            amountCents: p.draft.netCents,
+            currency: 'EUR',
+            status: target.type === 'cash' ? 'confirmed' : 'pending',
+            source: 'system',
+            memo: `Gehaltszettel ${p.draft.month}`,
+            splits: [
+              {
+                categoryId: null,
+                amountCents: salaryCents,
+                incomeTypeId:
+                  p.draft.kind === 'special' ? INCOME_TYPES.special.id : INCOME_TYPES.salary.id,
+              },
+              ...(totals.reimbursementsCents
+                ? [
+                    {
+                      categoryId: null,
+                      amountCents: totals.reimbursementsCents,
+                      incomeTypeId: INCOME_TYPES.refund.id,
+                    },
+                  ]
+                : []),
+            ],
+          },
+          grouped,
+        );
+        if (occurrence && payoutId) {
+          const linkedBooking = tx
+            .select()
+            .from(booking)
+            .where(and(eq(booking.id, payoutId), isNull(booking.deletedAt)))
+            .get();
+          if (!linkedBooking)
+            throw new ConflictError('Die Gehaltsbuchung ist nicht mehr verfügbar.');
+          const status = expectedLinkedStatus(tx, occurrence, expected!, linkedBooking);
+          updateTracked(
+            tx,
+            expectedOccurrence,
+            [occurrence.id],
+            { status, bookingId: payoutId },
+            grouped,
+          );
+        }
+      }
       const lines = [...p.draft.lines];
       const difference = payrollTotals([p.draft]).calculatedNetCents - p.draft.netCents;
       if (difference)
@@ -438,20 +719,34 @@ export function decidePayslipIntake(
           label: 'Rundung (Summenprüfung)',
           amountCents: difference,
         });
-      const saved = savePayslip(
-        tx,
-        payslipInput.parse({
-          ...p.draft,
-          lines,
-          receiptId: row.receiptId,
-          bookingId: decision.bookingId,
-        }),
-        grouped,
-        undefined,
-        row.id,
-      );
+      const capture = payslipInput.parse({
+        ...p.draft,
+        lines,
+        receiptId: row.receiptId,
+        bookingId: payoutId,
+      });
+      let saved: { id: string };
+      if (attachExistingPayslipId) {
+        const existing = listPayslips(tx).find(
+          (candidate) => candidate.id === attachExistingPayslipId,
+        );
+        if (
+          !existing ||
+          existing.receiptId ||
+          existing.bookingId !== payoutId ||
+          !sameAutomaticPayrollRecord(capture, existing)
+        )
+          throw new ConflictError(
+            'Die bestehende Abrechnung stimmt nicht eindeutig mit dem Dokument überein.',
+          );
+        // Preserve every original financial value and line identity: attach only this retained source.
+        updateTracked(tx, payslip, [existing.id], { receiptId: row.receiptId }, grouped);
+        saved = existing;
+      } else {
+        saved = savePayslip(tx, capture, grouped, undefined, row.id);
+      }
       payslipId = saved.id;
-      if (decision.bookingId) linkReceipt(tx, row.receiptId, decision.bookingId, grouped);
+      if (payoutId) linkReceipt(tx, row.receiptId, payoutId, grouped);
     }
     updateTracked(
       tx,
@@ -537,4 +832,233 @@ export function clearPayslipPassword(db: Executor, ctx: AuditContext) {
     });
     return true;
   });
+}
+
+/** Captured after staging; a new source/config/parse audit head invalidates automation. */
+export function payslipAutomationConfigSnapshot(db: Executor) {
+  return {
+    config: getPayslipSourceConfig(db),
+    revision: history(db, 'app_setting', 'payslip.source')[0]?.id ?? null,
+  };
+}
+export function payslipAutomationSnapshot(
+  db: Executor,
+  id: string,
+  parsedWith: ReturnType<typeof payslipAutomationConfigSnapshot>,
+) {
+  const row = getPayslipIntake(db, id);
+  return {
+    sha256: row.sha256,
+    receiptId: row.receiptId,
+    revision: history(db, 'payslip_intake', id)[0]?.id ?? null,
+    configRevision: parsedWith.revision,
+    config: JSON.stringify(parsedWith.config),
+    parsed: JSON.stringify(row.parsed),
+  };
+}
+export function automaticallyDecidePayslip(
+  db: Executor,
+  id: string,
+  snapshot: ReturnType<typeof payslipAutomationSnapshot>,
+  ctx: AuditContext,
+): PayslipAutomationOutcome {
+  const review = (reason: string): PayslipAutomationOutcome => ({
+    status: 'pruefen',
+    reason,
+    groupId: null,
+  });
+  try {
+    return runInTransaction(db, (tx) => {
+      const row = getPayslipIntake(tx, id);
+      if (row.status !== 'pending')
+        return { status: 'unchanged', reason: 'already_decided', groupId: null };
+      // A restored/undone/reparsed intake can never qualify as a new source operation.
+      const entries = history(tx, 'payslip_intake', id);
+      if (
+        entries.length !== 1 ||
+        entries[0]?.action !== 'create' ||
+        entries[0]?.id !== snapshot.revision
+      )
+        return review('source_changed');
+      const config = getPayslipSourceConfig(tx);
+      if (
+        row.sha256 !== snapshot.sha256 ||
+        row.receiptId !== snapshot.receiptId ||
+        JSON.stringify(row.parsed) !== snapshot.parsed ||
+        JSON.stringify(config) !== snapshot.config ||
+        (history(tx, 'app_setting', 'payslip.source')[0]?.id ?? null) !== snapshot.configRevision
+      )
+        return review('source_changed');
+      if (!config.automation || !config.salaryAccountId) return review('source_not_configured');
+      const source = getReceipt(tx, row.receiptId);
+      if (source.sha256 !== snapshot.sha256) return review('source_changed');
+      const target = tx
+        .select()
+        .from(account)
+        .where(and(eq(account.id, config.salaryAccountId), isNull(account.deletedAt)))
+        .get();
+      const sender = tx
+        .select()
+        .from(payee)
+        .where(
+          and(
+            eq(payee.id, config.automation.payeeId),
+            isNull(payee.deletedAt),
+            isNull(payee.systemKind),
+          ),
+        )
+        .get();
+      if (!target || target.closedAt || target.currency !== 'EUR' || !sender)
+        return review('source_not_configured');
+      const parsed = row.parsed;
+      if (!parsed.draft || !/^(20\d{2})-(0[1-9]|1[0-2])$/.test(parsed.draft.month))
+        return review('document_needs_review');
+      const historical = tx
+        .select()
+        .from(payslip)
+        .where(and(eq(payslip.month, parsed.draft.month), eq(payslip.kind, parsed.draft.kind)))
+        .all();
+      if (historical.some((p) => p.deletedAt && sameAutomaticPayrollSlot(parsed.draft!, p)))
+        return review('payroll_previously_undone');
+      const saved = listEntities(tx, payslip);
+      const existingSlot = saved.filter((p) => sameAutomaticPayrollSlot(parsed.draft!, p));
+      if (
+        existingSlot.length > 1 ||
+        existingSlot[0]?.receiptId ||
+        (existingSlot[0] && !existingSlot[0].bookingId)
+      )
+        return review('payroll_already_exists');
+      if (
+        existingSlot[0] &&
+        history(tx, 'payslip', existingSlot[0].id).some((entry) => entry.action === 'undo')
+      )
+        return review('payroll_previously_undone');
+      const incomeTypeId =
+        parsed.draft.kind === 'special' ? INCOME_TYPES.special.id : INCOME_TYPES.salary.id;
+      const versions = tx
+        .select({ version: expectedPaymentVersion })
+        .from(expectedPaymentVersion)
+        .innerJoin(
+          expectedPayment,
+          eq(expectedPayment.id, expectedPaymentVersion.expectedPaymentId),
+        )
+        .where(
+          and(
+            eq(expectedPayment.accountId, target.id),
+            isNull(expectedPayment.deletedAt),
+            isNull(expectedPaymentVersion.deletedAt),
+          ),
+        )
+        .all()
+        .map((row) => row.version);
+      const expectations = upcoming(
+        tx,
+        `${parsed.draft.month}-01`,
+        lastDayOfMonth(parsed.draft.month),
+        { kind: 'inflow' },
+      )
+        .filter((o) => o.accountId === target.id)
+        .map((o) => {
+          const sourceVersion = versionOn(
+            versions.filter((v) => v.expectedPaymentId === o.paymentId),
+            o.dueDate,
+          );
+          // Missing version currency is not permission to use upcoming's legacy EUR fallback.
+          return { ...o, currency: sourceVersion?.currency ?? '' };
+        });
+      const possibleExpected = expectations.filter(
+        (o) => o.incomeTypeId === incomeTypeId && (o.payeeId === sender.id || o.payeeId === null),
+      );
+      const anchor =
+        proposedPayslipPayoutDate(parsed) ??
+        (possibleExpected.length === 1 ? possibleExpected[0]!.dueDate : null);
+      const anchorTime = anchor ? Date.parse(anchor + 'T00:00:00Z') : NaN;
+      const windowFilter = Number.isFinite(anchorTime)
+        ? and(
+            eq(booking.accountId, target.id),
+            isNull(booking.deletedAt),
+            gt(booking.amountCents, 0),
+            gte(booking.date, new Date(anchorTime - 5 * 86400000).toISOString().slice(0, 10)),
+            lte(booking.date, new Date(anchorTime + 5 * 86400000).toISOString().slice(0, 10)),
+          )
+        : undefined;
+      const candidates = windowFilter ? tx.select().from(booking).where(windowFilter).all() : [];
+      const splits = windowFilter
+        ? tx
+            .select({ split: bookingSplit })
+            .from(bookingSplit)
+            .innerJoin(booking, eq(booking.id, bookingSplit.bookingId))
+            .where(windowFilter)
+            .all()
+            .map((row) => row.split)
+        : [];
+      const linkedExpectations = windowFilter
+        ? tx
+            .select({ bookingId: expectedOccurrence.bookingId, id: expectedOccurrence.id })
+            .from(expectedOccurrence)
+            .innerJoin(booking, eq(booking.id, expectedOccurrence.bookingId))
+            .where(and(windowFilter, isNull(expectedOccurrence.deletedAt)))
+            .all()
+        : [];
+      const splitsByBooking = new Map<string, typeof splits>();
+      for (const split of splits)
+        splitsByBooking.set(split.bookingId, [
+          ...(splitsByBooking.get(split.bookingId) ?? []),
+          split,
+        ]);
+      const plan = planPayslipAutomation({
+        parsed,
+        payeeId: sender.id,
+        salaryIncomeTypeId: incomeTypeId,
+        payrollIncomeTypeIds: [INCOME_TYPES.salary.id, INCOME_TYPES.special.id],
+        reimbursementIncomeTypeId: INCOME_TYPES.refund.id,
+        openingDate: target.openingDate,
+        bookings: candidates.map((b) => ({
+          ...b,
+          alreadyCaptured: saved.some((p) => p.bookingId === b.id && p.id !== existingSlot[0]?.id),
+          expectedOccurrenceIds: linkedExpectations
+            .filter((o) => o.bookingId === b.id)
+            .map((o) => o.id),
+          splits: splitsByBooking.get(b.id) ?? [],
+        })),
+        expectations,
+      });
+      if (!plan.eligible) return review(plan.reason);
+      if (existingSlot[0] && existingSlot[0].bookingId !== plan.bookingId)
+        return review('payroll_already_exists');
+      const result = decidePayslipIntake(
+        tx,
+        id,
+        {
+          action: 'confirm',
+          accountId: target.id,
+          payeeId: sender.id,
+          payoutDate: plan.payoutDate,
+          bookingId: plan.bookingId,
+          expectedOccurrenceId: plan.expectedOccurrenceId,
+        },
+        {
+          ...ctx,
+          actor: `document-automation:payroll@${snapshot.configRevision ?? 'unversioned'}`,
+        },
+        existingSlot[0]?.id,
+      );
+      const captured = tx.select().from(payslip).where(eq(payslip.id, result.payslipId!)).get()!;
+      return {
+        status: plan.bookingId ? 'linked' : 'booked',
+        reason: existingSlot[0] ? 'existing_payroll_source_attached' : 'unambiguous_source',
+        groupId: result.groupId ?? null,
+        payslipId: result.payslipId!,
+        ...(captured.bookingId ? { bookingId: captured.bookingId } : {}),
+      };
+    });
+  } catch (error) {
+    if (
+      error instanceof ConflictError ||
+      error instanceof BookingInvariantError ||
+      error instanceof EntityNotFoundError
+    )
+      return review('current_state_needs_review');
+    throw error;
+  }
 }

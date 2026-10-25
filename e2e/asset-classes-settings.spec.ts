@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { sampleTest } from './sample';
+import { sampleTest, SAMPLE_URL } from './sample';
+import { again } from './ledger-helpers';
 
 // These complete owner flows include both themes, repeated Axe scans and WebKit rotation.
 test.setTimeout(90_000);
@@ -8,7 +9,7 @@ test.setTimeout(90_000);
 test('groups can be created, renamed and selected; a P2P account keeps its assigned class', async ({
   page,
 }, info) => {
-  const suffix = info.project.name;
+  const suffix = info.project.name + again(info);
   const groupName = `Gruppe G ${suffix}`,
     className = `Klasse C ${suffix}`,
     accountName = `Plattform P ${suffix}`;
@@ -24,6 +25,8 @@ test('groups can be created, renamed and selected; a P2P account keeps its assig
     .click();
   await dialog.getByLabel('Name der Gruppe').fill(groupName + ' neu');
   await dialog.getByRole('button', { name: 'Änderungen speichern', exact: true }).click();
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(page).toHaveURL(/\/einstellungen\/anlageklassen$/);
   const headers = { Origin: new URL(page.url()).origin };
   const res = await page.request.post('/api/asset-classes', { headers, data: { name: className } });
   expect(res.status()).toBe(201);
@@ -78,6 +81,98 @@ async function clean(page: Page) {
   const axe = await new AxeBuilder({ page }).analyze();
   expect(axe.violations).toEqual([]);
 }
+sampleTest(
+  'wealth stages: account scope, editable example, exact lower bounds and approval draft',
+  async ({ page }, info) => {
+    const created = await page.request.post('/api/asset-classes', {
+      headers: { Origin: SAMPLE_URL },
+      data: { name: 'Stufenreserve ' + info.project.name },
+    });
+    expect(created.status()).toBe(201);
+    const createdClass = await created.json();
+    const createdGroup = createdClass.groupId;
+    try {
+      await page.goto('/einstellungen/anlageklassen?panel=sollquoten');
+      const panel = page.getByRole('dialog', { name: 'Sollquoten bearbeiten' });
+      const collapsedScope = panel.locator('details.stage-scope:not([open])');
+      if (await collapsedScope.count())
+        await collapsedScope.getByText('Konten und Depots auswählen', { exact: true }).click();
+      await expect(
+        panel.getByRole('heading', { name: '1. Konten und Depots auswählen' }),
+      ).toBeVisible();
+      const accounts = (await (await page.request.get('/api/accounts')).json()).accounts;
+      const wallet = accounts.find((a: { type: string }) => a.type === 'cash');
+      await expect(panel.getByLabel(wallet.name, { exact: true })).not.toBeChecked();
+      const collapsedReference = panel.locator('details.stage-reference:not([open])');
+      if (await collapsedReference.count())
+        await collapsedReference.getByText('Vorlagen und Erläuterungen', { exact: true }).click();
+      await panel.getByText('Beispielplan mit sieben Vermögensstufen', { exact: true }).click();
+      const allClasses = (
+        await (await page.request.get('/api/asset-classes')).json()
+      ).assetClasses.filter((c: { isGroup: boolean }) => !c.isGroup);
+      const classes = ['ac-welt', 'ac-spec', 'ac-em', createdClass.assetClass.id].map((id) =>
+        allClasses.find((c: { id: string }) => c.id === id),
+      );
+      const labels = [
+        'Weltaktien',
+        'Aktien mit Hebel 2×',
+        'Managed Futures',
+        'Liquidität / kurzlaufende EUR-Anlagen',
+      ];
+      // Template mapping is explicit; the app must not infer classes from instrument/provider names.
+      for (let i = 0; i < 4; i++)
+        await panel.getByLabel('Vorlage · ' + labels[i]).selectOption(classes[i].id);
+      await panel.getByRole('button', { name: 'Beispielplan übernehmen', exact: true }).click();
+      const stageTable = panel.getByRole('table', { name: 'Vermögensstufen', exact: true });
+      await expect(stageTable.locator('tbody > tr')).toHaveCount(7);
+      const fifthStage = stageTable.getByRole('row', { name: 'Stufe 5', exact: true });
+      await expect(fifthStage.getByLabel('Stufe 5 · Ab Vermögen (€)')).toHaveValue('500000,00');
+      await expect(panel.getByLabel('Stufe zur automatischen Auswahl freigegeben')).toHaveCount(0);
+      await expect(fifthStage.getByLabel(classes[0].name + ' · Soll (%)')).toHaveValue('65,00');
+      await fifthStage.getByLabel('Stufe 5 · Ab Vermögen (€)').fill('500.000,-');
+      for (const theme of ['light', 'dark']) {
+        await page.evaluate((t) => (document.documentElement.dataset['theme'] = t), theme);
+        await panel.screenshot({ path: info.outputPath(`wealth-stages-${theme}.png`) });
+      }
+      // Inspect the exact submitted policy without mutating this shared sample database.
+      let payload: { tiers: { upToCents: number | null; enabled?: boolean }[] } | undefined;
+      await page.route('**/api/asset-classes/targets', (route) => {
+        if (route.request().method() !== 'PUT') return route.continue();
+        payload = route.request().postDataJSON();
+        return route.fulfill({
+          status: 409,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            error: 'conflict',
+            message: 'Synthetischer Konflikt: erneut prüfen.',
+          }),
+        });
+      });
+      await panel.getByRole('button', { name: 'Sollquoten speichern', exact: true }).click();
+      await expect(panel.getByRole('alert')).toContainText('Synthetischer Konflikt');
+      expect(payload!.tiers.map((t) => t.upToCents)).toEqual([
+        999999,
+        4999999,
+        9999999,
+        49999999,
+        99999999,
+        199999999,
+        null,
+      ]);
+      // Every stage activates by its threshold; no approval flag is stored (owner decision 16.10.).
+      expect(payload!.tiers.every((t) => !('enabled' in t))).toBe(true);
+      await panel.getByRole('button', { name: 'Schließen', exact: true }).click();
+      await panel.getByRole('button', { name: 'Verwerfen', exact: true }).click();
+      await expect(page.locator('dialog[open]')).toHaveCount(0);
+    } finally {
+      const undo = await page.request.post('/api/undo', {
+        headers: { Origin: new URL(page.url()).origin },
+        data: { groupId: createdGroup },
+      });
+      expect(undo.status()).toBe(200);
+    }
+  },
+);
 sampleTest(
   'U01/M01-M12: real settings, class sheet, focus, Back, reopen, scroll, themes and rotation',
   async ({ page, isMobile }, info) => {
@@ -245,7 +340,10 @@ test('U02-U12: create, German field errors, duplicate, rename, reorder, safe/blo
   await panel.getByLabel('Gültig ab').fill(date);
   await panel.getByLabel('Bezeichnung (optional)').fill('Synthetische Strategie');
   await panel.getByLabel('Dynamische Stufen nach Anlagesumme').check();
-  await panel.getByLabel('Stufengrenze (€)').fill('12000');
+  await panel
+    .getByRole('row', { name: 'Stufe 2', exact: true })
+    .getByLabel('Stufe 2 · Ab Vermögen (€)')
+    .fill('12.000,00');
   await clean(page);
   await panel.getByRole('button', { name: 'Sollquoten speichern', exact: true }).click();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
@@ -253,9 +351,9 @@ test('U02-U12: create, German field errors, duplicate, rename, reorder, safe/blo
     await (await page.request.get('/api/asset-classes/targets')).json()
   ).versions.find((v: { validFrom: string }) => v.validFrom === date);
   expect(version.tiers.map((t: { upToCents: number | null }) => t.upToCents)).toEqual([
-    1200000,
-    2000000,
-    5000000,
+    1199999,
+    1999999,
+    4999999,
     null,
   ]);
   expect(version.targets[0]).toMatchObject({

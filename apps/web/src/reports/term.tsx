@@ -5,15 +5,15 @@ import './term.css';
 const GLOSSARY = new Map<string, string>([
   [
     'TWR',
-    'Die zeitgewichtete Rendite misst die Anlageentwicklung und blendet den Einfluss von Ein- und Auszahlungen aus.',
+    'Die zeitgewichtete Rendite neutralisiert Ein- und Auszahlungen nach Portfolio Performance: Zuflüsse zählen am Tagesanfang, Abflüsse am Tagesende. Die Tagesrenditen werden miteinander verkettet.',
   ],
   [
     'MWR/IZF',
     'Die geldgewichtete Rendite berücksichtigt Höhe und Zeitpunkte deiner Ein- und Auszahlungen.',
   ],
   [
-    'Modified Dietz',
-    'Modified Dietz nähert die geldgewichtete Rendite an, indem Ein- und Auszahlungen nach ihrer Anlagedauer gewichtet werden.',
+    'XIRR',
+    'XIRR berücksichtigt Höhe und Zeitpunkte deiner Ein- und Auszahlungen mit der Tageszählung actual/365. Das Ergebnis kann unter anderem bei unzureichenden Zahlungsdaten oder einer nicht eindeutig bestimmbaren Rendite nicht verfügbar sein.',
   ],
   [
     'Exposure',
@@ -76,7 +76,6 @@ const ALIASES = new Map<string, string>([
   ['MWR', 'MWR/IZF'],
   ['IZF', 'MWR/IZF'],
   ['IRR', 'MWR/IZF'],
-  ['XIRR', 'MWR/IZF'],
   ['Geldgewichtet', 'MWR/IZF'],
   ['Allocation', 'Allokation'],
   ['Einstand', 'Einstandswert'],

@@ -3,13 +3,17 @@ import {
   listEntities,
   decidePayslipIntake,
   getPayslipIntake,
+  readPayslipPayoutAssociation,
   getPayslipSourceConfig,
   payslipMatches,
+  upcoming,
+  listPayees,
+  INCOME_TYPES,
   readPayslipScan,
   setPayslipSourceConfig,
   type Db,
 } from '@budget/db';
-import { payslipSourceConfig } from '@budget/domain';
+import { payslipSourceConfig, proposedPayslipPayoutDate, wageTypes } from '@budget/domain';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { PayslipIntakeService } from '../payslips/service';
@@ -22,9 +26,95 @@ import {
 import { dropboxConfigured, dropboxWriteEnabled } from '../payslips/dropbox';
 import { isScanFailure } from '../payslips/scan-error';
 import { RECEIPT_LIMIT } from '../receipts/files';
+import { lastDayOfMonth } from '@budget/domain';
 import { ACTOR, ApiError, readBody } from './http';
+import { day } from './schemas';
 
 const MAX_PASSWORD = 256;
+function intakeView(
+  db: Db,
+  row: ReturnType<typeof getPayslipIntake>,
+  query: {
+    accountId?: string | undefined;
+    payoutDate?: string | undefined;
+    expectedOccurrenceId?: string | undefined;
+  } = {},
+) {
+  const accounts = listEntities(db, account).filter((a) => a.currency === 'EUR' && !a.closedAt);
+  const suggested = query.accountId ?? getPayslipSourceConfig(db).salaryAccountId;
+  const payoutAccountId = accounts.some((a) => a.id === suggested) ? suggested : null;
+  const incomeTypeId =
+    row.parsed.draft?.kind === 'special' ? INCOME_TYPES.special.id : INCOME_TYPES.salary.id;
+  const expectedPayouts =
+    row.parsed.draft && payoutAccountId
+      ? upcoming(db, `${row.parsed.draft.month}-01`, lastDayOfMonth(row.parsed.draft.month), {
+          kind: 'inflow',
+        })
+          .filter(
+            (o) =>
+              o.status === 'expected' &&
+              !o.bookingId &&
+              o.currency === 'EUR' &&
+              o.accountId === payoutAccountId &&
+              o.incomeTypeId === incomeTypeId,
+          )
+          .map(
+            ({
+              occurrenceId,
+              paymentId,
+              name,
+              dueDate,
+              amountCents,
+              currency,
+              accountId,
+              payeeId,
+              payeeName,
+            }) => ({
+              occurrenceId,
+              paymentId,
+              name,
+              dueDate,
+              amountCents,
+              currency,
+              accountId,
+              payeeId,
+              payeeName,
+            }),
+          )
+      : [];
+  const selectedExpectedPayout =
+    expectedPayouts.find((o) => o.occurrenceId === query.expectedOccurrenceId) ??
+    (!query.expectedOccurrenceId && expectedPayouts.length === 1 ? expectedPayouts[0] : undefined);
+  const proposedPayoutDate =
+    query.payoutDate ??
+    proposedPayslipPayoutDate(row.parsed) ??
+    selectedExpectedPayout?.dueDate ??
+    null;
+  return {
+    id: row.id,
+    status: row.status,
+    receiptId: row.receiptId,
+    payout: readPayslipPayoutAssociation(db, row.id),
+    parsed: row.parsed,
+    matches: payslipMatches(db, row.parsed, payoutAccountId, proposedPayoutDate),
+    payoutAccountId,
+    proposedPayoutDate,
+    expectedPayouts,
+    selectedExpectedOccurrenceId: selectedExpectedPayout?.occurrenceId ?? null,
+    proposedPayeeId: selectedExpectedPayout?.payeeId ?? null,
+    payees: listPayees(db)
+      .filter((partner) => !partner.systemKind)
+      .map(({ id, name }) => ({ id, name })),
+    accounts: accounts.map(({ id, name, type, onBudget, sortOrder, closedAt }) => ({
+      id,
+      name,
+      type,
+      onBudget,
+      sortOrder,
+      closedAt,
+    })),
+  };
+}
 export function payslipIntakeRoutes(
   db: Db,
   dir: string,
@@ -59,6 +149,9 @@ export function payslipIntakeRoutes(
           sortOrder,
           closedAt,
         })),
+      payees: listPayees(db)
+        .filter((p) => !p.systemKind)
+        .map(({ id, name }) => ({ id, name })),
       config: getPayslipSourceConfig(db),
     });
   });
@@ -74,11 +167,16 @@ export function payslipIntakeRoutes(
     }
     const file = form.get('file');
     const password = form.get('password'),
-      remember = form.get('remember');
+      remember = form.get('remember'),
+      automation = form.get('automation');
     if (
-      [...form.keys()].some((key) => !['file', 'password', 'remember'].includes(key)) ||
+      [...form.keys()].some(
+        (key) => !['file', 'password', 'remember', 'automation'].includes(key),
+      ) ||
       form.getAll('password').length > 1 ||
       form.getAll('remember').length > 1 ||
+      form.getAll('automation').length > 1 ||
+      (automation !== null && automation !== 'eligible') ||
       (password !== null && (typeof password !== 'string' || password.length > MAX_PASSWORD)) ||
       (remember !== null && remember !== '1' && remember !== 'true') ||
       form.getAll('file').length !== 1 ||
@@ -95,19 +193,57 @@ export function payslipIntakeRoutes(
       await service.ingest(Buffer.from(await file.arrayBuffer()), file.name, 'manual', undefined, {
         ...(password ? { password: password as string } : {}),
         remember: remember !== null,
+        ...(automation === 'eligible' ? { automation: 'eligible' as const } : {}),
       }),
       201,
     );
   });
   api.get('/:id', (c) => {
     const row = getPayslipIntake(db, z.string().uuid().parse(c.req.param('id')));
-    return c.json({
-      id: row.id,
-      status: row.status,
-      receiptId: row.receiptId,
-      parsed: row.parsed,
-      matches: payslipMatches(db, row.parsed),
-    });
+    const query = z
+      .strictObject({
+        accountId: z.string().min(1).max(64).optional(),
+        payoutDate: day.optional(),
+        expectedOccurrenceId: z.string().min(1).max(64).optional(),
+      })
+      .parse(c.req.query());
+    return c.json(intakeView(db, row, query));
+  });
+  api.put('/:id/mappings', async (c) => {
+    const { wageTypes: mappings, password } = await readBody(
+      c,
+      z.strictObject({
+        wageTypes: z
+          .record(z.string().regex(/^\d{1,8}$/), z.enum(wageTypes))
+          .refine((value) => Object.keys(value).length > 0 && Object.keys(value).length <= 200),
+        password: z.string().min(1).max(MAX_PASSWORD).optional(),
+      }),
+    );
+    let result: Awaited<ReturnType<typeof service.mapWageTypes>>;
+    try {
+      result = await service.mapWageTypes(z.string().uuid().parse(c.req.param('id')), mappings, {
+        password,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'reparse')
+        throw new ApiError(
+          422,
+          'unreadable',
+          'Die Datei konnte mit der Zuordnung nicht neu ausgewertet werden.',
+        );
+      if (
+        error instanceof Error &&
+        (error.message === 'conflict' || error.name === 'ConflictError')
+      )
+        throw new ApiError(
+          409,
+          'conflict',
+          'Die Aufgabe oder Zuordnung wurde zwischenzeitlich geändert. Bitte neu laden.',
+        );
+      throw error;
+    }
+    const row = getPayslipIntake(db, z.string().uuid().parse(c.req.param('id')));
+    return c.json({ ...intakeView(db, row), groupId: result.groupId });
   });
   api.post('/:id/retry', async (c) => {
     const options = await readBody(
@@ -147,6 +283,10 @@ export function payslipIntakeRoutes(
           z.strictObject({
             action: z.enum(['confirm', 'reject']),
             bookingId: z.string().min(1).max(64).nullable(),
+            accountId: z.string().min(1).max(64).optional(),
+            payoutDate: day.optional(),
+            payeeId: z.string().min(1).max(64).nullable().optional(),
+            expectedOccurrenceId: z.string().min(1).max(64).nullable().optional(),
           }),
         ),
         { actor: ACTOR },

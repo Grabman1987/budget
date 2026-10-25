@@ -10,7 +10,13 @@ import {
   RouterProvider,
 } from '@tanstack/react-router';
 import { ToastProvider } from '@budget/ui';
-import { createTestDatabase, createEntity, reconcileAccount, schema } from '@budget/db';
+import {
+  createTestDatabase,
+  createEntity,
+  createBooking,
+  reconcileAccount,
+  schema,
+} from '@budget/db';
 import { afterEach, expect, it, vi } from 'vitest';
 import { createLedgerApi } from '../../../server/src/api';
 import { OverviewPage } from './overview-page';
@@ -21,7 +27,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it('shows stored review/value dates, warns from day 35 and updates a manual account with undo', async () => {
+it('shows type-specific due and quiet review dates and updates a manual account with undo', async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-11T12:00:00+02:00'));
   vi.stubGlobal('scrollTo', () => {});
@@ -50,6 +56,7 @@ it('shows stored review/value dates, warns from day 35 and updates a manual acco
     for (const [id, type] of [
       ['stale', 'checking'],
       ['fresh', 'loan'],
+      ['quiet', 'checking'],
       ['never', 'brokerage'],
       ['value', 'p2p'],
       ['asset', 'other_asset'],
@@ -71,6 +78,7 @@ it('shows stored review/value dates, warns from day 35 and updates a manual acco
     for (const [id, date] of [
       ['stale', '2026-09-06'],
       ['fresh', '2026-09-07'],
+      ['quiet', '2026-09-06'],
     ]) {
       reconcileAccount(
         opened.db,
@@ -84,6 +92,19 @@ it('shows stored review/value dates, warns from day 35 and updates a manual acco
       { accountId: 'value', date: '2026-09-06', valueCents: 12501 },
       { actor: 'test' },
     );
+    for (const accountId of ['stale', 'value'])
+      for (const amountCents of [1, -1])
+        createBooking(
+          opened.db,
+          {
+            accountId,
+            date: '2026-09-08',
+            amountCents,
+            status: 'pending',
+            splits: [{ categoryId: null, amountCents }],
+          },
+          { actor: 'test' },
+        );
     const api = createLedgerApi({
       db: opened.db,
       today: () => '2026-10-11',
@@ -109,9 +130,16 @@ it('shows stored review/value dates, warns from day 35 and updates a manual acco
     );
     const user = userEvent.setup();
     await screen.findByRole('link', { name: 'Muster stale' }, { timeout: 10000 });
-    expect(screen.getByText('geprüft am 06.09.2026').classList.contains('is-stale')).toBe(true);
+    for (const id of ['stale', 'fresh', 'quiet', 'never', 'value', 'asset'])
+      await user.click(screen.getByRole('button', { name: `Details zu Muster ${id}` }));
+    expect(screen.getByText('Fällig · geprüft am 06.09.2026').classList.contains('is-stale')).toBe(
+      true,
+    );
+    expect(screen.getByText('geprüft am 06.09.2026').classList.contains('is-stale')).toBe(false);
     expect(screen.getByText('geprüft am 07.09.2026').classList.contains('is-stale')).toBe(false);
-    expect(screen.getByText('Wert vom 06.09.2026').classList.contains('is-stale')).toBe(true);
+    expect(screen.getByText('Fällig · Wert vom 06.09.2026').classList.contains('is-stale')).toBe(
+      true,
+    );
     expect(screen.getAllByText('nie geprüft')).toHaveLength(2);
     await user.click(screen.getByRole('link', { name: 'Muster value' }));
     await user.click(await screen.findByRole('button', { name: 'Wert aktualisieren' }));

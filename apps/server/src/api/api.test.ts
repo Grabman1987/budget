@@ -347,6 +347,117 @@ describe('accounts', () => {
     expect((await call('PATCH', '/accounts/none', { name: 'x' })).status).toBe(404);
   });
 
+  it('sets a separate settlement account, validates it, and preserves the link through undo', async () => {
+    const settlement = await newAccount({ name: 'Settlement', type: 'checking' });
+    const invalidOwner = await call('POST', '/accounts', {
+      name: 'Cash with reference',
+      type: 'checking',
+      openingDate: '2026-01-01',
+      referenceAccountId: settlement.id,
+    });
+    expect(invalidOwner.status).toBe(422);
+    const brokerageTarget = await newAccount({
+      name: 'Depot target',
+      type: 'brokerage',
+      onBudget: false,
+    });
+    const invalidTarget = await call('POST', '/accounts', {
+      name: 'Depot with depot settlement',
+      type: 'brokerage',
+      openingDate: '2026-01-01',
+      referenceAccountId: brokerageTarget.id,
+    });
+    expect(invalidTarget.status).toBe(422);
+    const creditCardTarget = await newAccount({
+      name: 'Credit card target',
+      type: 'credit_card',
+    });
+    expect(
+      (
+        await call('POST', '/accounts', {
+          name: 'Depot with card reference',
+          type: 'brokerage',
+          openingDate: '2026-01-01',
+          referenceAccountId: creditCardTarget.id,
+        })
+      ).status,
+    ).toBe(422);
+    const depotResponse = await call('POST', '/accounts', {
+      name: 'Depot',
+      type: 'brokerage',
+      openingDate: '2026-01-01',
+      referenceAccountId: settlement.id,
+    });
+    expect(depotResponse.status).toBe(201);
+    const depot = depotResponse.body['account'] as { id: string; referenceAccountId: string };
+    expect(depot.referenceAccountId).toBe(settlement.id);
+    expect(
+      (await call('PATCH', `/accounts/${settlement.id}`, { type: 'credit_card' })).status,
+    ).toBe(422);
+
+    const typeDepotResponse = await call('POST', '/accounts', {
+      name: 'Type change depot',
+      type: 'brokerage',
+      openingDate: '2026-01-01',
+      referenceAccountId: settlement.id,
+    });
+    const typeDepot = typeDepotResponse.body['account'] as { id: string };
+    expect((await call('PATCH', `/accounts/${typeDepot.id}`, { type: 'checking' })).status).toBe(
+      422,
+    );
+    const typeChange = await call('PATCH', `/accounts/${typeDepot.id}`, {
+      type: 'checking',
+      onBudget: true,
+      referenceAccountId: null,
+    });
+    expect(typeChange.status).toBe(200);
+    expect(typeChange.body['account']).toMatchObject({
+      type: 'checking',
+      referenceAccountId: null,
+    });
+
+    const changed = await call('PATCH', `/accounts/${depot.id}`, { referenceAccountId: null });
+    expect(changed.body['account']).toMatchObject({ referenceAccountId: null });
+    expect((await call('POST', '/undo', { groupId: changed.body['groupId'] })).status).toBe(200);
+    expect((await call('GET', `/accounts/${depot.id}`)).body['account']).toMatchObject({
+      referenceAccountId: settlement.id,
+    });
+
+    expect(
+      (await call('PATCH', `/accounts/${depot.id}`, { referenceAccountId: depot.id })).status,
+    ).toBe(422);
+    const closed = await newAccount({ name: 'Closed settlement' });
+    await call('POST', `/accounts/${closed.id}/close`, { force: true });
+    expect(
+      (await call('PATCH', `/accounts/${depot.id}`, { referenceAccountId: closed.id })).status,
+    ).toBe(422);
+    const foreign = await newAccount({
+      name: 'Foreign settlement',
+      currency: 'USD',
+      onBudget: false,
+    });
+    expect(
+      (await call('PATCH', `/accounts/${depot.id}`, { referenceAccountId: foreign.id })).status,
+    ).toBe(422);
+    const usdSettlement = await newAccount({
+      name: 'USD settlement',
+      currency: 'USD',
+      onBudget: false,
+      role: 'investment',
+    });
+    const usdDepot = await call('POST', '/accounts', {
+      name: 'USD depot',
+      type: 'brokerage',
+      currency: 'USD',
+      openingDate: '2026-01-01',
+      referenceAccountId: usdSettlement.id,
+    });
+    expect(usdDepot.status).toBe(201);
+    expect((await call('PATCH', `/accounts/${usdSettlement.id}`, { currency: 'EUR' })).status).toBe(
+      422,
+    );
+  });
+
   it('an edit that does not name the opening balance leaves it alone', async () => {
     const a = await newAccount({ openingBalanceCents: 123_456 });
     const renamed = await call('PATCH', `/accounts/${a.id}`, { name: 'Girokonto' });

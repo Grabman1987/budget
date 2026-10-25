@@ -1,0 +1,19 @@
+{
+  "head": "6905e358d6f0ce2d2a16947c8684ff31c35554b7",
+  "phases": [
+    {
+      "name": "prettier-native",
+      "exit": 0,
+      "wallSeconds": 0.517
+    },
+    {
+      "name": "eslint-native",
+      "exit": 0,
+      "wallSeconds": 1.317
+    }
+  ],
+  "processGuard": 0,
+  "sourceGuard": 0,
+  "allPhases0": true,
+  "lockReleased": true
+}

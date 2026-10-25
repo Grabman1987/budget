@@ -1,59 +1,52 @@
 import { AccountFreshness } from './account-freshness';
+import { AccountStatementIntake } from '../statement-intake/statement-review-726';
+import { InboxWorkflow } from '../inbox/inbox-page';
 import { BankBalance } from './bank-balance';
 import { useAmountPrivacy, Button, Segmented, Select, Field, cx } from '@budget/ui';
 import {
   addMonths,
   DEFAULT_FUTURE_PREVIEW_DAYS,
-  calendarRangeWindow,
-  isCalendarRange,
   lastDayOfMonth,
   monthOf,
-  todayInVienna,
-  type Period,
   type LiquidityHorizon,
   type LiquidityLeverId,
 } from '@budget/domain';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearch, useNavigate } from '@tanstack/react-router';
-import { CheckCircle2, ChevronLeft, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ACCOUNT_PAGE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { BalanceChart } from './balance-chart';
 import { BookingPanel, type BookingPanelState } from './booking-panel';
-import { BookingTable } from './booking-table';
+import { AccountRegister } from './account-register';
+import { useRegisterToday } from './upcoming-register';
 import {
   eur,
   longDay,
   monthName,
-  pluralBookings,
   nativeCurrency,
+  shortDay,
   valuedCurrency,
   valuedCurrencyParts,
   valuedMovement,
 } from './format';
-import {
-  ACCOUNT_TYPE_LABEL,
-  accountValueEur,
-  canReconcile,
-  groupOf,
-  valuationMissingText,
-} from './labels';
+import { ACCOUNT_TYPE_LABEL, accountValueEur, groupOf, valuationMissingText } from './labels';
 import { fetchSeries } from './api';
 import { displaySettingsQuery } from '../pages/future-preview-setting';
-import { PeriodQuickSelect } from '../reports/period-quick-select';
-import { accountsQuery, bookingsInfiniteQuery, bookingsQuery } from './queries';
-import { LoadOlder } from './load-older';
-import { ReconcilePanel } from './reconcile-panel';
-import { ManualValue } from './manual-value';
-import { SettingsFormDialog } from '../pages/settings-form-dialog';
+import { accountsQuery, bookingsQuery } from './queries';
+import { AccountReview } from './account-review';
 import { EmptyNote, ErrorNote, LoadingNote } from './states';
 import type { AccountRow } from './types';
 import { useLiquiditySelection } from '../reports/liquidity-selection';
 import { AppLink } from '../shell/app-link';
+import { DepotBody } from './depot-page';
+import { useStoredFlag } from '../shell/use-stored-flag';
 
-/** Bookings per page of the continuous account history. */
-const PAGE_SIZE = 100;
+/** localStorage key of the account-history disclosure (absent = collapsed). */
+export const CHART_OPEN_KEY = 'budget.account.chart-open';
+
+type ChartPeriod = '3M' | '1J' | 'Alles';
 
 /** Route component of `/konten/$id`. */
 export function AccountRoute() {
@@ -69,10 +62,13 @@ export function AccountPage({ id }: { id: string }) {
   const account = accounts.data?.accounts.find((a) => a.id === id);
   const bankBalance =
     accounts.isError || !account || account.closedAt ? undefined : account.bankBalance;
+  const bankReview =
+    account && !accounts.isError ? (
+      <InboxWorkflow key={account.id} bankAccountId={account.id} />
+    ) : undefined;
   return (
     <PageFrame
       meta={ACCOUNT_PAGE}
-      title={account?.name ?? 'Konto'}
       accountFields={[
         {
           label: 'Bankstand vom',
@@ -98,29 +94,29 @@ export function AccountPage({ id }: { id: string }) {
           <ChevronLeft className="icon icon-sm" size={16} strokeWidth={1.75} aria-hidden="true" />
           Übersicht
         </Link>
+        {account && <AccountStatementIntake key={account.id} accountId={account.id} />}
         {accounts.isPending && <LoadingNote what="Konto" />}
         {accounts.isError && (
           <ErrorNote what="Konto" error={accounts.error} onRetry={() => void accounts.refetch()} />
         )}
-        {accounts.data && !account && (
-          <EmptyNote
-            action={
-              <Link className="btn btn-ghost btn-sm" to="/konten">
-                Zur Übersicht
-              </Link>
-            }
-          >
-            Dieses Konto gibt es nicht (mehr).
-          </EmptyNote>
-        )}
-        {account && <AccountBody account={account} />}
+        {accounts.data && !account && <EmptyNote>Dieses Konto gibt es nicht (mehr).</EmptyNote>}
+        {account &&
+          (account.type === 'brokerage' || account.type === 'crypto' ? (
+            <DepotBody account={account} bankReview={bankReview} />
+          ) : (
+            <AccountBody account={account} bankReview={bankReview} />
+          ))}
       </section>
     </PageFrame>
   );
 }
 
-function AccountBody({ account }: { account: AccountRow }) {
+function AccountBody({ account, bankReview }: { account: AccountRow; bankReview?: ReactNode }) {
   useAmountPrivacy();
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus({ preventScroll: true });
+  }, [account.id]);
   const search = useSearch({ strict: false }) as {
     pruefen?: 'reconcile' | 'value';
     vorschau?: string;
@@ -138,25 +134,23 @@ function AccountBody({ account }: { account: AccountRow }) {
   const canUseLiquidity =
     account.currency === 'EUR' && account.onBudget && account.role === 'budget';
   const liquidity = canUseLiquidity && search.vorschau === 'liquiditaet';
-  const today = todayInVienna();
+  const today = useRegisterToday();
   const month = monthOf(today);
-  const [period, setPeriod] = useState<Period | '6M'>('3M');
+  const [period, setPeriod] = useState<ChartPeriod>('3M');
+  const [chartOpen, setChartOpen] = useStoredFlag(CHART_OPEN_KEY);
+  const [fxView, setFxView] = useState<'native' | 'eur'>('native');
   const settings = useQuery(displaySettingsQuery());
-  const range = isCalendarRange(period)
-    ? calendarRangeWindow(period, today)
-    : {
-        from:
-          period === 'Alles'
-            ? account.openingDate
-            : `${addMonths(month, period === '3M' ? -3 : period === '1J' ? -12 : -6)}-${today.slice(8)}`,
-        to: today,
-      };
-  // Calendar-month ranges reuse the report picker; presets are rolling and end today.
-  if (!isCalendarRange(period) && period !== 'Alles')
-    range.from =
-      range.from > lastDayOfMonth(range.from.slice(0, 7))
-        ? lastDayOfMonth(range.from.slice(0, 7))
-        : range.from;
+  // Presets are rolling and end today.
+  const rollingFrom = `${addMonths(month, period === '3M' ? -3 : -12)}-${today.slice(8)}`;
+  const range = {
+    from:
+      period === 'Alles'
+        ? account.openingDate
+        : rollingFrom > lastDayOfMonth(rollingFrom.slice(0, 7))
+          ? lastDayOfMonth(rollingFrom.slice(0, 7))
+          : rollingFrom,
+    to: today,
+  };
   const previewDays =
     range.to === today ? (settings.data?.futurePreviewDays ?? DEFAULT_FUTURE_PREVIEW_DAYS) : 0;
   const series = useQuery({
@@ -181,7 +175,6 @@ function AccountBody({ account }: { account: AccountRow }) {
   });
   const limit = account.overdraftLimitCents ?? account.creditLimitCents;
   const limitLabel = account.overdraftLimitCents !== null ? 'Dispolimit' : 'Kreditrahmen';
-  const list = useInfiniteQuery(bookingsInfiniteQuery({ accountId: account.id }, PAGE_SIZE));
   // The month figure remains independent of the history's loaded pages.
   const movement = useQuery(
     bookingsQuery(
@@ -191,14 +184,6 @@ function AccountBody({ account }: { account: AccountRow }) {
     ),
   );
   const [panel, setPanel] = useState<BookingPanelState>(null);
-  const [checking, setChecking] = useState(false);
-  const [updatingValue, setUpdatingValue] = useState(false);
-  const closeCheck = () => {
-    setChecking(false);
-    setUpdatingValue(false);
-    if (search.pruefen)
-      void navigate({ to: '.', search: { ...search, pruefen: undefined }, replace: true } as never);
-  };
   const manual = account.type === 'p2p' || account.type === 'other_asset';
   const value = accountValueEur(account);
   const pending = valuedCurrencyParts(
@@ -206,31 +191,20 @@ function AccountBody({ account }: { account: AccountRow }) {
     account.currency,
     account.pendingValuation,
   );
-  const page = list.data?.pages[0];
-  const items = list.data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
-    <>
+    <div className="kacct-register">
       <div className="kacct-head">
         <div>
-          <h2>{account.name}</h2>
+          <h2 ref={heading} tabIndex={-1}>
+            {account.name}
+          </h2>
           <p className="kmeta">
             {ACCOUNT_TYPE_LABEL[account.type]} · {groupOf(account).title}
             {account.closedAt && <span>geschlossen am {longDay(account.closedAt)}</span>}
           </p>
         </div>
         <div className="kacct-actions">
-          {canReconcile(account) && (
-            <Button variant="ghost" onClick={() => setChecking(true)}>
-              <CheckCircle2 size={16} strokeWidth={1.75} aria-hidden="true" />
-              Kontostand prüfen
-            </Button>
-          )}
-          {manual && !account.closedAt && (
-            <Button variant="ghost" onClick={() => setUpdatingValue(true)}>
-              Wert aktualisieren
-            </Button>
-          )}
           {!account.closedAt && (
             <Button onClick={() => setPanel({ mode: 'create', accountId: account.id })}>
               <Plus size={16} strokeWidth={1.75} aria-hidden="true" />
@@ -247,8 +221,8 @@ function AccountBody({ account }: { account: AccountRow }) {
           {account.lastValuedOn ? longDay(account.lastValuedOn) : 'noch nicht erfasst'}
         </p>
       )}
-      <div className="kfigs">
-        <div className="fig">
+      <div className="kfigs kacct-kpis">
+        <div className="fig kacct-saldo">
           <small>{account.currency === 'EUR' ? 'Saldo' : `Kontowert · EUR`}</small>
           <strong
             className={cx(value !== null && value < 0 && 'neg')}
@@ -264,12 +238,12 @@ function AccountBody({ account }: { account: AccountRow }) {
           )}
           {value === null && <p className="kmeta">{valuationMissingText(account)}</p>}
         </div>
-        <div className="fig">
+        <div className="fig kacct-pending">
           <small>davon vorgemerkt</small>
           <strong className="muted">{pending.amount}</strong>
           {pending.rate && <p className="kmeta">{pending.rate}</p>}
         </div>
-        <div className="fig">
+        <div className="fig kacct-month">
           <small>{monthName(today)}</small>
           <strong className="muted">
             {movement.data
@@ -280,12 +254,27 @@ function AccountBody({ account }: { account: AccountRow }) {
             <p className="kmeta">Bewegung · EUR je Buchungstag, Kurse in der Tabelle</p>
           )}
         </div>
-        <AccountFreshness
-          lastReconciledOn={account.lastReconciledOn}
-          bankBalance={account.closedAt ? undefined : account.bankBalance}
-        />
+        <AccountReview account={account} compact />
+        {account.closedAt && (
+          <span className="pill">
+            {account.lastReconciledOn
+              ? `Geprüft ${shortDay(account.lastReconciledOn)}`
+              : 'Nie geprüft'}
+          </span>
+        )}
+        <details className="kacct-source">
+          <summary>
+            Datenstand
+            <ChevronDown size={14} aria-hidden="true" />
+          </summary>
+          <AccountFreshness
+            lastReconciledOn={account.lastReconciledOn}
+            bankBalance={account.closedAt ? undefined : account.bankBalance}
+          />
+        </details>
       </div>
       <BankBalance account={account} />
+      {bankReview}
       {search.faellig && (
         <p className="kmeta" data-testid="account-payment-context">
           <AppLink className="btn btn-ghost" to="/">
@@ -315,6 +304,7 @@ function AccountBody({ account }: { account: AccountRow }) {
               }}
             >
               <option value="standard">Vorschau laut Einstellungen · {previewDays} Tage</option>
+              <option value="35d">Liquidität · 35 Tage</option>
               <option value="90d">Liquidität · 90 Tage</option>
               <option value="6m">Liquidität · 6 Monate</option>
               <option value="12m">Liquidität · 12 Monate</option>
@@ -329,169 +319,171 @@ function AccountBody({ account }: { account: AccountRow }) {
           Kontodeckung.
         </p>
       )}
-      <div className="kchart-range">
-        <Segmented
-          label="Saldoverlauf Zeitraum"
-          value={period}
-          onChange={setPeriod}
-          options={[
-            { value: '3M', label: '3M' },
-            { value: '6M', label: '6M' },
-            { value: '1J', label: '12M' },
-            { value: 'Alles', label: 'Alles' },
-          ]}
-        />
-        <PeriodQuickSelect
-          customOnly
-          period={period === '6M' ? `${addMonths(month, -6)}..${month}` : period}
-          onChange={setPeriod}
-          trend={false}
-        />
-      </div>
-      {series.isPending && <LoadingNote what="Saldoverlauf" />}
-      {series.isError && (
-        <ErrorNote what="Saldoverlauf" error={series.error} onRetry={() => void series.refetch()} />
-      )}
-      {series.data && (
-        <>
-          {series.data.previewCoverage && (
+      <section className="kchart" aria-label="Saldoverlauf">
+        <div className="kchart-head">
+          <button
+            type="button"
+            className="kchart-toggle"
+            aria-expanded={chartOpen}
+            aria-controls="account-chart-body"
+            data-testid="account-chart-toggle"
+            onClick={() => setChartOpen(!chartOpen)}
+          >
+            {chartOpen ? (
+              <ChevronDown
+                className="icon icon-sm"
+                size={16}
+                strokeWidth={1.75}
+                aria-hidden="true"
+              />
+            ) : (
+              <ChevronRight
+                className="icon icon-sm"
+                size={16}
+                strokeWidth={1.75}
+                aria-hidden="true"
+              />
+            )}
+            Saldoverlauf
+          </button>
+          {previewDays > 0 && (series.data?.previewPoints?.length ?? 0) > 0 && (
+            <span className="pill" data-testid="account-chart-chip">
+              {liquidity ? 'Liquiditätsprognose' : `Prognose ${previewDays} Tage`}
+            </span>
+          )}
+          {chartOpen && account.currency !== 'EUR' && (
+            <Segmented
+              label="Saldoverlauf Währung"
+              value={fxView}
+              onChange={setFxView}
+              options={[
+                { value: 'native', label: `Kontowährung · ${account.currency}` },
+                { value: 'eur', label: 'EUR' },
+              ]}
+            />
+          )}
+          {chartOpen && (
+            <Segmented
+              label="Saldoverlauf Zeitraum"
+              value={period}
+              onChange={setPeriod}
+              options={[
+                { value: '3M', label: '3M' },
+                { value: '1J', label: '12M' },
+                { value: 'Alles', label: 'Alles' },
+              ]}
+            />
+          )}
+        </div>
+        {chartOpen && series.isPending && <LoadingNote what="Saldoverlauf" />}
+        {series.isError && (
+          <ErrorNote
+            what="Saldoverlauf"
+            error={series.error}
+            onRetry={() => void series.refetch()}
+          />
+        )}
+        {series.data && (
+          <>
+            {series.data.previewCoverage && (
+              <>
+                <p className="kmeta" data-testid="account-preview-range">
+                  {account.name} · Vorschau von {longDay(today)} bis{' '}
+                  {longDay(series.data.previewCoverage.endDay)}
+                </p>
+                <p className="kmeta" data-testid="account-preview-coverage">
+                  {series.data.previewCoverage.partial
+                    ? 'Teilprognose · fehlende Konto-Zuordnung:'
+                    : 'Kontoprognose · nur zugeordnete Beträge:'}{' '}
+                  Variable Haushaltsausgaben (
+                  {eur(series.data.previewCoverage.variableMonthlyCents)} pro Monat),{' '}
+                  {series.data.previewCoverage.unassignedEventCount}{' '}
+                  {series.data.previewCoverage.unassignedEventCount === 1
+                    ? 'geplantes Ereignis'
+                    : 'geplante Ereignisse'}{' '}
+                  und {series.data.previewCoverage.unassignedPaymentCount} wiederkehrende Zahlungen
+                  ohne Konto sind ausgeschlossen. Keine Verteilung der Haushaltssumme und keine
+                  Zusage sicherer Kontodeckung.
+                </p>
+              </>
+            )}
+          </>
+        )}
+        <div id="account-chart-body" data-testid="account-chart-body" hidden={!chartOpen}>
+          {chartOpen && series.data && (
             <>
-              <p className="kmeta" data-testid="account-preview-range">
-                {account.name} · Vorschau von {longDay(today)} bis{' '}
-                {longDay(series.data.previewCoverage.endDay)}
-              </p>
-              <p className="kmeta" data-testid="account-preview-coverage">
-                {series.data.previewCoverage.partial
-                  ? 'Teilprognose · fehlende Konto-Zuordnung:'
-                  : 'Kontoprognose · nur zugeordnete Beträge:'}{' '}
-                Variable Haushaltsausgaben ({eur(series.data.previewCoverage.variableMonthlyCents)}{' '}
-                pro Monat), {series.data.previewCoverage.unassignedEventCount}{' '}
-                {series.data.previewCoverage.unassignedEventCount === 1
-                  ? 'geplantes Ereignis'
-                  : 'geplante Ereignisse'}{' '}
-                und {series.data.previewCoverage.unassignedPaymentCount} wiederkehrende Zahlungen
-                ohne Konto sind ausgeschlossen. Keine Verteilung der Haushaltssumme und keine Zusage
-                sicherer Kontodeckung.
-              </p>
+              <BalanceChart
+                points={series.data.points}
+                windowLabel={period}
+                previewPoints={series.data.previewPoints ?? []}
+                limitCents={limit}
+                limitLabel={limitLabel}
+                currency={account.currency}
+                view={fxView}
+              />
+              {account.currency !== 'EUR' && (
+                <details className="kfx-history">
+                  <summary>EUR-Bewertung · Tageswerte und Kurse</summary>
+                  <p className="kmeta">
+                    Cash-Saldo am jeweiligen Tag; Wertpapiere sind hier nicht enthalten.
+                  </p>
+                  <table className="ktable">
+                    <caption className="sr-only">Saldoverlauf mit EUR-Bewertung</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Datum</th>
+                        <th scope="col">Saldo · {account.currency} / EUR</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {series.data.points.map((p) => (
+                        <tr key={p.date}>
+                          <td>{longDay(p.date)}</td>
+                          <td>{valuedCurrency(p.balanceCents, account.currency, p.valuation)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </details>
+              )}
+              {(series.data.unavailableCurrencies?.length ?? 0) > 0 && (
+                <p role="status">
+                  Vorschau nicht verfügbar: Wechselkurs fehlt (
+                  {series.data.unavailableCurrencies?.join(', ')}).
+                </p>
+              )}
+              <div className="legend" aria-hidden="true">
+                <span>
+                  <svg viewBox="0 0 26 8">
+                    <path className="l-actual" d="M0 4h26" />
+                  </svg>
+                  Cash-Saldo · {fxView === 'eur' ? 'EUR' : account.currency}
+                </span>
+                {(series.data.previewPoints?.length ?? 0) > 1 && (
+                  <span>
+                    <svg viewBox="0 0 26 8">
+                      <path className="l-forecast" d="M0 4h26" />
+                    </svg>
+                    {liquidity
+                      ? `Liquiditätsvorschau · bis ${longDay(series.data.previewCoverage?.endDay ?? today)}`
+                      : `Vorschau · ${previewDays} Tage`}
+                  </span>
+                )}
+                {limit !== null && (
+                  <span>
+                    <svg viewBox="0 0 26 8">
+                      <path className="l-plan" d="M0 4h26" />
+                    </svg>
+                    {limitLabel} · {valuedCurrency(-limit, account.currency)}
+                  </span>
+                )}
+              </div>
             </>
           )}
-          <BalanceChart
-            points={series.data.points}
-            windowLabel={period}
-            previewPoints={series.data.previewPoints ?? []}
-            limitCents={limit}
-            limitLabel={limitLabel}
-            currency={account.currency}
-          />
-          {account.currency !== 'EUR' && (
-            <details className="kfx-history">
-              <summary>EUR-Bewertung · Tageswerte und Kurse</summary>
-              <p className="kmeta">
-                Cash-Saldo am jeweiligen Tag; Wertpapiere sind hier nicht enthalten.
-              </p>
-              <table className="ktable">
-                <caption className="sr-only">Saldoverlauf mit EUR-Bewertung</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Datum</th>
-                    <th scope="col">Saldo · {account.currency} / EUR</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {series.data.points.map((p) => (
-                    <tr key={p.date}>
-                      <td>{longDay(p.date)}</td>
-                      <td>{valuedCurrency(p.balanceCents, account.currency, p.valuation)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </details>
-          )}
-          {(series.data.unavailableCurrencies?.length ?? 0) > 0 && (
-            <p role="status">
-              Vorschau nicht verfügbar: Wechselkurs fehlt (
-              {series.data.unavailableCurrencies?.join(', ')}).
-            </p>
-          )}
-          <div className="legend" aria-hidden="true">
-            <span>
-              <svg viewBox="0 0 26 8">
-                <path className="l-actual" d="M0 4h26" />
-              </svg>
-              Cash-Saldo · {account.currency}
-            </span>
-            {(series.data.previewPoints?.length ?? 0) > 1 && (
-              <span>
-                <svg viewBox="0 0 26 8">
-                  <path className="l-forecast" d="M0 4h26" />
-                </svg>
-                {liquidity
-                  ? `Liquiditätsvorschau · bis ${longDay(series.data.previewCoverage?.endDay ?? today)}`
-                  : `Vorschau · ${previewDays} Tage`}
-              </span>
-            )}
-            {limit !== null && (
-              <span>
-                <svg viewBox="0 0 26 8">
-                  <path className="l-plan" d="M0 4h26" />
-                </svg>
-                {limitLabel} · {valuedCurrency(-limit, account.currency)}
-              </span>
-            )}
-          </div>
-        </>
-      )}
-      <div className="head kh">
-        <h2>Buchungen</h2>
-        {page && <span className="aside">{pluralBookings(page.total)}</span>}
-      </div>
-      {list.isPending && <LoadingNote what="Buchungen" />}
-      {list.isError && (
-        <ErrorNote what="Buchungen" error={list.error} onRetry={() => void list.refetch()} />
-      )}
-      {page && items.length === 0 && <EmptyNote>Noch keine Buchungen auf diesem Konto.</EmptyNote>}
-      {items.length > 0 && (
-        <BookingTable
-          items={items}
-          caption="Buchungen mit laufendem Saldo"
-          variant="account"
-          onOpen={(booking) => setPanel({ mode: 'edit', booking })}
-        />
-      )}
-      {list.hasNextPage && (
-        <LoadOlder fetching={list.isFetching} failed={list.isError} load={list.fetchNextPage} />
-      )}
+        </div>
+      </section>
+      <AccountRegister account={account} />
       <BookingPanel state={panel} onClose={() => setPanel(null)} />
-      <ReconcilePanel
-        account={account}
-        open={!account.closedAt && !manual && (checking || search.pruefen === 'reconcile')}
-        onClose={closeCheck}
-      />
-      {manual && (
-        <SettingsFormDialog
-          open={!account.closedAt && (updatingValue || search.pruefen === 'value')}
-          onClose={closeCheck}
-          title={`Wert aktualisieren · ${account.name}`}
-        >
-          <ManualValue
-            accountId={account.id}
-            end={lastDayOfMonth(month)}
-            openingDate={account.openingDate}
-            lastReconciledOn={account.lastReconciledOn}
-            valueCents={account.manualValueCents ?? account.balanceCents}
-            currency={account.currency}
-            blockedReason={
-              account.hasHoldings
-                ? 'Dieses Konto wird über seine Produkte bewertet.'
-                : account.closedAt
-                  ? 'Dieses Konto ist geschlossen.'
-                  : undefined
-            }
-            onDone={closeCheck}
-          />
-        </SettingsFormDialog>
-      )}
-    </>
+    </div>
   );
 }

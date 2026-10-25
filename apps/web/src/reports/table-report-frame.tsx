@@ -4,9 +4,11 @@ import { ErrorNote, LoadingNote, EmptyNote } from '../ledger/states';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
+import { useCollapsibleSections } from './month-frame';
 import { monthShort } from './table-format';
 import { reportTablesQuery, type ReportTables } from './table-reports-api';
 import './table-reports.css';
+import './table-print.css';
 import { tableVerdictFacts } from './verdict-facts';
 import { reportPeriodMonths, type Period } from '@budget/domain';
 
@@ -61,6 +63,7 @@ export function TableReportFrame({
     (verdictPeriod && tables?.firstMonth && end
       ? reportPeriodMonths(verdictPeriod, end, tables.firstMonth).at(-1)
       : (end ?? tables?.currentMonth));
+  const sectionsRef = useCollapsibleSections(report.id);
   const verdict = useMemo(
     () =>
       tables && verdictMonth && !query.isFetching && !query.isError
@@ -77,7 +80,7 @@ export function TableReportFrame({
       reportDataBasis={basis}
       {...(extraFields ? { extraFields } : {})}
     >
-      <div className={`kview table-report ${className}`}>
+      <div ref={sectionsRef} className={`kview table-report report-table-print ${className}`}>
         {query.isPending && <LoadingNote what="Monatsdaten" />}
         {query.isError && (
           <ErrorNote what="Monatsdaten" error={query.error} onRetry={() => void query.refetch()} />

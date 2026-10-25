@@ -7,17 +7,18 @@ import {
 } from './bank-candidate';
 import { BankBulkActions, isBankInboxRow } from './bank-bulk-actions';
 import { AssignmentLearnOffer, BookingAssignmentReview } from '../assignment/review';
-import { PayslipUpload, PayslipIntakeDetail } from '../reports/payslip-intake';
+import { PayslipIntakeDetail } from '../reports/payslip-intake';
+import { InboxTypeIcon } from './type-icon';
 import { ReadSourceDetail, sourceWarningReason } from './read-source-detail';
 import { ReadSourceSummaries } from './read-source-summaries';
-import { inboxCause } from '@budget/domain';
+import { inboxCause, type InboxSegment } from '@budget/domain';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { InboxBack, type InboxSearch } from './navigation';
 import {
   useAmountPrivacy,
   maskMoneyText,
   Button,
-  RevisionTriangle,
+  Segmented,
   SectionHead,
   useToast,
 } from '@budget/ui';
@@ -43,6 +44,7 @@ import {
   resolveInbox,
   readSourceMovementsQuery,
   type InboxEntry,
+  type InboxEnvelope,
   type InboxKind,
   type InboxStored,
 } from './api';
@@ -50,14 +52,14 @@ import './inbox.css';
 import { ReceiptSection } from '../receipts/receipt-section';
 import { TradePanel } from '../wealth/trade-panel';
 import type { SavingsExecutionProposal } from '../wealth/savings-api';
-const META = PAGES.find((p) => p.path === '/konten/posteingang')!;
-const LABELS: Record<InboxKind, string> = {
+const META = PAGES.find((p) => p.path === '/konten/pruefen')!;
+// Overspent categories are not part of Prüfen (Heute › Zu tun and Plan show them).
+const LABELS: Record<Exclude<InboxKind, 'overspent'>, string> = {
   uncategorized: 'Buchungen ohne Kategorie',
   revision: 'Vorschläge',
   import: 'Datenprüfung',
   stale_value: 'Veraltete Werte',
   consent: 'Einwilligungen',
-  overspent: 'Überzogene Kategorien',
   expected_payment: 'Wiederkehrende Zahlungen',
   receivable: 'Kontakte',
   reconciliation: 'Kontoprüfung',
@@ -75,7 +77,7 @@ export function InboxPage() {
         <p>
           Aufgaben dieser Bankquelle.{' '}
           <AppLink
-            to="/konten/posteingang"
+            to="/konten/pruefen"
             search={{
               ...(search.aufgaben && { aufgaben: search.aufgaben }),
               ...(search.von && { von: search.von }),
@@ -85,8 +87,8 @@ export function InboxPage() {
           </AppLink>
         </p>
       )}
-      {!search.bankSource && <InboxAccountReminders />}
       <InboxWorkflow bankSource={search.bankSource} />
+      {!search.bankSource && <InboxAccountReminders />}
     </PageFrame>
   );
 }
@@ -105,13 +107,13 @@ export function InboxDetailPage() {
             Konten
           </AppLink>
           {' › '}
-          <AppLink to="/konten/posteingang" search={search}>
-            Posteingang
+          <AppLink to="/konten/pruefen" search={search}>
+            Prüfen
           </AppLink>
           {' › '}
           <span aria-current="page">Datenwarnung</span>
         </nav>
-        <InboxBack to={`/konten/posteingang?${params}`} label="Zurück zum Posteingang" />
+        <InboxBack to={`/konten/pruefen?${params}`} label="Zurück zu Prüfen" />
         {query.isPending && <LoadingNote what="Datenwarnung" />}
         {query.isError && (
           <ErrorNote
@@ -130,11 +132,13 @@ export function InboxWorkflow({
   entryIds,
   detailEntry,
   bankSource,
+  bankAccountId,
   readSource,
 }: {
   entryIds?: string[] | undefined;
   detailEntry?: InboxStored | undefined;
   bankSource?: string | undefined;
+  bankAccountId?: string | undefined;
   readSource?: string | undefined;
 }) {
   useAmountPrivacy();
@@ -171,6 +175,7 @@ export function InboxWorkflow({
       entryIds={entryIds}
       detailEntry={detailEntry}
       bankSource={bankSource}
+      bankAccountId={bankAccountId}
       readSource={readSource}
       onEdit={(id) => void edit(id)}
       loadingId={loading}
@@ -201,6 +206,7 @@ function InboxBody({
   entryIds,
   detailEntry,
   bankSource,
+  bankAccountId,
   readSource,
   onEdit,
   loadingId,
@@ -209,11 +215,21 @@ function InboxBody({
   entryIds?: string[] | undefined;
   detailEntry?: InboxStored | undefined;
   bankSource?: string | undefined;
+  bankAccountId?: string | undefined;
   readSource?: string | undefined;
   onEdit: (id: string) => void;
   loadingId: string | null;
   onSavings: (proposal: SavingsExecutionProposal) => void;
 }) {
+  if (bankAccountId)
+    return (
+      <AccountBankInboxBody
+        accountId={bankAccountId}
+        onEdit={onEdit}
+        loadingId={loadingId}
+        onSavings={onSavings}
+      />
+    );
   if (readSource)
     return (
       <ReadSourceMovementsBody
@@ -269,6 +285,47 @@ type InboxBodyProps = {
   loadingId: string | null;
   onSavings: (proposal: SavingsExecutionProposal) => void;
 };
+
+/** A separate account-keyed queue; account navigation never changes global Prüfen filters. */
+function AccountBankInboxBody({ accountId, ...props }: InboxBodyProps & { accountId: string }) {
+  const queue = useInfiniteQuery(
+    inboxPagesQuery('all', undefined, 'newest', undefined, 'umsaetze', undefined, accountId),
+  );
+  const loadingMore = useRef(false);
+  const loadMore = async () => {
+    if (loadingMore.current || queue.isFetching || !queue.hasNextPage) return;
+    loadingMore.current = true;
+    try {
+      await queue.fetchNextPage();
+    } finally {
+      loadingMore.current = false;
+    }
+  };
+  const failed = queue.isError && !queue.isFetchNextPageError;
+  const pages = failed ? [] : (queue.data?.pages ?? []);
+  const firstPage = pages[0];
+  return (
+    <InboxBodyContent
+      {...props}
+      entries={pages.flatMap((page) => page.entries)}
+      count={firstPage?.count}
+      totalEntries={firstPage?.totalEntries}
+      countsByKind={firstPage?.countsByKind}
+      countsByCause={firstPage?.countsByCause}
+      pending={queue.isPending}
+      error={failed ? queue.error : null}
+      nextPageError={queue.isFetchNextPageError ? queue.error : null}
+      onRetry={() => void queue.refetch()}
+      onRetryNextPage={() => void loadMore()}
+      showReceipts={false}
+      serverPaginated
+      accountScoped
+      hasMore={queue.hasNextPage}
+      loadingMore={queue.isFetching}
+      loadMore={() => void loadMore()}
+    />
+  );
+}
 
 function ReadSourceMovementsBody({ sourceId, ...props }: InboxBodyProps & { sourceId: string }) {
   const [title, setTitle] = useState('');
@@ -354,12 +411,17 @@ function PaginatedInboxBody({
   useAmountPrivacy();
   const search = useSearch({ strict: false }) as InboxSearch;
   const navigate = useNavigate();
+  // `auto` lets the server open on the part with open work; the part then stays put while the
+  // user works through it, even when it empties.
+  const [pinned, setPinned] = useState<InboxSegment>();
   const queue = useInfiniteQuery(
     inboxPagesQuery(
       search.aufgaben,
       bankSource,
       bankSource ? (search.dateSort ?? 'newest') : undefined,
       bankSource ? search.fromDate : undefined,
+      search.teil ?? 'auto',
+      pinned,
     ),
   );
   const loadingNextPage = useRef(false);
@@ -375,8 +437,31 @@ function PaginatedInboxBody({
   const pages = queue.data?.pages ?? [];
   const entries = pages.flatMap((page) => page.entries);
   const firstPage = pages[0];
+  const shown = search.teil ?? firstPage?.segment;
+  const resolved = firstPage?.segment;
+  if (!search.teil && !pinned && resolved) setPinned(resolved);
+  const segmentCounts =
+    !bankSource && firstPage?.segments && shown ? { shown, counts: firstPage.segments } : undefined;
   return (
     <>
+      {segmentCounts && (
+        <Segmented<InboxSegment>
+          className="inbox-segments"
+          label="Teil von Prüfen"
+          stretch
+          value={segmentCounts.shown}
+          options={[
+            { value: 'umsaetze', label: `Umsätze · ${segmentCounts.counts.umsaetze}` },
+            { value: 'aufgaben', label: `Aufgaben · ${segmentCounts.counts.aufgaben}` },
+          ]}
+          onChange={(teil) =>
+            void navigate({
+              to: '/konten/pruefen',
+              search: { ...search, teil, gruppe: undefined },
+            } as never)
+          }
+        />
+      )}
       <div className="inbox-filters">
         {bankSource && (
           <>
@@ -425,7 +510,7 @@ function PaginatedInboxBody({
             value={search.aufgaben ?? 'all'}
             onChange={(event) =>
               void navigate({
-                to: '/konten/posteingang',
+                to: '/konten/pruefen',
                 search: {
                   ...search,
                   aufgaben: event.target.value === 'all' ? undefined : event.target.value,
@@ -449,7 +534,10 @@ function PaginatedInboxBody({
         {...props}
         entries={entries}
         count={firstPage?.count}
-        readSourceSummaries={firstPage?.readSourceSummaries}
+        segmentCounts={segmentCounts}
+        readSourceSummaries={
+          segmentCounts?.shown === 'umsaetze' ? undefined : firstPage?.readSourceSummaries
+        }
         totalEntries={firstPage?.totalEntries}
         countsByKind={firstPage?.countsByKind}
         countsByCause={firstPage?.countsByCause}
@@ -458,7 +546,7 @@ function PaginatedInboxBody({
         nextPageError={queue.isFetchNextPageError ? queue.error : null}
         onRetry={() => void queue.refetch()}
         onRetryNextPage={() => void fetchNextPage()}
-        showReceipts={!bankSource}
+        showReceipts={!bankSource && segmentCounts?.shown !== 'umsaetze'}
         serverPaginated
         hasMore={queue.hasNextPage}
         loadingMore={queue.isFetching}
@@ -468,14 +556,19 @@ function PaginatedInboxBody({
   );
 }
 
+/** Overspent categories are no Prüfen work, even if an old or mocked response still carries them. */
+type TaskEntry = Exclude<InboxEntry, InboxEnvelope>;
+
 function InboxBodyContent({
-  entries,
+  entries: received,
   count,
   totalEntries,
   countsByKind,
   countsByCause,
+  segmentCounts,
   detailView = false,
   groupByTitle = false,
+  accountScoped = false,
   readSourceSummaries,
   pending,
   error,
@@ -496,8 +589,11 @@ function InboxBodyContent({
   totalEntries: number | undefined;
   countsByKind: Partial<Record<InboxKind, number>> | undefined;
   countsByCause?: Record<string, number> | undefined;
+  /** Konten › Prüfen: open work per part and the part shown. */
+  segmentCounts?: { shown: InboxSegment; counts: Record<InboxSegment, number> } | undefined;
   detailView?: boolean;
   groupByTitle?: boolean;
+  accountScoped?: boolean;
   readSourceSummaries?: { sourceId: string | null; name: string; count: number }[] | undefined;
   pending: boolean;
   error: Error | null;
@@ -511,8 +607,10 @@ function InboxBodyContent({
   loadMore: () => void;
 }) {
   useAmountPrivacy();
+  const entries = received.filter((entry): entry is TaskEntry => entry.type !== 'envelope');
   const headingId = useId();
-  const search = useSearch({ strict: false }) as InboxSearch;
+  const routeSearch = useSearch({ strict: false }) as InboxSearch;
+  const search: Partial<InboxSearch> = accountScoped ? {} : routeSearch;
   const navigate = useNavigate();
   const writes = useLedgerWrites();
   const write = useBudgetWrite();
@@ -534,20 +632,43 @@ function InboxBodyContent({
     );
     setBusy(null);
   };
-  const groups: (InboxKind | null)[] =
-    search.bankSource || groupByTitle ? [null] : (Object.keys(LABELS) as InboxKind[]);
-  let index = 0;
+  const groups: (Exclude<InboxKind, 'overspent'> | null)[] =
+    accountScoped || search.bankSource || groupByTitle
+      ? [null]
+      : (Object.keys(LABELS) as Exclude<InboxKind, 'overspent'>[]);
   let room = serverPaginated ? entries.length : shown;
   const canLoadMore = serverPaginated ? Boolean(hasMore) : entries.length > shown;
   const remaining = serverPaginated
     ? Math.max((totalEntries ?? entries.length) - entries.length, 0)
     : entries.length - shown;
+  if (
+    accountScoped &&
+    !pending &&
+    !error &&
+    !nextPageError &&
+    count === 0 &&
+    entries.length === 0 &&
+    !learnBookingId
+  )
+    return null;
   return (
     <section className="kinbox" aria-labelledby={headingId}>
       <SectionHead
         id={headingId}
-        title={groupByTitle ? 'Bewegungen zu prüfen' : 'Offene Entscheidungen'}
-        aside={count !== undefined ? `${count} offen` : undefined}
+        title={
+          accountScoped
+            ? 'Bankumsätze prüfen'
+            : groupByTitle
+              ? 'Bewegungen zu prüfen'
+              : 'Offene Entscheidungen'
+        }
+        aside={
+          segmentCounts
+            ? `${segmentCounts.counts[segmentCounts.shown]} offen`
+            : count !== undefined
+              ? `${count} offen`
+              : undefined
+        }
       />
       {pending && <LoadingNote what="Aufgaben" />}
       {learnBookingId && <AssignmentLearnOffer bookingId={learnBookingId} />}
@@ -557,15 +678,23 @@ function InboxBodyContent({
       )}
       {count === 0 && (
         <EmptyNote>
-          {groupByTitle
-            ? 'Keine offenen Bewegungen vorhanden.'
-            : readSourceSummaries?.length
-              ? 'Keine offenen Entscheidungen vorhanden.'
-              : 'Posteingang leer. Es sind keine offenen Aufgaben vorhanden.'}
+          {accountScoped
+            ? 'Keine offenen Bankumsätze für dieses Konto.'
+            : groupByTitle
+              ? 'Keine offenen Bewegungen vorhanden.'
+              : readSourceSummaries?.length
+                ? 'Keine offenen Entscheidungen vorhanden.'
+                : 'Prüfen leer. Es sind keine offenen Aufgaben vorhanden.'}
         </EmptyNote>
       )}
       {!pending && !error && count !== 0 && entries.length === 0 && (
-        <EmptyNote>Keine offenen Aufgaben in diesem Zeitraum.</EmptyNote>
+        <EmptyNote>
+          {segmentCounts && segmentCounts.counts[segmentCounts.shown] === 0
+            ? segmentCounts.shown === 'umsaetze'
+              ? 'Keine offenen Umsätze.'
+              : 'Keine offenen Aufgaben.'
+            : 'Keine offenen Aufgaben in diesem Zeitraum.'}
+        </EmptyNote>
       )}
       {entries.length > 0 && (
         <>
@@ -579,14 +708,15 @@ function InboxBodyContent({
             />
           )}
           <table className="rev-table kinbox-table">
-            <caption className="sr-only">Offene Entscheidungen nach Typ</caption>
+            <caption className="sr-only">
+              {accountScoped
+                ? 'Offene Bankumsätze dieses Kontos'
+                : 'Offene Entscheidungen nach Typ'}
+            </caption>
             <thead>
               <tr>
-                <th className="tech rev-mark" scope="col">
-                  Rev.
-                </th>
-                <th className="tech" scope="col">
-                  Änderung
+                <th className="tech" scope="col" colSpan={2}>
+                  Aufgabe
                 </th>
                 <th className="tech rev-act" scope="col">
                   Aktion
@@ -605,9 +735,11 @@ function InboxBodyContent({
                     <th scope="rowgroup" colSpan={2}>
                       {kind
                         ? LABELS[kind]
-                        : groupByTitle
-                          ? 'Quellbewegungen'
-                          : 'Aufgaben dieser Bankquelle'}{' '}
+                        : accountScoped
+                          ? 'Bankumsätze dieses Kontos'
+                          : groupByTitle
+                            ? 'Quellbewegungen'
+                            : 'Aufgaben dieser Bankquelle'}{' '}
                       <span className="kgcount">
                         {kind ? (countsByKind?.[kind] ?? all.length) : (totalEntries ?? all.length)}
                       </span>
@@ -622,9 +754,10 @@ function InboxBodyContent({
                       : [item];
                     const total = cause ? (countsByCause?.[cause] ?? members.length) : 1;
                     if ((total > 1 || groupByTitle) && members[0]?.id !== item.id) return [];
-                    const expanded = groupByTitle
-                      ? expandedTitle === cause
-                      : search.gruppe === item.id;
+                    const expanded =
+                      groupByTitle || accountScoped
+                        ? expandedTitle === cause
+                        : search.gruppe === item.id;
                     const group =
                       total > 1 || groupByTitle ? (
                         <tr className="inbox-cause" key={`cause-${item.id}`}>
@@ -634,7 +767,7 @@ function InboxBodyContent({
                               variant="ghost"
                               aria-expanded={expanded}
                               onClick={() =>
-                                groupByTitle
+                                groupByTitle || accountScoped
                                   ? setExpandedTitle(expanded ? null : cause)
                                   : void navigate({
                                       to: '.',
@@ -684,7 +817,6 @@ function InboxBodyContent({
                               onBankPrepare={prepareBank}
                               detailView={detailView || groupByTitle}
                               onBankConfirmed={setLearnBookingId}
-                              letter={String.fromCharCode(65 + (index++ % 26))}
                               busy={
                                 busy === item.id ||
                                 (loadingId !== null &&
@@ -733,7 +865,6 @@ function InboxBodyContent({
       )}
       {showReceipts && (
         <>
-          <PayslipUpload />
           <ReceiptSection />
         </>
       )}
@@ -748,7 +879,6 @@ function InboxRow({
   detailView = false,
   onBankConfirmed,
   item,
-  letter,
   busy,
   onEdit,
   onSavings,
@@ -761,8 +891,7 @@ function InboxRow({
   onBankPrepare: (id: string, suggestion: PreparedBankSuggestion | undefined) => void;
   detailView?: boolean;
   onBankConfirmed: (id: string) => void;
-  item: InboxEntry;
-  letter: string;
+  item: TaskEntry;
   busy: boolean;
   onEdit: (id: string) => void;
   onSavings: (proposal: SavingsExecutionProposal) => void;
@@ -789,7 +918,7 @@ function InboxRow({
   return (
     <tr className={`rev-row${item.urgent ? ' is-urgent' : ''}`} data-testid="inbox-row">
       <td className="rev-mark">
-        <RevisionTriangle letter={letter} urgent={item.urgent} />
+        <InboxTypeIcon entry={item} />
       </td>
       <td className="rev-what">
         <strong>
@@ -856,14 +985,6 @@ function InboxRow({
           <Button variant="ghost" onClick={() => onSavings(item)}>
             Ausführung prüfen
           </Button>
-        ) : item.type === 'envelope' ? (
-          <AppLink
-            className="btn btn-alert btn-sm"
-            to="/plan/monat"
-            search={{ monat: item.month, kategorie: item.categoryId }}
-          >
-            Decken
-          </AppLink>
         ) : item.refType === 'payslip-intake' && item.refId ? (
           <AppLink className="btn btn-ghost btn-sm" to="/reports/gehalt">
             Gehaltsreport
@@ -876,7 +997,7 @@ function InboxRow({
             {item.kind === 'import' && !detailView && (
               <AppLink
                 className="btn btn-ghost btn-sm"
-                to={`/konten/posteingang/${encodeURIComponent(item.id)}`}
+                to={`/konten/pruefen/${encodeURIComponent(item.id)}`}
                 search={search}
                 state={{ inboxOpenedInApp: true }}
               >
@@ -907,7 +1028,7 @@ function BankInboxRow({
   onResolve,
   busy,
 }: {
-  item: InboxEntry;
+  item: TaskEntry;
   selected: boolean;
   onSelect: ((checked: boolean) => void) | undefined;
   onPrepared: (id: string, suggestion: PreparedBankSuggestion | undefined) => void;
@@ -952,6 +1073,7 @@ function BankInboxRow({
   return (
     <tr className="rev-row bank-inbox-row" data-testid="inbox-row">
       <td className="rev-mark">
+        <InboxTypeIcon entry={item} />
         {onSelect && (
           <label className="bank-select">
             <input

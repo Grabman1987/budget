@@ -1,0 +1,31 @@
+--- v1/e2e/issue-741-payroll-automation.spec.ts
++++ v2/e2e/issue-741-payroll-automation.spec.ts
+@@ -131,7 +131,14 @@
+         expect((await source.body()).equals(pdf)).toBe(true);
+         const link = dialog.getByRole('link', { name: 'Gespeicherte Auszahlung öffnen', exact: true });
+         await expect(link).toHaveAttribute('href', `/konten/buchungen?konto=${seeded.accountId}&buchung=${payout.id}`);
+-        const linkHit = await hit(link);
++        // Keep the real Undo toast available. A screenshot is not an unobstructed-link claim;
++        // the separate route scenario dismisses that toast and actually clicks the link.
++        const linkSize = await link.evaluate((element) => {
++          const r = element.getBoundingClientRect();
++          return { width: r.width, height: r.height };
++        });
++        expect(linkSize.width).toBeGreaterThanOrEqual(44);
++        expect(linkSize.height).toBeGreaterThanOrEqual(44);
+         expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual([]);
+         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+         const screenshot = info.outputPath(`payroll-result-${profile}-${selectedTheme}.png`);
+@@ -163,10 +170,10 @@
+         expect(runtime.resolvedTheme).toBe(selectedTheme);
+         const path = info.outputPath('payroll-source-payout-proof.json');
+         await writeFile(path, JSON.stringify({ source: 'synthetic-only', engine: browser.browserType().name(),
+-          project: info.project.name, profile, runtime, linkHit, sourceBytesPreserved: true,
++          project: info.project.name, profile, runtime, linkSize, sourceBytesPreserved: true,
+           salaryCents: 287500, reimbursementCents: 10000, payoutCents: 297500,
+           balances: [62345, 359845, 62345], groupedUndoReached: true, duplicateDidNotRepost: true,
+-          clickedPayoutDestination: false, physicalTouchClaim: false, privacyToggleExercised: false }, null, 2));
++          clickedPayoutDestination: false, unobstructedPayoutLinkClaim: false, physicalTouchClaim: false, privacyToggleExercised: false }, null, 2));
+         await info.attach('payroll-source-payout-proof', { path, contentType: 'application/json' });
+       } catch (error) { failed = true; throw error; }
+       finally {

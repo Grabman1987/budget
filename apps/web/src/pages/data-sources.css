@@ -81,7 +81,7 @@
 }
 .source-status dt {
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .source-status dd {
   margin: 4px 0 0;

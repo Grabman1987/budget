@@ -1,39 +1,29 @@
 import { ReportPeriodControl } from '../reports/period-quick-select';
 import { Term } from '../reports/term';
-import type { ReactNode } from 'react';
+import {
+  HistoricalBasisCue,
+  historicalBasisReasons,
+  PortfolioCalculationDisclosure,
+} from '../reports/portfolio-calculation-disclosure-512';
+import type { ValuationNote } from '../ledger/valuation-hint';
+import { useId, type ReactNode } from 'react';
 import { useAmountPrivacy, DimensionChain, Button } from '@budget/ui';
 import { cents, type Period } from '@budget/domain';
 import type { PortfolioSummary } from '@budget/db';
-import { useQuery, queryOptions } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useZeitraum, ZEITRAUM_VALUES } from '../wealth/zeitraum';
 import { useNavigate } from '@tanstack/react-router';
 import { userText } from '../api/error-text';
-import { ApiError, request } from '../api/http';
+import { ApiError } from '../api/http';
 import { ErrorNote, LoadingNote } from '../ledger/states';
-import { type WithValuationNotes } from '../ledger/valuation-hint';
 import { eur, longDay } from '../ledger/format';
 import { periodText } from '../wealth/networth-model';
-import { LEDGER_KEY } from '../ledger/queries';
+import { portfolioPerformanceQuery } from '../wealth/portfolio-api';
 import { PageFrame } from './placeholder-page';
 import type { PageMeta } from '../nav/pages';
 import type { ReportEntry } from '../nav/reports-catalog';
 import './portfolio-performance-report.css';
 import { PerformanceComparisons } from './portfolio-performance-comparisons';
-
-interface PortfolioResponse extends WithValuationNotes {
-  portfolio: PortfolioSummary;
-}
-
-const portfolioPerformanceQuery = (period: Period) =>
-  queryOptions({
-    queryKey: [...LEDGER_KEY, 'portfolio-performance-report', period, 'securities'],
-    retry: false,
-    queryFn: () =>
-      request<PortfolioResponse>(
-        'GET',
-        `/api/portfolio?period=${period}&view=securities&history=performance`,
-      ),
-  });
 
 const PERIOD_OPTIONS = ZEITRAUM_VALUES.map((value) => ({ value, label: value }));
 
@@ -131,6 +121,7 @@ export function PortfolioPerformanceReport({
         {!query.isError && query.data && (
           <PerformanceBody
             summary={query.data.portfolio}
+            incomplete={query.data.incomplete}
             onOpenPortfolio={() =>
               void navigate({
                 to: '/vermoegen/portfolio',
@@ -169,13 +160,18 @@ function PeriodControl({
 
 function PerformanceBody({
   summary,
+  incomplete,
   onOpenPortfolio,
 }: {
   summary: PortfolioSummary;
+  incomplete?: ValuationNote[] | undefined;
   onOpenPortfolio: () => void;
 }) {
   useAmountPrivacy();
   const performance = summary.performance;
+  const basisId = useId();
+  const sourceId = useId();
+  const basisReasons = historicalBasisReasons(summary);
 
   return (
     <>
@@ -197,8 +193,19 @@ function PerformanceBody({
                 <Term>TTWROR</Term> im Zeitraum · {performance.days} Tage · {performance.monthCount}{' '}
                 bewertete Monate
               </span>
-              <strong data-testid="period-ttwror">{percent(performance.ttwror)}</strong>
+              <strong
+                data-testid="period-ttwror"
+                aria-describedby={basisReasons.length ? basisId : undefined}
+              >
+                {percent(performance.ttwror)}
+              </strong>
             </div>
+            <HistoricalBasisCue reasons={basisReasons} id={basisId} sourceId={sourceId} />
+            <p className="vnote">
+              TTWROR und XIRR nach Portfolio Performance: Wertpapiere ohne Depotkassa, nach Gebühren
+              und vor Steuern. TTWROR zählt Zuflüsse am Tagesanfang und Abflüsse am Tagesende.
+              Periodengewinn und Nettozuflüsse verwenden die tatsächlichen Beträge nach Steuern.
+            </p>
             <DimensionChain
               terms={[
                 { label: 'Anfang', value: cents(performance.startValueCents) },
@@ -216,15 +223,9 @@ function PerformanceBody({
                   </>
                 }
                 value={percent(performance.ttwrorAnnualised)}
-              />
-              <Metric
-                label={
-                  <>
-                    <Term>Geldgewichtet</Term>, <Term>Modified Dietz</Term>
-                  </>
+                note={
+                  performance.ttwrorAnnualised === null ? 'für diesen Zeitraum nicht verfügbar' : ''
                 }
-                value={percent(performance.moneyWeighted)}
-                note={performance.days > 365 ? 'annualisiert' : 'nicht annualisiert'}
               />
               <Metric
                 label={
@@ -245,6 +246,11 @@ function PerformanceBody({
             angenommen.
           </p>
         )}
+        <PortfolioCalculationDisclosure
+          summary={summary}
+          incomplete={incomplete}
+          sourceId={sourceId}
+        />
       </section>
       <PerformanceComparisons summary={summary} />
       <section className="performance-realized" aria-labelledby="realized-gain-title">

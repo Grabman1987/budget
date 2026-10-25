@@ -3,10 +3,13 @@ import { InlineBookingCell } from './inline-booking-cell';
 import type { BookingPatch } from './api';
 import { keepSplit } from './booking-model';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowDown, ArrowUp, Pencil } from 'lucide-react';
-import { Fragment, useState, type ReactNode } from 'react';
+import { ArrowDown, ArrowUp, CalendarDays, ChevronDown, Pencil } from 'lucide-react';
+import { Fragment, useId, useState, type ReactNode } from 'react';
 import { CategoryCell, FlagCell, PayeeCell, StatusCell, useCategoryClasses } from './booking-cells';
-import { dayHeading, nativeCurrency, valuedCurrency, shortDay, eur } from './format';
+import { BookingLegend } from './booking-legend';
+import { dayHeading, nativeCurrency, valuedCurrency, shortDay, upcomingDate, eur } from './format';
+import { ScheduledRegisterRow } from './scheduled-register-row';
+import { upcomingEntries, upcomingSummary, type UpcomingModel } from './upcoming-register';
 import { flashRows, useFlashing } from './flash';
 import { useLedgerWrites } from './mutations';
 import { lookupsQuery } from './queries';
@@ -26,6 +29,9 @@ export interface BookingTableProps {
   onOpen: (booking: ListedBooking) => void;
   selection?: Selection;
   sort?: { key: BookingSort; direction: 'asc' | 'desc'; onSort: (key: BookingSort) => void };
+  /** The "Kommend" section: future captures and next occurrences above the history, same columns. */
+  upcoming?: UpcomingModel | null;
+  showTodayBalance?: boolean;
 }
 
 const canEditCategory = (b: ListedBooking) =>
@@ -33,8 +39,8 @@ const canEditCategory = (b: ListedBooking) =>
 
 /**
  * Booking table shared by Einzelkonto and Alle Buchungen: the payee opens the booking, the
- * category is changed in place, new and changed rows flash once. On the phone every row becomes
- * a small card of the same cells.
+ * category is changed in place, new and changed rows flash once. Account history uses compact
+ * two-line phone rows; Alle Buchungen retains its existing layout.
  */
 export function BookingTable({
   items,
@@ -43,6 +49,8 @@ export function BookingTable({
   onOpen,
   selection,
   sort,
+  upcoming,
+  showTodayBalance = true,
 }: BookingTableProps) {
   useAmountPrivacy();
   const classes = useCategoryClasses();
@@ -61,6 +69,11 @@ export function BookingTable({
     writes.patch.mutate({ id: b.id, patch: { flag } });
   };
   const all = variant === 'all';
+  const sectionId = useId();
+  const showUpcoming = upcoming?.open === true && upcoming.count > 0;
+  // Einzelkonto always carries the running balance; Alle Buchungen only for the projected rows.
+  const runColumn = !all || showUpcoming;
+  const columns = (selection ? 1 : 0) + 7 + (runColumn ? 1 : 0);
   const head = (label: string, key?: BookingSort, numeric = false): ReactNode => (
     <th
       className={cx('tech', numeric && 'kc-num', key === 'date' && 'kc-date')}
@@ -89,22 +102,97 @@ export function BookingTable({
     </th>
   );
 
-  const groups = all ? groupByDay(items) : [{ day: '', items: [...items], sum: 0 }];
+  const entries = upcoming ? upcomingEntries(upcoming) : [];
+  const groups = groupByDay(items);
+  const groupRows = (group: (typeof groups)[number]) => (
+    <>
+      {all && (
+        <tr className="kday">
+          <td colSpan={columns}>
+            <span className="tech">{dayHeading(group.day)}</span>
+            <span className="kday-sum">
+              {[...new Set(group.items.map((b) => b.currency))]
+                .map((currency) =>
+                  nativeCurrency(
+                    group.items
+                      .filter((b) => b.currency === currency)
+                      .reduce((sum, b) => sum + b.amountCents, 0),
+                    currency,
+                    true,
+                  ),
+                )
+                .join(' · ')}
+            </span>
+          </td>
+        </tr>
+      )}
+      {!all && (
+        <tr className="kaccount-day" data-day={group.day}>
+          <th scope="rowgroup" colSpan={columns}>
+            <span>{dayHeading(group.day)}</span>
+            <span>
+              Saldo{' '}
+              {group.items[0]?.balanceAfterCents == null
+                ? '–'
+                : valuedCurrency(
+                    group.items[0].balanceAfterCents,
+                    group.items[0].currency,
+                    group.items[0].balanceValuation,
+                  )}
+            </span>
+          </th>
+        </tr>
+      )}
+      {group.items.map((b) => (
+        <Row
+          key={b.id}
+          booking={b}
+          variant={variant}
+          classes={classes}
+          runColumn={runColumn}
+          {...(selection ? { selection } : {})}
+          onOpen={onOpen}
+          categories={lookups.data?.categories ?? []}
+          groups={lookups.data?.groups ?? []}
+          onCategory={setCategory}
+          onFlag={setFlag}
+          onPatch={(patch) => writes.patch.mutateAsync({ id: b.id, patch })}
+          busy={writes.patch.isPending}
+        />
+      ))}
+    </>
+  );
   return (
     <>
-      {selection && (
-        // The table head is hidden on the phone, so select-all is offered here as well.
-        <label className="kselect-all">
-          <input
-            type="checkbox"
-            checked={items.length > 0 && items.every((b) => selection.selected.has(b.id))}
-            onChange={() => selection.toggleAll(items.map((b) => b.id))}
-          />
-          Alle sichtbaren auswählen
-        </label>
-      )}
-      <table className={cx('ktable ktx', all && 'ktx-all')}>
+      <div className="kbooking-tools">
+        <BookingLegend />
+        {selection && (
+          // The table head is hidden on the phone, so select-all is offered here as well.
+          <label className="kselect-all">
+            <input
+              type="checkbox"
+              checked={items.length > 0 && items.every((b) => selection.selected.has(b.id))}
+              onChange={() => selection.toggleAll(items.map((b) => b.id))}
+            />
+            Alle sichtbaren auswählen
+          </label>
+        )}
+      </div>
+      <table className={cx('ktable ktx', all ? 'ktx-all' : 'ktx-account')}>
         <caption className="sr-only">{caption}</caption>
+        {!all && (
+          <colgroup>
+            {selection && <col className="kcol-select" />}
+            <col className="kcol-flag" />
+            <col className="kcol-date" />
+            <col />
+            <col className="kcol-note" />
+            <col className="kcol-category" />
+            <col className="kcol-money" />
+            <col className="kcol-money" />
+            <col className="kcol-status" />
+          </colgroup>
+        )}
         <thead>
           <tr>
             {selection && (
@@ -130,69 +218,94 @@ export function BookingTable({
             )}
             {head('Kategorie')}
             {head('Betrag', 'amount', true)}
-            {!all && head('Saldo', undefined, true)}
+            {runColumn && head('Saldo', undefined, true)}
             <th scope="col" className="kc-status">
               <span className="sr-only">Status</span>
             </th>
           </tr>
         </thead>
-        <tbody>
-          {groups.map((group) => (
-            <Fragment key={group.day || 'all'}>
-              {all && (
-                <tr className="kday">
-                  <td colSpan={selection ? 8 : 7}>
-                    <span className="tech">{dayHeading(group.day)}</span>
-                    <span className="kday-sum">
-                      {[...new Set(group.items.map((b) => b.currency))]
-                        .map((currency) =>
-                          nativeCurrency(
-                            group.items
-                              .filter((b) => b.currency === currency)
-                              .reduce((sum, b) => sum + b.amountCents, 0),
-                            currency,
-                            true,
-                          ),
-                        )
-                        .join(' · ')}
-                    </span>
-                  </td>
+        {upcoming && (
+          <>
+            <tbody className="kupcoming" id={sectionId}>
+              <tr className="kupcoming-head">
+                <th scope="colgroup" colSpan={columns}>
+                  <button
+                    type="button"
+                    className="kupcoming-toggle"
+                    aria-expanded={upcoming.open}
+                    aria-controls={sectionId}
+                    onClick={upcoming.toggle}
+                  >
+                    <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
+                    {upcomingSummary(upcoming.count, entries[0])}
+                  </button>
+                </th>
+              </tr>
+              {upcoming.open &&
+                entries.map((entry) =>
+                  entry.schedule ? (
+                    <ScheduledRegisterRow
+                      key={entry.id}
+                      occurrence={entry.schedule}
+                      today={upcoming.today}
+                      all={all}
+                      blankCheck={!!selection}
+                      balance={upcoming.balances.get(entry.id) ?? null}
+                    />
+                  ) : (
+                    <Row
+                      key={entry.id}
+                      booking={entry.booking}
+                      variant={variant}
+                      classes={classes}
+                      upcomingToday={upcoming.today}
+                      projectedBalance={upcoming.balances.get(entry.id) ?? null}
+                      blankCheck={!!selection}
+                      runColumn={runColumn}
+                      onOpen={onOpen}
+                      categories={lookups.data?.categories ?? []}
+                      groups={lookups.data?.groups ?? []}
+                      onCategory={setCategory}
+                      onFlag={setFlag}
+                      onPatch={(patch) => writes.patch.mutateAsync({ id: entry.id, patch })}
+                      busy={writes.patch.isPending}
+                    />
+                  ),
+                )}
+            </tbody>
+            {showTodayBalance && (
+              <tbody className="kregister-today">
+                <tr data-testid="register-today">
+                  <td colSpan={columns}>Heute · Saldo {upcoming.balanceLabel}</td>
                 </tr>
-              )}
-              {group.items.map((b) => (
-                <Row
-                  key={b.id}
-                  booking={b}
-                  variant={variant}
-                  classes={classes}
-                  {...(selection ? { selection } : {})}
-                  onOpen={onOpen}
-                  categories={lookups.data?.categories ?? []}
-                  groups={lookups.data?.groups ?? []}
-                  onCategory={setCategory}
-                  onFlag={setFlag}
-                  onPatch={(patch) => writes.patch.mutateAsync({ id: b.id, patch })}
-                  busy={writes.patch.isPending}
-                />
-              ))}
-            </Fragment>
-          ))}
-        </tbody>
+              </tbody>
+            )}
+          </>
+        )}
+        {all ? (
+          <tbody>
+            {groups.map((group) => (
+              <Fragment key={group.day || 'all'}>{groupRows(group)}</Fragment>
+            ))}
+          </tbody>
+        ) : (
+          // One body per day: the rowgroup heading below then owns exactly its day's rows.
+          groups.map((group) => <tbody key={group.day}>{groupRows(group)}</tbody>)
+        )}
       </table>
     </>
   );
 }
 
 function groupByDay(items: ReadonlyArray<ListedBooking>) {
-  const groups: { day: string; items: ListedBooking[]; sum: number }[] = [];
+  const groups: { day: string; items: ListedBooking[] }[] = [];
   for (const b of items) {
     let group = groups[groups.length - 1];
     if (!group || group.day !== b.date) {
-      group = { day: b.date, items: [], sum: 0 };
+      group = { day: b.date, items: [] };
       groups.push(group);
     }
     group.items.push(b);
-    group.sum += b.amountCents;
   }
   return groups;
 }
@@ -209,6 +322,10 @@ function Row({
   onFlag,
   onPatch,
   busy,
+  upcomingToday,
+  projectedBalance,
+  blankCheck,
+  runColumn,
 }: {
   booking: ListedBooking;
   variant: 'account' | 'all';
@@ -221,6 +338,11 @@ function Row({
   onFlag: (b: ListedBooking, flag: BookingFlag | null) => void;
   onPatch: (patch: BookingPatch) => Promise<unknown>;
   busy: boolean;
+  upcomingToday?: string;
+  projectedBalance?: number | null;
+  /** Upcoming rows cannot be selected but keep the checkbox column aligned. */
+  blankCheck?: boolean;
+  runColumn: boolean;
 }) {
   useAmountPrivacy();
   const flashing = useFlashing(b.id);
@@ -238,9 +360,11 @@ function Row({
         b.status === 'pending' && 'is-pending',
         flashing && 'tx-flash',
         checked && 'is-selected',
+        upcomingToday && 'is-upcoming',
       )}
       data-booking={b.id}
     >
+      {blankCheck && <td className="kc-check kx-check" />}
       {selection && (
         <td className="kc-check kx-check">
           <input
@@ -260,7 +384,7 @@ function Row({
       </td>
       <td className="kc-date kx-date">
         <InlineBookingCell booking={b} field="date" onSave={onPatch} onOpen={() => onOpen(b)}>
-          {shortDay(b.date)}
+          {upcomingToday ? upcomingDate(b.date, upcomingToday) : shortDay(b.date)}
         </InlineBookingCell>
       </td>
       <td className="kx-payee">
@@ -272,9 +396,28 @@ function Row({
         >
           <PayeeCell
             booking={b}
-            {...(variant === 'account' ? { noteClassName: 'kx-mobile-note' } : {})}
+            {...(variant === 'account'
+              ? upcomingToday
+                ? { noteClassName: 'kx-mobile-note' }
+                : { hideNote: true }
+              : {})}
           />
         </button>
+        {variant === 'account' && !upcomingToday && (
+          // Outside the labelled button so the row still reads its category and note; the button
+          // covers it on the phone, so a tap anywhere in the cell opens the booking.
+          <span className="kaccount-mobile-meta">
+            <span>{shortDay(b.date)}</span>
+            <span aria-hidden="true"> · </span>
+            <CategoryCell booking={b} classes={classes} showClass={false} />
+            {b.memo && (
+              <>
+                <span aria-hidden="true"> · </span>
+                <span className="kmeta kx-mobile-note">{b.memo}</span>
+              </>
+            )}
+          </span>
+        )}
       </td>
       {variant === 'account' && (
         <td className="kx-note">
@@ -325,11 +468,11 @@ function Row({
             aria-label={`Kategorie ändern: ${label}`}
             onClick={() => setEditing(true)}
           >
-            <CategoryCell booking={b} classes={classes} />
+            <CategoryCell booking={b} classes={classes} showClass={false} />
             <Pencil className="icon kcat-edit" size={12} strokeWidth={1.75} aria-hidden="true" />
           </button>
         ) : (
-          <CategoryCell booking={b} classes={classes} />
+          <CategoryCell booking={b} classes={classes} showClass={false} />
         )}
       </td>
       <td className="kc-num kx-amount">
@@ -339,7 +482,12 @@ function Row({
           onSave={onPatch}
           onOpen={() => onOpen(b)}
         >
-          <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
+          <span
+            className={cx(
+              b.currency !== 'EUR' && 'kfx-money',
+              upcomingToday && (b.amountCents < 0 ? 'kupcoming-negative' : 'kupcoming-positive'),
+            )}
+          >
             {valuedCurrency(b.amountCents, b.currency, b.amountValuation, true)}
           </span>
         </InlineBookingCell>
@@ -347,30 +495,50 @@ function Row({
           <small className="kmeta">Kategorie netto {eur(b.categorySpendingCents)}</small>
         )}
       </td>
-      {variant === 'account' && (
+      {runColumn && !(variant === 'account' || upcomingToday) && (
+        <td className="kc-num kc-run kx-run" />
+      )}
+      {runColumn && (variant === 'account' || upcomingToday) && (
         <td className="kc-num kc-run kx-run">
           <span className={b.currency === 'EUR' ? undefined : 'kfx-money'}>
-            {b.balanceAfterCents === null
-              ? ''
-              : valuedCurrency(b.balanceAfterCents, b.currency, b.balanceValuation)}
+            {upcomingToday
+              ? projectedBalance == null
+                ? variant === 'account'
+                  ? '–'
+                  : 'Saldo offen'
+                : nativeCurrency(projectedBalance, b.currency)
+              : b.balanceAfterCents === null
+                ? ''
+                : valuedCurrency(b.balanceAfterCents, b.currency, b.balanceValuation)}
           </span>
         </td>
       )}
       <td className="kc-status kx-status">
-        <StatusCell
-          status={b.status}
-          iconOnly
-          disabled={busy}
-          onToggle={
-            b.status === 'reconciled'
-              ? undefined
-              : () => {
-                  void onPatch({ status: b.status === 'pending' ? 'confirmed' : 'pending' }).catch(
-                    () => undefined,
-                  );
-                }
-          }
-        />
+        {upcomingToday ? (
+          <span
+            className="kstatus-btn"
+            role="img"
+            aria-label="Kommende Buchung"
+            title="Kommende Buchung"
+          >
+            <CalendarDays size={16} aria-hidden="true" />
+          </span>
+        ) : (
+          <StatusCell
+            status={b.status}
+            iconOnly
+            disabled={busy}
+            onToggle={
+              b.status === 'reconciled'
+                ? undefined
+                : () => {
+                    void onPatch({
+                      status: b.status === 'pending' ? 'confirmed' : 'pending',
+                    }).catch(() => undefined);
+                  }
+            }
+          />
+        )}
       </td>
     </tr>
   );

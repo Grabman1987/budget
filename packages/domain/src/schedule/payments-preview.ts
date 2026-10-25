@@ -60,6 +60,16 @@ export interface PreviewCurrency {
   highestMonth: string | null;
 }
 export interface PaymentsPreview {
+  /** Explicit accepted account transfers, separate from category/investment spending totals. */
+  statementTransfers?: Array<{
+    id: string;
+    date: string;
+    amountCents: number;
+    currency: string;
+    fundingAccountId: string;
+    cardAccountId: string;
+    state: 'open' | 'represented';
+  }>;
   asOf: string;
   from: string;
   to: string;

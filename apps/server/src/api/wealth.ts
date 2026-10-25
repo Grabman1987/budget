@@ -1,7 +1,7 @@
 import { checkedReportPeriod, reportPeriodSchema } from './report-period';
 import { debtRoutes } from './debts';
 import {
-  freedomView,
+  freedomViewWithHistory,
   accountValuesAsOf,
   earliestAccountDate,
   netWorthAsOf,
@@ -13,6 +13,7 @@ import { addDays, bucketNetWorth, netWorthWindow, periodWindow } from '@budget/d
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { readQuery } from './http';
+import { freedomGoalRoutes } from './freedom-goal';
 
 const networthQuery = z.object({ period: reportPeriodSchema.default('YTD') });
 
@@ -20,8 +21,9 @@ const networthQuery = z.object({ period: reportPeriodSchema.default('YTD') });
 export function wealthRoutes(db: Db, today: () => string): Hono {
   const app = new Hono();
   app.route('/debts', debtRoutes(db, today));
+  app.route('/freedom/goal', freedomGoalRoutes(db, today));
 
-  app.get('/freedom', (c) => c.json(freedomView(db, today())));
+  app.get('/freedom', (c) => c.json(freedomViewWithHistory(db, today())));
 
   /**
    * Net worth over a period: the daily series (first point = the start value, the close of the

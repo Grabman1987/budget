@@ -59,6 +59,30 @@ export interface ExpectedVersion {
   note: string | null;
 }
 
+export interface PaymentDetailRow {
+  occurrenceId: string | null;
+  dueDate: string;
+  source: 'stored' | 'preview';
+  status: OccurrenceStatus;
+  expectedAmountCents: number;
+  currency: string | null;
+  booking: { id: string; date: string; amountCents: number; currency: string } | null;
+  actualComparableCents: number | null;
+  deviationCents: number | null;
+  unavailableReason:
+    'missing_booking' | 'currency_mismatch' | 'missing_currency' | 'unsafe_difference' | null;
+}
+
+export interface PaymentDetail {
+  paymentId: string;
+  asOf: string;
+  history: PaymentDetailRow[];
+  sparseHistory: boolean;
+  hasEarlierRecorded: boolean;
+  future: PaymentDetailRow[];
+  hasFurtherFuture: boolean;
+}
+
 export interface Occurrence {
   occurrenceId: string;
   paymentId: string;
@@ -149,6 +173,15 @@ export const expectedQuery = () =>
     queryFn: () => request<{ payments: ExpectedPayment[] }>('GET', url()).then((r) => r.payments),
   });
 
+export const registerOccurrencesQuery = (today: string) =>
+  queryOptions({
+    queryKey: [...EXPECTED_KEY, 'register-next', today],
+    queryFn: () =>
+      request<{ occurrences: Occurrence[] }>('GET', url('/register-next')).then(
+        (r) => r.occurrences,
+      ),
+  });
+
 /** `includeSkipped` also lists the struck (gestrichen) occurrences, so they can be brought back. */
 export const occurrencesQuery = (from: string, to: string, includeSkipped = false) =>
   queryOptions({
@@ -169,6 +202,12 @@ export const versionsQuery = (paymentId: string) =>
       request<{ versions: ExpectedVersion[] }>('GET', url(`/${enc(paymentId)}/versions`)).then(
         (r) => r.versions,
       ),
+  });
+
+export const paymentDetailQuery = (paymentId: string, asOf: string) =>
+  queryOptions({
+    queryKey: [...EXPECTED_KEY, 'detail', paymentId, asOf],
+    queryFn: () => request<PaymentDetail>('GET', url(`/${enc(paymentId)}/detail`)),
   });
 
 export const incomeQuery = (month: string) =>
@@ -195,6 +234,10 @@ export const addVersion = (id: string, version: VersionFields & { validFrom: str
 
 export const linkOccurrence = (id: string, bookingId: string) =>
   request<WriteResult>('POST', url(`/occurrences/${enc(id)}/link`), { bookingId });
+export const bookOccurrence = (id: string, date: string) =>
+  request<{ bookingId: string } & WriteResult>('POST', url(`/occurrences/${enc(id)}/book`), {
+    date,
+  });
 export const unlinkOccurrence = (id: string) =>
   request<WriteResult>('POST', url(`/occurrences/${enc(id)}/unlink`), {});
 export const markMissed = (id: string) =>

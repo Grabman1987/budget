@@ -96,8 +96,12 @@ test('Today and Plan explain a real booking-month shift beside October expected 
 
   await page.goto('/?monat=2026-10');
   const todayCards = page.locator('.heute-answers');
+  // #571: the Haushaltseinnahmen explanation sits in the derivation of Zu verteilen.
+  await todayCards.getByRole('button', { name: 'Herleitung Zu verteilen' }).click();
   await expect(todayCards).toContainText('Haushaltseinnahmen 0,00 €');
-  await expect(todayCards).toContainText('Haushaltseinnahmen im Oktober 2026 nach Buchungsdatum.');
+  await expect(todayCards).toContainText(
+    'Haushaltseinnahmen 0,00 € im Oktober 2026 nach Buchungsdatum.',
+  );
   const planLink = page.getByRole('link', { name: 'Planmonat Oktober 2026 ansehen' });
   await expect(planLink).toHaveAttribute('href', /\/plan\/monat\/einnahmen\?monat=2026-10/);
 
@@ -155,6 +159,7 @@ test('Today and Plan explain a real booking-month shift beside October expected 
 
   await page.goto('/?monat=2026-10');
   // The shortcut is registered by the mounted shell: wait for the rendered cards first.
+  await todayCards.getByRole('button', { name: 'Herleitung Zu verteilen' }).click();
   await expect(todayCards).toContainText('Haushaltseinnahmen 0,00 €');
   await page.keyboard.press('Control+Shift+H');
   if (!isMobile) {

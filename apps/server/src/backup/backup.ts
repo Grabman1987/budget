@@ -1,4 +1,11 @@
-import { openDatabase, schema, writesHeld, type Db, type OpenedDatabase } from '@budget/db';
+import {
+  openDatabase,
+  schema,
+  writesHeld,
+  assertStatementSettlementInvariants,
+  type Db,
+  type OpenedDatabase,
+} from '@budget/db';
 import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -83,6 +90,7 @@ export async function createBackupArchive(sqlite: Sqlite, dir: string, receiptsD
   const copy = openDatabase(snapshot);
   let blobs: { sha256: string; sizeBytes: number }[];
   try {
+    assertStatementSettlementInvariants(copy.db);
     blobs = copy.db
       .selectDistinct({ sha256: schema.receipt.sha256, sizeBytes: schema.receipt.sizeBytes })
       .from(schema.receipt)

@@ -58,6 +58,14 @@ export const PAGES: ReadonlyArray<PageDef> = [
     spec: 'Sparziele und Rücklagen mit Fortschritt.',
   },
   {
+    path: '/plan/prognose',
+    title: 'Liquiditätsprognose',
+    area: 'plan',
+    register: 'prognose',
+    fills: P3,
+    spec: 'Bestehende Liquiditätsprognose mit geplanten Ereignissen und Stellschrauben.',
+  },
+  {
     path: '/konten',
     title: 'Konten',
     area: 'konten',
@@ -74,10 +82,10 @@ export const PAGES: ReadonlyArray<PageDef> = [
     spec: 'Filterzeile, Tagesgruppen mit Tagessumme, Mehrfachauswahl, CSV.',
   },
   {
-    path: '/konten/posteingang',
-    title: 'Posteingang',
+    path: '/konten/pruefen',
+    title: 'Prüfen',
     area: 'konten',
-    register: 'posteingang',
+    register: 'pruefen',
     fills: `${P3} (Grundlagen), ${P4}`,
     spec: 'Revisionstabelle nach Typ, jede Entscheidung ein Klick, „Immer so zuordnen“ legt eine Regel an.',
   },
@@ -95,7 +103,7 @@ export const PAGES: ReadonlyArray<PageDef> = [
     area: 'vermoegen',
     register: 'nettovermoegen',
     fills: P5,
-    spec: 'Leitwert mit Maßkette Anfang + Eigenleistung + Markt, Zusammensetzung, Verlauf.',
+    spec: 'Leitwert mit Maßkette Anfang + Gespart + Markt, Zusammensetzung, Verlauf.',
   },
   {
     path: '/vermoegen/portfolio',
@@ -327,3 +335,5 @@ export const VERMOEGEN_FREIHEIT_META: PageDef = PAGES.find(
 export const VERMOEGEN_SCHULDEN_META: PageDef = PAGES.find(
   (page) => page.path === '/vermoegen/schulden',
 )!;
+
+export const PLAN_PROGNOSE: PageDef = PAGES.find((p) => p.path === '/plan/prognose')!;

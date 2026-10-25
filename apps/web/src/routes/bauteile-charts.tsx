@@ -138,17 +138,17 @@ function BarsAndBand({ width }: { width: number }) {
         (i) => cx(i),
         [
           {
-            name: 'Eigenleistung',
+            name: 'Gespart',
             values: own,
             color: 'var(--line)',
-            negativeColor: 'var(--red)',
+            negativeColor: 'var(--minus-ink)',
             format: String,
           },
           {
             name: 'Markt',
             values: market,
             color: 'var(--line-2)',
-            negativeColor: 'var(--red)',
+            negativeColor: 'var(--minus-ink)',
             format: String,
           },
         ],
@@ -161,7 +161,7 @@ function BarsAndBand({ width }: { width: number }) {
       />
       <Band points={months.map((_, i) => ({ x: cx(i), y0: y(-14), y1: y(-8) }))} />
       <BarsAroundZero
-        bars={own.map((v, i) => ({ x: cx(i) - half / 2, value: v, title: `Eigenleistung ${v}` }))}
+        bars={own.map((v, i) => ({ x: cx(i) - half / 2, value: v, title: `Gespart ${v}` }))}
         y={y}
         barWidth={half}
         tone="ink"
@@ -259,8 +259,15 @@ function ClassBars({ width }: { width: number }) {
         const x1 = x(acc);
         return (
           <g key={row.key}>
-            <rect x={x0} y={30} width={x1 - x0} height={18} fill={row.fill} />
-            <rect x={x0} y={30} width={x1 - x0} height={18} fill="none" stroke="var(--line)" />
+            <rect
+              x={x0}
+              y={30}
+              width={x1 - x0}
+              height={10}
+              fill={row.fill}
+              opacity="var(--bar-tint)"
+            />
+            <rect x={x0} y={30} width={x1 - x0} height={10} fill="none" stroke="var(--line)" />
             <text x={(x0 + x1) / 2} y={22} textAnchor="middle" className="svg-label-strong">
               {`${row.label} ${row.value} %`}
             </text>
@@ -299,9 +306,7 @@ export function ChartPrimitivesShowcase() {
         <div className="chart-frame" ref={bRef}>
           {bWidth > 0 && <BarsAndBand width={bWidth} />}
         </div>
-        <p className="dev-note">
-          Eigenleistung in Tusche, Markt in blasser Tusche, Toleranzband getönt.
-        </p>
+        <p className="dev-note">Gespart in Tusche, Markt in blasser Tusche, Toleranzband getönt.</p>
       </div>
       <div>
         <h3 className="t-title">Veränderung mit Vorzeichen</h3>

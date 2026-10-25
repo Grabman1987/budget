@@ -179,7 +179,7 @@ export function ProjectsReport({ report, meta }: { report: ReportEntry; meta: Pa
                   series: data.projects.map((p) => ({
                     name: p.name,
                     value: eur(p.perMonth[i] ?? 0),
-                    color: (p.perMonth[i] ?? 0) < 0 ? 'var(--red)' : 'var(--line)',
+                    color: (p.perMonth[i] ?? 0) < 0 ? 'var(--ink-2)' : 'var(--line)',
                   })),
                 }))}
               >

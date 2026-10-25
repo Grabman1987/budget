@@ -59,7 +59,7 @@
   justify-content: space-between;
 }
 .queue-head h2 {
-  font-size: 17px;
+  font-size: var(--fs-title);
   margin: 0;
 }
 .booking-queue p {

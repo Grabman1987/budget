@@ -4,16 +4,25 @@ import { resolve } from 'node:path';
 import { Worker } from 'node:worker_threads';
 import {
   findPayslipIntake,
+  automaticallyDecidePayslip,
+  payslipAutomationSnapshot,
+  payslipAutomationConfigSnapshot,
   getPayslipIntake,
   getPayslipSourceConfig,
   getReceipt,
   payslipScope,
   payslipScopeReason,
   replaceParsedPayslip,
+  replacePayslipMappings,
   stagePayslip,
   type Db,
 } from '@budget/db';
-import { parsePayrollDocument, type ParsedPayrollDocument } from '@budget/domain';
+import {
+  parsePayrollDocument,
+  type ParsedPayrollDocument,
+  type PayslipSourceConfig,
+  type PayslipAutomationOutcome,
+} from '@budget/domain';
 import {
   dropboxTargetPath,
   dropboxTargetYear,
@@ -66,6 +75,8 @@ export type PasswordOptions = {
   remember?: boolean | undefined;
   /** Dropbox year folder of the file; used only when the document itself shows no period. */
   folderYear?: number | null | undefined;
+  /** Only explicit new manual-upload clients request deterministic automatic capture. */
+  automation?: 'eligible' | undefined;
 };
 /** 'off': not requested; 'unavailable': BUDGET_PEPPER missing; 'not_opened': did not open the PDF. */
 export type PasswordRemember = 'saved' | 'unavailable' | 'not_opened' | 'off';
@@ -85,6 +96,8 @@ type Staged = {
   groupId: string | null | undefined;
   dropboxCopy: DropboxCopy;
   passwordRemember: PasswordRemember;
+  automation?: PayslipAutomationOutcome;
+  sourceGroupId?: string | null;
 };
 type Skipped = { skipped: 'before_start' };
 export class PayslipIntakeService {
@@ -112,6 +125,7 @@ export class PayslipIntakeService {
     bytes: Buffer,
     filename: string,
     upload?: string,
+    config?: PayslipSourceConfig,
   ): Promise<{ parsed: ParsedPayrollDocument; opened: string | undefined }> {
     const candidates = this.candidates(upload);
     let result: { text?: string; error?: string } = { error: 'pdf' },
@@ -128,7 +142,11 @@ export class PayslipIntakeService {
       try {
         return {
           opened,
-          parsed: parsePayrollDocument(result.text, filename, getPayslipSourceConfig(this.db)),
+          parsed: parsePayrollDocument(
+            result.text,
+            filename,
+            config ?? getPayslipSourceConfig(this.db),
+          ),
         };
       } catch {
         return {
@@ -192,9 +210,24 @@ export class PayslipIntakeService {
         groupId: null,
         dropboxCopy: 'off' as DropboxCopy,
         passwordRemember: 'off' as PasswordRemember,
+        ...(options.automation === 'eligible'
+          ? {
+              automation: {
+                status: 'unchanged' as const,
+                reason: 'duplicate_source',
+                groupId: null,
+              },
+            }
+          : {}),
       };
     const name = sanitizedFilename(filename);
-    const { parsed, opened } = await this.evaluate(bytes, name, options.password);
+    const parsedWith = payslipAutomationConfigSnapshot(this.db);
+    const { parsed, opened } = await this.evaluate(
+      bytes,
+      name,
+      options.password,
+      parsedWith.config,
+    );
     // Scheduled scans only: skip months before the records start, close months already captured.
     const scope =
       source === 'dropbox'
@@ -215,10 +248,33 @@ export class PayslipIntakeService {
       },
       { actor: source === 'manual' ? 'owner' : 'system' },
     );
+    let automation: PayslipAutomationOutcome | undefined;
+    if (source === 'manual' && options.automation === 'eligible') {
+      if (old || staged.duplicate)
+        automation = { status: 'unchanged', reason: 'duplicate_source', groupId: null };
+      else {
+        const snapshot = payslipAutomationSnapshot(this.db, staged.id, parsedWith);
+        await verifyReceiptFile(this.dir, sha256, bytes.length);
+        automation = automaticallyDecidePayslip(this.db, staged.id, snapshot, {
+          actor: 'document-automation:payroll',
+        });
+      }
+    }
     // Files fetched from Dropbox are never written back; only owner uploads are copied.
     const dropboxCopy =
       source === 'manual' ? await this.copyToDropbox(bytes, name, parsed) : ('off' as DropboxCopy);
-    return { ...staged, dropboxCopy, passwordRemember: this.remember(bytes, opened, options) };
+    return {
+      ...staged,
+      dropboxCopy,
+      passwordRemember: this.remember(bytes, opened, options),
+      ...(automation
+        ? {
+            automation,
+            sourceGroupId: staged.groupId ?? null,
+            groupId: automation.groupId ?? staged.groupId,
+          }
+        : {}),
+    };
   }
   /** Best effort: the staged intake and the stored receipt stay valid whatever happens here. */
   private async copyToDropbox(
@@ -271,5 +327,37 @@ export class PayslipIntakeService {
       ...replaceParsedPayslip(this.db, id, parsed, { actor: 'owner' }),
       passwordRemember: this.remember(bytes, opened, options),
     };
+  }
+  /** Reparse a pending original PDF with owner-supplied mappings, then atomically persist both. */
+  async mapWageTypes(
+    id: string,
+    mappings: Record<string, PayslipSourceConfig['wageTypes'][string]>,
+    options: PasswordOptions = {},
+  ) {
+    const row = getPayslipIntake(this.db, id);
+    if (row.status !== 'pending') throw new Error('conflict');
+    const before = getPayslipSourceConfig(this.db);
+    const unknown = new Set((row.parsed.unmappedWageTypes ?? []).map((item) => item.code));
+    if (!Object.keys(mappings).length || Object.keys(mappings).some((code) => !unknown.has(code)))
+      throw new Error('conflict');
+    const receipt = getReceipt(this.db, row.receiptId);
+    const bytes = await readFile(await verifyReceiptFile(this.dir, row.sha256, receipt.sizeBytes));
+    const wageTypes = { ...before.wageTypes, ...mappings };
+    const next = { ...before, wageTypes };
+    const evaluated = await this.evaluate(
+      bytes,
+      receipt.originalFilename ?? '',
+      options.password,
+      next,
+    );
+    const parsed = evaluated.parsed;
+    if (
+      parsed.documentType === 'unknown' ||
+      (parsed.unmappedWageTypes ?? []).some((item) => mappings[item.code])
+    )
+      throw new Error('reparse');
+    return replacePayslipMappings(this.db, id, before, row.parsed, next, parsed, {
+      actor: 'owner',
+    });
   }
 }

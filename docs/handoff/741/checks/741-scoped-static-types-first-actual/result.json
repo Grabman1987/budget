@@ -1,0 +1,34 @@
+{
+  "head": "065528ceed02f0275acc755753a24d7a6c587801",
+  "phases": [
+    {
+      "name": "eslint24",
+      "exit": 0,
+      "wallSeconds": 3.348
+    },
+    {
+      "name": "prettier24",
+      "exit": 1,
+      "wallSeconds": 1.318
+    },
+    {
+      "name": "db-types",
+      "exit": 0,
+      "wallSeconds": 12.814
+    },
+    {
+      "name": "server-types",
+      "exit": 0,
+      "wallSeconds": 19.33
+    },
+    {
+      "name": "web-types",
+      "exit": 0,
+      "wallSeconds": 41.275
+    }
+  ],
+  "processGuard": 0,
+  "sourceGuard": 0,
+  "allPhases0": false,
+  "lockReleased": true
+}

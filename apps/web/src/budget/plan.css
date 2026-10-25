@@ -86,7 +86,7 @@
   position: absolute;
   transform: translateX(-50%);
   font-family: var(--font-tech);
-  font-size: 11.5px;
+  font-size: var(--fs-chart-label);
   letter-spacing: 0.04em;
   color: var(--ink-3);
 }
@@ -96,10 +96,12 @@
 .plan .sb-bar {
   position: relative;
   display: flex;
-  height: 18px;
+  height: var(--bar-stacked);
   border: 1px solid var(--line);
   border-radius: 1px;
   background: var(--raised);
+
+  opacity: var(--bar-tint);
 }
 .plan .sb-seg {
   height: 100%;
@@ -108,7 +110,7 @@
   position: absolute;
   top: -6px;
   bottom: -6px;
-  border-left: 1.5px solid var(--ink);
+  border-left: var(--stroke-hairline) solid var(--ink);
 }
 .plan .sb-legend {
   display: flex;
@@ -161,9 +163,10 @@
   position: absolute;
   left: 10px;
   bottom: 0;
-  border: 4px solid transparent;
-  border-top: 6px solid var(--line-2);
-  border-bottom: 0;
+  width: 8px;
+  height: 6px;
+  background: var(--line-2);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
 .plan .rail-list .rail-io {
   display: flex;
@@ -196,7 +199,7 @@
   width: 100%;
   text-align: left;
   padding: 2px 6px 2px 0;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 .plan .rail-btn:hover .rail-name {
   color: var(--line);
@@ -214,7 +217,7 @@
   background: var(--ground);
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: var(--fs-body);
+  font-size: var(--fs-measure);
   color: var(--ink-2);
 }
 .plan .rail-list:not(.is-flow) .rail-no {
@@ -245,7 +248,7 @@
 }
 .plan .rail-name small {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 500;
   color: var(--ink-3);
 }
@@ -254,7 +257,7 @@
 }
 .plan .rail-fill {
   grid-area: fill;
-  height: 6px;
+  height: var(--bar-progress);
   background: var(--tint-2);
   border-radius: 1px;
   overflow: hidden;
@@ -270,7 +273,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 8px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--ink-3);
 }
 .plan .rail-status svg {
@@ -282,7 +285,7 @@
   gap: 6px;
   margin: -4px 0 10px;
   padding-bottom: 0;
-  font-size: 12px;
+  font-size: var(--fs-label);
   font-weight: 600;
   color: var(--line);
 }
@@ -293,7 +296,7 @@
   position: static;
   height: 0;
   border: 0;
-  border-top: 1.5px dashed var(--line);
+  border-top: var(--stroke-hairline) dashed var(--line);
 }
 .plan .rail-list li.rail-level::after {
   display: none;
@@ -337,7 +340,7 @@
 .plan .dist-left {
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-table);
   letter-spacing: 0.03em;
   color: var(--line);
 }
@@ -353,7 +356,7 @@
   border-radius: 50%;
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: var(--fs-chart-label);
+  font-size: var(--fs-measure);
   color: var(--line);
 }
 .plan .grp-sub {
@@ -381,7 +384,7 @@
   align-items: center;
   gap: 8px;
   font-weight: 580;
-  font-size: 14px;
+  font-size: var(--fs-table);
   text-decoration: none;
   text-align: left;
   border-radius: 4px;
@@ -391,7 +394,7 @@
 }
 .plan .env-class {
   font-family: var(--font-tech);
-  font-size: 11px;
+  font-size: var(--fs-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -401,7 +404,7 @@
   position: relative;
   display: block;
   max-width: 420px;
-  height: 6px;
+  height: var(--bar-progress);
   margin: 9px 0 3px;
   background: var(--tint-2);
   border-radius: 1px;
@@ -418,7 +421,7 @@
   position: absolute;
   top: -4px;
   bottom: -4px;
-  border-left: 1.5px solid var(--ink);
+  border-left: var(--stroke-hairline) solid var(--ink);
 }
 .plan .pbar:has(.pbar-tick) {
   margin-top: 22px;
@@ -428,7 +431,7 @@
   bottom: 100%;
   right: 3px;
   font-family: var(--font-tech);
-  font-size: var(--fs-class-tag);
+  font-size: var(--fs-table);
   font-style: normal;
   line-height: 1.2;
   color: var(--ink);
@@ -437,7 +440,7 @@
   position: absolute;
   top: -4px;
   bottom: -4px;
-  border-left: 1.5px solid var(--line);
+  border-left: var(--stroke-hairline) solid var(--line);
 }
 .plan .pmeta {
   display: flex;
@@ -468,17 +471,17 @@
 .plan .lg-debt {
   padding: 0 6px;
   border: 1px dashed var(--ink-2);
-  border-radius: 2px;
+  border-radius: 4px;
 }
 .plan .lg-debt {
   font-style: normal;
-  font-size: 12px;
+  font-size: var(--fs-label);
 }
 .plan .assign-btn {
   margin: -4px -8px;
   padding: 4px 8px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 8px;
   font-weight: 560;
 }
 .plan .assign-btn:hover {
@@ -492,7 +495,7 @@
   padding: 0 8px;
   text-align: right;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--raised);
   color: var(--ink);
   font-weight: 600;
@@ -541,7 +544,7 @@
   position: relative;
   display: inline-block;
   width: 36px;
-  height: 6px;
+  height: var(--bar-progress);
   background: var(--tint-2);
 }
 .plan .lg-fill {
@@ -555,13 +558,13 @@
   left: 55%;
   top: -4px;
   bottom: -4px;
-  border-left: 1.5px solid var(--ink);
+  border-left: var(--stroke-hairline) solid var(--ink);
 }
 .plan .lg-ghost {
   font-style: normal;
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--fs-label);
   color: var(--line);
   border: 1px dashed var(--line);
   border-radius: 4px;
@@ -570,7 +573,7 @@
 
 /* Envelope panel */
 .plan .kform .big {
-  font-size: 36px;
+  font-size: var(--fs-dimension);
   font-weight: 650;
   letter-spacing: -0.03em;
   margin: 6px 0 2px;
@@ -581,7 +584,7 @@
   font-weight: 620;
 }
 .plan .kv-total {
-  border-top: 1.5px solid var(--line);
+  border-top: var(--stroke-hairline) solid var(--line);
 }
 .plan .kv-total dt {
   color: var(--ink);
@@ -691,7 +694,7 @@
   .plan .rail-no {
     width: 24px;
     height: 24px;
-    font-size: 12px;
+    font-size: var(--fs-measure);
   }
   .plan .rail-name {
     font-size: var(--fs-chart-label);
@@ -744,7 +747,7 @@
     grid-row: 2;
     width: auto;
     text-align: right;
-    font-size: 14px;
+    font-size: var(--fs-table);
   }
   .plan .ptable .col-assign {
     grid-column: 2;
@@ -766,7 +769,7 @@
     content: attr(data-label);
     display: block;
     font-family: var(--font-tech);
-    font-size: var(--fs-class-tag);
+    font-size: var(--fs-label);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--ink-3);
@@ -822,6 +825,7 @@
 }
 .plan .plan-main {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   min-width: 0;
 }
@@ -873,13 +877,13 @@
 /* Two tones: what was spent (class fill) on the rest of the target. */
 .plan .ptable .pbar {
   max-width: none;
-  height: 6px;
-  border-radius: var(--radius-titleblock);
+  height: var(--bar-progress);
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--good) 16%, var(--surface-2));
   overflow: visible;
 }
 .plan .ptable .pbar-fill {
-  border-radius: var(--radius-titleblock);
+  border-radius: var(--radius-xs);
 }
 .plan .col-avail .pill {
   margin: -3px 0;
@@ -993,7 +997,7 @@
     flex-direction: column;
   }
   .plan .hero-fig {
-    font-size: 40px;
+    font-size: var(--fs-dimension);
   }
   .plan .btn-on-hero {
     width: 100%;
@@ -1123,7 +1127,7 @@
   color: var(--ink-3);
 }
 .plan .pempty svg {
-  color: var(--good-ink);
+  color: var(--good);
 }
 .plan .pdue svg {
   color: var(--ink-3);
@@ -1181,19 +1185,6 @@
   font-weight: 560;
   color: var(--ink-2);
 }
-.plan .pm-span {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-}
-.plan .pm-span-label {
-  font-family: var(--font-tech);
-  font-size: 11.5px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
 .plan .hero-month {
   text-transform: none;
   letter-spacing: 0;
@@ -1205,6 +1196,7 @@
   color: var(--ink-3);
 }
 .plan .pmulti-scroll {
+  position: relative;
   overflow-x: auto;
 }
 .plan .ptable-multi {
@@ -1246,7 +1238,7 @@
 }
 .plan .ptable-multi .pm-head .pm-month {
   display: block;
-  font-size: 14px;
+  font-size: var(--fs-table);
   font-weight: 650;
   letter-spacing: -0.005em;
   color: var(--ink);
@@ -1255,10 +1247,10 @@
   content: 'laufend';
   margin-left: 8px;
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: var(--good-soft);
   color: var(--on-good-soft);
-  font-size: 11px;
+  font-size: var(--fs-label);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -1307,15 +1299,10 @@
 .plan .ptable-multi .pname {
   white-space: normal;
 }
-@media (max-width: 767px) {
-  .plan .pm-span {
-    display: none;
-  }
-}
 
 .income-targets-source {
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   margin: 8px 0;
 }
 .income-targets-gap {
@@ -1327,12 +1314,12 @@
   margin: 12px 0;
 }
 .income-targets-bars > div {
-  height: 6px;
+  height: var(--bar-progress);
   background: var(--line);
 }
 .income-targets-bars > .income-targets-goal {
   background: transparent;
-  border-top: 2px dashed var(--line-2);
+  border-top: var(--stroke-hairline) dashed var(--line-2);
 }
 .income-targets-links {
   list-style: none;
@@ -1498,11 +1485,12 @@
   min-height: 32px;
   padding: 4px 10px;
   border: 1px solid var(--rule-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   white-space: nowrap;
   cursor: pointer;
   font-family: var(--font-ui);
-  font-size: var(--fs-body);
+  /* Compact control row: T7 keeps all chips on one line at 1440 px. */
+  font-size: var(--fs-table);
 }
 .plan .plan-popover summary {
   list-style: none;
@@ -1514,14 +1502,49 @@
   outline: 2px solid var(--line);
   outline-offset: 2px;
 }
+/* "Zu verteilen" is the lead figure of the Plan head (owner decision 18.10.2026): T2 display,
+   the largest figure here; the label in T9 lettering. Green above 0, red only below. */
+.plan .plan-popover summary.plan-tba {
+  gap: 10px;
+  padding: 2px 14px;
+}
+.plan .plan-tba-label {
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  line-height: var(--lh-label);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.plan .plan-tba strong {
+  font-size: var(--fs-display);
+  line-height: var(--lh-display);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
 .plan .plan-tba.is-positive {
-  background: var(--good);
-  color: var(--on-good);
+  background: var(--good-soft);
+  color: var(--on-good-soft);
   border-color: var(--good);
 }
-.plan .plan-chip.is-over {
+.plan .plan-tba.is-negative {
+  background: var(--red-soft);
   color: var(--red);
   border-color: var(--red);
+}
+.plan .plan-hint {
+  font-size: var(--fs-table);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.plan .plan-hint.is-negative {
+  color: var(--red);
+}
+.plan .plan-close {
+  flex: none;
+  margin-left: auto;
+  border: 1px solid var(--rule-strong);
 }
 .plan .plan-popover-content {
   position: absolute;
@@ -1550,9 +1573,6 @@
 .plan .cover-missing a {
   color: var(--ink-2);
 }
-.plan .plan-more {
-  margin-left: auto;
-}
 .plan .ptable-wrap.card {
   overflow: visible;
 }
@@ -1572,16 +1592,6 @@
 }
 .plan .quick-assign-actions summary {
   border-radius: var(--radius-md);
-}
-.plan .plan-view {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.plan .plan-view select {
-  height: 32px;
-  width: auto;
-  font-size: var(--fs-body);
 }
 .plan .plan-grid-head {
   display: flex;
@@ -1660,22 +1670,6 @@
 .plan .plan-create {
   padding: 4px 12px;
 }
-.plan .plan-details > summary {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  cursor: pointer;
-  font-weight: 600;
-}
-.plan .plan-summary .card {
-  border: 0;
-  box-shadow: none;
-}
-.plan .plan-summary .is-bad,
-.plan .plan-summary .neg-alert {
-  color: var(--ink);
-  background: none;
-}
 .plan .assign-btn,
 .plan .ghost,
 .plan .dist-left {
@@ -1686,20 +1680,21 @@
   margin: 0 0 0 4px;
 }
 @media (max-width: 767px) {
+  html:has(.plan .ptoolbar) {
+    scroll-padding-top: calc(64px + 56px);
+  }
   .plan .plan-topbar {
     top: 64px;
     flex-wrap: wrap;
   }
   .plan .plan-topbar summary,
   .plan .plan-chip,
-  .plan .plan-topbar > .btn {
+  .plan .plan-topbar > .btn,
+  .plan .plan-close {
     min-height: 44px;
   }
   .plan .ptoolbar {
     flex-wrap: wrap;
-  }
-  .plan .plan-view select {
-    height: 44px;
   }
   .plan .quick-assign-actions summary {
     min-height: 44px;
@@ -1835,5 +1830,1150 @@
     display: block;
     margin: 4px 0 0 auto;
     max-width: 100%;
+  }
+}
+
+/* Plan month inspector, owner 12.10.2026 (#446). */
+.plan .plan-inspector {
+  min-width: 0;
+  padding: 0;
+  overflow-wrap: anywhere;
+}
+.plan .inspector-fold-title,
+.plan .inspector-section > summary {
+  min-height: 44px;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-weight: 620;
+}
+.plan .inspector-section {
+  border-top: 1px solid var(--card-border);
+}
+.plan .inspector-section .card {
+  border: 0;
+  box-shadow: none;
+  padding-top: 0;
+}
+.plan .inspector-section .insp-title {
+  display: none;
+}
+.plan .inspector-section .insp-head {
+  flex-wrap: wrap;
+}
+.plan .inspector-selection {
+  padding: 16px;
+}
+.plan .inspector-head,
+.plan .inspector-menu,
+.plan .quick-assign-inline,
+.plan .quick-assign-inline [role='group'] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.plan .inspector-head h2 {
+  margin: 0;
+  font-size: var(--fs-title);
+}
+.plan .inspector-head .btn,
+.plan .inspector-menu .btn,
+.plan .quick-assign-inline .btn {
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+}
+.plan .inspector-selection progress {
+  width: 100%;
+  accent-color: var(--line);
+}
+.plan .inspector-selection > a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.plan .plan-inspector .kform {
+  min-width: 0;
+}
+.plan .plan-inspector .panel-actions {
+  flex-wrap: wrap;
+}
+.plan .plan-inspector .panel-actions .btn {
+  max-width: 100%;
+  height: auto;
+  min-height: 44px;
+  white-space: normal;
+}
+.plan .plan-inspector .plan-budget-money {
+  margin-bottom: 0;
+}
+.plan .plan-inspector .insp-list dd {
+  flex-shrink: 0;
+}
+.plan .pname[data-category-id] {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.plan .prow.is-selected td {
+  background: var(--tint);
+}
+.plan .plan-inspector summary:focus-visible,
+.plan .pname[data-category-id]:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+@media (min-width: 1180px) {
+  .plan .plan-grid {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    column-gap: 16px;
+  }
+  .plan .plan-inspector {
+    position: sticky;
+    top: 72px;
+    max-height: calc(100dvh - 88px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .plan .inspector-fold[open] > .inspector-fold-title {
+    display: none;
+  }
+  .plan .plan-topbar {
+    flex-wrap: wrap;
+  }
+  .plan .plan-main .ptoolbar {
+    flex-wrap: wrap;
+  }
+}
+
+/* Inspector polish: grid chevrons, inset section bodies, compact head and target (#446). */
+.plan .plan-inspector summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+}
+.plan .plan-inspector summary::-webkit-details-marker {
+  display: none;
+}
+.plan .plan-inspector .insp-chev {
+  flex-shrink: 0;
+  color: var(--ink-2);
+  transition: transform var(--t-fast) var(--ease-out);
+}
+.plan .plan-inspector details:not([open]) > summary > .insp-chev {
+  transform: rotate(-90deg);
+}
+.plan .plan-inspector summary:hover {
+  background: var(--surface-2);
+}
+.plan .plan-inspector .rail {
+  position: static;
+  padding: 0 16px 16px;
+}
+.plan .plan-inspector .plan-budget-money > ul {
+  margin: 0;
+  padding: 0 16px 16px 40px;
+  color: var(--ink-2);
+}
+.plan .inspector-selection .inspector-section {
+  margin: 16px -16px 0;
+}
+.plan .inspector-selection .inspector-menu {
+  padding: 0 16px 8px;
+}
+.plan .inspector-head {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.plan .inspector-head h2 {
+  min-width: 0;
+  padding-top: 8px;
+  line-height: 1.25;
+}
+.plan .inspector-head .inspector-close {
+  flex-shrink: 0;
+  width: 44px;
+  padding: 0;
+}
+.plan .inspector-target {
+  margin-top: 4px;
+}
+.plan .inspector-target .panel-h {
+  margin-bottom: 2px;
+}
+.plan .inspector-target .panel-sub {
+  margin: 0;
+}
+.plan .inspector-selection progress {
+  appearance: none;
+  display: block;
+  height: var(--bar-progress);
+  margin: 8px 0 6px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.plan .inspector-selection progress::-webkit-progress-bar {
+  background: var(--surface-2);
+}
+.plan .inspector-selection progress::-webkit-progress-value {
+  background: var(--line);
+}
+.plan .inspector-selection progress::-moz-progress-bar {
+  background: var(--line);
+}
+.plan .inspector-selection progress.is-done::-webkit-progress-value {
+  background: var(--good);
+}
+.plan .inspector-selection progress.is-done::-moz-progress-bar {
+  background: var(--good);
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan .plan-inspector .insp-chev {
+    transition: none;
+  }
+}
+.plan .plan-inspector .quick-assign-inline [role='group'] {
+  width: 100%;
+}
+.plan .plan-inspector .quick-assign-inline .btn {
+  flex: 1 1 auto;
+  justify-content: center;
+  padding-inline: 8px;
+  white-space: nowrap;
+}
+.plan .inspector-selection .insp-list + .quick-assign-inline {
+  margin-top: 12px;
+}
+
+/* Z1: grouped spending worksheet. Multi-month columns retain their existing layout. */
+.plan .ptable-zero {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.plan .plan-chip-scroll {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  flex-wrap: wrap;
+}
+.plan .plan-popover-content[hidden] {
+  display: none;
+}
+.plan .ptable-zero .group-heading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.plan .ptable-zero .group-heading .plan-add {
+  flex-shrink: 0;
+  min-width: 28px;
+  padding-inline: 4px;
+}
+.plan .ptable-zero .pgroup .grp-toggle {
+  min-width: 0;
+}
+.plan .ptable-zero .pgroup td:first-child {
+  border-top-left-radius: var(--radius-md);
+  border-bottom-left-radius: var(--radius-md);
+}
+.plan .ptable-zero .pgroup td:last-child {
+  border-top-right-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+}
+.plan .ptable-zero .pgroup-gap td {
+  height: 10px;
+  background: var(--ground);
+}
+.plan .ptable-zero .prow .col-name {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) minmax(0, 3fr);
+  grid-template-rows: 24px 4px;
+  column-gap: 6px;
+  align-items: center;
+}
+.plan .ptable-zero .col-num {
+  width: 108px;
+  padding-inline: 8px;
+}
+.plan .ptable-zero .prow .plan-select {
+  grid-column: 1;
+  grid-row: 1 / -1;
+}
+.plan .ptable-zero .pname {
+  min-width: 0;
+  max-width: 100%;
+  color: var(--ink);
+}
+.plan .category-name,
+.plan .spending-status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plan .ptable-zero .pname svg {
+  flex-shrink: 0;
+}
+.plan .spending-status {
+  text-align: right;
+  font-size: var(--fs-chart-label);
+  color: var(--ink-3);
+  font-weight: 400;
+}
+.plan .spending-status.neg-alert {
+  color: var(--red);
+}
+.plan .ptable-zero .spending-bar {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  width: 100%;
+  height: 4px;
+  margin: 0;
+  background: var(--good);
+  overflow: visible;
+}
+.plan .ptable-zero .spending-bar .pbar-tick {
+  top: -2px;
+  bottom: -2px;
+}
+.plan .ptable-zero .spending-bar .pbar-fill {
+  background: repeating-linear-gradient(135deg, var(--good) 0 2px, var(--good-soft) 2px 5px);
+  border-radius: 0;
+}
+.plan .ptable-zero .spending-bar.is-over,
+.plan .ptable-zero .spending-bar.is-over .pbar-fill {
+  background: var(--red);
+}
+.plan .ptable-zero .prow.is-empty .col-name {
+  display: table-cell;
+}
+@media (max-width: 767px) {
+  .plan .ptable-zero .col-num {
+    width: auto;
+  }
+  .plan .plan-topbar {
+    display: block;
+    padding: 4px;
+    flex-wrap: nowrap;
+  }
+  .plan .plan-chip-scroll {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+  .plan .plan-chip-scroll > * {
+    flex-shrink: 0;
+    scroll-snap-align: start;
+  }
+  .plan .plan-chip-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .plan .plan-popover-content {
+    width: 100%;
+    max-height: calc(100dvh - 220px);
+  }
+  .plan .ptable-zero thead {
+    display: block;
+  }
+  .plan .ptable-zero thead tr {
+    display: block;
+    padding: 0 8px;
+  }
+  .plan .ptable-zero thead .col-name {
+    display: block;
+    padding: 0;
+  }
+  .plan .ptable-zero thead .col-num {
+    display: none;
+  }
+  .plan .ptable-zero .group-heading .plan-add {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .plan .ptable-zero .pgroup {
+    border-radius: var(--radius-md);
+    background: var(--surface-2);
+    padding: 0 8px !important;
+    row-gap: 0;
+  }
+  .plan .ptable-zero .pgroup .col-name {
+    grid-column: 1 / -1;
+  }
+  .plan .ptable-zero .pgroup .col-num {
+    font-size: var(--fs-chart-label);
+    padding-bottom: 6px;
+  }
+  .plan .ptable-zero .pgroup .col-num::before,
+  .plan .ptable-zero .prow .col-num::before {
+    content: none;
+  }
+  .plan .ptable-zero .prow:not(.is-empty) {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    grid-template-rows: 44px 20px 4px;
+    gap: 0 8px;
+    padding: 0 8px 6px !important;
+  }
+  .plan .ptable-zero .prow .col-name {
+    display: contents;
+  }
+  .plan .ptable-zero .prow .plan-select {
+    grid-row: 1;
+  }
+  .plan .ptable-zero .pname {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+  }
+  .plan .ptable-zero .prow .col-avail {
+    grid-column: 3;
+    grid-row: 1;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0;
+    padding: 0;
+    z-index: 1;
+  }
+  .plan .ptable-zero .col-avail .ghost {
+    margin: 0 4px 0 0;
+  }
+  .plan .plan-available {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 44px;
+    margin: 0;
+    font-size: var(--fs-body);
+  }
+  .plan .ptable-zero .prow .col-assign {
+    grid-column: 3;
+    grid-row: 2;
+    padding: 0;
+    align-self: center;
+    font-size: var(--fs-label);
+    color: var(--ink-3);
+  }
+  .plan .ptable-zero .prow .col-act {
+    display: none;
+  }
+  .plan .ptable-zero .spending-status {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    text-align: left;
+    font-size: var(--fs-label);
+  }
+  .plan .ptable-zero .spending-bar {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+}
+
+/* Plan toolbar menus "Verteilen ▾" and "Optionen ▾" (#588). */
+.plan .plan-menu {
+  position: relative;
+  flex: none;
+}
+.plan .plan-menu summary {
+  border-radius: var(--radius-md);
+}
+.plan .plan-menu-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 6;
+  display: grid;
+  gap: 2px;
+  min-width: 240px;
+  max-width: min(360px, calc(100vw - 32px));
+  max-height: calc(100dvh - 220px);
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--card-shadow);
+  white-space: normal;
+}
+.plan .plan-menu-group {
+  display: grid;
+  gap: 2px;
+}
+.plan .plan-menu-group + .plan-menu-group,
+.plan .plan-menu-sep {
+  margin-top: 6px;
+  padding-top: 6px;
+  border: 0;
+  border-top: 1px solid var(--rule-strong);
+}
+.plan .plan-menu-heading {
+  padding: 2px 10px;
+  font-family: var(--font-tech);
+  font-size: var(--fs-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.plan .plan-menu-row {
+  display: grid;
+}
+.plan .plan-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.plan .plan-menu-item:hover {
+  background: var(--surface-2);
+}
+.plan .plan-menu-item:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: -2px;
+}
+.plan .plan-menu-item[aria-pressed='true'] {
+  background: var(--surface-2);
+  font-weight: 600;
+}
+.plan .plan-menu-item[aria-pressed='true']::after {
+  content: '✓';
+  /* Empty alt text: aria-pressed already says it, the mark stays out of the accessible name. */
+  content: '✓' / '';
+  color: var(--line);
+}
+.plan .plan-menu-item[aria-disabled='true'] {
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+.plan .plan-menu-reason {
+  padding: 0 10px 4px;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+@media (max-width: 767px) {
+  .plan .plan-menu {
+    position: static;
+  }
+  .plan .plan-menu summary {
+    min-height: 44px;
+  }
+  .plan .plan-menu-panel {
+    left: 12px;
+    right: 12px;
+    max-width: none;
+  }
+  .plan .plan-menu-item {
+    min-height: 44px;
+  }
+}
+
+/* Decision 7A: one visible category shares its group's band and creation control. */
+.plan .ptable-zero .psingle td {
+  height: auto;
+}
+.plan .ptable-zero .psingle .col-name {
+  grid-template-columns: 24px minmax(0, 1fr) 28px;
+  grid-template-rows: 28px 18px 4px;
+}
+.plan .ptable-zero .psingle .plan-select {
+  grid-row: 1 / -1;
+}
+.plan .ptable-zero .psingle .pname {
+  grid-column: 2;
+  grid-row: 1;
+  font-family: var(--font-tech);
+  font-size: var(--fs-measure);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.plan .band-number {
+  flex-shrink: 0;
+}
+.plan .ptable-zero .psingle .plan-add {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 28px;
+  padding: 0;
+}
+.plan .ptable-zero .psingle .spending-status {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  text-align: left;
+}
+.plan .ptable-zero .psingle .spending-bar {
+  grid-row: 3;
+}
+@media (max-width: 767px) {
+  .plan .ptable-zero .psingle:not(.is-empty) {
+    grid-template-rows: 44px 44px 4px;
+  }
+  .plan .ptable-zero .psingle .col-name {
+    display: contents;
+  }
+  .plan .ptable-zero .psingle .plan-add {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .plan .ptable-zero .psingle .plan-select {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .plan .ptable-zero .psingle .spending-status {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .plan .ptable-zero .psingle .spending-bar {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+}
+
+/* Owner extension to decision 7A: expanded group heads share the first category's band. */
+.plan .ptable-zero .pmulti .col-name {
+  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1.3fr);
+  grid-template-rows: 28px 14px 4px;
+}
+.plan .pmulti .band-parent {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  align-self: center;
+  min-width: 0;
+}
+.plan .pmulti .band-parent .grp-toggle {
+  flex: 1 1 auto;
+  color: var(--ink);
+}
+.plan .pmulti .band-parent .grp-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.plan .ptable-zero .pmulti .col-name > .plan-select {
+  grid-column: 2;
+  grid-row: 1 / 3;
+}
+.plan .ptable-zero .pmulti .pname {
+  grid-column: 3;
+  grid-row: 1;
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  text-transform: none;
+}
+.plan .ptable-zero .pmulti .spending-status {
+  grid-column: 3;
+  grid-row: 2;
+  text-align: left;
+}
+.plan .ptable-zero .pmulti .spending-bar {
+  grid-column: 2 / -1;
+  grid-row: 3;
+}
+.plan .band-total {
+  display: block;
+  color: var(--ink-3);
+  font-size: var(--fs-label);
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.plan .band-parent-totals {
+  display: none;
+}
+@media (min-width: 768px) {
+  .plan .ptable-zero .pmulti .col-name {
+    grid-template-columns: minmax(0, 1.75fr) 24px minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: 28px 4px;
+    padding-top: 4px;
+  }
+  .plan .ptable-zero .pmulti .spending-status {
+    grid-column: 4;
+    grid-row: 1;
+    text-align: right;
+  }
+  .plan .ptable-zero .pmulti .spending-bar {
+    grid-row: 2;
+  }
+  .plan .ptable-zero .pmulti .col-num {
+    padding-inline: 8px;
+  }
+  .plan .pmulti .col-num > .band-total {
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+}
+/* Keep both roles readable before the full-width desktop layout has enough room. */
+@media (min-width: 768px) and (max-width: 1439px) {
+  .plan .ptable-zero .pmulti .col-name {
+    grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: 28px 24px 4px;
+  }
+  .plan .pmulti .band-parent {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .plan .ptable-zero .pmulti .col-name > .plan-select {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .plan .ptable-zero .pmulti .pname {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .plan .ptable-zero .pmulti .spending-status {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .plan .ptable-zero .pmulti .spending-bar {
+    grid-row: 3;
+  }
+}
+@media (max-width: 767px) {
+  .plan .ptable-zero .pmulti:not(.is-empty) {
+    grid-template-rows: 44px auto 44px 20px 4px;
+    padding-bottom: 4px !important;
+  }
+  .plan .pmulti .band-parent {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    align-self: stretch;
+  }
+  .plan .pmulti .band-parent .group-heading {
+    height: 100%;
+  }
+  .plan .pmulti .band-parent-totals {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    padding-bottom: 4px;
+  }
+  .plan .band-parent-totals .band-total::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--font-tech);
+    font-size: var(--fs-label);
+  }
+  .plan .band-parent-totals .band-total-kind,
+  .plan .pmulti .col-num > .band-total {
+    display: none;
+  }
+  .plan .ptable-zero .pmulti .col-name > .plan-select {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .plan .ptable-zero .pmulti .pname {
+    grid-column: 2;
+    grid-row: 3;
+  }
+  .plan .ptable-zero .pmulti .col-avail {
+    grid-column: 3;
+    grid-row: 3;
+  }
+  .plan .ptable-zero .pmulti .col-assign {
+    grid-column: 3;
+    grid-row: 4;
+  }
+  .plan .ptable-zero .pmulti .spending-status {
+    grid-column: 1 / 3;
+    grid-row: 4;
+  }
+  .plan .ptable-zero .pmulti .spending-bar {
+    grid-column: 1 / -1;
+    grid-row: 5;
+  }
+}
+
+/* #590: phone selection uses category names, distinct group/all buttons and a local action bar. */
+@media (max-width: 767px) {
+  .plan .has-phone-selection {
+    padding-bottom: calc(
+      var(--plan-selection-clearance, 0px) + var(--tabbar-h) + var(--fab-gap) + var(--fab-size) +
+        16px
+    );
+  }
+  .plan .has-phone-selection :is(.pname, .plan-select-toggle) {
+    scroll-margin-block: calc(64px + var(--plan-selection-topbar-height, 44px) + 8px)
+      calc(
+        var(--plan-selection-clearance, 0px) + var(--tabbar-h) + var(--fab-gap) + var(--fab-size) +
+          16px
+      );
+  }
+  .plan .plan-select-toggle {
+    flex: none;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 4px;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+  }
+  .plan .plan-select-toggle[aria-pressed='true'],
+  .plan .plan-select-toggle[aria-pressed='mixed'] {
+    background: var(--tint-2);
+  }
+  .plan .ptable-zero .prow:not(.psingle):not(.is-empty),
+  .plan .ptable-zero .pmulti:not(.is-empty) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .plan .ptable-zero .prow:not(.psingle) .pname,
+  .plan .ptable-zero .pmulti .pname {
+    grid-column: 1;
+  }
+  .plan .ptable-zero .prow:not(.psingle) .col-avail,
+  .plan .ptable-zero .prow:not(.psingle) .col-assign,
+  .plan .ptable-zero .pmulti .col-avail,
+  .plan .ptable-zero .pmulti .col-assign {
+    grid-column: 2;
+  }
+  .plan .ptable-zero .prow:not(.psingle) .spending-status,
+  .plan .ptable-zero .pmulti .spending-status {
+    grid-column: 1;
+  }
+  .plan .ptable-zero .psingle:not(.pmulti) .spending-status {
+    grid-column: 1 / 3;
+  }
+  .plan .plan-selection-bar {
+    position: fixed;
+    z-index: 5;
+    inset-inline: 16px;
+    bottom: calc(var(--tabbar-h) + var(--fab-gap) + var(--fab-size) + 8px);
+    display: grid;
+    gap: 8px;
+    max-height: calc(100dvh - var(--tabbar-h) - var(--fab-gap) - var(--fab-size) - 32px);
+    overflow-y: auto;
+    padding: 12px;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-md);
+    background: var(--raised);
+    color: var(--ink);
+    box-shadow: var(--card-shadow);
+  }
+  .plan .plan-selection-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+  .plan .plan-selection-bar p {
+    margin: 0;
+  }
+  .plan .plan-selection-bar .btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (min-width: 768px) {
+  .plan .pmulti-scroll:has(> .ptable-zero) {
+    padding-inline-end: 4px;
+  }
+}
+
+/* Activity is a read-only disclosure; the existing category writers stay in the inspector. */
+.plan .activity-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 24px;
+  min-width: 44px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.plan .inspector-move > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 620;
+}
+/* One native table; compact phone columns keep all metadata available in the booking cell. */
+.plan .activity-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--fs-table);
+  font-variant-numeric: tabular-nums;
+}
+.plan .activity-table th,
+.plan .activity-table td {
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.plan .activity-table th {
+  font-weight: 620;
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--rule-strong);
+}
+.plan .activity-table td {
+  border-bottom: 1px solid var(--card-border);
+  vertical-align: middle;
+}
+.plan .activity-table .activity-date {
+  width: 7rem;
+}
+.plan .activity-table .activity-account,
+.plan .activity-table .activity-status {
+  width: 15%;
+}
+.plan .activity-table .activity-amount {
+  width: 9rem;
+  text-align: right;
+}
+.plan .activity-table .activity-source-button {
+  display: flex;
+  min-width: 44px;
+  min-height: 44px;
+  height: auto;
+  max-width: 100%;
+  padding: 0;
+  justify-content: flex-start;
+  white-space: normal;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+.plan .activity-note {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.plan .activity-note,
+.plan .activity-detail,
+.plan .activity-mobile-meta {
+  font-size: var(--fs-meta);
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+.plan .activity-detail {
+  display: block;
+}
+.plan .activity-mobile-meta {
+  display: none;
+}
+@media (max-width: 599px) {
+  .plan .activity-table th,
+  .plan .activity-table td {
+    padding-inline: 4px;
+  }
+  .plan .activity-table .activity-amount {
+    width: 7.25rem;
+  }
+  .plan .activity-table .activity-date,
+  .plan .activity-table .activity-account,
+  .plan .activity-table .activity-status {
+    display: none;
+  }
+  .plan .activity-mobile-meta,
+  .plan .activity-mobile-account {
+    display: block;
+  }
+  .plan .activity-mobile-date {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .plan .activity-link {
+    min-height: 44px;
+  }
+}
+
+.plan .inspector-activity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Shareable category filters (#589); the existing budget figures and actions stay authoritative. */
+.plan-filterbar {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+.plan-category-search {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+.plan-category-search .input {
+  width: 100%;
+  min-width: 0;
+}
+.plan-filter-segments {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.plan-filter-segments button {
+  min-width: 44px;
+  padding-inline: 6px;
+  font-size: var(--fs-meta);
+}
+.plan-filter-segments .has-overspending:not([aria-pressed='true']) {
+  color: var(--red);
+}
+.plan-filter-segments .has-overspending[aria-pressed='true'] {
+  background: var(--red);
+  color: var(--on-red);
+}
+.plan-filter-cover,
+.plan-filter-empty {
+  padding: 12px;
+}
+.plan .plan-filterbar .plan-menu-panel {
+  left: auto;
+  right: 0;
+}
+@media (max-width: 767px), (pointer: coarse) {
+  .plan-filterbar .input,
+  .plan-filterbar button,
+  .plan-filterbar summary {
+    min-height: 44px;
+  }
+}
+@media (max-width: 767px) {
+  .plan-category-search {
+    flex-basis: calc(100% - 120px);
+  }
+  .plan-filter-segments {
+    order: 1;
+    flex-basis: 100%;
+    justify-content: flex-start;
+    overflow: visible;
+  }
+  .plan-filter-segments button {
+    white-space: normal;
+  }
+}
+
+.plan-filter-scope {
+  margin: 0;
+  padding: 0 12px 8px;
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+}
+.plan-uncategorized {
+  padding: 12px;
+}
+.plan-uncategorized table {
+  width: 100%;
+  table-layout: fixed;
+}
+.plan-uncategorized th,
+.plan-uncategorized td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+}
+.plan-uncategorized th:last-child,
+.plan-uncategorized td:last-child {
+  width: 40%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.plan-uncategorized a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  overflow-wrap: anywhere;
+}
+.plan-uncategorized small {
+  display: block;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+@media (min-width: 1180px) {
+  .plan-filterbar {
+    flex-wrap: nowrap;
+  }
+  .plan-filter-segments {
+    flex-wrap: nowrap;
+  }
+  .plan-filter-segments button {
+    white-space: nowrap;
+  }
+}
+@media (max-width: 767px) {
+  .plan .plan-filterbar .plan-menu-panel {
+    left: 12px;
+    right: 12px;
+  }
+}
+
+/* Fine-pointer desktop retains the original compact worksheet budget with the added filters.
+   The financial rail can scroll horizontally instead of growing another line; its popovers
+   remain outside the scroll container. Phone/coarse controls retain their 44px rules. */
+@media (min-width: 1180px) and (pointer: fine) {
+  .plan-month .plan-main {
+    gap: 4px;
+  }
+  .plan-month .plan-topbar {
+    padding-block: 0;
+  }
+  .plan-month .plan-chip-scroll {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .plan-month .plan-chip-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .plan-month .plan-chip-scroll > * {
+    flex-shrink: 0;
+  }
+  :where(.plan-month) .plan-filterbar {
+    padding-block: 0;
+  }
+  :where(.plan-month) .plan-category-search .input {
+    height: 32px;
+    min-height: 32px;
+  }
+  :where(.plan-month) .plan-filter-segments {
+    padding: 1px;
+  }
+  .plan-month .ptoolbar {
+    min-height: 32px;
+    padding-block: 0;
+  }
+  .plan-month .ptoolbar .btn {
+    height: 28px;
+    min-height: 28px;
   }
 }

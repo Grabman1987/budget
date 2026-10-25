@@ -73,11 +73,11 @@ export function YearCashflowChart({ year, rows }: { year: number; rows: YearMont
           />
           {rows.map((r) => {
             const cx = x(index(r.month));
-            const w = slot * 0.56;
+            const w = Math.min(slot * 0.56, 10);
             const need = (r.needCents / 100 / hi) * (bottom - top);
             const want = (r.wantCents / 100 / hi) * (bottom - top);
             return (
-              <g key={r.month}>
+              <g key={r.month} opacity="var(--bar-tint)">
                 <rect
                   x={cx - w / 2}
                   y={bottom - need}

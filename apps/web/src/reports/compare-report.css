@@ -8,7 +8,7 @@
 .dv-head-mid {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: var(--fs-label);
   color: var(--ink-3);
 }
 .dv {
@@ -33,9 +33,9 @@
 }
 .dv-track {
   position: relative;
-  height: 16px;
+  height: var(--bar-progress);
   background: var(--tint);
-  border-radius: var(--radius-titleblock);
+  border-radius: var(--radius-xs);
 }
 .dv-track::before {
   content: '';
@@ -50,15 +50,15 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  border-radius: var(--radius-titleblock);
+  border-radius: var(--radius-xs);
 }
 .dv-track i.is-more {
   left: 50%;
-  background: var(--red);
+  background: var(--minus-ink);
 }
 .dv-track i.is-less {
   right: 50%;
-  background: var(--heat-green);
+  background: var(--plus-ink);
 }
 .dv-val {
   display: grid;
@@ -66,7 +66,7 @@
   font-variant-numeric: tabular-nums;
 }
 .dv-val small {
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--ink-3);
   white-space: nowrap;
 }
@@ -86,7 +86,10 @@
   .dv-val {
     grid-area: val;
   }
-  .dv-track {
+  .compare-report .dv .chart-interactive {
     grid-area: track;
+    display: grid;
+    align-items: center;
+    min-height: var(--touch);
   }
 }

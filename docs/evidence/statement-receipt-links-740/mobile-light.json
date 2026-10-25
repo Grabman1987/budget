@@ -1,0 +1,82 @@
+{
+  "project": "mobile",
+  "theme": "light",
+  "ids": [
+    "8d2a4021-789d-4f19-b44f-77916f3aab41",
+    "2c213dda-c8d9-4c2f-b886-4907e1ee3cd8"
+  ],
+  "sourceHash": "c9a0c4ec31d66a73808c875b19521802053ecf02d3730722cb766048492c4a04",
+  "attached": [
+    {
+      "bookingId": "8d2a4021-789d-4f19-b44f-77916f3aab41",
+      "bookingRevision": "ecb98139f3ad0e3cf3fc3195f0e082c270ed5e942d23e09ff4269a140e1e535e",
+      "accountId": "cffb579a-39e3-491e-8c89-94954ae3a2b2",
+      "accountName": "Belegkonto Muster",
+      "date": "2026-09-17",
+      "description": "Musterbeleg 1",
+      "amountCents": -1251,
+      "currency": "EUR",
+      "attached": true,
+      "managed": false
+    },
+    {
+      "bookingId": "2c213dda-c8d9-4c2f-b886-4907e1ee3cd8",
+      "bookingRevision": "ef1a2d4d2f0cf93bd1958a715cfc5803f13cf4d1561db6be81a26985a89c6229",
+      "accountId": "cffb579a-39e3-491e-8c89-94954ae3a2b2",
+      "accountName": "Belegkonto Muster",
+      "date": "2026-09-17",
+      "description": "Musterbeleg 2",
+      "amountCents": -5749,
+      "currency": "EUR",
+      "attached": true,
+      "managed": false
+    }
+  ],
+  "geometry": [
+    {
+      "width": 44,
+      "height": 44,
+      "left": 28,
+      "top": 431.765625,
+      "right": 72,
+      "bottom": 475.765625,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "ownsCenter": true
+    },
+    {
+      "width": 44,
+      "height": 44,
+      "left": 28,
+      "top": 432.328125,
+      "right": 72,
+      "bottom": 476.328125,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "ownsCenter": true
+    },
+    {
+      "width": 167,
+      "height": 44,
+      "left": 24,
+      "top": 432.40625,
+      "right": 191,
+      "bottom": 476.40625,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "ownsCenter": true
+    },
+    {
+      "width": 114.21875,
+      "height": 44,
+      "left": 247.78125,
+      "top": 699.6639404296875,
+      "right": 362,
+      "bottom": 743.6639404296875,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "ownsCenter": true
+    }
+  ],
+  "financialUnchanged": true
+}

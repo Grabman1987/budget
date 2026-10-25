@@ -56,6 +56,70 @@ function caller(app: ReturnType<typeof appFor>) {
   };
 }
 
+it('includes cash and FX performance before any security purchase in the all-time depot scope', async () => {
+  const opened = createTestDatabase();
+  try {
+    opened.sqlite.exec(`
+      INSERT INTO account (id, name, type, role, on_budget, currency, opening_date, opening_balance_cents, sort_order)
+        VALUES ('d', 'Depot A', 'brokerage', 'investment', 0, 'USD', '2025-06-01', 10000, 1);
+      INSERT INTO fx_rate (currency, date, rate_micro) VALUES
+        ('USD', '2025-06-01', 900000), ('USD', '2026-09-17', 1000000);
+    `);
+    const res = await caller(appFor(opened.db))('GET', '/portfolio?period=Alles&view=depot');
+    expect(res.status).toBe(200);
+    const performance = res.body['portfolio'].performance;
+    expect(performance).toMatchObject({
+      from: '2025-06-01',
+      startValueCents: 9_000,
+      endValueCents: 10_000,
+      contributionsCents: 0,
+      gainCents: 1_000,
+    });
+    expect(performance.ttwror).toBeCloseTo(0.111111111111111, 12);
+    opened.sqlite.exec("UPDATE account SET opening_balance_cents = 0 WHERE id = 'd'");
+    const empty = await caller(appFor(opened.db))('GET', '/portfolio?period=Alles&view=depot');
+    expect(empty.body['portfolio'].performance).toBeNull();
+  } finally {
+    opened.close();
+  }
+});
+
+it('uses PP security TTWROR/XIRR including the first buy fee, with after-tax cash facts', async () => {
+  const opened = createTestDatabase();
+  try {
+    opened.sqlite.exec(`
+      INSERT INTO account (id, name, type, role, on_budget, opening_date, sort_order)
+        VALUES ('d', 'Depot A', 'brokerage', 'investment', 0, '2025-09-16', 1);
+      INSERT INTO security (id, name, kind, currency) VALUES ('s', 'Produkt A', 'etf', 'EUR');
+      INSERT INTO price (security_id, date, price_micro, currency, source)
+        VALUES ('s', '2025-09-17', 100000000, 'EUR', 'manual');
+      INSERT INTO trade (id, security_id, account_id, date, kind, units_e8, amount_cents, fee_cents, tax_cents, import_key) VALUES
+        ('b', 's', 'd', '2025-09-17', 'buy', 100000000, 10000, 100, 0, 'b'),
+        ('v', 's', 'd', '2026-09-17', 'dividend', 0, 1000, 0, 250, 'v'),
+        ('f', 's', 'd', '2025-08-01', 'fee', 0, 300, 0, 0, 'f');
+    `);
+    const res = await caller(appFor(opened.db))(
+      'GET',
+      '/portfolio?period=Alles&history=performance',
+    );
+    expect(res.status).toBe(200);
+    const p = res.body['portfolio'];
+    expect(p.performance.from).toBe('2025-09-16');
+    // Pre-tax PP return: 110 EUR proceeds and holding against 101 EUR including buy fee.
+    expect(p.performance.ttwror).toBeCloseTo(0.089108910891089, 12);
+    expect(p.performance.xirr).toBeCloseTo(0.089108910891089, 9);
+    expect(p.performance.contributionsCents).toBe(9_350);
+    expect(p.performance.gainCents).toBe(650);
+    expect(p.performanceHistory.dailyIndex.at(-1).portfolio).toBeCloseTo(108.9108910891089, 9);
+    const unclassified = p.performanceHistory.classes.find((c: any) => c.assetClassId === null);
+    expect(unclassified.performance.gainCents).toBe(650);
+    expect(unclassified.performance.contributionsCents).toBe(9_350);
+    expect(unclassified.performance.moneyWeighted).toBeCloseTo(p.performance.moneyWeighted, 12);
+  } finally {
+    opened.close();
+  }
+});
+
 describe('GET /api/portfolio on the seeded sample ledger (17.09.2026)', () => {
   let call: ReturnType<typeof caller>;
   beforeAll(() => {
@@ -106,7 +170,9 @@ describe('GET /api/portfolio on the seeded sample ledger (17.09.2026)', () => {
     const em = p.allocation.rows.find((r: any) => r.assetClass === 'ac-em');
     expect(em).toMatchObject({ breach: true, side: 'under', targetBp: 1200 });
     expect(p.proposals.map((r: any) => r.code)).toEqual(['r13_under', 'r15_speculative']);
-    expect(p.performance.ttwror).toBeCloseTo(0.382, 3);
+    // Synthetic regression pin after adopting PP opening inflows; literal PP cases above
+    // establish the method independently of this prototype-calibrated dataset.
+    expect(p.performance.ttwror).toBeCloseTo(0.3806630473072903, 9);
     expect(p.classes.map((c: any) => c.name)).toEqual([
       'Aktien Welt',
       'Schwellenländer',
@@ -817,10 +883,10 @@ describe('invest CRUD', () => {
       positions: [],
     });
     expect(res.body['portfolio'].contributionHistory).toMatchObject({
-      from: '2026-09-01',
-      startValueCents: 10_000,
+      from: '2026-08-31',
+      startValueCents: 0,
       endValueCents: 0,
-      contributionsCents: -12_000,
+      contributionsCents: -2_000,
       gainCents: 2_000,
     });
     expect(
@@ -830,11 +896,11 @@ describe('invest CRUD', () => {
       res.body['portfolio'].contributionHistory.daily.find((p: any) => p.date === '2026-09-10'),
     ).toEqual({ date: '2026-09-10', valueCents: 0, investedCents: -2_000 });
     expect(res.body['portfolio'].contributionHistory.months[0]).toMatchObject({
-      from: '2026-09-01',
-      startValueCents: 10_000,
-      inflowsCents: 0,
+      from: '2026-08-31',
+      startValueCents: 0,
+      inflowsCents: 10_000,
       outflowsCents: -12_000,
-      contributionsCents: -12_000,
+      contributionsCents: -2_000,
       gainCents: 2_000,
       valueCents: 0,
       investedCents: -2_000,

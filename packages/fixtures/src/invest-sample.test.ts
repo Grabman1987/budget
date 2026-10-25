@@ -50,9 +50,10 @@ describe('portfolio summary of the seeded sample ledger on 17.09.2026', () => {
     expect(p.platforms.map((x) => x.shareBp).reduce((a, b) => a + b, 0)).toBe(10_000);
   });
 
-  it('performance of 3J matches the prototype (TTWROR 38,2 %) and carries a benchmark', () => {
+  it('performance of 3J uses PP timing/tax scope and carries a benchmark', () => {
     const p = portfolioSummary(db, { today: TODAY, period: '3J' });
-    expect(p.performance?.ttwror).toBeCloseTo(0.382, 3);
+    // Regression pin; independent PP examples live in domain returns and investment API tests.
+    expect(p.performance?.ttwror).toBeCloseTo(0.3806630473072903, 9);
     expect(p.performance?.endValueCents).toBe(8_800_000);
     expect(p.benchmark?.securityId).toBe('sec-etfw');
     expect(p.performance?.benchmarkTtwror).not.toBeNull();

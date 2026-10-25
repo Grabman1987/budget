@@ -1,0 +1,180 @@
+{
+  "issue": 734,
+  "base": "9baa582fae87fd32886acae5c03a5c118cf51acd",
+  "nativeSpecSHA256": "6285caaf41f6d31fae1d9a430a14b0f98d730e751c8011f8561bf9a9a453131c",
+  "engine": "WebKit (canonical image sha256:4cb1535ccc6d606b3662a4be5465a607fb9b130eeb974837fa58e024ab5e058e)",
+  "passed": 9,
+  "featureCases": 4,
+  "setupCases": 3,
+  "freshBuild": "Exact 166 compiled files from the current focus/root-viewport/scroller-padding fresh E2E build 62562 reused for combined native42762; no rebuild in combined run",
+  "bankConfirmation": "Synthetic response; exact POST category/revision/actions and unchanged real balances/active rows/audit. No real bank confirmation or bank Undo claim.",
+  "capture": "Real POST /bookings, literal -1000 cents with -500 category / -500 contact, public Undo restores original active rows and balance.",
+  "nativeLogSHA256": "7a4ae42aa432227eb551a6b803828e22c3572f3f4690fe573e44ef8c17bd1469",
+  "nativeResultSHA256": "529932d1c79fe9ed96ad44b3b2d564f469ceb8ca54a85c6846643403f3f1509f",
+  "profiles": [
+    {
+      "profile": "desktop1440",
+      "theme": "dark",
+      "engine": "webkit",
+      "actual": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "dpr": 1,
+        "coarse": false,
+        "rawTouchPoints": 0
+      },
+      "initialBounds": {
+        "top": 243.140625,
+        "bottom": 709.140625,
+        "height": 466,
+        "left": 734,
+        "right": 1025.328125,
+        "clipTop": 156.84375,
+        "clipBottom": 709.84375,
+        "viewportWidth": 1440
+      },
+      "finalBounds": {
+        "top": 243.140625,
+        "bottom": 709.140625,
+        "height": 466,
+        "left": 734,
+        "right": 1025.328125,
+        "clipTop": 156.84375,
+        "clipBottom": 709.84375,
+        "viewportWidth": 1440
+      },
+      "image": "desktop-dark.png",
+      "imageSHA256": "74b78306c7ce4bea3ec28fed66455dcdff91890b17335939dcd2af9111b59d44",
+      "originalProfileSHA256": "e43d6ca46d6cd12462c3687a33e9cfa056851ac75852fc863d9feb63cc83f798"
+    },
+    {
+      "profile": "configured",
+      "theme": "light",
+      "engine": "webkit",
+      "actual": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "dpr": 3,
+        "coarse": true,
+        "rawTouchPoints": 0
+      },
+      "initialBounds": {
+        "top": 190.75,
+        "bottom": 510.75,
+        "height": 320,
+        "left": 16,
+        "right": 249.328125,
+        "clipTop": 190.609375,
+        "clipBottom": 562.609375,
+        "viewportWidth": 390
+      },
+      "finalBounds": {
+        "top": 376.75,
+        "bottom": 561.75,
+        "height": 185,
+        "left": 16,
+        "right": 249.328125,
+        "clipTop": 190.609375,
+        "clipBottom": 562.609375,
+        "viewportWidth": 390
+      },
+      "image": "phone-light.png",
+      "imageSHA256": "2e803f40b8f7815fb4640375bd4cd8308a3692a077d46dc5a7783695ec9eb02c",
+      "originalProfileSHA256": "6d6d47eee5a4f80eb8f0a8369aca9a7ca2fab5667f8bc662240ff5ac64ffbbc8"
+    },
+    {
+      "profile": "desktop1440",
+      "theme": "light",
+      "engine": "webkit",
+      "actual": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "dpr": 1,
+        "coarse": false,
+        "rawTouchPoints": 0
+      },
+      "initialBounds": {
+        "top": 243.140625,
+        "bottom": 709.140625,
+        "height": 466,
+        "left": 734,
+        "right": 1025.328125,
+        "clipTop": 156.84375,
+        "clipBottom": 709.84375,
+        "viewportWidth": 1440
+      },
+      "finalBounds": {
+        "top": 243.140625,
+        "bottom": 709.140625,
+        "height": 466,
+        "left": 734,
+        "right": 1025.328125,
+        "clipTop": 156.84375,
+        "clipBottom": 709.84375,
+        "viewportWidth": 1440
+      },
+      "image": "desktop-light.png",
+      "imageSHA256": "8a9dcbcd3e33f9e6c2e85d67c48ad2cf9f04b22c8a2ae3cd6220195d0f232de6",
+      "originalProfileSHA256": "ca59f6a76914c7291750b2057e192fc548b5ff984d43ac05064f0a0fc2124d5a"
+    },
+    {
+      "profile": "configured",
+      "theme": "dark",
+      "engine": "webkit",
+      "actual": {
+        "viewport": {
+          "width": 390,
+          "height": 664
+        },
+        "dpr": 3,
+        "coarse": true,
+        "rawTouchPoints": 0
+      },
+      "initialBounds": {
+        "top": 190.75,
+        "bottom": 510.75,
+        "height": 320,
+        "left": 16,
+        "right": 249.328125,
+        "clipTop": 190.609375,
+        "clipBottom": 562.609375,
+        "viewportWidth": 390
+      },
+      "finalBounds": {
+        "top": 376.75,
+        "bottom": 561.75,
+        "height": 185,
+        "left": 16,
+        "right": 249.328125,
+        "clipTop": 190.609375,
+        "clipBottom": 562.609375,
+        "viewportWidth": 390
+      },
+      "image": "phone-dark.png",
+      "imageSHA256": "504e4d06476a2d4a65acef397522fef841ef579b83aceb028a94bf2b5d92ffe3",
+      "originalProfileSHA256": "346c22fcc1fa797de2f96383021ec87d11e51e7bda2b566b2381d0aabf0d0c23"
+    }
+  ],
+  "keyboard": "Header-aware active row containment, twelve ArrowUp steps to literal category49, then twelve ArrowDown steps to the same contact",
+  "resize": "After viewport450 and unchanged body-scroll assertion, phone explicitly arranges an actual fully offscreen anchor before hidden/Enter/draft/no-write/selection recovery. A partly visible anchor may keep its popup; both contexts retain later manual hide/reopen.",
+  "existingRegressionCases": 2,
+  "compiledManifestSHA256": "7cabe80c10fa795eaa2a529e2bcdf2266f059a7962c22504fd3d52b66e995754",
+  "sourceHead": "a216d4383de67bcb6d09aebb65be7c062c0330a7 plus reviewed four-path correction",
+  "productCorrectionSHA256": {
+    "apps/web/src/ledger/combobox.tsx": "3f9b25ffbe4c8c76fc06470b16b48b4e3a2c09d391e9fcbc10145bccb3dda706",
+    "apps/web/src/ledger/ledger.css": "6f09f0e97e2f8b089655544046efcc5ff1e3bd57b6a4d328ba8e7feb1870aa2b"
+  },
+  "previousCheckpoint": {
+    "passed": 7,
+    "nativeSpecSHA256": "2ae58ea7bed8845fa393936437dec87a37a92f8a71b166a2ead2d962c466df8a",
+    "nativeLogSHA256": "728162c1eeaa270138e26d50c67e60588f55eed954e70a2600534e69cf2e3efd",
+    "nativeResultSHA256": "008e1c51b705ca77fb02e9ce78a5c3d3bbf960caa6f3c10b7f2994fce7281fbc",
+    "freshBuild": "Current outward-rounded product source fresh E2E build; exact 166 compiled files reused after NEW phone resize/recovery fixture-only correction"
+  }
+}

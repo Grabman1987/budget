@@ -71,6 +71,7 @@ export interface LedgerCategory {
 export interface LedgerSplit {
   /** Optional source identity for reports; budget arithmetic does not depend on it. */
   bookingId?: string;
+  splitId?: string;
   payeeId?: string | null;
   status?: string;
   accountId: string;
@@ -159,8 +160,41 @@ export function splitEffect(
   return { kind: 'income' };
 }
 
+/** A signed term emitted at the existing activity accumulator, never a second calculation. */
+export interface BudgetActivityItem {
+  month: string;
+  categoryId: string;
+  kind: 'booking' | 'card-reserve' | 'unfunded-card';
+  cents: number;
+  bookingId: string | null;
+  splitId: string | null;
+  accountId: string;
+  date: string | null;
+  status: string | null;
+  sourceCategoryId: string | null;
+  sourceAmountCents: number | null;
+  cardBalanceCoveredCents: number;
+  relatedCategories: Array<{ categoryId: string; cents: number }>;
+}
+
+/** Opt-in, category/month-specific provenance. Default budget readers allocate no trace. */
+export function budgetActivity(input: BudgetInput, month: string, categoryId: string) {
+  const items: BudgetActivityItem[] = [];
+  const months = calculateBudget(input, (item) => {
+    if (item.month === month && item.categoryId === categoryId) items.push(item);
+  });
+  return { months, items };
+}
+
 /** The budget for each of `input.months` (see the module comment). Pure. */
 export function budgetMonths(input: BudgetInput): BudgetMonth[] {
+  return calculateBudget(input);
+}
+
+function calculateBudget(
+  input: BudgetInput,
+  collect?: (item: BudgetActivityItem) => void,
+): BudgetMonth[] {
   const { months } = input;
   months.forEach((m, i) => {
     if (i > 0 && nextMonth(months[i - 1] as string) !== m)
@@ -188,7 +222,30 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
     const month = a.openingDate.slice(0, 7);
     income.set(month, (income.get(month) ?? 0) + a.openingBalanceCents);
   }
-  const add = (month: string, categoryId: string, cents: number) => {
+  const add = (
+    month: string,
+    categoryId: string,
+    cents: number,
+    source: LedgerSplit,
+    kind: 'booking' | 'card-reserve',
+    covered = 0,
+  ) => {
+    if (collect && cents !== 0)
+      collect({
+        month,
+        categoryId,
+        cents,
+        kind,
+        bookingId: source.bookingId ?? null,
+        splitId: source.splitId ?? null,
+        accountId: source.accountId,
+        date: source.date,
+        status: source.status ?? null,
+        sourceCategoryId: source.categoryId,
+        sourceAmountCents: source.amountCents,
+        cardBalanceCoveredCents: covered,
+        relatedCategories: [],
+      });
     const row = activity.get(month) ?? new Map<string, number>();
     row.set(categoryId, (row.get(categoryId) ?? 0) + cents);
     activity.set(month, row);
@@ -227,7 +284,7 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
     const { effect, advanceOut } = effects[i] as (typeof effects)[number];
     const month =
       effect.kind === 'income' ? incomeBudgetMonth(s.date, s.incomeNextMonth) : s.date.slice(0, 7);
-    if (effect.kind === 'activity') add(month, effect.categoryId, s.amountCents);
+    if (effect.kind === 'activity') add(month, effect.categoryId, s.amountCents, s, 'booking');
     if (effect.kind === 'income') income.set(month, (income.get(month) ?? 0) + s.amountCents);
     const card = cardEnvelope.get(s.accountId);
     if (!card || advanceOut) return;
@@ -241,7 +298,7 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
     const debt = s.amountCents - (unmoved[i] ?? 0);
     if (debt !== s.amountCents)
       offEnvelope.set(month, (offEnvelope.get(month) ?? 0) + s.amountCents - debt);
-    add(month, card, -debt);
+    add(month, card, -debt, s, 'card-reserve', unmoved[i] ?? 0);
     if (effect.kind === 'activity' && debt !== 0) {
       const byCategory = onCard.get(month) ?? new Map<string, CardRow[]>();
       const rows = byCategory.get(effect.categoryId) ?? [];
@@ -281,6 +338,7 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
     // Overspending reset at the start of this month, less its credit part (that is card debt).
     let uncoveredCents = -previousCredit;
     let creditOverspentCents = 0;
+    const creditSources = collect ? new Map<string, Map<string, number>>() : undefined;
     const next = new Map<string, number>();
     for (const c of ordered) {
       const prev = previous.get(c.id) ?? 0;
@@ -291,6 +349,25 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
         ? [...cardEnvelope].find(([, id]) => id === c.id)?.[0]
         : undefined;
       const unfunded = card ? (cards[card]?.cardDebtGrowthCents ?? 0) : 0;
+      if (collect && unfunded !== 0 && card)
+        collect({
+          month,
+          categoryId: c.id,
+          kind: 'unfunded-card',
+          cents: -unfunded,
+          accountId: card,
+          bookingId: null,
+          splitId: null,
+          date: null,
+          status: null,
+          sourceCategoryId: null,
+          sourceAmountCents: null,
+          cardBalanceCoveredCents: 0,
+          relatedCategories: [...(creditSources?.get(card) ?? [])].map(([categoryId, cents]) => ({
+            categoryId,
+            cents,
+          })),
+        });
       const e = envelopeMonth({
         carryCents,
         assignedCents: assigned[c.id] ?? 0,
@@ -304,7 +381,18 @@ export function budgetMonths(input: BudgetInput): BudgetMonth[] {
       if (rule === 'ynab' && overspent > 0 && !c.rolloverOverspending && cardRows) {
         // Card spending of the month explains the overspending first, cash spending the rest.
         credit = Math.min(overspent, Math.max(0, -cardNet));
-        shareCredit(credit, cardRows, cards);
+        shareCredit(
+          credit,
+          cardRows,
+          cards,
+          creditSources
+            ? (row, part) => {
+                const source = creditSources.get(row.card) ?? new Map<string, number>();
+                source.set(c.id, (source.get(c.id) ?? 0) - part);
+                creditSources.set(row.card, source);
+              }
+            : undefined,
+        );
       }
       envelopes[c.id] = {
         ...e,
@@ -415,6 +503,7 @@ function shareCredit(
   credit: number,
   rows: ReadonlyArray<CardRow>,
   cards: Record<string, { cardDebtGrowthCents: number }>,
+  collect?: (row: CardRow, part: number) => void,
 ): void {
   const latestFirst = [...rows].sort(
     (a, b) => b.date.localeCompare(a.date) || b.cents - a.cents || b.index - a.index,
@@ -430,6 +519,7 @@ function shareCredit(
     if (r.cents < 0) lay -= part;
     else back += part;
     entry.cardDebtGrowthCents += part;
+    if (collect && part !== 0) collect(r, part);
   }
 }
 

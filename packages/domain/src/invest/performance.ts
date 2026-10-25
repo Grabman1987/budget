@@ -1,6 +1,7 @@
 import { calendarRangeWindow, isCalendarRange, type CalendarRange } from '../report-range';
-import { addMonths, daysBetween, lastDayOfMonth } from '../date';
-import { irr, modifiedDietz, type CashFlow, type Valuation } from './returns';
+import { addDays, addMonths, daysBetween, lastDayOfMonth } from '../date';
+import { irr, modifiedDietz, periodReturn, type CashFlow, type Valuation } from './returns';
+import { benchmarkQuoteResolver, type BenchmarkQuote } from './benchmark-quotes';
 
 /**
  * Portfolio performance per window (P5.2, SPEC §6). Inputs are integer cents (values, flows); the
@@ -59,32 +60,47 @@ export function periodWindow(period: Period, today: string, earliest = '0000-01-
 
 export interface DailyReturn {
   date: string;
-  /** Return of the day: `(value − flow) / previous value − 1`. */
+  /** PP daily return: `(value + withdrawals) / (previous value + deposits) − 1`. */
   rate: number;
 }
 
 /**
- * Daily sub-period returns of consecutive valuations. A flow of a day counts at its end (the value
- * already contains it). A sub-period that starts at a value of 0 or less is skipped (before the
- * first buy, after a full sale), exactly like `ttwror`.
+ * Daily PP returns of consecutive valuations: deposits at the start, withdrawals at the end.
+ * A zero opening balance can earn a return when funded that day; a non-positive denominator is
+ * unavailable. Inputs must retain the gross flows rather than netting opposite signs.
  */
 export function dailyReturns(
   series: ReadonlyArray<Valuation>,
   flows: ReadonlyArray<CashFlow>,
 ): DailyReturn[] {
-  const flowOn = new Map<string, number>();
-  for (const f of flows) flowOn.set(f.date, (flowOn.get(f.date) ?? 0) + f.cents);
+  const flowOn = new Map<string, { in: number; out: number }>();
+  for (const f of flows) {
+    const day = flowOn.get(f.date) ?? { in: 0, out: 0 };
+    if (f.cents > 0 || f.atStart) day.in += f.cents;
+    else day.out -= f.cents;
+    flowOn.set(f.date, day);
+  }
   const out: DailyReturn[] = [];
   for (let i = 1; i < series.length; i++) {
     const prev = series[i - 1] as Valuation;
     const cur = series[i] as Valuation;
-    if (prev.valueCents <= 0) continue;
-    out.push({
-      date: cur.date,
-      rate: (cur.valueCents - (flowOn.get(cur.date) ?? 0)) / prev.valueCents - 1,
-    });
+    const flow = flowOn.get(cur.date);
+    const rate = periodReturn(prev.valueCents, cur.valueCents, flow?.in ?? 0, flow?.out ?? 0);
+    if (rate !== null) out.push({ date: cur.date, rate });
   }
   return out;
+}
+
+/** Contiguous return days, including the preceding closing valuation as each base. */
+export function returnWindows(daily: ReadonlyArray<DailyReturn>): Window[] {
+  const windows: Window[] = [];
+  for (const { date } of daily) {
+    const from = addDays(date, -1);
+    const previous = windows.at(-1);
+    if (previous?.to === from) previous.to = date;
+    else windows.push({ from, to: date });
+  }
+  return windows;
 }
 
 /** The monthly boundaries of a window: `from`, every month end before `to`, `to`. */
@@ -123,17 +139,17 @@ export function maxDrawdown(rates: ReadonlyArray<number>): number {
 
 export interface SeriesFigures {
   /** Chained return of the window. */
-  ttwror: number;
+  ttwror: number | null;
   /** Monthly standard deviation × √12. */
-  volatility: number;
-  maxDrawdown: number;
+  volatility: number | null;
+  maxDrawdown: number | null;
   /** (annualised return − risk-free rate) / volatility; 0 without volatility. */
   sharpe: number;
   /** Covariance with the benchmark over its variance; null without a benchmark. */
   beta: number | null;
-  bestMonth: number;
-  worstMonth: number;
-  positiveMonthShare: number;
+  bestMonth: number | null;
+  worstMonth: number | null;
+  positiveMonthShare: number | null;
   benchmarkTtwror: number | null;
 }
 
@@ -165,13 +181,13 @@ export function monthlyFigures(
   }
   return {
     ttwror: tw,
-    volatility: vol,
-    maxDrawdown: maxDrawdown(months),
+    volatility: n ? vol : null,
+    maxDrawdown: n ? maxDrawdown(months) : null,
     sharpe: vol ? (annualised - (options.riskFree ?? RISK_FREE_RATE)) / vol : 0,
     beta,
-    bestMonth: n ? Math.max(...months) : 0,
-    worstMonth: n ? Math.min(...months) : 0,
-    positiveMonthShare: n ? months.filter((r) => r > 0).length / n : 0,
+    bestMonth: n ? Math.max(...months) : null,
+    worstMonth: n ? Math.min(...months) : null,
+    positiveMonthShare: n ? months.filter((r) => r > 0).length / n : null,
     benchmarkTtwror: benchmark ? chain(benchmark) : null,
   };
 }
@@ -204,8 +220,12 @@ export interface PerformanceInput {
   series: ReadonlyArray<Valuation>;
   /** External flows in EUR cents (positive = in). */
   flows: ReadonlyArray<CashFlow>;
-  /** Index levels (daily or monthly, carried forward); enables beta and the benchmark return. */
-  benchmark?: ReadonlyArray<BenchmarkLevel>;
+  /** PP security return flows exclude taxes. Cash facts in `flows` remain after tax. */
+  returnFlows?: ReadonlyArray<CashFlow>;
+  /** PP XIRR converts net payments and tax separately; TTWROR converts pre-tax amounts. */
+  irrFlows?: ReadonlyArray<CashFlow>;
+  /** EUR index levels with the shared boundary freshness policy; enables beta/comparison. */
+  benchmark?: ReadonlyArray<BenchmarkQuote>;
   riskFree?: number;
 }
 
@@ -220,9 +240,9 @@ export interface WindowPerformance extends SeriesFigures {
   contributionsCents: number;
   /** End − start − contributions. */
   gainCents: number;
-  ttwrorAnnualised: number;
+  ttwrorAnnualised: number | null;
   /** Modified Dietz, annualised beyond 12 months (the prototype's IRR). */
-  moneyWeighted: number;
+  moneyWeighted: number | null;
   /** XIRR, actual/365 annualised; null when no rate exists. */
   xirr: number | null;
   monthCount: number;
@@ -235,12 +255,6 @@ function valueOn(series: ReadonlyArray<Valuation>, day: string): number {
   if (guess && guess.date === day) return guess.valueCents;
   let found = 0;
   for (const v of series) if (v.date <= day) found = v.valueCents;
-  return found;
-}
-
-function levelOn(levels: ReadonlyArray<BenchmarkLevel>, day: string): number | undefined {
-  let found: number | undefined;
-  for (const l of levels) if (l.date <= day) found = l.level;
   return found;
 }
 
@@ -259,24 +273,34 @@ export function windowPerformance(input: PerformanceInput, window: Window): Wind
   const days = daysBetween(from, to);
   const slice = input.series.filter((v) => v.date >= from && v.date <= to);
   const flows = input.flows.filter((f) => f.date > from && f.date <= to);
+  const returnFlows = (input.returnFlows ?? input.flows).filter(
+    (f) => f.date > from && f.date <= to,
+  );
   const startValueCents = valueOn(input.series, from);
   const endValueCents = valueOn(input.series, to);
   const contributionsCents = flows.reduce((a, f) => a + f.cents, 0);
 
-  const daily = dailyReturns(slice, flows);
+  const daily = dailyReturns(slice, returnFlows);
   const bounds = monthBoundaries(from, to);
   const months: number[] = [];
   const benchmarkMonths: number[] = [];
   let benchmarkOk = input.benchmark !== undefined && input.benchmark.length > 0;
+  const quoteOn = benchmarkQuoteResolver(input.benchmark ?? []);
   for (let i = 1; i < bounds.length; i++) {
     const a = bounds[i - 1] as string;
     const b = bounds[i] as string;
-    months.push(chain(daily.filter((d) => d.date > a && d.date <= b).map((d) => d.rate)));
+    const valued = daily.filter((d) => d.date > a && d.date <= b);
+    if (valued.length === 0) continue;
+    months.push(chain(valued.map((d) => d.rate)));
     if (benchmarkOk) {
-      const la = levelOn(input.benchmark ?? [], a);
-      const lb = levelOn(input.benchmark ?? [], b);
-      if (la === undefined || lb === undefined || la === 0) benchmarkOk = false;
-      else benchmarkMonths.push(lb / la - 1);
+      let level = 1;
+      for (const segment of returnWindows(valued)) {
+        const la = quoteOn(segment.from).level;
+        const lb = quoteOn(segment.to).level;
+        if (la === null || lb === null || la <= 0) benchmarkOk = false;
+        else level *= lb / la;
+      }
+      benchmarkMonths.push(level - 1);
     }
   }
   const years = days / 365;
@@ -286,25 +310,25 @@ export function windowPerformance(input: PerformanceInput, window: Window): Wind
   });
   // Window return and drawdown from the daily chain (more exact than the monthly one).
   const dailyRates = daily.map((d) => d.rate);
-  const ttwror = chain(dailyRates);
+  const ttwror = dailyRates.length > 0 ? chain(dailyRates) : null;
 
   let xirr: number | null = null;
-  let moneyWeighted = 0;
+  let moneyWeighted: number | null = null;
   if (days > 0) {
     const start = { date: from, valueCents: startValueCents };
     const end = { date: to, valueCents: endValueCents };
     try {
-      xirr = irr(start, end, flows);
+      xirr = irr(start, end, input.irrFlows ?? returnFlows);
     } catch {
       xirr = null;
     }
     const md = modifiedDietz(start, end, flows);
-    moneyWeighted = days > 365 ? Math.pow(1 + md, 365 / days) - 1 : md;
+    moneyWeighted = md === null ? null : days > 365 ? Math.pow(1 + md, 365 / days) - 1 : md;
   }
   return {
     ...figures,
     ttwror,
-    maxDrawdown: maxDrawdown(dailyRates),
+    maxDrawdown: dailyRates.length ? maxDrawdown(dailyRates) : null,
     from,
     to,
     days,
@@ -312,7 +336,7 @@ export function windowPerformance(input: PerformanceInput, window: Window): Wind
     endValueCents,
     contributionsCents,
     gainCents: endValueCents - startValueCents - contributionsCents,
-    ttwrorAnnualised: days > 0 ? Math.pow(1 + ttwror, 365 / days) - 1 : 0,
+    ttwrorAnnualised: ttwror !== null && days > 0 ? Math.pow(1 + ttwror, 365 / days) - 1 : null,
     moneyWeighted,
     xirr,
     monthCount: months.length,

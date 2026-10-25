@@ -1,5 +1,5 @@
 import { Button, useAmountPrivacy } from '@budget/ui';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useParams, useRouter } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { ErrorNote, LoadingNote } from '../ledger/states';
@@ -11,35 +11,37 @@ import { useMonth } from '../shell/use-month';
 import { IncomeBody } from '../expected/income-panel';
 import { ExpectedDetailBack } from '../expected/detail-nav';
 import { PLAN_ERWARTET } from '../nav/pages';
-import { budgetQuery } from './budget-api';
+import { budgetActivityQuery, budgetQuery } from './budget-api';
+import { ActivityContributions } from './activity-contributions';
 import { EnvelopeDetails, EnvelopePanel } from './envelope-panel';
 import { planRows } from './plan-model';
 import './plan.css';
 
-function PlanDetailBack({ month, title }: { month: string; title: string }) {
+function PlanDetailBack({ month }: { month: string }) {
   const router = useRouter();
   const openedInApp = useLocation({ select: (location) => location.state.planDetailOpenedInApp });
   return (
     <div className="plan-detail-nav">
       <nav aria-label="Brotkrumen">
-        <AppLink to="/plan/monat" search={{ monat: month }}>
-          Plan · Monat
+        <AppLink
+          to="/plan/monat"
+          search={{ monat: month }}
+          onClick={(event) => {
+            if (
+              openedInApp &&
+              !event.ctrlKey &&
+              !event.metaKey &&
+              !event.shiftKey &&
+              !event.altKey
+            ) {
+              event.preventDefault();
+              router.history.back();
+            }
+          }}
+        >
+          Zurück zum Monat
         </AppLink>
-        {' › '}
-        <span aria-current="page">{title}</span>
       </nav>
-      <AppLink
-        to="/plan/monat"
-        search={{ monat: month }}
-        onClick={(event) => {
-          if (openedInApp && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
-            event.preventDefault();
-            router.history.back();
-          }
-        }}
-      >
-        Zurück zum Monat
-      </AppLink>
     </div>
   );
 }
@@ -48,7 +50,10 @@ export function EnvelopePage() {
   useAmountPrivacy();
   const { id } = useParams({ strict: false }) as { id: string };
   const [month] = useMonth();
-  const budget = useQuery(budgetQuery(month));
+  const client = useQueryClient();
+  const query = budgetActivityQuery(month, id);
+  const activity = useInfiniteQuery(query);
+  const budget = { ...activity, data: activity.data?.pages[0] };
   const rows = budget.data
     ? planRows({
         ...budget.data,
@@ -61,11 +66,10 @@ export function EnvelopePage() {
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
   }, [row?.id]);
-  const title = row?.name ?? 'Envelope';
   return (
-    <PageFrame meta={PLAN_MONAT} title={title}>
+    <PageFrame meta={PLAN_MONAT}>
       <div className="plan plan-detail">
-        <PlanDetailBack month={month} title={title} />
+        <PlanDetailBack month={month} />
         {budget.isPending && <LoadingNote what="Envelope" />}
         {budget.isError && (
           <ErrorNote what="Envelope" error={budget.error} onRetry={() => void budget.refetch()} />
@@ -76,6 +80,17 @@ export function EnvelopePage() {
             <h2 id="envelope-title" ref={heading} tabIndex={-1}>
               {row.name} · {monthLabel(month)}
             </h2>
+            <ActivityContributions
+              key={`${month}:${id}`}
+              month={month}
+              pages={activity.data?.pages ?? []}
+              categories={budget.data!.categories}
+              error={activity.error}
+              loadingMore={activity.isFetchingNextPage}
+              hasMore={activity.hasNextPage}
+              onMore={() => void activity.fetchNextPage()}
+              onReload={() => void client.resetQueries({ queryKey: query.queryKey, exact: true })}
+            />
             <EnvelopeDetails month={month} row={row} />
             <Button variant="ghost" onClick={() => setEditing(true)}>
               Zuweisen oder verschieben
@@ -105,22 +120,13 @@ export function PlanIncomePage() {
     heading.current?.focus({ preventScroll: true });
   }, [month]);
   return (
-    <PageFrame
-      meta={expected ? PLAN_ERWARTET : PLAN_MONAT}
-      title={`Einnahmen ${monthLabel(month)}`}
-    >
+    <PageFrame meta={expected ? PLAN_ERWARTET : PLAN_MONAT}>
       <div className="plan plan-detail">
-        {expected ? (
-          <ExpectedDetailBack title="Einnahmen" />
-        ) : (
-          <PlanDetailBack month={month} title="Einnahmen" />
-        )}
+        {expected ? <ExpectedDetailBack /> : <PlanDetailBack month={month} />}
         <section className="card insp-card" aria-label="Einnahmen">
-          {expected && (
-            <h2 ref={heading} tabIndex={-1}>
-              Einnahmen {monthLabel(month)}
-            </h2>
-          )}
+          <h2 ref={heading} tabIndex={-1}>
+            Einnahmen {monthLabel(month)}
+          </h2>
           <IncomeBody month={month} bookedCents={budget.data?.summary.incomeCents} />
         </section>
       </div>

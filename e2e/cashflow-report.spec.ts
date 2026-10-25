@@ -55,6 +55,9 @@ test('figure, chain, Kapitalerträge line, charts and table agree with the cashf
   await expect(page.getByTestId('cf-capital')).toContainText('weder zu den Einnahmen');
   await expect(page.getByTestId('cashflow-chart')).toBeVisible();
   await expect(page.getByTestId('cashflow-net-chart')).toBeVisible();
+  await expect(
+    page.getByTestId('cashflow-net-chart').locator('.bar-neg-ink').first(),
+  ).toBeVisible();
   const rows = page.getByTestId('cf-table').locator('tbody tr');
   await expect(rows).toHaveCount(t.months + 1);
   const total = rows.last().locator('td');

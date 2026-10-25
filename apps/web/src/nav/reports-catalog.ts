@@ -36,7 +36,7 @@ const group = (slug: string, no: number, name: string, raw: Raw[]): ReportGroup 
   })),
 });
 
-export const REPORT_GROUPS: ReadonlyArray<ReportGroup> = [
+const ORIGINAL_REPORT_GROUPS: ReadonlyArray<ReportGroup> = [
   group('monat', 1, 'Monat und Einkommen', [
     [
       'onepager',
@@ -256,8 +256,17 @@ export const REPORT_GROUPS: ReadonlyArray<ReportGroup> = [
 ];
 
 // Keep published report numbers stable; the new overview leads its section.
-const overviewGroup = REPORT_GROUPS.find((g) => g.slug === 'ueberblick')!;
+const overviewGroup = ORIGINAL_REPORT_GROUPS.find((g) => g.slug === 'ueberblick')!;
 overviewGroup.items = [overviewGroup.items.at(-1)!, ...overviewGroup.items.slice(0, -1)];
+
+/** Keep historical report positions while moving 3.1 to Plan. */
+export const LIQUIDITY_FORECAST = ORIGINAL_REPORT_GROUPS.flatMap((group) => group.items).find(
+  (report) => report.id === 'liquiditaet',
+)!;
+export const REPORT_GROUPS: ReadonlyArray<ReportGroup> = ORIGINAL_REPORT_GROUPS.map((group) => ({
+  ...group,
+  items: group.items.filter((report) => report.id !== 'liquiditaet'),
+}));
 
 export const REPORTS: ReadonlyArray<ReportEntry & { group: ReportGroup }> = REPORT_GROUPS.flatMap(
   (g) => g.items.map((item) => ({ ...item, group: g })),

@@ -35,8 +35,8 @@ test('Plan reaches liquidity and a payment keeps its account, due date and chose
     amountCents: -10_001,
   });
   await page.goto('/plan/monat');
-  await page.getByRole('link', { name: 'Liquiditätsprognose', exact: true }).click();
-  await expect(page).toHaveURL(/reports\/liquiditaet/);
+  await page.getByRole('link', { name: 'Prognose', exact: true }).click();
+  await expect(page).toHaveURL(/plan\/prognose/);
   await page.getByRole('button', { name: '90 Tage', exact: true }).click();
   await expect(page.getByTestId('liq-verdict').locator('strong')).toContainText('18.09.2026');
   await expect(page.getByTestId('liq-verdict').locator('strong')).toContainText('20.08.2026');

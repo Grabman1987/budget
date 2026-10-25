@@ -83,9 +83,13 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
   await page.goto('/konten/posteingang');
   const count = (await (await countResponse).json()).count;
   const inboxTrigger = page
-    .locator(info.project.name === 'mobile' ? '.m-head' : '.topbar')
-    .getByRole('link', { name: /Posteingang, \d+ offen/ });
-  await expect(inboxTrigger).toHaveAttribute('aria-label', `Posteingang, ${count} offen`);
+    .locator(info.project.name === 'mobile' ? '.m-status' : '.topbar')
+    .getByRole('link', {
+      name: info.project.name === 'mobile' ? /\d+ zu prüfen/ : /Prüfen, \d+ offen/,
+    });
+  await expect(inboxTrigger).toHaveText(
+    info.project.name === 'mobile' ? `${count} zu prüfen` : `Prüfen · ${count}`,
+  );
   const row = page.getByTestId('inbox-row').filter({ hasText: tag }).filter({ hasText: '12,00' });
   await expect(row).toContainText('vorgemerkt');
   await row.getByRole('button', { name: 'Bestätigen', exact: true }).click();
@@ -140,6 +144,12 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
       fullPage: true,
     });
   }
+  // Since #561 the page opens on "Umsätze"; the stored warning belongs to "Aufgaben".
+  const aufgaben = page
+    .getByRole('group', { name: 'Teil von Prüfen' })
+    .getByRole('button', { name: /^Aufgaben · \d+$/ });
+  await aufgaben.click();
+  await expect(aufgaben).toHaveAttribute('aria-pressed', 'true');
   const resolve = warning.getByRole('button', { name: 'Als erledigt markieren' });
   await expect(resolve).toHaveClass(/btn-ghost/);
   await expect(resolve).not.toHaveClass(/btn-alert/);
@@ -149,10 +159,42 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
   await expect(warning).toBeVisible();
   await page.locator('.toast.is-open').getByRole('button', { name: 'Wiederholen' }).click();
   await expect(warning).toHaveCount(0);
-  await page.goto('/konten');
-  await inboxTrigger.click();
-  await expect(page).toHaveURL(/\/konten\/posteingang/);
-  await expect(page.getByRole('dialog', { name: 'Posteingang', exact: true })).toHaveCount(0);
+  // #664: the booking and the warning above are done, so the queue may legitimately be empty here.
+  // Own synthetic pending task, so the "N zu prüfen" / "Prüfen · N" link exists in every shard layout.
+  const pendingId = `inbox-pending-${info.project.name}-${info.retry}`;
+  const pending = openDatabase(DB_MAIN);
+  try {
+    insertTracked(
+      pending.db,
+      inboxItem,
+      {
+        id: pendingId,
+        kind: 'stale_value',
+        title: `Offene Quelle ${tag}`,
+        detail: 'Synthetische offene Aufgabe für den Prüfen-Zähler.',
+        refType: 'fx',
+        refId: 'synthetic-fx-pending',
+      },
+      { actor: 'e2e' },
+    );
+  } finally {
+    pending.close();
+  }
+  try {
+    await page.goto('/konten');
+    await expect(inboxTrigger).toHaveText(
+      info.project.name === 'mobile' ? /^[1-9]\d* zu prüfen$/ : /^Prüfen · [1-9]\d*$/,
+    );
+    await inboxTrigger.click();
+    await expect(page).toHaveURL(/\/konten\/pruefen/);
+    await expect(page.getByRole('dialog', { name: 'Posteingang', exact: true })).toHaveCount(0);
+  } finally {
+    const cleaned = await request.post(`${MAIN_URL}/api/inbox/${pendingId}/resolve`, {
+      headers: { origin: MAIN_URL },
+      data: {},
+    });
+    expect(cleaned.ok()).toBeTruthy();
+  }
   // Own synthetic fixtures only; no shared ledger assumptions or real data.
   const deleted = await request.delete(`${MAIN_URL}/api/bookings/${booking.id}`, {
     headers: { origin: MAIN_URL },
@@ -160,17 +202,17 @@ test('actual inbox: confirm, categorize, resolve warning, undo and keyboard navi
   expect(deleted.ok()).toBeTruthy();
 });
 
-test('empty and failed inbox count never present a fabricated nine', async ({ page }) => {
+test('empty and failed inbox count never present a fabricated nine', async ({ page, isMobile }) => {
   await page.route('**/api/inbox/count', (route) => route.fulfill({ json: { count: 0 } }));
   await page.route(
     (url) => url.pathname === '/api/inbox',
     (route) => fulfillInboxFixture(route, { asOf: '2026-09-17', count: 0, entries: [] }),
   );
   await page.goto('/konten/posteingang');
-  await expect(page.getByText('Posteingang leer.', { exact: false })).toBeVisible();
-  await expect(
-    page.getByRole('link', { name: 'Posteingang, 0 offen', exact: true }).filter({ visible: true }),
-  ).toBeVisible();
+  await expect(page.getByText('Prüfen leer.', { exact: false })).toBeVisible();
+  if (isMobile)
+    await expect(page.locator('.m-status').getByRole('link', { name: /zu prüfen/ })).toHaveCount(0);
+  else await expect(page.locator('.review-pill')).toHaveText('Prüfen');
   await page.unroute('**/api/inbox/count');
   await page.route('**/api/inbox/count', (route) =>
     route.fulfill({ status: 503, json: { error: 'unavailable' } }),
@@ -178,7 +220,9 @@ test('empty and failed inbox count never present a fabricated nine', async ({ pa
   await page.reload();
   await expect(
     page
-      .getByRole('link', { name: 'Posteingang, Anzahl noch nicht verfügbar' })
+      .getByRole('link', {
+        name: isMobile ? 'Prüfen: Anzahl nicht verfügbar' : 'Prüfen, Anzahl noch nicht verfügbar',
+      })
       .filter({ visible: true }),
   ).toBeVisible();
 });
@@ -212,7 +256,7 @@ test('a long queue draws in pages of 100 rows and keeps the group count', async 
 
 test('legacy inbox panel URLs lead to the existing page', async ({ page }) => {
   await page.goto('/konten?panel=posteingang');
-  await expect(page).toHaveURL(/\/konten\/posteingang/);
+  await expect(page).toHaveURL(/\/konten\/pruefen/);
   await expect(page.getByRole('dialog', { name: 'Posteingang', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Offene Entscheidungen' })).toBeVisible();
 });

@@ -53,6 +53,7 @@ test('savings-plan history restores browser navigation and portfolio scroll', as
   expect(scroll).toBeGreaterThan(0);
   await trigger.click();
   await expect(page).toHaveURL(new RegExp(`/vermoegen/portfolio/sparplan/${id}\\?zeitraum=3J$`));
+  await page.locator('.savings-versions > summary').click();
   await expect(
     page.getByRole('region', { name: 'Versionsverlauf' }).getByRole('listitem'),
   ).toHaveCount(2);
@@ -62,6 +63,7 @@ test('savings-plan history restores browser navigation and portfolio scroll', as
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeCloseTo(scroll, 0);
   await page.goForward();
   await expect(page).toHaveURL(new RegExp(`/vermoegen/portfolio/sparplan/${id}\\?zeitraum=3J$`));
+  await page.locator('.savings-versions > summary').click();
   await expect(
     page.getByRole('region', { name: 'Versionsverlauf' }).getByRole('listitem'),
   ).toHaveCount(2);

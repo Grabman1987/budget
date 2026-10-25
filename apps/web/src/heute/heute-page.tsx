@@ -1,39 +1,33 @@
 import {
   useAmountPrivacy,
   ChartValue,
-  maskMoneyText,
   Button,
   ClassTag,
   DimensionChain,
   DimensionChainDrawing,
-  RevisionTable,
   SectionHead,
   type DimensionChainTerm,
   type RevisionRow,
 } from '@budget/ui';
-import { addDays, cents, closeEntryMonth } from '@budget/domain';
+import { addDays, cents } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useMemo, useState, type ReactNode } from 'react';
-import {
-  AlertTriangle,
-  ArrowDown,
-  Info,
-  ArrowUp,
-  ChevronRight,
-  CircleCheck,
-  Clock3,
-} from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, ChevronRight } from 'lucide-react';
 import { PaceAccuracyNote } from '../reports/planning-accuracy-report';
 import { eur, longDay, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
-import { ValuationHint } from '../ledger/valuation-hint';
+import { ValuationSourceHint } from '../ledger/valuation-hint';
 import { HEUTE } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { monthLabel as monthName } from '../nav/month';
 import { currentMonth, useMonth } from '../shell/use-month';
 import { AppLink } from '../shell/app-link';
-import { BalanceChart, HeutePaceChart } from './charts';
+import { HeutePaceChart } from './charts';
+import { LiquidityChart } from '../reports/liquidity-chart';
+import { liquidityQuery } from '../reports/liquidity-api';
+import { salaryDay } from '../reports/liquidity-selection';
+import { expectedQuery } from '../expected/api';
 import { heuteQuery, type Heute } from './api';
 import { useBalancePeriod } from './use-balance-period';
 import './heute.css';
@@ -42,7 +36,8 @@ import { useStoredFlag } from '../shell/use-stored-flag';
 import { AttentionBar, FundingNotes } from './attention-bar';
 import { savingsProposalsQuery } from '../wealth/savings-api';
 import { sourceMoney } from '../wealth/trade-api';
-import { AnswerCards } from './answer-cards';
+import { Kennzahlen } from './kennzahlen';
+import { budgetQuery } from '../budget/budget-api';
 import { DailyBudgetLine } from './charts';
 import { VerdictLine } from '../reports/verdict-line';
 import { heuteVerdictFacts } from '../reports/verdict-facts';
@@ -94,44 +89,23 @@ function HeuteBody({ data }: { data: Heute }) {
       search: { monat: data.stand.month, period: data.stand.period },
     });
   const [, , setMonth] = useMonth();
-  const savings = useQuery(savingsProposalsQuery());
-  // Another month than today's: the lead, next steps, upcoming, checks, net worth and bookings
-  // stay anchored to today, and the page says so.
   const away = data.stand.month !== data.stand.today.slice(0, 7);
   const net = 'unavailable' in data.netWorth ? null : data.netWorth;
   const check = 'unavailable' in data.financeCheck ? null : data.financeCheck;
   const phone = useIsPhone();
-  const revisions: RevisionRow[] = [];
-  const closeMonth = closeEntryMonth(data.stand.today);
-  if (closeMonth)
-    revisions.push({
-      id: 'month-close',
-      letter: 'A',
-      urgent: false,
-      title: `Monatsabschluss · ${monthName(closeMonth)}`,
-      detail: 'Posteingang, Konten und Überziehungen prüfen; danach den nächsten Monat planen.',
-      action: {
-        label: 'Fortsetzen',
-        onClick: () =>
-          void navigate({
-            to: '/monatsabschluss/$month',
-            params: { month: closeMonth },
-            search: {},
-          }),
-      },
-    });
-  for (const proposal of savings.data?.proposals ?? [])
-    revisions.push({
-      id: proposal.id,
-      letter: String.fromCharCode(65 + (revisions.length % 26)),
-      urgent: false,
-      title: `Sparplan: ${proposal.securityName}`,
-      detail: `${longDay(proposal.date)} · ${sourceMoney(proposal.amountCents, proposal.currency)} · ${proposal.accountName}`,
-      action: {
-        label: 'Ausführung prüfen',
-        onClick: () => void navigate({ to: '/konten/posteingang' }),
-      },
-    });
+  const savings = useQuery(savingsProposalsQuery());
+  const budget = useQuery(budgetQuery(data.stand.month));
+  const savingsRows: RevisionRow[] = (savings.data?.proposals ?? []).map((proposal, index) => ({
+    id: proposal.id,
+    letter: String.fromCharCode(65 + (index % 26)),
+    urgent: false,
+    title: `Sparplan: ${proposal.securityName}`,
+    detail: `${longDay(proposal.date)} · ${sourceMoney(proposal.amountCents, proposal.currency)} · ${proposal.accountName}`,
+    action: {
+      label: 'Ausführung prüfen',
+      onClick: () => void navigate({ to: '/konten/pruefen', search: { teil: 'aufgaben' } }),
+    },
+  }));
   const leadTerms: DimensionChainTerm[] = data.lead.chain.map((term, index) => ({
     ...term,
     value: cents(term.value),
@@ -152,37 +126,44 @@ function HeuteBody({ data }: { data: Heute }) {
     <>
       {away && (
         <p className="heute-month-note" role="note" data-testid="heute-month-note">
-          <Info size={16} aria-hidden="true" />
-          <span>
-            Du siehst {monthName(data.stand.month)}. Pace, Verlauf und angepinnte Envelopes folgen
-            diesem Monat; Frei verfügbar bis Gehalt, Nächste Schritte, Anstehend, Finanz-Check,
-            Nettovermögen und Buchungen zeigen den Stand von heute ({longDay(data.stand.today)}).
-            Die Antwortkarten und das nächste Sparziel zeigen ebenfalls den laufenden Monat.
-          </span>
+          <span>Ansicht: {monthName(data.stand.month)} –</span>
           <Button variant="ghost" size="sm" onClick={() => setMonth(currentMonth())}>
             Zum aktuellen Monat
           </Button>
         </p>
       )}
-      <AnswerCards
+      <Kennzahlen
         data={data}
+        budget={budget}
         chainOpen={chainOpen}
-        onBudgetClick={() => setChainOpen((open) => !open)}
+        onLeadClick={() => setChainOpen((open) => !open)}
       />
       <VerdictLine facts={heuteFacts} />
-      <AttentionBar data={data} />
+      <AttentionBar
+        data={data}
+        savingsRows={savingsRows}
+        savingsError={
+          savings.isError && (
+            <ErrorNote
+              what="Sparplanvorschläge"
+              error={savings.error}
+              onRetry={() => void savings.refetch()}
+            />
+          )
+        }
+      />
       <section className="heute-lead" aria-labelledby="heute-lead-title">
         <div className="heute-lead-head">
           <div>
-            <h2 id="heute-lead-title">Kontoprognose</h2>
+            <h2 id="heute-lead-title">Spielraum bis Gehalt</h2>
             <p>
               Verfügbar in allen Envelopes für Bedarf und Wunsch, abzüglich der Rechnungen, die vor
               dem Gehalt noch fällig sind.
             </p>
             {away && (
               <span className="heute-anchor" data-testid="heute-anchor">
-                Bis Gehalt zählt immer ab heute ({shortDay(data.stand.today)}, Gehalt am{' '}
-                {shortDay(data.stand.payday.day)}), nicht ab {monthName(data.stand.month)}.
+                Frei bis Gehalt: Stand heute · {longDay(data.stand.today)}. Ansicht:{' '}
+                {monthName(data.stand.month)}.
               </span>
             )}
           </div>
@@ -196,20 +177,7 @@ function HeuteBody({ data }: { data: Heute }) {
             {chainOpen ? 'Herleitung ausblenden' : 'Herleitung zeigen'}
           </Button>
         </div>
-        <BalanceChart
-          data={data}
-          chainOpen={chainOpen}
-          onToggleChain={() => setChainOpen((open) => !open)}
-          showLead={false}
-        />
         <DailyBudgetLine data={data} />
-        {data.balance.forecast.length > 0 && (
-          <p className="heute-note">
-            Kontoprognose bis {longDay(data.stand.to)} · Budget-Konten; Kreditkarten im Budget
-            eingeschlossen, Reservekonten ausgeschlossen · 14 Tage Rückblick · gleicher Horizont wie
-            R07.
-          </p>
-        )}
         {chainOpen && (
           <div id="heute-lead-chain" className="heute-chain-area">
             <DimensionChain
@@ -225,6 +193,8 @@ function HeuteBody({ data }: { data: Heute }) {
           </div>
         )}
       </section>
+
+      <CompactForecastCard />
 
       <section className="heute-section heute-pace" aria-labelledby="heute-pace-title">
         <SectionHead
@@ -303,62 +273,37 @@ function HeuteBody({ data }: { data: Heute }) {
       </section>
 
       <Upcoming
-        items={data.upcoming14.filter((p) => p.dueDate < addDays(data.stand.today, 7))}
+        items={data.upcoming14}
         id="heute-upcoming-title"
-        events={data.upcomingEvents}
-        title="Was steht an?"
+        events={data.upcomingEvents.filter((event) => event.date <= addDays(data.stand.today, 14))}
+        title="Fällig 14 Tage"
+        standToday={away ? longDay(data.stand.today) : undefined}
       />
-      <section className="heute-wealth-line" aria-labelledby="heute-wealth-title">
-        <h2 id="heute-wealth-title">Nettovermögen · 12 Monate</h2>
-        {net ? (
-          <>
-            <WealthSparkline series={net.series} />
-            <AppLink to="/vermoegen/nettovermoegen" search={{ zeitraum: '1J' }}>
-              {eur(net.yearDeltaCents, { sign: true })} seit {shortDay(net.yearAgoDay)} vor 12
-              Monaten
+      <HeuteWealthLine data={data} />
+      <section className="heute-section heute-finance-check" aria-labelledby="heute-check-title">
+        <SectionHead
+          id="heute-check-title"
+          title="Finanz-Check"
+          aside={
+            <AppLink to="/einstellungen/regelwerk">
+              Alle Regeln <ChevronRight size={15} aria-hidden="true" />
             </AppLink>
-            <ValuationHint incomplete={data.incomplete} />
-          </>
+          }
+        />
+        {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
+        {check ? (
+          <CheckCounts check={check} date={data.stand.today} />
         ) : (
-          'unavailable' in data.netWorth && (
-            <ValuationNote message={data.netWorth.unavailable.message} />
+          'unavailable' in data.financeCheck && (
+            <ValuationNote message={data.financeCheck.unavailable.message} />
           )
         )}
       </section>
       <MoreMonth key={phone ? 'phone' : 'desktop'} phone={phone}>
-        <div className="heute-main-grid">
-          <section className="heute-section heute-next-steps" aria-labelledby="heute-next-title">
-            <SectionHead
-              id="heute-next-title"
-              title="Nächste Schritte"
-              aside={`${revisions.length} offen`}
-            />
-            {savings.isError && (
-              <ErrorNote
-                what="Sparplanvorschläge"
-                error={savings.error}
-                onRetry={() => void savings.refetch()}
-              />
-            )}
-            {revisions.length === 0 ? (
-              <EmptyNote>
-                Keine zusätzlichen Schritte. Offene Punkte stehen unter „Braucht Aufmerksamkeit“.
-              </EmptyNote>
-            ) : (
-              <RevisionTable
-                rows={revisions}
-                caption="Nächste Schritte"
-                empty={<EmptyNote>Keine offenen Schritte.</EmptyNote>}
-              />
-            )}
-          </section>
-        </div>
-
         <div className="heute-detail-grid">
           <section className="heute-section" aria-labelledby="heute-pinned-title">
             <SectionHead
               id="heute-pinned-title"
-              detail={1}
               title="Angepinnte Envelopes"
               aside={
                 <AppLink to="/plan/monat" search={{ monat: data.stand.month }}>
@@ -430,56 +375,9 @@ function HeuteBody({ data }: { data: Heute }) {
             )}
           </section>
 
-          <section className="heute-section" aria-labelledby="heute-check-title">
-            <SectionHead
-              id="heute-check-title"
-              detail={3}
-              title="Finanz-Check"
-              aside={
-                <AppLink to="/einstellungen/regelwerk">
-                  Alle Regeln <ChevronRight size={15} aria-hidden="true" />
-                </AppLink>
-              }
-            />
-            {check ? (
-              <>
-                <CheckCounts check={check} date={data.stand.today} />
-                {check.keyRules.length === 0 ? (
-                  <EmptyNote>Für den Finanz-Check sind noch keine Regeln auswertbar.</EmptyNote>
-                ) : (
-                  <ul className="heute-list">
-                    {check.keyRules
-                      .filter((rule) => !rule.actionNeeded)
-                      .map((rule) => (
-                        <li className="heute-rule" key={rule.code}>
-                          <div>
-                            <strong>{rule.name}</strong>
-                            <span>{maskMoneyText(rule.valueText)}</span>
-                          </div>
-                          <span className={`heute-state is-${rule.status}`}>
-                            <StatusIcon status={rule.status} />
-                            {rule.status === 'ok'
-                              ? 'erfüllt'
-                              : rule.status === 'warn'
-                                ? 'Warnung'
-                                : 'verletzt'}
-                          </span>
-                        </li>
-                      ))}
-                  </ul>
-                )}
-              </>
-            ) : (
-              'unavailable' in data.financeCheck && (
-                <ValuationNote message={data.financeCheck.unavailable.message} />
-              )
-            )}
-          </section>
-
           <section className="heute-section heute-net-worth" aria-labelledby="heute-net-title">
             <SectionHead
               id="heute-net-title"
-              detail={4}
               title="Vermögensaufteilung"
               aside={
                 <AppLink to="/vermoegen/nettovermoegen">
@@ -487,6 +385,7 @@ function HeuteBody({ data }: { data: Heute }) {
                 </AppLink>
               }
             />
+            {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
             {net ? (
               <>
                 <div className={`heute-delta ${net.deltaCents < 0 ? 'text-bad' : 'text-good'}`}>
@@ -550,6 +449,7 @@ function HeuteBody({ data }: { data: Heute }) {
                     result={{ label: 'Nettovermögen', cents: cents(net.totalCents) }}
                     onSelect={(key) => openNetDetail(key as DimensionKind)}
                   />
+                  <ValuationSourceHint sources={data.valuationSources} label="Nettovermögen" />
                 </div>
                 <p className="heute-note">
                   Wähle ein Maß für die Konten.
@@ -558,11 +458,13 @@ function HeuteBody({ data }: { data: Heute }) {
                 <p className="heute-note">
                   Stichtag {longDay(net.asOf)} · Vormonatsende {eur(net.previousMonthEndCents)}
                 </p>
-                <ValuationHint incomplete={data.incomplete} />
               </>
             ) : (
               'unavailable' in data.netWorth && (
-                <ValuationNote message={data.netWorth.unavailable.message} />
+                <>
+                  <ValuationNote message={data.netWorth.unavailable.message} />
+                  <ValuationSourceHint sources={data.valuationSources} label="Nettovermögen" />
+                </>
               )
             )}
           </section>
@@ -570,7 +472,6 @@ function HeuteBody({ data }: { data: Heute }) {
           <section className="heute-section" aria-labelledby="heute-bookings-title">
             <SectionHead
               id="heute-bookings-title"
-              detail={5}
               title="Letzte Buchungen"
               aside={
                 <AppLink to="/konten/buchungen">
@@ -578,6 +479,7 @@ function HeuteBody({ data }: { data: Heute }) {
                 </AppLink>
               }
             />
+            {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
             {data.lastBookings.length === 0 ? (
               <EmptyNote>Noch keine Buchungen vorhanden.</EmptyNote>
             ) : (
@@ -610,14 +512,77 @@ function HeuteBody({ data }: { data: Heute }) {
             )}
           </section>
         </div>
-        <Upcoming
-          items={data.upcoming14.filter((p) => p.dueDate >= addDays(data.stand.today, 7))}
-          id="heute-later-title"
-          title="Danach · bis in 14 Tagen"
-        />
         <FundingNotes data={data} />
       </MoreMonth>
     </>
+  );
+}
+
+/** Stand-today forecast: exactly the same read and unmodified series as the linked detail. */
+function CompactForecastCard() {
+  useAmountPrivacy();
+  const forecast = useQuery(liquidityQuery('35d', []));
+  const payments = useQuery(expectedQuery());
+  const view = forecast.isSuccess ? forecast.data : undefined;
+  const report = !forecast.isFetching && !forecast.isError ? view?.report : undefined;
+  const salaryIds = new Set(
+    (payments.data ?? [])
+      .filter((payment) => payment.incomeTypeId === 'income-salary')
+      .map((payment) => payment.id),
+  );
+  return (
+    <section
+      className="heute-section heute-compact-forecast"
+      aria-labelledby="heute-forecast-title"
+    >
+      <div className="heute-compact-forecast-head">
+        <h2 id="heute-forecast-title">Kontoprognose · 35 Tage</h2>
+        <AppLink
+          className="btn btn-ghost"
+          to="/plan/prognose"
+          search={{ horizon: '35d', levers: '' }}
+          aria-label="Details zur Kontoprognose für 35 Tage"
+        >
+          Details
+        </AppLink>
+      </div>
+      {forecast.isFetching && <LoadingNote what="Kontoprognose" />}
+      {forecast.isError && (
+        <ErrorNote
+          what="Kontoprognose"
+          error={forecast.error}
+          onRetry={() => void forecast.refetch()}
+        />
+      )}
+      {view && !view.available && (
+        <EmptyNote>Ohne Budget-Konto gibt es keine Kontoprognose.</EmptyNote>
+      )}
+      {report && (
+        <>
+          <p className="heute-note">
+            Stand heute · {longDay(view?.asOf ?? report.startDay)} · ohne Stellschrauben
+            {
+              ' · Budget-Konten; Kreditkarten im Budget eingeschlossen, Reservekonten ausgeschlossen.'
+            }
+          </p>
+          <LiquidityChart report={report} salaryDay={salaryDay(report, salaryIds)} compact />
+          <p
+            className="heute-forecast-low"
+            data-day={report.low?.day}
+            data-cents={report.low?.cents}
+          >
+            {report.low ? (
+              <>
+                Tiefpunkt: <strong>{eur(report.low.cents)}</strong>
+                {' · '}am {longDay(report.low.day)}
+              </>
+            ) : (
+              'Kein Tiefpunkt verfügbar.'
+            )}
+          </p>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -635,13 +600,45 @@ function MoreMonth({ phone, children }: { phone: boolean; children: ReactNode })
         Mehr zum Monat
       </Button>
       <p className="heute-note">
-        Angepinnte Envelopes, Finanz-Check, Vermögensaufteilung, 50/30/20, Ziele, weitere Zahlungen
-        und letzte Buchungen.
+        Angepinnte Envelopes, Vermögensaufteilung, Ziele und letzte Buchungen.
       </p>
       <div id="heute-more-content" hidden={!open}>
         {children}
       </div>
     </div>
+  );
+}
+
+/** Visible independently of the optional month detail; provenance describes its current endpoint. */
+export function HeuteWealthLine({
+  data,
+}: {
+  data: Pick<Heute, 'stand' | 'netWorth' | 'valuationSources'>;
+}) {
+  useAmountPrivacy();
+  const away = data.stand.month !== data.stand.today.slice(0, 7);
+  const net = 'unavailable' in data.netWorth ? null : data.netWorth;
+  return (
+    <section className="heute-wealth-line" aria-labelledby="heute-wealth-title">
+      <h2 id="heute-wealth-title">Nettovermögen · 12 Monate</h2>
+      {away && <p className="heute-note">Stand heute · {longDay(data.stand.today)}</p>}
+      {net ? (
+        <>
+          <WealthSparkline series={net.series} />
+          <AppLink to="/vermoegen/nettovermoegen" search={{ zeitraum: '1J' }}>
+            {eur(net.yearDeltaCents, { sign: true })} seit {shortDay(net.yearAgoDay)} vor 12 Monaten
+          </AppLink>
+        </>
+      ) : (
+        'unavailable' in data.netWorth && (
+          <ValuationNote message={data.netWorth.unavailable.message} />
+        )
+      )}
+      <ValuationSourceHint
+        sources={data.valuationSources}
+        label="Verlauf Nettovermögen · aktueller Stand"
+      />
+    </section>
   );
 }
 
@@ -663,7 +660,12 @@ function WealthSparkline({ series }: { series: { day: string; cents: number }[] 
         role="img"
         aria-label="Nettovermögen · Verlauf der letzten 12 Monate"
       >
-        <polyline points={points} fill="none" stroke="var(--line)" strokeWidth="2" />
+        <polyline
+          points={points}
+          fill="none"
+          stroke="var(--line)"
+          strokeWidth="var(--stroke-measure)"
+        />
       </svg>
     </AppLink>
   );
@@ -818,13 +820,6 @@ export function CheckCounts({
       )}
     </div>
   );
-}
-
-function StatusIcon({ status }: { status: 'ok' | 'warn' | 'bad' }) {
-  useAmountPrivacy();
-  if (status === 'ok') return <CircleCheck size={15} aria-hidden="true" />;
-  if (status === 'warn') return <Clock3 size={15} aria-hidden="true" />;
-  return <AlertTriangle size={15} aria-hidden="true" />;
 }
 
 function monthLabel(month: string) {

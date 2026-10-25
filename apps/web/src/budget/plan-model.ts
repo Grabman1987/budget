@@ -56,6 +56,10 @@ export interface PlanGroup {
 
 export const CLASS_TEXT = { need: 'Bedarf', want: 'Wunsch', future: 'Zukunft' } as const;
 
+/** What is left in the envelopes of the month: the one sum Plan (inspector) and Heute both show. */
+export const availableInEnvelopes = (rows: ReadonlyArray<{ availableCents: number }>) =>
+  rows.reduce((sum, r) => sum + r.availableCents, 0);
+
 /** Rows in list order; hidden categories only while they still hold or move money. */
 export function planRows(view: BudgetMonthView): PlanRow[] {
   const byId = new Map(view.summary.envelopes.map((e) => [e.categoryId, e]));
@@ -86,6 +90,27 @@ export function planRows(view: BudgetMonthView): PlanRow[] {
 /** Cash overspending needs action (red); credit overspending is new card debt (blueprint). */
 export const isCashOver = (r: PlanRow) => r.cashOverspentCents > 0;
 export const isCard = (r: PlanRow) => r.kind === 'card_payment';
+
+/** Display-only net spending; the server's envelope and target amounts remain authoritative. */
+export function spendingBar(
+  r: Pick<EnvelopeSummary, 'activityCents' | 'availableCents' | 'needCents'>,
+) {
+  const spent = Math.max(0, -r.activityCents);
+  const total = r.availableCents + spent;
+  const over = r.availableCents < 0;
+  const status = over
+    ? `Überzogen um ${eur(-r.availableCents)}`
+    : spent === 0
+      ? 'Noch nichts ausgegeben'
+      : r.availableCents === 0
+        ? 'Komplett ausgegeben'
+        : `Ausgegeben ${eur(spent)} von ${eur(total)}`;
+  return {
+    status: status + (r.needCents > 0 ? ` · fehlt ${eur(r.needCents)} bis Ziel` : ''),
+    spentShare: over ? 1 : total > 0 ? Math.min(1, spent / total) : 0,
+    over,
+  };
+}
 
 /** `day` of `month` as `YYYY-MM-DD`, clamped to the month's last day (31 → 30.04.). */
 const dayIn = (month: string, day: number) =>

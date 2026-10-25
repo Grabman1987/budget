@@ -9,5 +9,6 @@ declare module '@tanstack/history' {
     expectedFrom?: ListedBooking;
     expectedView?: 'next' | 'contracts' | 'all';
     expectedKind?: 'all' | 'inflow' | 'outflow';
+    expectedHorizon?: 35 | 90;
   }
 }

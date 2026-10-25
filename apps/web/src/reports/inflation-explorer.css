@@ -17,14 +17,11 @@
   gap: 8px;
   overflow-wrap: anywhere;
 }
-.pi-explorer-selection input {
-  accent-color: var(--line);
-}
 .pi-explorer-category {
   border-top: 1px solid var(--rule);
   padding-block: 20px;
 }
 .pi-explorer-category h3 {
-  font-size: 18px;
+  font-size: var(--fs-headline);
   margin: 0;
 }

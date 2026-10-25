@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import {
   createTestDatabase,
   replaceExposureVersion,
@@ -93,6 +94,143 @@ function fixture(currency = 'EUR', costBasisCents: number | null = null) {
     })
     .run();
 }
+it('a reached wealth stage holds until the month-end sum falls below 90 % of its lower bound', async () => {
+  fixture();
+  db.update(schema.holding).set({ asOf: '2026-07-01' }).run();
+  const price = (date: string, euros: number) =>
+    db
+      .insert(schema.price)
+      .values({
+        securityId: 's',
+        date,
+        priceMicro: euros * 1_000_000,
+        currency: 'EUR',
+        source: 'manual',
+      })
+      .run();
+  // Two units: 600 € at the end of July, 480 € at the end of August (within the buffer).
+  price('2026-07-31', 300);
+  price('2026-08-31', 240);
+  price(TODAY, 230);
+  const saved = await call('PUT', '/asset-classes/targets', {
+    ...targets('2026-07-01', 10000, 0),
+    tiers: [
+      { upToCents: 49_999, targets: targets('2026-07-01', 10000, 0).targets },
+      { upToCents: null, targets: targets('2026-07-01', 5000, 5000).targets, label: 'Ab 500' },
+    ],
+  });
+  expect(saved.status).toBe(200);
+  // 460 € today is below the 500 € bound but not below 450 €: the July stage still holds.
+  expect(await read()).toMatchObject({
+    valueCents: 46_000,
+    policy: { tierIndex: 1, wealthStage: { fromCents: 50_000, inBuffer: true } },
+  });
+  db.delete(schema.price).where(eq(schema.price.date, TODAY)).run();
+  price(TODAY, 224);
+  // 448 € falls below 450 €: back to the first stage.
+  expect(await read()).toMatchObject({ valueCents: 44_800, policy: { tierIndex: 0 } });
+});
+it('saving scope and stage targets is atomic, conflict-checked and undoable without touching balances', async () => {
+  fixture();
+  db.insert(schema.price)
+    .values({
+      securityId: 's',
+      date: TODAY,
+      priceMicro: 100000000,
+      currency: 'EUR',
+      source: 'manual',
+    })
+    .run();
+  db.insert(schema.account)
+    .values([
+      {
+        id: 'wallet',
+        name: 'Bargeld Test',
+        type: 'cash',
+        role: 'budget',
+        onBudget: true,
+        openingDate: TODAY,
+        openingBalanceCents: 500_000,
+        allocationScope: 'excluded',
+      },
+      {
+        id: 'reserve',
+        name: 'Reserve Test',
+        type: 'savings',
+        role: 'investment',
+        onBudget: false,
+        openingDate: TODAY,
+        openingBalanceCents: -5_000,
+        allocationScope: 'excluded',
+      },
+    ])
+    .run();
+  const before = db.select().from(schema.account).all();
+  const body = {
+    ...targets(TODAY, 7500, 2500),
+    tiers: [
+      { upToCents: 14_999, targets: targets(TODAY, 10000, 0).targets },
+      {
+        upToCents: null,
+        targets: targets(TODAY, 7500, 2500).targets,
+        label: 'Ab 150',
+      },
+    ],
+    allocationAccounts: [
+      {
+        id: 'reserve',
+        included: true,
+        cashClassId: 'b',
+        expectedScope: 'excluded',
+        expectedCashClassId: null,
+      },
+    ],
+  };
+  const saved = await call('PUT', '/asset-classes/targets', body);
+  expect(saved.status).toBe(200);
+  const { groupId } = (await saved.json()) as { groupId: string };
+  expect(await read()).toMatchObject({
+    valueCents: 15_000,
+    universe: { accountIds: ['depot', 'reserve'] },
+    policy: {
+      tierIndex: 1,
+      wealthStage: { label: 'Ab 150', fromCents: 15_000, inBuffer: false },
+    },
+  });
+  expect((await call('PUT', '/asset-classes/targets', { ...body, label: 'Stale' })).status).toBe(
+    409,
+  );
+  const undone = await call('POST', '/undo', { groupId });
+  expect(undone.status).toBe(200);
+  expect(await read()).toMatchObject({ valueCents: 20_000, policy: { targetValidFrom: null } });
+  const restored = db.select().from(schema.account).all();
+  expect(
+    restored.map((a) => [a.id, a.openingBalanceCents, a.allocationScope, a.allocationAssetClassId]),
+  ).toEqual(
+    before.map((a) => [a.id, a.openingBalanceCents, a.allocationScope, a.allocationAssetClassId]),
+  );
+  // A later invalid change must roll back the earlier valid account write and the entire policy.
+  const rejected = await call('PUT', '/asset-classes/targets', {
+    ...body,
+    allocationAccounts: [
+      ...body.allocationAccounts,
+      {
+        id: 'wallet',
+        included: true,
+        cashClassId: 'missing',
+        expectedScope: 'excluded',
+        expectedCashClassId: null,
+      },
+    ],
+  });
+  expect(rejected.status).toBe(422);
+  expect(await read()).toMatchObject({ valueCents: 20_000, policy: { targetValidFrom: null } });
+  const redone = await call('POST', '/undo', {
+    groupId: ((await undone.json()) as { groupId: string }).groupId,
+  });
+  expect(redone.status).toBe(200);
+  expect(await read()).toMatchObject({ valueCents: 15_000, policy: { tierIndex: 1 } });
+});
 it('literal sample risk matches existing summary and shared current total', async () => {
   seedDatabase(db);
   const view = await read();

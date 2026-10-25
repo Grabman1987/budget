@@ -21,28 +21,33 @@ import { balanceSeries } from './ledger-queries';
 import type { Executor } from './types';
 import { forecastInputs, loadFacts, scheduled } from './rule-inputs';
 import { CategoryRuleError } from './errors';
+import {
+  statementForecastLegs,
+  statementLegacyKeys,
+  statementOwnedBookingIds,
+} from './statement-settlement-read';
 
-/** Read-only account projection: native cash, no household variable plan or automatic booking. */
-export function accountPreview(
+/** Read-only matching shared by the account chart and the upcoming register. */
+export function unbookedAccountOccurrences(
   db: Executor,
   accountId: string,
-  currency: string,
   asOf: string,
-  days: number,
-  options?: { horizon: LiquidityHorizon; levers: ReadonlyArray<LiquidityLeverId> },
+  from: string,
+  to: string,
 ) {
-  if (options) days = horizonDays(options.horizon, asOf);
-  if (!options && !validFuturePreviewDays(days))
-    throw new RangeError('Preview covers 0–365 whole days');
-  if (days === 0) return { points: [], unavailableCurrencies: [] };
-  const to = addDays(asOf, days);
   const rows = listBookings(db, { accountId, to });
-  const due = upcoming(db, addDays(asOf, 1), to).filter(
-    (o) => o.accountId === accountId && o.status === 'expected' && !o.bookingId,
+  const replaced = statementLegacyKeys(db),
+    owned = statementOwnedBookingIds(db);
+  const due = upcoming(db, from, to).filter(
+    (o) =>
+      o.accountId === accountId &&
+      o.status === 'expected' &&
+      !o.bookingId &&
+      !replaced.has(o.paymentId + '|' + o.dueDate),
   );
   // Match unlinked pending captures as well. The real matching worker is never run by a chart read.
   const candidates = rows
-    .filter((b) => b.status === 'pending' || b.date > asOf)
+    .filter((b) => !owned.has(b.id) && (b.status === 'pending' || b.date >= asOf))
     .map((b) => ({ b, splits: b.splits }));
   const matches = assignMatches(
     due.map((o) => ({
@@ -71,7 +76,25 @@ export function accountPreview(
       upcoming(db, addDays(asOf, -31), to).flatMap((o) => (o.bookingId ? [o.bookingId] : [])),
     ),
   );
-  const unbooked = due.filter((o) => !matches.has(o.occurrenceId));
+  return due.filter((o) => !matches.has(o.occurrenceId));
+}
+
+/** Read-only account projection: native cash, no household variable plan or automatic booking. */
+export function accountPreview(
+  db: Executor,
+  accountId: string,
+  currency: string,
+  asOf: string,
+  days: number,
+  options?: { horizon: LiquidityHorizon; levers: ReadonlyArray<LiquidityLeverId> },
+) {
+  if (options) days = horizonDays(options.horizon, asOf);
+  if (!options && !validFuturePreviewDays(days))
+    throw new RangeError('Preview covers 0–365 whole days');
+  if (days === 0) return { points: [], unavailableCurrencies: [] };
+  const to = addDays(asOf, days);
+  const rows = listBookings(db, { accountId, to });
+  const unbooked = unbookedAccountOccurrences(db, accountId, asOf, addDays(asOf, 1), to);
   const facts = options ? loadFacts(db, asOf) : undefined;
   if (
     facts &&
@@ -101,6 +124,13 @@ export function accountPreview(
   ];
   if (unavailableCurrencies.length) return { points: [], unavailableCurrencies };
   const items: ForecastItem[] = [
+    ...statementForecastLegs(
+      db,
+      addDays(asOf, 1),
+      to,
+      new Set([accountId]),
+      new Set(rows.map((b) => b.id)),
+    ).map((l) => ({ day: l.day, cents: l.cents, kind: 'event' as const })),
     ...rows
       .filter((b) => b.date > asOf)
       .map((b) => ({ day: b.date, cents: b.amountCents, kind: 'event' as const })),

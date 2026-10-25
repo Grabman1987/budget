@@ -1,3 +1,4 @@
+import '../nav/registers.css';
 import { WholePictureReport } from '../reports/whole-picture-report';
 import { IncomeExpenseReport } from '../reports/income-expense-report';
 import { PayrollReport } from '../reports/payroll-report';
@@ -24,7 +25,6 @@ import { GoalsProgressReport } from './goals-progress-report';
 import { PaymentsPreviewReport } from './payments-preview-report';
 import { ContactReportPage } from '../reports/contact-report';
 import { CashflowReportPage } from '../reports/cashflow-report';
-import { LiquidityReportPage } from '../reports/liquidity-report';
 import { AssetsDebtsReport } from '../reports/assets-debts-report';
 import { WealthHistoryReport } from '../reports/wealth-history-report';
 import { PayeeAnalysisReport } from './payee-analysis-report';
@@ -165,6 +165,11 @@ export function ReportsCatalogPage() {
         subtitle={`${REPORTS.length} Zeichnungen aus einem Hauptbuch`}
       />
       <ReportRegisters current="katalog" />
+      <p className="muted">
+        <AppLink className="btn btn-ghost" to="/plan/prognose">
+          Kontoprognose in Plan öffnen
+        </AppLink>
+      </p>
       <ReportCatalogTable groups={REPORT_GROUPS} caption="Katalog der Reports" />
     </>
   );
@@ -196,7 +201,6 @@ export function ReportPage({ reportId, detail = false }: { reportId: string; det
     fills: 'P6 Reports und Umstellung',
     spec: `Diagrammform: ${report.form}.`,
   };
-  if (report.id === 'liquiditaet') return <LiquidityReportPage report={report} meta={meta} />;
   if (report.id === 'cashflow') return <CashflowReportPage report={report} meta={meta} />;
   if (report.id === 'vermoegen') return <WealthHistoryReport report={report} meta={meta} />;
   if (report.id === 'vermoegen-schulden') return <AssetsDebtsReport report={report} meta={meta} />;

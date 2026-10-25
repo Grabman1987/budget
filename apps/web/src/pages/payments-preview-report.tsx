@@ -107,6 +107,33 @@ function PreviewBody({ data }: { data: PaymentsPreview }) {
   const eur = data.currencies.find((g) => g.currency === 'EUR')!;
   return (
     <>
+      {data.statementTransfers && data.statementTransfers.length > 0 && (
+        <section aria-labelledby="statement-transfer-preview-title">
+          <h2 id="statement-transfer-preview-title">Abrechnungsausgleich · Umbuchungen</h2>
+          <p>
+            Angenommene Rechnungsbeträge werden getrennt angezeigt. Sie sind keine zusätzlichen
+            Kategorieausgaben oder Einnahmen. „Zugeordnet“ ist keine Bestätigung des Bankeinzugs.
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Einzugstermin</th>
+                <th>Betrag</th>
+                <th>Stand</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.statementTransfers.map((r) => (
+                <tr key={r.id}>
+                  <td>{longDay(r.date)}</td>
+                  <td>{money(r.amountCents, r.currency)}</td>
+                  <td>{r.state === 'represented' ? 'Zugeordnet' : 'Offen'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
       <section aria-labelledby="preview-title">
         <div className="preview-head">
           <h2 id="preview-title">
@@ -310,7 +337,7 @@ function PreviewChart({ data, group }: { data: PaymentsPreview; group: PreviewCu
   const left = small ? 52 : 75;
   const right = width - 12;
   const step = (right - left) / 12;
-  const barWidth = step * 0.56;
+  const barWidth = Math.min(step * 0.56, 10);
   const max = Math.max(1, ...group.months.map((m) => m.upperCents));
   const y = (c: number) => 232 - (c / max) * 175;
   return (
@@ -390,6 +417,7 @@ function PreviewChart({ data, group }: { data: PaymentsPreview; group: PreviewCu
                 width={barWidth}
                 height={y(0) - y(a.baseCents - per)}
                 className="preview-bar"
+                opacity="var(--bar-tint)"
               />
               {per > 0 && (
                 <rect
@@ -398,6 +426,7 @@ function PreviewChart({ data, group }: { data: PaymentsPreview; group: PreviewCu
                   width={barWidth}
                   height={y(a.baseCents - per) - y(a.baseCents)}
                   fill="url(#preview-bound)"
+                  opacity="var(--bar-tint)"
                   stroke="var(--line-2)"
                 />
               )}

@@ -59,7 +59,7 @@
   padding: 0 16px;
   border-radius: var(--radius-md);
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-body);
   white-space: nowrap;
   transition:
     background var(--t-fast) var(--ease-out),
@@ -88,6 +88,27 @@
 .btn-ghost:hover:not(:disabled) {
   border-color: var(--line-2);
   background: var(--tint);
+}
+/* Invisible border preserves button dimensions and the existing focus/touch geometry. */
+:is(
+    .card,
+    .titleblock,
+    .hero-kpi,
+    .inspector,
+    .heute-answer,
+    .sr-card,
+    .tr-card,
+    .mr-card,
+    .ov-card,
+    .psheet,
+    .ov-sheet,
+    .prep-card,
+    .source-connection,
+    .debt-overview,
+    .debt-rechenweg
+  )
+  .btn.btn-ghost {
+  border-color: transparent;
 }
 .btn-alert {
   background: var(--red);
@@ -170,7 +191,7 @@
 }
 .tb-value {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-table);
   white-space: nowrap;
   display: flex;
   align-items: center;
@@ -288,7 +309,7 @@
   color: var(--ink-2);
   text-decoration: none;
   font-weight: 560;
-  border-bottom: 2px solid transparent;
+  border-bottom: var(--stroke-hairline) solid transparent;
   white-space: nowrap;
   border-radius: 0;
 }
@@ -299,6 +320,7 @@
 }
 .registers a[aria-current='page'],
 .registers button[aria-pressed='true'] {
+  border-bottom-width: var(--stroke-active);
   color: var(--ink);
   border-bottom-color: var(--line);
   font-weight: 640;
@@ -358,7 +380,7 @@
   border-radius: 50%;
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--fs-measure);
   color: var(--line);
   translate: 0 2px;
 }
@@ -416,7 +438,7 @@
   /* 40 x 22 track inside a 44 px touch target */
   padding: 11px 6px;
   margin: -11px -6px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   flex: none;
 }
 .switch:disabled {
@@ -427,8 +449,8 @@
   position: relative;
   width: 40px;
   height: 22px;
-  border: 1.5px solid var(--line-2);
-  border-radius: var(--radius-pill);
+  border: var(--stroke-hairline) solid var(--line-2);
+  border-radius: var(--radius-md);
   background: var(--raised);
   transition:
     background var(--t-fast) var(--ease-out),
@@ -462,7 +484,8 @@
   margin-bottom: 14px;
 }
 .field-row > label {
-  font-size: var(--fs-body);
+  /* Form labels sit one step below body (T7) so dense dialogs keep their fold. */
+  font-size: var(--fs-table);
   font-weight: 560;
   color: var(--ink-2);
 }
@@ -532,7 +555,7 @@
   border-radius: var(--radius-xs);
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-table);
   line-height: 1;
   color: var(--line);
   display: grid;
@@ -550,7 +573,7 @@
   grid-template-columns: auto 1fr auto;
 }
 .amount-cur {
-  font-size: 20px;
+  font-size: var(--fs-headline);
   font-weight: 600;
   color: var(--ink-3);
 }
@@ -559,9 +582,10 @@
   outline: 0;
   background: transparent;
   min-width: 0;
+  min-height: var(--touch);
   width: 100%;
   text-align: right;
-  font-size: 30px;
+  font-size: var(--fs-display);
   font-weight: 650;
   letter-spacing: -0.02em;
   color: var(--ink);
@@ -624,7 +648,7 @@
   position: absolute;
   top: -5px;
   height: 10px;
-  border-left: 1.5px solid var(--line);
+  border-left: var(--stroke-hairline) solid var(--line);
   transform: rotate(45deg);
 }
 .chain-inline::before {
@@ -653,7 +677,7 @@ button.ct-term:hover {
   background: var(--tint);
 }
 .ct-label {
-  font-size: 11px;
+  font-size: var(--fs-label);
   white-space: nowrap;
 }
 .ct-val {
@@ -672,7 +696,7 @@ button.ct-term .ct-val {
 .ct-op {
   align-self: center;
   font-family: var(--font-tech);
-  font-size: 18px;
+  font-size: var(--fs-measure);
   font-weight: 600;
   color: var(--line);
   padding: 14px 2px 0;
@@ -687,7 +711,7 @@ button.ct-term .ct-val {
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
   text-align: left;
-  font-size: 11px;
+  font-size: var(--fs-label);
 }
 .ptable th.col-num {
   text-align: right;
@@ -741,7 +765,7 @@ button.ct-term .ct-val {
 }
 .pos {
   font-family: var(--font-tech);
-  font-size: var(--fs-chart-label);
+  font-size: var(--fs-measure);
   letter-spacing: 0.04em;
   color: var(--ink-3);
 }
@@ -751,6 +775,18 @@ button.ct-term .ct-val {
 }
 .prow.is-clickable:hover td {
   background: var(--tint);
+}
+/* Metadata needs stronger ink on tinted hover/selection surfaces (UX Q1). */
+:where(
+  .prow:hover,
+  .krow:hover,
+  .ktable tr[data-booking]:hover,
+  .kgroup.is-flash,
+  .is-selected,
+  [aria-selected='true'],
+  [aria-pressed='true']
+) {
+  --ink-3: var(--ink-2);
 }
 /* Real button around the name; its ::after stretches over the whole row (tr is the positioned
    ancestor), so the row is one hit area for mouse, touch and keyboard. */
@@ -787,7 +823,7 @@ button.ct-term .ct-val {
   font-weight: 500;
 }
 .rev-table th.tech {
-  font-size: 11px;
+  font-size: var(--fs-label);
   padding: 6px 0 8px;
   border-bottom: 1px solid var(--rule);
 }
@@ -810,13 +846,13 @@ button.ct-term .ct-val {
 .rev-tri path {
   fill: none;
   stroke: var(--line);
-  stroke-width: 1.4;
+  stroke-width: var(--stroke-hairline);
   stroke-linejoin: round;
 }
 .rev-tri text {
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: 11px;
+  font-size: var(--fs-label);
   fill: var(--line);
 }
 .rev-tri.is-urgent path,
@@ -885,10 +921,10 @@ button.ct-term .ct-val {
 }
 /* Debt: dashed outline, no fill (never hatched) */
 .sw-debt {
-  border: 1.5px dashed var(--ink-2);
+  border: var(--stroke-hairline) dashed var(--ink-2);
 }
 .sw-open {
-  border: 1.5px solid var(--line);
+  border: var(--stroke-hairline) solid var(--line);
 }
 .class-tag {
   display: inline-flex;
@@ -901,9 +937,9 @@ button.ct-term .ct-val {
   display: inline-block;
   padding: 1px 6px;
   border: 1px solid var(--line-2);
-  border-radius: var(--radius-titleblock);
+  border-radius: var(--radius-stamp);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
   font-weight: 500;
   letter-spacing: 0.04em;
   color: var(--ink-2);
@@ -939,7 +975,7 @@ button.ct-term .ct-val {
   color: var(--ground);
   font-family: var(--font-tech);
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--fs-label);
   letter-spacing: 0.03em;
 }
 .count-alert {
@@ -1019,7 +1055,7 @@ dialog.sheet-bottom:not(.is-full) .overlay-inner {
   width: 36px;
   height: 4px;
   margin-top: 8px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: var(--rule-strong);
 }
 .panel-head {
@@ -1238,6 +1274,14 @@ dialog.sheet-bottom.is-full .sheet-grip {
   }
 }
 
+/* Modal feedback needs room for its complete action label without changing page-toast geometry. */
+dialog .toast {
+  width: max-content;
+}
+dialog .toast button {
+  flex-shrink: 0;
+}
+
 /* A toast over a form dialog must not cover its footer buttons: it docks in the bottom right
    corner of the screen (desktop, beside the card) or at the top (phone, above the sheet). */
 dialog.is-bare .toast {
@@ -1275,4 +1319,157 @@ dialog.is-bare .toast {
 .month-switch .month-now {
   margin-left: 4px;
   color: var(--line);
+}
+
+/* Checkbox and radio: one drawn control app-wide. The input element is the transparent hit area
+   (20 px on a fine pointer, the 44 px touch floor from base.css on touch); the visible 20 px box
+   is drawn centred inside it. Without this, the touch floor enlarges the native control and
+   WebKit paints a 44 px black square. The checked colour follows the former accent-color intent
+   (--line). */
+:where(input[type='checkbox'], input[type='radio']) {
+  position: relative;
+  margin-block: 0;
+}
+input[type='checkbox'],
+input[type='radio'] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: none;
+  width: var(--check-size, 20px);
+  height: var(--check-size, 20px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--line);
+  cursor: pointer;
+  vertical-align: middle;
+}
+input[type='checkbox']::before,
+input[type='radio']::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  box-sizing: border-box;
+  width: var(--check-size, 20px);
+  height: var(--check-size, 20px);
+  translate: -50% -50%;
+  border: var(--stroke-hairline) solid var(--ink-3);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+}
+input[type='radio']::before {
+  border-radius: var(--radius-round);
+}
+input[type='checkbox']::after,
+input[type='radio']::after {
+  content: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  box-sizing: border-box;
+}
+input[type='checkbox']:checked::before,
+input[type='checkbox']:indeterminate::before {
+  border-color: var(--line);
+  background: var(--line);
+}
+input[type='checkbox']:checked::after {
+  content: '';
+  width: 6px;
+  height: 11px;
+  border: solid var(--surface);
+  border-width: 0 var(--stroke-hairline) var(--stroke-hairline) 0;
+  translate: -50% -62%;
+  rotate: 45deg;
+}
+input[type='checkbox']:indeterminate:not(:checked)::after {
+  content: '';
+  width: 10px;
+  height: var(--stroke-hairline);
+  background: var(--surface);
+  translate: -50% -50%;
+}
+input[type='radio']:checked::before {
+  border-color: var(--line);
+}
+input[type='radio']:checked::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-round);
+  background: var(--line);
+  translate: -50% -50%;
+}
+input[type='checkbox']:hover:not(:disabled)::before,
+input[type='radio']:hover:not(:disabled)::before {
+  border-color: var(--line);
+}
+/* The ring belongs to the drawn box, not to the 44 px hit area. */
+input[type='checkbox']:focus-visible,
+input[type='radio']:focus-visible {
+  outline: 0;
+}
+input[type='checkbox']:focus-visible::before,
+input[type='radio']:focus-visible::before {
+  outline: 2px solid var(--line);
+  outline-offset: 2px;
+}
+input[type='checkbox']:disabled,
+input[type='radio']:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+@media (forced-colors: active) {
+  input[type='checkbox']::before,
+  input[type='radio']::before {
+    border-color: CanvasText;
+    background: Canvas;
+  }
+  input[type='checkbox']:checked::before,
+  input[type='checkbox']:indeterminate::before {
+    background: Highlight;
+    border-color: Highlight;
+  }
+  input[type='checkbox']:checked::after {
+    border-color: HighlightText;
+  }
+  input[type='checkbox']:indeterminate:not(:checked)::after {
+    background: HighlightText;
+  }
+  input[type='radio']:checked::after {
+    background: Highlight;
+  }
+}
+
+/* Single-line selects: the native control ignores the tokens in WebKit (dark grey system
+   background in the dark theme). Draw it from tokens in every engine; the chevron is two
+   gradients in the ink colour, no image. The specificity of :not() lets this win over pages that
+   restyle selects with the `background` shorthand; layout (height, width, radius of page-specific
+   selects) stays with the page. */
+select:not([multiple]):not([size]) {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: var(--surface);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink-2) 50%),
+    linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);
+  background-position:
+    calc(100% - 17px) 50%,
+    calc(100% - 12px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 34px;
+  text-overflow: ellipsis;
+}
+:where(select) {
+  padding-block: 6px;
+  padding-left: 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+}
+select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

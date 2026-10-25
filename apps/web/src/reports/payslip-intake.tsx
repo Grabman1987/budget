@@ -2,8 +2,18 @@ import {
   payrollTotals,
   type ParsedPayrollDocument,
   type PayslipSourceConfig,
+  type PayslipAutomationOutcome,
 } from '@budget/domain';
-import { Button, Field, SectionHead, Select, TextInput, useToast } from '@budget/ui';
+import {
+  Button,
+  Field,
+  SectionHead,
+  Select,
+  TextInput,
+  useAmountPrivacy,
+  useToast,
+  WideDialog,
+} from '@budget/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { ApiError, notifyApiWrite, request } from '../api/http';
@@ -13,7 +23,6 @@ import { eur, longDay } from '../ledger/format';
 import { errorText } from '../ledger/labels';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import type { AccountRow } from '../ledger/types';
-import { AppLink } from '../shell/app-link';
 import './payslip-intake.css';
 
 const PATH = '/api/payslip-intake';
@@ -69,7 +78,20 @@ function PasswordFields({
     </div>
   );
 }
-export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean) => void } = {}) {
+export type PayslipUploadResult = {
+  id: string;
+  duplicate: boolean;
+  dropboxCopy?: 'saved' | 'failed' | 'off';
+  passwordRemember?: RememberResult;
+  automation?: PayslipAutomationOutcome;
+};
+export function PayslipUpload({
+  onBusyChange,
+  onUploaded,
+}: {
+  onBusyChange?: (busy: boolean) => void;
+  onUploaded?: (result: PayslipUploadResult) => void;
+} = {}) {
   const picker = useRef<HTMLInputElement>(null),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(''),
@@ -79,6 +101,21 @@ export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean)
     [remember, setRemember] = useState(false),
     [rememberNote, setRememberNote] = useState('');
   const qc = useQueryClient();
+  const acknowledgeWrite = useBudgetWrite();
+  const toast = useToast();
+  function receive(files: File[]) {
+    if (busy || !files.length) return;
+    const file = files[0]!;
+    if (files.length !== 1 || (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf')) {
+      setError('Bitte genau eine PDF-Datei ablegen oder auswählen.');
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      setError('Eine PDF darf höchstens 15 MB groß sein.');
+      return;
+    }
+    void upload(file);
+  }
   async function upload(file?: File) {
     if (!file || busy) return;
     setBusy(true);
@@ -90,6 +127,7 @@ export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean)
     try {
       const body = new FormData();
       body.set('file', file);
+      body.set('automation', 'eligible');
       if (password) {
         body.set('password', password);
         if (remember) body.set('remember', '1');
@@ -100,22 +138,50 @@ export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean)
         credentials: 'same-origin',
       });
       const result = (await response.json()) as {
+        id: string;
         duplicate: boolean;
         dropboxCopy?: 'saved' | 'failed' | 'off';
         passwordRemember?: RememberResult;
+        automation?: PayslipAutomationOutcome;
         error?: string;
         message?: string;
       };
       if (!response.ok)
         throw new ApiError(response.status, result.error ?? 'unknown', result.message);
+      if (!result.id) throw new ApiError(0, 'invalid_upload_response');
       notifyApiWrite();
       setMessage(
-        result.duplicate
-          ? 'Dieses PDF wurde bereits aufgenommen.'
-          : 'PDF im Posteingang zur Bestätigung bereit.',
+        result.automation?.status === 'booked'
+          ? 'Gehaltszettel gespeichert und Auszahlung erfasst.'
+          : result.automation?.status === 'linked'
+            ? 'Gehaltszettel gespeichert und mit der vorhandenen Auszahlung verknüpft.'
+            : result.duplicate
+              ? 'Dieses PDF wurde bereits aufgenommen. Die vorhandene Abrechnung wird geöffnet.'
+              : 'PDF gespeichert. Nicht eindeutige Angaben bleiben unter Prüfen.',
       );
       setDropbox(result.duplicate ? 'off' : (result.dropboxCopy ?? 'off'));
       setRememberNote(rememberText(result.passwordRemember));
+      if (result.automation?.groupId && ['booked', 'linked'].includes(result.automation.status)) {
+        // Acknowledge the already committed financial group through the shared Undo/redo UI.
+        // The earlier staging group is deliberately NOT the financial Undo target.
+        const groupId = result.automation.groupId;
+        await acknowledgeWrite(
+          async () => ({ groupId }),
+          () => 'Gehaltszettel automatisch gespeichert.',
+        );
+      }
+      if (result.automation?.status === 'pruefen') {
+        const reason = result.automation.reason;
+        toast.show({
+          message:
+            reason === 'source_not_configured'
+              ? 'PDF gespeichert. Bitte Gehaltskonto und Arbeitgeber/Absender einmal einrichten.'
+              : reason === 'payroll_already_exists'
+                ? 'PDF gespeichert. Eine Abrechnung ist bereits erfasst; bitte die Zuordnung unter Prüfen kontrollieren.'
+                : 'PDF gespeichert. Auszahlung oder Angaben sind nicht eindeutig; bitte unter Prüfen kontrollieren.',
+        });
+      }
+      onUploaded?.(result);
       await qc.invalidateQueries();
     } catch (e) {
       setError(errorText(e));
@@ -126,7 +192,20 @@ export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean)
     }
   }
   return (
-    <div className="payslip-upload">
+    <div
+      className="payslip-upload"
+      role="region"
+      aria-label="Gehaltszettel-PDF ablegen"
+      aria-busy={busy}
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = busy ? 'none' : 'copy';
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        receive(Array.from(event.dataTransfer.files));
+      }}
+    >
       <input
         ref={picker}
         className="sr-only"
@@ -136,7 +215,7 @@ export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean)
         aria-label="Gehaltszettel-PDF auswählen"
         disabled={busy}
         onChange={(e) => {
-          void upload(e.target.files?.[0]);
+          receive(Array.from(e.target.files ?? []));
           e.target.value = '';
         }}
       />
@@ -144,6 +223,12 @@ export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean)
         Gehaltszettel hochladen
       </Button>
       <span>PDF · höchstens 15 MB{busy ? ' · Wird ausgewertet …' : ''}</span>
+      <p className="payslip-drop-hint">PDF hier ablegen oder über den Button auswählen.</p>
+      <p>
+        Mit eingerichteter Gehaltsquelle werden eindeutige neue Gehaltszettel automatisch
+        gespeichert und passende Auszahlungen verknüpft. Neue Auszahlungen werden vorgemerkt
+        (Bargeld bestätigt). Unklare Angaben bleiben unter Prüfen.
+      </p>
       <details className="payslip-password-details">
         <summary>PDF-Passwort eingeben (optional)</summary>
         <PasswordFields
@@ -155,11 +240,7 @@ export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean)
           onRemember={setRemember}
         />
       </details>
-      {message && (
-        <p role="status">
-          {message} <AppLink to="/konten/posteingang">Posteingang öffnen</AppLink>
-        </p>
-      )}
+      {message && <p role="status">{message}</p>}
       {message && dropbox === 'saved' && <p role="status">In Dropbox abgelegt</p>}
       {message && dropbox === 'failed' && (
         <p role="status">Dropbox-Ablage fehlgeschlagen – Datei liegt sicher in der App</p>
@@ -176,8 +257,15 @@ export function PayslipUpload({ onBusyChange }: { onBusyChange?: (busy: boolean)
 type Intake = {
   id: string;
   receiptId: string;
+  /** Older responses may omit the live, persisted source association. */
+  payout?: { payslipId: string; bookingId: string; accountId: string } | null;
   status: string;
-  parsed: ParsedPayrollDocument;
+  parsed: ParsedPayrollDocument & {
+    unmappedWageTypes?: { code: string; label: string; amountCents: number }[];
+  };
+  payoutAccountId: string | null;
+  proposedPayoutDate: string | null;
+  accounts: SourceStatus['accounts'];
   matches: {
     id: string;
     date: string;
@@ -185,11 +273,49 @@ type Intake = {
     differenceCents: number;
     exact: boolean;
   }[];
+  proposedPayeeId: string | null;
+  selectedExpectedOccurrenceId: string | null;
+  expectedPayouts: {
+    occurrenceId: string;
+    paymentId: string;
+    name: string;
+    dueDate: string;
+    amountCents: number;
+    currency: string;
+    accountId: string;
+    payeeId: string | null;
+    payeeName: string | null;
+  }[];
+  payees: { id: string; name: string }[];
 };
-export function PayslipIntakeDetail({ id }: { id: string }) {
+export function PayslipIntakeDetail({
+  id,
+  inline = false,
+  duplicate = false,
+}: {
+  id: string;
+  /** Render the expanded review inside the upload dialog instead of opening another dialog. */
+  inline?: boolean;
+  duplicate?: boolean;
+}) {
+  useAmountPrivacy();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [accountId, setAccountId] = useState<string>();
+  const [payoutDate, setPayoutDate] = useState<string | null | undefined>();
+  const [expectedOccurrenceId, setExpectedOccurrenceId] = useState<string | null | undefined>();
+  const [payeeId, setPayeeId] = useState<string | null | undefined>();
+  const [wageMappings, setWageMappings] = useState<Record<string, string>>({});
+  const [mappingPassword, setMappingPassword] = useState('');
   const query = useQuery({
-    queryKey: ['payslip-intake', id],
-    queryFn: () => request<Intake>('GET', `${PATH}/${id}`),
+    queryKey: ['payslip-intake', id, accountId, payoutDate, expectedOccurrenceId],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (accountId) params.set('accountId', accountId);
+      if (payoutDate) params.set('payoutDate', payoutDate);
+      if (expectedOccurrenceId) params.set('expectedOccurrenceId', expectedOccurrenceId);
+      return request<Intake>('GET', `${PATH}/${id}${params.size ? `?${params}` : ''}`);
+    },
+    enabled: inline || dialogOpen,
   });
   const [bookingId, setBookingId] = useState<string | undefined>(),
     [busy, setBusy] = useState(false),
@@ -197,6 +323,8 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
     [remember, setRemember] = useState(false);
   const write = useBudgetWrite();
   const data = query.isSuccess && !query.isFetching ? query.data : undefined;
+  const effectiveExpectedId =
+    expectedOccurrenceId !== undefined ? expectedOccurrenceId : data?.selectedExpectedOccurrenceId;
   const match =
     bookingId ??
     (data?.matches.filter((m) => m.exact).length === 1
@@ -205,8 +333,28 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
   const p = data?.parsed,
     totals = p?.draft ? payrollTotals([p.draft]) : null;
   const selectedMatch = data?.matches.find((m) => m.id === match);
+  const payoutAccount = data?.accounts.find((a) => a.id === data.payoutAccountId);
+  const selectedExpectation = data?.expectedPayouts.find(
+    (item) => item.occurrenceId === effectiveExpectedId,
+  );
+  const effectivePayeeId =
+    payeeId !== undefined
+      ? payeeId
+      : expectedOccurrenceId === null
+        ? null
+        : (selectedExpectation?.payeeId ?? data?.proposedPayeeId ?? null);
+  const effectiveDate =
+    payoutDate !== undefined ? (payoutDate ?? '') : data?.proposedPayoutDate || '';
+  const validEffectiveDate = (() => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveDate)) return false;
+    const date = new Date(`${effectiveDate}T00:00:00Z`);
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === effectiveDate;
+  })();
   const canConfirm = Boolean(
     p?.draft &&
+    !(p.unmappedWageTypes?.length ?? 0) &&
+    validEffectiveDate &&
+    (match || payoutAccount) &&
     Math.abs(p.differenceCents ?? 2) <= 1 &&
     p.warnings.every((w) => w === 'Abrechnungsmonat nur aus dem Dateinamen erkannt.'),
   );
@@ -222,7 +370,22 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
             ? password
               ? { password, ...(remember ? { remember: true } : {}) }
               : {}
-            : { action, bookingId: match || null },
+            : {
+                action,
+                bookingId: match || null,
+                ...(action === 'confirm' && payoutAccount
+                  ? {
+                      accountId: payoutAccount.id,
+                      payoutDate: effectiveDate,
+                      payeeId: effectivePayeeId,
+                      ...(expectedOccurrenceId !== undefined
+                        ? { expectedOccurrenceId }
+                        : effectiveExpectedId
+                          ? { expectedOccurrenceId: effectiveExpectedId }
+                          : {}),
+                    }
+                  : {}),
+              },
         ),
       () =>
         action === 'confirm'
@@ -234,9 +397,24 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
     if (action === 'retry') setPassword('');
     setBusy(false);
   }
-  return (
-    <details className="payslip-intake-detail">
-      <summary>Gehaltszettel prüfen</summary>
+  async function saveMappings() {
+    if (!data || busy) return;
+    setBusy(true);
+    await write(
+      () =>
+        request<Intake & { groupId: string }>('PUT', `${PATH}/${id}/mappings`, {
+          wageTypes: Object.fromEntries(
+            Object.entries(wageMappings).filter(([, section]) => Boolean(section)),
+          ),
+          ...(mappingPassword ? { password: mappingPassword } : {}),
+        }),
+      () => 'Lohnarten gespeichert und PDF neu ausgewertet.',
+    );
+    setMappingPassword('');
+    setBusy(false);
+  }
+  const review = (
+    <>
       {query.isFetching && <LoadingNote what="Gehaltszettel" />}
       {query.isError && (
         <ErrorNote what="Gehaltszettel" error={query.error} onRetry={() => void query.refetch()} />
@@ -296,6 +474,145 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
                   {l.section === 'reimbursement' ? ' · steuerfreie Erstattung' : ''}
                 </p>
               ))}
+              <Field label="Auszahlungskonto">
+                {({ id: fieldId }) => (
+                  <Select
+                    id={fieldId}
+                    value={data.payoutAccountId ?? ''}
+                    disabled={busy}
+                    onChange={(e) => {
+                      setAccountId(e.target.value);
+                      setBookingId(undefined);
+                    }}
+                  >
+                    <option value="" disabled>
+                      Konto auswählen
+                    </option>
+                    <AccountOptions accounts={data.accounts} />
+                  </Select>
+                )}
+              </Field>
+              <div className="payslip-review-fields">
+                <Field label="Auszahlungsdatum">
+                  {({ id: fieldId }) => (
+                    <TextInput
+                      id={fieldId}
+                      type="date"
+                      value={effectiveDate}
+                      disabled={busy}
+                      onChange={(e) => {
+                        setPayoutDate(e.target.value || null);
+                        setBookingId(undefined);
+                      }}
+                    />
+                  )}
+                </Field>
+                <Field label="Gehalts-Erwartung">
+                  {({ id: fieldId }) => (
+                    <Select
+                      id={fieldId}
+                      value={effectiveExpectedId ?? ''}
+                      disabled={busy}
+                      onChange={(e) => {
+                        setExpectedOccurrenceId(e.target.value || null);
+                        setPayoutDate(undefined);
+                        setBookingId(undefined);
+                      }}
+                    >
+                      <option value="">Keine auswählen</option>
+                      {data.expectedPayouts.map((item) => (
+                        <option value={item.occurrenceId} key={item.occurrenceId}>
+                          {item.name} · {longDay(item.dueDate)} · {eur(item.amountCents)}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </Field>
+                <Field label="Von">
+                  {({ id: fieldId }) => (
+                    <Select
+                      id={fieldId}
+                      value={effectivePayeeId ?? ''}
+                      disabled={busy}
+                      onChange={(e) => setPayeeId(e.target.value || null)}
+                    >
+                      <option value="">Kein Zahlungspartner</option>
+                      {data.payees.map((payee) => (
+                        <option value={payee.id} key={payee.id}>
+                          {payee.name}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </Field>
+              </div>
+              {selectedExpectation && (
+                <p>
+                  Erwarteter Bezug: {selectedExpectation.name} ·{' '}
+                  {eur(selectedExpectation.amountCents)} am {longDay(selectedExpectation.dueDate)}
+                  {selectedExpectation.payeeName ? ` · Von ${selectedExpectation.payeeName}` : ''}
+                  {selectedExpectation.amountCents !== p?.draft?.netCents
+                    ? ` · Differenz zur Auszahlung ${eur(selectedExpectation.amountCents - (p?.draft?.netCents ?? 0))}`
+                    : ''}
+                </p>
+              )}
+              {!validEffectiveDate && <p>Bitte ein gültiges Auszahlungsdatum eintragen.</p>}
+              {(p?.unmappedWageTypes?.length ?? 0) > 0 && (
+                <section aria-label="Unbekannte Lohnarten">
+                  <h3>Unbekannte Lohnarten zuordnen</h3>
+                  <p>Die Auswertung wird erst nach der Zuordnung erneut gerechnet.</p>
+                  {p!.unmappedWageTypes!.map((item) => (
+                    <Field
+                      key={item.code}
+                      label={`${item.label} (${item.code}) · ${eur(item.amountCents)}`}
+                    >
+                      {({ id: fieldId }) => (
+                        <Select
+                          id={fieldId}
+                          value={wageMappings[item.code] ?? ''}
+                          onChange={(e) =>
+                            setWageMappings({ ...wageMappings, [item.code]: e.target.value })
+                          }
+                        >
+                          <option value="">Zuordnung auswählen</option>
+                          {[
+                            ['earning', 'Bezüge'],
+                            ['deduction', 'Abzüge'],
+                            ['reimbursement', 'Steuerfreie Erstattungen'],
+                            ['tax_adjustment', 'Lohnsteuer'],
+                            ['sv_adjustment', 'Sozialversicherung'],
+                          ].map(([section, label]) => (
+                            <option key={section} value={section}>
+                              {label}
+                            </option>
+                          ))}
+                        </Select>
+                      )}
+                    </Field>
+                  ))}
+                  <Field label="PDF-Passwort für erneute Auswertung (optional)">
+                    {({ id: fieldId }) => (
+                      <TextInput
+                        id={fieldId}
+                        type="password"
+                        autoComplete="off"
+                        maxLength={256}
+                        value={mappingPassword}
+                        disabled={busy}
+                        onChange={(e) => setMappingPassword(e.target.value)}
+                      />
+                    )}
+                  </Field>
+                  <Button
+                    disabled={
+                      busy || p!.unmappedWageTypes!.some((item) => !wageMappings[item.code])
+                    }
+                    onClick={() => void saveMappings()}
+                  >
+                    Zuordnen und neu auswerten
+                  </Button>
+                </section>
+              )}
               <Field label="Gehaltsbuchung (±5 Tage)">
                 {({ id: fieldId }) => (
                   <Select
@@ -304,7 +621,11 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
                     disabled={busy}
                     onChange={(e) => setBookingId(e.target.value)}
                   >
-                    <option value="">Ohne Buchungsverknüpfung speichern</option>
+                    <option value="">
+                      {payoutAccount?.type === 'cash'
+                        ? 'Neue Auszahlung bestätigen'
+                        : 'Neue Auszahlung vormerken'}
+                    </option>
                     {data.matches.map((m) => (
                       <option value={m.id} key={m.id}>
                         {longDay(m.date)} · {eur(m.amountCents)} · Differenz{' '}
@@ -322,21 +643,31 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
               )}
               {!data.matches.length && (
                 <p>
-                  Keine Gehaltsbuchung im Zeitfenster gefunden. Gehaltskonto unter Datenquellen
-                  prüfen.
+                  Keine Gehaltsbuchung im Zeitfenster gefunden. Nach der Bestätigung wird die
+                  Auszahlung auf dem gewählten Konto gebucht.
                 </p>
               )}
               <p>
-                Steuerfreie Erstattungen sind hier vom Gehalt getrennt. In der Gehaltsbuchung
-                Erstattungen ebenfalls separat zuordnen, damit sie nicht in die Sparquote eingehen.
-                Es wird keine Buchung erstellt.
+                {selectedMatch
+                  ? 'Die vorhandene Buchung wird verknüpft. Ihre Zuordnung bleibt erhalten.'
+                  : payoutAccount?.type === 'cash'
+                    ? 'Die neue Bargeldauszahlung wird sofort bestätigt.'
+                    : 'Die neue Auszahlung wird vorgemerkt. Gehalt und steuerfreie Erstattungen werden getrennt zugeordnet.'}
               </p>
             </>
           )}
-          <a className="btn btn-ghost" href={`/api/receipts/${data.receiptId}/download`}>
-            Original-PDF herunterladen
-          </a>
           <div className="sources-actions">
+            <a className="btn btn-ghost" href={`/api/receipts/${data.receiptId}/download`}>
+              Original-PDF herunterladen
+            </a>
+            {data.status === 'confirmed' && data.payout && (
+              <a
+                className="btn btn-ghost"
+                href={`/konten/buchungen?konto=${encodeURIComponent(data.payout.accountId)}&buchung=${encodeURIComponent(data.payout.bookingId)}`}
+              >
+                Gespeicherte Auszahlung öffnen
+              </a>
+            )}
             <Button
               disabled={busy || !canConfirm || data.status !== 'pending'}
               onClick={() => void act('confirm')}
@@ -360,7 +691,38 @@ export function PayslipIntakeDetail({ id }: { id: string }) {
           </div>
         </>
       )}
-    </details>
+    </>
+  );
+  if (inline)
+    return (
+      <section className="payslip-intake-review" aria-label="Gehaltszettelprüfung">
+        {duplicate && (
+          <p role="status">Duplikat erkannt. Die bestehende Abrechnung wird angezeigt.</p>
+        )}
+        {!duplicate && (
+          <p role="status">
+            {data?.status === 'confirmed'
+              ? 'Gehaltszettel gespeichert.'
+              : 'PDF gespeichert. Offene Angaben bitte prüfen.'}
+          </p>
+        )}
+        {review}
+      </section>
+    );
+  return (
+    <>
+      <Button variant="ghost" onClick={() => setDialogOpen(true)}>
+        Gehaltszettel prüfen
+      </Button>
+      <WideDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        title="Gehaltszettel prüfen"
+        beforeClose={() => !busy}
+      >
+        <div className="payslip-review-dialog">{review}</div>
+      </WideDialog>
+    </>
   );
 }
 type SourceStatus = {
@@ -375,6 +737,7 @@ type SourceStatus = {
   filesFound: number;
   errors: number;
   config: PayslipSourceConfig;
+  payees?: { id: string; name: string }[];
 };
 export function PayslipSourceSection() {
   const query = useQuery({
@@ -440,10 +803,14 @@ export function PayslipSourceSection() {
             source={query.data.passwordSource}
             available={query.data.passwordRememberAvailable}
           />
-          <PayslipSourceForm initial={query.data.config} accounts={query.data.accounts} />
+          <PayslipSourceForm
+            initial={query.data.config}
+            accounts={query.data.accounts}
+            payees={query.data.payees ?? []}
+          />
         </>
       )}
-      <p>Dropbox wird nachts gelesen. PDFs erscheinen zur Bestätigung im Posteingang.</p>
+      <p>Dropbox wird nachts gelesen. PDFs erscheinen zur Bestätigung unter Prüfen.</p>
     </section>
   );
 }
@@ -540,11 +907,14 @@ const WAGE_LABELS = {
 function PayslipSourceForm({
   initial,
   accounts,
+  payees,
 }: {
   initial: PayslipSourceConfig;
   accounts: SourceStatus['accounts'];
+  payees: { id: string; name: string }[];
 }) {
   const [salaryAccountId, setAccount] = useState(initial.salaryAccountId ?? '');
+  const [automaticPayeeId, setAutomaticPayee] = useState(initial.automation?.payeeId ?? '');
   const [rows, setRows] = useState(() =>
     Object.entries(initial.wageTypes).map(([code, type]) => ({ code, type })),
   );
@@ -567,6 +937,7 @@ function PayslipSourceForm({
       () =>
         request<{ groupId: string }>('PUT', PATH + '/config', {
           salaryAccountId: salaryAccountId || null,
+          ...(automaticPayeeId ? { automation: { payeeId: automaticPayeeId } } : {}),
           wageTypes: Object.fromEntries(rows.map((r) => [r.code, r.type])),
         }),
       () => 'Gehaltsquelle gespeichert.',
@@ -593,6 +964,27 @@ function PayslipSourceForm({
           </Select>
         )}
       </Field>
+      <Field label="Arbeitgeber / Absender für automatische Gehaltszettel">
+        {({ id }) => (
+          <Select
+            id={id}
+            value={automaticPayeeId}
+            disabled={busy}
+            onChange={(event) => setAutomaticPayee(event.target.value)}
+          >
+            <option value="">Automatische Speicherung aus</option>
+            {payees.map((person) => (
+              <option key={person.id} value={person.id}>
+                {person.name}
+              </option>
+            ))}
+          </Select>
+        )}
+      </Field>
+      <p>
+        Einmal dem Gehaltskonto und einem vorhandenen Absender zuordnen. Nur eindeutig validierte
+        neue Uploads werden automatisch gespeichert; bestehende Buchungen bleiben unverändert.
+      </p>
       <p>
         Lohnarten aus dem Dokument zuordnen. Bezüge sind bereits in der Bruttosumme enthalten.
         Aufrollungen behalten ihr Vorzeichen.
@@ -656,7 +1048,7 @@ function PayslipSourceForm({
           Zuordnung speichern
         </Button>
       </div>
-      <p>Nach Änderungen das PDF im Posteingang erneut auswerten.</p>
+      <p>Nach Änderungen das PDF unter Prüfen erneut auswerten.</p>
     </form>
   );
 }

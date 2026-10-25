@@ -45,7 +45,9 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
               </dt>
               <dd>
                 {ppText(
-                  b.benchmarkReturn === null || !perf ? null : perf.ttwror - b.benchmarkReturn,
+                  b.benchmarkReturn === null || !perf || perf.ttwror === null
+                    ? null
+                    : perf.ttwror - b.benchmarkReturn,
                 )}{' '}
                 · {decimal(b.beta)}
               </dd>
@@ -67,7 +69,11 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
             <dt>
               <Term>Sharpe</Term> · sicherer Zins 2,5 %
             </dt>
-            <dd>{perf && perf.volatility >= 0.005 ? decimal(perf.sharpe) : '–'}</dd>
+            <dd>
+              {perf && perf.volatility !== null && perf.volatility >= 0.005
+                ? decimal(perf.sharpe)
+                : '–'}
+            </dd>
           </div>
         </dl>
         {summary.benchmarks.some((b) => b.benchmarkReturn === null) && (
@@ -165,9 +171,8 @@ export function PerformanceComparisons({ summary }: { summary: PortfolioSummary 
         <p className="vnote">
           Zuordnung jeweils am Bewertungsdatum aus Einstellungen › Anlageklassen, einschließlich
           verkaufter Positionen. „Wert am Ende“ bezieht sich auf den gewählten Zeitraum, nicht auf
-          den heutigen Bestand. Ohne eingesetztes Kapital bleibt die Rendite nicht verfügbar.
-          Geldgewichtet: Modified Dietz, über 365 Tage annualisiert. Sharpe unter 0,5 % Volatilität
-          wird ausgelassen.
+          den heutigen Bestand. Ohne eingesetztes Kapital bleibt die Rendite nicht verfügbar. Sharpe
+          unter 0,5 % Volatilität wird ausgelassen.
         </p>
       </section>
       <section aria-labelledby="performance-heatmap-title">
@@ -376,7 +381,6 @@ function ClassMetrics({
               'Anlageklasse',
               'Wert am Ende',
               'TTWROR',
-              'Geldgewichtet',
               ...benchmarks.map((b) => `gegen ${b.name}`),
               'Volatilität p. a.',
               'Max. Rückgang',
@@ -394,11 +398,10 @@ function ClassMetrics({
               <th scope="row">{c.name}</th>
               <td className="n">{eur(c.valueCents)}</td>
               <td className="n">{rateText(c.performance?.ttwror)}</td>
-              <td className="n">{rateText(c.performance?.moneyWeighted)}</td>
               {benchmarks.map((b) => (
                 <td className="n" key={b.id}>
                   {ppText(
-                    b.benchmarkReturn === null || !c.performance
+                    b.benchmarkReturn === null || !c.performance || c.performance.ttwror === null
                       ? null
                       : c.performance.ttwror - b.benchmarkReturn,
                   )}
@@ -407,7 +410,9 @@ function ClassMetrics({
               <td className="n">{percentText(c.performance?.volatility)}</td>
               <td className="n">{rateText(c.performance?.maxDrawdown)}</td>
               <td className="n">
-                {c.performance && c.performance.volatility >= 0.005
+                {c.performance &&
+                c.performance.volatility !== null &&
+                c.performance.volatility >= 0.005
                   ? decimal(c.performance.sharpe)
                   : '–'}
               </td>

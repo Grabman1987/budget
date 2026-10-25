@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- JSON answers of the API are read, not typed */
+import { existsSync, mkdirSync } from 'node:fs';
+import { resolve } from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type APIRequestContext, type Locator } from '@playwright/test';
 import { test } from './isolated-ledger';
@@ -151,4 +153,73 @@ test('refuses a term end before its start and keeps the stored terms', async ({
   await panel.getByRole('button', { name: 'Abbrechen' }).click();
   await page.getByRole('button', { name: 'Kredit Muster bearbeiten' }).click();
   await expect(page.getByRole('dialog').getByLabel('Laufzeit bis')).toHaveValue('01.01.2030');
+});
+
+test('creates a depot settlement link, clears it on retype, and restores it with undo', async ({
+  page,
+  request,
+  isolatedLedger,
+}, info) => {
+  test.setTimeout(120_000);
+  const origin = isolatedLedger.origin;
+  const evidenceDir = resolve('docs/evidence/account-properties');
+  mkdirSync(evidenceDir, { recursive: true });
+  const evidenceStamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
+  const inspectForm = async (name: string) => {
+    for (const scheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
+      const axe = await new AxeBuilder({ page })
+        .include('dialog[open]')
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+        .analyze();
+      expect(
+        axe.violations.filter(
+          (violation) => violation.impact === 'serious' || violation.impact === 'critical',
+        ),
+      ).toEqual([]);
+      if (
+        (name === 'create' && info.project.name === 'desktop' && scheme === 'light') ||
+        (name === 'edit' && info.project.name === 'webkit-iphone' && scheme === 'dark')
+      ) {
+        const filename = `${name}-form-${info.project.name}-${scheme}-${evidenceStamp}.png`;
+        const path = resolve(evidenceDir, filename);
+        expect(existsSync(path)).toBe(false);
+        await page.screenshot({ path, fullPage: true });
+        await test.info().attach(filename, { path, contentType: 'image/png' });
+      }
+    }
+  };
+  const settlement = await post(request, origin, '/accounts', {
+    name: 'Verrechnung Giro',
+    type: 'checking',
+    openingDate: '2026-09-01',
+  });
+  await page.goto('/einstellungen/konten');
+  await page.getByRole('button', { name: 'Konto anlegen', exact: true }).click();
+  const create = page.getByRole('dialog');
+  await create.getByLabel('Name').fill('Depot Eigenschaften');
+  await create.getByLabel('Kontotyp').selectOption('brokerage');
+  await create.getByLabel('Verrechnungskonto').selectOption(settlement.account.id);
+  await inspectForm('create');
+  await create.getByRole('button', { name: 'Konto anlegen', exact: true }).click();
+  await expect(toast(page)).toContainText('Konto „Depot Eigenschaften“ angelegt.');
+  await expect(toast(page)).toBeHidden({ timeout: 12_000 });
+
+  const edit = page.getByRole('button', { name: 'Depot Eigenschaften bearbeiten' });
+  await edit.click();
+  const panel = page.getByRole('dialog');
+  await expect(panel.getByLabel('Verrechnungskonto')).toHaveValue(settlement.account.id);
+  await inspectForm('edit');
+  await panel.getByLabel('Kontotyp').selectOption('checking');
+  await expect(panel.getByLabel('Verrechnungskonto')).toHaveCount(0);
+  await panel.getByRole('button', { name: 'Speichern' }).click();
+  await expect(toast(page)).toContainText('Konto „Depot Eigenschaften“ gespeichert.');
+  await toast(page).getByRole('button', { name: 'Rückgängig', exact: true }).click();
+  // The action starts undo asynchronously; reopen only after the account cache is refreshed.
+  await expect(toast(page)).toContainText('Rückgängig gemacht.');
+  await edit.click();
+  await expect(page.getByRole('dialog').getByLabel('Kontotyp')).toHaveValue('brokerage');
+  await expect(page.getByRole('dialog').getByLabel('Verrechnungskonto')).toHaveValue(
+    settlement.account.id,
+  );
 });

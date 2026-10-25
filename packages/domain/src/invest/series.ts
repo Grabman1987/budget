@@ -1,6 +1,6 @@
 import { addDays, daysBetween } from '../date';
 import { costOf, type ProductTrade } from './cost';
-import { marketValueEurCents, toEurCents } from './invest';
+import { marketValueEurCents, toEurCents, ValuationLimitError } from './invest';
 import type { CashFlow } from './returns';
 
 /**
@@ -12,7 +12,7 @@ import type { CashFlow } from './returns';
  * Portfolio Performance semantics implemented here
  * ------------------------------------------------
  * A cash flow is money put INTO the portfolio (positive) or taken OUT of it (negative), in EUR
- * cents on the day of the booking; `ttwror`, `irr` and `modifiedDietz` (returns.ts) consume them.
+ * cents on the day of the booking; `windowPerformance`, `irr` and `modifiedDietz` consume them.
  *
  * 1. View "securities only" (`securityFlows`): the portfolio is the set of positions. A buy puts
  *    money in (gross amount plus fee plus tax), a sale takes money out (gross amount minus fee
@@ -63,11 +63,56 @@ export interface DatedPrice {
   date: string;
   priceMicro: number;
   currency: string;
+  /** Present only in an opted-in historical observation read. */
+  source?: string;
 }
 
 export interface DatedRate {
   date: string;
   rateMicro: number;
+  source?: string;
+}
+
+export type ValuationFxObservation =
+  | { kind: 'identity' }
+  | { kind: 'rate'; date: string; source: 'ecb' | 'manual' | 'import' | null }
+  | { kind: 'missing' }
+  | { kind: 'not-evaluated' };
+
+/** Fresh, nonmonetary facts from the selection actually used for one nonzero closing position. */
+export interface DailyValuationObservation {
+  accountId: string;
+  securityId: string;
+  day: string;
+  kind: 'quote' | 'execution' | 'cost' | 'missing';
+  quality: ValuationQuality;
+  date: string | null;
+  currency: string | null;
+  source: 'manual' | 'import' | 'yfinance' | 'ariva' | 'cryptocalc' | 'coingecko' | null;
+  lookAhead: boolean;
+  fx: ValuationFxObservation;
+  costMethod?: 'average';
+  missing?: 'price-or-basis' | 'fx';
+}
+
+function observedRate(found: DatedRate): ValuationFxObservation {
+  const source = found.source;
+  return {
+    kind: 'rate',
+    date: found.date,
+    source: source === 'ecb' || source === 'manual' || source === 'import' ? source : null,
+  };
+}
+
+function observedQuoteSource(source: string | undefined): DailyValuationObservation['source'] {
+  return source === 'manual' ||
+    source === 'import' ||
+    source === 'yfinance' ||
+    source === 'ariva' ||
+    source === 'cryptocalc' ||
+    source === 'coingecko'
+    ? source
+    : null;
 }
 
 /** ECB rates per currency (EUR per unit, micro), ascending by date. EUR needs no entry. */
@@ -127,10 +172,19 @@ export function latestOnOrBefore<T extends { date: string }>(
 }
 
 /** EUR per unit of `currency` on a day: the latest rate on or before it. A missing rate is an error. */
-export function fxOn(rates: RateTable, currency: string, day: string): number {
-  if (currency === 'EUR') return 1_000_000;
+export function fxOn(
+  rates: RateTable,
+  currency: string,
+  day: string,
+  observe?: (fact: ValuationFxObservation) => void,
+): number {
+  if (currency === 'EUR') {
+    observe?.({ kind: 'identity' });
+    return 1_000_000;
+  }
   const found = latestOnOrBefore(rates.get(currency) ?? [], day);
   if (!found) throw new ExchangeRateUnavailableError(currency, day);
+  observe?.(observedRate(found));
   return found.rateMicro;
 }
 
@@ -182,11 +236,21 @@ export interface PriceChoice {
 /** One cent rounding, also when an execution price lies between stored micro-units. */
 export function valueAtPrice(unitsE8: number, choice: PriceChoice, fxRateMicro: number): number {
   if (!choice.execution) return marketValueEurCents(unitsE8, choice.price.priceMicro, fxRateMicro);
+  if (
+    ![unitsE8, fxRateMicro, choice.execution.amountCents, choice.execution.unitsE8].every(
+      Number.isSafeInteger,
+    )
+  )
+    throw new ValuationLimitError('Execution valuation requires safe integer operands', 'operand');
   const scaled = BigInt(unitsE8) * BigInt(choice.execution.amountCents) * BigInt(fxRateMicro);
   const denominator = BigInt(Math.abs(choice.execution.unitsE8)) * 1_000_000n;
   const negative = scaled < 0n;
   const rounded = ((negative ? -scaled : scaled) + denominator / 2n) / denominator;
-  return Number(negative ? -rounded : rounded);
+  const signed = negative ? -rounded : rounded;
+  const maximum = BigInt(Number.MAX_SAFE_INTEGER);
+  if (signed > maximum || signed < -maximum)
+    throw new ValuationLimitError('Execution valuation exceeds safe integer range', 'result');
+  return Number(signed);
 }
 
 /**
@@ -303,9 +367,14 @@ export function costInEur(
   currency: string,
   rates: RateTable,
   day: string,
+  observe?: (fact: ValuationFxObservation) => void,
 ): number | null {
-  if (currency === 'EUR') return costCents;
+  if (currency === 'EUR') {
+    observe?.({ kind: 'identity' });
+    return costCents;
+  }
   const found = latestOnOrBefore(rates.get(currency) ?? [], day);
+  observe?.(found ? observedRate(found) : { kind: 'missing' });
   return found ? toEurCents(costCents, found.rateMicro) : null;
 }
 
@@ -363,6 +432,8 @@ export interface ValuationOptions {
    * `PriceUnavailableError` (Portfolio Performance comparisons).
    */
   estimate?: boolean;
+  /** DAILY-only observation; callers receive no price/rate/input references or monetary data. */
+  observe?: (fact: Readonly<DailyValuationObservation>) => void;
 }
 
 /**
@@ -412,22 +483,63 @@ export function dailyValuation(
       if (units === 0) return 0;
       let value: number;
       let dayQuality: ValuationQuality;
+      let observation: DailyValuationObservation | undefined;
+      let fx: ValuationFxObservation = { kind: 'not-evaluated' };
+      const observeFx = options.observe
+        ? (fact: ValuationFxObservation) => {
+            fx = fact;
+          }
+        : undefined;
       const choice =
         pickPrice(prices, day, false) ??
         (estimate
           ? pickTradePrice(p.priceTrades ?? p.cost?.trades ?? [], day, p.cost?.currency)
           : undefined);
       if (choice) {
-        value = valueAtPrice(units, choice, fxOn(rates, choice.price.currency, day));
+        value = valueAtPrice(units, choice, fxOn(rates, choice.price.currency, day, observeFx));
         dayQuality = choice.quality;
+        if (options.observe)
+          observation = {
+            accountId: p.accountId,
+            securityId: p.securityId,
+            day,
+            kind: choice.execution ? 'execution' : 'quote',
+            quality: dayQuality,
+            date: choice.price.date,
+            currency: choice.price.currency,
+            source: choice.execution ? null : observedQuoteSource(choice.price.source),
+            lookAhead: choice.price.date > day,
+            fx,
+          };
       } else if (!estimate) {
         throw new PriceUnavailableError(p.accountId, p.securityId, day);
       } else {
         const cost = p.cost ? costBasisOnDay(p.snapshots, p.cost, day) : null;
-        const eur = cost === null || !p.cost ? null : costInEur(cost, p.cost.currency, rates, day);
+        const eur =
+          cost === null || !p.cost ? null : costInEur(cost, p.cost.currency, rates, day, observeFx);
         value = eur ?? 0;
         dayQuality = eur === null ? 'missing' : 'estimated';
+        if (options.observe)
+          observation = {
+            accountId: p.accountId,
+            securityId: p.securityId,
+            day,
+            kind: cost === null || !p.cost ? 'missing' : 'cost',
+            quality: dayQuality,
+            date: null,
+            currency: p.cost?.currency ?? null,
+            source: null,
+            lookAhead: false,
+            fx,
+            ...(cost === null || !p.cost
+              ? { missing: 'price-or-basis' as const }
+              : {
+                  costMethod: 'average' as const,
+                  ...(eur === null ? { missing: 'fx' as const } : {}),
+                }),
+          };
       }
+      if (observation) options.observe?.(observation);
       quality = worstQuality(quality, dayQuality);
       if (isIncompleteQuality(dayQuality)) {
         const f = flagged.get(dayQuality);
@@ -458,19 +570,26 @@ export function sumSeries(...series: ReadonlyArray<ReadonlyArray<number>>): numb
 }
 
 /** Signed flow of one trade in the trade's currency (securities-only view); 0 for a split. */
-export function securityFlowCents(t: SeriesTrade): number {
+export type SecurityTaxBasis = 'after-tax' | 'before-tax' | 'pp-irr';
+
+export function securityFlowCents(
+  t: SeriesTrade,
+  taxBasis: SecurityTaxBasis = 'after-tax',
+): number {
+  const tax = taxBasis === 'after-tax' ? t.taxCents : 0;
   switch (t.kind) {
     case 'buy':
     case 'delivery_in':
-      return t.amountCents + t.feeCents + t.taxCents;
+      return t.amountCents + t.feeCents + tax;
     case 'sell':
     case 'delivery_out':
     case 'dividend':
     case 'interest':
-      return -(t.amountCents - t.feeCents - t.taxCents);
+      return -(t.amountCents - t.feeCents - tax);
     case 'fee':
+      return t.amountCents + t.feeCents + tax;
     case 'tax':
-      return t.amountCents + t.feeCents + t.taxCents;
+      return taxBasis !== 'after-tax' ? 0 : t.amountCents + t.feeCents + tax;
     case 'split':
       return 0;
   }
@@ -478,30 +597,42 @@ export function securityFlowCents(t: SeriesTrade): number {
 
 const byDate = (a: { date: string }, b: { date: string }) => a.date.localeCompare(b.date);
 
-/** Merge flows of the same day into one (amounts add up), ascending by date. */
+/** Merge each day's inflows and outflows separately; PP uses different timing for each sign. */
 function mergeByDay(flows: ReadonlyArray<CashFlow>): CashFlow[] {
-  const sorted = [...flows].sort(byDate);
+  const sorted = [...flows].sort((a, b) => byDate(a, b) || Math.sign(b.cents) - Math.sign(a.cents));
   const out: CashFlow[] = [];
   for (const f of sorted) {
     const last = out[out.length - 1];
-    if (last && last.date === f.date) last.cents += f.cents;
+    if (last && last.date === f.date && Math.sign(last.cents) === Math.sign(f.cents))
+      last.cents += f.cents;
     else out.push({ ...f });
   }
   return out.filter((f) => f.cents !== 0);
 }
 
 /** Cash flows of the securities-only view in EUR cents (converted at the rate of the trade day). */
-export function securityFlows(trades: ReadonlyArray<SeriesTrade>, rates: RateTable): CashFlow[] {
+export function securityFlows(
+  trades: ReadonlyArray<SeriesTrade>,
+  rates: RateTable,
+  taxBasis: SecurityTaxBasis = 'after-tax',
+): CashFlow[] {
   return mergeByDay(
     trades.map((t) => {
-      const cents = securityFlowCents(t);
+      const cents = securityFlowCents(t, taxBasis);
       const currency = t.currency ?? 'EUR';
+      const convert = (amount: number) =>
+        currency === 'EUR' || amount === 0
+          ? amount
+          : toEurCents(amount, fxOn(rates, currency, t.date));
+      // PP's security IRR converts net payments and tax separately. TTWROR filters
+      // taxes in the original currency before conversion; those roundings can differ.
+      const converted =
+        taxBasis === 'pp-irr' && t.kind !== 'tax' && t.kind !== 'split'
+          ? convert(securityFlowCents(t)) - convert(t.taxCents)
+          : convert(cents);
       return {
         date: t.date,
-        cents:
-          currency === 'EUR' || cents === 0
-            ? cents
-            : toEurCents(cents, fxOn(rates, currency, t.date)),
+        cents: converted,
       };
     }),
   );

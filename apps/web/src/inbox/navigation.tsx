@@ -33,6 +33,9 @@ export function validateInboxSearch(search: Record<string, unknown>) {
     aufgaben: (search['aufgaben'] === 'current' || search['aufgaben'] === 'historical'
       ? search['aufgaben']
       : undefined) as Exclude<InboxPeriod, 'all'> | undefined,
+    teil: (search['teil'] === 'umsaetze' || search['teil'] === 'aufgaben'
+      ? search['teil']
+      : undefined) as 'umsaetze' | 'aufgaben' | undefined,
     gruppe:
       typeof search['gruppe'] === 'string' && search['gruppe'].length <= 100
         ? search['gruppe']
@@ -47,8 +50,8 @@ export function InboxHeaderLink(props: AnchorHTMLAttributes<HTMLAnchorElement>) 
   return (
     <AppLink
       {...props}
-      to="/konten/posteingang"
-      search={location.pathname.startsWith('/konten/posteingang') ? {} : { von: location.href }}
+      to="/konten/pruefen"
+      search={location.pathname.startsWith('/konten/pruefen') ? {} : { von: location.href }}
       state={{ inboxOpenedInApp: true }}
     />
   );

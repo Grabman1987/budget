@@ -42,10 +42,10 @@
   text-decoration-color: var(--line);
 }
 .prep-good {
-  color: var(--good-ink);
+  color: var(--plus-ink);
 }
 .prep-bad {
-  color: var(--bad-ink);
+  color: var(--minus-ink);
 }
 .prep-muted {
   color: var(--ink-3);
@@ -57,10 +57,10 @@
 }
 .prep-lead .tech {
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--fs-label);
 }
 .prep-lead strong {
-  font-size: clamp(30px, 5vw, 44px);
+  font-size: var(--fs-dimension);
   font-weight: 650;
   letter-spacing: -0.02em;
   line-height: 1.05;
@@ -86,7 +86,7 @@
   text-align: left;
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
-  font-size: 11px;
+  font-size: var(--fs-label);
   font-weight: 600;
   white-space: nowrap;
   color: var(--ink-2);
@@ -103,7 +103,7 @@
 }
 .prep-table small {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-label);
   color: var(--ink-3);
 }
 .prep-table tr.is-group td,
@@ -145,7 +145,7 @@
   display: inline-block;
   width: 12px;
   height: 12px;
-  border-radius: 2px;
+  border-radius: 4px;
   margin-inline-end: 8px;
   vertical-align: -1px;
   border: 1px solid var(--line);

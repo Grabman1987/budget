@@ -115,21 +115,27 @@ sampleTest(
     await expect(
       prototype.getByRole('heading', { name: 'Sondertilgung', exact: true }),
     ).toBeVisible();
-    const geometry = async (p: Page) => {
+    const geometry = async (p: Page, lead: string, model: string) => {
       await settle(p);
       return {
-        lead: await p.locator('.vview > .vnw').boundingBox(),
-        model: await p.locator('.vview > .vcomp').boundingBox(),
+        lead: await p.locator(lead).boundingBox(),
+        model: await p.locator(model).boundingBox(),
       };
     };
-    const actual = await geometry(page),
-      original = await geometry(prototype);
+    const actual = await geometry(page, '.debts-view > .vnw', '.debt-assumptions'),
+      original = await geometry(prototype, '.vview > .vnw', '.vview > .vcomp');
     // The owner full-width directive supersedes the prototype's desktop side column (#342).
+    // V1 puts the total and real history before the overview and disclosed calculation.
     const leadResult = (await page.locator('.debt-overview').boundingBox())!;
-    expect(leadResult.y + leadResult.height).toBeLessThan(actual.lead!.y);
+    const calculation = (await page.locator('.debt-rechenweg').boundingBox())!;
+    const content = (await page.locator('.debt-rechenweg > .vview').boundingBox())!;
+    expect(actual.lead!.y + actual.lead!.height).toBeLessThan(leadResult.y);
+    expect(leadResult.y + leadResult.height).toBeLessThan(calculation.y);
     expect(actual.model!.y).toBeGreaterThanOrEqual(actual.lead!.y + actual.lead!.height - 1);
-    expect(Math.abs(actual.model!.x - actual.lead!.x)).toBeLessThanOrEqual(1);
-    expect(Math.abs(actual.model!.width - actual.lead!.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(calculation.x - actual.lead!.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(calculation.width - actual.lead!.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(actual.model!.x - content.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(actual.model!.width - content.width)).toBeLessThanOrEqual(1);
     for (const theme of ['light', 'dark']) {
       await prototype.evaluate((t) => {
         document.documentElement.dataset['theme'] = t;

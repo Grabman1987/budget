@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, ArrowLeftRight, Check, CheckCheck, Clock, Split } from 'lucide-react';
 import { FlagGlyph, FlagPicker } from './flag-picker';
 import { FLAG_LABEL, STATUS_LABEL } from './labels';
-import { lookupsQuery } from './queries';
+import { accountsQuery, lookupsQuery } from './queries';
+import { depotTradesQuery } from './depot-queries';
 import type { BookingFlag, BookingStatus, ListedBooking } from './types';
 
 const STATUS_ICON = { pending: Clock, confirmed: Check, reconciled: CheckCheck } as const;
@@ -96,10 +97,20 @@ export function useCategoryClasses(): Map<string, SwatchKind> {
 export function CategoryCell({
   booking,
   classes,
+  showClass = true,
 }: {
   booking: ListedBooking;
   classes: Map<string, SwatchKind>;
+  /** Registers omit class squares; category choices elsewhere retain their class identity. */
+  showClass?: boolean;
 }) {
+  const accounts = useQuery(accountsQuery());
+  const investment =
+    accounts.data?.accounts.find((a) => a.id === booking.accountId)?.role === 'investment';
+  const trades = useQuery({
+    ...depotTradesQuery(),
+    enabled: investment && !booking.splits[0]?.categoryId,
+  });
   if (booking.splits.length > 1) {
     return (
       <span className="kcat">
@@ -122,11 +133,17 @@ export function CategoryCell({
     // An inflow without a category is money to distribute, nothing missing.
     return (
       <span className="kcat">
-        <ClassSwatch kind="open" />
+        {showClass && <ClassSwatch kind="open" />}
         Zu verteilen
       </span>
     );
   }
+  if (
+    !only?.categoryId &&
+    investment &&
+    trades.data?.trades.some((t) => t.bookingId === booking.id)
+  )
+    return <span className="kcat">Trade · Verrechnung</span>;
   if (!only?.categoryId || !only.categoryName) {
     return (
       <span className="kcat is-none">
@@ -138,7 +155,7 @@ export function CategoryCell({
   const kind = classes.get(only.categoryId);
   return (
     <span className="kcat">
-      {kind && <ClassSwatch kind={kind} />}
+      {showClass && kind && <ClassSwatch kind={kind} />}
       {only.categoryName}
     </span>
   );
@@ -148,15 +165,18 @@ export function CategoryCell({
 export function PayeeCell({
   booking,
   noteClassName,
+  hideNote = false,
 }: {
   booking: ListedBooking;
   noteClassName?: string;
+  /** The account register shows the note in its own column and phone line instead. */
+  hideNote?: boolean;
 }) {
   const name = booking.payeeName ?? (booking.transferId ? 'Umbuchung' : 'Ohne Empfänger');
   return (
     <>
       <span className="kname-s">{name}</span>
-      {booking.memo && (
+      {booking.memo && !hideNote && (
         <span className={noteClassName ? `kmeta ${noteClassName}` : 'kmeta'}>{booking.memo}</span>
       )}
     </>

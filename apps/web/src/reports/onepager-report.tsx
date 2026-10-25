@@ -227,7 +227,7 @@ function Split523({ data }: { data: OnePagerData }) {
       ) : (
         <div className="b523" data-testid="onepager-split">
           <ChartValue
-            label="Verteilung 50/30/20"
+            label={splitLabel(data)}
             date={data.month}
             series={[
               ...CLASSES.map((c) => ({
@@ -242,7 +242,7 @@ function Split523({ data }: { data: OnePagerData }) {
               },
             ]}
           >
-            <AllocationBar data={a} label={splitLabel(data)} />
+            <AllocationBar data={a} label={splitLabel(data)} decorative />
           </ChartValue>
           <div className="b523-leg">
             {CLASSES.map((c) => (
@@ -305,7 +305,7 @@ function NetWorth({ data }: { data: OnePagerData }) {
             label={`Nettovermögen der letzten ${nw.series.length} Monatsenden bis ${eur(nw.cents)}`}
           />
           <p className="ps-note">
-            Eigenleistung {signed(nw.ownCents)} · Markt {signed(nw.marketCents)}
+            Gespart {signed(nw.ownCents)} · Markt {signed(nw.marketCents)}
           </p>
         </>
       )}

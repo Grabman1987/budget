@@ -1,0 +1,107 @@
+.depot {
+  min-width: 0;
+}
+.depot-name {
+  overflow-wrap: anywhere;
+}
+.depot-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--rule);
+  margin-block: var(--space-lg);
+}
+.depot-tabs a,
+.depot-link,
+.depot-settlement a,
+.depot summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding-inline: var(--space-sm);
+}
+.depot-tabs a {
+  color: var(--ink-2);
+  text-decoration: none;
+}
+.depot-tabs a[aria-current] {
+  color: var(--ink);
+  border-bottom: 2px solid var(--line);
+  font-weight: 600;
+}
+.depot-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-body);
+}
+.depot-table th,
+.depot-table td {
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--rule);
+  text-align: end;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.depot-table th:first-child {
+  text-align: start;
+}
+.depot-table small {
+  display: block;
+  color: var(--ink-2);
+  font-size: var(--fs-label);
+}
+button.depot-link {
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.depot .kh {
+  flex-wrap: wrap;
+}
+@media (max-width: 600px) {
+  .depot-name {
+    display: block;
+  }
+  .depot-table thead {
+    display: none;
+  }
+  .depot-table,
+  .depot-table tbody,
+  .depot-table tr {
+    display: block;
+  }
+  .depot-table tr {
+    padding-block: var(--space-sm);
+    border-bottom: 1px solid var(--rule-strong);
+  }
+  .depot-table td,
+  .depot-table th {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    text-align: end;
+    border: 0;
+  }
+  .depot-table td::before,
+  .depot-table th::before {
+    content: attr(data-label);
+    color: var(--ink-2);
+    text-align: start;
+  }
+  .depot-table td {
+    flex-wrap: wrap;
+  }
+  .depot-table small {
+    flex-basis: 100%;
+  }
+  .depot-trades td:last-child {
+    display: block;
+  }
+  .depot-trades td:last-child::before {
+    margin-right: var(--space-sm);
+  }
+}

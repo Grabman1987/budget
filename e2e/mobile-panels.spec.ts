@@ -37,7 +37,7 @@ const SCENARIOS: Scenario[] = [
   {
     id: 'Buchung erfassen (FormDialog)',
     name: 'Buchung erfassen',
-    kind: 'sheet',
+    kind: 'full',
     inApp: true,
     open: async (page) => {
       await app(page, '/konten');
@@ -139,7 +139,16 @@ const geometry = (page: Page): Promise<Geometry> =>
       .filter((el) => !el.closest('.toast-host') && el.getClientRects().length > 0)
       .filter((el) => {
         const b = el.getBoundingClientRect();
-        return b.width > 2 && (b.left < -0.5 || b.right > w + 0.5);
+        // Booking suggestions intentionally scroll within a bounded, clipped rail (#463).
+        // Measure their painted horizontal interval; still report an overflowing rail itself.
+        const rail = el.closest<HTMLElement>('.bk-suggestions');
+        const clip =
+          rail && rail !== el && getComputedStyle(rail).overflowX === 'auto'
+            ? rail.getBoundingClientRect()
+            : null;
+        const left = clip ? Math.max(b.left, clip.left) : b.left;
+        const right = clip ? Math.min(b.right, clip.right) : b.right;
+        return right - left > 2 && (left < -0.5 || right > w + 0.5);
       })
       .slice(0, 5)
       .map((el) => `${el.tagName}.${el.className}`);
@@ -294,8 +303,10 @@ test.describe('behaviour', () => {
     });
   }
 
-  for (const s of SCENARIOS.filter((x) => x.kind === 'sheet')) {
-    test(`M04: ${s.id}: a tap on the backdrop closes, a tap inside does not`, async ({ page }) => {
+  for (const s of SCENARIOS.filter((x) => x.kind === 'sheet' || x.name === 'Buchung erfassen')) {
+    test(`M04: ${s.id}: inside stays open; backdrop or full-screen close dismisses`, async ({
+      page,
+    }) => {
       await s.open(page);
       await expect(dialogOf(page, s)).toBeVisible();
       await settle(page);
@@ -303,12 +314,14 @@ test.describe('behaviour', () => {
         const d = document.querySelector<HTMLElement>('dialog.overlay[open]');
         return { top: d?.getBoundingClientRect().top ?? 0, w: window.innerWidth };
       });
-      expect(top, 'there is a backdrop above the sheet to tap').toBeGreaterThan(20);
-      // Inside: the title area of the sheet.
-      await page.touchscreen.tap(w / 2, top + 80);
+      if (s.kind === 'full') expect(top, 'capture fills the phone with no exposed scrim').toBe(0);
+      else expect(top, 'there is a backdrop above the sheet to tap').toBeGreaterThan(20);
+      // Capture's left inset is inside the dialog without changing a field or booking kind.
+      await page.touchscreen.tap(s.kind === 'full' ? 2 : w / 2, top + 80);
       await expect(dialogOf(page, s)).toBeVisible();
-      // On the backdrop.
-      await page.touchscreen.tap(w / 2, top / 2);
+      if (s.kind === 'full')
+        await dialogOf(page, s).getByRole('button', { name: 'Schließen' }).first().tap();
+      else await page.touchscreen.tap(w / 2, top / 2);
       await expect(dialogOf(page, s)).toBeHidden();
       await expectNoModal(page);
     });

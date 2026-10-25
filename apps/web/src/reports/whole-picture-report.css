@@ -10,7 +10,7 @@
 }
 .whole-section h2 {
   margin: 0 0 16px;
-  font-size: 20px;
+  font-size: var(--fs-headline);
 }
 .whole-table-head {
   display: flex;
@@ -45,7 +45,7 @@
 }
 .whole-total {
   font-weight: 650;
-  border-top: 2px solid var(--rule-strong);
+  border-top: var(--stroke-hairline) solid var(--rule-strong);
 }
 .whole-scroll a {
   color: inherit;
@@ -75,7 +75,7 @@
     padding: 16px;
   }
   .whole-scroll {
-    font-size: 12px;
+    font-size: var(--fs-label);
   }
   .whole-scroll a {
     min-height: 44px;
@@ -85,8 +85,8 @@
 }
 
 .whole-picture .is-up {
-  color: var(--good-ink);
+  color: var(--plus-ink);
 }
 .whole-picture .is-down {
-  color: var(--bad-ink);
+  color: var(--minus-ink);
 }

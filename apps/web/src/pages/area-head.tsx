@@ -2,13 +2,14 @@ import { useAuthMethodLabel } from '../auth/status-query';
 import { todayInVienna } from '@budget/domain';
 import { useParams } from '@tanstack/react-router';
 import { ReportNavigation } from '../reports/report-navigation';
+import '../reports/period-quick-select.css';
 import { Segmented, StandValue, TitleBlock, type TitleBlockField } from '@budget/ui';
 import { KeyRound } from 'lucide-react';
 import { useState } from 'react';
 import { monthLabel, monthRangeLabel } from '../nav/month';
 import { useMonthSpan } from '../budget/month-span';
 import { MonthSwitch } from '../shell/month-switch';
-import { VermoegenStand, ZeitraumSwitch } from '../wealth/frame';
+import { VermoegenStand } from '../wealth/frame';
 import type { PageMeta } from '../nav/pages';
 import { useMonth } from '../shell/use-month';
 import type { HeutePeriod } from '../heute/api';
@@ -117,12 +118,23 @@ export function AreaHead({
       ];
       break;
     case 'plan':
-      titleNode = <MonthSwitch heading={monthRangeLabel(month, span)} />;
+      titleNode =
+        meta.register === 'prognose' ? (
+          (title ?? meta.title)
+        ) : (
+          <MonthSwitch heading={monthRangeLabel(month, span)} />
+        );
       titleOnMobile = TITLE_ON_MOBILE_AREAS.has('plan');
-      fields = [
-        { ...stand, hideOnMobile: true },
-        { label: 'Einnahmen', value: income ?? '–', labelOnMobile: true },
-      ];
+      fields =
+        meta.register === 'prognose'
+          ? [
+              { ...stand, hideOnMobile: true },
+              { label: 'Datenbasis', value: reportDataBasis, hideOnMobile: true },
+            ]
+          : [
+              { ...stand, hideOnMobile: true },
+              { label: 'Einnahmen', value: income ?? '–', labelOnMobile: true },
+            ];
       break;
     case 'konten':
       heading = 'Konten';
@@ -133,13 +145,7 @@ export function AreaHead({
       break;
     case 'vermoegen':
       heading = 'Vermögen';
-      fields = [
-        // Six range buttons need the whole strip on the phone, as in the prototype.
-        { label: 'Stand', value: <VermoegenStand />, hideOnMobile: true },
-        { label: 'Zeitraum', value: <ZeitraumSwitch /> },
-      ];
-      if (meta.register === 'freiheit' || meta.register === 'schulden')
-        fields = fields.filter((field) => field.label !== 'Zeitraum');
+      fields = [{ label: 'Stand', value: <VermoegenStand />, hideOnMobile: true }];
       break;
     case 'einstellungen':
       heading = 'Einstellungen';
@@ -167,8 +173,9 @@ export function AreaHead({
         // The phone header already carries the report title as its h1.
       }
       // As in the prototype; the phone shows the registers right under the header.
+      // A report head says its data basis; the sync stamp stays only on the report overview.
       fields = [
-        { ...(reportStand ?? stand), hideOnMobile: true },
+        ...(reportStand || !reportId ? [{ ...(reportStand ?? stand), hideOnMobile: true }] : []),
         {
           label: 'Datenbasis',
           value: reportDataBasis ?? 'Okt 2023 bis heute',
@@ -199,7 +206,11 @@ export function AreaHead({
       fields={all}
       compactOnMobile
       titleOnMobile={titleOnMobile}
-      {...(meta.area === 'heute' ? { className: 'titleblock-stack' } : {})}
+      {...(meta.area === 'heute'
+        ? { className: 'titleblock-stack titleblock-heute' }
+        : meta.area === 'reports' && reportId
+          ? { className: 'titleblock-report' }
+          : {})}
     />
   );
 }

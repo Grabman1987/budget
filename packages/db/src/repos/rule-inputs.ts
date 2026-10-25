@@ -63,7 +63,8 @@ import { fxRateOnOrBefore } from './prices';
 import { memoizedShared } from './request-memo';
 import { budgetLedger, budgetOfLedger } from './queries';
 import type { Executor } from './types';
-import { freedomExpenses, freedomInvestedCents } from './freedom-inputs';
+import { freedomExpenses } from './freedom-inputs';
+import { statementForecastLegs, statementLegacyKeys } from './statement-settlement-read';
 
 /**
  * `ruleInputs` is the single place that assembles what the rules read (SPEC §4): the budget
@@ -363,9 +364,11 @@ export function scheduled(
   }[] = [];
   const cats = catById(f);
   const accounts = new Map(f.accounts.map((a) => [a.id, a]));
+  const replaced = statementLegacyKeys(f.db);
   for (const p of f.payments) {
     const versions = f.versions.get(p.id) ?? [];
     for (const occ of occurrences(schedulePayment(p), versions.map(scheduleVersion), from, to)) {
+      if (replaced.has(p.id + '|' + occ.dueDate)) continue;
       if (!isPlannedOccurrence(f, p.id, occ.dueDate, options)) continue;
       const v = versionOn(versions, occ.dueDate);
       const pause = options.applyIncomePauses
@@ -456,6 +459,17 @@ export function forecastInputs(
   );
   const to = addDays(asOf, 365);
   const items: ForecastItem[] = [
+    ...statementForecastLegs(
+      f.db,
+      addDays(asOf, 1),
+      to,
+      new Set(budgetAccounts.map((a) => a.id)),
+    ).map((l) => ({
+      day: l.day,
+      cents: l.cents,
+      kind: 'event' as const,
+      label: l.kind === 'settlement' ? 'Abrechnungsausgleich' : 'Ausgabengutschrift',
+    })),
     ...scheduled(f, addDays(asOf, 1), to, asOf, { applyIncomePauses: true })
       .filter((o) => o.onBudget)
       .map((o) => ({
@@ -500,6 +514,43 @@ export function forecastInputs(
     items,
     variableMonthlyCents,
     overdraftLimitCents: budgetAccounts.reduce((s, a) => s + (a.overdraftLimitCents ?? 0), 0),
+  };
+}
+
+/** R16 alone needs the selected Anlagebasis, not valuations of unrelated accounts. */
+export function freedomRuleInput(
+  db: Executor,
+  asOf: string,
+  facts = loadFacts(db, asOf),
+  current = allocationInputsAsOf(db, asOf),
+): RuleInputs['freedom'] {
+  const ref = referenceMonth(asOf);
+  if (!facts.budgetByMonth.has(monthOf(asOf)) && !facts.budgetByMonth.has(ref)) return null;
+  const progressAt = (day: string, refMonth: string) => {
+    const invested = (day === asOf ? current : allocationInputsAsOf(db, day)).valueCents;
+    if (invested === null || !Number.isSafeInteger(invested)) return null;
+    try {
+      return { invested, spend: freedomExpenses(facts, refMonth) };
+    } catch (error) {
+      if (!(error instanceof RangeError)) throw error;
+      return null;
+    }
+  };
+  const now = progressAt(asOf, ref);
+  if (!now) return null;
+  const previousRef = addMonths(ref, -3);
+  const previousDay = lastDayOfMonth(previousRef);
+  const previous =
+    facts.budgetByMonth.has(previousRef) && previousDay >= facts.firstMonth
+      ? progressAt(previousDay, previousRef)
+      : null;
+  return {
+    investedCents: now.invested,
+    annualSpendCents: now.spend,
+    previousProgressBp:
+      previous && previous.spend > 0
+        ? freedomProgressBp(previous.invested, freedomTargetCents(previous.spend))
+        : null,
   };
 }
 
@@ -758,31 +809,7 @@ export function ruleInputs(
   const portfolioRiskPolicy = resolvePortfolioRiskPolicy(db, asOf, allocationInputs.valueCents);
   const classTargets = portfolioRiskPolicy.targets;
 
-  // R16: invested wealth over 25 annual spends, now and three months ago
-  const progressAt = (day: string, refM: string): { invested: number; spend: number } => {
-    const worth = day === asOf ? nw : netWorthAsOf(db, day);
-    const invested = freedomInvestedCents(f.accounts, day, worth.byAccount);
-    if (invested === null) throw new RangeError('Freedom investment total unavailable');
-    return {
-      invested,
-      spend: freedomExpenses(f, refM),
-    };
-  };
-  const nowP = progressAt(asOf, ref);
-  const prevRef = addMonths(ref, -3);
-  const prevDay = lastDayOfMonth(prevRef);
-  const prevP =
-    f.budgetByMonth.has(prevRef) && prevDay >= f.firstMonth ? progressAt(prevDay, prevRef) : null;
-  const freedom = hasBudget
-    ? {
-        investedCents: nowP.invested,
-        annualSpendCents: nowP.spend,
-        previousProgressBp:
-          prevP && prevP.spend > 0
-            ? freedomProgressBp(prevP.invested, freedomTargetCents(prevP.spend))
-            : null,
-      }
-    : null;
+  const freedom = freedomRuleInput(db, asOf, f, allocationInputs);
 
   return {
     asOf,

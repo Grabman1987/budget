@@ -47,6 +47,8 @@ export const accountCreate = z.object({
     .default('EUR'),
   institutionId: id.nullable().optional(),
   contactId: id.nullable().optional(),
+  /** Separate platform cash account for a depot; integrated cash keeps this unset. */
+  referenceAccountId: id.nullable().optional(),
   openingBalanceCents: cents.default(0),
   openingDate: day,
   note: nullableText.optional(),
@@ -162,6 +164,7 @@ export const transferCreate = z.object({
   memo: nullableText.optional(),
   status: writableStatus.default('confirmed'),
   projectId: id.nullable().optional(),
+  bankStatus: writableStatus.optional(),
 });
 export const createBody = z.discriminatedUnion('type', [bookingCreate, transferCreate]);
 
@@ -340,6 +343,7 @@ export const coverBody = z.object({
 });
 
 // ---------- expected payments ----------
+export const expectedBookBody = z.object({ date: day.optional() }).strict();
 const expectedFields = {
   name: z.string().trim().min(1).max(120),
   kind: z.enum(EXPECTED_KINDS),

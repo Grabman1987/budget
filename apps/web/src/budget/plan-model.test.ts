@@ -3,6 +3,7 @@ import type { BudgetMonthView, EnvelopeSummary } from './budget-api';
 import {
   assignGuard,
   barFor,
+  spendingBar,
   coverFromToBeAssigned,
   coverSource,
   coverSources,
@@ -38,6 +39,46 @@ const env = (categoryId: string, over: Partial<EnvelopeSummary> = {}): EnvelopeS
   dueMonth: null,
   target: null,
   ...over,
+});
+
+describe('Zerosum spending display', () => {
+  it('shows cent-exact net spending and remaining share, including carry and refunds', () => {
+    expect(spendingBar(env('x', { activityCents: -12_898, availableCents: 72_972 }))).toEqual({
+      status: 'Ausgegeben 128,98 € von 858,70 €',
+      spentShare: 12_898 / 85_870,
+      over: false,
+    });
+    expect(spendingBar(env('x', { activityCents: 202, availableCents: 703 }))).toEqual({
+      status: 'Noch nichts ausgegeben',
+      spentShare: 0,
+      over: false,
+    });
+  });
+
+  it('distinguishes fully spent, overspent, empty and underfunded envelopes', () => {
+    expect(spendingBar(env('x', { activityCents: -501 }))).toEqual({
+      status: 'Komplett ausgegeben',
+      spentShare: 1,
+      over: false,
+    });
+    expect(
+      spendingBar(env('x', { activityCents: -703, availableCents: -202, needCents: 500 })),
+    ).toEqual({
+      status: 'Überzogen um 2,02 € · fehlt 5,00 € bis Ziel',
+      spentShare: 1,
+      over: true,
+    });
+    expect(spendingBar(env('x'))).toEqual({
+      status: 'Noch nichts ausgegeben',
+      spentShare: 0,
+      over: false,
+    });
+    expect(spendingBar(env('x', { availableCents: 501, needCents: 1 }))).toEqual({
+      status: 'Noch nichts ausgegeben · fehlt 0,01 € bis Ziel',
+      spentShare: 0,
+      over: false,
+    });
+  });
 });
 const cat = (id: string, stage: number | null, kind = 'variable', cls: string | null = 'need') => ({
   id,

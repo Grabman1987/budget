@@ -1,3 +1,4 @@
+import '../nav/registers.css';
 import { Registers, SectionHead, type RegisterItem, type TitleBlockField } from '@budget/ui';
 import type { ReactNode } from 'react';
 import { AREAS, areaById } from '../nav/areas';
@@ -19,6 +20,8 @@ export interface PlaceholderPageProps {
 }
 
 export interface PageFrameProps {
+  /** The detail supplies its own contextual return link. Keep the settings rail. */
+  detail?: boolean;
   verdict?: VerdictFacts | undefined;
   verdictTestId?: string | undefined;
   meta: PageMeta;
@@ -52,9 +55,11 @@ const keepZeitraum = (previous: Record<string, unknown>): Record<string, unknown
  */
 function SettingsFrame({
   register,
+  detail,
   children,
 }: {
   register?: string | undefined;
+  detail?: boolean | undefined;
   children?: ReactNode;
 }) {
   if (!register) return <>{children}</>;
@@ -62,7 +67,7 @@ function SettingsFrame({
     <div className="settings-layout">
       <SettingsNav variant="rail" />
       <div className="settings-body">
-        <SettingsBack current={register} />
+        {!detail && <SettingsBack current={register} />}
         {children}
       </div>
     </div>
@@ -71,6 +76,7 @@ function SettingsFrame({
 
 /** Title block and registers of the area; the body of the page follows as children. */
 export function PageFrame({
+  detail,
   meta,
   title,
   subtitle,
@@ -114,7 +120,9 @@ export function PageFrame({
         <VerdictLine facts={verdict} {...(verdictTestId ? { testId: verdictTestId } : {})} />
       )}
       {meta.area === 'einstellungen' ? (
-        <SettingsFrame register={meta.register}>{children}</SettingsFrame>
+        <SettingsFrame register={meta.register} detail={detail}>
+          {children}
+        </SettingsFrame>
       ) : (
         <>
           {items.length > 0 && (

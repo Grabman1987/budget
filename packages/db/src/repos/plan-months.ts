@@ -12,9 +12,10 @@ import {
 import { coverBudgetMoney, coverCommitments } from './cover-limits';
 import { categoryTree } from './categories';
 import { planIncomeTargets } from './income-targets';
-import { budgetLedger, budgetOfLedger } from './queries';
+import { budgetLedger, budgetOfLedger, budgetActivityOfLedger } from './queries';
 import { loadFacts } from './rule-inputs';
 import { reportTables } from './report-tables';
+import { planUncategorizedCount } from './plan-uncategorized';
 import type { Executor } from './types';
 
 /**
@@ -29,6 +30,7 @@ export function planMonthViews(
   months: ReadonlyArray<string>,
   options: { cardRule?: CardRule },
   today: string,
+  activityRun?: ReadonlyMap<string, BudgetMonth>,
 ) {
   const wanted = [...new Set(months)].sort();
   const last = wanted[wanted.length - 1];
@@ -44,18 +46,20 @@ export function planMonthViews(
   const starts = ledger.accounts.filter((a) => a.onBudget).map((a) => monthOf(a.openingDate));
   // One budget run from the first budget month (the facts hold it for the default card rule).
   // Months before it (no budget account was open) keep their own single-month run, as before.
-  const run: ReadonlyMap<string, BudgetMonth> = options.cardRule
-    ? new Map(
-        budgetOfLedger(
-          ledger,
-          monthsBetween(
-            starts.reduce((a, m) => (m < a ? m : a), last),
-            last,
-          ),
-          options,
-        ).map((m) => [m.month, m]),
-      )
-    : facts.budgetByMonth;
+  const run: ReadonlyMap<string, BudgetMonth> =
+    activityRun ??
+    (options.cardRule
+      ? new Map(
+          budgetOfLedger(
+            ledger,
+            monthsBetween(
+              starts.reduce((a, m) => (m < a ? m : a), last),
+              last,
+            ),
+            options,
+          ).map((m) => [m.month, m]),
+        )
+      : facts.budgetByMonth);
   const view = (m: BudgetMonth, month: string) => {
     const base = summarizeMonth(m, tree.categories, tree.targets);
     const limits = new Map(
@@ -85,6 +89,7 @@ export function planMonthViews(
         }),
       })),
       unclassified: unclassifiedMonth(ledger, month),
+      uncategorizedCount: planUncategorizedCount(db, month),
     };
     // Facts as `loadFacts(db, lastDayOfMonth(month))` would read them: only the first month differs.
     const monthFacts = {
@@ -106,4 +111,37 @@ export function planMonthViews(
     out[month] = view(m, month);
   }
   return out;
+}
+
+/** Figures and provenance share the very same canonical budget run. Call in a read transaction. */
+export function planActivityView(
+  db: Executor,
+  month: string,
+  categoryId: string,
+  options: { cardRule?: CardRule },
+  today: string,
+) {
+  const traced = budgetActivityOfLedger(budgetLedger(db), month, categoryId, options);
+  const run = new Map(traced.months.map((m) => [m.month, m]));
+  const view = planMonthViews(db, [month], options, today, run)[month]!;
+  if (!view.categories.some((c) => c.id === categoryId)) return null;
+  const totalCents = view.summary.envelopes.find((e) => e.categoryId === categoryId)!.activityCents;
+  // Stable presentation order only: never reorder inputs to the card funding rules.
+  const items = traced.items
+    .map((item) => ({
+      ...item,
+      key: JSON.stringify([
+        item.kind,
+        item.accountId,
+        item.bookingId,
+        item.splitId,
+        item.categoryId,
+      ]),
+    }))
+    .sort(
+      (a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999') || a.key.localeCompare(b.key),
+    );
+  if (items.reduce((sum, item) => sum + item.cents, 0) !== totalCents)
+    throw new Error('Budget activity provenance does not match the canonical envelope.');
+  return { ...view, activityBreakdown: { totalCents, items } };
 }

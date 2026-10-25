@@ -70,13 +70,74 @@ const save = (securityId: string | null, origin?: string) =>
     body: JSON.stringify({ securityId }),
   });
 
+it.each([false, true])(
+  'daily value endpoint excludes depot cash and equals the lead and positions without writes (selected benchmark: %s)',
+  async (selected) => {
+    // Synthetic closing positions: 12_100 cents + 0 cents = 12_100 cents;
+    // the depot's settlement cash is outside this securities-only scope.
+    opened.sqlite.exec("UPDATE account SET opening_balance_cents=50000 WHERE id='depot'");
+    // The same fixture including settlement cash is 12_100 + 50_000 = 62_100 cents.
+    expect(
+      portfolioSummary(db, { today: '2026-02-28', period: 'YTD', view: 'depot' }).performance
+        ?.endValueCents,
+    ).toBe(62_100);
+    if (selected)
+      opened.sqlite.exec(`
+    INSERT INTO security (id,name,kind) VALUES ('benchmark-ftse','Vergleich Test','etf');
+    INSERT INTO price (security_id,date,price_micro,currency,source)
+      SELECT 'benchmark-ftse',date,price_micro,currency,source FROM price WHERE security_id='bench';
+    INSERT INTO app_setting (id,value) VALUES ('portfolio.benchmark_ids','["benchmark-ftse"]');
+  `);
+    const before = opened.sqlite.prepare('SELECT COUNT(*) AS n FROM audit_log').get();
+    const portfolio = await readPortfolio();
+    const response = await app.request('/api/portfolio/positions');
+    const positions = (await response.json()) as {
+      asOf: string;
+      valueCents: number;
+      positions: { valueCents: number }[];
+    };
+    expect(portfolio.performanceHistory!.dailyValues.at(-1)).toMatchObject({
+      date: positions.asOf,
+      valueCents: 12_100,
+    });
+    expect(positions.valueCents).toBe(12_100);
+    expect(portfolio.valueCents).toBe(12_100);
+    expect(portfolio.asOf).toBe(positions.asOf);
+    expect(portfolio.performance!.endValueCents).toBe(12_100);
+    expect(positions.positions.reduce((sum, p) => sum + p.valueCents, 0)).toBe(12_100);
+    if (selected) {
+      expect(portfolio.benchmarks).toHaveLength(1);
+      expect(portfolio.benchmarks[0]?.dailyBenchmark[0]).toEqual({
+        date: '2025-12-31',
+        benchmark: 100,
+      });
+      expect(portfolio.benchmarks[0]?.dailyBenchmark.at(-1)?.benchmark).toBeCloseTo(110.25, 12);
+      expect(
+        opened.sqlite
+          .prepare("SELECT value FROM app_setting WHERE id='portfolio.benchmark_ids'")
+          .get(),
+      ).toEqual({ value: '["benchmark-ftse"]' });
+    } else {
+      expect(portfolio.benchmarks).toEqual([]);
+      expect(
+        opened.sqlite
+          .prepare("SELECT value FROM app_setting WHERE id='portfolio.benchmark_ids'")
+          .get(),
+      ).toBeUndefined();
+    }
+    expect(opened.sqlite.prepare('SELECT COUNT(*) AS n FROM audit_log').get()).toEqual(before);
+  },
+);
+
 it('compares an unheld owner benchmark, uses shared TTWROR and retains a sold class', async () => {
   expect((await save('bench')).status).toBe(200);
   const response = await read();
   expect(response.status).toBe(200);
   const { portfolio } = (await response.json()) as { portfolio: PortfolioSummary };
   const history = portfolio.performanceHistory!;
-  expect(history.benchmarkReturn).toBeCloseTo(0.1025);
+  expect(history.benchmarkReturn).toBeCloseTo(0.1025, 12);
+  expect(history.dailyBenchmark[0]).toEqual({ date: '2025-12-31', benchmark: 100 });
+  expect(history.dailyBenchmark.at(-1)?.benchmark).toBeCloseTo(110.25, 12);
   expect(portfolio.performance?.ttwror).toBe(
     portfolioSummary(db, { today: '2026-02-28', period: 'YTD' }).performance?.ttwror,
   );
@@ -85,10 +146,18 @@ it('compares an unheld owner benchmark, uses shared TTWROR and retains a sold cl
     ['Klasse B', 0],
     ['Ohne Anlageklasse', 0],
   ]);
-  expect(history.classes[0]?.performance?.ttwror).toBeCloseTo(0.21);
-  expect(history.classes[1]?.performance?.ttwror).toBeCloseTo(-0.1);
+  expect(history.classes[0]?.performance?.ttwror).toBeCloseTo(0.21, 12);
+  expect(history.classes[1]?.performance?.ttwror).toBeCloseTo(-0.1, 12);
   expect(history.months.map((m) => m.month)).toEqual(['2026-01', '2026-02']);
-  expect(history.years[0]?.rate).toBeCloseTo(portfolio.performance!.ttwror);
+  expect(history.dailyIndex[0]).toEqual({ date: '2025-12-31', portfolio: 100 });
+  expect(history.dailyIndex.at(-1)?.date).toBe('2026-02-28');
+  expect(history.dailyIndex.at(-1)?.portfolio).toBeCloseTo(history.index.at(-1)!.portfolio!, 12);
+  for (const point of history.index)
+    expect(history.dailyIndex.find((daily) => daily.date === point.date)?.portfolio).toBeCloseTo(
+      point.portfolio!,
+      12,
+    );
+  expect(history.years[0]?.rate).toBeCloseTo(0.1, 12);
   expect(history.classes.reduce((s, c) => s + c.valueCents, 0)).toBe(
     portfolio.performance!.endValueCents,
   );
@@ -128,9 +197,9 @@ it('uses the selected historical month end for class values and the benchmark pe
   expect(history).toMatchObject({ from: '2025-12-31', to: '2026-01-31' });
   expect(history.classes.map((c) => c.valueCents)).toEqual([11000, 9000, 0]);
   expect(history.classes.reduce((sum, c) => sum + c.valueCents, 0)).toBe(20000);
-  expect(history.benchmarkReturn).toBeCloseTo(0.05);
-  expect(history.classes[0]?.performance?.moneyWeighted).toBeCloseTo(0.1);
-  expect(history.classes[1]?.performance?.moneyWeighted).toBeCloseTo(-0.1);
+  expect(history.benchmarkReturn).toBeCloseTo(0.05, 12);
+  expect(history.classes[0]?.performance?.moneyWeighted).toBeCloseTo(0.1, 12);
+  expect(history.classes[1]?.performance?.moneyWeighted).toBeCloseTo(-0.1, 12);
 });
 
 it('rejects invalid/deleted ids and cross-origin or unauthenticated writes', async () => {
@@ -168,8 +237,8 @@ it('compares stored foreign quotes in EUR using quote-date FX without rounding p
     "UPDATE price SET currency='USD' WHERE security_id='bench'; INSERT INTO fx_rate (currency,date,rate_micro) VALUES ('USD','2025-12-31',2000000),('USD','2026-01-01',1000000)",
   );
   const portfolio = await readPortfolio();
-  expect(portfolio.performanceHistory?.benchmarkReturn).toBeCloseTo(1.205);
-  expect(portfolio.performanceHistory?.months[0]?.benchmarkRate).toBeCloseTo(1.1);
+  expect(portfolio.performanceHistory?.benchmarkReturn).toBeCloseTo(-0.44875, 12);
+  expect(portfolio.performanceHistory?.months[0]?.benchmarkRate).toBeCloseTo(-0.475, 12);
 });
 
 it('allows Friday closes for exchange-traded benchmarks but requires the exact date for crypto', async () => {
@@ -177,7 +246,7 @@ it('allows Friday closes for exchange-traded benchmarks but requires the exact d
   opened.sqlite.exec(
     "UPDATE price SET date='2026-02-27' WHERE security_id='bench' AND date='2026-02-28'",
   );
-  expect((await readPortfolio()).performanceHistory?.benchmarkReturn).toBeCloseTo(0.1025);
+  expect((await readPortfolio()).performanceHistory?.benchmarkReturn).toBeCloseTo(0.1025, 12);
   opened.sqlite.exec("UPDATE security SET kind='crypto' WHERE id='bench'");
   const history = (await readPortfolio()).performanceHistory!;
   expect(history.months[1]?.benchmarkGap).toBe('missing_price');
@@ -190,7 +259,7 @@ it('reports missing starting/monthly quotes and FX explicitly without hiding por
   let portfolio = await readPortfolio();
   expect(portfolio.performanceHistory?.months[0]?.benchmarkGap).toBe('missing_price');
   expect(portfolio.performanceHistory?.benchmarkReturn).toBeNull();
-  expect(portfolio.performance?.ttwror).not.toBeNull();
+  expect(portfolio.performance?.ttwror).toBeCloseTo(0.1, 12);
   opened.sqlite.exec("UPDATE price SET currency='USD' WHERE security_id='bench'");
   portfolio = await readPortfolio();
   expect(portfolio.performanceHistory?.months[0]?.benchmarkGap).toBe('missing_fx');
@@ -253,8 +322,8 @@ it('persists multiple index selections with audit undo and compares synthetic EU
   const report = await readPortfolio();
   expect(report.benchmarks.map((b) => b.index[0]!.benchmark)).toEqual([100, 100]);
   expect(report.benchmarks.map((b) => b.index.at(-1)!.benchmark)).toEqual([121, 99]);
-  expect(report.benchmarks[0]!.benchmarkReturn).toBeCloseTo(0.21);
-  expect(report.benchmarks[1]!.benchmarkReturn).toBeCloseTo(-0.01);
+  expect(report.benchmarks[0]!.benchmarkReturn).toBeCloseTo(0.21, 12);
+  expect(report.benchmarks[1]!.benchmarkReturn).toBeCloseTo(-0.01, 12);
   expect(await (await app.request('/api/portfolio/benchmarks')).json()).toMatchObject({
     ids: selected,
   });
@@ -328,12 +397,13 @@ it('uses dated exposure versions for each historical class return period', async
   expect(classB).toMatchObject({ currentHolding: true });
   const levelsA = monthEndLevels(classA.index);
   const levelsB = monthEndLevels(classB.index);
-  expect(levelsA[0]).toBeCloseTo(110);
-  expect(levelsA[1]).toBeCloseTo(110);
-  expect(levelsB[0]).toBeCloseTo(110);
-  expect(levelsB[1]).toBeCloseTo(121);
-  expect(classA.performance?.ttwror).toBeCloseTo(0.1);
-  expect(classB.performance?.ttwror).toBeCloseTo(0.21);
+  expect(levelsA[0]).toBeCloseTo(110, 12);
+  // A has no invested capital for any day in February after the opening reclassification.
+  expect(levelsA[1]).toBeNull();
+  expect(levelsB[0]).toBeCloseTo(110, 12);
+  expect(levelsB[1]).toBeCloseTo(121, 12);
+  expect(classA.performance?.ttwror).toBeCloseTo(0.1, 12);
+  expect(classB.performance?.ttwror).toBeCloseTo(0.21, 12);
   expect(history.classes.reduce((sum, cls) => sum + cls.valueCents, 0)).toBe(12_100);
 });
 

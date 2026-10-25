@@ -4,6 +4,8 @@ import {
   Button,
   FormDialog,
   Field,
+  maskMoneyText,
+  Segmented,
   Select,
   TextInput,
   useToast,
@@ -20,8 +22,8 @@ import {
 } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate, useParams, useSearch } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
-import { Pencil } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { Info, Pencil } from 'lucide-react';
 import { request } from '../api/http';
 import { AccountOptions } from '../ledger/account-options';
 import { undoGroup } from '../ledger/api';
@@ -32,6 +34,13 @@ import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
 import { PAGES } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
+import { contactBalanceLine, contactBalanceWords } from './contact-balance';
+import { ContactActionsMenu } from './contact-menu';
+import {
+  ContactBookingSource,
+  ContactMovementTable,
+  type ContactSourceOpening,
+} from './contact-movement-table';
 import './contacts.css';
 import '../ledger/ledger.css';
 interface ContactRow {
@@ -40,14 +49,20 @@ interface ContactRow {
   balanceCents: number;
   creditCents: number;
 }
-interface Statement {
+export interface Statement {
   contact: { id: string; name: string };
   asOf: string;
   balanceCents: number;
   creditCents: number;
   movements: ContactMovement[];
   outlays: OpenContactOutlay[];
-  receipts: { receiptSplitId: string; allocations: ContactAllocation[]; creditCents: number }[];
+  receipts: {
+    receiptSplitId: string;
+    allocations: ContactAllocation[];
+    creditCents: number;
+    recorded: boolean;
+  }[];
+  closedThroughSplitId: string | null;
 }
 const META = PAGES.find((p) => p.path === '/konten/kontakte')!;
 const contactUrl = (id: string) => `/api/contacts/${encodeURIComponent(id)}`;
@@ -114,14 +129,15 @@ export function ContactsPage() {
       <div className="contacts-page">
         <p>Kontoblätter und Rückzahlungen werden derzeit in EUR geführt.</p>
         <div className="ptoolbar">
-          <label className="contacts-history">
-            <input
-              type="checkbox"
-              checked={history}
-              onChange={(e) => setHistory(e.target.checked)}
-            />
-            Auch ausgeglichene Kontakte
-          </label>
+          <Segmented
+            label="Kontakte anzeigen"
+            options={[
+              { value: 'open', label: 'Offen' },
+              { value: 'all', label: 'Alle', description: 'Auch ausgeglichene Kontakte' },
+            ]}
+            value={history ? 'all' : 'open'}
+            onChange={(value) => setHistory(value === 'all')}
+          />
           <span className="spacer" />
           <Button size="sm" onClick={() => setCreating(true)}>
             Neuer Kontakt
@@ -148,39 +164,46 @@ export function ContactsPage() {
                 <tr>
                   <th scope="col">Kontakt</th>
                   <th scope="col">Saldo</th>
-                  <th scope="col">Status</th>
+                  <th scope="col">
+                    <span className="sr-only">Aktionen</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {contacts.data.contacts.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <AppLink
-                        className="btn btn-ghost"
-                        to={`/konten/kontakte/${encodeURIComponent(c.id)}`}
-                        search={history ? { verlauf: 1 } : {}}
-                      >
-                        {c.name}
-                      </AppLink>
-                      <ContactRename contact={c} />
-                    </td>
-                    <td className="num">{eur(c.balanceCents)}</td>
-                    <td>
-                      {c.balanceCents > 0
-                        ? 'Kontakt schuldet dir'
-                        : c.balanceCents < 0
-                          ? 'Guthaben des Kontakts'
-                          : 'Ausgeglichen'}
-                      {c.balanceCents !== 0 && (
-                        <div>
-                          <Button variant="ghost" onClick={() => setWriteOff(c)}>
-                            Ausgleichen
-                          </Button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {contacts.data.contacts.map((c) => {
+                  const balance = contactBalanceWords(c.balanceCents);
+                  return (
+                    <tr key={c.id}>
+                      <td>
+                        <AppLink
+                          className="btn btn-ghost"
+                          to={`/konten/kontakte/${encodeURIComponent(c.id)}`}
+                          search={history ? { verlauf: 1 } : {}}
+                        >
+                          {c.name}
+                        </AppLink>
+                        <ContactRename contact={c} />
+                      </td>
+                      <td className="num">
+                        <AppLink
+                          className={`contact-balance-link is-${balance.tone}`}
+                          aria-label={maskMoneyText(
+                            `${contactBalanceLine(c.balanceCents)}, Saldo ${c.name}`,
+                          )}
+                          to={`/konten/kontakte/${encodeURIComponent(c.id)}`}
+                          search={history ? { verlauf: 1 } : {}}
+                        >
+                          {contactBalanceLine(c.balanceCents)}
+                        </AppLink>
+                      </td>
+                      <td className="contacts-actions-cell">
+                        {c.balanceCents !== 0 && (
+                          <ContactActionsMenu name={c.name} onSettle={() => setWriteOff(c)} />
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           ))}
@@ -314,22 +337,13 @@ export function ContactStatementPage() {
     queryFn: () => request<Statement>('GET', contactUrl(id)),
   });
   return (
-    <PageFrame meta={META} title={statement.data?.contact.name ?? 'Kontoblatt'}>
+    <PageFrame meta={META}>
       <section className="contacts-page contacts-statement" aria-label="Kontaktkontoauszug">
         <nav aria-label="Brotkrumen">
-          <AppLink to="/konten" search={{}}>
-            Konten
+          <AppLink className="btn btn-ghost" to="/konten/kontakte" search={context}>
+            Zurück zu Kontakte
           </AppLink>
-          {' › '}
-          <AppLink to="/konten/kontakte" search={context}>
-            Kontakte
-          </AppLink>
-          {' › '}
-          <span aria-current="page">{statement.data?.contact.name ?? 'Kontoblatt'}</span>
         </nav>
-        <AppLink className="btn btn-ghost" to="/konten/kontakte" search={context}>
-          Zurück zu Kontakte
-        </AppLink>
         {statement.isPending && <LoadingNote what="Kontoblatt" />}
         {statement.isError && (
           <ErrorNote
@@ -346,89 +360,143 @@ export function ContactStatementPage() {
 
 function ContactBody({ statement }: { statement: Statement }) {
   useAmountPrivacy();
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus({ preventScroll: true });
+  }, [statement.contact.id]);
   const [receipt, setReceipt] = useState(false);
   const [writeOff, setWriteOff] = useState(false);
+  const [info, setInfo] = useState(false);
+  const noteId = useId();
+  const [sourceOpening, setSourceOpening] = useState<ContactSourceOpening | null>(null);
+  const sourceGeneration = useRef(0);
+  const openSource = (movement: ContactMovement) =>
+    setSourceOpening({ movement, generation: ++sourceGeneration.current });
+  const balance = contactBalanceWords(statement.balanceCents);
+  const currentMonth = statement.asOf.slice(0, 7);
+  const monthTitle = `Zahlungen im ${new Intl.DateTimeFormat('de-AT', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${currentMonth}-01T00:00:00Z`))}`;
+  const closureIndex = statement.movements.findIndex(
+    (movement) => movement.splitId === statement.closedThroughSplitId,
+  );
+  const currentMonthMovements = statement.movements.filter(
+    (movement) => movement.date.slice(0, 7) === currentMonth,
+  );
+  const archived =
+    closureIndex < 0
+      ? []
+      : statement.movements
+          .slice(0, closureIndex + 1)
+          .filter((movement) => movement.date.slice(0, 7) !== currentMonth);
+  const postClosure = statement.movements
+    .slice(closureIndex + 1)
+    .filter((movement) => movement.date.slice(0, 7) !== currentMonth);
+  const openOlderOutlays = statement.outlays.filter(
+    (outlay) => outlay.remainingCents > 0 && outlay.date.slice(0, 7) !== currentMonth,
+  );
+  const openOlderIds = new Set(openOlderOutlays.map((outlay) => outlay.splitId));
+  const visibleHistory = (closureIndex < 0 ? statement.movements : postClosure).filter(
+    (movement) => movement.date.slice(0, 7) !== currentMonth && !openOlderIds.has(movement.splitId),
+  );
   return (
     <div className="contacts-form">
       <div className="contacts-title">
-        <h2>Kontoblatt</h2>
+        <h2 ref={heading} tabIndex={-1}>
+          {statement.contact.name}
+        </h2>
         <ContactRename contact={statement.contact} />
       </div>
-      <p className="contacts-balance">
-        {eur(statement.balanceCents)}{' '}
-        <span>
-          {statement.balanceCents > 0
-            ? 'offen'
-            : statement.balanceCents < 0
-              ? 'Guthaben des Kontakts'
-              : 'ausgeglichen'}
-        </span>
+      <p className={`contacts-balance is-${balance.tone}`}>
+        <span className="contacts-balance-words">{balance.words}</span>{' '}
+        <span className="contacts-balance-amount">{balance.amount}</span>
       </p>
-      <p>
-        Auslagen und Rückzahlungen bewegen Geld. Ein Ausgleich übernimmt Guthaben ins Budget oder
-        erlässt eine Forderung als Ausgabe, ohne Geldbewegung.
-      </p>
-      <Button onClick={() => setReceipt((r) => !r)}>
-        {receipt ? 'Rückzahlung schließen' : 'Rückzahlung buchen'}
-      </Button>
-      {receipt && <ReceiptForm statement={statement} onDone={() => setReceipt(false)} />}
-      {statement.balanceCents !== 0 && (
-        <Button variant="ghost" onClick={() => setWriteOff(true)}>
-          Ausgleichen
+      <div className="contacts-actions">
+        <Button onClick={() => setReceipt((r) => !r)}>
+          {receipt ? 'Rückzahlung schließen' : 'Rückzahlung buchen'}
         </Button>
+        {statement.balanceCents !== 0 && (
+          <ContactActionsMenu name={statement.contact.name} onSettle={() => setWriteOff(true)} />
+        )}
+        <button
+          type="button"
+          className="icon-btn contact-info"
+          aria-expanded={info}
+          aria-controls={noteId}
+          aria-label="Erläuterung zu Rückzahlung und Ausgleich"
+          onClick={() => setInfo((open) => !open)}
+        >
+          <Info size={16} strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      </div>
+      {info && (
+        <p id={noteId} className="contacts-note">
+          Auslagen und Rückzahlungen bewegen Geld. Ein Ausgleich übernimmt Guthaben ins Budget oder
+          erlässt eine Forderung als Ausgabe, ohne Geldbewegung.
+        </p>
       )}
+      {receipt && <ReceiptForm statement={statement} onDone={() => setReceipt(false)} />}
       {writeOff && (
         <ContactWriteOffDialog
           contact={{ ...statement.contact, balanceCents: statement.balanceCents }}
           onClose={() => setWriteOff(false)}
         />
       )}
-      <h3>Verlauf</h3>
-      {statement.movements.length === 0 ? (
-        <p>Noch keine Kontaktbuchungen. Beim Erfassen einer Auslage den Kontakt wählen.</p>
+      {currentMonthMovements.length === 0 ? (
+        <>
+          <h3>{monthTitle}</h3>
+          <p>In diesem Monat gibt es noch keine Kontaktbuchungen.</p>
+        </>
       ) : (
-        <table className="contacts-table">
-          <caption className="sr-only">Kontaktbuchungen</caption>
-          <thead>
-            <tr>
-              <th scope="col">Datum / Buchung</th>
-              <th scope="col">Betrag</th>
-            </tr>
-          </thead>
-          <tbody>
-            {statement.movements.map((m) => {
-              const repayment = statement.receipts.find((r) => r.receiptSplitId === m.splitId);
-              const outlay = statement.outlays.find((o) => o.splitId === m.splitId);
-              return (
-                <tr key={m.splitId}>
-                  <td>
-                    {longDay(m.date)} ·{' '}
-                    {m.memo?.startsWith('Ausgleich Kontakt')
-                      ? 'Ausgleich'
-                      : m.amountCents < 0
-                        ? 'Auslage'
-                        : 'Rückzahlung'}
-                    {m.memo && <small>{m.memo}</small>}
-                    {outlay && <small>Offen: {eur(outlay.remainingCents)}</small>}
-                    {repayment && (
-                      <small>
-                        {repayment.allocations
-                          .map(
-                            (a) =>
-                              `${longDay(statement.outlays.find((o) => o.splitId === a.outlaySplitId)!.date)}: ${eur(a.amountCents)}`,
-                          )
-                          .join(' · ')}
-                        {repayment.creditCents > 0 && ` · Guthaben: ${eur(repayment.creditCents)}`}
-                      </small>
-                    )}
-                  </td>
-                  <td className="num">{eur(m.amountCents)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <ContactMovementTable
+          statement={statement}
+          movements={currentMonthMovements}
+          title={monthTitle}
+          caption="Kontaktbuchungen im aktuellen Monat"
+          onOpen={openSource}
+        />
       )}
+      {openOlderOutlays.length > 0 && (
+        <section aria-labelledby="contacts-open-older">
+          <ContactMovementTable
+            statement={statement}
+            movements={openOlderOutlays}
+            title="Offene ältere Auslagen"
+            headingId="contacts-open-older"
+            caption="Noch offene Auslagen aus früheren Monaten"
+            onOpen={openSource}
+          />
+        </section>
+      )}
+      {visibleHistory.length === 0 ? (
+        <>
+          <h3>Verlauf</h3>
+          <p>Noch keine ältere oder spätere Kontaktbewegung.</p>
+        </>
+      ) : (
+        <ContactMovementTable
+          statement={statement}
+          movements={visibleHistory}
+          title="Verlauf außerhalb des aktuellen Monats"
+          heading="Verlauf"
+          caption="Kontaktbuchungen außerhalb des aktuellen Monats"
+          onOpen={openSource}
+        />
+      )}
+      {archived.length > 0 && (
+        <details className="contacts-closed-history">
+          <summary>
+            Abgeschlossene Historie bis zum Ausgleich anzeigen ({archived.length} Buchungen)
+          </summary>
+          <ContactMovementTable
+            statement={statement}
+            movements={archived}
+            title="Abgeschlossene Historie bis zum Ausgleich"
+            heading={false}
+            caption="Abgeschlossene Kontaktbuchungen bis zum Ausgleich"
+            onOpen={openSource}
+          />
+        </details>
+      )}
+      <ContactBookingSource opening={sourceOpening} onClose={() => setSourceOpening(null)} />
     </div>
   );
 }

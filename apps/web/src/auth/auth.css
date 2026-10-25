@@ -67,7 +67,7 @@
 }
 .recovery-sheet {
   border: 1px solid var(--line-2);
-  border-radius: var(--radius-titleblock);
+  border-radius: var(--radius-xs);
   background: var(--ground);
 }
 .recovery-head {
@@ -86,7 +86,7 @@
 }
 .recovery-meta {
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -124,7 +124,7 @@
   content: counter(recovery, decimal-leading-zero);
   min-width: 2ch;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-label);
   letter-spacing: 0.04em;
 }
 .recovery-note {
@@ -165,12 +165,6 @@
   min-height: var(--touch);
   cursor: pointer;
 }
-.check-row input {
-  width: 22px;
-  height: 22px;
-  flex: none;
-  accent-color: var(--primary);
-}
 
 /* Einstellungen › Sicherheit */
 .security {
@@ -210,7 +204,7 @@
 }
 .sec-mark {
   border: 1px solid var(--rule-strong);
-  border-radius: 2px;
+  border-radius: 4px;
   padding: 1px 6px;
 }
 .sec-meta {

@@ -14,8 +14,10 @@ import {
   type LiquidityHorizon,
 } from '@budget/domain';
 import type { HeutePeriod } from './heute/api';
-import { authStatusQuery, queryClient } from './auth/status-query';
+import { AUTH_STATUS_KEY, authStatusQuery, queryClient } from './auth/status-query';
+import { clearDeviceFinancialData } from './pwa/local-data';
 import { validateBookingsSearch } from './ledger/bookings-search';
+import { validatePlanFilterSearch, type PlanFilterSearch } from './budget/plan-filters';
 import { validateInboxSearch } from './inbox/navigation';
 import { accountsQuery } from './ledger/queries';
 import { captureContinuation, validateCaptureSearch } from './ledger/capture-link';
@@ -30,6 +32,7 @@ import {
   PLAN_MONAT,
   PLAN_JAHR,
   PLAN_SPARZIELE,
+  PLAN_PROGNOSE,
   HEUTE,
   SETTINGS_INDEX,
   KONTEN_BUCHUNGEN_META,
@@ -54,6 +57,7 @@ import { isMonth } from './nav/month';
 import { isZeitraum } from './wealth/zeitraum';
 import { isPanelId, type PanelId } from './shell/panels';
 import { validateReportSearch } from './reports/report-search';
+import { validateLiquiditySearch } from './reports/liquidity-selection';
 
 // Route-level code splitting: everything except the shell and the generic placeholder page is
 // loaded when its route is first visited. Each page module below becomes its own chunk.
@@ -97,9 +101,10 @@ const rootRoute = createRootRoute({
     const source = new URL(location.href, 'https://budget.invalid');
     source.searchParams.delete('panel');
     throw redirect({
-      to: '/konten/posteingang',
+      to: '/konten/pruefen',
       search: {
-        von: location.pathname.startsWith('/konten/posteingang')
+        ...Object.fromEntries(source.searchParams),
+        von: location.pathname.startsWith('/konten/pruefen')
           ? undefined
           : `${source.pathname}${source.search}`,
       },
@@ -117,8 +122,12 @@ const shellRoute = createRoute({
   beforeLoad: async ({ location }) => {
     const status = await queryClient.fetchQuery(authStatusQuery);
     if (status.setupRequired) throw redirect({ to: '/setup' });
-    if (!status.authenticated)
+    if (!status.authenticated) {
+      // Session ended (expiry, sign-out in another tab): nothing financial may stay on the device.
+      queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== AUTH_STATUS_KEY[0] });
+      void clearDeviceFinancialData();
       throw redirect({ to: '/login', search: { weiter: captureContinuation(location.href) } });
+    }
   },
   component: AppShell,
 });
@@ -135,8 +144,11 @@ const redirectRoute = (path: string, to: string) =>
   createRoute({
     getParentRoute: () => shellRoute,
     path,
-    beforeLoad: () => {
-      throw redirect({ to: to as never });
+    beforeLoad: ({ location, params }) => {
+      throw redirect({
+        href: `${to.replace('$id', encodeURIComponent((params as { id?: string }).id ?? ''))}${location.searchStr}${location.hash ? `#${location.hash}` : ''}`,
+        replace: true,
+      });
     },
   });
 
@@ -166,7 +178,7 @@ const BUILT_PATHS = new Set<string>([
   '/einstellungen/anlageklassen',
   '/konten/buchungen',
   '/konten/kontakte',
-  '/konten/posteingang',
+  '/konten/pruefen',
   EINSTELLUNGEN_KATEGORIEN.path,
   EINSTELLUNGEN_REGELWERK.path,
   PLAN_MONAT.path,
@@ -177,6 +189,7 @@ const BUILT_PATHS = new Set<string>([
   VERMOEGEN_PORTFOLIO_META.path,
   VERMOEGEN_SCHULDEN_META.path,
   PLAN_SPARZIELE.path,
+  PLAN_PROGNOSE.path,
   CSV_EXPORT_META.path,
 ]);
 const placeholderRoutes = PAGES.filter((page) => !BUILT_PATHS.has(page.path)).map((page) =>
@@ -192,16 +205,16 @@ const bookingsRoute = createRoute({
 });
 const inboxRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: '/konten/posteingang',
+  path: '/konten/pruefen',
   validateSearch: validateInboxSearch,
-  staticData: { meta: PAGES.find((p) => p.path === '/konten/posteingang')! },
+  staticData: { meta: PAGES.find((p) => p.path === '/konten/pruefen')! },
   component: lazyRouteComponent(() => import('./inbox/inbox-page'), 'InboxPage'),
 });
 const inboxDetailRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: '/konten/posteingang/$id',
+  path: '/konten/pruefen/$id',
   validateSearch: validateInboxSearch,
-  staticData: { meta: PAGES.find((p) => p.path === '/konten/posteingang')! },
+  staticData: { meta: PAGES.find((p) => p.path === '/konten/pruefen')! },
   component: lazyRouteComponent(() => import('./inbox/inbox-page'), 'InboxDetailPage'),
 });
 const contactsRoute = createRoute({
@@ -328,7 +341,8 @@ const planMonthRoute = createRoute({
   path: PLAN_MONAT.path,
   validateSearch: (
     search: Record<string, unknown>,
-  ): { ansicht?: 'triage'; kategorie?: string } => ({
+  ): PlanFilterSearch & { ansicht?: 'triage'; kategorie?: string } => ({
+    ...validatePlanFilterSearch(search),
     ...(search['ansicht'] === 'triage' ? { ansicht: 'triage' as const } : {}),
     ...(typeof search['kategorie'] === 'string' && search['kategorie'].length <= 64
       ? { kategorie: search['kategorie'] }
@@ -519,6 +533,9 @@ const settingsIndexRoute = createRoute({
   component: lazyRouteComponent(() => import('./pages/settings-index'), 'SettingsIndexPage'),
 });
 const redirects = [
+  redirectRoute('/reports/liquiditaet', '/plan/prognose'),
+  redirectRoute('/konten/posteingang', '/konten/pruefen'),
+  redirectRoute('/konten/posteingang/$id', '/konten/pruefen/$id'),
   // Legacy import bookmarks lead to the export placeholder; no import action remains in the UI.
   redirectRoute('/einstellungen/import', '/einstellungen/export'),
   redirectRoute('/plan', '/plan/monat'),
@@ -694,6 +711,18 @@ const routeTree = rootRoute.addChildren([
       path: '/suche',
       validateSearch: (search: Record<string, unknown>) => ({
         q: typeof search['q'] === 'string' ? search['q'].slice(0, 200) : undefined,
+        typ: [
+          'page',
+          'report',
+          'action',
+          'account',
+          'category',
+          'payee',
+          'contact',
+          'booking',
+        ].includes(String(search['typ']))
+          ? String(search['typ'])
+          : undefined,
         von: validateInboxSearch(search).von,
       }),
       staticData: { meta: { ...HEUTE, title: 'Suchen' } },
@@ -751,6 +780,16 @@ const routeTree = rootRoute.addChildren([
     savingsPlanRoute,
     debtsRoute,
     planGoalsRoute,
+    createRoute({
+      getParentRoute: () => shellRoute,
+      path: '/plan/prognose',
+      staticData: { meta: PLAN_PROGNOSE },
+      validateSearch: (search: Record<string, unknown>) => ({
+        ...validateReportSearch(search),
+        ...validateLiquiditySearch(search),
+      }),
+      component: lazyRouteComponent(() => import('./reports/liquidity-report'), 'PlanPrognosePage'),
+    }),
     ...redirects,
     settingsIndexRoute,
     overviewRoute,

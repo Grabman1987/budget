@@ -18,13 +18,21 @@ import {
   type LiquidityReport,
 } from '@budget/domain';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, AlertTriangle, CheckCircle2, Plus, X } from 'lucide-react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  CircleMinus,
+  Plus,
+  X,
+} from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { useBudgetWrite } from '../budget/use-category-writes';
 import { eur, longDay, monthName, shortDay } from '../ledger/format';
 import { EmptyNote, ErrorNote, LoadingNote } from '../ledger/states';
-import type { PageMeta } from '../nav/pages';
-import type { ReportEntry } from '../nav/reports-catalog';
+import { PLAN_PROGNOSE, type PageMeta } from '../nav/pages';
+import { LIQUIDITY_FORECAST, type ReportEntry } from '../nav/reports-catalog';
 import { PageFrame } from '../pages/placeholder-page';
 import { AppLink } from '../shell/app-link';
 import {
@@ -42,14 +50,16 @@ import {
 import { LiquidityChart } from './liquidity-chart';
 import { expectedQuery, skipOccurrence, type ExpectedPayment } from '../expected/api';
 import './reports-future.css';
-import { useLiquiditySelection } from './liquidity-selection';
+import { salaryDay, upcomingEvents, useLiquiditySelection } from './liquidity-selection';
 
 const HORIZON_OPTIONS: ReadonlyArray<{ value: LiquidityHorizon; label: string }> = [
+  { value: '35d', label: '35 Tage' },
   { value: '90d', label: '90 Tage' },
   { value: '6m', label: '6 Monate' },
   { value: '12m', label: '12 Monate' },
 ];
 const HORIZON_TITLE: Record<LiquidityHorizon, string> = {
+  '35d': 'nächste 35 Tage',
   '90d': 'nächste 90 Tage',
   '6m': 'nächste 6 Monate',
   '12m': 'nächste 12 Monate',
@@ -76,11 +86,15 @@ const STATUS_TEXT: Record<PlannedEventView['status'], string> = {
   disabled: 'ausgeschaltet',
   unknown_account: 'Konto nicht mehr vorhanden',
 };
+/** Income type of a salary payment: `INCOME_TYPES.salary.id` in `packages/db/src/schema/budget.ts`. */
+const SALARY_INCOME_TYPE = 'income-salary';
+const NEXT_EVENTS = 10;
 const monthLong = (month: string) => `${monthName(`${month}-01`)} ${month.slice(0, 4)}`;
 
 export function LiquidityReportPage({ report, meta }: { report: ReportEntry; meta: PageMeta }) {
   useAmountPrivacy();
   const { horizon, setHorizon, levers, setLevers } = useLiquiditySelection();
+  const [toolsOpen, setToolsOpen] = useState(false);
   const query = useQuery(liquidityQuery(horizon, levers));
   // Never mix cached figures with a failed or loading read of another horizon.
   const view = query.isSuccess ? query.data : undefined;
@@ -127,16 +141,29 @@ export function LiquidityReportPage({ report, meta }: { report: ReportEntry; met
               levers={levers}
               stale={query.isFetching}
             />
-            <IncomePausesCard view={view} />
-            <EventsCard view={view} />
-            <LeversCard
-              report={view.report}
-              onToggle={(id, on) =>
-                setLevers(on ? [...levers, id] : levers.filter((l) => l !== id))
-              }
-            />
+            <details
+              className="card rf-tools rf-wide"
+              open={toolsOpen}
+              onToggle={(event) => setToolsOpen(event.currentTarget.open)}
+            >
+              <summary>
+                <span>Werkzeuge</span>
+                <small>Einkommenspausen · Ereignisse · Stellschrauben · Buchungen streichen</small>
+                <ChevronDown size={18} aria-hidden="true" />
+              </summary>
+              <div className="rf-tools-content">
+                <IncomePausesCard view={view} />
+                <EventsCard view={view} />
+                <LeversCard
+                  report={view.report}
+                  onToggle={(id, on) =>
+                    setLevers(on ? [...levers, id] : levers.filter((l) => l !== id))
+                  }
+                />
+                <MovementsCard report={view.report} />
+              </div>
+            </details>
             <OutlookCard report={view.report} />
-            <MovementsCard report={view.report} />
           </>
         )}
       </div>
@@ -161,6 +188,10 @@ function ForecastCard({
 }) {
   useAmountPrivacy();
   const { verdict, low, lowBuffer, lowPlain } = report;
+  const payments = useQuery(expectedQuery());
+  const salaryIds = new Set(
+    (payments.data ?? []).filter((p) => p.incomeTypeId === SALARY_INCOME_TYPE).map((p) => p.id),
+  );
   const Icon =
     verdict.status === 'ok'
       ? CheckCircle2
@@ -286,7 +317,7 @@ function ForecastCard({
           </small>
         </div>
       </div>
-      <LiquidityChart report={report} />
+      <LiquidityChart report={report} salaryDay={salaryDay(report, salaryIds)} />
       <ul className="rf-legend" aria-label="Legende" data-testid="liq-legend">
         <li>
           <svg viewBox="0 0 26 8" aria-hidden="true">
@@ -305,16 +336,17 @@ function ForecastCard({
           ohne geplante Ereignisse
         </li>
         <li>
-          <svg viewBox="0 0 12 10" aria-hidden="true">
-            <path className="kote" d="M1 1h10L6 9Z" />
+          <svg viewBox="0 0 12 12" aria-hidden="true">
+            <circle className="lq-low-dot" cx="6" cy="6" r="4.5" />
           </svg>
-          Tiefpunkt
+          Tiefststand
         </li>
         <li>
           <i className="rf-sq rf-sq-event" aria-hidden="true" />
           geplantes Ereignis
         </li>
       </ul>
+      <NextEvents report={report} />
       <p className="vnote">
         Kontostand der Budget-Konten, wiederkehrende Zahlungen und Einnahmen an ihren
         Fälligkeitstagen, variable Kategorien nach Plan gleichmäßig über den Monat. Ein
@@ -335,6 +367,36 @@ function ForecastCard({
         ))}
       </div>
     </section>
+  );
+}
+
+/** The next booking events of the chart as a numbered list, same rows and order as the movements. */
+function NextEvents({ report }: { report: LiquidityReport }) {
+  useAmountPrivacy();
+  const rows = upcomingEvents(report, NEXT_EVENTS);
+  return (
+    <div className="lq-next" data-testid="liq-next-events">
+      <h3 id="liq-next">Nächste Buchungsereignisse</h3>
+      {rows.length === 0 ? (
+        <p className="muted">Im Prognosezeitraum stehen keine größeren Buchungen an.</p>
+      ) : (
+        <ol aria-labelledby="liq-next">
+          {rows.map((r, i) => (
+            <li key={`${r.day}-${i}`} data-testid="liq-next-event" data-cents={r.cents}>
+              <span className="tech lq-no">{String(i + 1).padStart(2, '0')}</span>
+              <span className="lq-what">
+                {r.label}
+                <small>
+                  {longDay(r.day)}
+                  {r.planned && ' · geplantes Ereignis'}
+                </small>
+              </span>
+              <strong className="n">{eur(r.cents, { sign: true })}</strong>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
   );
 }
 
@@ -991,6 +1053,8 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
                       <Button
                         size="sm"
                         variant="ghost"
+                        className="rf-strike"
+                        title={`${strikeLabel(r.cents)}: ${r.label}, ${shortDay(r.day)}`}
                         aria-label={`${strikeLabel(r.cents)}: ${r.label}, ${shortDay(r.day)}`}
                         onClick={() => {
                           const ref = r.ref!;
@@ -1000,7 +1064,7 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
                           );
                         }}
                       >
-                        {strikeLabel(r.cents)}
+                        <CircleMinus size={18} aria-hidden="true" />
                       </Button>
                     )}
                   </td>
@@ -1028,4 +1092,8 @@ function MovementsCard({ report }: { report: LiquidityReport }) {
       </p>
     </section>
   );
+}
+
+export function PlanPrognosePage() {
+  return <LiquidityReportPage report={LIQUIDITY_FORECAST} meta={PLAN_PROGNOSE} />;
 }

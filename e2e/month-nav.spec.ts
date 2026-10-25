@@ -70,8 +70,8 @@ test.describe('Heute month switch', () => {
     await expect(page).toHaveURL(/monat=2026-08/);
     await expect(page.getByRole('heading', { name: 'August 2026', exact: true })).toBeVisible();
     // Bis Gehalt stays anchored to today and says so.
-    await expect(page.getByTestId('heute-anchor')).toContainText('ab heute (17.09.', SLOW);
-    await expect(page.getByTestId('heute-month-note')).toContainText('Stand von heute', SLOW);
+    await expect(page.getByTestId('heute-anchor')).toContainText('Stand heute · 17.09.2026', SLOW);
+    await expect(page.getByTestId('heute-month-note')).toContainText('Ansicht: August 2026', SLOW);
     await expect(page.getByText('August 2026 · Pace')).toBeVisible(SLOW);
 
     // Arrow keys with nothing focused move the month, like the buttons.
@@ -91,21 +91,19 @@ test.describe('Heute month switch', () => {
 
   test('the arrow keys stay with a focused field', async ({ page }, info) => {
     test.skip(info.project.name === 'mobile', 'the phone has neither search field nor wide plan');
-    // The header search field moved to its own result page (no month switch there). The month
+    // The header search field opens in a dialog. The month
     // keys' guard for fields is shared with Plan › Monat, whose cover select is a real field.
     await page.goto('/plan/monat?monat=2026-09');
-    await page
-      .locator('.plan-topbar summary')
-      .filter({ hasText: /^\d+ überzogen$/ })
-      .click();
+    // #587: the cover select opens from the Zu verteilen disclosure.
+    await page.locator('.plan-tba').click();
     await page.locator('#cover-all-source').focus();
     await page.keyboard.press('ArrowLeft');
     await expect(page).toHaveURL(/monat=2026-09/);
     // The search field keeps the arrow keys for its caret.
     await page.goto('/?monat=2026-09');
     await page.locator('#global-search').click();
-    // The click opens the result page, which mounts its own field: type only once that is up.
-    await expect(page).toHaveURL(/\/suche/);
+    // Wait for the dialog's field before typing.
+    await expect(page.getByRole('dialog', { name: 'Suchen', exact: true })).toBeVisible();
     const field = page.getByRole('combobox', { name: 'Suchen', exact: true });
     await expect(field).toBeFocused();
     await page.keyboard.type('ab');
@@ -123,8 +121,14 @@ test.describe('Plan › Monat with several months', () => {
     test.skip(info.project.name === 'mobile', 'the phone always shows one month');
     await page.goto('/plan/monat?monat=2026-09');
     await expect(page.locator('.ptable-multi')).toHaveCount(0);
+    // #588: the month span lives in Optionen ▾, which closes after every choice.
+    const optionen = page.locator('.plan-menu summary', { hasText: 'Optionen' });
     const span = page.getByRole('group', { name: 'Anzahl Monate' });
-    await span.getByRole('button', { name: '2 Monate' }).click();
+    const pick = async (name: string) => {
+      await optionen.click();
+      await span.getByRole('button', { name, exact: true }).click();
+    };
+    await pick('2 Monate');
     const table = page.locator('.ptable-multi');
     await expect(table.locator('thead th.pm-head')).toHaveText([/September 2026/, /Oktober 2026/]);
     // The title carries the month window; every month head carries its own Zu verteilen.
@@ -136,18 +140,21 @@ test.describe('Plan › Monat with several months', () => {
     await expect(page).toHaveURL(/monat=2026-10/);
     await expect(table.locator('thead th.pm-head')).toHaveText([/Oktober 2026/, /November 2026/]);
 
-    await span.getByRole('button', { name: '3 Monate' }).click();
+    await pick('3 Monate');
     await expect(table.locator('thead th.pm-head')).toHaveCount(3);
     await page.reload();
     await expect(page.locator('.ptable-multi thead th.pm-head')).toHaveCount(3);
+    await optionen.click();
     await expect(span.getByRole('button', { name: '3 Monate' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
+    await page.keyboard.press('Escape');
 
-    await span.getByRole('button', { name: '1 Monat' }).click();
+    await pick('1 Monat');
     await expect(page.locator('.ptable-multi')).toHaveCount(0);
-    await expect(page.getByLabel('Ansicht', { exact: true })).toBeVisible();
+    await optionen.click();
+    await expect(page.getByRole('group', { name: 'Ansicht', exact: true })).toBeVisible();
   });
 
   test('the phone keeps one month whatever was chosen', async ({ page }, info) => {
@@ -156,8 +163,10 @@ test.describe('Plan › Monat with several months', () => {
     await page.goto('/plan/monat?monat=2026-09');
     await expect(page.getByRole('heading', { name: 'September 2026', exact: true })).toBeVisible();
     await expect(page.locator('.ptable-multi')).toHaveCount(0);
+    // Open the menu first: a closed menu would hide the group and make the count trivially 0.
+    await page.locator('.plan-menu summary', { hasText: 'Optionen' }).click();
     await expect(page.getByRole('group', { name: 'Anzahl Monate' })).toHaveCount(0);
-    await expect(page.getByLabel('Ansicht', { exact: true })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Ansicht', exact: true })).toBeVisible();
   });
 });
 
@@ -297,24 +306,24 @@ isolatedTest(
       expect(assigned.ok()).toBe(true);
       await page.goto(`/plan/monat?monat=${selected}`);
       const targetRow = page.locator('tr.prow', { hasText: targetName });
-      await expect(targetRow.locator('.col-avail')).toHaveText('−50,00 €');
+      await expect(targetRow.locator('.col-avail .pill')).toHaveText('−50,00 €');
       // The compact row control opens the envelope panel (UX-2 replaced the triage table rows).
       await page.getByRole('button', { name: `${targetName} decken`, exact: true }).click();
-      const coverPanel = page.getByRole('dialog', { name: targetName });
+      const coverPanel = page.getByRole('complementary', { name: 'Plan-Inspektor' });
       await coverPanel.getByLabel('Aus', { exact: true }).selectOption(source.id);
       const covered = page.waitForResponse(
         (r) => r.request().method() === 'POST' && r.url().endsWith(`/api/budget/${selected}/cover`),
       );
       await coverPanel.getByRole('button', { name: 'Decken · 50,00 €', exact: true }).click();
       expect((await covered).ok()).toBe(true);
-      await expect(targetRow.locator('.col-avail')).toHaveText('0,00 €');
+      await expect(targetRow.locator('.col-avail .pill')).toHaveText('0,00 €');
       await page.locator('.toast.is-open').getByRole('button', { name: 'Rückgängig' }).click();
-      await expect(targetRow.locator('.col-avail')).toHaveText('−50,00 €');
+      await expect(targetRow.locator('.col-avail .pill')).toHaveText('−50,00 €');
       if (delta === 1 && info.project.name === 'desktop') {
         await withSpan(2)(page);
         await page.goto(`/plan/monat?monat=${current}`);
         await page.getByRole('button', { name: `${targetName}: Decken im`, exact: false }).click();
-        const panel = page.getByRole('dialog');
+        const panel = page.getByRole('complementary', { name: 'Plan-Inspektor' });
         await expect(
           panel.getByRole('button', { name: 'Decken · 50,00 €', exact: true }),
         ).toBeVisible();

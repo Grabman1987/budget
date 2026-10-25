@@ -55,6 +55,7 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
       interestRateBp: amount(terms[i]!.rate),
       installmentCents: amount(terms[i]!.payment),
       monthlyFeeCents: amount(terms[i]!.fee),
+      settledMonthly: a.type !== 'loan',
     })),
     asOf.slice(0, 7),
     selected,
@@ -75,90 +76,110 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
             ? 'Schuldenfrei'
             : overview.payoffDate && valid
               ? `Schuldenfrei am ${longDay(overview.payoffDate)}`
-              : 'Schuldenfrei am …'}
+              : 'Tilgungsplan'}
         </h2>
-        <p className="debt-result-interest">
-          Noch zu zahlende Zinsen <strong>{valid ? money(overview.interestCents) : '—'}</strong>
-        </p>
-        {accounts.length > 0 && !overview.payoffDate && (
-          <p className="vnote">
-            Datum noch offen. Bitte fehlende oder ungültige Konditionen unten anpassen.
+        {overview.interestCents !== null && (
+          <p className="debt-result-interest">
+            Noch zu zahlende Zinsen <strong>{valid ? money(overview.interestCents) : '—'}</strong>
           </p>
         )}
-        {overview.currency === null && accounts.length > 0 && (
-          <p className="vnote">Zinsen werden nicht über verschiedene Währungen summiert.</p>
+        {overview.termsOpen && !overview.payoffDate && (
+          <p className="vnote">
+            <a
+              href="#debt-adjustments"
+              onClick={() => document.getElementById('debt-adjustments')?.setAttribute('open', '')}
+            >
+              Konditionen ergänzen
+            </a>
+          </p>
         )}
-        {overview.progress ? (
-          <div className="debt-progress">
-            <progress
-              aria-label="Tilgungsfortschritt"
-              max={overview.progress.originalCents}
-              value={overview.progress.paidCents}
-            />
-            <div>
-              <span>Getilgt {money(overview.progress.paidCents)}</span>
-              <span>Restschuld {money(overview.progress.remainingCents)}</span>
+        <details className="wealth-details">
+          <summary>Wie wird gerechnet?</summary>
+          {overview.currency === null && accounts.length > 0 && (
+            <p className="vnote">Zinsen werden nicht über verschiedene Währungen summiert.</p>
+          )}
+          {overview.progress ? (
+            <div className="debt-progress">
+              <progress
+                aria-label="Tilgungsfortschritt"
+                max={overview.progress.originalCents}
+                value={overview.progress.paidCents}
+              />
+              <div>
+                <span>Getilgt {money(overview.progress.paidCents)}</span>
+                <span>Restschuld {money(overview.progress.remainingCents)}</span>
+              </div>
             </div>
-          </div>
-        ) : (
-          accounts.length > 0 && (
+          ) : (
+            accounts.length > 0 && (
+              <p className="vnote">
+                {overview.currency === null
+                  ? 'Tilgungsfortschritt kann über verschiedene Währungen nicht zusammengefasst werden.'
+                  : 'Fortschritt unbekannt: ursprüngliche Kreditbeträge fehlen oder passen nicht zur Restschuld.'}{' '}
+                <AppLink to="/einstellungen/konten">Konditionen pflegen</AppLink>
+              </p>
+            )
+          )}
+          {overview.rows.some((r) => r.status === 'settled_monthly') && (
             <p className="vnote">
-              {overview.currency === null
-                ? 'Tilgungsfortschritt kann über verschiedene Währungen nicht zusammengefasst werden.'
-                : 'Fortschritt unbekannt: ursprüngliche Kreditbeträge fehlen oder passen nicht zur Restschuld.'}{' '}
-              <AppLink to="/einstellungen/konten">Konditionen pflegen</AppLink>
+              Kreditkarten und überzogene Konten werden laufend ausgeglichen: Ohne eigene
+              Konditionen gehen sie nicht in das Datum und die Zinsen ein, ihre Restschuld zählt
+              aber zur Summe.
             </p>
-          )
-        )}
-        <p className="vnote">
-          Modell ab {longDay(asOf)} · Datum = Monatsende der letzten Modellzahlung.
-        </p>
-        <p className="vnote">
-          Tilgungsübersicht und Schuldensumme zeigen Konten mit negativem Nettowert. Bei Depots
-          zählen Wertpapiere und Kassa gemeinsam. Die Tilgungsstrategien betrachten dagegen negative
-          Kassasalden in der jeweiligen Kontowährung. Ein Depot mit positivem Nettowert und
-          negativer Kassa fehlt deshalb hier, kann aber Strategiekandidat sein. Anzahl und Summen
-          können abweichen; die Betrachtungen werden nicht ineinander umgerechnet.
-        </p>
-        <DebtLiquidityCheck />
+          )}
+          <p className="vnote">
+            Modell ab {longDay(asOf)} · Datum = Monatsende der letzten Modellzahlung.
+          </p>
+          <p className="vnote">
+            Tilgungsübersicht und Schuldensumme zeigen Konten mit negativem Nettowert. Bei Depots
+            zählen Wertpapiere und Kassa gemeinsam. Die Tilgungsstrategien betrachten dagegen
+            negative Kassasalden in der jeweiligen Kontowährung. Ein Depot mit positivem Nettowert
+            und negativer Kassa fehlt deshalb hier, kann aber Strategiekandidat sein. Anzahl und
+            Summen können abweichen; die Betrachtungen werden nicht ineinander umgerechnet.
+          </p>
+          <DebtLiquidityCheck />
+        </details>
       </div>
       {accounts.length > 0 && (
         <>
-          <div className="debt-quick-scenario">
-            <label>
-              Zusätzliche Tilgung für
-              <select value={selected} onChange={(e) => setSelected(e.target.value)}>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              + Sondertilgung/Monat ({accounts.find((a) => a.id === selected)?.currency})
-              <TextInput
-                money
-                inputMode="decimal"
-                value={extra}
-                onChange={(e) => setExtra(e.target.value)}
-              />
-            </label>
-            <p aria-live="polite">
-              {valid ? (
-                <strong>
-                  {selectedPlan && selectedAccount
-                    ? nativeCurrency(selectedPlan.interestSavedCents, selectedAccount.currency)
-                    : '—'}{' '}
-                  Zinsen gespart
-                </strong>
-              ) : (
-                <span role="alert" className="field-error">
-                  Bitte einen Betrag ab 0 eingeben.
-                </span>
-              )}
-            </p>
-          </div>
+          <details className="wealth-details">
+            <summary>Sondertilgung berechnen</summary>
+            <div className="debt-quick-scenario">
+              <label>
+                Zusätzliche Tilgung für
+                <select value={selected} onChange={(e) => setSelected(e.target.value)}>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                + Sondertilgung/Monat ({accounts.find((a) => a.id === selected)?.currency})
+                <TextInput
+                  money
+                  inputMode="decimal"
+                  value={extra}
+                  onChange={(e) => setExtra(e.target.value)}
+                />
+              </label>
+              <p aria-live="polite">
+                {valid ? (
+                  <strong>
+                    {selectedPlan && selectedAccount
+                      ? nativeCurrency(selectedPlan.interestSavedCents, selectedAccount.currency)
+                      : '—'}{' '}
+                    Zinsen gespart
+                  </strong>
+                ) : (
+                  <span role="alert" className="field-error">
+                    Bitte einen Betrag ab 0 eingeben.
+                  </span>
+                )}
+              </p>
+            </div>
+          </details>
           <table className="ktable vtable debt-table">
             <caption className="sr-only">Tilgung je Kredit und Kreditkarte</caption>
             <thead>
@@ -192,13 +213,12 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
                             ? 'Kreditkarte'
                             : 'Negativer Kontowert'}
                       </small>
-                      <div
+                      <details
                         className="debt-stored-terms"
                         data-testid={`debt-terms-${a.id}`}
-                        role="group"
                         aria-label={`Gespeicherte Konditionen ${a.name}`}
                       >
-                        <strong>Gespeicherte Konditionen</strong>
+                        <summary>Gespeicherte Konditionen</summary>
                         <dl>
                           <div>
                             <dt>Zinssatz</dt>
@@ -262,7 +282,7 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
                           </div>
                         </dl>
                         <AppLink to="/einstellungen/konten">Konditionen pflegen</AppLink>
-                      </div>
+                      </details>
                     </th>
                     <td data-label="Restschuld">{nativeCurrency(-a.balanceCents, a.currency)}</td>
                     <td data-label="Modellrate">
@@ -277,9 +297,11 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
                       {plan?.payoffMonth ? longDay(lastDayOfMonth(plan.payoffMonth)) : '—'}
                       {!row.plan && (
                         <small>
-                          {row.status === 'missing_terms'
-                            ? 'Konditionen fehlen'
-                            : 'Rate muss Zinsen und Gebühren decken; Rechengrenzen prüfen'}
+                          {row.status === 'settled_monthly'
+                            ? 'laufend ausgeglichen'
+                            : row.status === 'missing_terms'
+                              ? 'Konditionen fehlen'
+                              : 'Rate muss Zinsen und Gebühren decken; Rechengrenzen prüfen'}
                         </small>
                       )}
                     </td>
@@ -291,7 +313,7 @@ function Overview({ accounts, asOf }: { accounts: OverviewAccount[]; asOf: strin
               })}
             </tbody>
           </table>
-          <details className="debt-adjustments">
+          <details className="debt-adjustments" id="debt-adjustments">
             <summary>Konditionen anpassen</summary>
             <p className="vnote">
               Aus den Konten vorausgefüllt. Änderungen gelten nur für diese Vorschau; fehlende

@@ -29,23 +29,23 @@
 .area[class*='pk-'] {
   fill: var(--pk);
   stroke: var(--surface);
-  stroke-width: 0.8;
+  stroke-width: var(--stroke-hairline);
 }
 .alloc-band {
   fill: var(--pk);
   fill-opacity: 0.22;
   stroke: var(--ink);
-  stroke-width: 0.6;
+  stroke-width: var(--stroke-hairline);
   stroke-dasharray: 3 3;
 }
 .sb-arc {
   fill: var(--pk);
   stroke: var(--surface);
-  stroke-width: 1.5;
+  stroke-width: var(--stroke-hairline);
 }
 .sb-arc.pk-4 {
   stroke: var(--line-2);
-  stroke-width: 1;
+  stroke-width: var(--stroke-hairline);
 }
 .area.pk-1,
 .area.pk-2,
@@ -53,7 +53,7 @@
 .area.pk-4 {
   fill: var(--pk);
   stroke: var(--surface);
-  stroke-width: 0.8;
+  stroke-width: var(--stroke-hairline);
 }
 .area.pk-4 {
   stroke: var(--line-2);
@@ -61,7 +61,7 @@
 .sb-lbl {
   paint-order: stroke;
   stroke: var(--surface);
-  stroke-width: 3px;
+  stroke-width: var(--stroke-hairline);
   stroke-linejoin: round;
   pointer-events: none;
 }
@@ -113,7 +113,7 @@
 .allocation-kind-hint {
   display: block;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .allocation-unheld .prep-product {
   color: var(--ink-3);
@@ -187,8 +187,8 @@
 .sb-composition .sb-lbl {
   fill: var(--alloc-label, var(--ink));
   stroke: var(--outer);
-  stroke-width: 2px;
-  font-size: 12px;
+  stroke-width: var(--stroke-hairline);
+  font-size: var(--fs-label);
 }
 .sb-composition .sb-lbl-inv {
   fill: var(--alloc-inverse, var(--surface));
@@ -247,7 +247,7 @@
 }
 .alloc-limit {
   stroke: var(--ink);
-  stroke-width: 1.75;
+  stroke-width: var(--stroke-hairline);
 }
 .alloc-legend {
   margin: 8px 0 0;

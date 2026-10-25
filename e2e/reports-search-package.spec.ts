@@ -18,8 +18,8 @@ test('everyday terms keep function routes, data kinds and global actions distinc
     return input;
   };
   for (const [term, label, path] of [
-    ['Baby', '3.1 Liquiditätsprognose', '/reports/liquiditaet'],
-    ['Einkommenspause', '3.1 Liquiditätsprognose', '/reports/liquiditaet'],
+    ['Baby', 'Plan · Prognose', '/plan/prognose'],
+    ['Einkommenspause', 'Plan · Prognose', '/plan/prognose'],
     ['Dispo', 'Vermögen · Schulden', '/vermoegen/schulden'],
     ['Gebühren', '2.6 Bank- und Zinskosten', '/reports/kosten'],
     ['Prognosegenauigkeit', '1.11 Prognosegenauigkeit', '/reports/planungstreue'],
@@ -28,7 +28,7 @@ test('everyday terms keep function routes, data kinds and global actions distinc
     const input = await open();
     await input.fill(term!);
     const option = page
-      .getByRole('group', { name: 'Passende Treffer' })
+      .getByRole('group', { name: 'Seiten', exact: true })
       .getByRole('option', { name: new RegExp(label!) });
     await expect(option).toBeVisible();
     expect((await option.boundingBox())!.height).toBeGreaterThanOrEqual(44);
@@ -47,15 +47,15 @@ test('everyday terms keep function routes, data kinds and global actions distinc
       .first(),
   ).toBeVisible();
   await input.fill('');
-  const actions = page.getByRole('group', { name: 'Globale Aktionen' });
+  const actions = page.getByRole('group', { name: 'Aktionen' });
   await expect(actions.getByRole('option', { name: /Monatsabschluss starten/ })).toHaveCount(1);
   await expect(
     page
-      .getByRole('group', { name: 'Passende Treffer' })
+      .getByRole('group', { name: 'Zuletzt verwendet' })
       .getByRole('option', { name: /Monatsabschluss/ }),
   ).toHaveCount(0);
   await input.fill('Posteingang');
-  await expect(actions.getByRole('option', { name: /Posteingang öffnen/ })).toBeVisible();
+  await expect(actions.getByRole('option', { name: /Prüfen öffnen/ })).toBeVisible();
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);

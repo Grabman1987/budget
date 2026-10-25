@@ -1,0 +1,74 @@
+.statement-intake-726 > .btn,
+.statement-history-726 summary,
+.statement-history-726 .btn,
+.statement-dialog-726 .btn,
+.statement-dialog-726 .input {
+  min-height: 44px;
+}
+.statement-history-726 {
+  margin-block: 8px;
+}
+.statement-history-726 summary {
+  display: list-item;
+  padding-block: 12px;
+  cursor: pointer;
+}
+.statement-history-726 ul {
+  list-style: none;
+  padding: 0;
+}
+.statement-history-726 li + li {
+  border-top: 1px solid var(--rule);
+}
+.statement-history-726 .btn {
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.statement-dialog-726 {
+  width: min(100%, 920px);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.statement-fields-726 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-block: 16px;
+}
+.statement-fields-726 .field-row {
+  min-width: 0;
+}
+.statement-fields-726 .input {
+  width: 100%;
+}
+.statement-actions-726 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 16px;
+}
+@media (max-width: 767px) {
+  /* Keep this dialog's actions reachable by ordinary scrolling while its toast is visible. */
+  .statement-dialog-726 {
+    padding-block-end: calc(4 * var(--touch) + env(safe-area-inset-bottom));
+  }
+  dialog:has(.statement-dialog-726) .toast {
+    width: calc(100vw - 32px);
+  }
+  dialog:has(.statement-dialog-726) .toast-body > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  dialog:has(.statement-dialog-726) .toast-body > button {
+    flex-shrink: 0;
+  }
+  .statement-fields-726 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .statement-actions-726 > .btn {
+    flex: 1 1 44%;
+    min-width: 0;
+    white-space: normal;
+  }
+}

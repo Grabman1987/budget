@@ -1,6 +1,6 @@
 import { Button } from '@budget/ui';
 import { ChevronLeft, ChevronRight, Printer } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { longDay } from '../ledger/format';
 import { monthLabel, monthOf, shiftMonth } from '../nav/month';
 import type { PageMeta } from '../nav/pages';
@@ -9,6 +9,84 @@ import { PageFrame } from '../pages/placeholder-page';
 import { useMonth } from '../shell/use-month';
 import './month-report.css';
 import type { VerdictFacts } from '@budget/domain';
+
+/** Per page, not per report: `/reports/gehalt` and `/reports/gehalt/historie` have their own sections. */
+const sectionsKey = () => `budget.report-sections.${location.pathname}`;
+
+function collapsedSections(): Set<string> {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(sectionsKey()) ?? '[]');
+    return new Set(Array.isArray(stored) ? stored.filter((k) => typeof k === 'string') : []);
+  } catch {
+    return new Set(); // no storage or a damaged value: everything stays expanded
+  }
+}
+
+/**
+ * Adds a disclosure button to every top-level `<section>` of the report body that has a heading
+ * (a direct child, or a child of a direct child such as `.tbd-head`), and remembers the collapsed
+ * ones per page in localStorage. The reports render their sections themselves, so the frame
+ * enhances the DOM it owns (and again when a section is rendered later, e.g. after loading).
+ * Collapsing hides everything but the marked head by stylesheet.
+ * A section is keyed by its heading id, else by its position (ponytail: shifts if sections come and go).
+ */
+export function useCollapsibleSections(slug: string) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    const enhance = () => {
+      let index = -1;
+      for (const section of root.querySelectorAll('section')) {
+        if (section.parentElement?.closest('section')) continue;
+        const heading = section.querySelector(':scope > :is(h2, h3), :scope > * > :is(h2, h3)');
+        if (!heading) continue;
+        index += 1;
+        if (section.querySelector(':scope > .section-toggle, :scope > * > .section-toggle'))
+          continue;
+        const bare = heading.parentElement === section;
+        const head = bare ? heading : heading.parentElement!;
+        head.setAttribute('data-section-head', '');
+        const key = heading.id || `#${index}`;
+        heading.id ||= `${slug}-section-${index}`;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `icon-btn section-toggle${bare ? ' section-toggle-bare' : ''}`;
+        // The name is the generic action followed by the section title, so voice control and
+        // screen readers can tell the toggles apart (#647). Visible text is unchanged (icon only).
+        button.id = `${heading.id}-toggle`;
+        button.setAttribute('aria-label', 'Abschnitt ein- oder ausklappen');
+        button.setAttribute('aria-labelledby', `${button.id} ${heading.id}`);
+        button.setAttribute('aria-describedby', heading.id); // kept from #640 (duplicate announcement accepted)
+        const show = (open: boolean) => {
+          button.setAttribute('aria-expanded', String(open));
+          if (open) section.removeAttribute('data-collapsed');
+          else section.setAttribute('data-collapsed', 'true');
+        };
+        show(!collapsedSections().has(key));
+        button.addEventListener('click', () => {
+          const open = button.getAttribute('aria-expanded') !== 'true';
+          show(open);
+          const collapsed = collapsedSections(); // re-read: other instances may have written
+          if (open) collapsed.delete(key);
+          else collapsed.add(key);
+          try {
+            localStorage.setItem(sectionsKey(), JSON.stringify([...collapsed]));
+          } catch {
+            // no storage: the choice holds until the page is left
+          }
+        });
+        if (bare) heading.after(button);
+        else head.append(button);
+      }
+    };
+    enhance();
+    const observer = new MutationObserver(enhance);
+    observer.observe(root, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [slug]);
+  return ref;
+}
 
 /** Selected month of a report (`?monat=`), the current month by default. */
 export function useReportMonth() {
@@ -108,6 +186,7 @@ export function MonthReportFrame({
   extraFields?: Array<{ label: string; value: ReactNode }>;
   children: ReactNode;
 }) {
+  const sectionsRef = useCollapsibleSections(report.id);
   return (
     <PageFrame
       verdict={verdict}
@@ -129,7 +208,9 @@ export function MonthReportFrame({
         ...(print ? [{ label: 'Blatt', value: <PrintButton /> }] : []),
       ]}
     >
-      {children}
+      <div ref={sectionsRef} className="rs-scope">
+        {children}
+      </div>
     </PageFrame>
   );
 }

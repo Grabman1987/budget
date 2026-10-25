@@ -20,12 +20,12 @@
 .rw-pos {
   display: inline-block;
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-measure);
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--line);
   border: 1px solid var(--line-2);
-  border-radius: 2px;
+  border-radius: 4px;
   padding: 1px 6px;
   line-height: 1.4;
 }
@@ -37,7 +37,7 @@
   margin-top: 8px;
 }
 .rw-stage {
-  border-top: 2px solid var(--line-2);
+  border-top: var(--stroke-hairline) solid var(--line-2);
   padding-top: 10px;
 }
 .rw-stage.is-cur {
@@ -50,7 +50,7 @@
 }
 .rw-stage-h h3 {
   margin: 0;
-  font-size: 17px;
+  font-size: var(--fs-title);
   font-weight: 600;
 }
 .rw-stage-h h3 .rw-pos {
@@ -59,7 +59,7 @@
 }
 .rw-stage-h small {
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 
 .rw-list {
@@ -99,7 +99,7 @@
 .rw-disabled summary {
   margin: 0;
   padding: 12px 0;
-  font-size: 17px;
+  font-size: var(--fs-title);
   font-weight: 600;
 }
 .rw-disabled summary {
@@ -149,10 +149,7 @@
   vertical-align: bottom;
 }
 .rw-done input {
-  width: 16px;
-  height: 16px;
   margin: 0;
-  accent-color: var(--line);
 }
 
 /* Threshold panel */
@@ -181,7 +178,7 @@
 }
 .rw-action-k {
   font-family: var(--font-tech);
-  font-size: var(--fs-class-tag);
+  font-size: var(--fs-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);

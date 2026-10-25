@@ -18,6 +18,7 @@ import { EnvelopePanel } from './envelope-panel';
 import type { PlanRow } from './plan-model';
 import { AssignCell } from './assign-cell';
 import { QuickAssignActions } from './quick-assign-actions';
+import { PlanMonthPage } from './plan-page';
 
 vi.mock('../shell/app-link', () => ({
   AppLink: ({ children }: { children: ReactNode }) => <a href="#k">{children}</a>,
@@ -296,6 +297,74 @@ const tree = (categories: CategoryRow[]): CategoryTree => ({
   ],
   categories: categories.map((c, i) => ({ ...c, sortOrder: i })),
   targets: [],
+});
+
+it('selects a category into the inspector, keeps amount editing separate and clears with Escape or outside click', async () => {
+  const row = envelope({
+    activityCents: 0,
+    availableCents: 0,
+    overspentCents: 0,
+    cashOverspentCents: 0,
+  });
+  const categories = tree([cat('essen', { name: row.name })]);
+  stubApi({
+    'GET /api/budget/*': () =>
+      ok({
+        ...categories,
+        summary: {
+          month: '2026-09',
+          carryInCents: 0,
+          incomeCents: 10_000,
+          uncoveredCents: 0,
+          heldCents: 0,
+          assignedCents: 0,
+          activityCents: 0,
+          availableCents: 0,
+          toBeAssignedCents: 10_000,
+          creditOverspentCents: 0,
+          cashOverspentCents: 0,
+          envelopes: [row],
+          cards: [],
+        },
+      }),
+    'GET /api/accounts': () => ok({ accounts: [] }),
+    'GET /api/expected': () => ok({ payments: [] }),
+    'GET /api/categories': () => ok(categories),
+  });
+  renderPage(<PlanMonthPage />, '/plan/monat?monat=2026-09');
+  const category = await screen.findByRole('button', { name: 'Alltag· Lebensmittel' });
+  await userEvent.click(category);
+  const inspector = screen.getByRole('complementary', { name: 'Plan-Inspektor' });
+  expect(within(inspector).getByRole('heading', { name: row.name })).toBeTruthy();
+  expect(within(inspector).getByLabelText('Zugewiesen')).toBeTruthy();
+  expect(within(inspector).getByRole('link', { name: 'Verlauf und Buchungen' })).toBeTruthy();
+  expect(screen.queryByRole('dialog')).toBeNull();
+  await userEvent.click(within(inspector).getByText('Kategorie-Aktionen', { selector: 'summary' }));
+  await userEvent.click(
+    within(inspector).getByRole('button', { name: 'Umbenennen / Ziel ändern' }),
+  );
+  await userEvent.click(
+    within(screen.getByRole('dialog', { name: 'Kategorie' })).getByLabelText('Name'),
+  );
+  await userEvent.keyboard('{Escape}');
+  expect(within(inspector).getByRole('heading', { name: row.name })).toBeTruthy();
+  await userEvent.keyboard('{Escape}');
+  expect(within(inspector).getByText('Monatsüberblick', { selector: 'summary' })).toBeTruthy();
+  expect(document.activeElement).toBe(category);
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Zugewiesen 0,00 € für Lebensmittel ändern' }),
+  );
+  expect(within(inspector).queryByLabelText('Zugewiesen')).toBeNull();
+  await userEvent.keyboard('{Escape}');
+  await userEvent.click(category);
+  // #588: Optionen ▾ replaces the Ansicht select; any toolbar control outside the selection is an outside click.
+  await userEvent.click(screen.getByText(/^Optionen/, { selector: 'summary' }));
+  expect(within(inspector).getByText('Monatsüberblick', { selector: 'summary' })).toBeTruthy();
+  await userEvent.click(category);
+  await userEvent.click(screen.getByRole('button', { name: 'Unterfinanziert 0,00 €' }));
+  await waitFor(() =>
+    expect(document.getElementById('inspector-income')?.hasAttribute('open')).toBe(true),
+  );
 });
 
 describe('Category panel', () => {

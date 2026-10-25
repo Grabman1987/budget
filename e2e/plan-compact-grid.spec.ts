@@ -1,6 +1,103 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { test } from './isolated-ledger';
+
+/** Phone-only equivalents for the owner-approved explicit selection controls. */
+async function enterPhoneSelection(page: Page) {
+  const options = page.locator('details.plan-menu').filter({
+    has: page.locator('summary', { hasText: 'Optionen' }),
+  });
+  await options.locator('summary').click();
+  await options.getByRole('button', { name: 'Auswählen', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Kategorienauswahl', exact: true })).toBeVisible();
+}
+async function exitPhoneSelection(page: Page) {
+  const bar = page.getByRole('region', { name: 'Kategorienauswahl', exact: true });
+  await bar.getByRole('button', { name: 'Auswahl beenden', exact: true }).click();
+  await expect(bar).toHaveCount(0);
+}
+async function expectPhoneSelectionTargets(page: Page) {
+  const categories = page.locator('.ptable .pname:visible');
+  const toggles = page.locator('.ptable .plan-select-toggle:visible');
+  expect(await categories.count()).toBeGreaterThan(0);
+  const headings = page.locator('.ptable .group-heading:visible');
+  expect(await headings.count()).toBeGreaterThan(0);
+  await expect(toggles).toHaveCount(await headings.count());
+  for (const heading of await headings.all())
+    await expect(heading.locator('.plan-select-toggle')).toHaveCount(1);
+  await expect(
+    page.getByRole('button', { name: 'Alle Kategorien auswählen', exact: true }),
+  ).toHaveCount(1);
+  for (const controls of [categories, toggles]) {
+    for (let index = 0; index < (await controls.count()); index++) {
+      const bounds = (await controls.nth(index).boundingBox())!;
+      expect(bounds.width).toBeGreaterThanOrEqual(44);
+      expect(bounds.height).toBeGreaterThanOrEqual(44);
+    }
+  }
+}
+
+// #481: actual category rows and standalone parents retain their original budgets.
+async function compactDimensions(page: Page) {
+  return page.locator('.plan').evaluate((plan) => {
+    const rows = Array.from(plan.querySelectorAll('.ptable .prow'));
+    const parents = Array.from(plan.querySelectorAll('.ptable .pgroup:not(.psingle)'));
+    const bounds = (row: Element, selector: string) =>
+      Array.from(row.querySelectorAll(selector), (element) =>
+        element.getBoundingClientRect(),
+      ).filter((box) => box.width > 0 && box.height > 0);
+    const unionHeight = (boxes: DOMRect[]) =>
+      Math.max(...boxes.map((box) => box.bottom)) - Math.min(...boxes.map((box) => box.top));
+    const categories = rows.map((row) =>
+      bounds(
+        row,
+        '.col-name > .plan-select, .pname, .spending-status, .spending-bar, .col-assign, .col-act, .col-avail',
+      ),
+    );
+    const parentBoxes = parents.map((row) => bounds(row, '.group-heading, .col-num'));
+    const pairs = parents.map((row) => {
+      const child = row.nextElementSibling!;
+      if (!child.matches('.prow')) throw new Error('Missing separate first category');
+      return {
+        parentBottom: row.getBoundingClientRect().bottom,
+        childTop: child.getBoundingClientRect().top,
+        height: child.getBoundingClientRect().bottom - row.getBoundingClientRect().top,
+      };
+    });
+    return {
+      beforeGrid:
+        plan.querySelector('.ptable')!.getBoundingClientRect().top -
+        plan.getBoundingClientRect().top,
+      heights: rows.map((row, i) =>
+        Math.max(
+          row.getBoundingClientRect().height,
+          unionHeight([
+            ...categories[i],
+            ...bounds(
+              row,
+              '.col-assign :is(button,input,label), .col-avail :is(button,input,label), .spending-bar .pbar-tick',
+            ),
+          ]),
+        ),
+      ),
+      groups: parents.map((row, i) =>
+        Math.max(
+          row.getBoundingClientRect().height,
+          unionHeight([
+            ...parentBoxes[i],
+            ...bounds(row, '.group-heading :is(button,input,label)'),
+          ]),
+        ),
+      ),
+      visible: rows.filter((row) => row.getBoundingClientRect().bottom <= window.innerHeight)
+        .length,
+      categoryCounts: categories.map((boxes) => boxes.length),
+      parentCounts: parentBoxes.map((boxes) => boxes.length),
+      bandHeights: pairs.map((pair) => pair.height),
+      pairs,
+    };
+  });
+}
 
 test('compact groups retain cent totals, add controls, keyboard and multiple months', async ({
   page,
@@ -27,7 +124,7 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     const { group } = await post('/categories/groups', { name: `Mustergruppe ${g + 1}` });
     for (let i = 0; i < 9; i++) {
       const { category } = await post('/categories', {
-        name: `Posten ${g + 1}.${i + 1}`,
+        name: `Posten ${g + 1}.${i + 1}${i === 8 ? ' mit einem langen Kategorienamen' : ''}`,
         groupId: group.id,
         class: 'need',
         stage: 2,
@@ -50,39 +147,147 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
       amountCents: -703,
     });
   }
+  for (const [index, amountCents] of [
+    [1, -201],
+    [2, -501],
+  ] as const) {
+    await post('/bookings', {
+      type: 'booking',
+      accountId: account.id,
+      date: `${month}-02`,
+      categoryId: categoryIds[index],
+      amountCents,
+    });
+  }
   await page.goto(`/plan/monat?monat=${month}`);
   await expect(page.locator('.ptable .prow')).toHaveCount(18);
+  await expect(page.locator('.plan-add-row')).toHaveCount(0);
+  await expect(page.locator('.prow .sw')).toHaveCount(0);
+  await expect(page.locator('.prow .spending-status').first()).toHaveText(
+    'Überzogen um 2,02 € · fehlt 5,00 € bis Ziel',
+  );
+  await expect(page.locator('.prow .spending-status').nth(1)).toHaveText(
+    'Ausgegeben 2,01 € von 5,01 € · fehlt 5,00 € bis Ziel',
+  );
+  await expect(page.locator('.prow .spending-status').nth(2)).toHaveText(
+    'Komplett ausgegeben · fehlt 5,00 € bis Ziel',
+  );
+  if (page.viewportSize()!.width < 768) {
+    await enterPhoneSelection(page);
+    const all = page.getByRole('button', { name: 'Alle Kategorien auswählen', exact: true });
+    const firstParent = page.getByRole('button', {
+      name: 'Gruppe Mustergruppe 1 auswählen',
+      exact: true,
+    });
+    const secondParent = page.getByRole('button', {
+      name: 'Gruppe Mustergruppe 2 auswählen',
+      exact: true,
+    });
+    const selectedCategories = page.locator('.ptable .pname[aria-pressed="true"]');
+    await expect(page.locator('.ptable .pname')).toHaveCount(18);
+    await expectPhoneSelectionTargets(page);
+    await all.click();
+    await expect(selectedCategories).toHaveCount(18);
+    for (const id of categoryIds)
+      await expect(page.locator(`.pname[data-category-id="${id}"]`)).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+    await expect(firstParent).toHaveAttribute('aria-pressed', 'true');
+    await expect(secondParent).toHaveAttribute('aria-pressed', 'true');
+    await firstParent.click();
+    await expect(selectedCategories).toHaveCount(9);
+    for (const [index, id] of categoryIds.entries())
+      await expect(page.locator(`.pname[data-category-id="${id}"]`)).toHaveAttribute(
+        'aria-pressed',
+        index < 9 ? 'false' : 'true',
+      );
+    await expect(firstParent).toHaveAttribute('aria-pressed', 'false');
+    await expect(secondParent).toHaveAttribute('aria-pressed', 'true');
+    await expect(all).toHaveAttribute('aria-pressed', 'mixed');
+    await all.click();
+    await expect(selectedCategories).toHaveCount(18);
+    await expect(all).toHaveAttribute('aria-pressed', 'true');
+    await all.click();
+    await expect(selectedCategories).toHaveCount(0);
+    await expect(all).toHaveAttribute('aria-pressed', 'false');
+    await expect(
+      page.getByRole('region', { name: 'Kategorienauswahl', exact: true }),
+    ).toBeVisible();
+    await exitPhoneSelection(page);
+  } else {
+    await page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }).check();
+    const selectedCategories = page.locator(
+      '.ptable tbody > tr.prow > td.col-name > label.plan-select > input[type="checkbox"]:checked',
+    );
+    const firstParent = page.getByRole('checkbox', {
+      name: 'Gruppe Mustergruppe 1 auswählen',
+      exact: true,
+    });
+    const secondParent = page.getByRole('checkbox', {
+      name: 'Gruppe Mustergruppe 2 auswählen',
+      exact: true,
+    });
+    await expect(selectedCategories).toHaveCount(18);
+    await expect(firstParent).toBeChecked();
+    await expect(secondParent).toBeChecked();
+    await firstParent.uncheck();
+    await expect(selectedCategories).toHaveCount(9);
+    await expect(firstParent).not.toBeChecked();
+    await expect(secondParent).toBeChecked();
+    await expect(
+      page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }),
+    ).toHaveJSProperty('indeterminate', true);
+    await page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }).check();
+    await page.getByRole('checkbox', { name: 'Alle Kategorien auswählen', exact: true }).uncheck();
+  }
   await expect(page.getByTestId('to-be-assigned')).toHaveText('1.909,82 €');
   await expect(page.getByText('Unterfinanziert 90,00 €', { exact: true })).toBeVisible();
-  await expect(page.locator('.pgroup').first().locator('.col-assign')).toHaveText('45,09 €');
-  await expect(page.locator('.pgroup').first().locator('.col-act')).toHaveText('−7,03 €');
-  await expect(page.locator('.pgroup').first().locator('.col-avail')).toHaveText('38,06 €');
-  await expect(
-    page.locator('.plan-topbar summary').filter({ hasText: '2 überzogen' }),
-  ).toBeVisible();
+  const firstParent = page
+    .getByRole('button', { name: 'Gruppe Mustergruppe 1', exact: true })
+    .locator('xpath=ancestor::tr');
+  const firstCategory = page
+    .locator(`.pname[data-category-id="${categoryIds[0]}"]`)
+    .locator('xpath=ancestor::tr');
+  for (const [metric, value] of [
+    ['Zugewiesen', '45,09 €'],
+    ['Aktivität', '−14,05 €'],
+    ['Verfügbar', '31,04 €'],
+  ] as const) {
+    const total = firstParent.locator(`.col-num[data-label="${metric}"]`);
+    await expect(total).toHaveCount(1);
+    await expect(total).toHaveText(value);
+  }
+  await expect(firstParent.locator('.pname')).toHaveCount(0);
+  await expect(firstCategory.locator('.col-assign')).toHaveText(
+    page.viewportSize()!.width < 768 ? 'Zugewiesen 5,01 €' : '5,01 €',
+  );
+  await expect(firstCategory.locator('.col-act')).toHaveText('−7,03 €');
+  await expect(firstCategory.locator('.col-avail')).toHaveText('−2,02 €');
+  // #587: no overspending chip in the head; the two overspent rows carry the marking and the
+  // Zu verteilen disclosure names the same count with its cover actions.
+  await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
+  await expect(page.locator('tr.prow.is-over')).toHaveCount(2);
   await page.locator('.plan-tba').click();
   await expect(page.getByRole('group', { name: 'Maßkette Zu verteilen' })).toBeVisible();
+  await expect(page.locator('.triage')).toContainText('2 Envelopes überzogen');
   await page.keyboard.press('Escape');
   expect(
     await page.locator('.plan-tba').evaluate((e) => e.parentElement!.hasAttribute('open')),
   ).toBe(false);
-  await expect(page.getByText('Monatsdetails', { exact: true })).toBeVisible();
-  expect(await page.locator('.plan-details').getAttribute('open')).toBeNull();
+  await expect(page.getByText('Monatsdetails', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.inspector-section[open]')).toHaveCount(1);
   const desktop = info.project.name === 'desktop';
   if (desktop) {
-    const dimensions = await page.locator('.plan').evaluate((plan) => {
-      const rows = Array.from(plan.querySelectorAll('.prow')).map((r) => r.getBoundingClientRect());
-      return {
-        beforeGrid:
-          plan.querySelector('.ptable')!.getBoundingClientRect().top -
-          plan.getBoundingClientRect().top,
-        heights: rows.map((r) => r.height),
-        visible: rows.filter((r) => r.bottom <= window.innerHeight).length,
-        groups: Array.from(plan.querySelectorAll('.pgroup')).map(
-          (r) => r.getBoundingClientRect().height,
-        ),
-      };
-    });
+    const dimensions = await compactDimensions(page);
+    expect(dimensions.heights).toHaveLength(18);
+    expect(dimensions.groups).toHaveLength(2);
+    expect(dimensions.categoryCounts).toEqual(Array(18).fill(7));
+    expect(dimensions.parentCounts).toEqual([4, 4]);
+    expect(dimensions.pairs).toHaveLength(2);
+    for (const pair of dimensions.pairs)
+      expect(pair.parentBottom).toBeLessThanOrEqual(pair.childTop);
+    expect(Math.max(...dimensions.bandHeights)).toBeLessThanOrEqual(76);
     await info.attach('compact-grid-dimensions', {
       body: JSON.stringify(dimensions),
       contentType: 'application/json',
@@ -93,7 +298,7 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
     expect(Math.max(...dimensions.groups)).toBeLessThanOrEqual(36);
     expect(dimensions.visible).toBeGreaterThanOrEqual(14);
   }
-  const firstGroup = page.getByRole('button', { name: 'Mustergruppe 1', exact: true });
+  const firstGroup = page.getByRole('button', { name: 'Gruppe Mustergruppe 1', exact: true });
   await firstGroup.focus();
   await page.keyboard.press('Enter');
   await expect(firstGroup).toHaveAttribute('aria-expanded', 'false');
@@ -122,34 +327,86 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
   await page.keyboard.press('c');
   await expect(categoryDialog).toBeVisible();
   await categoryDialog.getByRole('button', { name: 'Schließen', exact: true }).click();
-  await page.getByLabel('Ansicht', { exact: true }).selectOption('triage');
+  // #588: "Ansicht" moved into Optionen ▾; "Nur Überzogene" is no longer a menu entry, the
+  // link from Heute (?ansicht=triage) still opens the same view with the same two rows.
+  const optionen = page.locator('.plan-menu summary', { hasText: 'Optionen' });
+  const optionenMenu = page
+    .locator('details.plan-menu')
+    .filter({ has: page.locator('summary', { hasText: 'Optionen' }) });
+  const inOptionen = (name: string) =>
+    optionenMenu.locator('.plan-menu-panel').getByRole('button', { name, exact: true });
+  const triageUrl = new URL(page.url());
+  triageUrl.searchParams.set('ansicht', 'triage');
+  await page.goto(triageUrl.toString());
   await expect(page.locator('.ptable .prow:not(.is-empty)')).toHaveCount(2);
-  await page.getByLabel('Ansicht', { exact: true }).selectOption('group');
+  await optionen.click();
+  await inOptionen('Gruppen').click();
   if (desktop) {
-    await page.getByRole('button', { name: '2 Monate', exact: true }).click();
+    await optionen.click();
+    await inOptionen('2 Monate').click();
     await expect(page.locator('.ptable-multi .prow')).toHaveCount(18);
     await expect(page.getByTestId('tba-2026-11')).toBeVisible();
-    await page.getByRole('button', { name: '1 Monat', exact: true }).click();
+    await page
+      .locator('.inspector-section > summary')
+      .filter({ hasText: 'Wasserfall-Stufen' })
+      .click();
+    await page.locator('.rail-btn').filter({ hasText: 'Laufender Monat' }).click();
+    await optionen.click();
+    await expect(inOptionen('1 Monat')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.ptable-multi')).toHaveCount(0);
+    await inOptionen('Gruppen').click();
   }
+  await optionen.click();
+  await page.getByRole('link', { name: 'Monatsabschluss starten oder fortsetzen' }).focus();
+  await page.keyboard.press('Escape');
+  await expect(optionen).toBeFocused();
+  await expect(optionenMenu).not.toHaveAttribute('open');
+  await page.locator('.plan-chip-scroll').evaluate((element) => {
+    element.scrollLeft = 0;
+  });
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-    ).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      page.viewportSize()!.width,
+    );
     if (!desktop) {
+      const dimensions = await compactDimensions(page);
+      expect(dimensions.heights).toHaveLength(18);
+      expect(dimensions.groups).toHaveLength(2);
+      expect(dimensions.categoryCounts).toEqual(Array(18).fill(5));
+      expect(dimensions.parentCounts).toEqual([4, 4]);
+      expect(dimensions.pairs).toHaveLength(2);
+      for (const pair of dimensions.pairs)
+        expect(pair.parentBottom).toBeLessThanOrEqual(pair.childTop);
+      expect(Math.max(...dimensions.heights)).toBeLessThanOrEqual(76);
+      expect(Math.max(...dimensions.groups)).toBeLessThanOrEqual(76);
+      expect(Math.max(...dimensions.bandHeights)).toBeLessThanOrEqual(152);
+      const bar = page.locator('.plan-topbar');
+      expect((await bar.boundingBox())!.height).toBeLessThanOrEqual(56);
+      await page.locator('.ptoolbar').scrollIntoViewIfNeeded();
+      const topbar = (await bar.boundingBox())!;
+      const toolbar = (await page.locator('.ptoolbar').boundingBox())!;
+      expect(toolbar.y).toBeGreaterThanOrEqual(topbar.y + topbar.height);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await enterPhoneSelection(page);
+      await expectPhoneSelectionTargets(page);
+      await exitPhoneSelection(page);
       for (const selector of [
         '.grp-toggle',
         '.plan-add',
-        '.assign-btn',
-        '.plan-select',
+        '.pname',
+        '.plan-available',
         '.plan-topbar summary',
-        '.plan-topbar > .btn',
+        '.plan-chip-scroll > .btn',
       ]) {
-        const heights = await page
-          .locator(selector)
-          .evaluateAll((elements) => elements.map((e) => e.getBoundingClientRect().height));
+        const sizes = await page.locator(selector).evaluateAll((elements) =>
+          elements.map((e) => {
+            const rect = e.getBoundingClientRect();
+            return { width: rect.width, height: rect.height };
+          }),
+        );
         expect(
-          heights.every((h) => h >= 44),
+          sizes.every(({ width, height }) => width >= 44 && height >= 44),
           selector,
         ).toBe(true);
       }

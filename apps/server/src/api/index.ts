@@ -1,5 +1,6 @@
 import { inflationBasketRoutes } from './inflation-basket';
 import { displaySettingsRoutes } from './display-settings';
+import { explorerViewsRoutes } from './explorer-views';
 import { payrollRoutes, projectRoutes } from './payroll-projects';
 import { assignmentRoutes } from './assignment-rules';
 import { payslipIntakeRoutes } from './payslip-intake';
@@ -143,6 +144,8 @@ export function createLedgerApi({
   });
   api.route('/payslips', payrollRoutes(db, today));
   api.route('/payslip-intake', payslipIntakeRoutes(db, receiptsDir));
+  api.route('/statement-intake', statementIntakeRoutes(db, receiptsDir));
+  api.route('/statement-settlements', statementSettlementRoutes(db, receiptsDir));
   api.route('/projects', projectRoutes(db, today));
   api.route('/income-month-rules', incomeMonthRoutes(db));
   api.route('/assignment-rules', assignmentRoutes(db));
@@ -179,6 +182,7 @@ export function createLedgerApi({
   api.route('/savings-plans', savingsPlanRoutes(db, today));
   api.route('/portfolio', portfolioRoutes(db, today));
   api.route('/display-settings', displaySettingsRoutes(db));
+  api.route('/reports/saved-queries', explorerViewsRoutes(db));
   api.route('/profile', profileRoutes(db, today));
   api.route('/reports/month', monthReportRoutes(db, today));
   api.route('/reports/spending', spendingReportRoutes(db, today));
@@ -190,3 +194,5 @@ export function createLedgerApi({
   api.onError(errorResponse);
   return Object.assign(api, { warm: () => warmReadModels(api, today) });
 }
+import { statementIntakeRoutes } from './statement-intake';
+import { statementSettlementRoutes } from './statement-settlement';

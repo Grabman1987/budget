@@ -87,16 +87,11 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
   await receiver.press('Enter');
   await expect(dialog.getByLabel('Bezahlt von', { exact: true })).toHaveValue(account.id);
   await expect(dialog.getByLabel('Kategorie', { exact: true })).toHaveValue(category.name);
-  await expect(dialog.getByRole('button', { name: 'Vorgemerkt', exact: true })).toHaveAttribute(
+  await expect(dialog.getByRole('button', { name: 'Bestätigt', exact: true })).toHaveAttribute(
     'aria-pressed',
-    'false',
+    'true',
   );
-  await dialog.getByRole('button', { name: 'Gestern', exact: true }).click();
-  await expect(date).toHaveValue('08.10.2026');
-  await dialog.getByRole('button', { name: 'Heute', exact: true }).click();
-  await expect(date).toHaveValue('09.10.2026');
-  await dialog.getByRole('button', { name: 'Datum…', exact: true }).click();
-  await expect(date).toBeFocused();
+  await expect(dialog.getByRole('button', { name: 'Bestätigt', exact: true })).toBeDisabled();
   await date.fill('07.10.2026');
   await date.press('Tab');
   await expect(dialog.getByLabel('Budgetmonat')).toHaveCount(0);
@@ -106,14 +101,17 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     }, theme);
     await expect(save).toBeInViewport({ ratio: 1 });
     // A default category adds Available and suggestion rows; Mehr remains in the body scroller.
-    await dialog.locator('summary').scrollIntoViewIfNeeded();
-    await expect(dialog.locator('summary')).toBeInViewport({ ratio: 1 });
+    await dialog
+      .locator('.kmore > summary')
+      .evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+    await expect(dialog.locator('.kmore > summary')).toBeInViewport({ ratio: 1 });
     await expect(save).toBeInViewport({ ratio: 1 });
     await dialog.locator('.bk-body').evaluate((el) => {
       el.scrollTop = 0;
     });
     await expect(amount).toBeInViewport({ ratio: 1 });
     await expect(date).toBeInViewport({ ratio: 1 });
+    await expect(dialog.getByLabel('Kategorie', { exact: true })).toBeInViewport({ ratio: 1 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
@@ -121,8 +119,10 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     const box = await dialog.boundingBox();
     expect(box!.y).toBeGreaterThanOrEqual(0);
     expect(box!.y + box!.height).toBeLessThanOrEqual(page.viewportSize()!.height + 1);
-    if (info.project.name === 'mobile') {
-      expect(box!.height).toBeLessThanOrEqual(844 * 0.88 + 1);
+    if (page.viewportSize()!.width < 768) {
+      // #586: capture fills the visible phone viewport; other sheets retain their own caps.
+      expect(box!.y).toBe(0);
+      expect(box!.height).toBe(await page.evaluate(() => window.visualViewport!.height));
       const small = await dialog
         .locator('button, input, textarea, select, summary')
         .evaluateAll((els) =>
@@ -141,7 +141,7 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     await evidence(page, info, `booking-${theme}`, dialog);
   }
   // Expanded content scrolls inside the sheet; the save action stays visible.
-  await dialog.locator('summary').click();
+  await dialog.locator('.kmore > summary').click();
   await dialog.getByLabel('Notiz').fill('Synthetische Abnahme');
   await expect(save).toBeInViewport({ ratio: 1 });
   await evidence(page, info, 'booking-dark-expanded', dialog);
@@ -155,7 +155,7 @@ test('German date, arithmetic, defaults, height and visible save persist exact c
     amountCents: -123457,
     accountId: account.id,
     payeeId: payee.id,
-    status: 'pending',
+    status: 'confirmed',
   });
   expect(saved[0].splits).toEqual([
     expect.objectContaining({ categoryId: category.id, amountCents: -123457 }),
@@ -173,9 +173,25 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
   );
   const response = await request.post('/api/accounts', {
     headers: { origin: baseURL! },
-    data: { name: 'Kasse Muster', type: 'cash', openingDate: '2026-01-01', openingBalanceCents: 0 },
+    data: {
+      name: 'Giro Muster',
+      type: 'checking',
+      openingDate: '2026-01-01',
+      openingBalanceCents: 0,
+    },
   });
   expect(response.ok(), await response.text()).toBe(true);
+  const groupResponse = await request.post('/api/categories/groups', {
+    headers: { origin: baseURL! },
+    data: { name: 'Tastatur Muster' },
+  });
+  expect(groupResponse.ok()).toBe(true);
+  const { group } = await groupResponse.json();
+  const categoryResponse = await request.post('/api/categories', {
+    headers: { origin: baseURL! },
+    data: { name: 'Kategorie Tastatur', groupId: group.id, class: 'need' },
+  });
+  expect(categoryResponse.ok()).toBe(true);
   await page.goto('/');
   const opener = page
     .getByRole('link', { name: /^(Buchung|Buchung erfassen)$/ })
@@ -190,31 +206,42 @@ test('keyboard reaches labelled controls, traps focus, cancels and returns to op
   await expect(opener).toBeFocused();
   await opener.press('Enter');
   await expect(amount).toBeFocused();
+  await dialog.getByLabel('Kategorie', { exact: true }).fill('Kategorie Tastatur');
+  await dialog.getByRole('option', { name: /^Kategorie Tastatur/ }).click();
   await amount.fill('12,34');
   await amount.press('Tab');
   await expect(dialog.getByLabel('Empfänger', { exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(dialog.getByLabel('Bezahlt von', { exact: true })).toBeFocused();
+  await expect(dialog.getByLabel('Bezahlt von')).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Vorgemerkt', exact: true })).toBeFocused();
-  for (const name of ['Heute', 'Gestern', 'Datum…']) {
-    await page.keyboard.press('Tab');
-    await expect(dialog.getByRole('button', { name, exact: true })).toBeFocused();
-  }
+  await expect(dialog.getByRole('button', { name: 'Vorgemerkt' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Datum', { exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Kalender öffnen' })).toBeFocused();
-  for (const name of ['Wiederholen', 'Kategorie', 'Auslage für Kontakt']) {
+  const calendar = dialog.getByLabel('Datum im Kalender');
+  await expect(calendar).toBeFocused();
+  // Native date segments can retain focus within the same input before its next control.
+  for (let step = 0; step < 4; step++) {
     await page.keyboard.press('Tab');
-    await expect(dialog.getByLabel(name, { exact: true })).toBeFocused();
+    if (!(await calendar.evaluate((node) => document.activeElement === node))) break;
   }
+  await expect(dialog.getByLabel('Wiederholen')).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'Split' })).toBeFocused();
+  await expect(dialog.getByLabel('Kategorie', { exact: true })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('button', { name: 'Teilen ▾' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(
+    dialog
+      .getByRole('group', { name: 'Vorschläge' })
+      .getByRole('button', { name: 'Kategorie Tastatur' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('button', { name: '+ Weitere Kategorie' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByLabel('Notiz')).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(dialog.locator('summary')).toBeFocused();
+  await expect(dialog.locator('.kmore > summary')).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByRole('button', { name: 'Speichern und neu' })).toBeFocused();
   const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
@@ -278,7 +305,9 @@ sampleTest(
   async ({ page }, info) => {
     await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
     await page.goto('/');
-    const chart = page.getByTestId('heute-balance-chart');
+    await expect(page.getByTestId('liquidity-chart')).toBeVisible();
+    await page.goto('/reports/finanzcheck');
+    const chart = page.getByTestId('r07-balance-chart');
     await expect(chart).toBeVisible();
     const inspection = chart.locator('..');
     await inspection.focus();
@@ -289,6 +318,8 @@ sampleTest(
       'stroke-dasharray',
       '7px, 5px',
     );
+    await page.goto('/');
+    await expect(page.getByTestId('liquidity-chart')).toBeVisible();
     expect((await new AxeBuilder({ page }).include('main').analyze()).violations).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,

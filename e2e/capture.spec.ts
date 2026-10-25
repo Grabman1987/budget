@@ -25,8 +25,12 @@ const isPhone = (info: TestInfo) => info.project.name === 'mobile';
 async function openCapture(page: Page, info: TestInfo): Promise<Locator> {
   // The shortcut only exists once the app has rendered.
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
-  if (isPhone(info)) await page.getByRole('link', { name: 'Buchung erfassen' }).click();
-  else {
+  if (isPhone(info)) {
+    // Owner rule (#541): the FAB hides while scrolling down and returns on the way up, like a user.
+    const fab = page.getByRole('link', { name: 'Buchung erfassen' });
+    if (!(await fab.isVisible())) await page.evaluate(() => window.scrollTo(0, 0));
+    await fab.click();
+  } else {
     // The key is ignored while a previous dialog is still closing.
     await expect(page.locator('dialog[open]')).toHaveCount(0);
     await page.keyboard.press('n');
@@ -191,12 +195,17 @@ test('discard question, Speichern und neu keeps the context, the payee brings it
   await expect(
     panel.getByLabel('Bezahlt von', { exact: true }).locator('option:checked'),
   ).toHaveText(account);
-  // Reopen the chosen payee's suggestions; a footer click still lands (here the
-  // footer button; the empty amount is refused, which proves the click arrived).
+  // Empty lines now disable saving with a visible reason. A footer click with
+  // an invalid date must still land while the payee suggestions are open.
+  await expect(panel.getByRole('button', { name: 'Speichern und neu' })).toBeDisabled();
+  await expect(panel.locator('.bk-save-reason')).toContainText('Jede Zeile braucht einen Betrag.');
+  await panel.getByLabel('Betrag', { exact: true }).fill('1');
+  await panel.getByLabel('Datum', { exact: true }).fill('31.02.2026');
   await panel.getByLabel('Empfänger').press('ArrowDown');
   await expect(panel.getByRole('listbox')).toBeVisible();
   await panel.getByRole('button', { name: 'Speichern und neu' }).click();
   await expect(panel.getByRole('alert').first()).toBeVisible();
+  await expect(page.getByRole('row', { name: new RegExp(payee) })).toHaveCount(2);
   await page.keyboard.press('Escape');
   await panel.getByRole('button', { name: 'Verwerfen' }).click();
 });
@@ -235,12 +244,14 @@ test('the capture panel is axe clean in both themes and never scrolls sideways',
     // The split editor with a contact line and a transfer line.
     await panel.getByRole('button', { name: 'Ausgabe' }).click();
     await panel.getByLabel('Betrag', { exact: true }).fill('30');
-    await panel.locator('summary').click();
-    await panel.getByRole('button', { name: 'Split' }).click();
+    await panel.locator('.kmore > summary').click();
+    await panel.getByRole('button', { name: '+ Weitere Kategorie' }).click();
     const second = panel.getByRole('group', { name: 'Zeile 2', exact: true });
-    await second.getByRole('button', { name: 'Kontakt' }).click();
+    await second.getByLabel('Kategorie 2').fill('Anna Muster');
+    await second.getByRole('option', { name: /Anna Muster/ }).click();
     expect(await violations(), `${scheme} split contact line`).toEqual([]);
-    await second.getByRole('button', { name: 'Umbuchung' }).click();
+    await second.getByLabel('Kategorie 2').fill('Umbuchung');
+    await second.getByRole('option', { name: new RegExp(`Axe Spar ${tag}`) }).click();
     expect(await violations(), `${scheme} split transfer line`).toEqual([]);
     expect(
       await page.evaluate(
@@ -266,24 +277,25 @@ test('a split with a contact share: the chain shows what is left, saving waits u
   const panel = await openCapture(page, testInfo);
   await panel.getByLabel('Betrag', { exact: true }).fill('50');
   await panel.getByLabel('Empfänger').fill(`Restaurant ${tag}`);
-  await panel.locator('summary').click();
-  await panel.getByRole('button', { name: 'Split' }).click();
-  const chain = panel.getByRole('group', { name: /Aufteilung: Betrag minus Verteilt/ });
+  await panel.locator('.kmore > summary').click();
+  await panel.getByRole('button', { name: '+ Weitere Kategorie' }).click();
+  const chain = panel.locator('.bk-lines > .kdiff');
   const save = panel.getByRole('button', { name: 'Speichern', exact: true });
 
   // Line 1: 30,00 for the category, line 2 (still empty) is Anna's share.
   const line1 = panel.getByRole('group', { name: 'Zeile 1', exact: true });
   const line2 = panel.getByRole('group', { name: 'Zeile 2', exact: true });
-  await line1.getByLabel('Kategorie 1').selectOption({ value: `e2e-cap-E-${tag}` });
+  await line1.getByLabel('Kategorie 1').fill(`Cap E ${tag}`);
+  await line1.getByRole('option', { name: new RegExp(`^Cap E ${tag}`) }).click();
   await line1.getByLabel('Betrag 1').fill('30');
   await expect(chain).toContainText('20,00 €');
   await expect(save).toBeDisabled();
-  await line2.getByRole('button', { name: 'Kontakt' }).click();
-  await line2.getByLabel('Auslage für Kontakt 2').selectOption({ label: 'Anna Muster' });
+  await line2.getByLabel('Kategorie 2').fill('Anna Muster');
+  await line2.getByRole('option', { name: /Anna Muster/ }).click();
   await line2.getByRole('button', { name: 'Rest verteilen in Zeile 2' }).click();
   await expect(line2.getByLabel('Betrag 2')).toHaveValue('20,00');
   await expect(chain).toContainText(/\d,\d\d €/);
-  await expect(panel.getByText('Aufteilung geht auf.')).toBeVisible();
+  await expect(chain).toContainText('Rest: 0,00');
   await expect(save).toBeEnabled();
   await save.click();
 
@@ -294,14 +306,7 @@ test('a split with a contact share: the chain shows what is left, saving waits u
   // Opening it again keeps each line: the contact share is still Anna's.
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
-  await expect(edit.getByLabel('Auslage für Kontakt 2').locator('option:checked')).toHaveText(
-    'Anna Muster',
-  );
-  await expect(
-    edit
-      .getByRole('group', { name: 'Zeile 2', exact: true })
-      .getByRole('button', { name: 'Kontakt' }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(edit.getByLabel('Kategorie 2')).toHaveValue(/Anna Muster/);
 });
 
 test('a transfer line in a split moves money to the other account', async ({ page }, testInfo) => {
@@ -315,14 +320,15 @@ test('a transfer line in a split moves money to the other account', async ({ pag
   const panel = await openCapture(page, testInfo);
   await panel.getByLabel('Betrag', { exact: true }).fill('60');
   await panel.getByLabel('Empfänger').fill(`Bank ${tag}`);
-  await panel.locator('summary').click();
-  await panel.getByRole('button', { name: 'Split' }).click();
+  await panel.locator('.kmore > summary').click();
+  await panel.getByRole('button', { name: '+ Weitere Kategorie' }).click();
   const line1 = panel.getByRole('group', { name: 'Zeile 1', exact: true });
   const line2 = panel.getByRole('group', { name: 'Zeile 2', exact: true });
-  await line1.getByLabel('Kategorie 1').selectOption({ value: `e2e-cap-E-${tag}` });
+  await line1.getByLabel('Kategorie 1').fill(`Cap E ${tag}`);
+  await line1.getByRole('option', { name: new RegExp(`^Cap E ${tag}`) }).click();
   await line1.getByLabel('Betrag 1').fill('40');
-  await line2.getByRole('button', { name: 'Umbuchung' }).click();
-  await line2.getByLabel('Nach Konto 2').selectOption({ label: spar });
+  await line2.getByLabel('Kategorie 2').fill(spar);
+  await line2.getByRole('option', { name: new RegExp(spar) }).click();
   await line2.getByLabel('Betrag 2').fill('20');
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   await expect(balance(page)).toHaveText('240,00 €');
@@ -343,9 +349,9 @@ test('an income with a contact share (repayment) books through Auslagen', async 
   await panel.getByRole('button', { name: 'Einnahme' }).click();
   await panel.getByLabel('Betrag', { exact: true }).fill('40');
   await panel.getByLabel('Von (Zahler)').fill(`Anna ${tag}`);
-  await panel.getByLabel('Rückzahlung von Kontakt').selectOption({ label: 'Anna Muster' });
-  // The contact share has its own category (Auslagen): the category field stays, but is locked.
-  await expect(panel.getByLabel('Kategorie', { exact: true })).toBeDisabled();
+  await panel.getByLabel('Kategorie', { exact: true }).fill('Anna Muster');
+  await panel.getByRole('option', { name: /Anna Muster/ }).click();
+  await expect(panel.getByLabel('Kategorie', { exact: true })).toHaveValue(/Anna Muster/);
   await panel.getByRole('button', { name: 'Speichern', exact: true }).click();
   const row = page.getByRole('row', { name: new RegExp(`Anna ${tag}`) });
   await expect(row).toContainText('Auslagen');
@@ -391,7 +397,7 @@ test('a second Esc without any interaction still asks before discarding', async 
   await expect(panel.getByLabel('Betrag', { exact: true })).toHaveValue('5,00');
 });
 
-test('the dialog is a centred card on the desktop and a sheet on the phone with date chips', async ({
+test('the dialog is a centred card on the desktop and a sheet on the phone with a direct date input', async ({
   page,
 }, testInfo) => {
   await visit(page, '/');
@@ -403,14 +409,14 @@ test('the dialog is a centred card on the desktop and a sheet on the phone with 
     expect(box!.width).toBeGreaterThanOrEqual(viewport.width - 1);
     expect(box!.y + box!.height).toBeGreaterThanOrEqual(viewport.height - 1);
   } else {
-    // Centred modal card of 540 px, with a gap to every edge.
-    expect(Math.round(box!.width)).toBe(540);
+    // #583: centred wide two-column card of 960 px, with a gap to every edge.
+    expect(Math.round(box!.width)).toBe(960);
     expect(Math.abs(box!.x + box!.width / 2 - viewport.width / 2)).toBeLessThan(2);
     expect(box!.y).toBeGreaterThan(8);
     expect(box!.x + box!.width).toBeLessThan(viewport.width);
   }
   await expect(panel.getByRole('group', { name: 'Schnellwahl' })).toHaveCount(0);
-  await expect(panel.getByRole('button', { name: 'Gestern' })).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Gestern' })).toHaveCount(0);
   // Field order: amount, payee, account, date, category, optional note.
   const wanted = ['Betrag', 'Empfänger', 'Bezahlt von', 'Datum', 'Kategorie', 'Notiz'];
   const order = await panel.evaluate(
@@ -554,15 +560,16 @@ test('Auslage für Kontakt: a new contact is created in place and selected at on
   const panel = await openCapture(page, testInfo);
   await panel.getByLabel('Betrag', { exact: true }).fill('15');
   await panel.getByLabel('Empfänger').fill(`Kino ${tag}`);
-  const contact = panel.getByLabel('Auslage für Kontakt');
-  await contact.selectOption({ label: '+ Neuer Kontakt…' });
+  const contact = panel.getByLabel('Kategorie', { exact: true });
+  await contact.fill('Kontakt neu');
+  await panel.getByRole('option', { name: 'Kontakt neu anlegen' }).click();
   const field = panel.getByLabel('Name des neuen Kontakts');
   await expect(field).toBeFocused();
   // Enter creates the contact; it does not move on in the booking form.
   await field.fill(name);
   await page.keyboard.press('Enter');
   await expect(field).toBeHidden();
-  await expect(contact.locator('option:checked')).toHaveText(name);
+  await expect(contact).toHaveValue(new RegExp(name));
   await expect(toast(page)).toContainText(`Kontakt „${name}“ angelegt`);
   // The contact is there for the contacts API as well.
   const response = await page.request.get('/api/contacts?history=1');
@@ -574,7 +581,7 @@ test('Auslage für Kontakt: a new contact is created in place and selected at on
   // The booking has its own undo; the contact stays with the contacts.
   await row.getByRole('button', { name: /bearbeiten/ }).click();
   const edit = page.getByRole('dialog', { name: 'Buchung bearbeiten' });
-  await expect(edit.getByLabel('Auslage für Kontakt').locator('option:checked')).toHaveText(name);
+  await expect(edit.getByLabel('Kategorie', { exact: true })).toHaveValue(new RegExp(name));
 });
 
 test('the category list: grouped by category group, no archived ones, Verfügbar on each option', async ({
@@ -615,15 +622,15 @@ test('visible growing note, direct split and responsive account note column', as
 }, testInfo) => {
   const tag = testInfo.project.name;
   const account = `Notiz Muster ${tag}${again(testInfo)}`;
-  const payee = `Notizladen Muster ${tag}`;
+  const payee = `Notizladen Muster ${tag}${again(testInfo)}`;
   const memo =
     'Synthetische Notiz mit langem Inhalt zur Darstellung im Register.\nZweite Zeile zur Prüfung des wachsenden Feldes.\nDritte Zeile.';
   await createAccount(page, account, 'Giro', '100');
   await openAccount(page, account);
   let panel = await openCapture(page, testInfo);
   const note = panel.getByLabel('Notiz', { exact: true });
-  const split = panel.getByRole('button', { name: 'Split', exact: true });
-  await expect(panel.locator('details')).not.toHaveAttribute('open', '');
+  const split = panel.getByRole('button', { name: '+ Weitere Kategorie', exact: true });
+  await expect(panel.locator('.kmore')).not.toHaveAttribute('open', '');
   await expect(note).toBeVisible();
   await expect(split).toBeVisible();
   const initialHeight = (await note.boundingBox())!.height;
@@ -679,10 +686,10 @@ test('visible growing note, direct split and responsive account note column', as
     .getByRole('button', { name: 'Schließen' })
     .click();
   panel = await openCapture(page, testInfo);
-  await panel.getByRole('button', { name: 'Split', exact: true }).click();
+  await panel.getByRole('button', { name: '+ Weitere Kategorie', exact: true }).click();
   await expect(panel.getByRole('group', { name: 'Zeile 1', exact: true })).toBeVisible();
   await expect(panel.getByRole('group', { name: 'Zeile 2', exact: true })).toBeVisible();
-  await expect(panel.locator('details')).not.toHaveAttribute('open', '');
+  await expect(panel.locator('.kmore')).not.toHaveAttribute('open', '');
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,

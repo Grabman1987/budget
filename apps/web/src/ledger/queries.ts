@@ -27,12 +27,18 @@ export const seriesQuery = (accountId: string, days: number) => {
 };
 
 /** `seriesQuery` of every live account in one request (the Konten table's sparklines). */
-export const seriesBatchQuery = (days: number) => {
-  const to = todayInVienna();
+export const seriesBatchQuery = (days: number, options?: { asOf?: string; quality?: true }) => {
+  const to = options?.asOf ?? todayInVienna();
   const from = addDays(to, -days);
   return queryOptions({
-    queryKey: [...LEDGER_KEY, 'series-batch', days, to],
-    queryFn: () => fetchSeriesBatch(from, to),
+    queryKey: [
+      ...LEDGER_KEY,
+      'series-batch',
+      days,
+      to,
+      ...(options?.quality ? ['quality-v1'] : []),
+    ],
+    queryFn: () => fetchSeriesBatch(from, to, options?.quality ? { quality: true } : undefined),
   });
 };
 
@@ -41,6 +47,28 @@ export const bookingsQuery = (filter: BookingFilter, cursor?: string, limit?: nu
     queryKey: [...LEDGER_KEY, 'bookings', filter, cursor ?? null, limit ?? null],
     queryFn: () => fetchBookings(filter, cursor, limit),
   });
+
+/** Future bookings are independent of loaded history pages, including dates beyond previews. */
+export const futureBookingsQuery = (filter: BookingFilter, today: string) => {
+  const from = filter.from && filter.from > today ? filter.from : addDays(today, 1);
+  return queryOptions({
+    queryKey: [...LEDGER_KEY, 'register-upcoming', filter, today],
+    queryFn: async () => {
+      const items = [] as Awaited<ReturnType<typeof fetchBookings>>['items'];
+      let cursor: string | undefined;
+      do {
+        const page = await fetchBookings(
+          { ...filter, from, sort: 'date', direction: 'asc' },
+          cursor,
+          200,
+        );
+        items.push(...page.items);
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      return items;
+    },
+  });
+};
 
 /** Pick lists change rarely; they refresh on focus like everything else but are kept a minute. */
 export const lookupsQuery = (bookingId?: string) =>

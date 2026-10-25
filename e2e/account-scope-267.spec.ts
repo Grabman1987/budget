@@ -70,14 +70,13 @@ test('Heute explains sidebar, forecast and net-worth account scopes', async ({
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  const chart = page.getByTestId('heute-balance-chart');
+  const chart = page.getByTestId('liquidity-chart');
   await expect(chart).toBeVisible();
-  await expect(chart).toHaveAttribute(
-    'aria-label',
-    /Budget-Konten; Kreditkarten im Budget eingeschlossen; Reservekonten ausgeschlossen/,
-  );
+  await expect(chart).toHaveAttribute('aria-label', /Saldo der Budget-Konten/);
   await expect(
-    page.getByText(/Kontoprognose bis .*Budget-Konten; Kreditkarten im Budget/),
+    page.getByText(
+      /Budget-Konten; Kreditkarten im Budget eingeschlossen, Reservekonten ausgeschlossen/,
+    ),
   ).toBeVisible();
   await expect(page.getByText(/Reservekonten ausgeschlossen/).first()).toBeVisible();
   await expect(page.getByTestId('heute-lead-value')).toHaveAttribute(
@@ -92,11 +91,8 @@ test('Heute explains sidebar, forecast and net-worth account scopes', async ({
       'Kreditkarten',
       'Investments',
     ]);
-    await expect(sidebar.locator('.acct-group-sub')).toHaveText([
-      'Giro, Bargeld, Tagesgeld',
-      'Kartensalden',
-      'Depot, Krypto, P2P, Sonstiges',
-    ]);
+    // Z4: the group head carries an icon and its total only; the former subtitle is gone.
+    await expect(sidebar.locator('.acct-group-sub')).toHaveCount(0);
     await expect(sidebar.locator('#acct-tree-budget')).toContainText('Synthetic checking');
     await expect(sidebar.locator('#acct-tree-cards')).toContainText('Synthetic card');
     await expect(sidebar.locator('#acct-tree-budget')).toContainText('Synthetic reserve');

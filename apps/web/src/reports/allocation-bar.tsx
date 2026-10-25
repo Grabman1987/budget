@@ -5,9 +5,12 @@ import './allocation-bar.css';
 export function AllocationBar({
   data,
   label,
+  decorative = false,
 }: {
   data: Pick<Allocation, 'incomeCents' | 'needCents' | 'wantCents' | 'futureCents' | 'restCents'>;
   label: string;
+  /** A containing chart already exposes the same data statement. */
+  decorative?: boolean;
 }) {
   if (data.incomeCents <= 0)
     return <p className="text-muted">Ohne Einnahmen keine prozentuale Verteilung.</p>;
@@ -15,7 +18,12 @@ export function AllocationBar({
   const width = (value: number) => `${(value / bar.scale) * 100}%`;
   return (
     <div className="income-scale">
-      <div className="income-scale-bar" role="img" aria-label={label}>
+      <div
+        className="income-scale-bar"
+        role={decorative ? undefined : 'img'}
+        aria-label={decorative ? undefined : label}
+        aria-hidden={decorative || undefined}
+      >
         {(['need', 'want', 'future', 'rest'] as const).map((kind) => (
           <span key={kind} className={`income-scale-${kind}`} style={{ width: width(bar[kind]) }} />
         ))}

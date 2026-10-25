@@ -1,3 +1,4 @@
+import '../nav/registers.css';
 import { reportTablesQuery } from '../reports/table-reports-api';
 import { useAmountPrivacy, Registers, Select, TitleBlock, cx } from '@budget/ui';
 import {
@@ -287,7 +288,10 @@ function YearOverview({
                     group.rows.map((row) => (
                       <tr key={row.id}>
                         <th scope="row">
-                          <CategoryIcon icon={metadata.get(row.id)?.icon ?? null} />
+                          <CategoryIcon
+                            icon={metadata.get(row.id)?.icon ?? null}
+                            name={name(row.id)}
+                          />
                           {name(row.id)}
                         </th>
                         <YearCells row={row} metric={metric} />
@@ -343,7 +347,10 @@ function YearOverview({
                   group.rows.map((row) => (
                     <div className="year-phone-row" key={row.id}>
                       <span>
-                        <CategoryIcon icon={metadata.get(row.id)?.icon ?? null} />
+                        <CategoryIcon
+                          icon={metadata.get(row.id)?.icon ?? null}
+                          name={name(row.id)}
+                        />
                         {name(row.id)}
                       </span>
                       <Amount amount={row.months[monthIndex]!} metric={metric} />

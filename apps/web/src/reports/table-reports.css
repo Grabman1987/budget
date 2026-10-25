@@ -33,10 +33,10 @@
   color: var(--ink-3);
 }
 .table-report .tbd-fig {
-  font-size: clamp(40px, 6vw, var(--fs-dimension));
+  font-size: var(--fs-dimension);
 }
 .table-report .tbd-fig .cents {
-  font-size: 0.45em;
+  font-size: var(--fs-figure);
   font-weight: 560;
   letter-spacing: 0;
 }
@@ -70,7 +70,7 @@
   text-align: left;
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
-  font-size: 11px;
+  font-size: var(--fs-label);
   white-space: nowrap;
 }
 .table-report .rtable td,
@@ -86,7 +86,7 @@
   white-space: nowrap;
 }
 .table-report .rtable small {
-  font-size: 12px;
+  font-size: var(--fs-label);
 }
 .rgrid thead th,
 .rgrid td,
@@ -167,10 +167,10 @@
   color: var(--ink-3);
 }
 .dl-good {
-  color: var(--good-ink);
+  color: var(--plus-ink);
 }
 .dl-bad {
-  color: var(--bad-ink);
+  color: var(--minus-ink);
 }
 .rg-all td,
 .rg-all th.n {
@@ -249,7 +249,7 @@
 .spark polyline {
   fill: none;
   stroke: var(--line);
-  stroke-width: 1.5;
+  stroke-width: var(--stroke-measure);
 }
 .rc-btn {
   display: inline-flex;
@@ -264,7 +264,7 @@
   margin-left: 4px;
   font-weight: 450;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .rc-row.is-open td,
 .rc-row.is-open th,
@@ -293,10 +293,10 @@
   display: block;
   font-weight: 450;
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .rcats .n small {
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 
 /* ---------- Charts ---------- */
@@ -311,7 +311,7 @@
 }
 .tr-plan-tick {
   stroke: var(--ink);
-  stroke-width: 2;
+  stroke-width: var(--stroke-hairline);
 }
 .chart-legend .legend-tick {
   width: 32px;

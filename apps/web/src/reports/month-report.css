@@ -120,7 +120,7 @@
   text-align: left;
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
-  font-size: 11px;
+  font-size: var(--fs-label);
   white-space: nowrap;
 }
 .mr-table td {
@@ -134,7 +134,7 @@
 }
 .mr-table small {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-label);
   color: var(--ink-3);
 }
 .mr-table tr.is-total td {
@@ -204,7 +204,7 @@
 .mr-fill-gif {
   fill: var(--tint-2);
   stroke: var(--line-2);
-  stroke-width: 1;
+  stroke-width: var(--stroke-hairline);
 }
 .mr-fill-oth {
   fill: var(--rule-strong);
@@ -239,7 +239,7 @@
   background: var(--rule-strong);
 }
 .mr-cap-fig {
-  font-size: 30px;
+  font-size: var(--fs-figure);
   font-weight: 650;
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -267,5 +267,62 @@
     left: 0;
     background: var(--surface);
     box-shadow: inset -1px 0 var(--rule-strong);
+  }
+}
+
+/* Wrapper that lets the frame find the report's sections; takes the sheet's place for its children
+   (.sheet > * already spans the page columns). */
+.rs-scope {
+  display: grid;
+  row-gap: var(--space-section);
+}
+
+/* Collapsible report sections: the frame adds the toggle (useCollapsibleSections). */
+.section-toggle {
+  flex: none;
+  align-self: center;
+}
+.section-toggle::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  margin-top: -3px;
+  border: solid currentcolor;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+.section-toggle[aria-expanded='false']::before {
+  margin-top: 0;
+  margin-left: -3px;
+  transform: rotate(-45deg);
+}
+.section-toggle-bare {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+section:has(> .section-toggle-bare) {
+  position: relative;
+}
+section:has(> .section-toggle-bare) > [data-section-head] {
+  padding-right: var(--touch);
+}
+@media screen {
+  section[data-collapsed='true'] > :not([data-section-head], .section-toggle) {
+    display: none;
+  }
+}
+section[data-collapsed='true'] > [data-section-head] {
+  margin-bottom: 0;
+}
+@media print {
+  .section-toggle {
+    display: none;
+  }
+}
+@media (min-width: 768px) {
+  .section-toggle {
+    width: 32px;
+    height: 32px;
   }
 }

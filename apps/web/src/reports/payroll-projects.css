@@ -18,7 +18,7 @@
   text-align: left;
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
-  font-size: 11px;
+  font-size: var(--fs-label);
   white-space: nowrap;
 }
 .pp-scroll .rtable td,
@@ -77,17 +77,17 @@
 .pp-chart text {
   fill: var(--ink-2);
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-chart-label);
 }
 .pp-grid {
   stroke: var(--rule);
-  stroke-width: 1;
+  stroke-width: var(--stroke-hairline);
 }
 .pp-net,
 .pp-gross {
   fill: none;
   stroke: var(--line);
-  stroke-width: 2;
+  stroke-width: var(--stroke-hairline);
 }
 .pp-gross {
   stroke: var(--line-2);
@@ -96,11 +96,11 @@
   fill: var(--line);
 }
 .pp-positive {
-  fill: var(--heat-green);
+  fill: var(--plus-ink);
   stroke: var(--line);
 }
 .pp-negative {
-  fill: var(--red);
+  fill: var(--ink-2);
   stroke: var(--line);
   stroke-dasharray: 4 3;
 }

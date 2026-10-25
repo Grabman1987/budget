@@ -34,7 +34,7 @@ describe('depot view: deliveries are capital flows (as in Portfolio Performance)
     ]);
   });
 
-  it('nets a transfer between two accounts of the same depot out', () => {
+  it('does not infer an internal transfer from unlinked equal opposing deliveries', () => {
     const flows = portfolioFlows(opened.db, {
       view: 'depot',
       accounts: ['d1', 'd2'],
@@ -42,7 +42,11 @@ describe('depot view: deliveries are capital flows (as in Portfolio Performance)
       from: '2026-01-01',
       to: '2026-12-31',
     });
-    expect(flows).toEqual([{ date: '2026-02-01', cents: 50_000 }]);
+    expect(flows).toEqual([
+      { date: '2026-02-01', cents: 50_000 },
+      { date: '2026-03-01', cents: 21_000 },
+      { date: '2026-03-01', cents: -21_000 },
+    ]);
   });
 
   it('only counts flows after the start day', () => {

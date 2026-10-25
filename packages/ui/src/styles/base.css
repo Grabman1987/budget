@@ -127,9 +127,9 @@ button {
   color: var(--ink-3);
 }
 
-/* Cents in half size next to a dimension value */
+/* Cents use the smaller T5 step next to a dimension value. */
 .cents {
-  font-size: 0.55em;
+  font-size: var(--fs-figure);
   color: var(--ink-3);
   font-weight: 500;
   letter-spacing: 0;
@@ -139,12 +139,12 @@ button {
 .text-alert {
   color: var(--red);
 }
-/* Signed changes only (never status): pastel direction inks */
+/* Signed changes only (never status): teal plus / orange minus. */
 .text-good {
-  color: var(--good-ink);
+  color: var(--plus-ink);
 }
 .text-bad {
-  color: var(--bad-ink);
+  color: var(--minus-ink);
 }
 .text-muted {
   color: var(--ink-3);
@@ -156,7 +156,7 @@ button {
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition-duration: 0s !important;
     scroll-behavior: auto !important;
   }
 }

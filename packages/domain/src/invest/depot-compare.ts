@@ -15,13 +15,13 @@ import {
  */
 export interface IndexPoint {
   date: string;
-  /** 100 at the start of the window. */
-  level: number;
+  /** Base 100; null at an unfunded start or in a month without positive capital. */
+  level: number | null;
 }
 
 /** Depot level: chain of the daily returns, read at the window start and at every month boundary. */
 export function depotIndexLine(
-  input: Pick<PerformanceInput, 'series' | 'flows'>,
+  input: Pick<PerformanceInput, 'series' | 'flows' | 'returnFlows'>,
   window: Window,
 ): IndexPoint[] {
   const first = input.series[0];
@@ -31,19 +31,20 @@ export function depotIndexLine(
   const to = window.to > last.date ? last.date : window.to;
   if (to < from) return [];
   const slice = input.series.filter((v) => v.date >= from && v.date <= to);
-  const flows = input.flows.filter((f) => f.date > from && f.date <= to);
+  const flows = (input.returnFlows ?? input.flows).filter((f) => f.date > from && f.date <= to);
   const daily = dailyReturns(slice, flows);
   const bounds = monthBoundaries(from, to);
-  const out: IndexPoint[] = [{ date: from, level: 100 }];
+  const out: IndexPoint[] = [{ date: from, level: slice[0]!.valueCents > 0 ? 100 : null }];
   let growth = 1;
   let next = 0;
   for (let i = 1; i < bounds.length; i++) {
     const boundary = bounds[i] as string;
+    const before = next;
     while (next < daily.length && (daily[next] as { date: string }).date <= boundary) {
       growth *= 1 + (daily[next] as { rate: number }).rate;
       next++;
     }
-    out.push({ date: boundary, level: growth * 100 });
+    out.push({ date: boundary, level: next > before ? growth * 100 : null });
   }
   return out;
 }

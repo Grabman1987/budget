@@ -1,0 +1,440 @@
+diff --git a/apps/server/src/api/statement-intake.ts b/apps/server/src/api/statement-intake.ts
+index 556ff3e969d43f38d3705898dafdbb18f55d0d16..e74870c57e55773c41279dd2c59d8397bfc784ba 100644
+--- a/apps/server/src/api/statement-intake.ts
++++ b/apps/server/src/api/statement-intake.ts
+@@ -14,6 +14,8 @@ import {
+   readStatementAutomationConfig,
+   saveStatementAutomationConfig,
+   readStatementAutomationOutcome,
++  readStatementReceiptLinks,
++  changeStatementReceiptLinks,
+   receipt,
+   type Db,
+ } from '@budget/db';
+@@ -73,6 +75,27 @@ export function statementIntakeRoutes(db: Db, dir: string) {
+         token: z.string().regex(/^[a-f0-9]{64}$/), accountId: identity,
+       })).max(64),
+     })), { actor: ACTOR })));
++  api.get('/:id/booking-links', async (c) => {
++    const id = identity.parse(c.req.param('id'));
++    const query = readQuery(c, z.object({ q: z.string().max(200).optional(),
++      offset: z.coerce.number().int().min(0).max(100000).optional(),
++      attachedOffset: z.coerce.number().int().min(0).max(100000).optional(),
++      limit: z.coerce.number().int().min(1).max(100).optional(),
++    }).strict());
++    await available(id);
++    return c.json(readStatementReceiptLinks(db, id, query));
++  });
++  api.post('/:id/booking-links', async (c) => {
++    const id = identity.parse(c.req.param('id'));
++    const selected = z.object({ bookingId: identity, bookingRevision: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
++    const body = await readBody(c, z.object({ sourceCas: cas,
++      linksRevision: z.string().regex(/^[a-f0-9]{64}$/),
++      attach: z.array(selected).max(100), detach: z.array(selected).max(100),
++    }).strict());
++    // The bytes are verified before I/O returns; the repository revalidates all CAS in its transaction.
++    await available(id);
++    return c.json(changeStatementReceiptLinks(db, id, body, { actor: ACTOR }));
++  });
+   api.get('/:id/automation', (c) => {
+     const id = identity.parse(c.req.param('id'));
+     getStatementIntake(db, id);
+diff --git a/apps/web/src/statement-intake/statement-booking-links.tsx b/apps/web/src/statement-intake/statement-booking-links.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..f204b53bf66075d7de8c27f4bbc49273bfd09cf3
+--- /dev/null
++++ b/apps/web/src/statement-intake/statement-booking-links.tsx
+@@ -0,0 +1,127 @@
++import type { StatementReceiptBooking, StatementReceiptLinksPage, StatementReceiptLinksReply } from '@budget/domain';
++import { Button, Field, TextInput, useAmountPrivacy } from '@budget/ui';
++import { useQuery, useQueryClient } from '@tanstack/react-query';
++import { useState } from 'react';
++import { notifyApiWrite, queryString, request } from '../api/http';
++import { useBudgetWrite } from '../budget/use-category-writes';
++import { longDay, nativeCurrency } from '../ledger/format';
++import { errorText } from '../ledger/labels';
++import { LEDGER_KEY } from '../ledger/queries';
++import { ErrorNote, LoadingNote } from '../ledger/states';
++
++const KEY = [...LEDGER_KEY, 'statement-intake'] as const;
++type Choice = { action: 'attach' | 'detach'; row: StatementReceiptBooking };
++const href = (row: StatementReceiptBooking) => `/konten/buchungen?konto=${encodeURIComponent(row.accountId)}&buchung=${encodeURIComponent(row.bookingId)}`;
++
++/** Explicit existing-record attachments only; this component never creates or changes money. */
++export function StatementBookingLinks({ intakeId, accountId, disabled, onBusy, onDirty }: {
++  intakeId: string; accountId: string; disabled: boolean;
++  onBusy: (busy: boolean) => void; onDirty: (dirty: boolean) => void;
++}) {
++  useAmountPrivacy();
++  const qc = useQueryClient(), write = useBudgetWrite();
++  const [search, setSearch] = useState(''), [q, setQ] = useState('');
++  const [offset, setOffset] = useState(0), [attachedOffset, setAttachedOffset] = useState(0);
++  const [choices, setChoices] = useState<Record<string, Choice>>({});
++  const [base, setBase] = useState<StatementReceiptLinksPage | null>(null);
++  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [note, setNote] = useState('');
++  const path = `/api/statement-intake/${encodeURIComponent(intakeId)}/booking-links`;
++  const query = useQuery({ queryKey: [...KEY, intakeId, 'booking-links', q, offset, attachedOffset],
++    queryFn: async () => {
++      const page = await request<StatementReceiptLinksPage>('GET', `${path}${queryString({ q: q || undefined, offset, attachedOffset, limit: 25 })}`);
++      if (page.source.intakeId !== intakeId || page.source.accountId !== accountId)
++        throw new Error('Die Dokumentverknüpfungen passen nicht zum ausgewählten Konto.');
++      return page;
++    },
++  });
++  const page = query.data, selected = Object.values(choices), locked = disabled || busy;
++  const clear = () => { setChoices({}); setBase(null); onDirty(false); setError(''); };
++  const choose = (row: StatementReceiptBooking, action: Choice['action']) => {
++    if (locked || query.isFetching || !page) return;
++    if (base && base.linksRevision !== page.linksRevision) { setError('Der Stand hat sich geändert. Bitte die Auswahl ausdrücklich neu laden.'); return; }
++    if (selected.length >= 100 && !choices[row.bookingId]) { setError('Höchstens 100 Buchungen pro Aktion auswählen.'); return; }
++    const next = { ...choices };
++    if (next[row.bookingId]) delete next[row.bookingId]; else next[row.bookingId] = { row, action };
++    setChoices(next); setBase(Object.keys(next).length ? (base ?? page) : null);
++    onDirty(Object.keys(next).length > 0); setError(''); setNote('');
++  };
++  const save = async () => {
++    if (locked || !base || !selected.length) return;
++    setBusy(true); onBusy(true); setError(''); setNote('');
++    try {
++      const target = (choice: Choice) => ({ bookingId: choice.row.bookingId, bookingRevision: choice.row.bookingRevision });
++      const result = await request<StatementReceiptLinksReply>('POST', path, {
++        sourceCas: { revision: base.source.revision, sha256: base.source.sha256, accountId: base.source.accountId },
++        linksRevision: base.linksRevision,
++        attach: selected.filter((c) => c.action === 'attach').map(target),
++        detach: selected.filter((c) => c.action === 'detach').map(target),
++      });
++      if (result.groupId) {
++        const groupId = result.groupId;
++        await write(async () => ({ ...result, groupId }), () => 'Belegverknüpfungen gespeichert.');
++      }
++      clear(); setNote(result.changedCount ? 'Verknüpfungen gespeichert. Beträge und Buchungsdaten bleiben unverändert.' : 'Die ausgewählten Verknüpfungen waren bereits im gewünschten Stand.');
++      notifyApiWrite(); await qc.invalidateQueries({ queryKey: [...KEY, intakeId, 'booking-links'] });
++    } catch (cause) { setError(`${errorText(cause)} Ihre Auswahl bleibt erhalten. Bitte den aktuellen Stand ausdrücklich laden.`); }
++    finally { setBusy(false); onBusy(false); }
++  };
++  const reload = async () => {
++    if (locked || (selected.length && !window.confirm('Auswahl verwerfen und aktuelle Verknüpfungen laden?'))) return;
++    setBusy(true); onBusy(true);
++    try { const latest = await query.refetch(); if (!latest.isError && latest.data) clear(); }
++    finally { setBusy(false); onBusy(false); }
++  };
++  const renderRow = (row: StatementReceiptBooking, action: Choice['action']) => {
++    const mismatch = row.accountId !== accountId || row.currency !== page?.source.currency;
++    const unavailable = mismatch || (action === 'detach' && row.managed);
++    return <li key={row.bookingId}>
++      {action === 'attach' && row.attached ? <p>Bereits angehängt</p> :
++        <label className="statement-choice-727"><input type="checkbox"
++          checked={!!choices[row.bookingId]} disabled={locked || query.isFetching || unavailable}
++          onChange={() => choose(row, action)} />
++          <span>{action === 'attach' ? 'Anhängen' : 'Verknüpfung lösen'}: {longDay(row.date)} · {row.description} · {nativeCurrency(row.amountCents, row.currency, true)} · {row.accountName}</span>
++        </label>}
++      {action === 'attach' && row.attached && <p>{longDay(row.date)} · {row.description} · {nativeCurrency(row.amountCents, row.currency, true)} · {row.accountName}</p>}
++      <small>Buchungs-ID: {row.bookingId}</small>{' '}<a href={href(row)} className="btn btn-ghost">Buchung öffnen</a>
++      {row.managed && <p>Automatisch verwaltet. Zum Lösen zuerst die vollständige Importaktion rückgängig machen.</p>}
++      {mismatch && <p>Abweichendes Konto oder unklare Währung: hier nicht änderbar.</p>}
++    </li>;
++  };
++  return <details className="statement-settlement-727 statement-candidates-727">
++    <summary>Vorhandene Buchungen mit diesem PDF verknüpfen</summary>
++    <p>Dasselbe Original kann mehrere Buchungen belegen. Wählen Sie die tatsächlichen Buchungen ausdrücklich aus; ein gleicher Betrag allein belegt keine Zuordnung. Es werden keine Buchungen oder Zahlungen angelegt.</p>
++    {query.isPending && <LoadingNote what="Dokumentverknüpfungen" />}
++    {query.isError && <ErrorNote what="Dokumentverknüpfungen" error={query.error} onRetry={() => void reload()} />}
++    {page && <>
++      <a className="btn btn-ghost" href={`/api/receipts/${encodeURIComponent(page.source.receiptId)}/download`}>Gespeichertes Original herunterladen</a>
++      <h3>Bereits angehängte Buchungen</h3>
++      {page.attached.length === 0 && <p>In diesem Ausschnitt keine aktuellen Verknüpfungen.</p>}
++      <ul>{page.attached.map((row) => renderRow(row, 'detach'))}</ul>
++      <div className="statement-actions-726">
++        <Button variant="ghost" disabled={locked || query.isFetching || attachedOffset === 0} onClick={() => setAttachedOffset(Math.max(0, attachedOffset - 25))}>Vorherige Verknüpfungen</Button>
++        <Button variant="ghost" disabled={locked || query.isFetching || page.nextAttachedOffset === null} onClick={() => setAttachedOffset(page.nextAttachedOffset!)}>Weitere Verknüpfungen</Button>
++      </div>
++      {page.unavailableReason && <p role="status">Bitte zuerst die Währung der Abrechnung prüfen. Ohne eindeutige Währung können keine Verknüpfungen geändert werden.</p>}
++      <Field label="Vorhandene Buchung suchen">
++        {({ id }) => <TextInput id={id} type="search" value={search} maxLength={200} disabled={locked} onChange={(event) => setSearch(event.target.value)} />}
++      </Field>
++      <Button variant="ghost" disabled={locked || query.isFetching} onClick={() => { setQ(search.trim()); setOffset(0); }}>Suchen</Button>
++      {page.items.length === 0 && <p>In diesem Ausschnitt keine passenden Buchungen auf diesem Konto.</p>}
++      <ul>{page.items.map((row) => renderRow(row, 'attach'))}</ul>
++      <div className="statement-actions-726">
++        <Button variant="ghost" disabled={locked || query.isFetching || offset === 0} onClick={() => setOffset(Math.max(0, offset - 25))}>Vorherige Buchungen</Button>
++        <Button variant="ghost" disabled={locked || query.isFetching || page.nextOffset === null} onClick={() => setOffset(page.nextOffset!)}>Weitere Buchungen</Button>
++      </div>
++    </>}
++    {selected.length > 0 && <section aria-label="Auswahl vor dem Speichern">
++      <h3>Ausgewählte Änderungen ({selected.length})</h3>
++      <ul>{selected.map(({ row, action }) => <li key={row.bookingId}>{action === 'attach' ? 'Anhängen' : 'Lösen'}: {longDay(row.date)} · {row.description} · {nativeCurrency(row.amountCents, row.currency, true)} · {row.accountName} · {row.bookingId}</li>)}</ul>
++    </section>}
++    {error && <p role="alert">{error}</p>}{note && <p role="status">{note}</p>}
++    <div className="statement-actions-726">
++      <Button disabled={locked || !selected.length} onClick={() => void save()}>Verknüpfungen speichern</Button>
++      <Button variant="ghost" disabled={locked || !selected.length} onClick={clear}>Auswahl verwerfen</Button>
++      <Button variant="ghost" disabled={locked} onClick={() => void reload()}>Stand neu laden</Button>
++    </div>
++  </details>;
++}
+diff --git a/apps/web/src/statement-intake/statement-review-726.tsx b/apps/web/src/statement-intake/statement-review-726.tsx
+index 6b6b0dfdd53d0c373982d5e22bfc3556d6b9b812..4e99a866e2b409e0ad8171bfb10dc015fa05e55a 100644
+--- a/apps/web/src/statement-intake/statement-review-726.tsx
++++ b/apps/web/src/statement-intake/statement-review-726.tsx
+@@ -22,6 +22,7 @@ import { accountsQuery, LEDGER_KEY } from '../ledger/queries';
+ import { ErrorNote, LoadingNote } from '../ledger/states';
+ import { StatementSettlementReview } from './statement-settlement-727';
+ import { expectedQuery } from '../expected/api';
++import { StatementBookingLinks } from './statement-booking-links';
+ import './statement-review-726.css';
+ 
+ const PATH = '/api/statement-intake';
+@@ -89,7 +90,9 @@ function AccountStatements({ accountId }: { accountId: string }) {
+   const [automationDirty, setAutomationDirty] = useState(false);
+   const [automationEditorKey, setAutomationEditorKey] = useState(0);
+   const [automation, setAutomation] = useState<StatementAutomationOutcome | null>(null);
+-  const busy = documentBusy || settlementBusy || automationBusy;
++  const [linksBusy, setLinksBusy] = useState(false), [linksDirty, setLinksDirty] = useState(false);
++  const [linksEditorKey, setLinksEditorKey] = useState(0);
++  const busy = documentBusy || settlementBusy || automationBusy || linksBusy;
+   const [current, setCurrent] = useState<StatementIntakeView | null>(null);
+   const [draft, setDraft] = useState<Draft | null>(null),
+     [saved, setSaved] = useState<Draft | null>(null);
+@@ -99,7 +102,7 @@ function AccountStatements({ accountId }: { accountId: string }) {
+     [conflict, setConflict] = useState(false),
+     [note, setNote] = useState('');
+   const documentDirty = JSON.stringify(draft) !== JSON.stringify(saved);
+-  const dirty = documentDirty || settlementDirty || automationDirty;
++  const dirty = documentDirty || settlementDirty || automationDirty || linksDirty;
+   const write = useBudgetWrite();
+   const blocker = useBlocker({
+     shouldBlockFn: () => open && (busy || dirty || password !== ''),
+@@ -117,6 +120,7 @@ function AccountStatements({ accountId }: { accountId: string }) {
+       setAutomationDirty(false);
+       setAutomationEditorKey((key) => key + 1);
+     }
++    if (linksDirty) { setLinksDirty(false); setLinksEditorKey((key) => key + 1); }
+     return true;
+   };
+   const adopt = (view: StatementIntakeView) => {
+@@ -165,7 +169,7 @@ function AccountStatements({ accountId }: { accountId: string }) {
+   }
+   async function upload(next: File) {
+     if (busy || !readyAccount) return;
+-    if (automationDirty) { setError('Bitte die Einrichtung zuerst speichern oder verwerfen.'); return; }
++    if (automationDirty || linksDirty) { setError('Bitte Einrichtung oder Verknüpfungsauswahl zuerst speichern oder verwerfen.'); return; }
+     setAutomation(null);
+     setFile(next);
+     setError('');
+@@ -426,11 +430,15 @@ function AccountStatements({ accountId }: { accountId: string }) {
+               </p>
+               {readyAccount && (
+                 <StatementAutomationSettings key={`${accountId}-${automationEditorKey}`} accountId={accountId}
+-                  accounts={accounts.data?.accounts ?? []} disabled={documentBusy || settlementBusy}
++                  accounts={accounts.data?.accounts ?? []} disabled={documentBusy || settlementBusy || linksBusy}
+                   suggested={automation?.suggestedCardHints ?? []}
+                   onBusy={setAutomationBusy} onDirty={setAutomationDirty} />
+               )}
+               {automation && <StatementAutomationResult outcome={automation} />}
++              {current && !current.deletedAt && <StatementBookingLinks key={`${current.id}-${linksEditorKey}`}
++                intakeId={current.id} accountId={accountId}
++                disabled={documentBusy || settlementBusy || automationBusy || conflict}
++                onBusy={setLinksBusy} onDirty={setLinksDirty} />}
+               {current?.status === 'pending' && !current.deletedAt && <Button variant="ghost"
+                 disabled={busy || conflict || automationDirty} onClick={() => void automateCurrent()}>
+                 Gespeichertes PDF automatisch prüfen
+@@ -878,7 +886,7 @@ function StatementAutomationSettings({ accountId, accounts, disabled, suggested,
+             }
+           } finally { setSaving(false); onBusy(false); }
+         })()}>Stand neu laden</Button>
+-        <Button variant="ghost" disabled={saving} onClick={cancel}>Verwerfen</Button>
++        <Button variant="ghost" disabled={disabled || saving} onClick={cancel}>Verwerfen</Button>
+       </div>
+     </div>}
+   </details>;
+diff --git a/packages/db/src/repos/index.ts b/packages/db/src/repos/index.ts
+index 2082c9f358520f39f05f7febc6faaedbde90edc6..ad88165cfcc5e5b704aa45c6b48ec5fd9b3a0d72 100644
+--- a/packages/db/src/repos/index.ts
++++ b/packages/db/src/repos/index.ts
+@@ -98,3 +98,4 @@ export * from './statement-settlement';
+ export * from './statement-settlement-invariants';
+ export * from './statement-settlement-read';
+ export * from './statement-automation';
++export * from './statement-receipt-links';
+diff --git a/packages/db/src/repos/statement-receipt-links.ts b/packages/db/src/repos/statement-receipt-links.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..dd7fc7d501b23be05390b3749b45a7f838e0c64b
+--- /dev/null
++++ b/packages/db/src/repos/statement-receipt-links.ts
+@@ -0,0 +1,126 @@
++import { createHash } from 'node:crypto';
++import { and, desc, eq, isNull, or, sql } from 'drizzle-orm';
++import { z } from 'zod';
++import type { StatementReceiptBooking, StatementReceiptLinksInput, StatementReceiptLinksPage, StatementReceiptLinksReply } from '@budget/domain';
++import { account, auditLog, booking, payee, receipt, statementSettlement } from '../schema';
++import { statementAutomationRow } from '../schema/statement-automation';
++import { withGroup, type AuditContext } from './audit';
++import { ConflictError } from './errors';
++import { linkReceipt, unlinkReceipt } from './receipts';
++import { assertStatementCas, getStatementIntake, statementAccount } from './statement-intake';
++import { assertStatementAutomationReceiptWrite, hasStatementAutomation } from './statement-automation-invariants';
++import { statementRevision } from './statement-settlement-invariants';
++import { runInTransaction, type Executor } from './types';
++
++const digest = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex');
++const identity = z.string().min(1).max(128);
++const revision = z.string().regex(/^[a-f0-9]{64}$/);
++const target = z.object({ bookingId: identity, bookingRevision: revision }).strict();
++const inputSchema = z.object({
++  sourceCas: z.object({ revision: z.string().uuid(), sha256: revision, accountId: identity }).strict(),
++  linksRevision: revision, attach: z.array(target).max(100), detach: z.array(target).max(100),
++}).strict();
++
++function sourceState(db: Executor, intakeId: string) {
++  const view = getStatementIntake(db, intakeId);
++  statementAccount(db, view.accountId);
++  const a = db.select().from(account).where(eq(account.id, view.accountId)).get()!;
++  const blob = db.select().from(receipt).where(eq(receipt.id, view.receiptId)).get();
++  if (view.deletedAt || !view.revision || !blob || blob.deletedAt || blob.sha256 !== view.sha256)
++    throw new ConflictError('Die Abrechnungsquelle ist nicht mehr verfügbar.');
++  const field = view.reviewed?.fields.currency ?? view.proposal.fields.currency;
++  const currency = field.value && (view.reviewed || (field.origin === 'printed' && field.candidates.length === 1)) && field.value === a.currency ? field.value : null;
++  const pairHead = db.select({ id: auditLog.id }).from(auditLog).where(and(eq(auditLog.entityType, 'booking_receipt'),
++    or(sql`json_extract(${auditLog.beforeJson}, '$.receipt_id') = ${blob.id}`, sql`json_extract(${auditLog.afterJson}, '$.receipt_id') = ${blob.id}`)))
++    .orderBy(desc(sql`rowid`)).get()?.id ?? null;
++  const source = { intakeId, revision: view.revision, sha256: view.sha256, accountId: view.accountId,
++    receiptId: blob.id, currency, accountName: a.name };
++  return { source, linksRevision: digest([source, blob, a, statementRevision(db, 'account', a.id), statementRevision(db, 'receipt', blob.id), pairHead]) };
++}
++
++function managedIds(db: Executor, receiptId: string) {
++  const ids = new Set<string>();
++  if (!hasStatementAutomation(db)) return ids;
++  for (const row of db.select().from(statementAutomationRow).where(and(eq(statementAutomationRow.receiptId, receiptId), isNull(statementAutomationRow.deletedAt))).all()) {
++    ids.add(row.bookingId); if (row.originalBookingId) ids.add(row.originalBookingId);
++  }
++  for (const row of db.select().from(statementSettlement).where(and(eq(statementSettlement.receiptId, receiptId), isNull(statementSettlement.deletedAt))).all()) {
++    if (row.state !== 'represented' || (JSON.parse(row.originsJson) as { origin?: string }).origin !== 'machine') continue;
++    if (row.fromBookingId) ids.add(row.fromBookingId);
++    if (row.toBookingId) ids.add(row.toBookingId);
++  }
++  return ids;
++}
++
++/** The audit head includes removed/recreated splits, so restoring old values never restores an old token. */
++function bookingRows(db: Executor, receiptId: string, managed: ReadonlySet<string>, options: {
++  accountId?: string; currency?: string; q?: string; attached?: boolean; ids?: string[]; offset?: number; limit?: number;
++}): StatementReceiptBooking[] {
++  const conditions = [isNull(booking.deletedAt), isNull(account.deletedAt)];
++  if (options.accountId) conditions.push(eq(booking.accountId, options.accountId));
++  if (options.currency) conditions.push(eq(booking.currency, options.currency));
++  if (options.attached) conditions.push(sql`EXISTS (SELECT 1 FROM booking_receipt br WHERE br.booking_id = ${booking.id} AND br.receipt_id = ${receiptId} AND br.deleted_at IS NULL)`);
++  if (options.ids) conditions.push(sql`${booking.id} IN (${sql.join(options.ids.map((id) => sql`${id}`), sql`, `)})`);
++  if (options.q) {
++    const pattern = `%${options.q.replace(/[!%_]/g, '!$&')}%`;
++    conditions.push(or(sql`${booking.memo} LIKE ${pattern} ESCAPE '!'`, sql`${booking.bankRawPayee} LIKE ${pattern} ESCAPE '!'`, sql`${payee.name} LIKE ${pattern} ESCAPE '!'`, eq(booking.id, options.q))!);
++  }
++  const rows = db.select({ b: booking, a: account, p: payee,
++    relation: sql<string | null>`(SELECT deleted_at FROM booking_receipt br WHERE br.booking_id = ${booking.id} AND br.receipt_id = ${receiptId})`,
++    attached: sql<number>`EXISTS (SELECT 1 FROM booking_receipt br WHERE br.booking_id = ${booking.id} AND br.receipt_id = ${receiptId} AND br.deleted_at IS NULL)`,
++    head: sql<string | null>`(SELECT al.id FROM audit_log al WHERE (al.entity_type='booking' AND al.entity_id=${booking.id}) OR (al.entity_type='payee' AND al.entity_id=${booking.payeeId}) OR (al.entity_type='booking_split' AND (json_extract(al.before_json,'$.booking_id')=${booking.id} OR json_extract(al.after_json,'$.booking_id')=${booking.id})) ORDER BY al.rowid DESC LIMIT 1)`,
++    splitState: sql<string>`COALESCE((SELECT json_group_array(json(x.snapshot)) FROM (SELECT json_array(bs.id,bs.category_id,bs.amount_cents,bs.memo,bs.contact_id,bs.income_type_id,bs.transfer_id,bs.sort_order) AS snapshot FROM booking_split bs WHERE bs.booking_id=${booking.id} ORDER BY bs.id) x), '[]')`,
++  }).from(booking).innerJoin(account, eq(account.id, booking.accountId)).leftJoin(payee, eq(payee.id, booking.payeeId))
++    .where(and(...conditions)).orderBy(desc(booking.date), desc(booking.id)).limit(options.limit ?? 101).offset(options.offset ?? 0).all();
++  return rows.map(({ b, a, p, attached, relation, head, splitState }) => ({
++    bookingId: b.id, bookingRevision: digest([b, a, p, head, splitState, relation, !!attached, managed.has(b.id)]),
++    accountId: b.accountId, accountName: a.name, date: b.date,
++    description: b.bankRawPayee || (p && !p.deletedAt ? p.name : '') || b.memo || 'Ohne Beschreibung',
++    amountCents: b.amountCents, currency: b.currency, attached: !!attached, managed: managed.has(b.id),
++  }));
++}
++
++export function readStatementReceiptLinks(db: Executor, intakeId: string, query: { q?: string; offset?: number; attachedOffset?: number; limit?: number } = {}): StatementReceiptLinksPage {
++  return runInTransaction(db, (tx) => {
++  const state = sourceState(tx, intakeId), limit = query.limit ?? 25;
++  if (!Number.isInteger(limit) || limit < 1 || limit > 100 || [query.offset ?? 0, query.attachedOffset ?? 0].some((n) => !Number.isInteger(n) || n < 0 || n > 100000) || (query.q?.length ?? 0) > 200)
++    throw new ConflictError('Ungültiger Buchungsausschnitt.');
++  const managed = managedIds(tx, state.source.receiptId);
++  const items = state.source.currency ? bookingRows(tx, state.source.receiptId, managed, { accountId: state.source.accountId, currency: state.source.currency, q: query.q, offset: query.offset, limit: limit + 1 }) : [];
++  const attached = bookingRows(tx, state.source.receiptId, managed, { attached: true, offset: query.attachedOffset, limit: limit + 1 });
++  return { ...state, items: items.slice(0, limit), attached: attached.slice(0, limit),
++    nextOffset: items.length > limit ? (query.offset ?? 0) + limit : null,
++    nextAttachedOffset: attached.length > limit ? (query.attachedOffset ?? 0) + limit : null,
++    unavailableReason: state.source.currency ? null : 'source_currency_required' };
++  });
++}
++
++export function changeStatementReceiptLinks(db: Executor, intakeId: string, raw: StatementReceiptLinksInput, ctx: AuditContext): StatementReceiptLinksReply {
++  const input = inputSchema.parse(raw), all = [...input.attach, ...input.detach];
++  if (all.length > 100 || new Set(all.map((t) => t.bookingId)).size !== all.length)
++    throw new ConflictError('Höchstens 100 unterschiedliche Buchungen pro Aktion auswählen.');
++  return runInTransaction(db, (tx) => {
++    assertStatementCas(tx, intakeId, input.sourceCas);
++    const state = sourceState(tx, intakeId);
++    if (state.linksRevision !== input.linksRevision || !state.source.currency)
++      throw new ConflictError('Quelle oder Verknüpfungen wurden geändert. Bitte neu laden.');
++    const managed = managedIds(tx, state.source.receiptId);
++    const rows = all.length ? bookingRows(tx, state.source.receiptId, managed, { ids: all.map((t) => t.bookingId), limit: 100 }) : [];
++    const targets = new Map(rows.map((r) => [r.bookingId, r]));
++    for (const target of all) {
++      const current = targets.get(target.bookingId);
++      if (!current || current.bookingRevision !== target.bookingRevision || current.accountId !== state.source.accountId || current.currency !== state.source.currency)
++        throw new ConflictError('Eine ausgewählte Buchung wurde geändert oder gehört nicht zur Abrechnung.');
++    }
++    // Validate every detach before any tracked write; one protected target aborts the full batch.
++    for (const target of input.detach) assertStatementAutomationReceiptWrite(tx, state.source.receiptId, target.bookingId);
++    const attach = input.attach.filter((t) => !targets.get(t.bookingId)!.attached);
++    const detach = input.detach.filter((t) => targets.get(t.bookingId)!.attached);
++    if (!attach.length && !detach.length) return { groupId: null, changedCount: 0, attachedIds: [], detachedIds: [] };
++    const group = withGroup(ctx);
++    for (const target of attach) linkReceipt(tx, state.source.receiptId, target.bookingId, group);
++    for (const target of detach) unlinkReceipt(tx, state.source.receiptId, target.bookingId, group);
++    return { groupId: group.groupId, changedCount: attach.length + detach.length,
++      attachedIds: attach.map((t) => t.bookingId), detachedIds: detach.map((t) => t.bookingId) };
++  });
++}
+diff --git a/packages/domain/src/index.ts b/packages/domain/src/index.ts
+index 034956feb04e0b923f0b8d60e45b882ae368ac3e..2c3941f2c6763c64776183b02ca28a137d2e2c87 100644
+--- a/packages/domain/src/index.ts
++++ b/packages/domain/src/index.ts
+@@ -51,3 +51,4 @@ export * from './statement-intake';
+ export * from './statement-settlement';
+ export * from './statement-automation';
+ export * from './statement-automation-contract';
++export * from './statement-receipt-links';
+diff --git a/packages/domain/src/statement-receipt-links.ts b/packages/domain/src/statement-receipt-links.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..1d2d712357b7c26a86594ea00d102d583d0edded
+--- /dev/null
++++ b/packages/domain/src/statement-receipt-links.ts
+@@ -0,0 +1,35 @@
++import type { StatementCas } from './statement-intake';
++
++export type StatementReceiptBooking = {
++  bookingId: string;
++  bookingRevision: string;
++  accountId: string;
++  accountName: string;
++  date: string;
++  description: string;
++  amountCents: number;
++  currency: string;
++  attached: boolean;
++  managed: boolean;
++};
++export type StatementReceiptLinksPage = {
++  source: StatementCas & { intakeId: string; receiptId: string; currency: string | null; accountName: string };
++  linksRevision: string;
++  items: StatementReceiptBooking[];
++  attached: StatementReceiptBooking[];
++  nextOffset: number | null;
++  nextAttachedOffset: number | null;
++  unavailableReason: 'source_currency_required' | null;
++};
++export type StatementReceiptLinksInput = {
++  sourceCas: StatementCas;
++  linksRevision: string;
++  attach: { bookingId: string; bookingRevision: string }[];
++  detach: { bookingId: string; bookingRevision: string }[];
++};
++export type StatementReceiptLinksReply = {
++  groupId: string | null;
++  changedCount: number;
++  attachedIds: string[];
++  detachedIds: string[];
++};

@@ -1,4 +1,4 @@
-import { accountReminders } from '@budget/db';
+import { accountReminders, accountReviewSummaries } from '@budget/db';
 import {
   account,
   valuation,
@@ -10,11 +10,12 @@ import {
   bankBalanceForAccount,
   lockBankBalance,
   accounts,
-  accountSummaries,
   balanceSeries,
   holdingAccountValueSeries,
   accountPreview,
   netWorthValuationAsOf,
+  currentValuationSources,
+  type ValuationSource,
   booking,
   category,
   listReconciliations,
@@ -23,12 +24,20 @@ import {
   reconcileAccount,
   type AccountSummary,
   type Db,
+  type Executor,
 } from '@budget/db';
-import { and, desc, eq, isNull, lte, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { Hono, type Context } from 'hono';
-import { eachDay, isReconcileAdjustCategoryKind, type CashValuation } from '@budget/domain';
+import {
+  eachDay,
+  isReconcileAdjustCategoryKind,
+  worstQuality,
+  type CashValuation,
+  type AccountReviewStatus,
+  type ValuationQuality,
+} from '@budget/domain';
 import { ACTOR, ApiError, defined, readBody, readQuery } from './http';
 import {
   accountClose,
@@ -43,6 +52,17 @@ import {
   seriesBatchQuery,
   seriesQuery,
 } from './schemas';
+
+// Only the explicit enriched read is strict; existing batch parsing/default JSON stay unchanged.
+const qualitySeriesQuery = seriesBatchQuery.extend({ quality: z.literal('1') }).strict();
+interface AccountSeriesDayQuality {
+  source: 'native_cash' | 'account_value_eur';
+  currency: string;
+  known: boolean;
+  quality: ValuationQuality;
+  missing: 'price' | 'fx' | null;
+}
+type PositionSeriesQuality = Pick<AccountSeriesDayQuality, 'quality' | 'missing'>;
 
 /** Role and budget membership that follow from an account type when the request says nothing. */
 const DEFAULTS = {
@@ -68,6 +88,7 @@ function assertTermOrder(start: string | null | undefined, end: string | null | 
 
 /** EUR valuation fields can be null when a required security quote or exchange rate is missing. */
 export type AccountView = AccountSummary & {
+  reviewStatus: AccountReviewStatus;
   lastValuedOn: string | null;
   manualValueCents: number | null;
   hasHoldings: boolean;
@@ -77,6 +98,7 @@ export type AccountView = AccountSummary & {
   valueEurCents: number | null;
   missingFxCurrencies: string[];
   missingPriceSecurityIds: string[];
+  valuationSources: ValuationSource[];
 };
 
 export function accountRoutes(db: Db, today: () => string): Hono {
@@ -131,26 +153,23 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   const accountList = (asOf: string) => {
     const value = cashValuer(db);
     const netWorth = netWorthValuationAsOf(db, asOf);
-    const latestValues = new Map<string, typeof valuation.$inferSelect>();
-    for (const row of db
-      .select()
-      .from(valuation)
-      .where(and(isNull(valuation.deletedAt), lte(valuation.date, asOf)))
-      .orderBy(desc(valuation.date))
-      .all()) {
-      if (!latestValues.has(row.accountId)) latestValues.set(row.accountId, row);
-    }
+    const provenance = currentValuationSources(db, asOf);
+    const reviewModel = accountReviewSummaries(db, asOf);
+    const latestValues = reviewModel.latestValuations;
     return {
       netWorthEurCents: netWorth.totalCents,
+      valuationSources: provenance.sources,
       missingFxCurrencies: netWorth.missingFxCurrencies,
       missingPriceSecurityIds: netWorth.missingPriceSecurityIds,
-      accounts: accountSummaries(db, asOf).map((a) => {
+      accounts: reviewModel.accounts.map((a) => {
         const manual = a.type === 'p2p' || a.type === 'other_asset';
         const latest = a.openingDate <= asOf ? latestValues.get(a.id) : undefined;
         const bankBalance =
           a.closedAt || asOf !== today() ? null : bankBalanceForAccount(db, a.id, today());
         return {
           ...a,
+          reviewStatus: reviewModel.reviews.get(a.id)!,
+          valuationSources: provenance.sources.filter((source) => source.accountId === a.id),
           lastValuedOn: manual ? (latest?.date ?? null) : null,
           manualValueCents: manual ? (latest?.valueCents ?? a.balanceCents) : null,
           hasHoldings:
@@ -185,6 +204,40 @@ export function accountRoutes(db: Db, today: () => string): Hono {
   };
   const audit = () => ({ actor: ACTOR, groupId: randomUUID() });
 
+  const validateReferenceAccount = (
+    executor: Db,
+    referenceAccountId: string | null | undefined,
+    ownerId: string | undefined,
+    ownerType: string,
+    currency: string,
+  ) => {
+    if (referenceAccountId == null) return;
+    if (ownerType !== 'brokerage' && ownerType !== 'crypto')
+      throw new ApiError(
+        422,
+        'invariant',
+        'Nur Depots und Krypto-Konten können ein Verrechnungskonto haben.',
+      );
+    if (referenceAccountId === ownerId)
+      throw new ApiError(
+        422,
+        'invariant',
+        'Ein Konto kann nicht sein eigenes Verrechnungskonto sein.',
+      );
+    const target = accounts.get(executor, referenceAccountId);
+    if (
+      !target ||
+      target.closedAt ||
+      target.currency !== currency ||
+      !['checking', 'cash', 'savings'].includes(target.type)
+    )
+      throw new ApiError(
+        422,
+        'invariant',
+        'Bitte ein offenes Verrechnungskonto in derselben Währung wählen.',
+      );
+  };
+
   app.get('/', (c) => {
     const { asOf } = readQuery(c, asOfQuery);
     const day = asOf ?? today();
@@ -193,6 +246,7 @@ export function accountRoutes(db: Db, today: () => string): Hono {
 
   app.post('/', async (c) => {
     const input = await readBody(c, accountCreate);
+    validateReferenceAccount(db, input.referenceAccountId, undefined, input.type, input.currency);
     const defaults = DEFAULTS[input.type];
     const onBudget = input.onBudget ?? defaults.onBudget;
     if (onBudget && TRACKING_ONLY.has(input.type)) {
@@ -236,6 +290,76 @@ export function accountRoutes(db: Db, today: () => string): Hono {
    * answer of GET /:id/series> } }`. Konten reads all open accounts at once instead of one call each.
    */
   app.get('/series', (c) => {
+    if (c.req.query('quality') !== undefined) {
+      if (new URL(c.req.url).searchParams.getAll('quality').length !== 1)
+        throw new ApiError(400, 'invalid', 'Bitte die Verlaufsqualität genau einmal anfordern.');
+      const query = readQuery(c, qualitySeriesQuery);
+      const { ids } = query;
+      const range = { from: query.from, to: query.to };
+      return c.json(
+        db.transaction((tx) => {
+          const observations = new Map<string, Map<string, PositionSeriesQuality>>();
+          const held = holdingAccountValueSeries(tx, eachDay(range.from, range.to), ids, (fact) => {
+            const days =
+              observations.get(fact.accountId) ?? new Map<string, PositionSeriesQuality>();
+            const prior = days.get(fact.day);
+            const missing =
+              fact.missing === 'fx' || fact.fx.kind === 'missing'
+                ? 'fx'
+                : fact.kind === 'missing' || fact.missing === 'price-or-basis'
+                  ? 'price'
+                  : null;
+            days.set(fact.day, {
+              quality: worstQuality(prior?.quality ?? 'exact', fact.quality),
+              missing:
+                prior?.missing === 'fx' || missing === 'fx' ? 'fx' : (prior?.missing ?? missing),
+            });
+            observations.set(fact.accountId, days);
+          });
+          const wanted = ids ? new Set(ids) : undefined;
+          const rows = tx
+            .select({
+              id: account.id,
+              currency: account.currency,
+              openingDate: account.openingDate,
+            })
+            .from(account)
+            .where(isNull(account.deletedAt))
+            .orderBy(account.sortOrder, account.name, account.id)
+            .all()
+            .filter((a) => !wanted || wanted.has(a.id));
+          const value = cashValuer(tx);
+          const entries = rows.map(
+            (a) => [a.id, seriesOf(value, a.id, a.currency, range, held.get(a.id), tx)] as const,
+          );
+          const series = Object.fromEntries(entries);
+          const quality: Record<string, Record<string, AccountSeriesDayQuality>> = {};
+          for (const a of rows) {
+            const holdings = a.currency === 'EUR' && held.has(a.id);
+            quality[a.id] = Object.fromEntries(
+              series[a.id]!.points.map((point) => {
+                const fact = holdings ? observations.get(a.id)?.get(point.date) : undefined;
+                const missing = fact?.missing ?? null;
+                const factQuality: AccountSeriesDayQuality = {
+                  source: holdings ? 'account_value_eur' : 'native_cash',
+                  currency: a.currency,
+                  known:
+                    point.date >= a.openingDate &&
+                    missing === null &&
+                    (fact?.quality ?? 'exact') !== 'missing' &&
+                    Number.isSafeInteger(point.balanceCents),
+                  quality: fact?.quality ?? 'exact',
+                  missing,
+                };
+                return [point.date, factQuality] as const;
+              }),
+            );
+          }
+          // Metadata is a sibling: even this enriched read leaves every legacy series object exact.
+          return { series, quality };
+        }),
+      );
+    }
     const { ids, ...range } = readQuery(c, seriesBatchQuery);
     const value = cashValuer(db);
     const held = holdingAccountValueSeries(db, eachDay(range.from, range.to), ids);
@@ -290,6 +414,70 @@ export function accountRoutes(db: Db, today: () => string): Hono {
       patch.termStart === undefined ? current.termStart : patch.termStart,
       patch.termEnd === undefined ? current.termEnd : patch.termEnd,
     );
+    const nextReferenceAccountId =
+      patch.referenceAccountId === undefined
+        ? current.referenceAccountId
+        : patch.referenceAccountId;
+    const referenceChanged =
+      patch.referenceAccountId !== undefined &&
+      patch.referenceAccountId !== current.referenceAccountId;
+    const typeChanged = patch.type !== undefined && patch.type !== current.type;
+    if (
+      nextReferenceAccountId != null &&
+      typeChanged &&
+      type !== 'brokerage' &&
+      type !== 'crypto' &&
+      !referenceChanged
+    )
+      throw new ApiError(
+        422,
+        'invariant',
+        'Bitte das Verrechnungskonto beim Wechsel des Kontotyps ausdrücklich lösen.',
+      );
+    if (
+      patch.referenceAccountId !== undefined ||
+      (patch.currency !== undefined && patch.currency !== current.currency) ||
+      typeChanged
+    )
+      validateReferenceAccount(
+        db,
+        nextReferenceAccountId,
+        id,
+        type,
+        patch.currency ?? current.currency,
+      );
+    if (patch.currency !== undefined && patch.currency !== current.currency) {
+      const dependents = db
+        .select({ id: account.id })
+        .from(account)
+        .where(and(eq(account.referenceAccountId, id), isNull(account.deletedAt)))
+        .all();
+      if (
+        dependents.some((dependent) => {
+          const owner = accounts.get(db, dependent.id);
+          return owner && owner.currency !== patch.currency;
+        })
+      )
+        throw new ApiError(
+          422,
+          'invariant',
+          'Die Währung passt nicht mehr zu einem verknüpften Depot.',
+        );
+    }
+    if (
+      typeChanged &&
+      !['checking', 'cash', 'savings'].includes(type) &&
+      db
+        .select({ id: account.id })
+        .from(account)
+        .where(and(eq(account.referenceAccountId, id), isNull(account.deletedAt)))
+        .get()
+    )
+      throw new ApiError(
+        422,
+        'invariant',
+        'Bitte zuerst die Verrechnungskonten der verknüpften Depots lösen.',
+      );
     // The opening balance is part of every checked balance: a stored Kontostand prüfen locks it.
     const opening =
       (patch.openingBalanceCents !== undefined &&
@@ -350,10 +538,11 @@ export function accountRoutes(db: Db, today: () => string): Hono {
     range: { from: string; to: string },
     /** EUR value per day of an account with positions (cash plus securities), see below. */
     held?: number[],
+    executor: Executor = db,
   ) => ({
     accountId: id,
     currency,
-    points: balanceSeries(db, id, range).map((p, i) => {
+    points: balanceSeries(executor, id, range).map((p, i) => {
       // An EUR account with positions follows its value (cash + market value), the number the
       // value column shows; every other account keeps its cash balance.
       const total = currency === 'EUR' ? held?.[i] : undefined;

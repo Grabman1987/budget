@@ -16,7 +16,7 @@ const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Vienna' }).fo
 const month = today.slice(0, 7);
 const toast = (page: Page) => page.locator('.toast.is-open');
 const row = (page: Page, name: string) => page.locator('tr.prow', { hasText: name });
-const available = (page: Page, name: string) => row(page, name).locator('.col-avail');
+const available = (page: Page, name: string) => row(page, name).locator('.col-avail .pill');
 
 async function postTo(
   request: APIRequestContext,
@@ -59,7 +59,7 @@ isolatedTest(
     expect(hidden.ok(), await hidden.text()).toBe(true);
 
     await page.goto(`/plan/monat?monat=${month}`);
-    await page.locator('.plan-details > summary').click();
+    await page.locator('#inspector-income > summary').click();
     const card = page.getByTestId('income-targets');
     await expect(card).toContainText('Noch nicht eingerichtet.');
     const checkCardPresentation = async (state: 'empty' | 'zero') => {
@@ -108,7 +108,7 @@ isolatedTest(
     });
     expect(zeroTarget.ok(), await zeroTarget.text()).toBe(true);
     await page.reload();
-    await page.locator('.plan-details > summary').click();
+    await page.locator('#inspector-income > summary').click();
     await expect(card).toContainText('Alle Monatsziele sind finanziert.');
     await checkCardPresentation('zero');
     budget = await readBudget();
@@ -140,7 +140,7 @@ isolatedTest(
     });
     expect(assigned.ok(), await assigned.text()).toBe(true);
     await page.reload();
-    await page.locator('.plan-details > summary').click();
+    await page.locator('#inspector-income > summary').click();
     await expect(card).toContainText('Alle Monatsziele sind finanziert.');
     budget = await readBudget();
     expect(budget.summary.envelopes.find((row) => row.categoryId === reached.id)).toMatchObject({
@@ -231,15 +231,23 @@ isolatedTest(
       'title',
       /neue Kartenschuld 30,00 €/,
     );
-    await page.locator('.plan-topbar summary').filter({ hasText: '2 überzogen' }).click();
-    await expect(page.locator('.triage')).toContainText('Envelopes überzogen');
+    // #587: the cover actions open from the Zu verteilen disclosure; no chip in the head.
+    await expect(page.locator('.plan-chip-scroll')).not.toContainText('überzogen');
+    await page.locator('.plan-tba').click();
+    await expect(page.locator('.triage')).toContainText('2 Envelopes überzogen');
     await expect(page.locator('.triage')).not.toContainText(food);
-    await page.locator('.plan-topbar summary').filter({ hasText: '2 überzogen' }).click();
+    await page.locator('.plan-tba').click();
 
     // Assign inline with the arithmetic field.
-    await page.getByRole('button', { name: `Zugewiesen 0,00 € für ${cafe} ändern` }).click();
-    await page.getByLabel(`Zugewiesen für ${cafe}. Rechnen erlaubt, +50 addiert.`).fill('60+40');
-    await page.keyboard.press('Enter');
+    if (testInfo.project.name === 'mobile') {
+      await row(page, cafe).locator('.plan-available').click();
+      await page.getByLabel('Zugewiesen', { exact: true }).fill('60+40');
+      await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+    } else {
+      await page.getByRole('button', { name: `Zugewiesen 0,00 € für ${cafe} ändern` }).click();
+      await page.getByLabel(`Zugewiesen für ${cafe}. Rechnen erlaubt, +50 addiert.`).fill('60+40');
+      await page.keyboard.press('Enter');
+    }
     await expect(toast(page)).toContainText(`${cafe}: 0,00 € → 100,00 € zugewiesen`);
     await expect(available(page, cafe)).toHaveText('100,00 €');
 
@@ -249,7 +257,7 @@ isolatedTest(
       ?.coverCapCents;
     expect(cap, `cover cap before covering: ${cap}`).toBeGreaterThanOrEqual(10_000);
     await page.getByRole('button', { name: `${food} decken`, exact: true }).click();
-    const coverPanel = page.getByRole('dialog', { name: food });
+    const coverPanel = page.getByRole('complementary', { name: 'Plan-Inspektor' });
     await coverPanel
       .getByLabel('Aus', { exact: true })
       .selectOption({ label: `${cafe} · 100,00 € · fest verplant 0,00 € · frei 100,00 €` });
@@ -262,10 +270,8 @@ isolatedTest(
     await expect(available(page, cafe)).toHaveText('50,00 €');
 
     // Read details on their own page; input opens a form dialog.
-    await row(page, cafe)
-      .getByRole('link', { name: new RegExp(cafe) })
-      .first()
-      .click();
+    await row(page, cafe).getByRole('button', { name: cafe, exact: true }).first().click();
+    await page.getByRole('link', { name: 'Verlauf und Buchungen' }).click();
     await expect(page).toHaveURL(/\/plan\/monat\/envelope\//);
     await page.getByRole('button', { name: 'Zuweisen oder verschieben' }).click();
     const panel = page.getByRole('dialog', { name: cafe });
@@ -331,27 +337,41 @@ test('plan: a negative assignment stays editable, Escape keeps it, Decken asks w
   });
 
   await page.goto(`/plan/monat?monat=${month}`);
-  const field = page.getByLabel(`Zugewiesen für ${name}. Rechnen erlaubt, +50 addiert.`);
+  const phone = testInfo.project.name === 'mobile';
+  const field = phone
+    ? page.getByLabel('Zugewiesen', { exact: true })
+    : page.getByLabel(`Zugewiesen für ${name}. Rechnen erlaubt, +50 addiert.`);
   const edit = () =>
-    row(page, name)
-      .getByRole('button', { name: /^Zugewiesen .* ändern$/ })
-      .click();
+    phone
+      ? row(page, name).locator('.plan-available').click()
+      : row(page, name)
+          .getByRole('button', { name: /^Zugewiesen .* ändern$/ })
+          .click();
+  const commit = () =>
+    phone
+      ? page.getByRole('button', { name: 'Übernehmen', exact: true }).click()
+      : page.keyboard.press('Enter');
   // The pre-filled "−50,00" is the value, not "50 less": Enter keeps it and writes nothing.
   await edit();
   await expect(field).toHaveValue('−50,00');
-  await page.keyboard.press('Enter');
+  await commit();
+  if (phone) {
+    await expect(field).toHaveValue('−50,00');
+    await page.keyboard.press('Escape');
+  }
   await expect(field).toHaveCount(0);
   // Escape leaves without writing, also not through the blur of the field going away.
   await edit();
-  await page.keyboard.type('99');
+  await field.fill('99');
   await page.keyboard.press('Escape');
   await expect(field).toHaveCount(0);
   await expect(row(page, name).locator('.col-assign')).toContainText('−50,00 €');
   expect(writes).toEqual([]);
   // A sign typed first is a change: −50 + 20 = −30, written once (Enter, not again on blur).
   await edit();
-  await page.keyboard.type('+20');
-  await page.keyboard.press('Enter');
+  if (phone) await field.fill('−50+20');
+  else await page.keyboard.type('+20');
+  await commit();
   await expect(toast(page)).toContainText(`${name}: −50,00 € → −30,00 € zugewiesen`);
   expect(writes).toHaveLength(1);
 
@@ -390,7 +410,7 @@ test('plan: a negative assignment stays editable, Escape keeps it, Decken asks w
   });
   await page.reload();
   await page.getByRole('button', { name: `${trip} decken`, exact: true }).click();
-  const coverPanel = page.getByRole('dialog', { name: trip });
+  const coverPanel = page.getByRole('complementary', { name: 'Plan-Inspektor' });
   if (tba > 0) {
     await coverPanel.getByLabel('Aus', { exact: true }).selectOption('');
     await coverPanel.getByRole('button', { name: /^Decken ·/ }).click();
@@ -437,12 +457,18 @@ test('plan: the guard refuses assigning more than Zu verteilen holds, in the fie
 
   // The inline field refuses too, says why and stays open; no request leaves the page.
   await page.goto(`/plan/monat?monat=${month}`);
-  await row(page, name)
-    .getByRole('button', { name: /^Zugewiesen .* ändern$/ })
-    .click();
-  await page.keyboard.type('999999999');
-  await page.keyboard.press('Enter');
-  const field = page.getByLabel(`Zugewiesen für ${name}. Rechnen erlaubt, +50 addiert.`);
+  const phone = testInfo.project.name === 'mobile';
+  const field = phone
+    ? page.getByLabel('Zugewiesen', { exact: true })
+    : page.getByLabel(`Zugewiesen für ${name}. Rechnen erlaubt, +50 addiert.`);
+  if (phone) await row(page, name).locator('.plan-available').click();
+  else
+    await row(page, name)
+      .getByRole('button', { name: /^Zugewiesen .* ändern$/ })
+      .click();
+  await field.fill('999999999');
+  if (phone) await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
+  else await page.keyboard.press('Enter');
   await expect(field).toHaveAttribute('aria-invalid', 'true');
   await expect(page.getByRole('alert').filter({ hasText: /Höchstens|nichts frei/ })).toBeVisible();
   expect(writes).toEqual([]);
@@ -452,7 +478,7 @@ test('plan: the guard refuses assigning more than Zu verteilen holds, in the fie
   // The month status never says "Nichts ist überzogen." while the hero says too much assigned.
   const hero = page.getByTestId('to-be-assigned');
   const negative = (await hero.innerText()).trim().startsWith('−');
-  await page.locator('.plan-details > summary').click();
+  await page.locator('.inspector-section > summary').filter({ hasText: '50/30/20' }).click();
   const status = page.getByRole('list', { name: 'Zustand des Monats' });
   if (negative) await expect(status).not.toContainText('Nichts ist überzogen');
   await expect(status).toBeVisible();

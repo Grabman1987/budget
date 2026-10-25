@@ -1,4 +1,6 @@
 .assignment-page {
+  /* Grid item: let the rule table scroll inside its region instead of widening the page. */
+  min-width: 0;
   padding: 24px 28px;
 }
 .assignment-page > section + section {
@@ -13,7 +15,9 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  max-height: calc(100dvh - 100px);
+  /* Same bound as every form sheet, so the footer stays on screen with T6 body text. */
+  max-height: inherit;
+  min-height: 0;
   gap: 0;
 }
 .assignment-editor fieldset,
@@ -43,11 +47,6 @@
   align-items: center;
   gap: 10px;
   min-height: 44px;
-}
-.assignment-check input {
-  width: 20px;
-  height: 20px;
-  accent-color: var(--primary);
 }
 .assignment-buttons {
   display: flex;

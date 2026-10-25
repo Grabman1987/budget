@@ -2,6 +2,8 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../api/http';
+import { AUTH_STATUS_KEY, queryClient } from '../auth/status-query';
 import { PwaShell } from './pwa';
 
 function connection(online: boolean) {
@@ -9,6 +11,7 @@ function connection(online: boolean) {
   act(() => window.dispatchEvent(new Event(online ? 'online' : 'offline')));
 }
 afterEach(() => {
+  queryClient.clear();
   connection(true);
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
@@ -27,6 +30,55 @@ describe('static offline shell', () => {
     expect(screen.queryByText('Financial page')).toBeNull();
     connection(true);
     expect(screen.getByText('Financial page')).toBeTruthy();
+  });
+  it('shows the offline shell when the initial auth request cannot reach the server', async () => {
+    connection(true);
+    const auth = queryClient.getQueryCache().build(queryClient, {
+      queryKey: AUTH_STATUS_KEY,
+      queryFn: async () => {
+        throw new ApiError(0, 'network');
+      },
+      retry: false,
+    });
+    render(
+      <PwaShell>
+        <p>Financial page</p>
+      </PwaShell>,
+    );
+    await act(async () => {
+      await auth.fetch().catch(() => undefined);
+    });
+    expect(screen.getByRole('heading', { name: 'Budget ist offline' })).toBeTruthy();
+    expect(screen.queryByText('Financial page')).toBeNull();
+  });
+  it('keeps a live page mounted when a later auth refresh fails', async () => {
+    connection(true);
+    let fail = false;
+    const auth = queryClient.getQueryCache().build(queryClient, {
+      queryKey: AUTH_STATUS_KEY,
+      queryFn: async () => {
+        if (fail) throw new ApiError(0, 'network');
+        return {
+          setupRequired: false,
+          authenticated: true,
+          stepUpValidUntil: null,
+          viaRecovery: false,
+        };
+      },
+      retry: false,
+    });
+    await auth.fetch();
+    render(
+      <PwaShell>
+        <p>Financial page</p>
+      </PwaShell>,
+    );
+    fail = true;
+    await act(async () => {
+      await auth.fetch().catch(() => undefined);
+    });
+    expect(screen.getByText('Financial page')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Budget ist offline' })).toBeNull();
   });
   it('keeps unsaved fields mounted when an online session loses connectivity', async () => {
     connection(true);

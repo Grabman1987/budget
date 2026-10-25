@@ -1,0 +1,18 @@
+{
+  "head": "16d3ae1c53055cf1960b0e19e36359836b6896a8",
+  "scope": "outside-only protected OLD2 proposal; owner approval pending",
+  "files": [
+    {
+      "path": "apps/web/src/statement-intake/statement-review-726.test.tsx",
+      "beforeSha256": "6d6bfe0c6b67a9fd34438d4189e5b230b92535b59e817987abb7f7454fa40dee",
+      "candidateSha256": "e158e476537096c6cf8c6127991aabe30f20529dc5b3e66669448e24069e3ebd"
+    },
+    {
+      "path": "apps/web/src/statement-intake/statement-settlement-727.test.tsx",
+      "beforeSha256": "60eafa37f8b379a752306482f8db99b1396ad460ae3b33aaced7db0818c9ebea",
+      "candidateSha256": "7fc25b17c965e7f822d9cd015d0493086787441ac19c207ef2ff3cf56bb32025"
+    }
+  ],
+  "diffSha256": "de4bc27e9f22fdc6444348526415d0feb38e78656682d4e55f55e7213bf6d60e",
+  "reportSha256": "b8dbba91ec1ea576929d2543d39bcae8deb6fe26100751870accabaf83cc2f75"
+}

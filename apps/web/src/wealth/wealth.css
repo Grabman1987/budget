@@ -35,7 +35,7 @@
   margin-bottom: 18px;
 }
 .l-daily {
-  stroke-width: 1.5;
+  stroke-width: var(--stroke-hairline);
   stroke-linejoin: round;
 }
 .lg-sq {
@@ -69,9 +69,20 @@
 }
 .vb-bar {
   position: relative;
-  height: 10px;
+  height: var(--bar-stacked);
   background: var(--tint);
   border-radius: 1px;
+
+  opacity: var(--bar-tint);
+}
+.vb-bar::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: -3px;
+  bottom: -3px;
+  left: var(--zero, 50%);
+  border-left: 1px solid var(--ink-3);
 }
 .vb-bar i {
   position: absolute;
@@ -81,7 +92,7 @@
 }
 .vbars .is-debt .vb-bar i {
   background: transparent;
-  border: 1.5px dashed var(--ink-2);
+  border: var(--stroke-hairline) dashed var(--ink-2);
 }
 .vb-val {
   text-align: right;

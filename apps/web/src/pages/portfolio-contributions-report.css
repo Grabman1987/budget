@@ -18,10 +18,10 @@
 }
 .contributions-primary .tech {
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--fs-label);
 }
 .contributions-primary strong {
-  font-size: clamp(var(--fs-figure-large), 5vw, var(--fs-amount));
+  font-size: var(--fs-figure);
   font-weight: 650;
   letter-spacing: -0.02em;
   line-height: 1.05;
@@ -40,7 +40,7 @@
   height: auto;
   overflow: visible;
   color: var(--ink-2);
-  font: var(--fs-class-tag) var(--font-tech);
+  font: var(--fs-chart-label) var(--font-tech);
 }
 .contributions-chart text {
   fill: currentColor;
@@ -48,37 +48,37 @@
 }
 .contributions-grid {
   stroke: var(--graticule);
-  stroke-width: 1;
+  stroke-width: var(--stroke-hairline);
 }
 .contributions-value-line {
   fill: none;
   stroke: var(--line);
-  stroke-width: 2.5;
+  stroke-width: var(--stroke-measure);
   vector-effect: non-scaling-stroke;
 }
 .contributions-invested-line {
   fill: none;
   stroke: var(--line-2);
-  stroke-width: 1.5;
+  stroke-width: var(--stroke-hairline);
   vector-effect: non-scaling-stroke;
 }
 .contributions-zero {
   stroke: var(--rule-strong);
-  stroke-width: 1;
+  stroke-width: var(--stroke-hairline);
 }
 .contributions-bar-positive {
-  fill: var(--good);
+  fill: var(--plus-ink);
   opacity: 0.72;
 }
 .contributions-bar-negative {
-  fill: var(--red);
+  fill: var(--minus-ink);
 }
 .contributions-legend {
   display: flex;
   flex-wrap: wrap;
   gap: 10px 20px;
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--fs-chart-label);
 }
 .contributions-legend span {
   display: inline-flex;
@@ -88,13 +88,13 @@
 .contributions-legend i {
   display: inline-block;
   width: 22px;
-  height: 3px;
+  height: var(--stroke-measure);
 }
 .legend-value {
   background: var(--line);
 }
 .legend-invested {
-  height: 2px !important;
+  height: var(--stroke-measure) !important;
   background: var(--line-2);
 }
 .contributions-legend .legend-bars {

@@ -1,14 +1,12 @@
 import { useAmountPrivacy, Button, DimensionChain } from '@budget/ui';
 import { useQuery } from '@tanstack/react-query';
-import type { Period } from '@budget/domain';
+import { ratioBp, type Period } from '@budget/domain';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { ChartNoAxesCombined, ChevronRight } from 'lucide-react';
 import { VERMOEGEN_PORTFOLIO_META } from '../nav/pages';
 import { PageFrame } from '../pages/placeholder-page';
 import { ErrorNote, LoadingNote, EmptyNote } from '../ledger/states';
 import { ValuationHint } from '../ledger/valuation-hint';
 import { eurParts, eurWhole, longDay } from '../ledger/format';
-import { AppLink } from '../shell/app-link';
 import {
   portfolioPositionsQuery,
   instrumentsQuery,
@@ -29,6 +27,7 @@ import { SavingsSection } from './savings-section';
 import { TradePanel } from './trade-panel';
 import './portfolio.css';
 import { PortfolioAllocation } from './allocation-section';
+import { PortfolioOverview } from './portfolio-overview';
 
 export function PortfolioPage() {
   useAmountPrivacy();
@@ -73,18 +72,19 @@ export function PortfolioPage() {
   return (
     <PageFrame meta={VERMOEGEN_PORTFOLIO_META}>
       <div className="kview vview portfolio-view">
-        <div className="instrument-actions">
-          <Button variant="ghost" onClick={() => select('neu')}>
-            Instrument anlegen
-          </Button>
-          <Button onClick={() => trade('neu', undefined)}>Handel erfassen</Button>
-        </div>
         {query.isPending && <LoadingNote what="Positionen" />}
         {query.isError && (
           <ErrorNote what="Positionen" error={query.error} onRetry={() => void query.refetch()} />
         )}
         <ValuationHint incomplete={query.data?.incomplete} />
         {view && <PortfolioLead view={view} />}
+        <PortfolioOverview />
+        <div className="instrument-actions">
+          <Button variant="ghost" onClick={() => select('neu')}>
+            Instrument anlegen
+          </Button>
+          <Button onClick={() => trade('neu', undefined)}>Handel erfassen</Button>
+        </div>
         <PortfolioAllocation />
         {view && (
           <>
@@ -245,6 +245,15 @@ function PortfolioLead({ view }: { view: PortfolioPositionsView }) {
           <span className="portfolio-unavailable">Bewertung unvollständig</span>
         )}
       </div>
+      <p className="portfolio-lead-gain" data-testid="portfolio-gain">
+        Gewinn seit Kauf {moneyText(view.gainCents)} ·{' '}
+        {percentText(
+          view.gainCents !== null && view.costCents !== null && view.costCents > 0
+            ? ratioBp(view.gainCents, view.costCents)
+            : null,
+          true,
+        )}
+      </p>
       {view.chain ? (
         <DimensionChain terms={view.chain} label="Maßkette Portfoliowert" />
       ) : (
@@ -254,13 +263,6 @@ function PortfolioLead({ view }: { view: PortfolioPositionsView }) {
             : `${basisReason(view.classes.flatMap((g) => g.positions.flatMap((p) => p.accounts)))}. Der gesamte Wertzuwachs ist nicht berechenbar.`}
         </p>
       )}
-      <AppLink className="vlook" to="/reports/gruppe/portfolio">
-        <ChartNoAxesCombined size={18} strokeWidth={1.75} aria-hidden="true" />
-        <span>
-          <strong>Reportkatalog Portfolio öffnen</strong>
-        </span>
-        <ChevronRight size={18} aria-hidden="true" />
-      </AppLink>
     </section>
   );
 }

@@ -10,7 +10,7 @@
 }
 .savings-section .aside {
   color: var(--ink-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 .savings-table {
   margin-bottom: 16px;
@@ -70,4 +70,17 @@
     content: attr(data-label) ': ';
     color: var(--ink-3);
   }
+}
+.savings-summary {
+  display: grid;
+  gap: var(--space-lg);
+}
+.savings-summary dt {
+  color: var(--ink-2);
+}
+.savings-summary dd {
+  margin: 0;
+  font-size: var(--fs-figure);
+  font-weight: 620;
+  overflow-wrap: anywhere;
 }

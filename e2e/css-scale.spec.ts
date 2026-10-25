@@ -24,11 +24,19 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.goto('/plan/monat?monat=2026-09');
       await expect(page.locator('.plan .plan-topbar')).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
+      // #587: Zu verteilen is the lead figure of the Plan head: T2 display (28/32, phone 24/28).
       await expect(page.getByTestId('to-be-assigned')).toHaveCSS(
         'font-size',
-        isMobile ? '15px' : '14px',
+        isMobile ? '24px' : '28px',
       );
-      await expect(page.locator('.plan-topbar > .btn')).toHaveCSS('border-top-left-radius', '8px');
+      await expect(page.getByTestId('to-be-assigned')).toHaveCSS(
+        'line-height',
+        isMobile ? '28px' : '32px',
+      );
+      await expect(page.locator('.plan-topbar .plan-chip-scroll > .btn')).toHaveCSS(
+        'border-top-left-radius',
+        '8px',
+      );
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
         isMobile ? 390 : 1440,
       );
@@ -36,16 +44,16 @@ for (const scheme of ['light', 'dark'] as const) {
 
       await page.goto('/reports/onepager?monat=2026-09');
       await expect(page.locator('.ps-tb-cell .tech').first()).toBeVisible();
-      await expect(page.locator('.ps-tb-cell .tech').first()).toHaveCSS('font-size', '11px');
+      await expect(page.locator('.ps-tb-cell .tech').first()).toHaveCSS('font-size', '12px');
       await page.screenshot({ path: info.outputPath(`onepager-${scheme}.png`), fullPage: true });
 
       await page.goto('/dev/bauteile');
       await expect(page.getByTestId('chart-lines')).toBeVisible();
-      await expect(page.locator('.svg-label-strong').first()).toHaveCSS('font-size', '13px');
+      await expect(page.locator('.svg-label-strong').first()).toHaveCSS('font-size', '14px');
       await expect(page.locator('.sw').first()).toHaveCSS('border-top-left-radius', '1px');
       await expect(page.locator('.seg button').first()).toHaveCSS(
         'font-size',
-        isMobile ? '15px' : '14px',
+        isMobile ? '16px' : '15px',
       );
     },
   );

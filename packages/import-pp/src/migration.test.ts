@@ -265,6 +265,23 @@ describe('the PP side of the report', () => {
     const end = s.valuations[s.valuations.length - 1]!.valueCents;
     expect(end).toBe((s.cashCents.at(-1) as number) + (s.holdingsCents.at(-1) as number));
   });
+
+  it('preserves opposing same-day flows in the operator PP comparison series', () => {
+    const sameDay = {
+      ...model,
+      accounts: model.accounts.map((a) => ({
+        ...a,
+        transactions: a.transactions.map((tx) =>
+          a.uuid === refUuid(0) && tx.type === 'REMOVAL' ? { ...tx, date: '2026-09-01' } : tx,
+        ),
+      })),
+    };
+    const s = ppDepotSeries(sameDay, plan, resolved.targets[0]!, '2026-08-31', '2026-09-30');
+    expect(s.flows.filter((f) => f.date === '2026-09-01')).toEqual([
+      { date: '2026-09-01', cents: 500000 },
+      { date: '2026-09-01', cents: -12000 },
+    ]);
+  });
 });
 
 describe('proposeMigration', () => {

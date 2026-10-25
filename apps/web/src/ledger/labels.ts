@@ -7,7 +7,7 @@ import type { AccountRow, AccountType, BookingFlag, BookingStatus } from './type
 
 /** German (de-AT) names of the ledger vocabulary (glossary in PRODUCT.md). */
 export const CAPTURE_SHORTCUT_HINT =
-  'Enter weiter · Strg Enter speichert · Strg Umschalt Enter speichert und beginnt neu · Esc schließt';
+  'Enter speichert gültige Eingaben · Strg Enter speichert · Strg Umschalt Enter speichert und beginnt neu · Esc schließt';
 
 export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
   checking: 'Giro',
@@ -127,6 +127,13 @@ export function errorText(
 ) {
   if (error instanceof Error && ('detail' in error || 'status' in error || 'code' in error)) {
     const like = error as { detail?: unknown; status?: unknown; code?: unknown };
+    if (
+      like.status === 422 &&
+      like.code === 'invariant' &&
+      like.detail ===
+        'Undo the related contact settlement before changing its receipt or allocated outlay'
+    )
+      return 'Diese Buchung ist bereits einer Rückzahlung zugeordnet. Mache zuerst die zugehörige Rückzahlung rückgängig, bevor du Betrag oder Zuordnung änderst.';
     // Never the raw server text of a generic or technical answer: German text by code instead.
     const text = apiErrorText({
       ...(typeof like.detail === 'string' ? { detail: like.detail } : {}),

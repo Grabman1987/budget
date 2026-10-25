@@ -1,6 +1,7 @@
 /* Application shell, ported from design/prototype/styles.css (Shell, Sheet, mobile chrome). */
 
 .app {
+  --sidebar: var(--sidebar-width, 236px);
   display: grid;
   grid-template-columns: var(--sidebar) minmax(0, 1fr);
   min-height: 100vh;
@@ -43,6 +44,34 @@
   background: var(--ground-2);
   padding: 18px 14px 14px;
   overflow: hidden;
+}
+.sidebar-resize {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--line-2);
+  opacity: 0;
+  cursor: col-resize;
+  touch-action: none;
+  transition: opacity var(--t-fast) var(--ease-out);
+}
+.sidebar:hover .sidebar-resize,
+.sidebar-resize:focus-visible,
+.sidebar-resize:active {
+  opacity: 1;
+}
+.sidebar-resize:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: -2px;
 }
 .brand {
   display: flex;
@@ -103,19 +132,16 @@
   background: var(--raised);
   border-color: var(--rule-strong);
 }
-.sheetlist a[aria-current='page'] .sheet-no {
-  color: var(--line);
-}
-.sheet-no {
-  font-family: var(--font-tech);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  color: var(--ink-3);
-}
 .sidebar-foot {
   margin-top: auto;
   display: grid;
   gap: 6px;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+}
+.sidebar-foot .icon-btn {
+  width: var(--touch);
+  height: var(--touch);
 }
 .side-btn {
   display: flex;
@@ -140,10 +166,9 @@
 .profile {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 8px 4px;
-  border-top: 1px solid var(--rule);
-  margin-top: 6px;
+  gap: 6px;
+  min-width: 0;
+  min-height: var(--touch);
   color: inherit;
   text-decoration: none;
 }
@@ -175,11 +200,22 @@ a.profile:hover .profile-text strong {
   min-width: 0;
 }
 .profile-text strong {
-  font-size: var(--fs-body);
+  font-size: var(--fs-label);
   font-weight: 600;
 }
+.sidebar-foot .profile-text strong {
+  overflow-wrap: anywhere;
+}
+.sidebar-foot .profile-text span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.app.is-collapsed .sidebar-foot {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+}
 .profile-text span {
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--ink-3);
   white-space: nowrap;
 }
@@ -188,7 +224,6 @@ a.profile:hover .profile-text strong {
 .app.is-collapsed .brand-name,
 .app.is-collapsed .sheetlist-label,
 .app.is-collapsed .sheetlist a .label,
-.app.is-collapsed .sheetlist a .sheet-no,
 .app.is-collapsed .side-btn .label,
 .app.is-collapsed .profile-text {
   display: none;
@@ -237,8 +272,12 @@ a.profile:hover .profile-text strong {
   padding: 0 40px 0 24px;
 }
 .topbar .icon-btn {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+.topbar .btn {
+  min-height: 44px;
 }
 .search {
   position: relative;
@@ -277,7 +316,7 @@ a.profile:hover .profile-text strong {
   top: 50%;
   translate: 0 -50%;
   font-family: var(--font-tech);
-  font-size: 11.5px;
+  font-size: var(--fs-label);
   letter-spacing: 0.05em;
   color: var(--ink-3);
   border: 1px solid var(--rule-strong);
@@ -305,7 +344,9 @@ a.btn {
   row-gap: var(--space-section);
   align-content: start;
 }
-.sheet:focus {
+.sheet:focus:not(:focus-visible),
+/* Route headings are not Tab stops. Browsers may inherit :focus-visible on autofocus. */
+.sheet :is(h1, h2, h3)[tabindex='-1']:focus {
   outline: none;
 }
 .sheet > * {
@@ -395,21 +436,11 @@ a.btn {
   }
   .m-title {
     min-width: 0;
-  }
-  .m-head .spacer {
     flex: 1;
   }
   .m-head .icon-btn {
     position: relative;
     flex: none;
-  }
-  .m-head .icon-btn .count {
-    position: absolute;
-    top: 2px;
-    right: -2px;
-    min-width: 20px;
-    height: 18px;
-    font-size: 11px;
   }
   .m-head .avatar {
     width: 44px;
@@ -471,7 +502,7 @@ a.btn {
     gap: 3px;
     color: var(--ink-3);
     text-decoration: none;
-    font-size: 11.5px;
+    font-size: var(--fs-label);
     font-weight: 560;
     position: relative;
   }
@@ -507,62 +538,58 @@ a.btn {
   }
 }
 
-/* ---------- Overspent chip (top bar / phone header) ---------- */
-.overspent-chip {
-  flex: none;
-}
-.overspent-chip-btn {
+/* ---------- Header status ---------- */
+.review-pill,
+.offline-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   min-height: 44px;
   padding: 0 12px;
-  border: 0;
+  border: var(--stroke-hairline) solid var(--rule-strong);
   border-radius: 999px;
-  font: inherit;
+  background: var(--quiet-soft);
+  color: var(--ink);
+  font-size: var(--fs-meta);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  cursor: pointer;
   text-decoration: none;
-  background: var(--red-soft);
-  color: var(--red);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 28%, transparent);
 }
-.overspent-chip-btn-unknown {
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: inset 0 0 0 1px var(--rule-strong);
+.review-pill:hover {
+  background: var(--tint);
 }
-/* Medium widths: count only (the full text stays in the accessible name). */
-@media (max-width: 1180px) {
-  .overspent-chip-detail {
-    display: none;
-  }
+.shell-status {
+  min-width: 0;
+  padding: 8px 40px 0;
 }
-/* Phone header: a 44 px icon with the count as a badge, so the area name keeps its room. */
-.overspent-chip-btn-compact {
-  position: relative;
-  justify-content: center;
-  width: 44px;
-  padding: 0;
+.offline-chip {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--ink-2);
 }
-.overspent-chip-btn-compact .overspent-chip-count {
-  position: absolute;
-  top: 2px;
-  right: -2px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  border-radius: 999px;
-  background: var(--red);
-  color: var(--on-primary);
-  font-size: 11px;
-  line-height: 18px;
-  text-align: center;
+.m-status {
+  display: none;
 }
 @media (max-width: 767px) {
-  .overspent-chip-btn-compact {
+  .m-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 8px;
+    min-width: 0;
+    padding-inline: 16px;
+    font-size: var(--fs-meta);
+    color: var(--ink-2);
+  }
+  .m-status a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
     min-width: 44px;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    color: inherit;
+  }
+  .shell-status {
+    padding-inline: 16px;
   }
 }

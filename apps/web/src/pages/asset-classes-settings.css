@@ -72,12 +72,40 @@
   padding: 0;
   min-width: 0;
 }
+.allocation-scope-row {
+  border-top: 1px solid var(--rule);
+  padding-block: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.allocation-scope-editor {
+  margin-bottom: 24px;
+}
+@media (min-width: 768px) {
+  dialog.overlay.modal:has(.asset-target-form) {
+    width: min(960px, calc(100vw - 48px));
+  }
+  .asset-target-class {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px 16px;
+  }
+  .asset-target-class > h3,
+  .asset-target-class > p,
+  .asset-target-class > .asset-check {
+    grid-column: 1 / -1;
+  }
+}
 .asset-class-form fieldset {
   display: grid;
   gap: 16px;
   margin: 0;
 }
 @media (max-width: 767px) {
+  .allocation-scope-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .sheet:has(.asset-settings) .titleblock {
     grid-auto-flow: row;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -136,6 +164,266 @@
     display: block;
     color: var(--ink-3);
     font-family: var(--font-label);
-    font-size: 12px;
+    font-size: var(--fs-label);
+  }
+}
+
+/* All stages use one semantic field set; phone rows become the same editable cards. */
+.asset-target-form:has(.stage-grid) > fieldset {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px 16px;
+}
+.asset-target-form:has(.stage-grid) > fieldset > * {
+  grid-column: 1 / -1;
+}
+.asset-target-form:has(.stage-grid) > fieldset > .stage-scope,
+.asset-target-form:has(.stage-grid) > fieldset > .stage-reference {
+  grid-column: auto;
+}
+.asset-target-form:has(.stage-grid) > fieldset > p {
+  margin: 0;
+}
+.stage-reference > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.asset-target-form:not(:has(.stage-grid)) .stage-reference > summary {
+  display: none;
+}
+.stage-reference-content > h3 {
+  margin-top: 0;
+}
+.stage-reference > h3 {
+  margin: 0;
+}
+.stage-reference > p {
+  margin: 0;
+}
+.stage-reference > .wealth-details,
+.stage-reference > .field-row {
+  min-width: 0;
+}
+.stage-scope > summary,
+.stage-columns > summary,
+.stage-cell-options > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.stage-version-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.stage-grid-section {
+  min-width: 0;
+}
+.stage-grid-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.stage-grid-tools > p,
+.stage-saved-state {
+  margin: 0;
+}
+.stage-saved-state {
+  margin-block: 8px;
+}
+.stage-grid {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: collapse;
+}
+.stage-grid th {
+  text-align: left;
+  font-family: var(--font-tech);
+  overflow-wrap: anywhere;
+}
+.stage-grid td,
+.stage-grid th {
+  padding: 0 4px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: middle;
+}
+.stage-grid .stage-limit-col {
+  width: 104px;
+}
+.stage-grid .stage-name-col {
+  width: 112px;
+}
+.stage-grid .stage-status-col {
+  width: 72px;
+}
+.stage-grid .stage-action-col {
+  width: 48px;
+}
+.stage-grid .stage-share-col {
+  width: 108px;
+}
+.stage-grid .stage-sum-col {
+  width: 80px;
+}
+.stage-grid .field-row {
+  margin: 0;
+  min-width: 0;
+}
+.stage-grid .input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding-inline: 4px;
+}
+.stage-grid .field-row > label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.stage-share-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.stage-share-cell > .field-row {
+  flex: 1;
+}
+.stage-share-cell .input {
+  text-align: right;
+}
+.stage-cell-options,
+.stage-columns {
+  position: relative;
+}
+.stage-cell-options {
+  flex: 0 0 44px;
+}
+.stage-cell-options > summary {
+  justify-content: center;
+  min-width: 44px;
+}
+.stage-options-panel {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  top: 100%;
+  width: min(280px, 80vw);
+  padding: 12px;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+}
+.stage-options-panel .field-row > label {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+}
+.stage-options-panel .asset-check {
+  min-width: 0;
+}
+.stage-choose {
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.stage-grid button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.stage-unmanaged {
+  overflow-wrap: anywhere;
+}
+.stage-phone-label {
+  display: none;
+}
+@media (min-width: 768px) {
+  dialog.overlay.modal:has(.stage-grid) {
+    width: min(1360px, calc(100vw - 48px));
+  }
+}
+@media (max-width: 767px) {
+  .asset-target-form:has(.stage-grid) > fieldset {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .stage-reference,
+  .stage-version-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .stage-grid,
+  .stage-grid tbody {
+    display: block;
+  }
+  .stage-grid thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .stage-grid tbody > tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    padding: 12px;
+    margin-block: 12px;
+    border: 1px solid var(--rule);
+    background: var(--surface-2);
+  }
+  .stage-grid td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+  }
+  .stage-grid .field-row > label {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
+  .stage-grid .stage-share-cell {
+    align-items: end;
+  }
+  .stage-grid .stage-row-sum {
+    grid-column: 1 / -1;
+  }
+  .stage-phone-label {
+    display: inline;
+    margin-right: 8px;
+  }
+  .stage-choose {
+    justify-content: start;
+  }
+  .stage-options-panel {
+    position: static;
+    width: 100%;
+    margin-block: 8px;
+  }
+  .stage-share-cell:has(.stage-cell-options[open]) {
+    flex-wrap: wrap;
+  }
+  .stage-share-cell:has(.stage-cell-options[open]) > .stage-cell-options {
+    flex-basis: 100%;
   }
 }

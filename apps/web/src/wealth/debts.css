@@ -1,4 +1,24 @@
 /* Result first; calculation sections use the full content width. */
+.debt-history {
+  min-width: 0;
+}
+.debt-history svg {
+  max-width: 100%;
+}
+.debt-overview summary,
+.debt-overview a[href='#debt-adjustments'] {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+}
+.debt-overview a[href='#debt-adjustments'] {
+  display: inline-block;
+}
+@media (max-width: 980px) {
+  .debt-history {
+    grid-column: 1 / -1;
+  }
+}
 .debt-overview,
 .debt-rechenweg {
   padding: 24px;
@@ -9,7 +29,7 @@
 }
 .debt-result h2 {
   margin: 0;
-  font-size: clamp(24px, 3vw, 40px);
+  font-size: var(--fs-display);
   font-weight: 650;
   letter-spacing: -0.03em;
 }
@@ -20,12 +40,12 @@
   align-items: baseline;
 }
 .debt-result-interest strong {
-  font-size: 24px;
+  font-size: var(--fs-figure);
 }
 .debt-progress progress {
   display: block;
   width: 100%;
-  height: 14px;
+  height: var(--bar-progress);
   appearance: none;
   border: 1px solid var(--line);
   background: var(--tint);
@@ -70,7 +90,7 @@
 .debt-stored-terms {
   margin-top: 8px;
   max-width: 30rem;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 400;
 }
 .debt-stored-terms dl {
@@ -192,14 +212,14 @@
 }
 .debts-view .vtable small {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 400;
   color: var(--ink-3);
 }
 .debts-view .vtable th.tech {
   font-family: var(--font-tech);
   text-transform: uppercase;
-  font-size: 11.5px;
+  font-size: var(--fs-label);
   font-weight: 500;
   letter-spacing: 0.06em;
   color: var(--ink-3);
@@ -257,7 +277,7 @@
     display: block;
     font-family: var(--font-tech);
     text-transform: uppercase;
-    font-size: 11px;
+    font-size: var(--fs-label);
     color: var(--ink-3);
   }
 }
@@ -286,7 +306,7 @@
   .debt-comparison .vtable th,
   .debt-comparison .vtable td {
     padding: 8px 4px;
-    font-size: 12px;
+    font-size: var(--fs-table);
     white-space: normal;
   }
 }

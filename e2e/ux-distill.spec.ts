@@ -85,18 +85,32 @@ test('Heute has eight warning items once, two first, neutral debts and accessibl
   ];
   await page.route('**/api/heute?*', (route) => route.fulfill({ json: today }));
   await page.goto('/?monat=2026-09');
-  // Overspending lives in the top-bar chip, not in the attention bar.
+  // The top-bar chip owns cover actions; Today summarizes the same eight findings once.
   await expect(page.locator('[data-overspent]')).toHaveCount(0);
-  await expect(page.locator('.heute-next-steps')).not.toContainText('Testenvelope');
+  const tasks = page.getByRole('region', { name: 'Zu tun', exact: true });
+  await expect(tasks).toContainText('8 Kategorien überzogen');
+  await expect(tasks).not.toContainText('Testenvelope');
+  // Q3 #466 and #511: loan terms share the account-check source row.
+  await expect(tasks.locator('.attention-row')).toHaveCount(4);
+  const accounts = tasks
+    .locator('.attention-row')
+    .filter({ hasText: '8 Konten warten auf Prüfung' });
+  await expect(accounts).toHaveCount(1);
+  await expect(accounts).toContainText('Kreditkonditionen fehlen');
+  await expect(accounts.getByRole('link', { name: 'Prüfen', exact: true })).toHaveCount(1);
+  await expect(
+    accounts.getByRole('link', { name: 'Konditionen ergänzen', exact: true }),
+  ).toHaveAttribute('href', '/einstellungen/konten');
+  await expect(tasks).toContainText('Kreditkonditionen fehlen');
   await expect(page.locator('.heute-envelope .heute-alert')).toHaveCount(1);
   await expect(page.locator('.heute-envelope')).not.toContainText('überzogen');
   if (info.project.name === 'desktop') {
+    // Z4: every negative account balance, debts included, is red ink and keeps its minus.
     await expect(
       page.locator('.acct-group').filter({ hasText: 'Kreditkarten' }).locator('.is-neg'),
-    ).toHaveCount(0);
-    await expect(
-      page.locator('.acct-group').filter({ hasText: 'Kredite' }).locator('.is-neg'),
-    ).toHaveCount(0);
+    ).not.toHaveCount(0);
+    for (const text of await page.locator('.acct-group .acct-amount.is-neg').allTextContents())
+      expect(text).toMatch(/^[−-]/);
   }
   for (const theme of ['light', 'dark']) {
     await page.evaluate((t) => (document.documentElement.dataset['theme'] = t), theme);
@@ -146,11 +160,11 @@ isolatedTest(
         amountCents,
       });
     await page.goto(`/plan/monat?monat=${month}`);
-    // The cover controls live in the "überzogen" chip's popover of the top bar; a click outside
-    // (the toast's undo) closes it again.
+    // #587: the cover controls live in the Zu verteilen disclosure of the top bar; a click
+    // outside (the toast's undo) closes it again.
     const openCover = async () => {
-      const chip = page.locator('.plan-topbar summary').filter({ hasText: /^\d+ überzogen$/ });
-      if (!(await page.locator('#cover-all-source').isVisible())) await chip.click();
+      const disclosure = page.locator('.plan-tba');
+      if (!(await page.locator('#cover-all-source').isVisible())) await disclosure.click();
     };
     await openCover();
     await page.getByLabel('Quelle für alle Überziehungen').selectOption(source.id);
@@ -159,7 +173,7 @@ isolatedTest(
       '1 gedeckt, 2 offen · 15,00 € fehlen',
     );
     const value = (name: string) =>
-      page.locator('tr.prow', { hasText: name }).locator('.col-avail');
+      page.locator('tr.prow', { hasText: name }).locator('.col-avail .pill');
     await expect(value('Zuerst')).toHaveText('0,00 €');
     await expect(value('Später')).toHaveText('−12,00 €');
     await expect(value('Zuletzt')).toHaveText('−3,00 €');

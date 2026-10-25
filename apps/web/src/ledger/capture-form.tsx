@@ -3,7 +3,6 @@ import {
   useAmountPrivacy,
   AmountInput,
   Button,
-  ClassSwatch,
   Field,
   Segmented,
   Select,
@@ -11,7 +10,7 @@ import {
   type SegmentedOption,
   maskMoneyText,
 } from '@budget/ui';
-import { addDays, todayInVienna } from '@budget/domain';
+import { manualTransferStatus, todayInVienna, type ManualBankStatus } from '@budget/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Trash2, X } from 'lucide-react';
 import {
@@ -26,14 +25,11 @@ import { ApiError } from '../api/http';
 import { budgetQuery } from '../budget/budget-api';
 import { fetchBookings, createPayee, setPayeeDefaultCategory } from './api';
 import {
-  amountOf,
   buildCreate,
   buildPatch,
   draftFromBooking,
   emptyDraft,
   isTransferBooking,
-  newSplit,
-  splitRemainder,
   touchesLocked,
   type BookingDraft,
   type BookingKind,
@@ -53,13 +49,13 @@ import {
 } from './capture-model';
 import { CategoryCombobox } from './category-picker';
 import { Combobox } from './combobox';
-import { ContactSelect } from './contact-select';
 import { FlagPicker } from './flag-picker';
-import { SplitEditor } from './split-editor';
+import { SplitEditor, captureLines } from './split-editor';
 import { AccountOptions } from './account-options';
-import { eur, monthName } from './format';
+
 import { ReceiptSection } from '../receipts/receipt-section';
-import { CAPTURE_SHORTCUT_HINT, errorText } from './labels';
+import { CAPTURE_SHORTCUT_HINT, FLAG_LABEL, errorText } from './labels';
+import { BOOKING_FLAGS, type BookingFlag } from './types';
 import { useLedgerWrites } from './mutations';
 import { accountsQuery, lookupsQuery, payeesQuery } from './queries';
 import {
@@ -78,6 +74,12 @@ const KINDS: ReadonlyArray<SegmentedOption<BookingKind>> = [
 const EDIT_KINDS = KINDS.slice(0, 2);
 const NONE = '__none';
 const LOCKED = 'Diese Buchung ist geprüft. Bestätige die Freigabe, um sie zu ändern.';
+const REMAINDER_SAVE_ERROR = 'Speichern geht erst, wenn der Rest 0,00 € ist.';
+interface BankIntent {
+  fromAccountId: string;
+  toAccountId: string;
+  status: ManualBankStatus;
+}
 
 /**
  * Focusable fields in reading order; the operator buttons of the amount field are skipped. Fields
@@ -103,7 +105,7 @@ export interface DiscardAsk {
 }
 
 /**
- * The capture form (Buchung erfassen / bearbeiten): keyboard first. Enter moves to the next field,
+ * The capture form (Buchung erfassen / bearbeiten): keyboard first. Enter saves valid inputs and otherwise moves on,
  * Ctrl+Enter saves, Ctrl+Umschalt+Enter saves and starts the next booking with account, date and
  * payee kept. Esc is handled by the dialog around it (with a discard question when dirty).
  */
@@ -143,6 +145,16 @@ export function CaptureForm({
   const editDraft = editing ? draftFromBooking(editing) : null;
   const repeatKey = useRef(crypto.randomUUID());
   const [statusChosen, setStatusChosen] = useState(false);
+  // Restore explicit queued intent before choices load; shared draft.status is never that intent.
+  const queuedBankIntent: BankIntent | null =
+    queued?.input.type === 'transfer' && queued.input.bankStatus !== undefined
+      ? {
+          fromAccountId: queued.input.fromAccountId,
+          toAccountId: queued.input.toAccountId,
+          status: queued.input.bankStatus,
+        }
+      : null;
+  const [bankIntent, setBankIntent] = useState<BankIntent | null>(queuedBankIntent);
   const [draft, setDraft] = useState<BookingDraft>(() =>
     queued
       ? queued.draft
@@ -170,26 +182,48 @@ export function CaptureForm({
   const [busy, setBusy] = useState(false);
   // Guards save() itself: held or repeated Ctrl+Enter must not send the booking twice.
   const saving = useRef(false);
-  const [moreOpen, setMoreOpen] = useState(Boolean(editing || draft.projectId));
+  const [moreOpen, setMoreOpen] = useState(Boolean(draft.projectId || draft.flag));
   // The category the last chosen payee's default filled in; only that one is replaced by the next.
   const appliedByPayee = useRef<string | null>(null);
   // The payee "Speichern und neu" carried over: context, so it does not make the form dirty.
   const [keptPayee, setKeptPayee] = useState('');
-  const set = <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) =>
+  const set = <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) => {
+    if ((key === 'accountId' || key === 'toAccountId') && value !== draft[key]) setBankIntent(null);
     setDraft((d) => ({ ...d, [key]: value }));
+  };
 
   const open = useMemo(
     () => orderAccounts(accounts.data?.accounts ?? offlineChoices?.accounts ?? [], memory.accounts),
     [accounts.data, offlineChoices, memory],
   );
   const accountId = draft.accountId || accountFromPayee(open, memory.accounts, undefined);
+  const explicitAccountId =
+    state.mode === 'create' ? (state.prefill?.accountId ?? state.accountId) : undefined;
+  const hasAccountContext = open.some((account) => account.id === explicitAccountId);
   const isTransfer = draft.kind === 'transfer';
   const legOfTransfer = editing !== null && isTransferBooking(editing);
   const locked = editing?.status === 'reconciled';
   const from = open.find((a) => a.id === accountId);
   const to = open.find((a) => a.id === draft.toAccountId);
+  const manualPair =
+    !editing && isTransfer && from && to ? manualTransferStatus(from.type, to.type) : null;
+  const currentBankIntent =
+    bankIntent?.fromAccountId === accountId && bankIntent?.toAccountId === draft.toAccountId
+      ? bankIntent
+      : null;
+  const bankStatus = currentBankIntent?.status ?? 'pending';
   const needsCategory = Boolean(isTransfer && from && to && from.onBudget !== to.onBudget);
-  const remainder = splitRemainder(draft.amount, draft.splits);
+  const singleMetadata =
+    editing?.splits.length === 1
+      ? {
+          memo: editing.splits[0]?.memo ?? '',
+          ...(draft.kind === 'expense'
+            ? { incomeTypeId: editing.splits[0]?.incomeTypeId ?? null }
+            : {}),
+          ...(draft.contactId ? { categoryId: editing.splits[0]?.categoryId ?? '' } : {}),
+        }
+      : {};
+  const lineDraft = isTransfer ? draft : { ...draft, lines: captureLines(draft, singleMetadata) };
 
   // The budget of the booking's month gives the categories by stage and their Available.
   const parsedDate = captureDate(draft.date, today.slice(0, 4));
@@ -228,7 +262,11 @@ export function CaptureForm({
     };
     void saveChoices(choices).catch(() => undefined);
   }, [accounts.data, lookups.data, all]);
-  const splitCategoryKey = draft.splits.map((x) => x.categoryId).join('|');
+  const splitCategoryKey = [
+    draft.categoryId,
+    ...draft.splits.map((x) => x.categoryId),
+    ...(draft.lines?.map((x) => x.categoryId) ?? []),
+  ].join('|');
   // A split line that already has an archived category keeps listing it, so the line stays valid.
   const splitPickable = useMemo(
     () => categoriesFor(all, draft.kind, splitCategoryKey.split('|')),
@@ -251,37 +289,22 @@ export function CaptureForm({
     [open],
   );
   const splitLocked = Boolean(editing?.splits.some((x) => x.transferId));
-  const blocked = draft.splitOn && remainder !== 0;
-  const startSplit = () =>
-    setDraft((d) => ({
-      ...d,
-      splitOn: true,
-      contactId: '',
-      splits: [
-        newSplit({
-          type: d.contactId ? 'contact' : 'category',
-          contactId: d.contactId || null,
-          categoryId: d.contactId ? '' : d.categoryId,
-          amount: d.amount,
-        }),
-        newSplit(),
-      ],
-    }));
+  const lineValidation = buildCreate({ ...lineDraft, accountId, date: parsedDate ?? '' }, null, {
+    requireCategory: !editing,
+    advanceCategoryId,
+    trackingAccountIds,
+  });
+  const lineProblem = !lineValidation.ok ? lineValidation.errors.splits : undefined;
+  const blocked = !isTransfer && Boolean(lineProblem);
+  const splitError = errors.splits === REMAINDER_SAVE_ERROR && !blocked ? undefined : errors.splits;
 
-  const dirty = queued
+  const draftDirty = queued
     ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(queued.draft))
     : editing
       ? JSON.stringify(strip(draft)) !== JSON.stringify(strip(editDraft!))
-      : captureDirty(draft, keptPayee) || Boolean(draft.repeat);
-  // The panel opens to record money: the amount is the first thing typed. The dialog moves the
-  // focus itself when it opens, so this runs after it.
-  useEffect(() => {
-    if (editing) return;
-    const frame = requestAnimationFrame(() =>
-      formRef.current?.querySelector<HTMLElement>('.amount-input')?.focus(),
-    );
-    return () => cancelAnimationFrame(frame);
-  }, [editing]);
+      : captureDirty(draft, keptPayee) ||
+        Boolean(draft.repeat || draft.lines?.some((line) => line.shares.length));
+  const dirty = draftDirty || JSON.stringify(bankIntent) !== JSON.stringify(queuedBankIntent);
 
   useEffect(() => {
     dirtyRef.current = dirty;
@@ -299,6 +322,7 @@ export function CaptureForm({
     if (
       !editing &&
       !queued &&
+      !hasAccountContext &&
       draft.kind !== 'transfer' &&
       key &&
       (chosen || key !== accountPayee.current)
@@ -324,16 +348,23 @@ export function CaptureForm({
       if (next === undefined || !categoriesFor(all, d.kind, '').some((c) => c.id === next))
         return d;
       appliedByPayee.current = next;
-      return { ...d, categoryId: next };
+      return {
+        ...d,
+        categoryId: next,
+        ...(d.lines?.length === 1 && d.lines[0]?.type === 'category'
+          ? { lines: [{ ...d.lines[0], categoryId: next }] }
+          : {}),
+      };
     });
   };
 
-  const changeKind = (kind: BookingKind) =>
+  const changeKind = (kind: BookingKind) => {
+    if (kind !== draft.kind) setBankIntent(null);
     setDraft((d) => {
       accountRequest.current++;
       appliedByPayee.current = null;
       const valid = kind !== 'expense' || all.find((c) => c.id === d.categoryId)?.kind !== 'income';
-      return {
+      const next = {
         ...d,
         kind,
         incomeNextMonth: kind === 'income' ? d.incomeNextMonth : false,
@@ -342,14 +373,23 @@ export function CaptureForm({
         contactId: kind === 'transfer' ? '' : d.contactId,
         splitOn: kind === 'transfer' ? false : d.splitOn,
       };
+      if (kind === 'transfer') delete next.lines;
+      else if (!valid && next.lines)
+        next.lines = next.lines.map((line) => ({ ...line, categoryId: '' }));
+      return next;
     });
+  };
 
   const typedPayee = () => {
     const name = draft.payee.trim();
     if (name === '' || isTransfer) return { name: '', known: undefined };
     return {
       name,
-      known: payees.data?.payees.find((p) => p.name.toLowerCase() === name.toLowerCase()),
+      // The booking's retained identity is authoritative while the payee cache catches up.
+      known:
+        editing?.payeeId && editing.payeeName?.toLowerCase() === name.toLowerCase()
+          ? { id: editing.payeeId, name, defaultCategoryId: null }
+          : payees.data?.payees.find((p) => p.name.toLowerCase() === name.toLowerCase()),
     };
   };
 
@@ -378,8 +418,13 @@ export function CaptureForm({
   const save = async (andNew: boolean) => {
     if (saving.current) return;
     if (!editing && !from) return setErrors({ account: 'Bitte ein verfügbares Konto wählen.' });
-    if (blocked) return setErrors({ splits: 'Speichern geht erst, wenn der Rest 0,00 € ist.' });
-    const filled = { ...draft, date: parsedDate ?? '', accountId, status: effectiveStatus };
+    if (blocked) return setErrors({ splits: REMAINDER_SAVE_ERROR });
+    const filled = {
+      ...lineDraft,
+      date: parsedDate ?? '',
+      accountId,
+      status: queued && isTransfer ? draft.status : effectiveStatus,
+    };
     const advance = { advanceCategoryId, trackingAccountIds };
     saving.current = true;
     setBusy(true);
@@ -417,9 +462,11 @@ export function CaptureForm({
       const built = buildCreate(filled, known?.id ?? null, options);
       if (!built.ok) return setErrors(built.errors);
       const input =
-        built.value.type === 'booking' && name && !known
-          ? { ...built.value, payeeName: name }
-          : built.value;
+        built.value.type === 'transfer' && currentBankIntent
+          ? { ...built.value, bankStatus: currentBankIntent.status }
+          : built.value.type === 'booking' && name && !known
+            ? { ...built.value, payeeName: name }
+            : built.value;
       if (queued) {
         await editQueued(queued.id, input, filled);
         return onDone();
@@ -430,6 +477,7 @@ export function CaptureForm({
       if (!andNew) return onDone();
       // The next booking keeps the context (kind, account, date, payee and its category).
       setStatusChosen(false);
+      setBankIntent(null);
       setKeptPayee(draft.payee);
       setDraft((d) => ({
         ...emptyDraft(accountId, d.date),
@@ -486,6 +534,10 @@ export function CaptureForm({
     if (!form || e.shiftKey || !(target instanceof HTMLInputElement)) return;
     if (['checkbox', 'radio', 'button', 'submit'].includes(target.type)) return;
     e.preventDefault();
+    if (!blocked && lineValidation.ok) {
+      void save(false);
+      return;
+    }
     const list = fields(form);
     const next = list
       .slice(list.indexOf(target) + 1)
@@ -496,11 +548,16 @@ export function CaptureForm({
 
   const categoryName =
     selected?.name ?? (draft.kind === 'income' && draft.categoryId === '' ? 'Zu verteilen' : '');
-  const chips = [...new Set([...(payeeDefault ? [payeeDefault] : []), ...memory.categories])]
+  const chips = [
+    ...new Set([
+      ...(payeeDefault ? [payeeDefault] : []),
+      ...memory.categories,
+      ...pickable.map((c) => c.id),
+    ]),
+  ]
     .map((id) => pickable.find((c) => c.id === id))
     .filter((c): c is NonNullable<typeof c> => Boolean(c))
-    .slice(0, 4);
-  const amountAbs = amountOf(draft.amount) ?? 0;
+    .slice(0, 3);
 
   const pickCategory = (id: string) => set('categoryId', id === NONE ? '' : id);
 
@@ -512,22 +569,52 @@ export function CaptureForm({
     [draft.kind],
   );
   const showCategory = !isTransfer || needsCategory;
-  const effectiveStatus =
-    !editing && !queued && !statusChosen && !(state.mode === 'create' && state.prefill?.status)
+  const automaticCashStatus = !editing && from?.type === 'cash';
+  const effectiveStatus = automaticCashStatus
+    ? 'confirmed'
+    : !editing && !queued && !statusChosen && !(state.mode === 'create' && state.prefill?.status)
       ? 'pending'
       : draft.status;
-  const moreSummary = draft.projectId ? 'Projekt' : '';
-  const statusControl =
+  const shownStatus = manualPair ? bankStatus : effectiveStatus;
+  const bankAccount = manualPair?.cashSide === 'from' ? to : from;
+  const cashAccount = manualPair?.cashSide === 'from' ? from : to;
+  const moreSummary = [draft.projectId && 'Projekt', draft.flag && 'Markierung']
+    .filter(Boolean)
+    .join(', ');
+  const statusControl = (id?: string, describedBy?: string) =>
     locked && !unlock ? (
       <span className="status">geprüft</span>
     ) : (
       <button
+        id={id}
+        aria-describedby={describedBy}
         type="button"
         className="icon-btn bk-status"
-        aria-label={effectiveStatus === 'confirmed' ? 'Bestätigt' : 'Vorgemerkt'}
-        title={effectiveStatus === 'confirmed' ? 'Bestätigt' : 'Vorgemerkt'}
-        aria-pressed={effectiveStatus === 'confirmed'}
+        aria-label={
+          manualPair
+            ? `${bankAccount?.name}: Status ${shownStatus === 'confirmed' ? 'Bestätigt' : 'Vorgemerkt'}`
+            : effectiveStatus === 'confirmed'
+              ? 'Bestätigt'
+              : 'Vorgemerkt'
+        }
+        title={
+          automaticCashStatus && !manualPair
+            ? 'Bargeldbuchungen sind sofort bestätigt'
+            : shownStatus === 'confirmed'
+              ? 'Bestätigt'
+              : 'Vorgemerkt'
+        }
+        disabled={automaticCashStatus && !manualPair}
+        aria-pressed={shownStatus === 'confirmed'}
         onClick={() => {
+          if (manualPair) {
+            setBankIntent({
+              fromAccountId: accountId,
+              toAccountId: draft.toAccountId,
+              status: bankStatus === 'confirmed' ? 'pending' : 'confirmed',
+            });
+            return;
+          }
           setStatusChosen(true);
           set('status', effectiveStatus === 'confirmed' ? 'pending' : 'confirmed');
         }}
@@ -543,34 +630,13 @@ export function CaptureForm({
         >
           <path
             d="m4 12 5 5L20 6l-2-2-9 9-3-3z"
-            fill={effectiveStatus === 'confirmed' ? 'currentColor' : 'none'}
+            fill={shownStatus === 'confirmed' ? 'currentColor' : 'none'}
           />
         </svg>
       </button>
     );
   const dateAndRepeat = (
     <div className="bk-dates" data-enter-skip>
-      <div className="kchips bk-date-chips" role="group" aria-label="Datum wählen">
-        <button
-          type="button"
-          className="chip"
-          aria-pressed={draft.date === today}
-          onClick={() => set('date', today)}
-        >
-          Heute
-        </button>
-        <button
-          type="button"
-          className="chip"
-          aria-pressed={draft.date === addDays(today, -1)}
-          onClick={() => set('date', addDays(today, -1))}
-        >
-          Gestern
-        </button>
-        <button type="button" className="chip" onClick={() => dateRef.current?.focus()}>
-          Datum…
-        </button>
-      </div>
       <div className="bk-date-row">
         <DateField
           draft={draft}
@@ -580,10 +646,7 @@ export function CaptureForm({
           year={today.slice(0, 4)}
         />
         {!isTransfer && (
-          <Field
-            label="Wiederholen"
-            hint="Legt beim Speichern eine wiederkehrende Zahlung an. Die nächste Fälligkeit folgt nach einem Rhythmus."
-          >
+          <Field label="Wiederholen">
             {({ id }) => (
               <Select
                 id={id}
@@ -603,12 +666,36 @@ export function CaptureForm({
     </div>
   );
 
+  const lineEditor = (
+    <SplitEditor
+      draft={draft}
+      setDraft={setDraft}
+      categories={splitPickable}
+      accounts={open}
+      accountId={accountId}
+      contacts={contacts}
+      hasAdvanceCategory={Boolean(advanceCategoryId)}
+      locked={splitLocked}
+      error={splitError ?? errors.category}
+      suggestions={chips}
+      singleMetadata={singleMetadata}
+    />
+  );
+
   return (
     // Keyboard flow is handled once for all fields of the form.
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <form
-      ref={formRef}
-      className="bkform"
+      // React's autoFocus runs before showModal; the native dialog needs the attribute itself.
+      ref={(form) => {
+        formRef.current = form;
+        const amount = form?.querySelector<HTMLInputElement>('.amount-input');
+        if (!editing && amount && !amount.autofocus) {
+          amount.autofocus = true;
+          if (form?.closest('dialog')?.open) amount.focus();
+        }
+      }}
+      className={`bkform${isTransfer ? '' : ' bk-split-cols'}`}
       onSubmit={(e) => {
         e.preventDefault();
         void save(false);
@@ -669,204 +756,213 @@ export function CaptureForm({
             </label>
           </div>
         )}
-        <AmountInput
-          label="Betrag"
-          showOperators={false}
-          value={draft.amount}
-          onChange={(v) => set('amount', v)}
-          sign={isTransfer ? null : draft.kind === 'income' ? '+' : '−'}
-          error={errors.amount}
-        />
-        {!isTransfer && (
-          <div className="bk-payee">
-            <Combobox
-              label={draft.kind === 'income' ? 'Von (Zahler)' : 'Empfänger'}
-              value={draft.payee}
-              placeholder="Suchen oder neu anlegen"
-              pickSingle
-              onChange={(text) => {
-                accountRequest.current++;
-                set('payee', text);
-              }}
-              onSelect={(o) => {
-                set('payee', o.label);
-                applyPayeeDefault(o.label, true);
-              }}
-              onFocusChange={(focused) => !focused && applyPayeeDefault(draft.payee)}
-              options={(payees.data?.payees ?? [])
-                .filter((p) => !p.systemKind)
-                .sort((a, b) => (b.lastBookingDate ?? '').localeCompare(a.lastBookingDate ?? ''))
-                .map((p) => ({
-                  id: p.id,
-                  label: p.name,
-                  hint: all.find((c) => c.id === p.defaultCategoryId)?.name,
-                }))}
+        <div className="bk-cols">
+          <div className="bk-col-head">
+            <AmountInput
+              label="Betrag"
+              showOperators={false}
+              value={draft.amount}
+              onChange={(v) => set('amount', v)}
+              sign={isTransfer ? null : draft.kind === 'income' ? '+' : '−'}
+              error={errors.amount}
             />
-          </div>
-        )}
-        <div
-          className={isTransfer ? 'kform-pair' : 'bk-account-row'}
-          {...(isTransfer ? {} : { 'data-enter-skip': true })}
-        >
-          <Field
-            label={isTransfer ? 'Von Konto' : draft.kind === 'expense' ? 'Bezahlt von' : 'Konto'}
-            error={errors.account}
-          >
-            {({ id, describedBy, invalid }) => (
-              <Select
-                id={id}
-                value={accountId}
-                disabled={legOfTransfer}
-                aria-invalid={invalid}
-                aria-describedby={describedBy}
-                onChange={(e) => {
-                  accountRequest.current++;
-                  set('accountId', e.target.value);
-                }}
-              >
-                <AccountOptions accounts={open} />
-              </Select>
-            )}
-          </Field>
-          {isTransfer ? (
-            <Field label="Nach Konto" error={errors.toAccount}>
-              {({ id, describedBy, invalid }) => (
-                <Select
-                  id={id}
-                  value={draft.toAccountId}
-                  disabled={legOfTransfer}
-                  aria-invalid={invalid}
-                  aria-describedby={describedBy}
-                  onChange={(e) => set('toAccountId', e.target.value)}
-                >
-                  <option value="">Konto wählen</option>
-                  <AccountOptions accounts={open} exclude={accountId} />
-                </Select>
-              )}
-            </Field>
-          ) : (
-            statusControl
-          )}
-        </div>
-        {isTransfer && statusControl}
-        {dateAndRepeat}
-        {!draft.splitOn && (
-          <div className="bk-category-row">
-            {showCategory && (
-              <fieldset className="kcatfield" disabled={Boolean(draft.contactId)}>
-                <CategoryCombobox
-                  label="Kategorie"
-                  categories={pickable}
-                  leading={leading}
-                  selectedName={categoryName}
-                  error={errors.category}
-                  onSelect={pickCategory}
+            {!isTransfer && (
+              <div className="bk-payee">
+                <Combobox
+                  label={draft.kind === 'income' ? 'Von (Zahler)' : 'Empfänger'}
+                  value={draft.payee}
+                  placeholder="Suchen oder neu anlegen"
+                  pickSingle
+                  onChange={(text) => {
+                    accountRequest.current++;
+                    set('payee', text);
+                  }}
+                  onSelect={(o) => {
+                    set('payee', o.label);
+                    applyPayeeDefault(o.label, true);
+                  }}
+                  onFocusChange={(focused) => !focused && applyPayeeDefault(draft.payee)}
+                  options={(payees.data?.payees ?? [])
+                    .filter((p) => !p.systemKind)
+                    .sort((a, b) =>
+                      (b.lastBookingDate ?? '').localeCompare(a.lastBookingDate ?? ''),
+                    )
+                    .map((p) => ({
+                      id: p.id,
+                      label: p.name,
+                      hint: all.find((c) => c.id === p.defaultCategoryId)?.name,
+                    }))}
                 />
-                {/* Always there (empty until a category is chosen): choosing one, e.g. by the
-                    payee's default as the payee field is left, must not move the fields below
-                    under the pointer. */}
-                <p className="kavail" aria-live="polite">
-                  {selected && selected.availableCents !== null && (
-                    <>
-                      Verfügbar im {monthName(parsedDate ?? today)}:{' '}
-                      <strong>{eur(selected.availableCents)}</strong>
-                      {draft.kind === 'expense' && amountAbs > 0 && (
-                        <> · danach {eur(selected.availableCents - amountAbs)}</>
-                      )}
-                    </>
-                  )}
-                </p>
-                {chips.length > 0 && (
-                  <div className="kchips" role="group" aria-label="Vorschläge">
-                    {chips.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        className="chip"
-                        aria-pressed={c.id === draft.categoryId}
-                        onClick={() => pickCategory(c.id)}
-                      >
-                        {c.cls && <ClassSwatch kind={c.cls} />}
-                        {c.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </fieldset>
+              </div>
             )}
-            {!isTransfer && !draft.splitOn && (
-              <ContactSelect
-                label={draft.kind === 'income' ? 'Rückzahlung von Kontakt' : 'Auslage für Kontakt'}
-                value={draft.contactId}
-                onChange={(id) => set('contactId', id)}
-                contacts={contacts}
-                noneLabel="keiner"
-                error={errors.contact}
-                hint={
-                  draft.contactId
-                    ? advanceCategoryId
-                      ? 'Läuft über Auslagen, eine eigene Kategorie ist nicht nötig.'
-                      : 'Läuft über Auslagen. Die Kategorie wird beim ersten Mal automatisch angelegt.'
-                    : undefined
-                }
+            <div className="bk-context">
+              <div className="bk-context-fields">
+                <div
+                  className={isTransfer ? 'kform-pair' : 'bk-account-row'}
+                  {...(isTransfer ? {} : { 'data-enter-skip': true })}
+                >
+                  <Field
+                    label={
+                      isTransfer ? 'Von Konto' : draft.kind === 'expense' ? 'Bezahlt von' : 'Konto'
+                    }
+                    error={errors.account}
+                  >
+                    {({ id, describedBy, invalid }) => (
+                      <Select
+                        id={id}
+                        value={accountId}
+                        disabled={legOfTransfer}
+                        aria-invalid={invalid}
+                        aria-describedby={describedBy}
+                        onChange={(e) => {
+                          accountRequest.current++;
+                          set('accountId', e.target.value);
+                        }}
+                      >
+                        <AccountOptions accounts={open} />
+                      </Select>
+                    )}
+                  </Field>
+                  {isTransfer ? (
+                    <Field label="Nach Konto" error={errors.toAccount}>
+                      {({ id, describedBy, invalid }) => (
+                        <Select
+                          id={id}
+                          value={draft.toAccountId}
+                          disabled={legOfTransfer}
+                          aria-invalid={invalid}
+                          aria-describedby={describedBy}
+                          onChange={(e) => set('toAccountId', e.target.value)}
+                        >
+                          <option value="">Konto wählen</option>
+                          <AccountOptions accounts={open} exclude={accountId} />
+                        </Select>
+                      )}
+                    </Field>
+                  ) : (
+                    statusControl()
+                  )}
+                </div>
+                {isTransfer &&
+                  (manualPair && cashAccount && bankAccount ? (
+                    <div className="kform-pair">
+                      <Field
+                        label={`${cashAccount.name}: Status`}
+                        hint="Bargeld ist sofort bestätigt."
+                      >
+                        {({ id, describedBy }) => (
+                          <TextInput
+                            id={id}
+                            value="Bestätigt"
+                            readOnly
+                            aria-describedby={describedBy}
+                          />
+                        )}
+                      </Field>
+                      <Field label={`${bankAccount.name}: Status`}>
+                        {({ id, describedBy }) => statusControl(id, describedBy)}
+                      </Field>
+                    </div>
+                  ) : (
+                    statusControl()
+                  ))}
+                {dateAndRepeat}
+              </div>
+            </div>
+          </div>
+          <div className="bk-col-lines">
+            {isTransfer && showCategory && (
+              <CategoryCombobox
+                label="Kategorie"
+                capturePicker
+                categories={pickable}
+                leading={leading}
+                selectedName={categoryName}
+                error={errors.category}
+                onSelect={pickCategory}
               />
             )}
-            {!isTransfer && (
-              <Button variant="ghost" className="ksplit-start" onClick={startSplit}>
-                Split
-              </Button>
-            )}
+            {!isTransfer && lineEditor}
           </div>
-        )}
-        <Field label="Notiz">
-          {({ id }) => (
-            <textarea
-              ref={noteRef}
-              id={id}
-              className="input bk-note"
-              rows={1}
-              value={draft.memo}
-              placeholder="Optional"
-              autoComplete="off"
-              onChange={(e) => set('memo', e.target.value)}
-            />
-          )}
-        </Field>
-        {!isTransfer && draft.splitOn && (
-          <SplitEditor
-            draft={draft}
-            setDraft={setDraft}
-            categories={splitPickable}
-            accounts={open}
-            accountId={accountId}
-            contacts={contacts}
-            hasAdvanceCategory={Boolean(advanceCategoryId)}
-            locked={splitLocked}
-            error={errors.splits}
-          />
-        )}
-        <details
-          className="kmore"
-          open={moreOpen}
-          onToggle={(e) => setMoreOpen(e.currentTarget.open)}
-        >
-          <summary>
-            Mehr{moreSummary && <span className="bk-more-summary"> · {moreSummary}</span>}
-          </summary>
-          <div className="kform">
-            {((lookups.data?.projects ?? offlineChoices?.projects)?.length ?? 0) > 0 && (
-              <Field label="Projekt">
+          <div className="bk-col-memo">
+            <Field label="Notiz">
+              {({ id }) => (
+                <textarea
+                  ref={noteRef}
+                  id={id}
+                  className="input bk-note"
+                  rows={1}
+                  value={draft.memo}
+                  placeholder="Optional"
+                  autoComplete="off"
+                  onChange={(e) => set('memo', e.target.value)}
+                />
+              )}
+            </Field>
+            <details
+              className="kmore"
+              open={moreOpen}
+              onToggle={(e) => setMoreOpen(e.currentTarget.open)}
+            >
+              <summary>
+                Mehr{moreSummary && <span className="bk-more-summary"> · {moreSummary}</span>}
+                <span aria-hidden="true" className="kmore-caret">
+                  {' '}
+                  ▾
+                </span>
+              </summary>
+              <div className="kform">
+                {!isTransfer && (
+                  <Field label="Markierung">
+                    {({ id }) => (
+                      <Select
+                        id={id}
+                        value={draft.flag}
+                        onChange={(e) => set('flag', e.target.value as BookingFlag | '')}
+                      >
+                        <option value="">keine</option>
+                        {BOOKING_FLAGS.map((f) => (
+                          <option key={f} value={f}>
+                            {FLAG_LABEL[f]}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                )}
+                {((lookups.data?.projects ?? offlineChoices?.projects)?.length ?? 0) > 0 && (
+                  <Field label="Projekt">
+                    {({ id }) => (
+                      <Select
+                        id={id}
+                        value={draft.projectId}
+                        onChange={(e) => set('projectId', e.target.value)}
+                      >
+                        <option value="">kein Projekt</option>
+                        {(lookups.data?.projects ?? offlineChoices?.projects ?? []).map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                            {p.archivedAt ? ' · archiviert' : ''}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                )}
+              </div>
+            </details>
+            {draft.kind === 'income' && (
+              <Field label="Einnahmeart">
                 {({ id }) => (
                   <Select
                     id={id}
-                    value={draft.projectId}
-                    onChange={(e) => set('projectId', e.target.value)}
+                    value={draft.incomeTypeId}
+                    onChange={(e) => set('incomeTypeId', e.target.value)}
                   >
-                    <option value="">kein Projekt</option>
-                    {(lookups.data?.projects ?? offlineChoices?.projects ?? []).map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                        {p.archivedAt ? ' · archiviert' : ''}
+                    <option value="">keine Angabe</option>
+                    {(lookups.data?.incomeTypes ?? offlineChoices?.incomeTypes ?? []).map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
                       </option>
                     ))}
                   </Select>
@@ -874,25 +970,7 @@ export function CaptureForm({
               </Field>
             )}
           </div>
-        </details>
-        {draft.kind === 'income' && (
-          <Field label="Einnahmeart">
-            {({ id }) => (
-              <Select
-                id={id}
-                value={draft.incomeTypeId}
-                onChange={(e) => set('incomeTypeId', e.target.value)}
-              >
-                <option value="">keine Angabe</option>
-                {(lookups.data?.incomeTypes ?? offlineChoices?.incomeTypes ?? []).map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
-        )}
+        </div>
 
         {errors.form && (
           <p className="field-error" role="alert">
@@ -919,6 +997,11 @@ export function CaptureForm({
           </Button>
         </div>
       )}
+      {blocked && (
+        <p id="booking-save-reason" className="bk-save-reason" role="status">
+          {lineProblem}
+        </p>
+      )}
       <div className="bk-foot">
         {editing && (
           <div className="bk-foot-extra">
@@ -938,7 +1021,11 @@ export function CaptureForm({
             Abbrechen
           </Button>
         )}
-        <Button type="submit" disabled={busy || blocked}>
+        <Button
+          type="submit"
+          disabled={busy || blocked}
+          aria-describedby={blocked ? 'booking-save-reason' : undefined}
+        >
           Speichern
         </Button>
       </div>
@@ -961,7 +1048,6 @@ function DateField({
   year: string;
 }) {
   useAmountPrivacy();
-  const pickerRef = useRef<HTMLInputElement>(null);
   const parsed = captureDate(draft.date, year);
   return (
     <div className="kdate">
@@ -974,30 +1060,19 @@ function DateField({
               ref={inputRef}
               value={draft.date.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3.$2.$1')}
               placeholder="TT.MM.JJJJ"
-              inputMode="numeric"
+              inputMode="text"
               autoComplete="off"
               aria-invalid={invalid}
               aria-describedby={describedBy}
               onChange={(e) => set('date', e.target.value)}
               onBlur={() => parsed && set('date', parsed)}
-              onClick={() => pickerRef.current?.showPicker?.()}
             />
             <span className="bk-calendar">
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label="Kalender öffnen"
-                title="Kalender öffnen"
-                onClick={() => pickerRef.current?.showPicker?.()}
-              >
-                <CalendarDays size={18} aria-hidden="true" />
-              </button>
+              <CalendarDays size={18} aria-hidden="true" />
               <input
-                ref={pickerRef}
                 type="date"
                 aria-label="Datum im Kalender"
-                aria-hidden="true"
-                tabIndex={-1}
+                title="Kalender öffnen"
                 value={parsed ?? ''}
                 onChange={(e) => set('date', e.target.value)}
               />
@@ -1011,5 +1086,17 @@ function DateField({
 
 /** A draft without the generated split keys: two drafts are the same when nothing was typed. */
 function strip(draft: BookingDraft) {
-  return { ...draft, splits: draft.splits.map((s) => ({ ...s, key: '' })) };
+  return {
+    ...draft,
+    splits: draft.splits.map((s) => ({ ...s, key: '' })),
+    ...(draft.lines
+      ? {
+          lines: draft.lines.map((line) => ({
+            ...line,
+            key: '',
+            shares: line.shares.map((share) => ({ ...share, key: '' })),
+          })),
+        }
+      : {}),
+  };
 }

@@ -1,0 +1,72 @@
+name: Agent task
+description: A small, self-contained task for the autonomous queue (one issue = one PR)
+labels: []
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why this is needed. Link the relevant SPEC/ROADMAP section.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What is in and what is explicitly out.
+      value: |
+        In:
+        -
+
+        Out:
+        -
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: One checkbox per testable criterion. Every criterion gets a test.
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Set the matching area:* label (one area per issue).
+      options:
+        - area:ledger
+        - area:ui
+        - area:nav
+        - area:portfolio
+        - area:plan
+        - area:reports
+        - area:accounts
+        - area:settings
+        - area:infra
+        - area:docs
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk
+      description: Set the matching risk:* label. High = money logic, migrations, auth, deploy.
+      options:
+        - risk:low
+        - risk:high
+    validations:
+      required: true
+  - type: input
+    id: depends
+    attributes:
+      label: Depends on
+      description: Issue numbers that must be merged first (add the blocked label until then).
+      placeholder: '#123'
+  - type: input
+    id: spec
+    attributes:
+      label: Figma / spec link
+      description: Design or spec reference (no real data).

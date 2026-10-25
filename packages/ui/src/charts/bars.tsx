@@ -10,7 +10,7 @@ export interface Bar {
 
 /**
  * Bars around a zero line in their own band (no second y-axis).
- * `ink` = solid ink (own contribution), `pale` = pale ink (market), `signed` = pastel direction
+ * `ink` = solid ink (own contribution), `pale` = pale ink (market), `signed` = teal/orange direction
  * colours, only for signed changes. Direction is also readable from the bar's side of zero.
  */
 export type BarTone = 'ink' | 'pale' | 'signed';
@@ -21,9 +21,17 @@ export interface BarsAroundZeroProps {
   y: (value: number) => number;
   barWidth: number;
   tone?: BarTone;
+  /** Keep historical negative values quiet, or draw debt as a dashed outline. */
+  negativeTone?: 'red' | 'ink' | 'outline';
 }
 
-export function BarsAroundZero({ bars, y, barWidth, tone = 'ink' }: BarsAroundZeroProps) {
+export function BarsAroundZero({
+  bars,
+  y,
+  barWidth,
+  tone = 'ink',
+  negativeTone = 'red',
+}: BarsAroundZeroProps) {
   const zero = y(0);
   return (
     <g>
@@ -33,7 +41,11 @@ export function BarsAroundZero({ bars, y, barWidth, tone = 'ink' }: BarsAroundZe
         const height = Math.max(1, Math.abs(y(bar.value) - zero));
         const cls =
           bar.value < 0
-            ? 'bar-neg2'
+            ? negativeTone === 'outline'
+              ? 'bar-neg-outline'
+              : negativeTone === 'ink'
+                ? 'bar-neg-ink'
+                : 'bar-neg2'
             : tone === 'signed'
               ? 'bar-pos'
               : tone === 'pale'

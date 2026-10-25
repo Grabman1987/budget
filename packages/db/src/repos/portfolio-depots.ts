@@ -2,13 +2,14 @@ import { portfolioBenchmarks, type PortfolioBenchmarkSeries } from './portfolio-
 import { cashValuer } from './cash-valuation';
 import {
   ExchangeRateUnavailableError,
-  benchmarkIndexLine,
+  benchmarkQuotesInEur,
+  performanceReportSeries,
   depotIndexLine,
   periodWindow,
   shareBps,
   sumSeries,
   windowPerformance,
-  type BenchmarkLevel,
+  type ReportQuote,
   type IndexPoint,
   type Period,
   type PerformanceInput,
@@ -18,7 +19,7 @@ import {
 import { and, asc, eq, isNull, lte } from 'drizzle-orm';
 import { account, institution, price, security, valuation } from '../schema';
 import { cashSeries, portfolioFlows, valuationSeries } from './portfolio';
-import { firstDay, positionLines } from './portfolio-summary';
+import { firstDay, positionLines, ratesAsOf } from './portfolio-summary';
 import type { Executor } from './types';
 
 export interface DepotProduct {
@@ -133,29 +134,39 @@ export function depotComparison(
       date,
       valueCents: values[i] as number,
     }));
+    const flowsOf = (taxBasis: 'after-tax' | 'before-tax' | 'pp-irr') => [
+      ...portfolioFlows(db, {
+        from: start,
+        to: today,
+        view: 'securities',
+        taxBasis,
+        includedCashAccounts: accounts.filter(
+          (id) => !['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
+        ),
+        accounts: accounts.filter((id) =>
+          ['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
+        ),
+      }),
+      ...portfolioFlows(db, {
+        from: start,
+        to: today,
+        view: 'depot',
+        includedSecuritiesAccounts: accounts.filter((id) =>
+          ['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
+        ),
+        accounts: accounts.filter(
+          (id) => !['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
+        ),
+        referenceAccounts: accounts.filter(
+          (id) => !['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
+        ),
+      }),
+    ];
     return {
       series: valuations,
-      flows: [
-        ...portfolioFlows(db, {
-          from: start,
-          to: today,
-          view: 'securities',
-          accounts: accounts.filter((id) =>
-            ['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
-          ),
-        }),
-        ...portfolioFlows(db, {
-          from: start,
-          to: today,
-          view: 'depot',
-          accounts: accounts.filter(
-            (id) => !['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
-          ),
-          referenceAccounts: accounts.filter(
-            (id) => !['brokerage', 'crypto'].includes(accountRows.get(id)?.type ?? ''),
-          ),
-        }),
-      ],
+      flows: flowsOf('after-tax'),
+      returnFlows: flowsOf('before-tax'),
+      irrFlows: flowsOf('pp-irr'),
     };
   };
 
@@ -164,14 +175,16 @@ export function depotComparison(
   const benchmarkSecurity = benchmarkSecurityId
     ? db.select().from(security).where(eq(security.id, benchmarkSecurityId)).get()
     : undefined;
-  let levels: BenchmarkLevel[] = [];
-  if (benchmarkSecurity)
-    levels = db
-      .select({ date: price.date, level: price.priceMicro })
+  let levels: ReportQuote[] = [];
+  if (benchmarkSecurity) {
+    const rows = db
+      .select()
       .from(price)
       .where(and(eq(price.securityId, benchmarkSecurity.id), lte(price.date, today)))
       .orderBy(asc(price.date))
       .all();
+    levels = benchmarkQuotesInEur(rows, ratesAsOf(db, today), benchmarkSecurity.kind);
+  }
   const withBenchmark = (input: PerformanceInput): PerformanceInput =>
     levels.length > 0 ? { ...input, benchmark: levels } : input;
 
@@ -224,8 +237,16 @@ export function depotComparison(
   };
 
   const totalLine = depotIndexLine(totalInput, effective);
-  const boundaryDays = totalLine.map((p) => p.date);
-  const benchmarkIndex = levels.length > 0 ? benchmarkIndexLine(levels, boundaryDays) : null;
+  const benchmarkByDate = new Map(
+    performanceReportSeries(totalInput, effective, levels).dailyBenchmark.map((point) => [
+      point.date,
+      point.benchmark,
+    ]),
+  );
+  const benchmarkIndex =
+    levels.length > 0
+      ? totalLine.map(({ date }) => ({ date, level: benchmarkByDate.get(date) ?? null }))
+      : null;
 
   // Closed zero-value accounts remain visible only when this period contains value or flows.
   const accountIds = accounts

@@ -159,7 +159,7 @@ export const RowsGrid = forwardRef<HTMLDivElement, RowsGridProps>(function RowsG
         {
           name: row.label,
           value: value === null ? '–' : row.kind === 'pct' ? chartPercent(value) : eur(value),
-          color: value !== null && value < 0 ? 'var(--red)' : 'var(--line)',
+          color: value !== null && value < 0 ? 'var(--ink-2)' : 'var(--line)',
         },
       ],
     })),

@@ -91,6 +91,65 @@ describe('actual contact statement', () => {
       creditCents: 0,
     });
   });
+  it('marks only a recorded full clearing as a history boundary, never an inferred legacy receipt', () => {
+    const movements = [movement('a', -3000), movement('b', -7000), movement('partial', 4000)];
+    expect(contactStatement(movements).closedThroughSplitId).toBeNull();
+    expect(contactStatement(movements).receipts.map((receipt) => receipt.recorded)).toEqual([
+      false,
+    ]);
+    const settled = contactStatement(
+      [...movements, movement('final', 6000)],
+      [
+        {
+          receiptSplitId: 'final',
+          allocations: [{ outlaySplitId: 'b', amountCents: 6000 }],
+          creditCents: 0,
+        },
+      ],
+    );
+    expect(settled.balanceCents).toBe(0);
+    expect(settled.outlays.every((outlay) => outlay.remainingCents === 0)).toBe(true);
+    expect(settled.closedThroughSplitId).toBe('final');
+    expect(settled.receipts.map((receipt) => receipt.recorded)).toEqual([false, true]);
+    expect(
+      contactStatement(
+        [...movements, movement('final', 6000)],
+        [
+          {
+            receiptSplitId: 'final',
+            allocations: [{ outlaySplitId: 'b', amountCents: 6000 }],
+            creditCents: 0,
+          },
+        ],
+      ).closedThroughSplitId,
+    ).toBe('final');
+    expect(
+      contactStatement(
+        [movement('a', -3000), movement('r', 4000)],
+        [
+          {
+            receiptSplitId: 'r',
+            allocations: [{ outlaySplitId: 'a', amountCents: 3000 }],
+            creditCents: 1000,
+          },
+        ],
+      ).closedThroughSplitId,
+    ).toBeNull();
+  });
+  it('keeps the literal 5,500 cent balance open after partial receipts and a later outlay', () => {
+    const statement = contactStatement([
+      movement('a', -3000, '2026-08-01'),
+      movement('b', -7000, '2026-08-02'),
+      movement('partial', 4000, '2026-08-03'),
+      movement('c', -500, '2026-09-01'),
+      movement('later', 1000, '2026-09-02'),
+    ]);
+    expect(statement.balanceCents).toBe(5500);
+    expect(statement.outlays.find((outlay) => outlay.splitId === 'b')?.remainingCents).toBe(5000);
+    expect(statement.outlays.find((outlay) => outlay.splitId === 'c')?.remainingCents).toBe(500);
+    expect(statement.closedThroughSplitId).toBeNull();
+    expect(statement.receipts.every((receipt) => !receipt.recorded)).toBe(true);
+  });
   it('refuses partial, duplicate and future-target allocation', () => {
     const outlays = contactStatement([movement('a', -10000)]).outlays;
     expect(() =>

@@ -181,7 +181,7 @@
 }
 .tbd-head h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--fs-headline);
   font-weight: 620;
   letter-spacing: -0.01em;
 }
@@ -218,7 +218,7 @@
   padding: 8px;
   border-bottom: 1px solid var(--line-2);
   text-align: left;
-  font-size: 11px;
+  font-size: var(--fs-label);
 }
 .ktable td {
   padding: 12px 8px;
@@ -261,10 +261,10 @@
   overflow: visible;
 }
 .kmini .l-actual {
-  stroke-width: 1.5;
+  stroke-width: var(--stroke-measure);
 }
 .kmini .l-plan {
-  stroke-width: 1;
+  stroke-width: var(--stroke-hairline);
 }
 .kdelta {
   display: inline-block;
@@ -293,6 +293,10 @@
   font-size: var(--fs-chart-label);
   font-weight: 500;
   color: var(--ink-3);
+}
+/* Negative depot cash lines use the same red as the sidebar tree (.acct-cash.is-neg). */
+.kmeta.is-neg {
+  color: var(--red);
 }
 .krow:hover td {
   background: var(--tint);
@@ -323,17 +327,17 @@
   align-items: center;
   gap: 8px;
   margin-top: 6px;
-  font-size: 12px;
+  font-size: var(--fs-label);
   color: var(--ink-3);
 }
 .kcheck.is-stale {
-  color: var(--red);
+  color: var(--minus-ink);
 }
 .kutil .pbar {
   position: relative;
   display: block;
   width: 120px;
-  height: 6px;
+  height: var(--bar-progress);
   background: var(--tint-2);
   border-radius: 1px;
 }
@@ -346,7 +350,7 @@
   margin: 14px 0 4px;
   font-size: var(--fs-body);
   color: var(--ink-2);
-  border-radius: 6px;
+  border-radius: 8px;
 }
 .kclosed summary {
   display: inline-flex;
@@ -356,7 +360,7 @@
   padding: 0 4px;
   cursor: pointer;
   font-family: var(--font-tech);
-  font-size: 12px;
+  font-size: var(--fs-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -397,6 +401,7 @@
 .kback {
   display: inline-flex;
   align-items: center;
+  min-height: var(--touch);
   gap: 4px;
   margin-bottom: 14px;
   color: var(--ink-2);
@@ -419,6 +424,10 @@
   font-size: var(--fs-figure);
   font-weight: 650;
   letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+.kacct-head > div {
+  min-width: 0;
 }
 .kacct-actions {
   display: flex;
@@ -437,7 +446,7 @@
   gap: 2px;
 }
 .fig strong {
-  font-size: 24px;
+  font-size: var(--fs-figure);
   font-weight: 640;
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -451,7 +460,38 @@
   color: var(--ink-3);
 }
 .kchart-box {
-  min-height: 250px;
+  min-height: 140px;
+}
+.kchart {
+  margin-block: 8px;
+}
+.kchart-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.kchart-head .seg {
+  margin-left: auto;
+}
+.kchart-head .seg button {
+  min-height: var(--touch);
+}
+.kchart-head .pill {
+  justify-content: center;
+}
+.kchart-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--touch);
+  padding: 0 8px 0 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
 }
 .kchart-box .chart {
   display: block;
@@ -520,6 +560,175 @@
 }
 .is-pending td {
   color: var(--ink-2);
+}
+
+/* "Kommend": future captures and next occurrences sit in the register's own table, so the
+   columns, header and alignment are shared with the history below. */
+.ktable .kupcoming-head th {
+  padding: 0;
+  border-block: 1px solid var(--rule);
+  background: var(--surface-2);
+  text-align: left;
+  font-weight: inherit;
+}
+.kupcoming-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 8px;
+  text-align: left;
+  color: var(--ink);
+  font-weight: 560;
+  cursor: pointer;
+}
+.kupcoming-toggle svg {
+  flex: none;
+  color: var(--ink-3);
+  transition: rotate var(--t-fast) var(--ease-out);
+}
+.kupcoming-toggle[aria-expanded='false'] svg {
+  rotate: -90deg;
+}
+.kupcoming-toggle:focus-visible {
+  outline: 2px solid var(--line);
+  outline-offset: -2px;
+}
+.ktable .kregister-today td {
+  padding: 12px 8px;
+  border-block: 1px solid var(--rule);
+  background: var(--surface-2);
+  font-weight: 560;
+}
+.ktx .is-upcoming .kx-date {
+  white-space: nowrap;
+  letter-spacing: 0;
+}
+.ktx .is-upcoming td,
+.ktx .is-upcoming .kname-s,
+.ktx .is-upcoming .kcat,
+.ktx .is-upcoming .kname-btn,
+.ktx .is-upcoming .kcell-edit,
+.ktx .is-upcoming .kstatus-btn {
+  color: var(--ink-3);
+  font-weight: 400;
+}
+.ktx .is-upcoming .kupcoming-positive {
+  color: color-mix(in srgb, var(--plus-ink) 70%, var(--ink-3));
+}
+.ktx .is-upcoming .kupcoming-negative {
+  color: color-mix(in srgb, var(--minus-ink) 70%, var(--ink-3));
+}
+/* Next occurrence: the name on the left, the two actions as small ghost buttons on its right. */
+.kschedule-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.kschedule-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kschedule-actions {
+  display: flex;
+  flex: none;
+  gap: 4px;
+}
+.kschedule-actions .btn {
+  white-space: nowrap;
+  font-weight: 400;
+}
+/* The actions stay out of sight and out of reach until the row is hovered or holds focus, so
+   "Überspringen" cannot be hit by accident. Touch gets a ⋯ button instead. */
+.kschedule-more {
+  display: none;
+}
+@media (hover: hover) and (min-width: 768px) {
+  .kschedule-actions {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .ktx tr.is-upcoming:hover .kschedule-actions,
+  .ktx tr.is-upcoming:focus-within .kschedule-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+@media (hover: none), (max-width: 767px) {
+  .kschedule-more {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--touch);
+    min-height: var(--touch);
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+  .kschedule-more:focus-visible {
+    outline: 2px solid var(--line);
+    outline-offset: -2px;
+  }
+  .kschedule-actions {
+    display: none;
+  }
+  .kschedule-line.is-open .kschedule-actions {
+    display: flex;
+  }
+}
+.ktx .is-upcoming .kx-check:empty {
+  padding: 0;
+}
+@media (max-width: 767px) {
+  .ktable .kupcoming-head,
+  .ktable .kregister-today tr {
+    display: block;
+    padding: 0;
+  }
+  .ktable .kupcoming-head th,
+  .ktable .kregister-today td {
+    display: block;
+    margin: 0 -16px;
+    padding-inline: 16px;
+  }
+  .kupcoming-toggle {
+    min-height: var(--touch);
+    padding: 0;
+  }
+  .ktable .kregister-today td {
+    padding-block: 12px;
+  }
+  .ktx tr.is-upcoming .kx-check {
+    display: none;
+  }
+  /* Scheduled rows have no flag button: keep the column as wide as the flag buttons above. */
+  .ktx tr.is-upcoming .kx-flag:empty {
+    min-width: var(--touch);
+  }
+  .ktx-all tr.is-upcoming {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'flag payee amount' '. cat acct' '. date run' '. . status';
+  }
+  .ktx-all .kx-run:empty {
+    display: none;
+  }
+  .kschedule-line {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .kschedule-name {
+    flex: 1 1 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .kschedule-line.is-open .kschedule-actions {
+    flex: 1 1 100%;
+  }
 }
 
 /* Kontostand prüfen */
@@ -641,19 +850,13 @@
 .kc-check {
   width: 40px;
 }
-.ktable input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--line);
-  vertical-align: middle;
-}
 .kday td {
   padding: 16px 8px 6px;
   background: transparent;
   border-bottom: 1px solid var(--line-2);
 }
 .kday .tech {
-  font-size: 11.5px;
+  font-size: var(--fs-label);
   color: var(--ink-2);
 }
 .kday-sum {
@@ -677,11 +880,6 @@
   margin: 12px 0 0;
   font-size: var(--fs-body);
   color: var(--ink-2);
-}
-.kselect-all input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--line);
 }
 .kf.kf-sort {
   display: none;
@@ -709,11 +907,6 @@
   gap: 6px;
   font-size: var(--fs-chart-label);
   color: var(--ink-3);
-}
-.kf-closed input {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--line);
 }
 /* Desktop row: the checkbox hangs below the account field so every field sits on one line. */
 .kfilter .kf:has(> .kf-closed) {
@@ -765,7 +958,7 @@
   height: auto;
   max-width: 100%;
   border: 1px solid var(--rule-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   white-space: normal;
   overflow-wrap: anywhere;
   text-align: left;
@@ -826,7 +1019,7 @@
   gap: 8px;
   margin: 4px 0;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-weight: 600;
   font-size: var(--fs-body);
 }
@@ -871,16 +1064,16 @@
     gap: 20px;
   }
   .tbd-fig {
-    font-size: 44px;
+    font-size: var(--fs-dimension);
   }
   .kfigs {
     gap: 12px 24px;
   }
   .fig strong {
-    font-size: 21px;
+    font-size: var(--fs-figure);
   }
   .kchart-box {
-    min-height: 200px;
+    min-height: 140px;
   }
   .grp-sub {
     display: block;
@@ -1032,7 +1225,7 @@
   align-items: center;
   min-height: 40px;
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
 }
 .combo-hint {
@@ -1047,7 +1240,7 @@
 .combo-group {
   padding: 8px 10px 2px;
   font-family: var(--font-tech);
-  font-size: 11px;
+  font-size: var(--fs-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -1055,6 +1248,25 @@
 .combo-empty {
   padding: 10px;
   color: var(--ink-2);
+}
+.is-capture-category .combo-list {
+  box-sizing: border-box;
+  min-width: 0;
+}
+.is-capture-category .combo-option > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 768px) and (pointer: fine) {
+  .bkform .is-capture-category .combo-option {
+    min-height: 36px;
+    padding-block: 4px;
+  }
+}
+@media (pointer: coarse) {
+  .is-capture-category .combo-option {
+    min-height: 44px;
+  }
 }
 .kchips {
   display: flex;
@@ -1069,7 +1281,7 @@
   height: 36px;
   padding: 0 12px;
   border: 1px solid var(--rule-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   font-size: var(--fs-body);
   font-weight: 520;
   color: var(--ink);
@@ -1113,7 +1325,7 @@
 }
 .khint {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--ink-3);
 }
 .kdiff .btn {
@@ -1253,9 +1465,9 @@
   gap: 10px;
   min-height: 40px;
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: 8px;
   text-align: left;
-  font-size: 14px;
+  font-size: var(--fs-table);
 }
 .kflagitem:hover,
 .kflagitem:focus-visible {
@@ -1274,7 +1486,7 @@
   border: 1px solid var(--rule-strong);
   border-radius: 4px;
   font-family: var(--font-tech);
-  font-size: 11.5px;
+  font-size: var(--fs-label);
   text-align: center;
   color: var(--ink-2);
 }
@@ -1285,7 +1497,7 @@
   color: var(--ink-2);
 }
 .kcleared.is-on {
-  color: var(--good-ink);
+  color: var(--good);
 }
 .kcleared.is-on:hover {
   background: var(--good-soft);
@@ -1325,6 +1537,8 @@
   font-size: var(--fs-title);
 }
 .bk-body {
+  /* Keep native scroll alignment clear of fractional clipping at the sheet edge. */
+  scroll-padding-block: 1px;
   min-height: 0;
   overflow: auto;
   padding: 16px 20px 12px;
@@ -1397,7 +1611,7 @@
   background: var(--raised);
   border-bottom: 1px solid var(--rule);
   font-family: var(--font-tech);
-  font-size: 11px;
+  font-size: var(--fs-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -1519,6 +1733,113 @@
   cursor: text;
   max-width: 100%;
 }
+.kcell-edit:hover,
+.kcell-edit:focus-visible {
+  background: var(--ground-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+button.kstatus-btn:hover,
+button.kstatus-btn:focus-visible {
+  background: var(--ground-2);
+  color: var(--ink);
+}
+.kstatus-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 8px;
+}
+.kstatus-chips > .btn {
+  min-height: var(--touch);
+  border: 1px solid var(--rule);
+}
+.kstatus-chips > .btn[aria-pressed='true'] {
+  background: var(--ground-2);
+  border-color: var(--line);
+}
+.kstatus-chips .status {
+  margin: 0;
+}
+.klegend-short,
+.kstatus-all-short {
+  display: none;
+}
+.kbooking-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.kbooking-tools > .kbooking-legend[open] {
+  flex-basis: 100%;
+}
+.kbooking-legend {
+  margin-block: 8px;
+  font-size: var(--fs-label);
+}
+.kbooking-legend > summary {
+  width: fit-content;
+  max-width: 100%;
+  min-height: var(--touch);
+  align-content: center;
+  cursor: pointer;
+  color: var(--ink-2);
+}
+.kbooking-legend-body {
+  padding: 8px 0;
+  border-block: 1px solid var(--rule);
+}
+.kbooking-legend-body ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.kbooking-legend-body ul + ul {
+  margin-top: 8px;
+}
+.kbooking-legend-body li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.kbooking-legend-body .status {
+  margin: 0;
+}
+@media (max-width: 767px) {
+  .kstatus-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    margin-top: 0;
+    gap: var(--space-xs);
+  }
+  .kstatus-chips > .btn {
+    flex-shrink: 0;
+    padding-inline: var(--space-sm);
+  }
+  .klegend-full,
+  .kstatus-all-full {
+    display: none;
+  }
+  .klegend-short,
+  .kstatus-all-short {
+    display: inline;
+  }
+  /* Pack only the new tools into the existing select-all row; retain full 44px targets. */
+  .kbooking-tools:has(> .kselect-all) {
+    margin-block: calc(-1 * var(--space-sm));
+  }
+  .kbooking-tools > .kbooking-legend,
+  .kbooking-tools > .kselect-all {
+    margin: 0;
+  }
+}
 .kc-num .kcell-edit {
   text-align: right;
 }
@@ -1548,8 +1869,7 @@
   color: var(--ink-3);
   cursor: pointer;
 }
-.kdate-status,
-.kchart-range {
+.kdate-status {
   display: flex;
   align-items: end;
   gap: 12px;
@@ -1572,25 +1892,6 @@
 .kdate-status .seg button {
   min-height: 44px;
 }
-.kchart-range {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 160px);
-  margin-block: 16px;
-}
-.kchart-range .report-quick {
-  display: contents;
-}
-.kchart-range .report-quick select {
-  min-width: 0;
-  width: 100%;
-}
-.kchart-range .report-custom {
-  grid-column: 1 / -1;
-}
-.kchart-range .seg button {
-  min-height: 44px;
-}
-
 /* Booking suggestions open above the payee: no overlap or blur reflow at Bezahlt von. */
 .bk-payee .combo-list {
   top: auto;
@@ -1623,7 +1924,9 @@
 /* Capture controls and the account-only desktop note column. */
 .bk-note {
   min-height: 44px;
-  padding-block: 10px;
+  /* Whole-pixel T6 line keeps the auto-grow height stable (one line = 44 px on iPhone). */
+  padding-block: 9px;
+  line-height: var(--lh-body);
   resize: none;
   overflow: hidden;
 }
@@ -1701,12 +2004,20 @@
 }
 .bk-calendar input {
   position: absolute;
-  inset: -1px;
+  /* Keep the native hit area above the 44px floor during fractional dialog translation. */
+  inset: -2px;
   opacity: 0;
-  width: calc(100% + 2px);
-  height: calc(100% + 2px);
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
   cursor: pointer;
-  pointer-events: none;
+}
+.bk-calendar input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
 }
 .bk-calendar:focus-within {
   outline: 2px solid var(--line);
@@ -1744,5 +2055,259 @@
   }
   .kx-mobile-note {
     display: block;
+  }
+}
+/* Booking lines share the capture grid and stay inside the sheet's scrolling body. */
+.bk-context {
+  min-width: 0;
+}
+.bk-context-fields,
+.bk-lines,
+.bk-line {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.bk-lines {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.bk-lines > .btn {
+  justify-self: start;
+}
+.bk-line + .bk-line {
+  border-top: 1px solid var(--rule);
+  padding-top: 12px;
+}
+.bk-line-fields,
+.bk-date-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: end;
+}
+.bk-line-fields.is-multiple > .amount {
+  grid-column: 1 / -1;
+}
+.bk-line-fields > :first-child:last-child {
+  grid-column: 1 / -1;
+}
+.bk-line-fields .field-row,
+.bk-share .field-row {
+  min-width: 0;
+}
+.bk-lines .input,
+.bk-lines .select {
+  min-width: 0;
+  width: 100%;
+}
+.bk-share-toggle {
+  align-self: end;
+}
+.bk-suggestions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  overflow-x: auto;
+  min-width: 0;
+}
+.bk-suggestions .chip {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding-inline: 8px;
+  font-size: var(--fs-label);
+}
+/* Up to three suggestions share one line; a long name is cut, never wrapped or scrolled. */
+.bk-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bk-share {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+.bk-share-heading {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.bk-share-value {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.bk-share-value .seg button {
+  padding-inline: 8px;
+}
+.bk-share > .btn {
+  justify-self: start;
+}
+.bk-line-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bk-save-reason {
+  margin: 0;
+  padding: 8px 20px;
+  color: var(--red);
+  font-size: var(--fs-meta);
+}
+@media (max-width: 767px) {
+  .bk-line-fields.is-multiple > .amount {
+    grid-column: 1 / -1;
+  }
+  .bk-share-value .seg {
+    flex-wrap: wrap;
+  }
+}
+/* Contact shares and lock reasons remain visible on the phone. */
+.bk-lines .khint {
+  display: block;
+}
+@media (min-width: 375px) and (max-width: 767px) {
+  .bk-head {
+    flex-wrap: wrap;
+    padding-block: 0;
+    row-gap: 0;
+  }
+  .bk-kind {
+    order: 5;
+    flex: 1 0 100%;
+  }
+  .bk-head .seg button {
+    padding-inline: 4px;
+  }
+  .bk-body {
+    padding-top: 4px;
+    gap: 4px;
+  }
+  .bk-context-fields {
+    gap: 4px;
+  }
+  .bk-body .field-row {
+    gap: 0;
+  }
+  .bk-body .amount-box {
+    padding-block: 0;
+  }
+}
+
+/* Two-column capture card on desktop (#583): head left, booking lines right, Notiz and "Mehr ▾"
+   under the head. The wrappers vanish on the phone, where the sheet keeps one column in the same
+   order. A transfer has no lines and keeps the narrow card. */
+.bk-cols,
+.bk-col-head,
+.bk-col-lines,
+.bk-col-memo {
+  display: contents;
+}
+.bkform .kmore > summary {
+  list-style: none;
+}
+.bkform .kmore > summary::-webkit-details-marker {
+  display: none;
+}
+.kmore[open] > summary .kmore-caret {
+  display: inline-block;
+  transform: rotate(180deg);
+}
+@media (min-width: 768px) {
+  dialog.overlay.modal:has(.bk-split-cols) {
+    width: min(960px, calc(100vw - 32px));
+  }
+  .bk-split-cols .bk-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas: 'head lines' 'memo lines';
+    gap: 14px 28px;
+    align-items: start;
+    min-width: 0;
+  }
+  .bk-split-cols .bk-col-head,
+  .bk-split-cols .bk-col-lines,
+  .bk-split-cols .bk-col-memo {
+    display: grid;
+    gap: 14px;
+    align-content: start;
+    min-width: 0;
+  }
+  .bk-split-cols .bk-col-head {
+    grid-area: head;
+  }
+  .bk-split-cols .bk-col-lines {
+    grid-area: lines;
+  }
+  .bk-split-cols .bk-col-memo {
+    grid-area: memo;
+  }
+  /* Lines: Betrag, Kategorie and Teilen share one row, so two lines fit without scrolling. */
+  .bk-split-cols .bk-body {
+    padding-top: 12px;
+    gap: 8px;
+  }
+  .bk-split-cols .bk-body .khint {
+    margin-top: 0;
+  }
+  .bk-split-cols .bk-line-fields.is-multiple {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) auto;
+  }
+  .bk-split-cols .bk-line-fields.is-multiple > .amount {
+    grid-column: auto;
+  }
+  .bk-split-cols .bk-lines .amount-box {
+    min-height: 44px;
+    padding-block: 0;
+  }
+  .bk-split-cols .bk-lines .amount-input {
+    font-size: var(--fs-headline);
+  }
+  .bk-split-cols .bk-share {
+    align-items: end;
+  }
+}
+
+/* Capture fills the phone's visible viewport, including when the keyboard pans or resizes it.
+   The body owns scrolling; the save bar stays in the sheet above the bottom safe area. */
+@media (max-width: 767px) {
+  .bk-focus-scope dialog.sheet-bottom:has(.bkform) {
+    inset: var(--bk-viewport-top, 0px) 0 auto;
+    width: 100%;
+    height: var(--bk-viewport-height, 100dvh);
+    max-height: var(--bk-viewport-height, 100dvh);
+    border: 0;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top);
+    overflow: hidden;
+  }
+  .bk-focus-scope dialog.sheet-bottom:has(.bkform) .overlay-inner {
+    height: 100%;
+    max-height: 100%;
+  }
+  .bk-focus-scope dialog.sheet-bottom:has(.bkform) .sheet-grip {
+    display: none;
+  }
+  .bk-focus-scope dialog.sheet-bottom .bkform {
+    height: 100%;
+  }
+  .bk-focus-scope .bk-body {
+    flex: 1 1 auto;
+  }
+  .bk-focus-scope .bk-foot {
+    border-radius: 0;
+  }
+  .bk-focus-scope .bk-discard,
+  .bk-focus-scope .bk-save-reason {
+    flex-shrink: 1;
+    min-height: 44px;
+    overflow: auto;
   }
 }

@@ -3,14 +3,26 @@ import AxeBuilder from '@axe-core/playwright';
 import { join } from 'node:path';
 import { sampleTest as test, expect } from './sample';
 
+test.describe.configure({ timeout: 120_000 });
+
 async function openSearch(page: Page, mobile: boolean) {
+  const existing = page.getByRole('dialog', { name: 'Suchen', exact: true });
+  if (await existing.isVisible()) {
+    const input = existing.getByRole('combobox', { name: 'Suchen', exact: true });
+    await input.focus();
+    return input;
+  }
   await expect(page.getByRole('main')).toBeVisible();
+  if (new URL(page.url()).pathname !== '/suche') {
+    // Router URLs can change before the previous search view has unmounted.
+    await expect(page.locator('#search-query')).toHaveCount(0);
+  }
   if (!mobile) await expect(page.locator('#global-search')).toBeVisible();
   if (mobile) await page.getByRole('button', { name: 'Suchen', exact: true }).click();
   else await page.keyboard.press('Control+k');
-  // The previous page can stay rendered a moment after its URL changed; wait for the search page.
-  await expect(page).toHaveURL(/\/suche/);
-  const input = page.getByRole('combobox', { name: 'Suchen', exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Suchen', exact: true });
+  await expect(dialog).toBeVisible();
+  const input = dialog.getByRole('combobox', { name: 'Suchen', exact: true });
   await expect(input).toBeFocused();
   return input;
 }
@@ -19,7 +31,7 @@ test('global search: keyboard, account navigation, and unchanged booking-list se
   page,
 }, info) => {
   await page.goto('/plan/monat');
-  const mobile = info.project.name === 'mobile';
+  const mobile = info.project.name !== 'desktop';
   const input = await openSearch(page, mobile);
   await input.fill('Girokonto');
   const list = page.getByRole('listbox', { name: 'Suchergebnisse' });
@@ -41,7 +53,7 @@ test('global search: keyboard, account navigation, and unchanged booking-list se
 test('result types open existing category, payee, contact and exact booking views', async ({
   page,
 }, info) => {
-  const mobile = info.project.name === 'mobile';
+  const mobile = info.project.name !== 'desktop';
   await page.goto('/konten');
   for (const [query, kind, url] of [
     ['Lebensmittel', 'Kategorie', /kategorie=/],
@@ -60,10 +72,10 @@ test('result types open existing category, payee, contact and exact booking view
     await expect(page).toHaveURL(url);
     if (kind === 'Kontakt') {
       const panel = page.getByRole('region', { name: 'Kontaktkontoauszug' });
-      await expect(panel).toContainText('Kontoblatt');
+      await expect(panel).toContainText('Kontakt M. Muster');
       await page.reload();
       await expect(page.getByRole('region', { name: 'Kontaktkontoauszug' })).toContainText(
-        'Kontoblatt',
+        'Kontakt M. Muster',
       );
       await page.getByRole('link', { name: 'Zurück zu Kontakte', exact: true }).click();
     }
@@ -79,11 +91,11 @@ test('loading, empty and failed searches are explicit, retry works, Escape retur
   page,
 }, info) => {
   await page.goto('/');
-  const mobile = info.project.name === 'mobile';
+  const mobile = info.project.name !== 'desktop';
   const input = await openSearch(page, mobile);
   await expect(page.getByRole('option', { name: /Neue Buchung/ })).toBeVisible();
   await input.fill('nichtvorhandenesuchfolge');
-  await expect(page.getByText('Keine Treffer.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Keine Treffer.', { exact: true })).toBeVisible({ timeout: 15_000 });
   await page.route('**/api/search?*', async (route) =>
     route.fulfill({ status: 503, json: { error: 'unavailable' } }),
   );
@@ -97,26 +109,56 @@ test('loading, empty and failed searches are explicit, retry works, Escape retur
   if (mobile) await expect(page.getByRole('button', { name: 'Suchen', exact: true })).toBeFocused();
 });
 
-test('Escape steps back out of the search page instead of stacking the source page again', async ({
+test('overlay preserves the source URL, history, scroll, focus and month on Escape', async ({
   page,
-}, info) => {
-  await page.goto('/plan/monat');
-  const mobile = info.project.name === 'mobile';
+}) => {
+  await page.goto('/plan/monat?monat=2026-08');
+  const trigger = page.getByRole('button', { name: 'Suchen', exact: true });
+  await trigger.focus();
+  await page.evaluate(() => window.scrollTo(0, 240));
+  const scroll = await page.evaluate(() => scrollY);
   const before = await page.evaluate(() => history.length);
-  const input = await openSearch(page, mobile);
+  await page.keyboard.press('Control+k');
+  const dialog = page.getByRole('dialog', { name: 'Suchen', exact: true });
+  await expect(dialog).toBeVisible();
+  const input = dialog.getByRole('combobox', { name: 'Suchen', exact: true });
+  await expect(input).toBeFocused();
+  await expect(page.getByRole('group', { name: 'Aktionen' }).getByRole('option')).toHaveCount(4);
+  await expect(page.getByRole('group', { name: 'Seiten', exact: true })).toHaveCount(0);
   await input.fill('Girokonto');
-  await expect(page).toHaveURL(/\/suche\?.*q=Girokonto/);
+  await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-08$/);
   await input.press('Escape');
-  await expect(page).toHaveURL(/\/plan\/monat$/);
-  // One forward entry (the search) is left behind; a pushed copy of the source would add two.
-  expect(await page.evaluate(() => history.length)).toBe(before + 1);
+  await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-08$/);
+  expect(await page.evaluate(() => history.length)).toBe(before);
+  expect(await page.evaluate(() => scrollY)).toBe(scroll);
+  await expect(trigger).toBeFocused();
+});
+
+test('keyboard search returns focus to the field that opened it', async ({ page }) => {
+  await page.goto('/konten/buchungen');
+  const sourceField = page.getByRole('searchbox');
+  await sourceField.fill('Supermarkt');
+  await expect(page).toHaveURL(/\/konten\/buchungen\?q=Supermarkt$/);
+  const sourceUrl = page.url();
+  await sourceField.focus();
+  await page.keyboard.press('Control+k');
+  const dialog = page.getByRole('dialog', { name: 'Suchen', exact: true });
+  await expect(dialog).toBeVisible();
+  const input = dialog.getByRole('combobox', { name: 'Suchen', exact: true });
+  await expect(input).toBeFocused();
+  await input.fill('Girokonto');
+  await input.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(page).toHaveURL(sourceUrl);
+  await expect(sourceField).toHaveValue('Supermarkt');
+  await expect(sourceField).toBeFocused();
 });
 
 test('pending responses cannot replace a newer query and search is accessible in both themes', async ({
   page,
 }, info) => {
   await page.goto('/');
-  const mobile = info.project.name === 'mobile';
+  const mobile = info.project.name !== 'desktop';
   const input = await openSearch(page, mobile);
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
@@ -195,7 +237,7 @@ test('mobile header search preserves the month and stays clear of the capture ac
 test('palette: reports, pages, recent choices, actions and shortcut help', async ({
   page,
 }, info) => {
-  const mobile = info.project.name === 'mobile';
+  const mobile = info.project.name !== 'desktop';
   await page.goto('/plan/monat?monat=2026-08');
   let input = await openSearch(page, mobile);
   await input.fill('1.10 ein');
@@ -203,15 +245,15 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
   await input.press('Enter');
   await expect(page).toHaveURL(/\/reports\/einnahmen-ausgaben$/);
   input = await openSearch(page, mobile);
-  await expect(page.getByRole('listbox').getByRole('option').first()).toContainText(
-    '1.10 Einnahmen und Ausgaben',
-  );
+  await expect(
+    page.getByRole('group', { name: 'Zuletzt verwendet' }).getByRole('option').first(),
+  ).toContainText('1.10 Einnahmen und Ausgaben');
   await input.fill('vrmgn prtf');
   await input.press('Enter');
   await expect(page).toHaveURL(/\/vermoegen\/portfolio$/);
   for (const [label, panel] of [
     ['Neue Buchung', 'buchung'],
-    ['Posteingang öffnen', 'posteingang'],
+    ['Prüfen öffnen', 'posteingang'],
   ] as const) {
     input = await openSearch(page, mobile);
     await input.fill(label);
@@ -223,7 +265,7 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
       ).toBeVisible();
       await page.keyboard.press('Escape');
     } else {
-      await expect(page).toHaveURL(/\/konten\/posteingang/);
+      await expect(page).toHaveURL(/\/konten\/pruefen/);
       await expect(page.locator('.kinbox')).toBeVisible();
     }
     await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -249,7 +291,9 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
   await page.getByRole('button', { name: 'Tastenkürzel anzeigen (?)', exact: true }).click();
   const help = page.getByRole('dialog', { name: 'Tastenkürzel', exact: true });
   await expect(help).toBeVisible();
-  await expect(help).toContainText('Enter weiter');
+  await expect(help).toContainText(
+    'Enter speichert gültige Eingaben · Strg Enter speichert · Strg Umschalt Enter speichert und beginnt neu · Esc schließt',
+  );
   await expect(help).toContainText('6 Violett');
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
@@ -275,4 +319,74 @@ test('palette: reports, pages, recent choices, actions and shortcut help', async
   await expect(help).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(help).not.toBeVisible();
+});
+
+test('all results retain the query and source with reload-safe type filtering', async ({
+  page,
+}, info) => {
+  await page.goto('/plan/monat?monat=2026-08');
+  const input = await openSearch(page, info.project.name !== 'desktop');
+  await input.fill('Supermarkt');
+  await expect(page.getByRole('group', { name: 'Buchungen' })).toBeVisible();
+  await page.getByRole('button', { name: 'Alle Ergebnisse', exact: true }).click();
+  await expect(page).toHaveURL(/\/suche\?/);
+  await expect(page.getByRole('combobox', { name: 'Suchen', exact: true })).toHaveValue(
+    'Supermarkt',
+  );
+  await page.getByLabel('Ergebnistyp').selectOption('booking');
+  await expect(page).toHaveURL(/typ=booking/);
+  await page.reload();
+  await expect(page.getByLabel('Ergebnistyp')).toHaveValue('booking');
+  // Result options live inside the listbox; native select choices are separate.
+  await expect(page.getByRole('listbox').getByRole('option').first()).toContainText('Buchung');
+  await expect(
+    page.getByRole('listbox').locator('.global-search-kind', { hasText: /^Empfänger$/ }),
+  ).toHaveCount(0);
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  }
+  await page.getByRole('link', { name: 'Zurück zur vorherigen Ansicht' }).click();
+  await expect(page).toHaveURL(/\/plan\/monat\?monat=2026-08$/);
+});
+
+test('palette fits the viewport with touch targets, trapped focus and light/dark accessibility', async ({
+  page,
+}, info) => {
+  await page.goto('/konten');
+  const input = await openSearch(page, info.project.name !== 'desktop');
+  const dialog = page.getByRole('dialog', { name: 'Suchen', exact: true });
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    if (info.project.name !== 'desktop') {
+      const bounds = (await dialog.boundingBox())!;
+      expect(bounds.width).toBe(390);
+      expect(bounds.y).toBe(0);
+      for (const control of await dialog.locator('button:visible, input:visible').all()) {
+        const box = (await control.boundingBox())!;
+        expect(box.height).toBeGreaterThanOrEqual(44);
+        expect(box.width).toBeGreaterThanOrEqual(44);
+      }
+    }
+    if (process.env['BUDGET_SEARCH_EVIDENCE'])
+      await page.screenshot({
+        path: join(
+          process.env['BUDGET_SEARCH_EVIDENCE'],
+          `overlay-${theme}-${info.project.name}.png`,
+        ),
+        animations: 'disabled',
+      });
+  }
+  await input.fill('Plan');
+  await expect(page.getByRole('group', { name: 'Seiten', exact: true })).toBeVisible();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  expect(await dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
 });

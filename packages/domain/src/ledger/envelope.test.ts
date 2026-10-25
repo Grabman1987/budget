@@ -26,6 +26,12 @@ it('counts only negative available envelopes after the month carry rules, includ
 });
 
 describe('envelopeMonth', () => {
+  it('CASE-001: 40.00 carry + 100.00 assigned - 25.01 activity leaves 114.99', () => {
+    expect(
+      envelopeMonth({ carryCents: 4000, assignedCents: 10000, activityCents: -2501 }),
+    ).toMatchObject({ availableCents: 11499, overspentCents: 0 });
+  });
+
   it('available = carry + assigned + activity (activity is negative for spending)', () => {
     expect(
       envelopeMonth({ carryCents: 2800, assignedCents: 57200, activityCents: -38800 }),

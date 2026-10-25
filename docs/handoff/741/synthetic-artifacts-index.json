@@ -1,0 +1,34 @@
+[
+  {
+    "sha256": "9fd3ff0a9fd95183c863f57104af2d9c02bd961e74f6cfbb0d03609f7d0795be",
+    "path": "synthetic-artifacts/issue-741-card-automation--4d6db-nt-and-Undo-in-desktop-dark-webkit-iphone/desktop-dark.png"
+  },
+  {
+    "sha256": "0e88198e8252591feb3a8fc6d044f2c3bd84923811791a640a3b26f481507112",
+    "path": "synthetic-artifacts/issue-741-card-automation--4d6db-nt-and-Undo-in-desktop-dark-webkit-iphone/evidence.json"
+  },
+  {
+    "sha256": "0fa7fa5eabb38d8c1750a72b6221c6570c7e9dac52adf1cfc1f4e0cac8eb150c",
+    "path": "synthetic-artifacts/issue-741-card-automation--78df8-t-and-Undo-in-desktop-light-webkit-iphone/desktop-light.png"
+  },
+  {
+    "sha256": "c8c901b9e1d66dbf221e61958f5513c0af6bcc708c08aa18babddd4ed1ce9255",
+    "path": "synthetic-artifacts/issue-741-card-automation--78df8-t-and-Undo-in-desktop-light-webkit-iphone/evidence.json"
+  },
+  {
+    "sha256": "f8e50b665d3eafe8dfb630ed6d94c4ef481df82fdd3aca95ab960cf4801cfc43",
+    "path": "synthetic-artifacts/issue-741-card-automation--89d70-ent-and-Undo-in-phone-light-webkit-iphone/evidence.json"
+  },
+  {
+    "sha256": "0c2d04dc8c375b957d58bcde460620ef8c306de475369ef198eff05d61a7916f",
+    "path": "synthetic-artifacts/issue-741-card-automation--89d70-ent-and-Undo-in-phone-light-webkit-iphone/phone-light.png"
+  },
+  {
+    "sha256": "f418ffff25d7c45e7a789eb35a621caa1491e4b5849c09ee5a87ef161d93e0d1",
+    "path": "synthetic-artifacts/issue-741-card-automation--a9f4f-ment-and-Undo-in-phone-dark-webkit-iphone/evidence.json"
+  },
+  {
+    "sha256": "eb1046796647583ef66521da727bc5349936678a05f00058a03ec9e1c53429a1",
+    "path": "synthetic-artifacts/issue-741-card-automation--a9f4f-ment-and-Undo-in-phone-dark-webkit-iphone/phone-dark.png"
+  }
+]

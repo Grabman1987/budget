@@ -125,7 +125,9 @@ test('fixed EUR report preserves credit, running history, source links and recei
   await page.goto(`/reports/kontakte?kontakt=${data.contact.id}`);
   await sheet.getByRole('link', { name: 'Kontakt in Konten öffnen', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/konten/kontakte/${data.contact.id}`));
-  await expect(page.getByRole('region', { name: 'Kontaktkontoauszug' })).toContainText('−20,00 €');
+  await expect(page.getByRole('region', { name: 'Kontaktkontoauszug' })).toContainText(
+    'Du schuldest 20,00 €',
+  );
   const undone = await data.post('/undo', { groupId: data.receipt.groupId });
   await page.goto(`/reports/kontakte?kontakt=${data.contact.id}`);
   await expect(sheet.getByRole('table').getByRole('row')).toHaveCount(2);

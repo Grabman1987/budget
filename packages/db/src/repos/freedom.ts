@@ -1,5 +1,9 @@
 import {
   DEFAULT_REAL_RETURN_BP,
+  addMonths,
+  allocation,
+  averageCents,
+  freedomSumCents,
   freedomAnnualSpendCents,
   freedomProgressBp,
   freedomTargetCents,
@@ -9,14 +13,10 @@ import {
 } from '@budget/domain';
 import { isNull, eq, and } from 'drizzle-orm';
 import { account, category, rule } from '../schema';
-import { netWorthValuationAsOf } from './portfolio';
 import { budget } from './queries';
+import { allocationMonth } from './allocation';
 import { referenceMonth } from './rule-inputs';
-import {
-  freedomExpenseMonths,
-  freedomInvestedCents,
-  freedomInvestmentAccounts,
-} from './freedom-inputs';
+import { freedomExpenseMonths, freedomInvestmentBasis } from './freedom-inputs';
 import type { Executor } from './types';
 
 export interface FreedomView {
@@ -29,6 +29,8 @@ export interface FreedomView {
   investedCents: number | null;
   progressBp: number | null;
   defaultRealReturnBp: number;
+  defaultSavingCents: number | null;
+  savingMonths: number;
   expensesUnsafe: boolean;
   accounts: {
     id: string;
@@ -50,6 +52,14 @@ export function freedomView(db: Executor, asOf: string): FreedomView {
   );
   const refMonth = referenceMonth(asOf);
   const months = freedomExpenseMonths({ categories, budgetByMonth }, refMonth);
+  const saving = monthsBetween(addMonths(refMonth, -5), refMonth)
+    .filter((month) => budgetByMonth.has(month))
+    .map(
+      (month) =>
+        allocation([allocationMonth(db, month, budgetByMonth.get(month)!.envelopes)]).futureCents,
+    );
+  const defaultSavingCents =
+    freedomSumCents(saving) === null ? null : Math.max(0, averageCents(saving));
   const raw = db
     .select()
     .from(rule)
@@ -73,26 +83,7 @@ export function freedomView(db: Executor, asOf: string): FreedomView {
   }
   const target = annualSpendCents === null ? null : freedomTargetCents(annualSpendCents, multiple);
   const targetCents = target !== null && Number.isSafeInteger(target) ? target : null;
-  const valuation = netWorthValuationAsOf(db, asOf);
-  const sources = freedomInvestmentAccounts(accounts, asOf).map((a) => {
-    const missingPrice = !!valuation.missingPriceByAccount[a.id]?.length;
-    // A position with neither a price nor a cost basis would silently count as 0: the Freiheitszahl
-    // progress stays unknown instead of understating the invested sum.
-    const value = missingPrice ? null : (valuation.byAccount[a.id] ?? null);
-    return {
-      id: a.id,
-      name: a.name,
-      valueCents: value !== null && Number.isSafeInteger(value) ? value : null,
-      missingPrice,
-      missingFxCurrencies: valuation.missingFxByAccount[a.id] ?? [],
-    };
-  });
-  const invested = freedomInvestedCents(
-    accounts,
-    asOf,
-    Object.fromEntries(sources.map((a) => [a.id, a.valueCents])),
-  );
-  const investedCents = invested !== null && Number.isSafeInteger(invested) ? invested : null;
+  const { investedCents, accounts: sources } = freedomInvestmentBasis(db, asOf);
   const progress =
     investedCents !== null && targetCents !== null && targetCents > 0 && months.length > 0
       ? freedomProgressBp(investedCents, targetCents)
@@ -107,6 +98,8 @@ export function freedomView(db: Executor, asOf: string): FreedomView {
     investedCents,
     progressBp: progress !== null && Number.isSafeInteger(progress) ? progress : null,
     defaultRealReturnBp: DEFAULT_REAL_RETURN_BP,
+    defaultSavingCents,
+    savingMonths: saving.length,
     expensesUnsafe: annualSpendCents === null || targetCents === null,
     accounts: sources,
   };

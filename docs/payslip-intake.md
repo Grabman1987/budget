@@ -1,11 +1,63 @@
 # Automatic payslip intake
 
-New payroll PDFs enter **Posteingang**, from the Gehaltsreport/Posteingang upload or
-an optional nightly Dropbox scan. No transaction is created. Confirmation saves
-the captured payslip through the existing audited repository and optionally links
-an existing salary booking and its receipt. Rejection discards the draft from the
-queue. Both decisions support grouped undo/redo. Original files and intake identity
-remain retained for audit, deduplication and recovery.
+Manual PDF uploads open the parsed result directly in the wide review dialog. The
+retained **Posteingang** task lets the owner resume later; optional nightly scans
+still enter that queue. With an explicitly configured salary account and employer,
+new app uploads request deterministic automatic capture of fully verified cases.
+Unknown, incomplete or ambiguous cases stay in **Prüfen**. Legacy clients without
+that explicit request and nightly scans retain manual review. The review proposes
+the configured active EUR salary account and allows another active EUR account.
+Confirmation links an existing matching salary booking or creates a pending payout
+(cash: confirmed), together with the payslip, receipt, expectation link and inbox
+decision in one audited, undoable transaction. Rejection retains the original and
+intake identity for audit, deduplication and recovery.
+
+## Deterministic automatic uploads
+
+The owner authorized this path in #741. Before choosing an automatic action, the
+server requires the current known parser, a period printed in the document,
+complete mapped wage lines and independently reconciled integer-cent totals. The
+existing signed one-cent rounding rule is unchanged. A printed payout date or one
+complete, exact configured salary expectation supplies the date; it is never
+guessed from month end. A nearby amount-only, wrong-sender or ambiguous booking
+keeps the document under review. An existing payout must match account, EUR,
+sender, exact date, amount and all salary/reimbursement split semantics.
+
+The original PDF is stored unchanged and verified before the atomic decision.
+Source, parse and configuration revisions are checked again after asynchronous
+PDF/file work. The existing audited confirmation writer creates or links the
+payout, payslip, receipt, expectation and inbox result together. Automatic audit
+provenance is explicit. Existing linked payout values, splits, status and history
+remain unchanged. The UI reports the result, links the persisted payout and offers
+Undo for the financial group, rather than the earlier source-staging group.
+
+Repeated bytes, concurrent uploads, already consumed or reparsed intakes and a
+different-byte version of a previously undone payroll slot cannot silently create
+another salary. Conflicting amendments remain for review. The stored association
+is read again after reload and disappears after financial Undo; it is not inferred
+from the current source account setting. Privacy changes immediately mask and
+restore displayed payroll figures without changing financial data.
+
+This feature does not process the owner's private historical archive during
+development or enable automatic posting from scheduled scans. Original download,
+manual review and the existing password/source boundaries remain available.
+
+The review exposes **Auszahlungsdatum**, **Von** and **Gehalts-Erwartung**. An explicit
+owner date wins; a printed PDF date or an eligible expected payment supplies a
+proposal. Without a date, confirmation cannot create or link a payout. There is no
+silent month-end payout fallback. Eligible expectations are unbooked expected EUR
+salary/special inflows on the chosen account in the document month; choosing one
+settles that occurrence instead of leaving a second expectation. A matched existing
+booking keeps its date and payee. Existing production corrections are not migrated.
+
+Known wage codes are classified automatically. Unknown numeric codes show their
+label and amount alongside the five existing section choices. **Zuordnen und neu
+auswerten** preserves the current salary source configuration and reparses the
+original bytes before atomically saving the mapping, parsed result and inbox
+urgency. Concurrent source-config or intake changes cause a conflict. An unreadable
+PDF never partially saves a mapping. Meal deductions remain labelled deduction
+lines; no new schema columns or payroll formulas are invented. Private historical
+PDFs have not been used for verification.
 
 ## Owner setup
 
@@ -56,9 +108,10 @@ Optional Dropbox setup:
    root for a read-only access token; it takes precedence and must be replaced when
    it expires. Never expose these values to the browser.
 5. Under **Einstellungen › Datenquellen › Gehaltszettel**, choose the EUR salary
-   account and configure any additional numeric Lohnart mappings. The form stores
-   owner data in the database, not in code. Upload a PDF, inspect the draft and
-   check the original document before confirming.
+   account, explicit employer/sender and any additional numeric Lohnart mappings.
+   The form stores owner data in the database, not in code. A new app upload
+   automatically saves only a fully verified result; inspect its original and
+   linked payout, or complete unresolved cases through manual review.
 
 6. Optional, write-back of uploads: set `DROPBOX_PAYSLIP_WRITE=1` (with the Dropbox
    settings above, a refresh-token setup, and the `files.content.write` scope; a
@@ -120,14 +173,28 @@ one cent; confirmation records that difference as an explicit signed rounding li
 Lohnsteuer refunds remain their own lines. Reimbursement lines do not enter the
 captured salary net or salary ratios.
 
-Booking suggestions use the configured salary account, existing EUR salary/special
-income splits and ±5 calendar days of the document's payout date, otherwise month
-end. The whole bank payout is compared with Auszahlung; the difference is visible.
+Booking suggestions use the selected payout account (initially the configured salary
+account), existing EUR salary/special
+income splits and ±5 calendar days of the selected/proposed payout date. Without a
+date the review returns no matching suggestions. The whole bank payout is compared
+with Auszahlung; the difference is visible.
 A single exact match is preselected. The owner can choose another disclosed
-candidate or save without linkage. Confirmation rechecks live account/booking
+candidate or explicitly create a new payout. A matching exact payout in that
+account blocks accidental duplicate creation; choose the existing booking instead. Confirmation rechecks live account/booking
 availability and the date window. No automatic split reassignment occurs: owner
 booking splits must separately classify reimbursements to exclude them from
-ledger-based savings-rate reports, as in the existing captured-payroll workflow.
+ledger-based savings-rate reports. New payouts separate salary/special income and
+tax-free reimbursements in integer cents. Payout, captured payroll, receipt link and
+inbox decision share one transaction and undo group. Invalid, closed, non-EUR or
+not-yet-open accounts roll back the whole action. Legacy API callers without
+`accountId` can still save without creating a booking. Existing records stay intact.
+
+The upload dialog also accepts one PDF dropped into its labelled region, with the
+same 15 MB limit and server validation/analysis as the file chooser. This provides
+an alternative input path; it does not prove a fix for the reported Chrome hang
+before native file selection. The automated chooser test clicks the actual inner
+button and waits for a filechooser event before supplying synthetic bytes. Native
+Windows dialog/profile behavior remains outside the Linux cloud evidence.
 
 ### Scope of the scheduled scan
 

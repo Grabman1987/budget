@@ -95,3 +95,19 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
   CMD node -e "fetch('http://127.0.0.1:'+process.env.PORT+'/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "server.js"]
+
+# Preview is an explicit opt-in build target. Its seed is generated solely from fixtures.
+FROM build AS preview-build
+COPY scripts/db-seed.ts scripts/db-seed.ts
+RUN npx tsx scripts/db-seed.ts --file /tmp/preview.sqlite
+RUN VITE_BUDGET_PREVIEW=1 npm run build -w @budget/web
+
+FROM runtime AS preview
+COPY --from=preview-build /tmp/preview.sqlite /app/preview.sqlite
+COPY --from=preview-build /repo/apps/web/dist /app/web
+COPY --chmod=755 scripts/dev/preview-entrypoint.sh /usr/local/bin/preview-entrypoint.sh
+ENTRYPOINT ["preview-entrypoint.sh"]
+CMD ["node", "server.js"]
+
+# Keep an unqualified docker build identical to the production runtime.
+FROM runtime AS production

@@ -199,6 +199,7 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
         view: 'securities',
         securities: [line.securityId],
         accounts: universe.accounts.map((a) => a.id),
+        taxBasis: 'before-tax',
       });
       const hasValue = valuations.some((v) => v.valueCents > 0);
       ttwror12.set(
@@ -397,11 +398,13 @@ export function allocationReport(db: Executor, options: { today: string }): Allo
   if (series && start !== null && series.days.length > 0) {
     const dates = monthBoundaries(start, today);
     const quality: AllocationQuality[] = [];
+    let previous: ReturnType<typeof resolvePortfolioRiskPolicy> | undefined;
     const snapshots = dates.map((date) => {
       const input = allocationInputsAsOf(db, date);
       if (input.valueCents === null) throwAllocationUnavailable(input, date);
       quality.push(input.quality);
-      const policy = resolvePortfolioRiskPolicy(db, date, input.valueCents);
+      const policy = resolvePortfolioRiskPolicy(db, date, input.valueCents, previous);
+      previous = policy;
       return { date, positions: input.positions, targets: policy.targets, bandPolicy: policy.R13 };
     });
     const timeline = allocationTimeline(snapshots);

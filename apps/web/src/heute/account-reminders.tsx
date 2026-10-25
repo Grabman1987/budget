@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { request } from '../api/http';
 import { LEDGER_KEY } from '../ledger/queries';
+import { longDay } from '../ledger/format';
 import { ErrorNote, LoadingNote } from '../ledger/states';
 import { AppLink } from '../shell/app-link';
 import type { AccountReminder } from './api';
@@ -12,7 +13,10 @@ export function AccountReminderRows({ items }: { items: AccountReminder[] }) {
       {items.map((item) => (
         <div className="account-reminder" key={item.accountId}>
           <span>
-            <strong>{item.accountName}</strong> · Konto seit {item.days} Tagen nicht geprüft
+            <strong>{item.accountName}</strong> · Prüfung fällig
+            {item.dueOn
+              ? ` seit ${longDay(item.dueOn)}`
+              : ` · seit ${item.days} Tagen nicht geprüft`}
             {item.action === 'value' ? ' · Wert aktualisieren' : ''}
           </span>
           <AppLink
