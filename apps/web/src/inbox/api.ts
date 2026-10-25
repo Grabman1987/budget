@@ -1,7 +1,8 @@
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { request } from '../api/http';
-import type { InboxPeriod, InboxSegment } from '@budget/domain';
+import type { InboxPeriod, InboxSegment, InboxTaskSource } from '@budget/domain';
 import { LEDGER_KEY } from '../ledger/queries';
+import type { AccountReminder } from '../heute/api';
 import type { SavingsExecutionProposal } from '../wealth/savings-api';
 export type InboxKind =
   | 'uncategorized'
@@ -83,6 +84,8 @@ export interface InboxPage extends InboxView {
   /** Konten › Prüfen only: the part shown and the open work of both parts. */
   segment?: InboxSegment;
   segments?: Record<InboxSegment, number>;
+  taskSources?: Record<InboxTaskSource, number>;
+  accountReminders?: AccountReminder[];
 }
 export const readSourceMovementsQuery = (sourceId: string, title: string) =>
   infiniteQueryOptions({
@@ -118,6 +121,7 @@ export const inboxPagesQuery = (
   /** Keeps the shown part stable after `auto` has picked one (same cache entry). */
   pinned?: InboxSegment,
   bankAccountId?: string,
+  taskSource?: 'plan' | 'payslips' | 'other',
 ) =>
   infiniteQueryOptions({
     queryKey: [
@@ -130,11 +134,12 @@ export const inboxPagesQuery = (
       fromDate ?? null,
       bankSource ? null : segment,
       ...(bankAccountId ? ['bank-account', bankAccountId] : []),
+      ...(taskSource ? ['task-source', taskSource] : []),
     ] as const,
     queryFn: ({ pageParam }) =>
       request<InboxPage>(
         'GET',
-        `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}${period === 'all' ? '' : `&period=${period}`}${bankSource ? `&bankSource=${encodeURIComponent(bankSource)}` : ''}${dateSort ? `&dateSort=${dateSort}` : ''}${fromDate ? `&fromDate=${encodeURIComponent(fromDate)}` : ''}${bankSource ? '' : `&segment=${segment === 'auto' ? (pinned ?? segment) : segment}`}${bankAccountId ? `&bankAccountId=${encodeURIComponent(bankAccountId)}` : ''}`,
+        `/api/inbox?limit=${INBOX_PAGE_SIZE}&offset=${pageParam}${period === 'all' ? '' : `&period=${period}`}${bankSource ? `&bankSource=${encodeURIComponent(bankSource)}` : ''}${dateSort ? `&dateSort=${dateSort}` : ''}${fromDate ? `&fromDate=${encodeURIComponent(fromDate)}` : ''}${bankSource ? '' : `&segment=${segment === 'auto' ? (pinned ?? segment) : segment}`}${bankAccountId ? `&bankAccountId=${encodeURIComponent(bankAccountId)}` : ''}${taskSource ? `&taskSource=${taskSource}` : ''}`,
       ),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.next ?? undefined,

@@ -1,6 +1,25 @@
 .kinbox {
   grid-column: 1 / -1;
 }
+.inbox-bank-status {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding: 8px 0;
+  border-block: 1px solid var(--rule);
+}
+.inbox-bank-status p {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.inbox-bank-status .btn {
+  min-height: 44px;
+  flex: 0 0 auto;
+}
 .inbox-source-summaries {
   padding: 0;
   list-style: none;
@@ -245,4 +264,32 @@
 }
 .inbox-segments button {
   min-height: 44px;
+}
+
+/* Source names may wrap; fixed action/count columns keep the phone table inside its page. */
+.inbox-task-sources {
+  table-layout: fixed;
+}
+.inbox-task-sources th,
+.inbox-task-sources td {
+  overflow-wrap: normal;
+  padding-inline-end: var(--space-sm);
+}
+.inbox-task-sources th:nth-child(2),
+.inbox-task-sources td:nth-child(2) {
+  width: calc(var(--touch) + var(--space-lg));
+  white-space: nowrap;
+}
+.inbox-task-sources th:last-child,
+.inbox-task-sources td:last-child {
+  width: calc(var(--touch) * 2 + var(--space-lg));
+  padding-inline-end: 0;
+}
+.inbox-task-sources .btn {
+  width: 100%;
+  max-width: 100%;
+  min-width: var(--touch);
+  min-height: var(--touch);
+  padding-inline: var(--space-sm);
+  white-space: nowrap;
 }

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type APIRequestContext, type TestInfo } from '@playwright/test';
-import { openPruefenPart } from './pruefen-part';
+import { openPruefenSource } from './pruefen-part';
 import { MAIN_URL } from '../playwright.config';
 
 test.use({ reducedMotion: 'reduce' });
@@ -44,7 +44,7 @@ test('monthly confirmation rejects a stale proposal, then confirms and undoes wi
   test.setTimeout(90000);
   const data = await fixture(request, info);
   await page.goto('/konten/posteingang');
-  await openPruefenPart(page, 'Aufgaben');
+  await openPruefenSource(page, 'Plan');
   const row = page.getByTestId('inbox-row').filter({ hasText: data.name });
   const opener = row.getByRole('button', { name: 'Ausführung prüfen', exact: true });
   await expect(opener).toBeVisible();
@@ -67,6 +67,7 @@ test('monthly confirmation rejects a stale proposal, then confirms and undoes wi
   await panel.getByRole('button', { name: 'Verwerfen', exact: true }).click();
   await expect(page.locator('dialog[open]')).toHaveCount(0);
   await page.reload();
+  await openPruefenSource(page, 'Plan');
   await opener.click();
   await panel.getByLabel('Stück', { exact: true }).fill('4');
   await panel.getByLabel('Gebühren (CHF)', { exact: true }).fill('1');

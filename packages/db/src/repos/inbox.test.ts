@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type OpenedDatabase } from '../client';
-import { inboxItem } from '../schema';
+import { accountReconciliation, inboxItem } from '../schema';
 import { insertTracked, undo } from './audit';
 import { createBooking, createTransfer, deleteBooking, updateBooking } from './bookings';
 import { readInbox, readInboxCount, resolveInboxItem } from './inbox';
@@ -11,6 +11,22 @@ let opened: OpenedDatabase;
 beforeEach(() => {
   opened = createTestDatabase();
   seedBasics(opened.db);
+  // This queue fixture isolates booking/warning work from unrelated due account checks.
+  for (const [accountId, balance] of [
+    ['giro', 100000],
+    ['spar', 0],
+    ['usd', 0],
+  ] as const)
+    opened.db
+      .insert(accountReconciliation)
+      .values({
+        id: `recent-${accountId}`,
+        accountId,
+        date: '2026-09-17',
+        statementBalanceCents: balance,
+        clearedBalanceCents: balance,
+      })
+      .run();
 });
 afterEach(() => opened.close());
 const TODAY = '2026-09-17';

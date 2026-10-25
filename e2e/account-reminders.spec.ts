@@ -1,3 +1,4 @@
+import { openPruefenSource } from './pruefen-part';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdirSync } from 'node:fs';
 import { sampleTest as test, expect, SAMPLE_URL } from './sample';
@@ -128,6 +129,7 @@ test('Today and inbox reminders open existing dialogs and include one-off plans 
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await page.goto('/konten/posteingang');
+    await openPruefenSource(page, 'Konten prüfen');
     const manualRow = page.locator('.account-reminder').filter({ hasText: manual.account.name });
     await expect(manualRow).toContainText('Prüfung fällig seit 13.09.2026');
     await manualRow.getByRole('link', { name: 'Wert aktualisieren' }).click();
@@ -161,6 +163,7 @@ test('Today and inbox reminders open existing dialogs and include one-off plans 
     const stored = await (await page.request.get('/api/display-settings')).json();
     expect(stored.accountReminderDays).toBe(36);
     await page.goto('/konten/posteingang');
+    await openPruefenSource(page, 'Konten prüfen');
     await expect(
       page.locator('.account-reminder').filter({ hasText: checking.account.name }),
     ).toContainText('Prüfung fällig seit 27.08.2026');
