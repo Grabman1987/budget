@@ -3,8 +3,7 @@
 # No production credentials, database seeding, tests or deployment.
 set -euo pipefail
 cd "$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
-node -e 'const major = Number(process.versions.node.split(".")[0]); if (![22,24].includes(major)) { console.error("Select Node 22 or 24 for this environment."); process.exit(1); }'
-npm ci
+npm ci --engine-strict
 if ! command -v age >/dev/null; then
   if [ "$(id -u)" -eq 0 ]; then
     apt-get update

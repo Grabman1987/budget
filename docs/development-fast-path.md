@@ -18,13 +18,13 @@ have been configured by adding this guide.
 
 ## Prepared cloud environment
 
-Choose `Grabman1987/budget`, branch `main`, Node 22 (24 is also supported), and use:
+Choose `Grabman1987/budget`, branch `main`, Node 22.22.2 or newer in the 22.x line (24.15.0+ in the 24.x line is also supported), and use:
 
 ```sh
 bash scripts/dev/setup-cloud.sh
 ```
 
-Run this once while preparing/publishing the environment. It installs locked npm
+Run this once while preparing/publishing the environment. It checks the declared Node compatibility through `npm ci --engine-strict`, then installs locked npm
 dependencies, age, Chromium, WebKit and their Linux dependencies. Setup needs network
 access to the existing npm/OS/Playwright package sources. Reprepare after lockfile,
 Node or browser-version changes; do not install all browsers again before every task.

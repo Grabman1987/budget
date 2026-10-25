@@ -43,7 +43,7 @@ are a reference, not a checklist to repeat before every PR. Full local test runs
 not routinely required when CI covers them. Prefer existing prepared work over a new
 implementation of the same issue.
 
-Node `^22.14.0 || ^24.0.0` (`.nvmrc`: 22), npm workspaces. Läuft unter Windows, macOS und Linux; `.npmrc` setzt `ignore-scripts=true` (better-sqlite3 liefert fertige Binaries, es wird nichts kompiliert).
+Node `^22.22.2 || ^24.15.0` (`.nvmrc`: 22), npm workspaces. Läuft unter Windows, macOS und Linux; `.npmrc` setzt `ignore-scripts=true` (better-sqlite3 liefert fertige Binaries, es wird nichts kompiliert).
 
 ```bash
 npm ci
