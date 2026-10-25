@@ -134,3 +134,13 @@ found unchanged transaction query keys, writer invalidation, BookingPanel and
 category combobox; additional reads may affect timing. An unchanged focused
 desktop/mobile run passed5/5 including setup in38.1s. Original count, financial,
 Undo/redo and keyboard assertions remain. This qualification is retained.
+
+## Delivery continuation, 2026-10-25
+
+The existing PR is resumed on the current main delivery process. The only merge
+conflict was the obsolete browser-install mirror workaround: current main uses
+the pinned Playwright container, so its CI workflow is retained byte-for-byte.
+The old mutable checkout and its uncommitted mirror experiment remain untouched.
+Earlier source/browser evidence retains its original revision and qualifications;
+only current exact-head CI establishes integrated coverage. No product assertion,
+financial oracle, timeout or baseline was weakened during this continuation.
