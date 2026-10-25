@@ -96,7 +96,10 @@ if any are added later (changing a spec itself still selects `full`).
 Changing the calculation, persistence, shared savings form, test files or another
 UI module selects `full`. Required checks retain their names and reject unexpected
 skips/failures. Adding another UI area needs an independently reviewed source-to-test
-mapping, not a label that bypasses checks. No assertion or timeout was weakened.
+mapping, not a label that bypasses checks. `risk:high` overrides the file mapping and
+forces full coverage. Set it before the final push; if review raises risk afterward,
+push an empty commit to include the label in a fresh CI event. Editing the label alone
+does not restart CI. No assertion or timeout was weakened.
 
 Browser/Windows jobs wait for static checks to pass. This avoids paying for a whole
 browser matrix when typechecking is already broken; on successful full runs it adds

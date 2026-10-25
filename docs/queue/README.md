@@ -37,7 +37,7 @@ Every completed change gets an independent review of the final diff. For a small
 | High      | Money, ledger, database, auth, migrations, CI, deploy or queue scripts                               | `risk:high`, capable independent full-diff review, required CI and integration gates |
 | Protected | Calculation semantics, security/locking/undo behavior, production data, secrets or branch protection | Separate owner approval before the protected change; preserve all existing gates     |
 
-If a technical change crosses risk levels, follow the higher level. Routine technical test adaptations described above do not become protected changes unless their semantics alter protected expectations.
+If a technical change crosses risk levels, follow the higher level. `risk:high` forces the full CI lane even inside an allowlisted UI file. Set the risk before the final push; when elevating risk after CI started, push an empty commit so the new pull-request event includes the label and wait for that exact-head run. Merely editing a label does not restart CI, and rerunning an old event may retain its old label context. Routine technical test adaptations described above do not become protected changes unless their semantics alter protected expectations.
 
 ## Screenshots and UI evidence
 

@@ -6,6 +6,12 @@ import { describe, expect, it } from 'vitest';
 import { changedPaths, planChanges, verificationPassed } from './change-plan.mjs';
 
 describe('verification lane selection', () => {
+  it('forces full coverage when review identifies high risk inside an otherwise mapped UI file', () => {
+    expect(planChanges(['apps/web/src/wealth/funding-plan.tsx'], 'pull_request', true).lane).toBe(
+      'full',
+    );
+    expect(planChanges(['README.md'], 'pull_request', true).lane).toBe('full');
+  });
   it('limits docs to non-executable documentation', () => {
     expect(planChanges(['README.md', 'docs/portfolio-funding-plan.md']).lane).toBe('docs');
   });

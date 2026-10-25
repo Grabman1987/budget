@@ -38,6 +38,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HIGH_RISK: ${{ contains(github.event.pull_request.labels.*.name, 'risk:high') }}
         run: node scripts/ci/change-plan.mjs
 
   # Push to main only: when this exact tree already passed its selected suite as a pull request (same

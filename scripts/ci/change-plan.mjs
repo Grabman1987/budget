@@ -17,7 +17,8 @@ export function fullPlan(reason) {
   return { lane: 'full', shards: FULL_SHARDS, specs: [], reason };
 }
 
-export function planChanges(paths, event = 'pull_request') {
+export function planChanges(paths, event = 'pull_request', highRisk = false) {
+  if (highRisk) return fullPlan('High-risk review classification requires full coverage.');
   if (event !== 'pull_request') return fullPlan('Only pull requests may use a focused lane.');
   if (!Array.isArray(paths) || paths.length === 0) return fullPlan('No changed-file evidence.');
   const specs = new Set();
@@ -94,6 +95,7 @@ function main() {
               process.env.HEAD_SHA || process.argv[3] || 'HEAD',
             ),
             event,
+            process.env.HIGH_RISK === 'true',
           )
         : fullPlan('Push, scheduled audit or manual full verification.');
   } catch {
