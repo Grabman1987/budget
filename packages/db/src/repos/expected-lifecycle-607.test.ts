@@ -18,6 +18,7 @@ import {
   endExpectedPayment,
   linkOccurrence,
   matchOccurrences,
+  monthIncome,
   listExpectedPayments,
   pauseExpectedPayment,
   refreshOccurrences,
@@ -96,6 +97,51 @@ const changes = () =>
   (opened.sqlite.prepare('SELECT total_changes() AS n').get() as { n: number }).n;
 
 describe('#607 atomic lifecycle and retained financial history', () => {
+  it('ending preserves the previous income report and its assigned occurrence, including whole Undo', () => {
+    const p = createExpectedPayment(
+      db,
+      {
+        name: 'Synthetic retained income',
+        kind: 'inflow',
+        accountId: 'giro',
+        incomeTypeId: INCOME_TYPES.salary.id,
+        dueDay: 25,
+        startDate: '2026-01-01',
+      },
+      { validFrom: '2026-01-01', amountCents: 10000 },
+      ctx,
+      TODAY,
+    ).payment;
+    const bookingId = createBooking(
+      db,
+      {
+        accountId: 'giro',
+        date: '2026-02-25',
+        amountCents: 10000,
+        splits: [{ categoryId: null, incomeTypeId: INCOME_TYPES.salary.id, amountCents: 10000 }],
+      },
+      ctx,
+    );
+    linkOccurrence(db, row(p.id, '2026-02-25').id, bookingId, ctx);
+    const before = monthIncome(db, '2026-02');
+    const assigned = row(p.id, '2026-02-25');
+    expect(before).toMatchObject({ month: '2026-02', expectedCents: 10000, receivedCents: 10000 });
+    expect(assigned).toMatchObject({
+      dueDate: '2026-02-25',
+      status: 'received',
+      expectedAmountCents: 10000,
+      bookingId,
+    });
+    const ended = endExpectedPayment(db, p.id, '2026-04-01', token(p.id), ctx, TODAY);
+    expect(monthIncome(db, '2026-02')).toEqual(before);
+    expect(row(p.id, '2026-02-25')).toEqual(assigned);
+    expect(monthIncome(db, '2026-04').expectedCents).toBe(0);
+    undo(db, { groupId: ended.groupId }, ctx);
+    expect(monthIncome(db, '2026-02')).toEqual(before);
+    expect(row(p.id, '2026-02-25')).toEqual(assigned);
+    expect(monthIncome(db, '2026-04').expectedCents).toBe(10000);
+  });
+
   it('suppresses only forward open rows, preserves cents/identities, and requires whole-action Undo', () => {
     const p = make();
     const past = row(p.id, '2026-02-25');
