@@ -6,6 +6,21 @@ import { describe, expect, it } from 'vitest';
 import { changedPaths, planChanges, verificationPassed } from './change-plan.mjs';
 
 describe('verification lane selection', () => {
+  it('covers price-history presentation and unions independent UI scopes', () => {
+    expect(planChanges(['apps/web/src/wealth/price-history.css']).specs).toEqual([
+      'e2e/portfolio-instruments.spec.ts',
+      'e2e/report-polish.spec.ts',
+    ]);
+    expect(
+      planChanges(['apps/web/src/wealth/price-history.tsx', 'apps/web/src/wealth/funding-plan.css'])
+        .specs,
+    ).toEqual([
+      'e2e/funding-plan.spec.ts',
+      'e2e/portfolio-instruments.spec.ts',
+      'e2e/report-polish.spec.ts',
+      'e2e/savings-plans.spec.ts',
+    ]);
+  });
   it('forces full coverage when review identifies high risk inside an otherwise mapped UI file', () => {
     expect(planChanges(['apps/web/src/wealth/funding-plan.tsx'], 'pull_request', true).lane).toBe(
       'full',

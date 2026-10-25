@@ -9,6 +9,14 @@ const FUNDING_SPECS = ['e2e/funding-plan.spec.ts', 'e2e/savings-plans.spec.ts'];
 const UI_SCOPES = new Map([
   ['apps/web/src/wealth/funding-plan.tsx', FUNDING_SPECS],
   ['apps/web/src/wealth/funding-plan.css', FUNDING_SPECS],
+  [
+    'apps/web/src/wealth/price-history.tsx',
+    ['e2e/report-polish.spec.ts', 'e2e/portfolio-instruments.spec.ts'],
+  ],
+  [
+    'apps/web/src/wealth/price-history.css',
+    ['e2e/report-polish.spec.ts', 'e2e/portfolio-instruments.spec.ts'],
+  ],
 ]);
 const isDoc = (path) =>
   path === 'README.md' || (/^docs\/.+\.md$/.test(path) && !/^docs\/(queue\/|ops\.md$)/.test(path));
@@ -37,7 +45,12 @@ export function planChanges(paths, event = 'pull_request', highRisk = false) {
     affected.forEach((spec) => specs.add(spec));
   }
   return specs.size
-    ? { lane: 'ui', shards: [1], specs: [...specs].sort(), reason: 'Mapped funding-plan UI only.' }
+    ? {
+        lane: 'ui',
+        shards: [1],
+        specs: [...specs].sort(),
+        reason: 'Explicitly mapped isolated UI changes.',
+      }
     : {
         lane: 'docs',
         shards: [1],
