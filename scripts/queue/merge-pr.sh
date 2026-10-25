@@ -29,7 +29,7 @@ gate_ok() { # main CI + deploy success for main head and live == main head
   local h; h=$(git rev-parse origin/main)
   [ "$(gh run list --workflow=ci.yml --branch main -L 1 --json headSha,conclusion -q '.[0].headSha+" "+.[0].conclusion')" = "$h success" ] || return 1
   # Audits can trigger an entirely skipped Deploy run. It is not a deployment attempt;
-  # keep the newest actual attempt (including pending, failed or cancelled attempts).
+  # keep the newest run not explicitly concluded skipped (pending/failure/cancellation block).
   [ "$(gh run list --workflow=deploy.yml -L 50 --json headSha,conclusion -q '[.[] | select(.conclusion != "skipped")][0] | .headSha+" "+.conclusion')" = "$h success" ] || return 1
   [ "$(health)" = "$h" ] || return 1
   echo "$h"

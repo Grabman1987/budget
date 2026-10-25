@@ -104,7 +104,7 @@ the static job to that critical path. Linux unit tests still run alongside stati
 Full audits run nightly at 02:17 UTC and can be started with **Actions → CI → Run
 workflow**. These audits never execute deployment; the follow-up Deploy workflow
 may be entirely skipped. The merge gate ignores entirely skipped Deploy runs while
-retaining the newest real attempt, including failures and pending attempts. A failed audit is investigated
+retaining the newest run not explicitly concluded skipped, including failures and pending runs. A failed audit is investigated
 before another integration. A push to main may reuse an identical validated PR tree;
 scheduled/manual audits always run the full suite.
 
