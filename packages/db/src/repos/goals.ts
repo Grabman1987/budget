@@ -627,7 +627,7 @@ export function goalsReport(db: Executor, today: string, month = today.slice(0, 
             ? null
             : g.categoryId
               ? (envelopes[i]?.envelopes[g.categoryId]?.availableCents ?? 0)
-              : (accountBalances(db, m === month ? today : lastDayOfMonth(m)).find(
+              : (accountBalances(db, m === today.slice(0, 7) ? today : lastDayOfMonth(m)).find(
                   (a) => a.accountId === g.accountId,
                 )?.balanceCents ?? 0),
         sollCents: g.targetDate ? goalSollCents(g.targetCents, start, target, m) : null,
