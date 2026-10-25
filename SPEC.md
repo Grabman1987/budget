@@ -1,5 +1,7 @@
 # Budget — Specification
 
+Owner funding-plan addition (2026-10-25): an editable private instrument-level scenario connects current market values, one-off cash, free settlement cash and a monthly contribution to recurring rates and deficit-based purchase budgets. The requested six-sleeve template splits the previous gold sleeve equally between gold and direct Bitcoin. Exact products and tax research remain private owner data. Persist only the planning snapshot through audited settings with conflict/undo guards; preparing a schedule reuses the explicit existing EUR savings form. No ledger, existing schedule or global class-target policy changes on plan save. This is a separately labelled scenario, not a change to the central allocation resolver or its month-end stage buffer. See [funding plan contract](docs/portfolio-funding-plan.md).
+
 Owner document-automation directive (2026-10-21, #741): a new explicit manual PDF
 upload may automatically save fully validated, unambiguous payroll or issued-card
 statement results and link their retained originals to the matching bookings.
