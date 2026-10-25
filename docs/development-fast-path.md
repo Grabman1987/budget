@@ -64,11 +64,40 @@ Cloud browser evidence can instead use the existing Playwright fixture servers;
 they create synthetic databases and exercise the existing authentication setup.
 Native Windows interactions still need the Windows machine.
 
-A previewable result and a production release are different milestones. Keep the PR
-open while preview/acceptance work is ongoing. Only the orchestrator publishes through
-`scripts/queue/merge-pr.sh`; this first rollout retains automatic deployment after a
-verified merge. No extra Fly application, public preview host or production setting
-has been created. A hosted preview would be a separate infrastructure change.
+A previewable result, verified merge and production release are different milestones.
+The owner-authorized continuation adds an authenticated hosted preview at
+`https://budget-fg-preview.fly.dev`, isolated from production, with synthetic fixtures,
+its own volume/passkeys/secrets, fixture prices and no bank/Dropbox/backup integration.
+Its one small machine stops when idle; its 1 GB volume remains allocated. Never put
+real data there. Existing synthetic preview data and passkeys survive deployments.
+The legacy suspended staging app is untouched. Preview login requires its own first
+passkey; the one-time setup token is delivered privately, never in this repository.
+
+Only the orchestrator integrates and publishes:
+
+```sh
+bash scripts/queue/merge-pr.sh PR --hold-release
+# Repeat for the next independently reviewed PR, after main CI passes.
+gh workflow run preview.yml --ref main -f revision=FULL_CURRENT_MAIN_SHA
+# Inspect the authenticated preview of this integrated candidate.
+bash scripts/queue/release.sh FULL_CURRENT_MAIN_SHA
+```
+
+This is a preview of integrated main, not an untrusted PR deployment. Both workflows
+accept only the full current-main SHA with its latest successful main CI. They recheck
+main before deploying and verify the exact health revision. Production credentials
+remain exclusively in the production environment; preview has an app-scoped token in
+its own main-only environment. `merge-pr.sh PR` remains a one-shot merge-and-release
+shortcut. No automatic release runs after each merge. A held merge is not live; only
+mark its PR complete after a released descendant contains it and acceptance is met.
+Do not leave a failed/pending release behind and continue merging. Main moving during
+integration requires restarting the helper; do not bypass its checks.
+
+For initial environment provisioning use the exact preview config, create one
+`preview_data` volume in `fra`, separate random `BUDGET_PEPPER` and setup token, and
+an app-scoped Fly deploy token. No production secret is copied. A new preview target
+must be built and its auth boundary checked before first publication. Codex cloud
+setup remains optional and separate from the hosted app preview.
 
 ## Check selection
 
@@ -90,12 +119,12 @@ when reproducing a high-risk PR's plan locally.
 | `ui` | Above plus all Linux unit/API tests and mapped Playwright specs with screenshot assertions and configured profiles |
 | `full` | Existing complete Linux/Windows, 12 browser shards, visual, Docker and restore coverage |
 
-The initial UI allowlist is intentionally limited to `wealth/funding-plan.tsx` and
+The UI allowlist includes `wealth/price-history.tsx` and its stylesheet, verified by `report-polish.spec.ts` and `portfolio-instruments.spec.ts`, plus `wealth/funding-plan.tsx` and
 `wealth/funding-plan.css`. It runs `funding-plan.spec.ts` and `savings-plans.spec.ts`.
 These specs currently capture screenshots for inspection; they do not contain
 baseline comparisons. The focused command does not disable screenshot assertions
 if any are added later (changing a spec itself still selects `full`).
-Changing the calculation, persistence, shared savings form, test files or another
+Changing the calculation, persistence, shared savings form, test files or an unmapped
 UI module selects `full`. Required checks retain their names and reject unexpected
 skips/failures. Adding another UI area needs an independently reviewed source-to-test
 mapping, not a label that bypasses checks. `risk:high` overrides the file mapping and
@@ -107,9 +136,8 @@ Browser/Windows jobs wait for static checks to pass. This avoids paying for a wh
 browser matrix when typechecking is already broken; on successful full runs it adds
 the static job to that critical path. Linux unit tests still run alongside static.
 Full audits run nightly at 02:17 UTC and can be started with **Actions → CI → Run
-workflow**. These audits never execute deployment; the follow-up Deploy workflow
-may be entirely skipped. The merge gate ignores entirely skipped Deploy runs while
-retaining the newest run not explicitly concluded skipped, including failures and pending runs. A failed audit is investigated
+workflow**. These audits do not trigger the manual-only Deploy workflow.
+The merge gate retains the newest deployment attempt, including failures and pending runs. A failed audit is investigated
 before another integration. A push to main may reuse an identical validated PR tree;
 scheduled/manual audits always run the full suite.
 

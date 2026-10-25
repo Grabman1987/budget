@@ -1,5 +1,7 @@
 # Operations: deployment, backup, restore
 
+Owner-authorized release batches (2026-10-25) supersede the older automatic-per-main-deploy instructions below. Integrate through `scripts/queue/merge-pr.sh PR --hold-release`, inspect the isolated synthetic preview (`preview.yml`, exact current-main SHA), then publish through `scripts/queue/release.sh FULL_MAIN_SHA`. The main-only Deploy workflow verifies the latest CI for that immutable current-main revision and exact live health. Main may intentionally be ahead of production; a pending or failed release still blocks further integration. The default merge helper performs both operations when batching is not wanted. This changes release timing, not production backup, authentication, schema or data protections. See [current development guide](development-fast-path.md). Preview credentials/volume belong exclusively to `budget-fg-preview`; never copy production data there. The suspended legacy staging app remains untouched.
+
 Runbook for the owner. Everything here is about the production app on Fly.io. No real data, keys or tokens belong in this file or in the repo: secrets live only in Fly secrets and GitHub Actions secrets. App name `budget-fg` is a placeholder; replace it if you chose another one (also in `fly.toml`).
 
 ## Gate 4: one parallel month close
