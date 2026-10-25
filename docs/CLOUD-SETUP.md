@@ -1,5 +1,11 @@
 # Einrichtung: GitHub, Claude Code in der Cloud, Fly.io
 
+For current tasks, use [the local/cloud development guide](development-fast-path.md)
+and [delivery process](queue/README.md). This page preserves the initial project
+setup history. The repository and production app already exist; do not recreate them
+or restart the old P1 task sequence below. Current prepared-cloud setup is
+`bash scripts/dev/setup-cloud.sh`; the current guide includes the task prompt.
+
 Historical Claude-cloud onboarding guide. Current implementation and acceptance status: [`STATUS.md`](STATUS.md); current work: [`ROADMAP.md`](ROADMAP.md). Real financial data, exports/mappings and production secrets stay outside cloud sessions. Use `docs/ops.md` for deployment and real backup/restore verification.
 
 ## 1. GitHub-Repo anlegen und hochladen

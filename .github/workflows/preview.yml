@@ -1,0 +1,57 @@
+name: Preview
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Full SHA of verified current main to preview (no production deployment)
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: preview
+  cancel-in-progress: false
+jobs:
+  preview:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: preview
+      url: https://budget-fg-preview.fly.dev
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify candidate
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVISION: ${{ inputs.revision }}
+        run: node scripts/ci/release-target.mjs
+      - name: Select source
+        env:
+          REVISION: ${{ steps.target.outputs.revision }}
+        run: git checkout --detach "$REVISION"
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
+      - name: Deploy isolated synthetic preview
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          REVISION: ${{ steps.target.outputs.revision }}
+        run: |
+          [ -n "$FLY_API_TOKEN" ] || { echo '::error::Preview token missing'; exit 1; }
+          git fetch -q origin main
+          [ "$(git rev-parse origin/main)" = "$REVISION" ] || { echo '::error::Main changed; select a new candidate.'; exit 1; }
+          flyctl deploy --config fly.preview.toml --app budget-fg-preview --remote-only --ha=false --build-arg BUDGET_BUILD_REVISION="$REVISION"
+          [ "$(flyctl machines list --app budget-fg-preview --json | jq 'length')" -eq 1 ]
+      - name: Verify preview revision
+        env:
+          REVISION: ${{ steps.target.outputs.revision }}
+        run: |
+          for attempt in $(seq 1 36); do
+            if curl -fsS --max-time 15 https://budget-fg-preview.fly.dev/health | jq -e --arg sha "$REVISION" '.status == "ok" and .revision == $sha'; then exit 0; fi
+            sleep 5
+          done
+          exit 1
