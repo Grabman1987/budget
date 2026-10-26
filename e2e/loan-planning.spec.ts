@@ -172,6 +172,7 @@ test('rate changes, scenarios and strategies on Schulden', async ({
         },
       };
     });
+    console.log('loan-rate-save-geometry', JSON.stringify(geometry));
     await testInfo.attach('loan-rate-save-geometry', {
       body: Buffer.from(JSON.stringify(geometry, null, 2)),
       contentType: 'application/json',
