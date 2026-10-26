@@ -189,3 +189,24 @@ read-only snapshots instead of loading the entire repository barrel. The
 orchestrator will run the new batch and existing guided cases in the
 canonical Linux desktop, mobile and WebKit iPhone profiles and review their
 synthetic PNGs. No local browser, full CI, push, PR or release is claimed here.
+
+## Executed final scoped browser proof
+
+[Run 40322302077](https://github.com/Grabman1987/budget/actions/runs/40322302077)
+actually checked out `8e7685c3bdf20a943b89ee007812d66503d856eb` and passed
+**11 tests in 1.5 minutes**, without retries, failures, skips or baseline changes.
+This is three setup cases, the guided close and new batch/Undo cases on desktop,
+Chromium mobile and WebKit iPhone (six feature cases), plus the existing inbox
+consumer on desktop/mobile. Both changed flows check both themes, Axe and page
+overflow; the new batch case checks 44px targets at phone widths. The actual
+summary and checkout SHA were inspected independently of the workflow status
+because its existing command retains `|| true`.
+
+Current synthetic PNGs are in the run's seven-day `scoped-browser-screenshots`
+artifact and private `600-bulk-browser-screenshots`; the earlier seven-pass/one-
+flaky run remains qualified history, rather than the final result. Independent
+review cleared the new browser case and copy-only carry label at `8e7685c3`,
+after the full financial review and historical/next-month fence corrections.
+Exact-head required CI, main integration and preview/production publication are
+still pending. Browser emulation is not a physical-device check. No live or
+complete claim is made for #600/#601/#602 at this checkpoint.
