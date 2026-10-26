@@ -279,7 +279,7 @@ test('connection cards explain limits and results, scope messages and deep-link 
   expect(new URL(page.url()).search).toBe('');
 });
 
-test('bank inbox suggestion requires an explicit posting decision', async ({ page }) => {
+test('bank inbox suggestion requires an explicit posting decision', async ({ page }, info) => {
   const candidateId = '10000000-0000-4000-8000-000000000003';
   let confirmed = false;
   await page.route(
@@ -352,9 +352,53 @@ test('bank inbox suggestion requires an explicit posting decision', async ({ pag
   await expect(page.getByText('Bankumsatz prüfen', { exact: true })).toBeVisible();
   expect(confirmed).toBe(false);
   await expect(page.getByRole('button', { name: 'Nicht übernehmen', exact: true })).toBeVisible();
+  const row = page.getByTestId('inbox-row');
+  if ((page.viewportSize()?.width ?? 0) >= 768) {
+    const cells = await row.locator(':scope > td').evaluateAll((nodes) =>
+      nodes.map((node) => ({
+        display: getComputedStyle(node).display,
+        top: node.getBoundingClientRect().top,
+        bottom: node.getBoundingClientRect().bottom,
+      })),
+    );
+    expect(cells).toHaveLength(3);
+    expect(cells.every((cell) => cell.display === 'table-cell')).toBe(true);
+    expect(new Set(cells.map((cell) => cell.top)).size).toBe(1);
+    expect(new Set(cells.map((cell) => cell.bottom)).size).toBe(1);
+  }
+  const actionCenters = await row.locator('.inbox-row-actions > .btn').evaluateAll((buttons) =>
+    buttons.map((button) => {
+      const box = button.getBoundingClientRect();
+      return box.top + box.height / 2;
+    }),
+  );
+  expect(actionCenters).toHaveLength(2);
+  expect(Math.abs(actionCenters[0]! - actionCenters[1]!)).toBeLessThanOrEqual(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'Übernehmen', exact: true }).click();
   const candidateDialog = page.getByRole('dialog', { name: 'Buchung übernehmen', exact: true });
   await expect(candidateDialog).toBeVisible();
+  await expect(
+    candidateDialog.getByRole('button', { name: 'Als Buchung bestätigen' }),
+  ).toBeEnabled();
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => (document.documentElement.dataset['theme'] = value), theme);
+    await expect(candidateDialog).toBeVisible();
+    for (const frame of ['.bk-head', '.bk-body', '.bk-foot']) {
+      await expect(candidateDialog.locator(frame)).toBeVisible();
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    expect((await new AxeBuilder({ page }).include('dialog[open]').analyze()).violations).toEqual(
+      [],
+    );
+    await page.screenshot({
+      path: info.outputPath(`candidate-dialog-${theme}.png`),
+      fullPage: true,
+    });
+  }
+  await page.evaluate(() => (document.documentElement.dataset['theme'] = 'light'));
   expect(confirmed).toBe(false);
   await candidateDialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
   await expect(candidateDialog).not.toBeVisible();
