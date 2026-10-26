@@ -70,8 +70,16 @@ rejected its one changed mobile image because uncontrolled scroll clipped the
 heading. The additive framing correction at `d717b640` is independently CLEAR;
 its targeted desktop/mobile check passed five cases (three setup) in 30.6 seconds,
 and scoped ESLint passed. Windows does not compare Linux baseline pixels. The
-corrected Linux regeneration is run `40247452561`; new images still need review.
-The workflow's tolerant exit alone is not used as proof of passing tests.
+corrected Linux regeneration
+[40247452561](https://github.com/Grabman1987/budget/actions/runs/40247452561) passed
+15 tests in 37.2 seconds without a failure/retry result. Its one corrected mobile
+image is independently CLEAR at merge `5d5f2abb`: title and amount are fully
+visible at page top. The workflow's tolerant exit alone is not used as proof.
+
+The seven images, seven runtime receipts, revision qualifications and all 45
+manifest hashes were independently reviewed CLEAR at `1f93fa7a`, including hash
+comparisons against immutable Git blobs. Main `7b77a574` (#770's daily-step chart)
+was merged without conflicts at `0958d43d`; payment source and tests are unchanged.
 
 Final required CI, remaining browser acceptance and verified publication are still
 pending. Migration49 has not been applied to production. #607 remains open.

@@ -226,6 +226,16 @@
     "independentReview": "CLEAR",
     "reason": "The first generated image had uncontrolled scroll and clipped the heading. Four additive framing lines establish page top and visible heading. Existing finance/Axe/timeouts unchanged.",
     "linuxRun": 40247452561,
-    "linuxStatus": "pending"
+    "linuxStatus": "passed",
+    "linuxPassed": 15,
+    "linuxSeconds": 37.2,
+    "baselineReview": "CLEAR at5d5f2abb1aa8633df8b648cd5bebf2f482dfffbe"
+  },
+  "independentEvidenceReview": "CLEAR at1f93fa7aa6bdb1ba026a5824cdaa9857be8a04ab; all45hashes match working and immutable Git bytes.",
+  "mainRefresh": {
+    "main": "7b77a5748c121e2f876006a8ba2c73ad33af3cee",
+    "merge": "0958d43d8e19b342837453cb31082dc64c387cea",
+    "conflicts": false,
+    "paymentSourceChanged": false
   }
 }
