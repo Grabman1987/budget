@@ -243,3 +243,13 @@ No old exact rail-name selector was found; the existing browser flow selects its
 visible title and remains unchanged. Focused Linux verification of these two
 specs and independent review of this delta are pending. No full-CI success or
 publication is claimed.
+
+Independent review of the complete follow-up delta is CLEAR at `4c0db51b`.
+Auxiliary Linux run `40280885011` was cancelled during browser/system-dependency
+installation after approximately nine minutes. Its completed log shows slow,
+continuing Ubuntu package downloads, not an application assertion failure. The
+test and baseline-commit steps were skipped; this run supplies no browser proof
+and changed no baselines. Instead of repeating that setup, the next required
+exact-head full CI exercises both corrected flows in its existing preinstalled
+Playwright container. The reviewed component regressions and precise trace
+causes above support this correction; full browser acceptance remains pending.
