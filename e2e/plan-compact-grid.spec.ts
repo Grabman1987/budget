@@ -410,7 +410,7 @@ test('compact groups retain cent totals, add controls, keyboard and multiple mon
       }
     }
     const axe = await new AxeBuilder({ page }).include('main').analyze();
-    expect(axe.violations.map((v) => v.id)).toEqual([]);
+    expect(axe.violations).toEqual([]);
     await page.screenshot({ path: info.outputPath(`plan-compact-${scheme}.png`) });
   }
 });

@@ -1586,7 +1586,7 @@ function Rail({
               <button
                 type="button"
                 className="rail-btn"
-                aria-label={`${g.title}: ${text}${isNext ? ', hier endet das Geld' : ''}`}
+                aria-label={`${g.no} ${g.title}${g.sub ? ` ${g.sub}` : ''} ${text}${isNext ? ', hier endet das Geld' : ''}`}
                 onClick={() => onJump(g.key)}
               >
                 <span className="rail-no">{g.no}</span>

@@ -13,9 +13,7 @@ async function inspect(page: Page, info: TestInfo, name: string) {
       true,
     );
     expect(
-      (
-        await new AxeBuilder({ page }).include('main').include('dialog[open]').analyze()
-      ).violations.map((v) => v.id),
+      (await new AxeBuilder({ page }).include('main').include('dialog[open]').analyze()).violations,
     ).toEqual([]);
     await page.screenshot({
       path: info.outputPath(`${name}-${theme}.png`),

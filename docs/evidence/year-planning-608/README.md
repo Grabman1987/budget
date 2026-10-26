@@ -64,3 +64,12 @@ The focused Linux run 40278198919 checked out exact `ffa7b494` and passed the sa
 updated lockfile and Axe 4.14. This repeats the earlier cases for the changed
 dependency graph; the counts are not an additional set of unique acceptance
 cases. Required full CI and exact-main publication still remain outstanding.
+
+The follow-up dependency candidate `4c0db51b` is also integrated for preparation.
+Its old annual occurrence matrix and its new matrix-only naming regression
+conflict with this feature's already replaced event-list view. Those two files
+retain this branch's independently reviewed annual implementation and tests
+byte-for-byte. The incoming waterfall naming correction and both strict Axe
+error-diagnostic improvements remain. No old matrix is restored. The event-list
+view retains its own privacy regression and the Axe 4.14 browser evidence above;
+this merge does not claim a new browser or full-CI run.
