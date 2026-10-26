@@ -243,3 +243,61 @@ No old exact rail-name selector was found; the existing browser flow selects its
 visible title and remains unchanged. Focused Linux verification of these two
 specs and independent review of this delta are pending. No full-CI success or
 publication is claimed.
+
+Independent review of the complete follow-up delta is CLEAR at `4c0db51b`.
+Auxiliary Linux run `40280885011` was cancelled during browser/system-dependency
+installation after approximately nine minutes. Its completed log shows slow,
+continuing Ubuntu package downloads, not an application assertion failure. The
+test and baseline-commit steps were skipped; this run supplies no browser proof
+and changed no baselines. Instead of repeating that setup, the next required
+exact-head full CI exercises both corrected flows in its existing preinstalled
+Playwright container. The reviewed component regressions and precise trace
+causes above support this correction; full browser acceptance remains pending.
+
+### Proven rail word-boundary correction
+
+Required run `40281973655` at `d69973e0` passed the old annual flow but still
+failed the desktop compact-grid rail check. The label-only rail correction was
+insufficient: its displayed spans had no literal word boundaries. Axe 4.14's
+`visibleVirtual` joins descendant text nodes without inserting CSS grid gaps,
+whereas the explicit accessible name contained spaces. The unit check had only
+verified that explicit name, so it did not detect this difference.
+
+A local Chromium reproduction used the exact synthetic failing node and current
+production `plan.css`, recording the unchanged Axe check's input strings:
+
+| State | Visible text read by Axe | Accessible name | Rule violations |
+| --- | --- | --- | --- |
+| Before | `3Liquiditätspufferkeine Posten` | `3 Liquiditätspuffer keine Posten` | 1 |
+| With literal separators | `3 Liquiditätspuffer keine Posten` | `3 Liquiditätspuffer keine Posten` | 0 |
+
+The button and all four grid-child rectangles were exactly identical before and
+after that single-variable change. This is a synthetic component experiment,
+not evidence that the whole application passed. Its local script/result are
+`private/707-rail-browser-repro.mjs` and `.json`.
+
+The final source change only adds literal spaces between the rail number, title,
+optional subtitle and status. The independently reviewed explicit name and
+next-stage hint remain intact; CSS, amounts and actions are unchanged. The
+existing `plan-menus.test.tsx` regression now additionally checks the literal
+rendered text: it failed with `1Fixkosten & Mindestratenkeine Posten` before the
+change, then the whole 9-case suite passed. No prior financial expectation was
+changed and no extra browser assertion, skip or timeout was altered.
+
+After a successful local E2E build, the existing desktop
+`plan-compact-grid.spec.ts` passed on the real app with installed Chromium:
+**4 passed = 3 setup cases + 1 complete desktop flow**, no retries. The feature
+took 30.2 seconds; the run including synthetic database setup took 2.7 minutes.
+It retained both themes, strict Axe scans, literal cent results, keyboard and
+multiple-month interactions, and existing layout checks. The resulting light
+image was inspected; no tracked baseline changed. Scoped ESLint and formatting
+also passed. Local records are `private/707-rail-boundary-red.log`,
+`707-rail-boundary-green.log`, `707-rail-boundary-build.log` and
+`707-rail-desktop-flow.log`; counts across these runs overlap.
+
+After this focused browser pass, the orchestrator cancelled the remaining jobs
+of the already-failed required run `40281973655` to free the full-CI lane.
+Unfinished/cancelled jobs are not counted as passing. This is distinct from the
+earlier auxiliary run cancelled during package installation. A new complete
+exact-head required run, independent final-delta review and publication remain
+pending; no full-CI success or live-delivery claim is made here.
