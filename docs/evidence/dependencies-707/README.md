@@ -199,3 +199,47 @@ must not be summed as distinct tests. The additional same-pattern adapters in
 other specs remain subject to the upcoming exact-head full CI. No baseline,
 financial expectation, timeout, skip policy or verification gate was relaxed.
 Required CI, integration and publication are still pending.
+
+### Full-CI follow-up: waterfall rail and old annual occurrence grid
+
+Full CI `40278334866` at `e89293c1` found two further desktop naming failures in
+`plan-compact-grid.spec.ts` and `plan-year-events.spec.ts`, including their
+configured retries. Shard 4 also recorded the separate existing portfolio retry
+button detachment as flaky; this patch does not change that test or its timeout.
+
+The original synthetic traces in artifact `12632160209` identify the exact
+failing controls: waterfall `.rail-btn` names omitted their visible stage
+numbers, and annual `.event-plan` names omitted the displayed `−100,01 €`
+occurrence amounts. The rail name now follows its rendered number, title,
+optional subtitle and status, retaining the next-stage explanation. The annual
+name retains the event/date/edit context and includes its existing formatted
+amount and disabled marker. The formatter retains privacy masking. Visible
+contents, CSS, calculations, scenarios and click handlers are unchanged.
+
+The previous populated-control checks did not open the waterfall inspector and
+did not populate this old annual occurrence grid. Their passing results remain
+valid for their exercised states, not evidence of complete route/state coverage.
+The separately prepared annual redesign is not used to bypass this failure:
+PR707 must pass independently on its current annual implementation.
+
+Per-file test rationale:
+
+- `plan-menus.test.tsx` adds literal visible waterfall stage/status names and
+  verifies the interaction performs no financial writes. Two initial assumptions
+  in this new test were corrected after inspecting its fixture and caller: the
+  fixture has zero target need, so it has no next-stage suffix, and the inspector
+  rail stays a waterfall when the main grid changes view. No pre-existing test
+  expectation was changed. The final suite passed all 9 cases.
+- `year-planning.test.tsx` adds literal enabled, disabled and privacy-masked
+  occurrence names; resets the test-only privacy flag after each case. All 5
+  cases passed in the initial two-suite run (13 passed, 1 new rail-test failure).
+- `plan-compact-grid.spec.ts` and `plan-year-events.spec.ts` now assert the full
+  violations array is empty instead of mapping it to IDs first. The assertion
+  remains equally strict and exposes the exact failing nodes directly in CI,
+  avoiding a large trace download for future diagnosis. All financial, geometry,
+  Undo, focus, timeout and profile expectations remain unchanged.
+
+No old exact rail-name selector was found; the existing browser flow selects its
+visible title and remains unchanged. Focused Linux verification of these two
+specs and independent review of this delta are pending. No full-CI success or
+publication is claimed.
