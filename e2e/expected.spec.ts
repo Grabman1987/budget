@@ -162,6 +162,10 @@ test.describe('look', () => {
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.locator('.xp-occ li').first()).toBeVisible();
     expect(await serious(page)).toEqual([]);
+    // Detail navigation preserves scroll; frame this screenshot independently of row position.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    await expect(page.getByRole('heading', { name: 'Strom', exact: true })).toBeInViewport();
     await expectScreenshot(page, 'expected-panel-light.png');
   });
 

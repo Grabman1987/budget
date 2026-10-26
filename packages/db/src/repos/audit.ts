@@ -2,6 +2,10 @@ import { assertExposureInvariants } from './asset-exposure';
 import { assertAssetClassName, assertAssetTargetInvariants } from './securities';
 import { assertLoanPlanInvariants } from './loan-planning';
 import { assertIncomePauseInvariants } from './income-pause-invariants';
+import {
+  preparePaymentLifecycleUndo,
+  assertPaymentLifecycleUndo,
+} from './expected-lifecycle-invariants';
 import { assertContactName, assertContactUndoDependencies } from './contact-invariants';
 import { isDuplicatePayslip } from '@budget/domain';
 import { assertReceiptUndo } from './receipts';
@@ -739,6 +743,7 @@ export function undo(
           'Der Stichtag ist bereits festgeschrieben. Zuerst die Kontoprüfung rückgängig machen.',
         );
     }
+    const paymentLifecycleUndo = preparePaymentLifecycleUndo(tx, originals);
     const touched = originals.map(bookingOf).filter((id): id is string => id !== undefined);
     const expectedLinkBookings = new Set(touched);
     for (const entry of originals)
@@ -773,6 +778,7 @@ export function undo(
         'Cannot undo: the result would leave an expected payment linked to a missing, deleted, or mismatched booking; undo the related booking and occurrence action together',
       );
     }
+    assertPaymentLifecycleUndo(tx, paymentLifecycleUndo);
     for (const entry of originals.filter((e) => e.entityType === 'project')) {
       const retained = tx
         .select()

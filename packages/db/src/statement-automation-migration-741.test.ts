@@ -11,12 +11,11 @@ import {
 } from './client';
 import { accounts } from './repos/entities';
 import { createBooking } from './repos/bookings';
-import { history, undo } from './repos/audit';
+import { history, recordAudit, undo, type Snapshot } from './repos/audit';
 import { balanceSeries } from './repos/ledger-queries';
 import { stageStatementIntake, mutateStatementIntake } from './repos/statement-intake';
 import { performStatementAction } from './repos/statement-settlement';
 import { saveStatementAutomationConfig } from './repos/statement-automation';
-import { createExpectedPayment } from './repos/expected';
 
 const ctx = { actor: 'synthetic-copy-owner-741' };
 const CARD = '74100000-0000-4000-8000-000000000101';
@@ -113,19 +112,59 @@ beforeEach(() => {
       },
       ctx,
     );
-    createExpectedPayment(
-      existing.db,
-      {
-        name: 'Synthetic recurring debit',
-        accountId: FUND,
-        kind: 'outflow',
-        dueDay: 12,
-        startDate: '2031-01-01',
-      },
-      { validFrom: '2031-01-01', amountCents: 10000 },
-      ctx,
-      '2031-01-01',
-    );
+    // Seed the historical 46 shape directly: today's writer requires migration49.
+    // Retain the original monthly horizon, literal cents and grouped creation audit.
+    const paymentId = '74100000-0000-4000-8000-000000000120';
+    existing.sqlite
+      .prepare(
+        `INSERT INTO expected_payment
+        (id,name,account_id,kind,due_day,start_date)
+        VALUES (?,'Synthetic recurring debit',?,'outflow',12,'2031-01-01')`,
+      )
+      .run(paymentId, FUND);
+    existing.sqlite
+      .prepare(
+        `INSERT INTO expected_payment_version
+        (id,expected_payment_id,valid_from,amount_cents)
+        VALUES ('74100000-0000-4000-8000-000000000121',?,'2031-01-01',10000)`,
+      )
+      .run(paymentId);
+    for (const [index, dueDate] of [
+      '2031-01-12',
+      '2031-02-12',
+      '2031-03-12',
+      '2031-04-12',
+      '2031-05-12',
+      '2031-06-12',
+      '2031-07-12',
+      '2031-08-12',
+      '2031-09-12',
+      '2031-10-12',
+      '2031-11-12',
+      '2031-12-12',
+      '2032-01-12',
+    ].entries())
+      existing.sqlite
+        .prepare(
+          `INSERT INTO expected_occurrence
+          (id,expected_payment_id,due_date,expected_amount_cents)
+          VALUES (?,?,?,-10000)`,
+        )
+        .run(
+          `74100000-0000-4000-8000-0000000002${String(index).padStart(2, '0')}`,
+          paymentId,
+          dueDate,
+        );
+    for (const table of ['expected_payment', 'expected_payment_version', 'expected_occurrence'])
+      for (const row of existing.sqlite.prepare(`SELECT * FROM ${table}`).all() as Snapshot[])
+        recordAudit(existing.db, {
+          actor: ctx.actor,
+          action: 'create',
+          entityType: table,
+          entityId: String(row['id']),
+          after: row,
+          groupId: '74100000-0000-4000-8000-000000000122',
+        });
     const sha = 'b'.repeat(64),
       proposal = parseStatementText(
         'Rechnungsnummer SYNTHETIC-LEGACY-741\nRechnungsdatum 04.01.2031\nAbrechnungsbetrag 100,00 EUR\nEinzugsdatum 12.01.2031',
