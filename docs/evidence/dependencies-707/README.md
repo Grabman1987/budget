@@ -377,3 +377,17 @@ The final log and failure trace were retained at
 `707-monthclose-readiness-trace.zip` and `707-monthclose-readiness-error.md`.
 Scoped ESLint and formatting passed after the final assertion. Independent
 review and exact-head full CI remain required.
+
+### Reuse the existing Linux browser runtime
+
+The manual snapshot/diagnostic workflow now uses the same pinned
+`mcr.microsoft.com/playwright:v1.64.1-noble` image as required CI, matching the
+locked Playwright 1.64.1 package. Bash and the existing CI safe-directory pattern
+support its unchanged scripts and baseline commit. This removes only the
+redundant browser/system-package installation that delayed auxiliary run
+`40280885011`. Branch protection, the non-main guard, inputs, credentials,
+timeouts, test commands and baseline review obligations are unchanged. The
+workflow still permits a failing test step, so its actual test summary must be
+inspected; workflow success alone is not acceptance. A scoped Linux run and
+independent review of this runner change are pending. No measured speedup or new
+browser pass is claimed by changing the workflow.
