@@ -216,7 +216,7 @@
       "sha256": "59197c2a69716b7806d5cad2ffd589bec46335f71e12028ae5440ac486430d87"
     }
   ],
-  "acceptance": "Exact-head Linux CI, baseline review and verified publication pending. Not physical-device evidence.",
+  "acceptance": "Exact-head Linux CI and verified publication pending. Not physical-device evidence.",
   "sourceHashesRevision": "d717b640d4d758f8c12ebe0610793b2cc5bc174a",
   "snapshotFraming": {
     "revision": "d717b640d4d758f8c12ebe0610793b2cc5bc174a",
